@@ -1,0 +1,10 @@
+name: zonai_logger
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dependencies:
+  io: ^1.0.5
