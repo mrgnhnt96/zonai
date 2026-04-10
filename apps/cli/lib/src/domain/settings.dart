@@ -1,0 +1,42 @@
+import 'dart:convert';
+
+import 'package:yaml/yaml.dart';
+import 'package:zonai_cli/src/deps/fs.dart';
+
+class Settings {
+  const Settings({required this.migrationsPath, required this.schemasPath});
+
+  factory Settings.load() {
+    final settings = switch ((fs.file('zonai.yml'), fs.file('zonai.yaml'))) {
+      (final file, _) when file.existsSync() => file,
+      (_, final file) when file.existsSync() => file,
+      (_, _) => null,
+    };
+
+    final defaultSettings = Settings(
+      migrationsPath: fs.path.join('zonai', 'migrations'),
+      schemasPath: fs.path.join('lib', 'src', 'schemas'),
+    );
+
+    if (settings == null) {
+      return defaultSettings;
+    }
+
+    final yaml = loadYaml(settings.readAsStringSync());
+    final map = jsonDecode(jsonEncode(yaml));
+
+    return Settings(
+      migrationsPath: switch (map['migrationsPath']) {
+        final String value => value,
+        _ => defaultSettings.migrationsPath,
+      },
+      schemasPath: switch (map['schemasPath']) {
+        final String value => value,
+        _ => defaultSettings.schemasPath,
+      },
+    );
+  }
+
+  final String migrationsPath;
+  final String schemasPath;
+}

@@ -8,6 +8,9 @@ environment:
 
 dependencies:
   file: ">=6.0.0 <8.0.0"
+  yaml: ^3.1.0
+  raindrop_cli:
+    path: ../../libs/raindrop/packages/raindrop_cli
   scoped_deps: ^0.1.0+2
   zonai_logger:
     path: ../../libs/zonai_logger

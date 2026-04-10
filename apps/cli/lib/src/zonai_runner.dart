@@ -1,32 +1,41 @@
-import 'package:zonai_cli/src/commands/migrate.dart';
+import 'package:zonai_cli/src/commands/migrate/migrate.dart';
 import 'package:zonai_cli/src/commands/serve.dart';
 import 'package:zonai_cli/src/deps/args.dart';
 
 const _usage = '''
-Usage: zonai <command>
+Usage: zonai <command> [options]
 
 Commands:
   help        Show help information
   version     Show version information
-  migrate     Migrate the database
+  migrate     Manage SQL migrations
   serve       Serve the application
 ''';
 
-Future<void> run() async {
-  if (args['help'] case null || true) {
-    print(_usage);
-    return;
-  }
-
+Future<int> run() async {
   if (args.path.isEmpty) {
     print(_usage);
-    return;
+    return 1;
+  }
+
+  if (args.help && args.path.isEmpty) {
+    print(_usage);
+    return 1;
+  }
+
+  if (args.path case ['version']) {
+    print('zonai_cli');
+    return 1;
   }
 
   switch (args.path) {
-    case ['migrate']:
-      migrate();
+    case ['migrate' || 'migrations' || 'm' || 'migration', ...final path]:
+      return await migrate(path);
     case ['serve']:
-      serve();
+      return await serve();
+    default:
+      print(_usage);
   }
+
+  return 1;
 }
