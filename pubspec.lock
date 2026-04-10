@@ -41,6 +41,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.1"
+  autoequal:
+    dependency: transitive
+    description:
+      name: autoequal
+      sha256: "186f99b614d8dd5b5756b26b6208d21ab948d7798ecfdf84669fff18eed7aab2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.1"
   bloc:
     dependency: transitive
     description:
@@ -233,6 +241,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  copy_with_extension:
+    dependency: transitive
+    description:
+      name: copy_with_extension
+      sha256: fbcf890b0c34aedf0894f91a11a579994b61b4e04080204656b582708b5b1125
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.4"
   coverage:
     dependency: transitive
     description:
@@ -584,6 +600,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.2"
+  hotreloader:
+    dependency: transitive
+    description:
+      name: hotreloader
+      sha256: "66871df468fc24eee81f1a0a7cb98acc104716f9b7376d355437b48d633c4ebf"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.4.0"
   http:
     dependency: transitive
     description:
@@ -1000,6 +1024,86 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
+  revali:
+    dependency: transitive
+    description:
+      name: revali
+      sha256: b5d6441139d59b28fcbb3383127c28d8761c57517557d6905a7e3e68db8b384a
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.9"
+  revali_annotations:
+    dependency: transitive
+    description:
+      name: revali_annotations
+      sha256: "3c48a313f752164641725a0864ddbbf58d0a1a787580de60f63e5e93541ebb99"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.2"
+  revali_client:
+    dependency: transitive
+    description:
+      name: revali_client
+      sha256: e59ab1938670895f8a9cb4d3294568d68697e6bf95b3b86fd35bf56bf4610591
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.4"
+  revali_client_gen:
+    dependency: transitive
+    description:
+      name: revali_client_gen
+      sha256: "07a472df78f01b560f27630bb3cd583862f50b63715700ebe9b92939a871a079"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.2"
+  revali_construct:
+    dependency: transitive
+    description:
+      name: revali_construct
+      sha256: bfe5a877d3e8edd228eb8908b35eee81de89fc8347680ab158b67a9e68a0204b
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.4"
+  revali_core:
+    dependency: transitive
+    description:
+      name: revali_core
+      sha256: bbc804d6c0bacb9480ae315098dd1055d83d2155e376b6085f462f5c081615ca
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.0"
+  revali_router:
+    dependency: transitive
+    description:
+      name: revali_router
+      sha256: d53f5c7d02a884a829d3689f4d5bab5e9ff94dc205c0bba222f00ed4262112ff
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.7"
+  revali_router_annotations:
+    dependency: transitive
+    description:
+      name: revali_router_annotations
+      sha256: "02c5064086f33d9f1bf2cbf00c9a6a2c4a6284df460c7dcd857f39046440ee47"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.2+1"
+  revali_router_core:
+    dependency: transitive
+    description:
+      name: revali_router_core
+      sha256: "2961849bcf0caf52aad1cbd8a384c5bc3aabc1227c36802b1b0619b9230a871e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.3+1"
+  revali_server:
+    dependency: transitive
+    description:
+      name: revali_server
+      sha256: c632df639e48ddca4e25df937c99480bf7a578f01270e1f6d1ba7c3778a0b299
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.5"
   scoped_deps:
     dependency: transitive
     description:

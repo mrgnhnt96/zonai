@@ -5,7 +5,9 @@ publish_to: none
 workspace:
   - libs/**
   - support/**
-  - apps/**
+  # Use shallow globs so Revali output under apps/server/.revali/ is not a member.
+  - apps/*
+  - apps/web/packages/*
 
 environment:
   sdk: ">=3.11.0 <4.0.0"

@@ -3,7 +3,8 @@
 .packages
 pubspec_overrides.yaml
 
-# Workspace lockfile: keep root pubspec.lock committed for reproducible builds.
+# Backend
+.revali
 
 # Flutter
 build/
