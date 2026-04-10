@@ -1,0 +1,14 @@
+name: zonai_db
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dependencies:
+  zonai_domain:
+    path: ../../libs/domain
+
+dev_dependencies:
+  test: ^1.26.0

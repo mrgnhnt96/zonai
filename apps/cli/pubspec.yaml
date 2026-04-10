@@ -1,0 +1,13 @@
+name: zonai_cli
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dependencies:
+  scoped_deps: ^0.1.0+2
+
+dev_dependencies:
+  test: ^1.26.0

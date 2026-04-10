@@ -1,0 +1,11 @@
+name: zonai
+publish_to: none
+
+workspace:
+  - libs/domain
+  - support/infra
+  # ignore: path_does_not_exist
+  - apps/*
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"

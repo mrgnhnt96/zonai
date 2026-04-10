@@ -1,0 +1,10 @@
+name: zonai_infra
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dev_dependencies:
+  pnv: ^1.7.2

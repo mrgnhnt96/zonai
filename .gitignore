@@ -1,0 +1,41 @@
+# Dart / Pub
+.dart_tool/
+.packages
+pubspec_overrides.yaml
+
+# Workspace lockfile: keep root pubspec.lock committed for reproducible builds.
+
+# Flutter
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.fvm
+
+# Tests & coverage
+coverage/
+.test_coverage.dart
+
+# Generated API docs
+doc/api/
+
+# FVM (commit .fvm/fvm_config.json and .fvm/release)
+.fvm/flutter_sdk
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+*.tmp
+*.swp
+*~
+
+# Secrets (adjust if you commit non-secret env files)
+.env
+.env.*
+!.env.example
