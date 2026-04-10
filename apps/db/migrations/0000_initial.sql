@@ -1,0 +1,5 @@
+CREATE TABLE "items" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "body" TEXT NOT NULL,
+  "created_at" INTEGER
+);

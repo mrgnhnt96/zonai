@@ -1,0 +1,5 @@
+db:
+  gen:
+    migrations:
+      (command): cd apps/db && dart run raindrop_cli:raindrop generate {-n} {--name}
+      (aliases): [mig, m, migrate, migration]

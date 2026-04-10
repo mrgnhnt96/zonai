@@ -7,10 +7,13 @@ environment:
   sdk: ">=3.11.0 <4.0.0"
 
 dependencies:
+  file: ">=6.0.0 <8.0.0"
   raindrop:
     path: ../../libs/raindrop/packages/raindrop
-  zonai_domain:
-    path: ../../libs/domain
+  raindrop_sqlite:
+    path: ../../libs/raindrop/packages/raindrop_sqlite
 
 dev_dependencies:
+  raindrop_cli:
+    path: ../../libs/raindrop/packages/raindrop_cli
   test: ^1.26.0

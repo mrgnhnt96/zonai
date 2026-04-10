@@ -1,0 +1,20 @@
+{
+  "version": "1",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "1",
+      "when": 1775827759782,
+      "tag": "0000_initial",
+      "snapshotId": "2c8a4857-d415-4d33-ae69-fe9c1af418e7"
+    },
+    {
+      "idx": 1,
+      "version": "1",
+      "when": 1775828250033,
+      "tag": "0001_add_description",
+      "snapshotId": "c750c824-8993-49e4-8448-ee5d1eb67f81"
+    }
+  ]
+}

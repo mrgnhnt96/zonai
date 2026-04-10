@@ -39,3 +39,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Local / dev databases (e.g. zonai SQLite under apps/db/data/)
+*.sqlite
+*.sqlite3
+*.db
