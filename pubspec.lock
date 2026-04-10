@@ -41,14 +41,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.1"
-  autoequal:
-    dependency: transitive
-    description:
-      name: autoequal
-      sha256: "186f99b614d8dd5b5756b26b6208d21ab948d7798ecfdf84669fff18eed7aab2"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.1"
   bloc:
     dependency: transitive
     description:
@@ -97,6 +89,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
+  buffer:
+    dependency: transitive
+    description:
+      name: buffer
+      sha256: "389da2ec2c16283c8787e0adaede82b1842102f8c8aae2f49003a766c5c6b3d1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.3"
   build:
     dependency: transitive
     description:
@@ -161,6 +161,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  charcode:
+    dependency: transitive
+    description:
+      name: charcode
+      sha256: fb0f1107cac15a5ea6ef0a6ef71a807b9e4267c713bb93e00e92d737cc8dbd8a
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.0"
   checked_yaml:
     dependency: transitive
     description:
@@ -225,14 +233,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
-  copy_with_extension:
-    dependency: transitive
-    description:
-      name: copy_with_extension
-      sha256: fbcf890b0c34aedf0894f91a11a579994b61b4e04080204656b582708b5b1125
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.0.4"
   coverage:
     dependency: transitive
     description:
@@ -584,14 +584,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.2"
-  hotreloader:
-    dependency: transitive
-    description:
-      name: hotreloader
-      sha256: "66871df468fc24eee81f1a0a7cb98acc104716f9b7376d355437b48d633c4ebf"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.4.0"
   http:
     dependency: transitive
     description:
@@ -720,6 +712,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  lints:
+    dependency: transitive
+    description:
+      name: lints
+      sha256: c35bb79562d980e9a453fc715854e1ed39e24e7d0297a880ef54e17f9874a9d7
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.1"
   logging:
     dependency: transitive
     description:
@@ -912,14 +912,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.7.2"
-  pocketbase:
-    dependency: transitive
-    description:
-      name: pocketbase
-      sha256: b94e63f00ce29c5f465e8122ae63cdf4e3c37f9b3dc6d04f0dfe6625bcdb8839
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.23.2"
   pointer_interceptor:
     dependency: transitive
     description:
@@ -976,6 +968,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.5.0"
+  postgres:
+    dependency: transitive
+    description:
+      name: postgres
+      sha256: fefbbfe749c6130e5096588b9c4459173684c695952cd7636ab19be76f255469
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.5.9"
   provider:
     dependency: transitive
     description:
@@ -1000,86 +1000,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
-  revali:
-    dependency: transitive
-    description:
-      name: revali
-      sha256: b5d6441139d59b28fcbb3383127c28d8761c57517557d6905a7e3e68db8b384a
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.9"
-  revali_annotations:
-    dependency: transitive
-    description:
-      name: revali_annotations
-      sha256: "3c48a313f752164641725a0864ddbbf58d0a1a787580de60f63e5e93541ebb99"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2"
-  revali_client:
-    dependency: transitive
-    description:
-      name: revali_client
-      sha256: e59ab1938670895f8a9cb4d3294568d68697e6bf95b3b86fd35bf56bf4610591
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.4"
-  revali_client_gen:
-    dependency: transitive
-    description:
-      name: revali_client_gen
-      sha256: "07a472df78f01b560f27630bb3cd583862f50b63715700ebe9b92939a871a079"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2"
-  revali_construct:
-    dependency: transitive
-    description:
-      name: revali_construct
-      sha256: bfe5a877d3e8edd228eb8908b35eee81de89fc8347680ab158b67a9e68a0204b
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.4"
-  revali_core:
-    dependency: transitive
-    description:
-      name: revali_core
-      sha256: bbc804d6c0bacb9480ae315098dd1055d83d2155e376b6085f462f5c081615ca
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.0"
-  revali_router:
-    dependency: transitive
-    description:
-      name: revali_router
-      sha256: d53f5c7d02a884a829d3689f4d5bab5e9ff94dc205c0bba222f00ed4262112ff
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.7"
-  revali_router_annotations:
-    dependency: transitive
-    description:
-      name: revali_router_annotations
-      sha256: "02c5064086f33d9f1bf2cbf00c9a6a2c4a6284df460c7dcd857f39046440ee47"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2+1"
-  revali_router_core:
-    dependency: transitive
-    description:
-      name: revali_router_core
-      sha256: "2961849bcf0caf52aad1cbd8a384c5bc3aabc1227c36802b1b0619b9230a871e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.3+1"
-  revali_server:
-    dependency: transitive
-    description:
-      name: revali_server
-      sha256: c632df639e48ddca4e25df937c99480bf7a578f01270e1f6d1ba7c3778a0b299
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.5"
   scoped_deps:
     dependency: transitive
     description:
@@ -1173,6 +1093,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.2"
+  sqlite3:
+    dependency: transitive
+    description:
+      name: sqlite3
+      sha256: "3145bd74dcdb4fd6f5c6dda4d4e4490a8087d7f286a14dee5d37087290f0f8a2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.9.4"
   stack_trace:
     dependency: transitive
     description:
@@ -1357,6 +1285,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  very_good_analysis:
+    dependency: transitive
+    description:
+      name: very_good_analysis
+      sha256: "9ae7f3a3bd5764fb021b335ca28a34f040cd0ab6eec00a1b213b445dae58a4b8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.0"
   vm_service:
     dependency: transitive
     description:

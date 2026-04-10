@@ -1,11 +1,11 @@
+# ignore_for_file: path_does_not_exist
 name: zonai
 publish_to: none
 
 workspace:
-  - libs/domain
-  - support/infra
-  # ignore: path_does_not_exist
-  - apps/*
+  - libs/**
+  - support/**
+  - apps/**
 
 environment:
   sdk: ">=3.11.0 <4.0.0"

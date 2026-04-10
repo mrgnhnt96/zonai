@@ -1,0 +1,58 @@
+# Get started
+
+This repository is a Dart pub workspace named **zonai**. Use the pinned Flutter/Dart SDK via **FVM** so versions match the team and `pubspec.yaml` constraints.
+
+## Prerequisites
+
+- [Git](https://git-scm.com/)
+- [FVM](https://fvm.app/) (Flutter Version Management)
+
+## 1. Clone and submodules
+
+```bash
+git clone <repository-url> zonai
+cd zonai
+git submodule update --init --recursive
+```
+
+The **raindrop** ORM lives under `libs/raindrop` as a submodule. Its upstream repo root is a separate Dart workspace; checking out only `packages/` avoids a conflict with this monorepo’s workspace resolution (“stray pubspec”). Run:
+
+```bash
+./tool/setup_raindrop_submodule.sh
+```
+
+Run this after clone, or whenever `libs/raindrop` looks like a full upstream checkout again (for example after `git submodule update` without sparse checkout). The script initializes the submodule if needed and applies the sparse-checkout rules.
+
+## 2. Flutter / Dart SDK (FVM)
+
+This project pins a Flutter version under `.fvm/` (see `.fvm/fvm_config.json`). Install and use it from the repo root:
+
+```bash
+fvm install
+fvm use
+```
+
+If `fvm use` reports the version is already installed, you can skip `fvm install`.
+
+## 3. Dependencies
+
+Resolve the whole workspace from the repository root:
+
+```bash
+fvm dart pub get
+```
+
+## 4. Optional checks
+
+- Run CLI package tests:
+
+  ```bash
+  fvm dart test apps/cli
+  ```
+
+- **Infra / env tooling** (`pnv`) is declared in `support/infra`; use that package’s workflows when you work on infrastructure.
+
+## Troubleshooting
+
+- **`Found a pubspec.yaml ... stray`** near `libs/raindrop`: run `./tool/setup_raindrop_submodule.sh` so the raindrop root `pubspec.yaml` is not present beside `packages/`.
+- **SDK version errors**: ensure you are using `fvm dart` / `fvm flutter`, not a mismatched global SDK.

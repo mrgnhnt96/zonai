@@ -1,0 +1,3 @@
+[submodule "libs/raindrop"]
+	path = libs/raindrop
+	url = https://github.com/wolfenrain/raindrop.git
