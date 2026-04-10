@@ -1,0 +1,46 @@
+{
+  "version": "1",
+  "dialect": "sqlite",
+  "id": "79d5a4c4-6490-4b67-b464-d733738cc9c4",
+  "prevId": "c750c824-8993-49e4-8448-ee5d1eb67f81",
+  "tables": {
+    "items": {
+      "name": "items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "INTEGER",
+          "primaryKey": true,
+          "isNullable": true,
+          "autoincrement": true
+        },
+        "body": {
+          "name": "body",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "description": {
+          "name": "description",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "status": {
+          "name": "status",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    }
+  },
+  "indexes": {},
+  "foreignKeys": {}
+}

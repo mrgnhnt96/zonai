@@ -6,6 +6,7 @@ schemas: lib/schemas
 
 # Generated SQL migrations and journal metadata.
 out: migrations
+migration_naming: timestamp
 
 # Omit `dart:` to skip generating lib/database/migrations.dart; the app loads
 # `migrations/*.sql` from disk at runtime (see `loadMigrationsFromDirectory`).

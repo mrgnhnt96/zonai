@@ -7,16 +7,19 @@ class Item extends Schema<Item> {
     int? id,
     required String body,
     String? description,
+    int? status,
     DateTime? createdAt,
   }) : id = $.integer('id', (s) => s.id, id).primaryKey(autoIncrement: true),
        body = $.text('body', (s) => s.body, body),
        description = $.text('description', (s) => s.description, description),
+       status = $.integer('status', (s) => s.status, status),
        createdAt = $.dateTime('created_at', (s) => s.createdAt, createdAt);
 
   final IntColumn? id;
 
   final TextColumn body;
   final TextColumn? description;
+  final IntColumn? status;
 
   final DateTimeColumn? createdAt;
 

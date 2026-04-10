@@ -23,11 +23,14 @@ Runtime tracking uses a table named `_raindrop_migrations` inside your SQLite fi
 dialect: sqlite
 schemas: lib/schemas
 out: migrations
+# migration_naming: integer   # default: 0000_, 0001_, …
+# migration_naming: timestamp # UTC, e.g. 2026_04_10_14_30_45_123 (stable sort)
 ```
 
 - **`dialect`** — Must match the package you depend on (`raindrop_sqlite` for SQLite).
 - **`schemas`** — Directory of `.dart` files the analyzer walks for `sqliteTable` / table definitions.
 - **`out`** — Folder for `.sql` files and the `meta/` subdirectory.
+- **`migration_naming`** — Optional. `integer` (default) produces `NNNN_description.sql`; `timestamp` uses UTC `yyyy_MM_dd_HH_mm_ss_SSS` with underscores (e.g. `2026_04_10_14_30_45_123_description.sql`) so lexicographic sort matches time order. Snapshot files under `meta/` still use the numeric journal index. Do not switch naming styles mid-project in the same migrations folder, or lexicographic load order can diverge from application order.
 
 **Optional `dart:`** — If you set `dart: lib/database/migrations.dart`, `raindrop generate` will also emit a Dart file embedding every migration as const strings. Zonai does **not** use that: migrations are loaded from disk instead (see below).
 
