@@ -5,23 +5,9 @@
     {
       "idx": 0,
       "version": "1",
-      "when": 1775831533988,
-      "tag": "001775831533988_initial",
-      "snapshotId": "cec9e434-f1ab-4ae8-8fd3-0fa32779ffe7"
-    },
-    {
-      "idx": 1,
-      "version": "1",
-      "when": 1775835330831,
-      "tag": "001775835330831_update_id_type",
-      "snapshotId": "76102a3f-d1ef-4e5c-bf0a-09689fdb6193"
-    },
-    {
-      "idx": 2,
-      "version": "1",
-      "when": 1775835443075,
-      "tag": "001775835443075_update_id_type",
-      "snapshotId": "be7857fe-7b78-4df6-b176-b827a8b28f41"
+      "when": 1775842196516,
+      "tag": "0000_initial",
+      "snapshotId": "16b83847-f85e-4c00-b379-f55733e5572f"
     }
   ]
 }

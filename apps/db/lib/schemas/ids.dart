@@ -41,7 +41,11 @@ class ItemsId extends Id {
 
 String _generateId(String suffix) {
   // generate hash (15 chars)
-  final hash = sha256.convert(utf8.encode(suffix)).toString().substring(0, 15);
+  final now = DateTime.now();
+  final hash = sha256
+      .convert(utf8.encode('$suffix:${now.toIso8601String()}'))
+      .toString()
+      .substring(0, 15);
 
   return '${hash}_${suffix}';
 }

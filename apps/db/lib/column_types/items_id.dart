@@ -3,19 +3,20 @@ import 'package:raindrop/raindrop.dart';
 import '../schemas/ids.dart';
 
 extension ItemsIdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
-  T itemsId<T extends ItemsIdColumn?>(
+  T itemsId<T extends ItemsIdColumn>(
     String name,
     Field<S, ItemsId> field,
-    ItemsId? value,
+    ItemsId value,
   ) {
     return custom<ItemsId, String>(
-      ItemsIdColumn.new,
-      name,
-      field,
-      value,
-      transformer: const ItemsIdTransformer(),
-      sqlType: 'TEXT',
-    ) as T;
+          ItemsIdColumn.new,
+          name,
+          field,
+          value,
+          transformer: const ItemsIdTransformer(),
+          sqlType: 'TEXT',
+        )
+        as T;
   }
 }
 
