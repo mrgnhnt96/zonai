@@ -1,7 +1,7 @@
 {
   "version": "1",
   "dialect": "sqlite",
-  "id": "2c8a4857-d415-4d33-ae69-fe9c1af418e7",
+  "id": "cec9e434-f1ab-4ae8-8fd3-0fa32779ffe7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "items": {
@@ -9,7 +9,7 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "INTEGER",
+          "type": "TEXT",
           "primaryKey": true,
           "isNullable": true,
           "autoincrement": true
@@ -19,6 +19,18 @@
           "type": "TEXT",
           "primaryKey": false,
           "isNullable": false
+        },
+        "description": {
+          "name": "description",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "status": {
+          "name": "status",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
         },
         "created_at": {
           "name": "created_at",

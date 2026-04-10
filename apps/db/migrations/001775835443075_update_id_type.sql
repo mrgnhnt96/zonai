@@ -1,0 +1,3 @@
+ALTER TABLE "items" ALTER COLUMN "id" TYPE TEXT;
+
+ALTER TABLE "items" ADD COLUMN "status" INTEGER;

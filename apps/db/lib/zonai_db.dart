@@ -7,6 +7,8 @@ import 'src/load_migrations.dart';
 
 export 'package:raindrop/raindrop.dart';
 export 'package:raindrop_sqlite/raindrop_sqlite.dart';
+export 'column_types/column_types.dart';
+export 'schemas/ids.dart';
 export 'schemas/items.dart';
 export 'src/load_migrations.dart';
 
