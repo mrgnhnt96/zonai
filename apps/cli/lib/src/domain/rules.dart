@@ -27,6 +27,8 @@ class Rules {
     if (__subscription != null) return;
 
     __subscription = _watcher.events.listen((event) {
+      logger.debug('Rules changed: ${event.path}');
+      logger.info('Detected changes in rules, recompiling...');
       compile();
     });
 
@@ -117,6 +119,7 @@ class Rules {
   void listenForKeyboardInput() {
     keyboardInput.addListener((event) {
       if (event.matches('r')) {
+        logger.info('Compiling rules...');
         compile();
       }
     });

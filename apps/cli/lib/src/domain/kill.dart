@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:async/async.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
+import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 
 class Kill {
@@ -21,6 +22,7 @@ class Kill {
     });
 
     cleanUp.add(_dispose);
+    listenForKeyboardInput();
   }
 
   StreamSubscription<ProcessSignal>? __killSubscription;
@@ -57,5 +59,13 @@ class Kill {
     __killSubscription?.cancel();
     __killSubscription = null;
     _callListeners();
+  }
+
+  void listenForKeyboardInput() {
+    keyboardInput.addListener((event) {
+      if (event.matches('q')) {
+        force();
+      }
+    });
   }
 }

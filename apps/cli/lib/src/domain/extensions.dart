@@ -29,6 +29,8 @@ class Extensions {
     if (__subscription != null) return;
 
     __subscription = _watcher.events.listen((event) {
+      logger.debug('Extensions changed: ${event.path}');
+      logger.info('Detected changes in extensions, recompiling...');
       compile();
     });
 
@@ -96,6 +98,8 @@ class Extensions {
       }
       return;
     }
+
+    logger.info('Compiled ${files.length} extensions');
   }
 
   Future<bool> _canCompile() async {
@@ -116,6 +120,7 @@ class Extensions {
   void listenForKeyboardInput() {
     keyboardInput.addListener((event) {
       if (event.matches('e')) {
+        logger.info('Compiling extensions...');
         compile();
       }
     });

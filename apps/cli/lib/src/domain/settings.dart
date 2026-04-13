@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:yaml/yaml.dart';
+import 'package:zonai_cli/src/deps/args.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 
 class Settings {
@@ -11,15 +12,20 @@ class Settings {
     required this.rulesPath,
   });
 
+  static const defaultZonaiDirectory = '.zonai';
+
   factory Settings.load() {
     final settings = switch ((fs.file('zonai.yml'), fs.file('zonai.yaml'))) {
       (final file, _) when file.existsSync() => file,
       (_, final file) when file.existsSync() => file,
-      (_, _) => null,
+      (_, _) => switch (args.getOrNull<String>('config', abbr: 'c')) {
+        final String value => fs.file(value),
+        _ => null,
+      },
     };
 
     final defaultSettings = Settings(
-      migrationsPath: fs.path.join('.zonai', 'migrations'),
+      migrationsPath: fs.path.join(defaultZonaiDirectory, 'migrations'),
       schemasPath: fs.path.join('lib', 'src', 'schemas'),
       extensionsPath: fs.path.join('lib', 'src', 'extensions'),
       rulesPath: fs.path.join('lib', 'src', 'rules'),
@@ -57,6 +63,7 @@ class Settings {
   final String extensionsPath;
   final String rulesPath;
 
-  String get compiledExtensionsPath => fs.path.join('.zonai', 'extensions');
-  String get compiledRulesPath => fs.path.join('.zonai', 'rules');
+  String get compiledExtensionsPath =>
+      fs.path.join(defaultZonaiDirectory, 'extensions');
+  String get compiledRulesPath => fs.path.join(defaultZonaiDirectory, 'rules');
 }

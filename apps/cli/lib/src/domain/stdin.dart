@@ -1,3 +1,4 @@
+import 'dart:io' as io;
 import 'dart:async';
 
 import 'package:io/io.dart';
@@ -25,6 +26,10 @@ class Stdin {
   }
 
   Stream<List<int>> get stream => _controller.stream;
+
+  bool get hasTerminal => io.stdin.hasTerminal;
+  set echoMode(bool value) => io.stdin.echoMode = value;
+  set lineMode(bool value) => io.stdin.lineMode = value;
 
   void _dispose() {
     _subscription?.cancel();

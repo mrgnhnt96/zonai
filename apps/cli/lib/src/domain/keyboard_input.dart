@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show stdout;
 
 import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
@@ -7,8 +8,11 @@ import 'package:zonai_cli/src/deps/stdin.dart';
 
 class KeyboardInput {
   factory KeyboardInput() => _instance;
-  KeyboardInput._() : _listeners = [];
   static KeyboardInput get _instance => KeyboardInput._();
+  KeyboardInput._() : _listeners = [] {
+    lockInput();
+    cleanUp.add(unlockInput);
+  }
 
   StreamSubscription<KeyboardEvent>? __subscription;
 
@@ -34,6 +38,7 @@ class KeyboardInput {
           return KeyboardEvent(key: key);
         })
         .listen((event) {
+          logger.debug('Keyboard input: $event');
           _callListeners(event);
         });
 
@@ -41,7 +46,8 @@ class KeyboardInput {
   }
 
   void _callListeners(KeyboardEvent event) {
-    for (final listener in _listeners) {
+    final listeners = _listeners.toList();
+    for (final listener in listeners) {
       try {
         listener(event);
       } catch (e) {
@@ -55,6 +61,24 @@ class KeyboardInput {
     __subscription = null;
     _listeners.clear();
   }
+
+  void lockInput() {
+    if (!stdin.hasTerminal) return;
+
+    stdin.echoMode = false;
+    stdin.lineMode = false;
+    // hide cursor
+    stdout.write('\x1B[?25l');
+  }
+
+  void unlockInput() {
+    if (!stdin.hasTerminal) return;
+
+    stdin.echoMode = true;
+    stdin.lineMode = true;
+    // show cursor
+    stdout.write('\x1B[?25h');
+  }
 }
 
 class KeyboardEvent {
@@ -67,5 +91,10 @@ class KeyboardEvent {
     if (key.toLowerCase() == this.key.toLowerCase()) return true;
 
     return false;
+  }
+
+  @override
+  String toString() {
+    return key;
   }
 }
