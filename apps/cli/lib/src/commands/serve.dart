@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:zonai_cli/src/deps/args.dart';
 import 'package:zonai_cli/src/domain/extensions.dart';
 import 'package:zonai_cli/src/domain/migrate.dart';
+import 'package:zonai_cli/src/domain/rules.dart';
 
 Future<int> serve() async {
   if (args['auto-migrate'] case true || null) {
@@ -10,6 +11,7 @@ Future<int> serve() async {
   }
 
   Extensions().watch();
+  Rules().watch();
 
   print('serving');
   return 0;

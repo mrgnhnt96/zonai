@@ -8,6 +8,7 @@ class Settings {
     required this.migrationsPath,
     required this.schemasPath,
     required this.extensionsPath,
+    required this.rulesPath,
   });
 
   factory Settings.load() {
@@ -21,6 +22,7 @@ class Settings {
       migrationsPath: fs.path.join('zonai', 'migrations'),
       schemasPath: fs.path.join('lib', 'src', 'schemas'),
       extensionsPath: fs.path.join('lib', 'src', 'extensions'),
+      rulesPath: fs.path.join('lib', 'src', 'rules'),
     );
 
     if (settings == null) {
@@ -43,12 +45,18 @@ class Settings {
         final String value => value,
         _ => defaultSettings.extensionsPath,
       },
+      rulesPath: switch (map['rulesPath']) {
+        final String value => value,
+        _ => defaultSettings.rulesPath,
+      },
     );
   }
 
   final String migrationsPath;
   final String schemasPath;
   final String extensionsPath;
+  final String rulesPath;
 
   String get compiledExtensionsPath => fs.path.join('zonai', 'extensions');
+  String get compiledRulesPath => fs.path.join('zonai', 'rules');
 }
