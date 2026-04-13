@@ -15,13 +15,6 @@ Future<int> _generate() async {
     return 1;
   }
 
-  final settings = Settings.load();
-
-  final dryRun = switch (args['dry-run']) {
-    true => '--dry-run',
-    _ => null,
-  };
-
   final name = switch (args['name']) {
     final String name => name,
     _ => null,
@@ -32,18 +25,9 @@ Future<int> _generate() async {
     return 1;
   }
 
-  final exitCode = await CliRunner().run([
-    '--dialect',
-    'sqlite',
-    '--schemas',
-    settings.schemasPath,
-    '--out',
-    settings.migrationsPath,
-    'generate',
-    ?dryRun,
-    '--name',
-    name,
-  ]);
-
+  final exitCode = await Migrate().run(
+    name: name,
+    dryRun: args.getOrNull('dry-run'),
+  );
   return exitCode;
 }

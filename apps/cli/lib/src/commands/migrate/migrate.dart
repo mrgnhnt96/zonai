@@ -1,6 +1,6 @@
-import 'package:raindrop_cli/src/cli/cli_runner.dart';
 import 'package:zonai_cli/src/deps/args.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai_cli/src/domain/migrate.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 
 part '__generate.dart';
