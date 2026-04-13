@@ -8,6 +8,9 @@ import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 
+// TODO: Create snapshot of extensions so that we don't need to compile
+// every extension every time
+
 /// Utilities to handle extensions to the database
 class Extensions {
   Extensions();
@@ -48,6 +51,9 @@ class Extensions {
 
     final processes = <(String, Future<ProcessResult>)>[];
     for (final file in files) {
+      final fileName = fs.path.basename(file.path);
+      if (fs.path.extension(fileName) != '.dart') continue;
+
       final process = Process.run('dart', [
         'compile',
         'exe',
@@ -55,11 +61,11 @@ class Extensions {
         '-o',
         fs.path.join(
           settings.compiledExtensionsPath,
-          '${fs.path.basenameWithoutExtension(file.path)}.exe',
+          '${fs.path.basenameWithoutExtension(fileName)}.exe',
         ),
       ]);
 
-      processes.add((fs.path.basename(file.path), process));
+      processes.add((fileName, process));
     }
 
     final results = await Future.wait(

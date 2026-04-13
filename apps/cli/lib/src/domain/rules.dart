@@ -50,6 +50,9 @@ class Rules {
 
     final processes = <(String, Future<ProcessResult>)>[];
     for (final file in files) {
+      final fileName = fs.path.basename(file.path);
+      if (fs.path.extension(fileName) != '.dart') continue;
+
       final process = Process.run('dart', [
         'compile',
         'exe',
@@ -57,11 +60,11 @@ class Rules {
         '-o',
         fs.path.join(
           settings.compiledRulesPath,
-          '${fs.path.basenameWithoutExtension(file.path)}.exe',
+          '${fs.path.basenameWithoutExtension(fileName)}.exe',
         ),
       ]);
 
-      processes.add((fs.path.basename(file.path), process));
+      processes.add((fileName, process));
     }
 
     final results = await Future.wait(
