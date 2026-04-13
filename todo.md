@@ -7,6 +7,9 @@
 - set up cli to serve the compiled server
 - serve the compiled web app from the server
 
+- Instead of compiling each file for the extension and rules, we need to create a file that consumes the files and creates a single file that is then compiled.
+  - Similar to how hooksman and build_runner work when compiling their hooks & builders
+
 ## DB
 
 - Create "internal" classes to represent authentication classes

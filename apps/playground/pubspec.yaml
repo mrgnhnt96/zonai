@@ -9,3 +9,7 @@ environment:
 dev_dependencies:
   zonai_cli:
     path: ../cli
+  zonai_schema:
+    path: ../../libs/zonai_schema
+dependencies:
+  meta: ^1.17.0
