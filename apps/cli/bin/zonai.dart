@@ -7,6 +7,7 @@ import 'package:zonai_cli/src/deps/args.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/extensions.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
+import 'package:zonai_cli/src/deps/kill.dart';
 import 'package:zonai_cli/src/deps/migrate.dart';
 import 'package:zonai_cli/src/deps/process.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
@@ -51,6 +52,7 @@ Future<void> _run(List<String> arguments) async {
         migrateProvider,
         extensionsProvider,
         rulesProvider,
+        killProvider,
       },
     );
   });
