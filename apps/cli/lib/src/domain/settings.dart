@@ -4,7 +4,11 @@ import 'package:yaml/yaml.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 
 class Settings {
-  const Settings({required this.migrationsPath, required this.schemasPath});
+  const Settings({
+    required this.migrationsPath,
+    required this.schemasPath,
+    required this.extensionsPath,
+  });
 
   factory Settings.load() {
     final settings = switch ((fs.file('zonai.yml'), fs.file('zonai.yaml'))) {
@@ -16,6 +20,7 @@ class Settings {
     final defaultSettings = Settings(
       migrationsPath: fs.path.join('zonai', 'migrations'),
       schemasPath: fs.path.join('lib', 'src', 'schemas'),
+      extensionsPath: fs.path.join('lib', 'src', 'extensions'),
     );
 
     if (settings == null) {
@@ -34,9 +39,16 @@ class Settings {
         final String value => value,
         _ => defaultSettings.schemasPath,
       },
+      extensionsPath: switch (map['extensionsPath']) {
+        final String value => value,
+        _ => defaultSettings.extensionsPath,
+      },
     );
   }
 
   final String migrationsPath;
   final String schemasPath;
+  final String extensionsPath;
+
+  String get compiledExtensionsPath => fs.path.join('zonai', 'extensions');
 }
