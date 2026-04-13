@@ -11,6 +11,7 @@ import 'package:zonai_cli/src/deps/kill.dart';
 import 'package:zonai_cli/src/deps/migrate.dart';
 import 'package:zonai_cli/src/deps/process.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
+import 'package:zonai_cli/src/deps/stdin.dart';
 import 'package:zonai_cli/src/utils/args.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
@@ -32,11 +33,16 @@ Future<void> _run(List<String> arguments) async {
     },
   );
 
+  log.debug('Starting Zonai CLI');
+  log.debug('Parsed arguments: $parsed');
+  log.debug('Logger Level: ${log.level}');
+
   await overrideAnsiOutput(true, () async {
     await runScoped(
       () async {
         try {
           exitCode = await run();
+          kill; // sets up the kill handler
         } catch (e) {
           logger.error('Error: $e');
           exitCode = 1;
@@ -53,6 +59,7 @@ Future<void> _run(List<String> arguments) async {
         extensionsProvider,
         rulesProvider,
         killProvider,
+        stdinProvider,
       },
     );
   });

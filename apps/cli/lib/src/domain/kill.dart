@@ -6,7 +6,9 @@ import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 
 class Kill {
-  Kill() : _listeners = [] {
+  factory Kill() => _instance;
+  static Kill get _instance => Kill._();
+  Kill._() : _listeners = [] {
     final stream = Platform.isWindows
         ? ProcessSignal.sigint.watch()
         : StreamGroup.merge([

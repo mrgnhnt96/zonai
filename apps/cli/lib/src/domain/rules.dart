@@ -13,7 +13,9 @@ import 'package:zonai_cli/src/domain/settings.dart';
 // every file every time
 
 class Rules {
-  Rules();
+  factory Rules() => _instance;
+  Rules._();
+  static Rules get _instance => Rules._();
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>
@@ -50,18 +52,23 @@ class Rules {
 
     if (files.isEmpty) return;
 
-    final processes = <(String, Future<Process>)>[];
+    final target = fs.path.join(settings.compiledRulesPath);
+    if (!fs.directory(target).existsSync()) {
+      fs.directory(target).createSync(recursive: true);
+    }
+
+    final processes = <(String, Future<ProcessResult>)>[];
     for (final file in files) {
       final fileName = fs.path.basename(file.path);
       if (fs.path.extension(fileName) != '.dart') continue;
 
-      final future = process.spawn('dart', [
+      final future = process.run('dart', [
         'compile',
         'exe',
         file.path,
         '-o',
         fs.path.join(
-          settings.compiledRulesPath,
+          target,
           '${fs.path.basenameWithoutExtension(fileName)}.exe',
         ),
       ]);
@@ -73,8 +80,7 @@ class Rules {
       processes.map((process) async {
         final (name, future) = process;
         final result = await future;
-        final exitCode = await result.exitCode;
-        return (name, (process: result, exitCode: exitCode));
+        return (name, result);
       }),
     );
 
@@ -85,7 +91,7 @@ class Rules {
         logger.info('--------------------------------');
         logger.error('Failed to compile $file');
         logger.info('----');
-        logger.error('${result.process.stderr}');
+        logger.error('${result.stderr}');
       }
       return;
     }
@@ -98,8 +104,8 @@ class Rules {
     if (!directory.existsSync()) return false;
 
     // analyze directory for compile errors
-    final result = await process.spawn('dart', ['analyze', directory.path]);
-    final exitCode = await result.exitCode;
+    final result = await process.run('dart', ['analyze', directory.path]);
+    final exitCode = result.exitCode;
 
     if (exitCode != 0) {
       logger.error('Failed to compile rules:\n${result.stderr}');

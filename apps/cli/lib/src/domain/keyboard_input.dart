@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:io/io.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai_cli/src/deps/stdin.dart';
 
 class KeyboardInput {
-  KeyboardInput() : _listeners = [];
+  factory KeyboardInput() => _instance;
+  KeyboardInput._() : _listeners = [];
+  static KeyboardInput get _instance => KeyboardInput._();
 
   StreamSubscription<KeyboardEvent>? __subscription;
 
@@ -23,7 +25,7 @@ class KeyboardInput {
   void watch() {
     if (__subscription != null) return;
 
-    __subscription = sharedStdIn
+    __subscription = stdin.stream
         .map((event) {
           var key = utf8.decode(event).toLowerCase().trim();
           if (key.isEmpty && event.length == 1) {

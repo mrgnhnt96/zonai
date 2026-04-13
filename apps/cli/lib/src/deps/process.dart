@@ -1,6 +1,6 @@
-import 'package:io/io.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai_cli/src/domain/process.dart';
 
-final processProvider = create<ProcessManager>(ProcessManager.new);
+final processProvider = create<Process>(Process.new);
 
-ProcessManager get process => read(processProvider);
+Process get process => read(processProvider);

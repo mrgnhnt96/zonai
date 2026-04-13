@@ -15,7 +15,9 @@ import 'package:zonai_cli/src/domain/settings.dart';
 
 /// Utilities to handle extensions to the database
 class Extensions {
-  Extensions();
+  factory Extensions() => _instance;
+  Extensions._();
+  static Extensions get _instance => Extensions._();
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>
@@ -51,18 +53,23 @@ class Extensions {
 
     if (files.isEmpty) return;
 
-    final processes = <(String, Future<Process>)>[];
+    final target = fs.path.join(settings.compiledExtensionsPath);
+    if (!fs.directory(target).existsSync()) {
+      fs.directory(target).createSync(recursive: true);
+    }
+
+    final processes = <(String, Future<ProcessResult>)>[];
     for (final file in files) {
       final fileName = fs.path.basename(file.path);
       if (fs.path.extension(fileName) != '.dart') continue;
 
-      final future = process.spawn('dart', [
+      final future = process.run('dart', [
         'compile',
         'exe',
         file.path,
         '-o',
         fs.path.join(
-          settings.compiledExtensionsPath,
+          target,
           '${fs.path.basenameWithoutExtension(fileName)}.exe',
         ),
       ]);
@@ -74,8 +81,7 @@ class Extensions {
       processes.map((process) async {
         final (name, future) = process;
         final result = await future;
-        final exitCode = await result.exitCode;
-        return (name, (process: result, exitCode: exitCode));
+        return (name, result);
       }),
     );
 
@@ -86,7 +92,7 @@ class Extensions {
         logger.info('--------------------------------');
         logger.error('Failed to compile $file');
         logger.info('----');
-        logger.error('${result.process.stderr}');
+        logger.error('${result.stderr}');
       }
       return;
     }
@@ -97,7 +103,7 @@ class Extensions {
     if (!directory.existsSync()) return false;
 
     // analyze directory for compile errors
-    final result = await process.spawn('dart', ['analyze', directory.path]);
+    final result = await process.run('dart', ['analyze', directory.path]);
     final exitCode = await result.exitCode;
 
     if (exitCode != 0) {
