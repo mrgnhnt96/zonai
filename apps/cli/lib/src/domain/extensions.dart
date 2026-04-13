@@ -5,6 +5,7 @@ import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
+import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/process.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
@@ -104,5 +105,13 @@ class Extensions {
     }
 
     return true;
+  }
+
+  void listenForKeyboardInput() {
+    keyboardInput.addListener((event) {
+      if (event.matches('e')) {
+        compile();
+      }
+    });
   }
 }

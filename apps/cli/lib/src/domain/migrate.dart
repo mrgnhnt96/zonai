@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:watcher/watcher.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
+import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
 
@@ -22,6 +23,14 @@ class Migrate {
     });
 
     cleanUp.add(stop);
+  }
+
+  void listenForKeyboardInput() {
+    keyboardInput.addListener((event) {
+      if (event.matches('m')) {
+        run(name: 'auto');
+      }
+    });
   }
 
   void stop() {
