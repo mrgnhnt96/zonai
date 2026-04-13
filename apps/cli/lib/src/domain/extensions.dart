@@ -6,6 +6,7 @@ import 'package:watcher/watcher.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai_cli/src/deps/process.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 
 // TODO: Create snapshot of extensions so that we don't need to compile
@@ -49,12 +50,12 @@ class Extensions {
 
     if (files.isEmpty) return;
 
-    final processes = <(String, Future<ProcessResult>)>[];
+    final processes = <(String, Future<Process>)>[];
     for (final file in files) {
       final fileName = fs.path.basename(file.path);
       if (fs.path.extension(fileName) != '.dart') continue;
 
-      final process = Process.run('dart', [
+      final future = process.spawn('dart', [
         'compile',
         'exe',
         file.path,
@@ -65,14 +66,15 @@ class Extensions {
         ),
       ]);
 
-      processes.add((fileName, process));
+      processes.add((fileName, future));
     }
 
     final results = await Future.wait(
       processes.map((process) async {
         final (name, future) = process;
         final result = await future;
-        return (name, result);
+        final exitCode = await result.exitCode;
+        return (name, (process: result, exitCode: exitCode));
       }),
     );
 
@@ -83,7 +85,7 @@ class Extensions {
         logger.info('--------------------------------');
         logger.error('Failed to compile $file');
         logger.info('----');
-        logger.error('${result.stderr}');
+        logger.error('${result.process.stderr}');
       }
       return;
     }
@@ -94,9 +96,10 @@ class Extensions {
     if (!directory.existsSync()) return false;
 
     // analyze directory for compile errors
-    final result = await Process.run('dart', ['analyze', directory.path]);
+    final result = await process.spawn('dart', ['analyze', directory.path]);
+    final exitCode = await result.exitCode;
 
-    if (result.exitCode != 0) {
+    if (exitCode != 0) {
       logger.error('Failed to compile extensions:\n${result.stderr}');
     }
 

@@ -15,6 +15,7 @@ dependencies:
   zonai_logger:
     path: ../../libs/zonai_logger
   watcher: ^1.2.1
+  io: ^1.0.5
 
 dev_dependencies:
   test: ^1.26.0

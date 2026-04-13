@@ -4,6 +4,12 @@ import 'dart:io';
 
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_cli/src/deps/args.dart';
+import 'package:zonai_cli/src/deps/clean_up.dart';
+import 'package:zonai_cli/src/deps/extensions.dart';
+import 'package:zonai_cli/src/deps/keyboard_input.dart';
+import 'package:zonai_cli/src/deps/migrate.dart';
+import 'package:zonai_cli/src/deps/process.dart';
+import 'package:zonai_cli/src/deps/rules.dart';
 import 'package:zonai_cli/src/utils/args.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
@@ -39,6 +45,12 @@ Future<void> _run(List<String> arguments) async {
         argsProvider.overrideWith(() => parsed),
         fsProvider,
         loggerProvider.overrideWith(() => log),
+        processProvider,
+        cleanUpProvider,
+        keyboardInputProvider,
+        migrateProvider,
+        extensionsProvider,
+        rulesProvider,
       },
     );
   });
