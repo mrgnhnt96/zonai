@@ -9,6 +9,7 @@
 
 - Instead of compiling each file for the extension and rules, we need to create a file that consumes the files and creates a single file that is then compiled.
   - Similar to how hooksman and build_runner work when compiling their hooks & builders
+  - Then we can send json blobs via `stdin` to the compiled file and it will return a json blob via `stdout`
 
 ## DB
 
