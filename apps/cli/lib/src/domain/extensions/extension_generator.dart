@@ -1,5 +1,6 @@
 import 'package:file/file.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
+import 'package:zonai_cli/src/deps/logger.dart';
 
 class ExtensionGenerator {
   const ExtensionGenerator({required this.extensions});
@@ -7,6 +8,8 @@ class ExtensionGenerator {
   final List<File> extensions;
 
   Future<void> create() async {
+    logger.debug('Starting extension generator');
+
     final root = fs.currentDirectory.path;
     final usedAliases = <String>{};
     final entries = <({String alias, String importPath})>[];
@@ -29,6 +32,12 @@ class ExtensionGenerator {
       fs.path.join('.dart_tool', 'zonai', 'db_extensions.dart'),
     );
     out.writeAsStringSync(_dbExtenderDartSource(entries));
+
+    logger.debug('Generated extension file: ${out.path}');
+    logger.debug('Used ${entries.length} extensions');
+    for (final e in entries) {
+      logger.debug('  - ${e.alias}: ${e.importPath}');
+    }
   }
 
   String _relativePosixPath(File file, String root) {

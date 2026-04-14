@@ -1,5 +1,6 @@
 import 'package:file/file.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
+import 'package:zonai_cli/src/deps/logger.dart';
 
 class RuleGenerator {
   const RuleGenerator({required this.rules});
@@ -7,6 +8,8 @@ class RuleGenerator {
   final List<File> rules;
 
   Future<void> create() async {
+    logger.debug('Starting rule generator');
+
     final dartRules = rules
         .where((f) => fs.path.extension(f.path) == '.dart')
         .toList();
@@ -32,6 +35,12 @@ class RuleGenerator {
 
     final out = fs.file(fs.path.join('.dart_tool', 'zonai', 'db_rules.dart'));
     out.writeAsStringSync(_dbRulesDartSource(entries));
+
+    logger.debug('Generated rule file: ${out.path}');
+    logger.debug('Used ${entries.length} rules');
+    for (final e in entries) {
+      logger.debug('  - ${e.alias}: ${e.importPath}');
+    }
   }
 
   String _relativePosixPath(File file, String root) {

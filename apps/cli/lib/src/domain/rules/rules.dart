@@ -80,7 +80,10 @@ class Rules {
 
   Future<bool> _canCompile() async {
     final directory = fs.directory(Settings.load().rulesPath);
-    if (!directory.existsSync()) return false;
+    if (!directory.existsSync()) {
+      logger.error('Rules directory does not exist: ${directory.path}');
+      return false;
+    }
 
     // analyze directory for compile errors
     final result = await process.run('dart', ['analyze', directory.path]);
