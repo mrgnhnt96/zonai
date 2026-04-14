@@ -1,12 +1,17 @@
 import 'package:file/file.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 
-class ExtenderFile {
-  const ExtenderFile({required this.extensions});
+class RuleGenerator {
+  const RuleGenerator({required this.rules});
 
-  final List<File> extensions;
+  final List<File> rules;
 
   Future<void> create() async {
+    final dartRules = rules
+        .where((f) => fs.path.extension(f.path) == '.dart')
+        .toList();
+    if (dartRules.isEmpty) return;
+
     final root = fs.currentDirectory.path;
     final usedAliases = <String>{};
     final entries = <({String alias, String importPath})>[];
@@ -17,7 +22,7 @@ class ExtenderFile {
     }
     final outDirAbsolute = outDir.absolute.path;
 
-    final sorted = [...extensions]..sort((a, b) => a.path.compareTo(b.path));
+    final sorted = [...dartRules]..sort((a, b) => a.path.compareTo(b.path));
     for (final file in sorted) {
       final relativePosix = _relativePosixPath(file, root);
       final importPath = _relativePosixPath(file, outDirAbsolute);
@@ -25,10 +30,8 @@ class ExtenderFile {
       entries.add((alias: alias, importPath: importPath));
     }
 
-    final out = fs.file(
-      fs.path.join('.dart_tool', 'zonai', 'db_extensions.dart'),
-    );
-    out.writeAsStringSync(_dbExtenderDartSource(entries));
+    final out = fs.file(fs.path.join('.dart_tool', 'zonai', 'db_rules.dart'));
+    out.writeAsStringSync(_dbRulesDartSource(entries));
   }
 
   String _relativePosixPath(File file, String root) {
@@ -59,12 +62,10 @@ class ExtenderFile {
     return candidate;
   }
 
-  String _dbExtenderDartSource(
-    List<({String alias, String importPath})> entries,
-  ) {
+  String _dbRulesDartSource(List<({String alias, String importPath})> entries) {
     final b = StringBuffer();
     b.writeln(
-      "import 'package:zonai_schema/src/extender/db_extensions.dart' as db_extender;",
+      "import 'package:zonai_schema/src/handlers/db_rules.dart' as db_rules;",
     );
     b.writeln("import 'package:zonai_schema/zonai_schema.dart';");
     for (final e in entries) {
@@ -72,19 +73,19 @@ class ExtenderFile {
     }
     b.writeln();
     b.writeln('void main() {');
-    b.writeln('  db_extender.DbExtender(');
-    b.writeln('    extensions: [');
+    b.writeln('  db_rules.DbRules(');
+    b.writeln('    rules: [');
     for (final e in entries) {
-      b.writeln('      ?extension(${e.alias}.main),');
+      b.writeln('      ?rule(${e.alias}.main),');
     }
     b.writeln('    ],');
     b.writeln('  ).start();');
     b.writeln('}');
     b.writeln();
-    b.writeln('Extension? extension(Extension ext()) {');
+    b.writeln('Rules? rule(Rules rule()) {');
     b.writeln('  try {');
-    b.writeln('    return switch (ext()) {');
-    b.writeln('      final Extension ext => ext,');
+    b.writeln('    return switch (rule()) {');
+    b.writeln('      final Rules rule => rule,');
     b.writeln('      _ => null,');
     b.writeln('    };');
     b.writeln('  } catch (e) {');

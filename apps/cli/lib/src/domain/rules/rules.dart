@@ -1,16 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 
+import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/process.dart';
+import 'package:zonai_cli/src/domain/rules/rule_generator.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
-
-// TODO: Create snapshot of rules so that we don't need to compile
-// every file every time
 
 class Rules {
   factory Rules() => _instance;
@@ -50,6 +48,7 @@ class Rules {
     final files = directory
         .listSync(recursive: true)
         .whereType<File>()
+        .where((file) => fs.path.extension(file.path) == '.dart')
         .toList();
 
     if (files.isEmpty) return;
@@ -59,42 +58,20 @@ class Rules {
       fs.directory(target).createSync(recursive: true);
     }
 
-    final processes = <(String, Future<ProcessResult>)>[];
-    for (final file in files) {
-      final fileName = fs.path.basename(file.path);
-      if (fs.path.extension(fileName) != '.dart') continue;
+    await RuleGenerator(rules: files).create();
 
-      final future = process.run('dart', [
-        'compile',
-        'exe',
-        file.path,
-        '-o',
-        fs.path.join(
-          target,
-          '${fs.path.basenameWithoutExtension(fileName)}.exe',
-        ),
-      ]);
+    final result = await process.run('dart', [
+      'compile',
+      'exe',
+      fs.path.join('.dart_tool', 'zonai', 'db_rules.dart'),
+      '-o',
+      fs.path.join(target, 'db_rules.exe'),
+    ]);
 
-      processes.add((fileName, future));
-    }
-
-    final results = await Future.wait(
-      processes.map((process) async {
-        final (name, future) = process;
-        final result = await future;
-        return (name, result);
-      }),
-    );
-
-    final errors = results.where((result) => result.$2.exitCode != 0).toList();
-    if (errors.isNotEmpty) {
-      logger.error('Failed to compile ${errors.length} rules');
-      for (final (file, result) in errors) {
-        logger.info('--------------------------------');
-        logger.error('Failed to compile $file');
-        logger.info('----');
-        logger.error('${result.stderr}');
-      }
+    if (result.exitCode != 0) {
+      logger.error('Failed to compile db_rules.exe');
+      logger.info('----');
+      logger.error('${result.stderr}');
       return;
     }
 
