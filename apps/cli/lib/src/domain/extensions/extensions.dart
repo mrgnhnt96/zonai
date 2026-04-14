@@ -7,7 +7,7 @@ import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/process.dart';
-import 'package:zonai_cli/src/domain/extender_file.dart';
+import 'package:zonai_cli/src/domain/extensions/extension_generator.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 
 /// Utilities to handle extensions to the database
@@ -58,7 +58,7 @@ class Extensions {
       fs.directory(target).createSync(recursive: true);
     }
 
-    await ExtenderFile(extensions: files).create();
+    await ExtensionGenerator(extensions: files).create();
 
     final result = await process.run('dart', [
       'compile',
