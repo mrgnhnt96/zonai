@@ -7,8 +7,8 @@ import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 
 class Kill {
-  factory Kill() => _instance;
-  static Kill get _instance => Kill._();
+  factory Kill() => _instance ??= Kill._();
+  static Kill? _instance;
   Kill._() : _listeners = [] {
     final stream = Platform.isWindows
         ? ProcessSignal.sigint.watch()

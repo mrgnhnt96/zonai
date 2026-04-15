@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:zonai_cli/src/deps/logger.dart';
 
 class CleanUp {
-  factory CleanUp() => _instance;
+  factory CleanUp() => _instance ??= CleanUp._();
   CleanUp._() : _toClean = [];
-  static CleanUp get _instance => CleanUp._();
+  static CleanUp? _instance;
 
   final List<FutureOr<void> Function()> _toClean;
 

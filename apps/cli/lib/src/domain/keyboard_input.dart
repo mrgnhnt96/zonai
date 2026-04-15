@@ -7,8 +7,8 @@ import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/stdin.dart';
 
 class KeyboardInput {
-  factory KeyboardInput() => _instance;
-  static KeyboardInput get _instance => KeyboardInput._();
+  factory KeyboardInput() => _instance ??= KeyboardInput._();
+  static KeyboardInput? _instance;
   KeyboardInput._() : _listeners = [] {
     lockInput();
     cleanUp.add(unlockInput);

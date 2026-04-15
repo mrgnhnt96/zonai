@@ -7,9 +7,10 @@
 - set up cli to serve the compiled server
 - serve the compiled web app from the server
 
-- Instead of compiling each file for the extension and rules, we need to create a file that consumes the files and creates a single file that is then compiled.
-  - Similar to how hooksman and build_runner work when compiling their hooks & builders
-  - Then we can send json blobs via `stdin` to the compiled file and it will return a json blob via `stdout`
+### Message Handler
+
+- Don't kill the process until after the compilation is complete
+  - The DB should auto start the rule/extension process if it is not available
 
 ## DB
 

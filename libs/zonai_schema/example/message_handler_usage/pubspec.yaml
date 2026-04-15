@@ -1,0 +1,14 @@
+name: message_handler_usage
+description: Minimal stdin/stdout demo for MessageHandler.
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dependencies:
+  zonai_schema:
+    path: ../..
+  zonai_cli:
+    path: ../../../../apps/cli

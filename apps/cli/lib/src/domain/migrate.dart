@@ -8,9 +8,9 @@ import 'package:zonai_cli/src/domain/settings.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
 
 class Migrate {
-  factory Migrate() => _instance;
+  factory Migrate() => _instance ??= Migrate._();
   Migrate._();
-  static Migrate get _instance => Migrate._();
+  static Migrate? _instance;
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>

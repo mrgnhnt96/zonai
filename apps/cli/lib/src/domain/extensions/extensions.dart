@@ -12,9 +12,9 @@ import 'package:zonai_cli/src/domain/settings.dart';
 
 /// Utilities to handle extensions to the database
 class Extensions {
-  factory Extensions() => _instance;
+  factory Extensions() => _instance ??= Extensions._();
   Extensions._();
-  static Extensions get _instance => Extensions._();
+  static Extensions? _instance;
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>

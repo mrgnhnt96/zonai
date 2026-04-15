@@ -11,9 +11,9 @@ import 'package:zonai_cli/src/domain/rules/rule_generator.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 
 class Rules {
-  factory Rules() => _instance;
+  factory Rules() => _instance ??= Rules._();
+  static Rules? _instance;
   Rules._();
-  static Rules get _instance => Rules._();
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>

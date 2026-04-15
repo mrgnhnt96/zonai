@@ -1,3 +1,4 @@
+import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart' show Rules;
 
 class DbRules {
@@ -5,5 +6,11 @@ class DbRules {
 
   final List<Rules> rules;
 
-  void start() {}
+  void start() {
+    MessageHandler(
+      onMessage: (Response msg) async {
+        return null;
+      },
+    ).listen();
+  }
 }

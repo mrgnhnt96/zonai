@@ -37,30 +37,28 @@ Future<void> _run(List<String> arguments) async {
   log.debug('Parsed arguments: $parsed');
   log.debug('Logger Level: ${log.level}');
 
-  await overrideAnsiOutput(true, () async {
-    await runScoped(
-      () async {
-        try {
-          exitCode = await run();
-          kill; // sets up the kill handler
-        } catch (e) {
-          logger.error('Error: $e');
-          exitCode = 1;
-        }
-      },
-      values: {
-        argsProvider.overrideWith(() => parsed),
-        fsProvider,
-        loggerProvider.overrideWith(() => log),
-        processProvider,
-        cleanUpProvider,
-        keyboardInputProvider,
-        migrateProvider,
-        extensionsProvider,
-        rulesProvider,
-        killProvider,
-        stdinProvider,
-      },
-    );
-  });
+  await runScoped(
+    () async {
+      try {
+        exitCode = await run();
+        kill; // sets up the kill handler
+      } catch (e) {
+        logger.error('Error: $e');
+        exitCode = 1;
+      }
+    },
+    values: {
+      argsProvider.overrideWith(() => parsed),
+      fsProvider,
+      loggerProvider.overrideWith(() => log),
+      processProvider,
+      cleanUpProvider,
+      keyboardInputProvider,
+      migrateProvider,
+      extensionsProvider,
+      rulesProvider,
+      killProvider,
+      stdinProvider,
+    },
+  );
 }

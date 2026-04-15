@@ -1,7 +1,5 @@
 import 'dart:io' as io;
 
-import 'package:io/ansi.dart' show ansiOutputEnabled;
-
 import 'level.dart';
 
 /// Console-oriented logger with optional ANSI styling.
@@ -17,8 +15,6 @@ class Logger {
   final io.IOSink _stderr;
 
   bool _emit(Level messageLevel) => messageLevel.index >= level.index;
-
-  bool get _ansi => ansiOutputEnabled;
 
   void verbose(String message) => _log(Level.verbose, message, _stdout, _dim);
 
@@ -59,7 +55,7 @@ class Logger {
   }
 
   void _writeLine(io.IOSink sink, String text, String Function(String)? style) {
-    final line = style != null && _ansi ? style(text) : text;
+    final line = style != null ? style(text) : text;
     sink.writeln(line);
   }
 
