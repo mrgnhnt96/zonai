@@ -9,6 +9,7 @@ import 'package:zonai_cli/src/deps/extensions.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/kill.dart';
 import 'package:zonai_cli/src/deps/migrate.dart';
+import 'package:zonai_cli/src/deps/operations.dart';
 import 'package:zonai_cli/src/deps/process.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
 import 'package:zonai_cli/src/deps/stdin.dart';
@@ -59,6 +60,7 @@ Future<void> _run(List<String> arguments) async {
       rulesProvider,
       killProvider,
       stdinProvider,
+      operationsProvider,
     },
   );
 }

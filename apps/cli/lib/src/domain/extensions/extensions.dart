@@ -51,7 +51,12 @@ class Extensions {
         .where((file) => fs.path.extension(file.path) == '.dart')
         .toList();
 
-    if (files.isEmpty) return;
+    if (files.isEmpty) {
+      logger.info(
+        'No Dart extension files under ${directory.path}; skipping compile.',
+      );
+      return;
+    }
 
     final target = fs.path.join(settings.compiledExtensionsPath);
     if (!fs.directory(target).existsSync()) {
@@ -80,7 +85,10 @@ class Extensions {
 
   Future<bool> _canCompile() async {
     final directory = fs.directory(Settings.load().extensionsPath);
-    if (!directory.existsSync()) return false;
+    if (!directory.existsSync()) {
+      logger.error('Extensions directory does not exist: ${directory.path}');
+      return false;
+    }
 
     // analyze directory for compile errors
     final result = await process.run('dart', ['analyze', directory.path]);
@@ -88,6 +96,7 @@ class Extensions {
 
     if (exitCode != 0) {
       logger.error('Failed to compile extensions:\n${result.stderr}');
+      return false;
     }
 
     return true;

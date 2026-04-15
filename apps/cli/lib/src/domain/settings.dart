@@ -9,6 +9,7 @@ class Settings {
     required this.migrationsPath,
     required this.schemasPath,
     required this.extensionsPath,
+    required this.operationsPath,
     required this.rulesPath,
   });
 
@@ -29,6 +30,7 @@ class Settings {
       schemasPath: fs.path.join('lib', 'src', 'schemas'),
       extensionsPath: fs.path.join('lib', 'src', 'extensions'),
       rulesPath: fs.path.join('lib', 'src', 'rules'),
+      operationsPath: fs.path.join('lib', 'src', 'operations'),
     );
 
     if (settings == null) {
@@ -55,6 +57,10 @@ class Settings {
         final String value => value,
         _ => defaultSettings.rulesPath,
       },
+      operationsPath: switch (map['operationsPath']) {
+        final String value => value,
+        _ => defaultSettings.operationsPath,
+      },
     );
   }
 
@@ -62,8 +68,11 @@ class Settings {
   final String schemasPath;
   final String extensionsPath;
   final String rulesPath;
+  final String operationsPath;
 
   String get compiledExtensionsPath =>
       fs.path.join(defaultZonaiDirectory, 'extensions');
   String get compiledRulesPath => fs.path.join(defaultZonaiDirectory, 'rules');
+  String get compiledOperationsPath =>
+      fs.path.join(defaultZonaiDirectory, 'operations');
 }
