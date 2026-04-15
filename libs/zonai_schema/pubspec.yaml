@@ -3,10 +3,11 @@ description: >
   Shared relational model for Zonai — Raindrop schemas, typed IDs, column
   helpers, and anything else clients and services need to agree on the DB shape.
 publish_to: none
-
 resolution: workspace
 
 environment:
   sdk: ">=3.11.0 <4.0.0"
+
 dependencies:
   meta: ^1.17.0
+  raindrop:
