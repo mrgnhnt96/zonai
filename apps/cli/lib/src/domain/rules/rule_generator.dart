@@ -74,7 +74,7 @@ class RuleGenerator {
   String _dbRulesDartSource(List<({String alias, String importPath})> entries) {
     final b = StringBuffer();
     b.writeln(
-      "import 'package:zonai_schema/src/handlers/db_rules.dart' as db_rules;",
+      "import 'package:zonai_schema/src/handlers/rules/db_rules.dart' as db_rules;",
     );
     b.writeln("import 'package:zonai_schema/zonai_schema.dart';");
     for (final e in entries) {

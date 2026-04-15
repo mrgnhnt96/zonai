@@ -1,4 +1,5 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/operations/operation_requests.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide Request;
 
 class DbOperations {
@@ -9,7 +10,7 @@ class DbOperations {
   void start() {
     MessageHandler(
       onMessage: (UnknownRequest msg) async {
-        return null;
+        final request = OperationRequest.fromRequest(msg);
       },
     ).listen();
   }

@@ -1,6 +1,7 @@
+import 'package:raindrop/raindrop.dart';
 import 'package:zonai_schema/src/request.dart';
 
-class Rules<T> {
+class Rules<T extends Schema<T>> {
   Rules(this.schema);
 
   final T schema;
@@ -24,4 +25,8 @@ class Rules<T> {
   Future<bool> canListOrSearch(Request request) async {
     return request.user.isSuperUser;
   }
+}
+
+extension RetrieveTableX<T extends Schema<T>> on Rules<T> {
+  Table<T> get table => Table.getFor(schema);
 }

@@ -73,7 +73,7 @@ class ExtensionGenerator {
   ) {
     final b = StringBuffer();
     b.writeln(
-      "import 'package:zonai_schema/src/handlers/db_extensions.dart' as db_extensions;",
+      "import 'package:zonai_schema/src/handlers/extensions/db_extensions.dart' as db_extensions;",
     );
     b.writeln("import 'package:zonai_schema/zonai_schema.dart';");
     for (final e in entries) {

@@ -63,21 +63,23 @@ class KeyboardInput {
   }
 
   void lockInput() {
+    // hide cursor
+    stdout.write('\x1B[?25l');
+
     if (!stdin.hasTerminal) return;
 
     stdin.echoMode = false;
     stdin.lineMode = false;
-    // hide cursor
-    stdout.write('\x1B[?25l');
   }
 
   void unlockInput() {
+    // show cursor
+    stdout.write('\x1B[?25h');
+
     if (!stdin.hasTerminal) return;
 
     stdin.echoMode = true;
     stdin.lineMode = true;
-    // show cursor
-    stdout.write('\x1B[?25h');
   }
 }
 

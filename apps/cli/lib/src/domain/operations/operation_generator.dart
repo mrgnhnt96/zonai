@@ -33,7 +33,9 @@ class OperationGenerator {
       entries.add((alias: alias, importPath: importPath));
     }
 
-    final out = fs.file(fs.path.join('.dart_tool', 'zonai', 'db_operations.dart'));
+    final out = fs.file(
+      fs.path.join('.dart_tool', 'zonai', 'db_operations.dart'),
+    );
     out.writeAsStringSync(_dbOperationsDartSource(entries));
 
     logger.debug('Generated operation file: ${out.path}');
@@ -71,10 +73,12 @@ class OperationGenerator {
     return candidate;
   }
 
-  String _dbOperationsDartSource(List<({String alias, String importPath})> entries) {
+  String _dbOperationsDartSource(
+    List<({String alias, String importPath})> entries,
+  ) {
     final b = StringBuffer();
     b.writeln(
-      "import 'package:zonai_schema/src/handlers/db_operations.dart' as db_operations;",
+      "import 'package:zonai_schema/src/handlers/operations/db_operations.dart' as db_operations;",
     );
     b.writeln("import 'package:zonai_schema/zonai_schema.dart';");
     for (final e in entries) {
@@ -91,7 +95,9 @@ class OperationGenerator {
     b.writeln('  ).start();');
     b.writeln('}');
     b.writeln();
-    b.writeln('CollectionOperations? operation(CollectionOperations operation()) {');
+    b.writeln(
+      'CollectionOperations? operation(CollectionOperations operation()) {',
+    );
     b.writeln('  try {');
     b.writeln('    return switch (operation()) {');
     b.writeln('      final CollectionOperations op => op,');

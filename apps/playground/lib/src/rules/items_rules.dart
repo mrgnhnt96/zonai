@@ -3,6 +3,6 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 ItemRules main() => ItemRules();
 
-class ItemRules extends Rules {
+class ItemRules extends Rules<Item> {
   ItemRules() : super(items);
 }

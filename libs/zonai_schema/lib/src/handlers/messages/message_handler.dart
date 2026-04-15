@@ -60,7 +60,7 @@ class MessageHandler {
       return;
     }
 
-    stdout.write(json);
+    stdout.write('$json\n');
   }
 
   Request? _decode(String message) {
