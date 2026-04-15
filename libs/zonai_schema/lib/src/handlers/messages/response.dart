@@ -23,7 +23,7 @@ base class Response {
 
   @mustCallSuper
   Map<String, dynamic> toJson() {
-    return {'path': path};
+    return {'path': path, 'id': id, 'payload': payload};
   }
 
   final String path;

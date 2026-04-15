@@ -1,7 +1,7 @@
 part of 'message_handler.dart';
 
-base class Request {
-  const Request({required this.payload, required this.path, required this.id});
+abstract base class Request {
+  const Request({required this.path, required this.id});
 
   factory Request.fromJson(Map<String, dynamic> json) {
     final path = json['path'];
@@ -17,7 +17,7 @@ base class Request {
     return switch (path) {
       RequestPing._path => RequestPing.fromJson(json),
       RequestKill._path => RequestKill.fromJson(json),
-      _ => Request(payload: json, path: path, id: id),
+      _ => UnknownRequest(path: path, id: id, payload: json),
     };
   }
 
@@ -28,7 +28,6 @@ base class Request {
         .substring(0, 15);
   }
 
-  final Map<String, dynamic> payload;
   final String path;
   final String id;
 
@@ -38,9 +37,18 @@ base class Request {
   }
 }
 
+final class UnknownRequest extends Request {
+  UnknownRequest({
+    required this.payload,
+    required super.path,
+    required super.id,
+  });
+
+  final Map<String, dynamic> payload;
+}
+
 final class RequestPing extends Request {
-  RequestPing()
-    : super(payload: const {}, path: _path, id: Request.generateId());
+  RequestPing() : super(path: _path, id: Request.generateId());
 
   factory RequestPing.fromJson(Map<String, dynamic> json) {
     return RequestPing();
@@ -53,8 +61,7 @@ final class RequestPing extends Request {
 }
 
 final class RequestKill extends Request {
-  RequestKill()
-    : super(payload: const {}, path: _path, id: Request.generateId());
+  RequestKill() : super(path: _path, id: Request.generateId());
 
   factory RequestKill.fromJson(Map<String, dynamic> json) {
     return RequestKill();

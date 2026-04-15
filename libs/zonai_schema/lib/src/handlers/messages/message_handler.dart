@@ -13,7 +13,7 @@ class MessageHandler {
     : stdin = Stdin(),
       stdout = Stdout();
 
-  final Future<Response?> Function(Request) onMessage;
+  final Future<Response?> Function(UnknownRequest) onMessage;
   final Stdin stdin;
   final Stdout stdout;
 
@@ -38,9 +38,9 @@ class MessageHandler {
             continue;
           case RequestKill():
             break;
+          case UnknownRequest():
+            onMessage(msg).then(send);
         }
-
-        onMessage(msg).then(send);
       }
     }
 
