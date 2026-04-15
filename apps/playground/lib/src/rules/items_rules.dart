@@ -5,4 +5,9 @@ ItemRules main() => ItemRules();
 
 class ItemRules extends Rules<Item> {
   ItemRules() : super(items);
+
+  @override
+  Future<bool> canView(Request request) async {
+    return true;
+  }
 }

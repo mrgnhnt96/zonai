@@ -1,19 +1,22 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_requests.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_responses.dart';
 
-/// Talks to `.zonai/rules/db_rules.exe` with a `can_access` request so you can
-/// verify table access against [Rules] (playground `ItemRules`: super-user only).
+/// Talks to `.zonai/rules/db_rules.exe` with `can_access` requests over one
+/// process, matching responses to requests by `id`.
 ///
 /// Run from `apps/playground`:
 /// `dart run bin/can_access_rules.dart`
 ///
-/// One process per request, single JSON line then close stdin — otherwise stdin
-/// and `kill` may arrive in one chunk and [MessageHandler] cannot decode it.
+/// Sends one JSON line per request with [Request.generateId], flushes before
+/// waiting for the matching response so stdin chunks stay one message each
+/// (see [MessageHandler.listen]). Responses are newline-terminated JSON lines.
 Future<void> main() async {
-  final playgroundRoot =
-      File(Platform.script.toFilePath()).parent.parent.path;
+  final playgroundRoot = File(Platform.script.toFilePath()).parent.parent.path;
   final exePath = '$playgroundRoot/.zonai/rules/db_rules.exe';
   final exe = File(exePath);
   if (!exe.existsSync()) {
@@ -22,77 +25,82 @@ Future<void> main() async {
     return;
   }
 
-  final regular = await _queryCanAccess(
-    exePath: exePath,
-    workingDirectory: playgroundRoot,
-    id: 'demo-regular',
-    collection: 'items',
-    operation: 'view',
-    isSuperUser: false,
-  );
-  final superUser = await _queryCanAccess(
-    exePath: exePath,
-    workingDirectory: playgroundRoot,
-    id: 'demo-super',
-    collection: 'items',
-    operation: 'view',
-    isSuperUser: true,
-  );
-
-  if (regular == null || superUser == null) {
-    stderr.writeln('Failed to parse can_access response(s).');
-    exitCode = 1;
-    return;
-  }
-
-  stdout.writeln('Regular user view/items -> canAccess: ${regular.canAccess}');
-  stdout.writeln('Super user  view/items -> canAccess: ${superUser.canAccess}');
-}
-
-Future<CanAccessResponse?> _queryCanAccess({
-  required String exePath,
-  required String workingDirectory,
-  required String id,
-  required String collection,
-  required String operation,
-  required bool isSuperUser,
-}) async {
-  final body = jsonEncode({
-    'path': 'can_access',
-    'id': id,
-    'collection': collection,
-    'operation': operation,
-    'isSuperUser': isSuperUser,
-  });
   final proc = await Process.start(
     exePath,
     const [],
-    workingDirectory: workingDirectory,
+    workingDirectory: playgroundRoot,
   );
-  proc.stdin.writeln(body);
-  await proc.stdin.close();
-  final out = await proc.stdout.transform(utf8.decoder).join();
-  final err = await proc.stderr.transform(utf8.decoder).join();
-  final code = await proc.exitCode;
-  if (code != 0) {
-    stderr.writeln('db_rules.exe failed ($code): $err');
-    return null;
+  unawaited(proc.stderr.drain<void>());
+
+  final lineIter = StreamIterator(
+    proc.stdout.transform(utf8.decoder).transform(const LineSplitter()),
+  );
+
+  try {
+    for (final ex in _exampleRequests()) {
+      final body = jsonEncode(ex.toJson());
+      proc.stdin.writeln(body);
+      await proc.stdin.flush();
+
+      final response = await _readCanAccessForId(lineIter, ex.id);
+      if (response == null) {
+        stderr.writeln('No can_access response for id ${ex.id}.');
+        exitCode = 1;
+        return;
+      }
+      stdout.writeln(
+        '${ex.collection} ${ex.operation} -> canAccess: ${response.canAccess}',
+      );
+    }
+
+    proc.stdin.writeln('kill');
+    await proc.stdin.flush();
+    await proc.stdin.close();
+
+    final code = await proc.exitCode;
+    if (code != 0) {
+      stderr.writeln('db_rules.exe exited with $code');
+      exitCode = code;
+    }
+  } finally {
+    await lineIter.cancel();
   }
-  return _firstCanAccessLine(out);
 }
 
-CanAccessResponse? _firstCanAccessLine(String blob) {
-  for (final line in const LineSplitter().convert(blob)) {
-    final trimmed = line.trim();
-    if (!trimmed.startsWith('{')) continue;
-    try {
-      final map = jsonDecode(trimmed) as Map<String, dynamic>;
-      if (map['path'] == 'can_access' && map.containsKey('canAccess')) {
-        return CanAccessResponse.fromJson(map);
-      }
-    } catch (_) {
-      // Handler debug lines mixed into stdout.
+List<CanAccessRequest> _exampleRequests() {
+  return [
+    CanAccessRequest(
+      collection: 'items',
+      operation: 'view',
+      isSuperUser: false,
+    ),
+    CanAccessRequest(collection: 'items', operation: 'view', isSuperUser: true),
+  ];
+}
+
+Future<CanAccessResponse?> _readCanAccessForId(
+  StreamIterator<String> lineIter,
+  String wantId,
+) async {
+  while (await lineIter.moveNext()) {
+    final parsed = _tryParseCanAccess(lineIter.current);
+    if (parsed != null && parsed.id == wantId) {
+      return parsed;
     }
+  }
+  return null;
+}
+
+CanAccessResponse? _tryParseCanAccess(String line) {
+  final trimmed = line.trim();
+  if (!trimmed.startsWith('{')) return null;
+  try {
+    final map = jsonDecode(trimmed) as Map<String, dynamic>;
+    if (map['path'] == 'can_access' && map.containsKey('canAccess')) {
+      return CanAccessResponse.fromJson(map);
+    }
+  } catch (_) {
+    // Handler debug lines or non-JSON.
   }
   return null;
 }

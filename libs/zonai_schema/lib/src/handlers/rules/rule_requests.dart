@@ -15,14 +15,19 @@ sealed class RuleRequest extends Request {
 
 final class CanAccessRequest extends RuleRequest {
   CanAccessRequest({
-    required super.id,
     required this.collection,
     required this.operation,
     this.isSuperUser = false,
+  }) : super(path: _path, id: Request.generateId());
+  CanAccessRequest._({
+    required super.id,
+    required this.collection,
+    required this.operation,
+    required this.isSuperUser,
   }) : super(path: _path);
 
   factory CanAccessRequest.fromRequest(UnknownRequest request) {
-    return CanAccessRequest(
+    return CanAccessRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       operation: request.payload['operation'] as String,
@@ -37,6 +42,16 @@ final class CanAccessRequest extends RuleRequest {
   final bool isSuperUser;
 
   ClassicOperation? get classicOperation => .fromString(operation);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'operation': operation,
+      'isSuperUser': isSuperUser,
+    };
+  }
 }
 
 enum ClassicOperation {
