@@ -8,7 +8,7 @@ class DbRules {
 
   void start() {
     MessageHandler(
-      onMessage: (Response msg) async {
+      onMessage: (Request msg) async {
         return null;
       },
     ).listen();

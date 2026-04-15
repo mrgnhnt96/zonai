@@ -1,18 +1,23 @@
 part of 'message_handler.dart';
 
-sealed class Response {
-  const Response();
+base class Response {
+  const Response({required this.path, required this.id, required this.payload});
 
   factory Response.fromJson(Map<String, dynamic> json) {
     final path = json['path'];
+
     if (path == null) {
-      throw ArgumentError('Invalid received message path: ${json['path']}');
+      throw ArgumentError('Invalid send message path: ${json['path']}');
+    }
+
+    final id = json['id'];
+    if (id == null) {
+      throw ArgumentError('Invalid send message id: ${json['id']}');
     }
 
     return switch (path) {
-      ResponsePing._path => ResponsePing.fromJson(json),
-      ResponseKill._path => ResponseKill.fromJson(json),
-      _ => throw ArgumentError('Invalid received message path: $path'),
+      DebugResponse._path => DebugResponse.fromJson(json),
+      _ => Response(path: path, id: id, payload: json),
     };
   }
 
@@ -21,31 +26,26 @@ sealed class Response {
     return {'path': path};
   }
 
-  String get path;
+  final String path;
+  final String id;
+  final Map<String, dynamic> payload;
 }
 
-class ResponsePing extends Response {
-  const ResponsePing();
+final class DebugResponse extends Response {
+  DebugResponse({required this.message})
+    : super(path: _path, id: '-1', payload: {'message': message});
 
-  factory ResponsePing.fromJson(Map<String, dynamic> json) {
-    return ResponsePing();
+  factory DebugResponse.fromJson(Map<String, dynamic> json) {
+    return DebugResponse(message: json['message']);
   }
 
-  static const _path = 'ping';
+  static const _path = 'debug';
 
   @override
   String get path => _path;
-}
 
-class ResponseKill extends Response {
-  const ResponseKill();
-
-  factory ResponseKill.fromJson(Map<String, dynamic> json) {
-    return ResponseKill();
-  }
-
-  static const _path = 'kill';
+  final String message;
 
   @override
-  String get path => _path;
+  Map<String, dynamic> toJson() => {'message': message, ...super.toJson()};
 }

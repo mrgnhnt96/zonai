@@ -1,5 +1,5 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/zonai_schema.dart' hide Request;
 
 class DbOperations {
   const DbOperations({required this.operations});
@@ -8,7 +8,7 @@ class DbOperations {
 
   void start() {
     MessageHandler(
-      onMessage: (Response msg) async {
+      onMessage: (Request msg) async {
         return null;
       },
     ).listen();

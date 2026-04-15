@@ -1,18 +1,19 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:zonai_schema/src/handlers/messages/stdin.dart';
 import 'package:zonai_schema/src/handlers/messages/stdout.dart';
 
-part 'response.dart';
 part 'request.dart';
+part 'response.dart';
 
 class MessageHandler {
   MessageHandler({required this.onMessage, Stdin? stdin, Stdout? stdout})
     : stdin = Stdin(),
       stdout = Stdout();
 
-  final Future<Request?> Function(Response) onMessage;
+  final Future<Response?> Function(Request) onMessage;
   final Stdin stdin;
   final Stdout stdout;
 
@@ -32,10 +33,10 @@ class MessageHandler {
 
       if (_decode(message) case final msg?) {
         switch (msg) {
-          case ResponsePing():
-            send(SendMessageDebug(message: 'connection healthy'));
+          case RequestPing():
+            send(DebugResponse(message: 'connection healthy'));
             continue;
-          case ResponseKill():
+          case RequestKill():
             break;
         }
 
@@ -47,7 +48,7 @@ class MessageHandler {
     print('done listening');
   }
 
-  void send(Request? message) {
+  void send(Response? message) {
     if (message == null) return;
     assert(_listening, 'Cannot send a message while not listening');
 
@@ -62,10 +63,10 @@ class MessageHandler {
     stdout.write(json);
   }
 
-  Response? _decode(String message) {
+  Request? _decode(String message) {
     try {
       return switch (jsonDecode(message)) {
-        final Map<String, dynamic> json => Response.fromJson(json),
+        final Map<String, dynamic> json => Request.fromJson(json),
         _ => null,
       };
     } catch (e) {
