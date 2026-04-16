@@ -1,8 +1,9 @@
 import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop/raindrop.dart';
-import 'false_delegate.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+
+import 'false_delegate.dart';
 
 part 'query_translator.dart';
 
@@ -24,27 +25,46 @@ abstract class CollectionOperations<T extends rd.Schema<T>> {
   @nonVirtual
   late rd.Raindrop db = _db;
 
-  rd.InsertWithValuesBuilder<T, void> insert(T entity) =>
-      db.insert(into: schema).values([entity]);
+  rd.InsertBuilder<T, void> insert(T entity) {
+    return db.insert(into: schema).values([entity]);
+  }
 
-  rd.InsertWithValuesBuilder<T, void> insertMany(List<T> entities) =>
-      db.insert(into: schema).values(entities);
+  rd.InsertBuilder<T, void> insertMany(List<T> entities) {
+    return db.insert(into: schema).values(entities);
+  }
 
-  rd.UpdateSettingBuilder<T, void> update(List<Updateable<T>> updates) {
+  rd.UpdateBuilder<T, void> update(
+    List<Updateable<T>> updates, {
+    Filter? recordFilter,
+  }) {
     final set = db.update(schema).set;
 
-    return Function.apply(set, updates.take(19).toList()).returning();
+    var builder = Function.apply(set, updates.take(19).toList()) as dynamic;
+
+    if (recordFilter != null) {
+      builder.where(recordFilter);
+    }
+
+    return builder;
   }
 
   /// [selectFrom] with optional filter and pagination applied first.
   rd.SelectFromBuilder<T, T> search({
-    rd.Filter? where,
+    Filter? where,
     int? limit,
     int? offset,
+    Filter? recordFilter,
   }) {
     var builder = db.select().from(schema);
-    if (where != null) {
-      builder = builder.where(where);
+    final filter = switch ((where, recordFilter)) {
+      (null, null) => null,
+      (final f, null) => f,
+      (null, final r) => r,
+      (final f?, final r?) => f & r,
+    };
+
+    if (filter != null) {
+      builder = builder.where(filter);
     }
 
     if (limit != null) {
@@ -58,21 +78,36 @@ abstract class CollectionOperations<T extends rd.Schema<T>> {
     return builder;
   }
 
-  rd.DeleteAllBuilder<T, void> deleteAll() => db.delete(from: schema);
-
-  rd.DeleteWhereBuilder<T, void> delete(Filter where) =>
-      db.delete(from: schema).where(where);
+  rd.DeleteBuilder<T, void> delete(Filter where, {Filter? recordFilter}) {
+    return db.delete(from: schema).where(where & recordFilter);
+  }
 }
 
 mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.InsertWithValuesBuilder<T, T> insert(T entity) =>
-      db.insert(into: schema).values([entity]).returning();
+  rd.InsertBuilder<T, T> insert(T entity) {
+    return db.insert(into: schema).values([entity]).returning();
+  }
 }
 
 mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.UpdateSettingBuilder<T, T> update(List<Updateable<T>> updates) {
+  rd.UpdateBuilder<T, T> update(
+    List<Updateable<T>> updates, {
+    Filter? recordFilter,
+  }) {
     final set = db.update(schema).set;
 
-    return Function.apply(set, updates.take(19).toList()).returning();
+    final builder = Function.apply(set, updates.take(19).toList());
+
+    if (recordFilter != null) {
+      builder.where(recordFilter);
+    }
+
+    return builder.returning();
+  }
+}
+
+mixin DeleteReturning<T extends Schema<T>> on CollectionOperations<T> {
+  rd.DeleteBuilder<T, T> delete(Filter where, {Filter? recordFilter}) {
+    return db.delete(from: schema).where(where & recordFilter).returning();
   }
 }
