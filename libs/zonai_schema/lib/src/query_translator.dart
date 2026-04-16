@@ -4,7 +4,7 @@ class QueryTranslator<T extends Schema<T>> {
   QueryTranslator();
 
   (String, List<Object?>) translate(ToQuery query) {
-    final translate = CollectionOperations._db.delegate.dialect.translate;
+    final translate = const SQLiteDialect().translate;
 
     return switch (query.toQuery()) {
       final Insert<T, T?> q => translate(q),

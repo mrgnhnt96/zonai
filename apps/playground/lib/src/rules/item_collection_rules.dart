@@ -1,11 +1,11 @@
-import 'package:zonai_playground/src/schemas/items.dart';
 import 'package:raindrop/raindrop.dart';
+import 'package:zonai_playground/src/schemas/items.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-ItemRules main() => ItemRules();
+ItemCollectionRules main() => ItemCollectionRules();
 
-class ItemRules extends CollectionRules<Item> {
-  ItemRules() : super(items);
+class ItemCollectionRules extends CollectionRules<Item> {
+  ItemCollectionRules() : super(items);
 
   @override
   Future<bool> canView(Request request) async {

@@ -48,3 +48,44 @@ final class CanAccessResponse extends RuleResponse {
     };
   }
 }
+
+final class RecordFilterResponse extends RuleResponse {
+  RecordFilterResponse({
+    required super.id,
+    required this.collection,
+    required this.operation,
+    required this.filter,
+  }) : super(
+         path: _path,
+         payload: {
+           'collection': collection,
+           'operation': operation,
+           'filter': filter,
+         },
+       );
+
+  factory RecordFilterResponse.fromJson(Map<String, dynamic> json) {
+    return RecordFilterResponse(
+      id: json['id'],
+      collection: json['collection'],
+      operation: json['operation'],
+      filter: json['filter'],
+    );
+  }
+
+  static const _path = 'record_filter';
+
+  final String collection;
+  final String operation;
+  final String? filter;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'collection': collection,
+      'operation': operation,
+      'filter': filter,
+      ...super.toJson(),
+    };
+  }
+}

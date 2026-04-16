@@ -1,5 +1,9 @@
 # TODO
 
+## 4.15.2026
+
+- [ ] Figure out the transformed output of a `Filter`, see if we can apply it to the query builder in its raw form
+
 ## CLI
 
 - write script to compile the server
@@ -14,7 +18,7 @@
 
 ## DB
 
-- Create "internal" classes to represent authentication classes
+- Create "zonai_schema" classes to represent authentication classes
   - This will _not_ already have a table, but will be used for the user to extend to add their own columns
   - The idea is to have this as a base class with a lot of the core functionality already built in
 
@@ -26,10 +30,22 @@
 - Auth
   - Sets up user authentication
 
-### Interaction
+### Rules
 
-- The interaction with the DB needs to be completely dynamic, since we cannot generate the server code for the user's schemas. The schemas are not known at compile time.
-- The schemas control how the database should be structured
+- Create classes for:
+  - Collection rules (table-level access)
+  - Record rules (row-level access)
+
+- Collection rules:
+  - Determine if a table can be accessed at all
+
+- Record rules:
+  - Determine if a specific record can be viewed
+  - Return query filters (for pagination-safe filtering)
+
+- Initialize rules in DB rules handler:
+  - Map rules by table name for fast lookup
+  - Avoid iterating over all rule classes on each request
 
 ## Raindrop
 

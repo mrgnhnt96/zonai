@@ -54,6 +54,48 @@ final class CanAccessRequest extends RuleRequest {
   }
 }
 
+final class RecordFilterRequest extends RuleRequest {
+  RecordFilterRequest({
+    required this.collection,
+    required this.operation,
+    required this.isSuperUser,
+  }) : super(path: _path, id: Request.generateId());
+
+  RecordFilterRequest._({
+    required super.id,
+    required this.collection,
+    required this.operation,
+    required this.isSuperUser,
+  }) : super(path: _path);
+
+  factory RecordFilterRequest.fromRequest(UnknownRequest request) {
+    return RecordFilterRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+      operation: request.payload['operation'] as String,
+      isSuperUser: request.payload['isSuperUser'] == true,
+    );
+  }
+
+  static const _path = 'record_filter';
+
+  final String collection;
+  final String operation;
+  final bool isSuperUser;
+
+  ClassicOperation? get classicOperation => .fromString(operation);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'operation': operation,
+      'isSuperUser': isSuperUser,
+    };
+  }
+}
+
 enum ClassicOperation {
   create,
   update,

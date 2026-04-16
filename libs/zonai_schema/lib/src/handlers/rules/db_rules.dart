@@ -1,67 +1,137 @@
 import 'package:raindrop/raindrop.dart';
+import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_requests.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_responses.dart';
 import 'package:zonai_schema/src/request.dart' as auth;
-import 'package:zonai_schema/src/rules.dart';
+import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/user.dart';
 
+class _Rules {
+  _Rules();
+
+  CollectionRules? collection;
+  RecordRules? record;
+}
+
 class DbRules {
-  const DbRules({required this.rules});
+  DbRules({required this.rules, this.dialect = const SQLiteDialect()});
 
   final List<Rules> rules;
+  final BaseSqlDialect dialect;
 
   void start() {
     MessageHandler(
       onMessage: (UnknownRequest msg) async {
         return switch (RuleRequest.fromRequest(msg)) {
           final CanAccessRequest request => _canAccess(request),
+          final RecordFilterRequest request => _recordFilter(request),
         };
       },
     ).listen();
   }
 
-  Future<CanAccessResponse> _canAccess(CanAccessRequest request) async {
-    final op = request.classicOperation;
-    if (op == null) {
-      return CanAccessResponse(
-        id: request.id,
-        collection: request.collection,
-        operation: request.operation,
-        canAccess: false,
-      );
+  Map<String, _Rules>? _rulesByTable;
+  Map<String, _Rules> get rulesByTable {
+    if (_rulesByTable case final rules?) return rules;
+
+    final rules = <String, _Rules>{};
+    for (final rule in this.rules) {
+      final r = rules[rule.table.name] ??= _Rules();
+
+      switch (rule) {
+        case final CollectionRules rule:
+          r.collection = rule;
+        case final RecordRules rule:
+          r.record = rule;
+      }
     }
 
+    return _rulesByTable = rules;
+  }
+
+  Future<CanAccessResponse> _canAccess(CanAccessRequest request) async {
     final authRequest = auth.Request(
       user: User(isSuperUser: request.isSuperUser),
     );
 
-    for (final rule in rules) {
-      final table = Table.get(rule.schema as Schema);
-      if (table == null || table.name != request.collection) continue;
+    final rules = rulesByTable[request.collection];
+    final collectionRules = rules?.collection;
 
-      final canAccess = await switch (op) {
-        .create => rule.canCreate(authRequest),
-        .update => rule.canUpdate(authRequest),
-        .delete => rule.canDelete(authRequest),
-        .view => rule.canView(authRequest),
-        .list => rule.canListOrSearch(authRequest),
-        .search => rule.canListOrSearch(authRequest),
-      };
-
+    // TODO(future): We can support custom operations by forwarding
+    // the request operation to the rules
+    final op = request.classicOperation;
+    if (collectionRules == null || op == null) {
       return CanAccessResponse(
         id: request.id,
         collection: request.collection,
         operation: request.operation,
-        canAccess: canAccess,
+        canAccess: request.isSuperUser,
       );
     }
+
+    final canAccess = await switch (op) {
+      .create => collectionRules.canCreate(authRequest),
+      .update => collectionRules.canUpdate(authRequest),
+      .delete => collectionRules.canDelete(authRequest),
+      .view => collectionRules.canView(authRequest),
+      .list => collectionRules.canListOrSearch(authRequest),
+      .search => collectionRules.canListOrSearch(authRequest),
+    };
 
     return CanAccessResponse(
       id: request.id,
       collection: request.collection,
       operation: request.operation,
-      canAccess: false,
+      canAccess: canAccess,
+    );
+  }
+
+  Future<RecordFilterResponse> _recordFilter(
+    RecordFilterRequest request,
+  ) async {
+    final authRequest = auth.Request(
+      user: User(isSuperUser: request.isSuperUser),
+    );
+
+    final rules = rulesByTable[request.collection];
+    final recordRules = rules?.record;
+
+    // TODO(future): We can support custom operations by forwarding
+    // the request operation to the rules
+    final op = request.classicOperation;
+    if (recordRules == null || op == null) {
+      return RecordFilterResponse(
+        id: request.id,
+        collection: request.collection,
+        operation: request.operation,
+        filter: null,
+      );
+    }
+
+    final filter = await switch (op) {
+      .view => recordRules.canView(authRequest),
+      .update => recordRules.canUpdate(authRequest),
+      .delete => recordRules.canDelete(authRequest),
+      .create => null,
+      .list => null,
+      .search => null,
+    };
+
+    if (filter == null) {
+      return RecordFilterResponse(
+        id: request.id,
+        collection: request.collection,
+        operation: request.operation,
+        filter: null,
+      );
+    }
+
+    return RecordFilterResponse(
+      id: request.id,
+      collection: request.collection,
+      operation: request.operation,
+      filter: dialect.translateFilter(filter, []),
     );
   }
 }
