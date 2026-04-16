@@ -5,29 +5,29 @@ sealed class RuleRequest extends Request {
 
   factory RuleRequest.fromRequest(UnknownRequest request) {
     switch (request.path) {
-      case CanAccessRequest._path:
-        return CanAccessRequest.fromRequest(request);
+      case CollectionRulesRequest._path:
+        return CollectionRulesRequest.fromRequest(request);
       default:
         throw UnimplementedError();
     }
   }
 }
 
-final class CanAccessRequest extends RuleRequest {
-  CanAccessRequest({
+final class CollectionRulesRequest extends RuleRequest {
+  CollectionRulesRequest({
     required this.collection,
     required this.operation,
     this.isSuperUser = false,
   }) : super(path: _path, id: Request.generateId());
-  CanAccessRequest._({
+  CollectionRulesRequest._({
     required super.id,
     required this.collection,
     required this.operation,
     required this.isSuperUser,
   }) : super(path: _path);
 
-  factory CanAccessRequest.fromRequest(UnknownRequest request) {
-    return CanAccessRequest._(
+  factory CollectionRulesRequest.fromRequest(UnknownRequest request) {
+    return CollectionRulesRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       operation: request.payload['operation'] as String,
@@ -35,13 +35,13 @@ final class CanAccessRequest extends RuleRequest {
     );
   }
 
-  static const _path = 'can_access';
+  static const _path = 'collection.can_access';
 
   final String collection;
   final String operation;
   final bool isSuperUser;
 
-  ClassicOperation? get classicOperation => .fromString(operation);
+  CollectionOperation? get classicOperation => .fromString(operation);
 
   @override
   Map<String, dynamic> toJson() {
@@ -54,36 +54,36 @@ final class CanAccessRequest extends RuleRequest {
   }
 }
 
-final class RecordFilterRequest extends RuleRequest {
-  RecordFilterRequest({
+final class RecordRulesRequest extends RuleRequest {
+  RecordRulesRequest({
     required this.collection,
     required this.operation,
     required this.isSuperUser,
   }) : super(path: _path, id: Request.generateId());
 
-  RecordFilterRequest._({
+  RecordRulesRequest._({
     required super.id,
     required this.collection,
     required this.operation,
     required this.isSuperUser,
   }) : super(path: _path);
 
-  factory RecordFilterRequest.fromRequest(UnknownRequest request) {
-    return RecordFilterRequest._(
+  factory RecordRulesRequest.fromRequest(UnknownRequest request) {
+    return RecordRulesRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
-      operation: request.payload['operation'] as String,
+      operation: RecordOperation.fromString(
+        request.payload['operation'] as String,
+      )!,
       isSuperUser: request.payload['isSuperUser'] == true,
     );
   }
 
-  static const _path = 'record_filter';
+  static const _path = 'record.can_access';
 
   final String collection;
-  final String operation;
+  final RecordOperation operation;
   final bool isSuperUser;
-
-  ClassicOperation? get classicOperation => .fromString(operation);
 
   @override
   Map<String, dynamic> toJson() {
@@ -96,7 +96,7 @@ final class RecordFilterRequest extends RuleRequest {
   }
 }
 
-enum ClassicOperation {
+enum CollectionOperation {
   create,
   update,
   delete,
@@ -104,9 +104,9 @@ enum ClassicOperation {
   list,
   search;
 
-  const ClassicOperation();
+  const CollectionOperation();
 
-  static ClassicOperation? fromString(String operation) {
+  static CollectionOperation? fromString(String operation) {
     return switch (operation) {
       'create' => .create,
       'update' => .update,
@@ -114,6 +114,23 @@ enum ClassicOperation {
       'view' => .view,
       'list' => .list,
       'search' => .search,
+      _ => null,
+    };
+  }
+}
+
+enum RecordOperation {
+  view,
+  update,
+  delete;
+
+  const RecordOperation();
+
+  static RecordOperation? fromString(String operation) {
+    return switch (operation) {
+      'view' => .view,
+      'update' => .update,
+      'delete' => .delete,
       _ => null,
     };
   }

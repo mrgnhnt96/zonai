@@ -1,4 +1,5 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_requests.dart';
 
 sealed class RuleResponse extends Response {
   const RuleResponse({
@@ -59,7 +60,7 @@ final class RecordFilterResponse extends RuleResponse {
          path: _path,
          payload: {
            'collection': collection,
-           'operation': operation,
+           'operation': operation.name,
            'filter': filter,
          },
        );
@@ -68,7 +69,7 @@ final class RecordFilterResponse extends RuleResponse {
     return RecordFilterResponse(
       id: json['id'],
       collection: json['collection'],
-      operation: json['operation'],
+      operation: RecordOperation.fromString(json['operation'])!,
       filter: json['filter'],
     );
   }
@@ -76,14 +77,14 @@ final class RecordFilterResponse extends RuleResponse {
   static const _path = 'record_filter';
 
   final String collection;
-  final String operation;
+  final RecordOperation operation;
   final String? filter;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       'collection': collection,
-      'operation': operation,
+      'operation': operation.name,
       'filter': filter,
       ...super.toJson(),
     };

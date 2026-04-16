@@ -67,14 +67,18 @@ Future<void> main() async {
   }
 }
 
-List<CanAccessRequest> _exampleRequests() {
+List<CollectionRulesRequest> _exampleRequests() {
   return [
-    CanAccessRequest(
+    CollectionRulesRequest(
       collection: 'items',
       operation: 'view',
       isSuperUser: false,
     ),
-    CanAccessRequest(collection: 'items', operation: 'view', isSuperUser: true),
+    CollectionRulesRequest(
+      collection: 'items',
+      operation: 'view',
+      isSuperUser: true,
+    ),
   ];
 }
 

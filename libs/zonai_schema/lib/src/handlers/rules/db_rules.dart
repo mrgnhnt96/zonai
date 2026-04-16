@@ -24,8 +24,8 @@ class DbRules {
     MessageHandler(
       onMessage: (UnknownRequest msg) async {
         return switch (RuleRequest.fromRequest(msg)) {
-          final CanAccessRequest request => _canAccess(request),
-          final RecordFilterRequest request => _recordFilter(request),
+          final CollectionRulesRequest request => _collectionRules(request),
+          final RecordRulesRequest request => _recordRules(request),
         };
       },
     ).listen();
@@ -50,7 +50,9 @@ class DbRules {
     return _rulesByTable = rules;
   }
 
-  Future<CanAccessResponse> _canAccess(CanAccessRequest request) async {
+  Future<CanAccessResponse> _collectionRules(
+    CollectionRulesRequest request,
+  ) async {
     final authRequest = auth.Request(
       user: User(isSuperUser: request.isSuperUser),
     );
@@ -87,9 +89,7 @@ class DbRules {
     );
   }
 
-  Future<RecordFilterResponse> _recordFilter(
-    RecordFilterRequest request,
-  ) async {
+  Future<RecordFilterResponse> _recordRules(RecordRulesRequest request) async {
     final authRequest = auth.Request(
       user: User(isSuperUser: request.isSuperUser),
     );
@@ -97,10 +97,8 @@ class DbRules {
     final rules = rulesByTable[request.collection];
     final recordRules = rules?.record;
 
-    // TODO(future): We can support custom operations by forwarding
-    // the request operation to the rules
-    final op = request.classicOperation;
-    if (recordRules == null || op == null) {
+    final op = request.operation;
+    if (recordRules == null) {
       return RecordFilterResponse(
         id: request.id,
         collection: request.collection,
@@ -113,9 +111,6 @@ class DbRules {
       .view => recordRules.canView(authRequest),
       .update => recordRules.canUpdate(authRequest),
       .delete => recordRules.canDelete(authRequest),
-      .create => null,
-      .list => null,
-      .search => null,
     };
 
     if (filter == null) {
