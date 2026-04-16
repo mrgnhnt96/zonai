@@ -19,33 +19,29 @@ abstract class CollectionOperations<T extends rd.Schema<T>> {
 
   final T schema;
 
+  rd.Table<T> get table => rd.Table.getFor(schema);
+
   static rd.Raindrop? __db;
   static rd.Raindrop get _db => __db ??= rd.Raindrop(FalseDelegate());
 
   @nonVirtual
   late rd.Raindrop db = _db;
 
-  rd.InsertBuilder<T, void> insert(T entity) {
+  rd.InsertWithValuesBuilder<T, void> insert(T entity) {
     return db.insert(into: schema).values([entity]);
   }
 
-  rd.InsertBuilder<T, void> insertMany(List<T> entities) {
+  rd.InsertWithValuesBuilder<T, void> insertMany(List<T> entities) {
     return db.insert(into: schema).values(entities);
   }
 
-  rd.UpdateBuilder<T, void> update(
-    List<Updateable<T>> updates, {
-    Filter? recordFilter,
+  rd.UpdateWhereBuilder<T, T, void> update(
+    List<Updateable<dynamic>> updates, {
+    required Filter where,
   }) {
     final set = db.update(schema).set;
 
-    var builder = Function.apply(set, updates.take(19).toList()) as dynamic;
-
-    if (recordFilter != null) {
-      builder.where(recordFilter);
-    }
-
-    return builder;
+    return Function.apply(set, updates.take(19).toList()).where(where);
   }
 
   /// [selectFrom] with optional filter and pagination applied first.
@@ -53,18 +49,12 @@ abstract class CollectionOperations<T extends rd.Schema<T>> {
     Filter? where,
     int? limit,
     int? offset,
-    Filter? recordFilter,
+    Selectable<dynamic>? groupBy,
   }) {
     var builder = db.select().from(schema);
-    final filter = switch ((where, recordFilter)) {
-      (null, null) => null,
-      (final f, null) => f,
-      (null, final r) => r,
-      (final f?, final r?) => f & r,
-    };
 
-    if (filter != null) {
-      builder = builder.where(filter);
+    if (where != null) {
+      builder = builder.where(where);
     }
 
     if (limit != null) {
@@ -75,39 +65,60 @@ abstract class CollectionOperations<T extends rd.Schema<T>> {
       builder = builder.offset(offset);
     }
 
+    if (groupBy != null) {
+      builder = builder.groupBy(groupBy);
+    }
+
     return builder;
   }
 
-  rd.DeleteBuilder<T, void> delete(Filter where, {Filter? recordFilter}) {
-    return db.delete(from: schema).where(where & recordFilter);
+  rd.DeleteWhereBuilder<T, void> delete(Filter where, {int? limit}) {
+    final builder = db.delete(from: schema).where(where);
+
+    if (limit != null) {
+      builder.limit(limit);
+    }
+
+    return builder;
+  }
+
+  rd.ToQuery<T, T> custom(
+    String operation, {
+    Filter? where,
+    Map<String, dynamic>? values,
+  }) {
+    throw UnimplementedError(
+      'Custom operation has not been implemented: $operation',
+    );
   }
 }
 
 mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.InsertBuilder<T, T> insert(T entity) {
+  rd.InsertWithValuesBuilder<T, T> insert(T entity) {
     return db.insert(into: schema).values([entity]).returning();
   }
 }
 
 mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.UpdateBuilder<T, T> update(
-    List<Updateable<T>> updates, {
-    Filter? recordFilter,
+  rd.UpdateWhereBuilder<T, T, T> update(
+    List<Updateable<dynamic>> updates, {
+    required Filter where,
   }) {
-    final set = db.update(schema).set;
-
-    final builder = Function.apply(set, updates.take(19).toList());
-
-    if (recordFilter != null) {
-      builder.where(recordFilter);
-    }
-
-    return builder.returning();
+    return Function.apply(
+      db.update(schema).set,
+      updates.take(19).toList(),
+    ).where(where).returning();
   }
 }
 
 mixin DeleteReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.DeleteBuilder<T, T> delete(Filter where, {Filter? recordFilter}) {
-    return db.delete(from: schema).where(where & recordFilter).returning();
+  rd.DeleteWhereBuilder<T, T> delete(Filter where, {int? limit}) {
+    final builder = db.delete(from: schema).where(where);
+
+    if (limit != null) {
+      builder.limit(limit);
+    }
+
+    return builder.returning();
   }
 }
