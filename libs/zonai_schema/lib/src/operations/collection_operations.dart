@@ -3,9 +3,22 @@ import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 
-import 'false_delegate.dart';
+import '../false_delegate.dart';
+import '../handlers/operations/operation_requests.dart';
 
-part 'query_translator.dart';
+part 'collection_translator.dart';
+
+/// Type-erased view of [CollectionOperations] for APIs (e.g. [DbOperations])
+/// that hold multiple schemas. [Iterable] parameters use this type so call
+/// sites may pass `[ConcreteOperations(), ...]` without explicit casts.
+abstract interface class _DbCollection {
+  const _DbCollection();
+
+  (String, List<Object?>) _translate(
+    BaseSqlDialect dialect,
+    PerformOperationRequest request,
+  );
+}
 
 /// Thin helpers around [rd.Raindrop] builders for a single [schema].
 ///
@@ -14,7 +27,8 @@ part 'query_translator.dart';
 /// await. For row counts on update/delete, use [rd.Raindrop.execute] with
 /// [rd.QueryBuilder.toQuery]; for `RETURNING`, use the SQLite extensions from
 /// `package:raindrop_sqlite/raindrop_sqlite.dart` before awaiting.
-abstract class CollectionOperations<T extends rd.Schema<T>> {
+abstract base class CollectionOperations<T extends rd.Schema<T>>
+    implements _DbCollection {
   CollectionOperations(this.schema);
 
   final T schema;
@@ -91,15 +105,68 @@ abstract class CollectionOperations<T extends rd.Schema<T>> {
       'Custom operation has not been implemented: $operation',
     );
   }
+
+  @override
+  (String, List<Object?>) _translate(
+    BaseSqlDialect dialect,
+    PerformOperationRequest request,
+  ) {
+    final query = _query(request);
+    return dialect.translate(query);
+  }
+
+  /// Builds the [Query] for [request] so callers (e.g. [DbOperations]) can run
+  /// [BaseSqlDialect.translate] with a concrete schema type [T].
+  Query<T, dynamic> _query(PerformOperationRequest request) {
+    return switch (request) {
+      CreateOperationRequest(:final object) => insert(
+        table.create(object),
+      ).toQuery(),
+      UpdateOperationRequest(
+        :final where,
+        :final recordFilter,
+        :final updates,
+      ) =>
+        update(updates, where: where & recordFilter).toQuery(),
+      DeleteOperationRequest(:final where, :final limit, :final recordFilter) =>
+        delete(where & recordFilter, limit: limit ?? 1).toQuery(),
+      ViewOperationRequest(:final recordFilter) => search(
+        limit: 1,
+        where: recordFilter,
+      ).toQuery(),
+      ListOperationRequest(:final limit, :final offset, :final recordFilter) =>
+        search(limit: limit, offset: offset, where: recordFilter).toQuery(),
+      SearchOperationRequest(
+        :final limit,
+        :final offset,
+        :final recordFilter,
+        :final where,
+      ) =>
+        search(
+          limit: limit,
+          offset: offset,
+          where: where & recordFilter,
+        ).toQuery(),
+      CustomOperationRequest(
+        :final operation,
+        :final recordFilter,
+        :final values,
+      ) =>
+        custom(operation, where: recordFilter, values: values).toQuery(),
+      PerformOperationRequest(:final operation) => throw StateError(
+        'Invalid operation: $operation',
+      ),
+    };
+  }
 }
 
-mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
+base mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
   rd.InsertWithValuesBuilder<T, T> insert(T entity) {
     return db.insert(into: schema).values([entity]).returning();
   }
 }
 
-mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
+base mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
   rd.UpdateWhereBuilder<T, T, T> update(
     List<Updateable<dynamic>> updates, {
     required Filter where,
@@ -111,7 +178,7 @@ mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
   }
 }
 
-mixin DeleteReturning<T extends Schema<T>> on CollectionOperations<T> {
+base mixin DeleteReturning<T extends Schema<T>> on CollectionOperations<T> {
   rd.DeleteWhereBuilder<T, T> delete(Filter where, {int? limit}) {
     final builder = db.delete(from: schema).where(where);
 

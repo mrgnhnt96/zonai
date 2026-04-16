@@ -26,11 +26,11 @@ sealed class OperationResponse extends Response {
 }
 
 final class PerformOperationResponse extends OperationResponse {
-  PerformOperationResponse({
+  const PerformOperationResponse({
     required super.id,
     required this.query,
     this.values = const [],
-  }) : super(path: _path, payload: {'query': query, 'values': values});
+  }) : super(path: _path, payload: const {});
 
   factory PerformOperationResponse.fromJson(Map<String, dynamic> json) {
     return PerformOperationResponse(
