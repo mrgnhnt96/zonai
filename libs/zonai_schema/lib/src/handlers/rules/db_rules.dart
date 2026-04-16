@@ -1,8 +1,8 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_requests.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_responses.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 import 'package:zonai_schema/src/request.dart' as auth;
 import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/user.dart';

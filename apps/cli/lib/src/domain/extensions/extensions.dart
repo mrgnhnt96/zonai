@@ -39,6 +39,9 @@ class Extensions {
     __subscription = null;
   }
 
+  String get executablePath =>
+      fs.path.join(Settings.load().compiledExtensionsPath);
+
   Future<void> compile() async {
     if (!await _canCompile()) return;
 
@@ -59,8 +62,8 @@ class Extensions {
     }
 
     final target = fs.path.join(settings.compiledExtensionsPath);
-    if (!fs.directory(target).existsSync()) {
-      fs.directory(target).createSync(recursive: true);
+    if (fs.file(target).parent case final dir when !dir.existsSync()) {
+      dir.createSync(recursive: true);
     }
 
     await ExtensionGenerator(extensions: files).create();
@@ -68,13 +71,13 @@ class Extensions {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      fs.path.join('.dart_tool', 'zonai', 'db_extender.dart'),
+      ExtensionGenerator.executablePath,
       '-o',
-      fs.path.join(target, 'db_extender.exe'),
+      target,
     ]);
 
     if (result.exitCode != 0) {
-      logger.error('Failed to compile db_extender.exe');
+      logger.error('Failed to compile ${ExtensionGenerator.executablePath}');
       logger.info('----');
       logger.error('${result.stderr}');
       return;

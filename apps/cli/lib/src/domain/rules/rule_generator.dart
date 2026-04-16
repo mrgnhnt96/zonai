@@ -7,6 +7,9 @@ class RuleGenerator {
 
   final List<File> rules;
 
+  static String get executablePath =>
+      fs.path.join('.dart_tool', 'zonai', 'db_rules.dart');
+
   Future<void> create() async {
     logger.debug('Starting rule generator');
 
@@ -33,7 +36,7 @@ class RuleGenerator {
       entries.add((alias: alias, importPath: importPath));
     }
 
-    final out = fs.file(fs.path.join('.dart_tool', 'zonai', 'db_rules.dart'));
+    final out = fs.file(executablePath);
     out.writeAsStringSync(_dbRulesDartSource(entries));
 
     logger.debug('Generated rule file: ${out.path}');

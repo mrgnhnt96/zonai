@@ -25,8 +25,6 @@ class MessageHandler {
     final stream = stdin.stream.transform(utf8.decoder);
     await for (final msg in stream) {
       final message = msg.trim();
-      print('message: "$message"');
-      print("$message == 'kill' (${message == 'kill'})");
       if (message case 'kill' || 'quit' || 'exit' || 'q') {
         break;
       }
@@ -34,7 +32,7 @@ class MessageHandler {
       if (_decode(message) case final msg?) {
         switch (msg) {
           case RequestPing():
-            send(DebugResponse(message: 'connection healthy'));
+            send(PongResponse(id: msg.id));
             continue;
           case RequestKill():
             break;
@@ -45,7 +43,6 @@ class MessageHandler {
     }
 
     _listening = false;
-    print('done listening');
   }
 
   void send(Response? message) {
@@ -57,10 +54,11 @@ class MessageHandler {
       json = jsonEncode(message);
     } catch (e) {
       assert(false, 'Failed to encode message: $e');
+      print('Failed to encode message: $e');
       return;
     }
 
-    stdout.write('$json\n');
+    stdout.writeln(json);
   }
 
   Request? _decode(String message) {

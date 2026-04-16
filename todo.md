@@ -2,7 +2,8 @@
 
 ## 4.15.2026
 
-- [ ] Figure out the transformed output of a `Filter`, see if we can apply it to the query builder in its raw form
+- [ ] Support compiling to different arch-types
+- [ ] Compile for linux
 
 ## CLI
 
@@ -10,6 +11,7 @@
 - write script to compile the web app
 - set up cli to serve the compiled server
 - serve the compiled web app from the server
+- when deployed, the cli should not watch the filesystem for changes, not have the ability to recompile
 
 ### Message Handler
 
@@ -30,22 +32,9 @@
 - Auth
   - Sets up user authentication
 
-### Rules
+### Emails
 
-- Create classes for:
-  - Collection rules (table-level access)
-  - Record rules (row-level access)
-
-- Collection rules:
-  - Determine if a table can be accessed at all
-
-- Record rules:
-  - Determine if a specific record can be viewed
-  - Return query filters (for pagination-safe filtering)
-
-- Initialize rules in DB rules handler:
-  - Map rules by table name for fast lookup
-  - Avoid iterating over all rule classes on each request
+- Use raw html files for emails + mustache syntax for templating
 
 ## Raindrop
 

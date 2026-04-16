@@ -21,6 +21,9 @@ class Operations {
 
   StreamSubscription<WatchEvent>? __subscription;
 
+  String get executablePath =>
+      fs.path.join(Settings.load().compiledOperationsPath);
+
   void watch() {
     if (__subscription != null) return;
 
@@ -58,8 +61,8 @@ class Operations {
     }
 
     final target = fs.path.join(settings.compiledOperationsPath);
-    if (!fs.directory(target).existsSync()) {
-      fs.directory(target).createSync(recursive: true);
+    if (fs.file(target).parent case final dir when !dir.existsSync()) {
+      dir.createSync(recursive: true);
     }
 
     await OperationGenerator(operations: files).create();
@@ -67,13 +70,13 @@ class Operations {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      fs.path.join('.dart_tool', 'zonai', 'db_operations.dart'),
+      OperationGenerator.executablePath,
       '-o',
-      fs.path.join(target, 'db_operations.exe'),
+      target,
     ]);
 
     if (result.exitCode != 0) {
-      logger.error('Failed to compile db_operations.exe');
+      logger.error('Failed to compile ${OperationGenerator.executablePath}');
       logger.info('----');
       logger.error('${result.stderr}');
       return;

@@ -7,6 +7,9 @@ class OperationGenerator {
 
   final List<File> operations;
 
+  static String get executablePath =>
+      fs.path.join('.dart_tool', 'zonai', 'db_operations.dart');
+
   Future<void> create() async {
     logger.debug('Starting operation generator');
 
@@ -33,9 +36,7 @@ class OperationGenerator {
       entries.add((alias: alias, importPath: importPath));
     }
 
-    final out = fs.file(
-      fs.path.join('.dart_tool', 'zonai', 'db_operations.dart'),
-    );
+    final out = fs.file(executablePath);
     out.writeAsStringSync(_dbOperationsDartSource(entries));
 
     logger.debug('Generated operation file: ${out.path}');

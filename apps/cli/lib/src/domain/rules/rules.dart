@@ -21,6 +21,8 @@ class Rules {
 
   StreamSubscription<WatchEvent>? __subscription;
 
+  String get executablePath => fs.path.join(Settings.load().compiledRulesPath);
+
   void watch() {
     if (__subscription != null) return;
 
@@ -59,8 +61,8 @@ class Rules {
     }
 
     final target = fs.path.join(settings.compiledRulesPath);
-    if (!fs.directory(target).existsSync()) {
-      fs.directory(target).createSync(recursive: true);
+    if (fs.file(target).parent case final dir when !dir.existsSync()) {
+      dir.createSync(recursive: true);
     }
 
     await RuleGenerator(rules: files).create();
@@ -68,13 +70,13 @@ class Rules {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      fs.path.join('.dart_tool', 'zonai', 'db_rules.dart'),
+      RuleGenerator.executablePath,
       '-o',
-      fs.path.join(target, 'db_rules.exe'),
+      target,
     ]);
 
     if (result.exitCode != 0) {
-      logger.error('Failed to compile db_rules.exe');
+      logger.error('Failed to compile ${RuleGenerator.executablePath}');
       logger.info('----');
       logger.error('${result.stderr}');
       return;

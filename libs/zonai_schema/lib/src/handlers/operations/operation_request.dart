@@ -1,6 +1,6 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_requests.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/raw_sql_filter.dart';
 
 sealed class OperationRequest extends Request {

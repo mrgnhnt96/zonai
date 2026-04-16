@@ -1,8 +1,8 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
-import 'package:zonai_schema/src/handlers/operations/operation_requests.dart';
-import 'package:zonai_schema/src/handlers/operations/operation_responses.dart';
+import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
+import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/operations/collection_operations.dart';
 
 class DbOperations {

@@ -1,5 +1,5 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_requests.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 
 sealed class RuleResponse extends Response {
   const RuleResponse({
@@ -7,6 +7,24 @@ sealed class RuleResponse extends Response {
     required super.id,
     required super.payload,
   });
+
+  factory RuleResponse.fromJson(Map<String, dynamic> json) {
+    final path = json['path'];
+    if (path == null) {
+      throw ArgumentError('Invalid rule response path: ${json['path']}');
+    }
+
+    final id = json['id'];
+    if (id == null) {
+      throw ArgumentError('Invalid rule response id: ${json['id']}');
+    }
+
+    return switch (path) {
+      CanAccessResponse._path => CanAccessResponse.fromJson(json),
+      RecordFilterResponse._path => RecordFilterResponse.fromJson(json),
+      _ => throw ArgumentError('Invalid rule response path: $path'),
+    };
+  }
 }
 
 final class CanAccessResponse extends RuleResponse {

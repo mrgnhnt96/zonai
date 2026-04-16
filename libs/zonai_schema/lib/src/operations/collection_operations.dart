@@ -4,7 +4,7 @@ import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 
 import '../false_delegate.dart';
-import '../handlers/operations/operation_requests.dart';
+import '../handlers/operations/operation_request.dart';
 
 part 'collection_translator.dart';
 

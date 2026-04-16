@@ -49,9 +49,10 @@ final class UnknownRequest extends Request {
 
 final class RequestPing extends Request {
   RequestPing() : super(path: _path, id: Request.generateId());
+  const RequestPing._({required super.id}) : super(path: _path);
 
   factory RequestPing.fromJson(Map<String, dynamic> json) {
-    return RequestPing();
+    return RequestPing._(id: json['id'] as String);
   }
 
   static const _path = 'ping';

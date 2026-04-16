@@ -70,9 +70,11 @@ class Settings {
   final String rulesPath;
   final String operationsPath;
 
+  /// The path to the binary for the extensions
   String get compiledExtensionsPath =>
-      fs.path.join(defaultZonaiDirectory, 'extensions');
-  String get compiledRulesPath => fs.path.join(defaultZonaiDirectory, 'rules');
+      fs.path.join(defaultZonaiDirectory, 'extensions', 'db_extensions.exe');
+  String get compiledRulesPath =>
+      fs.path.join(defaultZonaiDirectory, 'rules', 'db_rules.exe');
   String get compiledOperationsPath =>
-      fs.path.join(defaultZonaiDirectory, 'operations');
+      fs.path.join(defaultZonaiDirectory, 'operations', 'db_operations.exe');
 }

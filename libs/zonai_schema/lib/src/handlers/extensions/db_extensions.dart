@@ -1,5 +1,5 @@
 import 'package:zonai_schema/src/extension.dart';
-import 'package:zonai_schema/src/handlers/extensions/extension_requests.dart';
+import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 
 class DbExtensions {

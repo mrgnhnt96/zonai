@@ -15,11 +15,11 @@ class Stdout {
     if (_subscription != null) return;
 
     _subscription = _controller.stream.listen((message) {
-      io.stdout.write(message);
+      io.stdout.writeln(message);
     });
   }
 
-  void write(String message) {
+  void writeln(String message) {
     _controller.add(message);
   }
 

@@ -17,6 +17,7 @@ base class Response {
 
     return switch (path) {
       DebugResponse._path => DebugResponse.fromJson(json),
+      PongResponse._path => PongResponse.fromJson(json),
       _ => Response(path: path, id: id, payload: json),
     };
   }
@@ -29,6 +30,16 @@ base class Response {
   final String path;
   final String id;
   final Map<String, dynamic> payload;
+}
+
+final class PongResponse extends Response {
+  PongResponse({required super.id}) : super(path: _path, payload: const {});
+
+  factory PongResponse.fromJson(Map<String, dynamic> json) {
+    return PongResponse(id: json['id']);
+  }
+
+  static const _path = 'pong';
 }
 
 final class DebugResponse extends Response {

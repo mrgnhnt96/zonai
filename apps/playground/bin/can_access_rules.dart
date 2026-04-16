@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_requests.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_responses.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
+import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 
 /// Talks to `.zonai/rules/db_rules.exe` with `can_access` requests over one
 /// process, matching responses to requests by `id`.

@@ -7,6 +7,9 @@ class ExtensionGenerator {
 
   final List<File> extensions;
 
+  static String get executablePath =>
+      fs.path.join('.dart_tool', 'zonai', 'db_extensions.dart');
+
   Future<void> create() async {
     logger.debug('Starting extension generator');
 
@@ -28,9 +31,7 @@ class ExtensionGenerator {
       entries.add((alias: alias, importPath: importPath));
     }
 
-    final out = fs.file(
-      fs.path.join('.dart_tool', 'zonai', 'db_extensions.dart'),
-    );
+    final out = fs.file(executablePath);
     out.writeAsStringSync(_dbExtenderDartSource(entries));
 
     logger.debug('Generated extension file: ${out.path}');
