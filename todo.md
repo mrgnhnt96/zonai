@@ -4,6 +4,8 @@
 
 - [ ] Support compiling to different arch-types
 - [ ] Compile for linux
+- [ ] Create a class to run Revali or the valley executable depending on if we are using production.
+- [ ] Create a class to manage interactions with SQLite
 
 ## CLI
 
@@ -38,10 +40,12 @@
 
 ## Raindrop
 
-- Add support for multi-path schema definitions
+- [ ] Add feature to alert/fail on breaking changes
 - Investigate how to handle base classes for schemas & extending them
 
-<!-- !! WARNING !! -->
+### Backlog
+
+- Add support for multi-path schema definitions
 
 BEFORE WE START JUMPING INTO GENERATING CODE, LETS SEE HOW FAR WE CAN GET WITHOUT GENERATING CODE:
 

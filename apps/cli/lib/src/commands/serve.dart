@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:zonai_cli/src/deps/args.dart';
 import 'package:zonai_cli/src/deps/extensions.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
+import 'package:zonai_cli/src/deps/kill.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/migrate.dart';
 import 'package:zonai_cli/src/deps/operations.dart';
+import 'package:zonai_cli/src/deps/revali.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
-import 'package:zonai_cli/src/domain/mailmain.dart';
+import 'package:zonai_cli/src/db_mutator/mailman.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
@@ -43,6 +45,10 @@ Future<int> serve() async {
     }
   });
 
+  if (!await revali.start()) {
+    return 1;
+  }
+
   logger.info('serving');
 
   final extensionMailman = Mailman<ExtensionRequest, ExtensionResponse>(
@@ -71,6 +77,8 @@ Future<int> serve() async {
       operationMailman.ping().then((s) => print(s, 'operation'));
     }
   });
+
+  await kill.wait();
 
   return 0;
 }

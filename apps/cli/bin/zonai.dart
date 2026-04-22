@@ -11,6 +11,7 @@ import 'package:zonai_cli/src/deps/kill.dart';
 import 'package:zonai_cli/src/deps/migrate.dart';
 import 'package:zonai_cli/src/deps/operations.dart';
 import 'package:zonai_cli/src/deps/process.dart';
+import 'package:zonai_cli/src/deps/revali.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
 import 'package:zonai_cli/src/deps/stdin.dart';
 import 'package:zonai_cli/src/utils/args.dart';
@@ -41,8 +42,10 @@ Future<void> _run(List<String> arguments) async {
   await runScoped(
     () async {
       try {
-        exitCode = await run();
         kill; // sets up the kill handler
+        exitCode = await run();
+        logger.debug('Exited with code: $exitCode');
+        kill.force();
       } catch (e) {
         logger.error('Error: $e');
         exitCode = 1;
@@ -61,6 +64,7 @@ Future<void> _run(List<String> arguments) async {
       killProvider,
       stdinProvider,
       operationsProvider,
+      revaliProvider,
     },
   );
 }

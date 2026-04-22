@@ -9,7 +9,7 @@ import 'package:zonai_cli/src/deps/logger.dart';
 class Kill {
   factory Kill() => _instance ??= Kill._();
   static Kill? _instance;
-  Kill._() : _listeners = [] {
+  Kill._() : _listeners = [], _lifeline = Completer<void>() {
     final stream = Platform.isWindows
         ? ProcessSignal.sigint.watch()
         : StreamGroup.merge([
@@ -25,6 +25,7 @@ class Kill {
     listenForKeyboardInput();
   }
 
+  final Completer<void> _lifeline;
   StreamSubscription<ProcessSignal>? __killSubscription;
 
   final List<void Function()> _listeners;
@@ -52,6 +53,9 @@ class Kill {
     logger.debug('Killing process');
     _dispose();
     await cleanUp.run();
+    if (!_lifeline.isCompleted) {
+      _lifeline.complete();
+    }
     exit(0);
   }
 
@@ -68,4 +72,6 @@ class Kill {
       }
     });
   }
+
+  Future<void> wait() async => await _lifeline.future;
 }

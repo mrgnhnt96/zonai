@@ -6,8 +6,20 @@ class Process {
     return result;
   }
 
-  Future<io.Process> start(String command, List<String> arguments) async {
-    final process = await io.Process.start(command, arguments);
+  Future<io.Process> start(
+    String command,
+    List<String> arguments, {
+    String? workingDirectory,
+    io.ProcessStartMode mode = io.ProcessStartMode.normal,
+  }) async {
+    final process = await io.Process.start(
+      command,
+      arguments,
+      workingDirectory: workingDirectory,
+      mode: mode,
+    );
     return process;
   }
+
+  bool kill(int pid) => io.Process.killPid(pid);
 }

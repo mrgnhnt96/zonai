@@ -3,3 +3,11 @@ db:
     migrations:
       (command): cd apps/db && dart run raindrop_cli:raindrop generate {-n} {--name}
       (aliases): [mig, m, migrate, migration]
+
+raindrop:
+  (aliases): [rd, r, rain]
+  git:
+    sync: |
+      cd libs/raindrop || exit 1
+      git branch -D main
+      git fetch upstream main:main
