@@ -10,7 +10,21 @@ class DbExtensions {
   void start() {
     MessageHandler(
       onMessage: (UnknownRequest msg) async {
-        final request = ExtensionRequest.fromRequest(msg);
+        ExtensionRequest request;
+        try {
+          request = ExtensionRequest.fromRequest(msg);
+        } catch (e, stack) {
+          logger.error(
+            'Error handling extension request',
+            error: '$e',
+            stackTrace: stack.toString(),
+            properties: {'request': msg.toJson()},
+          );
+          return null;
+        }
+
+        logger.debug('___NOT HANDLED YET!!___');
+        switch (request) {}
       },
     ).listen();
   }

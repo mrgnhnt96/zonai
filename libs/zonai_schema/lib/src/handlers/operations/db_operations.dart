@@ -27,10 +27,22 @@ class DbOperations {
   void start() {
     MessageHandler(
       onMessage: (UnknownRequest msg) async {
-        final request = OperationRequest.fromRequest(msg);
+        OperationRequest request;
+        try {
+          request = OperationRequest.fromRequest(msg);
+        } catch (e, stack) {
+          logger.error(
+            'Error handling operation request',
+            error: '$e',
+            stackTrace: stack.toString(),
+            properties: {'request': msg.toJson()},
+          );
+          return null;
+        }
+
         switch (request) {
           case final PerformOperationRequest request:
-            return _performOperation(request);
+            return await _performOperation(request);
         }
       },
     ).listen();

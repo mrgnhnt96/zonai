@@ -2,11 +2,13 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
+import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_schema/src/handlers/messages/stdin.dart';
 import 'package:zonai_schema/src/handlers/messages/stdout.dart';
 
 part 'request.dart';
 part 'response.dart';
+part 'deps/__log.dart';
 
 class MessageHandler {
   MessageHandler({required this.onMessage, Stdin? stdin, Stdout? stdout})
@@ -19,30 +21,57 @@ class MessageHandler {
 
   bool _listening = false;
   Future<void> listen() async {
-    if (_listening) return;
-    _listening = true;
+    Future<void> _listen() async {
+      if (_listening) return;
+      _listening = true;
 
-    final stream = stdin.stream.transform(utf8.decoder);
-    await for (final msg in stream) {
-      final message = msg.trim();
-      if (message case 'kill' || 'quit' || 'exit' || 'q') {
-        break;
-      }
+      final stream = stdin.stream.transform(utf8.decoder);
+      await for (final msg in stream) {
+        final message = msg.trim();
+        if (message case 'kill' || 'quit' || 'exit' || 'q') {
+          break;
+        }
 
-      if (_decode(message) case final msg?) {
-        switch (msg) {
-          case RequestPing():
-            send(PongResponse(id: msg.id));
-            continue;
-          case RequestKill():
-            break;
-          case UnknownRequest():
-            onMessage(msg).then(send);
+        if (_decode(message) case final msg?) {
+          switch (msg) {
+            case RequestPing():
+              send(PongResponse(id: msg.id));
+              continue;
+            case RequestKill():
+              break;
+            case UnknownRequest():
+              onMessage(msg).then(send);
+          }
         }
       }
+
+      _listening = false;
     }
 
-    _listening = false;
+    await runScoped(
+      _listen,
+      values: {
+        _loggerProvider.overrideWith(
+          () => _Logger((
+            message, {
+            required level,
+            properties,
+            stackTrace,
+            error,
+          }) {
+            send(
+              DebugResponse(
+                message: message,
+                level: level,
+                properties: properties,
+                stackTrace: stackTrace,
+                error: error,
+              ),
+            );
+          }),
+        ),
+      },
+    );
   }
 
   void send(Response? message) {

@@ -15,7 +15,13 @@ Future<void> main() async {
   final handler = MessageHandler(
     onMessage: (response) async {
       // Only non-ping / non-kill responses reach here (see handler switch).
-      return DebugResponse(message: 'onMessage saw path: ${response.path}');
+      return DebugResponse(
+        message: 'onMessage saw path: ${response.path}',
+        level: .debug,
+        properties: {},
+        stackTrace: null,
+        error: null,
+      );
     },
   );
 

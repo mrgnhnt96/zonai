@@ -23,10 +23,26 @@ class DbRules {
   void start() {
     MessageHandler(
       onMessage: (UnknownRequest msg) async {
-        return switch (RuleRequest.fromRequest(msg)) {
-          final CollectionRulesRequest request => _collectionRules(request),
-          final RecordRulesRequest request => _recordRules(request),
-        };
+        RuleRequest request;
+        try {
+          request = RuleRequest.fromRequest(msg);
+        } catch (e, stack) {
+          logger.error(
+            'Error handling rule request',
+            error: '$e',
+            stackTrace: stack.toString(),
+            properties: {'request': msg.toJson()},
+          );
+
+          return null;
+        }
+
+        switch (request) {
+          case final CollectionRulesRequest request:
+            return await _collectionRules(request);
+          case final RecordRulesRequest request:
+            return await _recordRules(request);
+        }
       },
     ).listen();
   }
@@ -111,6 +127,7 @@ class DbRules {
       .view => recordRules.canView(authRequest),
       .update => recordRules.canUpdate(authRequest),
       .delete => recordRules.canDelete(authRequest),
+      .create => recordRules.canCreate(authRequest),
     };
 
     if (filter == null) {

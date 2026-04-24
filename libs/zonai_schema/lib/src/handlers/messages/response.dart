@@ -42,12 +42,25 @@ final class PongResponse extends Response {
   static const _path = 'pong';
 }
 
+enum DebugLevel { debug, info, warn, error }
+
 final class DebugResponse extends Response {
-  DebugResponse({required this.message})
-    : super(path: _path, id: '-1', payload: {'message': message});
+  DebugResponse({
+    required this.message,
+    this.level = .debug,
+    this.stackTrace,
+    this.error,
+    this.properties,
+  }) : super(path: _path, id: '-1', payload: {'message': message});
 
   factory DebugResponse.fromJson(Map<String, dynamic> json) {
-    return DebugResponse(message: json['message']);
+    return DebugResponse(
+      message: json['message'],
+      level: DebugLevel.values.byName(json['level']),
+      properties: json['properties'],
+      stackTrace: json['stackTrace'],
+      error: json['error'],
+    );
   }
 
   static const _path = 'debug';
@@ -56,7 +69,16 @@ final class DebugResponse extends Response {
   String get path => _path;
 
   final String message;
+  final DebugLevel level;
+  final String? stackTrace;
+  final String? error;
+  final Map<String, dynamic>? properties;
 
   @override
-  Map<String, dynamic> toJson() => {'message': message, ...super.toJson()};
+  Map<String, dynamic> toJson() => {
+    'message': message,
+    'level': level.name,
+    'properties': properties,
+    ...super.toJson(),
+  };
 }
