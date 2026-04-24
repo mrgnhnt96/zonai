@@ -79,6 +79,8 @@ final class DebugResponse extends Response {
     'message': message,
     'level': level.name,
     'properties': properties,
+    'stackTrace': stackTrace,
+    'error': error,
     ...super.toJson(),
   };
 }

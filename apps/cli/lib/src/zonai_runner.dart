@@ -1,4 +1,4 @@
-import 'package:zonai_cli/src/commands/migrate/migrate.dart';
+import 'package:zonai_cli/src/commands/db/db.dart';
 import 'package:zonai_cli/src/commands/serve.dart';
 import 'package:zonai_cli/src/deps/args.dart';
 
@@ -8,7 +8,7 @@ Usage: zonai <command> [options]
 Commands:
   help        Show help information
   version     Show version information
-  migrate     Manage SQL migrations
+  db          Manage database
   serve       Serve the application
 ''';
 
@@ -29,8 +29,8 @@ Future<int> run() async {
   }
 
   switch (args.path) {
-    case ['migrate' || 'migrations' || 'm' || 'migration', ...final path]:
-      return await migrate(path);
+    case ['db', ...final path]:
+      return await db(path);
     case ['serve']:
       return await serve();
     default:

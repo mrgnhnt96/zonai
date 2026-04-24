@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:raindrop/raindrop.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
@@ -13,6 +15,13 @@ sealed class OperationRequest extends Request {
       ),
       _ => throw UnimplementedError(),
     };
+  }
+
+  @override
+  String toString() {
+    return '''OperationRequest:
+${const JsonEncoder.withIndent('  ').convert(toJson())}
+''';
   }
 }
 

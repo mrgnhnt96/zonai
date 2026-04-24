@@ -6,7 +6,7 @@ import 'package:zonai_cli/src/domain/settings.dart';
 part '__generate.dart';
 
 const _usage = '''
-Usage: zonai migrate [options]
+Usage: zonai db migrate [options]
 
 Options:
   -h, --help      Show help information
@@ -27,7 +27,6 @@ Future<int> migrate(List<String> path) async {
       return await _generate();
     default:
       print(_usage);
+      return 1;
   }
-
-  return 1;
 }

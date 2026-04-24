@@ -66,6 +66,11 @@ final class CanAccessResponse extends RuleResponse {
       ...super.toJson(),
     };
   }
+
+  @override
+  String toString() {
+    return 'CanAccessResponse(collection: $collection, operation: $operation, canAccess: $canAccess)';
+  }
 }
 
 final class RecordFilterResponse extends RuleResponse {
@@ -106,5 +111,10 @@ final class RecordFilterResponse extends RuleResponse {
       'filter': filter,
       ...super.toJson(),
     };
+  }
+
+  @override
+  String toString() {
+    return 'RecordFilterResponse(collection: $collection, operation: $operation, filter: $filter)';
   }
 }

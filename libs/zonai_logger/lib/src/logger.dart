@@ -16,14 +16,13 @@ class Logger {
 
   bool _emit(Level messageLevel) => messageLevel.index >= level.index;
 
-  void verbose(String message) => _log(Level.verbose, message, _stdout, _dim);
-
-  void trace(String message) => _log(Level.trace, message, _stdout, _dim);
-
-  void debug(String message) => _log(Level.debug, message, _stdout, _dim);
-
+  void verbose(String message, {String? prefix}) =>
+      _log(Level.verbose, message, _stdout, _dim, prefix: prefix);
+  void trace(String message, {String? prefix}) =>
+      _log(Level.trace, message, _stdout, _dim, prefix: prefix);
+  void debug(String message, {String? prefix}) =>
+      _log(Level.debug, message, _stdout, _dim, prefix: prefix);
   void info(String message) => _log(Level.info, message, _stdout, null);
-
   void warn(String message) => _log(Level.warning, message, _stderr, _yellow);
 
   void err(String message, [Object? error, StackTrace? stackTrace]) {
@@ -48,10 +47,17 @@ class Logger {
     Level messageLevel,
     String message,
     io.IOSink sink,
-    String Function(String)? style,
-  ) {
+    String Function(String)? style, {
+    String? prefix,
+  }) {
     if (!_emit(messageLevel)) return;
-    _writeLine(sink, message, style);
+    if (prefix != null) {
+      for (final line in message.split('\n')) {
+        _writeLine(sink, '$prefix: $line', style);
+      }
+    } else {
+      _writeLine(sink, message, style);
+    }
   }
 
   void _writeLine(io.IOSink sink, String text, String Function(String)? style) {

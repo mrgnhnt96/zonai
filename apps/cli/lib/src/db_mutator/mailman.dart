@@ -40,7 +40,7 @@ class Mailman<S extends Request, R extends Response> {
   void _log(DebugResponse response) {
     switch (response.level) {
       case .debug:
-        logger.debug(response.message);
+        logger.debug(response.message, prefix: _prefix);
         return;
       case .info:
         logger.info(response.message);
@@ -62,9 +62,7 @@ class Mailman<S extends Request, R extends Response> {
       final props => JsonEncoder.withIndent('  ').convert(props),
     };
     if (jsonProps != null && jsonProps.isNotEmpty) {
-      for (final line in jsonProps.split('\n')) {
-        logger.debug('$_prefix: $line');
-      }
+      logger.debug(jsonProps, prefix: _prefix);
     }
   }
 
@@ -89,20 +87,20 @@ class Mailman<S extends Request, R extends Response> {
 
   Future<io.Process?> _start() async {
     if (_process case final process?) {
-      logger.debug('$_prefix: Exists');
+      logger.debug('Exists', prefix: _prefix);
       return process;
     }
 
     if (!hasExecutable) {
-      logger.debug('$_prefix: No executable: $executablePath');
+      logger.debug('No executable: $executablePath', prefix: _prefix);
       return null;
     }
 
-    logger.debug('$_prefix: Starting | $executablePath');
+    logger.debug('Starting | $executablePath', prefix: _prefix);
 
     final p = _process = await process.start(executablePath, []);
     p.exitCode.whenComplete(() {
-      logger.debug('$_prefix: Exited');
+      logger.debug('Exited', prefix: _prefix);
       _process = null;
       for (final completer in _pendingResponses.values) {
         completer.completeError(Exception('Process killed'));
@@ -118,7 +116,7 @@ class Mailman<S extends Request, R extends Response> {
       _response.add(Response.fromJson(json));
     });
 
-    logger.debug('$_prefix: Started');
+    logger.debug('Started', prefix: _prefix);
 
     return p;
   }
@@ -139,7 +137,7 @@ class Mailman<S extends Request, R extends Response> {
   Future<Response?> _send(Request request) async {
     final process = await _start();
     if (process == null) {
-      logger.debug('$_prefix: Skipping send of request: $request');
+      logger.debug('Skipping send of request: $request', prefix: _prefix);
       return null;
     }
 
@@ -151,19 +149,18 @@ class Mailman<S extends Request, R extends Response> {
 
     try {
       return await pendingResponse.future.timeout(const Duration(seconds: 1));
-    } catch (e) {
-      logger.error('Response never received: Error');
-      logger.error('$e');
+    } catch (e, stack) {
+      logger.error('${_prefix} Response never received', e, stack);
     }
 
     return null;
   }
 
   Future<bool> ping() async {
-    logger.debug('Pinging $executablePath');
+    logger.debug('Pinging $executablePath', prefix: _prefix);
     final response = await _send(RequestPing());
     if (response == null) {
-      logger.debug('Failed to ping');
+      logger.debug('Failed to ping', prefix: _prefix);
       return false;
     }
 
@@ -179,7 +176,7 @@ class Mailman<S extends Request, R extends Response> {
   /// and should never be called in production
   Future<void> kill() async {
     if (_process case final process?) {
-      logger.debug('$_prefix: Killing');
+      logger.debug('Killing', prefix: _prefix);
       process.kill();
       _process = null;
     }

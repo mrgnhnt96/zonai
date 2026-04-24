@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 
 sealed class OperationResponse extends Response {
@@ -51,5 +53,12 @@ final class PerformOperationResponse extends OperationResponse {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'query': query, 'values': values};
+  }
+
+  @override
+  String toString() {
+    return '''PerformOperationResponse:
+${const JsonEncoder.withIndent('  ').convert(toJson())}
+''';
   }
 }

@@ -7,6 +7,8 @@ sealed class RuleRequest extends Request {
     switch (request.path) {
       case CollectionRulesRequest._path:
         return CollectionRulesRequest.fromRequest(request);
+      case RecordRulesRequest._path:
+        return RecordRulesRequest.fromRequest(request);
       default:
         throw UnimplementedError();
     }
@@ -19,6 +21,7 @@ final class CollectionRulesRequest extends RuleRequest {
     required this.operation,
     this.isSuperUser = false,
   }) : super(path: _path, id: Request.generateId());
+
   CollectionRulesRequest._({
     required super.id,
     required this.collection,
@@ -90,7 +93,7 @@ final class RecordRulesRequest extends RuleRequest {
     return {
       ...super.toJson(),
       'collection': collection,
-      'operation': operation,
+      'operation': operation.name,
       'isSuperUser': isSuperUser,
     };
   }
@@ -117,10 +120,20 @@ enum CollectionOperation {
       _ => null,
     };
   }
+
+  RecordOperation get recordOperation => switch (this) {
+    .create => .create,
+    .update => .update,
+    .delete => .delete,
+    .view => .view,
+    .list => .view,
+    .search => .view,
+  };
 }
 
 enum RecordOperation {
   view,
+  create,
   update,
   delete;
 
@@ -131,6 +144,7 @@ enum RecordOperation {
       'view' => .view,
       'update' => .update,
       'delete' => .delete,
+      'create' => .create,
       _ => null,
     };
   }

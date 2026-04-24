@@ -52,16 +52,19 @@ Future<int> serve() async {
   logger.info('serving');
 
   final extensionMailman = Mailman<ExtensionRequest, ExtensionResponse>(
+    debugName: 'EXTENSIONS',
     executablePath: extensions.executablePath,
     fromJson: ExtensionResponse.fromJson,
   );
 
   final rulesMailman = Mailman<RuleRequest, RuleResponse>(
+    debugName: 'RULES',
     executablePath: rules.executablePath,
     fromJson: RuleResponse.fromJson,
   );
 
   final operationMailman = Mailman<OperationRequest, OperationResponse>(
+    debugName: 'OPERATIONS',
     executablePath: operations.executablePath,
     fromJson: OperationResponse.fromJson,
   );

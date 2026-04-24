@@ -11,6 +11,7 @@ class Settings {
     required this.extensionsPath,
     required this.operationsPath,
     required this.rulesPath,
+    required this.dataPath,
   });
 
   static const defaultZonaiDirectory = '.zonai';
@@ -27,6 +28,7 @@ class Settings {
 
     final defaultSettings = Settings(
       migrationsPath: fs.path.join(defaultZonaiDirectory, 'migrations'),
+      dataPath: fs.path.join(defaultZonaiDirectory, 'data'),
       schemasPath: fs.path.join('lib', 'src', 'schemas'),
       extensionsPath: fs.path.join('lib', 'src', 'extensions'),
       rulesPath: fs.path.join('lib', 'src', 'rules'),
@@ -44,6 +46,10 @@ class Settings {
       migrationsPath: switch (map['migrationsPath']) {
         final String value => value,
         _ => defaultSettings.migrationsPath,
+      },
+      dataPath: switch (map['dataPath']) {
+        final String value => value,
+        _ => defaultSettings.dataPath,
       },
       schemasPath: switch (map['schemasPath']) {
         final String value => value,
@@ -65,6 +71,7 @@ class Settings {
   }
 
   final String migrationsPath;
+  final String dataPath;
   final String schemasPath;
   final String extensionsPath;
   final String rulesPath;
