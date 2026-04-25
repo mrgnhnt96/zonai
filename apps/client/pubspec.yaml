@@ -9,8 +9,6 @@ environment:
 dependencies:
   http: ^1.6.0
   json_annotation: ^4.9.0
-  zonai_domain:
-    path: ../../libs/domain
 
 dev_dependencies:
   build_runner: ^2.10.5

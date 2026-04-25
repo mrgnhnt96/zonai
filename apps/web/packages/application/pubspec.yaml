@@ -16,8 +16,6 @@ dependencies:
   get_it_injector: ^0.6.0
   stream_transform: ^2.1.1
   uuid: ^4.5.2
-  zonai_domain:
-    path: ../../../../libs/domain
 
 dev_dependencies:
   bloc_enhancer_gen: ^0.6.0
