@@ -20,7 +20,12 @@ class DbExtensions {
             stackTrace: stack.toString(),
             properties: {'request': msg.toJson()},
           );
-          return null;
+          return MessageErrorResponse(
+            id: msg.id,
+            message: 'Error handling extension request',
+            error: e.toString(),
+            stackTrace: stack.toString(),
+          );
         }
 
         logger.debug('___NOT HANDLED YET!!___');

@@ -9,13 +9,14 @@ extension ItemsIdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
     ItemsId? value,
   ) {
     return custom<ItemsId, String>(
-      ItemsIdColumn.new,
-      name,
-      field,
-      value,
-      transformer: const ItemsIdTransformer(),
-      sqlType: 'TEXT',
-    ) as T;
+          (value) => ItemsIdColumn(value),
+          name,
+          field,
+          value,
+          transformer: const ItemsIdTransformer(),
+          sqlType: 'TEXT',
+        )
+        as T;
   }
 }
 

@@ -129,6 +129,15 @@ enum CollectionOperation {
     .list => .view,
     .search => .view,
   };
+
+  bool get requireObject => switch (this) {
+    .create => true,
+    .update => true,
+    .delete => true,
+    .view => false,
+    .list => false,
+    .search => false,
+  };
 }
 
 enum RecordOperation {

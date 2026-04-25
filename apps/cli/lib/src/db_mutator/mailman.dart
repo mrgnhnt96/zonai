@@ -67,10 +67,33 @@ class Mailman<S extends Request, R extends Response> {
   }
 
   void _handleResponse(Response response) {
-    switch (response) {
-      case DebugResponse():
-        _log(response);
+    if (response is DebugResponse) {
+      _log(response);
+      return;
+    }
+    if (response is MessageErrorResponse) {
+      final id = response.id;
+      final message = response.message;
+      final err = response.error;
+      final stackTrace = response.stackTrace;
+      final completer = _pendingResponses.remove(id);
+      if (completer == null) {
+        assert(false, 'Received error for unknown request: $id');
         return;
+      }
+      logger.error(
+        '$_prefix $message',
+        err,
+        stackTrace != null ? StackTrace.fromString(stackTrace) : null,
+      );
+      completer.completeError(
+        MessageHandlerFailedException(
+          message,
+          cause: err,
+          causeStackTrace: stackTrace,
+        ),
+      );
+      return;
     }
     final completer = _pendingResponses.remove(response.id);
 
@@ -111,9 +134,12 @@ class Mailman<S extends Request, R extends Response> {
     p.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
       event,
     ) {
-      final json = jsonDecode(event.trim());
-
-      _response.add(Response.fromJson(json));
+      try {
+        final json = jsonDecode(event.trim()) as Map<String, dynamic>;
+        _response.add(Response.fromJson(json));
+      } catch (e, stack) {
+        logger.error('$_prefix Malformed message on stdout', e, stack);
+      }
     });
 
     logger.debug('Started', prefix: _prefix);
@@ -122,7 +148,12 @@ class Mailman<S extends Request, R extends Response> {
   }
 
   Future<R?> send(S request) async {
-    final response = await _send(request);
+    final Response? response;
+    try {
+      response = await _send(request);
+    } on MessageHandlerFailedException {
+      rethrow;
+    }
     if (response == null) {
       return null;
     }
@@ -149,6 +180,8 @@ class Mailman<S extends Request, R extends Response> {
 
     try {
       return await pendingResponse.future.timeout(const Duration(seconds: 1));
+    } on MessageHandlerFailedException {
+      rethrow;
     } catch (e, stack) {
       logger.error('${_prefix} Response never received', e, stack);
     }

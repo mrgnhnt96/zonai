@@ -18,6 +18,7 @@ base class Response {
     return switch (path) {
       DebugResponse._path => DebugResponse.fromJson(json),
       PongResponse._path => PongResponse.fromJson(json),
+      MessageErrorResponse._path => MessageErrorResponse.fromJson(json),
       _ => Response(path: path, id: id, payload: json),
     };
   }
@@ -81,6 +82,60 @@ final class DebugResponse extends Response {
     'properties': properties,
     'stackTrace': stackTrace,
     'error': error,
+    ...super.toJson(),
+  };
+}
+
+/// Thrown in the parent process when a worker replies with [MessageErrorResponse].
+class MessageHandlerFailedException implements Exception {
+  MessageHandlerFailedException(
+    this.message, {
+    this.cause,
+    this.causeStackTrace,
+  });
+
+  final String message;
+  final String? cause;
+  final String? causeStackTrace;
+
+  @override
+  String toString() {
+    if (cause == null) {
+      return message;
+    }
+    return '$message: $cause';
+  }
+}
+
+/// Sent to the parent on failure so the [id] can match a pending [Completer].
+final class MessageErrorResponse extends Response {
+  MessageErrorResponse({
+    required super.id,
+    required this.message,
+    this.error,
+    this.stackTrace,
+  }) : super(path: _path, payload: const {});
+
+  factory MessageErrorResponse.fromJson(Map<String, dynamic> json) {
+    return MessageErrorResponse(
+      id: json['id'] as String,
+      message: json['message'] as String,
+      error: json['error'] as String?,
+      stackTrace: json['stackTrace'] as String?,
+    );
+  }
+
+  static const _path = 'message.error';
+
+  final String message;
+  final String? error;
+  final String? stackTrace;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'message': message,
+    if (error != null) 'error': error,
+    if (stackTrace != null) 'stackTrace': stackTrace,
     ...super.toJson(),
   };
 }

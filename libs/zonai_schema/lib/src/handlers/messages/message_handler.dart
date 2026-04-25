@@ -40,7 +40,29 @@ class MessageHandler {
             case RequestKill():
               break;
             case UnknownRequest():
-              onMessage(msg).then(send);
+              onMessage(msg).then(
+                send,
+                onError: (Object error, StackTrace stackTrace) {
+                  logger.error(
+                    'Error handling request',
+                    error: error.toString(),
+                    stackTrace: stackTrace.toString(),
+                    properties: {
+                      'path': msg.path,
+                      'id': msg.id,
+                      'request': msg.payload,
+                    },
+                  );
+                  send(
+                    MessageErrorResponse(
+                      id: msg.id,
+                      message: 'Error handling request',
+                      error: error.toString(),
+                      stackTrace: stackTrace.toString(),
+                    ),
+                  );
+                },
+              );
           }
         }
       }

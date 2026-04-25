@@ -33,31 +33,17 @@ Future<int> update(List<String> path) async {
     return 1;
   }
 
-  final data = args.getOrNull<String>('data');
-  if (data == null) {
-    logger.err('--data is required to update a record');
-    logger.info(_usage);
-    return 1;
-  }
-
-  final json = jsonDecode(data) as Map<String, dynamic>;
-  if (json.isEmpty) {
-    logger.err('Data cannot be empty');
-    logger.info(_usage);
-    return 1;
-  }
-
   final operation = args.getOrNull<String>(
     'operation',
     aliases: ['op'],
     abbr: 'o',
   );
+
   if (operation == null || operation.isEmpty) {
     logger.err('--operation is required to update a record');
     logger.info(_usage);
     return 1;
   }
-
   final collectionOperation = CollectionOperation.fromString(operation);
   if (collectionOperation == null) {
     logger.err('Invalid operation: $operation');
@@ -65,7 +51,35 @@ Future<int> update(List<String> path) async {
     return 1;
   }
 
-  await zonaiDB.operate(collection, operation: collectionOperation, data: json);
+  Map<String, dynamic>? json;
 
-  return 1;
+  final data = args.getOrNull<String>('data');
+  if (data case null when collectionOperation.requireObject) {
+    logger.err('--data is required to update a record');
+    logger.info(_usage);
+    return 1;
+  }
+  if (data case final data? when data.isNotEmpty) {
+    try {
+      json = jsonDecode(data) as Map<String, dynamic>;
+    } catch (e) {
+      logger.err('Invalid JSON: $data');
+      logger.info(_usage);
+      return 1;
+    }
+  }
+
+  if (json?.isEmpty case true || null when collectionOperation.requireObject) {
+    logger.err('Data cannot be empty');
+    logger.info(_usage);
+    return 1;
+  }
+
+  await zonaiDB.operate(
+    collection,
+    operation: collectionOperation,
+    data: json ?? {},
+  );
+
+  return 0;
 }

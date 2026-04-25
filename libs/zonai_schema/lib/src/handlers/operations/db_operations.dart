@@ -37,7 +37,12 @@ class DbOperations {
             stackTrace: stack.toString(),
             properties: {'request': msg.toJson()},
           );
-          return null;
+          return MessageErrorResponse(
+            id: msg.id,
+            message: 'Error handling operation request',
+            error: e.toString(),
+            stackTrace: stack.toString(),
+          );
         }
 
         switch (request) {

@@ -9,6 +9,6 @@ class ItemRecordRules extends RecordRules<Item> {
 
   @override
   Future<Filter?> canView(Request request) async {
-    return not(items.id.isNull()) & items.description.like('%test%');
+    return not(items.id.isNull());
   }
 }
