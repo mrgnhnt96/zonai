@@ -74,7 +74,7 @@ class Revali {
 
     bool isReady = false;
     var attempts = 0;
-    const maxAttempts = 100;
+    const maxAttempts = 200;
     while (!isReady && attempts < maxAttempts) {
       logger.debug('Checking health of Revali (server) - Attempt $attempts');
       isReady = await health();

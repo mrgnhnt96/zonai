@@ -12,6 +12,7 @@ import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/migrate.dart';
 import 'package:zonai_cli/src/deps/operations.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
+import 'package:zonai_cli/src/deps/settings.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
@@ -48,16 +49,13 @@ class ZonaiDb {
   static const _prefix = '[ZONAI_DB]';
 
   File? __dbFile;
-  File get _dbFile => __dbFile ??= fs.file(
-    fs.path.join(Settings.load().dataPath, 'zonai.sqlite'),
-  );
+  File get _dbFile =>
+      __dbFile ??= fs.file(fs.path.join(settings.dataPath, 'zonai.sqlite'));
 
   Future<void> open() async {
     if (this.db != null) {
       return;
     }
-
-    final settings = Settings.load();
 
     final dir = fs.directory(settings.dataPath);
     if (!dir.existsSync()) {

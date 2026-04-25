@@ -7,6 +7,7 @@ import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai_cli/src/deps/settings.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
 
@@ -17,7 +18,7 @@ class Migrate {
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>
-      __watcher ??= DirectoryWatcher(Settings.load().migrationsPath);
+      __watcher ??= DirectoryWatcher(settings.migrationsPath);
 
   StreamSubscription<WatchEvent>? __subscription;
 
@@ -46,8 +47,6 @@ class Migrate {
   }
 
   Future<int> run({required String name, bool? dryRun}) async {
-    final settings = Settings.load();
-
     bool hasChanges = false;
 
     final result = await runZoned(
@@ -91,7 +90,6 @@ class Migrate {
   }
 
   Future<List<Migration>> migrations() async {
-    final settings = Settings.load();
     final migrationsDir = fs.directory(settings.migrationsPath);
     if (!migrationsDir.existsSync()) {
       throw StateError(

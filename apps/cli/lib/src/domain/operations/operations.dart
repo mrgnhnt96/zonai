@@ -7,8 +7,8 @@ import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/process.dart';
+import 'package:zonai_cli/src/deps/settings.dart';
 import 'package:zonai_cli/src/domain/operations/operation_generator.dart';
-import 'package:zonai_cli/src/domain/settings.dart';
 
 class Operations {
   factory Operations() => _instance ??= Operations._();
@@ -17,12 +17,11 @@ class Operations {
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>
-      __watcher ??= DirectoryWatcher(Settings.load().operationsPath);
+      __watcher ??= DirectoryWatcher(settings.operationsPath);
 
   StreamSubscription<WatchEvent>? __subscription;
 
-  String get executablePath =>
-      fs.path.join(Settings.load().compiledOperationsPath);
+  String get executablePath => fs.path.join(settings.compiledOperationsPath);
 
   void watch() {
     if (__subscription != null) return;
@@ -43,8 +42,6 @@ class Operations {
 
   Future<void> compile() async {
     if (!await _canCompile()) return;
-
-    final settings = Settings.load();
 
     final directory = fs.directory(settings.operationsPath);
     final files = directory
@@ -86,7 +83,7 @@ class Operations {
   }
 
   Future<bool> _canCompile() async {
-    final directory = fs.directory(Settings.load().operationsPath);
+    final directory = fs.directory(settings.operationsPath);
     if (!directory.existsSync()) {
       logger.error('Operations directory does not exist: ${directory.path}');
       return false;

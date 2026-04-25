@@ -7,8 +7,8 @@ import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/process.dart';
+import 'package:zonai_cli/src/deps/settings.dart';
 import 'package:zonai_cli/src/domain/extensions/extension_generator.dart';
-import 'package:zonai_cli/src/domain/settings.dart';
 
 /// Utilities to handle extensions to the database
 class Extensions {
@@ -18,7 +18,7 @@ class Extensions {
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>
-      __watcher ??= DirectoryWatcher(Settings.load().extensionsPath);
+      __watcher ??= DirectoryWatcher(settings.extensionsPath);
 
   StreamSubscription<WatchEvent>? __subscription;
 
@@ -39,13 +39,10 @@ class Extensions {
     __subscription = null;
   }
 
-  String get executablePath =>
-      fs.path.join(Settings.load().compiledExtensionsPath);
+  String get executablePath => fs.path.join(settings.compiledExtensionsPath);
 
   Future<void> compile() async {
     if (!await _canCompile()) return;
-
-    final settings = Settings.load();
 
     final directory = fs.directory(settings.extensionsPath);
     final files = directory
@@ -87,7 +84,7 @@ class Extensions {
   }
 
   Future<bool> _canCompile() async {
-    final directory = fs.directory(Settings.load().extensionsPath);
+    final directory = fs.directory(settings.extensionsPath);
     if (!directory.existsSync()) {
       logger.error('Extensions directory does not exist: ${directory.path}');
       return false;

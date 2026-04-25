@@ -13,6 +13,7 @@ import 'package:zonai_cli/src/deps/operations.dart';
 import 'package:zonai_cli/src/deps/process.dart';
 import 'package:zonai_cli/src/deps/revali.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
+import 'package:zonai_cli/src/deps/settings.dart';
 import 'package:zonai_cli/src/deps/stdin.dart';
 import 'package:zonai_cli/src/deps/zonai_db.dart';
 import 'package:zonai_cli/src/utils/args.dart';
@@ -67,6 +68,7 @@ Future<void> _run(List<String> arguments) async {
       operationsProvider,
       revaliProvider,
       zonaiDbProvider,
+      settingsProvider,
     },
   );
 }

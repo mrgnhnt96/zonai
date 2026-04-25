@@ -7,8 +7,8 @@ import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/process.dart';
+import 'package:zonai_cli/src/deps/settings.dart';
 import 'package:zonai_cli/src/domain/rules/rule_generator.dart';
-import 'package:zonai_cli/src/domain/settings.dart';
 
 class Rules {
   factory Rules() => _instance ??= Rules._();
@@ -17,11 +17,11 @@ class Rules {
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>
-      __watcher ??= DirectoryWatcher(Settings.load().rulesPath);
+      __watcher ??= DirectoryWatcher(settings.rulesPath);
 
   StreamSubscription<WatchEvent>? __subscription;
 
-  String get executablePath => fs.path.join(Settings.load().compiledRulesPath);
+  String get executablePath => fs.path.join(settings.compiledRulesPath);
 
   void watch() {
     if (__subscription != null) return;
@@ -42,8 +42,6 @@ class Rules {
 
   Future<void> compile() async {
     if (!await _canCompile()) return;
-
-    final settings = Settings.load();
 
     final directory = fs.directory(settings.rulesPath);
 
@@ -86,7 +84,7 @@ class Rules {
   }
 
   Future<bool> _canCompile() async {
-    final directory = fs.directory(Settings.load().rulesPath);
+    final directory = fs.directory(settings.rulesPath);
     if (!directory.existsSync()) {
       logger.error('Rules directory does not exist: ${directory.path}');
       return false;

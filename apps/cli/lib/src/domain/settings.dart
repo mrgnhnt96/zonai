@@ -12,12 +12,16 @@ class Settings {
     required this.operationsPath,
     required this.rulesPath,
     required this.dataPath,
+    this.basePath,
   });
 
   static const defaultZonaiDirectory = '.zonai';
 
-  factory Settings.load() {
-    final settings = switch ((fs.file('zonai.yml'), fs.file('zonai.yaml'))) {
+  factory Settings.load([String? basePath]) {
+    final settings = switch ((
+      fs.file(fs.path.joinAll([?basePath, 'zonai.yml'])),
+      fs.file(fs.path.joinAll([?basePath, 'zonai.yaml'])),
+    )) {
       (final file, _) when file.existsSync() => file,
       (_, final file) when file.existsSync() => file,
       (_, _) => switch (args.getOrNull<String>('config', abbr: 'c')) {
@@ -26,13 +30,17 @@ class Settings {
       },
     };
 
+    String normalize(List<String> paths) {
+      return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));
+    }
+
     final defaultSettings = Settings(
-      migrationsPath: fs.path.join(defaultZonaiDirectory, 'migrations'),
-      dataPath: fs.path.join(defaultZonaiDirectory, 'data'),
-      schemasPath: fs.path.join('lib', 'src', 'schemas'),
-      extensionsPath: fs.path.join('lib', 'src', 'extensions'),
-      rulesPath: fs.path.join('lib', 'src', 'rules'),
-      operationsPath: fs.path.join('lib', 'src', 'operations'),
+      migrationsPath: normalize([defaultZonaiDirectory, 'migrations']),
+      dataPath: normalize([defaultZonaiDirectory, 'data']),
+      schemasPath: normalize(['lib', 'src', 'schemas']),
+      extensionsPath: normalize(['lib', 'src', 'extensions']),
+      rulesPath: normalize(['lib', 'src', 'rules']),
+      operationsPath: normalize(['lib', 'src', 'operations']),
     );
 
     if (settings == null) {
@@ -44,29 +52,30 @@ class Settings {
 
     return Settings(
       migrationsPath: switch (map['migrationsPath']) {
-        final String value => value,
+        final String value => normalize([value]),
         _ => defaultSettings.migrationsPath,
       },
       dataPath: switch (map['dataPath']) {
-        final String value => value,
+        final String value => normalize([value]),
         _ => defaultSettings.dataPath,
       },
       schemasPath: switch (map['schemasPath']) {
-        final String value => value,
+        final String value => normalize([value]),
         _ => defaultSettings.schemasPath,
       },
       extensionsPath: switch (map['extensionsPath']) {
-        final String value => value,
+        final String value => normalize([value]),
         _ => defaultSettings.extensionsPath,
       },
       rulesPath: switch (map['rulesPath']) {
-        final String value => value,
+        final String value => normalize([value]),
         _ => defaultSettings.rulesPath,
       },
       operationsPath: switch (map['operationsPath']) {
-        final String value => value,
+        final String value => normalize([value]),
         _ => defaultSettings.operationsPath,
       },
+      basePath: basePath,
     );
   }
 
@@ -76,12 +85,17 @@ class Settings {
   final String extensionsPath;
   final String rulesPath;
   final String operationsPath;
+  final String? basePath;
+
+  String _normalize(List<String> paths) {
+    return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));
+  }
 
   /// The path to the binary for the extensions
   String get compiledExtensionsPath =>
-      fs.path.join(defaultZonaiDirectory, 'extensions', 'db_extensions.exe');
+      _normalize([defaultZonaiDirectory, 'extensions', 'db_extensions.exe']);
   String get compiledRulesPath =>
-      fs.path.join(defaultZonaiDirectory, 'rules', 'db_rules.exe');
+      _normalize([defaultZonaiDirectory, 'rules', 'db_rules.exe']);
   String get compiledOperationsPath =>
-      fs.path.join(defaultZonaiDirectory, 'operations', 'db_operations.exe');
+      _normalize([defaultZonaiDirectory, 'operations', 'db_operations.exe']);
 }
