@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:file/file.dart';
-import 'package:raindrop/raindrop.dart' show Raindrop;
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
+import 'package:raindrop/raindrop.dart' show DatabaseResult, Raindrop;
+import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_cli/src/db_mutator/mailman.dart';
+import 'package:zonai_cli/src/db_mutator/operation_result.dart';
 import 'package:zonai_cli/src/deps/extensions.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai_cli/src/deps/migrate.dart';
 import 'package:zonai_cli/src/deps/operations.dart';
 import 'package:zonai_cli/src/deps/rules.dart';
 import 'package:zonai_cli/src/domain/settings.dart';
@@ -16,8 +19,6 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
-import 'package:zonai_cli/src/deps/migrate.dart';
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 
 class ZonaiDb {
   factory ZonaiDb() => _instance ??= ZonaiDb._();
@@ -82,7 +83,7 @@ class ZonaiDb {
     await db.ensureOpen();
   }
 
-  Future<void> operate(
+  Future<PerformOperationResponse> _preChecks(
     String collection, {
     required CollectionOperation operation,
     required Map<String, dynamic> data,
@@ -115,19 +116,107 @@ class ZonaiDb {
       'Getting operation for $collection $operation',
       prefix: _prefix,
     );
-    final op = await _getOperation(
+    return await _getOperation(
       collection,
       operation,
       data: data,
       recordFilter: ruleFilter?.filter,
     );
-    logger.debug('Operation: $op', prefix: _prefix);
+  }
 
+  Future<Map<String, Object?>> create(
+    String collection,
+    Map<String, dynamic> data,
+  ) async {
+    final op = await _preChecks(collection, operation: .create, data: data);
     if (op.query.isEmpty) {
-      throw StateError('No query returned for $operation');
+      throw StateError('No query returned for ${CollectionOperation.create}');
     }
 
-    await execute([(op.query, op.values)]);
+    final result = await execute((op.query, op.values), forOperation: .create);
+
+    final objects = result.rows.map((e) => e.toMap()).toList();
+
+    return objects.single;
+  }
+
+  Future<List<Map<String, Object?>>> update(
+    String collection,
+    Map<String, dynamic> data,
+  ) async {
+    final op = await _preChecks(collection, operation: .update, data: data);
+    if (op.query.isEmpty) {
+      throw StateError('No query returned for ${CollectionOperation.update}');
+    }
+
+    final result = await execute((op.query, op.values), forOperation: .update);
+
+    final objects = result.rows.map((e) => e.toMap()).toList();
+    logger.debug('Updated ${objects.length} objects', prefix: _prefix);
+
+    return objects;
+  }
+
+  Future<int> delete(String collection, Map<String, dynamic> data) async {
+    final op = await _preChecks(collection, operation: .delete, data: data);
+    if (op.query.isEmpty) {
+      throw StateError('No query returned for ${CollectionOperation.delete}');
+    }
+
+    final result = await execute((op.query, op.values), forOperation: .delete);
+
+    return result.rowsAffected;
+  }
+
+  Future<Map<String, Object?>> view(
+    String collection,
+    Map<String, dynamic> data,
+  ) async {
+    final op = await _preChecks(collection, operation: .view, data: data);
+    if (op.query.isEmpty) {
+      throw StateError('No query returned for ${CollectionOperation.view}');
+    }
+
+    final result = await execute((op.query, op.values), forOperation: .view);
+
+    final objects = result.rows.map((e) => e.toMap()).toList();
+    logger.debug('Found ${objects.length} objects', prefix: _prefix);
+
+    return objects.single;
+  }
+
+  Future<List<Map<String, Object?>>> list(
+    String collection,
+    Map<String, dynamic> data,
+  ) async {
+    final op = await _preChecks(collection, operation: .list, data: data);
+    if (op.query.isEmpty) {
+      throw StateError('No query returned for ${CollectionOperation.list}');
+    }
+
+    final result = await execute((op.query, op.values), forOperation: .list);
+
+    final objects = result.rows.map((e) => e.toMap()).toList();
+    logger.debug('Found ${objects.length} objects', prefix: _prefix);
+
+    return objects;
+  }
+
+  Future<List<Map<String, Object?>>> search(
+    String collection,
+    Map<String, dynamic> data,
+  ) async {
+    final op = await _preChecks(collection, operation: .search, data: data);
+    if (op.query.isEmpty) {
+      throw StateError('No query returned for ${CollectionOperation.search}');
+    }
+
+    final result = await execute((op.query, op.values), forOperation: .search);
+
+    final objects = result.rows.map((e) => e.toMap()).toList();
+    logger.debug('Found ${objects.length} objects', prefix: _prefix);
+
+    return objects;
   }
 
   Future<CanAccessResponse> _collectionRules(
@@ -200,14 +289,14 @@ class ZonaiDb {
       .list => ListOperationRequest(
         collection: collection,
         rawRecordFilter: recordFilter,
-        limit: 1,
-        offset: 0,
+        limit: null,
+        offset: null,
       ),
       .search => SearchOperationRequest(
         collection: collection,
         rawRecordFilter: recordFilter,
-        limit: 1,
-        offset: 0,
+        limit: null,
+        offset: null,
         rawWhere: '',
       ),
     };
@@ -223,7 +312,11 @@ class ZonaiDb {
     );
   }
 
-  Future<void> execute(List<(String, List<Object?>)> queries) async {
+  Future<OperationResult> execute(
+    (String, List<Object?>) query, {
+    List<(String, List<Object?>)>? sideEffects,
+    CollectionOperation? forOperation,
+  }) async {
     await open();
 
     final db = this.db;
@@ -231,11 +324,18 @@ class ZonaiDb {
       throw StateError('Database is not open');
     }
 
-    logger.debug('Executing queries: $queries', prefix: _prefix);
+    DatabaseResult? result;
     await db.transaction((tx) async {
-      for (final (query, values) in queries) {
-        await tx.execute(query, values);
+      final (q, v) = query;
+      result = await tx.execute(q, v);
+
+      if (sideEffects case final queries?) {
+        for (final (query, values) in queries) {
+          await tx.execute(query, values);
+        }
       }
     });
+
+    return OperationResult(result);
   }
 }

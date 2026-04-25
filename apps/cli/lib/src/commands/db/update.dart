@@ -75,11 +75,20 @@ Future<int> update(List<String> path) async {
     return 1;
   }
 
-  await zonaiDB.operate(
-    collection,
-    operation: collectionOperation,
-    data: json ?? {},
-  );
+  switch (collectionOperation) {
+    case .create:
+      await zonaiDB.create(collection, json ?? {});
+    case .update:
+      await zonaiDB.update(collection, json ?? {});
+    case .delete:
+      await zonaiDB.delete(collection, json ?? {});
+    case .view:
+      await zonaiDB.view(collection, json ?? {});
+    case .list:
+      await zonaiDB.list(collection, json ?? {});
+    case .search:
+      await zonaiDB.search(collection, json ?? {});
+  }
 
   return 0;
 }
