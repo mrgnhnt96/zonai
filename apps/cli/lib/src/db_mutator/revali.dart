@@ -7,6 +7,7 @@ import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/process.dart';
 import 'package:zonai_cli/src/domain/constants.dart';
+import 'package:zonai_cli/gen/server/.revali/server/server.dart' as server;
 
 class Revali {
   factory Revali() => _instance ??= Revali._();
@@ -14,7 +15,13 @@ class Revali {
   static Revali? _instance;
 
   io.Process? _process;
-  bool get isRunning => _process != null;
+  bool get isRunning => switch (kIsCompiled) {
+    true => _isRunning,
+    false => _process != null,
+  };
+
+  /// Whether the server is running in compiled mode
+  bool _isRunning = false;
 
   Future<bool> start() async {
     if (isRunning) {
@@ -25,12 +32,40 @@ class Revali {
     logger.debug('Starting Revali server');
 
     if (kIsCompiled) {
-      logger.err(
-        'Cannot start Revali in compiled mode, we haven\'t set this up yet!',
-      );
-      return false;
+      return await _startCompiled();
     }
 
+    return await _startDebug();
+  }
+
+  Future<bool> _startCompiled() async {
+    () async {
+      await runZoned(
+        () async {
+          await server.createServer(null, []);
+        },
+        zoneSpecification: .new(
+          print: (_, _, _, message) {
+            logger.debug(message);
+          },
+        ),
+      );
+    }().catchError((e) {
+      _isRunning = false;
+      logger.error('Server exited unexpectedly: $e');
+
+      return null;
+    });
+
+    if (await _checkHealth()) {
+      _isRunning = true;
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<bool> _startDebug() async {
     logger.debug('Current dir: ${fs.currentDirectory.path}');
     final revaliProjectPath = fs.path.normalize(
       fs.path.join(fs.currentDirectory.path, '..', 'server'),
@@ -49,13 +84,7 @@ class Revali {
       mode: .detachedWithStdio,
     );
     final pid = result.pid;
-    bool wasKilled = false;
     cleanUp.add(() {
-      if (wasKilled) {
-        logger.debug('Revali (server) was already killed');
-        return;
-      }
-
       if (result.kill()) {
         logger.debug('Killed Revali (server)');
         return;
@@ -70,6 +99,15 @@ class Revali {
       }
     });
 
+    if (await _checkHealth()) {
+      _process = result;
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<bool> _checkHealth() async {
     final completer = Completer<void>();
 
     bool isReady = false;
@@ -91,10 +129,8 @@ class Revali {
 
     try {
       await completer.future;
-      _process = result;
       return true;
     } catch (e) {
-      wasKilled = true;
       logger.err('Error starting server');
       logger.err('$e');
       return false;

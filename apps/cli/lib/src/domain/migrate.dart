@@ -2,14 +2,13 @@ import 'dart:async';
 
 import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart';
+import 'package:raindrop_cli/src/cli/cli_runner.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai_cli/src/deps/clean_up.dart';
 import 'package:zonai_cli/src/deps/fs.dart';
 import 'package:zonai_cli/src/deps/keyboard_input.dart';
 import 'package:zonai_cli/src/deps/logger.dart';
 import 'package:zonai_cli/src/deps/settings.dart';
-import 'package:zonai_cli/src/domain/settings.dart';
-import 'package:raindrop_cli/src/cli/cli_runner.dart';
 
 class Migrate {
   factory Migrate() => _instance ??= Migrate._();
