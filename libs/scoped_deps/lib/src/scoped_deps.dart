@@ -60,6 +60,36 @@ R runScoped<R>(R Function() body, {Set<ScopedRef<dynamic>> values = const {}}) {
   );
 }
 
+/// Runs [body] in a scope that merges with the enclosing zone.
+///
+/// Implementation uses [Zone.current.fork]: the child zone inherits every stored
+/// value from the current zone; only keys produced from [override] and
+/// [includeIfAbsent] are added or replaced (same semantics as [runZoned]).
+///
+/// [override] binds each ref's key to that ref, replacing any value from an
+/// outer scope for the same key.
+///
+/// [includeIfAbsent] binds refs whose keys are not already present in the
+/// current zone (including outer scopes). Keys listed in [override] are not
+/// considered absent for this purpose.
+R runMergedScoped<R>(
+  R Function() body, {
+  Set<ScopedRef<dynamic>> override = const {},
+  Set<ScopedRef<dynamic>> includeIfAbsent = const {},
+}) {
+  final overrideKeys = {for (final r in override) r._key};
+  final zoneValues = <Object?, Object?>{};
+  for (final ref in includeIfAbsent) {
+    if (overrideKeys.contains(ref._key)) continue;
+    if (Zone.current[ref._key] != null) continue;
+    zoneValues[ref._key] = ref;
+  }
+  for (final ref in override) {
+    zoneValues[ref._key] = ref;
+  }
+  return Zone.current.fork(zoneValues: zoneValues).run<R>(body);
+}
+
 /// Runs [body] within a scope which has access to the set of refs in [values].
 R? runScopedGuarded<R>(
   R Function() body, {

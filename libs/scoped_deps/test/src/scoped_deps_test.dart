@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 
@@ -57,6 +59,58 @@ void main() {
           values: {value.overrideWith(() => 0)},
         );
       }, values: {value});
+    });
+
+    group('runMergedScoped', () {
+      test('override replaces outer scope', () {
+        final ref = create(() => 42);
+        runScoped(() {
+          expect(read(ref), equals(42));
+          runMergedScoped(
+            () => expect(read(ref), equals(0)),
+            override: {ref.overrideWith(() => 0)},
+          );
+        }, values: {ref});
+      });
+
+      test('includeIfAbsent adds when absent', () {
+        final outer = create(() => 1);
+        final inner = create(() => 2);
+        runMergedScoped(() {
+          expect(read(outer), equals(1));
+          expect(read(inner), equals(2));
+        }, includeIfAbsent: {outer, inner});
+      });
+
+      test('includeIfAbsent skips when outer scope provides key', () {
+        final outer = create(() => 1);
+        final inner = create(() => 2);
+        runScoped(() {
+          runMergedScoped(() {
+            expect(read(outer), equals(1));
+            expect(read(inner), equals(2));
+          }, includeIfAbsent: {outer.overrideWith(() => 99), inner});
+        }, values: {outer});
+      });
+
+      test('override wins over includeIfAbsent for same key', () {
+        final ref = create(() => 1);
+        runMergedScoped(
+          () => expect(read(ref), equals(2)),
+          override: {ref.overrideWith(() => 2)},
+          includeIfAbsent: {ref.overrideWith(() => 3)},
+        );
+      });
+
+      test('inherits unrelated zone values from outer zone', () {
+        final marker = Object();
+        runZoned(() {
+          runMergedScoped(
+            () => expect(Zone.current[marker], equals('kept')),
+            includeIfAbsent: {create(() => 1)},
+          );
+        }, zoneValues: {marker: 'kept'});
+      });
     });
 
     test('overrides are considered equal', () {
