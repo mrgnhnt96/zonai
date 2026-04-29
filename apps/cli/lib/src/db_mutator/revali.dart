@@ -2,12 +2,9 @@ import 'dart:async';
 import 'dart:io' as io;
 
 import 'package:http/http.dart';
-import 'package:zonai/src/deps/clean_up.dart';
-import 'package:zonai/src/deps/fs.dart';
-import 'package:zonai/src/deps/logger.dart';
-import 'package:zonai/src/deps/process.dart';
-import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/deps.dart';
 import 'package:zonai/gen/server/.revali/server/server.dart' as server;
+import 'package:zonai/src/domain/constants.dart';
 
 class Revali {
   factory Revali() => _instance ??= Revali._();
@@ -50,9 +47,11 @@ class Revali {
           },
         ),
       );
-    }().catchError((e) {
+    }().catchError((e, stack) {
       _isRunning = false;
-      logger.error('Server exited unexpectedly: $e');
+      logger.error('Server exited unexpectedly', e, stack);
+      logger.debug('Killing process');
+      kill.force();
 
       return null;
     });

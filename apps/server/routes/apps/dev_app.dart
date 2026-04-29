@@ -3,7 +3,6 @@ import 'dart:io' show HttpServer;
 import 'package:revali_router/revali_router.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
-import 'package:zonai/src/utils/args.dart' as zonai;
 import 'package:zonai/zonai.dart' hide Args;
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_server/config/server_binding.dart';
@@ -15,10 +14,8 @@ import '../components/log_observer.dart';
 @AllowOrigins.all()
 @App(flavor: 'dev')
 final class DevApp extends AppConfig {
-  DevApp({required this.args})
+  DevApp()
     : super(host: ServerBinding.host, port: ServerBinding.port, prefix: '');
-
-  final Args args;
 
   @override
   Future<void> configureDependencies(DI di) async {
@@ -27,11 +24,18 @@ final class DevApp extends AppConfig {
 
   @override
   Future<HttpServer> runStartup(Future<HttpServer> Function() startup) async {
-    return await runScoped(
+    return await runMergedScoped(
       startup,
-      values: {
-        argsProvider.overrideWith(() => zonai.Args(args: args.values)),
-        loggerProvider.overrideWith(() => Logger.print(level: .debug)),
+      includeIfAbsent: {
+        loggerProvider.overrideWith(
+          () => Logger.print(
+            level: switch (args['loud']) {
+              true => .debug,
+              _ => .info,
+            },
+          ),
+        ),
+        argsProvider,
         cleanUpProvider,
         zonaiDbProvider,
         extensionsProvider,
