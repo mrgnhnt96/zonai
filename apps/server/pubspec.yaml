@@ -7,10 +7,9 @@ environment:
   sdk: ">=3.11.0 <4.0.0"
 
 dependencies:
-  get_it: ^9.2.0
   path: ^1.9.1
   revali_client: ^2.0.4
-  revali_router: ^3.0.7
+  revali_router: ^3.1.0
   scoped_deps: ^0.1.0+2
   zonai:
     path: ../cli
@@ -18,4 +17,4 @@ dependencies:
 dev_dependencies:
   revali: ^2.0.9
   revali_client_gen: ^2.0.2
-  revali_server: ^2.0.5
+  revali_server: ^2.1.0

@@ -1,10 +1,8 @@
 import 'package:revali_router/revali_router.dart';
-import 'package:zonai_server/utils/logger.dart';
+import 'package:zonai/src/deps/logger.dart';
 
 class LogObserver implements Observer {
-  const LogObserver({@Dep() required this.logger});
-
-  final Logger logger;
+  const LogObserver();
 
   @override
   Future<void> see(Request request, Future<Response> response) async {
@@ -16,7 +14,7 @@ class LogObserver implements Observer {
     final method = request.method;
     final path = request.uri;
 
-    logger.log(
+    logger.debug(
       '[${result.statusCode}] ${stopwatch.elapsedMilliseconds}ms: '
       '$method $path',
     );

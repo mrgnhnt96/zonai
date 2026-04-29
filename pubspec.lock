@@ -1068,18 +1068,18 @@ packages:
     dependency: transitive
     description:
       name: revali_core
-      sha256: bbc804d6c0bacb9480ae315098dd1055d83d2155e376b6085f462f5c081615ca
+      sha256: d9e25a405d7467ff88ddbff7193a14dc36b01cec5505e4c0f3a7f79998e259e1
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.0"
+    version: "1.5.0"
   revali_router:
     dependency: transitive
     description:
       name: revali_router
-      sha256: d53f5c7d02a884a829d3689f4d5bab5e9ff94dc205c0bba222f00ed4262112ff
+      sha256: "9e83351407679e51dce523a6d480d535fda287757915ba303fc7c14cb810c215"
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.7"
+    version: "3.1.0"
   revali_router_annotations:
     dependency: transitive
     description:
@@ -1100,10 +1100,10 @@ packages:
     dependency: transitive
     description:
       name: revali_server
-      sha256: c632df639e48ddca4e25df937c99480bf7a578f01270e1f6d1ba7c3778a0b299
+      sha256: "24312c147c04aaf14075340793fa30752c1d44061b262623d8addb5b8b75e3dd"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.5"
+    version: "2.1.0"
   scoped_deps:
     dependency: transitive
     description:
