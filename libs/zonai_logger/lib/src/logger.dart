@@ -1,12 +1,18 @@
 import 'dart:io' as io;
 
+import 'package:zonai_logger/src/print_sink.dart';
+
 import 'level.dart';
 
 /// Console-oriented logger with optional ANSI styling.
+
 class Logger {
   Logger({this.level = Level.info, io.IOSink? stdout, io.IOSink? stderr})
     : _stdout = stdout ?? io.stdout,
       _stderr = stderr ?? io.stderr;
+  Logger.print({this.level = Level.info})
+    : _stdout = PrintSink(),
+      _stderr = PrintSink();
 
   /// Minimum level to print. Messages at this level or higher are shown.
   final Level level;
