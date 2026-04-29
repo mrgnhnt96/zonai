@@ -10,5 +10,5 @@ environment:
 dependencies:
   zonai_schema:
     path: ../..
-  zonai_cli:
+  zonai:
     path: ../../../../apps/cli

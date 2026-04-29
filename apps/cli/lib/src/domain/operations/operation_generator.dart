@@ -1,6 +1,6 @@
 import 'package:file/file.dart';
-import 'package:zonai_cli/src/deps/fs.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai/src/deps/fs.dart';
+import 'package:zonai/src/deps/logger.dart';
 
 class OperationGenerator {
   const OperationGenerator({required this.operations});

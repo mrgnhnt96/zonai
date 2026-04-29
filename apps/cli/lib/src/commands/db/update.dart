@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:zonai_cli/src/deps/args.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
-import 'package:zonai_cli/src/deps/zonai_db.dart';
+import 'package:zonai/src/deps/args.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 
 const _usage = '''

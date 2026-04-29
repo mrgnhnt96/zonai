@@ -5,7 +5,11 @@
 - [ ] Support compiling to different arch-types
 - [ ] Compile for linux
 - [ ] Create a class to run Revali or the valley executable depending on if we are using production.
-- [ ] Create a class to manage interactions with SQLite
+- [ ] create a \_logs table, forward all logs to it
+  - [ ] Run ttl of 1 week
+- [ ] - if not compiled, before every request, check for a “stop” file (which will be generated on recompile) and restart the process. (Or check the file timestamp, and restart based off of that)
+- [ ] create a “scheduleOperation” that will be used to add queries to the transaction
+- [ ] Rename zonai_cli to zonai
 
 ## CLI
 

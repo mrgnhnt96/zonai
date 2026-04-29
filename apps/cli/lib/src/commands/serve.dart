@@ -1,15 +1,15 @@
 import 'dart:async';
 
-import 'package:zonai_cli/src/deps/args.dart';
-import 'package:zonai_cli/src/deps/extensions.dart';
-import 'package:zonai_cli/src/deps/keyboard_input.dart';
-import 'package:zonai_cli/src/deps/kill.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
-import 'package:zonai_cli/src/deps/migrate.dart';
-import 'package:zonai_cli/src/deps/operations.dart';
-import 'package:zonai_cli/src/deps/revali.dart';
-import 'package:zonai_cli/src/deps/rules.dart';
-import 'package:zonai_cli/src/db_mutator/mailman.dart';
+import 'package:zonai/src/deps/args.dart';
+import 'package:zonai/src/deps/extensions.dart';
+import 'package:zonai/src/deps/keyboard_input.dart';
+import 'package:zonai/src/deps/kill.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/migrate.dart';
+import 'package:zonai/src/deps/operations.dart';
+import 'package:zonai/src/deps/revali.dart';
+import 'package:zonai/src/deps/rules.dart';
+import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';

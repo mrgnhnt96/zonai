@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai/src/deps/logger.dart';
 
 class CleanUp {
   factory CleanUp() => _instance ??= CleanUp._();

@@ -1,5 +1,5 @@
 import 'package:scoped_deps/scoped_deps.dart';
-import 'package:zonai_cli/src/domain/keyboard_input.dart';
+import 'package:zonai/src/domain/keyboard_input.dart';
 
 final keyboardInputProvider = create<KeyboardInput>(KeyboardInput.new);
 

@@ -2,13 +2,13 @@ import 'dart:async' show StreamSubscription;
 
 import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
-import 'package:zonai_cli/src/deps/clean_up.dart';
-import 'package:zonai_cli/src/deps/fs.dart';
-import 'package:zonai_cli/src/deps/keyboard_input.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
-import 'package:zonai_cli/src/deps/process.dart';
-import 'package:zonai_cli/src/deps/settings.dart';
-import 'package:zonai_cli/src/domain/extensions/extension_generator.dart';
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/fs.dart';
+import 'package:zonai/src/deps/keyboard_input.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/process.dart';
+import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/src/domain/extensions/extension_generator.dart';
 
 /// Utilities to handle extensions to the database
 class Extensions {

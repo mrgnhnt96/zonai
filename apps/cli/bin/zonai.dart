@@ -3,23 +3,23 @@
 import 'dart:io';
 
 import 'package:scoped_deps/scoped_deps.dart';
-import 'package:zonai_cli/src/deps/args.dart';
-import 'package:zonai_cli/src/deps/clean_up.dart';
-import 'package:zonai_cli/src/deps/extensions.dart';
-import 'package:zonai_cli/src/deps/keyboard_input.dart';
-import 'package:zonai_cli/src/deps/kill.dart';
-import 'package:zonai_cli/src/deps/migrate.dart';
-import 'package:zonai_cli/src/deps/operations.dart';
-import 'package:zonai_cli/src/deps/process.dart';
-import 'package:zonai_cli/src/deps/revali.dart';
-import 'package:zonai_cli/src/deps/rules.dart';
-import 'package:zonai_cli/src/deps/settings.dart';
-import 'package:zonai_cli/src/deps/stdin.dart';
-import 'package:zonai_cli/src/deps/zonai_db.dart';
-import 'package:zonai_cli/src/utils/args.dart';
-import 'package:zonai_cli/src/deps/fs.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
-import 'package:zonai_cli/src/zonai_runner.dart';
+import 'package:zonai/src/deps/args.dart';
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/extensions.dart';
+import 'package:zonai/src/deps/keyboard_input.dart';
+import 'package:zonai/src/deps/kill.dart';
+import 'package:zonai/src/deps/migrate.dart';
+import 'package:zonai/src/deps/operations.dart';
+import 'package:zonai/src/deps/process.dart';
+import 'package:zonai/src/deps/revali.dart';
+import 'package:zonai/src/deps/rules.dart';
+import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/src/deps/stdin.dart';
+import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai/src/utils/args.dart';
+import 'package:zonai/src/deps/fs.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/zonai_runner.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
 void main(List<String> arguments) async {

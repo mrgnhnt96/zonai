@@ -12,7 +12,7 @@ dependencies:
   revali_client: ^2.0.4
   revali_router: ^3.0.7
   scoped_deps: ^0.1.0+2
-  zonai_cli:
+  zonai:
     path: ../cli
 
 dev_dependencies:

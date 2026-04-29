@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:io' as io;
 
 import 'package:http/http.dart';
-import 'package:zonai_cli/src/deps/clean_up.dart';
-import 'package:zonai_cli/src/deps/fs.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
-import 'package:zonai_cli/src/deps/process.dart';
-import 'package:zonai_cli/src/domain/constants.dart';
-import 'package:zonai_cli/gen/server/.revali/server/server.dart' as server;
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/fs.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/process.dart';
+import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/gen/server/.revali/server/server.dart' as server;
 
 class Revali {
   factory Revali() => _instance ??= Revali._();

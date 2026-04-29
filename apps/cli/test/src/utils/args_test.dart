@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:zonai_cli/src/utils/args.dart';
+import 'package:zonai/src/utils/args.dart';
 
 void main() {
   group(Args, () {

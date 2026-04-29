@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:yaml/yaml.dart';
-import 'package:zonai_cli/src/deps/args.dart';
-import 'package:zonai_cli/src/deps/fs.dart';
+import 'package:zonai/src/deps/args.dart';
+import 'package:zonai/src/deps/fs.dart';
 
 class Settings {
   const Settings({

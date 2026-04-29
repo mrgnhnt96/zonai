@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 
-import 'package:zonai_cli/src/deps/clean_up.dart';
-import 'package:zonai_cli/src/deps/fs.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
-import 'package:zonai_cli/src/deps/process.dart';
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/fs.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/process.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
 

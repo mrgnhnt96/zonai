@@ -1,5 +1,5 @@
 import 'package:raindrop/raindrop.dart' show DatabaseResult;
-import 'package:zonai_cli/src/db_mutator/objected_row.dart';
+import 'package:zonai/src/db_mutator/objected_row.dart';
 
 class OperationResult {
   OperationResult(this._result);

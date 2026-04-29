@@ -1,3 +1,3 @@
-# Sample config for `dart run zonai_cli:zonai` from apps/playground.
+# Sample config for `dart run zonai` from apps/playground.
 migrationsPath: .zonai/migrations
 schemasPath: lib/src/schemas

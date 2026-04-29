@@ -1,5 +1,5 @@
 import 'package:scoped_deps/scoped_deps.dart';
-import 'package:zonai_cli/src/db_mutator/revali.dart';
+import 'package:zonai/src/db_mutator/revali.dart';
 
 final revaliProvider = create<Revali>(Revali.new);
 

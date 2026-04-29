@@ -1,7 +1,7 @@
 import 'dart:io' as io;
 import 'dart:async';
 
-import 'package:zonai_cli/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/clean_up.dart';
 
 class Stdin {
   factory Stdin() => _instance ??= Stdin._();

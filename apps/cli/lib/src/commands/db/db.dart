@@ -1,7 +1,7 @@
-import 'package:zonai_cli/src/commands/db/update.dart';
-import 'package:zonai_cli/src/commands/migrate/migrate.dart';
-import 'package:zonai_cli/src/deps/args.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai/src/commands/db/update.dart';
+import 'package:zonai/src/commands/migrate/migrate.dart';
+import 'package:zonai/src/deps/args.dart';
+import 'package:zonai/src/deps/logger.dart';
 
 const _usage = '''
 Usage: zonai db [options]

@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:async/async.dart';
-import 'package:zonai_cli/src/deps/clean_up.dart';
-import 'package:zonai_cli/src/deps/keyboard_input.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/keyboard_input.dart';
+import 'package:zonai/src/deps/logger.dart';
 
 class Kill {
   factory Kill() => _instance ??= Kill._();

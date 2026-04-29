@@ -1,4 +1,4 @@
-name: zonai_cli
+name: zonai
 publish_to: none
 
 resolution: workspace

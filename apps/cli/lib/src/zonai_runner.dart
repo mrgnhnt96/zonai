@@ -1,6 +1,6 @@
-import 'package:zonai_cli/src/commands/db/db.dart';
-import 'package:zonai_cli/src/commands/serve.dart';
-import 'package:zonai_cli/src/deps/args.dart';
+import 'package:zonai/src/commands/db/db.dart';
+import 'package:zonai/src/commands/serve.dart';
+import 'package:zonai/src/deps/args.dart';
 
 const _usage = '''
 Usage: zonai <command> [options]
@@ -24,7 +24,7 @@ Future<int> run() async {
   }
 
   if (args.path case ['version']) {
-    print('zonai_cli');
+    print('zonai');
     return 1;
   }
 

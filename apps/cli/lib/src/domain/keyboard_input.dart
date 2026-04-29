@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show stdout;
 
-import 'package:zonai_cli/src/deps/clean_up.dart';
-import 'package:zonai_cli/src/deps/logger.dart';
-import 'package:zonai_cli/src/deps/stdin.dart';
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/stdin.dart';
 
 class KeyboardInput {
   factory KeyboardInput() => _instance ??= KeyboardInput._();
