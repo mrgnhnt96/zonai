@@ -6,11 +6,19 @@ class DbHandler {
   void get() {}
 
   Future<List<Map<String, Object?>>> search() async {
-    return await zonaiDB.search('items', {});
+    final (error, result) = await zonaiDB.search('items', {});
+    if (error != null || result == null) {
+      throw StateError('Failed to search items: $error');
+    }
+    return result;
   }
 
   Future<List<Map<String, Object?>>> list() async {
-    return await zonaiDB.list('items', {});
+    final (error, result) = await zonaiDB.list('items', {});
+    if (error != null || result == null) {
+      throw StateError('Failed to list items: $error');
+    }
+    return result;
   }
 
   void create() {}

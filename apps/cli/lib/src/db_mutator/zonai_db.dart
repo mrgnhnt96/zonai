@@ -13,7 +13,6 @@ import 'package:zonai/src/deps/migrate.dart';
 import 'package:zonai/src/deps/operations.dart';
 import 'package:zonai/src/deps/rules.dart';
 import 'package:zonai/src/deps/settings.dart';
-import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
@@ -122,7 +121,7 @@ class ZonaiDb {
     );
   }
 
-  Future<Map<String, Object?>> create(
+  Future<(Object? error, Map<String, Object?>? result)> create(
     String collection,
     Map<String, dynamic> data,
   ) async {
@@ -131,14 +130,20 @@ class ZonaiDb {
       throw StateError('No query returned for ${CollectionOperation.create}');
     }
 
-    final result = await execute((op.query, op.values), forOperation: .create);
+    final (error, result) = await execute((
+      op.query,
+      op.values,
+    ), forOperation: .create);
+    if (error != null || result == null) {
+      return (error ?? 'Failed', null);
+    }
 
     final objects = result.rows.map((e) => e.toMap()).toList();
 
-    return objects.single;
+    return (null, objects.single);
   }
 
-  Future<List<Map<String, Object?>>> update(
+  Future<(Object? error, List<Map<String, Object?>>? result)> update(
     String collection,
     Map<String, dynamic> data,
   ) async {
@@ -147,26 +152,41 @@ class ZonaiDb {
       throw StateError('No query returned for ${CollectionOperation.update}');
     }
 
-    final result = await execute((op.query, op.values), forOperation: .update);
+    final (error, result) = await execute((
+      op.query,
+      op.values,
+    ), forOperation: .update);
+    if (error != null || result == null) {
+      return (error ?? 'Failed', null);
+    }
 
     final objects = result.rows.map((e) => e.toMap()).toList();
     logger.debug('Updated ${objects.length} objects', prefix: _prefix);
 
-    return objects;
+    return (null, objects);
   }
 
-  Future<int> delete(String collection, Map<String, dynamic> data) async {
+  Future<(Object? error, int? result)> delete(
+    String collection,
+    Map<String, dynamic> data,
+  ) async {
     final op = await _preChecks(collection, operation: .delete, data: data);
     if (op.query.isEmpty) {
       throw StateError('No query returned for ${CollectionOperation.delete}');
     }
 
-    final result = await execute((op.query, op.values), forOperation: .delete);
+    final (error, result) = await execute((
+      op.query,
+      op.values,
+    ), forOperation: .delete);
+    if (error != null || result == null) {
+      return (error ?? 'Failed', null);
+    }
 
-    return result.rowsAffected;
+    return (null, result.rowsAffected);
   }
 
-  Future<Map<String, Object?>> view(
+  Future<(Object? error, Map<String, Object?>? result)> view(
     String collection,
     Map<String, dynamic> data,
   ) async {
@@ -175,15 +195,21 @@ class ZonaiDb {
       throw StateError('No query returned for ${CollectionOperation.view}');
     }
 
-    final result = await execute((op.query, op.values), forOperation: .view);
+    final (error, result) = await execute((
+      op.query,
+      op.values,
+    ), forOperation: .view);
+    if (error != null || result == null) {
+      return (error ?? 'Failed', null);
+    }
 
     final objects = result.rows.map((e) => e.toMap()).toList();
     logger.debug('Found ${objects.length} objects', prefix: _prefix);
 
-    return objects.single;
+    return (null, objects.single);
   }
 
-  Future<List<Map<String, Object?>>> list(
+  Future<(Object? error, List<Map<String, Object?>>? result)> list(
     String collection,
     Map<String, dynamic> data,
   ) async {
@@ -192,15 +218,21 @@ class ZonaiDb {
       throw StateError('No query returned for ${CollectionOperation.list}');
     }
 
-    final result = await execute((op.query, op.values), forOperation: .list);
+    final (error, result) = await execute((
+      op.query,
+      op.values,
+    ), forOperation: .list);
+    if (error != null || result == null) {
+      return (error ?? 'Failed', null);
+    }
 
     final objects = result.rows.map((e) => e.toMap()).toList();
     logger.debug('Found ${objects.length} objects', prefix: _prefix);
 
-    return objects;
+    return (null, objects);
   }
 
-  Future<List<Map<String, Object?>>> search(
+  Future<(Object? error, List<Map<String, Object?>>? result)> search(
     String collection,
     Map<String, dynamic> data,
   ) async {
@@ -209,12 +241,18 @@ class ZonaiDb {
       throw StateError('No query returned for ${CollectionOperation.search}');
     }
 
-    final result = await execute((op.query, op.values), forOperation: .search);
+    final (error, result) = await execute((
+      op.query,
+      op.values,
+    ), forOperation: .search);
+    if (error != null || result == null) {
+      return (error ?? 'Failed', null);
+    }
 
     final objects = result.rows.map((e) => e.toMap()).toList();
     logger.debug('Found ${objects.length} objects', prefix: _prefix);
 
-    return objects;
+    return (null, objects);
   }
 
   Future<CanAccessResponse> _collectionRules(
@@ -310,7 +348,7 @@ class ZonaiDb {
     );
   }
 
-  Future<OperationResult> execute(
+  Future<(Object? error, OperationResult? result)> execute(
     (String, List<Object?>) query, {
     List<(String, List<Object?>)>? sideEffects,
     CollectionOperation? forOperation,
@@ -322,18 +360,22 @@ class ZonaiDb {
       throw StateError('Database is not open');
     }
 
-    DatabaseResult? result;
-    await db.transaction((tx) async {
-      final (q, v) = query;
-      result = await tx.execute(q, v);
+    try {
+      DatabaseResult? result;
+      await db.transaction((tx) async {
+        final (q, v) = query;
+        result = await tx.execute(q, v);
 
-      if (sideEffects case final queries?) {
-        for (final (query, values) in queries) {
-          await tx.execute(query, values);
+        if (sideEffects case final queries?) {
+          for (final (query, values) in queries) {
+            await tx.execute(query, values);
+          }
         }
-      }
-    });
+      });
 
-    return OperationResult(result);
+      return (null, OperationResult(result));
+    } catch (e) {
+      return (e, null);
+    }
   }
 }
