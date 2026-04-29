@@ -11,4 +11,5 @@ environment:
 dependencies:
   meta: ^1.17.0
   raindrop:
-  scoped_deps: ^0.1.0+2
+  scoped_deps:
+    path: ../scoped_deps

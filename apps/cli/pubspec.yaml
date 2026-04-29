@@ -11,7 +11,8 @@ dependencies:
   yaml: ^3.1.0
   raindrop_cli:
     path: ../../libs/raindrop/packages/raindrop_cli
-  scoped_deps: ^0.1.0+2
+  scoped_deps:
+    path: ../../libs/scoped_deps
   zonai_logger:
     path: ../../libs/zonai_logger
   watcher: ^1.2.1
