@@ -27,14 +27,7 @@ final class DevApp extends AppConfig {
     return await runMergedScoped(
       startup,
       includeIfAbsent: {
-        loggerProvider.overrideWith(
-          () => Logger.print(
-            level: switch (args['loud']) {
-              true => .debug,
-              _ => .info,
-            },
-          ),
-        ),
+        loggerProvider.overrideWith(() => Logger.print(level: .debug)),
         argsProvider,
         cleanUpProvider,
         zonaiDbProvider,

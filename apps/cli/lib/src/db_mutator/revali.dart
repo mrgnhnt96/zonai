@@ -78,7 +78,7 @@ class Revali {
 
     final result = await process.start(
       'dart',
-      ['run', 'revali', 'dev'],
+      ['run', 'revali', 'dev', '--loud'],
       workingDirectory: revaliProjectPath,
       mode: .detachedWithStdio,
     );

@@ -14,7 +14,7 @@ class LogObserver implements Observer {
     final method = request.method;
     final path = request.uri;
 
-    logger.debug(
+    logger.info(
       '[${result.statusCode}] ${stopwatch.elapsedMilliseconds}ms: '
       '$method $path',
     );
