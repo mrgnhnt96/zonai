@@ -1,4 +1,4 @@
-part of payloads;
+part of update;
 
 sealed class UpdateValue {
   const UpdateValue();

@@ -2,6 +2,8 @@ import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 
+import 'package:zonai_schema/src/update/update.dart';
+
 Future<void> main() async {
   await test();
 }
@@ -21,8 +23,14 @@ Future<int> test() async {
   logger.info('ID: $id');
   logger.info('--------------------------------');
 
+  logger.info('UPDATING RECORD');
+  if (await _update(id: id!) case final int exitCode) {
+    return exitCode;
+  }
+  logger.info('--------------------------------');
+
   logger.info('VIEWING RECORD');
-  if (await _view(id: id!) case final int exitCode) {
+  if (await _view(id: id) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
@@ -93,6 +101,23 @@ Future<int?> _view({required String id}) async {
   }
 
   logger.info('Viewed ${result}');
+  return null;
+}
+
+Future<int?> _update({required String id}) async {
+  final (error, result) = await zonaiDB.update(
+    'items',
+    .new(
+      where: Where('"items"."id" = "$id"'),
+      updates: [
+        ObjectUpdate({'body': 'Test body updated'}),
+      ],
+    ),
+  );
+  if (error != null || result == null) {
+    logger.err('Failed to update records: $error');
+    return 1;
+  }
   return null;
 }
 

@@ -110,7 +110,45 @@ class ZonaiDb {
     UpdatePayload payload,
   ) async {
     await _requireCollectionAccess(collection, .update);
-    throw UnimplementedError();
+
+    final readOperation = await _getOperation(
+      ListOperationRequest(
+        collection: collection,
+        where: payload.where.raw,
+        limit: payload.limit,
+        offset: null,
+      ),
+    );
+
+    final (readError, readResult) = await execute((
+      readOperation.query,
+      readOperation.values,
+    ), forOperation: .view);
+    if (readError != null || readResult == null) {
+      return (readError ?? 'Failed', null);
+    }
+
+    for (final row in readResult.rows) {
+      await _requireRecordAccess(collection, .update, row.toMap());
+    }
+
+    final updateOperation = await _getOperation(
+      UpdateOperationRequest(
+        collection: collection,
+        where: payload.where.raw,
+        updates: payload.updates,
+      ),
+    );
+
+    final (updateError, updateResult) = await execute((
+      updateOperation.query,
+      updateOperation.values,
+    ), forOperation: .update);
+    if (updateError != null || updateResult == null) {
+      return (updateError ?? 'Failed', null);
+    }
+
+    return (null, updateResult.rows.map((e) => e.toMap()).toList());
   }
 
   Future<(Object? error, int? result)> delete(

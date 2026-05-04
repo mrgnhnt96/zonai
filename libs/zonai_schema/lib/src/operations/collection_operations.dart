@@ -1,7 +1,8 @@
 import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart' as rd;
-import 'package:raindrop/raindrop.dart';
+import 'package:raindrop/raindrop.dart' hide Update;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/src/update/update.dart';
 
 import '../false_delegate.dart';
 import '../handlers/operations/operation_request.dart';
@@ -49,13 +50,25 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
     return db.insert(into: schema).values(entities);
   }
 
-  rd.UpdateWhereBuilder<T, T, void> update(
-    List<Updateable<dynamic>> updates, {
+  rd.UpdateWhereBuilder<T, Object?, void> update(
+    List<Update> updates, {
     required Filter where,
   }) {
-    final set = db.update(schema).set;
+    final updateables = <Updateable<dynamic>>[];
 
-    return Function.apply(set, updates.take(19).toList()).where(where);
+    for (final update in updates) {
+      switch (update) {
+        case ColumnUpdate(:final column, :final value):
+          updateables.add(UpdateableColumn(table[column], value));
+        case final ObjectUpdate update:
+          updateables.addAll([
+            for (final MapEntry(:key, :value) in update.object.entries)
+              UpdateableColumn(table[key], value),
+          ]);
+      }
+    }
+
+    return db.update(schema).setAll(updateables).where(where);
   }
 
   /// [selectFrom] with optional filter and pagination applied first.
@@ -157,14 +170,25 @@ base mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
 }
 
 base mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.UpdateWhereBuilder<T, T, T> update(
-    List<Updateable<dynamic>> updates, {
+  SQLiteUpdateReturningBuilder<T, Object?, Object?> update(
+    List<Update> updates, {
     required Filter where,
   }) {
-    return Function.apply(
-      db.update(schema).set,
-      updates.take(19).toList(),
-    ).where(where).returning();
+    final updateables = <Updateable<dynamic>>[];
+
+    for (final update in updates) {
+      switch (update) {
+        case ColumnUpdate(:final column, :final value):
+          updateables.add(UpdateableColumn(this.table[column], value));
+        case final ObjectUpdate update:
+          updateables.addAll([
+            for (final MapEntry(:key, :value) in update.object.entries)
+              UpdateableColumn(this.table[key], value),
+          ]);
+      }
+    }
+
+    return db.update(schema).setAll(updateables).where(where).returning();
   }
 }
 

@@ -1,9 +1,10 @@
 import 'dart:convert';
 
-import 'package:raindrop/raindrop.dart';
+import 'package:raindrop/raindrop.dart' show Filter;
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/raw_sql_filter.dart';
+import 'package:zonai_schema/src/update/update.dart';
 
 sealed class OperationRequest extends Request {
   const OperationRequest({required super.path, required super.id});
@@ -125,13 +126,13 @@ final class UpdateOperationRequest extends PerformOperationRequest {
       rawWhere: request.payload['where'] as String,
       updates: [
         for (final update in request.payload['updates'] as List<dynamic>)
-          SimpleUpdateable.fromJson(update as Map<String, dynamic>),
+          Update.fromJson(update as Map<String, dynamic>),
       ],
     );
   }
 
   final String rawWhere;
-  final List<SimpleUpdateable> updates;
+  final List<Update> updates;
 
   Filter get where => RawSqlFilter(rawWhere);
 
@@ -299,20 +300,5 @@ final class CustomOperationRequest extends PerformOperationRequest {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'where': rawWhere, 'values': values};
-  }
-}
-
-class SimpleUpdateable implements Updateable<dynamic> {
-  const SimpleUpdateable(this.column, this.value);
-
-  factory SimpleUpdateable.fromJson(Map<String, dynamic> map) {
-    return SimpleUpdateable(map['column'] as String, map['value'] as dynamic);
-  }
-
-  final String column;
-  final dynamic value;
-
-  Map<String, dynamic> toJson() {
-    return {'column': column, 'value': value};
   }
 }

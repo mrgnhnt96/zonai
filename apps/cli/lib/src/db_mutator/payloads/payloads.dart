@@ -1,7 +1,7 @@
 library payloads;
 
-part 'update.dart';
-part 'update_value.dart';
+import 'package:zonai_schema/src/update/update.dart';
+
 part 'where.dart';
 
 class Payload {
@@ -15,9 +15,10 @@ class CreatePayload extends Payload {
 }
 
 class UpdatePayload extends Payload {
-  const UpdatePayload({required this.where, required this.updates});
+  const UpdatePayload({required this.where, this.limit, required this.updates});
 
   final Where where;
+  final int? limit;
   final List<Update> updates;
 }
 

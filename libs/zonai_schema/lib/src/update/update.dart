@@ -1,4 +1,6 @@
-part of payloads;
+library update;
+
+part 'update_value.dart';
 
 sealed class Update {
   const Update();
@@ -17,11 +19,11 @@ sealed class Update {
 }
 
 class ColumnUpdate extends Update {
-  const ColumnUpdate({required this.column, required this.value});
+  const ColumnUpdate(this.column, this.value);
   factory ColumnUpdate.fromJson(Map<String, dynamic> json) {
     return ColumnUpdate(
-      column: json['column'] as String,
-      value: UpdateValue.fromJson(json['value'] as Map<String, dynamic>),
+      json['column'] as String,
+      UpdateValue.fromJson(json['value'] as Map<String, dynamic>),
     );
   }
 
@@ -40,9 +42,9 @@ class ColumnUpdate extends Update {
 }
 
 class ObjectUpdate extends Update {
-  const ObjectUpdate({required this.object});
+  const ObjectUpdate(this.object);
   factory ObjectUpdate.fromJson(Map<String, dynamic> json) {
-    return ObjectUpdate(object: json['object'] as Map<String, dynamic>);
+    return ObjectUpdate(json['object'] as Map<String, dynamic>);
   }
 
   static const _type = 'object';
