@@ -12,4 +12,9 @@ class OperationResult {
     for (final row in _result?.rows ?? [])
       ObjectedRow(columns: _result?.columns ?? [], values: row),
   ];
+
+  @override
+  String toString() {
+    return 'OperationResult(rowsAffected: $rowsAffected, rows: $rows)';
+  }
 }

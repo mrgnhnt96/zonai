@@ -11,9 +11,6 @@ class DbController {
   @Get('one')
   void get() => dbHandler.get();
 
-  @Get('search')
-  Future<List<Map<String, Object?>>> search() => dbHandler.search();
-
   @Get('list')
   Future<List<Map<String, Object?>>> list() async => await dbHandler.list();
 

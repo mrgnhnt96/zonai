@@ -1,4 +1,4 @@
-import 'package:zonai/src/commands/db/update.dart';
+import 'package:zonai/src/commands/db/test.dart';
 import 'package:zonai/src/commands/migrate/migrate.dart';
 import 'package:zonai/src/deps/args.dart';
 import 'package:zonai/src/deps/logger.dart';
@@ -26,8 +26,8 @@ Future<int> db(List<String> path) async {
     case ['migrate' || 'migrations' || 'm' || 'migration', ...final path]:
       return await migrate(path);
 
-    case ['update', ...final path]:
-      return await update(path);
+    case ['test']:
+      return await test();
     default:
       logger.info(_usage);
       return 1;

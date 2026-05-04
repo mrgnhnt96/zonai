@@ -26,17 +26,13 @@ ${const JsonEncoder.withIndent('  ').convert(toJson())}
 }
 
 final class PerformOperationRequest extends OperationRequest {
-  PerformOperationRequest({
-    required this.collection,
-    required this.operation,
-    this.rawRecordFilter,
-  }) : super(path: _path, id: Request.generateId());
+  PerformOperationRequest({required this.collection, required this.operation})
+    : super(path: _path, id: Request.generateId());
 
   PerformOperationRequest._({
     required super.id,
     required this.collection,
     required this.operation,
-    this.rawRecordFilter,
   }) : super(path: _path);
 
   factory PerformOperationRequest.fromRequest(UnknownRequest request) {
@@ -55,8 +51,6 @@ final class PerformOperationRequest extends OperationRequest {
         return ViewOperationRequest.fromRequest(request);
       case CollectionOperation.list:
         return ListOperationRequest.fromRequest(request);
-      case CollectionOperation.search:
-        return SearchOperationRequest.fromRequest(request);
       case null:
         return CustomOperationRequest.fromRequest(request);
     }
@@ -66,12 +60,6 @@ final class PerformOperationRequest extends OperationRequest {
 
   final String collection;
   final String operation;
-  final String? rawRecordFilter;
-
-  Filter? get recordFilter => switch (rawRecordFilter) {
-    null => null,
-    final String filter => RawSqlFilter(filter),
-  };
 
   CollectionOperation? get classicOperation =>
       CollectionOperation.fromString(operation);
@@ -82,7 +70,6 @@ final class PerformOperationRequest extends OperationRequest {
       ...super.toJson(),
       'collection': collection,
       'operation': operation,
-      'recordFilter': rawRecordFilter,
     };
   }
 }
@@ -116,15 +103,16 @@ final class CreateOperationRequest extends PerformOperationRequest {
 final class UpdateOperationRequest extends PerformOperationRequest {
   UpdateOperationRequest({
     required super.collection,
-    required super.rawRecordFilter,
-    required this.rawWhere,
+
+    required String where,
     required this.updates,
-  }) : super(operation: CollectionOperation.update.name);
+  }) : rawWhere = where,
+       super(operation: CollectionOperation.update.name);
 
   UpdateOperationRequest._({
     required super.id,
     required super.collection,
-    required super.rawRecordFilter,
+    required String where,
     required this.rawWhere,
     required this.updates,
   }) : super._(operation: CollectionOperation.update.name);
@@ -133,7 +121,7 @@ final class UpdateOperationRequest extends PerformOperationRequest {
     return UpdateOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
-      rawRecordFilter: request.payload['recordFilter'] as String?,
+      where: request.payload['where'] as String,
       rawWhere: request.payload['where'] as String,
       updates: [
         for (final update in request.payload['updates'] as List<dynamic>)
@@ -153,7 +141,6 @@ final class UpdateOperationRequest extends PerformOperationRequest {
       ...super.toJson(),
       'where': rawWhere,
       'updates': updates.map((update) => update.toJson()).toList(),
-      'recordFilter': rawRecordFilter,
     };
   }
 }
@@ -161,26 +148,25 @@ final class UpdateOperationRequest extends PerformOperationRequest {
 final class DeleteOperationRequest extends PerformOperationRequest {
   DeleteOperationRequest({
     required super.collection,
-    required super.rawRecordFilter,
+    required String where,
     required this.limit,
-    required this.rawWhere,
-  }) : super(operation: CollectionOperation.delete.name);
+  }) : rawWhere = where,
+       super(operation: CollectionOperation.delete.name);
 
   DeleteOperationRequest._({
     required super.id,
     required super.collection,
-    required super.rawRecordFilter,
+    required String where,
     required this.limit,
-    required this.rawWhere,
-  }) : super._(operation: CollectionOperation.delete.name);
+  }) : rawWhere = where,
+       super._(operation: CollectionOperation.delete.name);
 
   factory DeleteOperationRequest.fromRequest(UnknownRequest request) {
     return DeleteOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       limit: request.payload['limit'] as int?,
-      rawRecordFilter: request.payload['recordFilter'] as String?,
-      rawWhere: request.payload['where'] as String,
+      where: request.payload['where'] as String,
     );
   }
 
@@ -196,16 +182,13 @@ final class DeleteOperationRequest extends PerformOperationRequest {
 }
 
 final class ViewOperationRequest extends PerformOperationRequest {
-  ViewOperationRequest({
-    required super.collection,
-    required super.rawRecordFilter,
-    required this.rawWhere,
-  }) : super(operation: CollectionOperation.view.name);
+  ViewOperationRequest({required super.collection, required String where})
+    : rawWhere = where,
+      super(operation: CollectionOperation.view.name);
 
   ViewOperationRequest._({
     required super.id,
     required super.collection,
-    required super.rawRecordFilter,
     required this.rawWhere,
   }) : super._(operation: CollectionOperation.view.name);
 
@@ -213,7 +196,6 @@ final class ViewOperationRequest extends PerformOperationRequest {
     return ViewOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
-      rawRecordFilter: request.payload['recordFilter'] as String?,
       rawWhere: request.payload['where'] as String?,
     );
   }
@@ -234,18 +216,20 @@ final class ViewOperationRequest extends PerformOperationRequest {
 final class ListOperationRequest extends PerformOperationRequest {
   ListOperationRequest({
     required super.collection,
-    required super.rawRecordFilter,
+    required String? where,
     required this.limit,
     required this.offset,
-  }) : super(operation: CollectionOperation.list.name);
+  }) : rawWhere = where,
+       super(operation: CollectionOperation.list.name);
 
   ListOperationRequest._({
     required super.id,
     required super.collection,
-    required super.rawRecordFilter,
+    required String? where,
     required this.limit,
     required this.offset,
-  }) : super._(operation: CollectionOperation.list.name);
+  }) : rawWhere = where,
+       super._(operation: CollectionOperation.list.name);
 
   factory ListOperationRequest.fromRequest(UnknownRequest request) {
     return ListOperationRequest._(
@@ -253,45 +237,7 @@ final class ListOperationRequest extends PerformOperationRequest {
       collection: request.payload['collection'] as String,
       limit: request.payload['limit'] as int?,
       offset: request.payload['offset'] as int?,
-      rawRecordFilter: request.payload['recordFilter'] as String?,
-    );
-  }
-
-  final int? limit;
-  final int? offset;
-
-  @override
-  Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'limit': limit, 'offset': offset};
-  }
-}
-
-final class SearchOperationRequest extends PerformOperationRequest {
-  SearchOperationRequest({
-    required super.collection,
-    required super.rawRecordFilter,
-    required this.limit,
-    required this.offset,
-    required this.rawWhere,
-  }) : super(operation: CollectionOperation.search.name);
-
-  SearchOperationRequest._({
-    required super.id,
-    required super.collection,
-    required super.rawRecordFilter,
-    required this.limit,
-    required this.offset,
-    required this.rawWhere,
-  }) : super._(operation: CollectionOperation.search.name);
-
-  factory SearchOperationRequest.fromRequest(UnknownRequest request) {
-    return SearchOperationRequest._(
-      id: request.id,
-      collection: request.payload['collection'] as String,
-      limit: request.payload['limit'] as int?,
-      offset: request.payload['offset'] as int?,
-      rawRecordFilter: request.payload['recordFilter'] as String?,
-      rawWhere: request.payload['where'] as String?,
+      where: request.payload['where'] as String?,
     );
   }
 
@@ -301,7 +247,7 @@ final class SearchOperationRequest extends PerformOperationRequest {
 
   Filter? get where => switch (rawWhere) {
     null => null,
-    final String filter => RawSqlFilter(filter),
+    final String where => RawSqlFilter(where),
   };
 
   @override
@@ -319,43 +265,40 @@ final class CustomOperationRequest extends PerformOperationRequest {
   CustomOperationRequest({
     required super.collection,
     required super.operation,
-    required this.rawRecordFilter,
+    required String? where,
     required this.values,
-  });
+  }) : rawWhere = where;
 
   CustomOperationRequest._({
     required super.id,
     required super.collection,
     required super.operation,
-    required this.rawRecordFilter,
+    required String? where,
     required this.values,
-  }) : super._();
+  }) : rawWhere = where,
+       super._();
 
   factory CustomOperationRequest.fromRequest(UnknownRequest request) {
     return CustomOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       operation: request.payload['operation'] as String,
-      rawRecordFilter: request.payload['recordFilter'] as String?,
+      where: request.payload['where'] as String?,
       values: request.payload['values'] as Map<String, dynamic>?,
     );
   }
 
-  final String? rawRecordFilter;
+  final String? rawWhere;
   final Map<String, dynamic>? values;
 
-  Filter? get recordFilter => switch (rawRecordFilter) {
+  Filter? get where => switch (rawWhere) {
     null => null,
-    final String filter => RawSqlFilter(filter),
+    final String where => RawSqlFilter(where),
   };
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'recordFilter': rawRecordFilter,
-      'values': values,
-    };
+    return {...super.toJson(), 'where': rawWhere, 'values': values};
   }
 }
 

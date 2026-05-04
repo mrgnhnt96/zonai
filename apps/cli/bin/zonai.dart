@@ -48,8 +48,9 @@ Future<void> _run(List<String> arguments) async {
         exitCode = await run();
         logger.debug('Exited with code: $exitCode');
         kill.force();
-      } catch (e) {
-        logger.error('Error: $e');
+      } catch (e, stack) {
+        logger.error('Error: $e', stack);
+        kill.force();
         exitCode = 1;
       }
     },

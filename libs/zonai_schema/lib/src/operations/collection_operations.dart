@@ -59,7 +59,7 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   }
 
   /// [selectFrom] with optional filter and pagination applied first.
-  rd.SelectFromBuilder<T, T> search({
+  rd.SelectFromBuilder<T, T> list({
     Filter? where,
     int? limit,
     int? offset,
@@ -122,37 +122,27 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
       CreateOperationRequest(:final object) => insert(
         table.create(object),
       ).toQuery(),
-      UpdateOperationRequest(
-        :final where,
-        :final recordFilter,
-        :final updates,
-      ) =>
-        update(updates, where: where & recordFilter).toQuery(),
-      DeleteOperationRequest(:final where, :final limit, :final recordFilter) =>
-        delete(where & recordFilter, limit: limit ?? 1).toQuery(),
-      ViewOperationRequest(:final recordFilter) => search(
-        limit: 1,
-        where: recordFilter,
+      UpdateOperationRequest(:final where, :final updates) => update(
+        updates,
+        where: where,
       ).toQuery(),
-      ListOperationRequest(:final limit, :final offset, :final recordFilter) =>
-        search(limit: limit, offset: offset, where: recordFilter).toQuery(),
-      SearchOperationRequest(
-        :final limit,
-        :final offset,
-        :final recordFilter,
-        :final where,
-      ) =>
-        search(
-          limit: limit,
-          offset: offset,
-          where: where & recordFilter,
-        ).toQuery(),
-      CustomOperationRequest(
-        :final operation,
-        :final recordFilter,
-        :final values,
-      ) =>
-        custom(operation, where: recordFilter, values: values).toQuery(),
+      DeleteOperationRequest(:final where, :final limit) => delete(
+        where,
+        limit: limit,
+      ).toQuery(),
+      ViewOperationRequest(:final where) => list(
+        limit: 1,
+        where: where,
+      ).toQuery(),
+      ListOperationRequest(:final where, :final limit, :final offset) => list(
+        where: where,
+        limit: limit,
+        offset: offset,
+      ).toQuery(),
+      CustomOperationRequest(:final operation, :final values) => custom(
+        operation,
+        values: values,
+      ).toQuery(),
       PerformOperationRequest(:final operation) => throw StateError(
         'Invalid operation: $operation',
       ),

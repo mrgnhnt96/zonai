@@ -6,6 +6,7 @@ import 'package:raindrop/raindrop.dart' show DatabaseResult, Raindrop;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/operation_result.dart';
+import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/deps/extensions.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/logger.dart';
@@ -80,59 +81,20 @@ class ZonaiDb {
     await db.ensureOpen();
   }
 
-  Future<PerformOperationResponse> _preChecks(
-    String collection, {
-    required CollectionOperation operation,
-    required Map<String, dynamic> data,
-  }) async {
-    // todo: get extensions
-
-    logger.debug(
-      'Checking collection rules for $collection $operation',
-      prefix: _prefix,
-    );
-    final collectionRules = await _collectionRules(collection, operation);
-    logger.debug('Collection rules: $collectionRules', prefix: _prefix);
-
-    if (!collectionRules.canAccess) {
-      throw StateError('User does not have access to update $collection');
-    }
-
-    logger.debug(
-      'Checking record rules for $collection $operation',
-      prefix: _prefix,
-    );
-    final ruleFilter = await _recordRules(
-      collection,
-      operation.recordOperation,
-      data,
-    );
-    logger.debug('Record rules: $ruleFilter', prefix: _prefix);
-
-    logger.debug(
-      'Getting operation for $collection $operation',
-      prefix: _prefix,
-    );
-    return await _getOperation(
-      collection,
-      operation,
-      data: data,
-      recordFilter: ruleFilter?.filter,
-    );
-  }
-
   Future<(Object? error, Map<String, Object?>? result)> create(
     String collection,
-    Map<String, dynamic> data,
+    CreatePayload payload,
   ) async {
-    final op = await _preChecks(collection, operation: .create, data: data);
-    if (op.query.isEmpty) {
-      throw StateError('No query returned for ${CollectionOperation.create}');
-    }
+    await _requireCollectionAccess(collection, .create);
+    await _requireRecordAccess(collection, .create, payload.object);
+
+    final operation = await _getOperation(
+      CreateOperationRequest(collection: collection, object: payload.object),
+    );
 
     final (error, result) = await execute((
-      op.query,
-      op.values,
+      operation.query,
+      operation.values,
     ), forOperation: .create);
     if (error != null || result == null) {
       return (error ?? 'Failed', null);
@@ -145,59 +107,117 @@ class ZonaiDb {
 
   Future<(Object? error, List<Map<String, Object?>>? result)> update(
     String collection,
-    Map<String, dynamic> data,
+    UpdatePayload payload,
   ) async {
-    final op = await _preChecks(collection, operation: .update, data: data);
-    if (op.query.isEmpty) {
-      throw StateError('No query returned for ${CollectionOperation.update}');
-    }
-
-    final (error, result) = await execute((
-      op.query,
-      op.values,
-    ), forOperation: .update);
-    if (error != null || result == null) {
-      return (error ?? 'Failed', null);
-    }
-
-    final objects = result.rows.map((e) => e.toMap()).toList();
-    logger.debug('Updated ${objects.length} objects', prefix: _prefix);
-
-    return (null, objects);
+    await _requireCollectionAccess(collection, .update);
+    throw UnimplementedError();
   }
 
   Future<(Object? error, int? result)> delete(
     String collection,
-    Map<String, dynamic> data,
+    DeletePayload payload,
   ) async {
-    final op = await _preChecks(collection, operation: .delete, data: data);
-    if (op.query.isEmpty) {
-      throw StateError('No query returned for ${CollectionOperation.delete}');
+    await _requireCollectionAccess(collection, .delete);
+
+    final readOperation = await _getOperation(
+      ListOperationRequest(
+        collection: collection,
+        where: payload.where.raw,
+        limit: payload.limit,
+        offset: null,
+      ),
+    );
+
+    logger.debug('Read operation: ${readOperation.query}', prefix: _prefix);
+
+    final (readError, readResult) = await execute((
+      readOperation.query,
+      readOperation.values,
+    ), forOperation: .view);
+    if (readError != null || readResult == null) {
+      return (readError ?? 'Failed', null);
     }
 
-    final (error, result) = await execute((
-      op.query,
-      op.values,
+    if (readResult.rows.isEmpty) {
+      return (null, 0);
+    }
+
+    final objects = readResult.rows.map((e) => e.toMap()).toList();
+    for (final object in objects) {
+      await _requireRecordAccess(collection, .delete, object);
+    }
+
+    final deleteOperation = await _getOperation(
+      DeleteOperationRequest(
+        collection: collection,
+        where: payload.where.raw,
+        limit: payload.limit,
+      ),
+    );
+
+    logger.debug('Delete operation: ${deleteOperation.query}', prefix: _prefix);
+
+    final (deleteError, deleteResult) = await execute((
+      deleteOperation.query,
+      deleteOperation.values,
     ), forOperation: .delete);
-    if (error != null || result == null) {
-      return (error ?? 'Failed', null);
+    if (deleteError != null || deleteResult == null) {
+      return (deleteError ?? 'Failed', null);
     }
 
-    return (null, result.rowsAffected);
+    logger.debug('Deleted ${deleteResult}', prefix: _prefix);
+
+    return (null, deleteResult.rowsAffected);
   }
 
   Future<(Object? error, Map<String, Object?>? result)> view(
     String collection,
-    Map<String, dynamic> data,
+    ViewPayload payload,
   ) async {
-    final op = await _preChecks(collection, operation: .view, data: data);
-    if (op.query.isEmpty) {
-      throw StateError('No query returned for ${CollectionOperation.view}');
-    }
+    await _requireCollectionAccess(collection, .view);
+
+    final operation = await _getOperation(
+      ViewOperationRequest(collection: collection, where: payload.where.raw),
+    );
 
     final (error, result) = await execute((
-      op.query,
-      op.values,
+      operation.query,
+      operation.values,
+    ), forOperation: .view);
+    if (error != null || result == null) {
+      return (error ?? 'Failed', null);
+    }
+
+    if (result.rows.isEmpty) {
+      return (null, null);
+    }
+
+    final object = result.rows.first.toMap();
+    logger.debug('Found object: ${object}', prefix: _prefix);
+
+    await _requireRecordAccess(collection, .view, object);
+
+    return (null, object);
+  }
+
+  Future<(Object? error, List<Map<String, Object?>>? result)> list(
+    String collection,
+    ListPayload payload,
+  ) async {
+    await _requireCollectionAccess(collection, .view);
+
+    final operation = await _getOperation(
+      ListOperationRequest(
+        collection: collection,
+        where: payload.where.raw,
+        limit: payload.limit,
+        offset: payload.offset,
+      ),
+    );
+
+    final (error, result) = await execute((
+      operation.query,
+      operation.values,
     ), forOperation: .view);
     if (error != null || result == null) {
       return (error ?? 'Failed', null);
@@ -206,53 +226,27 @@ class ZonaiDb {
     final objects = result.rows.map((e) => e.toMap()).toList();
     logger.debug('Found ${objects.length} objects', prefix: _prefix);
 
-    return (null, objects.single);
-  }
-
-  Future<(Object? error, List<Map<String, Object?>>? result)> list(
-    String collection,
-    Map<String, dynamic> data,
-  ) async {
-    final op = await _preChecks(collection, operation: .list, data: data);
-    if (op.query.isEmpty) {
-      throw StateError('No query returned for ${CollectionOperation.list}');
+    for (final object in objects) {
+      await _requireRecordAccess(collection, .view, object);
     }
-
-    final (error, result) = await execute((
-      op.query,
-      op.values,
-    ), forOperation: .list);
-    if (error != null || result == null) {
-      return (error ?? 'Failed', null);
-    }
-
-    final objects = result.rows.map((e) => e.toMap()).toList();
-    logger.debug('Found ${objects.length} objects', prefix: _prefix);
 
     return (null, objects);
   }
 
-  Future<(Object? error, List<Map<String, Object?>>? result)> search(
+  Future<void> _requireCollectionAccess(
     String collection,
-    Map<String, dynamic> data,
+    CollectionOperation operation,
   ) async {
-    final op = await _preChecks(collection, operation: .search, data: data);
-    if (op.query.isEmpty) {
-      throw StateError('No query returned for ${CollectionOperation.search}');
+    logger.debug(
+      'Checking collection rules for $collection $operation',
+      prefix: _prefix,
+    );
+    final collectionRules = await _collectionRules(collection, operation);
+    logger.debug('Collection rules: $collectionRules', prefix: _prefix);
+
+    if (!collectionRules.canAccess) {
+      throw StateError('User does not have access to update $collection');
     }
-
-    final (error, result) = await execute((
-      op.query,
-      op.values,
-    ), forOperation: .search);
-    if (error != null || result == null) {
-      return (error ?? 'Failed', null);
-    }
-
-    final objects = result.rows.map((e) => e.toMap()).toList();
-    logger.debug('Found ${objects.length} objects', prefix: _prefix);
-
-    return (null, objects);
   }
 
   Future<CanAccessResponse> _collectionRules(
@@ -285,6 +279,7 @@ class ZonaiDb {
         collection: collection,
         operation: operation,
         isSuperUser: true,
+        data: data,
       ),
     );
 
@@ -297,46 +292,22 @@ class ZonaiDb {
     );
   }
 
-  Future<PerformOperationResponse> _getOperation(
+  Future<void> _requireRecordAccess(
     String collection,
-    CollectionOperation operation, {
-    required Map<String, dynamic> data,
-    required String? recordFilter,
-  }) async {
-    final request = switch (operation) {
-      .create => CreateOperationRequest(collection: collection, object: data),
-      .update => UpdateOperationRequest(
-        collection: collection,
-        rawRecordFilter: recordFilter,
-        updates: [],
-        rawWhere: '',
-      ),
-      .delete => DeleteOperationRequest(
-        collection: collection,
-        rawRecordFilter: recordFilter,
-        rawWhere: '',
-        limit: 1,
-      ),
-      .view => ViewOperationRequest(
-        collection: collection,
-        rawRecordFilter: recordFilter,
-        rawWhere: '',
-      ),
-      .list => ListOperationRequest(
-        collection: collection,
-        rawRecordFilter: recordFilter,
-        limit: null,
-        offset: null,
-      ),
-      .search => SearchOperationRequest(
-        collection: collection,
-        rawRecordFilter: recordFilter,
-        limit: null,
-        offset: null,
-        rawWhere: '',
-      ),
-    };
+    RecordOperation operation,
+    Map<String, dynamic> data,
+  ) async {
+    final result = await _recordRules(collection, operation, data);
+    if (result?.canPerform case false) {
+      throw StateError(
+        'User does not have access to perform $operation on $collection',
+      );
+    }
+  }
 
+  Future<PerformOperationResponse> _getOperation(
+    OperationRequest request,
+  ) async {
     final response = await _operations.send(request);
 
     if (response is PerformOperationResponse) {

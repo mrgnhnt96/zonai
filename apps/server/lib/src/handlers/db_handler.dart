@@ -1,3 +1,4 @@
+import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 
 class DbHandler {
@@ -5,16 +6,8 @@ class DbHandler {
 
   void get() {}
 
-  Future<List<Map<String, Object?>>> search() async {
-    final (error, result) = await zonaiDB.search('items', {});
-    if (error != null || result == null) {
-      throw StateError('Failed to search items: $error');
-    }
-    return result;
-  }
-
   Future<List<Map<String, Object?>>> list() async {
-    final (error, result) = await zonaiDB.list('items', {});
+    final (error, result) = await zonaiDB.list('items', .new(where: Where()));
     if (error != null || result == null) {
       throw StateError('Failed to list items: $error');
     }

@@ -78,22 +78,22 @@ final class RecordFilterResponse extends RuleResponse {
     required super.id,
     required this.collection,
     required this.operation,
-    required this.filter,
+    required this.canPerform,
   }) : super(
          path: _path,
          payload: {
            'collection': collection,
            'operation': operation.name,
-           'filter': filter,
+           'canPerform': canPerform,
          },
        );
 
   factory RecordFilterResponse.fromJson(Map<String, dynamic> json) {
     return RecordFilterResponse(
-      id: json['id'],
-      collection: json['collection'],
+      id: json['id'] as String,
+      collection: json['collection'] as String,
       operation: RecordOperation.fromString(json['operation'])!,
-      filter: json['filter'],
+      canPerform: json['canPerform'] as bool,
     );
   }
 
@@ -101,20 +101,20 @@ final class RecordFilterResponse extends RuleResponse {
 
   final String collection;
   final RecordOperation operation;
-  final String? filter;
+  final bool canPerform;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       'collection': collection,
       'operation': operation.name,
-      'filter': filter,
+      'canPerform': canPerform,
       ...super.toJson(),
     };
   }
 
   @override
   String toString() {
-    return 'RecordFilterResponse(collection: $collection, operation: $operation, filter: $filter)';
+    return 'RecordFilterResponse(collection: $collection, operation: $operation, canPerform: $canPerform)';
   }
 }

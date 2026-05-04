@@ -97,8 +97,7 @@ class DbRules {
       .update => collectionRules.canUpdate(authRequest),
       .delete => collectionRules.canDelete(authRequest),
       .view => collectionRules.canView(authRequest),
-      .list => collectionRules.canListOrSearch(authRequest),
-      .search => collectionRules.canListOrSearch(authRequest),
+      .list => collectionRules.canList(authRequest),
     };
 
     return CanAccessResponse(
@@ -123,31 +122,24 @@ class DbRules {
         id: request.id,
         collection: request.collection,
         operation: request.operation,
-        filter: null,
+        canPerform: true,
       );
     }
 
-    final filter = await switch (op) {
-      .view => recordRules.canView(authRequest),
-      .update => recordRules.canUpdate(authRequest),
-      .delete => recordRules.canDelete(authRequest),
-      .create => recordRules.canCreate(authRequest),
+    final object = recordRules.table.create(request.data);
+
+    final canPerform = await switch (op) {
+      .view => recordRules.canView(authRequest, object),
+      .update => recordRules.canUpdate(authRequest, object),
+      .delete => recordRules.canDelete(authRequest, object),
+      .create => recordRules.canCreate(authRequest, object),
     };
-
-    if (filter == null) {
-      return RecordFilterResponse(
-        id: request.id,
-        collection: request.collection,
-        operation: request.operation,
-        filter: null,
-      );
-    }
 
     return RecordFilterResponse(
       id: request.id,
       collection: request.collection,
       operation: request.operation,
-      filter: dialect.translateFilter(filter, []),
+      canPerform: canPerform,
     );
   }
 }

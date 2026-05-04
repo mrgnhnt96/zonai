@@ -19,7 +19,7 @@ class CollectionRules<T extends Schema<T>> extends Rules<T> {
     return request.user.isSuperUser;
   }
 
-  Future<bool> canListOrSearch(Request request) async {
+  Future<bool> canList(Request request) async {
     return request.user.isSuperUser;
   }
 }

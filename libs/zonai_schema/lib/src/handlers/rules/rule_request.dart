@@ -62,6 +62,7 @@ final class RecordRulesRequest extends RuleRequest {
     required this.collection,
     required this.operation,
     required this.isSuperUser,
+    required this.data,
   }) : super(path: _path, id: Request.generateId());
 
   RecordRulesRequest._({
@@ -69,6 +70,7 @@ final class RecordRulesRequest extends RuleRequest {
     required this.collection,
     required this.operation,
     required this.isSuperUser,
+    required this.data,
   }) : super(path: _path);
 
   factory RecordRulesRequest.fromRequest(UnknownRequest request) {
@@ -79,6 +81,7 @@ final class RecordRulesRequest extends RuleRequest {
         request.payload['operation'] as String,
       )!,
       isSuperUser: request.payload['isSuperUser'] == true,
+      data: request.payload['data'] as Map<String, dynamic>,
     );
   }
 
@@ -87,6 +90,7 @@ final class RecordRulesRequest extends RuleRequest {
   final String collection;
   final RecordOperation operation;
   final bool isSuperUser;
+  final Map<String, dynamic> data;
 
   @override
   Map<String, dynamic> toJson() {
@@ -95,6 +99,7 @@ final class RecordRulesRequest extends RuleRequest {
       'collection': collection,
       'operation': operation.name,
       'isSuperUser': isSuperUser,
+      'data': data,
     };
   }
 }
@@ -104,8 +109,7 @@ enum CollectionOperation {
   update,
   delete,
   view,
-  list,
-  search;
+  list;
 
   const CollectionOperation();
 
@@ -116,7 +120,6 @@ enum CollectionOperation {
       'delete' => .delete,
       'view' => .view,
       'list' => .list,
-      'search' => .search,
       _ => null,
     };
   }
@@ -127,7 +130,6 @@ enum CollectionOperation {
     .delete => .delete,
     .view => .view,
     .list => .view,
-    .search => .view,
   };
 
   bool get requireObject => switch (this) {
@@ -136,7 +138,6 @@ enum CollectionOperation {
     .delete => true,
     .view => false,
     .list => false,
-    .search => false,
   };
 }
 
