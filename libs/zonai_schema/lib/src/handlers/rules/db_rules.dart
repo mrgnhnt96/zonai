@@ -6,6 +6,7 @@ import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 import 'package:zonai_schema/src/request.dart' as auth;
 import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/user.dart';
+import 'package:zonai_schema/src/table_extensions.dart';
 
 class _Rules {
   _Rules();
@@ -126,7 +127,7 @@ class DbRules {
       );
     }
 
-    final object = recordRules.table.create(request.data);
+    final object = recordRules.table.safeCreate(request.data);
 
     final canPerform = await switch (op) {
       .view => recordRules.canView(authRequest, object),

@@ -2,7 +2,9 @@ import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop/raindrop.dart' hide Update;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/update/update.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 import '../false_delegate.dart';
 import '../handlers/operations/operation_request.dart';
@@ -42,8 +44,8 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   @nonVirtual
   late rd.Raindrop db = _db;
 
-  rd.InsertWithValuesBuilder<T, void> insert(T entity) {
-    return db.insert(into: schema).values([entity]);
+  rd.InsertWithValuesBuilder<T, void> insert(Map<String, dynamic> data) {
+    return db.insert(into: schema).values([table.safeCreate(data)]);
   }
 
   rd.InsertWithValuesBuilder<T, void> insertMany(List<T> entities) {
@@ -56,14 +58,29 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   }) {
     final updateables = <Updateable<dynamic>>[];
 
+    final inferredColumns = <String>{};
+    for (final column in table.columns) {
+      switch (column.transformer) {
+        case CreatedAtTransformer():
+          inferredColumns.add(column.name);
+        case UpdatedAtTransformer():
+          inferredColumns.add(column.name);
+          updateables.add(UpdateableColumn(column, DateTime.now()));
+        case _:
+      }
+    }
+
     for (final update in updates) {
       switch (update) {
         case ColumnUpdate(:final column, :final value):
-          updateables.add(UpdateableColumn(table[column], value));
+          if (!inferredColumns.contains(column)) {
+            updateables.add(UpdateableColumn(table[column], value));
+          }
         case final ObjectUpdate update:
           updateables.addAll([
             for (final MapEntry(:key, :value) in update.object.entries)
-              UpdateableColumn(table[key], value),
+              if (!inferredColumns.contains(key))
+                UpdateableColumn(table[key], value),
           ]);
       }
     }
@@ -132,9 +149,7 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   /// [BaseSqlDialect.translate] with a concrete schema type [T].
   Query<T, dynamic> _query(PerformOperationRequest request) {
     return switch (request) {
-      CreateOperationRequest(:final object) => insert(
-        table.create(object),
-      ).toQuery(),
+      CreateOperationRequest(:final object) => insert(object).toQuery(),
       UpdateOperationRequest(:final where, :final updates) => update(
         updates,
         where: where,
@@ -164,8 +179,10 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
 }
 
 base mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.InsertWithValuesBuilder<T, T> insert(T entity) {
-    return db.insert(into: schema).values([entity]).returning();
+  rd.InsertWithValuesBuilder<T, T> insert(Map<String, dynamic> data) {
+    return db.insert(into: schema).values([
+      this.table.safeCreate(data),
+    ]).returning();
   }
 }
 

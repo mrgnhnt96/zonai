@@ -9,6 +9,7 @@ import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/keyboard_input.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/zonai.dart';
 
 class Migrate {
   factory Migrate() => _instance ??= Migrate._();
@@ -23,6 +24,11 @@ class Migrate {
 
   void auto() {
     if (__subscription != null) return;
+
+    if (fs.directory(settings.migrationsPath) case final dir
+        when !dir.existsSync()) {
+      run(name: 'initialize');
+    }
 
     __subscription = _watcher.events.listen((event) async {
       run(name: 'auto');
@@ -45,54 +51,73 @@ class Migrate {
     __subscription = null;
   }
 
+  Completer<int>? _running;
   Future<int> run({required String name, bool? dryRun}) async {
-    bool hasChanges = false;
-
-    final result = await runZoned(
-      () async {
-        final exitCode = await CliRunner().run([
-          '--dialect',
-          'sqlite',
-          '--schemas',
-          settings.schemasPath,
-          '--out',
-          settings.migrationsPath,
-          'generate',
-          if (dryRun case true) '--dry-run',
-          '--name',
-          name,
-        ]);
-
-        return exitCode;
-      },
-      zoneSpecification: .new(
-        print: (_, _, _, message) {
-          logger.debug(message);
-
-          switch (message) {
-            case 'No schema changes detected.':
-              hasChanges = false;
-              return;
-          }
-        },
-      ),
-    );
-
-    switch (hasChanges) {
-      case true:
-        logger.info('Generated migrations');
-      case false:
-        logger.info('No changes detected');
+    if (_running case final completer?) {
+      return completer.future;
     }
+    try {
+      _running = Completer<int>();
+      bool hasChanges = false;
 
-    return result;
+      final result = await runZoned(
+        () async {
+          final exitCode = await CliRunner().run([
+            '--dialect',
+            'sqlite',
+            '--schemas',
+            settings.schemasPath,
+            '--out',
+            settings.migrationsPath,
+            'generate',
+            if (dryRun case true) '--dry-run',
+            '--name',
+            name,
+          ]);
+
+          return exitCode;
+        },
+        zoneSpecification: .new(
+          print: (_, _, _, message) {
+            logger.debug(message);
+
+            switch (message) {
+              case 'No schema changes detected.':
+                hasChanges = false;
+                return;
+              case final String m
+                  when m.startsWith('Generated migration:') ||
+                      m.startsWith('Would generate migration:'):
+                hasChanges = true;
+                return;
+            }
+          },
+        ),
+      );
+
+      switch (hasChanges) {
+        case true:
+          logger.info('Generated migrations');
+        case false:
+          logger.info('No changes detected');
+      }
+
+      return result;
+    } finally {
+      _running?.complete(0);
+      _running = null;
+    }
   }
 
   Future<List<Migration>> migrations() async {
     final migrationsDir = fs.directory(settings.migrationsPath);
     if (!migrationsDir.existsSync()) {
+      if (kIsCompiled) {
+        return [];
+      }
+
       throw StateError(
-        'Migrations directory does not exist: ${migrationsDir.path}',
+        'Migrations directory does not exist: ${migrationsDir.path}\nRun `zonai db migrate generate` or `zonai serve` to setup your migrations.',
       );
     }
 

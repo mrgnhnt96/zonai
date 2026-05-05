@@ -1,6 +1,7 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_db/schemas/ids.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 import '../column_types/column_types.dart';
 
@@ -10,19 +11,20 @@ class Item extends Schema<Item> {
     required String body,
     String? description,
     int? status,
-    DateTime? createdAt,
+    DateTime? updatedAt,
   }) : id = $.itemsId('id', (s) => s.id, ItemsId.generate()).primaryKey(),
        body = $.text('body', (s) => s.body, body),
        description = $.text('description', (s) => s.description, description),
        status = $.integer('status', (s) => s.status, status),
-       createdAt = $.dateTime('created_at', (s) => s.createdAt, createdAt);
+       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt, updatedAt),
+       createdAt = $.createdAt('created_at', (s) => s.createdAt, .now());
 
   final ItemsIdColumn id;
   final TextColumn body;
   final TextColumn? description;
   final IntColumn? status;
-
-  final DateTimeColumn? createdAt;
+  final DateTimeColumn createdAt;
+  final DateTimeColumn? updatedAt;
 
   static const $ = SchemaBuilder<Item>();
 }
@@ -33,6 +35,6 @@ final items = sqliteTable(
     body: fakes.text(),
     description: fakes.text(),
     status: fakes.integer(),
-    createdAt: fakes.dateTime(),
+    updatedAt: fakes.dateTime(),
   ),
 );

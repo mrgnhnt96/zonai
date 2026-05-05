@@ -16,12 +16,9 @@ class DbOperations {
 
   Map<String, CollectionOperations>? _operationsByCollection;
   Map<String, CollectionOperations> get operationsByCollection {
-    if (_operationsByCollection case final operations?) return operations;
-    final operations = <String, CollectionOperations>{};
-    for (final operation in this.operations) {
-      operations[operation.table.name] = operation;
-    }
-    return _operationsByCollection = operations;
+    return _operationsByCollection ??= {
+      for (final operation in this.operations) operation.table.name: operation,
+    };
   }
 
   void start() {
