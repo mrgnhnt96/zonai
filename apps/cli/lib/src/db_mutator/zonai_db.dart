@@ -150,7 +150,19 @@ class ZonaiDb {
 
     logger.debug('Updated: ${updateResult}', prefix: _prefix);
 
-    return (null, updateResult.rows.map((e) => e.toMap()).toList());
+    // `updateResult.rows` always returns empty, need to refetch the records
+    final (updatedError, updatedResult) = await execute((
+      readOperation.query,
+      readOperation.values,
+    ), forOperation: .view);
+    if (updatedError != null || updatedResult == null) {
+      return (updatedError ?? 'Failed', null);
+    }
+
+    final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
+    logger.debug('Updated objects: ${updatedObjects}', prefix: _prefix);
+
+    return (null, updatedObjects);
   }
 
   Future<(Object? error, int? result)> delete(

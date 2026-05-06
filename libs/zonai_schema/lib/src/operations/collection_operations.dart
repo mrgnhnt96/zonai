@@ -183,12 +183,3 @@ base mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
     return super.insert(data).returning();
   }
 }
-
-base mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
-  SQLiteUpdateReturningBuilder<T, Object?, Object?> update(
-    List<Update> updates, {
-    required Filter where,
-  }) {
-    return super.update(updates, where: where).returning();
-  }
-}
