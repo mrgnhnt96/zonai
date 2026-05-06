@@ -63,21 +63,27 @@ class ZonaiDb {
     }
 
     if (!_dbFile.existsSync()) {
-      logger.debug('Creating database file: ${_dbFile.path}', prefix: _prefix);
+      logger.verbose(
+        'Creating database file: ${_dbFile.path}',
+        prefix: _prefix,
+      );
       _dbFile.createSync(recursive: true);
     }
 
     logger.debug('Opening database: ${_dbFile.path}', prefix: _prefix);
     final db = this.db = Raindrop(await ResqliteDelegate.open(_dbFile.path));
 
-    logger.debug('Retrieving migrations', prefix: _prefix);
-    final migrations = await migrate.migrations();
-    logger.debug('Found ${migrations.length} migrations', prefix: _prefix);
+    logger.verbose('Retrieving migrations', prefix: _prefix);
 
-    logger.debug('Migrating database', prefix: _prefix);
-    await raindrop.migrate(db, migrations);
+    if (await migrate.migrations() case final migrations
+        when migrations.isNotEmpty) {
+      logger.verbose('Found ${migrations.length} migrations', prefix: _prefix);
 
-    logger.debug('Ensuring database is open', prefix: _prefix);
+      logger.debug('Migrating database', prefix: _prefix);
+      await raindrop.migrate(db, migrations);
+    }
+
+    logger.verbose('Ensuring database is open', prefix: _prefix);
     await db.ensureOpen();
   }
 
@@ -118,7 +124,7 @@ class ZonaiDb {
     }
 
     final created = result.rows.single.toMap();
-    logger.debug('Created: ${created}', prefix: _prefix);
+    logger.verbose('Created: ${created}', prefix: _prefix);
 
     {
       final afterCreate = await _extensions.send(
@@ -183,7 +189,7 @@ class ZonaiDb {
       return (updateError ?? 'Failed', null);
     }
 
-    logger.debug('Updated: ${updateResult}', prefix: _prefix);
+    logger.verbose('Updated: ${updateResult}', prefix: _prefix);
 
     // `updateResult.rows` always returns empty, need to refetch the records
     final (updatedError, updatedResult) = await execute((
@@ -202,7 +208,7 @@ class ZonaiDb {
     }
 
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
-    logger.debug('Updated objects: ${updatedObjects}', prefix: _prefix);
+    logger.verbose('Updated objects: ${updatedObjects}', prefix: _prefix);
 
     {
       final afterUpdate = await _extensions.send(
@@ -232,7 +238,7 @@ class ZonaiDb {
       ),
     );
 
-    logger.debug('Read operation: ${readOperation.query}', prefix: _prefix);
+    logger.verbose('Read operation: ${readOperation.query}', prefix: _prefix);
 
     final (readError, readResult) = await execute((
       readOperation.query,
@@ -265,7 +271,10 @@ class ZonaiDb {
       ),
     );
 
-    logger.debug('Delete operation: ${deleteOperation.query}', prefix: _prefix);
+    logger.verbose(
+      'Delete operation: ${deleteOperation.query}',
+      prefix: _prefix,
+    );
 
     final (deleteError, deleteResult) = await execute((
       deleteOperation.query,
@@ -282,7 +291,7 @@ class ZonaiDb {
       return (deleteError ?? 'Failed', null);
     }
 
-    logger.debug('Deleted ${deleteResult}', prefix: _prefix);
+    logger.verbose('Deleted ${deleteResult}', prefix: _prefix);
 
     {
       final afterDelete = await _extensions.send(
@@ -319,7 +328,7 @@ class ZonaiDb {
     }
 
     final object = result.rows.first.toMap();
-    logger.debug('Found object: ${object}', prefix: _prefix);
+    logger.verbose('Found object: ${object}', prefix: _prefix);
 
     await _requireRecordAccess(collection, .view, object);
 
@@ -350,7 +359,7 @@ class ZonaiDb {
     }
 
     final objects = result.rows.map((e) => e.toMap()).toList();
-    logger.debug('Found ${objects.length} objects', prefix: _prefix);
+    logger.verbose('Found ${objects.length} objects', prefix: _prefix);
 
     for (final object in objects) {
       await _requireRecordAccess(collection, .view, object);
@@ -363,12 +372,12 @@ class ZonaiDb {
     String collection,
     CollectionOperation operation,
   ) async {
-    logger.debug(
+    logger.verbose(
       'Checking collection rules for $collection $operation',
       prefix: _prefix,
     );
     final collectionRules = await _collectionRules(collection, operation);
-    logger.debug('Collection rules: $collectionRules', prefix: _prefix);
+    logger.verbose('Collection rules: $collectionRules', prefix: _prefix);
 
     if (!collectionRules.canAccess) {
       throw StateError('User does not have access to update $collection');

@@ -37,8 +37,8 @@ playground:
 
   compile: |
     cd apps/playground || exit 1
-    dart run --enable-asserts zonai compile --loud
+    dart run --enable-asserts zonai compile --log verbose
 
   test: |
     cd apps/playground || exit 1
-    dart run --enable-experiment=native-assets --enable-asserts zonai db test --loud
+    dart run --enable-experiment=native-assets --enable-asserts zonai db test --log verbose

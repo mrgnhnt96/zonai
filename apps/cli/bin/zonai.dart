@@ -30,23 +30,25 @@ Future<void> _run(List<String> arguments) async {
   final parsed = Args.parse(arguments);
 
   final log = Logger(
-    level: switch ((parsed['quiet'], parsed['loud'])) {
-      (true, _) => Level.error,
-      (_, true) => Level.verbose,
-      (_, _) => Level.info,
-    },
+    level:
+        Level.fromString(parsed.getOrNull('log')) ??
+        switch ((parsed['quiet'], parsed['loud'])) {
+          (true, _) => Level.error,
+          (_, true) => Level.verbose,
+          (_, _) => Level.info,
+        },
   );
 
-  log.debug('Starting Zonai CLI');
-  log.debug('Parsed arguments: $parsed');
-  log.debug('Logger Level: ${log.level}');
+  log.verbose('Starting Zonai CLI');
+  log.verbose('Parsed arguments: $parsed');
+  log.verbose('Logger Level: ${log.level}');
 
   await runScoped(
     () async {
       try {
         kill; // sets up the kill handler
         exitCode = await run();
-        logger.debug('Exited with code: $exitCode');
+        logger.verbose('Exited with code: $exitCode');
         kill.force();
       } catch (e, stack) {
         logger.error('Error: $e', stack);
