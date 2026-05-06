@@ -180,9 +180,7 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
 
 base mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
   rd.InsertWithValuesBuilder<T, T> insert(Map<String, dynamic> data) {
-    return db.insert(into: schema).values([
-      this.table.safeCreate(data),
-    ]).returning();
+    return super.insert(data).returning();
   }
 }
 
@@ -191,32 +189,6 @@ base mixin UpdateReturning<T extends Schema<T>> on CollectionOperations<T> {
     List<Update> updates, {
     required Filter where,
   }) {
-    final updateables = <Updateable<dynamic>>[];
-
-    for (final update in updates) {
-      switch (update) {
-        case ColumnUpdate(:final column, :final value):
-          updateables.add(UpdateableColumn(this.table[column], value));
-        case final ObjectUpdate update:
-          updateables.addAll([
-            for (final MapEntry(:key, :value) in update.object.entries)
-              UpdateableColumn(this.table[key], value),
-          ]);
-      }
-    }
-
-    return db.update(schema).setAll(updateables).where(where).returning();
-  }
-}
-
-base mixin DeleteReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.DeleteWhereBuilder<T, T> delete(Filter where, {int? limit}) {
-    final builder = db.delete(from: schema).where(where);
-
-    if (limit != null) {
-      builder.limit(limit);
-    }
-
-    return builder.returning();
+    return super.update(updates, where: where).returning();
   }
 }
