@@ -100,7 +100,7 @@ class MessageHandler {
       },
       zoneSpecification: .new(
         print: (_, _, _, message) {
-          send(DebugResponse(message: message, level: .debug));
+          send(DebugResponse(message: message, level: .info));
         },
       ),
     );
