@@ -18,6 +18,35 @@ sealed class ExtensionResponse extends Response {
       throw ArgumentError('Invalid extension response id: ${json['id']}');
     }
 
-    throw UnimplementedError();
+    return switch (path) {
+      NoActionExtensionResponse._path => NoActionExtensionResponse.fromJson(
+        json,
+      ),
+      BeforeCreateExtensionResponse._path =>
+        BeforeCreateExtensionResponse.fromJson(json),
+      _ => throw ArgumentError('Invalid extension response path: $path'),
+    };
   }
+}
+
+final class NoActionExtensionResponse extends ExtensionResponse {
+  NoActionExtensionResponse({required super.id})
+    : super(path: _path, payload: {});
+
+  factory NoActionExtensionResponse.fromJson(Map<String, dynamic> json) {
+    return NoActionExtensionResponse(id: json['id']);
+  }
+
+  static const _path = 'extension.no_action';
+}
+
+final class BeforeCreateExtensionResponse extends ExtensionResponse {
+  BeforeCreateExtensionResponse({required super.id})
+    : super(path: _path, payload: {});
+
+  factory BeforeCreateExtensionResponse.fromJson(Map<String, dynamic> json) {
+    return BeforeCreateExtensionResponse(id: json['id']);
+  }
+
+  static const _path = 'extension.before_create';
 }

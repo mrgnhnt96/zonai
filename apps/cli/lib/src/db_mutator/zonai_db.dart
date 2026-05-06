@@ -88,6 +88,15 @@ class ZonaiDb {
     await _requireCollectionAccess(collection, .create);
     await _requireRecordAccess(collection, .create, payload.object);
 
+    {
+      final beforeCreate = await _extensions.send(
+        CreateExtensionRequest.before(
+          collection: collection,
+          object: payload.object,
+        ),
+      );
+    }
+
     final operation = await _getOperation(
       CreateOperationRequest(collection: collection, object: payload.object),
     );
@@ -97,12 +106,30 @@ class ZonaiDb {
       operation.values,
     ), forOperation: .create);
     if (error != null || result == null) {
+      final afterCreate = await _extensions.send(
+        ErrorExtensionRequest.create(
+          collection: collection,
+
+          error: error?.toString() ?? 'Unknown error',
+        ),
+      );
+
       return (error ?? 'Failed', null);
     }
 
-    final objects = result.rows.map((e) => e.toMap()).toList();
+    final created = result.rows.single.toMap();
+    logger.debug('Created: ${created}', prefix: _prefix);
 
-    return (null, objects.single);
+    {
+      final afterCreate = await _extensions.send(
+        CreateExtensionRequest.afterSuccess(
+          collection: collection,
+          object: payload.object,
+        ),
+      );
+    }
+
+    return (null, created);
   }
 
   Future<(Object? error, List<Map<String, Object?>>? result)> update(
@@ -128,8 +155,16 @@ class ZonaiDb {
       return (readError ?? 'Failed', null);
     }
 
-    for (final row in readResult.rows) {
-      await _requireRecordAccess(collection, .update, row.toMap());
+    final objects = readResult.rows.map((e) => e.toMap()).toList();
+
+    for (final row in objects) {
+      await _requireRecordAccess(collection, .update, row);
+    }
+
+    {
+      final beforeUpdate = await _extensions.send(
+        BeforeUpdateExtensionRequest(collection: collection, objects: objects),
+      );
     }
 
     final updateOperation = await _getOperation(
@@ -156,11 +191,28 @@ class ZonaiDb {
       readOperation.values,
     ), forOperation: .view);
     if (updatedError != null || updatedResult == null) {
+      final afterUpdate = await _extensions.send(
+        ErrorExtensionRequest.update(
+          collection: collection,
+          error: updatedError?.toString() ?? 'Unknown error',
+        ),
+      );
+
       return (updatedError ?? 'Failed', null);
     }
 
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
     logger.debug('Updated objects: ${updatedObjects}', prefix: _prefix);
+
+    {
+      final afterUpdate = await _extensions.send(
+        AfterUpdateExtensionRequest(
+          collection: collection,
+          before: objects,
+          after: updatedObjects,
+        ),
+      );
+    }
 
     return (null, updatedObjects);
   }
@@ -199,6 +251,12 @@ class ZonaiDb {
       await _requireRecordAccess(collection, .delete, object);
     }
 
+    {
+      final beforeDelete = await _extensions.send(
+        DeleteExtensionRequest.before(collection: collection, objects: objects),
+      );
+    }
+
     final deleteOperation = await _getOperation(
       DeleteOperationRequest(
         collection: collection,
@@ -214,10 +272,26 @@ class ZonaiDb {
       deleteOperation.values,
     ), forOperation: .delete);
     if (deleteError != null || deleteResult == null) {
+      final afterDelete = await _extensions.send(
+        ErrorExtensionRequest.delete(
+          collection: collection,
+          error: deleteError?.toString() ?? 'Unknown error',
+        ),
+      );
+
       return (deleteError ?? 'Failed', null);
     }
 
     logger.debug('Deleted ${deleteResult}', prefix: _prefix);
+
+    {
+      final afterDelete = await _extensions.send(
+        DeleteExtensionRequest.afterSuccess(
+          collection: collection,
+          objects: objects,
+        ),
+      );
+    }
 
     return (null, deleteResult.rowsAffected);
   }

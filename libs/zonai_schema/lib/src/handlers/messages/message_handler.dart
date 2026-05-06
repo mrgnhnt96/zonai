@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -70,29 +71,38 @@ class MessageHandler {
       _listening = false;
     }
 
-    await runScoped(
-      _listen,
-      values: {
-        _loggerProvider.overrideWith(
-          () => _Logger((
-            message, {
-            required level,
-            properties,
-            stackTrace,
-            error,
-          }) {
-            send(
-              DebugResponse(
-                message: message,
-                level: level,
-                properties: properties,
-                stackTrace: stackTrace,
-                error: error,
-              ),
-            );
-          }),
-        ),
+    await runZoned(
+      () async {
+        await runScoped(
+          _listen,
+          values: {
+            _loggerProvider.overrideWith(
+              () => _Logger((
+                message, {
+                required level,
+                properties,
+                stackTrace,
+                error,
+              }) {
+                send(
+                  DebugResponse(
+                    message: message,
+                    level: level,
+                    properties: properties,
+                    stackTrace: stackTrace,
+                    error: error,
+                  ),
+                );
+              }),
+            ),
+          },
+        );
       },
+      zoneSpecification: .new(
+        print: (_, _, _, message) {
+          send(DebugResponse(message: message, level: .debug));
+        },
+      ),
     );
   }
 
