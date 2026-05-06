@@ -7,4 +7,9 @@ class ObjectedRow {
   Map<String, Object?> toMap() {
     return {for (var i = 0; i < columns.length; i++) columns[i]: values[i]};
   }
+
+  @override
+  String toString() {
+    return '${toMap()}';
+  }
 }

@@ -78,7 +78,7 @@ Future<(int?, String?)> _list() async {
 Future<int?> _delete({required String id}) async {
   final (error, result) = await zonaiDB.delete(
     'items',
-    .new(where: Where('"items"."id" = "$id"')),
+    .new(where: Where('"items"."id" = \'$id\'')),
   );
 
   if (error != null || result == null) {
@@ -93,7 +93,7 @@ Future<int?> _delete({required String id}) async {
 Future<int?> _view({required String id}) async {
   final (error, result) = await zonaiDB.view(
     'items',
-    .new(where: Where('"items"."id" = "$id"')),
+    .new(where: Where('"items"."id" = \'$id\'')),
   );
   if (error != null || result == null) {
     logger.err('Failed to view records: $error');
@@ -108,7 +108,7 @@ Future<int?> _update({required String id}) async {
   final (error, result) = await zonaiDB.update(
     'items',
     .new(
-      where: Where('"items"."id" = "$id"'),
+      where: Where('"items"."id" = \'$id\''),
       updates: [
         ObjectUpdate({'body': 'Test body updated'}),
       ],

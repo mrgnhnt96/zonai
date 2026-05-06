@@ -44,5 +44,6 @@ Thumbs.db
 
 # Local / dev databases (e.g. zonai SQLite under apps/db/data/)
 *.sqlite
+*.sqlite*
 *.sqlite3
 *.db

@@ -68,7 +68,7 @@ class ZonaiDb {
     }
 
     logger.debug('Opening database: ${_dbFile.path}', prefix: _prefix);
-    final db = this.db = Raindrop(SQLiteDelegate.open(_dbFile.path));
+    final db = this.db = Raindrop(await ResqliteDelegate.open(_dbFile.path));
 
     logger.debug('Retrieving migrations', prefix: _prefix);
     final migrations = await migrate.migrations();
@@ -147,6 +147,8 @@ class ZonaiDb {
     if (updateError != null || updateResult == null) {
       return (updateError ?? 'Failed', null);
     }
+
+    logger.debug('Updated: ${updateResult}', prefix: _prefix);
 
     return (null, updateResult.rows.map((e) => e.toMap()).toList());
   }
@@ -291,23 +293,31 @@ class ZonaiDb {
     String collection,
     CollectionOperation operation,
   ) async {
+    // TODO: Forward user's object
+    const isSuperUser = true;
+
     final rules = await _rules.send(
       CollectionRulesRequest(
         collection: collection,
         operation: operation.name,
-        // TODO: Forward user's object
-        isSuperUser: true,
+        isSuperUser: isSuperUser,
       ),
     );
 
-    if (rules is CanAccessResponse) {
-      return rules;
+    if (rules is CanAccessResponse?) {
+      return rules ??
+          CanAccessResponse(
+            id: '-1',
+            collection: collection,
+            operation: operation.name,
+            canAccess: isSuperUser,
+          );
     }
 
     throw StateError('Expected $CanAccessResponse, got ${rules.runtimeType}');
   }
 
-  Future<RecordFilterResponse?> _recordRules(
+  Future<RecordFilterResponse> _recordRules(
     String collection,
     RecordOperation operation,
     Map<String, dynamic> data,
@@ -322,7 +332,13 @@ class ZonaiDb {
     );
 
     if (rules is RecordFilterResponse?) {
-      return rules;
+      return rules ??
+          RecordFilterResponse(
+            id: '-1',
+            collection: collection,
+            operation: operation,
+            canPerform: true,
+          );
     }
 
     throw StateError(
@@ -336,7 +352,7 @@ class ZonaiDb {
     Map<String, dynamic> data,
   ) async {
     final result = await _recordRules(collection, operation, data);
-    if (result?.canPerform case false) {
+    if (result.canPerform case false) {
       throw StateError(
         'User does not have access to perform $operation on $collection',
       );

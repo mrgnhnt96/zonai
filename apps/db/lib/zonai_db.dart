@@ -39,7 +39,7 @@ Future<Raindrop> openZonaiDatabase({
   final migrations = await loadMigrationsFromDirectory(migrationsDir);
 
   final filePath = fs.path.join(dir.path, databaseFileName);
-  final db = Raindrop(SQLiteDelegate.open(filePath));
+  final db = Raindrop(await ResqliteDelegate.open(filePath));
   await migrate(db, migrations);
   await db.ensureOpen();
   return db;
