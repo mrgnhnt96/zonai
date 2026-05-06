@@ -30,12 +30,14 @@ class DeletePayload extends Payload {
 }
 
 class DeleteOnePayload implements DeletePayload {
-  const DeleteOnePayload({required this.id}) : limit = 1;
+  const DeleteOnePayload({required this.collection, required this.id})
+    : limit = 1;
 
+  final String collection;
   final String id;
   final int limit;
   @override
-  Where get where => Where();
+  Where get where => Eq('id', id);
 }
 
 class ListPayload extends Payload {

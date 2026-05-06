@@ -14,6 +14,7 @@ import 'package:zonai/src/deps/migrate.dart';
 import 'package:zonai/src/deps/operations.dart';
 import 'package:zonai/src/deps/rules.dart';
 import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/src/utils/where_sql.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
@@ -144,10 +145,12 @@ class ZonaiDb {
   ) async {
     await _requireCollectionAccess(collection, .update);
 
+    final where = payload.where.sql(collection);
+
     final readOperation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: payload.where.raw,
+        where: where,
         limit: payload.limit,
         offset: null,
       ),
@@ -176,7 +179,7 @@ class ZonaiDb {
     final updateOperation = await _getOperation(
       UpdateOperationRequest(
         collection: collection,
-        where: payload.where.raw,
+        where: where,
         updates: payload.updates,
       ),
     );
@@ -229,10 +232,12 @@ class ZonaiDb {
   ) async {
     await _requireCollectionAccess(collection, .delete);
 
+    final where = payload.where.sql(collection);
+
     final readOperation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: payload.where.raw,
+        where: where,
         limit: payload.limit,
         offset: null,
       ),
@@ -266,7 +271,7 @@ class ZonaiDb {
     final deleteOperation = await _getOperation(
       DeleteOperationRequest(
         collection: collection,
-        where: payload.where.raw,
+        where: where,
         limit: payload.limit,
       ),
     );
@@ -312,7 +317,10 @@ class ZonaiDb {
     await _requireCollectionAccess(collection, .view);
 
     final operation = await _getOperation(
-      ViewOperationRequest(collection: collection, where: payload.where.raw),
+      ViewOperationRequest(
+        collection: collection,
+        where: payload.where.sql(collection),
+      ),
     );
 
     final (error, result) = await execute((
@@ -344,7 +352,7 @@ class ZonaiDb {
     final operation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: payload.where.raw,
+        where: payload.where.sql(collection),
         limit: payload.limit,
         offset: payload.offset,
       ),

@@ -7,7 +7,10 @@ class DbHandler {
   void get() {}
 
   Future<List<Map<String, Object?>>> list() async {
-    final (error, result) = await zonaiDB.list('items', .new(where: Where()));
+    final (error, result) = await zonaiDB.list(
+      'items',
+      .new(where: NotNull('id')),
+    );
     if (error != null || result == null) {
       throw StateError('Failed to list items: $error');
     }
