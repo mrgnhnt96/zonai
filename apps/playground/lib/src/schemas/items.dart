@@ -25,8 +25,8 @@ class Item extends Schema<Item> {
   final TextColumn? description;
   final IntColumn? status;
 
-  final CreatedAtColumn createdAt;
-  final UpdatedAtColumn? updatedAt;
+  final DateTimeColumn createdAt;
+  final DateTimeColumn? updatedAt;
 
   static const $ = SchemaBuilder<Item>();
 }

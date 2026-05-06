@@ -5,10 +5,10 @@ import '../schemas/ids.dart';
 extension ItemsIdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
   T itemsId<T extends ItemsIdColumn>(
     String name,
-    Field<S, ItemsId> field,
+    Field<S, T> field,
     ItemsId value,
   ) {
-    return custom<ItemsId, String>(
+    return custom<ItemsId, String, ItemsIdColumn, T>(
           ItemsIdColumn.new,
           name,
           field,
