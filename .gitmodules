@@ -2,3 +2,6 @@
 	path = libs/raindrop
 	url = https://github.com/mrgnhnt96/raindrop.git
 	branch = zonai
+[submodule "libs/resqlite"]
+	path = libs/resqlite
+	url = https://github.com/mrgnhnt96/resqlite
