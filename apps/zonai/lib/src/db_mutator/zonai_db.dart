@@ -108,10 +108,7 @@ class ZonaiDb {
       CreateOperationRequest(collection: collection, object: payload.object),
     );
 
-    final (error, result) = await execute((
-      operation.query,
-      operation.values,
-    ), forOperation: .create);
+    final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
       final afterCreate = await _extensions.send(
         ErrorExtensionRequest.create(
@@ -156,10 +153,10 @@ class ZonaiDb {
       ),
     );
 
-    final (readError, readResult) = await execute((
+    final (readError, readResult) = await _execute((
       readOperation.query,
       readOperation.values,
-    ), forOperation: .view);
+    ));
     if (readError != null || readResult == null) {
       return (readError ?? 'Failed', null);
     }
@@ -184,10 +181,10 @@ class ZonaiDb {
       ),
     );
 
-    final (updateError, updateResult) = await execute((
+    final (updateError, updateResult) = await _execute((
       updateOperation.query,
       updateOperation.values,
-    ), forOperation: .update);
+    ));
     if (updateError != null || updateResult == null) {
       return (updateError ?? 'Failed', null);
     }
@@ -195,10 +192,10 @@ class ZonaiDb {
     logger.verbose('Updated: ${updateResult}', prefix: _prefix);
 
     // `updateResult.rows` always returns empty, need to refetch the records
-    final (updatedError, updatedResult) = await execute((
+    final (updatedError, updatedResult) = await _execute((
       readOperation.query,
       readOperation.values,
-    ), forOperation: .view);
+    ));
     if (updatedError != null || updatedResult == null) {
       final afterUpdate = await _extensions.send(
         ErrorExtensionRequest.update(
@@ -245,10 +242,10 @@ class ZonaiDb {
 
     logger.verbose('Read operation: ${readOperation.query}', prefix: _prefix);
 
-    final (readError, readResult) = await execute((
+    final (readError, readResult) = await _execute((
       readOperation.query,
       readOperation.values,
-    ), forOperation: .view);
+    ));
     if (readError != null || readResult == null) {
       return (readError ?? 'Failed', null);
     }
@@ -281,10 +278,10 @@ class ZonaiDb {
       prefix: _prefix,
     );
 
-    final (deleteError, deleteResult) = await execute((
+    final (deleteError, deleteResult) = await _execute((
       deleteOperation.query,
       deleteOperation.values,
-    ), forOperation: .delete);
+    ));
     if (deleteError != null || deleteResult == null) {
       final afterDelete = await _extensions.send(
         ErrorExtensionRequest.delete(
@@ -323,10 +320,7 @@ class ZonaiDb {
       ),
     );
 
-    final (error, result) = await execute((
-      operation.query,
-      operation.values,
-    ), forOperation: .view);
+    final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
       return (error ?? 'Failed', null);
     }
@@ -358,10 +352,7 @@ class ZonaiDb {
       ),
     );
 
-    final (error, result) = await execute((
-      operation.query,
-      operation.values,
-    ), forOperation: .view);
+    final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
       return (error ?? 'Failed', null);
     }
@@ -374,6 +365,71 @@ class ZonaiDb {
     }
 
     return (null, objects);
+  }
+
+  Stream<List<Map<String, Object?>>> streamList(
+    String collection,
+    ListPayload payload,
+  ) async* {
+    await _requireCollectionAccess(collection, .view);
+
+    final where = payload.where?.sql(collection);
+    final operation = await _getOperation(
+      ListOperationRequest(
+        collection: collection,
+        where: where,
+        limit: payload.limit,
+        offset: payload.offset,
+      ),
+    );
+
+    final (readError, readResult) = await _execute((
+      operation.query,
+      operation.values,
+    ));
+    if (readError != null || readResult == null) {
+      throw StateError('Failed to read records: $readError');
+    }
+
+    final objects = readResult.rows.map((e) => e.toMap()).toList();
+    for (final object in objects) {
+      await _requireRecordAccess(collection, .view, object);
+    }
+
+    await for (final result in _stream(operation.query, operation.values)) {
+      yield result.rows.map((e) => e.toMap()).toList();
+    }
+  }
+
+  Stream<Map<String, Object?>> streamOne(
+    String collection,
+    ViewPayload payload,
+  ) async* {
+    await _requireCollectionAccess(collection, .view);
+
+    final operation = await _getOperation(
+      ListOperationRequest(
+        collection: collection,
+        where: payload.where.sql(collection),
+        limit: 1,
+        offset: null,
+      ),
+    );
+
+    final (readError, readResult) = await _execute((
+      operation.query,
+      operation.values,
+    ));
+    if (readError != null || readResult == null) {
+      throw StateError('Failed to read record: $readError');
+    }
+
+    final object = readResult.rows.single.toMap();
+    await _requireRecordAccess(collection, .view, object);
+
+    await for (final result in _stream(operation.query, operation.values)) {
+      yield result.rows.single.toMap();
+    }
   }
 
   Future<void> _requireCollectionAccess(
@@ -476,10 +532,9 @@ class ZonaiDb {
     );
   }
 
-  Future<(Object? error, OperationResult? result)> execute(
+  Future<(Object? error, OperationResult? result)> _execute(
     (String, List<Object?>) query, {
     List<(String, List<Object?>)>? sideEffects,
-    CollectionOperation? forOperation,
   }) async {
     await open();
 
@@ -504,6 +559,27 @@ class ZonaiDb {
       return (null, OperationResult(result));
     } catch (e) {
       return (e, null);
+    }
+  }
+
+  Stream<OperationResult> _stream(String query, List<Object?> values) async* {
+    await open();
+
+    final db = this.db;
+    if (db == null) {
+      throw StateError('Database is not open');
+    }
+
+    try {
+      logger.verbose('Streaming query: $query', prefix: _prefix);
+      final stream = db.streamQuery(query, values);
+      await for (final result in stream) {
+        yield OperationResult(result);
+      }
+
+      logger.verbose('Stream completed: $query', prefix: _prefix);
+    } catch (e) {
+      logger.error('Error streaming query: $query');
     }
   }
 }

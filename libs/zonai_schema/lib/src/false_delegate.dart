@@ -25,4 +25,9 @@ class FalseDelegate extends RaindropDelegate {
   ) {
     throw UnimplementedError();
   }
+
+  @override
+  Stream<DatabaseResult> streamQuery(String query, List<Object?> values) {
+    throw UnimplementedError();
+  }
 }

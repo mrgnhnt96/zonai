@@ -1,8 +1,10 @@
+import 'dart:async';
+
+import 'package:zonai_schema/src/update/update.dart';
+
 import '../../db_mutator/payloads/payloads.dart';
 import '../../deps/logger.dart';
 import '../../deps/zonai_db.dart';
-
-import 'package:zonai_schema/src/update/update.dart';
 
 Future<void> main() async {
   await test();
@@ -23,8 +25,20 @@ Future<int> test() async {
   logger.info('ID: $id');
   logger.info('--------------------------------');
 
+  logger.info('STREAM LIST');
+  if (await _streamList(id: id!) case final int exitCode) {
+    return exitCode;
+  }
+  logger.info('--------------------------------');
+
+  logger.info('STREAM ONE');
+  if (await _streamOne(id: id) case final int exitCode) {
+    return exitCode;
+  }
+  logger.info('--------------------------------');
+
   logger.info('UPDATING RECORD');
-  if (await _update(id: id!) case final int exitCode) {
+  if (await _update(id: id) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
@@ -73,6 +87,83 @@ Future<(int?, String?)> _list() async {
     logger.info('Record: ${record}');
   }
   return (null, result.last['id'] as String?);
+}
+
+Future<int?> _streamList({required String id}) async {
+  final stream = zonaiDB.streamList('items', .new(where: Eq('id', id)));
+
+  final completer = Completer<void>();
+  var count = 0;
+  final listener = stream.listen((result) {
+    logger.info('Stream result: ${result}');
+
+    // Two updates below → two stream emissions (initial read is not yielded).
+    if (++count == 2 && !completer.isCompleted) {
+      completer.complete();
+    }
+  });
+
+  await zonaiDB.update(
+    'items',
+    .new(
+      where: Eq('id', id),
+      updates: [
+        ObjectUpdate({'body': 'Test body updated (1)'}),
+      ],
+    ),
+  );
+
+  await zonaiDB.update(
+    'items',
+    .new(
+      where: Eq('id', id),
+      updates: [
+        ObjectUpdate({'body': 'Test body updated (2)'}),
+      ],
+    ),
+  );
+
+  await completer.future;
+  listener.cancel().ignore();
+  return null;
+}
+
+Future<int?> _streamOne({required String id}) async {
+  final stream = zonaiDB.streamOne('items', .new(where: Eq('id', id)));
+
+  final completer = Completer<void>();
+  var count = 0;
+  final listener = stream.listen((result) {
+    logger.info('Stream result: ${result}');
+
+    if (++count == 2 && !completer.isCompleted) {
+      completer.complete();
+    }
+  });
+
+  await zonaiDB.update(
+    'items',
+    .new(
+      where: Eq('id', id),
+      updates: [
+        ObjectUpdate({'body': 'Test body updated (1)'}),
+      ],
+    ),
+  );
+
+  await zonaiDB.update(
+    'items',
+    .new(
+      where: Eq('id', id),
+      updates: [
+        ObjectUpdate({'body': 'Test body updated (2)'}),
+      ],
+    ),
+  );
+
+  await completer.future;
+  listener.cancel().ignore();
+  return null;
 }
 
 Future<int?> _delete({required String id}) async {

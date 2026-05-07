@@ -110,12 +110,11 @@ class Mailman<S extends Request, R extends Response> {
 
   Future<io.Process?> _start() async {
     if (_process case final process?) {
-      logger.debug('Exists', prefix: _prefix);
       return process;
     }
 
     if (!hasExecutable) {
-      logger.debug('No executable: $executablePath', prefix: _prefix);
+      logger.verbose('No executable: $executablePath', prefix: _prefix);
       return null;
     }
 
@@ -123,7 +122,7 @@ class Mailman<S extends Request, R extends Response> {
 
     final p = _process = await process.start(executablePath, []);
     p.exitCode.whenComplete(() {
-      logger.debug('Exited', prefix: _prefix);
+      logger.warn('[$_prefix]: Exited');
       _process = null;
       for (final completer in _pendingResponses.values) {
         completer.completeError(Exception('Process killed'));
