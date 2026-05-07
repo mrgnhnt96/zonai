@@ -341,7 +341,7 @@ class ZonaiDb {
     String collection,
     ListPayload payload,
   ) async {
-    await _requireCollectionAccess(collection, .view);
+    await _requireCollectionAccess(collection, .list);
 
     final operation = await _getOperation(
       ListOperationRequest(
@@ -371,7 +371,7 @@ class ZonaiDb {
     String collection,
     ListPayload payload,
   ) async* {
-    await _requireCollectionAccess(collection, .view);
+    await _requireCollectionAccess(collection, .list);
 
     final where = payload.where?.sql(collection);
     final operation = await _getOperation(

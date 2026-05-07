@@ -2,6 +2,8 @@ import 'package:zonai_server/src/payloads/create_body.dart';
 import 'package:zonai_server/src/payloads/delete_body.dart';
 import 'package:zonai_server/src/payloads/get_body.dart';
 import 'package:zonai_server/src/payloads/list_body.dart';
+import 'package:zonai_server/src/payloads/stream_body.dart';
+import 'package:zonai_server/src/payloads/stream_list_body.dart';
 import 'package:zonai_server/src/payloads/update_body.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 
@@ -90,5 +92,16 @@ class DbHandler {
     if (error != null || result == null) {
       throw StateError('Failed to delete items: $error');
     }
+  }
+
+  Stream<Map<String, Object?>> streamOne(StreamBody body) {
+    return zonaiDB.streamOne(body.collection, .new(where: body.where));
+  }
+
+  Stream<List<Map<String, Object?>>> streamList(StreamListBody body) {
+    return zonaiDB.streamList(
+      body.collection,
+      .new(where: body.where, limit: body.limit, offset: body.offset),
+    );
   }
 }

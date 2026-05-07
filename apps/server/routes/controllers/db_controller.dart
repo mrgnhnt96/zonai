@@ -4,6 +4,8 @@ import 'package:zonai_server/src/payloads/create_body.dart';
 import 'package:zonai_server/src/payloads/delete_body.dart';
 import 'package:zonai_server/src/payloads/get_body.dart';
 import 'package:zonai_server/src/payloads/list_body.dart';
+import 'package:zonai_server/src/payloads/stream_body.dart';
+import 'package:zonai_server/src/payloads/stream_list_body.dart';
 import 'package:zonai_server/src/payloads/update_body.dart';
 
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
@@ -54,5 +56,17 @@ class DbController {
   @Delete('many')
   Future<void> deleteMany({@Body() required DeleteBody body}) async {
     await dbHandler.deleteMany(body);
+  }
+
+  @Get('stream')
+  Stream<Map<String, Object?>> streamOne({@Body() required StreamBody body}) {
+    return dbHandler.streamOne(body);
+  }
+
+  @Get('stream/list')
+  Stream<List<Map<String, Object?>>> streamList({
+    @Body() required StreamListBody body,
+  }) {
+    return dbHandler.streamList(body);
   }
 }
