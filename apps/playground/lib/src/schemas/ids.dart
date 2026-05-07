@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:math';
+
 import 'package:crypto/crypto.dart';
 
 sealed class Id {
@@ -40,8 +42,13 @@ class ItemsId extends Id {
 }
 
 String _generateId(String suffix) {
-  // generate hash (15 chars)
-  final hash = sha256.convert(utf8.encode(suffix)).toString().substring(0, 15);
+  final random = Random.secure();
+  final nonce = List<int>.generate(16, (_) => random.nextInt(256));
+  final hash =
+      sha256.convert([...utf8.encode(suffix), ...nonce]).toString().substring(
+            0,
+            15,
+          );
 
   return '${hash}_${suffix}';
 }

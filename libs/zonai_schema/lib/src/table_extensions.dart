@@ -1,5 +1,6 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
+import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 import 'package:zonai_schema/src/column_types/updated_at_column.dart';
 
 extension TableExtensions<T extends Schema<dynamic>> on Table<dynamic> {
@@ -15,6 +16,12 @@ extension TableExtensions<T extends Schema<dynamic>> on Table<dynamic> {
           } else {
             mutable[column.name] = transformer.encode(.now());
           }
+        case final CreatePrimaryKey transformer:
+          if (column.autoIncrement) continue;
+          if (!column.isPrimaryKey) continue;
+          mutable[column.name] ??= transformer.encodedPrimaryKey();
+        default:
+          break;
       }
     }
 

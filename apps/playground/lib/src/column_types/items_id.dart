@@ -1,4 +1,5 @@
 import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 import '../schemas/ids.dart';
 
@@ -23,7 +24,8 @@ extension ItemsIdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
 extension type ItemsIdColumn(ItemsId _)
     implements ColumnType<ItemsId>, ItemsId {}
 
-class ItemsIdTransformer extends ColumnTransformer<ItemsId, String> {
+class ItemsIdTransformer extends ColumnTransformer<ItemsId, String>
+    with CreatePrimaryKey<ItemsId> {
   const ItemsIdTransformer();
 
   @override
@@ -31,4 +33,7 @@ class ItemsIdTransformer extends ColumnTransformer<ItemsId, String> {
 
   @override
   ItemsId decode(String input) => Id.fromJson(input) as ItemsId;
+
+  @override
+  ItemsId primaryKey() => ItemsId.generate();
 }
