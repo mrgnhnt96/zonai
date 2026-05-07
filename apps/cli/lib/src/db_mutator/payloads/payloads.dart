@@ -1,6 +1,6 @@
 library payloads;
 
-import 'package:zonai_schema/src/update/update.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 part 'where.dart';
 
@@ -41,9 +41,9 @@ class DeleteOnePayload implements DeletePayload {
 }
 
 class ListPayload extends Payload {
-  const ListPayload({required this.where, this.limit, this.offset});
+  const ListPayload({this.where, this.limit, this.offset});
 
-  final Where where;
+  final Where? where;
   final int? limit;
   final int? offset;
 }

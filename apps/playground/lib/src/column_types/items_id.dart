@@ -6,7 +6,7 @@ extension ItemsIdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
   T itemsId<T extends ItemsIdColumn?>(
     String name,
     Field<S, T> field,
-    ItemsId? value,
+    ItemsId value,
   ) {
     return custom<ItemsId, String, ItemsIdColumn, T>(
           ItemsIdColumn.new,

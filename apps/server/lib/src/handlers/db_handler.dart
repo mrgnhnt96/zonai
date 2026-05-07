@@ -1,15 +1,30 @@
-import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai_server/src/payloads/create_body.dart';
+import 'package:zonai_server/src/payloads/delete_body.dart';
+import 'package:zonai_server/src/payloads/get_body.dart';
+import 'package:zonai_server/src/payloads/list_body.dart';
+import 'package:zonai_server/src/payloads/update_body.dart';
 
 class DbHandler {
   const DbHandler();
 
-  void get() {}
+  Future<Map<String, Object?>> get(GetBody body) async {
+    final (error, result) = await zonaiDB.view(
+      body.collection,
+      .new(where: body.where),
+    );
 
-  Future<List<Map<String, Object?>>> list() async {
+    if (error != null || result == null) {
+      throw StateError('Failed to get item: $error');
+    }
+
+    return result;
+  }
+
+  Future<List<Map<String, Object?>>> list(ListBody body) async {
     final (error, result) = await zonaiDB.list(
-      'items',
-      .new(where: NotNull('id')),
+      body.collection,
+      .new(where: body.where, limit: body.limit, offset: body.offset),
     );
     if (error != null || result == null) {
       throw StateError('Failed to list items: $error');
@@ -17,11 +32,63 @@ class DbHandler {
     return result;
   }
 
-  void create() {}
+  Future<Map<String, Object?>> create(CreateBody body) async {
+    final (error, result) = await zonaiDB.create(
+      'items',
+      .new(object: body.object),
+    );
 
-  void update() {}
+    if (error != null || result == null) {
+      throw StateError('Failed to create item: $error');
+    }
 
-  void updateMany() {}
+    return result;
+  }
 
-  void delete() {}
+  Future<Map<String, Object?>> update(UpdateOneBody body) async {
+    final (error, result) = await zonaiDB.update(
+      'items',
+      .new(where: body.where, limit: body.limit, updates: body.updates),
+    );
+    if (error != null || result == null) {
+      throw StateError('Failed to update item: $error');
+    }
+
+    return result.single;
+  }
+
+  Future<List<Map<String, Object?>>> updateMany(UpdateBody body) async {
+    final (error, result) = await zonaiDB.update(
+      'items',
+      .new(where: body.where, limit: body.limit, updates: body.updates),
+    );
+
+    if (error != null || result == null) {
+      throw StateError('Failed to update items: $error');
+    }
+
+    return result;
+  }
+
+  Future<void> delete(DeleteOneBody body) async {
+    final (error, result) = await zonaiDB.delete(
+      'items',
+      .new(where: body.where, limit: body.limit),
+    );
+
+    if (error != null || result == null) {
+      throw StateError('Failed to delete item: $error');
+    }
+  }
+
+  Future<void> deleteMany(DeleteBody body) async {
+    final (error, result) = await zonaiDB.delete(
+      'items',
+      .new(where: body.where, limit: body.limit),
+    );
+
+    if (error != null || result == null) {
+      throw StateError('Failed to delete items: $error');
+    }
+  }
 }

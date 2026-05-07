@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:file/file.dart';
-import 'package:raindrop/raindrop.dart' as raindrop show migrate;
+import 'package:raindrop/raindrop.dart' as raindrop show migrate, Table;
 import 'package:raindrop/raindrop.dart' show DatabaseResult, Raindrop;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
@@ -352,7 +352,7 @@ class ZonaiDb {
     final operation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: payload.where.sql(collection),
+        where: payload.where?.sql(collection),
         limit: payload.limit,
         offset: payload.offset,
       ),

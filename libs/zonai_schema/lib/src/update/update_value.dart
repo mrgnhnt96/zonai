@@ -23,7 +23,7 @@ class LiteralUpdateValue extends UpdateValue {
 
   static const _type = 'literal';
 
-  final dynamic value;
+  final Object? value;
 
   @override
   Map<String, dynamic> toJson() {

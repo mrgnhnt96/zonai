@@ -74,7 +74,10 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
       switch (update) {
         case ColumnUpdate(:final column, :final value):
           if (!inferredColumns.contains(column)) {
-            updateables.add(UpdateableColumn(table[column], value));
+            switch (value) {
+              case LiteralUpdateValue(:final value):
+                updateables.add(UpdateableColumn(table[column], value));
+            }
           }
         case final ObjectUpdate update:
           updateables.addAll([

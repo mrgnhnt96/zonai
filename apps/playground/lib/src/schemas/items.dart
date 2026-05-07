@@ -13,7 +13,7 @@ class Item extends Schema<Item> {
     String? description,
     int? status,
     DateTime? updatedAt,
-  }) : id = $.itemsId('id', (s) => s.id, id).primaryKey(),
+  }) : id = $.itemsId('id', (s) => s.id, id ?? ItemsId.generate()).primaryKey(),
        body = $.text('body', (s) => s.body, body),
        description = $.text('description', (s) => s.description, description),
        status = $.integer('status', (s) => s.status, status),
