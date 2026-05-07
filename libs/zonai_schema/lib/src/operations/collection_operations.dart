@@ -3,7 +3,6 @@ import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop/raindrop.dart' hide Update;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
-import 'package:zonai_schema/src/update/update.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 import '../false_delegate.dart';

@@ -9,7 +9,7 @@ environment:
 dev_dependencies:
   test: ^1.26.0
   zonai:
-    path: ../cli
+    path: ../zonai
   zonai_schema:
     path: ../../libs/zonai_schema
 dependencies:
