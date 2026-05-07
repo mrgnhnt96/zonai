@@ -1,5 +1,5 @@
-import 'package:zonai/zonai.dart';
 import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai/zonai.dart';
 
 class UpdateBody {
   const UpdateBody({

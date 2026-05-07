@@ -1,9 +1,9 @@
-import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai_server/src/payloads/create_body.dart';
 import 'package:zonai_server/src/payloads/delete_body.dart';
 import 'package:zonai_server/src/payloads/get_body.dart';
 import 'package:zonai_server/src/payloads/list_body.dart';
 import 'package:zonai_server/src/payloads/update_body.dart';
+import 'package:zonai/src/deps/zonai_db.dart';
 
 class DbHandler {
   const DbHandler();

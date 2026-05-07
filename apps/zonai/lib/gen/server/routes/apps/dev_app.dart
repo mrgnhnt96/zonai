@@ -2,11 +2,11 @@ import 'dart:io' show HttpServer;
 
 import 'package:revali_router/revali_router.dart';
 import 'package:scoped_deps/scoped_deps.dart';
-import '../../../zonai/lib/deps.dart';
-import '../../../zonai/lib/zonai.dart' hide Args;
+import '../../../../deps.dart';
+import '../../../../zonai.dart' hide Args;
 import 'package:zonai_logger/zonai_logger.dart';
-import 'package:zonai_server/config/server_binding.dart';
-import 'package:zonai_server/src/handlers/db_handler.dart';
+import '../../lib/config/server_binding.dart';
+import '../../lib/src/handlers/db_handler.dart';
 
 import '../components/log_observer.dart';
 

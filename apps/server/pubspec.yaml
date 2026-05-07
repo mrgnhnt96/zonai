@@ -13,7 +13,7 @@ dependencies:
   scoped_deps:
     path: ../../libs/scoped_deps
   zonai:
-    path: ../cli
+    path: ../zonai
 
 dev_dependencies:
   revali: ^2.0.9
