@@ -15,6 +15,7 @@ sealed class Id {
 
     return switch (parts[1]) {
       ItemsId._suffix => ItemsId(json),
+      UsersId._suffix => UsersId(json),
       _ => throw ArgumentError('Invalid ID format: $json'),
     };
   }
@@ -41,14 +42,21 @@ class ItemsId extends Id {
   static const _suffix = 'it';
 }
 
+class UsersId extends Id {
+  const UsersId(super.value);
+
+  factory UsersId.generate() => UsersId(_generateId(_suffix));
+
+  static const _suffix = 'us';
+}
+
 String _generateId(String suffix) {
   final random = Random.secure();
   final nonce = List<int>.generate(16, (_) => random.nextInt(256));
-  final hash =
-      sha256.convert([...utf8.encode(suffix), ...nonce]).toString().substring(
-            0,
-            15,
-          );
+  final hash = sha256
+      .convert([...utf8.encode(suffix), ...nonce])
+      .toString()
+      .substring(0, 15);
 
   return '${hash}_${suffix}';
 }

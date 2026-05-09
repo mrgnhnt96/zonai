@@ -8,6 +8,13 @@
       "when": 1777959512866,
       "tag": "0000_initialize",
       "snapshotId": "553a7c88-367b-40e5-bd2b-aa96ff5010e9"
+    },
+    {
+      "idx": 1,
+      "version": "1",
+      "when": 1778348523940,
+      "tag": "0001_create_users",
+      "snapshotId": "04af128c-34db-49e6-ad9e-9c378777ffdf"
     }
   ]
 }
