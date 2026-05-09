@@ -1,43 +1,38 @@
-import 'package:raindrop/raindrop.dart';
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
-import 'package:zonai_playground/src/column_types/id_column.dart';
 import 'package:zonai_playground/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class User extends Auth<User> {
+final class User extends AuthCollection<User> with PasswordAuth {
   User({
     required String name,
     required String email,
     required String password,
-    DateTime? deletedAt,
-    UsersId? id,
-  }) : id = $
-           .id(
-             'id',
-             (s) => s.id,
-             id,
-             fromString: UsersId.new,
-             generate: UsersId.generate,
-           )
-           .primaryKey(),
-       name = $.text('name', (s) => s.name, name),
-       deletedAt = $.dateTime('deleted_at', (s) => s.deletedAt, deletedAt),
-       super(email: email, password: password, $: $);
+    UsersId? super.id,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) : name = $.text('name', (s) => s.name, name),
+       email = $.text('email', (s) => s.email, email),
+       passwordHash = $.password('password', (s) => s.passwordHash, password),
+       createdAt = $.createdAt('created_at', (s) => s.createdAt, createdAt),
+       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt, updatedAt),
+       super(fromString: UsersId.new, generate: UsersId.generate, $: $);
 
-  final IdColumn<UsersId>? id;
   final TextColumn name;
-  final DateTimeColumn? deletedAt;
+  final TextColumn email;
+  final PasswordColumn passwordHash;
+  final DateTimeColumn createdAt;
+  final DateTimeColumn? updatedAt;
 
   static const $ = SchemaBuilder<User>();
 }
 
-final users = sqliteTable(
+final users = authCollection(
   'users',
   () => User(
     id: UsersId.generate(),
     name: fakes.text(),
     email: fakes.text(),
     password: fakes.text(),
-    deletedAt: fakes.dateTime(),
+    createdAt: fakes.dateTime(),
+    updatedAt: fakes.dateTime(),
   ),
 );

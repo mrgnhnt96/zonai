@@ -6,7 +6,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 import '../ids.dart';
 
 /// A simple persisted row (demo table for SQLite read/write).
-class Item extends Schema<Item> {
+class Item extends Collection<Item> {
   Item({
     ItemsId? id,
     required String body,
@@ -39,7 +39,7 @@ class Item extends Schema<Item> {
   static const $ = SchemaBuilder<Item>();
 }
 
-final items = sqliteTable(
+final items = collection(
   'items',
   () => Item(
     id: ItemsId.generate(),

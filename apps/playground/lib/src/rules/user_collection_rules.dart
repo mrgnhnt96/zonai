@@ -3,6 +3,6 @@ import 'package:zonai_schema/zonai_schema.dart' hide User;
 
 UserCollectionRules main() => UserCollectionRules();
 
-class UserCollectionRules extends CollectionRules<User> {
+final class UserCollectionRules extends AuthCollectionRules<User> {
   UserCollectionRules() : super(users);
 }
