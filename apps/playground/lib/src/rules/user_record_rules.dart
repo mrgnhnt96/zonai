@@ -3,6 +3,6 @@ import 'package:zonai_schema/zonai_schema.dart' hide User;
 
 UserRecordRules main() => UserRecordRules();
 
-class UserRecordRules extends RecordRules<User> {
+class UserRecordRules extends AuthRecordRules<User> {
   UserRecordRules() : super(users);
 }
