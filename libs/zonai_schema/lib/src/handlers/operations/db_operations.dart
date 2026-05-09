@@ -55,7 +55,16 @@ class DbOperations {
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
-      throw Exception('Collection not found: ${request.collection}');
+      // TODO(mrgnhnt): Get the operations directory from the settings
+      final operationsDir = '__TODO__GET_OPERATIONS_DIR__';
+      throw Exception('''
+    Missing operations for collection: `${request.collection}`
+
+    Available collections:
+    ${operationsByCollection.keys.join('\n')}
+
+    To create a new collection, create a new class that extends `CollectionOperations` within your $operationsDir directory.
+    ''');
     }
 
     final (sql, values) = CollectionTranslator(

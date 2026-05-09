@@ -42,3 +42,7 @@ playground:
   test: |
     cd apps/playground || exit 1
     dart run --enable-experiment=native-assets --enable-asserts zonai db test --log verbose
+
+  migrate: |
+    cd apps/playground || exit 1
+    dart run zonai db migrate generate --name update

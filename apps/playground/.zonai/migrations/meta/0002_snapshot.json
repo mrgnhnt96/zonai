@@ -1,0 +1,86 @@
+{
+  "version": "1",
+  "dialect": "sqlite",
+  "id": "e06fe2cd-0b0e-40df-add0-14df0414b377",
+  "prevId": "04af128c-34db-49e6-ad9e-9c378777ffdf",
+  "tables": {
+    "items": {
+      "name": "items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": true
+        },
+        "body": {
+          "name": "body",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "description": {
+          "name": "description",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "status": {
+          "name": "status",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "email": {
+          "name": "email",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "password": {
+          "name": "password",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": true
+        },
+        "name": {
+          "name": "name",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    }
+  },
+  "indexes": {},
+  "foreignKeys": {}
+}

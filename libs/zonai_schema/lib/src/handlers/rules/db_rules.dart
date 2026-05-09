@@ -5,6 +5,7 @@ import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 import 'package:zonai_schema/src/request.dart' as auth;
 import 'package:zonai_schema/src/rules/rules.dart';
+import 'package:zonai_schema/src/schemas/auth.dart';
 import 'package:zonai_schema/src/user.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 
@@ -84,13 +85,40 @@ class DbRules {
     // TODO(future): We can support custom operations by forwarding
     // the request operation to the rules
     final op = request.classicOperation;
-    if (collectionRules == null || op == null) {
+    if (op == null) {
       return CanAccessResponse(
         id: request.id,
         collection: request.collection,
         operation: request.operation,
         canAccess: request.isSuperUser,
       );
+    }
+
+    if (collectionRules == null) {
+      logger.warn('No rules found for collection: ${request.collection}');
+      return CanAccessResponse(
+        id: request.id,
+        collection: request.collection,
+        operation: request.operation,
+        canAccess: request.isSuperUser,
+      );
+    }
+
+    logger.info(
+      '[RULES]: ${op.name} | ${collectionRules.schema.runtimeType} (Auth? ${collectionRules.schema is Auth})',
+    );
+
+    if (op == .create && collectionRules.schema is Auth) {
+      if (request.isSuperUser) {
+        return CanAccessResponse(
+          id: request.id,
+          collection: request.collection,
+          operation: request.operation,
+          canAccess: true,
+        );
+      }
+
+      throw StateError('Cannot create auth records, use the auth API instead');
     }
 
     final canAccess = await switch (op) {

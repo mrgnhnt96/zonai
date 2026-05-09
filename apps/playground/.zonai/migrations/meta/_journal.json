@@ -15,6 +15,13 @@
       "when": 1778348523940,
       "tag": "0001_create_users",
       "snapshotId": "04af128c-34db-49e6-ad9e-9c378777ffdf"
+    },
+    {
+      "idx": 2,
+      "version": "1",
+      "when": 1778355408778,
+      "tag": "0002_update",
+      "snapshotId": "e06fe2cd-0b0e-40df-add0-14df0414b377"
     }
   ]
 }

@@ -11,6 +11,12 @@ Future<void> main() async {
 }
 
 Future<int> test() async {
+  logger.info('CREATING USER');
+  if (await _createUser() case final int exitCode) {
+    return exitCode;
+  }
+
+  logger.info('--------------------------------');
   logger.info('CREATING RECORD');
   if (await _create() case final int exitCode) {
     return exitCode;
@@ -56,6 +62,25 @@ Future<int> test() async {
   logger.info('--------------------------------');
 
   return 0;
+}
+
+Future<int?> _createUser() async {
+  final (error, result) = await zonaiDB.create(
+    'users',
+    .new(
+      object: {
+        'email': 'test@test.com',
+        'password': 'test',
+        'name': 'Test User',
+      },
+    ),
+  );
+
+  if (error != null || result == null) {
+    logger.err('Failed to create user: $error');
+    return 1;
+  }
+  return null;
 }
 
 Future<int?> _create() async {
