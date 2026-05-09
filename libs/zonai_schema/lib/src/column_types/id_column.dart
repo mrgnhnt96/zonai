@@ -1,6 +1,6 @@
 import 'package:raindrop/raindrop.dart';
-import 'package:zonai_playground/src/ids.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/src/types/id.dart';
+import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 
 extension IdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
   T id<T extends IdColumn<Id>?>(
@@ -10,18 +10,21 @@ extension IdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
     required Id Function(String) fromString,
     required Id Function() generate,
   }) {
-    return custom<Id, String, IdColumn<Id>, T>(
-          IdColumn.new,
-          name,
-          field,
-          value ?? generate(),
-          transformer: IdTransformer(
-            fromString: fromString,
-            generate: generate,
-          ),
-          sqlType: 'TEXT',
-        )
-        as T;
+    final column =
+        custom<Id, String, IdColumn<Id>, T>(
+              IdColumn.new,
+              name,
+              field,
+              value ?? generate(),
+              transformer: IdTransformer(
+                fromString: fromString,
+                generate: generate,
+              ),
+              sqlType: 'TEXT',
+            )
+            as T;
+
+    return column.primaryKey() as T;
   }
 }
 

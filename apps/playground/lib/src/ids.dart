@@ -1,9 +1,6 @@
-import 'dart:convert';
-import 'dart:math';
+import 'package:zonai_schema/zonai_schema.dart' as z;
 
-import 'package:crypto/crypto.dart';
-
-sealed class Id {
+sealed class Id implements z.Id {
   const Id(this.value);
 
   factory Id.fromJson(String json) {
@@ -37,7 +34,7 @@ sealed class Id {
 class ItemsId extends Id {
   const ItemsId(super.value);
 
-  factory ItemsId.generate() => ItemsId(_generateId(_suffix));
+  factory ItemsId.generate() => ItemsId(z.Id.generate(_suffix));
 
   static const _suffix = 'it';
 }
@@ -45,18 +42,7 @@ class ItemsId extends Id {
 class UsersId extends Id {
   const UsersId(super.value);
 
-  factory UsersId.generate() => UsersId(_generateId(_suffix));
+  factory UsersId.generate() => UsersId(z.Id.generate(_suffix));
 
   static const _suffix = 'us';
-}
-
-String _generateId(String suffix) {
-  final random = Random.secure();
-  final nonce = List<int>.generate(16, (_) => random.nextInt(256));
-  final hash = sha256
-      .convert([...utf8.encode(suffix), ...nonce])
-      .toString()
-      .substring(0, 15);
-
-  return '${hash}_${suffix}';
 }
