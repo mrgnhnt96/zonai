@@ -1,7 +1,8 @@
 part of rules;
 
-class AuthRecordRules<T extends AuthCollection<T>> extends RecordRules<T> {
-  AuthRecordRules(super.schema);
+class AuthRecordRules<T extends AuthCollection<T>> extends BaseRecordRules<T>
+    implements Rules<T> {
+  const AuthRecordRules(super.schema);
 
   /// Whether the user can sign up for this record. [canSignUp] is only called
   /// if the record is not yet in the database

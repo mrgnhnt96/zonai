@@ -5,6 +5,8 @@ sealed class BaseCollectionRules<T extends Schema<T>> {
 
   final T schema;
 
+  Table<T> get table => Table.getFor(schema);
+
   Future<bool> canCreate(Request request) async {
     return request.user.isSuperUser;
   }
