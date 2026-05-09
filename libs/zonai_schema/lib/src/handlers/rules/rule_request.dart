@@ -114,14 +114,12 @@ enum CollectionOperation {
   const CollectionOperation();
 
   static CollectionOperation? fromString(String operation) {
-    return switch (operation) {
-      'create' => .create,
-      'update' => .update,
-      'delete' => .delete,
-      'view' => .view,
-      'list' => .list,
-      _ => null,
-    };
+    for (final value in values) {
+      if (value.name == operation) {
+        return value;
+      }
+    }
+    return null;
   }
 
   RecordOperation get recordOperation => switch (this) {
@@ -150,12 +148,12 @@ enum RecordOperation {
   const RecordOperation();
 
   static RecordOperation? fromString(String operation) {
-    return switch (operation) {
-      'view' => .view,
-      'update' => .update,
-      'delete' => .delete,
-      'create' => .create,
-      _ => null,
-    };
+    for (final value in values) {
+      if (value.name == operation) {
+        return value;
+      }
+    }
+
+    return null;
   }
 }

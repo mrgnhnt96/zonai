@@ -42,15 +42,15 @@ final class PerformOperationRequest extends OperationRequest {
     final classicOperation = CollectionOperation.fromString(operation);
 
     switch (classicOperation) {
-      case CollectionOperation.create:
+      case .create:
         return CreateOperationRequest.fromRequest(request);
-      case CollectionOperation.update:
+      case .update:
         return UpdateOperationRequest.fromRequest(request);
-      case CollectionOperation.delete:
+      case .delete:
         return DeleteOperationRequest.fromRequest(request);
-      case CollectionOperation.view:
+      case .view:
         return ViewOperationRequest.fromRequest(request);
-      case CollectionOperation.list:
+      case .list:
         return ListOperationRequest.fromRequest(request);
       case null:
         return CustomOperationRequest.fromRequest(request);
