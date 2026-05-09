@@ -3,17 +3,16 @@ import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
-import 'package:zonai_schema/src/request.dart' as auth;
 import 'package:zonai_schema/src/rules/rules.dart';
-import 'package:zonai_schema/src/schemas/auth.dart';
-import 'package:zonai_schema/src/user.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
+import 'package:zonai_schema/src/types/request.dart' as auth;
+import 'package:zonai_schema/src/types/user.dart';
 
 class _Rules {
   _Rules();
 
-  CollectionRules? collection;
-  RecordRules? record;
+  BaseCollectionRules? collection;
+  BaseRecordRules? record;
 }
 
 class DbRules {
@@ -64,7 +63,12 @@ class DbRules {
       switch (rule) {
         case final CollectionRules rule:
           r.collection = rule;
+        case final AuthCollectionRules rule:
+          r.collection = rule;
+
         case final RecordRules rule:
+          r.record = rule;
+        case final AuthRecordRules rule:
           r.record = rule;
       }
     }
@@ -76,7 +80,7 @@ class DbRules {
     CollectionRulesRequest request,
   ) async {
     final authRequest = auth.Request(
-      user: User(isSuperUser: request.isSuperUser),
+      user: User.fake(isSuperUser: request.isSuperUser),
     );
 
     final rules = rulesByTable[request.collection];
@@ -105,10 +109,10 @@ class DbRules {
     }
 
     logger.info(
-      '[RULES]: ${op.name} | ${collectionRules.schema.runtimeType} (Auth? ${collectionRules.schema is Auth})',
+      '[RULES]: ${op.name} | ${collectionRules.schema.runtimeType} (Auth? ${collectionRules is AuthCollectionRules})',
     );
 
-    if (op == .create && collectionRules.schema is Auth) {
+    if (op == .create && collectionRules is AuthCollectionRules) {
       if (request.isSuperUser) {
         return CanAccessResponse(
           id: request.id,
@@ -139,7 +143,7 @@ class DbRules {
 
   Future<RecordFilterResponse> _recordRules(RecordRulesRequest request) async {
     final authRequest = auth.Request(
-      user: User(isSuperUser: request.isSuperUser),
+      user: User.fake(isSuperUser: request.isSuperUser),
     );
 
     final rules = rulesByTable[request.collection];
@@ -147,12 +151,26 @@ class DbRules {
 
     final op = request.operation;
     if (recordRules == null) {
+      logger.warn('No rules found for record: ${request.collection}');
       return RecordFilterResponse(
         id: request.id,
         collection: request.collection,
         operation: request.operation,
-        canPerform: true,
+        canPerform: authRequest.user.isSuperUser,
       );
+    }
+
+    if (recordRules case AuthRecordRules() when op == .create) {
+      if (request.isSuperUser) {
+        return RecordFilterResponse(
+          id: request.id,
+          collection: request.collection,
+          operation: request.operation,
+          canPerform: true,
+        );
+      }
+
+      throw StateError('Cannot create auth records, use the auth API instead');
     }
 
     final object = recordRules.table.safeCreate(request.data);
