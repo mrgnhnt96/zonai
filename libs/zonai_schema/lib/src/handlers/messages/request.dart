@@ -21,11 +21,14 @@ abstract base class Request {
     };
   }
 
+  static int _generateSeq = 0;
+
+  /// Generates a unique ID for a request: time + seq + entropy (avoids same-ms collisions).
   static String generateId() {
-    return sha256
-        .convert(utf8.encode(DateTime.now().toIso8601String()))
-        .toString()
-        .substring(0, 15);
+    final t = DateTime.now().microsecondsSinceEpoch;
+    final seq = _generateSeq = (_generateSeq + 1) & 0x3fffffff;
+    final r = Random.secure().nextInt(0x40000000);
+    return sha256.convert(utf8.encode('$t:$seq:$r')).toString();
   }
 
   final String path;

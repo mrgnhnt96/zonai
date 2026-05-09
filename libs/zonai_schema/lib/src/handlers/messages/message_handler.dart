@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
@@ -26,22 +27,25 @@ class MessageHandler {
       if (_listening) return;
       _listening = true;
 
-      final stream = stdin.stream.transform(utf8.decoder);
-      await for (final msg in stream) {
-        final message = msg.trim();
+      final stream = stdin.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+      await for (final line in stream) {
+        final message = line.trim();
+        if (message.isEmpty) continue;
         if (message case 'kill' || 'quit' || 'exit' || 'q') {
           break;
         }
 
-        if (_decode(message) case final msg?) {
-          switch (msg) {
+        if (_decode(message) case final decoded?) {
+          switch (decoded) {
             case RequestPing():
-              send(PongResponse(id: msg.id));
+              send(PongResponse(id: decoded.id));
               continue;
             case RequestKill():
               break;
             case UnknownRequest():
-              onMessage(msg).then(
+              onMessage(decoded).then(
                 send,
                 onError: (Object error, StackTrace stackTrace) {
                   logger.error(
@@ -49,14 +53,14 @@ class MessageHandler {
                     error: error.toString(),
                     stackTrace: stackTrace.toString(),
                     properties: {
-                      'path': msg.path,
-                      'id': msg.id,
-                      'request': msg.payload,
+                      'path': decoded.path,
+                      'id': decoded.id,
+                      'request': decoded.payload,
                     },
                   );
                   send(
                     MessageErrorResponse(
-                      id: msg.id,
+                      id: decoded.id,
                       message: 'Error handling request',
                       error: error.toString(),
                       stackTrace: stackTrace.toString(),

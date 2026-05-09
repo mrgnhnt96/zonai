@@ -182,6 +182,7 @@ class Mailman<S extends Request, R extends Response> {
     } on MessageHandlerFailedException {
       rethrow;
     } catch (e, stack) {
+      _pendingResponses.remove(request.id);
       logger.error('${_prefix} Response never received', e, stack);
     }
 
