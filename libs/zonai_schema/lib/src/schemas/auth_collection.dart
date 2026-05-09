@@ -1,11 +1,13 @@
-library auth;
+library auth_collection;
 
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/column_types/id_column.dart';
+import 'package:zonai_schema/src/column_types/password_column.dart';
 import 'package:zonai_schema/src/types/id.dart';
 
-part 'password_auth.dart';
+part 'auth/auth.dart';
+part 'auth/auth_types.dart';
 
 base class AuthCollection<T extends AuthCollection<T>> extends Schema<T>
     implements Auth {

@@ -1,7 +1,9 @@
 part of rules;
 
-class CollectionRules<T extends Collection<T>> extends Rules<T> {
-  CollectionRules(super.schema);
+sealed class BaseCollectionRules<T extends Schema<T>> {
+  const BaseCollectionRules(this.schema);
+
+  final T schema;
 
   Future<bool> canCreate(Request request) async {
     return request.user.isSuperUser;
