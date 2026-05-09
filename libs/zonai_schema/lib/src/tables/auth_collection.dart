@@ -31,7 +31,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// );
 /// ```
 //
-S authCollection<S extends Auth<S>>(
+S authCollection<S extends AuthCollection<S>>(
   String name,
   S Function() builder, [
   void Function(S table)? extra,

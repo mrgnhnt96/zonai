@@ -1,6 +1,6 @@
-part of 'rules.dart';
+part of rules;
 
-class CollectionRules<T extends Schema<T>> extends Rules<T> {
+class CollectionRules<T extends Collection<T>> extends Rules<T> {
   CollectionRules(super.schema);
 
   Future<bool> canCreate(Request request) async {

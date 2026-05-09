@@ -1,5 +1,5 @@
 import 'package:raindrop/raindrop.dart';
-import 'package:zonai_schema/src/schemas/auth.dart';
+import 'package:zonai_schema/src/schemas/collection.dart';
 
 /// Defines a database-backed collection with the given [name] and [builder].
 ///
@@ -31,16 +31,10 @@ import 'package:zonai_schema/src/schemas/auth.dart';
 ///   },
 /// );
 /// ```
-S collection<S extends Schema<S>>(
+S collection<S extends Collection<S>>(
   String name,
   S Function() builder, [
   void Function(S table)? extra,
 ]) {
-  if (S is Auth) {
-    throw Exception(
-      '`authCollection` should be used instead of `collection` for schemas that extend `Auth`',
-    );
-  }
-
   return table(name, builder, dialect: 'sqlite', extra: extra);
 }
