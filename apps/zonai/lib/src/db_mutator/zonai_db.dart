@@ -88,6 +88,13 @@ class ZonaiDb {
     await db.ensureOpen();
   }
 
+  Future<(Object? error, Map<String, Object?>? result)> auth(
+    String collection,
+    AuthPayload payload,
+  ) async {
+    return (null, null);
+  }
+
   Future<(Object? error, Map<String, Object?>? result)> create(
     String collection,
     CreatePayload payload,
