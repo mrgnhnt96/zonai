@@ -1,0 +1,101 @@
+{
+  "version": "1",
+  "dialect": "sqlite",
+  "id": "97647dcd-dc83-4176-b9dd-e45afc5cc5dc",
+  "prevId": "e06fe2cd-0b0e-40df-add0-14df0414b377",
+  "tables": {
+    "items": {
+      "name": "items",
+      "columns": {
+        "body": {
+          "name": "body",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "description": {
+          "name": "description",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "status": {
+          "name": "status",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "email": {
+          "name": "email",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "name": {
+          "name": "name",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "password": {
+          "name": "password",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    }
+  },
+  "indexes": {
+    "users.id_unique": {
+      "name": "users.id_unique",
+      "tableName": "users",
+      "columns": [
+        "id"
+      ],
+      "isUnique": true
+    }
+  },
+  "foreignKeys": {}
+}

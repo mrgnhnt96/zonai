@@ -11,10 +11,9 @@ extension CreatedAtColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
           DateTimeColumn.new,
           name,
           field,
-          value,
+          value ?? .now(),
           transformer: const CreatedAtTransformer(),
           sqlType: 'INTEGER',
-          defaultValue: '${const CreatedAtTransformer().encode(.now())}',
         )
         as T;
   }

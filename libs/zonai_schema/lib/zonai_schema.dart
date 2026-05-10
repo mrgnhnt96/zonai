@@ -20,6 +20,7 @@ export 'package:raindrop_sqlite/raindrop_sqlite.dart'
 export 'src/column_types/password_column.dart';
 export 'src/column_types/create_primary_key.dart';
 export 'src/column_types/created_at_column.dart';
+export 'src/column_types/id_column.dart';
 export 'src/column_types/updated_at_column.dart';
 export 'src/extension.dart';
 export 'src/handlers/messages/message_handler.dart' hide Request;
