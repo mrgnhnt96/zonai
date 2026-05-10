@@ -95,7 +95,15 @@ class Extensions {
     final exitCode = await result.exitCode;
 
     if (exitCode != 0) {
-      logger.error('Failed to compile extensions:\n${result.stderr}');
+      final details = [
+        result.stdout,
+        result.stderr,
+      ].map((s) => s.trim()).where((s) => s.isNotEmpty).join('\n');
+      logger.error(
+        details.isEmpty
+            ? 'Failed to compile extensions (dart analyze exited with $exitCode).'
+            : 'Failed to compile extensions:\n$details',
+      );
       return false;
     }
 

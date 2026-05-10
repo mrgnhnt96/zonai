@@ -94,7 +94,15 @@ class Operations {
     final exitCode = result.exitCode;
 
     if (exitCode != 0) {
-      logger.error('Failed to compile operations:\n${result.stderr}');
+      final details = [
+        result.stdout,
+        result.stderr,
+      ].map((s) => s.trim()).where((s) => s.isNotEmpty).join('\n');
+      logger.error(
+        details.isEmpty
+            ? 'Failed to compile operations (dart analyze exited with $exitCode).'
+            : 'Failed to compile operations:\n$details',
+      );
       return false;
     }
 
