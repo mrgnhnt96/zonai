@@ -8,10 +8,6 @@ class ItemRecordRules extends RecordRules<Item> {
 
   @override
   Future<bool> canView(Request request, Item record) async {
-    if (record.id == null) {
-      return false;
-    }
-
     return true;
   }
 }
