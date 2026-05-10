@@ -23,9 +23,7 @@ import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 
 class ZonaiDb {
-  factory ZonaiDb() => _instance ??= ZonaiDb._();
-  static ZonaiDb? _instance;
-  ZonaiDb._()
+  ZonaiDb()
     : _extensions = Mailman(
         debugName: 'EXTENSIONS',
         executablePath: extensions.executablePath,
@@ -92,7 +90,10 @@ class ZonaiDb {
     String collection,
     AuthPayload payload,
   ) async {
-    return (null, null);
+    return (
+      'ZonaiDb.auth is not implemented yet (no signup / credential flow)',
+      null,
+    );
   }
 
   Future<(Object? error, Map<String, Object?>? result)> create(
