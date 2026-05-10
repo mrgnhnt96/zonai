@@ -3,9 +3,7 @@ import 'dart:async';
 import '../deps/logger.dart';
 
 class CleanUp {
-  factory CleanUp() => _instance ??= CleanUp._();
-  CleanUp._() : _toClean = [];
-  static CleanUp? _instance;
+  CleanUp() : _toClean = [];
 
   final List<FutureOr<void> Function()> _toClean;
 

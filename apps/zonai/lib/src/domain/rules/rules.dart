@@ -11,9 +11,7 @@ import '../../deps/settings.dart';
 import 'rule_generator.dart';
 
 class Rules {
-  factory Rules() => _instance ??= Rules._();
-  static Rules? _instance;
-  Rules._();
+  Rules();
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>

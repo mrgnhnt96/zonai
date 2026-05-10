@@ -25,7 +25,7 @@ Future<int> _generate() async {
     return 1;
   }
 
-  final exitCode = await Migrate().run(
+  final exitCode = deps.migrate.run(
     name: name,
     dryRun: args.getOrNull('dry-run'),
   );

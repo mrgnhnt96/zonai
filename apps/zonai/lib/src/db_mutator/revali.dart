@@ -7,9 +7,7 @@ import '../../gen/server/.revali/server/server.dart' as server;
 import '../domain/constants.dart';
 
 class Revali {
-  factory Revali() => _instance ??= Revali._();
-  Revali._();
-  static Revali? _instance;
+  Revali();
 
   io.Process? _process;
   bool get isRunning => switch (kIsCompiled) {

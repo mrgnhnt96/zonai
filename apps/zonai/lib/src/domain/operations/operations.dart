@@ -11,9 +11,7 @@ import '../../deps/settings.dart';
 import 'operation_generator.dart';
 
 class Operations {
-  factory Operations() => _instance ??= Operations._();
-  static Operations? _instance;
-  Operations._();
+  Operations();
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>

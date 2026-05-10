@@ -1,6 +1,10 @@
 import 'package:scoped_deps/scoped_deps.dart';
 import '../domain/keyboard_input.dart';
 
-final keyboardInputProvider = create<KeyboardInput>(KeyboardInput.new);
+KeyboardInput? _keyboardInput;
+
+final keyboardInputProvider = create<KeyboardInput>(
+  () => _keyboardInput ??= KeyboardInput(),
+);
 
 KeyboardInput get keyboardInput => read(keyboardInputProvider);

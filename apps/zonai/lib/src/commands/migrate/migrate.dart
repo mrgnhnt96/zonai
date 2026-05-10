@@ -1,7 +1,6 @@
 import '../../deps/args.dart';
 import '../../deps/logger.dart';
-import '../../domain/migrate.dart';
-import '../../domain/settings.dart';
+import '../../deps/migrate.dart' as deps;
 
 part '__generate.dart';
 

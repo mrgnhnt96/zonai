@@ -12,9 +12,7 @@ import '../deps/settings.dart';
 import '../../zonai.dart';
 
 class Migrate {
-  factory Migrate() => _instance ??= Migrate._();
-  Migrate._();
-  static Migrate? _instance;
+  Migrate();
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>

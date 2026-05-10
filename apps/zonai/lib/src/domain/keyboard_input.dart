@@ -7,9 +7,7 @@ import '../deps/logger.dart';
 import '../deps/stdin.dart';
 
 class KeyboardInput {
-  factory KeyboardInput() => _instance ??= KeyboardInput._();
-  static KeyboardInput? _instance;
-  KeyboardInput._() : _listeners = [] {
+  KeyboardInput() : _listeners = [] {
     lockInput();
     cleanUp.add(unlockInput);
   }

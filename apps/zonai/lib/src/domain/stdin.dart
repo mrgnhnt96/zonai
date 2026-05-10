@@ -4,9 +4,7 @@ import 'dart:async';
 import '../deps/clean_up.dart';
 
 class Stdin {
-  factory Stdin() => _instance ??= Stdin._();
-  static Stdin? _instance;
-  Stdin._()
+  Stdin()
     : _stream = io.stdin,
       _controller = StreamController<List<int>>.broadcast() {
     _subscribe();

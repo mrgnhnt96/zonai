@@ -7,9 +7,7 @@ import '../deps/keyboard_input.dart';
 import '../deps/logger.dart';
 
 class Kill {
-  factory Kill() => _instance ??= Kill._();
-  static Kill? _instance;
-  Kill._() : _listeners = [], _lifeline = Completer<void>() {
+  Kill() : _listeners = [], _lifeline = Completer<void>() {
     final stream = Platform.isWindows
         ? ProcessSignal.sigint.watch()
         : StreamGroup.merge([

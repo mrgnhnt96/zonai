@@ -12,9 +12,7 @@ import 'extension_generator.dart';
 
 /// Utilities to handle extensions to the database
 class Extensions {
-  factory Extensions() => _instance ??= Extensions._();
-  Extensions._();
-  static Extensions? _instance;
+  Extensions();
 
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>

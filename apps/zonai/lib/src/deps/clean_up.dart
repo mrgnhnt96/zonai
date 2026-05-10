@@ -1,6 +1,8 @@
 import 'package:scoped_deps/scoped_deps.dart';
 import '../domain/clean_up.dart';
 
-final cleanUpProvider = create<CleanUp>(CleanUp.new);
+CleanUp? _cleanUp;
+
+final cleanUpProvider = create<CleanUp>(() => _cleanUp ??= CleanUp());
 
 CleanUp get cleanUp => read(cleanUpProvider);
