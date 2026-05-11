@@ -7,17 +7,18 @@ environment:
   sdk: ">=3.11.0 <4.0.0"
 
 dependencies:
+  argon2: ^1.0.1
+  async: ^2.13.1
   file: ">=6.0.0 <8.0.0"
-  yaml: ^3.1.0
+  http: ^1.6.0
   raindrop_cli:
     path: ../../libs/raindrop/packages/raindrop_cli
   scoped_deps:
     path: ../../libs/scoped_deps
+  watcher: ^1.2.1
+  yaml: ^3.1.0
   zonai_logger:
     path: ../../libs/zonai_logger
-  watcher: ^1.2.1
-  async: ^2.13.1
-  http: ^1.6.0
 
 dev_dependencies:
   test: ^1.26.0
