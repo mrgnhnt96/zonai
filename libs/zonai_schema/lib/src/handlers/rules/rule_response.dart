@@ -23,6 +23,7 @@ sealed class RuleResponse extends Response {
     return switch (path) {
       CanAccessResponse._path => CanAccessResponse.fromJson(json),
       RecordFilterResponse._path => RecordFilterResponse.fromJson(json),
+      CanAuthenticateResponse._path => CanAuthenticateResponse.fromJson(json),
       _ => throw ArgumentError('Invalid rule response path: $path'),
     };
   }

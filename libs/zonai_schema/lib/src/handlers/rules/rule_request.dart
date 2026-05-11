@@ -10,8 +10,10 @@ sealed class RuleRequest extends Request {
         return CollectionRulesRequest.fromRequest(request);
       case RecordRulesRequest._path:
         return RecordRulesRequest.fromRequest(request);
+      case CanAuthenticateRequest._path:
+        return CanAuthenticateRequest.fromRequest(request);
       default:
-        throw UnimplementedError();
+        throw ArgumentError('Invalid rule request path: ${request.path}');
     }
   }
 }
@@ -20,8 +22,15 @@ final class CanAuthenticateRequest extends RuleRequest {
   CanAuthenticateRequest({required this.collection, required this.authType})
     : super(path: _path, id: Request.generateId());
 
+  CanAuthenticateRequest._({
+    required super.id,
+    required this.collection,
+    required this.authType,
+  }) : super(path: _path);
+
   factory CanAuthenticateRequest.fromRequest(UnknownRequest request) {
-    return CanAuthenticateRequest(
+    return CanAuthenticateRequest._(
+      id: request.id,
       collection: request.payload['collection'] as String,
       authType: AuthType.values.byName(request.payload['authType'] as String),
     );
