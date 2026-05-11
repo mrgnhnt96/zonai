@@ -1,10 +1,15 @@
 part of auth_collection;
 
-sealed class AuthType {
-  const AuthType();
+sealed class _AuthType {
+  const _AuthType();
+
+  AuthType get authType;
 }
 
-base mixin PasswordAuth on Auth implements AuthType {
+enum AuthType { password }
+
+base mixin PasswordAuth on Auth implements _AuthType {
   TextColumn get email;
   PasswordColumn get passwordHash;
+  AuthType get authType => .password;
 }

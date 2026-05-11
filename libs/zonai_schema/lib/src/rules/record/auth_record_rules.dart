@@ -12,7 +12,7 @@ class AuthRecordRules<T extends AuthCollection<T>> extends BaseRecordRules<T>
   /// if [canSignUp] returns true.
   Future<bool> canSignUp(Request request, T record) async {
     return switch (record.authType) {
-      PasswordAuth() => request.user.isSuperUser,
+      .password => request.user.isSuperUser,
     };
   }
 

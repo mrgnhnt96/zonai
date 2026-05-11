@@ -27,8 +27,8 @@ base class AuthCollection<T extends AuthCollection<T>> extends Schema<T>
   final IdColumn<Id> id;
 
   AuthType get authType {
-    if (this case final AuthType type) {
-      return type;
+    if (this case _AuthType(:final authType)) {
+      return authType;
     }
 
     throw UnimplementedError('${runtimeType} is missing an `$AuthType` mixin');

@@ -47,6 +47,8 @@ class DbRules {
             return await _collectionRules(request);
           case final RecordRulesRequest request:
             return await _recordRules(request);
+          case final CanAuthenticateRequest request:
+            return await _canAuthenticate(request);
         }
       },
     ).listen();
@@ -138,6 +140,25 @@ class DbRules {
       collection: request.collection,
       operation: request.operation,
       canAccess: canAccess,
+    );
+  }
+
+  Future<CanAuthenticateResponse> _canAuthenticate(
+    CanAuthenticateRequest request,
+  ) async {
+    final rules = rulesByTable[request.collection];
+    final collectionRules = rules?.collection;
+    if (collectionRules case AuthCollectionRules(:final canAuthenticate)) {
+      return CanAuthenticateResponse(
+        id: request.id,
+        collection: request.collection,
+        canAuthenticate: await canAuthenticate(request.authType),
+        authType: request.authType,
+      );
+    }
+
+    throw StateError(
+      'Cannot authenticate for collection: ${request.collection}',
     );
   }
 

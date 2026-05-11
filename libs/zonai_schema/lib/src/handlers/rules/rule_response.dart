@@ -1,5 +1,6 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
+import 'package:zonai_schema/src/schemas/auth_collection.dart';
 
 sealed class RuleResponse extends Response {
   const RuleResponse({
@@ -24,6 +25,52 @@ sealed class RuleResponse extends Response {
       RecordFilterResponse._path => RecordFilterResponse.fromJson(json),
       _ => throw ArgumentError('Invalid rule response path: $path'),
     };
+  }
+}
+
+final class CanAuthenticateResponse extends RuleResponse {
+  CanAuthenticateResponse({
+    required super.id,
+    required this.collection,
+    required this.canAuthenticate,
+    required this.authType,
+  }) : super(
+         path: _path,
+         payload: {
+           'collection': collection,
+           'canAuthenticate': canAuthenticate,
+           'authType': authType.name,
+         },
+       );
+
+  factory CanAuthenticateResponse.fromJson(Map<String, dynamic> json) {
+    return CanAuthenticateResponse(
+      id: json['id'],
+      collection: json['collection'],
+      canAuthenticate: json['canAuthenticate'],
+      authType: AuthType.values.byName(json['authType']),
+    );
+  }
+
+  static const _path = 'can_authenticate';
+
+  final String collection;
+  final bool canAuthenticate;
+  final AuthType authType;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'canAuthenticate': canAuthenticate,
+      'authType': authType.name,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'CanAuthenticateResponse(collection: $collection, canAuthenticate: $canAuthenticate, authType: $authType)';
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/schemas/auth_collection.dart';
 
 sealed class RuleRequest extends Request {
   const RuleRequest({required super.path, required super.id});
@@ -12,6 +13,37 @@ sealed class RuleRequest extends Request {
       default:
         throw UnimplementedError();
     }
+  }
+}
+
+final class CanAuthenticateRequest extends RuleRequest {
+  CanAuthenticateRequest({required this.collection, required this.authType})
+    : super(path: _path, id: Request.generateId());
+
+  factory CanAuthenticateRequest.fromRequest(UnknownRequest request) {
+    return CanAuthenticateRequest(
+      collection: request.payload['collection'] as String,
+      authType: AuthType.values.byName(request.payload['authType'] as String),
+    );
+  }
+
+  static const _path = 'can_authenticate';
+
+  final String collection;
+  final AuthType authType;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'authType': authType.name,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'CanAuthenticateRequest(collection: $collection, authType: $authType)';
   }
 }
 
