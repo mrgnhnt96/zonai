@@ -117,15 +117,19 @@ Future<(int?, String?)> _list() async {
 }
 
 Future<int?> _streamList({required String id}) async {
+  // Resqlite drops intermediate reactive results when a stream is invalidated
+  // again while its re-query is still in-flight, so two back-to-back updates
+  // may yield a single emission (the final snapshot).
+  const expectedBody = 'Test body updated (2)';
+
   final stream = zonaiDB.streamList('items', .new(where: Eq('id', id)));
 
   final completer = Completer<void>();
-  var count = 0;
   final listener = stream.listen((result) {
     logger.info('Stream result: ${result}');
 
-    // Two updates below → two stream emissions (initial read is not yielded).
-    if (++count == 2 && !completer.isCompleted) {
+    final row = result.isEmpty ? null : result.single;
+    if (row?['body'] == expectedBody && !completer.isCompleted) {
       completer.complete();
     }
   });
@@ -156,14 +160,16 @@ Future<int?> _streamList({required String id}) async {
 }
 
 Future<int?> _streamOne({required String id}) async {
+  const step1Body = 'Stream-one probe (a)';
+  const step2Body = 'Stream-one probe (b)';
+
   final stream = zonaiDB.streamOne('items', .new(where: Eq('id', id)));
 
   final completer = Completer<void>();
-  var count = 0;
   final listener = stream.listen((result) {
     logger.info('Stream result: ${result}');
 
-    if (++count == 2 && !completer.isCompleted) {
+    if (result['body'] == step2Body && !completer.isCompleted) {
       completer.complete();
     }
   });
@@ -173,7 +179,7 @@ Future<int?> _streamOne({required String id}) async {
     .new(
       where: Eq('id', id),
       updates: [
-        ObjectUpdate({'body': 'Test body updated (1)'}),
+        ObjectUpdate({'body': step1Body}),
       ],
     ),
   );
@@ -183,7 +189,7 @@ Future<int?> _streamOne({required String id}) async {
     .new(
       where: Eq('id', id),
       updates: [
-        ObjectUpdate({'body': 'Test body updated (2)'}),
+        ObjectUpdate({'body': step2Body}),
       ],
     ),
   );
