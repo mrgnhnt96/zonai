@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
-import 'package:raindrop/raindrop.dart'
-    show DatabaseResult, Raindrop, ISUDRaindropExecutor;
+import 'package:raindrop/raindrop.dart' hide migrate;
+import 'package:raindrop/src/definitions/column_types/text.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai/src/domain/app_jwt.dart';
 import 'package:zonai/src/internal_collections/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt.dart';
@@ -121,6 +122,59 @@ class ZonaiDb {
     }
 
     return await signIn(collection, payload);
+  }
+
+  Future<void> logout(String jwt) async {
+    final appJwt = await _extractJwt(JwtPayload(jwt: jwt));
+    if (appJwt == null) {
+      throw StateError('Invalid JWT');
+    }
+
+    await open();
+    final db = this.db;
+    if (db == null) {
+      throw StateError('Database is not open');
+    }
+
+    final result = await db
+        .delete(from: jwts)
+        .where(jwts.id.equals(appJwt.jwtId))
+        .returning();
+
+    if (result.isEmpty) {
+      logger.verbose('No JWT record found', prefix: _prefix);
+      return;
+    }
+
+    logger.verbose('Logged out: ${appJwt.userId}', prefix: _prefix);
+  }
+
+  Future<void> logoutAll(String jwt) async {
+    final appJwt = await _extractJwt(JwtPayload(jwt: jwt));
+    if (appJwt == null) {
+      throw StateError('Invalid JWT');
+    }
+
+    await open();
+    final db = this.db;
+    if (db == null) {
+      throw StateError('Database is not open');
+    }
+
+    final results = await db
+        .delete(from: jwts)
+        .where(jwts.userId.equals(appJwt.userId))
+        .returning();
+
+    if (results.isEmpty) {
+      logger.verbose('No JWT records found', prefix: _prefix);
+      return;
+    }
+
+    logger.verbose(
+      'Logged out all: ${appJwt.userId} (${results.length})',
+      prefix: _prefix,
+    );
   }
 
   Future<bool> _hasAuthRecord({
@@ -248,11 +302,13 @@ class ZonaiDb {
     final userId = user['id'] as String;
 
     final jwtObject = await const Jwt(jwtPepper: appPepper).generate(
-      userId: userId,
-      collection: collection,
-      jwtId: jwtId.value,
-      expiresIn: const Duration(days: 365),
-      claims: {},
+      AppJwt.create(
+        userId: userId,
+        collection: collection,
+        jwtId: jwtId.value,
+        expiresIn: const Duration(days: 365),
+        claims: {},
+      ),
     );
 
     await open();
@@ -325,11 +381,13 @@ class ZonaiDb {
     final userId = user['id'] as String;
 
     final jwtObject = await const Jwt(jwtPepper: appPepper).generate(
-      userId: userId,
-      collection: collection,
-      jwtId: jwtId.value,
-      expiresIn: const Duration(days: 365),
-      claims: {},
+      AppJwt.create(
+        userId: userId,
+        collection: collection,
+        jwtId: jwtId.value,
+        expiresIn: const Duration(days: 365),
+        claims: {},
+      ),
     );
 
     await open();
@@ -365,10 +423,43 @@ class ZonaiDb {
     throw StateError('User does not have access to $operation on $collection');
   }
 
+  Future<AppJwt?> _extractJwt(JwtPayload payload) async {
+    final jwt = payload.jwt;
+
+    if (jwt == null) {
+      return null;
+    }
+
+    final decoded = await const Jwt(jwtPepper: appPepper).verify(jwt);
+    if (decoded == null) {
+      throw StateError('Invalid JWT');
+    }
+
+    final appJwt = AppJwt.fromJson(decoded);
+    logger.verbose('Extracted JWT: ${appJwt}', prefix: _prefix);
+
+    await open();
+    final db = this.db;
+    if (db == null) {
+      throw StateError('Database is not open');
+    }
+
+    final jwtRecord = await db
+        .select()
+        .from(jwts)
+        .where(jwts.id.equals(appJwt.jwtId));
+    if (jwtRecord.isEmpty) {
+      throw StateError('JWT record not found');
+    }
+
+    return appJwt;
+  }
+
   Future<(Object? error, Map<String, Object?>? result)> create(
     String collection,
     CreatePayload payload,
   ) async {
+    final jwt = _extractJwt(payload);
     await _requireCollectionAccess(collection, .create);
     await _requireRecordAccess(collection, .create, payload.object);
 
@@ -417,6 +508,7 @@ class ZonaiDb {
     String collection,
     UpdatePayload payload,
   ) async {
+    final jwt = _extractJwt(payload);
     await _requireCollectionAccess(collection, .update);
 
     final where = payload.where.sql(collection);
@@ -504,6 +596,7 @@ class ZonaiDb {
     String collection,
     DeletePayload payload,
   ) async {
+    final jwt = _extractJwt(payload);
     await _requireCollectionAccess(collection, .delete);
 
     final where = payload.where.sql(collection);
@@ -588,6 +681,7 @@ class ZonaiDb {
     String collection,
     ViewPayload payload,
   ) async {
+    final jwt = _extractJwt(payload);
     await _requireCollectionAccess(collection, .view);
 
     final operation = await _getOperation(
@@ -618,6 +712,7 @@ class ZonaiDb {
     String collection,
     ListPayload payload,
   ) async {
+    final jwt = _extractJwt(payload);
     await _requireCollectionAccess(collection, .list);
 
     final operation = await _getOperation(
@@ -648,6 +743,7 @@ class ZonaiDb {
     String collection,
     ListPayload payload,
   ) async* {
+    final jwt = _extractJwt(payload);
     await _requireCollectionAccess(collection, .list);
 
     final where = payload.where?.sql(collection);
@@ -682,6 +778,7 @@ class ZonaiDb {
     String collection,
     ViewPayload payload,
   ) async* {
+    final jwt = _extractJwt(payload);
     await _requireCollectionAccess(collection, .view);
 
     final operation = await _getOperation(

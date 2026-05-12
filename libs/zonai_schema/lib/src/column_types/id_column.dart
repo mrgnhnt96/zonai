@@ -51,3 +51,8 @@ class IdTransformer extends ColumnTransformer<Id, String>
   @override
   Id primaryKey() => generate();
 }
+
+extension IdOperators on ColumnOf<Id> {
+  /// String equals [value].
+  SQL equals(String value) => SQL([$, Op.equals, value]);
+}

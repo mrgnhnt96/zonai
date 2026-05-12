@@ -29,10 +29,17 @@ Future<int> test() async {
     email = userEmail;
   }
 
-  logger.info('--------------------------------');
-  logger.info('SIGN IN');
-  if (await _signIn(email) case final int exitCode) {
-    return exitCode;
+  String jwt;
+
+  {
+    logger.info('--------------------------------');
+    logger.info('SIGN IN');
+    final (exitCode, signedInJwt) = await _signIn(email);
+    if (exitCode != null || signedInJwt == null) {
+      return exitCode ?? 1;
+    }
+
+    jwt = signedInJwt;
   }
 
   logger.info('--------------------------------');
@@ -43,13 +50,13 @@ Future<int> test() async {
 
   logger.info('--------------------------------');
   logger.info('CREATING RECORD');
-  if (await _create() case final int exitCode) {
+  if (await _create(jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
 
   logger.info('LISTING RECORDS');
-  final (exitCode, id) = await _list();
+  final (exitCode, id) = await _list(jwt: jwt);
   if (exitCode != null) {
     return exitCode;
   }
@@ -57,36 +64,49 @@ Future<int> test() async {
   logger.info('--------------------------------');
 
   logger.info('STREAM LIST');
-  if (await _streamList(id: id!) case final int exitCode) {
+  if (await _streamList(id: id!, jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
 
   logger.info('STREAM ONE');
-  if (await _streamOne(id: id) case final int exitCode) {
+  if (await _streamOne(id: id, jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
 
   logger.info('UPDATING RECORD');
-  if (await _update(id: id) case final int exitCode) {
+  if (await _update(id: id, jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
 
   logger.info('VIEWING RECORD');
-  if (await _view(id: id) case final int exitCode) {
+  if (await _view(id: id, jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
 
   logger.info('DELETING RECORD');
-  if (await _delete(id: id) case final int exitCode) {
+  if (await _delete(id: id, jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
 
+  logger.info('LOGOUT');
+  if (await _logout(jwt: jwt) case final int exitCode) {
+    return exitCode;
+  }
+
+  logger.info('--------------------------------');
+
   return 0;
+}
+
+Future<int?> _logout({required String jwt}) async {
+  await zonaiDB.logout(jwt);
+
+  return null;
 }
 
 Future<(int?, String?)> _signUp() async {
@@ -116,7 +136,7 @@ Future<(int?, String?)> _signUp() async {
   return (null, email);
 }
 
-Future<int?> _signIn(String email) async {
+Future<(int?, String?)> _signIn(String email) async {
   final (error, result) = await zonaiDB.signIn(
     'users',
     SignInPasswordAuthPayload(email: email, password: 'test'),
@@ -124,13 +144,13 @@ Future<int?> _signIn(String email) async {
 
   if (error != null || result == null) {
     logger.err('Failed to authenticate: $error');
-    return 1;
+    return (1, null);
   }
 
   logger.info('Signed in user: ${result.user}');
   logger.info('Signed in JWT: ${result.jwt}');
 
-  return null;
+  return (null, result.jwt);
 }
 
 Future<int?> _authenticate() async {
@@ -179,10 +199,10 @@ Future<int?> _createUser() async {
   return null;
 }
 
-Future<int?> _create() async {
+Future<int?> _create(String jwt) async {
   final (error, result) = await zonaiDB.create(
     'items',
-    .new(object: {'body': 'Test body', 'id': _generateId()}),
+    .new(jwt: jwt, object: {'body': 'Test body', 'id': _generateId()}),
   );
   if (error != null || result == null) {
     logger.err('Failed to create record: $error');
@@ -193,10 +213,10 @@ Future<int?> _create() async {
   return null;
 }
 
-Future<(int?, String?)> _list() async {
+Future<(int?, String?)> _list({required String jwt}) async {
   final (error, result) = await zonaiDB.list(
     'items',
-    .new(where: NotNull('id')),
+    .new(jwt: jwt, where: NotNull('id')),
   );
   if (error != null || result == null) {
     logger.err('Failed to list records: $error');
@@ -210,13 +230,16 @@ Future<(int?, String?)> _list() async {
   return (null, result.last['id'] as String?);
 }
 
-Future<int?> _streamList({required String id}) async {
+Future<int?> _streamList({required String id, required String jwt}) async {
   // Resqlite drops intermediate reactive results when a stream is invalidated
   // again while its re-query is still in-flight, so two back-to-back updates
   // may yield a single emission (the final snapshot).
   const expectedBody = 'Test body updated (2)';
 
-  final stream = zonaiDB.streamList('items', .new(where: Eq('id', id)));
+  final stream = zonaiDB.streamList(
+    'items',
+    .new(jwt: jwt, where: Eq('id', id)),
+  );
 
   final completer = Completer<void>();
   final listener = stream.listen((result) {
@@ -253,11 +276,14 @@ Future<int?> _streamList({required String id}) async {
   return null;
 }
 
-Future<int?> _streamOne({required String id}) async {
+Future<int?> _streamOne({required String id, required String jwt}) async {
   const step1Body = 'Stream-one probe (a)';
   const step2Body = 'Stream-one probe (b)';
 
-  final stream = zonaiDB.streamOne('items', .new(where: Eq('id', id)));
+  final stream = zonaiDB.streamOne(
+    'items',
+    .new(jwt: jwt, where: Eq('id', id)),
+  );
 
   final completer = Completer<void>();
   final listener = stream.listen((result) {
@@ -293,10 +319,10 @@ Future<int?> _streamOne({required String id}) async {
   return null;
 }
 
-Future<int?> _delete({required String id}) async {
+Future<int?> _delete({required String id, required String jwt}) async {
   final (error, result) = await zonaiDB.delete(
     'items',
-    .new(where: Eq('id', id)),
+    .new(jwt: jwt, where: Eq('id', id)),
   );
 
   if (error != null || result == null) {
@@ -308,10 +334,10 @@ Future<int?> _delete({required String id}) async {
   return null;
 }
 
-Future<int?> _view({required String id}) async {
+Future<int?> _view({required String id, required String jwt}) async {
   final (error, result) = await zonaiDB.view(
     'items',
-    .new(where: Eq('id', id)),
+    .new(jwt: jwt, where: Eq('id', id)),
   );
   if (error != null || result == null) {
     logger.err('Failed to view records: $error');
@@ -322,10 +348,11 @@ Future<int?> _view({required String id}) async {
   return null;
 }
 
-Future<int?> _update({required String id}) async {
+Future<int?> _update({required String id, required String jwt}) async {
   final (error, result) = await zonaiDB.update(
     'items',
     .new(
+      jwt: jwt,
       where: Eq('id', id),
       updates: [
         ObjectUpdate({'body': 'Test body updated'}),

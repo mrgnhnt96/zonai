@@ -1,7 +1,8 @@
 /// Shared table definitions and database types for Zonai.
 library;
 
-export 'package:raindrop/raindrop.dart' show SchemaBuilder, fakes, ColumnType;
+export 'package:raindrop/raindrop.dart'
+    show SchemaBuilder, fakes, ColumnType, uniqueIndex, index, IndexBuilderOn;
 export 'package:raindrop_sqlite/raindrop_sqlite.dart'
     show
         BooleanColumnDefinition,

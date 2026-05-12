@@ -36,4 +36,7 @@ class JwtCollection extends Collection<JwtCollection> {
 final jwts = collection(
   '_jwt',
   () => JwtCollection(id: JwtId.generate(), userId: const UnknownId('')),
+  (table) {
+    uniqueIndex('jwt_id_unique').on(table.id);
+  },
 );
