@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart' show Filter;
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/raw_sql_filter.dart';
+import 'package:zonai_schema/src/schemas/auth_collection.dart';
 import 'package:zonai_schema/src/update/update.dart';
 
 sealed class OperationRequest extends Request {
@@ -14,7 +16,16 @@ sealed class OperationRequest extends Request {
       PerformOperationRequest._path => PerformOperationRequest.fromRequest(
         request,
       ),
-      _ => throw UnimplementedError(),
+      ViewAuthOperationRequest._path => ViewAuthOperationRequest.fromRequest(
+        request,
+      ),
+      CreateAuthOperationRequest._path =>
+        CreateAuthOperationRequest.fromRequest(request),
+      GetPasswordColumnNameRequest._path =>
+        GetPasswordColumnNameRequest.fromRequest(request),
+      _ => throw ArgumentError(
+        'Invalid operation request path: ${request.path}',
+      ),
     };
   }
 
@@ -23,6 +34,30 @@ sealed class OperationRequest extends Request {
     return '''OperationRequest:
 ${const JsonEncoder.withIndent('  ').convert(toJson())}
 ''';
+  }
+}
+
+final class GetPasswordColumnNameRequest extends OperationRequest {
+  GetPasswordColumnNameRequest({required this.collection})
+    : super(path: _path, id: Request.generateId());
+
+  GetPasswordColumnNameRequest._({required super.id, required this.collection})
+    : super(path: _path);
+
+  factory GetPasswordColumnNameRequest.fromRequest(UnknownRequest request) {
+    return GetPasswordColumnNameRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+    );
+  }
+
+  static const _path = 'operation.get_password_column_name';
+
+  final String collection;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection};
   }
 }
 
@@ -71,6 +106,133 @@ final class PerformOperationRequest extends OperationRequest {
       ...super.toJson(),
       'collection': collection,
       'operation': operation,
+    };
+  }
+}
+
+sealed class AuthOperationPayload {
+  const AuthOperationPayload({required this.authType});
+
+  factory AuthOperationPayload.fromJson(Map<String, dynamic> json) {
+    return switch (AuthType.values.byName(json['authType'] as String)) {
+      .password => PasswordAuthOperationPayload.fromJson(json),
+    };
+  }
+
+  @mustCallSuper
+  Map<String, dynamic> toJson() {
+    return {'authType': authType.name};
+  }
+
+  final AuthType authType;
+}
+
+final class PasswordAuthOperationPayload extends AuthOperationPayload {
+  const PasswordAuthOperationPayload.save({
+    required this.email,
+    required String this.passwordHash,
+    required this.object,
+  }) : super(authType: .password);
+
+  const PasswordAuthOperationPayload.get({required this.email})
+    : passwordHash = null,
+      object = null,
+      super(authType: .password);
+
+  PasswordAuthOperationPayload._({
+    required this.email,
+    required this.passwordHash,
+    required this.object,
+  }) : super(authType: .password);
+
+  factory PasswordAuthOperationPayload.fromJson(Map<String, dynamic> json) {
+    return PasswordAuthOperationPayload._(
+      email: json['email'] as String,
+      passwordHash: json['passwordHash'] as String?,
+      object: json['object'] as Map<String, dynamic>?,
+    );
+  }
+
+  final String email;
+  final String? passwordHash;
+  final Map<String, dynamic>? object;
+
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'email': email,
+      'passwordHash': passwordHash,
+      'object': object,
+    };
+  }
+}
+
+final class ViewAuthOperationRequest extends OperationRequest {
+  ViewAuthOperationRequest({required this.collection, required this.payload})
+    : super(path: _path, id: Request.generateId());
+
+  ViewAuthOperationRequest._({
+    required super.id,
+    required this.collection,
+    required this.payload,
+  }) : super(path: _path);
+
+  factory ViewAuthOperationRequest.fromRequest(UnknownRequest request) {
+    return ViewAuthOperationRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+      payload: AuthOperationPayload.fromJson(
+        request.payload['payload'] as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  static const _path = 'auth.view';
+
+  final AuthOperationPayload payload;
+  final String collection;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'payload': payload.toJson(),
+    };
+  }
+}
+
+final class CreateAuthOperationRequest extends OperationRequest {
+  CreateAuthOperationRequest({required this.collection, required this.payload})
+    : super(path: _path, id: Request.generateId());
+
+  CreateAuthOperationRequest._({
+    required super.id,
+    required this.payload,
+    required this.collection,
+  }) : super(path: _path);
+
+  factory CreateAuthOperationRequest.fromRequest(UnknownRequest request) {
+    return CreateAuthOperationRequest._(
+      id: request.id,
+      payload: AuthOperationPayload.fromJson(
+        request.payload['payload'] as Map<String, dynamic>,
+      ),
+      collection: request.payload['collection'] as String,
+    );
+  }
+
+  static const _path = 'auth.create';
+
+  final String collection;
+  final AuthOperationPayload payload;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'payload': payload.toJson(),
     };
   }
 }

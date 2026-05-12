@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:zonai_schema/src/update/update.dart';
 
@@ -11,6 +12,30 @@ Future<void> main() async {
 }
 
 Future<int> test() async {
+  logger.info('AUTHENTICATE');
+  if (await _authenticate() case final int exitCode) {
+    return exitCode;
+  }
+
+  String email;
+  {
+    logger.info('--------------------------------');
+    logger.info('SIGN UP');
+    final (exitCode, userEmail) = await _signUp();
+    if (exitCode != null || userEmail == null) {
+      return exitCode ?? 1;
+    }
+
+    email = userEmail;
+  }
+
+  logger.info('--------------------------------');
+  logger.info('SIGN IN');
+  if (await _signIn(email) case final int exitCode) {
+    return exitCode;
+  }
+
+  logger.info('--------------------------------');
   logger.info('CREATING USER');
   if (await _createUser() case final int exitCode) {
     return exitCode;
@@ -62,6 +87,66 @@ Future<int> test() async {
   logger.info('--------------------------------');
 
   return 0;
+}
+
+Future<(int?, String?)> _signUp() async {
+  final random = Random();
+  final nonce = random.nextInt(1000000);
+  final uniqueTimestamp = DateTime.now().millisecondsSinceEpoch + nonce;
+
+  final email = 'test+$uniqueTimestamp@test.com';
+
+  final (error, result) = await zonaiDB.signUp(
+    'users',
+    SignUpPasswordAuthPayload(
+      email: email,
+      password: 'test',
+      object: {'name': 'Test User'},
+    ),
+  );
+
+  if (error != null || result == null) {
+    logger.err('Failed to authenticate: $error');
+    return (1, null);
+  }
+
+  return (null, email);
+}
+
+Future<int?> _signIn(String email) async {
+  final (error, result) = await zonaiDB.signIn(
+    'users',
+    SignInPasswordAuthPayload(email: email, password: 'test'),
+  );
+
+  if (error != null || result == null) {
+    logger.err('Failed to authenticate: $error');
+    return 1;
+  }
+
+  return null;
+}
+
+Future<int?> _authenticate() async {
+  final random = Random();
+  final nonce = random.nextInt(1000000);
+  final uniqueTimestamp = DateTime.now().millisecondsSinceEpoch + nonce;
+
+  final (error, result) = await zonaiDB.authenticate(
+    'users',
+    PasswordAuthPayload(
+      email: 'test+$uniqueTimestamp@test.com',
+      password: 'test',
+      object: {'name': 'Test User'},
+    ),
+  );
+
+  if (error != null || result == null) {
+    logger.err('Failed to authenticate: $error');
+    return 1;
+  }
+
+  return null;
 }
 
 Future<int?> _createUser() async {

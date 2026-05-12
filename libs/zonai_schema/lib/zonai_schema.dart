@@ -17,6 +17,7 @@ export 'package:raindrop_sqlite/raindrop_sqlite.dart'
         BlobColumn,
         BlobColumnDefinition;
 
+export 'src/column_types/email_column.dart';
 export 'src/column_types/password_column.dart';
 export 'src/column_types/create_primary_key.dart';
 export 'src/column_types/created_at_column.dart';

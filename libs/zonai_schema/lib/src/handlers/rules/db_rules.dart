@@ -47,8 +47,10 @@ class DbRules {
             return await _collectionRules(request);
           case final RecordRulesRequest request:
             return await _recordRules(request);
-          case final CanAuthenticateRequest request:
-            return await _canAuthenticate(request);
+          case final AuthCollectionRulesRequest request:
+            return await _authCollectionRules(request);
+          case final AuthRecordRulesRequest request:
+            return await _authRecordRules(request);
         }
       },
     ).listen();
@@ -78,7 +80,7 @@ class DbRules {
     return _rulesByTable = rules;
   }
 
-  Future<CanAccessResponse> _collectionRules(
+  Future<CollectionRulesResponse> _collectionRules(
     CollectionRulesRequest request,
   ) async {
     final authRequest = auth.Request(
@@ -92,7 +94,7 @@ class DbRules {
     // the request operation to the rules
     final op = request.classicOperation;
     if (op == null) {
-      return CanAccessResponse(
+      return CollectionRulesResponse(
         id: request.id,
         collection: request.collection,
         operation: request.operation,
@@ -102,7 +104,7 @@ class DbRules {
 
     if (collectionRules == null) {
       logger.warn('No rules found for collection: ${request.collection}');
-      return CanAccessResponse(
+      return CollectionRulesResponse(
         id: request.id,
         collection: request.collection,
         operation: request.operation,
@@ -116,7 +118,7 @@ class DbRules {
 
     if (op == .create && collectionRules is AuthCollectionRules) {
       if (request.isSuperUser) {
-        return CanAccessResponse(
+        return CollectionRulesResponse(
           id: request.id,
           collection: request.collection,
           operation: request.operation,
@@ -135,7 +137,7 @@ class DbRules {
       .list => collectionRules.canList(authRequest),
     };
 
-    return CanAccessResponse(
+    return CollectionRulesResponse(
       id: request.id,
       collection: request.collection,
       operation: request.operation,
@@ -143,16 +145,18 @@ class DbRules {
     );
   }
 
-  Future<CanAuthenticateResponse> _canAuthenticate(
-    CanAuthenticateRequest request,
+  Future<AuthCollectionRulesResponse> _authCollectionRules(
+    AuthCollectionRulesRequest request,
   ) async {
+    final authRequest = auth.Request(user: User.fake(isSuperUser: false));
+
     final rules = rulesByTable[request.collection];
     final collectionRules = rules?.collection;
     if (collectionRules case AuthCollectionRules(:final canAuthenticate)) {
-      return CanAuthenticateResponse(
+      return AuthCollectionRulesResponse(
         id: request.id,
         collection: request.collection,
-        canAuthenticate: await canAuthenticate(request.authType),
+        canAuthenticate: await canAuthenticate(authRequest, request.authType),
         authType: request.authType,
       );
     }
@@ -162,7 +166,32 @@ class DbRules {
     );
   }
 
-  Future<RecordFilterResponse> _recordRules(RecordRulesRequest request) async {
+  Future<AuthRecordRulesResponse> _authRecordRules(
+    AuthRecordRulesRequest request,
+  ) async {
+    final authRequest = auth.Request(user: User.fake(isSuperUser: false));
+
+    final rules = rulesByTable[request.collection];
+    final recordRules = rules?.record;
+    if (recordRules case AuthRecordRules(:final canSignIn, :final canSignUp)) {
+      return AuthRecordRulesResponse(
+        id: request.id,
+        collection: request.collection,
+        canAccess: switch (request.operation) {
+          .signIn => await canSignIn(authRequest, request.authType),
+          .signUp => await canSignUp(authRequest, request.authType),
+        },
+        authType: request.authType,
+        operation: request.operation,
+      );
+    }
+
+    throw StateError(
+      'Cannot authenticate for collection: ${request.collection}',
+    );
+  }
+
+  Future<RecordRulesResponse> _recordRules(RecordRulesRequest request) async {
     final authRequest = auth.Request(
       user: User.fake(isSuperUser: request.isSuperUser),
     );
@@ -173,7 +202,7 @@ class DbRules {
     final op = request.operation;
     if (recordRules == null) {
       logger.warn('No rules found for record: ${request.collection}');
-      return RecordFilterResponse(
+      return RecordRulesResponse(
         id: request.id,
         collection: request.collection,
         operation: request.operation,
@@ -183,7 +212,7 @@ class DbRules {
 
     if (recordRules case AuthRecordRules() when op == .create) {
       if (request.isSuperUser) {
-        return RecordFilterResponse(
+        return RecordRulesResponse(
           id: request.id,
           collection: request.collection,
           operation: request.operation,
@@ -203,7 +232,7 @@ class DbRules {
       .create => recordRules.canCreate(authRequest, object),
     };
 
-    return RecordFilterResponse(
+    return RecordRulesResponse(
       id: request.id,
       collection: request.collection,
       operation: request.operation,

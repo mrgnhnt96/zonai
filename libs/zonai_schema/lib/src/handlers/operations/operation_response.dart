@@ -22,8 +22,34 @@ sealed class OperationResponse extends Response {
 
     return switch (path) {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
+      PasswordColumnNameResponse._path => PasswordColumnNameResponse.fromJson(
+        json,
+      ),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
+  }
+}
+
+final class PasswordColumnNameResponse extends OperationResponse {
+  const PasswordColumnNameResponse({
+    required super.id,
+    required this.columnName,
+  }) : super(path: _path, payload: const {});
+
+  factory PasswordColumnNameResponse.fromJson(Map<String, dynamic> json) {
+    return PasswordColumnNameResponse(
+      id: json['id'] as String,
+      columnName: json['columnName'] as String,
+    );
+  }
+
+  static const _path = 'operation.password_column_name';
+
+  final String columnName;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'columnName': columnName};
   }
 }
 

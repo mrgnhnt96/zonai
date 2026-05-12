@@ -10,14 +10,14 @@ final class User extends AuthCollection<User> with PasswordAuth {
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : name = $.text('name', (s) => s.name, name),
-       email = $.text('email', (s) => s.email, email),
+       email = $.email('email', (s) => s.email, email),
        passwordHash = $.password('password', (s) => s.passwordHash, password),
        createdAt = $.createdAt('created_at', (s) => s.createdAt, createdAt),
        updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt, updatedAt),
        super(fromString: UsersId.new, generate: UsersId.generate, $: $);
 
   final TextColumn name;
-  final TextColumn email;
+  final EmailColumn email;
   final PasswordColumn passwordHash;
   final DateTimeColumn createdAt;
   final DateTimeColumn? updatedAt;

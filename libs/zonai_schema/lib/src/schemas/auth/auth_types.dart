@@ -9,7 +9,7 @@ sealed class _AuthType {
 enum AuthType { password }
 
 base mixin PasswordAuth on Auth implements _AuthType {
-  TextColumn get email;
+  EmailColumn get email;
   PasswordColumn get passwordHash;
   AuthType get authType => .password;
 }

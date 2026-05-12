@@ -10,9 +10,15 @@ class AuthRecordRules<T extends AuthCollection<T>> extends BaseRecordRules<T>
   /// [record] HAS NOT been inserted into the DB yet,
   /// it is the record that will be inserted into the database
   /// if [canSignUp] returns true.
-  Future<bool> canSignUp(Request request, T record) async {
-    return switch (record.authType) {
-      .password => request.user.isSuperUser,
+  Future<bool> canSignUp(Request request, AuthType authType) async {
+    return switch (authType) {
+      .password => true,
+    };
+  }
+
+  Future<bool> canSignIn(Request request, AuthType authType) async {
+    return switch (authType) {
+      .password => true,
     };
   }
 

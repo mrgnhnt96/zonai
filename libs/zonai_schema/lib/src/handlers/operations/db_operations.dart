@@ -1,9 +1,8 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
-import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
-import 'package:zonai_schema/src/operations/collection_operations.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 class DbOperations {
   DbOperations({
@@ -45,9 +44,115 @@ class DbOperations {
         switch (request) {
           case final PerformOperationRequest request:
             return await _performOperation(request);
+          case final ViewAuthOperationRequest request:
+            return await _viewAuthOperation(request);
+          case final CreateAuthOperationRequest request:
+            return await _createAuthOperation(request);
+          case final GetPasswordColumnNameRequest request:
+            return await _getPasswordColumnName(request);
         }
       },
     ).listen();
+  }
+
+  Future<PasswordColumnNameResponse> _getPasswordColumnName(
+    GetPasswordColumnNameRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      throw Exception('Collection not found: ${request.collection}');
+    }
+
+    final passwordColumn = collection.table.columns.firstWhere(
+      (column) => column.transformer is PasswordTransformer,
+    );
+
+    return PasswordColumnNameResponse(
+      id: request.id,
+      columnName: passwordColumn.name,
+    );
+  }
+
+  Future<PerformOperationResponse> _createAuthOperation(
+    CreateAuthOperationRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      throw Exception('Collection not found: ${request.collection}');
+    }
+
+    final emailColumn = switch (request.payload.authType) {
+      .password => collection.table.columns.firstWhere(
+        (column) => column.transformer is EmailTransformer,
+      ),
+    };
+
+    final passwordColumn = switch (request.payload.authType) {
+      .password => collection.table.columns.firstWhere(
+        (column) => column.transformer is PasswordTransformer,
+      ),
+    };
+
+    final email = switch (request.payload) {
+      PasswordAuthOperationPayload(:final email) => email,
+    };
+
+    final passwordHash = switch (request.payload) {
+      PasswordAuthOperationPayload(:final passwordHash) => passwordHash,
+    };
+
+    final otherFields = switch (request.payload) {
+      PasswordAuthOperationPayload(:final object) => object,
+    };
+
+    final operationRequest = CreateOperationRequest(
+      collection: request.collection,
+      object: {
+        ...?otherFields,
+        emailColumn.name: email,
+        passwordColumn.name: passwordHash,
+      },
+    );
+
+    final (sql, values) = CollectionTranslator(
+      collection,
+      dialect,
+    ).translate(operationRequest);
+
+    return PerformOperationResponse(id: request.id, query: sql, values: values);
+  }
+
+  Future<PerformOperationResponse> _viewAuthOperation(
+    ViewAuthOperationRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      throw Exception('Collection not found: ${request.collection}');
+    }
+
+    final table = collection.table;
+
+    final emailColumn = switch (request.payload.authType) {
+      .password => table.columns.firstWhere(
+        (column) => column.transformer is EmailTransformer,
+      ),
+    };
+
+    final email = switch (request.payload) {
+      PasswordAuthOperationPayload(:final email) => email,
+    };
+
+    final operationRequest = ViewOperationRequest(
+      collection: request.collection,
+      where: '"${emailColumn.name}" = \'${email}\'',
+    );
+
+    final (sql, values) = CollectionTranslator(
+      collection,
+      dialect,
+    ).translate(operationRequest);
+
+    return PerformOperationResponse(id: request.id, query: sql, values: values);
   }
 
   Future<PerformOperationResponse> _performOperation(

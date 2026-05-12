@@ -1,7 +1,7 @@
 library auth_collection;
 
 import 'package:raindrop/raindrop.dart';
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/src/column_types/email_column.dart';
 import 'package:zonai_schema/src/column_types/id_column.dart';
 import 'package:zonai_schema/src/column_types/password_column.dart';
 import 'package:zonai_schema/src/types/id.dart';

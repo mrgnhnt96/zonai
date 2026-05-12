@@ -4,6 +4,7 @@ import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' show DatabaseResult, Raindrop;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai/src/utils/hash_password.dart';
 import 'mailman.dart';
 import 'operation_result.dart';
 import 'payloads/payloads.dart';
@@ -86,14 +87,214 @@ class ZonaiDb {
     await db.ensureOpen();
   }
 
-  Future<(Object? error, Map<String, Object?>? result)> auth(
+  // TODO(mrgnhnt): Make this configurable
+  static const appPepper = 'app_pepper';
+
+  /// Signs in a user if the credentials are valid
+  ///
+  /// Signs up a user if the record does not exist
+  Future<(Object? error, Map<String, Object?>? result)> authenticate(
     String collection,
     AuthPayload payload,
   ) async {
-    return (
-      'ZonaiDb.auth is not implemented yet (no signup / credential flow)',
-      null,
+    await _requireAuthCollectionAccess(collection, payload);
+    final hasAuthRecord = await _hasAuthRecord(
+      collection: collection,
+      payload: payload,
     );
+
+    if (!hasAuthRecord) {
+      return await signUp(collection, payload);
+    }
+
+    return await signIn(collection, payload);
+  }
+
+  Future<bool> _hasAuthRecord({
+    required String collection,
+    required AuthPayload payload,
+  }) async {
+    final response = await _operations.send(
+      ViewAuthOperationRequest(
+        collection: collection,
+        payload: switch (payload) {
+          PasswordAuthPayload() => PasswordAuthOperationPayload.get(
+            email: payload.email,
+          ),
+        },
+      ),
+    );
+
+    if (response is! PerformOperationResponse) {
+      throw StateError('Failed to authenticate');
+    }
+
+    logger.verbose('Auth operation: ${response.query}', prefix: _prefix);
+
+    final (error, result) = await _execute((response.query, response.values));
+
+    if (error != null) {
+      throw StateError('Failed to authenticate: $error');
+    }
+
+    final user = result?.rows.singleOrNull?.toMap();
+    return user != null;
+  }
+
+  Future<Map<String, Object?>?> _authRecord({
+    required String collection,
+    required AuthPayload payload,
+    required String rawPassword,
+  }) async {
+    final response = await _operations.send(
+      ViewAuthOperationRequest(
+        collection: collection,
+        payload: switch (payload) {
+          PasswordAuthPayload() => PasswordAuthOperationPayload.get(
+            email: payload.email,
+          ),
+        },
+      ),
+    );
+
+    if (response is! PerformOperationResponse) {
+      throw StateError('Failed to authenticate');
+    }
+
+    logger.verbose('Auth operation: ${response.query}', prefix: _prefix);
+
+    final (error, result) = await _execute((response.query, response.values));
+
+    if (error != null) {
+      throw StateError('Failed to authenticate: $error');
+    }
+
+    final user = result?.rows.singleOrNull?.toMap();
+    if (user == null) {
+      return null;
+    }
+
+    final passwordColumn = await _operations.send(
+      GetPasswordColumnNameRequest(collection: collection),
+    );
+    if (passwordColumn is! PasswordColumnNameResponse) {
+      logger.trace('Failed to get password column name', prefix: _prefix);
+      return null;
+    }
+
+    // TODO(mrgnhnt): Send object to extension to sanitize
+    final passwordHash = user.remove(passwordColumn.columnName)!;
+    if (passwordHash is! String) {
+      logger.trace('Password hash not found', prefix: _prefix);
+      return null;
+    }
+
+    final passwordsMatch = await const HashPassword().verify(
+      rawPassword: switch (payload) {
+        PasswordAuthPayload() => payload.password,
+      },
+      passwordHash: passwordHash,
+      appPepper: appPepper,
+    );
+
+    if (!passwordsMatch) {
+      throw StateError('Invalid password or email');
+    }
+
+    return user;
+  }
+
+  Future<(Object? error, Map<String, Object?>? result)> signIn(
+    String collection,
+    AuthPayload payload,
+  ) async {
+    await _requireAuthCollectionAccess(collection, payload);
+    await _requireAuthRecordAccess(collection, .signIn, payload);
+
+    final user = await _authRecord(
+      collection: collection,
+      payload: payload,
+      rawPassword: switch (payload) {
+        PasswordAuthPayload() => payload.password,
+      },
+    );
+
+    if (user == null) {
+      throw StateError('User not found, cannot sign in');
+    }
+
+    return (null, user);
+  }
+
+  Future<(Object? error, Map<String, Object?>? result)> signUp(
+    String collection,
+    AuthPayload payload,
+  ) async {
+    await _requireAuthCollectionAccess(collection, payload);
+    await _requireAuthRecordAccess(collection, .signUp, payload);
+
+    final hashedPassword = await const HashPassword().hash(
+      password: switch (payload) {
+        PasswordAuthPayload() => payload.password,
+      },
+      appPepper: appPepper,
+    );
+
+    final operation = await _getOperation(
+      CreateAuthOperationRequest(
+        collection: collection,
+        payload: PasswordAuthOperationPayload.save(
+          email: payload.email,
+          passwordHash: hashedPassword,
+          object: payload.object,
+        ),
+      ),
+    );
+
+    final (error, result) = await _execute((operation.query, operation.values));
+
+    if (error != null || result == null) {
+      logger.trace('Failed to create user: $error', prefix: _prefix);
+      return (error ?? 'Failed', null);
+    }
+
+    final created = result.rows.single.toMap();
+
+    // TODO(mrgnhnt): Send object to extension to sanitize
+    final passwordColumn = await _operations.send(
+      GetPasswordColumnNameRequest(collection: collection),
+    );
+
+    if (passwordColumn is! PasswordColumnNameResponse) {
+      logger.trace('Failed to get password column name', prefix: _prefix);
+      return (null, null);
+    }
+
+    created.remove(passwordColumn.columnName);
+
+    logger.verbose('Created: ${created}', prefix: _prefix);
+
+    return (null, created);
+  }
+
+  Future<void> _requireAuthRecordAccess(
+    String collection,
+    AuthOperation operation,
+    AuthPayload payload,
+  ) async {
+    final response = await _rules.send(
+      AuthRecordRulesRequest(
+        collection: collection,
+        operation: operation,
+        authType: payload.authType,
+      ),
+    );
+
+    if (response case AuthRecordRulesResponse(canAccess: true)) {
+      return;
+    }
+
+    throw StateError('User does not have access to $operation on $collection');
   }
 
   Future<(Object? error, Map<String, Object?>? result)> create(
@@ -440,6 +641,26 @@ class ZonaiDb {
     }
   }
 
+  Future<void> _requireAuthCollectionAccess(
+    String collection,
+    AuthPayload payload,
+  ) async {
+    final response = await _rules.send(
+      AuthCollectionRulesRequest(
+        collection: collection,
+        authType: switch (payload) {
+          PasswordAuthPayload() => .password,
+        },
+      ),
+    );
+
+    if (response case AuthCollectionRulesResponse(canAuthenticate: true)) {
+      return;
+    }
+
+    throw StateError('Cannot authenticate for collection: $collection');
+  }
+
   Future<void> _requireCollectionAccess(
     String collection,
     CollectionOperation operation,
@@ -456,7 +677,7 @@ class ZonaiDb {
     }
   }
 
-  Future<CanAccessResponse> _collectionRules(
+  Future<CollectionRulesResponse> _collectionRules(
     String collection,
     CollectionOperation operation,
   ) async {
@@ -471,9 +692,9 @@ class ZonaiDb {
       ),
     );
 
-    if (rules is CanAccessResponse?) {
+    if (rules is CollectionRulesResponse?) {
       return rules ??
-          CanAccessResponse(
+          CollectionRulesResponse(
             id: '-1',
             collection: collection,
             operation: operation.name,
@@ -481,10 +702,12 @@ class ZonaiDb {
           );
     }
 
-    throw StateError('Expected $CanAccessResponse, got ${rules.runtimeType}');
+    throw StateError(
+      'Expected $CollectionRulesResponse, got ${rules.runtimeType}',
+    );
   }
 
-  Future<RecordFilterResponse> _recordRules(
+  Future<RecordRulesResponse> _recordRules(
     String collection,
     RecordOperation operation,
     Map<String, dynamic> data,
@@ -498,9 +721,9 @@ class ZonaiDb {
       ),
     );
 
-    if (rules is RecordFilterResponse?) {
+    if (rules is RecordRulesResponse?) {
       return rules ??
-          RecordFilterResponse(
+          RecordRulesResponse(
             id: '-1',
             collection: collection,
             operation: operation,
@@ -508,9 +731,7 @@ class ZonaiDb {
           );
     }
 
-    throw StateError(
-      'Expected $RecordFilterResponse, got ${rules.runtimeType}',
-    );
+    throw StateError('Expected $RecordRulesResponse, got ${rules.runtimeType}');
   }
 
   Future<void> _requireRecordAccess(

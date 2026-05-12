@@ -1,12 +1,34 @@
 part of payloads;
 
 sealed class AuthPayload extends Payload {
-  const AuthPayload();
+  const AuthPayload({required this.authType});
+
+  final AuthType authType;
 }
 
 class PasswordAuthPayload extends AuthPayload {
-  const PasswordAuthPayload({required this.email, required this.password});
+  const PasswordAuthPayload({
+    required this.email,
+    required this.password,
+    this.object,
+  }) : super(authType: .password);
 
   final String email;
   final String password;
+  final Map<String, dynamic>? object;
+}
+
+class SignInPasswordAuthPayload extends PasswordAuthPayload {
+  const SignInPasswordAuthPayload({
+    required super.email,
+    required super.password,
+  });
+}
+
+class SignUpPasswordAuthPayload extends PasswordAuthPayload {
+  const SignUpPasswordAuthPayload({
+    required super.email,
+    required super.password,
+    super.object,
+  });
 }

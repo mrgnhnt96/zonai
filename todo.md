@@ -4,12 +4,12 @@
 
 - [ ] Support compiling to different arch-types
 - [ ] Compile for linux
-- [ ] Create a class to run Revali or the valley executable depending on if we are using production.
 - [ ] create a \_logs table, forward all logs to it
   - [ ] Run ttl of 1 week
 - [ ] - if not compiled, before every request, check for a “stop” file (which will be generated on recompile) and restart the process. (Or check the file timestamp, and restart based off of that)
-- [ ] create a “scheduleOperation” that will be used to add queries to the transaction
-- [ ] Rename zonai_cli to zonai
+- [ ] create a “scheduleOperation” that will be used to add queries to the transaction (from within an extension)
+- [ ] Setup `zonai` to be used as a library within a server
+  - [ ] This way I can use this within a server project, and not need to create a new server just for the DB
 
 ## CLI
 
@@ -50,38 +50,3 @@
 ### Backlog
 
 - Add support for multi-path schema definitions
-
-BEFORE WE START JUMPING INTO GENERATING CODE, LETS SEE HOW FAR WE CAN GET WITHOUT GENERATING CODE:
-
-- How do we define table security?
-  - actions:
-    - list/search
-    - view
-    - create
-    - update
-    - delete
-  - This needs to be type safe and testable
-- How does the client communicate to the server/db?
-- How does the user define custom SQL queries?
-- How does the user extend the database?
-- How can the server access the schemas if its precompiled/dynamic?
-  - It can't, it would need to be generated
-
-# Ideas
-
-- What if we created a couple different types of "Collection" classes that the user can extend?
-  - Types
-    - Base Collection
-      - Methods:
-        - List
-        - Search
-        - View
-        - Create
-        - Update
-      - Each method would supply an instance of the request object
-        - Protected would contain the user, JWT, etc
-        - Public would not contain any of this
-    - `PublicCollection extends BaseCollection`
-    - `ProtectedCollection extends BaseCollection`
-  - The return type of each method would be set, so the user would need to comply with the return type
-  - The user could optimize the request if they wanted to, or they could use the default implementation `super.method()`

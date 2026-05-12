@@ -82,7 +82,7 @@ List<CollectionRulesRequest> _exampleRequests() {
   ];
 }
 
-Future<CanAccessResponse?> _readCanAccessForId(
+Future<CollectionRulesResponse?> _readCanAccessForId(
   StreamIterator<String> lineIter,
   String wantId,
 ) async {
@@ -95,13 +95,13 @@ Future<CanAccessResponse?> _readCanAccessForId(
   return null;
 }
 
-CanAccessResponse? _tryParseCanAccess(String line) {
+CollectionRulesResponse? _tryParseCanAccess(String line) {
   final trimmed = line.trim();
   if (!trimmed.startsWith('{')) return null;
   try {
     final map = jsonDecode(trimmed) as Map<String, dynamic>;
     if (map['path'] == 'can_access' && map.containsKey('canAccess')) {
-      return CanAccessResponse.fromJson(map);
+      return CollectionRulesResponse.fromJson(map);
     }
   } catch (_) {
     // Handler debug lines or non-JSON.
