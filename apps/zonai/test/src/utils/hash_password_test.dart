@@ -8,6 +8,7 @@ import '../../../lib/src/utils/hash_password.dart';
 /// Low-cost parameters so Argon2 remains correct but tests stay fast.
 const _testPepper = 'test-app-pepper';
 const _hasher = HashPassword(
+  passwordPepper: _testPepper,
   memoryKiB: 64,
   iterations: 1,
   parallelism: 1,
@@ -28,32 +29,18 @@ void main() {
       'same password verifies successfully against stored encoding',
       () async {
         const password = 'correct-horse-battery-staple';
-        final encoded = await _hasher.hash(
-          password: password,
-          appPepper: _testPepper,
-        );
+        final encoded = await _hasher.hash(password: password);
         expect(
-          await _hasher.verify(
-            appPepper: _testPepper,
-            passwordHash: encoded,
-            rawPassword: password,
-          ),
+          await _hasher.verify(passwordHash: encoded, rawPassword: password),
           isTrue,
         );
       },
     );
 
     test('wrong password fails verification', () async {
-      final encoded = await _hasher.hash(
-        password: 'secret',
-        appPepper: _testPepper,
-      );
+      final encoded = await _hasher.hash(password: 'secret');
       expect(
-        await _hasher.verify(
-          appPepper: _testPepper,
-          passwordHash: encoded,
-          rawPassword: 'wrong',
-        ),
+        await _hasher.verify(passwordHash: encoded, rawPassword: 'wrong'),
         isFalse,
       );
     });
@@ -62,14 +49,8 @@ void main() {
       'same password produces different encodings when salts differ',
       () async {
         const password = 'same-password';
-        final a = await _hasher.hash(
-          password: password,
-          appPepper: _testPepper,
-        );
-        final b = await _hasher.hash(
-          password: password,
-          appPepper: _testPepper,
-        );
+        final a = await _hasher.hash(password: password);
+        final b = await _hasher.hash(password: password);
         expect(a, isNot(b));
       },
     );
@@ -80,6 +61,7 @@ void main() {
         const rightPepper = 'right-pepper';
         const wrongPepper = 'wrong-pepper';
         final enrollment = const HashPassword(
+          passwordPepper: rightPepper,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,
@@ -87,22 +69,16 @@ void main() {
           saltLength: 16,
         );
         final login = const HashPassword(
+          passwordPepper: wrongPepper,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,
           hashLength: 32,
           saltLength: 16,
         );
-        final encoded = await enrollment.hash(
-          password: 'secret',
-          appPepper: rightPepper,
-        );
+        final encoded = await enrollment.hash(password: 'secret');
         expect(
-          await login.verify(
-            appPepper: wrongPepper,
-            passwordHash: encoded,
-            rawPassword: 'secret',
-          ),
+          await login.verify(passwordHash: encoded, rawPassword: 'secret'),
           isFalse,
         );
       },
@@ -111,16 +87,9 @@ void main() {
     test(
       'verification reuses stored salt from encoding, not a newly generated one',
       () async {
-        final enrollment = await _hasher.hash(
-          password: 'secret',
-          appPepper: _testPepper,
-        );
+        final enrollment = await _hasher.hash(password: 'secret');
         expect(
-          await _hasher.verify(
-            appPepper: _testPepper,
-            passwordHash: enrollment,
-            rawPassword: 'secret',
-          ),
+          await _hasher.verify(passwordHash: enrollment, rawPassword: 'secret'),
           isTrue,
         );
       },
@@ -130,21 +99,13 @@ void main() {
       'replacing only the salt segment breaks verification (digest bound to stored salt)',
       () async {
         final otherSalt = Uint8List.fromList(List<int>.filled(16, 0xab));
-        final encoded = await _hasher.hash(
-          password: 'p',
-          appPepper: _testPepper,
-          salt: fixedSalt,
-        );
+        final encoded = await _hasher.hash(password: 'p', salt: fixedSalt);
         final dot = encoded.indexOf('.');
         expect(dot, greaterThan(0));
         final digestPart = encoded.substring(dot + 1);
         final tampered = '${base64Encode(otherSalt)}.$digestPart';
         expect(
-          await _hasher.verify(
-            appPepper: _testPepper,
-            passwordHash: tampered,
-            rawPassword: 'p',
-          ),
+          await _hasher.verify(passwordHash: tampered, rawPassword: 'p'),
           isFalse,
         );
       },
@@ -154,16 +115,8 @@ void main() {
       test(
         'is deterministic for the same password, pepper, and salt',
         () async {
-          final a = await _hasher.hash(
-            password: 'secret',
-            appPepper: _testPepper,
-            salt: fixedSalt,
-          );
-          final b = await _hasher.hash(
-            password: 'secret',
-            appPepper: _testPepper,
-            salt: fixedSalt,
-          );
+          final a = await _hasher.hash(password: 'secret', salt: fixedSalt);
+          final b = await _hasher.hash(password: 'secret', salt: fixedSalt);
           expect(a, b);
         },
       );
@@ -172,6 +125,7 @@ void main() {
         const pepperA = 'pepper-a-instance';
         const pepperB = 'pepper-b-instance';
         final hasherA = HashPassword(
+          passwordPepper: pepperA,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,
@@ -179,45 +133,26 @@ void main() {
           saltLength: 16,
         );
         final hasherB = HashPassword(
+          passwordPepper: pepperB,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,
           hashLength: 32,
           saltLength: 16,
         );
-        final a = await hasherA.hash(
-          password: 'secret',
-          appPepper: pepperA,
-          salt: fixedSalt,
-        );
-        final b = await hasherB.hash(
-          password: 'secret',
-          appPepper: pepperB,
-          salt: fixedSalt,
-        );
+        final a = await hasherA.hash(password: 'secret', salt: fixedSalt);
+        final b = await hasherB.hash(password: 'secret', salt: fixedSalt);
         expect(a, isNot(b));
       });
 
       test('changes when password changes', () async {
-        final pa = await _hasher.hash(
-          password: 'secret-a',
-          appPepper: _testPepper,
-          salt: fixedSalt,
-        );
-        final pb = await _hasher.hash(
-          password: 'secret-b',
-          appPepper: _testPepper,
-          salt: fixedSalt,
-        );
+        final pa = await _hasher.hash(password: 'secret-a', salt: fixedSalt);
+        final pb = await _hasher.hash(password: 'secret-b', salt: fixedSalt);
         expect(pa, isNot(pb));
       });
 
       test('stored form is saltBase64.digestBase64 only', () async {
-        final encoded = await _hasher.hash(
-          password: 'x',
-          appPepper: _testPepper,
-          salt: fixedSalt,
-        );
+        final encoded = await _hasher.hash(password: 'x', salt: fixedSalt);
         expect(encoded, isNot(contains(r'$')));
         final parts = encoded.split('.');
         expect(parts.length, 2);
@@ -232,7 +167,6 @@ void main() {
       test('returns false for malformed encoding', () async {
         expect(
           await _hasher.verify(
-            appPepper: _testPepper,
             passwordHash: 'not-a-phc-string',
             rawPassword: 'x',
           ),
@@ -247,11 +181,7 @@ void main() {
           final saltB64 = base64Encode(fixedSalt);
           final bad = '$saltB64.$shortDigestB64';
           expect(
-            await _hasher.verify(
-              appPepper: _testPepper,
-              passwordHash: bad,
-              rawPassword: 'x',
-            ),
+            await _hasher.verify(passwordHash: bad, rawPassword: 'x'),
             isFalse,
           );
         },

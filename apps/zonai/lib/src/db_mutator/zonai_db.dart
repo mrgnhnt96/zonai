@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
-import 'package:raindrop/raindrop.dart' show DatabaseResult, Raindrop;
+import 'package:raindrop/raindrop.dart'
+    show DatabaseResult, Raindrop, ISUDRaindropExecutor;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai/src/internal_collections/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
+import 'package:zonai/src/utils/jwt.dart';
+import 'package:zonai_schema/zonai_schema.dart' hide logger;
 import 'mailman.dart';
 import 'operation_result.dart';
 import 'payloads/payloads.dart';
@@ -105,10 +108,8 @@ class ZonaiDb {
   /// Signs in a user if the credentials are valid
   ///
   /// Signs up a user if the record does not exist
-  Future<(Object? error, Map<String, Object?>? result)> authenticate(
-    String collection,
-    AuthPayload payload,
-  ) async {
+  Future<(Object? error, ({Map<String, Object?> user, String jwt})? result)>
+  authenticate(String collection, AuthPayload payload) async {
     await _requireAuthCollectionAccess(collection, payload);
     final hasAuthRecord = await _hasAuthRecord(
       collection: collection,
@@ -216,10 +217,11 @@ class ZonaiDb {
     return user;
   }
 
-  Future<(Object? error, Map<String, Object?>? result)> signIn(
-    String collection,
-    AuthPayload payload,
-  ) async {
+  // TODO(mrgnhnt): Make this configurable
+  static const jwtPepper = 'jwt_pepper';
+
+  Future<(Object? error, ({Map<String, Object?> user, String jwt})? result)>
+  signIn(String collection, AuthPayload payload) async {
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signIn, payload);
 
@@ -241,13 +243,33 @@ class ZonaiDb {
       );
     }
 
-    return (null, user);
+    final jwtId = JwtId.generate();
+    // TODO(mrgnhnt): Get user ID from the user object
+    final userId = user['id'] as String;
+
+    final jwtObject = await const Jwt(jwtPepper: appPepper).generate(
+      userId: userId,
+      collection: collection,
+      jwtId: jwtId.value,
+      expiresIn: const Duration(days: 365),
+      claims: {},
+    );
+
+    await open();
+    final db = this.db;
+    if (db == null) {
+      throw StateError('Database is not open');
+    }
+
+    await db.insert(into: jwts).values([
+      JwtCollection(id: jwtId, userId: UnknownId(userId)),
+    ]);
+
+    return (null, (user: user, jwt: jwtObject));
   }
 
-  Future<(Object? error, Map<String, Object?>? result)> signUp(
-    String collection,
-    AuthPayload payload,
-  ) async {
+  Future<(Object? error, ({Map<String, Object?> user, String jwt})? result)>
+  signUp(String collection, AuthPayload payload) async {
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signUp, payload);
 
@@ -276,7 +298,7 @@ class ZonaiDb {
       return (error ?? 'Failed', null);
     }
 
-    final created = result.rows.single.toMap();
+    final user = result.rows.single.toMap();
 
     // TODO(mrgnhnt): Send object to extension to sanitize
     final passwordColumn = await _operations.send(
@@ -288,17 +310,39 @@ class ZonaiDb {
       return (null, null);
     }
 
-    created.remove(passwordColumn.columnName);
+    user.remove(passwordColumn.columnName);
 
-    logger.verbose('Created: ${created}', prefix: _prefix);
+    logger.verbose('Created: ${user}', prefix: _prefix);
 
     {
       final onSignUp = await _extensions.send(
-        AuthExtensionRequest.onSignUp(collection: collection, object: created),
+        AuthExtensionRequest.onSignUp(collection: collection, object: user),
       );
     }
 
-    return (null, created);
+    final jwtId = JwtId.generate();
+    // TODO(mrgnhnt): Get user ID from the user object
+    final userId = user['id'] as String;
+
+    final jwtObject = await const Jwt(jwtPepper: appPepper).generate(
+      userId: userId,
+      collection: collection,
+      jwtId: jwtId.value,
+      expiresIn: const Duration(days: 365),
+      claims: {},
+    );
+
+    await open();
+    final db = this.db;
+    if (db == null) {
+      throw StateError('Database is not open');
+    }
+
+    await db.insert(into: jwts).values([
+      JwtCollection(id: jwtId, userId: UnknownId(userId)),
+    ]);
+
+    return (null, (user: user, jwt: jwtObject));
   }
 
   Future<void> _requireAuthRecordAccess(

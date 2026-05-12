@@ -110,6 +110,9 @@ Future<(int?, String?)> _signUp() async {
     return (1, null);
   }
 
+  logger.info('Signed up user: ${result.user}');
+  logger.info('Signed up JWT: ${result.jwt}');
+
   return (null, email);
 }
 
@@ -123,6 +126,9 @@ Future<int?> _signIn(String email) async {
     logger.err('Failed to authenticate: $error');
     return 1;
   }
+
+  logger.info('Signed in user: ${result.user}');
+  logger.info('Signed in JWT: ${result.jwt}');
 
   return null;
 }
@@ -145,6 +151,9 @@ Future<int?> _authenticate() async {
     logger.err('Failed to authenticate: $error');
     return 1;
   }
+
+  logger.info('Authenticated user: ${result.user}');
+  logger.info('Authenticated JWT: ${result.jwt}');
 
   return null;
 }
