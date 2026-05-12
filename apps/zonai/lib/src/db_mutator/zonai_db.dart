@@ -4,10 +4,12 @@ import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' show DatabaseResult, Raindrop;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai/src/internal_collections/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'mailman.dart';
 import 'operation_result.dart';
 import 'payloads/payloads.dart';
+import 'sqlite_internal_table_sync.dart';
 import '../deps/extensions.dart';
 import '../deps/fs.dart';
 import '../deps/logger.dart';
@@ -83,8 +85,18 @@ class ZonaiDb {
       await raindrop.migrate(db, migrations);
     }
 
+    await _createInternalCollections(db);
+
     logger.verbose('Ensuring database is open', prefix: _prefix);
     await db.ensureOpen();
+  }
+
+  Future<void> _createInternalCollections(Raindrop db) async {
+    final sqlSync = SqliteInternalTableSync(
+      onRebuildScheduled: (message) => logger.verbose(message, prefix: _prefix),
+    );
+
+    await sqlSync.ensureMatchingTable(db, jwts);
   }
 
   // TODO(mrgnhnt): Make this configurable

@@ -9,6 +9,7 @@ extension IdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
     Id? value, {
     required Id Function(String) fromString,
     required Id Function() generate,
+    bool isPrimaryKey = true,
   }) {
     final column =
         custom<Id, String, IdColumn<Id>, T>(
@@ -24,7 +25,11 @@ extension IdColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
             )
             as T;
 
-    return column.primaryKey() as T;
+    if (isPrimaryKey) {
+      return column.primaryKey() as T;
+    }
+
+    return column;
   }
 }
 

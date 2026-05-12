@@ -1,5 +1,17 @@
 # TODO
 
+## 5.11.2026 — Inline TODOs (synced from code comments)
+
+### zonai / zonai_schema
+
+- [ ] `password_column.dart`: ensure passwords are hashed before persistence (see column TODO)
+- [ ] `zonai_db.dart`: make auth `appPepper` configurable (currently hard-coded)
+- [ ] `zonai_db.dart`: send auth record objects to the extension for sanitization (`_authRecord`, sign-up result path)
+- [ ] `zonai_db.dart`: forward the user’s object into collection rules (`_collectionRules` currently uses `isSuperUser: true` placeholder)
+- [ ] `db_operations.dart`: resolve operations directory from settings (replace `__TODO__GET_OPERATIONS_DIR__`)
+- [ ] Add `onSignUp` and `onSignIn` hooks to the auth extensions
+  - [ ] Create auth extensions
+
 ## 4.15.2026
 
 - [ ] Support compiling to different arch-types

@@ -19,6 +19,8 @@ dependencies:
   yaml: ^3.1.0
   zonai_logger:
     path: ../../libs/zonai_logger
+  zonai_schema:
+    path: ../../libs/zonai_schema
 
 dev_dependencies:
   test: ^1.26.0

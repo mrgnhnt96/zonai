@@ -29,3 +29,10 @@ abstract interface class Id {
 
   int get hashCode => value.hashCode;
 }
+
+class UnknownId implements Id {
+  const UnknownId(this.value);
+
+  @override
+  final String value;
+}
