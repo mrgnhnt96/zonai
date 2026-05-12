@@ -201,13 +201,13 @@ class ZonaiDb {
       return null;
     }
 
-    final passwordsMatch = await const HashPassword().verify(
-      rawPassword: switch (payload) {
-        PasswordAuthPayload() => payload.password,
-      },
-      passwordHash: passwordHash,
-      appPepper: appPepper,
-    );
+    final passwordsMatch = await const HashPassword(passwordPepper: appPepper)
+        .verify(
+          rawPassword: switch (payload) {
+            PasswordAuthPayload() => payload.password,
+          },
+          passwordHash: passwordHash,
+        );
 
     if (!passwordsMatch) {
       throw StateError('Invalid password or email');
@@ -251,12 +251,12 @@ class ZonaiDb {
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signUp, payload);
 
-    final hashedPassword = await const HashPassword().hash(
-      password: switch (payload) {
-        PasswordAuthPayload() => payload.password,
-      },
-      appPepper: appPepper,
-    );
+    final hashedPassword = await const HashPassword(passwordPepper: appPepper)
+        .hash(
+          password: switch (payload) {
+            PasswordAuthPayload() => payload.password,
+          },
+        );
 
     final operation = await _getOperation(
       CreateAuthOperationRequest(

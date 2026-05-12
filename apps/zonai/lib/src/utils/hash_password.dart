@@ -6,7 +6,7 @@ import 'package:argon2/argon2.dart';
 
 /// Argon2id password hashing with a random salt per credential.
 ///
-/// Pass [appPepper] to [hash] and [verify]; it must **never** be persisted in
+/// Pass [passwordPepper] to [hash] and [verify]; it must **never** be persisted in
 /// the database.
 ///
 /// [hash] returns `<saltBase64>.<digestBase64>` — only the salt and digest are
@@ -20,6 +20,7 @@ import 'package:argon2/argon2.dart';
 /// Adjust via [HashPassword] constructor if your threat model differs.
 final class HashPassword {
   const HashPassword({
+    required this.passwordPepper,
     this.memoryKiB = 19456,
     this.iterations = 3,
     this.parallelism = 1,
@@ -33,6 +34,8 @@ final class HashPassword {
          'hashLength must be at least ${Argon2BytesGenerator.MIN_OUTLEN}',
        ),
        assert(saltLength >= 8, 'saltLength must be at least 8');
+
+  final String passwordPepper;
 
   /// Argon2 `m` cost (kibibytes).
   final int memoryKiB;
@@ -49,14 +52,10 @@ final class HashPassword {
   /// Random salt length in bytes (from [Random.secure]) when [salt] is omitted.
   final int saltLength;
 
-  /// Returns `<saltBase64>.<digestBase64>` for storage ([appPepper] is never included).
+  /// Returns `<saltBase64>.<digestBase64>` for storage ([passwordPepper] is never included).
   ///
   /// For tests only, pass [salt] for deterministic output; omit in production.
-  Future<String> hash({
-    required String password,
-    required String appPepper,
-    List<int>? salt,
-  }) async {
+  Future<String> hash({required String password, List<int>? salt}) async {
     final Uint8List resolvedSalt;
     if (salt == null) {
       resolvedSalt = generateSecureSalt(saltLength);
@@ -69,17 +68,16 @@ final class HashPassword {
 
     final digest = _computeDigest(
       password: password,
-      pepper: appPepper,
+      pepper: passwordPepper,
       salt: resolvedSalt,
     );
     return _encodeStored(salt: resolvedSalt, hash: digest);
   }
 
-  /// Returns whether [appPepper] and [rawPassword] reproduce [passwordHash],
+  /// Returns whether [passwordPepper] and [rawPassword] reproduce [passwordHash],
   /// using Argon2 parameters from **this** instance and the salt from
   /// [passwordHash].
   Future<bool> verify({
-    required String appPepper,
     required String passwordHash,
     required String rawPassword,
   }) async {
@@ -101,7 +99,7 @@ final class HashPassword {
 
     final expected = _computeDigest(
       password: rawPassword,
-      pepper: appPepper,
+      pepper: passwordPepper,
       salt: parsed.salt,
     );
 
