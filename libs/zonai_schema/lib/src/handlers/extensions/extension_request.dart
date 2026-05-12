@@ -2,7 +2,7 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 
 sealed class ExtensionRequest extends Request {
-  const ExtensionRequest({required super.path, required super.id, required this.step, required this.type});
+  const ExtensionRequest({required super.path, required super.id});
 
   factory ExtensionRequest.fromRequest(UnknownRequest request) {
     return switch (request.path) {
@@ -11,9 +11,46 @@ sealed class ExtensionRequest extends Request {
       AfterUpdateExtensionRequest._path => AfterUpdateExtensionRequest.fromRequest(request),
       DeleteExtensionRequest._path => DeleteExtensionRequest.fromRequest(request),
       ErrorExtensionRequest._path => ErrorExtensionRequest.fromRequest(request),
-      _ => throw UnimplementedError(),
+      AuthExtensionRequest._path => AuthExtensionRequest.fromRequest(request),
+      _ => throw ArgumentError('Invalid extension request path: ${request.path}'),
     };
   }
+}
+
+enum ExtensionStep { before, afterSuccess, afterError }
+
+enum ExtensionType { create, update, delete }
+
+enum AuthExtensionStep { onSignUp, onSignIn }
+
+final class AuthExtensionRequest extends ExtensionRequest {
+  AuthExtensionRequest.onSignUp({required this.collection, required this.object}) : step = .onSignUp, super(path: _path, id: Request.generateId());
+  AuthExtensionRequest.onSignIn({required this.collection, required this.object}) : step = .onSignIn, super(path: _path, id: Request.generateId());
+  AuthExtensionRequest._({required super.id, required this.collection, required this.object, required this.step}) : super(path: _path);
+
+  factory AuthExtensionRequest.fromRequest(UnknownRequest request) {
+    return AuthExtensionRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+      object: request.payload['object'] as Map<String, dynamic>,
+      step: AuthExtensionStep.values.byName(request.payload['step'] as String),
+    );
+  }
+
+  static const _path = 'extension.auth';
+
+  final String collection;
+  final Map<String, dynamic> object;
+  final AuthExtensionStep step;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection, 'object': object, 'step': step.name};
+  }
+}
+
+sealed class RecordExtensionRequest extends ExtensionRequest {
+  const RecordExtensionRequest({required super.path, required super.id, required this.step, required this.type});
 
   final ExtensionStep step;
   final ExtensionType type;
@@ -24,11 +61,7 @@ sealed class ExtensionRequest extends Request {
   }
 }
 
-enum ExtensionStep { before, afterSuccess, afterError }
-
-enum ExtensionType { create, update, delete }
-
-final class ErrorExtensionRequest extends ExtensionRequest {
+final class ErrorExtensionRequest extends RecordExtensionRequest {
   ErrorExtensionRequest.create({required this.collection, required this.error})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .create);
   ErrorExtensionRequest.update({required this.collection, required this.error})
@@ -60,7 +93,7 @@ final class ErrorExtensionRequest extends ExtensionRequest {
   }
 }
 
-final class CreateExtensionRequest extends ExtensionRequest {
+final class CreateExtensionRequest extends RecordExtensionRequest {
   CreateExtensionRequest.before({required this.collection, required this.object})
     : super(path: _path, id: Request.generateId(), step: .before, type: .create);
   CreateExtensionRequest.afterSuccess({required this.collection, required this.object})
@@ -89,7 +122,7 @@ final class CreateExtensionRequest extends ExtensionRequest {
   }
 }
 
-final class DeleteExtensionRequest extends ExtensionRequest {
+final class DeleteExtensionRequest extends RecordExtensionRequest {
   DeleteExtensionRequest.before({required this.collection, required this.objects})
     : super(path: _path, id: Request.generateId(), step: .before, type: .create);
   DeleteExtensionRequest.afterSuccess({required this.collection, required this.objects})
@@ -118,7 +151,7 @@ final class DeleteExtensionRequest extends ExtensionRequest {
   }
 }
 
-final class BeforeUpdateExtensionRequest extends ExtensionRequest {
+final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
   BeforeUpdateExtensionRequest({required this.collection, required this.objects})
     : super(path: _path, step: .before, type: .update, id: Request.generateId());
 
@@ -145,7 +178,7 @@ final class BeforeUpdateExtensionRequest extends ExtensionRequest {
   }
 }
 
-final class AfterUpdateExtensionRequest extends ExtensionRequest {
+final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
   AfterUpdateExtensionRequest({required this.collection, required this.before, required this.after})
     : assert(before.length == after.length, 'Before and after must have the same length'),
       super(path: _path, step: .afterSuccess, type: .update, id: Request.generateId());

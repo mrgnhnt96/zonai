@@ -57,6 +57,10 @@ class DbExtensions {
           case final ErrorExtensionRequest request:
             await _error(request);
             return NoActionExtensionResponse(id: request.id);
+
+          case final AuthExtensionRequest request:
+            await _auth(request);
+            return NoActionExtensionResponse(id: request.id);
         }
       },
     ).listen();
@@ -162,6 +166,24 @@ class DbExtensions {
       case .delete:
         if (extension case DeleteExtension(:final afterDeleteError)) {
           await afterDeleteError(request.error);
+        }
+    }
+  }
+
+  Future<void> _auth(AuthExtensionRequest request) async {
+    final extension = extensionsByCollection[request.collection];
+    if (extension == null) {
+      return;
+    }
+
+    switch (request.step) {
+      case .onSignUp:
+        if (extension case AuthExtension(:final onSignUp)) {
+          await onSignUp(extension.table.safeCreate(request.object));
+        }
+      case .onSignIn:
+        if (extension case AuthExtension(:final onSignIn)) {
+          await onSignIn(extension.table.safeCreate(request.object));
         }
     }
   }

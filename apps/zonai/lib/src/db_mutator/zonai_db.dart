@@ -223,6 +223,12 @@ class ZonaiDb {
       throw StateError('User not found, cannot sign in');
     }
 
+    {
+      final onSignIn = await _extensions.send(
+        AuthExtensionRequest.onSignIn(collection: collection, object: user),
+      );
+    }
+
     return (null, user);
   }
 
@@ -273,6 +279,12 @@ class ZonaiDb {
     created.remove(passwordColumn.columnName);
 
     logger.verbose('Created: ${created}', prefix: _prefix);
+
+    {
+      final onSignUp = await _extensions.send(
+        AuthExtensionRequest.onSignUp(collection: collection, object: created),
+      );
+    }
 
     return (null, created);
   }

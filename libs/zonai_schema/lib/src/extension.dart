@@ -25,3 +25,8 @@ mixin DeleteExtension<T extends Schema<T>> on Extension<T> {
   Future<void> afterDeleteSuccess(T row) async {}
   Future<void> afterDeleteError(Object error) async {}
 }
+
+mixin AuthExtension<T extends Schema<T>> on Extension<T> {
+  Future<void> onSignUp(T user) async {}
+  Future<void> onSignIn(T user) async {}
+}

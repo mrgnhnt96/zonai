@@ -57,6 +57,10 @@ S authCollection<S extends AuthCollection<S>>(
         }
       } else {
         uniqueIndex('${name}.id_unique').on(table.id);
+
+        if (S case PasswordAuth(:final email)) {
+          uniqueIndex('${name}.email_unique').on(email);
+        }
       }
     },
   );
