@@ -23,9 +23,6 @@ extension _AuthX on ZonaiDb {
     return await _signIn(collection, payload);
   }
 
-  // TODO(mrgnhnt): Make this configurable
-  static const jwtPepper = 'jwt_pepper';
-
   Future<_Result<_AuthResult>> _signIn(
     String collection,
     AuthPayload payload,
@@ -53,14 +50,17 @@ extension _AuthX on ZonaiDb {
 
     final jwtId = JwtId.generate();
     // TODO(mrgnhnt): Get user ID from the user object
-    final userId = user['id'] as String;
+    const column = 'id';
+    final userId = user[column] as String;
 
     final jwtObject = await _jwt.generate(
       AppJwt.create(
         userId: userId,
         collection: collection,
+        user: user,
         jwtId: jwtId.value,
         expiresIn: const Duration(days: 365),
+        // TODO(mrgnhnt): Get claims from Config exe
         claims: {},
       ),
     );
@@ -133,14 +133,41 @@ extension _AuthX on ZonaiDb {
 
     final jwtId = JwtId.generate();
     // TODO(mrgnhnt): Get user ID from the user object
-    final userId = user['id'] as String;
+    const column = 'id';
+    final userId = user[column] as String;
+
+    final userOperation = await _operations.send(
+      ViewOperationRequest(
+        collection: collection,
+        where: Eq(column, userId).sql(collection),
+      ),
+    );
+    if (userOperation is! PerformOperationResponse) {
+      throw StateError('Failed to get user object');
+    }
+
+    Map<String, Object?> userObject;
+    {
+      final (error, result) = await _execute((
+        userOperation.query,
+        userOperation.values,
+      ));
+
+      if (error != null || result == null) {
+        throw StateError('Failed to get user object: ${error}');
+      }
+
+      userObject = result.rows.single.toMap();
+    }
 
     final jwtObject = await _jwt.generate(
       AppJwt.create(
         userId: userId,
+        user: userObject,
         collection: collection,
         jwtId: jwtId.value,
         expiresIn: const Duration(days: 365),
+        // TODO(mrgnhnt): Get claims from Config exe
         claims: {},
       ),
     );

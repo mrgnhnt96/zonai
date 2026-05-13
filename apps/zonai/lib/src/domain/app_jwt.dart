@@ -6,6 +6,7 @@ class AppJwt {
   const AppJwt({
     required this.userId,
     required this.collection,
+    required this.user,
     required this.jwtId,
     required this.expiresAt,
     required this.claims,
@@ -14,6 +15,7 @@ class AppJwt {
   factory AppJwt.create({
     required String userId,
     required String collection,
+    required Map<String, Object?> user,
     required String jwtId,
     required Duration expiresIn,
     required Map<String, Object?> claims,
@@ -21,6 +23,7 @@ class AppJwt {
     return AppJwt(
       userId: userId,
       collection: collection,
+      user: user,
       jwtId: jwtId,
       expiresAt: clock.now().add(expiresIn),
       claims: claims,
@@ -31,6 +34,7 @@ class AppJwt {
     return AppJwt(
       userId: json['userId'],
       collection: json['collection'],
+      user: json['user'],
       jwtId: json['jwtId'],
       expiresAt: DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] * 1000),
       claims: json['claims'],
@@ -49,6 +53,7 @@ class AppJwt {
 
   final String userId;
   final String collection;
+  final Map<String, Object?> user;
   final String jwtId;
   final DateTime expiresAt;
   final Map<String, Object?> claims;
