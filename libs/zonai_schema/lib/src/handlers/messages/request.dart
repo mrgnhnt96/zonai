@@ -112,7 +112,7 @@ final class GetRecordRequest extends Request {
     );
   }
 
-  static const _path = 'request.get_record';
+  static const _path = '${Request.prefix}.get_record';
 
   final String collection;
   final Where where;
