@@ -14,6 +14,24 @@ class ItemExtensions extends Extension<Item>
 
   @override
   Future<void> afterCreateSuccess(Item object) async {
+    final results = await get(
+      collection: 'items',
+      where: Eq('id', object.id),
+      limit: 1,
+    );
+
+    if (results == null) {
+      throw StateError('Failed to get item');
+    }
+
+    if (results.length != 1) {
+      throw StateError('Failed to get item: $results');
+    }
+
+    final item = results.single;
+
+    logger.warn('GOT Items IN EXTENSION!!!: $item');
+
     logger.debug('EXTENSION afterCreateSuccess');
   }
 
