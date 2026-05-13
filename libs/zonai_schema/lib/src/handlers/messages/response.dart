@@ -19,6 +19,7 @@ base class Response {
       DebugResponse._path => DebugResponse.fromJson(json),
       PongResponse._path => PongResponse.fromJson(json),
       MessageErrorResponse._path => MessageErrorResponse.fromJson(json),
+      GetRecordResponse._path => GetRecordResponse.fromJson(json),
       _ => Response(path: path, id: id, payload: json),
     };
   }
@@ -138,4 +139,26 @@ final class MessageErrorResponse extends Response {
     if (stackTrace != null) 'stackTrace': stackTrace,
     ...super.toJson(),
   };
+}
+
+final class GetRecordResponse extends Response {
+  GetRecordResponse({required super.id, required this.records})
+    : super(path: _path, payload: {'records': records});
+
+  factory GetRecordResponse.fromJson(Map<String, dynamic> json) {
+    return GetRecordResponse(
+      id: json['id'],
+      records: [
+        for (final record in json['records'] as List<dynamic>)
+          Map<String, Object?>.from(record),
+      ],
+    );
+  }
+
+  static const _path = 'message.get_record';
+
+  final List<Map<String, Object?>> records;
+
+  @override
+  Map<String, dynamic> toJson() => {...super.toJson(), 'records': records};
 }

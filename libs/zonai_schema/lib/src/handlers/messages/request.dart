@@ -17,6 +17,7 @@ abstract base class Request {
     return switch (path) {
       RequestPing._path => RequestPing.fromJson(json),
       RequestKill._path => RequestKill.fromJson(json),
+      GetRecordRequest._path => GetRecordRequest.fromJson(json),
       _ => UnknownRequest(path: path, id: id, payload: json),
     };
   }
@@ -75,4 +76,49 @@ final class RequestKill extends Request {
 
   @override
   String get path => _path;
+}
+
+final class GetRecordRequest extends Request {
+  GetRecordRequest({
+    required this.collection,
+    required this.where,
+    this.limit,
+    this.offset,
+  }) : super(path: _path, id: Request.generateId());
+
+  GetRecordRequest._({
+    required super.id,
+    required this.collection,
+    required this.where,
+    this.limit,
+    this.offset,
+  }) : super(path: _path);
+
+  factory GetRecordRequest.fromJson(Map<String, dynamic> json) {
+    return GetRecordRequest._(
+      id: json['id'] as String,
+      collection: json['collection'] as String,
+      where: Where.fromJson(json['where'] as Map<String, dynamic>),
+      limit: json['limit'] as int?,
+      offset: json['offset'] as int?,
+    );
+  }
+
+  static const _path = 'request.get_record';
+
+  final String collection;
+  final Where where;
+  final int? limit;
+  final int? offset;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'where': where.toJson(),
+      'limit': limit,
+      'offset': offset,
+    };
+  }
 }
