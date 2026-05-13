@@ -7,10 +7,12 @@ import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_schema/src/handlers/messages/stdin.dart';
 import 'package:zonai_schema/src/handlers/messages/stdout.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
+part 'deps/__log.dart';
+part 'deps/__get.dart';
 part 'request.dart';
 part 'response.dart';
-part 'deps/__log.dart';
 
 class MessageHandler {
   MessageHandler({required this.onMessage, Stdin? stdin, Stdout? stdout})
@@ -21,6 +23,8 @@ class MessageHandler {
   final Stdin stdin;
   final Stdout stdout;
 
+  final Map<String, Completer<Response>> _pendingHostReplies = {};
+
   bool _listening = false;
   Future<void> listen() async {
     Future<void> _listen() async {
@@ -30,6 +34,8 @@ class MessageHandler {
       final stream = stdin.stream
           .transform(utf8.decoder)
           .transform(const LineSplitter());
+
+      queue:
       await for (final line in stream) {
         final message = line.trim();
         if (message.isEmpty) continue;
@@ -37,41 +43,102 @@ class MessageHandler {
           break;
         }
 
-        if (_decode(message) case final decoded?) {
-          switch (decoded) {
-            case RequestPing():
-              send(PongResponse(id: decoded.id));
-              continue;
-            case RequestKill():
-              break;
-            case UnknownRequest():
-              onMessage(decoded).then(
-                send,
-                onError: (Object error, StackTrace stackTrace) {
-                  logger.error(
-                    'Error handling request',
+        final map = _tryJsonObject(message);
+        if (map == null) continue;
+
+        final pathRaw = map['path'];
+
+        if (pathRaw is String && pathRaw.startsWith(Response.prefix)) {
+          Response? response;
+          try {
+            response = Response.fromJson(map);
+          } catch (e, stack) {
+            logger.error(
+              'Invalid response JSON',
+              error: '$e',
+              stackTrace: '$stack',
+            );
+            continue;
+          }
+          if (_pendingHostReplies.containsKey(response.id)) {
+            _deliverHostReply(response);
+            continue;
+          }
+          logger.warn(
+            'Ignoring response JSON with no pending id',
+            properties: {'path': pathRaw, 'id': response.id},
+          );
+          continue;
+        }
+
+        if (pathRaw is! String || !pathRaw.startsWith(Request.prefix)) {
+          logger.error(
+            'Invalid stdin message path (expected ${Request.prefix})',
+            properties: {'path': pathRaw},
+          );
+          continue;
+        }
+
+        Request request;
+        try {
+          request = Request.fromJson(map);
+        } catch (e, stack) {
+          logger.error(
+            'Invalid request JSON for path "$pathRaw"',
+            error: '$e',
+            stackTrace: '$stack',
+          );
+          continue;
+        }
+
+        switch (request) {
+          case RequestPing():
+            reply(PongResponse(id: request.id));
+            continue;
+          case RequestKill():
+            break queue;
+          case final UnknownRequest request:
+            onMessage(request).then(
+              reply,
+              onError: (Object error, StackTrace stackTrace) {
+                logger.error(
+                  'Error handling request',
+                  error: error.toString(),
+                  stackTrace: stackTrace.toString(),
+                  properties: {
+                    'path': request.path,
+                    'id': request.id,
+                    'request': request.payload,
+                  },
+                );
+                reply(
+                  MessageErrorResponse(
+                    id: request.id,
+                    message: 'Error handling request',
                     error: error.toString(),
                     stackTrace: stackTrace.toString(),
-                    properties: {
-                      'path': decoded.path,
-                      'id': decoded.id,
-                      'request': decoded.payload,
-                    },
-                  );
-                  send(
-                    MessageErrorResponse(
-                      id: decoded.id,
-                      message: 'Error handling request',
-                      error: error.toString(),
-                      stackTrace: stackTrace.toString(),
-                    ),
-                  );
-                },
-              );
-          }
+                  ),
+                );
+              },
+            );
+          case _:
+            reply(
+              MessageErrorResponse(
+                id: request.id,
+                message: 'Unhandled request ${request.id}',
+                error:
+                    'Unhandled request ${request.runtimeType}(${request.path})',
+              ),
+            );
         }
       }
 
+      for (final completer in _pendingHostReplies.values) {
+        completer.completeError(
+          StateError('MessageHandler stopped before the host replied'),
+        );
+      }
+      _pendingHostReplies.clear();
       _listening = false;
     }
 
@@ -80,6 +147,34 @@ class MessageHandler {
         await runScoped(
           _listen,
           values: {
+            _getRecordRequestProvider.overrideWith(
+              () => _GetRecords(({
+                required collection,
+                required where,
+                limit,
+                offset,
+              }) async {
+                final result = await sendRequest(
+                  GetRecordRequest(
+                    collection: collection,
+                    where: where,
+                    limit: limit,
+                    offset: offset,
+                  ),
+                );
+
+                if (result case GetRecordResponse(:final records)) {
+                  return records;
+                } else {
+                  logger.error(
+                    'Received unexpected response for get record request ${result?.path}',
+                  );
+                  logger.debug('Unexpected Response: ${result?.toJson()}');
+                }
+
+                return null;
+              }),
+            ),
             _loggerProvider.overrideWith(
               () => _Logger((
                 message, {
@@ -88,7 +183,7 @@ class MessageHandler {
                 stackTrace,
                 error,
               }) {
-                send(
+                reply(
                   DebugResponse(
                     message: message,
                     level: level,
@@ -104,13 +199,38 @@ class MessageHandler {
       },
       zoneSpecification: .new(
         print: (_, _, _, message) {
-          send(DebugResponse(message: message, level: .info));
+          reply(DebugResponse(message: message, level: .info));
         },
       ),
     );
   }
 
-  void send(Response? message) {
+  /// Asks the host process (main thread) for data by writing [request] as JSON
+  /// to stdout and waiting for a matching [Response] on stdin (same [id]).
+  ///
+  /// A host [MessageErrorResponse] is turned into [MessageHandlerFailedException].
+  Future<Response?> sendRequest(Request request) async {
+    if (!_listening) {
+      assert(false, 'Cannot send a request while not listening');
+      return null;
+    }
+    final completer = Completer<Response>();
+    _pendingHostReplies[request.id] = completer;
+
+    final String json;
+    try {
+      json = jsonEncode(request.toJson());
+    } catch (e) {
+      _pendingHostReplies.remove(request.id);
+      assert(false, 'Failed to encode request: $e');
+      return null;
+    }
+
+    stdout.writeln(json);
+    return await completer.future;
+  }
+
+  void reply(Response? message) {
     if (message == null) return;
     assert(_listening, 'Cannot send a message while not listening');
 
@@ -126,13 +246,36 @@ class MessageHandler {
     stdout.writeln(json);
   }
 
-  Request? _decode(String message) {
+  void _deliverHostReply(Response response) {
+    final completer = _pendingHostReplies.remove(response.id);
+    if (completer == null) {
+      logger.error('Received response for unknown request: ${response.id}');
+      return;
+    }
+    try {
+      if (response is MessageErrorResponse) {
+        completer.completeError(
+          MessageHandlerFailedException(
+            response.message,
+            cause: response.error,
+            causeStackTrace: response.stackTrace,
+          ),
+        );
+      } else {
+        completer.complete(response);
+      }
+    } on Object catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
+    }
+  }
+
+  Map<String, dynamic>? _tryJsonObject(String message) {
     try {
       return switch (jsonDecode(message)) {
-        final Map<String, dynamic> json => Request.fromJson(json),
+        final Map<String, dynamic> json => json,
         _ => null,
       };
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }

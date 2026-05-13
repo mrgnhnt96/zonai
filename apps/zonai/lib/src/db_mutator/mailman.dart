@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 
+import '../db_mutator/payloads/payloads.dart';
 import '../deps/clean_up.dart';
+import '../deps/zonai_db.dart';
 import '../deps/fs.dart';
 import '../deps/logger.dart';
 import '../deps/process.dart';
@@ -14,16 +16,21 @@ class Mailman<S extends Request, R extends Response> {
     required this.debugName,
     required this.executablePath,
     required R Function(Map<String, dynamic>) fromJson,
-  }) : _response = StreamController<Response>.broadcast(),
+  }) : _response = StreamController.broadcast(),
+       _request = StreamController.broadcast(),
        _fromJson = fromJson {
     cleanUp.add(dispose);
     _responseSubscription = _response.stream.listen(_handleResponse);
+    _requestSubscription = _request.stream.listen(_handleRequest);
   }
 
   final String debugName;
   final R Function(Map<String, dynamic>) _fromJson;
   final String executablePath;
+
   io.Process? _process;
+  final StreamController<Request> _request;
+  late final StreamSubscription<Request> _requestSubscription;
   final StreamController<Response> _response;
   late final StreamSubscription<Response> _responseSubscription;
 
@@ -33,6 +40,8 @@ class Mailman<S extends Request, R extends Response> {
     kill();
     _response.close();
     _responseSubscription.cancel();
+    _request.close();
+    _requestSubscription.cancel();
   }
 
   String get _prefix => '[${debugName.toUpperCase()}_EXE]';
@@ -66,39 +75,80 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
+  void _handleRequest(Request request) async {
+    Response response;
+    try {
+      response = switch (request) {
+        final GetRecordRequest request => await _fetch(request),
+        _ => MessageErrorResponse(
+          id: request.id,
+          message:
+              'Invalid worker request: ${request.runtimeType}(${request.path})',
+          error: null,
+          stackTrace: null,
+        ),
+      };
+    } on MessageHandlerFailedException catch (e) {
+      response = MessageErrorResponse(
+        id: request.id,
+        message: e.message,
+        error: e.cause,
+        stackTrace: e.causeStackTrace,
+      );
+    } catch (e, stack) {
+      logger.error('$_prefix: Error handling worker request', e, stack);
+      response = MessageErrorResponse(
+        id: request.id,
+        message: 'Error handling worker request',
+        error: e.toString(),
+        stackTrace: stack.toString(),
+      );
+    }
+    try {
+      _process?.stdin.writeln(jsonEncode(response.toJson()));
+    } on Object catch (e, stack) {
+      logger.error('$_prefix: Failed to write to child stdin', e, stack);
+    }
+  }
+
   void _handleResponse(Response response) {
     if (response is DebugResponse) {
       _log(response);
       return;
     }
-    if (response is MessageErrorResponse) {
-      final id = response.id;
-      final message = response.message;
-      final err = response.error;
-      final stackTrace = response.stackTrace;
-      final completer = _pendingResponses.remove(id);
+    if (response case final MessageErrorResponse response) {
+      logger.error(
+        '$_prefix: ${response.message}',
+        response.error,
+        switch (response.stackTrace) {
+          null => null,
+          final trace => StackTrace.fromString(trace),
+        },
+      );
+
+      final completer = _pendingResponses.remove(response.id);
       if (completer == null) {
-        assert(false, 'Received error for unknown request: $id');
+        logger.error(
+          '$_prefix: Received error for unknown request: ${response.id}',
+        );
         return;
       }
-      logger.error(
-        '$_prefix $message',
-        err,
-        stackTrace != null ? StackTrace.fromString(stackTrace) : null,
-      );
+
       completer.completeError(
         MessageHandlerFailedException(
-          message,
-          cause: err,
-          causeStackTrace: stackTrace,
+          response.message,
+          cause: response.error,
+          causeStackTrace: response.stackTrace,
         ),
       );
       return;
     }
-    final completer = _pendingResponses.remove(response.id);
 
+    final completer = _pendingResponses.remove(response.id);
     if (completer == null) {
-      assert(false, 'Received response for unknown request: ${response.path}');
+      logger.error(
+        '$_prefix: Received response for unknown request: ${response.path}',
+      );
       return;
     }
 
@@ -107,6 +157,30 @@ class Mailman<S extends Request, R extends Response> {
 
   bool get isRunning => _process != null;
   bool get hasExecutable => fs.file(executablePath).existsSync();
+
+  Future<Response> _fetch(GetRecordRequest request) async {
+    final (error, results) = await zonaiDB.list(
+      request.collection,
+      ListPayload(
+        where: request.where,
+        limit: request.limit,
+        offset: request.offset,
+        // TODO(mrgnhnt): Forward jwt from request (without forwarding it to the worker)
+        jwt: null,
+      ),
+    );
+
+    if (error != null) {
+      return MessageErrorResponse(
+        id: request.id,
+        message: 'Failed to get records',
+        error: '$error',
+        stackTrace: null,
+      );
+    }
+
+    return GetRecordResponse(id: request.id, records: results ?? []);
+  }
 
   Future<io.Process?> _start() async {
     if (_process case final process?) {
@@ -130,20 +204,66 @@ class Mailman<S extends Request, R extends Response> {
       _pendingResponses.clear();
     });
 
-    p.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((
-      event,
-    ) {
-      try {
-        final json = jsonDecode(event.trim()) as Map<String, dynamic>;
-        _response.add(Response.fromJson(json));
-      } catch (e, stack) {
-        logger.error('$_prefix Malformed message on stdout', e, stack);
-      }
-    });
+    p.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen(_listenToMessages);
 
     logger.debug('Started', prefix: _prefix);
 
     return p;
+  }
+
+  void _listenToMessages(String message) {
+    Map<String, dynamic> json;
+    try {
+      json = jsonDecode(message.trim()) as Map<String, dynamic>;
+    } on Object catch (e, stack) {
+      logger.error('$_prefix: Malformed message on stdout', e, stack);
+      return;
+    }
+
+    final pathRaw = json['path'];
+    if (pathRaw is! String) {
+      logger.error('$_prefix: Message missing path');
+      return;
+    }
+
+    switch (pathRaw) {
+      case final p when p.startsWith(Response.prefix):
+        Response response;
+        try {
+          response = Response.fromJson(json);
+        } on Object catch (e, stack) {
+          logger.error(
+            '$_prefix: Invalid response JSON for path "$pathRaw"',
+            e,
+            stack,
+          );
+          return;
+        }
+        _response.add(response);
+
+      case final p when p.startsWith(Request.prefix):
+        Request request;
+        try {
+          request = Request.fromJson(json);
+        } on Object catch (e, stack) {
+          logger.error(
+            '$_prefix: Invalid request JSON for path "$pathRaw"',
+            e,
+            stack,
+          );
+          return;
+        }
+        _request.add(request);
+      case _:
+        logger.error(
+          '$_prefix: Unknown path prefix '
+          '(expected "${Response.prefix}" or "${Request.prefix}"): '
+          '$pathRaw',
+        );
+    }
   }
 
   Future<R?> send(S request) async {
@@ -171,11 +291,10 @@ class Mailman<S extends Request, R extends Response> {
       return null;
     }
 
-    process.stdin.writeln(jsonEncode(request));
-
     final pendingResponse = Completer<Response>();
-
     _pendingResponses[request.id] = pendingResponse;
+
+    process.stdin.writeln(jsonEncode(request.toJson()));
 
     try {
       return await pendingResponse.future.timeout(const Duration(seconds: 1));
