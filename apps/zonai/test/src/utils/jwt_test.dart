@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart';
 import 'package:test/test.dart';
+import 'package:zonai/src/domain/app_jwt.dart';
 
 import '../../../lib/src/utils/jwt.dart';
 
@@ -36,11 +37,14 @@ void main() {
       const expiresIn = Duration(days: 365);
       await withClock(Clock.fixed(DateTime.utc(2020)), () async {
         final token = await jwt.generate(
-          userId: 'user-42',
-          collection: 'things',
-          jwtId: 'jti-ab',
-          expiresIn: expiresIn,
-          claims: {'role': 'admin', 'n': 1, 'nested': <String, Object?>{}},
+          AppJwt.create(
+            userId: 'user-42',
+            collection: 'things',
+            user: {},
+            jwtId: 'jti-ab',
+            expiresIn: expiresIn,
+            claims: {'role': 'admin', 'n': 1, 'nested': <String, Object?>{}},
+          ),
         );
         expect(token.split('.').length, 3);
 
@@ -70,11 +74,14 @@ void main() {
         'meta': <String, Object?>{'k': null},
       };
       final token = await jwt.generate(
-        userId: 'u',
-        collection: 'c',
-        jwtId: 'j',
-        expiresIn: const Duration(days: 365000),
-        claims: claims,
+        AppJwt.create(
+          userId: 'u',
+          collection: 'c',
+          user: {},
+          jwtId: 'j',
+          expiresIn: const Duration(days: 365000),
+          claims: claims,
+        ),
       );
       final decoded = await jwt.verify(token);
       expect(decoded, isNotNull);
@@ -89,11 +96,14 @@ void main() {
       await withClock(Clock.fixed(anchor), () async {
         const expiresIn = Duration(hours: 90);
         final token = await jwt.generate(
-          userId: 'u',
-          collection: 'c',
-          jwtId: 'j',
-          expiresIn: expiresIn,
-          claims: {},
+          AppJwt.create(
+            userId: 'u',
+            collection: 'c',
+            user: {},
+            jwtId: 'j',
+            expiresIn: const Duration(days: 365000),
+            claims: {},
+          ),
         );
         final decoded = (await jwt.verify(token))!;
         expect(
@@ -106,11 +116,14 @@ void main() {
     group('#verify rejects', () {
       test('when signature does not verify (wrong pepper)', () async {
         final token = await jwt.generate(
-          userId: 'u',
-          collection: 'c',
-          jwtId: 'j',
-          expiresIn: const Duration(days: 365000),
-          claims: {},
+          AppJwt.create(
+            userId: 'u',
+            collection: 'c',
+            user: {},
+            jwtId: 'j',
+            expiresIn: const Duration(days: 365000),
+            claims: {},
+          ),
         );
         expect(await Jwt(jwtPepper: 'other-pepper').verify(token), isNull);
       });
@@ -133,11 +146,14 @@ void main() {
 
       test('when payload was tampered with', () async {
         final token = await jwt.generate(
-          userId: 'original',
-          collection: 'c',
-          jwtId: 'j',
-          expiresIn: const Duration(days: 365000),
-          claims: {},
+          AppJwt.create(
+            userId: 'original',
+            collection: 'c',
+            user: {},
+            jwtId: 'j',
+            expiresIn: const Duration(days: 365000),
+            claims: {},
+          ),
         );
         final p2 = token.split('.');
         final bytes = base64Url.decode(
@@ -150,11 +166,14 @@ void main() {
 
       test('when signature slice was tampered with', () async {
         final token = await jwt.generate(
-          userId: 'u',
-          collection: 'c',
-          jwtId: 'j',
-          expiresIn: const Duration(days: 365000),
-          claims: {},
+          AppJwt.create(
+            userId: 'u',
+            collection: 'c',
+            user: {},
+            jwtId: 'j',
+            expiresIn: const Duration(days: 365000),
+            claims: {},
+          ),
         );
         final parts = token.split('.');
         var sigBytes = base64Url.decode(
@@ -183,11 +202,14 @@ void main() {
       test('when exp is in the past', () async {
         await withClock(Clock.fixed(DateTime.utc(2099)), () async {
           final token = await jwt.generate(
-            userId: 'u',
-            collection: 'c',
-            jwtId: 'j',
-            expiresIn: const Duration(days: -365),
-            claims: {},
+            AppJwt.create(
+              userId: 'u',
+              collection: 'c',
+              user: {},
+              jwtId: 'j',
+              expiresIn: const Duration(days: -365),
+              claims: {},
+            ),
           );
           expect(await jwt.verify(token), isNull);
         });
@@ -197,11 +219,14 @@ void main() {
         await withClock(Clock.fixed(DateTime.utc(2099)), () async {
           const ttl = Duration(hours: 1);
           final token = await jwt.generate(
-            userId: 'u',
-            collection: 'c',
-            jwtId: 'j',
-            expiresIn: ttl,
-            claims: {},
+            AppJwt.create(
+              userId: 'u',
+              collection: 'c',
+              user: {},
+              jwtId: 'j',
+              expiresIn: ttl,
+              claims: {},
+            ),
           );
           expect(await jwt.verify(token), isNotNull);
         });
@@ -252,11 +277,14 @@ void main() {
       test('reject non JSON-encodable claim values', () async {
         await expectLater(
           jwt.generate(
-            userId: 'u',
-            collection: 'c',
-            jwtId: 'j',
-            expiresIn: const Duration(days: 365),
-            claims: {'bad': Object()},
+            AppJwt.create(
+              userId: 'u',
+              collection: 'c',
+              user: {},
+              jwtId: 'j',
+              expiresIn: const Duration(days: 365),
+              claims: {'bad': Object()},
+            ),
           ),
           throwsArgumentError,
         );
