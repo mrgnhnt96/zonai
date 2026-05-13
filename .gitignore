@@ -5,7 +5,7 @@ pubspec_overrides.yaml
 
 # Backend
 .revali
-apps/cli/lib/gen/
+apps/zonai/lib/gen/
 
 # Flutter
 build/

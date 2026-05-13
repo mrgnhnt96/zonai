@@ -1,5 +1,5 @@
 import 'package:revali_router/revali_router.dart';
-import '../../../zonai/lib/src/deps/logger.dart';
+import 'package:zonai/src/deps/logger.dart';
 
 class LogObserver implements Observer {
   const LogObserver();

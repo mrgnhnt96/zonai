@@ -18,18 +18,18 @@ revali:
     (bail):
     (command):
       # - cd apps/server && dart run revali dev --generate-only --flavor dev --profile --recompile
-      - rm -rf apps/cli/lib/.revali
-      - mkdir -p apps/cli/lib/gen/server
-      - cp -r apps/server apps/cli/lib/gen
+      - rm -rf apps/zonai/lib/.revali
+      - mkdir -p apps/zonai/lib/gen/server
+      - cp -r apps/server apps/zonai/lib/gen
       - |
-        cd apps/cli/lib/gen/server || exit 1
+        cd apps/zonai/lib/gen/server || exit 1
         rm pubspec.yaml
         rm -rf .revali/revali_client
         rm -rf .dart_tool
 
         # replace `package:zonai_server` with `./` from all *.dart files.
         # Use perl instead of sed for in-place replacement
-        find lib -name '*.dart' -exec perl -pi -e 's|package:zonai_server|..|g' {} +
+        find lib -name '*.dart' -exec perl -pi -e 's|package:zonai_server/src|..|g' {} +
         find routes -name '*.dart' -exec perl -pi -e 's|package:zonai_server|../../lib|g' {} +
 
 playground:
