@@ -22,8 +22,6 @@ sealed class ExtensionResponse extends Response {
       NoActionExtensionResponse._path => NoActionExtensionResponse.fromJson(
         json,
       ),
-      BeforeCreateExtensionResponse._path =>
-        BeforeCreateExtensionResponse.fromJson(json),
       _ => throw ArgumentError('Invalid extension response path: $path'),
     };
   }
@@ -38,15 +36,4 @@ final class NoActionExtensionResponse extends ExtensionResponse {
   }
 
   static const _path = 'extension.no_action';
-}
-
-final class BeforeCreateExtensionResponse extends ExtensionResponse {
-  BeforeCreateExtensionResponse({required super.id})
-    : super(path: _path, payload: {});
-
-  factory BeforeCreateExtensionResponse.fromJson(Map<String, dynamic> json) {
-    return BeforeCreateExtensionResponse(id: json['id']);
-  }
-
-  static const _path = 'extension.before_create';
 }
