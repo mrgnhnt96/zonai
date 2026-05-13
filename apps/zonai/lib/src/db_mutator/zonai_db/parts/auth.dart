@@ -48,22 +48,36 @@ extension _AuthX on ZonaiDb {
       );
     }
 
-    final jwtId = JwtId.generate();
-    // TODO(mrgnhnt): Get user ID from the user object
-    const column = 'id';
-    final userId = user[column] as String;
+    final (jwt, token) = await _createJwt(collection, user);
 
-    final jwtObject = await _jwt.generate(
-      AppJwt.create(
-        userId: userId,
-        collection: collection,
-        user: user,
-        jwtId: jwtId.value,
-        expiresIn: const Duration(days: 365),
-        // TODO(mrgnhnt): Get claims from Config exe
-        claims: {},
-      ),
+    return (null, (user: user, jwt: token));
+  }
+
+  Future<(AppJwt, String)> _createJwt(
+    String collection,
+    Map<String, Object?> user,
+  ) async {
+    final jwtId = JwtId.generate();
+    final userIdColumn = await _operations.send(
+      GetColumnNameRequest(collection: collection, columnName: .id),
     );
+    if (userIdColumn is! ColumnNameResponse) {
+      throw StateError('Failed to get user ID column name');
+    }
+
+    final userId = user[userIdColumn.name] as String;
+
+    final jwt = AppJwt.create(
+      userId: userId,
+      collection: collection,
+      user: user,
+      jwtId: jwtId.value,
+      expiresIn: const Duration(days: 365),
+      // TODO(mrgnhnt): Get claims from Config exe
+      claims: {},
+    );
+
+    final token = await _jwt.generate(jwt);
 
     await open();
     final db = this.db;
@@ -72,10 +86,10 @@ extension _AuthX on ZonaiDb {
     }
 
     await db.insert(into: jwts).values([
-      JwtCollection(id: jwtId, userId: UnknownId(userId)),
+      JwtCollection(id: JwtId(jwt.jwtId), userId: UnknownId(jwt.userId)),
     ]);
 
-    return (null, (user: user, jwt: jwtObject));
+    return (jwt, token);
   }
 
   Future<_Result<_AuthResult>> _signUp(
@@ -131,64 +145,9 @@ extension _AuthX on ZonaiDb {
       );
     }
 
-    final jwtId = JwtId.generate();
+    final (jwt, token) = await _createJwt(collection, user);
 
-    final userIdColumn = await _operations.send(
-      GetColumnNameRequest(collection: collection, columnName: .id),
-    );
-    if (userIdColumn is! ColumnNameResponse) {
-      throw StateError('Failed to get user ID column name');
-    }
-
-    final userId = user[userIdColumn.name] as String;
-
-    final userOperation = await _operations.send(
-      ViewOperationRequest(
-        collection: collection,
-        where: Eq(userIdColumn.name, userId).sql(collection),
-      ),
-    );
-    if (userOperation is! PerformOperationResponse) {
-      throw StateError('Failed to get user object');
-    }
-
-    Map<String, Object?> userObject;
-    {
-      final (error, result) = await _execute((
-        userOperation.query,
-        userOperation.values,
-      ));
-
-      if (error != null || result == null) {
-        throw StateError('Failed to get user object: ${error}');
-      }
-
-      userObject = result.rows.single.toMap();
-    }
-
-    final jwtObject = await _jwt.generate(
-      AppJwt.create(
-        userId: userId,
-        user: userObject,
-        collection: collection,
-        jwtId: jwtId.value,
-        expiresIn: const Duration(days: 365),
-        // TODO(mrgnhnt): Get claims from Config exe
-        claims: {},
-      ),
-    );
-
-    await open();
-    final db = this.db;
-    if (db == null) {
-      throw StateError('Database is not open');
-    }
-
-    await db.insert(into: jwts).values([
-      JwtCollection(id: jwtId, userId: UnknownId(userId)),
-    ]);
-
-    return (null, (user: user, jwt: jwtObject));
+    return (null, (user: user, jwt: token));
   }
 
   Future<void> _logout(String jwt) async {

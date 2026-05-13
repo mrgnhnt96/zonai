@@ -34,7 +34,7 @@ class AppJwt {
     return AppJwt(
       userId: json['userId'],
       collection: json['collection'],
-      user: json['user'],
+      user: json['user'] ?? {},
       jwtId: json['jwtId'],
       expiresAt: DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] * 1000),
       claims: json['claims'],

@@ -121,13 +121,19 @@ extension _AuthUtilsX on ZonaiDb {
       return null;
     }
 
-    final decoded = await const Jwt(jwtPepper: _appPepper).verify(jwt);
+    final decoded = await _jwt.verify(jwt);
     if (decoded == null) {
       throw StateError('Invalid JWT');
     }
 
-    final appJwt = AppJwt.fromJson(decoded);
-    logger.verbose('Extracted JWT: ${appJwt}', prefix: _prefix);
+    AppJwt appJwt;
+
+    try {
+      appJwt = AppJwt.fromJson(decoded);
+      logger.verbose('Extracted JWT: ${appJwt}', prefix: _prefix);
+    } on Object {
+      throw StateError('Invalid JWT');
+    }
 
     await open();
     final db = this.db;
