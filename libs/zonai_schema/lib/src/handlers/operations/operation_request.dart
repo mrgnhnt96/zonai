@@ -58,7 +58,7 @@ final class GetColumnNameRequest extends OperationRequest {
     );
   }
 
-  static const _path = 'operation.get_password_column_name';
+  static const _path = '${Request.prefix}.operation.get_password_column_name';
 
   final String collection;
   final ColumnName columnName;
@@ -104,7 +104,7 @@ final class PerformOperationRequest extends OperationRequest {
     }
   }
 
-  static const _path = 'operation.perform';
+  static const _path = '${Request.prefix}.operation.perform';
 
   final String collection;
   final String operation;
@@ -199,7 +199,7 @@ final class ViewAuthOperationRequest extends OperationRequest {
     );
   }
 
-  static const _path = 'auth.view';
+  static const _path = '${Request.prefix}.auth.view';
 
   final AuthOperationPayload payload;
   final String collection;
@@ -234,7 +234,7 @@ final class CreateAuthOperationRequest extends OperationRequest {
     );
   }
 
-  static const _path = 'auth.create';
+  static const _path = '${Request.prefix}.auth.create';
 
   final String collection;
   final AuthOperationPayload payload;

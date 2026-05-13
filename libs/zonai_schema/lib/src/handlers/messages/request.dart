@@ -6,12 +6,18 @@ abstract base class Request {
   factory Request.fromJson(Map<String, dynamic> json) {
     final path = json['path'];
     if (path == null) {
-      throw ArgumentError('Invalid received message path: ${json['path']}');
+      throw ArgumentError('Invalid request path: ${json['path']}');
+    }
+
+    if (!path.startsWith(prefix)) {
+      throw ArgumentError(
+        'Invalid request path: $path, should start with $prefix',
+      );
     }
 
     final id = json['id'];
     if (id == null) {
-      throw ArgumentError('Invalid received message id: ${json['id']}');
+      throw ArgumentError('Invalid request id: ${json['id']}');
     }
 
     return switch (path) {
@@ -21,6 +27,8 @@ abstract base class Request {
       _ => UnknownRequest(path: path, id: id, payload: json),
     };
   }
+
+  static const prefix = 'request/';
 
   static int _generateSeq = 0;
 
@@ -59,7 +67,7 @@ final class RequestPing extends Request {
     return RequestPing._(id: json['id'] as String);
   }
 
-  static const _path = 'ping';
+  static const _path = '${Request.prefix}.ping';
 
   @override
   String get path => _path;
@@ -72,7 +80,7 @@ final class RequestKill extends Request {
     return RequestKill();
   }
 
-  static const _path = 'kill';
+  static const _path = '${Request.prefix}.kill';
 
   @override
   String get path => _path;

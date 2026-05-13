@@ -56,7 +56,7 @@ final class AuthCollectionRulesResponse extends RuleResponse {
     );
   }
 
-  static const _path = 'collection.auth.can_authenticate';
+  static const _path = '${Response.prefix}.collection.auth.can_authenticate';
 
   final String collection;
   final bool canAuthenticate;
@@ -105,7 +105,7 @@ final class AuthRecordRulesResponse extends RuleResponse {
     );
   }
 
-  static const _path = 'record.auth.can_access';
+  static const _path = '${Response.prefix}.record.auth.can_access';
 
   final String collection;
   final bool canAccess;
@@ -153,7 +153,7 @@ final class CollectionRulesResponse extends RuleResponse {
     );
   }
 
-  static const _path = 'collection.can_access';
+  static const _path = '${Response.prefix}.collection.can_access';
 
   final String collection;
   final String operation;
@@ -199,7 +199,7 @@ final class RecordRulesResponse extends RuleResponse {
     );
   }
 
-  static const _path = 'record.can_access';
+  static const _path = '${Response.prefix}.record.can_access';
 
   final String collection;
   final RecordOperation operation;

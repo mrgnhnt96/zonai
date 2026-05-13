@@ -44,7 +44,7 @@ final class ColumnNameResponse extends OperationResponse {
     );
   }
 
-  static const _path = 'operation.get_column_name';
+  static const _path = '${Response.prefix}.operation.get_column_name';
 
   final String name;
   final ColumnName column;
@@ -73,7 +73,7 @@ final class PerformOperationResponse extends OperationResponse {
     );
   }
 
-  static const _path = 'operation.perform';
+  static const _path = '${Response.prefix}.operation.perform';
 
   final String query;
   final List<Object?> values;

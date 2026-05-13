@@ -38,7 +38,7 @@ final class AuthCollectionRulesRequest extends RuleRequest {
     );
   }
 
-  static const _path = 'collection.auth.can_authenticate';
+  static const _path = '${Request.prefix}.collection.auth.can_authenticate';
 
   final String collection;
   final AuthType authType;
@@ -83,7 +83,7 @@ final class AuthRecordRulesRequest extends RuleRequest {
     );
   }
 
-  static const _path = 'record.auth.can_authenticate';
+  static const _path = '${Request.prefix}.record.auth.can_authenticate';
 
   final String collection;
   final AuthType authType;
@@ -128,7 +128,7 @@ final class CollectionRulesRequest extends RuleRequest {
     );
   }
 
-  static const _path = 'collection.can_access';
+  static const _path = '${Request.prefix}.collection.can_access';
 
   final String collection;
   final String operation;
@@ -175,7 +175,7 @@ final class RecordRulesRequest extends RuleRequest {
     );
   }
 
-  static const _path = 'record.can_access';
+  static const _path = '${Request.prefix}.record.can_access';
 
   final String collection;
   final RecordOperation operation;

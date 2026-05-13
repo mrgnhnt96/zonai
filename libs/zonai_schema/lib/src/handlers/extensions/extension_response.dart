@@ -35,5 +35,5 @@ final class NoActionExtensionResponse extends ExtensionResponse {
     return NoActionExtensionResponse(id: json['id']);
   }
 
-  static const _path = 'extension.no_action';
+  static const _path = '${Response.prefix}.extension.no_action';
 }

@@ -7,12 +7,18 @@ base class Response {
     final path = json['path'];
 
     if (path == null) {
-      throw ArgumentError('Invalid send message path: ${json['path']}');
+      throw ArgumentError('Invalid response path: ${json['path']}');
+    }
+
+    if (!path.startsWith(prefix)) {
+      throw ArgumentError(
+        'Invalid response path: $path, should start with $prefix',
+      );
     }
 
     final id = json['id'];
     if (id == null) {
-      throw ArgumentError('Invalid send message id: ${json['id']}');
+      throw ArgumentError('Invalid response id: ${json['id']}');
     }
 
     return switch (path) {
@@ -23,6 +29,8 @@ base class Response {
       _ => Response(path: path, id: id, payload: json),
     };
   }
+
+  static const prefix = 'response/';
 
   @mustCallSuper
   Map<String, dynamic> toJson() {
@@ -41,7 +49,7 @@ final class PongResponse extends Response {
     return PongResponse(id: json['id']);
   }
 
-  static const _path = 'pong';
+  static const _path = '${Response.prefix}.pong';
 }
 
 enum DebugLevel { debug, info, warn, error }
@@ -65,7 +73,7 @@ final class DebugResponse extends Response {
     );
   }
 
-  static const _path = 'debug';
+  static const _path = '${Response.prefix}.debug';
 
   @override
   String get path => _path;
@@ -126,7 +134,7 @@ final class MessageErrorResponse extends Response {
     );
   }
 
-  static const _path = 'message.error';
+  static const _path = '${Response.prefix}.error';
 
   final String message;
   final String? error;
@@ -155,7 +163,7 @@ final class GetRecordResponse extends Response {
     );
   }
 
-  static const _path = 'message.get_record';
+  static const _path = '${Response.prefix}.get_record';
 
   final List<Map<String, Object?>> records;
 

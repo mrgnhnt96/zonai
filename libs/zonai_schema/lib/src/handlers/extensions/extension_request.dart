@@ -37,7 +37,7 @@ final class AuthExtensionRequest extends ExtensionRequest {
     );
   }
 
-  static const _path = 'extension.auth';
+  static const _path = '${Request.prefix}.extension.auth';
 
   final String collection;
   final Map<String, dynamic> object;
@@ -82,7 +82,7 @@ final class ErrorExtensionRequest extends RecordExtensionRequest {
     );
   }
 
-  static const _path = 'extension.error';
+  static const _path = '${Request.prefix}.extension.error';
 
   final String collection;
   final String error;
@@ -111,7 +111,7 @@ final class CreateExtensionRequest extends RecordExtensionRequest {
     );
   }
 
-  static const _path = 'extension.create';
+  static const _path = '${Request.prefix}.extension.create';
 
   final String collection;
   final Map<String, dynamic> object;
@@ -140,7 +140,7 @@ final class DeleteExtensionRequest extends RecordExtensionRequest {
     );
   }
 
-  static const _path = 'extension.delete';
+  static const _path = '${Request.prefix}.extension.delete';
 
   final String collection;
   final List<Map<String, dynamic>> objects;
@@ -167,7 +167,7 @@ final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
     );
   }
 
-  static const _path = 'extension.update.before';
+  static const _path = '${Request.prefix}.extension.update.before';
 
   final String collection;
   final List<Map<String, dynamic>> objects;
@@ -196,7 +196,7 @@ final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
     );
   }
 
-  static const _path = 'extension.update.after_success';
+  static const _path = '${Request.prefix}.extension.update.after_success';
 
   final String collection;
   final List<Map<String, dynamic>> before;
