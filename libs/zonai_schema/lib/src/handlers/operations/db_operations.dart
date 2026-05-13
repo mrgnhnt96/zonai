@@ -48,28 +48,36 @@ class DbOperations {
             return await _viewAuthOperation(request);
           case final CreateAuthOperationRequest request:
             return await _createAuthOperation(request);
-          case final GetPasswordColumnNameRequest request:
-            return await _getPasswordColumnName(request);
+          case final GetColumnNameRequest request:
+            return await _getColumnName(request);
         }
       },
     ).listen();
   }
 
-  Future<PasswordColumnNameResponse> _getPasswordColumnName(
-    GetPasswordColumnNameRequest request,
+  Future<ColumnNameResponse> _getColumnName(
+    GetColumnNameRequest request,
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
       throw Exception('Collection not found: ${request.collection}');
     }
 
-    final passwordColumn = collection.table.columns.firstWhere(
-      (column) => column.transformer is PasswordTransformer,
-    );
+    final columns = collection.table.columns;
 
-    return PasswordColumnNameResponse(
+    final column = switch (request.columnName) {
+      .password => columns.firstWhere(
+        (column) => column.transformer is PasswordTransformer,
+      ),
+      .id => columns.firstWhere(
+        (column) => column.transformer is IdTransformer && column.isPrimaryKey,
+      ),
+    };
+
+    return ColumnNameResponse(
       id: request.id,
-      columnName: passwordColumn.name,
+      name: column.name,
+      column: request.columnName,
     );
   }
 

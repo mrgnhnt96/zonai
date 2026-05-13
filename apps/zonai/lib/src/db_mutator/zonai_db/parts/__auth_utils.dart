@@ -35,15 +35,15 @@ extension _AuthUtilsX on ZonaiDb {
     }
 
     final passwordColumn = await _operations.send(
-      GetPasswordColumnNameRequest(collection: collection),
+      GetColumnNameRequest(collection: collection, columnName: .password),
     );
-    if (passwordColumn is! PasswordColumnNameResponse) {
+    if (passwordColumn is! ColumnNameResponse) {
       logger.trace('Failed to get password column name', prefix: _prefix);
       return null;
     }
 
     // TODO(mrgnhnt): Send object to extension to sanitize
-    final passwordHash = user.remove(passwordColumn.columnName)!;
+    final passwordHash = user.remove(passwordColumn.name);
     if (passwordHash is! String) {
       logger.trace('Password hash not found', prefix: _prefix);
       return null;

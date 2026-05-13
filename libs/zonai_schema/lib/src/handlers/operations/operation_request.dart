@@ -21,8 +21,7 @@ sealed class OperationRequest extends Request {
       ),
       CreateAuthOperationRequest._path =>
         CreateAuthOperationRequest.fromRequest(request),
-      GetPasswordColumnNameRequest._path =>
-        GetPasswordColumnNameRequest.fromRequest(request),
+      GetColumnNameRequest._path => GetColumnNameRequest.fromRequest(request),
       _ => throw ArgumentError(
         'Invalid operation request path: ${request.path}',
       ),
@@ -37,27 +36,40 @@ ${const JsonEncoder.withIndent('  ').convert(toJson())}
   }
 }
 
-final class GetPasswordColumnNameRequest extends OperationRequest {
-  GetPasswordColumnNameRequest({required this.collection})
+enum ColumnName { password, id }
+
+final class GetColumnNameRequest extends OperationRequest {
+  GetColumnNameRequest({required this.collection, required this.columnName})
     : super(path: _path, id: Request.generateId());
 
-  GetPasswordColumnNameRequest._({required super.id, required this.collection})
-    : super(path: _path);
+  GetColumnNameRequest._({
+    required super.id,
+    required this.collection,
+    required this.columnName,
+  }) : super(path: _path);
 
-  factory GetPasswordColumnNameRequest.fromRequest(UnknownRequest request) {
-    return GetPasswordColumnNameRequest._(
+  factory GetColumnNameRequest.fromRequest(UnknownRequest request) {
+    return GetColumnNameRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
+      columnName: ColumnName.values.byName(
+        request.payload['columnName'] as String,
+      ),
     );
   }
 
   static const _path = 'operation.get_password_column_name';
 
   final String collection;
+  final ColumnName columnName;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection};
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'columnName': columnName.name,
+    };
   }
 }
 

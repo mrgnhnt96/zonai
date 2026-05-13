@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 
 sealed class OperationResponse extends Response {
   const OperationResponse({
@@ -22,34 +23,35 @@ sealed class OperationResponse extends Response {
 
     return switch (path) {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
-      PasswordColumnNameResponse._path => PasswordColumnNameResponse.fromJson(
-        json,
-      ),
+      ColumnNameResponse._path => ColumnNameResponse.fromJson(json),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
   }
 }
 
-final class PasswordColumnNameResponse extends OperationResponse {
-  const PasswordColumnNameResponse({
+final class ColumnNameResponse extends OperationResponse {
+  const ColumnNameResponse({
     required super.id,
-    required this.columnName,
+    required this.name,
+    required this.column,
   }) : super(path: _path, payload: const {});
 
-  factory PasswordColumnNameResponse.fromJson(Map<String, dynamic> json) {
-    return PasswordColumnNameResponse(
+  factory ColumnNameResponse.fromJson(Map<String, dynamic> json) {
+    return ColumnNameResponse(
       id: json['id'] as String,
-      columnName: json['columnName'] as String,
+      name: json['name'] as String,
+      column: ColumnName.values.byName(json['column'] as String),
     );
   }
 
-  static const _path = 'operation.password_column_name';
+  static const _path = 'operation.get_column_name';
 
-  final String columnName;
+  final String name;
+  final ColumnName column;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'columnName': columnName};
+    return {...super.toJson(), 'name': name, 'column': column.name};
   }
 }
 

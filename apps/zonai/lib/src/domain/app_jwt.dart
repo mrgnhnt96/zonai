@@ -48,6 +48,7 @@ class AppJwt {
       'jwtId': jwtId,
       'expiresAt': expiresAt.toUtc().millisecondsSinceEpoch ~/ 1000,
       'claims': jsonDecode(jsonEncode(claims)),
+      'user': user,
     };
   }
 

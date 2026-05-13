@@ -113,15 +113,15 @@ extension _AuthX on ZonaiDb {
 
     // TODO(mrgnhnt): Send object to extension to sanitize
     final passwordColumn = await _operations.send(
-      GetPasswordColumnNameRequest(collection: collection),
+      GetColumnNameRequest(collection: collection, columnName: .password),
     );
 
-    if (passwordColumn is! PasswordColumnNameResponse) {
+    if (passwordColumn is! ColumnNameResponse) {
       logger.trace('Failed to get password column name', prefix: _prefix);
       return (null, null);
     }
 
-    user.remove(passwordColumn.columnName);
+    user.remove(passwordColumn.name);
 
     logger.verbose('Created: ${user}', prefix: _prefix);
 
@@ -132,14 +132,20 @@ extension _AuthX on ZonaiDb {
     }
 
     final jwtId = JwtId.generate();
-    // TODO(mrgnhnt): Get user ID from the user object
-    const column = 'id';
-    final userId = user[column] as String;
+
+    final userIdColumn = await _operations.send(
+      GetColumnNameRequest(collection: collection, columnName: .id),
+    );
+    if (userIdColumn is! ColumnNameResponse) {
+      throw StateError('Failed to get user ID column name');
+    }
+
+    final userId = user[userIdColumn.name] as String;
 
     final userOperation = await _operations.send(
       ViewOperationRequest(
         collection: collection,
-        where: Eq(column, userId).sql(collection),
+        where: Eq(userIdColumn.name, userId).sql(collection),
       ),
     );
     if (userOperation is! PerformOperationResponse) {
