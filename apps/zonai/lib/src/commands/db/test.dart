@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:zonai_schema/src/update/update.dart';
+import 'package:zonai_schema/zonai_schema.dart' hide logger;
 
 import '../../db_mutator/payloads/payloads.dart';
 import '../../deps/logger.dart';

@@ -1,4 +1,4 @@
-import 'package:zonai/zonai.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 class GetBody {
   const GetBody({required this.collection, required this.where});

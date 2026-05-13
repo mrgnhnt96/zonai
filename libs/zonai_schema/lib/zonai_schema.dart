@@ -36,4 +36,5 @@ export 'src/tables/collection.dart';
 export 'src/types/id.dart';
 export 'src/types/request.dart';
 export 'src/types/user.dart';
+export 'src/types/where.dart';
 export 'src/update/update.dart';

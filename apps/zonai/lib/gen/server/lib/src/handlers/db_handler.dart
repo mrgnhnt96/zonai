@@ -1,4 +1,5 @@
-import '../../../../../src/db_mutator/payloads/payloads.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
 import '../../../../../src/deps/zonai_db.dart';
 
 class DbHandler {

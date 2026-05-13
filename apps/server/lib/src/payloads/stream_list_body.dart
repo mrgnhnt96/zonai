@@ -1,4 +1,4 @@
-import 'package:zonai/zonai.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 class StreamListBody {
   const StreamListBody({
