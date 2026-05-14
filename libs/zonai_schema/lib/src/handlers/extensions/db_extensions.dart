@@ -23,11 +23,9 @@ class DbExtensions {
         try {
           request = ExtensionRequest.fromRequest(msg);
         } catch (e, stack) {
-          logger.error(
-            'Error handling extension request',
-            error: '$e',
-            stackTrace: stack.toString(),
-            properties: {'request': msg.toJson()},
+          logger.debug(
+            'Error handling request',
+            properties: {'request': msg.toJson(), 'error': e.toString()},
           );
           return MessageErrorResponse(
             id: msg.id,

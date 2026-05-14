@@ -8,6 +8,7 @@ import '../deps/zonai_db.dart';
 import '../deps/fs.dart';
 import '../deps/logger.dart';
 import '../deps/process.dart';
+import '../domain/constants.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
 
@@ -62,9 +63,14 @@ class Mailman<S extends Request, R extends Response> {
           response.error,
           switch (response.stackTrace) {
             null => null,
+            _ when kIsCompiled => null,
             final trace => StackTrace.fromString(trace),
           },
         );
+
+        if (response.stackTrace case final trace? when !kIsCompiled) {
+          logger.debug(trace, prefix: _prefix);
+        }
     }
     final jsonProps = switch (response.properties) {
       null => null,

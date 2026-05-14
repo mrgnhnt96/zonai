@@ -26,15 +26,13 @@ class DbRules {
         try {
           request = RuleRequest.fromRequest(msg);
         } catch (e, stack) {
-          logger.error(
-            'Error handling rule request',
-            error: '$e',
-            stackTrace: stack.toString(),
-            properties: {'request': msg.toJson()},
+          logger.debug(
+            'Error handling request',
+            properties: {'request': msg.toJson(), 'error': e.toString()},
           );
           return MessageErrorResponse(
             id: msg.id,
-            message: 'Error handling rule request',
+            message: 'Error handling request',
             error: e.toString(),
             stackTrace: stack.toString(),
           );

@@ -27,15 +27,13 @@ class DbOperations {
         try {
           request = OperationRequest.fromRequest(msg);
         } catch (e, stack) {
-          logger.error(
-            'Error handling operation request',
-            error: '$e',
-            stackTrace: stack.toString(),
-            properties: {'request': msg.toJson()},
+          logger.debug(
+            'Error handling request',
+            properties: {'request': msg.toJson(), 'error': e.toString()},
           );
           return MessageErrorResponse(
             id: msg.id,
-            message: 'Error handling operation request',
+            message: 'Error handling request',
             error: e.toString(),
             stackTrace: stack.toString(),
           );

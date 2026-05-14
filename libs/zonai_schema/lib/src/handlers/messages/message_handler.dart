@@ -101,14 +101,11 @@ class MessageHandler {
             onMessage(request).then(
               reply,
               onError: (Object error, StackTrace stackTrace) {
-                logger.error(
+                logger.debug(
                   'Error handling request',
-                  error: error.toString(),
-                  stackTrace: stackTrace.toString(),
                   properties: {
-                    'path': request.path,
-                    'id': request.id,
-                    'request': request.payload,
+                    'request': request.toJson(),
+                    'error': e.toString(),
                   },
                 );
                 reply(
@@ -125,7 +122,7 @@ class MessageHandler {
             reply(
               MessageErrorResponse(
                 id: request.id,
-                message: 'Unhandled request ${request.id}',
+                message: 'Unhandled request',
                 error:
                     'Unhandled request ${request.runtimeType}(${request.path})',
               ),
