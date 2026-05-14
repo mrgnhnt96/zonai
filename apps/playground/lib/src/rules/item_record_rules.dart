@@ -7,7 +7,22 @@ class ItemRecordRules extends RecordRules<Item> {
   ItemRecordRules() : super(items);
 
   @override
-  Future<bool> canView(Request request, Item record) async {
+  Future<bool> canView(Jwt? jwt, Item record) async {
+    return true;
+  }
+
+  @override
+  Future<bool> canUpdate(Jwt? jwt, Item record) async {
+    return true;
+  }
+
+  @override
+  Future<bool> canDelete(Jwt? jwt, Item record) async {
+    return true;
+  }
+
+  @override
+  Future<bool> canCreate(Jwt? jwt, Item record) async {
     return true;
   }
 }

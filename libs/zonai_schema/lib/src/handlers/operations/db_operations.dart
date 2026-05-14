@@ -120,6 +120,7 @@ class DbOperations {
         emailColumn.name: email,
         passwordColumn.name: passwordHash,
       },
+      jwt: request.jwt,
     );
 
     final (sql, values) = CollectionTranslator(
@@ -153,6 +154,7 @@ class DbOperations {
     final operationRequest = ViewOperationRequest(
       collection: request.collection,
       where: '"${emailColumn.name}" = \'${email}\'',
+      jwt: request.jwt,
     );
 
     final (sql, values) = CollectionTranslator(

@@ -27,6 +27,7 @@ extension _AuthX on ZonaiDb {
     String collection,
     AuthPayload payload,
   ) async {
+    final jwt = await _extractJwt(payload);
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signIn, payload);
 
@@ -42,18 +43,22 @@ extension _AuthX on ZonaiDb {
       throw StateError('User not found, cannot sign in');
     }
 
+    final (_, token) = await _createJwt(collection, user);
+
     {
       final onSignIn = await _extensions.send(
-        AuthExtensionRequest.onSignIn(collection: collection, object: user),
+        AuthExtensionRequest.onSignIn(
+          collection: collection,
+          object: user,
+          jwt: jwt,
+        ),
       );
     }
-
-    final (jwt, token) = await _createJwt(collection, user);
 
     return (null, (user: user, jwt: token));
   }
 
-  Future<(AppJwt, String)> _createJwt(
+  Future<(Jwt, String)> _createJwt(
     String collection,
     Map<String, Object?> user,
   ) async {
@@ -67,7 +72,7 @@ extension _AuthX on ZonaiDb {
 
     final userId = user[userIdColumn.name] as String;
 
-    final jwt = AppJwt.create(
+    final jwt = Jwt.create(
       userId: userId,
       collection: collection,
       user: user,
@@ -96,6 +101,7 @@ extension _AuthX on ZonaiDb {
     String collection,
     AuthPayload payload,
   ) async {
+    final jwt = await _extractJwt(payload);
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signUp, payload);
 
@@ -108,6 +114,7 @@ extension _AuthX on ZonaiDb {
     final operation = await _getOperation(
       CreateAuthOperationRequest(
         collection: collection,
+        jwt: jwt,
         payload: PasswordAuthOperationPayload.save(
           email: payload.email,
           passwordHash: hashedPassword,
@@ -139,13 +146,17 @@ extension _AuthX on ZonaiDb {
 
     logger.verbose('Created: ${user}', prefix: _prefix);
 
+    final (_, token) = await _createJwt(collection, user);
+
     {
       final onSignUp = await _extensions.send(
-        AuthExtensionRequest.onSignUp(collection: collection, object: user),
+        AuthExtensionRequest.onSignUp(
+          collection: collection,
+          object: user,
+          jwt: jwt,
+        ),
       );
     }
-
-    final (jwt, token) = await _createJwt(collection, user);
 
     return (null, (user: user, jwt: token));
   }

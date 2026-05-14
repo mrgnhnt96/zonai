@@ -1,12 +1,12 @@
 import 'package:revali_router/revali_router.dart';
-import 'package:zonai_server/src/handlers/db_handler.dart';
-import 'package:zonai_server/src/payloads/create_body.dart';
-import 'package:zonai_server/src/payloads/delete_body.dart';
-import 'package:zonai_server/src/payloads/get_body.dart';
-import 'package:zonai_server/src/payloads/list_body.dart';
-import 'package:zonai_server/src/payloads/stream_body.dart';
-import 'package:zonai_server/src/payloads/stream_list_body.dart';
-import 'package:zonai_server/src/payloads/update_body.dart';
+import '../../lib/src/handlers/db_handler.dart';
+import '../../lib/src/payloads/create_body.dart';
+import '../../lib/src/payloads/delete_body.dart';
+import '../../lib/src/payloads/get_body.dart';
+import '../../lib/src/payloads/list_body.dart';
+import '../../lib/src/payloads/stream_body.dart';
+import '../../lib/src/payloads/stream_list_body.dart';
+import '../../lib/src/payloads/update_body.dart';
 
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
 @Controller('db')

@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart';
 import 'package:test/test.dart';
-import 'package:zonai/src/domain/app_jwt.dart';
+import 'package:zonai_schema/src/types/jwt.dart';
 
-import '../../../lib/src/utils/jwt.dart';
+import '../../../lib/src/utils/jwt_generator.dart';
 
-/// Matches [Jwt]'s HS256 segments (same base64url / padding rules).
+/// Matches [JwtGenerator]'s HS256 segments (same base64url / padding rules).
 String _manualJwt({
   required String jwtPepper,
   required Map<String, Object?> header,
@@ -28,16 +28,16 @@ String _manualJwt({
 
 void main() {
   const pepper = 'test-jwt-pepper';
-  late Jwt jwt;
+  late JwtGenerator jwt;
 
-  setUp(() => jwt = const Jwt(jwtPepper: pepper));
+  setUp(() => jwt = const JwtGenerator(jwtPepper: pepper));
 
-  group(Jwt, () {
+  group(JwtGenerator, () {
     test('generate then verify preserves payload shape', () async {
       const expiresIn = Duration(days: 365);
       await withClock(Clock.fixed(DateTime.utc(2020)), () async {
         final token = await jwt.generate(
-          AppJwt.create(
+          Jwt.create(
             userId: 'user-42',
             collection: 'things',
             user: {},
@@ -74,7 +74,7 @@ void main() {
         'meta': <String, Object?>{'k': null},
       };
       final token = await jwt.generate(
-        AppJwt.create(
+        Jwt.create(
           userId: 'u',
           collection: 'c',
           user: {},
@@ -96,7 +96,7 @@ void main() {
       await withClock(Clock.fixed(anchor), () async {
         const expiresIn = Duration(hours: 90);
         final token = await jwt.generate(
-          AppJwt.create(
+          Jwt.create(
             userId: 'u',
             collection: 'c',
             user: {},
@@ -116,7 +116,7 @@ void main() {
     group('#verify rejects', () {
       test('when signature does not verify (wrong pepper)', () async {
         final token = await jwt.generate(
-          AppJwt.create(
+          Jwt.create(
             userId: 'u',
             collection: 'c',
             user: {},
@@ -125,7 +125,10 @@ void main() {
             claims: {},
           ),
         );
-        expect(await Jwt(jwtPepper: 'other-pepper').verify(token), isNull);
+        expect(
+          await JwtGenerator(jwtPepper: 'other-pepper').verify(token),
+          isNull,
+        );
       });
 
       test('malformed JWT (missing segments)', () async {
@@ -146,7 +149,7 @@ void main() {
 
       test('when payload was tampered with', () async {
         final token = await jwt.generate(
-          AppJwt.create(
+          Jwt.create(
             userId: 'original',
             collection: 'c',
             user: {},
@@ -166,7 +169,7 @@ void main() {
 
       test('when signature slice was tampered with', () async {
         final token = await jwt.generate(
-          AppJwt.create(
+          Jwt.create(
             userId: 'u',
             collection: 'c',
             user: {},
@@ -202,7 +205,7 @@ void main() {
       test('when exp is in the past', () async {
         await withClock(Clock.fixed(DateTime.utc(2099)), () async {
           final token = await jwt.generate(
-            AppJwt.create(
+            Jwt.create(
               userId: 'u',
               collection: 'c',
               user: {},
@@ -219,7 +222,7 @@ void main() {
         await withClock(Clock.fixed(DateTime.utc(2099)), () async {
           const ttl = Duration(hours: 1);
           final token = await jwt.generate(
-            AppJwt.create(
+            Jwt.create(
               userId: 'u',
               collection: 'c',
               user: {},
@@ -277,7 +280,7 @@ void main() {
       test('reject non JSON-encodable claim values', () async {
         await expectLater(
           jwt.generate(
-            AppJwt.create(
+            Jwt.create(
               userId: 'u',
               collection: 'c',
               user: {},

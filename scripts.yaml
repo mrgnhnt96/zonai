@@ -12,7 +12,7 @@ raindrop:
       git branch -D main
       git fetch upstream main:main
 
-revali:
+server:
   copy-to-cli:
     (aliases): [cli, copy, c]
     (bail):
@@ -30,7 +30,10 @@ revali:
         # replace `package:zonai_server` with `./` from all *.dart files.
         # Use perl instead of sed for in-place replacement
         find lib -name '*.dart' -exec perl -pi -e 's|package:zonai_server/src|..|g' {} +
-        find routes -name '*.dart' -exec perl -pi -e 's|package:zonai_server|../../lib|g' {} +
+        find . -name '*.dart' -exec perl -pi -e 's|package:zonai_server|../../lib|g' {} +
+  gen: |
+    cd apps/server || exit 1
+    dart run revali dev --flavor dev --profile --recompile --generate-only
 
 playground:
   (aliases): [play]

@@ -79,13 +79,13 @@ class DbExtensions {
       case .before:
         if (extension case DeleteExtension(:final beforeDelete)) {
           for (final o in request.objects) {
-            await beforeDelete(object(o));
+            await beforeDelete(object(o), request.jwt);
           }
         }
       case .afterSuccess:
         if (extension case DeleteExtension(:final afterDeleteSuccess)) {
           for (final o in request.objects) {
-            await afterDeleteSuccess(object(o));
+            await afterDeleteSuccess(object(o), request.jwt);
           }
         }
       case .afterError:
@@ -105,7 +105,7 @@ class DbExtensions {
 
     if (extension case UpdateExtension(:final beforeUpdate)) {
       for (final o in request.objects) {
-        await beforeUpdate(object(o));
+        await beforeUpdate(object(o), request.jwt);
       }
     }
   }
@@ -125,7 +125,7 @@ class DbExtensions {
         final before = request.before[i];
         final after = request.after[i];
 
-        await afterUpdateSuccess(object(before), object(after));
+        await afterUpdateSuccess(object(before), object(after), request.jwt);
       }
     }
   }
@@ -140,11 +140,11 @@ class DbExtensions {
     switch (request.step) {
       case .before:
         if (extension case CreateExtension(:final beforeCreate)) {
-          await beforeCreate(object());
+          await beforeCreate(object(), request.jwt);
         }
       case .afterSuccess:
         if (extension case CreateExtension(:final afterCreateSuccess)) {
-          await afterCreateSuccess(object());
+          await afterCreateSuccess(object(), request.jwt);
         }
       case .afterError:
         throw StateError('After error step should not be handled here');
@@ -157,15 +157,15 @@ class DbExtensions {
     switch (request.type) {
       case .create:
         if (extension case CreateExtension(:final afterCreateError)) {
-          await afterCreateError(request.error);
+          await afterCreateError(request.error, request.jwt);
         }
       case .update:
         if (extension case UpdateExtension(:final afterUpdateError)) {
-          await afterUpdateError(request.error);
+          await afterUpdateError(request.error, request.jwt);
         }
       case .delete:
         if (extension case DeleteExtension(:final afterDeleteError)) {
-          await afterDeleteError(request.error);
+          await afterDeleteError(request.error, request.jwt);
         }
     }
   }
@@ -179,11 +179,17 @@ class DbExtensions {
     switch (request.step) {
       case .onSignUp:
         if (extension case AuthExtension(:final onSignUp)) {
-          await onSignUp(extension.table.safeCreate(request.object));
+          await onSignUp(
+            extension.table.safeCreate(request.object),
+            request.jwt,
+          );
         }
       case .onSignIn:
         if (extension case AuthExtension(:final onSignIn)) {
-          await onSignIn(extension.table.safeCreate(request.object));
+          await onSignIn(
+            extension.table.safeCreate(request.object),
+            request.jwt,
+          );
         }
     }
   }

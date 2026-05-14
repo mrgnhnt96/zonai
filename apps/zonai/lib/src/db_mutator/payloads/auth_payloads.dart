@@ -1,9 +1,10 @@
 part of payloads;
 
-sealed class AuthPayload extends Payload {
-  const AuthPayload({required this.authType});
+sealed class AuthPayload extends Payload implements JwtPayload {
+  const AuthPayload({required this.authType, this.jwt});
 
   final AuthType authType;
+  final String? jwt;
 }
 
 class PasswordAuthPayload extends AuthPayload {
@@ -11,6 +12,7 @@ class PasswordAuthPayload extends AuthPayload {
     required this.email,
     required this.password,
     this.object,
+    super.jwt,
   }) : super(authType: .password);
 
   final String email;

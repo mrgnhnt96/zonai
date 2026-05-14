@@ -6,10 +6,9 @@ import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
-import 'package:zonai/src/domain/app_jwt.dart';
 import 'package:zonai/src/internal_collections/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
-import 'package:zonai/src/utils/jwt.dart';
+import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
@@ -68,14 +67,14 @@ class ZonaiDb {
         executablePath: operations.executablePath,
         fromJson: OperationResponse.fromJson,
       ),
-      _jwt = Jwt(jwtPepper: _appPepper),
+      _jwt = JwtGenerator(jwtPepper: _appPepper),
       _hashPassword = HashPassword(passwordPepper: _appPepper);
 
   Raindrop? db;
   final Mailman<ExtensionRequest, ExtensionResponse> _extensions;
   final Mailman<RuleRequest, RuleResponse> _rules;
   final Mailman<OperationRequest, OperationResponse> _operations;
-  final Jwt _jwt;
+  final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
   File? __dbFile;

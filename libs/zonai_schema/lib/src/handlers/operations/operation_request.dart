@@ -9,7 +9,11 @@ import 'package:zonai_schema/src/schemas/auth_collection.dart';
 import 'package:zonai_schema/src/update/update.dart';
 
 sealed class OperationRequest extends Request {
-  const OperationRequest({required super.path, required super.id});
+  const OperationRequest({
+    required super.path,
+    required super.id,
+    required super.jwt,
+  });
 
   factory OperationRequest.fromRequest(UnknownRequest request) {
     return switch (request.path) {
@@ -40,13 +44,13 @@ enum ColumnName { password, id }
 
 final class GetColumnNameRequest extends OperationRequest {
   GetColumnNameRequest({required this.collection, required this.columnName})
-    : super(path: _path, id: Request.generateId());
+    : super(path: _path, id: Request.generateId(), jwt: null);
 
   GetColumnNameRequest._({
     required super.id,
     required this.collection,
     required this.columnName,
-  }) : super(path: _path);
+  }) : super(path: _path, jwt: null);
 
   factory GetColumnNameRequest.fromRequest(UnknownRequest request) {
     return GetColumnNameRequest._(
@@ -58,7 +62,7 @@ final class GetColumnNameRequest extends OperationRequest {
     );
   }
 
-  static const _path = '${Request.prefix}.operation.get_password_column_name';
+  static const _path = '${Request.prefix}.operation.get_column_name';
 
   final String collection;
   final ColumnName columnName;
@@ -74,13 +78,17 @@ final class GetColumnNameRequest extends OperationRequest {
 }
 
 final class PerformOperationRequest extends OperationRequest {
-  PerformOperationRequest({required this.collection, required this.operation})
-    : super(path: _path, id: Request.generateId());
+  PerformOperationRequest({
+    required this.collection,
+    required this.operation,
+    required super.jwt,
+  }) : super(path: _path, id: Request.generateId());
 
   PerformOperationRequest._({
     required super.id,
     required this.collection,
     required this.operation,
+    required super.jwt,
   }) : super(path: _path);
 
   factory PerformOperationRequest.fromRequest(UnknownRequest request) {
@@ -180,13 +188,17 @@ final class PasswordAuthOperationPayload extends AuthOperationPayload {
 }
 
 final class ViewAuthOperationRequest extends OperationRequest {
-  ViewAuthOperationRequest({required this.collection, required this.payload})
-    : super(path: _path, id: Request.generateId());
+  ViewAuthOperationRequest({
+    required this.collection,
+    required this.payload,
+    required super.jwt,
+  }) : super(path: _path, id: Request.generateId());
 
   ViewAuthOperationRequest._({
     required super.id,
     required this.collection,
     required this.payload,
+    required super.jwt,
   }) : super(path: _path);
 
   factory ViewAuthOperationRequest.fromRequest(UnknownRequest request) {
@@ -196,6 +208,7 @@ final class ViewAuthOperationRequest extends OperationRequest {
       payload: AuthOperationPayload.fromJson(
         request.payload['payload'] as Map<String, dynamic>,
       ),
+      jwt: request.jwt,
     );
   }
 
@@ -215,13 +228,17 @@ final class ViewAuthOperationRequest extends OperationRequest {
 }
 
 final class CreateAuthOperationRequest extends OperationRequest {
-  CreateAuthOperationRequest({required this.collection, required this.payload})
-    : super(path: _path, id: Request.generateId());
+  CreateAuthOperationRequest({
+    required this.collection,
+    required this.payload,
+    required super.jwt,
+  }) : super(path: _path, id: Request.generateId());
 
   CreateAuthOperationRequest._({
     required super.id,
     required this.payload,
     required this.collection,
+    required super.jwt,
   }) : super(path: _path);
 
   factory CreateAuthOperationRequest.fromRequest(UnknownRequest request) {
@@ -231,6 +248,7 @@ final class CreateAuthOperationRequest extends OperationRequest {
         request.payload['payload'] as Map<String, dynamic>,
       ),
       collection: request.payload['collection'] as String,
+      jwt: request.jwt,
     );
   }
 
@@ -250,13 +268,17 @@ final class CreateAuthOperationRequest extends OperationRequest {
 }
 
 final class CreateOperationRequest extends PerformOperationRequest {
-  CreateOperationRequest({required super.collection, required this.object})
-    : super(operation: CollectionOperation.create.name);
+  CreateOperationRequest({
+    required super.collection,
+    required this.object,
+    required super.jwt,
+  }) : super(operation: CollectionOperation.create.name);
 
   CreateOperationRequest._({
     required super.id,
     required this.object,
     required super.collection,
+    required super.jwt,
   }) : super._(operation: CollectionOperation.create.name);
 
   factory CreateOperationRequest.fromRequest(UnknownRequest request) {
@@ -264,6 +286,7 @@ final class CreateOperationRequest extends PerformOperationRequest {
       id: request.id,
       object: request.payload['object'] as Map<String, dynamic>,
       collection: request.payload['collection'] as String,
+      jwt: request.jwt,
     );
   }
 
@@ -281,6 +304,7 @@ final class UpdateOperationRequest extends PerformOperationRequest {
 
     required String where,
     required this.updates,
+    required super.jwt,
   }) : rawWhere = where,
        super(operation: CollectionOperation.update.name);
 
@@ -290,6 +314,7 @@ final class UpdateOperationRequest extends PerformOperationRequest {
     required String where,
     required this.rawWhere,
     required this.updates,
+    required super.jwt,
   }) : super._(operation: CollectionOperation.update.name);
 
   factory UpdateOperationRequest.fromRequest(UnknownRequest request) {
@@ -302,6 +327,7 @@ final class UpdateOperationRequest extends PerformOperationRequest {
         for (final update in request.payload['updates'] as List<dynamic>)
           Update.fromJson(update as Map<String, dynamic>),
       ],
+      jwt: request.jwt,
     );
   }
 
@@ -325,6 +351,7 @@ final class DeleteOperationRequest extends PerformOperationRequest {
     required super.collection,
     required String where,
     required this.limit,
+    required super.jwt,
   }) : rawWhere = where,
        super(operation: CollectionOperation.delete.name);
 
@@ -333,6 +360,7 @@ final class DeleteOperationRequest extends PerformOperationRequest {
     required super.collection,
     required String where,
     required this.limit,
+    required super.jwt,
   }) : rawWhere = where,
        super._(operation: CollectionOperation.delete.name);
 
@@ -342,6 +370,7 @@ final class DeleteOperationRequest extends PerformOperationRequest {
       collection: request.payload['collection'] as String,
       limit: request.payload['limit'] as int?,
       where: request.payload['where'] as String,
+      jwt: request.jwt,
     );
   }
 
@@ -357,14 +386,18 @@ final class DeleteOperationRequest extends PerformOperationRequest {
 }
 
 final class ViewOperationRequest extends PerformOperationRequest {
-  ViewOperationRequest({required super.collection, required String where})
-    : rawWhere = where,
-      super(operation: CollectionOperation.view.name);
+  ViewOperationRequest({
+    required super.collection,
+    required String where,
+    super.jwt,
+  }) : rawWhere = where,
+       super(operation: CollectionOperation.view.name);
 
   ViewOperationRequest._({
     required super.id,
     required super.collection,
     required this.rawWhere,
+    required super.jwt,
   }) : super._(operation: CollectionOperation.view.name);
 
   factory ViewOperationRequest.fromRequest(UnknownRequest request) {
@@ -372,6 +405,7 @@ final class ViewOperationRequest extends PerformOperationRequest {
       id: request.id,
       collection: request.payload['collection'] as String,
       rawWhere: request.payload['where'] as String?,
+      jwt: request.jwt,
     );
   }
 
@@ -394,6 +428,7 @@ final class ListOperationRequest extends PerformOperationRequest {
     required String? where,
     required this.limit,
     required this.offset,
+    required super.jwt,
   }) : rawWhere = where,
        super(operation: CollectionOperation.list.name);
 
@@ -403,6 +438,7 @@ final class ListOperationRequest extends PerformOperationRequest {
     required String? where,
     required this.limit,
     required this.offset,
+    required super.jwt,
   }) : rawWhere = where,
        super._(operation: CollectionOperation.list.name);
 
@@ -413,6 +449,7 @@ final class ListOperationRequest extends PerformOperationRequest {
       limit: request.payload['limit'] as int?,
       offset: request.payload['offset'] as int?,
       where: request.payload['where'] as String?,
+      jwt: request.jwt,
     );
   }
 
@@ -442,6 +479,7 @@ final class CustomOperationRequest extends PerformOperationRequest {
     required super.operation,
     required String? where,
     required this.values,
+    required super.jwt,
   }) : rawWhere = where;
 
   CustomOperationRequest._({
@@ -450,6 +488,7 @@ final class CustomOperationRequest extends PerformOperationRequest {
     required super.operation,
     required String? where,
     required this.values,
+    required super.jwt,
   }) : rawWhere = where,
        super._();
 
@@ -460,6 +499,7 @@ final class CustomOperationRequest extends PerformOperationRequest {
       operation: request.payload['operation'] as String,
       where: request.payload['where'] as String?,
       values: request.payload['values'] as Map<String, dynamic>?,
+      jwt: request.jwt,
     );
   }
 

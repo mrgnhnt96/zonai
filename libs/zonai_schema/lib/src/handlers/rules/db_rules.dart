@@ -5,8 +5,6 @@ import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
-import 'package:zonai_schema/src/types/request.dart' as auth;
-import 'package:zonai_schema/src/types/user.dart';
 
 class _Rules {
   _Rules();
@@ -83,10 +81,6 @@ class DbRules {
   Future<CollectionRulesResponse> _collectionRules(
     CollectionRulesRequest request,
   ) async {
-    final authRequest = auth.Request(
-      user: User.fake(isSuperUser: request.isSuperUser),
-    );
-
     final rules = rulesByTable[request.collection];
     final collectionRules = rules?.collection;
 
@@ -98,7 +92,7 @@ class DbRules {
         id: request.id,
         collection: request.collection,
         operation: request.operation,
-        canAccess: request.isSuperUser,
+        canAccess: false,
       );
     }
 
@@ -108,7 +102,7 @@ class DbRules {
         id: request.id,
         collection: request.collection,
         operation: request.operation,
-        canAccess: request.isSuperUser,
+        canAccess: false,
       );
     }
 
@@ -117,24 +111,15 @@ class DbRules {
     );
 
     if (op == .create && collectionRules is AuthCollectionRules) {
-      if (request.isSuperUser) {
-        return CollectionRulesResponse(
-          id: request.id,
-          collection: request.collection,
-          operation: request.operation,
-          canAccess: true,
-        );
-      }
-
       throw StateError('Cannot create auth records, use the auth API instead');
     }
 
     final canAccess = await switch (op) {
-      .create => collectionRules.canCreate(authRequest),
-      .update => collectionRules.canUpdate(authRequest),
-      .delete => collectionRules.canDelete(authRequest),
-      .view => collectionRules.canView(authRequest),
-      .list => collectionRules.canList(authRequest),
+      .create => collectionRules.canCreate(request.jwt),
+      .update => collectionRules.canUpdate(request.jwt),
+      .delete => collectionRules.canDelete(request.jwt),
+      .view => collectionRules.canView(request.jwt),
+      .list => collectionRules.canList(request.jwt),
     };
 
     return CollectionRulesResponse(
@@ -148,15 +133,13 @@ class DbRules {
   Future<AuthCollectionRulesResponse> _authCollectionRules(
     AuthCollectionRulesRequest request,
   ) async {
-    final authRequest = auth.Request(user: User.fake(isSuperUser: false));
-
     final rules = rulesByTable[request.collection];
     final collectionRules = rules?.collection;
     if (collectionRules case AuthCollectionRules(:final canAuthenticate)) {
       return AuthCollectionRulesResponse(
         id: request.id,
         collection: request.collection,
-        canAuthenticate: await canAuthenticate(authRequest, request.authType),
+        canAuthenticate: await canAuthenticate(request.jwt, request.authType),
         authType: request.authType,
       );
     }
@@ -169,8 +152,6 @@ class DbRules {
   Future<AuthRecordRulesResponse> _authRecordRules(
     AuthRecordRulesRequest request,
   ) async {
-    final authRequest = auth.Request(user: User.fake(isSuperUser: false));
-
     final rules = rulesByTable[request.collection];
     final recordRules = rules?.record;
     if (recordRules case AuthRecordRules(:final canSignIn, :final canSignUp)) {
@@ -178,8 +159,8 @@ class DbRules {
         id: request.id,
         collection: request.collection,
         canAccess: switch (request.operation) {
-          .signIn => await canSignIn(authRequest, request.authType),
-          .signUp => await canSignUp(authRequest, request.authType),
+          .signIn => await canSignIn(request.jwt, request.authType),
+          .signUp => await canSignUp(request.jwt, request.authType),
         },
         authType: request.authType,
         operation: request.operation,
@@ -192,10 +173,6 @@ class DbRules {
   }
 
   Future<RecordRulesResponse> _recordRules(RecordRulesRequest request) async {
-    final authRequest = auth.Request(
-      user: User.fake(isSuperUser: request.isSuperUser),
-    );
-
     final rules = rulesByTable[request.collection];
     final recordRules = rules?.record;
 
@@ -206,30 +183,21 @@ class DbRules {
         id: request.id,
         collection: request.collection,
         operation: request.operation,
-        canPerform: authRequest.user.isSuperUser,
+        canPerform: false,
       );
     }
 
     if (recordRules case AuthRecordRules() when op == .create) {
-      if (request.isSuperUser) {
-        return RecordRulesResponse(
-          id: request.id,
-          collection: request.collection,
-          operation: request.operation,
-          canPerform: true,
-        );
-      }
-
       throw StateError('Cannot create auth records, use the auth API instead');
     }
 
     final object = recordRules.table.safeCreate(request.data);
 
     final canPerform = await switch (op) {
-      .view => recordRules.canView(authRequest, object),
-      .update => recordRules.canUpdate(authRequest, object),
-      .delete => recordRules.canDelete(authRequest, object),
-      .create => recordRules.canCreate(authRequest, object),
+      .view => recordRules.canView(request.jwt, object),
+      .update => recordRules.canUpdate(request.jwt, object),
+      .delete => recordRules.canDelete(request.jwt, object),
+      .create => recordRules.canCreate(request.jwt, object),
     };
 
     return RecordRulesResponse(

@@ -7,7 +7,24 @@ final class ItemCollectionRules extends CollectionRules<Item> {
   ItemCollectionRules() : super(items);
 
   @override
-  Future<bool> canView(Request request) async {
+  Future<bool> canView(Jwt? jwt) async {
+    return true;
+  }
+
+  Future<bool> canUpdate(Jwt? jwt) async {
+    return true;
+  }
+
+  Future<bool> canDelete(Jwt? jwt) async {
+    return true;
+  }
+
+  Future<bool> canList(Jwt? jwt) async {
+    return true;
+  }
+
+  @override
+  Future<bool> canCreate(Jwt? jwt) async {
     return true;
   }
 }

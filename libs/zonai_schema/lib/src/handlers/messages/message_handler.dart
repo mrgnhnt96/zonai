@@ -9,8 +9,8 @@ import 'package:zonai_schema/src/handlers/messages/stdin.dart';
 import 'package:zonai_schema/src/handlers/messages/stdout.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-part 'deps/__log.dart';
 part 'deps/__get.dart';
+part 'deps/__log.dart';
 part 'request.dart';
 part 'response.dart';
 
@@ -153,6 +153,7 @@ class MessageHandler {
                 required where,
                 limit,
                 offset,
+                jwt,
               }) async {
                 final result = await sendRequest(
                   GetRecordRequest(
@@ -160,6 +161,7 @@ class MessageHandler {
                     where: where,
                     limit: limit,
                     offset: offset,
+                    jwt: jwt,
                   ),
                 );
 

@@ -5,8 +5,8 @@ extension _StreamOneX on ZonaiDb {
     String collection,
     ViewPayload payload,
   ) async* {
-    final jwt = _extractJwt(payload);
-    await _requireCollectionAccess(collection, .view);
+    final jwt = await _extractJwt(payload);
+    await _requireCollectionAccess(collection, .view, jwt);
 
     final operation = await _getOperation(
       ListOperationRequest(
@@ -14,6 +14,7 @@ extension _StreamOneX on ZonaiDb {
         where: payload.where.sql(collection),
         limit: 1,
         offset: null,
+        jwt: jwt,
       ),
     );
 
@@ -26,7 +27,7 @@ extension _StreamOneX on ZonaiDb {
     }
 
     final object = readResult.rows.single.toMap();
-    await _requireRecordAccess(collection, .view, object);
+    await _requireRecordAccess(collection, .view, object, jwt);
 
     await for (final result in _stream(operation.query, operation.values)) {
       yield result.rows.single.toMap();

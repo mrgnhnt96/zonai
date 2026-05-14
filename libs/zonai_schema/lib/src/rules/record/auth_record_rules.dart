@@ -10,41 +10,38 @@ class AuthRecordRules<T extends AuthCollection<T>> extends BaseRecordRules<T>
   /// [record] HAS NOT been inserted into the DB yet,
   /// it is the record that will be inserted into the database
   /// if [canSignUp] returns true.
-  Future<bool> canSignUp(Request request, AuthType authType) async {
+  Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
     return switch (authType) {
       .password => true,
     };
   }
 
-  Future<bool> canSignIn(Request request, AuthType authType) async {
+  Future<bool> canSignIn(Jwt? jwt, AuthType authType) async {
     return switch (authType) {
       .password => true,
     };
   }
 
-  Future<bool> canView(Request request, T record) async {
-    if (request.user.isSuperUser) return true;
-    if (record.id == request.user.id) return true;
+  Future<bool> canView(Jwt? jwt, T record) async {
+    if (record.id == jwt?.userId) return true;
 
     return false;
   }
 
-  Future<bool> canUpdate(Request request, T record) async {
-    if (request.user.isSuperUser) return true;
-    if (record.id == request.user.id) return true;
+  Future<bool> canUpdate(Jwt? jwt, T record) async {
+    if (record.id == jwt?.userId) return true;
 
     return false;
   }
 
-  Future<bool> canDelete(Request request, T record) async {
-    if (request.user.isSuperUser) return true;
-    if (record.id == request.user.id) return true;
+  Future<bool> canDelete(Jwt? jwt, T record) async {
+    if (record.id == jwt?.userId) return true;
 
     return false;
   }
 
-  Future<bool> canCreate(Request request, T record) async {
-    if (request.user.isSuperUser) return true;
+  Future<bool> canCreate(Jwt? jwt, T record) async {
+    if (record.id == jwt?.userId) return true;
 
     return false;
   }

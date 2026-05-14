@@ -1,7 +1,7 @@
 part of 'message_handler.dart';
 
 abstract base class Request {
-  const Request({required this.path, required this.id});
+  const Request({required this.path, required this.id, this.jwt});
 
   factory Request.fromJson(Map<String, dynamic> json) {
     final path = json['path'];
@@ -24,7 +24,12 @@ abstract base class Request {
       RequestPing._path => RequestPing.fromJson(json),
       RequestKill._path => RequestKill.fromJson(json),
       GetRecordRequest._path => GetRecordRequest.fromJson(json),
-      _ => UnknownRequest(path: path, id: id, payload: json),
+      _ => UnknownRequest(
+        path: path,
+        id: id,
+        payload: json,
+        jwt: Jwt.maybeFromJson(json['jwt']),
+      ),
     };
   }
 
@@ -42,10 +47,11 @@ abstract base class Request {
 
   final String path;
   final String id;
+  final Jwt? jwt;
 
   @mustCallSuper
   Map<String, dynamic> toJson() {
-    return {'path': path, 'id': id};
+    return {'path': path, 'id': id, 'jwt': ?jwt?.toJson()};
   }
 }
 
@@ -54,6 +60,7 @@ final class UnknownRequest extends Request {
     required this.payload,
     required super.path,
     required super.id,
+    super.jwt,
   });
 
   final Map<String, dynamic> payload;
@@ -61,7 +68,7 @@ final class UnknownRequest extends Request {
 
 final class RequestPing extends Request {
   RequestPing() : super(path: _path, id: Request.generateId());
-  const RequestPing._({required super.id}) : super(path: _path);
+  RequestPing._({required super.id}) : super(path: _path);
 
   factory RequestPing.fromJson(Map<String, dynamic> json) {
     return RequestPing._(id: json['id'] as String);
@@ -92,6 +99,7 @@ final class GetRecordRequest extends Request {
     required this.where,
     this.limit,
     this.offset,
+    super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
   GetRecordRequest._({
@@ -100,6 +108,7 @@ final class GetRecordRequest extends Request {
     required this.where,
     this.limit,
     this.offset,
+    super.jwt,
   }) : super(path: _path);
 
   factory GetRecordRequest.fromJson(Map<String, dynamic> json) {
@@ -109,6 +118,7 @@ final class GetRecordRequest extends Request {
       where: Where.fromJson(json['where'] as Map<String, dynamic>),
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
+      jwt: Jwt.maybeFromJson(json['jwt']),
     );
   }
 

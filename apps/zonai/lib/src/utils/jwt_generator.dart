@@ -2,14 +2,14 @@ import 'dart:convert';
 
 import 'package:clock/clock.dart' show clock;
 import 'package:crypto/crypto.dart';
-import 'package:zonai/src/domain/app_jwt.dart';
+import 'package:zonai_schema/src/types/jwt.dart';
 
-final class Jwt {
-  const Jwt({required this.jwtPepper});
+final class JwtGenerator {
+  const JwtGenerator({required this.jwtPepper});
 
   final String jwtPepper;
 
-  Future<String> generate(AppJwt jwt) async {
+  Future<String> generate(Jwt jwt) async {
     final header = <String, String>{'alg': 'HS256', 'typ': 'JWT'};
     final payload = jwt.toJson();
     final signingInput = '${_encodeSegment(header)}.${_encodeSegment(payload)}';

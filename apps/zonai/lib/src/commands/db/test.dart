@@ -190,12 +190,12 @@ Future<int?> _createUser() async {
     ),
   );
 
-  if (error != null || result == null) {
-    logger.err(
-      'Failed to create user: ${error ?? 'no error (missing result map)'}',
-    );
-    return 1;
+  if (error != null) {
+    return null;
   }
+
+  logger.err('Expected error, cannot create user without elevated privileges');
+
   return null;
 }
 

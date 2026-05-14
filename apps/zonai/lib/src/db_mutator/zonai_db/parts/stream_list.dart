@@ -5,8 +5,8 @@ extension _StreamListX on ZonaiDb {
     String collection,
     ListPayload payload,
   ) async* {
-    final jwt = _extractJwt(payload);
-    await _requireCollectionAccess(collection, .list);
+    final jwt = await _extractJwt(payload);
+    await _requireCollectionAccess(collection, .list, jwt);
 
     final where = payload.where?.sql(collection);
     final operation = await _getOperation(
@@ -15,6 +15,7 @@ extension _StreamListX on ZonaiDb {
         where: where,
         limit: payload.limit,
         offset: payload.offset,
+        jwt: jwt,
       ),
     );
 
@@ -28,7 +29,7 @@ extension _StreamListX on ZonaiDb {
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();
     for (final object in objects) {
-      await _requireRecordAccess(collection, .view, object);
+      await _requireRecordAccess(collection, .view, object, jwt);
     }
 
     await for (final result in _stream(operation.query, operation.values)) {

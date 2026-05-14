@@ -1,5 +1,5 @@
 import 'package:zonai_playground/src/schemas/users.dart';
-import 'package:zonai_schema/zonai_schema.dart' hide User;
+import 'package:zonai_schema/zonai_schema.dart';
 
 UserCollectionRules main() => UserCollectionRules();
 

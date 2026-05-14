@@ -5,7 +5,7 @@ base class AuthCollectionRules<T extends AuthCollection<T>>
     implements Rules<T> {
   const AuthCollectionRules(super.schema);
 
-  Future<bool> canAuthenticate(Request request, AuthType authType) async {
+  Future<bool> canAuthenticate(Jwt? jwt, AuthType authType) async {
     return true;
   }
 }

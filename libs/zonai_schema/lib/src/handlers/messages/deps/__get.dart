@@ -6,6 +6,7 @@ typedef _GetManyRecords =
       required Where where,
       int? limit,
       int? offset,
+      Jwt? jwt,
     });
 
 typedef _GetOneRecord =
@@ -13,6 +14,7 @@ typedef _GetOneRecord =
       required String collection,
       required Where where,
       int? offset,
+      Jwt? jwt,
     });
 
 final _getRecordRequestProvider = create<_GetRecords>(_GetRecords._);
@@ -21,12 +23,13 @@ _GetRecords get get => read(_getRecordRequestProvider);
 
 class _GetRecords {
   _GetRecords._() {
-    many = ({required collection, required where, limit, offset}) async => null;
-    one = ({required collection, required where, offset}) async => null;
+    many = ({required collection, required where, limit, offset, jwt}) async =>
+        null;
+    one = ({required collection, required where, offset, jwt}) async => null;
   }
 
   _GetRecords(this.many) {
-    one = ({required collection, required where, offset}) async {
+    one = ({required collection, required where, offset, jwt}) async {
       final result = await many(
         collection: collection,
         where: where,

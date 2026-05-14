@@ -7,23 +7,23 @@ sealed class BaseCollectionRules<T extends Schema<T>> {
 
   Table<T> get table => Table.getFor(schema);
 
-  Future<bool> canCreate(Request request) async {
-    return request.user.isSuperUser;
+  Future<bool> canCreate(Jwt? jwt) async {
+    return false;
   }
 
-  Future<bool> canUpdate(Request request) async {
-    return request.user.isSuperUser;
+  Future<bool> canUpdate(Jwt? jwt) async {
+    return false;
   }
 
-  Future<bool> canDelete(Request request) async {
-    return request.user.isSuperUser;
+  Future<bool> canDelete(Jwt? jwt) async {
+    return false;
   }
 
-  Future<bool> canView(Request request) async {
-    return request.user.isSuperUser;
+  Future<bool> canView(Jwt? jwt) async {
+    return false;
   }
 
-  Future<bool> canList(Request request) async {
-    return request.user.isSuperUser;
+  Future<bool> canList(Jwt? jwt) async {
+    return false;
   }
 }

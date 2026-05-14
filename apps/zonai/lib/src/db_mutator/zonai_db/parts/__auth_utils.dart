@@ -6,9 +6,12 @@ extension _AuthUtilsX on ZonaiDb {
     required AuthPayload payload,
     required String rawPassword,
   }) async {
+    final jwt = await _extractJwt(payload);
+
     final response = await _operations.send(
       ViewAuthOperationRequest(
         collection: collection,
+        jwt: jwt,
         payload: switch (payload) {
           PasswordAuthPayload() => PasswordAuthOperationPayload.get(
             email: payload.email,
@@ -67,9 +70,12 @@ extension _AuthUtilsX on ZonaiDb {
     required String collection,
     required AuthPayload payload,
   }) async {
+    final jwt = await _extractJwt(payload);
+
     final response = await _operations.send(
       ViewAuthOperationRequest(
         collection: collection,
+        jwt: jwt,
         payload: switch (payload) {
           PasswordAuthPayload() => PasswordAuthOperationPayload.get(
             email: payload.email,
@@ -99,9 +105,12 @@ extension _AuthUtilsX on ZonaiDb {
     AuthOperation operation,
     AuthPayload payload,
   ) async {
+    final jwt = await _extractJwt(payload);
+
     final response = await _rules.send(
       AuthRecordRulesRequest(
         collection: collection,
+        jwt: jwt,
         operation: operation,
         authType: payload.authType,
       ),
@@ -111,10 +120,12 @@ extension _AuthUtilsX on ZonaiDb {
       return;
     }
 
-    throw StateError('User does not have access to $operation on $collection');
+    throw StateError(
+      'User permissions are restricted. Action: "${operation.name}" on collection: "$collection"',
+    );
   }
 
-  Future<AppJwt?> _extractJwt(JwtPayload payload) async {
+  Future<Jwt?> _extractJwt(JwtPayload payload) async {
     final jwt = payload.jwt;
 
     if (jwt == null) {
@@ -126,10 +137,10 @@ extension _AuthUtilsX on ZonaiDb {
       throw StateError('Invalid JWT');
     }
 
-    AppJwt appJwt;
+    Jwt appJwt;
 
     try {
-      appJwt = AppJwt.fromJson(decoded);
+      appJwt = Jwt.fromJson(decoded);
       logger.verbose('Extracted JWT: ${appJwt}', prefix: _prefix);
     } on Object {
       throw StateError('Invalid JWT');
@@ -156,9 +167,12 @@ extension _AuthUtilsX on ZonaiDb {
     String collection,
     AuthPayload payload,
   ) async {
+    final jwt = await _extractJwt(payload);
+
     final response = await _rules.send(
       AuthCollectionRulesRequest(
         collection: collection,
+        jwt: jwt,
         authType: switch (payload) {
           PasswordAuthPayload() => .password,
         },

@@ -5,8 +5,8 @@ extension _UpdateX on ZonaiDb {
     String collection,
     UpdatePayload payload,
   ) async {
-    final jwt = _extractJwt(payload);
-    await _requireCollectionAccess(collection, .update);
+    final jwt = await _extractJwt(payload);
+    await _requireCollectionAccess(collection, .update, jwt);
 
     final where = payload.where.sql(collection);
 
@@ -16,6 +16,7 @@ extension _UpdateX on ZonaiDb {
         where: where,
         limit: payload.limit,
         offset: null,
+        jwt: jwt,
       ),
     );
 
@@ -30,20 +31,23 @@ extension _UpdateX on ZonaiDb {
     final objects = readResult.rows.map((e) => e.toMap()).toList();
 
     for (final row in objects) {
-      await _requireRecordAccess(collection, .update, row);
+      await _requireRecordAccess(collection, .update, row, jwt);
     }
 
-    {
-      final beforeUpdate = await _extensions.send(
-        BeforeUpdateExtensionRequest(collection: collection, objects: objects),
-      );
-    }
+    await _extensions.send(
+      BeforeUpdateExtensionRequest(
+        collection: collection,
+        objects: objects,
+        jwt: jwt,
+      ),
+    );
 
     final updateOperation = await _getOperation(
       UpdateOperationRequest(
         collection: collection,
         where: where,
         updates: payload.updates,
+        jwt: jwt,
       ),
     );
 
@@ -67,6 +71,7 @@ extension _UpdateX on ZonaiDb {
         ErrorExtensionRequest.update(
           collection: collection,
           error: updatedError?.toString() ?? 'Unknown error',
+          jwt: jwt,
         ),
       );
 
@@ -82,6 +87,7 @@ extension _UpdateX on ZonaiDb {
           collection: collection,
           before: objects,
           after: updatedObjects,
+          jwt: jwt,
         ),
       );
     }

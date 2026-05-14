@@ -2,8 +2,8 @@ part of zonai_db;
 
 extension _DeleteX on ZonaiDb {
   Future<_Result<int>> _delete(String collection, DeletePayload payload) async {
-    final jwt = _extractJwt(payload);
-    await _requireCollectionAccess(collection, .delete);
+    final jwt = await _extractJwt(payload);
+    await _requireCollectionAccess(collection, .delete, jwt);
 
     final where = payload.where.sql(collection);
 
@@ -13,6 +13,7 @@ extension _DeleteX on ZonaiDb {
         where: where,
         limit: payload.limit,
         offset: null,
+        jwt: jwt,
       ),
     );
 
@@ -32,12 +33,16 @@ extension _DeleteX on ZonaiDb {
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();
     for (final object in objects) {
-      await _requireRecordAccess(collection, .delete, object);
+      await _requireRecordAccess(collection, .delete, object, jwt);
     }
 
     {
       final beforeDelete = await _extensions.send(
-        DeleteExtensionRequest.before(collection: collection, objects: objects),
+        DeleteExtensionRequest.before(
+          collection: collection,
+          objects: objects,
+          jwt: jwt,
+        ),
       );
     }
 
@@ -46,6 +51,7 @@ extension _DeleteX on ZonaiDb {
         collection: collection,
         where: where,
         limit: payload.limit,
+        jwt: jwt,
       ),
     );
 
@@ -63,6 +69,7 @@ extension _DeleteX on ZonaiDb {
         ErrorExtensionRequest.delete(
           collection: collection,
           error: deleteError?.toString() ?? 'Unknown error',
+          jwt: jwt,
         ),
       );
 
@@ -76,6 +83,7 @@ extension _DeleteX on ZonaiDb {
         DeleteExtensionRequest.afterSuccess(
           collection: collection,
           objects: objects,
+          jwt: jwt,
         ),
       );
     }

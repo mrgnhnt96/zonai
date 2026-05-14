@@ -52,31 +52,32 @@ extension _UtilsX on ZonaiDb {
   Future<void> _requireCollectionAccess(
     String collection,
     CollectionOperation operation,
+    Jwt? jwt,
   ) async {
     logger.verbose(
       'Checking collection rules for $collection $operation',
       prefix: _prefix,
     );
-    final collectionRules = await _collectionRules(collection, operation);
+    final collectionRules = await _collectionRules(collection, operation, jwt);
     logger.verbose('Collection rules: $collectionRules', prefix: _prefix);
 
     if (!collectionRules.canAccess) {
-      throw StateError('User does not have access to update $collection');
+      throw StateError(
+        'User permissions are restricted. Action: "${operation.name}" on collection: "$collection"',
+      );
     }
   }
 
   Future<CollectionRulesResponse> _collectionRules(
     String collection,
     CollectionOperation operation,
+    Jwt? jwt,
   ) async {
-    // TODO: Forward user's object
-    const isSuperUser = true;
-
     final rules = await _rules.send(
       CollectionRulesRequest(
         collection: collection,
         operation: operation.name,
-        isSuperUser: isSuperUser,
+        jwt: jwt,
       ),
     );
 
@@ -86,7 +87,7 @@ extension _UtilsX on ZonaiDb {
             id: '-1',
             collection: collection,
             operation: operation.name,
-            canAccess: isSuperUser,
+            canAccess: false,
           );
     }
 
@@ -99,13 +100,14 @@ extension _UtilsX on ZonaiDb {
     String collection,
     RecordOperation operation,
     Map<String, dynamic> data,
+    Jwt? jwt,
   ) async {
     final rules = await _rules.send(
       RecordRulesRequest(
         collection: collection,
         operation: operation,
-        isSuperUser: true,
         data: data,
+        jwt: jwt,
       ),
     );
 
@@ -126,11 +128,12 @@ extension _UtilsX on ZonaiDb {
     String collection,
     RecordOperation operation,
     Map<String, dynamic> data,
+    Jwt? jwt,
   ) async {
-    final result = await _recordRules(collection, operation, data);
+    final result = await _recordRules(collection, operation, data, jwt);
     if (result.canPerform case false) {
       throw StateError(
-        'User does not have access to perform $operation on $collection',
+        'User permissions are restricted. Action: "${operation.name}" on collection: "$collection"',
       );
     }
   }

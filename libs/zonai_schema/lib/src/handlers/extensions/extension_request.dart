@@ -2,7 +2,7 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 
 sealed class ExtensionRequest extends Request {
-  const ExtensionRequest({required super.path, required super.id});
+  const ExtensionRequest({required super.path, required super.id, required super.jwt});
 
   factory ExtensionRequest.fromRequest(UnknownRequest request) {
     return switch (request.path) {
@@ -23,10 +23,16 @@ enum ExtensionType { create, update, delete }
 
 enum AuthExtensionStep { onSignUp, onSignIn }
 
+/// The [jwt] belongs to the user who is making the request, not the user that is being created or signed in.
 final class AuthExtensionRequest extends ExtensionRequest {
-  AuthExtensionRequest.onSignUp({required this.collection, required this.object}) : step = .onSignUp, super(path: _path, id: Request.generateId());
-  AuthExtensionRequest.onSignIn({required this.collection, required this.object}) : step = .onSignIn, super(path: _path, id: Request.generateId());
-  AuthExtensionRequest._({required super.id, required this.collection, required this.object, required this.step}) : super(path: _path);
+  AuthExtensionRequest.onSignUp({required this.collection, required this.object, required super.jwt})
+    : step = .onSignUp,
+      super(path: _path, id: Request.generateId());
+  AuthExtensionRequest.onSignIn({required this.collection, required this.object, required super.jwt})
+    : step = .onSignIn,
+      super(path: _path, id: Request.generateId());
+  AuthExtensionRequest._({required super.id, required this.collection, required this.object, required this.step, required super.jwt})
+    : super(path: _path);
 
   factory AuthExtensionRequest.fromRequest(UnknownRequest request) {
     return AuthExtensionRequest._(
@@ -34,6 +40,7 @@ final class AuthExtensionRequest extends ExtensionRequest {
       collection: request.payload['collection'] as String,
       object: request.payload['object'] as Map<String, dynamic>,
       step: AuthExtensionStep.values.byName(request.payload['step'] as String),
+      jwt: request.jwt,
     );
   }
 
@@ -50,7 +57,7 @@ final class AuthExtensionRequest extends ExtensionRequest {
 }
 
 sealed class RecordExtensionRequest extends ExtensionRequest {
-  const RecordExtensionRequest({required super.path, required super.id, required this.step, required this.type});
+  const RecordExtensionRequest({required super.path, required super.id, required this.step, required this.type, required super.jwt});
 
   final ExtensionStep step;
   final ExtensionType type;
@@ -62,15 +69,21 @@ sealed class RecordExtensionRequest extends ExtensionRequest {
 }
 
 final class ErrorExtensionRequest extends RecordExtensionRequest {
-  ErrorExtensionRequest.create({required this.collection, required this.error})
+  ErrorExtensionRequest.create({required this.collection, required this.error, required super.jwt})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .create);
-  ErrorExtensionRequest.update({required this.collection, required this.error})
+  ErrorExtensionRequest.update({required this.collection, required this.error, required super.jwt})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .update);
-  ErrorExtensionRequest.delete({required this.collection, required this.error})
+  ErrorExtensionRequest.delete({required this.collection, required this.error, required super.jwt})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .delete);
 
-  ErrorExtensionRequest._({required super.id, required this.collection, required this.error, required super.step, required super.type})
-    : super(path: _path);
+  ErrorExtensionRequest._({
+    required super.id,
+    required this.collection,
+    required this.error,
+    required super.step,
+    required super.type,
+    required super.jwt,
+  }) : super(path: _path);
 
   factory ErrorExtensionRequest.fromRequest(UnknownRequest request) {
     return ErrorExtensionRequest._(
@@ -79,6 +92,7 @@ final class ErrorExtensionRequest extends RecordExtensionRequest {
       error: request.payload['error'] as String,
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       type: ExtensionType.values.byName(request.payload['type'] as String),
+      jwt: request.jwt,
     );
   }
 
@@ -94,12 +108,12 @@ final class ErrorExtensionRequest extends RecordExtensionRequest {
 }
 
 final class CreateExtensionRequest extends RecordExtensionRequest {
-  CreateExtensionRequest.before({required this.collection, required this.object})
+  CreateExtensionRequest.before({required this.collection, required this.object, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .before, type: .create);
-  CreateExtensionRequest.afterSuccess({required this.collection, required this.object})
+  CreateExtensionRequest.afterSuccess({required this.collection, required this.object, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .afterSuccess, type: .create);
 
-  CreateExtensionRequest._({required super.id, required this.collection, required this.object, required super.step})
+  CreateExtensionRequest._({required super.id, required this.collection, required this.object, required super.step, required super.jwt})
     : super(path: _path, type: .create);
 
   factory CreateExtensionRequest.fromRequest(UnknownRequest request) {
@@ -108,6 +122,7 @@ final class CreateExtensionRequest extends RecordExtensionRequest {
       collection: request.payload['collection'] as String,
       object: request.payload['object'] as Map<String, dynamic>,
       step: ExtensionStep.values.byName(request.payload['step'] as String),
+      jwt: request.jwt,
     );
   }
 
@@ -123,12 +138,12 @@ final class CreateExtensionRequest extends RecordExtensionRequest {
 }
 
 final class DeleteExtensionRequest extends RecordExtensionRequest {
-  DeleteExtensionRequest.before({required this.collection, required this.objects})
+  DeleteExtensionRequest.before({required this.collection, required this.objects, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .before, type: .create);
-  DeleteExtensionRequest.afterSuccess({required this.collection, required this.objects})
+  DeleteExtensionRequest.afterSuccess({required this.collection, required this.objects, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .afterSuccess, type: .create);
 
-  DeleteExtensionRequest._({required super.id, required this.collection, required this.objects, required super.step})
+  DeleteExtensionRequest._({required super.id, required this.collection, required this.objects, required super.step, required super.jwt})
     : super(path: _path, type: .create);
 
   factory DeleteExtensionRequest.fromRequest(UnknownRequest request) {
@@ -137,6 +152,7 @@ final class DeleteExtensionRequest extends RecordExtensionRequest {
       collection: request.payload['collection'] as String,
       objects: (request.payload['object'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
+      jwt: request.jwt,
     );
   }
 
@@ -152,10 +168,10 @@ final class DeleteExtensionRequest extends RecordExtensionRequest {
 }
 
 final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
-  BeforeUpdateExtensionRequest({required this.collection, required this.objects})
+  BeforeUpdateExtensionRequest({required this.collection, required this.objects, required super.jwt})
     : super(path: _path, step: .before, type: .update, id: Request.generateId());
 
-  BeforeUpdateExtensionRequest._({required super.id, required this.collection, required this.objects, required super.step})
+  BeforeUpdateExtensionRequest._({required super.id, required this.collection, required this.objects, required super.step, required super.jwt})
     : super(path: _path, type: .update);
 
   factory BeforeUpdateExtensionRequest.fromRequest(UnknownRequest request) {
@@ -164,6 +180,7 @@ final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
       collection: request.payload['collection'] as String,
       objects: (request.payload['object'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
+      jwt: request.jwt,
     );
   }
 
@@ -179,12 +196,18 @@ final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
 }
 
 final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
-  AfterUpdateExtensionRequest({required this.collection, required this.before, required this.after})
+  AfterUpdateExtensionRequest({required this.collection, required this.before, required this.after, required super.jwt})
     : assert(before.length == after.length, 'Before and after must have the same length'),
       super(path: _path, step: .afterSuccess, type: .update, id: Request.generateId());
 
-  AfterUpdateExtensionRequest._({required super.id, required this.collection, required this.before, required this.after, required super.step})
-    : super(path: _path, type: .update);
+  AfterUpdateExtensionRequest._({
+    required super.id,
+    required this.collection,
+    required this.before,
+    required this.after,
+    required super.step,
+    required super.jwt,
+  }) : super(path: _path, type: .update);
 
   factory AfterUpdateExtensionRequest.fromRequest(UnknownRequest request) {
     return AfterUpdateExtensionRequest._(
@@ -193,6 +216,7 @@ final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
       before: (request.payload['before'] as List).cast(),
       after: (request.payload['after'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
+      jwt: request.jwt,
     );
   }
 

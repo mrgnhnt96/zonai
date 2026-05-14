@@ -2,17 +2,26 @@ import 'dart:convert';
 
 import 'package:clock/clock.dart';
 
-class AppJwt {
-  const AppJwt({
+/// A JWT token for a [user].
+///
+/// [userId] is the ID of the user that the JWT token belongs to.
+/// [collection] is the collection that the [user] belongs to.
+/// [jwtId] is the ID of the JWT token.
+/// [expiresAt] is the expiration date of the JWT token.
+/// [user] the current user's object
+/// [claims] are the claims that are included in the JWT token.
+class Jwt {
+  Jwt({
     required this.userId,
     required this.collection,
-    required this.user,
     required this.jwtId,
     required this.expiresAt,
-    required this.claims,
-  });
+    required Map<String, Object?> user,
+    required Map<String, Object?> claims,
+  }) : claims = Map.unmodifiable(claims),
+       user = Map.unmodifiable(user);
 
-  factory AppJwt.create({
+  factory Jwt.create({
     required String userId,
     required String collection,
     required Map<String, Object?> user,
@@ -20,7 +29,7 @@ class AppJwt {
     required Duration expiresIn,
     required Map<String, Object?> claims,
   }) {
-    return AppJwt(
+    return Jwt(
       userId: userId,
       collection: collection,
       user: user,
@@ -30,8 +39,8 @@ class AppJwt {
     );
   }
 
-  factory AppJwt.fromJson(Map<String, dynamic> json) {
-    return AppJwt(
+  factory Jwt.fromJson(Map<String, dynamic> json) {
+    return Jwt(
       userId: json['userId'],
       collection: json['collection'],
       user: json['user'] ?? {},
@@ -41,6 +50,14 @@ class AppJwt {
     );
   }
 
+  static Jwt? maybeFromJson(dynamic json) {
+    try {
+      return Jwt.fromJson(json as Map<String, dynamic>);
+    } on Object {
+      return null;
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'userId': userId,
@@ -48,7 +65,7 @@ class AppJwt {
       'jwtId': jwtId,
       'expiresAt': expiresAt.toUtc().millisecondsSinceEpoch ~/ 1000,
       'claims': jsonDecode(jsonEncode(claims)),
-      'user': user,
+      'user': jsonDecode(jsonEncode(user)),
     };
   }
 
@@ -58,6 +75,8 @@ class AppJwt {
   final String jwtId;
   final DateTime expiresAt;
   final Map<String, Object?> claims;
+
+  bool get isExpired => clock.now().isAfter(expiresAt);
 
   @override
   String toString() {

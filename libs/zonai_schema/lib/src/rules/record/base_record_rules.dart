@@ -7,19 +7,19 @@ class BaseRecordRules<T extends Schema<T>> {
 
   Table<T> get table => Table.getFor(schema);
 
-  Future<bool> canView(Request request, T record) async {
+  Future<bool> canView(Jwt? jwt, T record) async {
     return true;
   }
 
-  Future<bool> canUpdate(Request request, T record) async {
+  Future<bool> canUpdate(Jwt? jwt, T record) async {
     return true;
   }
 
-  Future<bool> canDelete(Request request, T record) async {
+  Future<bool> canDelete(Jwt? jwt, T record) async {
     return true;
   }
 
-  Future<bool> canCreate(Request request, T record) async {
+  Future<bool> canCreate(Jwt? jwt, T record) async {
     return true;
   }
 }

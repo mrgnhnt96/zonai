@@ -2,8 +2,8 @@ part of zonai_db;
 
 extension _ListX on ZonaiDb {
   Future<_CrudListResult> _list(String collection, ListPayload payload) async {
-    final jwt = _extractJwt(payload);
-    await _requireCollectionAccess(collection, .list);
+    final jwt = await _extractJwt(payload);
+    await _requireCollectionAccess(collection, .list, jwt);
 
     final operation = await _getOperation(
       ListOperationRequest(
@@ -11,6 +11,7 @@ extension _ListX on ZonaiDb {
         where: payload.where?.sql(collection),
         limit: payload.limit,
         offset: payload.offset,
+        jwt: jwt,
       ),
     );
 
@@ -23,7 +24,7 @@ extension _ListX on ZonaiDb {
     logger.verbose('Found ${objects.length} objects', prefix: _prefix);
 
     for (final object in objects) {
-      await _requireRecordAccess(collection, .view, object);
+      await _requireRecordAccess(collection, .view, object, jwt);
     }
 
     return (null, objects);
