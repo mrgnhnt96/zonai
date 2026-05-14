@@ -6,7 +6,10 @@ import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/mutations.dart';
 import 'package:zonai/src/internal_collections/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
@@ -42,9 +45,8 @@ part 'parts/stream_one.dart';
 part 'parts/update.dart';
 part 'parts/view.dart';
 
-typedef _Result<T> = (Object? error, T? result);
-typedef _CrudResult = _Result<Map<String, Object?>>;
-typedef _CrudListResult = _Result<List<Map<String, Object?>>>;
+typedef _CrudResult = Map<String, Object?>;
+typedef _CrudListResult = List<Map<String, Object?>>;
 
 const _prefix = '[ZONAI_DB]';
 
@@ -80,155 +82,123 @@ class ZonaiDb {
 
   File? __dbFile;
 
-  Future<_Result<_AuthResult>> authenticate(
+  Future<_AuthResult> authenticate(
     String collection,
     AuthPayload payload,
   ) async {
-    try {
-      return await _authenticate(collection, payload);
-    } catch (e, stack) {
-      logger.error('Failed to authenticate: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-
-      return (e, null);
-    }
+    return await _run(() => _authenticate(collection, payload));
   }
 
-  Future<_Result<_AuthResult>> signIn(
-    String collection,
-    AuthPayload payload,
-  ) async {
-    try {
-      return await _signIn(collection, payload);
-    } catch (e, stack) {
-      logger.error('Failed to sign in: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-
-      return (e, null);
-    }
+  Future<_AuthResult> signIn(String collection, AuthPayload payload) async {
+    return await _run(() => _signIn(collection, payload));
   }
 
-  Future<_Result<_AuthResult>> signUp(
-    String collection,
-    AuthPayload payload,
-  ) async {
-    try {
-      return await _signUp(collection, payload);
-    } catch (e, stack) {
-      logger.error('Failed to sign up: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-
-      return (e, null);
-    }
+  Future<_AuthResult> signUp(String collection, AuthPayload payload) async {
+    return await _run(() => _signUp(collection, payload));
   }
 
   Future<void> logout(String jwt) async {
-    try {
-      return await _logout(jwt);
-    } catch (e, stack) {
-      logger.error('Failed to logout: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-    }
+    return await _run(() => _logout(jwt));
   }
 
   Future<void> logoutAll(String jwt) async {
-    try {
-      return await _logoutAll(jwt);
-    } catch (e, stack) {
-      logger.error('Failed to logout all: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-    }
+    return await _run(() => _logoutAll(jwt));
   }
 
   Future<_CrudResult> create(String collection, CreatePayload payload) async {
-    try {
-      return await _create(collection, payload);
-    } catch (e, stack) {
-      logger.error('Failed to create record: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-
-      return (e, null);
-    }
+    return await _run(() => _create(collection, payload));
   }
 
   Future<_CrudListResult> update(
     String collection,
     UpdatePayload payload,
   ) async {
-    try {
-      return await _update(collection, payload);
-    } catch (e, stack) {
-      logger.error('Failed to update record: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-
-      return (e, null);
-    }
+    return await _run(() => _update(collection, payload));
   }
 
-  Future<_Result<int>> delete(String collection, DeletePayload payload) async {
-    try {
-      return await _delete(collection, payload);
-    } catch (e, stack) {
-      logger.error('Failed to delete record: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-
-      return (e, null);
-    }
+  Future<int> delete(String collection, DeletePayload payload) async {
+    return await _run(() => _delete(collection, payload));
   }
 
   Future<_CrudResult> view(String collection, ViewPayload payload) async {
-    try {
-      return await _view(collection, payload);
-    } catch (e, stack) {
-      logger.error('Failed to view record: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
-
-      return (e, null);
-    }
+    return await _run(() => _view(collection, payload));
   }
 
   Future<_CrudListResult> list(String collection, ListPayload payload) async {
+    return await _run(() => _list(collection, payload));
+  }
+
+  Future<T> _run<T>(Future<T> Function() body) async {
     try {
-      return await _list(collection, payload);
+      final m = Mutations();
+      return await runMergedScopedFuture(
+        body,
+        override: {mutationsProvider.overrideWith(() => m)},
+      );
     } catch (e, stack) {
       logger.error('Failed to list records: $e', switch (kIsCompiled) {
         true => null,
         false => stack,
       });
 
-      return (e, null);
+      throw e;
     }
+  }
+
+  Stream<T> _runStream<T>(Stream<T> Function() body) {
+    final m = Mutations();
+    return Stream<T>.multi((listener) {
+      runMergedScopedFuture(() async {
+        late final StreamSubscription<T> subscription;
+        try {
+          subscription = body().listen(
+            listener.add,
+            onError: listener.addError,
+            onDone: () {
+              if (!listener.isClosed) {
+                listener.close();
+              }
+            },
+            cancelOnError: false,
+          );
+
+          listener
+            ..onCancel = () {
+              subscription.cancel().whenComplete(() {
+                if (!listener.isClosed) {
+                  listener.close();
+                }
+              });
+            }
+            ..onPause = subscription.pause
+            ..onResume = subscription.resume;
+
+          await subscription.asFuture();
+        } catch (e, stack) {
+          logger.error('Failed to list records: $e', switch (kIsCompiled) {
+            true => null,
+            false => stack,
+          });
+          listener.addError(e, stack);
+          if (!listener.isClosed) {
+            listener.close();
+          }
+        }
+      }, override: {mutationsProvider.overrideWith(() => m)});
+    });
   }
 
   Stream<Map<String, Object?>> streamOne(
     String collection,
     ViewPayload payload,
   ) async* {
-    yield* await _streamOne(collection, payload);
+    yield* _runStream(() => _streamOne(collection, payload));
   }
 
   Stream<List<Map<String, Object?>>> streamList(
     String collection,
     ListPayload payload,
   ) async* {
-    yield* await _streamList(collection, payload);
+    yield* _runStream(() => _streamList(collection, payload));
   }
 }

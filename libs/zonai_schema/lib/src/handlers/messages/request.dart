@@ -24,6 +24,9 @@ abstract base class Request {
       RequestPing._path => RequestPing.fromJson(json),
       RequestKill._path => RequestKill.fromJson(json),
       GetRecordRequest._path => GetRecordRequest.fromJson(json),
+      CreateRecordRequest._path => CreateRecordRequest.fromJson(json),
+      DeleteRecordRequest._path => DeleteRecordRequest.fromJson(json),
+      UpdateRecordRequest._path => UpdateRecordRequest.fromJson(json),
       _ => UnknownRequest(
         path: path,
         id: id,
@@ -42,7 +45,10 @@ abstract base class Request {
     final t = DateTime.now().microsecondsSinceEpoch;
     final seq = _generateSeq = (_generateSeq + 1) & 0x3fffffff;
     final r = Random.secure().nextInt(0x40000000);
-    return sha256.convert(utf8.encode('$t:$seq:$r')).toString();
+    return sha256
+        .convert(utf8.encode('$t:$seq:$r'))
+        .toString()
+        .substring(0, 16);
   }
 
   final String path;
@@ -136,6 +142,168 @@ final class GetRecordRequest extends Request {
       'collection': collection,
       'where': where.toJson(),
       'limit': limit,
+      'offset': offset,
+    };
+  }
+}
+
+sealed class MutationRequest extends Request {
+  const MutationRequest({
+    required super.path,
+    required super.id,
+    required this.parent,
+    super.jwt,
+  });
+
+  final Request parent;
+
+  @override
+  @mustCallSuper
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'parent': parent.toJson()};
+  }
+}
+
+final class DeleteRecordRequest extends MutationRequest {
+  DeleteRecordRequest({
+    required this.collection,
+    required this.where,
+    required super.parent,
+    this.limit,
+    super.jwt,
+  }) : super(path: _path, id: Request.generateId());
+
+  DeleteRecordRequest._({
+    required super.id,
+    required this.collection,
+    required this.where,
+    required super.parent,
+    this.limit,
+    super.jwt,
+  }) : super(path: _path);
+
+  factory DeleteRecordRequest.fromJson(Map<String, dynamic> json) {
+    return DeleteRecordRequest._(
+      id: json['id'] as String,
+      parent: Request.fromJson(json['parent'] as Map<String, dynamic>),
+      collection: json['collection'] as String,
+      where: Where.fromJson(json['where'] as Map<String, dynamic>),
+      limit: json['limit'] as int?,
+      jwt: Jwt.maybeFromJson(json['jwt']),
+    );
+  }
+
+  static const _path = '${Request.prefix}.delete_record';
+
+  final String collection;
+  final Where where;
+  final int? limit;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'where': where.toJson(),
+      'limit': limit,
+    };
+  }
+}
+
+final class CreateRecordRequest extends MutationRequest {
+  CreateRecordRequest({
+    required this.collection,
+    required this.objects,
+    required super.parent,
+    super.jwt,
+  }) : super(path: _path, id: Request.generateId());
+
+  CreateRecordRequest._({
+    required super.id,
+    required this.collection,
+    required this.objects,
+    required super.parent,
+    super.jwt,
+  }) : super(path: _path);
+
+  factory CreateRecordRequest.fromJson(Map<String, dynamic> json) {
+    return CreateRecordRequest._(
+      id: json['id'] as String,
+      parent: Request.fromJson(json['parent'] as Map<String, dynamic>),
+      collection: json['collection'] as String,
+      objects: [
+        for (final o in json['objects'] as List<dynamic>)
+          Map<String, dynamic>.from(o as Map),
+      ],
+      jwt: Jwt.maybeFromJson(json['jwt']),
+    );
+  }
+
+  static const _path = '${Request.prefix}.create_record';
+
+  final String collection;
+  final List<Map<String, dynamic>> objects;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection, 'objects': objects};
+  }
+}
+
+final class UpdateRecordRequest extends MutationRequest {
+  UpdateRecordRequest({
+    required this.collection,
+    required this.where,
+    required this.updates,
+    required super.parent,
+    this.limit,
+    this.offset,
+    super.jwt,
+  }) : super(path: _path, id: Request.generateId());
+
+  UpdateRecordRequest._({
+    required super.id,
+    required this.collection,
+    required this.where,
+    required this.updates,
+    required super.parent,
+    this.limit,
+    this.offset,
+    super.jwt,
+  }) : super(path: _path);
+
+  factory UpdateRecordRequest.fromJson(Map<String, dynamic> json) {
+    return UpdateRecordRequest._(
+      id: json['id'] as String,
+      parent: Request.fromJson(json['parent'] as Map<String, dynamic>),
+      collection: json['collection'] as String,
+      where: Where.fromJson(json['where'] as Map<String, dynamic>),
+      updates: [
+        for (final update in json['updates'] as List<dynamic>)
+          Update.fromJson(update as Map<String, dynamic>),
+      ],
+      limit: json['limit'] as int?,
+      offset: json['offset'] as int?,
+      jwt: Jwt.maybeFromJson(json['jwt']),
+    );
+  }
+
+  static const _path = '${Request.prefix}.update_record';
+
+  final String collection;
+  final Where where;
+  final List<Update> updates;
+  final int? limit;
+  final int? offset;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'where': where.toJson(),
+      'limit': limit,
+      'updates': updates.map((update) => update.toJson()).toList(),
       'offset': offset,
     };
   }

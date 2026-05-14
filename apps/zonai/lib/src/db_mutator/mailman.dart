@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 
+import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/src/deps/mutations.dart';
+
 import '../db_mutator/payloads/payloads.dart';
 import '../deps/clean_up.dart';
 import '../deps/zonai_db.dart';
@@ -17,8 +20,12 @@ class Mailman<S extends Request, R extends Response> {
     required this.debugName,
     required this.executablePath,
     required R Function(Map<String, dynamic>) fromJson,
-  }) : _response = StreamController.broadcast(),
-       _request = StreamController.broadcast(),
+    // Subprocess stdout preserves line order (mutation RPCs before the reply).
+    // Sync broadcast avoids delayed stream delivery; mutation [Request]s are
+    // queued in [_listenToMessages] so enqueue cannot fall behind the next
+    // response line after an async [_handleRequest] await.
+  }) : _response = StreamController.broadcast(sync: true),
+       _request = StreamController.broadcast(sync: true),
        _fromJson = fromJson {
     cleanUp.add(dispose);
     _responseSubscription = _response.stream.listen(_handleResponse);
@@ -32,10 +39,13 @@ class Mailman<S extends Request, R extends Response> {
   io.Process? _process;
   final StreamController<Request> _request;
   late final StreamSubscription<Request> _requestSubscription;
-  final StreamController<Response> _response;
-  late final StreamSubscription<Response> _responseSubscription;
+  final StreamController<(Response, List<MutationRequest>)> _response;
+  late final StreamSubscription<(Response, List<MutationRequest>)>
+  _responseSubscription;
 
-  final Map<String, Completer<Response>> _pendingResponses = {};
+  final Map<String, Completer<(Response, List<MutationRequest>)>>
+  _pendingResponses = {};
+  final Map<String, List<MutationRequest>> _pendingMutations = {};
 
   Future<void> dispose() async {
     kill();
@@ -84,16 +94,26 @@ class Mailman<S extends Request, R extends Response> {
   void _handleRequest(Request request) async {
     Response response;
     try {
-      response = switch (request) {
-        final GetRecordRequest request => await _fetch(request),
-        _ => MessageErrorResponse(
-          id: request.id,
-          message:
-              'Invalid worker request: ${request.runtimeType}(${request.path})',
-          error: null,
-          stackTrace: null,
-        ),
-      };
+      switch (request) {
+        case final GetRecordRequest request:
+          response = await _fetch(request);
+
+        case final Request request:
+          if (request is UnknownRequest) {
+            logger.warn(
+              'Unsupported extension worker request '
+              '| path=${request.path}',
+              prefix: _prefix,
+            );
+          }
+          response = MessageErrorResponse(
+            id: request.id,
+            message:
+                'Invalid worker request: ${request.runtimeType}(${request.path})',
+            error: null,
+            stackTrace: null,
+          );
+      }
     } on MessageHandlerFailedException catch (e) {
       response = MessageErrorResponse(
         id: request.id,
@@ -117,11 +137,15 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
-  void _handleResponse(Response response) {
+  void _handleResponse(
+    (Response response, List<MutationRequest> mutations) data,
+  ) {
+    final (response, mutations) = data;
     if (response is DebugResponse) {
       _log(response);
       return;
     }
+
     if (response case final MessageErrorResponse response) {
       logger.error(
         '$_prefix: ${response.message}',
@@ -131,6 +155,8 @@ class Mailman<S extends Request, R extends Response> {
           final trace => StackTrace.fromString(trace),
         },
       );
+
+      _pendingMutations.remove(response.id);
 
       final completer = _pendingResponses.remove(response.id);
       if (completer == null) {
@@ -158,34 +184,34 @@ class Mailman<S extends Request, R extends Response> {
       return;
     }
 
-    completer.complete(response);
+    completer.complete((response, mutations));
   }
 
   bool get isRunning => _process != null;
   bool get hasExecutable => fs.file(executablePath).existsSync();
 
   Future<Response> _fetch(GetRecordRequest request) async {
-    final (error, results) = await zonaiDB.list(
-      request.collection,
-      ListPayload(
-        where: request.where,
-        limit: request.limit,
-        offset: request.offset,
-        // TODO(mrgnhnt): Forward jwt from request (without forwarding it to the worker)
-        jwt: null,
-      ),
-    );
+    try {
+      final results = await zonaiDB.list(
+        request.collection,
+        ListPayload(
+          where: request.where,
+          limit: request.limit,
+          offset: request.offset,
+          // TODO(mrgnhnt): Forward jwt from request (without forwarding it to the worker)
+          jwt: null,
+        ),
+      );
 
-    if (error != null) {
+      return GetRecordResponse(id: request.id, records: results);
+    } catch (e, stack) {
       return MessageErrorResponse(
         id: request.id,
         message: 'Failed to get records',
-        error: '$error',
-        stackTrace: null,
+        error: '$e',
+        stackTrace: stack.toString(),
       );
     }
-
-    return GetRecordResponse(id: request.id, records: results ?? []);
   }
 
   Future<io.Process?> _start() async {
@@ -208,12 +234,15 @@ class Mailman<S extends Request, R extends Response> {
         completer.completeError(Exception('Process killed'));
       }
       _pendingResponses.clear();
+      _pendingMutations.clear();
     });
 
     p.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen(_listenToMessages);
+        .listen(
+          Zone.current.bindUnaryCallback<void, String>(_listenToMessages),
+        );
 
     logger.debug('Started', prefix: _prefix);
 
@@ -248,7 +277,14 @@ class Mailman<S extends Request, R extends Response> {
           );
           return;
         }
-        _response.add(response);
+
+        if (response is DebugResponse) {
+          _response.add((response, <MutationRequest>[]));
+          return;
+        }
+
+        final mutations = _pendingMutations.remove(response.id);
+        _response.add((response, mutations ?? []));
 
       case final p when p.startsWith(Request.prefix):
         Request request;
@@ -262,7 +298,14 @@ class Mailman<S extends Request, R extends Response> {
           );
           return;
         }
-        _request.add(request);
+
+        switch (request) {
+          case final MutationRequest mutation:
+            (_pendingMutations[mutation.parent.id] ??= []).add(mutation);
+
+          default:
+            _request.add(request);
+        }
       case _:
         logger.error(
           '$_prefix: Unknown path prefix '
@@ -273,21 +316,16 @@ class Mailman<S extends Request, R extends Response> {
   }
 
   Future<R?> send(S request) async {
-    final Response? response;
-    try {
-      response = await _send(request);
-    } on MessageHandlerFailedException {
-      rethrow;
-    }
-    if (response == null) {
-      return null;
-    }
+    final _mutations = mutations;
+    return await runMergedScopedFuture(() async {
+      final response = await _send(request);
 
-    if (response is R) {
-      return response;
-    }
+      if (response is R?) {
+        return response;
+      }
 
-    return _fromJson(response.payload);
+      return _fromJson(response.payload);
+    }, override: {mutationsProvider.overrideWith(() => _mutations)});
   }
 
   Future<Response?> _send(Request request) async {
@@ -297,17 +335,35 @@ class Mailman<S extends Request, R extends Response> {
       return null;
     }
 
-    final pendingResponse = Completer<Response>();
+    final pendingResponse = Completer<(Response, List<MutationRequest>)>();
     _pendingResponses[request.id] = pendingResponse;
 
     process.stdin.writeln(jsonEncode(request.toJson()));
 
     try {
-      return await pendingResponse.future.timeout(const Duration(seconds: 1));
+      final (response, muts) = await pendingResponse.future.timeout(
+        const Duration(seconds: 1),
+      );
+
+      final recorded = mutations.addAll(muts);
+      if (!recorded && muts.isNotEmpty) {
+        logger.warn(
+          'Dropped ${muts.length} mutations | ${request.path}',
+          prefix: _prefix,
+        );
+      } else if (recorded && muts.isNotEmpty) {
+        logger.trace(
+          'Queued ${muts.length} mutations | ${request.path}',
+          prefix: _prefix,
+        );
+      }
+
+      return response;
     } on MessageHandlerFailedException {
       rethrow;
     } catch (e, stack) {
       _pendingResponses.remove(request.id);
+      _pendingMutations.remove(request.id);
       logger.error('${_prefix} Response never received', e, stack);
     }
 
@@ -330,7 +386,7 @@ class Mailman<S extends Request, R extends Response> {
 
   /// Stops the process and clears all pending responses
   ///
-  /// Only should only be called during development,
+  /// Should only be called during development,
   /// and should never be called in production
   Future<void> kill() async {
     if (_process case final process?) {
@@ -338,6 +394,8 @@ class Mailman<S extends Request, R extends Response> {
       process.kill();
       _process = null;
     }
+
+    _pendingMutations.clear();
 
     for (final completer in _pendingResponses.values) {
       completer.completeError(Exception('Process killed'));

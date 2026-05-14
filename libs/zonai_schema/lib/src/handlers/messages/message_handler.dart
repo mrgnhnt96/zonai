@@ -1,3 +1,4 @@
+// dart format width=100
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -11,6 +12,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 part 'deps/__get.dart';
 part 'deps/__log.dart';
+part 'deps/__mutate.dart';
 part 'request.dart';
 part 'response.dart';
 
@@ -31,9 +33,7 @@ class MessageHandler {
       if (_listening) return;
       _listening = true;
 
-      final stream = stdin.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter());
+      final stream = stdin.stream.transform(utf8.decoder).transform(const LineSplitter());
 
       queue:
       await for (final line in stream) {
@@ -53,11 +53,7 @@ class MessageHandler {
           try {
             response = Response.fromJson(map);
           } catch (e, stack) {
-            logger.error(
-              'Invalid response JSON',
-              error: '$e',
-              stackTrace: '$stack',
-            );
+            logger.error('Invalid response JSON', error: '$e', stackTrace: '$stack');
             continue;
           }
           if (_pendingHostReplies.containsKey(response.id)) {
@@ -66,7 +62,15 @@ class MessageHandler {
           }
           logger.warn(
             'Ignoring response JSON with no pending id',
-            properties: {'path': pathRaw, 'id': response.id},
+            properties: switch (response) {
+              MessageErrorResponse(:final message, :final error) => {
+                'path': pathRaw,
+                'id': response.id,
+                'error_message': message,
+                'cause': error ?? '(null)',
+              },
+              _ => {'path': pathRaw, 'id': response.id},
+            },
           );
           continue;
         }
@@ -98,24 +102,65 @@ class MessageHandler {
           case RequestKill():
             break queue;
           case final UnknownRequest request:
-            onMessage(request).then(
-              reply,
-              onError: (Object error, StackTrace stackTrace) {
-                logger.debug(
-                  'Error handling request',
-                  properties: {
-                    'request': request.toJson(),
-                    'error': e.toString(),
+            runMergedScoped(
+              () async {
+                onMessage(request).then(
+                  reply,
+                  onError: (Object error, StackTrace stackTrace) {
+                    logger.debug(
+                      'Error handling request',
+                      properties: {'request': request.toJson(), 'error': e.toString()},
+                    );
+                    reply(
+                      MessageErrorResponse(
+                        id: request.id,
+                        message: 'Error handling request',
+                        error: error.toString(),
+                        stackTrace: stackTrace.toString(),
+                      ),
+                    );
                   },
                 );
-                reply(
-                  MessageErrorResponse(
-                    id: request.id,
-                    message: 'Error handling request',
-                    error: error.toString(),
-                    stackTrace: stackTrace.toString(),
+              },
+              includeIfAbsent: {
+                _mutateProvider.overrideWith(
+                  () => _Mutate(
+                    update: ({required collection, required updates, required where, limit}) async {
+                      await sendRequest(
+                        UpdateRecordRequest(
+                          collection: collection,
+                          updates: updates,
+                          where: where,
+                          jwt: request.jwt,
+                          parent: request,
+                        ),
+                        expectResponse: false,
+                      );
+                    },
+                    delete: ({required collection, required updates, required where, limit}) async {
+                      await sendRequest(
+                        DeleteRecordRequest(
+                          collection: collection,
+                          where: where,
+                          parent: request,
+                          jwt: request.jwt,
+                        ),
+                        expectResponse: false,
+                      );
+                    },
+                    create: ({required collection, required objects}) async {
+                      await sendRequest(
+                        CreateRecordRequest(
+                          collection: collection,
+                          objects: objects,
+                          parent: request,
+                          jwt: request.jwt,
+                        ),
+                        expectResponse: false,
+                      );
+                    },
                   ),
-                );
+                ),
               },
             );
           case _:
@@ -123,17 +168,14 @@ class MessageHandler {
               MessageErrorResponse(
                 id: request.id,
                 message: 'Unhandled request',
-                error:
-                    'Unhandled request ${request.runtimeType}(${request.path})',
+                error: 'Unhandled request ${request.runtimeType}(${request.path})',
               ),
             );
         }
       }
 
       for (final completer in _pendingHostReplies.values) {
-        completer.completeError(
-          StateError('MessageHandler stopped before the host replied'),
-        );
+        completer.completeError(StateError('MessageHandler stopped before the host replied'));
       }
       _pendingHostReplies.clear();
       _listening = false;
@@ -145,13 +187,7 @@ class MessageHandler {
           _listen,
           values: {
             _getRecordRequestProvider.overrideWith(
-              () => _GetRecords(({
-                required collection,
-                required where,
-                limit,
-                offset,
-                jwt,
-              }) async {
+              () => _Get(({required collection, required where, limit, offset, jwt}) async {
                 final result = await sendRequest(
                   GetRecordRequest(
                     collection: collection,
@@ -175,13 +211,7 @@ class MessageHandler {
               }),
             ),
             _loggerProvider.overrideWith(
-              () => _Logger((
-                message, {
-                required level,
-                properties,
-                stackTrace,
-                error,
-              }) {
+              () => _Logger((message, {required level, properties, stackTrace, error}) {
                 reply(
                   DebugResponse(
                     message: message,
@@ -208,13 +238,16 @@ class MessageHandler {
   /// to stdout and waiting for a matching [Response] on stdin (same [id]).
   ///
   /// A host [MessageErrorResponse] is turned into [MessageHandlerFailedException].
-  Future<Response?> sendRequest(Request request) async {
+  Future<Response?> sendRequest(Request request, {bool expectResponse = true}) async {
     if (!_listening) {
       assert(false, 'Cannot send a request while not listening');
       return null;
     }
-    final completer = Completer<Response>();
-    _pendingHostReplies[request.id] = completer;
+    Completer<Response>? completer;
+    if (expectResponse) {
+      completer = Completer<Response>();
+      _pendingHostReplies[request.id] = completer;
+    }
 
     final String json;
     try {
@@ -226,7 +259,8 @@ class MessageHandler {
     }
 
     stdout.writeln(json);
-    return await completer.future;
+
+    return await completer?.future;
   }
 
   void reply(Response? message) {
