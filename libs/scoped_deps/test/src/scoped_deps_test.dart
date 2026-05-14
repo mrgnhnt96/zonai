@@ -61,6 +61,44 @@ void main() {
       }, values: {value});
     });
 
+    group('runMergedScopedFuture', () {
+      test('keeps override across await in body', () async {
+        final ref = create(() => 'outer');
+        await runScoped(() async {
+          await runMergedScopedFuture(() async {
+            await Future<void>.delayed(Duration.zero);
+            expect(read(ref), equals('inner'));
+          }, override: {ref.overrideWith(() => 'inner')});
+        }, values: {ref});
+      });
+
+      test('merge semantics match runMergedScoped for override', () async {
+        final ref = create(() => 1);
+        await runMergedScopedFuture(
+          () async {
+            await Future<void>.delayed(Duration.zero);
+            expect(read(ref), equals(2));
+          },
+          override: {ref.overrideWith(() => 2)},
+        );
+      });
+
+      test('survives await with parent Zone.fork between CLI scope and merge',
+          () async {
+        final ref = create(() => 'cli');
+        await runScoped(() async {
+          await Zone.current
+              .fork(zoneValues: const {})
+              .run<Future<void>>(() async {
+            await runMergedScopedFuture(() async {
+              await Future<void>.delayed(Duration.zero);
+              expect(read(ref), equals('crud'));
+            }, override: {ref.overrideWith(() => 'crud')});
+          });
+        }, values: {ref.overrideWith(() => 'cli')});
+      });
+    });
+
     group('runMergedScoped', () {
       test('override replaces outer scope', () {
         final ref = create(() => 42);
@@ -111,6 +149,11 @@ void main() {
           );
         }, zoneValues: {marker: 'kept'});
       });
+    });
+
+    test('overrideWith preserves zoneKey', () {
+      final ref = create(() => 1);
+      expect(ref.overrideWith(() => 2).zoneKey, equals(ref.zoneKey));
     });
 
     test('overrides are considered equal', () {

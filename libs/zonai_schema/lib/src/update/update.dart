@@ -4,6 +4,8 @@ part 'update_value.dart';
 
 sealed class Update {
   const Update();
+  factory Update.column(String column, UpdateValue value) = ColumnUpdate;
+  factory Update.object(Map<String, dynamic> object) = ObjectUpdate;
 
   factory Update.fromJson(Map<String, dynamic> json) {
     return switch (json['type']) {

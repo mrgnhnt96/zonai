@@ -141,7 +141,6 @@ extension _AuthUtilsX on ZonaiDb {
 
     try {
       appJwt = Jwt.fromJson(decoded);
-      logger.verbose('Extracted JWT: ${appJwt}', prefix: _prefix);
     } on Object {
       throw StateError('Invalid JWT');
     }

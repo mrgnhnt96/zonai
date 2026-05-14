@@ -116,7 +116,7 @@ Future<(int?, String?)> _signUp() async {
 
   final email = 'test+$uniqueTimestamp@test.com';
 
-  final (error, result) = await zonaiDB.signUp(
+  final result = await zonaiDB.signUp(
     'users',
     SignUpPasswordAuthPayload(
       email: email,
@@ -125,30 +125,18 @@ Future<(int?, String?)> _signUp() async {
     ),
   );
 
-  if (error != null || result == null) {
-    logger.err('Failed to authenticate: $error');
-    return (1, null);
-  }
-
-  logger.info('Signed up user: ${result.user}');
-  logger.info('Signed up JWT: ${result.jwt}');
+  logger.info('Signed up user: ${result.user['Id']}');
 
   return (null, email);
 }
 
 Future<(int?, String?)> _signIn(String email) async {
-  final (error, result) = await zonaiDB.signIn(
+  final result = await zonaiDB.signIn(
     'users',
     SignInPasswordAuthPayload(email: email, password: 'test'),
   );
 
-  if (error != null || result == null) {
-    logger.err('Failed to authenticate: $error');
-    return (1, null);
-  }
-
-  logger.info('Signed in user: ${result.user}');
-  logger.info('Signed in JWT: ${result.jwt}');
+  logger.info('Signed in user: ${result.user['id']}');
 
   return (null, result.jwt);
 }
@@ -158,7 +146,7 @@ Future<int?> _authenticate() async {
   final nonce = random.nextInt(1000000);
   final uniqueTimestamp = DateTime.now().millisecondsSinceEpoch + nonce;
 
-  final (error, result) = await zonaiDB.authenticate(
+  final result = await zonaiDB.authenticate(
     'users',
     PasswordAuthPayload(
       email: 'test+$uniqueTimestamp@test.com',
@@ -167,61 +155,47 @@ Future<int?> _authenticate() async {
     ),
   );
 
-  if (error != null || result == null) {
-    logger.err('Failed to authenticate: $error');
-    return 1;
-  }
-
-  logger.info('Authenticated user: ${result.user}');
-  logger.info('Authenticated JWT: ${result.jwt}');
+  logger.info('Authenticated user: ${result.user['id']}');
 
   return null;
 }
 
 Future<int?> _createUser() async {
-  final (error, result) = await zonaiDB.create(
-    'users',
-    .new(
-      object: {
-        'email': 'test@test.com',
-        'password': 'test',
-        'name': 'Test User',
-      },
-    ),
-  );
+  try {
+    final result = await zonaiDB.create(
+      'users',
+      .new(
+        object: {
+          'email': 'test@test.com',
+          'password': 'test',
+          'name': 'Test User',
+        },
+      ),
+    );
 
-  if (error != null) {
+    logger.info('Should not be able to create user: ${result}');
+    return 1;
+  } catch (e) {
+    // expected
     return null;
   }
-
-  logger.err('Expected error, cannot create user without elevated privileges');
-
-  return null;
 }
 
 Future<int?> _create(String jwt) async {
-  final (error, result) = await zonaiDB.create(
+  final result = await zonaiDB.create(
     'items',
     .new(jwt: jwt, object: {'body': 'Test body', 'id': _generateId()}),
   );
-  if (error != null || result == null) {
-    logger.err('Failed to create record: $error');
-    return 1;
-  }
 
   logger.info('Created record: ${result}');
   return null;
 }
 
 Future<(int?, String?)> _list({required String jwt}) async {
-  final (error, result) = await zonaiDB.list(
+  final result = await zonaiDB.list(
     'items',
     .new(jwt: jwt, where: NotNull('id')),
   );
-  if (error != null || result == null) {
-    logger.err('Failed to list records: $error');
-    return (1, null);
-  }
 
   logger.info('Found ${result.length} records');
   for (final record in result) {
@@ -242,14 +216,17 @@ Future<int?> _streamList({required String id, required String jwt}) async {
   );
 
   final completer = Completer<void>();
-  final listener = stream.listen((result) {
-    logger.info('Stream result: ${result}');
+  final listener =
+      stream.listen((result) {
+        logger.info('Stream result: ${result}');
 
-    final row = result.isEmpty ? null : result.single;
-    if (row?['body'] == expectedBody && !completer.isCompleted) {
-      completer.complete();
-    }
-  });
+        final row = result.isEmpty ? null : result.single;
+        if (row?['body'] == expectedBody && !completer.isCompleted) {
+          completer.complete();
+        }
+      })..onError((e, stack) {
+        logger.error('Stream error', e, stack);
+      });
 
   await zonaiDB.update(
     'items',
@@ -320,36 +297,27 @@ Future<int?> _streamOne({required String id, required String jwt}) async {
 }
 
 Future<int?> _delete({required String id, required String jwt}) async {
-  final (error, result) = await zonaiDB.delete(
+  final result = await zonaiDB.delete(
     'items',
     .new(jwt: jwt, where: Eq('id', id)),
   );
-
-  if (error != null || result == null) {
-    logger.err('Failed to delete records: $error');
-    return 1;
-  }
 
   logger.info('Deleted ${result} records');
   return null;
 }
 
 Future<int?> _view({required String id, required String jwt}) async {
-  final (error, result) = await zonaiDB.view(
+  final result = await zonaiDB.view(
     'items',
     .new(jwt: jwt, where: Eq('id', id)),
   );
-  if (error != null || result == null) {
-    logger.err('Failed to view records: $error');
-    return 1;
-  }
 
   logger.info('Viewed ${result}');
   return null;
 }
 
 Future<int?> _update({required String id, required String jwt}) async {
-  final (error, result) = await zonaiDB.update(
+  final result = await zonaiDB.update(
     'items',
     .new(
       jwt: jwt,
@@ -359,10 +327,8 @@ Future<int?> _update({required String id, required String jwt}) async {
       ],
     ),
   );
-  if (error != null || result == null) {
-    logger.err('Failed to update records: $error');
-    return 1;
-  }
+
+  logger.info('Updated ${result}');
   return null;
 }
 

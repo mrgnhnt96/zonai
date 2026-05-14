@@ -15,8 +15,8 @@ class CreatePayload extends JwtPayload {
 class UpdatePayload extends JwtPayload {
   const UpdatePayload({
     required this.where,
-    this.limit,
     required this.updates,
+    this.limit,
     super.jwt,
   });
 

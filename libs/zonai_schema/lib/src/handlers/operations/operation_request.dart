@@ -301,7 +301,6 @@ final class CreateOperationRequest extends PerformOperationRequest {
 final class UpdateOperationRequest extends PerformOperationRequest {
   UpdateOperationRequest({
     required super.collection,
-
     required String where,
     required this.updates,
     required super.jwt,

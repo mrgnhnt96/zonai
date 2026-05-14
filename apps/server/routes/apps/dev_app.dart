@@ -30,6 +30,7 @@ final class DevApp extends AppConfig {
         loggerProvider.overrideWith(() => Logger.print(level: .debug)),
         argsProvider,
         cleanUpProvider,
+        mutationsProvider,
         zonaiDbProvider,
         extensionsProvider,
         rulesProvider,

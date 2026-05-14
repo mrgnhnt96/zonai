@@ -197,7 +197,7 @@ final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
 
 final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
   AfterUpdateExtensionRequest({required this.collection, required this.before, required this.after, required super.jwt})
-    : assert(before.length == after.length, 'Before and after must have the same length'),
+    : assert(before.length == after.length, 'Before and after must have the same length (${before.length} != ${after.length})'),
       super(path: _path, step: .afterSuccess, type: .update, id: Request.generateId());
 
   AfterUpdateExtensionRequest._({

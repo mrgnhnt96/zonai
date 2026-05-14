@@ -29,7 +29,8 @@ class Logger {
   void debug(String message, {String? prefix}) =>
       _log(Level.debug, message, _stdout, _dim, prefix: prefix);
   void info(String message) => _log(Level.info, message, _stdout, null);
-  void warn(String message) => _log(Level.warning, message, _stderr, _yellow);
+  void warn(String message, {String? prefix}) =>
+      _log(Level.warning, message, _stderr, _yellow, prefix: prefix);
 
   void err(String message, [Object? error, StackTrace? stackTrace]) {
     if (!_emit(Level.error)) return;

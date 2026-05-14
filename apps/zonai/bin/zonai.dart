@@ -3,12 +3,17 @@
 import 'dart:io';
 
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai_logger/zonai_logger.dart';
+
 import '../lib/src/deps/args.dart';
 import '../lib/src/deps/clean_up.dart';
 import '../lib/src/deps/extensions.dart';
+import '../lib/src/deps/fs.dart';
 import '../lib/src/deps/keyboard_input.dart';
 import '../lib/src/deps/kill.dart';
+import '../lib/src/deps/logger.dart';
 import '../lib/src/deps/migrate.dart';
+import '../lib/src/deps/mutations.dart';
 import '../lib/src/deps/operations.dart';
 import '../lib/src/deps/process.dart';
 import '../lib/src/deps/revali.dart';
@@ -17,10 +22,7 @@ import '../lib/src/deps/settings.dart';
 import '../lib/src/deps/stdin.dart';
 import '../lib/src/deps/zonai_db.dart';
 import '../lib/src/utils/args.dart';
-import '../lib/src/deps/fs.dart';
-import '../lib/src/deps/logger.dart';
 import '../lib/src/zonai_runner.dart';
-import 'package:zonai_logger/zonai_logger.dart';
 
 void main(List<String> arguments) async {
   await _run(arguments);
@@ -62,6 +64,7 @@ Future<void> _run(List<String> arguments) async {
       loggerProvider.overrideWith(() => log),
       processProvider,
       cleanUpProvider,
+      mutationsProvider,
       keyboardInputProvider,
       migrateProvider,
       extensionsProvider,

@@ -17,18 +17,18 @@ typedef _GetOneRecord =
       Jwt? jwt,
     });
 
-final _getRecordRequestProvider = create<_GetRecords>(_GetRecords._);
+final _getRecordRequestProvider = create<_Get>(_Get._);
 
-_GetRecords get get => read(_getRecordRequestProvider);
+_Get get get => read(_getRecordRequestProvider);
 
-class _GetRecords {
-  _GetRecords._() {
+class _Get {
+  _Get._() {
     many = ({required collection, required where, limit, offset, jwt}) async =>
         null;
     one = ({required collection, required where, offset, jwt}) async => null;
   }
 
-  _GetRecords(this.many) {
+  _Get(this.many) {
     one = ({required collection, required where, offset, jwt}) async {
       final result = await many(
         collection: collection,
