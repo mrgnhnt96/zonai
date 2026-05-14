@@ -3,9 +3,85 @@ part of zonai_db;
 extension _UpdateX on ZonaiDb {
   Future<_CrudListResult> _update(
     String collection,
-    UpdatePayload payload,
-  ) async {
-    final jwt = await _extractJwt(payload);
+    UpdatePayload payload, {
+    Jwt? userJwt,
+  }) async {
+    final jwt = userJwt ?? await _extractJwt(payload);
+    final (beforeObjects, :readOperation, :updateOperation) =
+        await _updateOperation(collection, payload, jwt);
+
+    final (updateError, updateResult) = await _execute((
+      updateOperation.query,
+      updateOperation.values,
+    ));
+    if (updateError != null) {
+      throw updateError;
+    }
+
+    if (updateResult == null) {
+      throw StateError('Failed to update record(s)');
+    }
+
+    logger.trace(
+      'Updated ${updateResult.rowsAffected} records',
+      prefix: _prefix,
+    );
+
+    // `updateResult.rows` always returns empty, need to refetch the records
+    final (updatedError, updatedResult) = await _execute((
+      readOperation.query,
+      readOperation.values,
+    ));
+    if (updatedError != null || updatedResult == null) {
+      await _extensions.send(
+        ErrorExtensionRequest.update(
+          collection: collection,
+          error: updatedError?.toString() ?? 'Unknown error',
+          jwt: jwt,
+        ),
+      );
+
+      throw updatedError ?? StateError('Failed to update record');
+    }
+
+    final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
+
+    await _postUpdate(
+      collection,
+      jwt,
+      before: beforeObjects,
+      after: updatedObjects,
+    );
+
+    await _executeEffects();
+
+    return updatedObjects;
+  }
+
+  Future<void> _postUpdate(
+    String collection,
+    Jwt? jwt, {
+    required List<Map<String, Object?>> before,
+    required List<Map<String, Object?>> after,
+  }) async {
+    await _extensions.send(
+      AfterUpdateExtensionRequest(
+        collection: collection,
+        before: before,
+        after: after,
+        jwt: jwt,
+      ),
+    );
+  }
+
+  Future<
+    (
+      List<Map<String, Object?>>, {
+      PerformOperationResponse readOperation,
+      PerformOperationResponse updateOperation,
+    })
+  >
+  _updateOperation(String collection, UpdatePayload payload, Jwt? jwt) async {
     await _requireCollectionAccess(collection, .update, jwt);
 
     final where = payload.where.sql(collection);
@@ -24,8 +100,12 @@ extension _UpdateX on ZonaiDb {
       readOperation.query,
       readOperation.values,
     ));
-    if (readError != null || readResult == null) {
-      return (readError ?? 'Failed', null);
+    if (readError != null) {
+      throw readError;
+    }
+
+    if (readResult == null) {
+      throw StateError('Failed to read record(s)');
     }
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();
@@ -42,54 +122,15 @@ extension _UpdateX on ZonaiDb {
       ),
     );
 
-    final updateOperation = await _getOperation(
+    final operation = await _getOperation(
       UpdateOperationRequest(
         collection: collection,
-        where: where,
+        where: payload.where.sql(collection),
         updates: payload.updates,
         jwt: jwt,
       ),
     );
 
-    final (updateError, updateResult) = await _execute((
-      updateOperation.query,
-      updateOperation.values,
-    ));
-    if (updateError != null || updateResult == null) {
-      return (updateError ?? 'Failed', null);
-    }
-
-    logger.verbose('Updated: ${updateResult}', prefix: _prefix);
-
-    // `updateResult.rows` always returns empty, need to refetch the records
-    final (updatedError, updatedResult) = await _execute((
-      readOperation.query,
-      readOperation.values,
-    ));
-    if (updatedError != null || updatedResult == null) {
-      await _extensions.send(
-        ErrorExtensionRequest.update(
-          collection: collection,
-          error: updatedError?.toString() ?? 'Unknown error',
-          jwt: jwt,
-        ),
-      );
-
-      return (updatedError ?? 'Failed', null);
-    }
-
-    final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
-    logger.verbose('Updated objects: ${updatedObjects}', prefix: _prefix);
-
-    await _extensions.send(
-      AfterUpdateExtensionRequest(
-        collection: collection,
-        before: objects,
-        after: updatedObjects,
-        jwt: jwt,
-      ),
-    );
-
-    return (null, updatedObjects);
+    return (objects, readOperation: readOperation, updateOperation: operation);
   }
 }

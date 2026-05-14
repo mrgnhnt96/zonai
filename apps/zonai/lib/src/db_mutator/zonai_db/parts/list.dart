@@ -1,8 +1,12 @@
 part of zonai_db;
 
 extension _ListX on ZonaiDb {
-  Future<_CrudListResult> _list(String collection, ListPayload payload) async {
-    final jwt = await _extractJwt(payload);
+  Future<_CrudListResult> _list(
+    String collection,
+    ListPayload payload, {
+    Jwt? userJwt,
+  }) async {
+    final jwt = userJwt ?? await _extractJwt(payload);
     await _requireCollectionAccess(collection, .list, jwt);
 
     final operation = await _getOperation(
@@ -17,7 +21,7 @@ extension _ListX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      return (error ?? 'Failed', null);
+      throw error ?? StateError('Failed to list records');
     }
 
     final objects = result.rows.map((e) => e.toMap()).toList();
@@ -27,6 +31,6 @@ extension _ListX on ZonaiDb {
       await _requireRecordAccess(collection, .view, object, jwt);
     }
 
-    return (null, objects);
+    return objects;
   }
 }

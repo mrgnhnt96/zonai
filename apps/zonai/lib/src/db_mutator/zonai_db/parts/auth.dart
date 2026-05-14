@@ -6,7 +6,7 @@ extension _AuthX on ZonaiDb {
   /// Signs in a user if the credentials are valid
   ///
   /// Signs up a user if the record does not exist
-  Future<_Result<_AuthResult>> _authenticate(
+  Future<_AuthResult> _authenticate(
     String collection,
     AuthPayload payload,
   ) async {
@@ -23,10 +23,7 @@ extension _AuthX on ZonaiDb {
     return await _signIn(collection, payload);
   }
 
-  Future<_Result<_AuthResult>> _signIn(
-    String collection,
-    AuthPayload payload,
-  ) async {
+  Future<_AuthResult> _signIn(String collection, AuthPayload payload) async {
     final jwt = await _extractJwt(payload);
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signIn, payload);
@@ -53,7 +50,9 @@ extension _AuthX on ZonaiDb {
       ),
     );
 
-    return (null, (user: user, jwt: token));
+    await _executeEffects();
+
+    return (user: user, jwt: token);
   }
 
   Future<(Jwt, String)> _createJwt(
@@ -95,10 +94,7 @@ extension _AuthX on ZonaiDb {
     return (jwt, token);
   }
 
-  Future<_Result<_AuthResult>> _signUp(
-    String collection,
-    AuthPayload payload,
-  ) async {
+  Future<_AuthResult> _signUp(String collection, AuthPayload payload) async {
     final jwt = await _extractJwt(payload);
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signUp, payload);
@@ -124,8 +120,7 @@ extension _AuthX on ZonaiDb {
     final (error, result) = await _execute((operation.query, operation.values));
 
     if (error != null || result == null) {
-      logger.trace('Failed to create user: $error', prefix: _prefix);
-      return (error ?? 'Failed', null);
+      throw error ?? StateError('Failed to create user');
     }
 
     final user = result.rows.single.toMap();
@@ -137,7 +132,7 @@ extension _AuthX on ZonaiDb {
 
     if (passwordColumn is! ColumnNameResponse) {
       logger.trace('Failed to get password column name', prefix: _prefix);
-      return (null, null);
+      throw StateError('Failed to get password column name');
     }
 
     user.remove(passwordColumn.name);
@@ -154,7 +149,7 @@ extension _AuthX on ZonaiDb {
       ),
     );
 
-    return (null, (user: user, jwt: token));
+    return (user: user, jwt: token);
   }
 
   Future<void> _logout(String jwt) async {

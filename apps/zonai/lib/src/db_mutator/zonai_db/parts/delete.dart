@@ -1,8 +1,60 @@
 part of zonai_db;
 
 extension _DeleteX on ZonaiDb {
-  Future<_Result<int>> _delete(String collection, DeletePayload payload) async {
+  Future<int> _delete(String collection, DeletePayload payload) async {
     final jwt = await _extractJwt(payload);
+    final (objects, :deleteOperation) = await _deleteOperation(
+      collection,
+      payload,
+      jwt,
+    );
+
+    final (deleteError, deleteResult) = await _execute((
+      deleteOperation.query,
+      deleteOperation.values,
+    ));
+    if (deleteError != null || deleteResult == null) {
+      await _extensions.send(
+        ErrorExtensionRequest.delete(
+          collection: collection,
+          error: deleteError?.toString() ?? 'Unknown error',
+          jwt: jwt,
+        ),
+      );
+
+      throw deleteError ?? StateError('Failed to delete record(s)');
+    }
+
+    logger.trace(
+      'Deleted ${deleteResult.rowsAffected} records',
+      prefix: _prefix,
+    );
+
+    await _postDelete(collection, jwt, objects: objects);
+
+    await _executeEffects();
+
+    return deleteResult.rowsAffected;
+  }
+
+  Future<void> _postDelete(
+    String collection,
+    Jwt? jwt, {
+    required List<Map<String, Object?>> objects,
+  }) async {
+    await _extensions.send(
+      DeleteExtensionRequest.afterSuccess(
+        collection: collection,
+        objects: objects,
+        jwt: jwt,
+      ),
+    );
+  }
+
+  Future<
+    (List<Map<String, Object?>>, {PerformOperationResponse deleteOperation})
+  >
+  _deleteOperation(String collection, DeletePayload payload, Jwt? jwt) async {
     await _requireCollectionAccess(collection, .delete, jwt);
 
     final where = payload.where.sql(collection);
@@ -24,11 +76,11 @@ extension _DeleteX on ZonaiDb {
       readOperation.values,
     ));
     if (readError != null || readResult == null) {
-      return (readError ?? 'Failed', null);
+      throw readError ?? StateError('Failed to read record');
     }
 
     if (readResult.rows.isEmpty) {
-      return (null, 0);
+      throw StateError('Record not found');
     }
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();
@@ -53,37 +105,6 @@ extension _DeleteX on ZonaiDb {
       ),
     );
 
-    logger.verbose(
-      'Delete operation: ${deleteOperation.query}',
-      prefix: _prefix,
-    );
-
-    final (deleteError, deleteResult) = await _execute((
-      deleteOperation.query,
-      deleteOperation.values,
-    ));
-    if (deleteError != null || deleteResult == null) {
-      await _extensions.send(
-        ErrorExtensionRequest.delete(
-          collection: collection,
-          error: deleteError?.toString() ?? 'Unknown error',
-          jwt: jwt,
-        ),
-      );
-
-      return (deleteError ?? 'Failed', null);
-    }
-
-    logger.verbose('Deleted ${deleteResult}', prefix: _prefix);
-
-    await _extensions.send(
-      DeleteExtensionRequest.afterSuccess(
-        collection: collection,
-        objects: objects,
-        jwt: jwt,
-      ),
-    );
-
-    return (null, deleteResult.rowsAffected);
+    return (objects, deleteOperation: deleteOperation);
   }
 }

@@ -30,6 +30,9 @@ extension _StreamOneX on ZonaiDb {
     await _requireRecordAccess(collection, .view, object, jwt);
 
     await for (final result in _stream(operation.query, operation.values)) {
+      if (result.rows.isEmpty) {
+        throw StateError('No record found or record was deleted');
+      }
       yield result.rows.single.toMap();
     }
   }
