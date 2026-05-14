@@ -7,7 +7,6 @@
 - [ ] `password_column.dart`: ensure passwords are hashed before persistence (see column TODO)
 - [ ] `zonai_db.dart`: make auth `appPepper` configurable (currently hard-coded)
 - [ ] `zonai_db.dart`: send auth record objects to the extension for sanitization (`_authRecord`, sign-up result path)
-- [ ] `zonai_db.dart`: forward the user’s object into collection rules (`_collectionRules` currently uses `isSuperUser: true` placeholder)
 - [ ] `db_operations.dart`: resolve operations directory from settings (replace `__TODO__GET_OPERATIONS_DIR__`)
 - [ ] Add optional single or multi authentication
   - [ ] Single would upsert and would replace any old JWT
@@ -36,12 +35,6 @@
 
 - Don't kill the process until after the compilation is complete
   - The DB should auto start the rule/extension process if it is not available
-
-## DB
-
-- Create "zonai_schema" classes to represent authentication classes
-  - This will _not_ already have a table, but will be used for the user to extend to add their own columns
-  - The idea is to have this as a base class with a lot of the core functionality already built in
 
 ### Mixins
 
