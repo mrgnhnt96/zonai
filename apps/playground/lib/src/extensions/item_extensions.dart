@@ -10,20 +10,29 @@ class ItemExtensions extends Extension<Item>
   @override
   Future<void> beforeCreate(Item object, Jwt? jwt) async {
     logger.debug('EXTENSION beforeCreate');
+
+    mutate.create.one(
+      collection: 'items',
+      object: {'body': 'Something else!!!'},
+    );
   }
 
   @override
   Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
     logger.warn('JWT: $jwt');
-    final item = await get.one(
-      collection: 'items',
-      where: Eq('id', object.id),
-      jwt: jwt,
-    );
+    final item = await get.one(collection: 'items', where: Eq('id', object.id));
 
     if (item == null) {
       throw StateError('Failed to get item');
     }
+
+    mutate.update.one(
+      collection: 'items',
+      updates: [
+        Update.column('body', LiteralUpdateValue(value: 'Something else!!!')),
+      ],
+      where: Eq('id', object.id),
+    );
 
     logger.warn('GOT Items IN EXTENSION!!!: $item');
 
