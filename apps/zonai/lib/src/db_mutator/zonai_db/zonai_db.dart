@@ -6,6 +6,7 @@ import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/internal_collections/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
@@ -83,52 +84,138 @@ class ZonaiDb {
     String collection,
     AuthPayload payload,
   ) async {
-    return await _authenticate(collection, payload);
+    try {
+      return await _authenticate(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to authenticate: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Future<_Result<_AuthResult>> signIn(
     String collection,
     AuthPayload payload,
   ) async {
-    return await _signIn(collection, payload);
+    try {
+      return await _signIn(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to sign in: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Future<_Result<_AuthResult>> signUp(
     String collection,
     AuthPayload payload,
   ) async {
-    return await _signUp(collection, payload);
+    try {
+      return await _signUp(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to sign up: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Future<void> logout(String jwt) async {
-    return await _logout(jwt);
+    try {
+      return await _logout(jwt);
+    } catch (e, stack) {
+      logger.error('Failed to logout: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+    }
   }
 
   Future<void> logoutAll(String jwt) async {
-    return await _logoutAll(jwt);
+    try {
+      return await _logoutAll(jwt);
+    } catch (e, stack) {
+      logger.error('Failed to logout all: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+    }
   }
 
   Future<_CrudResult> create(String collection, CreatePayload payload) async {
-    return await _create(collection, payload);
+    try {
+      return await _create(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to create record: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Future<_CrudListResult> update(
     String collection,
     UpdatePayload payload,
   ) async {
-    return await _update(collection, payload);
+    try {
+      return await _update(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to update record: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Future<_Result<int>> delete(String collection, DeletePayload payload) async {
-    return await _delete(collection, payload);
+    try {
+      return await _delete(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to delete record: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Future<_CrudResult> view(String collection, ViewPayload payload) async {
-    return await _view(collection, payload);
+    try {
+      return await _view(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to view record: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Future<_CrudListResult> list(String collection, ListPayload payload) async {
-    return await _list(collection, payload);
+    try {
+      return await _list(collection, payload);
+    } catch (e, stack) {
+      logger.error('Failed to list records: $e', switch (kIsCompiled) {
+        true => null,
+        false => stack,
+      });
+
+      return (e, null);
+    }
   }
 
   Stream<Map<String, Object?>> streamOne(
