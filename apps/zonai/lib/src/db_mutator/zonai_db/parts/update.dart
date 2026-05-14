@@ -67,7 +67,7 @@ extension _UpdateX on ZonaiDb {
       readOperation.values,
     ));
     if (updatedError != null || updatedResult == null) {
-      final afterUpdate = await _extensions.send(
+      await _extensions.send(
         ErrorExtensionRequest.update(
           collection: collection,
           error: updatedError?.toString() ?? 'Unknown error',
@@ -81,16 +81,14 @@ extension _UpdateX on ZonaiDb {
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
     logger.verbose('Updated objects: ${updatedObjects}', prefix: _prefix);
 
-    {
-      final afterUpdate = await _extensions.send(
-        AfterUpdateExtensionRequest(
-          collection: collection,
-          before: objects,
-          after: updatedObjects,
-          jwt: jwt,
-        ),
-      );
-    }
+    await _extensions.send(
+      AfterUpdateExtensionRequest(
+        collection: collection,
+        before: objects,
+        after: updatedObjects,
+        jwt: jwt,
+      ),
+    );
 
     return (null, updatedObjects);
   }

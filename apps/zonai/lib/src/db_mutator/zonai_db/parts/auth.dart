@@ -45,15 +45,13 @@ extension _AuthX on ZonaiDb {
 
     final (_, token) = await _createJwt(collection, user);
 
-    {
-      final onSignIn = await _extensions.send(
-        AuthExtensionRequest.onSignIn(
-          collection: collection,
-          object: user,
-          jwt: jwt,
-        ),
-      );
-    }
+    await _extensions.send(
+      AuthExtensionRequest.onSignIn(
+        collection: collection,
+        object: user,
+        jwt: jwt,
+      ),
+    );
 
     return (null, (user: user, jwt: token));
   }
@@ -148,15 +146,13 @@ extension _AuthX on ZonaiDb {
 
     final (_, token) = await _createJwt(collection, user);
 
-    {
-      final onSignUp = await _extensions.send(
-        AuthExtensionRequest.onSignUp(
-          collection: collection,
-          object: user,
-          jwt: jwt,
-        ),
-      );
-    }
+    await _extensions.send(
+      AuthExtensionRequest.onSignUp(
+        collection: collection,
+        object: user,
+        jwt: jwt,
+      ),
+    );
 
     return (null, (user: user, jwt: token));
   }

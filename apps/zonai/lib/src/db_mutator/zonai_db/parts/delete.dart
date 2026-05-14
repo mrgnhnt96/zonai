@@ -36,15 +36,13 @@ extension _DeleteX on ZonaiDb {
       await _requireRecordAccess(collection, .delete, object, jwt);
     }
 
-    {
-      final beforeDelete = await _extensions.send(
-        DeleteExtensionRequest.before(
-          collection: collection,
-          objects: objects,
-          jwt: jwt,
-        ),
-      );
-    }
+    await _extensions.send(
+      DeleteExtensionRequest.before(
+        collection: collection,
+        objects: objects,
+        jwt: jwt,
+      ),
+    );
 
     final deleteOperation = await _getOperation(
       DeleteOperationRequest(
@@ -65,7 +63,7 @@ extension _DeleteX on ZonaiDb {
       deleteOperation.values,
     ));
     if (deleteError != null || deleteResult == null) {
-      final afterDelete = await _extensions.send(
+      await _extensions.send(
         ErrorExtensionRequest.delete(
           collection: collection,
           error: deleteError?.toString() ?? 'Unknown error',
@@ -78,15 +76,13 @@ extension _DeleteX on ZonaiDb {
 
     logger.verbose('Deleted ${deleteResult}', prefix: _prefix);
 
-    {
-      final afterDelete = await _extensions.send(
-        DeleteExtensionRequest.afterSuccess(
-          collection: collection,
-          objects: objects,
-          jwt: jwt,
-        ),
-      );
-    }
+    await _extensions.send(
+      DeleteExtensionRequest.afterSuccess(
+        collection: collection,
+        objects: objects,
+        jwt: jwt,
+      ),
+    );
 
     return (null, deleteResult.rowsAffected);
   }
