@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
+import 'package:zonai_schema/src/operations/collection_operations.dart';
 
 sealed class OperationResponse extends Response {
   const OperationResponse({
@@ -24,6 +25,7 @@ sealed class OperationResponse extends Response {
     return switch (path) {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
       ColumnNameResponse._path => ColumnNameResponse.fromJson(json),
+      ClaimsResponse._path => ClaimsResponse.fromJson(json),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
   }
@@ -88,5 +90,39 @@ final class PerformOperationResponse extends OperationResponse {
     return '''PerformOperationResponse:
 ${const JsonEncoder.withIndent('  ').convert(toJson())}
 ''';
+  }
+}
+
+final class ClaimsResponse extends OperationResponse {
+  const ClaimsResponse({
+    required super.id,
+    required this.claims,
+    required this.isAdmin,
+    required this.canEdit,
+  }) : super(path: _path, payload: const {});
+
+  factory ClaimsResponse.fromJson(Map<String, dynamic> json) {
+    return ClaimsResponse(
+      id: json['id'] as String,
+      isAdmin: json['isAdmin'] as bool,
+      canEdit: json['canEdit'] as bool,
+      claims: Claims.fromJson(json['claims'] as Map<String, dynamic>),
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_claims';
+
+  final Claims claims;
+  final bool isAdmin;
+  final bool canEdit;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'claims': claims.toJson(),
+      'isAdmin': isAdmin,
+      'canEdit': canEdit,
+    };
   }
 }

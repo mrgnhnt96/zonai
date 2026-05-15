@@ -1,7 +1,7 @@
 import 'package:zonai_playground/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class User extends AuthCollection<User> with PasswordAuth {
+final class User extends AuthCollection<User> with PasswordAuth, AsAdmin<User> {
   User({
     required String name,
     required String email,

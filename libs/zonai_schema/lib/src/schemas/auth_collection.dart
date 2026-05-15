@@ -34,3 +34,7 @@ base class AuthCollection<T extends AuthCollection<T>> extends Schema<T>
     throw UnimplementedError('${runtimeType} is missing an `$AuthType` mixin');
   }
 }
+
+mixin AsAdmin<T extends AuthCollection<T>> on Auth {
+  bool get canEdit => true;
+}

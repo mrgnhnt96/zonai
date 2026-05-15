@@ -69,14 +69,31 @@ extension _AuthX on ZonaiDb {
 
     final userId = user[userIdColumn.name] as String;
 
-    final jwt = Jwt.create(
+    final preJwt = Jwt.create(
       userId: userId,
       collection: collection,
       user: user,
       jwtId: jwtId.value,
       expiresIn: const Duration(days: 365),
-      // TODO(mrgnhnt): Get claims from Config exe
       claims: {},
+    );
+
+    final claims = await _operations.send(
+      GetClaimsOperationRequest(collection: collection, jwt: preJwt),
+    );
+
+    if (claims is! ClaimsResponse) {
+      throw StateError('Failed to get claims');
+    }
+
+    final jwt = Jwt(
+      userId: preJwt.userId,
+      collection: preJwt.collection,
+      jwtId: preJwt.jwtId,
+      expiresAt: preJwt.expiresAt,
+      user: preJwt.user,
+      claims: claims.claims.toJson(),
+      admin: (isAdmin: claims.isAdmin, canEdit: claims.canEdit),
     );
 
     final token = await _jwt.generate(jwt);

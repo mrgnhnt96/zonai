@@ -48,6 +48,8 @@ class DbOperations {
             return await _createAuthOperation(request);
           case final GetColumnNameRequest request:
             return await _getColumnName(request);
+          case final GetClaimsOperationRequest request:
+            return await _getClaims(request);
         }
       },
     ).listen();
@@ -186,5 +188,25 @@ class DbOperations {
     ).translate(request);
 
     return PerformOperationResponse(id: request.id, query: sql, values: values);
+  }
+
+  Future<ClaimsResponse> _getClaims(GetClaimsOperationRequest request) async {
+    final collection = operationsByCollection[request.collection];
+    final claims = switch (collection) {
+      AuthOperations(:final addClaims) => await addClaims(jwt: request.jwt),
+      _ => Claims(const {}),
+    };
+
+    final admin = switch (collection?.schema) {
+      final AsAdmin admin => admin,
+      _ => null,
+    };
+
+    return ClaimsResponse(
+      id: request.id,
+      claims: claims,
+      isAdmin: admin != null,
+      canEdit: admin?.canEdit ?? false,
+    );
   }
 }

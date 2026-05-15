@@ -18,6 +18,7 @@ class Jwt {
     required this.expiresAt,
     required Map<String, Object?> user,
     required Map<String, Object?> claims,
+    required this.admin,
   }) : claims = Map.unmodifiable(claims),
        user = Map.unmodifiable(user);
 
@@ -36,6 +37,7 @@ class Jwt {
       jwtId: jwtId,
       expiresAt: clock.now().add(expiresIn),
       claims: claims,
+      admin: (isAdmin: false, canEdit: null),
     );
   }
 
@@ -47,6 +49,13 @@ class Jwt {
       jwtId: json['jwtId'],
       expiresAt: DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] * 1000),
       claims: json['claims'],
+      admin: switch (json['admin']) {
+        {'isAdmin': true, 'canEdit': final bool? canEdit} => (
+          isAdmin: true,
+          canEdit: canEdit,
+        ),
+        _ => (isAdmin: false, canEdit: null),
+      },
     );
   }
 
@@ -66,6 +75,7 @@ class Jwt {
       'expiresAt': expiresAt.toUtc().millisecondsSinceEpoch ~/ 1000,
       'claims': jsonDecode(jsonEncode(claims)),
       'user': jsonDecode(jsonEncode(user)),
+      'admin': {'isAdmin': admin.isAdmin, 'canEdit': ?admin.canEdit},
     };
   }
 
@@ -73,6 +83,7 @@ class Jwt {
   final String collection;
   final Map<String, Object?> user;
   final String jwtId;
+  final ({bool isAdmin, bool? canEdit}) admin;
   final DateTime expiresAt;
   final Map<String, Object?> claims;
 

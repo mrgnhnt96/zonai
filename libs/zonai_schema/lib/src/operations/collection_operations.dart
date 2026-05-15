@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop/raindrop.dart' hide Update;
@@ -43,12 +45,12 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   @nonVirtual
   late rd.Raindrop db = _db;
 
-  rd.InsertWithValuesBuilder<T, void> insert(Map<String, dynamic> data) {
-    return db.insert(into: schema).values([table.safeCreate(data)]);
+  rd.InsertWithValuesBuilder<T, T> insert(Map<String, dynamic> data) {
+    return db.insert(into: schema).values([table.safeCreate(data)]).returning();
   }
 
-  rd.InsertWithValuesBuilder<T, void> insertMany(List<T> entities) {
-    return db.insert(into: schema).values(entities);
+  rd.InsertWithValuesBuilder<T, T> insertMany(List<T> entities) {
+    return db.insert(into: schema).values(entities).returning();
   }
 
   rd.UpdateWhereBuilder<T, Object?, void> update(
@@ -180,8 +182,23 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   }
 }
 
-base mixin InsertReturning<T extends Schema<T>> on CollectionOperations<T> {
-  rd.InsertWithValuesBuilder<T, T> insert(Map<String, dynamic> data) {
-    return super.insert(data).returning();
+base mixin AuthOperations<T extends AuthCollection<T>>
+    on CollectionOperations<T> {
+  Future<Claims> addClaims({required Jwt jwt}) async {
+    return Claims(jwt.claims);
+  }
+}
+
+class Claims {
+  const Claims(this.claims);
+
+  factory Claims.fromJson(Map<String, dynamic> json) {
+    return Claims(json['claims'] as Map<String, dynamic>);
+  }
+
+  final Map<String, dynamic> claims;
+
+  Map<String, dynamic> toJson() {
+    return {'claims': jsonDecode(jsonEncode(claims))};
   }
 }

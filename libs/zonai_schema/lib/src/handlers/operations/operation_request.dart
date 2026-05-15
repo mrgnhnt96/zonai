@@ -6,6 +6,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/raw_sql_filter.dart';
 import 'package:zonai_schema/src/schemas/auth_collection.dart';
+import 'package:zonai_schema/src/types/jwt.dart';
 import 'package:zonai_schema/src/update/update.dart';
 
 sealed class OperationRequest extends Request {
@@ -26,6 +27,9 @@ sealed class OperationRequest extends Request {
       CreateAuthOperationRequest._path =>
         CreateAuthOperationRequest.fromRequest(request),
       GetColumnNameRequest._path => GetColumnNameRequest.fromRequest(request),
+      GetClaimsOperationRequest._path => GetClaimsOperationRequest.fromRequest(
+        request,
+      ),
       _ => throw ArgumentError(
         'Invalid operation request path: ${request.path}',
       ),
@@ -513,5 +517,36 @@ final class CustomOperationRequest extends PerformOperationRequest {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'where': rawWhere, 'values': values};
+  }
+}
+
+final class GetClaimsOperationRequest extends OperationRequest {
+  GetClaimsOperationRequest({required this.collection, required this.jwt})
+    : super(path: _path, id: Request.generateId(), jwt: jwt);
+
+  GetClaimsOperationRequest._({
+    required super.id,
+    required this.collection,
+    required this.jwt,
+  }) : super(path: _path, jwt: jwt);
+
+  factory GetClaimsOperationRequest.fromRequest(UnknownRequest request) {
+    return GetClaimsOperationRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+      jwt:
+          request.jwt ??
+          (throw StateError('JWT is required for this operation')),
+    );
+  }
+
+  static const _path = '${Request.prefix}.auth.get_claims';
+
+  final String collection;
+  final Jwt jwt;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection};
   }
 }
