@@ -1,17 +1,12 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 
-extension PasswordColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
-  T password<T extends PasswordColumn?>(
-    String name,
-    Field<S, T> field,
-    String? value,
-  ) {
-    return custom<String, String, PasswordColumn, T>(
+extension PasswordColumnDefinition<S> on SchemaBuilder<S> {
+  T password<T extends PasswordColumn?>(String name, Field<S, String> field) {
+    return custom(
           PasswordColumn.new,
           name,
           field,
-          value,
           sqlType: 'TEXT',
           transformer: const PasswordTransformer(),
         )

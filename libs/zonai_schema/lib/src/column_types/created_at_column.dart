@@ -1,17 +1,15 @@
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 
-extension CreatedAtColumnDefinition<S extends Schema<S>> on SchemaBuilder<S> {
+extension CreatedAtColumnDefinition<S> on SchemaBuilder<S> {
   T createdAt<T extends DateTimeColumn?>(
     String name,
-    Field<S, T> field,
-    DateTime? value,
+    Field<S, DateTime> field,
   ) {
-    return custom<DateTime, int, DateTimeColumn, T>(
+    return custom(
           DateTimeColumn.new,
           name,
           field,
-          value ?? .now(),
           transformer: const CreatedAtTransformer(),
           sqlType: 'INTEGER',
         )

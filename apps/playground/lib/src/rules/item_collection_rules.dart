@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 ItemCollectionRules main() => ItemCollectionRules();
 
-final class ItemCollectionRules extends CollectionRules<Item> {
+final class ItemCollectionRules extends CollectionRules<ItemCollection, Item> {
   ItemCollectionRules() : super(items);
 
   @override

@@ -1,5 +1,5 @@
 import 'package:raindrop/raindrop.dart';
 
-class Collection<T extends Collection<T>> extends Schema<T> {
-  Collection();
+abstract class Collection<T> extends Schema<T> {
+  Collection(super.$);
 }

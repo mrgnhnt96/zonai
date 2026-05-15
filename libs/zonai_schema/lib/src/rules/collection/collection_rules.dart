@@ -1,7 +1,7 @@
 part of rules;
 
-base class CollectionRules<T extends Collection<T>>
-    extends BaseCollectionRules<T>
-    implements Rules<T> {
+base class CollectionRules<S extends Collection<R>, R>
+    extends BaseCollectionRules<S, R>
+    implements Rules<S, R> {
   const CollectionRules(super.schema);
 }

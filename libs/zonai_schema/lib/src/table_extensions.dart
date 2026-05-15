@@ -3,8 +3,8 @@ import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 import 'package:zonai_schema/src/column_types/updated_at_column.dart';
 
-extension TableExtensions<T extends Schema<dynamic>> on Table<dynamic> {
-  dynamic safeCreate(Map<String, dynamic> data) {
+extension TableExtensions<S extends Schema<R>, R> on Table<S, R> {
+  R safeCreate(Map<String, dynamic> data) {
     final mutable = {...data};
     for (final column in columns) {
       switch (column.transformer) {

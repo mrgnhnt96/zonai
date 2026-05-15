@@ -1,8 +1,8 @@
 import 'package:zonai_playground/src/schemas/users.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class UserOperations extends CollectionOperations<User>
-    with AuthOperations<User> {
+final class UserOperations extends CollectionOperations<UserCollection, User>
+    with AuthOperations {
   UserOperations() : super(users);
 
   @override

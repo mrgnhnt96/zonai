@@ -1,38 +1,57 @@
 import 'package:zonai_playground/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class User extends AuthCollection<User> with PasswordAuth, AsAdmin<User> {
+final class User {
   User({
-    required String name,
-    required String email,
-    required String password,
-    UsersId? super.id,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) : name = $.text('name', (s) => s.name, name),
-       email = $.email('email', (s) => s.email, email),
-       passwordHash = $.password('password', (s) => s.passwordHash, password),
-       createdAt = $.createdAt('created_at', (s) => s.createdAt, createdAt),
-       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt, updatedAt),
-       super(fromString: UsersId.new, generate: UsersId.generate, $: $);
+    required this.name,
+    required this.email,
+    required this.passwordHash,
+    required this.id,
+    required this.createdAt,
+    this.updatedAt,
+  });
 
-  final TextColumn name;
-  final EmailColumn email;
-  final PasswordColumn passwordHash;
-  final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
-
-  static const $ = SchemaBuilder<User>();
+  final UsersId id;
+  final String name;
+  final String email;
+  final String passwordHash;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
 }
 
-final users = authCollection(
-  'users',
-  () => User(
-    id: UsersId.generate(),
-    name: fakes.text(),
-    email: fakes.text(),
-    password: fakes.text(),
-    createdAt: fakes.dateTime(),
-    updatedAt: fakes.dateTime(),
-  ),
-);
+final class UserCollection extends AuthCollection<User>
+    with PasswordAuth, AsAdmin {
+  UserCollection(super.$)
+    : id = $.id(
+        'id',
+        (s) => s.id,
+        fromString: UsersId.new,
+        generate: UsersId.generate,
+      ),
+      name = $.text('name', (s) => s.name),
+      email = $.email('email', (s) => s.email),
+      passwordHash = $.password('password', (s) => s.passwordHash),
+      createdAt = $.createdAt('created_at', (s) => s.createdAt),
+      updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
+
+  @override
+  User fromRow(RowReader read) {
+    return User(
+      id: read(id),
+      name: read(name),
+      email: read(email),
+      passwordHash: read(passwordHash),
+      createdAt: read(createdAt),
+      updatedAt: read(updatedAt),
+    );
+  }
+
+  final IdColumn<UsersId> id;
+  final DateTimeColumn createdAt;
+  final EmailColumn email;
+  final TextColumn name;
+  final PasswordColumn passwordHash;
+  final DateTimeColumn? updatedAt;
+}
+
+final users = authCollection('users', UserCollection.new);

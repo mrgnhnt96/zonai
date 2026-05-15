@@ -1,7 +1,8 @@
 part of rules;
 
-class AuthRecordRules<T extends AuthCollection<T>> extends BaseRecordRules<T>
-    implements Rules<T> {
+class AuthRecordRules<S extends AuthCollection<R>, R>
+    extends BaseRecordRules<S, R>
+    implements Rules<S, R> {
   const AuthRecordRules(super.schema);
 
   /// Whether the user can sign up for this record. [canSignUp] is only called
@@ -22,27 +23,40 @@ class AuthRecordRules<T extends AuthCollection<T>> extends BaseRecordRules<T>
     };
   }
 
-  Future<bool> canView(Jwt? jwt, T record) async {
-    if (record.id == jwt?.userId) return true;
+  Future<bool> canView(Jwt? jwt, R record) async {
+    final jwtUserId = jwt?.userId;
+    if (jwtUserId == null) return false;
 
-    return false;
+    return _rowIdMatches(record, jwtUserId);
   }
 
-  Future<bool> canUpdate(Jwt? jwt, T record) async {
-    if (record.id == jwt?.userId) return true;
-
-    return false;
+  Future<bool> canUpdate(Jwt? jwt, R record) async {
+    final jwtUserId = jwt?.userId;
+    if (jwtUserId == null) return false;
+    return _rowIdMatches(record, jwtUserId);
   }
 
-  Future<bool> canDelete(Jwt? jwt, T record) async {
-    if (record.id == jwt?.userId) return true;
-
-    return false;
+  Future<bool> canDelete(Jwt? jwt, R record) async {
+    final jwtUserId = jwt?.userId;
+    if (jwtUserId == null) return false;
+    return _rowIdMatches(record, jwtUserId);
   }
 
-  Future<bool> canCreate(Jwt? jwt, T record) async {
-    if (record.id == jwt?.userId) return true;
+  Future<bool> canCreate(Jwt? jwt, R record) async {
+    final jwtUserId = jwt?.userId;
+    if (jwtUserId == null) return false;
+    return _rowIdMatches(record, jwtUserId);
+  }
 
-    return false;
+  // TODO: see if we can get the id column from Table.getFor(schema) somehow
+  bool _rowIdMatches(R record, String jwtUserId) {
+    try {
+      return switch ((record as dynamic).id) {
+        final Id id => id.value == jwtUserId,
+        _ => false,
+      };
+    } catch (e) {
+      return false;
+    }
   }
 }

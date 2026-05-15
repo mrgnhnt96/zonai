@@ -1,25 +1,25 @@
 part of rules;
 
-class BaseRecordRules<T extends Schema<T>> {
+class BaseRecordRules<S extends Schema<R>, R> {
   const BaseRecordRules(this.schema);
 
-  final T schema;
+  final S schema;
 
-  Table<T> get table => Table.getFor(schema);
+  Table<S, R> get table => Table.getFor(schema);
 
-  Future<bool> canView(Jwt? jwt, T record) async {
+  Future<bool> canView(Jwt? jwt, R record) async {
     return true;
   }
 
-  Future<bool> canUpdate(Jwt? jwt, T record) async {
+  Future<bool> canUpdate(Jwt? jwt, R record) async {
     return true;
   }
 
-  Future<bool> canDelete(Jwt? jwt, T record) async {
+  Future<bool> canDelete(Jwt? jwt, R record) async {
     return true;
   }
 
-  Future<bool> canCreate(Jwt? jwt, T record) async {
+  Future<bool> canCreate(Jwt? jwt, R record) async {
     return true;
   }
 }

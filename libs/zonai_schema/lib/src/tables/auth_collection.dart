@@ -31,9 +31,9 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// );
 /// ```
 //
-S authCollection<S extends AuthCollection<S>>(
+S authCollection<S extends AuthCollection<T>, T>(
   String name,
-  S Function() builder, [
+  S Function(SchemaBuilder<T>) builder, [
   void Function(S table)? extra,
 ]) {
   return table(
@@ -45,7 +45,7 @@ S authCollection<S extends AuthCollection<S>>(
         extra.call(table);
 
         for (final index in Table.getFor(table).indexes) {
-          if (index.columns.contains(table.id)) {
+          if (index.columns.contains(table.id.$)) {
             if (index.isUnique) {
               continue;
             }

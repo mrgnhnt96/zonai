@@ -1,11 +1,11 @@
 part of rules;
 
-sealed class BaseCollectionRules<T extends Schema<T>> {
+sealed class BaseCollectionRules<S extends Schema<R>, R> {
   const BaseCollectionRules(this.schema);
 
-  final T schema;
+  final S schema;
 
-  Table<T> get table => Table.getFor(schema);
+  Table<S, R> get table => Table.getFor(schema);
 
   Future<bool> canCreate(Jwt? jwt) async {
     return false;

@@ -31,13 +31,13 @@ abstract interface class _DbCollection {
 /// await. For row counts on update/delete, use [rd.Raindrop.execute] with
 /// [rd.QueryBuilder.toQuery]; for `RETURNING`, use the SQLite extensions from
 /// `package:raindrop_sqlite/raindrop_sqlite.dart` before awaiting.
-abstract base class CollectionOperations<T extends rd.Schema<T>>
+abstract base class CollectionOperations<S extends rd.Schema<R>, R>
     implements _DbCollection {
   CollectionOperations(this.schema);
 
-  final T schema;
+  final S schema;
 
-  rd.Table<T> get table => rd.Table.getFor(schema);
+  rd.Table<S, R> get table => rd.Table.getFor(schema);
 
   static rd.Raindrop? __db;
   static rd.Raindrop get _db => __db ??= rd.Raindrop(FalseDelegate());
@@ -45,15 +45,17 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   @nonVirtual
   late rd.Raindrop db = _db;
 
-  rd.InsertWithValuesBuilder<T, T> insert(Map<String, dynamic> data) {
+  rd.InsertWithValuesBuilder<rd.Schema<R>, R, R> insert(
+    Map<String, dynamic> data,
+  ) {
     return db.insert(into: schema).values([table.safeCreate(data)]).returning();
   }
 
-  rd.InsertWithValuesBuilder<T, T> insertMany(List<T> entities) {
+  rd.InsertWithValuesBuilder<rd.Schema<R>, R, R> insertMany(List<R> entities) {
     return db.insert(into: schema).values(entities).returning();
   }
 
-  rd.UpdateWhereBuilder<T, Object?, void> update(
+  rd.UpdateWhereBuilder<rd.Schema<R>, R, List<Object?>, void> update(
     List<Update> updates, {
     required Filter where,
   }) {
@@ -93,7 +95,7 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   }
 
   /// [selectFrom] with optional filter and pagination applied first.
-  rd.SelectFromBuilder<T, T> list({
+  rd.SelectFromBuilder<rd.Schema<R>, R, R> list({
     Filter? where,
     int? limit,
     int? offset,
@@ -120,7 +122,10 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
     return builder;
   }
 
-  rd.DeleteWhereBuilder<T, void> delete(Filter where, {int? limit}) {
+  rd.DeleteWhereBuilder<rd.Schema<R>, R, void> delete(
+    Filter where, {
+    int? limit,
+  }) {
     final builder = db.delete(from: schema).where(where);
 
     if (limit != null) {
@@ -130,7 +135,7 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
     return builder;
   }
 
-  rd.ToQuery<T, T> custom(
+  rd.ToQuery<rd.Schema<R>, R> custom(
     String operation, {
     Filter? where,
     Map<String, dynamic>? values,
@@ -150,8 +155,8 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   }
 
   /// Builds the [Query] for [request] so callers (e.g. [DbOperations]) can run
-  /// [BaseSqlDialect.translate] with a concrete schema type [T].
-  Query<T, dynamic> _query(PerformOperationRequest request) {
+  /// [BaseSqlDialect.translate] with the concrete schema row types for [S]/[R].
+  rd.Query<dynamic, dynamic> _query(PerformOperationRequest request) {
     return switch (request) {
       CreateOperationRequest(:final object) => insert(object).toQuery(),
       UpdateOperationRequest(:final where, :final updates) => update(
@@ -182,8 +187,8 @@ abstract base class CollectionOperations<T extends rd.Schema<T>>
   }
 }
 
-base mixin AuthOperations<T extends AuthCollection<T>>
-    on CollectionOperations<T> {
+base mixin AuthOperations<S extends AuthCollection<R>, R>
+    on CollectionOperations<S, R> {
   Future<Claims> addClaims({required Jwt jwt}) async {
     return Claims(jwt.claims);
   }

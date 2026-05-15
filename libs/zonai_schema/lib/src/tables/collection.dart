@@ -31,9 +31,9 @@ import 'package:zonai_schema/src/schemas/collection.dart';
 ///   },
 /// );
 /// ```
-S collection<S extends Collection<S>>(
+S collection<S extends Collection<T>, T>(
   String name,
-  S Function() builder, [
+  S Function(SchemaBuilder<T>) builder, [
   void Function(S table)? extra,
 ]) {
   return table(name, builder, dialect: 'sqlite', extra: extra);

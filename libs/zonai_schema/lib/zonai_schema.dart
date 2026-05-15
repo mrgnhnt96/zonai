@@ -2,7 +2,13 @@
 library;
 
 export 'package:raindrop/raindrop.dart'
-    show SchemaBuilder, fakes, ColumnType, uniqueIndex, index, IndexBuilderOn;
+    show
+        SchemaBuilder,
+        ColumnType,
+        uniqueIndex,
+        index,
+        IndexBuilderOn,
+        RowReader;
 export 'package:raindrop_sqlite/raindrop_sqlite.dart'
     show
         BooleanColumnDefinition,

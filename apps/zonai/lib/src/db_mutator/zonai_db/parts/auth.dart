@@ -105,7 +105,7 @@ extension _AuthX on ZonaiDb {
     }
 
     await db.insert(into: jwts).values([
-      JwtCollection(id: JwtId(jwt.jwtId), userId: UnknownId(jwt.userId)),
+      JwtEntry(id: JwtId(jwt.jwtId), userId: UnknownId(jwt.userId)),
     ]);
 
     return (jwt, token);

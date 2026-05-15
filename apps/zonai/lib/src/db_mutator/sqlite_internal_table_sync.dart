@@ -16,7 +16,7 @@ final class SqliteInternalTableSync {
   /// Invoked immediately before rewriting a mismatched internal table inside a txn.
   final void Function(String message)? onRebuildScheduled;
 
-  Future<void> ensureMatchingTable<S extends Schema<S>>(
+  Future<void> ensureMatchingTable<S extends Schema<R>, R>(
     Raindrop db,
     S schema,
   ) async {

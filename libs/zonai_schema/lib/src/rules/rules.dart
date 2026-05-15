@@ -12,10 +12,10 @@ part 'record/auth_record_rules.dart';
 part 'record/base_record_rules.dart';
 part 'record/record_rules.dart';
 
-sealed class Rules<T extends Schema<T>> {
+sealed class Rules<S extends Schema<R>, R> {
   const Rules(this.schema);
 
-  final T schema;
+  final S schema;
 
-  Table<T> get table => Table.getFor(schema);
+  Table<S, R> get table => Table.getFor(schema);
 }

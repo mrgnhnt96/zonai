@@ -1,6 +1,6 @@
 part of rules;
 
-class RecordRules<T extends Collection<T>> extends BaseRecordRules<T>
-    implements Rules<T> {
+class RecordRules<S extends Collection<R>, R> extends BaseRecordRules<S, R>
+    implements Rules<S, R> {
   const RecordRules(super.schema);
 }

@@ -1,10 +1,15 @@
 import 'package:test/test.dart';
+import 'package:zonai_playground/src/ids.dart';
 import 'package:zonai_playground/src/schemas/items.dart';
 
 void main() {
-  test('Item can be constructed with only body', () {
+  test('Item holds body and required identity fields', () {
     const body = 'minimal row';
-    final item = Item(body: body);
+    final item = Item(
+      body: body,
+      id: ItemsId.generate(),
+      createdAt: DateTime.utc(2024),
+    );
 
     expect(item.body, body);
     expect(item.id, isNotNull);

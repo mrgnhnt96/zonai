@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 ItemRecordRules main() => ItemRecordRules();
 
-class ItemRecordRules extends RecordRules<Item> {
+class ItemRecordRules extends RecordRules<ItemCollection, Item> {
   ItemRecordRules() : super(items);
 
   @override

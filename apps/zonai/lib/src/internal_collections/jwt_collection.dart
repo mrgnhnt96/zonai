@@ -8,35 +8,40 @@ class JwtId implements Id {
   final String value;
 }
 
-class JwtCollection extends Collection<JwtCollection> {
-  JwtCollection({required JwtId? id, required Id? userId})
+class JwtEntry {
+  JwtEntry({required this.id, required this.userId});
+
+  final JwtId id;
+  final Id userId;
+}
+
+class JwtCollection extends Collection<JwtEntry> {
+  JwtCollection(super.$)
     : id = $.id(
         'id',
         (s) => s.id,
-        id,
         fromString: JwtId.new,
         generate: JwtId.generate,
       ),
       userId = $.id(
         'user_id',
         (s) => s.userId,
-        userId,
         fromString: UnknownId.new,
         generate: () =>
             throw Exception('User ID is required for JWT collection'),
         isPrimaryKey: false,
+        synthetic: const UnknownId('__zonai_schema_registration__'),
       );
 
   final IdColumn<JwtId> id;
   final IdColumn<UnknownId> userId;
 
-  static const $ = SchemaBuilder<JwtCollection>();
+  @override
+  JwtEntry fromRow(RowReader read) {
+    return JwtEntry(id: read(id), userId: read(userId));
+  }
 }
 
-final jwts = collection(
-  '_jwt',
-  () => JwtCollection(id: JwtId.generate(), userId: const UnknownId('')),
-  (table) {
-    uniqueIndex('jwt_id_unique').on(table.id);
-  },
-);
+final jwts = collection('_jwt', JwtCollection.new, (table) {
+  uniqueIndex('jwt_id_unique').on(table.id);
+});
