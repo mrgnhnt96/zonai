@@ -93,9 +93,9 @@ class Settings {
 
   /// The path to the binary for the extensions
   String get compiledExtensionsPath =>
-      _normalize([defaultZonaiDirectory, 'extensions', 'db_extensions.exe']);
+      _normalize([defaultZonaiDirectory, 'executables', 'db_extensions.exe']);
   String get compiledRulesPath =>
-      _normalize([defaultZonaiDirectory, 'rules', 'db_rules.exe']);
+      _normalize([defaultZonaiDirectory, 'executables', 'db_rules.exe']);
   String get compiledOperationsPath =>
-      _normalize([defaultZonaiDirectory, 'operations', 'db_operations.exe']);
+      _normalize([defaultZonaiDirectory, 'executables', 'db_operations.exe']);
 }

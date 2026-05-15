@@ -10,11 +10,6 @@ class ItemExtensions extends Extension<Item>
   @override
   Future<void> beforeCreate(Item object, Jwt? jwt) async {
     logger.debug('EXTENSION beforeCreate');
-
-    mutate.create.one(
-      collection: 'items',
-      object: {'body': 'Something else!!!'},
-    );
   }
 
   @override
