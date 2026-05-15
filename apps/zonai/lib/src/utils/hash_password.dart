@@ -7,8 +7,10 @@ import 'package:zonai/src/deps/config_resolver.dart';
 
 /// Argon2id password hashing with a random salt per credential.
 ///
-/// Pass [passwordPepper] to [hash] and [verify]; it must **never** be persisted in
-/// the database.
+/// In production, secrets come from [configResolver] (including
+/// [AppConfig.previousPasswordSecrets] during rotation). For tests, pass
+/// [passwordSecret] and optionally [previousPasswordSecrets]. Secrets must
+/// **never** be persisted in the database.
 ///
 /// [hash] returns `<saltBase64>.<digestBase64>` — only the salt and digest are
 /// stored. Argon2 **m**, **t**, **p**, and digest length come from this
@@ -21,12 +23,16 @@ import 'package:zonai/src/deps/config_resolver.dart';
 /// Adjust via [HashPassword] constructor if your threat model differs.
 final class HashPassword {
   HashPassword({
+    String? passwordSecret,
+    List<String> previousPasswordSecrets = const [],
     this.memoryKiB = 19456,
     this.iterations = 3,
     this.parallelism = 1,
     this.hashLength = 32,
     this.saltLength = 16,
-  }) : assert(memoryKiB >= 8, 'memoryKiB must be at least 8'),
+  }) : _explicitPasswordSecret = passwordSecret,
+       _explicitPreviousPasswordSecrets = previousPasswordSecrets,
+       assert(memoryKiB >= 8, 'memoryKiB must be at least 8'),
        assert(iterations >= 1, 'iterations must be at least 1'),
        assert(parallelism >= 1, 'parallelism must be at least 1'),
        assert(
@@ -50,17 +56,36 @@ final class HashPassword {
   /// Random salt length in bytes (from [Random.secure]) when [salt] is omitted.
   final int saltLength;
 
-  String? _passwordPepper;
-  Future<String> get passwordPepper async {
-    if (_passwordPepper case final pepper?) {
-      return pepper;
+  final String? _explicitPasswordSecret;
+  final List<String> _explicitPreviousPasswordSecrets;
+
+  List<String>? _cachedPasswordSecretsForVerify;
+
+  Future<List<String>> _passwordSecretsForVerify() async {
+    if (_cachedPasswordSecretsForVerify case final cached?) {
+      return cached;
+    }
+    if (_explicitPasswordSecret == null &&
+        _explicitPreviousPasswordSecrets.isNotEmpty) {
+      throw StateError(
+        'previousPasswordSecrets is only valid with passwordSecret when not using config',
+      );
+    }
+    if (_explicitPasswordSecret case final explicit?) {
+      return _cachedPasswordSecretsForVerify = [
+        explicit,
+        ..._explicitPreviousPasswordSecrets,
+      ];
     }
     final config = await configResolver.resolve();
-
-    return _passwordPepper = config.passwordPepper;
+    return _cachedPasswordSecretsForVerify =
+        List<String>.unmodifiable(config.passwordSecretsForVerify);
   }
 
-  /// Returns `<saltBase64>.<digestBase64>` for storage ([passwordPepper] is never included).
+  Future<String> get passwordSecret async =>
+      (await _passwordSecretsForVerify()).first;
+
+  /// Returns `<saltBase64>.<digestBase64>` for storage ([passwordSecret] is never included).
   ///
   /// For tests only, pass [salt] for deterministic output; omit in production.
   Future<String> hash({required String password, List<int>? salt}) async {
@@ -76,13 +101,14 @@ final class HashPassword {
 
     final digest = _computeDigest(
       password: password,
-      pepper: await passwordPepper,
+      secret: await passwordSecret,
       salt: resolvedSalt,
     );
     return _encodeStored(salt: resolvedSalt, hash: digest);
   }
 
-  /// Returns whether [passwordPepper] and [rawPassword] reproduce [passwordHash],
+  /// Returns whether [rawPassword] reproduces [passwordHash] for some secret in
+  /// [AppConfig.passwordSecretsForVerify] (or explicit constructor secrets),
   /// using Argon2 parameters from **this** instance and the salt from
   /// [passwordHash].
   Future<bool> verify({
@@ -105,18 +131,22 @@ final class HashPassword {
       return false;
     }
 
-    final expected = _computeDigest(
-      password: rawPassword,
-      pepper: await passwordPepper,
-      salt: parsed.salt,
-    );
-
-    return _constantTimeBytesEqual(expected, parsed.hash);
+    for (final secret in await _passwordSecretsForVerify()) {
+      final expected = _computeDigest(
+        password: rawPassword,
+        secret: secret,
+        salt: parsed.salt,
+      );
+      if (_constantTimeBytesEqual(expected, parsed.hash)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Uint8List _computeDigest({
     required String password,
-    required String pepper,
+    required String secret,
     required Uint8List salt,
   }) {
     final params = Argon2Parameters(
@@ -129,16 +159,16 @@ final class HashPassword {
     );
 
     final argon = Argon2BytesGenerator()..init(params);
-    final passwordBytes = _passwordAndPepperBytes(password, pepper);
+    final passwordBytes = _passwordAndSecretBytes(password, secret);
 
     final result = Uint8List(hashLength);
     argon.generateBytes(passwordBytes, result, 0, result.length);
     return result;
   }
 
-  Uint8List _passwordAndPepperBytes(String password, String pepper) {
+  Uint8List _passwordAndSecretBytes(String password, String secret) {
     final p = utf8.encode(password);
-    final s = utf8.encode(pepper);
+    final s = utf8.encode(secret);
     final out = Uint8List(4 + p.length + 4 + s.length);
     final view = ByteData.sublistView(out);
     view.setUint32(0, p.length, Endian.big);

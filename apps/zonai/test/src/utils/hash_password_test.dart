@@ -6,9 +6,9 @@ import 'package:test/test.dart';
 import '../../../lib/src/utils/hash_password.dart';
 
 /// Low-cost parameters so Argon2 remains correct but tests stay fast.
-const _testPepper = 'test-app-pepper';
-const _hasher = HashPassword(
-  passwordPepper: _testPepper,
+const _testPasswordSecret = 'test-app-secret';
+final _hasher = HashPassword(
+  passwordSecret: _testPasswordSecret,
   memoryKiB: 64,
   iterations: 1,
   parallelism: 1,
@@ -55,21 +55,48 @@ void main() {
       },
     );
 
+    test('verification succeeds using a rolled-off secret', () async {
+      const oldSecret = 'old-secret';
+      const newSecret = 'new-secret';
+      final enrolled = HashPassword(
+        passwordSecret: oldSecret,
+        memoryKiB: 64,
+        iterations: 1,
+        parallelism: 1,
+        hashLength: 32,
+        saltLength: 16,
+      );
+      final login = HashPassword(
+        passwordSecret: newSecret,
+        previousPasswordSecrets: [oldSecret],
+        memoryKiB: 64,
+        iterations: 1,
+        parallelism: 1,
+        hashLength: 32,
+        saltLength: 16,
+      );
+      final encoded = await enrolled.hash(password: 'secret', salt: fixedSalt);
+      expect(
+        await login.verify(passwordHash: encoded, rawPassword: 'secret'),
+        isTrue,
+      );
+    });
+
     test(
-      'verification fails when a different instance uses the wrong pepper',
+      'verification fails when a different instance uses the wrong secret',
       () async {
-        const rightPepper = 'right-pepper';
-        const wrongPepper = 'wrong-pepper';
-        final enrollment = const HashPassword(
-          passwordPepper: rightPepper,
+        const rightSecret = 'right-secret';
+        const wrongSecret = 'wrong-secret';
+        final enrollment = HashPassword(
+          passwordSecret: rightSecret,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,
           hashLength: 32,
           saltLength: 16,
         );
-        final login = const HashPassword(
-          passwordPepper: wrongPepper,
+        final login = HashPassword(
+          passwordSecret: wrongSecret,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,
@@ -113,7 +140,7 @@ void main() {
 
     group('#hash', () {
       test(
-        'is deterministic for the same password, pepper, and salt',
+        'is deterministic for the same password, secret, and salt',
         () async {
           final a = await _hasher.hash(password: 'secret', salt: fixedSalt);
           final b = await _hasher.hash(password: 'secret', salt: fixedSalt);
@@ -121,11 +148,11 @@ void main() {
         },
       );
 
-      test('changes when pepper changes', () async {
-        const pepperA = 'pepper-a-instance';
-        const pepperB = 'pepper-b-instance';
+      test('changes when password secret changes', () async {
+        const secretA = 'secret-a-instance';
+        const secretB = 'secret-b-instance';
         final hasherA = HashPassword(
-          passwordPepper: pepperA,
+          passwordSecret: secretA,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,
@@ -133,7 +160,7 @@ void main() {
           saltLength: 16,
         );
         final hasherB = HashPassword(
-          passwordPepper: pepperB,
+          passwordSecret: secretB,
           memoryKiB: 64,
           iterations: 1,
           parallelism: 1,

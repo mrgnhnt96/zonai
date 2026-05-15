@@ -1,5 +1,5 @@
 import 'package:zonai_schema/zonai_schema.dart';
 
 AppConfig main() {
-  return AppConfig(passwordPepper: 'pepper', jwtPepper: 'pepper');
+  return AppConfig(passwordSecret: 'password', jwtSecret: 'jwt');
 }
