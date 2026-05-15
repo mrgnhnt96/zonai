@@ -26,6 +26,9 @@ sealed class OperationResponse extends Response {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
       ColumnNameResponse._path => ColumnNameResponse.fromJson(json),
       ClaimsResponse._path => ClaimsResponse.fromJson(json),
+      SanitizeOperationResponse._path => SanitizeOperationResponse.fromJson(
+        json,
+      ),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
   }
@@ -124,5 +127,32 @@ final class ClaimsResponse extends OperationResponse {
       'isAdmin': isAdmin,
       'canEdit': canEdit,
     };
+  }
+}
+
+final class SanitizeOperationResponse extends OperationResponse {
+  SanitizeOperationResponse({
+    required super.id,
+    required List<Map<String, dynamic>> objects,
+  }) : objects = List.unmodifiable(objects),
+       super(path: _path, payload: const {});
+
+  factory SanitizeOperationResponse.fromJson(Map<String, dynamic> json) {
+    return SanitizeOperationResponse(
+      id: json['id'] as String,
+      objects: [
+        for (final e in json['objects'] as List<dynamic>)
+          Map<String, dynamic>.from(e),
+      ],
+    );
+  }
+
+  static const _path = '${Response.prefix}.operation.sanitize';
+
+  final List<Map<String, dynamic>> objects;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'objects': jsonDecode(jsonEncode(objects))};
   }
 }

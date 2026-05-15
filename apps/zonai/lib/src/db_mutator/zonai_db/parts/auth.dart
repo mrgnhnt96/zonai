@@ -140,19 +140,7 @@ extension _AuthX on ZonaiDb {
       throw error ?? StateError('Failed to create user');
     }
 
-    final user = result.rows.single.toMap();
-
-    // TODO(mrgnhnt): Send object to extension to sanitize
-    final passwordColumn = await _operations.send(
-      GetColumnNameRequest(collection: collection, columnName: .password),
-    );
-
-    if (passwordColumn is! ColumnNameResponse) {
-      logger.trace('Failed to get password column name', prefix: _prefix);
-      throw StateError('Failed to get password column name');
-    }
-
-    user.remove(passwordColumn.name);
+    final user = await _sanitizeRow(collection, result.rows.single.toMap());
 
     logger.verbose('Created: ${user}', prefix: _prefix);
 

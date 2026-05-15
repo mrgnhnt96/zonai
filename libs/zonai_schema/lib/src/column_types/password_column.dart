@@ -1,4 +1,5 @@
 import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 
 // TODO(mrgnhnt): Make sure that the password is hashed before
 // it is stored in the database.
@@ -32,12 +33,4 @@ class PasswordTransformer extends ColumnTransformer<String, String>
 
   @override
   String decode(String input) => input;
-}
-
-/// A transformer that transforms a secret value
-///
-/// Filters out the value during sanitization
-abstract interface class SecretTransformer<T, O>
-    extends ColumnTransformer<T, O> {
-  const SecretTransformer();
 }

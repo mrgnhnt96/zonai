@@ -2,6 +2,7 @@ import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
+import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 class DbOperations {
@@ -50,6 +51,8 @@ class DbOperations {
             return await _getColumnName(request);
           case final GetClaimsOperationRequest request:
             return await _getClaims(request);
+          case final SanitizeOperationRequest request:
+            return await _sanitize(request);
         }
       },
     ).listen();
@@ -186,6 +189,29 @@ class DbOperations {
     ).translate(request);
 
     return PerformOperationResponse(id: request.id, query: sql, values: values);
+  }
+
+  Future<SanitizeOperationResponse> _sanitize(
+    SanitizeOperationRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      throw Exception('Collection not found: ${request.collection}');
+    }
+
+    final columns = collection.table.columns;
+    final sanitized = <Map<String, dynamic>>[];
+    for (final raw in request.objects) {
+      final mutable = {...raw};
+      for (final column in columns) {
+        if (column.transformer is SecretTransformer) {
+          mutable.remove(column.name);
+        }
+      }
+      sanitized.add(mutable);
+    }
+
+    return SanitizeOperationResponse(id: request.id, objects: sanitized);
   }
 
   Future<ClaimsResponse> _getClaims(GetClaimsOperationRequest request) async {

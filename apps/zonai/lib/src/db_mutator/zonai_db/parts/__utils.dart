@@ -152,7 +152,36 @@ extension _UtilsX on ZonaiDb {
     );
   }
 
-  Future<Iterable<_SideEffect>> _getEffect(MutationRequest mut) async {
+  Future<Map<String, Object?>> _sanitizeRow(
+    String collection,
+    Map<String, Object?> row,
+  ) async {
+    final rows = await _sanitizeRows(collection, [row]);
+    return rows.single;
+  }
+
+  Future<List<Map<String, Object?>>> _sanitizeRows(
+    String collection,
+    List<Map<String, Object?>> rows,
+  ) async {
+    if (rows.isEmpty) {
+      return const [];
+    }
+
+    final response = await _operations.send(
+      SanitizeOperationRequest(collection: collection, objects: rows),
+    );
+
+    if (response case SanitizeOperationResponse(:final objects)) {
+      return objects;
+    }
+
+    throw StateError(
+      'Expected $SanitizeOperationResponse, got ${response.runtimeType}',
+    );
+  }
+
+  Future<List<_SideEffect>> _getEffect(MutationRequest mut) async {
     switch (mut) {
       case final DeleteRecordRequest mut:
         final (objects, :deleteOperation) = await _deleteOperation(
@@ -302,12 +331,16 @@ extension _UtilsX on ZonaiDb {
               objects: effect.objects,
             );
           case _CreateSideEffect():
-            final object = operationResults[effect]?.rows.single.toMap();
-            if (object != null) {
+            final raw = operationResults[effect]?.rows.single.toMap();
+            if (raw != null) {
+              final created = await _sanitizeRow(
+                effect.request.collection,
+                raw,
+              );
               await _postCreate(
                 effect.request.collection,
                 effect.request.jwt,
-                object: object,
+                object: created,
               );
             } else {
               logger.error('(SIDE EFFECT) Unexpected error during create');
@@ -319,9 +352,16 @@ extension _UtilsX on ZonaiDb {
               readOperation.values,
             ));
 
-            final after = updatedResult?.rows.map((e) => e.toMap()).toList();
+            final afterRows = updatedResult?.rows
+                .map((e) => e.toMap())
+                .toList();
 
-            if (after != null) {
+            if (afterRows != null) {
+              final after = await _sanitizeRows(
+                effect.request.collection,
+                afterRows,
+              );
+
               await _postUpdate(
                 effect.request.collection,
                 effect.request.jwt,

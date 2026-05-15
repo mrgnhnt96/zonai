@@ -30,6 +30,9 @@ sealed class OperationRequest extends Request {
       GetClaimsOperationRequest._path => GetClaimsOperationRequest.fromRequest(
         request,
       ),
+      SanitizeOperationRequest._path => SanitizeOperationRequest.fromRequest(
+        request,
+      ),
       _ => throw ArgumentError(
         'Invalid operation request path: ${request.path}',
       ),
@@ -548,5 +551,41 @@ final class GetClaimsOperationRequest extends OperationRequest {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'collection': collection};
+  }
+}
+
+final class SanitizeOperationRequest extends OperationRequest {
+  SanitizeOperationRequest({
+    required this.collection,
+    required List<Map<String, dynamic>> objects,
+  }) : objects = List.unmodifiable(objects),
+       super(path: _path, id: Request.generateId(), jwt: null);
+
+  SanitizeOperationRequest._({
+    required super.id,
+    required this.collection,
+    required List<Map<String, dynamic>> objects,
+  }) : objects = List.unmodifiable(objects),
+       super(path: _path, jwt: null);
+
+  factory SanitizeOperationRequest.fromRequest(UnknownRequest request) {
+    return SanitizeOperationRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+      objects: [
+        for (final e in request.payload['objects'] as List<dynamic>)
+          Map<String, dynamic>.from(e),
+      ],
+    );
+  }
+
+  static const _path = '${Request.prefix}.operation.sanitize';
+
+  final String collection;
+  final List<Map<String, dynamic>> objects;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection, 'objects': objects};
   }
 }

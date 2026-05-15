@@ -46,16 +46,18 @@ extension _UpdateX on ZonaiDb {
 
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
 
+    final sanitizedUpdated = await _sanitizeRows(collection, updatedObjects);
+
     await _postUpdate(
       collection,
       jwt,
       before: beforeObjects,
-      after: updatedObjects,
+      after: sanitizedUpdated,
     );
 
     await _executeEffects();
 
-    return updatedObjects;
+    return sanitizedUpdated;
   }
 
   Future<void> _postUpdate(
@@ -114,10 +116,12 @@ extension _UpdateX on ZonaiDb {
       await _requireRecordAccess(collection, .update, row, jwt);
     }
 
+    final sanitizedBefore = await _sanitizeRows(collection, objects);
+
     await _extensions.send(
       BeforeUpdateExtensionRequest(
         collection: collection,
-        objects: objects,
+        objects: sanitizedBefore,
         jwt: jwt,
       ),
     );
@@ -131,6 +135,6 @@ extension _UpdateX on ZonaiDb {
       ),
     );
 
-    return (objects, readOperation: readOperation, updateOperation: operation);
+    return (sanitizedBefore, readOperation: readOperation, updateOperation: operation);
   }
 }

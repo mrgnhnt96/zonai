@@ -45,7 +45,6 @@ extension _AuthUtilsX on ZonaiDb {
       return null;
     }
 
-    // TODO(mrgnhnt): Send object to extension to sanitize
     final passwordHash = user.remove(passwordColumn.name);
     if (passwordHash is! String) {
       logger.trace('Password hash not found', prefix: _prefix);
@@ -63,7 +62,7 @@ extension _AuthUtilsX on ZonaiDb {
       throw StateError('Invalid password or email');
     }
 
-    return user;
+    return await _sanitizeRow(collection, user);
   }
 
   Future<bool> _hasAuthRecord({

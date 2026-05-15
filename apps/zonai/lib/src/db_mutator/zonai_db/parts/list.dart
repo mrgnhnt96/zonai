@@ -31,6 +31,6 @@ extension _ListX on ZonaiDb {
       await _requireRecordAccess(collection, .view, object, jwt);
     }
 
-    return objects;
+    return await _sanitizeRows(collection, objects);
   }
 }

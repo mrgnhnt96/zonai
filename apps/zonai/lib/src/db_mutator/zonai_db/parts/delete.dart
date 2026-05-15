@@ -83,15 +83,17 @@ extension _DeleteX on ZonaiDb {
       throw StateError('Record not found');
     }
 
-    final objects = readResult.rows.map((e) => e.toMap()).toList();
-    for (final object in objects) {
+    final rows = readResult.rows.map((e) => e.toMap()).toList();
+    for (final object in rows) {
       await _requireRecordAccess(collection, .delete, object, jwt);
     }
+
+    final sanitized = await _sanitizeRows(collection, rows);
 
     await _extensions.send(
       DeleteExtensionRequest.before(
         collection: collection,
-        objects: objects,
+        objects: sanitized,
         jwt: jwt,
       ),
     );
@@ -105,6 +107,6 @@ extension _DeleteX on ZonaiDb {
       ),
     );
 
-    return (objects, deleteOperation: deleteOperation);
+    return (sanitized, deleteOperation: deleteOperation);
   }
 }

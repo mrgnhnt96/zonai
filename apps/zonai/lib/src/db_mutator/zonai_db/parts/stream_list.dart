@@ -33,7 +33,10 @@ extension _StreamListX on ZonaiDb {
     }
 
     await for (final result in _stream(operation.query, operation.values)) {
-      yield result.rows.map((e) => e.toMap()).toList();
+      yield await _sanitizeRows(
+        collection,
+        result.rows.map((e) => e.toMap()).toList(),
+      );
     }
   }
 }
