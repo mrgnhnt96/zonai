@@ -189,6 +189,13 @@ class DbExtensions {
             request.jwt,
           );
         }
+      case .onLogout:
+        if (extension case AuthExtension(:final onLogout)) {
+          await onLogout(
+            extension.table.safeCreate(request.object),
+            request.jwt,
+          );
+        }
     }
   }
 }

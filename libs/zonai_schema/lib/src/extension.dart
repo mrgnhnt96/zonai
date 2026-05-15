@@ -30,4 +30,5 @@ mixin DeleteExtension<T extends Schema<T>> on Extension<T> {
 mixin AuthExtension<T extends Schema<T>> on Extension<T> {
   Future<void> onSignUp(T user, Jwt? jwt) async {}
   Future<void> onSignIn(T user, Jwt? jwt) async {}
+  Future<void> onLogout(T user, Jwt? jwt) async {}
 }

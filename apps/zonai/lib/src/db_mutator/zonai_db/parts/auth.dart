@@ -175,6 +175,16 @@ extension _AuthX on ZonaiDb {
     }
 
     logger.verbose('Logged out: ${appJwt.userId}', prefix: _prefix);
+
+    await _extensions.send(
+      AuthExtensionRequest.onLogout(
+        collection: appJwt.collection,
+        object: appJwt.user,
+        jwt: appJwt,
+      ),
+    );
+
+    await _executeEffects();
   }
 
   Future<void> _logoutAll(String jwt) async {
