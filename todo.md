@@ -4,9 +4,7 @@
 
 ### zonai / zonai_schema
 
-- [ ] `password_column.dart`: ensure passwords are hashed before persistence (see column TODO)
 - [ ] `zonai_db.dart`: make auth `appPepper` configurable (currently hard-coded)
-- [ ] `zonai_db.dart`: send auth record objects to the extension for sanitization (`_authRecord`, sign-up result path)
 - [ ] Add optional single or multi authentication
   - [ ] Single would upsert and would replace any old JWT
   - [ ] Multi would insert and allow multiple JWTs (allowing multiple devices)
