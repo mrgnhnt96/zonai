@@ -11,6 +11,7 @@ class Settings {
     required this.extensionsPath,
     required this.operationsPath,
     required this.rulesPath,
+    required this.configPath,
     required this.dataPath,
     this.basePath,
   });
@@ -41,6 +42,7 @@ class Settings {
       extensionsPath: normalize(['lib', 'src', 'extensions']),
       rulesPath: normalize(['lib', 'src', 'rules']),
       operationsPath: normalize(['lib', 'src', 'operations']),
+      configPath: normalize(['lib', 'src', 'config']),
     );
 
     if (settings == null) {
@@ -75,6 +77,10 @@ class Settings {
         final String value => normalize([value]),
         _ => defaultSettings.operationsPath,
       },
+      configPath: switch (map['configPath']) {
+        final String value => normalize([value]),
+        _ => defaultSettings.configPath,
+      },
       basePath: basePath,
     );
   }
@@ -85,6 +91,7 @@ class Settings {
   final String extensionsPath;
   final String rulesPath;
   final String operationsPath;
+  final String configPath;
   final String? basePath;
 
   String _normalize(List<String> paths) {
@@ -98,4 +105,6 @@ class Settings {
       _normalize([defaultZonaiDirectory, 'executables', 'db_rules.exe']);
   String get compiledOperationsPath =>
       _normalize([defaultZonaiDirectory, 'executables', 'db_operations.exe']);
+  String get compiledConfigPath =>
+      _normalize([defaultZonaiDirectory, 'executables', 'db_config.exe']);
 }

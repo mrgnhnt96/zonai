@@ -35,6 +35,8 @@ final class DevApp extends AppConfig {
         extensionsProvider,
         rulesProvider,
         operationsProvider,
+        configProvider,
+        configResolverProvider,
         migrateProvider,
         loggerProvider,
         fsProvider,

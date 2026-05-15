@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:argon2/argon2.dart';
+import 'package:zonai/src/deps/config_resolver.dart';
 
 /// Argon2id password hashing with a random salt per credential.
 ///
@@ -19,8 +20,7 @@ import 'package:argon2/argon2.dart';
 /// Tuned for \~OWASP "single-server web app" guidance (~19 MiB, time >= 2).
 /// Adjust via [HashPassword] constructor if your threat model differs.
 final class HashPassword {
-  const HashPassword({
-    required this.passwordPepper,
+  HashPassword({
     this.memoryKiB = 19456,
     this.iterations = 3,
     this.parallelism = 1,
@@ -34,8 +34,6 @@ final class HashPassword {
          'hashLength must be at least ${Argon2BytesGenerator.MIN_OUTLEN}',
        ),
        assert(saltLength >= 8, 'saltLength must be at least 8');
-
-  final String passwordPepper;
 
   /// Argon2 `m` cost (kibibytes).
   final int memoryKiB;
@@ -51,6 +49,16 @@ final class HashPassword {
 
   /// Random salt length in bytes (from [Random.secure]) when [salt] is omitted.
   final int saltLength;
+
+  String? _passwordPepper;
+  Future<String> get passwordPepper async {
+    if (_passwordPepper case final pepper?) {
+      return pepper;
+    }
+    final config = await configResolver.resolve();
+
+    return _passwordPepper = config.passwordPepper;
+  }
 
   /// Returns `<saltBase64>.<digestBase64>` for storage ([passwordPepper] is never included).
   ///
@@ -68,7 +76,7 @@ final class HashPassword {
 
     final digest = _computeDigest(
       password: password,
-      pepper: passwordPepper,
+      pepper: await passwordPepper,
       salt: resolvedSalt,
     );
     return _encodeStored(salt: resolvedSalt, hash: digest);
@@ -99,7 +107,7 @@ final class HashPassword {
 
     final expected = _computeDigest(
       password: rawPassword,
-      pepper: passwordPepper,
+      pepper: await passwordPepper,
       salt: parsed.salt,
     );
 

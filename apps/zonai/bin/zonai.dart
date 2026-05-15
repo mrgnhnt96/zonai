@@ -5,24 +5,26 @@ import 'dart:io';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
-import '../lib/src/deps/args.dart';
-import '../lib/src/deps/clean_up.dart';
-import '../lib/src/deps/extensions.dart';
-import '../lib/src/deps/fs.dart';
-import '../lib/src/deps/keyboard_input.dart';
-import '../lib/src/deps/kill.dart';
-import '../lib/src/deps/logger.dart';
-import '../lib/src/deps/migrate.dart';
-import '../lib/src/deps/mutations.dart';
-import '../lib/src/deps/operations.dart';
-import '../lib/src/deps/process.dart';
-import '../lib/src/deps/revali.dart';
-import '../lib/src/deps/rules.dart';
-import '../lib/src/deps/settings.dart';
-import '../lib/src/deps/stdin.dart';
-import '../lib/src/deps/zonai_db.dart';
-import '../lib/src/utils/args.dart';
-import '../lib/src/zonai_runner.dart';
+import 'package:zonai/src/deps/config_resolver.dart';
+import 'package:zonai/src/deps/args.dart';
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/extensions.dart';
+import 'package:zonai/src/deps/fs.dart';
+import 'package:zonai/src/deps/keyboard_input.dart';
+import 'package:zonai/src/deps/kill.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/migrate.dart';
+import 'package:zonai/src/deps/mutations.dart';
+import 'package:zonai/src/deps/operations.dart';
+import 'package:zonai/src/deps/process.dart';
+import 'package:zonai/src/deps/revali.dart';
+import 'package:zonai/src/deps/rules.dart';
+import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/src/deps/stdin.dart';
+import 'package:zonai/src/deps/config.dart';
+import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai/src/utils/args.dart';
+import 'package:zonai/src/zonai_runner.dart';
 
 void main(List<String> arguments) async {
   await _run(arguments);
@@ -69,6 +71,8 @@ Future<void> _run(List<String> arguments) async {
       migrateProvider,
       extensionsProvider,
       rulesProvider,
+      configProvider,
+      configResolverProvider,
       killProvider,
       stdinProvider,
       operationsProvider,

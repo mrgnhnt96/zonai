@@ -7,6 +7,7 @@ Future<int> compile() async {
     operations.compile(),
     extensions.compile(),
     rules.compile(),
+    config.compile(),
   ]);
   return 0;
 }

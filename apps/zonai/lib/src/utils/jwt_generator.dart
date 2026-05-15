@@ -2,18 +2,26 @@ import 'dart:convert';
 
 import 'package:clock/clock.dart' show clock;
 import 'package:crypto/crypto.dart';
+import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
 final class JwtGenerator {
-  const JwtGenerator({required this.jwtPepper});
+  JwtGenerator();
 
-  final String jwtPepper;
+  String? _jwtPepper;
+  Future<String> get jwtPepper async {
+    if (_jwtPepper case final pepper?) {
+      return pepper;
+    }
+    final config = await configResolver.resolve();
+    return _jwtPepper = config.jwtPepper;
+  }
 
   Future<String> generate(Jwt jwt) async {
     final header = <String, String>{'alg': 'HS256', 'typ': 'JWT'};
     final payload = jwt.toJson();
     final signingInput = '${_encodeSegment(header)}.${_encodeSegment(payload)}';
-    final mac = Hmac(sha256, utf8.encode(jwtPepper));
+    final mac = Hmac(sha256, utf8.encode(await jwtPepper));
     final signature = mac.convert(utf8.encode(signingInput)).bytes;
     return '$signingInput.${_bytesToBase64Url(signature)}';
   }
@@ -30,7 +38,7 @@ final class JwtGenerator {
     try {
       expected = Hmac(
         sha256,
-        utf8.encode(jwtPepper),
+        utf8.encode(await jwtPepper),
       ).convert(utf8.encode(signingInput));
     } on Object {
       return null;

@@ -6,6 +6,8 @@ export 'src/deps/extensions.dart';
 export 'src/deps/keyboard_input.dart';
 export 'src/deps/kill.dart';
 export 'src/deps/migrate.dart';
+export 'src/deps/config.dart';
+export 'src/deps/config_resolver.dart';
 export 'src/deps/operations.dart';
 export 'src/deps/process.dart';
 export 'src/deps/revali.dart';

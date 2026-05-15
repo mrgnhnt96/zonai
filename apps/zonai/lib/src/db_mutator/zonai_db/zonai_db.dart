@@ -7,6 +7,10 @@ import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/src/db_mutator/mailman.dart';
+import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/config.dart';
+import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
@@ -29,7 +33,6 @@ import '../../deps/operations.dart';
 import '../../deps/rules.dart';
 import '../../deps/settings.dart';
 import '../../utils/where_sql.dart';
-import '../mailman.dart';
 import '../operation_result.dart';
 import '../payloads/payloads.dart';
 import '../sqlite_internal_table_sync.dart';
@@ -50,9 +53,6 @@ typedef _CrudListResult = List<Map<String, Object?>>;
 
 const _prefix = '[ZONAI_DB]';
 
-// TODO(mrgnhnt): Make this configurable
-const _appPepper = 'app_pepper';
-
 class ZonaiDb {
   ZonaiDb()
     : _extensions = Mailman(
@@ -70,13 +70,19 @@ class ZonaiDb {
         executablePath: operations.executablePath,
         fromJson: OperationResponse.fromJson,
       ),
-      _jwt = JwtGenerator(jwtPepper: _appPepper),
-      _hashPassword = HashPassword(passwordPepper: _appPepper);
+      _config = Mailman(
+        debugName: 'CONFIG',
+        executablePath: config.executablePath,
+        fromJson: ConfigResponse.fromJson,
+      ),
+      _jwt = JwtGenerator(),
+      _hashPassword = HashPassword();
 
   Raindrop? db;
   final Mailman<ExtensionRequest, ExtensionResponse> _extensions;
   final Mailman<RuleRequest, RuleResponse> _rules;
   final Mailman<OperationRequest, OperationResponse> _operations;
+  final Mailman<ConfigRequest, ConfigResponse> _config;
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
@@ -133,7 +139,13 @@ class ZonaiDb {
       final m = Mutations();
       return await runMergedScopedFuture(
         body,
-        override: {mutationsProvider.overrideWith(() => m)},
+        includeIfAbsent: {cleanUpProvider},
+        override: {
+          mutationsProvider.overrideWith(() => m),
+          configResolverProvider.overrideWith(
+            () => ConfigResolver(mailman: _config),
+          ),
+        },
       );
     } catch (e, stack) {
       logger.error('Failed to list records: $e', switch (kIsCompiled) {
@@ -148,43 +160,52 @@ class ZonaiDb {
   Stream<T> _runStream<T>(Stream<T> Function() body) {
     final m = Mutations();
     return Stream<T>.multi((listener) {
-      runMergedScopedFuture(() async {
-        late final StreamSubscription<T> subscription;
-        try {
-          subscription = body().listen(
-            listener.add,
-            onError: listener.addError,
-            onDone: () {
-              if (!listener.isClosed) {
-                listener.close();
-              }
-            },
-            cancelOnError: false,
-          );
-
-          listener
-            ..onCancel = () {
-              subscription.cancel().whenComplete(() {
+      runMergedScopedFuture(
+        () async {
+          late final StreamSubscription<T> subscription;
+          try {
+            subscription = body().listen(
+              listener.add,
+              onError: listener.addError,
+              onDone: () {
                 if (!listener.isClosed) {
                   listener.close();
                 }
-              });
-            }
-            ..onPause = subscription.pause
-            ..onResume = subscription.resume;
+              },
+              cancelOnError: false,
+            );
 
-          await subscription.asFuture();
-        } catch (e, stack) {
-          logger.error('Failed to list records: $e', switch (kIsCompiled) {
-            true => null,
-            false => stack,
-          });
-          listener.addError(e, stack);
-          if (!listener.isClosed) {
-            listener.close();
+            listener
+              ..onCancel = () {
+                subscription.cancel().whenComplete(() {
+                  if (!listener.isClosed) {
+                    listener.close();
+                  }
+                });
+              }
+              ..onPause = subscription.pause
+              ..onResume = subscription.resume;
+
+            await subscription.asFuture();
+          } catch (e, stack) {
+            logger.error('Failed to list records: $e', switch (kIsCompiled) {
+              true => null,
+              false => stack,
+            });
+            listener.addError(e, stack);
+            if (!listener.isClosed) {
+              listener.close();
+            }
           }
-        }
-      }, override: {mutationsProvider.overrideWith(() => m)});
+        },
+        includeIfAbsent: {cleanUpProvider},
+        override: {
+          mutationsProvider.overrideWith(() => m),
+          configResolverProvider.overrideWith(
+            () => ConfigResolver(mailman: _config),
+          ),
+        },
+      );
     });
   }
 

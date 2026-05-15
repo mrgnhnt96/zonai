@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../deps/args.dart';
+import '../deps/config.dart';
 import '../deps/extensions.dart';
 import '../deps/keyboard_input.dart';
 import '../deps/kill.dart';
@@ -16,6 +17,8 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
+import 'package:zonai_schema/src/handlers/config/config_request.dart';
+import 'package:zonai_schema/src/handlers/config/config_response.dart';
 
 Future<int> serve() async {
   keyboardInput.watch();
@@ -31,6 +34,9 @@ Future<int> serve() async {
   rules
     ..watch()
     ..listenForKeyboardInput();
+  config
+    ..watch()
+    ..listenForKeyboardInput();
 
   operations
     ..watch()
@@ -42,6 +48,7 @@ Future<int> serve() async {
       operations.compile();
       extensions.compile();
       rules.compile();
+      config.compile();
     }
   });
 
@@ -69,6 +76,12 @@ Future<int> serve() async {
     fromJson: OperationResponse.fromJson,
   );
 
+  final configMailman = Mailman<ConfigRequest, ConfigResponse>(
+    debugName: 'CONFIG',
+    executablePath: config.executablePath,
+    fromJson: ConfigResponse.fromJson,
+  );
+
   keyboardInput.addListener((event) {
     final print = (bool success, String name) {
       logger.info('Ping $name ${success ? 'succeeded' : 'failed'}');
@@ -78,6 +91,7 @@ Future<int> serve() async {
       extensionMailman.ping().then((s) => print(s, 'extension'));
       rulesMailman.ping().then((s) => print(s, 'rules'));
       operationMailman.ping().then((s) => print(s, 'operation'));
+      configMailman.ping().then((s) => print(s, 'config'));
     }
   });
 

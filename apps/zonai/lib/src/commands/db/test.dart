@@ -7,10 +7,6 @@ import '../../db_mutator/payloads/payloads.dart';
 import '../../deps/logger.dart';
 import '../../deps/zonai_db.dart';
 
-Future<void> main() async {
-  await test();
-}
-
 Future<int> test() async {
   logger.info('AUTHENTICATE');
   if (await _authenticate() case final int exitCode) {
