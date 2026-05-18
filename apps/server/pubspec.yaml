@@ -8,14 +8,19 @@ environment:
 
 dependencies:
   path: ^1.9.1
-  revali_client: ^2.0.4
-  revali_router: ^3.1.0
+  revali_client: # ^2.0.4
+    path: /Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client
+  revali_router: # ^3.1.0
+    path: /Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router
   scoped_deps:
     path: ../../libs/scoped_deps
   zonai:
     path: ../zonai
 
 dev_dependencies:
-  revali: ^2.0.9
-  revali_client_gen: ^2.0.2
-  revali_server: ^2.1.0
+  revali: # ^2.0.9
+    path: /Users/morgan/Documents/develop.nosync/revali/packages/revali
+  revali_client_gen: # ^2.0.2
+    path: /Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client_gen
+  revali_server: # ^2.1.0
+    path: /Users/morgan/Documents/develop.nosync/revali/constructs/revali_server

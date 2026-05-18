@@ -1,9 +1,3 @@
-constructs:
-  - name: revali_client
-    options:
-      integrations:
-        get_it: true
-
 hot_reload:
   exclude:
     - "../web"

@@ -1,12 +1,6 @@
 import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
-import 'package:zonai_server/src/payloads/create_body.dart';
-import 'package:zonai_server/src/payloads/delete_body.dart';
-import 'package:zonai_server/src/payloads/get_body.dart';
-import 'package:zonai_server/src/payloads/list_body.dart';
-import 'package:zonai_server/src/payloads/stream_body.dart';
-import 'package:zonai_server/src/payloads/stream_list_body.dart';
-import 'package:zonai_server/src/payloads/update_body.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
 @Controller('db')
@@ -16,12 +10,12 @@ class DbController {
   final DbHandler dbHandler;
 
   @Get()
-  Future<Map<String, Object?>> get({@Body() required GetBody body}) async {
+  Future<Map<String, Object?>> get({@Query() required GetBody body}) async {
     return await dbHandler.get(body);
   }
 
   @Get('list')
-  Future<Map<String, Object?>> list({@Body() required ListBody body}) async {
+  Future<Map<String, Object?>> list({@Query() required ListBody body}) async {
     return (await dbHandler.list(body)).toJson();
   }
 
