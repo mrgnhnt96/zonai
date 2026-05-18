@@ -1,10 +1,10 @@
-import '../payloads/create_body.dart';
-import '../payloads/delete_body.dart';
-import '../payloads/get_body.dart';
-import '../payloads/list_body.dart';
-import '../payloads/stream_body.dart';
-import '../payloads/stream_list_body.dart';
-import '../payloads/update_body.dart';
+import 'package:zonai_server/src/payloads/create_body.dart';
+import 'package:zonai_server/src/payloads/delete_body.dart';
+import 'package:zonai_server/src/payloads/get_body.dart';
+import 'package:zonai_server/src/payloads/list_body.dart';
+import 'package:zonai_server/src/payloads/stream_body.dart';
+import 'package:zonai_server/src/payloads/stream_list_body.dart';
+import 'package:zonai_server/src/payloads/update_body.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
