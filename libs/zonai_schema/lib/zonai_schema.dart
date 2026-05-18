@@ -8,6 +8,7 @@ export 'package:raindrop/raindrop.dart'
         uniqueIndex,
         index,
         IndexBuilderOn,
+        ReferencesColumn,
         RowReader;
 export 'package:raindrop_sqlite/raindrop_sqlite.dart'
     show
