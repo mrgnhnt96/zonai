@@ -10,6 +10,11 @@ environment:
 dependencies:
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5
+  scoped_deps:
+    path: ../../libs/scoped_deps
+  sqlite3: ^2.9.4
+  zonai:
+    path: ../zonai
 
 dev_dependencies:
   build_runner: ^2.10.0

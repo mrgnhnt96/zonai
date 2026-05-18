@@ -28,7 +28,9 @@ import 'package:zonai_web/app.dart' as _app;
 /// ```
 ServerOptions get defaultServerOptions => ServerOptions(
   clientId: 'main.client.dart.js',
-  clients: {_app.AppShell: ClientTarget<_app.AppShell>('app')},
+  clients: {
+    _app.AppShell: ClientTarget<_app.AppShell>('app', params: __appAppShell),
+  },
   styles: () => [
     ..._theme.styles,
     ..._app.App.styles,
@@ -36,3 +38,8 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._sign_in_screen.SignInScreen.styles,
   ],
 );
+
+Map<String, Object?> __appAppShell(_app.AppShell c) => {
+  'initialTables': c.initialTables,
+  'tablesLoadError': c.tablesLoadError,
+};

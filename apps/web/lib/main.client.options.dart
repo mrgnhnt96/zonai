@@ -26,6 +26,12 @@ import 'package:zonai_web/app.dart' deferred as _app;
 /// ```
 ClientOptions get defaultClientOptions => ClientOptions(
   clients: {
-    'app': ClientLoader((p) => _app.AppShell(), loader: _app.loadLibrary),
+    'app': ClientLoader(
+      (p) => _app.AppShell(
+        initialTables: (p['initialTables'] as List<Object?>).cast<String>(),
+        tablesLoadError: p['tablesLoadError'] as String?,
+      ),
+      loader: _app.loadLibrary,
+    ),
   },
 );
