@@ -14,14 +14,14 @@ class HomeScreen extends StatelessComponent {
     final tables = context.watch(sqliteTablesProvider);
     return main_(classes: 'home', [
       aside(classes: 'tables-pane', [
-        div(classes: 'tables-pane-header', [.text('Tables')]),
+        div(classes: 'tables-pane-header', [.text('Collections')]),
         if (tables.loadError case final error?)
           div(classes: 'tables-pane-error', [
-            p(classes: 'tables-pane-msg', [.text('Could not load tables.')]),
+            p(classes: 'tables-pane-msg', [.text('Could not load collections.')]),
             p(classes: 'tables-pane-err-detail', [.text(error)]),
           ])
         else if (tables.names.isEmpty)
-          p(classes: 'tables-pane-msg', [.text('No tables yet.')])
+          p(classes: 'tables-pane-msg', [.text('No collections yet.')])
         else
           ul(classes: 'tables-list', [
             for (final name in tables.names) li(classes: 'tables-item', [.text(name)]),
