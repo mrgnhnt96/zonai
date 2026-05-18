@@ -6,6 +6,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/zonai.dart' hide Args;
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_server/config/server_binding.dart';
+import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 
 import '../components/log_observer.dart';
@@ -20,6 +21,7 @@ final class DevApp extends AppConfig {
   @override
   Future<void> configureDependencies(DI di) async {
     di.registerFactory(DbHandler.new);
+    di.registerFactory(AuthHandler.new);
   }
 
   @override
