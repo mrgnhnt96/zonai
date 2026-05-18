@@ -29,6 +29,7 @@ sealed class OperationResponse extends Response {
       SanitizeOperationResponse._path => SanitizeOperationResponse.fromJson(
         json,
       ),
+      AdminCollectionsResponse._path => AdminCollectionsResponse.fromJson(json),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
   }
@@ -154,5 +155,28 @@ final class SanitizeOperationResponse extends OperationResponse {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'objects': jsonDecode(jsonEncode(objects))};
+  }
+}
+
+final class AdminCollectionsResponse extends OperationResponse {
+  const AdminCollectionsResponse({required super.id, required this.collections})
+    : super(path: _path, payload: const {});
+
+  factory AdminCollectionsResponse.fromJson(Map<String, dynamic> json) {
+    return AdminCollectionsResponse(
+      id: json['id'] as String,
+      collections: [
+        for (final e in json['collections'] as List<dynamic>) e as String,
+      ],
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_admin_collections';
+
+  final List<String> collections;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collections': collections};
   }
 }

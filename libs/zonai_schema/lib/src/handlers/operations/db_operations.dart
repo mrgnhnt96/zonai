@@ -55,9 +55,24 @@ class DbOperations {
             return await _getClaims(request);
           case final SanitizeOperationRequest request:
             return await _sanitize(request);
+          case final GetAdminCollectionsOperationRequest request:
+            return await _getAdminCollections(request);
         }
       },
     ).listen();
+  }
+
+  Future<AdminCollectionsResponse> _getAdminCollections(
+    GetAdminCollectionsOperationRequest request,
+  ) async {
+    final collections = <String>[];
+    for (final op in operations) {
+      if (op.schema is AsAdmin) {
+        collections.add(op.table.name);
+      }
+    }
+
+    return AdminCollectionsResponse(id: request.id, collections: collections);
   }
 
   Never _failMissingCollection(String collection) {

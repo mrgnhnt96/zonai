@@ -38,6 +38,15 @@ Future<int> test() async {
     jwt = signedInJwt;
   }
 
+  {
+    logger.info('--------------------------------');
+    logger.info('ADMIN SIGN IN');
+    final (exitCode, signedInJwt) = await _adminSignIn(email);
+    if (exitCode != null || signedInJwt == null) {
+      return exitCode ?? 1;
+    }
+  }
+
   logger.info('--------------------------------');
   logger.info('CREATING USER');
   if (await _createUser() case final int exitCode) {
@@ -145,6 +154,16 @@ Future<(int?, String?)> _signUp() async {
 Future<(int?, String?)> _signIn(String email) async {
   final result = await zonaiDB.signIn(
     'users',
+    SignInPasswordAuthPayload(email: email, password: 'test'),
+  );
+
+  logger.info('Signed in user: ${result.user['id']}');
+
+  return (null, result.jwt);
+}
+
+Future<(int?, String?)> _adminSignIn(String email) async {
+  final result = await zonaiDB.adminSignIn(
     SignInPasswordAuthPayload(email: email, password: 'test'),
   );
 

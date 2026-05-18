@@ -32,6 +32,8 @@ sealed class OperationRequest extends Request {
       SanitizeOperationRequest._path => SanitizeOperationRequest.fromRequest(
         request,
       ),
+      GetAdminCollectionsOperationRequest._path =>
+        GetAdminCollectionsOperationRequest.fromRequest(request),
       _ => throw ArgumentError(
         'Invalid operation request path: ${request.path}',
       ),
@@ -190,6 +192,21 @@ final class PasswordAuthOperationPayload extends AuthOperationPayload {
       'passwordHash': passwordHash,
       'object': object,
     };
+  }
+}
+
+final class GetAdminCollectionsOperationRequest extends OperationRequest {
+  GetAdminCollectionsOperationRequest()
+    : super(path: _path, id: Request.generateId(), jwt: null);
+  GetAdminCollectionsOperationRequest._({required super.id})
+    : super(path: _path, jwt: null);
+
+  static const _path = '${Request.prefix}.auth.get_admin_collections';
+
+  factory GetAdminCollectionsOperationRequest.fromRequest(
+    UnknownRequest request,
+  ) {
+    return GetAdminCollectionsOperationRequest._(id: request.id);
   }
 }
 

@@ -24,7 +24,10 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<_AuthResult> _signIn(String collection, AuthPayload payload) async {
-    final jwt = await _extractJwt(payload);
+    if (payload.jwt != null) {
+      throw StateError('User already authenticated');
+    }
+
     await _requireAuthCollectionAccess(collection, payload);
     await _requireAuthRecordAccess(collection, .signIn, payload);
 
@@ -40,7 +43,7 @@ extension _AuthX on ZonaiDb {
       throw StateError('User not found, cannot sign in');
     }
 
-    final (_, token) = await _createJwt(collection, user);
+    final (jwt, token) = await _createJwt(collection, user);
 
     await _extensions.send(
       AuthExtensionRequest.onSignIn(
@@ -53,6 +56,49 @@ extension _AuthX on ZonaiDb {
     await _executeEffects();
 
     return (user: user, jwt: token);
+  }
+
+  Future<_AuthResult> _adminSignIn(AuthPayload payload) async {
+    if (payload.jwt != null) {
+      throw StateError('User already authenticated');
+    }
+
+    final authCollections = await _operations.send(
+      GetAdminCollectionsOperationRequest(),
+    );
+    if (authCollections is! AdminCollectionsResponse) {
+      throw StateError('Failed to get admin collections');
+    }
+
+    for (final collection in authCollections.collections) {
+      final user = await _authRecord(
+        collection: collection,
+        payload: payload,
+        rawPassword: switch (payload) {
+          PasswordAuthPayload() => payload.password,
+        },
+      );
+
+      if (user == null) {
+        throw StateError('User not found, cannot sign in');
+      }
+
+      final (jwt, token) = await _createJwt(collection, user);
+
+      await _extensions.send(
+        AuthExtensionRequest.onSignIn(
+          collection: collection,
+          object: user,
+          jwt: jwt,
+        ),
+      );
+
+      await _executeEffects();
+
+      return (user: user, jwt: token);
+    }
+
+    throw StateError('Unknown or invalid admin credentials');
   }
 
   Future<(Jwt, String)> _createJwt(
@@ -144,13 +190,13 @@ extension _AuthX on ZonaiDb {
 
     logger.verbose('Created: ${user}', prefix: _prefix);
 
-    final (_, token) = await _createJwt(collection, user);
+    final (newJwt, token) = await _createJwt(collection, user);
 
     await _extensions.send(
       AuthExtensionRequest.onSignUp(
         collection: collection,
         object: user,
-        jwt: jwt,
+        jwt: newJwt,
       ),
     );
 
