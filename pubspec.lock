@@ -786,7 +786,7 @@ packages:
       path: "/Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router"
       relative: false
     source: path
-    version: "3.2.0"
+    version: "3.2.1"
   revali_router_annotations:
     dependency: transitive
     description:
