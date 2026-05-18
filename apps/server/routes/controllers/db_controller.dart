@@ -21,10 +21,8 @@ class DbController {
   }
 
   @Get('list')
-  Future<List<Map<String, Object?>>> list({
-    @Body() required ListBody body,
-  }) async {
-    return await dbHandler.list(body);
+  Future<Map<String, Object?>> list({@Body() required ListBody body}) async {
+    return (await dbHandler.list(body)).toJson();
   }
 
   @Post()

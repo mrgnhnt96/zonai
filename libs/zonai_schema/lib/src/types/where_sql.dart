@@ -55,6 +55,12 @@ class WhereSql {
         final placeholders = values.map((e) => '\'$e\'').join(', ');
         return '"${collection}"."${column}" NOT IN ($placeholders)';
 
+      case Contains(:final column, :final value):
+        return '"${collection}"."${column}" LIKE \'%$value%\'';
+
+      case NotContains(:final column, :final value):
+        return '"${collection}"."${column}" NOT LIKE \'%$value%\'';
+
       case And(:final conditions):
         if (conditions.isEmpty) {
           return '1 = 1';

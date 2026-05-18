@@ -14,6 +14,8 @@ sealed class Where {
       NotIn._type => NotIn.fromJson(json),
       And._type => And.fromJson(json),
       Or._type => Or.fromJson(json),
+      Contains._type => Contains.fromJson(json),
+      NotContains._type => NotContains.fromJson(json),
       _ => throw ArgumentError.value(
         json['type'],
         'type',
@@ -233,5 +235,45 @@ final class Or extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'conditions': conditions.map((e) => e.toJson()).toList(),
+  };
+}
+
+final class Contains extends Where {
+  const Contains(this.column, this.value);
+
+  factory Contains.fromJson(Map<String, dynamic> json) {
+    return Contains(json['column'] as String, json['value'] as Object);
+  }
+
+  final String column;
+  final Object value;
+
+  static const _type = 'contains';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': _type,
+    'column': column,
+    'value': value,
+  };
+}
+
+final class NotContains extends Where {
+  const NotContains(this.column, this.value);
+
+  factory NotContains.fromJson(Map<String, dynamic> json) {
+    return NotContains(json['column'] as String, json['value'] as Object);
+  }
+
+  final String column;
+  final Object value;
+
+  static const _type = 'not_contains';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': _type,
+    'column': column,
+    'value': value,
   };
 }

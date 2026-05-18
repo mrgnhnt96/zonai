@@ -1,8 +1,12 @@
 part of zonai_db;
 
 extension _CountX on ZonaiDb {
-  Future<int> _count(String collection, CountPayload payload) async {
-    final jwt = await _extractJwt(payload);
+  Future<int> _count(
+    String collection,
+    CountPayload payload, {
+    Jwt? userJwt,
+  }) async {
+    final jwt = userJwt ?? await _extractJwt(payload);
     await _requireCollectionAccess(collection, .list, jwt);
 
     final operation = await _getOperation(

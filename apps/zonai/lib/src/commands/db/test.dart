@@ -206,14 +206,14 @@ Future<int?> _create(String jwt) async {
 Future<(int?, String?)> _list({required String jwt}) async {
   final result = await zonaiDB.list(
     'items',
-    .new(jwt: jwt, where: NotNull('id')),
+    .new(jwt: jwt, where: NotContains('body', 'Test'), limit: 20),
   );
 
-  logger.info('Found ${result.length} records');
-  for (final record in result) {
+  logger.info('Found ${result.items.length}/${result.total} records');
+  for (final record in result.items) {
     logger.info('Record: ${record}');
   }
-  return (null, result.last['id'] as String?);
+  return (null, result.items.last['id'] as String?);
 }
 
 Future<(int?, int?)> _count({required String jwt}) async {
@@ -235,16 +235,17 @@ Future<int?> _streamCount({required String jwt}) async {
   final beforeCount = await zonaiDB.count('items', countPayload);
 
   final completer = Completer<void>();
-  final listener = zonaiDB.streamCount('items', countPayload).listen((count) {
-    logger.info('Stream count: $count');
+  final listener =
+      zonaiDB.streamCount('items', countPayload).listen((count) {
+        logger.info('Stream count: $count');
 
-    // At least one new row matched (beforeCount should be 0 for probeId).
-    if (count >= beforeCount + 1 && !completer.isCompleted) {
-      completer.complete();
-    }
-  })..onError((e, stack) {
-    logger.error('Stream error', e, stack);
-  });
+        // At least one new row matched (beforeCount should be 0 for probeId).
+        if (count >= beforeCount + 1 && !completer.isCompleted) {
+          completer.complete();
+        }
+      })..onError((e, stack) {
+        logger.error('Stream error', e, stack);
+      });
 
   await zonaiDB.create(
     'items',

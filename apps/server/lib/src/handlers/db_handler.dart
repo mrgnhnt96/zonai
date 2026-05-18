@@ -6,6 +6,7 @@ import '../payloads/stream_body.dart';
 import '../payloads/stream_list_body.dart';
 import '../payloads/update_body.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 class DbHandler {
   const DbHandler();
@@ -14,7 +15,7 @@ class DbHandler {
     return await zonaiDB.read(body.collection, .new(where: body.where));
   }
 
-  Future<List<Map<String, Object?>>> list(ListBody body) async {
+  Future<Paginated<Map<String, Object?>>> list(ListBody body) async {
     return await zonaiDB.list(
       body.collection,
       .new(where: body.where, limit: body.limit, offset: body.offset),

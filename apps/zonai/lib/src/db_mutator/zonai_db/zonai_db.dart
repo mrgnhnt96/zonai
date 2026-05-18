@@ -50,6 +50,7 @@ part 'parts/count.dart';
 
 typedef _CrudResult = Map<String, Object?>;
 typedef _CrudListResult = List<Map<String, Object?>>;
+typedef _CrudPaginatedResult = Paginated<_CrudResult>;
 
 const _prefix = '[ZONAI_DB]';
 
@@ -130,7 +131,10 @@ class ZonaiDb {
     return await _run(() => _read(collection, payload));
   }
 
-  Future<_CrudListResult> list(String collection, ListPayload payload) async {
+  Future<_CrudPaginatedResult> list(
+    String collection,
+    ListPayload payload,
+  ) async {
     return await _run(() => _list(collection, payload));
   }
 

@@ -202,7 +202,7 @@ class Mailman<S extends Request, R extends Response> {
         ),
       );
 
-      return GetRecordResponse(id: request.id, records: results);
+      return GetRecordResponse(id: request.id, records: results.items);
     } catch (e, stack) {
       return MessageErrorResponse(
         id: request.id,

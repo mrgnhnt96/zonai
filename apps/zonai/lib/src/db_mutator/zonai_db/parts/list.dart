@@ -1,7 +1,7 @@
 part of zonai_db;
 
 extension _ListX on ZonaiDb {
-  Future<_CrudListResult> _list(
+  Future<_CrudPaginatedResult> _list(
     String collection,
     ListPayload payload, {
     Jwt? userJwt,
@@ -16,6 +16,12 @@ extension _ListX on ZonaiDb {
           final ListPayload payload => await _extractJwt(payload),
         };
     await _requireCollectionAccess(collection, .list, jwt);
+
+    final count = await _count(
+      collection,
+      CountPayload(where: payload.where),
+      userJwt: jwt,
+    );
 
     final operation = await _getOperation(
       ListOperationRequest(
@@ -39,6 +45,8 @@ extension _ListX on ZonaiDb {
       await _requireRecordAccess(collection, .view, object, jwt);
     }
 
-    return await _sanitizeRows(collection, objects);
+    final sanitized = await _sanitizeRows(collection, objects);
+
+    return Paginated(items: sanitized, total: count);
   }
 }
