@@ -19,8 +19,7 @@ extension _CreateX on ZonaiDb {
       throw error ?? StateError('Failed to create record');
     }
 
-    final created =
-        await _sanitizeRow(collection, result.rows.single.toMap());
+    final created = await _sanitizeRow(collection, result.rows.single.toMap());
 
     await _postCreate(collection, jwt, object: created);
 
@@ -29,6 +28,7 @@ extension _CreateX on ZonaiDb {
     return created;
   }
 
+  // TODO: add failed
   Future<void> _postCreate(
     String collection,
     Jwt? jwt, {

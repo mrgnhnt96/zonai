@@ -8,11 +8,10 @@ extension _StreamListX on ZonaiDb {
     final jwt = await _extractJwt(payload);
     await _requireCollectionAccess(collection, .list, jwt);
 
-    final where = payload.where?.sql(collection);
     final operation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: where,
+        where: payload.where,
         limit: payload.limit,
         offset: payload.offset,
         jwt: jwt,

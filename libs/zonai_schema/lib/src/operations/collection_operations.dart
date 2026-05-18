@@ -5,6 +5,7 @@ import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop/raindrop.dart' hide Update;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
+import 'package:zonai_schema/src/types/where_sql.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 import '../false_delegate.dart';
@@ -57,7 +58,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
 
   rd.UpdateWhereBuilder<rd.Schema<R>, R, List<Object?>, void> update(
     List<Update> updates, {
-    required Filter where,
+    required Where where,
   }) {
     final updateables = <Updateable<dynamic>>[];
 
@@ -91,12 +92,28 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
       }
     }
 
-    return db.update(schema).setAll(updateables).where(where);
+    return db
+        .update(schema)
+        .setAll(updateables)
+        .where(RawSqlFilter(where.sql(table.name)));
+  }
+
+  rd.SelectFromBuilder<rd.Schema<R>, R, int> count({Where? where}) {
+    final pkColumn = table.columns.firstWhere((c) => c.isPrimaryKey);
+    final counting = pkColumn.transform<int>(SQL.function('COUNT', [pkColumn]));
+
+    var builder = db.select(counting).from(schema);
+
+    if (where != null) {
+      builder = builder.where(RawSqlFilter(where.sql(table.name)));
+    }
+
+    return builder;
   }
 
   /// [selectFrom] with optional filter and pagination applied first.
   rd.SelectFromBuilder<rd.Schema<R>, R, R> list({
-    Filter? where,
+    Where? where,
     int? limit,
     int? offset,
     Selectable<dynamic>? groupBy,
@@ -104,7 +121,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
     var builder = db.select().from(schema);
 
     if (where != null) {
-      builder = builder.where(where);
+      builder = builder.where(RawSqlFilter(where.sql(table.name)));
     }
 
     if (limit != null) {
@@ -123,10 +140,12 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
   }
 
   rd.DeleteWhereBuilder<rd.Schema<R>, R, void> delete(
-    Filter where, {
+    Where where, {
     int? limit,
   }) {
-    final builder = db.delete(from: schema).where(where);
+    final builder = db
+        .delete(from: schema)
+        .where(RawSqlFilter(where.sql(table.name)));
 
     if (limit != null) {
       builder.limit(limit);
@@ -137,7 +156,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
 
   rd.ToQuery<rd.Schema<R>, R> custom(
     String operation, {
-    Filter? where,
+    Where? where,
     Map<String, dynamic>? values,
   }) {
     throw UnimplementedError(
@@ -158,6 +177,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
   /// [BaseSqlDialect.translate] with the concrete schema row types for [S]/[R].
   rd.Query<dynamic, dynamic> _query(PerformOperationRequest request) {
     return switch (request) {
+      CountOperationRequest(:final where) => count(where: where).toQuery(),
       CreateOperationRequest(:final object) => insert(object).toQuery(),
       UpdateOperationRequest(:final where, :final updates) => update(
         updates,
@@ -176,10 +196,8 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
         limit: limit,
         offset: offset,
       ).toQuery(),
-      CustomOperationRequest(:final operation, :final values) => custom(
-        operation,
-        values: values,
-      ).toQuery(),
+      CustomOperationRequest(:final where, :final operation, :final values) =>
+        custom(operation, where: where, values: values).toQuery(),
       PerformOperationRequest(:final operation) => throw StateError(
         'Invalid operation: $operation',
       ),

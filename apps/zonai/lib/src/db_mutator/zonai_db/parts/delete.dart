@@ -57,12 +57,10 @@ extension _DeleteX on ZonaiDb {
   _deleteOperation(String collection, DeletePayload payload, Jwt? jwt) async {
     await _requireCollectionAccess(collection, .delete, jwt);
 
-    final where = payload.where.sql(collection);
-
     final readOperation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: where,
+        where: payload.where,
         limit: payload.limit,
         offset: null,
         jwt: jwt,
@@ -101,7 +99,7 @@ extension _DeleteX on ZonaiDb {
     final deleteOperation = await _getOperation(
       DeleteOperationRequest(
         collection: collection,
-        where: where,
+        where: payload.where,
         limit: payload.limit,
         jwt: jwt,
       ),

@@ -41,6 +41,8 @@ class DbOperations {
         }
 
         switch (request) {
+          case final CountOperationRequest request:
+            return await _count(request);
           case final PerformOperationRequest request:
             return await _performOperation(request);
           case final ViewAuthOperationRequest request:
@@ -177,7 +179,7 @@ class DbOperations {
 
     final operationRequest = ViewOperationRequest(
       collection: request.collection,
-      where: '"${emailColumn.name}" = \'${email}\'',
+      where: Eq(emailColumn.name, email),
       jwt: request.jwt,
     );
 
@@ -192,6 +194,20 @@ class DbOperations {
   Future<PerformOperationResponse> _performOperation(
     PerformOperationRequest request,
   ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      _failMissingCollection(request.collection);
+    }
+
+    final (sql, values) = CollectionTranslator(
+      collection,
+      dialect,
+    ).translate(request);
+
+    return PerformOperationResponse(id: request.id, query: sql, values: values);
+  }
+
+  Future<PerformOperationResponse> _count(CountOperationRequest request) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
       _failMissingCollection(request.collection);

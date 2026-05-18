@@ -32,7 +32,6 @@ import '../../deps/migrate.dart';
 import '../../deps/operations.dart';
 import '../../deps/rules.dart';
 import '../../deps/settings.dart';
-import '../../utils/where_sql.dart';
 import '../operation_result.dart';
 import '../payloads/payloads.dart';
 import '../sqlite_internal_table_sync.dart';
@@ -47,6 +46,7 @@ part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
 part 'parts/view.dart';
+part 'parts/count.dart';
 
 typedef _CrudResult = Map<String, Object?>;
 typedef _CrudListResult = List<Map<String, Object?>>;
@@ -132,6 +132,10 @@ class ZonaiDb {
 
   Future<_CrudListResult> list(String collection, ListPayload payload) async {
     return await _run(() => _list(collection, payload));
+  }
+
+  Future<int> count(String collection, CountPayload payload) async {
+    return await _run(() => _count(collection, payload));
   }
 
   Future<T> _run<T>(Future<T> Function() body) async {

@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:zonai_schema/zonai_schema.dart';
-import '../../../../lib/src/utils/where_sql.dart';
+import 'package:zonai_schema/src/types/where_sql.dart';
 
 void main() {
   group(WhereSql, () {

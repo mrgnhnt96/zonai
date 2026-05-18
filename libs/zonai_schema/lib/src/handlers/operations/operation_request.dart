@@ -1,12 +1,11 @@
 import 'dart:convert';
 
 import 'package:meta/meta.dart';
-import 'package:raindrop/raindrop.dart' show Filter;
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
-import 'package:zonai_schema/src/raw_sql_filter.dart';
 import 'package:zonai_schema/src/schemas/auth_collection.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
+import 'package:zonai_schema/src/types/where.dart';
 import 'package:zonai_schema/src/update/update.dart';
 
 sealed class OperationRequest extends Request {
@@ -308,17 +307,15 @@ final class CreateOperationRequest extends PerformOperationRequest {
 final class UpdateOperationRequest extends PerformOperationRequest {
   UpdateOperationRequest({
     required super.collection,
-    required String where,
+    required this.where,
     required this.updates,
     required super.jwt,
-  }) : rawWhere = where,
-       super(operation: CollectionOperation.update.name);
+  }) : super(operation: CollectionOperation.update.name);
 
   UpdateOperationRequest._({
     required super.id,
     required super.collection,
-    required String where,
-    required this.rawWhere,
+    required this.where,
     required this.updates,
     required super.jwt,
   }) : super._(operation: CollectionOperation.update.name);
@@ -327,8 +324,7 @@ final class UpdateOperationRequest extends PerformOperationRequest {
     return UpdateOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
-      where: request.payload['where'] as String,
-      rawWhere: request.payload['where'] as String,
+      where: Where.fromJson(request.payload['where'] as Map<String, dynamic>),
       updates: [
         for (final update in request.payload['updates'] as List<dynamic>)
           Update.fromJson(update as Map<String, dynamic>),
@@ -337,16 +333,14 @@ final class UpdateOperationRequest extends PerformOperationRequest {
     );
   }
 
-  final String rawWhere;
+  final Where where;
   final List<Update> updates;
-
-  Filter get where => RawSqlFilter(rawWhere);
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'where': rawWhere,
+      'where': where.toJson(),
       'updates': updates.map((update) => update.toJson()).toList(),
     };
   }
@@ -355,54 +349,49 @@ final class UpdateOperationRequest extends PerformOperationRequest {
 final class DeleteOperationRequest extends PerformOperationRequest {
   DeleteOperationRequest({
     required super.collection,
-    required String where,
+    required this.where,
     required this.limit,
     required super.jwt,
-  }) : rawWhere = where,
-       super(operation: CollectionOperation.delete.name);
+  }) : super(operation: CollectionOperation.delete.name);
 
   DeleteOperationRequest._({
     required super.id,
     required super.collection,
-    required String where,
+    required this.where,
     required this.limit,
     required super.jwt,
-  }) : rawWhere = where,
-       super._(operation: CollectionOperation.delete.name);
+  }) : super._(operation: CollectionOperation.delete.name);
 
   factory DeleteOperationRequest.fromRequest(UnknownRequest request) {
     return DeleteOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       limit: request.payload['limit'] as int?,
-      where: request.payload['where'] as String,
+      where: Where.fromJson(request.payload['where'] as Map<String, dynamic>),
       jwt: request.jwt,
     );
   }
 
   final int? limit;
-  final String rawWhere;
-
-  Filter get where => RawSqlFilter(rawWhere);
+  final Where where;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'where': rawWhere, 'limit': limit};
+    return {...super.toJson(), 'where': where.toJson(), 'limit': limit};
   }
 }
 
 final class ViewOperationRequest extends PerformOperationRequest {
   ViewOperationRequest({
     required super.collection,
-    required String where,
+    required this.where,
     super.jwt,
-  }) : rawWhere = where,
-       super(operation: CollectionOperation.view.name);
+  }) : super(operation: CollectionOperation.view.name);
 
   ViewOperationRequest._({
     required super.id,
     required super.collection,
-    required this.rawWhere,
+    required this.where,
     required super.jwt,
   }) : super._(operation: CollectionOperation.view.name);
 
@@ -410,43 +399,36 @@ final class ViewOperationRequest extends PerformOperationRequest {
     return ViewOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
-      rawWhere: request.payload['where'] as String?,
+      where: Where.fromJson(request.payload['where'] as Map<String, dynamic>),
       jwt: request.jwt,
     );
   }
 
-  final String? rawWhere;
-
-  Filter? get where => switch (rawWhere) {
-    null => null,
-    final String filter => RawSqlFilter(filter),
-  };
+  final Where where;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'where': rawWhere};
+    return {...super.toJson(), 'where': where.toJson()};
   }
 }
 
 final class ListOperationRequest extends PerformOperationRequest {
   ListOperationRequest({
     required super.collection,
-    required String? where,
+    required this.where,
     required this.limit,
     required this.offset,
     required super.jwt,
-  }) : rawWhere = where,
-       super(operation: CollectionOperation.list.name);
+  }) : super(operation: CollectionOperation.list.name);
 
   ListOperationRequest._({
     required super.id,
     required super.collection,
-    required String? where,
+    required this.where,
     required this.limit,
     required this.offset,
     required super.jwt,
-  }) : rawWhere = where,
-       super._(operation: CollectionOperation.list.name);
+  }) : super._(operation: CollectionOperation.list.name);
 
   factory ListOperationRequest.fromRequest(UnknownRequest request) {
     return ListOperationRequest._(
@@ -454,25 +436,23 @@ final class ListOperationRequest extends PerformOperationRequest {
       collection: request.payload['collection'] as String,
       limit: request.payload['limit'] as int?,
       offset: request.payload['offset'] as int?,
-      where: request.payload['where'] as String?,
+      where: switch (request.payload['where']) {
+        final Map<String, dynamic> json => Where.fromJson(json),
+        _ => null,
+      },
       jwt: request.jwt,
     );
   }
 
   final int? limit;
   final int? offset;
-  final String? rawWhere;
-
-  Filter? get where => switch (rawWhere) {
-    null => null,
-    final String where => RawSqlFilter(where),
-  };
+  final Where? where;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'where': rawWhere,
+      'where': where?.toJson(),
       'limit': limit,
       'offset': offset,
     };
@@ -483,43 +463,40 @@ final class CustomOperationRequest extends PerformOperationRequest {
   CustomOperationRequest({
     required super.collection,
     required super.operation,
-    required String? where,
+    required this.where,
     required this.values,
     required super.jwt,
-  }) : rawWhere = where;
+  });
 
   CustomOperationRequest._({
     required super.id,
     required super.collection,
     required super.operation,
-    required String? where,
+    required this.where,
     required this.values,
     required super.jwt,
-  }) : rawWhere = where,
-       super._();
+  }) : super._();
 
   factory CustomOperationRequest.fromRequest(UnknownRequest request) {
     return CustomOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       operation: request.payload['operation'] as String,
-      where: request.payload['where'] as String?,
+      where: switch (request.payload['where']) {
+        final Map<String, dynamic> json => Where.fromJson(json),
+        _ => null,
+      },
       values: request.payload['values'] as Map<String, dynamic>?,
       jwt: request.jwt,
     );
   }
 
-  final String? rawWhere;
+  final Where? where;
   final Map<String, dynamic>? values;
-
-  Filter? get where => switch (rawWhere) {
-    null => null,
-    final String where => RawSqlFilter(where),
-  };
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'where': rawWhere, 'values': values};
+    return {...super.toJson(), 'where': where?.toJson(), 'values': values};
   }
 }
 
@@ -587,5 +564,39 @@ final class SanitizeOperationRequest extends OperationRequest {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'collection': collection, 'objects': objects};
+  }
+}
+
+final class CountOperationRequest extends PerformOperationRequest {
+  CountOperationRequest({
+    required super.collection,
+    required this.where,
+    super.jwt,
+  }) : super(operation: CollectionOperation.list.name);
+
+  CountOperationRequest._({
+    required super.id,
+    required super.collection,
+    required this.where,
+    required super.jwt,
+  }) : super._(operation: CollectionOperation.list.name);
+
+  factory CountOperationRequest.fromRequest(UnknownRequest request) {
+    return CountOperationRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+      where: switch (request.payload['where']) {
+        final Map<String, dynamic> json => Where.fromJson(json),
+        _ => null,
+      },
+      jwt: request.jwt,
+    );
+  }
+
+  final Where? where;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'where': where?.toJson()};
   }
 }

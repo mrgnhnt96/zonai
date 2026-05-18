@@ -12,7 +12,7 @@ extension _ViewX on ZonaiDb {
     final operation = await _getOperation(
       ViewOperationRequest(
         collection: collection,
-        where: payload.where.sql(collection),
+        where: payload.where,
         jwt: jwt,
       ),
     );

@@ -59,6 +59,15 @@ Future<int> test() async {
   logger.info('ID: $id');
   logger.info('--------------------------------');
 
+  {
+    logger.info('COUNTING RECORDS');
+    final (exitCode, count) = await _count(jwt: jwt);
+    if (exitCode != null) {
+      return exitCode;
+    }
+    logger.info('Count: $count');
+    logger.info('--------------------------------');
+  }
   logger.info('STREAM LIST');
   if (await _streamList(id: id!, jwt: jwt) case final int exitCode) {
     return exitCode;
@@ -198,6 +207,16 @@ Future<(int?, String?)> _list({required String jwt}) async {
     logger.info('Record: ${record}');
   }
   return (null, result.last['id'] as String?);
+}
+
+Future<(int?, int?)> _count({required String jwt}) async {
+  final result = await zonaiDB.count(
+    'items',
+    .new(jwt: jwt, where: NotNull('id')),
+  );
+
+  logger.info('Found ${result} records');
+  return (null, result);
 }
 
 Future<int?> _streamList({required String id, required String jwt}) async {

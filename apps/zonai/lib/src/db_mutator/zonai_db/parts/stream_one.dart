@@ -11,7 +11,7 @@ extension _StreamOneX on ZonaiDb {
     final operation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: payload.where.sql(collection),
+        where: payload.where,
         limit: 1,
         offset: null,
         jwt: jwt,

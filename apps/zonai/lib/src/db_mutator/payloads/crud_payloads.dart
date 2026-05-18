@@ -62,3 +62,9 @@ class ViewPayload extends JwtPayload {
 
   final Where where;
 }
+
+class CountPayload extends JwtPayload {
+  const CountPayload({this.where, super.jwt});
+
+  final Where? where;
+}

@@ -86,12 +86,10 @@ extension _UpdateX on ZonaiDb {
   _updateOperation(String collection, UpdatePayload payload, Jwt? jwt) async {
     await _requireCollectionAccess(collection, .update, jwt);
 
-    final where = payload.where.sql(collection);
-
     final readOperation = await _getOperation(
       ListOperationRequest(
         collection: collection,
-        where: where,
+        where: payload.where,
         limit: payload.limit,
         offset: null,
         jwt: jwt,
@@ -129,12 +127,16 @@ extension _UpdateX on ZonaiDb {
     final operation = await _getOperation(
       UpdateOperationRequest(
         collection: collection,
-        where: payload.where.sql(collection),
+        where: payload.where,
         updates: payload.updates,
         jwt: jwt,
       ),
     );
 
-    return (sanitizedBefore, readOperation: readOperation, updateOperation: operation);
+    return (
+      sanitizedBefore,
+      readOperation: readOperation,
+      updateOperation: operation,
+    );
   }
 }
