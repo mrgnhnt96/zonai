@@ -65,10 +65,13 @@ class DbOperations {
   Future<AdminCollectionsResponse> _getAdminCollections(
     GetAdminCollectionsOperationRequest request,
   ) async {
-    final collections = <String>[];
+    final collections = <(String, List<AuthType>)>[];
     for (final op in operations) {
-      if (op.schema is AsAdmin) {
-        collections.add(op.table.name);
+      if ((op.schema, op.schema) case (
+        final SupportedAuths supportedAuths,
+        AsAdmin(),
+      )) {
+        collections.add((op.table.name, supportedAuths.authTypes));
       }
     }
 

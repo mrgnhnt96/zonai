@@ -1,15 +1,16 @@
 part of auth_collection;
 
-sealed class _AuthType {
-  const _AuthType();
+sealed class SupportedAuths {
+  const SupportedAuths();
 
-  AuthType get authType;
+  List<AuthType> get authTypes {
+    return [if (this is PasswordAuth) .password];
+  }
 }
 
 enum AuthType { password }
 
-base mixin PasswordAuth on Auth implements _AuthType {
+base mixin PasswordAuth on Auth implements SupportedAuths {
   EmailColumn get email;
   PasswordColumn get passwordHash;
-  AuthType get authType => .password;
 }

@@ -11,12 +11,14 @@ part 'auth/auth_types.dart';
 abstract base class AuthCollection<T> extends Schema<T> implements Auth {
   AuthCollection(super.$);
 
-  AuthType get authType {
-    if (this case _AuthType(:final authType)) {
-      return authType;
+  List<AuthType> get authTypes {
+    if (this case SupportedAuths(:final authTypes)) {
+      return authTypes;
     }
 
-    throw UnimplementedError('${runtimeType} is missing an `$AuthType` mixin');
+    throw UnimplementedError(
+      '${runtimeType} is missing a `$SupportedAuths` mixin',
+    );
   }
 }
 

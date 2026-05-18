@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/operations/collection_operations.dart';
+import 'package:zonai_schema/src/schemas/auth_collection.dart';
 
 sealed class OperationResponse extends Response {
   const OperationResponse({
@@ -166,17 +167,34 @@ final class AdminCollectionsResponse extends OperationResponse {
     return AdminCollectionsResponse(
       id: json['id'] as String,
       collections: [
-        for (final e in json['collections'] as List<dynamic>) e as String,
+        for (final e in json['collections'] as List<dynamic>)
+          (
+            e['collection'] as String,
+            [
+              for (final authType in e['authTypes'] as List<dynamic>)
+                AuthType.values.byName(authType as String),
+            ],
+          ),
       ],
     );
   }
 
   static const _path = '${Response.prefix}.auth.get_admin_collections';
 
-  final List<String> collections;
+  final List<(String, List<AuthType>)> collections;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collections': collections};
+    return {
+      ...super.toJson(),
+      'collections': collections
+          .map(
+            (e) => {
+              'collection': e.$1,
+              'authTypes': e.$2.map((e) => e.name).toList(),
+            },
+          )
+          .toList(),
+    };
   }
 }
