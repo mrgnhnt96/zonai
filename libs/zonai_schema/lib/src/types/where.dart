@@ -258,6 +258,46 @@ final class Contains extends Where {
   };
 }
 
+final class StartsWith extends Where {
+  const StartsWith(this.column, this.value);
+
+  factory StartsWith.fromJson(Map<String, dynamic> json) {
+    return StartsWith(json['column'] as String, json['value'] as Object);
+  }
+
+  final String column;
+  final Object value;
+
+  static const _type = 'starts_with';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': _type,
+    'column': column,
+    'value': value,
+  };
+}
+
+final class EndsWith extends Where {
+  const EndsWith(this.column, this.value);
+
+  factory EndsWith.fromJson(Map<String, dynamic> json) {
+    return EndsWith(json['column'] as String, json['value'] as Object);
+  }
+
+  final String column;
+  final Object value;
+
+  static const _type = 'ends_with';
+
+  @override
+  Map<String, Object?> toJson() => {
+    'type': _type,
+    'column': column,
+    'value': value,
+  };
+}
+
 final class NotContains extends Where {
   const NotContains(this.column, this.value);
 

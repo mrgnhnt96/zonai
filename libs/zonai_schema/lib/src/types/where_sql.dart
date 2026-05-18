@@ -58,6 +58,12 @@ class WhereSql {
       case Contains(:final column, :final value):
         return '"${collection}"."${column}" LIKE \'%$value%\'';
 
+      case StartsWith(:final column, :final value):
+        return '"${collection}"."${column}" LIKE \'${value}%\'';
+
+      case EndsWith(:final column, :final value):
+        return '"${collection}"."${column}" LIKE \'%${value}\'';
+
       case NotContains(:final column, :final value):
         return '"${collection}"."${column}" NOT LIKE \'%$value%\'';
 
