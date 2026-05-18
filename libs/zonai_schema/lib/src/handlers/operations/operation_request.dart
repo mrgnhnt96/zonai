@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:meta/meta.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
-import 'package:zonai_schema/src/schemas/auth_collection.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
+import 'package:zonai_schema/src/types/supported_auths.dart';
 import 'package:zonai_schema/src/types/where.dart';
 import 'package:zonai_schema/src/update/update.dart';
 

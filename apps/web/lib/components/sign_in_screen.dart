@@ -1,17 +1,23 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:zonai_schema/payloads.dart';
 
 import '../auth/auth_provider.dart';
+import '../auth/auth_route_provider.dart';
+import '../auth/auth_routes.dart';
+import '../auth/supported_auth_types_provider.dart';
 import '../constants/theme.dart';
 
-/// Layout for sign-in; submit uses [authProvider].
+/// Shared layout for sign-in screens.
 class SignInScreen extends StatelessComponent {
-  const SignInScreen({super.key});
+  const SignInScreen({super.key, required this.child});
+
+  final Component child;
 
   @override
   Component build(BuildContext context) {
-    return main_(classes: 'sign-in', [const SignInForm()]);
+    return main_(classes: 'sign-in', [child]);
   }
 
   @css
@@ -67,7 +73,7 @@ class SignInScreen extends StatelessComponent {
       css('.input:focus-visible').styles(
         outline: Outline(style: OutlineStyle.solid, width: OutlineWidth(2.px), color: primaryColor, offset: 2.px),
       ),
-      css('.submit').styles(
+      css('.submit, .auth-type').styles(
         width: 100.percent,
         margin: .only(top: 8.px),
         padding: .symmetric(vertical: 12.px),
@@ -79,20 +85,66 @@ class SignInScreen extends StatelessComponent {
         color: Colors.white,
         backgroundColor: primaryColor,
       ),
-      css('.submit:hover').styles(backgroundColor: const Color('#014a84')),
+      css('.submit:hover, .auth-type:hover').styles(backgroundColor: const Color('#014a84')),
+      css('.auth-type + .auth-type').styles(margin: .only(top: 12.px)),
     ]),
   ];
 }
 
-/// Interactive sign-in controls (hydrated via [AppShell]).
-class SignInForm extends StatefulComponent {
-  const SignInForm({super.key});
+/// Lists available sign-in methods.
+class AuthTypePickerScreen extends StatelessComponent {
+  const AuthTypePickerScreen({super.key});
 
   @override
-  State<SignInForm> createState() => SignInFormState();
+  Component build(BuildContext context) {
+    final authTypes = context.watch(supportedAuthTypesProvider);
+    return SignInScreen(
+      child: div(classes: 'card', [
+        h1(classes: 'title', [.text('Sign in')]),
+        p(classes: 'subtitle', [
+          .text('Choose how you want to sign in.'),
+        ]),
+        for (final authType in authTypes)
+          button(
+            classes: 'auth-type',
+            type: .button,
+            onClick: () {
+              context.read(authRouteProvider.notifier).navigateTo(
+                AuthRoutes.forType(authType),
+              );
+            },
+            [.text(_labelFor(authType))],
+          ),
+      ]),
+    );
+  }
+
+  static String _labelFor(AuthType authType) {
+    return switch (authType) {
+      AuthType.password => 'Email & password',
+    };
+  }
 }
 
-class SignInFormState extends State<SignInForm> {
+/// Password sign-in form.
+class PasswordSignInScreen extends StatelessComponent {
+  const PasswordSignInScreen({super.key});
+
+  @override
+  Component build(BuildContext context) {
+    return const SignInScreen(child: PasswordSignInForm());
+  }
+}
+
+/// Interactive password sign-in controls (hydrated via [AppShell]).
+class PasswordSignInForm extends StatefulComponent {
+  const PasswordSignInForm({super.key});
+
+  @override
+  State<PasswordSignInForm> createState() => PasswordSignInFormState();
+}
+
+class PasswordSignInFormState extends State<PasswordSignInForm> {
   String _email = '';
   String _password = '';
 

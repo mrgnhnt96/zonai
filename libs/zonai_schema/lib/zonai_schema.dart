@@ -47,6 +47,7 @@ export 'src/schemas/collection.dart';
 export 'src/tables/auth_collection.dart';
 export 'src/tables/collection.dart';
 export 'src/types/id.dart';
+export 'src/types/supported_auths.dart';
 export 'src/types/where.dart';
 export 'src/types/paginated.dart';
 export 'src/update/update.dart';

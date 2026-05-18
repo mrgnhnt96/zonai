@@ -44,4 +44,6 @@ Map<String, Object?> __appAppShell(_app.AppShell c) => {
   'initialDisplayNames': c.initialDisplayNames,
   'tablesLoadError': c.tablesLoadError,
   'initialSignedIn': c.initialSignedIn,
+  'initialPath': c.initialPath,
+  'initialAuthTypeNames': c.initialAuthTypeNames,
 };

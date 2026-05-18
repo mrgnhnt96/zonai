@@ -1,19 +1,20 @@
 library auth_collection;
 
+import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart';
 import 'package:zonai_schema/src/column_types/email_column.dart';
 import 'package:zonai_schema/src/column_types/password_column.dart';
 import 'package:zonai_schema/src/types/id.dart';
+import 'package:zonai_schema/src/types/supported_auths.dart';
 
 part 'auth/auth.dart';
-part 'auth/auth_types.dart';
 
 abstract base class AuthCollection<T> extends Schema<T> implements Auth {
   AuthCollection(super.$);
 
   List<AuthType> get authTypes {
-    if (this case SupportedAuths(:final authTypes)) {
-      return authTypes;
+    if (this case final SupportedAuths auths) {
+      return [if (auths.supportsPassword) .password];
     }
 
     throw UnimplementedError(

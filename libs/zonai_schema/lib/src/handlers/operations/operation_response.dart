@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/operations/collection_operations.dart';
-import 'package:zonai_schema/src/schemas/auth_collection.dart';
+import 'package:zonai_schema/src/types/supported_auths.dart';
 
 sealed class OperationResponse extends Response {
   const OperationResponse({

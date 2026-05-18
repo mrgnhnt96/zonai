@@ -58,6 +58,23 @@ extension _AuthX on ZonaiDb {
     return (user: user, jwt: token);
   }
 
+  Future<List<AuthType>> _adminSupportedAuthTypes() async {
+    final authCollections = await _operations.send(
+      GetAdminCollectionsOperationRequest(),
+    );
+    if (authCollections is! AdminCollectionsResponse) {
+      throw StateError('Failed to get admin collections');
+    }
+
+    final types = <AuthType>{};
+    for (final (_, authTypes) in authCollections.collections) {
+      types.addAll(authTypes);
+    }
+
+    final sorted = types.toList()..sort((a, b) => a.name.compareTo(b.name));
+    return sorted;
+  }
+
   Future<_AuthResult> _adminSignIn(AuthPayload payload) async {
     if (payload.jwt != null) {
       throw StateError('User already authenticated');

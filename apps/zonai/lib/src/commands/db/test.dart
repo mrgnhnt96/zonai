@@ -163,6 +163,10 @@ Future<(int?, String?)> _signIn(String email) async {
 }
 
 Future<(int?, String?)> _adminSignIn(String email) async {
+  final authTypes = await zonaiDB.adminSupportedAuthTypes();
+  logger.info(
+    'Supported auth types (${authTypes.length}): ${authTypes.map((e) => e.name).join(', ')}',
+  );
   final result = await zonaiDB.adminSignIn(
     SignInPasswordAuthPayload(email: email, password: 'test'),
   );

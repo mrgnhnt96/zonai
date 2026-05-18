@@ -68,10 +68,10 @@ class DbOperations {
     final collections = <(String, List<AuthType>)>[];
     for (final op in operations) {
       if ((op.schema, op.schema) case (
-        final SupportedAuths supportedAuths,
+        final AuthCollection collection,
         AsAdmin(),
       )) {
-        collections.add((op.table.name, supportedAuths.authTypes));
+        collections.add((op.table.name, collection.authTypes));
       }
     }
 

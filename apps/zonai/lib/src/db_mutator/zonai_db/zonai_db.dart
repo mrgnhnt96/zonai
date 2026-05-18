@@ -104,6 +104,10 @@ class ZonaiDb {
     return await _run(() => _adminSignIn(payload));
   }
 
+  Future<List<AuthType>> adminSupportedAuthTypes() async {
+    return await _run(_adminSupportedAuthTypes);
+  }
+
   Future<_AuthResult> signUp(String collection, AuthPayload payload) async {
     return await _run(() => _signUp(collection, payload));
   }
