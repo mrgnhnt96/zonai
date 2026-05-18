@@ -138,6 +138,10 @@ class ZonaiDb {
     return await _run(() => _count(collection, payload));
   }
 
+  Stream<int> streamCount(String collection, CountPayload payload) async* {
+    yield* await _runStream(() => _streamCount(collection, payload));
+  }
+
   Stream<Map<String, Object?>> streamOne(
     String collection,
     ViewPayload payload,
