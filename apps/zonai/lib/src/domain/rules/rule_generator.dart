@@ -88,22 +88,44 @@ class RuleGenerator {
     b.writeln('  db_rules.DbRules(');
     b.writeln('    rules: [');
     for (final e in entries) {
-      b.writeln('      ?rule(${e.alias}.main),');
+      b.writeln(
+        '      loadRule(${_dartStringLiteral(e.importPath)}, ${e.alias}.main),',
+      );
     }
     b.writeln('    ],');
     b.writeln('  ).start();');
     b.writeln('}');
     b.writeln();
-    b.writeln('Rules? rule(Rules rule()) {');
+    b.writeln('Rules loadRule(String sourcePath, Rules Function() load) {');
+    b.writeln('  Object? value;');
     b.writeln('  try {');
-    b.writeln('    return switch (rule()) {');
-    b.writeln('      final Rules rule => rule,');
-    b.writeln('      _ => null,');
-    b.writeln('    };');
-    b.writeln('  } catch (e) {');
-    b.writeln('    return null;');
+    b.writeln('    value = load();');
+    b.writeln('  } catch (e, st) {');
+    b.writeln(
+      '    Error.throwWithStackTrace(StateError(',
+    );
+    b.writeln(
+      "      'Failed to load rules from ' + sourcePath + ': " r'$e' "',",
+    );
+    b.writeln('    ), st);');
     b.writeln('  }');
+    b.writeln('  if (value is! Rules) {');
+    b.writeln(
+      '    final got = value == null ? "null" : value.runtimeType.toString();',
+    );
+    b.writeln('    throw StateError(');
+    b.writeln(
+      "      'Rules file at ' + sourcePath + ' must return a non-null Rules from main(); '",
+    );
+    b.writeln("      'got " r'$got' ".',");
+    b.writeln('    );');
+    b.writeln('  }');
+    b.writeln('  return value;');
     b.writeln('}');
     return b.toString();
   }
+
+  /// Single-quoted Dart string literal for use in generated source.
+  static String _dartStringLiteral(String s) =>
+      "'${s.replaceAll('\\', '\\\\').replaceAll("'", r"\'")}'";
 }

@@ -58,12 +58,33 @@ class DbOperations {
     ).listen();
   }
 
+  Never _failMissingCollection(String collection) {
+    final registered = operationsByCollection.keys.toList()..sort();
+    final buf = StringBuffer(
+      'Operations request for "$collection" could not be handled.\n',
+    );
+    buf
+      ..writeln(
+        'No operations are registered for table name "$collection". '
+        'The operations list may be missing this collection (e.g. loadOperation '
+        'failed, or main() did not return CollectionOperations).',
+      )
+      ..writeln(
+        'Registered table names: '
+        '${registered.isEmpty ? '(none)' : registered.join(', ')}.',
+      );
+
+    final message = buf.toString().trim();
+    logger.error(message);
+    throw StateError(message);
+  }
+
   Future<ColumnNameResponse> _getColumnName(
     GetColumnNameRequest request,
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
-      throw Exception('Collection not found: ${request.collection}');
+      _failMissingCollection(request.collection);
     }
 
     final columns = collection.table.columns;
@@ -89,7 +110,7 @@ class DbOperations {
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
-      throw Exception('Collection not found: ${request.collection}');
+      _failMissingCollection(request.collection);
     }
 
     final emailColumn = switch (request.payload.authType) {
@@ -139,7 +160,7 @@ class DbOperations {
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
-      throw Exception('Collection not found: ${request.collection}');
+      _failMissingCollection(request.collection);
     }
 
     final table = collection.table;
@@ -173,14 +194,7 @@ class DbOperations {
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
-      throw Exception('''
-    Missing operations for collection: `${request.collection}`
-
-    Available collections:
-    ${operationsByCollection.keys.join('\n')}
-
-    To create a new collection, create a new class that extends `CollectionOperations` within your "operations" directory.
-    ''');
+      _failMissingCollection(request.collection);
     }
 
     final (sql, values) = CollectionTranslator(
@@ -196,7 +210,7 @@ class DbOperations {
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
-      throw Exception('Collection not found: ${request.collection}');
+      _failMissingCollection(request.collection);
     }
 
     final columns = collection.table.columns;

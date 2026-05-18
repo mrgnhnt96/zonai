@@ -74,25 +74,46 @@ class ConfigGenerator {
     b.writeln("import '${entry.importPath}' as ${entry.alias};");
     b.writeln();
     b.writeln('void main() {');
-    b.writeln('  final resolved = appConfig(${entry.alias}.main);');
-    b.writeln('  if (resolved == null) {');
     b.writeln(
-      "    throw StateError('Config main() must return a non-null AppConfig');",
+      '  db_config.DbConfig('
+      'config: loadAppConfig(${_dartStringLiteral(entry.importPath)}, '
+      '${entry.alias}.main),'
+      ').start();',
     );
-    b.writeln('  }');
-    b.writeln('  db_config.DbConfig(config: resolved).start();');
     b.writeln('}');
     b.writeln();
-    b.writeln('AppConfig? appConfig(AppConfig appConfig()) {');
+    b.writeln(
+      'AppConfig loadAppConfig(String sourcePath, AppConfig Function() load) {',
+    );
+    b.writeln('  Object? value;');
     b.writeln('  try {');
-    b.writeln('    return switch (appConfig()) {');
-    b.writeln('      final AppConfig c => c,');
-    b.writeln('      _ => null,');
-    b.writeln('    };');
-    b.writeln('  } catch (e) {');
-    b.writeln('    return null;');
+    b.writeln('    value = load();');
+    b.writeln('  } catch (e, st) {');
+    b.writeln(
+      '    Error.throwWithStackTrace(StateError(',
+    );
+    b.writeln(
+      "      'Failed to load config from ' + sourcePath + ': " r'$e' "',",
+    );
+    b.writeln('    ), st);');
     b.writeln('  }');
+    b.writeln('  if (value is! AppConfig) {');
+    b.writeln(
+      '    final got = value == null ? "null" : value.runtimeType.toString();',
+    );
+    b.writeln('    throw StateError(');
+    b.writeln(
+      "      'Config file at ' + sourcePath + ' must return a non-null AppConfig from main(); '",
+    );
+    b.writeln("      'got " r'$got' ".',");
+    b.writeln('    );');
+    b.writeln('  }');
+    b.writeln('  return value;');
     b.writeln('}');
     return b.toString();
   }
+
+  /// Single-quoted Dart string literal for use in generated source.
+  static String _dartStringLiteral(String s) =>
+      "'${s.replaceAll('\\', '\\\\').replaceAll("'", r"\'")}'";
 }

@@ -90,24 +90,47 @@ class OperationGenerator {
     b.writeln('  db_operations.DbOperations(');
     b.writeln('    operations: [');
     for (final e in entries) {
-      b.writeln('      ?operation(${e.alias}.main),');
+      b.writeln(
+        '      loadOperation(${_dartStringLiteral(e.importPath)}, ${e.alias}.main),',
+      );
     }
     b.writeln('    ],');
     b.writeln('  ).start();');
     b.writeln('}');
     b.writeln();
     b.writeln(
-      'CollectionOperations? operation(CollectionOperations operation()) {',
+      'CollectionOperations loadOperation('
+      'String sourcePath, CollectionOperations Function() load) {',
     );
+    b.writeln('  Object? value;');
     b.writeln('  try {');
-    b.writeln('    return switch (operation()) {');
-    b.writeln('      final CollectionOperations op => op,');
-    b.writeln('      _ => null,');
-    b.writeln('    };');
-    b.writeln('  } catch (e) {');
-    b.writeln('    return null;');
+    b.writeln('    value = load();');
+    b.writeln('  } catch (e, st) {');
+    b.writeln(
+      '    Error.throwWithStackTrace(StateError(',
+    );
+    b.writeln(
+      "      'Failed to load operations from ' + sourcePath + ': " r'$e' "',",
+    );
+    b.writeln('    ), st);');
     b.writeln('  }');
+    b.writeln('  if (value is! CollectionOperations) {');
+    b.writeln(
+      '    final got = value == null ? "null" : value.runtimeType.toString();',
+    );
+    b.writeln('    throw StateError(');
+    b.writeln(
+      "      'Operations file at ' + sourcePath + ' must return a non-null CollectionOperations from main(); '",
+    );
+    b.writeln("      'got " r'$got' ".',");
+    b.writeln('    );');
+    b.writeln('  }');
+    b.writeln('  return value;');
     b.writeln('}');
     return b.toString();
   }
+
+  /// Single-quoted Dart string literal for use in generated source.
+  static String _dartStringLiteral(String s) =>
+      "'${s.replaceAll('\\', '\\\\').replaceAll("'", r"\'")}'";
 }

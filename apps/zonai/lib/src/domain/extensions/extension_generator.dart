@@ -13,6 +13,11 @@ class ExtensionGenerator {
   Future<void> create() async {
     logger.debug('Starting extension generator');
 
+    final dartExts = extensions
+        .where((f) => fs.path.extension(f.path) == '.dart')
+        .toList();
+    if (dartExts.isEmpty) return;
+
     final root = fs.currentDirectory.path;
     final usedAliases = <String>{};
     final entries = <({String alias, String importPath})>[];
@@ -23,7 +28,7 @@ class ExtensionGenerator {
     }
     final outDirAbsolute = outDir.absolute.path;
 
-    final sorted = [...extensions]..sort((a, b) => a.path.compareTo(b.path));
+    final sorted = [...dartExts]..sort((a, b) => a.path.compareTo(b.path));
     for (final file in sorted) {
       final relativePosix = _relativePosixPath(file, root);
       final importPath = _relativePosixPath(file, outDirAbsolute);
@@ -85,22 +90,46 @@ class ExtensionGenerator {
     b.writeln('  db_extensions.DbExtensions(');
     b.writeln('    extensions: [');
     for (final e in entries) {
-      b.writeln('      ?extension(${e.alias}.main),');
+      b.writeln(
+        '      loadExtension(${_dartStringLiteral(e.importPath)}, ${e.alias}.main),',
+      );
     }
     b.writeln('    ],');
     b.writeln('  ).start();');
     b.writeln('}');
     b.writeln();
-    b.writeln('Extension? extension(Extension ext()) {');
+    b.writeln(
+      'Extension loadExtension(String sourcePath, Extension Function() load) {',
+    );
+    b.writeln('  Object? value;');
     b.writeln('  try {');
-    b.writeln('    return switch (ext()) {');
-    b.writeln('      final Extension ext => ext,');
-    b.writeln('      _ => null,');
-    b.writeln('    };');
-    b.writeln('  } catch (e) {');
-    b.writeln('    return null;');
+    b.writeln('    value = load();');
+    b.writeln('  } catch (e, st) {');
+    b.writeln(
+      '    Error.throwWithStackTrace(StateError(',
+    );
+    b.writeln(
+      "      'Failed to load extensions from ' + sourcePath + ': " r'$e' "',",
+    );
+    b.writeln('    ), st);');
     b.writeln('  }');
+    b.writeln('  if (value is! Extension) {');
+    b.writeln(
+      '    final got = value == null ? "null" : value.runtimeType.toString();',
+    );
+    b.writeln('    throw StateError(');
+    b.writeln(
+      "      'Extension file at ' + sourcePath + ' must return a non-null Extension from main(); '",
+    );
+    b.writeln("      'got " r'$got' ".',");
+    b.writeln('    );');
+    b.writeln('  }');
+    b.writeln('  return value;');
     b.writeln('}');
     return b.toString();
   }
+
+  /// Single-quoted Dart string literal for use in generated source.
+  static String _dartStringLiteral(String s) =>
+      "'${s.replaceAll('\\', '\\\\').replaceAll("'", r"\'")}'";
 }

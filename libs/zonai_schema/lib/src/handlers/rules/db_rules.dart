@@ -128,46 +128,130 @@ class DbRules {
     );
   }
 
+  Never _failAuthCollectionRules(
+    String collection,
+    _Rules? bucket,
+    BaseCollectionRules? collectionRules,
+  ) {
+    final registered = rulesByTable.keys.toList()..sort();
+    final buf = StringBuffer(
+      'Auth collection rules request for "$collection" could not be handled.\n',
+    );
+    if (bucket == null) {
+      buf
+        ..writeln(
+          'No rules are registered for table name "$collection". '
+          'The rules list may be missing this collection (e.g. loadRule failed, '
+          'or main() did not return Rules).',
+        )
+        ..writeln(
+          'Registered table names: '
+          '${registered.isEmpty ? '(none)' : registered.join(', ')}.',
+        );
+    } else if (collectionRules == null) {
+      buf.writeln(
+        'Rules exist for "$collection" but there are no collection-level rules '
+        '(only record rules may be registered).',
+      );
+    } else {
+      buf
+        ..writeln(
+          'Expected AuthCollectionRules for "$collection", but collection rules '
+          'are ${collectionRules.runtimeType} '
+          '(schema: ${collectionRules.schema.runtimeType}).',
+        )
+        ..writeln(
+          'If you recently added both CollectionRules and AuthCollectionRules '
+          'for the same table, note that the last registration wins when '
+          'building the rules map.',
+        );
+    }
+    final message = buf.toString().trim();
+    logger.error(message);
+    throw StateError(message);
+  }
+
+  Never _failAuthRecordRules(
+    String collection,
+    _Rules? bucket,
+    BaseRecordRules? recordRules,
+  ) {
+    final registered = rulesByTable.keys.toList()..sort();
+    final buf = StringBuffer(
+      'Auth record rules request for "$collection" could not be handled.\n',
+    );
+    if (bucket == null) {
+      buf
+        ..writeln(
+          'No rules are registered for table name "$collection". '
+          'The rules list may be missing this collection (e.g. loadRule failed, '
+          'or main() did not return Rules).',
+        )
+        ..writeln(
+          'Registered table names: '
+          '${registered.isEmpty ? '(none)' : registered.join(', ')}.',
+        );
+    } else if (recordRules == null) {
+      buf.writeln(
+        'Rules exist for "$collection" but there are no record-level rules.',
+      );
+    } else {
+      buf
+        ..writeln(
+          'Expected AuthRecordRules for "$collection", but record rules are '
+          '${recordRules.runtimeType} '
+          '(schema: ${recordRules.schema.runtimeType}).',
+        )
+        ..writeln(
+          'If you recently added both RecordRules and AuthRecordRules for the '
+          'same table, note that the last registration wins when building the '
+          'rules map.',
+        );
+    }
+    final message = buf.toString().trim();
+    logger.error(message);
+    throw StateError(message);
+  }
+
   Future<AuthCollectionRulesResponse> _authCollectionRules(
     AuthCollectionRulesRequest request,
   ) async {
-    final rules = rulesByTable[request.collection];
-    final collectionRules = rules?.collection;
-    if (collectionRules case AuthCollectionRules(:final canAuthenticate)) {
+    final bucket = rulesByTable[request.collection];
+    final collectionRules = bucket?.collection;
+    if (collectionRules is AuthCollectionRules) {
       return AuthCollectionRulesResponse(
         id: request.id,
         collection: request.collection,
-        canAuthenticate: await canAuthenticate(request.jwt, request.authType),
+        canAuthenticate: await collectionRules.canAuthenticate(
+          request.jwt,
+          request.authType,
+        ),
         authType: request.authType,
       );
     }
 
-    throw StateError(
-      'Cannot authenticate for collection: ${request.collection}',
-    );
+    _failAuthCollectionRules(request.collection, bucket, collectionRules);
   }
 
   Future<AuthRecordRulesResponse> _authRecordRules(
     AuthRecordRulesRequest request,
   ) async {
-    final rules = rulesByTable[request.collection];
-    final recordRules = rules?.record;
-    if (recordRules case AuthRecordRules(:final canSignIn, :final canSignUp)) {
+    final bucket = rulesByTable[request.collection];
+    final recordRules = bucket?.record;
+    if (recordRules is AuthRecordRules) {
       return AuthRecordRulesResponse(
         id: request.id,
         collection: request.collection,
         canAccess: switch (request.operation) {
-          .signIn => await canSignIn(request.jwt, request.authType),
-          .signUp => await canSignUp(request.jwt, request.authType),
+          .signIn => await recordRules.canSignIn(request.jwt, request.authType),
+          .signUp => await recordRules.canSignUp(request.jwt, request.authType),
         },
         authType: request.authType,
         operation: request.operation,
       );
     }
 
-    throw StateError(
-      'Cannot authenticate for collection: ${request.collection}',
-    );
+    _failAuthRecordRules(request.collection, bucket, recordRules);
   }
 
   Future<RecordRulesResponse> _recordRules(RecordRulesRequest request) async {
