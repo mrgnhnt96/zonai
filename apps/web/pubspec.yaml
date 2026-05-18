@@ -1,0 +1,21 @@
+name: zonai_web
+description: Zonai web application (Jaspr).
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.11.0 <4.0.0"
+
+dependencies:
+  jaspr: ^0.23.1
+
+dev_dependencies:
+  build_runner: ^2.10.0
+  build_web_compilers: ^4.5.1
+  jaspr_builder: ^0.23.1
+  jaspr_cli: ^0.23.1
+  lints: ^5.0.0
+
+jaspr:
+  mode: server

@@ -12,6 +12,9 @@ raindrop:
       git branch -D main
       git fetch upstream main:main
 
+web:
+  start: cd apps/web && dart run jaspr_cli:jaspr serve
+
 server:
   copy-to-cli:
     (aliases): [cli, copy, c]

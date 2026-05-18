@@ -47,3 +47,5 @@ Thumbs.db
 *.sqlite*
 *.sqlite3
 *.db
+
+apps/web/.cursor
