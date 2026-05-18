@@ -68,6 +68,13 @@ Future<int> test() async {
     logger.info('Count: $count');
     logger.info('--------------------------------');
   }
+
+  logger.info('STREAM COUNT');
+  if (await _streamCount(jwt: jwt) case final int exitCode) {
+    return exitCode;
+  }
+  logger.info('--------------------------------');
+
   logger.info('STREAM LIST');
   if (await _streamList(id: id!, jwt: jwt) case final int exitCode) {
     return exitCode;
@@ -217,6 +224,36 @@ Future<(int?, int?)> _count({required String jwt}) async {
 
   logger.info('Found ${result} records');
   return (null, result);
+}
+
+Future<int?> _streamCount({required String jwt}) async {
+  // Isolate to a fresh id so the count reacts 0→1 and we are not sensitive to DB
+  // size or scheduling (the global-count stream often emits only after create
+  // returns, making "first emission baseline" unreliable).
+  final probeId = _generateId();
+  final countPayload = CountPayload(jwt: jwt, where: Eq('id', probeId));
+  final beforeCount = await zonaiDB.count('items', countPayload);
+
+  final completer = Completer<void>();
+  final listener = zonaiDB.streamCount('items', countPayload).listen((count) {
+    logger.info('Stream count: $count');
+
+    // At least one new row matched (beforeCount should be 0 for probeId).
+    if (count >= beforeCount + 1 && !completer.isCompleted) {
+      completer.complete();
+    }
+  })..onError((e, stack) {
+    logger.error('Stream error', e, stack);
+  });
+
+  await zonaiDB.create(
+    'items',
+    .new(jwt: jwt, object: {'body': 'Stream count probe', 'id': probeId}),
+  );
+
+  await completer.future;
+  listener.cancel().ignore();
+  return null;
 }
 
 Future<int?> _streamList({required String id, required String jwt}) async {
