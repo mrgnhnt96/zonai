@@ -30,6 +30,7 @@ ClientOptions get defaultClientOptions => ClientOptions(
       (p) => _app.AppShell(
         initialTables: (p['initialTables'] as List<Object?>).cast<String>(),
         tablesLoadError: p['tablesLoadError'] as String?,
+        initialSignedIn: p['initialSignedIn'] as bool,
       ),
       loader: _app.loadLibrary,
     ),

@@ -9,14 +9,26 @@ import 'providers/sqlite_tables_provider.dart';
 
 /// Root widget mounted into `<body>` by [runApp].
 class App extends StatelessComponent {
-  const App({super.key, required this.initialTables, this.tablesLoadError});
+  const App({
+    super.key,
+    required this.initialTables,
+    this.tablesLoadError,
+    required this.initialSignedIn,
+  });
 
   final List<String> initialTables;
   final String? tablesLoadError;
+  final bool initialSignedIn;
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'app-root', [AppShell(initialTables: initialTables, tablesLoadError: tablesLoadError)]);
+    return div(classes: 'app-root', [
+      AppShell(
+        initialTables: initialTables,
+        tablesLoadError: tablesLoadError,
+        initialSignedIn: initialSignedIn,
+      ),
+    ]);
   }
 
   @css
@@ -25,16 +37,23 @@ class App extends StatelessComponent {
 
 @client
 class AppShell extends StatelessComponent {
-  const AppShell({super.key, required this.initialTables, this.tablesLoadError});
+  const AppShell({
+    super.key,
+    required this.initialTables,
+    this.tablesLoadError,
+    required this.initialSignedIn,
+  });
 
   final List<String> initialTables;
   final String? tablesLoadError;
+  final bool initialSignedIn;
 
   @override
   Component build(BuildContext context) {
     return ProviderScope(
       overrides: [
         sqliteTablesProvider.overrideWithValue(SqliteTablesSnapshot(names: initialTables, loadError: tablesLoadError)),
+        authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),
       ],
       child: const _AuthGate(),
     );

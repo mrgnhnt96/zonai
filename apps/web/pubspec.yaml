@@ -10,6 +10,7 @@ environment:
 dependencies:
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5
+  universal_web: ^1.1.1
   scoped_deps:
     path: ../../libs/scoped_deps
   sqlite3: ^2.9.4

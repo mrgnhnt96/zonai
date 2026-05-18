@@ -4,6 +4,7 @@ library;
 import 'package:jaspr/server.dart';
 
 import 'app.dart';
+import 'utils/zonai_cookie.dart';
 import 'main.server.options.dart';
 import 'server/sqlite_table_names.dart';
 
@@ -16,7 +17,8 @@ void main() {
       body: AsyncBuilder(
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();
-          return App(initialTables: tables.names, tablesLoadError: tables.error);
+          final signedIn = context.cookies[ZonaiCookie.signedIn.key] == '1';
+          return App(initialTables: tables.names, tablesLoadError: tables.error, initialSignedIn: signedIn);
         },
       ),
     ),
