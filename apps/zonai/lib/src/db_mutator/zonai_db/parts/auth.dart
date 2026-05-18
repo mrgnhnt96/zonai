@@ -70,7 +70,11 @@ extension _AuthX on ZonaiDb {
       throw StateError('Failed to get admin collections');
     }
 
-    for (final collection in authCollections.collections) {
+    for (final (collection, authTypes) in authCollections.collections) {
+      if (!authTypes.contains(payload.authType)) {
+        continue;
+      }
+
       final user = await _authRecord(
         collection: collection,
         payload: payload,
