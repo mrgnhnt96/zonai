@@ -110,7 +110,7 @@ final class PerformOperationRequest extends OperationRequest {
       case .delete:
         return DeleteOperationRequest.fromRequest(request);
       case .view:
-        return ViewOperationRequest.fromRequest(request);
+        return ReadOperationRequest.fromRequest(request);
       case .list:
         return ListOperationRequest.fromRequest(request);
       case null:
@@ -381,22 +381,22 @@ final class DeleteOperationRequest extends PerformOperationRequest {
   }
 }
 
-final class ViewOperationRequest extends PerformOperationRequest {
-  ViewOperationRequest({
+final class ReadOperationRequest extends PerformOperationRequest {
+  ReadOperationRequest({
     required super.collection,
     required this.where,
     super.jwt,
   }) : super(operation: CollectionOperation.view.name);
 
-  ViewOperationRequest._({
+  ReadOperationRequest._({
     required super.id,
     required super.collection,
     required this.where,
     required super.jwt,
   }) : super._(operation: CollectionOperation.view.name);
 
-  factory ViewOperationRequest.fromRequest(UnknownRequest request) {
-    return ViewOperationRequest._(
+  factory ReadOperationRequest.fromRequest(UnknownRequest request) {
+    return ReadOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       where: Where.fromJson(request.payload['where'] as Map<String, dynamic>),

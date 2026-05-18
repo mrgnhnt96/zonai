@@ -1,7 +1,7 @@
 part of zonai_db;
 
-extension _ViewX on ZonaiDb {
-  Future<_CrudResult> _view(
+extension _ReadX on ZonaiDb {
+  Future<_CrudResult> _read(
     String collection,
     ViewPayload payload, {
     Jwt? userJwt,
@@ -10,7 +10,7 @@ extension _ViewX on ZonaiDb {
     await _requireCollectionAccess(collection, .view, jwt);
 
     final operation = await _getOperation(
-      ViewOperationRequest(
+      ReadOperationRequest(
         collection: collection,
         where: payload.where,
         jwt: jwt,

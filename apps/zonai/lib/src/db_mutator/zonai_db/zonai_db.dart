@@ -45,7 +45,7 @@ part 'parts/list.dart';
 part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
-part 'parts/view.dart';
+part 'parts/read.dart';
 part 'parts/count.dart';
 
 typedef _CrudResult = Map<String, Object?>;
@@ -126,8 +126,8 @@ class ZonaiDb {
     return await _run(() => _delete(collection, payload));
   }
 
-  Future<_CrudResult> view(String collection, ViewPayload payload) async {
-    return await _run(() => _view(collection, payload));
+  Future<_CrudResult> read(String collection, ViewPayload payload) async {
+    return await _run(() => _read(collection, payload));
   }
 
   Future<_CrudListResult> list(String collection, ListPayload payload) async {
@@ -136,6 +136,20 @@ class ZonaiDb {
 
   Future<int> count(String collection, CountPayload payload) async {
     return await _run(() => _count(collection, payload));
+  }
+
+  Stream<Map<String, Object?>> streamOne(
+    String collection,
+    ViewPayload payload,
+  ) async* {
+    yield* _runStream(() => _streamOne(collection, payload));
+  }
+
+  Stream<List<Map<String, Object?>>> streamList(
+    String collection,
+    ListPayload payload,
+  ) async* {
+    yield* _runStream(() => _streamList(collection, payload));
   }
 
   Future<T> _run<T>(Future<T> Function() body) async {
@@ -211,19 +225,5 @@ class ZonaiDb {
         },
       );
     });
-  }
-
-  Stream<Map<String, Object?>> streamOne(
-    String collection,
-    ViewPayload payload,
-  ) async* {
-    yield* _runStream(() => _streamOne(collection, payload));
-  }
-
-  Stream<List<Map<String, Object?>>> streamList(
-    String collection,
-    ListPayload payload,
-  ) async* {
-    yield* _runStream(() => _streamList(collection, payload));
   }
 }

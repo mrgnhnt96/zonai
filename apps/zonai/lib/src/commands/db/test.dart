@@ -322,7 +322,7 @@ Future<int?> _delete({required String id, required String jwt}) async {
 }
 
 Future<int?> _view({required String id, required String jwt}) async {
-  final result = await zonaiDB.view(
+  final result = await zonaiDB.read(
     'items',
     .new(jwt: jwt, where: Eq('id', id)),
   );

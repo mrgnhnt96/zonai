@@ -177,7 +177,7 @@ class DbOperations {
       PasswordAuthOperationPayload(:final email) => email,
     };
 
-    final operationRequest = ViewOperationRequest(
+    final operationRequest = ReadOperationRequest(
       collection: request.collection,
       where: Eq(emailColumn.name, email),
       jwt: request.jwt,

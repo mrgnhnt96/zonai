@@ -11,7 +11,7 @@ class DbHandler {
   const DbHandler();
 
   Future<Map<String, Object?>> get(GetBody body) async {
-    return await zonaiDB.view(body.collection, .new(where: body.where));
+    return await zonaiDB.read(body.collection, .new(where: body.where));
   }
 
   Future<List<Map<String, Object?>>> list(ListBody body) async {

@@ -187,7 +187,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
         where,
         limit: limit,
       ).toQuery(),
-      ViewOperationRequest(:final where) => list(
+      ReadOperationRequest(:final where) => list(
         limit: 1,
         where: where,
       ).toQuery(),
