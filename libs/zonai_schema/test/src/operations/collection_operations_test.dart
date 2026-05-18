@@ -87,6 +87,67 @@ final class _JsonOperations
   _JsonOperations() : super(jsonWidgets);
 }
 
+class _Profile {
+  const _Profile({this.displayName, this.role});
+
+  final String? displayName;
+  final String? role;
+
+  factory _Profile.fromJson(dynamic json) {
+    final m = Map<String, dynamic>.from(json as Map);
+    return _Profile(
+      displayName: m['displayName'] as String?,
+      role: m['role'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'displayName': displayName, 'role': role};
+}
+
+class _TypedJsonRow {
+  const _TypedJsonRow({
+    this.id,
+    required this.title,
+    this.profile = const _Profile(),
+  });
+
+  final int? id;
+  final String title;
+  final _Profile profile;
+}
+
+class _TypedJsonCollection extends Collection<_TypedJsonRow> {
+  _TypedJsonCollection(super.$)
+    : id = $.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
+      title = $.text('title', (s) => s.title),
+      profile = $.mapAs(
+        'profile',
+        (s) => s.profile,
+        fromJson: _Profile.fromJson,
+        synthetic: const _Profile(),
+      );
+
+  @override
+  _TypedJsonRow fromRow(RowReader read) =>
+      _TypedJsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
+
+  final IntColumn? id;
+
+  final TextColumn title;
+
+  final TypedMapColumn<_Profile> profile;
+}
+
+final typedJsonWidgets = sqliteTable(
+  'typed_json_widgets',
+  _TypedJsonCollection.new,
+);
+
+final class _TypedJsonOperations
+    extends CollectionOperations<_TypedJsonCollection, _TypedJsonRow> {
+  _TypedJsonOperations() : super(typedJsonWidgets);
+}
+
 final widgets = sqliteTable('widgets', _Collection.new);
 
 final class _Operations extends CollectionOperations<_Collection, _Row> {
@@ -213,9 +274,19 @@ void main() {
 
     group('jsonMap column updates', () {
       final jsonOps = _JsonOperations();
+      final typedOps = _TypedJsonOperations();
 
       test('nested ColumnUpdate path uses json_set on jsonMap column', () {
         final query = jsonOps.update([
+          Update.column('profile.displayName', const Literal('Pat')),
+        ], where: const Eq('id', 1)).toQuery();
+        final (sql, _) = dialect.translate(query);
+        expect(sql, contains('json_set'));
+        expect(sql, contains('"profile"'));
+      });
+
+      test('nested ColumnUpdate path uses json_set on mapAs column', () {
+        final query = typedOps.update([
           Update.column('profile.displayName', const Literal('Pat')),
         ], where: const Eq('id', 1)).toQuery();
         final (sql, _) = dialect.translate(query);
@@ -607,6 +678,48 @@ void main() {
         )).single;
         expect(row.profile, {'b': 2});
       });
+    });
+
+    group('mapAs column execution', () {
+      late Raindrop memoryDb;
+      late _TypedJsonOperations execTypedOps;
+
+      setUp(() async {
+        memoryDb = Raindrop(SQLiteDelegate.memory());
+        execTypedOps = _TypedJsonOperations();
+        execTypedOps.db = memoryDb;
+        await memoryDb.ensureOpen();
+        await memoryDb.execute(
+          'CREATE TABLE "typed_json_widgets" ('
+          '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+          '"title" TEXT NOT NULL, '
+          '"profile" TEXT NOT NULL DEFAULT \'{}\''
+          ');',
+          const [],
+        );
+      });
+
+      tearDown(() async {
+        await memoryDb.close();
+      });
+
+      test(
+        'Profile decodes from insert; dotted path update re-decodes',
+        () async {
+          await execTypedOps.insert({
+            'title': 'tp1',
+            'profile': {'displayName': 'Old', 'role': 'user'},
+          });
+          await execTypedOps.update([
+            Update.column('profile.displayName', const Literal('New')),
+          ], where: const Eq('title', 'tp1'));
+          final row = (await execTypedOps.list(
+            where: const Eq('title', 'tp1'),
+          )).single;
+          expect(row.profile.displayName, 'New');
+          expect(row.profile.role, 'user');
+        },
+      );
     });
   });
 }

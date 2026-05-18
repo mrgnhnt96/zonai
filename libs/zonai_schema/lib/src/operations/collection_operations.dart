@@ -97,10 +97,11 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
               continue updateLoop;
             }
             final col = table[base];
-            if (col.transformer is! ObjectMapTransformer) {
+            if (col.transformer is! MapTransformer) {
               throw ArgumentError(
-                'Dotted column "$column" is only supported on jsonMap columns '
-                '(got "${col.name}" / ${col.transformer.runtimeType}).',
+                'Dotted column "$column" is only supported on JSON map columns '
+                '("${col.name}"): use SchemaBuilder.map / mapAs. '
+                'Got ${col.transformer.runtimeType}.',
               );
             }
             if (_convertNestedJsonPathUpdate(
@@ -126,7 +127,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
               }
             } else {
               final col = table[key];
-              if (col.transformer is ObjectMapTransformer && value is Map) {
+              if (col.transformer is MapTransformer && value is Map) {
                 updateables.add(
                   UpdateableColumn(
                     col,
@@ -163,17 +164,17 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
       case Literal(:final value):
         return UpdateableColumn(col, value);
       case Increment():
-        if (col.transformer is ObjectMapTransformer) {
+        if (col.transformer is MapTransformer) {
           throw ArgumentError(
-            'Increment is not supported on JSON object (jsonMap) columns: '
+            'Increment is not supported on JSON map columns: '
             '$columnName',
           );
         }
         return UpdateableColumn(col, SQL([col, const RawSQL('+'), 1]));
       case Decrement():
-        if (col.transformer is ObjectMapTransformer) {
+        if (col.transformer is MapTransformer) {
           throw ArgumentError(
-            'Decrement is not supported on JSON object (jsonMap) columns: '
+            'Decrement is not supported on JSON map columns: '
             '$columnName',
           );
         }
@@ -182,9 +183,9 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
         if (col.transformer is ListTransformer) {
           return UpdateableColumn(col, _jsonListAppendExpression(col, value));
         }
-        if (col.transformer is ObjectMapTransformer) {
+        if (col.transformer is MapTransformer) {
           throw ArgumentError(
-            'Add is not supported on JSON object (jsonMap) columns: '
+            'Add is not supported on JSON map columns: '
             '$columnName',
           );
         }
@@ -196,9 +197,9 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
             _jsonListRemoveMatchingExpression(col, value),
           );
         }
-        if (col.transformer is ObjectMapTransformer) {
+        if (col.transformer is MapTransformer) {
           throw ArgumentError(
-            'Remove is not supported on JSON object (jsonMap) columns: '
+            'Remove is not supported on JSON map columns: '
             '$columnName',
           );
         }
@@ -250,7 +251,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
         _jsonObjectSetExpression(col, pathSegments, value),
       ),
       _ => throw ArgumentError(
-        'Only literal UpdateValue is supported for nested jsonMap paths '
+        'Only literal UpdateValue is supported for nested JSON map paths '
         '("$columnSpec"): ${value.runtimeType}',
       ),
     };
