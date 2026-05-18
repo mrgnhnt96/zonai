@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about attributes.
+    // Jaspr server mode: SSR listens on jaspr.port (apps/web/pubspec.yaml); the dev proxy serves JS.
+    // The CLI opens Chrome on the SSR port by default — that breaks hydration (main.client.dart.js 404).
+    // Use --no-launch-in-chrome and open http://localhost:5567 (or your --proxy-port) once the terminal shows the app is up.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "web",
+            "cwd": "apps/web",
+            "request": "launch",
+            "type": "jaspr",
+            "args": []
+        },
+        {
+            "name": "web (release mode)",
+            "cwd": "apps/web",
+            "request": "launch",
+            "type": "jaspr",
+            "args": [
+                "--release"
+            ]
+        }
+    ]
+}
