@@ -6,6 +6,12 @@ class JwtPayload extends Payload {
   final String? jwt;
 }
 
+class FullJwtPayload extends Payload {
+  const FullJwtPayload({required this.userJwt});
+
+  final Jwt? userJwt;
+}
+
 class CreatePayload extends JwtPayload {
   const CreatePayload({required this.object, super.jwt});
 
@@ -62,6 +68,20 @@ class ListPayload extends JwtPayload {
   final Where? where;
   final int limit;
   final int? offset;
+}
+
+class ListWithJwtPayload extends ListPayload implements FullJwtPayload {
+  ListWithJwtPayload({
+    required this.userJwt,
+    super.where,
+    super.limit,
+    super.offset,
+  });
+
+  final Jwt? userJwt;
+  @override
+  String? get jwt =>
+      throw Exception('$ListWithJwtPayload does not support jwt');
 }
 
 class ViewPayload extends JwtPayload {

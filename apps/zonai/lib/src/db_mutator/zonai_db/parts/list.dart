@@ -6,7 +6,15 @@ extension _ListX on ZonaiDb {
     ListPayload payload, {
     Jwt? userJwt,
   }) async {
-    final jwt = userJwt ?? await _extractJwt(payload);
+    final jwt =
+        userJwt ??
+        switch (payload) {
+          ListWithJwtPayload(:final userJwt) => switch (userJwt) {
+            null => null,
+            final jwt => await _validateJwt(jwt),
+          },
+          final ListPayload payload => await _extractJwt(payload),
+        };
     await _requireCollectionAccess(collection, .list, jwt);
 
     final operation = await _getOperation(

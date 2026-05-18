@@ -144,6 +144,10 @@ extension _AuthUtilsX on ZonaiDb {
       throw StateError('Invalid JWT');
     }
 
+    return await _validateJwt(appJwt);
+  }
+
+  Future<Jwt> _validateJwt(Jwt jwt) async {
     await open();
     final db = this.db;
     if (db == null) {
@@ -153,12 +157,12 @@ extension _AuthUtilsX on ZonaiDb {
     final jwtRecord = await db
         .select()
         .from(jwts)
-        .where(jwts.id.equals(appJwt.jwtId));
+        .where(jwts.id.equals(jwt.jwtId));
     if (jwtRecord.isEmpty) {
       throw StateError('JWT record not found');
     }
 
-    return appJwt;
+    return jwt;
   }
 
   Future<void> _requireAuthCollectionAccess(

@@ -194,12 +194,11 @@ class Mailman<S extends Request, R extends Response> {
     try {
       final results = await zonaiDB.list(
         request.collection,
-        ListPayload(
+        ListWithJwtPayload(
           where: request.where,
           limit: request.limit,
           offset: request.offset,
-          // TODO(mrgnhnt): Forward jwt from request (without forwarding it to the worker)
-          jwt: null,
+          userJwt: request.jwt,
         ),
       );
 
