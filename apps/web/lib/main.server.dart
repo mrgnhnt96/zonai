@@ -16,10 +16,7 @@ void main() {
       body: AsyncBuilder(
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();
-          return App(
-            initialTables: tables.names,
-            tablesLoadError: tables.error,
-          );
+          return App(initialTables: tables.names, tablesLoadError: tables.error);
         },
       ),
     ),

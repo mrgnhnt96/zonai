@@ -5,6 +5,26 @@ import 'package:zonai/zonai.dart';
 
 typedef SqliteTablesPayload = ({List<String> names, String? error});
 
+/// Label shown in the UI (e.g. Raindrop's migrations table uses a shorter name).
+String sqliteTableDisplayName(String rawName) =>
+    rawName == '_raindrop_migrations' ? '_migrations' : rawName;
+
+/// Alphabetized with non-`_` tables first; `_`-prefixed tables last (also alphabetized by label).
+List<String> orderSqliteTableNamesForDisplay(Iterable<String> rawNames) {
+  final rows = [
+    for (final raw in rawNames)
+      (raw: raw, label: sqliteTableDisplayName(raw)),
+  ]..sort((a, b) {
+      final aInternal = a.raw.startsWith('_');
+      final bInternal = b.raw.startsWith('_');
+      if (aInternal != bInternal) {
+        return aInternal ? 1 : -1;
+      }
+      return a.label.compareTo(b.label);
+    });
+  return [for (final r in rows) r.label];
+}
+
 SqliteTablesPayload loadZonaiSqliteTableNames() {
   return runScoped(() {
     try {
@@ -17,9 +37,10 @@ SqliteTablesPayload loadZonaiSqliteTableNames() {
       try {
         final rows = db.select(
           "SELECT name FROM sqlite_master WHERE type = 'table' "
-          "AND name NOT LIKE 'sqlite_%' ORDER BY name",
+          "AND name NOT LIKE 'sqlite_%'",
         );
-        return (names: [for (final row in rows) row['name'] as String], error: null);
+        final raw = [for (final row in rows) row['name'] as String];
+        return (names: orderSqliteTableNamesForDisplay(raw), error: null);
       } finally {
         db.dispose();
       }
