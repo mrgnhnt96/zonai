@@ -40,7 +40,8 @@ ServerOptions get defaultServerOptions => ServerOptions(
 );
 
 Map<String, Object?> __appAppShell(_app.AppShell c) => {
-  'initialTables': c.initialTables,
+  'initialSqliteNames': c.initialSqliteNames,
+  'initialDisplayNames': c.initialDisplayNames,
   'tablesLoadError': c.tablesLoadError,
   'initialSignedIn': c.initialSignedIn,
 };

@@ -11,12 +11,17 @@ import 'providers/sqlite_tables_provider.dart';
 class App extends StatelessComponent {
   const App({
     super.key,
-    required this.initialTables,
+    required this.initialSqliteNames,
+    required this.initialDisplayNames,
     this.tablesLoadError,
     required this.initialSignedIn,
-  });
+  }) : assert(
+          initialSqliteNames.length == initialDisplayNames.length,
+          'SQLite names and display labels must align',
+        );
 
-  final List<String> initialTables;
+  final List<String> initialSqliteNames;
+  final List<String> initialDisplayNames;
   final String? tablesLoadError;
   final bool initialSignedIn;
 
@@ -24,7 +29,8 @@ class App extends StatelessComponent {
   Component build(BuildContext context) {
     return div(classes: 'app-root', [
       AppShell(
-        initialTables: initialTables,
+        initialSqliteNames: initialSqliteNames,
+        initialDisplayNames: initialDisplayNames,
         tablesLoadError: tablesLoadError,
         initialSignedIn: initialSignedIn,
       ),
@@ -39,20 +45,29 @@ class App extends StatelessComponent {
 class AppShell extends StatelessComponent {
   const AppShell({
     super.key,
-    required this.initialTables,
+    required this.initialSqliteNames,
+    required this.initialDisplayNames,
     this.tablesLoadError,
     required this.initialSignedIn,
-  });
+  }) : assert(
+          initialSqliteNames.length == initialDisplayNames.length,
+          'SQLite names and display labels must align',
+        );
 
-  final List<String> initialTables;
+  final List<String> initialSqliteNames;
+  final List<String> initialDisplayNames;
   final String? tablesLoadError;
   final bool initialSignedIn;
 
   @override
   Component build(BuildContext context) {
+    final collections = <SqliteCollectionRef>[
+      for (var i = 0; i < initialSqliteNames.length; i++)
+        SqliteCollectionRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
+    ];
     return ProviderScope(
       overrides: [
-        sqliteTablesProvider.overrideWithValue(SqliteTablesSnapshot(names: initialTables, loadError: tablesLoadError)),
+        sqliteTablesProvider.overrideWithValue(SqliteTablesSnapshot(collections: collections, loadError: tablesLoadError)),
         authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),
       ],
       child: const _AuthGate(),

@@ -28,7 +28,10 @@ ClientOptions get defaultClientOptions => ClientOptions(
   clients: {
     'app': ClientLoader(
       (p) => _app.AppShell(
-        initialTables: (p['initialTables'] as List<Object?>).cast<String>(),
+        initialSqliteNames: (p['initialSqliteNames'] as List<Object?>)
+            .cast<String>(),
+        initialDisplayNames: (p['initialDisplayNames'] as List<Object?>)
+            .cast<String>(),
         tablesLoadError: p['tablesLoadError'] as String?,
         initialSignedIn: p['initialSignedIn'] as bool,
       ),

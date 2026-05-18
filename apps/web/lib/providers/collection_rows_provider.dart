@@ -1,0 +1,84 @@
+import 'package:client/client.dart';
+import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:zonai_schema/payloads.dart';
+
+import 'collection_focus_provider.dart';
+
+const _revaliBaseUrl = String.fromEnvironment('REVALI_BASE_URL', defaultValue: 'http://localhost:8080');
+
+final class CollectionRowsData {
+  const CollectionRowsData({
+    required this.columns,
+    required this.rows,
+    required this.truncated,
+    required this.sqliteName,
+  });
+
+  final List<String> columns;
+  final List<List<Object?>> rows;
+  final bool truncated;
+  final String sqliteName;
+}
+
+final collectionRowsProvider = AsyncNotifierProvider<CollectionRowsNotifier, CollectionRowsData?>(
+  CollectionRowsNotifier.new,
+);
+
+class CollectionRowsNotifier extends AsyncNotifier<CollectionRowsData?> {
+  static final Server _server = Server(baseUrl: Uri.parse(_revaliBaseUrl));
+
+  @override
+  Future<CollectionRowsData?> build() async {
+    final focus = ref.watch(collectionFocusProvider);
+    if (focus == null) return null;
+    if (!ref.binding.isClient) return null;
+
+    Map<String, Object?> data;
+
+    try {
+      data = await _server.db.list(body: ListBody(collection: focus.sqliteName));
+    } catch (e) {
+      throw StateError('Failed to get collection rows: $e');
+    }
+
+    final itemsRaw = data['items'];
+    if (itemsRaw is! List) {
+      throw StateError('Invalid /db/list payload: missing items list');
+    }
+
+    final items = <Map<String, Object?>>[
+      for (final e in itemsRaw)
+        {
+          if (e is Map)
+            for (final MapEntry(:key, :value) in e.entries) key.toString(): value as Object?,
+        },
+    ];
+
+    if (items.isEmpty) {
+      return CollectionRowsData(sqliteName: focus.sqliteName, columns: const [], rows: const [], truncated: false);
+    }
+
+    final columns = <String>{};
+    for (final row in items) {
+      columns.addAll(row.keys);
+    }
+    final columnOrder = columns.toList()..sort();
+
+    final rows = <List<Object?>>[
+      for (final row in items) [for (final col in columnOrder) row[col]],
+    ];
+
+    final total = switch (data['total']) {
+      final int t => t,
+      final num t => t.toInt(),
+      _ => items.length,
+    };
+
+    return CollectionRowsData(
+      sqliteName: focus.sqliteName,
+      columns: columnOrder,
+      rows: rows,
+      truncated: total > items.length,
+    );
+  }
+}

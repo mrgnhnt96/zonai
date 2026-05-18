@@ -18,7 +18,12 @@ void main() {
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();
           final signedIn = context.cookies[ZonaiCookie.signedIn.key] == '1';
-          return App(initialTables: tables.names, tablesLoadError: tables.error, initialSignedIn: signedIn);
+          return App(
+            initialSqliteNames: tables.sqliteNames,
+            initialDisplayNames: tables.displayNames,
+            tablesLoadError: tables.error,
+            initialSignedIn: signedIn,
+          );
         },
       ),
     ),

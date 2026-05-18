@@ -3,14 +3,14 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/zonai.dart';
 
-typedef SqliteTablesPayload = ({List<String> names, String? error});
+typedef SqliteTablesPayload = ({List<String> sqliteNames, List<String> displayNames, String? error});
 
 /// Label shown in the UI (e.g. Raindrop's migrations table uses a shorter name).
 String sqliteTableDisplayName(String rawName) =>
     rawName == '_raindrop_migrations' ? '_migrations' : rawName;
 
 /// Alphabetized with non-`_` tables first; `_`-prefixed tables last (also alphabetized by label).
-List<String> orderSqliteTableNamesForDisplay(Iterable<String> rawNames) {
+List<({String raw, String label})> orderSqliteTablesForDisplay(Iterable<String> rawNames) {
   final rows = [
     for (final raw in rawNames)
       (raw: raw, label: sqliteTableDisplayName(raw)),
@@ -22,7 +22,7 @@ List<String> orderSqliteTableNamesForDisplay(Iterable<String> rawNames) {
       }
       return a.label.compareTo(b.label);
     });
-  return [for (final r in rows) r.label];
+  return [for (final r in rows) (raw: r.raw, label: r.label)];
 }
 
 SqliteTablesPayload loadZonaiSqliteTableNames() {
@@ -31,7 +31,7 @@ SqliteTablesPayload loadZonaiSqliteTableNames() {
       final settings = kIsCompiled ? Settings.load() : Settings.load(fs.path.join('..', 'playground'));
       final dbFile = fs.file(settings.zonaiSqlitePath);
       if (!dbFile.existsSync()) {
-        return (names: <String>[], error: null);
+        return (sqliteNames: <String>[], displayNames: <String>[], error: null);
       }
       final db = sqlite3.open(dbFile.path, mode: OpenMode.readOnly);
       try {
@@ -40,12 +40,17 @@ SqliteTablesPayload loadZonaiSqliteTableNames() {
           "AND name NOT LIKE 'sqlite_%'",
         );
         final raw = [for (final row in rows) row['name'] as String];
-        return (names: orderSqliteTableNamesForDisplay(raw), error: null);
+        final ordered = orderSqliteTablesForDisplay(raw);
+        return (
+          sqliteNames: [for (final o in ordered) o.raw],
+          displayNames: [for (final o in ordered) o.label],
+          error: null,
+        );
       } finally {
         db.dispose();
       }
     } catch (e) {
-      return (names: <String>[], error: '$e');
+      return (sqliteNames: <String>[], displayNames: <String>[], error: '$e');
     }
   }, values: {fsProvider, argsProvider.overrideWith(() => const Args())});
 }

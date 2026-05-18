@@ -1,4 +1,4 @@
-import 'package:zonai_schema/zonai_schema.dart';
+import '../types/where.dart';
 
 class DeleteBody {
   const DeleteBody({required this.collection, required this.where, this.limit});

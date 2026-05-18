@@ -742,7 +742,7 @@ packages:
       path: "/Users/morgan/Documents/develop.nosync/revali/packages/revali"
       relative: false
     source: path
-    version: "2.0.9"
+    version: "2.1.0"
   revali_annotations:
     dependency: transitive
     description:
@@ -764,14 +764,14 @@ packages:
       path: "/Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client_gen"
       relative: false
     source: path
-    version: "2.0.2"
+    version: "2.1.0"
   revali_construct:
     dependency: "direct overridden"
     description:
       path: "/Users/morgan/Documents/develop.nosync/revali/packages/revali_construct"
       relative: false
     source: path
-    version: "2.0.4"
+    version: "2.1.0"
   revali_core:
     dependency: transitive
     description:
@@ -786,7 +786,7 @@ packages:
       path: "/Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router"
       relative: false
     source: path
-    version: "3.1.0"
+    version: "3.2.0"
   revali_router_annotations:
     dependency: transitive
     description:
@@ -801,14 +801,14 @@ packages:
       path: "/Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router_core"
       relative: false
     source: path
-    version: "2.0.3+1"
+    version: "2.1.0"
   revali_server:
     dependency: "direct overridden"
     description:
       path: "/Users/morgan/Documents/develop.nosync/revali/constructs/revali_server"
       relative: false
     source: path
-    version: "2.1.0"
+    version: "2.2.0"
   riverpod:
     dependency: transitive
     description:

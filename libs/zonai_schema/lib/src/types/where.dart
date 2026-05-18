@@ -16,6 +16,8 @@ sealed class Where {
       Or._type => Or.fromJson(json),
       Contains._type => Contains.fromJson(json),
       NotContains._type => NotContains.fromJson(json),
+      StartsWith._type => StartsWith.fromJson(json),
+      EndsWith._type => EndsWith.fromJson(json),
       _ => throw ArgumentError.value(
         json['type'],
         'type',

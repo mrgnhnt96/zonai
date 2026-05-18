@@ -1,4 +1,4 @@
-import 'package:zonai_schema/zonai_schema.dart';
+import '../types/where.dart';
 
 class ListBody {
   const ListBody({
@@ -13,7 +13,7 @@ class ListBody {
   final int? limit;
   final int? offset;
 
-  factory ListBody.fromJson(Map<String, dynamic> json) {
+  factory ListBody.fromJson(Map json) {
     return ListBody(
       collection: json['collection'] as String,
       where: json['where'] != null ? Where.fromJson(json['where']) : null,
@@ -25,9 +25,9 @@ class ListBody {
   Map<String, dynamic> toJson() {
     return {
       'collection': collection,
-      'where': where?.toJson(),
-      'limit': limit,
-      'offset': offset,
+      'where': ?where?.toJson(),
+      'limit': ?limit,
+      'offset': ?offset,
     };
   }
 }

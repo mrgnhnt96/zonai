@@ -1,4 +1,4 @@
-import 'package:zonai_schema/zonai_schema.dart';
+import '../types/where.dart';
 
 class GetBody {
   const GetBody({required this.collection, required this.where});

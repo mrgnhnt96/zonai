@@ -1,4 +1,4 @@
-import 'package:zonai_schema/zonai_schema.dart';
+import '../types/where.dart';
 
 class StreamListBody {
   const StreamListBody({
@@ -25,9 +25,9 @@ class StreamListBody {
   Map<String, dynamic> toJson() {
     return {
       'collection': collection,
-      'where': where?.toJson(),
-      'limit': limit,
-      'offset': offset,
+      'where': ?where?.toJson(),
+      'limit': ?limit,
+      'offset': ?offset,
     };
   }
 }

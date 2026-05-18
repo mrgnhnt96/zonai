@@ -1,4 +1,5 @@
-import 'package:zonai_schema/zonai_schema.dart';
+import '../types/where.dart';
+import '../update/update.dart';
 
 class UpdateBody {
   const UpdateBody({
@@ -26,7 +27,7 @@ class UpdateBody {
   }
 
   Map<String, dynamic> toJson() {
-    return {'collection': collection, 'where': where.toJson(), 'limit': limit};
+    return {'collection': collection, 'where': where.toJson(), 'limit': ?limit};
   }
 }
 

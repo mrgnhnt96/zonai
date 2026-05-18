@@ -6,6 +6,11 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "attach",
+            "request": "attach",
+            "type": "dart"
+        },
+        {
             "name": "web",
             "cwd": "apps/web",
             "request": "launch",

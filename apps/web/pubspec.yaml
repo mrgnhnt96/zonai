@@ -16,6 +16,8 @@ dependencies:
   scoped_deps:
     path: ../../libs/scoped_deps
   sqlite3: ^2.9.4
+  zonai_schema:
+    path: ../../libs/zonai_schema
   zonai:
     path: ../zonai
 

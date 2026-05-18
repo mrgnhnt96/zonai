@@ -1,4 +1,4 @@
-import 'package:zonai_schema/zonai_schema.dart';
+import '../types/where.dart';
 
 class StreamBody {
   const StreamBody({required this.collection, required this.where});
