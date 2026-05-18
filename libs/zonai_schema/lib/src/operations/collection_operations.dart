@@ -380,7 +380,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
 
   rd.SelectFromBuilder<rd.Schema<R>, R, int> count({Where? where}) {
     final pkColumn = table.columns.firstWhere((c) => c.isPrimaryKey);
-    final counting = pkColumn.transform<int>(SQL.function('COUNT', [pkColumn]));
+    final counting = _CountColumn(pkColumn);
 
     var builder = db.select(counting).from(schema);
 
@@ -483,6 +483,15 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
       ),
     };
   }
+}
+
+final class _CountColumn extends rd.Expression<int> {
+  _CountColumn(this._column);
+
+  final rd.Column<dynamic, dynamic> _column;
+
+  @override
+  rd.SQL build() => rd.SQL.function('COUNT', [_column]);
 }
 
 base mixin AuthOperations<S extends AuthCollection<R>, R>
