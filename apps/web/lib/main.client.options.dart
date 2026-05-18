@@ -6,8 +6,7 @@
 
 import 'package:jaspr/client.dart';
 
-import 'package:zonai_web/components/sign_in_screen.dart'
-    deferred as _sign_in_screen;
+import 'package:zonai_web/app.dart' deferred as _app;
 
 /// Default [ClientOptions] for use with your Jaspr project.
 ///
@@ -27,9 +26,6 @@ import 'package:zonai_web/components/sign_in_screen.dart'
 /// ```
 ClientOptions get defaultClientOptions => ClientOptions(
   clients: {
-    'sign_in_screen': ClientLoader(
-      (p) => _sign_in_screen.SignInForm(),
-      loader: _sign_in_screen.loadLibrary,
-    ),
+    'app': ClientLoader((p) => _app.AppShell(), loader: _app.loadLibrary),
   },
 );

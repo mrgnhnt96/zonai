@@ -497,6 +497,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.23.1"
+  jaspr_riverpod:
+    dependency: transitive
+    description:
+      name: jaspr_riverpod
+      sha256: ff083c9509d1e88e0c520eaa6bbd09a673861e9c3802d2c784d002d268c53f1f
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.5"
   js:
     dependency: transitive
     description:
@@ -801,6 +809,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
+  riverpod:
+    dependency: transitive
+    description:
+      name: riverpod
+      sha256: "8c22216be8ad3ef2b44af3a329693558c98eca7b8bd4ef495c92db0bba279f83"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.1"
   scratch_space:
     dependency: transitive
     description:
@@ -921,6 +937,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.12.1"
+  state_notifier:
+    dependency: transitive
+    description:
+      name: state_notifier
+      sha256: b8677376aa54f2d7c58280d5a007f9e8774f1968d1fb1c096adcb4792fba29bb
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   stream_channel:
     dependency: transitive
     description:

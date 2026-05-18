@@ -1,9 +1,11 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
+import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
+import '../auth/auth_provider.dart';
 import '../constants/theme.dart';
 
-/// Server-rendered layout; delegates interactivity to [SignInForm].
+/// Layout for sign-in; submit uses [authProvider].
 class SignInScreen extends StatelessComponent {
   const SignInScreen({super.key});
 
@@ -82,8 +84,7 @@ class SignInScreen extends StatelessComponent {
   ];
 }
 
-/// Interactive sign-in controls (hydrated on the client).
-@client
+/// Interactive sign-in controls (hydrated via [AppShell]).
 class SignInForm extends StatefulComponent {
   const SignInForm({super.key});
 
@@ -128,7 +129,7 @@ class SignInFormState extends State<SignInForm> {
         classes: 'submit',
         type: .button,
         onClick: () {
-          // Wire-up to auth when backend exists.
+          context.read(authProvider.notifier).signIn();
         },
         [.text('Sign in')],
       ),
