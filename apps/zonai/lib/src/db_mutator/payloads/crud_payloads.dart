@@ -50,10 +50,17 @@ class DeleteOnePayload extends JwtPayload implements DeletePayload {
 }
 
 class ListPayload extends JwtPayload {
-  const ListPayload({this.where, this.limit, this.offset, super.jwt});
+  ListPayload({
+    required this.where,
+    int? limit = maxLimit,
+    super.jwt,
+    this.offset,
+  }) : limit = limit?.clamp(1, maxLimit) ?? maxLimit;
+
+  static const maxLimit = 500;
 
   final Where? where;
-  final int? limit;
+  final int limit;
   final int? offset;
 }
 
