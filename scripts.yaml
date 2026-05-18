@@ -37,6 +37,7 @@ server:
   gen: |
     cd apps/server || exit 1
     dart run revali dev --flavor dev --profile --recompile --generate-only
+  start: cd apps/server && dart run revali dev --flavor dev {--recompile}
 
 playground:
   (aliases): [play]

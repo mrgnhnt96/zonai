@@ -8,6 +8,8 @@ environment:
   sdk: ">=3.11.0 <4.0.0"
 
 dependencies:
+  client:
+    path: ../server/.revali/revali_client
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5
   universal_web: ^1.1.1
@@ -26,3 +28,5 @@ dev_dependencies:
 
 jaspr:
   mode: server
+  # Revali dev server uses 8080; Jaspr SSR binds this port while the CLI proxy stays on 5567.
+  port: 8091
