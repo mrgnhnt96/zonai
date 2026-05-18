@@ -107,4 +107,5 @@ class Settings {
       _normalize([defaultZonaiDirectory, 'executables', 'db_operations.exe']);
   String get compiledConfigPath =>
       _normalize([defaultZonaiDirectory, 'executables', 'db_config.exe']);
+  String get zonaiSqlitePath => _normalize([dataPath, 'zonai.sqlite']);
 }
