@@ -77,18 +77,25 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
     for (final update in updates) {
       switch (update) {
         case ColumnUpdate(:final column, :final value):
-          if (!inferredColumns.contains(column)) {
-            switch (value) {
-              case LiteralUpdateValue(:final value):
-                updateables.add(UpdateableColumn(table[column], value));
-            }
+          if (_convertUpdateValue(column, value, inferredColumns)
+              case final update?) {
+            updateables.add(update);
           }
         case final ObjectUpdate update:
-          updateables.addAll([
-            for (final MapEntry(:key, :value) in update.object.entries)
-              if (!inferredColumns.contains(key))
-                UpdateableColumn(table[key], value),
-          ]);
+          for (final MapEntry(:key, :value) in update.object.entries) {
+            if (inferredColumns.contains(key)) {
+              continue;
+            }
+
+            if (_tryUpdateValue(value) case final update?) {
+              if (_convertUpdateValue(key, update, inferredColumns)
+                  case final update?) {
+                updateables.add(update);
+              }
+            } else {
+              updateables.add(UpdateableColumn(table[key], value));
+            }
+          }
       }
     }
 
@@ -96,6 +103,146 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
         .update(schema)
         .setAll(updateables)
         .where(RawSqlFilter(where.sql(table.name)));
+  }
+
+  UpdateableColumn? _convertUpdateValue(
+    String columnName,
+    UpdateValue value,
+    Set<String> inferredColumns,
+  ) {
+    if (inferredColumns.contains(columnName)) {
+      return null;
+    }
+    final col = table[columnName];
+    switch (value) {
+      case Literal(:final value):
+        return UpdateableColumn(col, value);
+      case Increment():
+        return UpdateableColumn(col, SQL([col, const RawSQL('+'), 1]));
+      case Decrement():
+        return UpdateableColumn(col, SQL([col, const RawSQL('-'), 1]));
+      case Add(:final value):
+        if (col.transformer is ListTransformer) {
+          return UpdateableColumn(col, _jsonListAppendExpression(col, value));
+        }
+        return UpdateableColumn(col, SQL([col, const RawSQL('+'), value]));
+      case Remove(:final value):
+        if (col.transformer is ListTransformer) {
+          return UpdateableColumn(
+            col,
+            _jsonListRemoveMatchingExpression(col, value),
+          );
+        }
+        return UpdateableColumn(col, SQL([col, const RawSQL('-'), value]));
+      case AddAll(:final values):
+        if (col.transformer is! ListTransformer) {
+          throw ArgumentError(
+            'AddAll is only supported on list columns (ListTransformer): '
+            '$columnName',
+          );
+        }
+        return UpdateableColumn(col, _jsonListAppendAllExpression(col, values));
+      case RemoveAll(:final values):
+        if (col.transformer is! ListTransformer) {
+          throw ArgumentError(
+            'RemoveAll is only supported on list columns (ListTransformer): '
+            '$columnName',
+          );
+        }
+        return UpdateableColumn(
+          col,
+          _jsonListRemoveAllMatchingExpression(col, values),
+        );
+    }
+  }
+
+  /// `json_insert(COALESCE(col,'[]'), '$[' || json_array_length(...) || ']',
+  /// ?)` — appends one JSON value to the stored array.
+  rd.SQL _jsonListAppendExpression(
+    rd.Column<dynamic, dynamic> col,
+    Object? value,
+  ) {
+    return rd.SQL([
+      const rd.RawSQL('json_insert(COALESCE('),
+      col,
+      const rd.RawSQL(r", '[]'), '$[' || json_array_length(COALESCE("),
+      col,
+      const rd.RawSQL(r", '[]')) || ']'"),
+      const rd.RawSQL(', '),
+      value,
+      const rd.RawSQL(')'),
+    ]);
+  }
+
+  /// Drops every array element equal to `value` (SQLite json_each comparison),
+  /// preserving order among kept elements.
+  rd.SQL _jsonListRemoveMatchingExpression(
+    rd.Column<dynamic, dynamic> col,
+    Object? value,
+  ) {
+    return rd.SQL([
+      const rd.RawSQL(
+        'COALESCE((SELECT json_group_array(e.value) FROM json_each(COALESCE(',
+      ),
+      col,
+      const rd.RawSQL(", '[]')) AS e WHERE e.value != "),
+      value,
+      const rd.RawSQL("), '[]')"),
+    ]);
+  }
+
+  /// Concatenates the stored JSON array with [values] (each appended in order).
+  rd.SQL _jsonListAppendAllExpression(
+    rd.Column<dynamic, dynamic> col,
+    List<Object?> values,
+  ) {
+    final wire = jsonEncode(values);
+    return rd.SQL([
+      const rd.RawSQL(
+        'COALESCE((SELECT json_group_array(elem) FROM (SELECT value AS elem FROM '
+        'json_each(COALESCE(',
+      ),
+      col,
+      const rd.RawSQL(
+        r", '[]')) UNION ALL SELECT value AS elem FROM json_each(",
+      ),
+      wire,
+      const rd.RawSQL('))), \'[]\')'),
+    ]);
+  }
+
+  /// Removes every element whose [json_each] `value` appears in [values].
+  rd.SQL _jsonListRemoveAllMatchingExpression(
+    rd.Column<dynamic, dynamic> col,
+    List<Object?> values,
+  ) {
+    final wire = jsonEncode(values);
+    return rd.SQL([
+      const rd.RawSQL(
+        'COALESCE((SELECT json_group_array(e.value) FROM json_each(COALESCE(',
+      ),
+      col,
+      const rd.RawSQL(
+        r", '[]')) AS e WHERE e.value NOT IN (SELECT value FROM json_each(",
+      ),
+      wire,
+      const rd.RawSQL('))), \'[]\')'),
+    ]);
+  }
+
+  /// When [ObjectUpdate] embeds [UpdateValue] maps (e.g. from JSON), apply the
+  /// same semantics as [ColumnUpdate]. Plain maps without a known `type`
+  /// remain literal row values.
+  UpdateValue? _tryUpdateValue(Object? raw) {
+    if (raw is! Map) {
+      return null;
+    }
+
+    try {
+      return UpdateValue.fromJson(Map<String, dynamic>.from(raw));
+    } catch (_) {
+      return null;
+    }
   }
 
   rd.SelectFromBuilder<rd.Schema<R>, R, int> count({Where? where}) {
@@ -148,7 +295,7 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
         .where(RawSqlFilter(where.sql(table.name)));
 
     if (limit != null) {
-      builder.limit(limit);
+      return builder.limit(limit);
     }
 
     return builder;

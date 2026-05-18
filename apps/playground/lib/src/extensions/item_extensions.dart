@@ -23,9 +23,7 @@ class ItemExtensions extends Extension<Item>
 
     mutate.update.one(
       collection: 'items',
-      updates: [
-        Update.column('body', LiteralUpdateValue(value: 'Something else!!!')),
-      ],
+      updates: [Update.column('body', .literal('Something else!!!'))],
       where: Eq('id', object.id),
     );
 

@@ -1,5 +1,9 @@
 library update;
 
+import 'dart:convert';
+
+import 'package:meta/meta.dart';
+
 part 'update_value.dart';
 
 sealed class Update {
