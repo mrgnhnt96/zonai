@@ -74,12 +74,44 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
       }
     }
 
+    updateLoop:
     for (final update in updates) {
       switch (update) {
         case ColumnUpdate(:final column, :final value):
-          if (_convertUpdateValue(column, value, inferredColumns)
-              case final update?) {
-            updateables.add(update);
+          final pathParts = column.split('.');
+          if (pathParts.length == 1) {
+            if (_convertUpdateValue(column, value, inferredColumns)
+                case final converted?) {
+              updateables.add(converted);
+            }
+          } else {
+            if (pathParts.any((p) => p.isEmpty)) {
+              throw ArgumentError.value(
+                column,
+                'column',
+                'Dotted column path must not contain empty segments',
+              );
+            }
+            final base = pathParts.first;
+            if (inferredColumns.contains(base)) {
+              continue updateLoop;
+            }
+            final col = table[base];
+            if (col.transformer is! ObjectMapTransformer) {
+              throw ArgumentError(
+                'Dotted column "$column" is only supported on jsonMap columns '
+                '(got "${col.name}" / ${col.transformer.runtimeType}).',
+              );
+            }
+            if (_convertNestedJsonPathUpdate(
+                  col,
+                  pathParts.sublist(1),
+                  value,
+                  column,
+                )
+                case final converted?) {
+              updateables.add(converted);
+            }
           }
         case final ObjectUpdate update:
           for (final MapEntry(:key, :value) in update.object.entries) {
@@ -87,13 +119,26 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
               continue;
             }
 
-            if (_tryUpdateValue(value) case final update?) {
-              if (_convertUpdateValue(key, update, inferredColumns)
-                  case final update?) {
-                updateables.add(update);
+            if (_tryUpdateValue(value) case final nested?) {
+              if (_convertUpdateValue(key, nested, inferredColumns)
+                  case final converted?) {
+                updateables.add(converted);
               }
             } else {
-              updateables.add(UpdateableColumn(table[key], value));
+              final col = table[key];
+              if (col.transformer is ObjectMapTransformer && value is Map) {
+                updateables.add(
+                  UpdateableColumn(
+                    col,
+                    _jsonObjectPatchExpression(
+                      col,
+                      Map<String, dynamic>.from(value),
+                    ),
+                  ),
+                );
+              } else {
+                updateables.add(UpdateableColumn(col, value));
+              }
             }
           }
       }
@@ -118,12 +163,30 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
       case Literal(:final value):
         return UpdateableColumn(col, value);
       case Increment():
+        if (col.transformer is ObjectMapTransformer) {
+          throw ArgumentError(
+            'Increment is not supported on JSON object (jsonMap) columns: '
+            '$columnName',
+          );
+        }
         return UpdateableColumn(col, SQL([col, const RawSQL('+'), 1]));
       case Decrement():
+        if (col.transformer is ObjectMapTransformer) {
+          throw ArgumentError(
+            'Decrement is not supported on JSON object (jsonMap) columns: '
+            '$columnName',
+          );
+        }
         return UpdateableColumn(col, SQL([col, const RawSQL('-'), 1]));
       case Add(:final value):
         if (col.transformer is ListTransformer) {
           return UpdateableColumn(col, _jsonListAppendExpression(col, value));
+        }
+        if (col.transformer is ObjectMapTransformer) {
+          throw ArgumentError(
+            'Add is not supported on JSON object (jsonMap) columns: '
+            '$columnName',
+          );
         }
         return UpdateableColumn(col, SQL([col, const RawSQL('+'), value]));
       case Remove(:final value):
@@ -131,6 +194,12 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
           return UpdateableColumn(
             col,
             _jsonListRemoveMatchingExpression(col, value),
+          );
+        }
+        if (col.transformer is ObjectMapTransformer) {
+          throw ArgumentError(
+            'Remove is not supported on JSON object (jsonMap) columns: '
+            '$columnName',
           );
         }
         return UpdateableColumn(col, SQL([col, const RawSQL('-'), value]));
@@ -154,6 +223,69 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
           _jsonListRemoveAllMatchingExpression(col, values),
         );
     }
+  }
+
+  /// SQLite JSON path (`$.a.b` or `$["a-b"]` for non-identifier keys).
+  static String _sqliteJsonObjectPath(List<String> segments) {
+    final buf = StringBuffer(r'$');
+    for (final s in segments) {
+      if (RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(s)) {
+        buf.write('.$s');
+      } else {
+        buf.write('[${jsonEncode(s)}]');
+      }
+    }
+    return buf.toString();
+  }
+
+  UpdateableColumn? _convertNestedJsonPathUpdate(
+    Column<dynamic, dynamic> col,
+    List<String> pathSegments,
+    UpdateValue value,
+    String columnSpec,
+  ) {
+    return switch (value) {
+      Literal(:final value) => UpdateableColumn(
+        col,
+        _jsonObjectSetExpression(col, pathSegments, value),
+      ),
+      _ => throw ArgumentError(
+        'Only literal UpdateValue is supported for nested jsonMap paths '
+        '("$columnSpec"): ${value.runtimeType}',
+      ),
+    };
+  }
+
+  /// `json_set(COALESCE(col,'{}'), path, value)` for a nested key.
+  rd.SQL _jsonObjectSetExpression(
+    rd.Column<dynamic, dynamic> col,
+    List<String> pathSegments,
+    Object? value,
+  ) {
+    final path = _sqliteJsonObjectPath(pathSegments).replaceAll("'", "''");
+    return rd.SQL([
+      const rd.RawSQL('json_set(COALESCE('),
+      col,
+      rd.RawSQL(", '{}'), '$path'"),
+      const rd.RawSQL(', '),
+      value,
+      const rd.RawSQL(')'),
+    ]);
+  }
+
+  /// RFC 7396 JSON merge patch into an object column (plain [ObjectUpdate]).
+  rd.SQL _jsonObjectPatchExpression(
+    rd.Column<dynamic, dynamic> col,
+    Map<String, dynamic> patch,
+  ) {
+    final wire = jsonEncode(patch);
+    return rd.SQL([
+      const rd.RawSQL('json_patch(COALESCE('),
+      col,
+      const rd.RawSQL(", '{}'), "),
+      wire,
+      const rd.RawSQL(')'),
+    ]);
   }
 
   /// `json_insert(COALESCE(col,'[]'), '$[' || json_array_length(...) || ']',

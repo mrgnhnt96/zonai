@@ -52,6 +52,41 @@ class _Collection extends Collection<_Row> implements _Row {
   final ListColumn<String> tags;
 }
 
+class _JsonRow {
+  const _JsonRow({this.id, required this.title, this.profile = const {}});
+
+  final int? id;
+  final String title;
+  final Map<String, dynamic> profile;
+}
+
+class _JsonCollection extends Collection<_JsonRow> implements _JsonRow {
+  _JsonCollection(super.$)
+    : id = $.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
+      title = $.text('title', (s) => s.title),
+      profile = $.map('profile', (s) => s.profile);
+
+  @override
+  _JsonRow fromRow(RowReader read) =>
+      _JsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
+
+  @override
+  final IntColumn? id;
+
+  @override
+  final TextColumn title;
+
+  @override
+  final MapColumn profile;
+}
+
+final jsonWidgets = sqliteTable('json_widgets', _JsonCollection.new);
+
+final class _JsonOperations
+    extends CollectionOperations<_JsonCollection, _JsonRow> {
+  _JsonOperations() : super(jsonWidgets);
+}
+
 final widgets = sqliteTable('widgets', _Collection.new);
 
 final class _Operations extends CollectionOperations<_Collection, _Row> {
@@ -176,22 +211,53 @@ void main() {
       expect(sql, contains('json_group_array'));
     });
 
+    group('jsonMap column updates', () {
+      final jsonOps = _JsonOperations();
+
+      test('nested ColumnUpdate path uses json_set on jsonMap column', () {
+        final query = jsonOps.update([
+          Update.column('profile.displayName', const Literal('Pat')),
+        ], where: const Eq('id', 1)).toQuery();
+        final (sql, _) = dialect.translate(query);
+        expect(sql, contains('json_set'));
+        expect(sql, contains('"profile"'));
+      });
+
+      test('ObjectUpdate with plain map merges via json_patch', () {
+        final query = jsonOps.update([
+          Update.object({
+            'profile': {'displayName': 'Pat', 'age': 30},
+          }),
+        ], where: const Eq('id', 1)).toQuery();
+        final (sql, _) = dialect.translate(query);
+        expect(sql, contains('json_patch'));
+        expect(sql, contains('"profile"'));
+      });
+
+      test('dotted column on non-jsonMap column throws', () {
+        expect(
+          () => ops.update([
+            Update.column('title.suffix', const Literal('x')),
+          ], where: const Eq('id', 1)).toQuery(),
+          throwsArgumentError,
+        );
+      });
+    });
+
     test('AddAll on non-list column throws', () {
       expect(
-        () => ops.update(
-          [Update.column('qty', const AddAll([1, 2]))],
-          where: const Eq('id', 1),
-        ).toQuery(),
+        () => ops.update([
+          Update.column('qty', const AddAll([1, 2])),
+        ], where: const Eq('id', 1)).toQuery(),
         throwsArgumentError,
       );
     });
 
     test('RemoveAll on non-list column throws', () {
       expect(
-        () => ops.update(
-          [Update.column('qty', const RemoveAll([1]))],
-          where: const Eq('id', 1),
-        ).toQuery(),
+        () => ops.update([
+          Update.column('qty', const RemoveAll([1])),
+        ], where: const Eq('id', 1)).toQuery(),
         throwsArgumentError,
       );
     });
@@ -454,19 +520,92 @@ void main() {
         expect(row.tags, ['a', 'b', 'c']);
       });
 
-      test('RemoveAll drops every listed value from JSON list column', () async {
-        await execOps.insert({
-          'title': 'v-tags-rm-all',
-          'qty': 1,
-          'tags': '["a","b","c","a"]',
+      test(
+        'RemoveAll drops every listed value from JSON list column',
+        () async {
+          await execOps.insert({
+            'title': 'v-tags-rm-all',
+            'qty': 1,
+            'tags': '["a","b","c","a"]',
+          });
+          await execOps.update([
+            Update.column('tags', const RemoveAll(['a', 'c'])),
+          ], where: const Eq('title', 'v-tags-rm-all'));
+          final row = (await execOps.list(
+            where: const Eq('title', 'v-tags-rm-all'),
+          )).single;
+          expect(row.tags, ['b']);
+        },
+      );
+    });
+
+    group('jsonMap column execution', () {
+      late Raindrop memoryDb;
+      late _JsonOperations execJsonOps;
+
+      setUp(() async {
+        memoryDb = Raindrop(SQLiteDelegate.memory());
+        execJsonOps = _JsonOperations();
+        execJsonOps.db = memoryDb;
+        await memoryDb.ensureOpen();
+        await memoryDb.execute(
+          'CREATE TABLE "json_widgets" ('
+          '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+          '"title" TEXT NOT NULL, '
+          '"profile" TEXT NOT NULL DEFAULT \'{}\''
+          ');',
+          const [],
+        );
+      });
+
+      tearDown(() async {
+        await memoryDb.close();
+      });
+
+      test('ColumnUpdate dotted path sets nested key only', () async {
+        await execJsonOps.insert({
+          'title': 'jm1',
+          'profile': {'displayName': 'Old', 'role': 'user'},
         });
-        await execOps.update([
-          Update.column('tags', const RemoveAll(['a', 'c'])),
-        ], where: const Eq('title', 'v-tags-rm-all'));
-        final row = (await execOps.list(
-          where: const Eq('title', 'v-tags-rm-all'),
+        await execJsonOps.update([
+          Update.column('profile.displayName', const Literal('New')),
+        ], where: const Eq('title', 'jm1'));
+        final row = (await execJsonOps.list(
+          where: const Eq('title', 'jm1'),
         )).single;
-        expect(row.tags, ['b']);
+        expect(row.profile['displayName'], 'New');
+        expect(row.profile['role'], 'user');
+      });
+
+      test('ObjectUpdate plain map merges into jsonMap', () async {
+        await execJsonOps.insert({
+          'title': 'jm2',
+          'profile': {'displayName': 'Old', 'role': 'user'},
+        });
+        await execJsonOps.update([
+          Update.object({
+            'profile': {'displayName': 'Merged'},
+          }),
+        ], where: const Eq('title', 'jm2'));
+        final row = (await execJsonOps.list(
+          where: const Eq('title', 'jm2'),
+        )).single;
+        expect(row.profile['displayName'], 'Merged');
+        expect(row.profile['role'], 'user');
+      });
+
+      test('ColumnUpdate without dots replaces entire jsonMap', () async {
+        await execJsonOps.insert({
+          'title': 'jm3',
+          'profile': {'a': 1},
+        });
+        await execJsonOps.update([
+          Update.column('profile', const Literal({'b': 2})),
+        ], where: const Eq('title', 'jm3'));
+        final row = (await execJsonOps.list(
+          where: const Eq('title', 'jm3'),
+        )).single;
+        expect(row.profile, {'b': 2});
       });
     });
   });
