@@ -38,7 +38,9 @@ extension _CountX on ZonaiDb {
       throw error ?? StateError('Failed to count records');
     }
 
-    await for (final result in _stream(operation.query, operation.values)) {
+    final stream = _stream(operation.query, operation.values);
+    // only yield counts when the count changes
+    await for (final result in stream.distinct()) {
       yield result.rows.length;
     }
   }
