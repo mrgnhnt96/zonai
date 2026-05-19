@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/src/deps/courier.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
 import 'package:zonai/src/deps/config_resolver.dart';
@@ -63,6 +64,7 @@ Future<void> _run(List<String> arguments) async {
     values: {
       argsProvider.overrideWith(() => parsed),
       fsProvider,
+      courierProvider,
       loggerProvider.overrideWith(() => log),
       processProvider,
       cleanUpProvider,

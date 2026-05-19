@@ -29,6 +29,25 @@ Future<int> test() async {
 
   {
     logger.info('--------------------------------');
+    logger.info('SEND TEST EMAIL');
+    final email = Email(
+      to: EmailAddress(address: 'mrgnhnt96+test@gmail.com', name: 'Test User'),
+      subject: 'Test Email',
+      template: 'verify_your_email',
+      variables: {
+        'name': 'Test User',
+        'verificationUrl': 'https://www.google.com',
+        'expiresIn': '1 hour',
+        'email': 'mrgnhnt96+test@gmail.com',
+      },
+    );
+
+    await zonaiDB.sendTestEmail(email);
+    logger.info('Test email sent');
+  }
+
+  {
+    logger.info('--------------------------------');
     logger.info('SIGN IN');
     final (exitCode, signedInJwt) = await _signIn(email);
     if (exitCode != null || signedInJwt == null) {

@@ -1,13 +1,35 @@
 # TODO
 
-## 5.11.2026 — Inline TODOs (synced from code comments)
+## 5.19.2026
 
-### zonai / zonai_schema
+### Auth
 
-- [ ] `zonai_db.dart`: make auth `appPepper` configurable (currently hard-coded)
-- [ ] Add optional single or multi authentication
-  - [ ] Single would upsert and would replace any old JWT
-  - [ ] Multi would insert and allow multiple JWTs (allowing multiple devices)
+- [ ] Add OTP authentication
+- [ ] Add OAuth authentication (mixins)
+- [ ] Add passwordless authentication (mixin)
+- [ ] Add impersonate
+
+### UI
+
+- [ ] Add theme color support
+- [ ] Create collection groups:
+  - [ ] Pin collections (if any)
+  - [ ] Normal collections
+  - [ ] System collections
+- [ ] Search collections
+- [ ] Filter records
+  - [ ] Add search history
+- [ ] Sort by column
+
+### API
+
+- [ ] Upload files (to local storage)
+- [ ] Support `order_by` in queries
+- [ ] Support cron jobs
+- [ ] Support enums
+- [ ] Support expand columns
+- [ ] Export records as JSON
+- [ ] Add rate limiting
 
 ## 4.15.2026
 
@@ -16,9 +38,6 @@
 - [ ] create a \_logs table, forward all logs to it
   - [ ] Run ttl of 1 week
 - [ ] - if not compiled, before every request, check for a “stop” file (which will be generated on recompile) and restart the process. (Or check the file timestamp, and restart based off of that)
-- [ ] create a “scheduleOperation” that will be used to add queries to the transaction (from within an extension)
-- [ ] Setup `zonai` to be used as a library within a server
-  - [ ] This way I can use this within a server project, and not need to create a new server just for the DB
 
 ## CLI
 
@@ -30,26 +49,13 @@
 
 ### Message Handler
 
-- Don't kill the process until after the compilation is complete
+- Don't kill the process until after the compilation is complete (when a restart is needed)
   - The DB should auto start the rule/extension process if it is not available
-
-### Mixins
-
-- Create/update mixins (auto set)
-- Super User
-- Soft Delete
-- Auth
-  - Sets up user authentication
-
-### Emails
-
-- Use raw html files for emails + mustache syntax for templating
+- Check for `.stop` file and restart the process if it exists
+  - Should pause all requests until the process is restarted
+  - Should wait until all pending requests are completed
 
 ## Raindrop
 
 - [ ] Add feature to alert/fail on breaking changes
 - Investigate how to handle base classes for schemas & extending them
-
-### Backlog
-
-- Add support for multi-path schema definitions

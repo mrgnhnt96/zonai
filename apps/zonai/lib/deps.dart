@@ -1,4 +1,5 @@
 export 'src/deps/args.dart';
+export 'src/deps/courier.dart';
 export 'src/deps/fs.dart';
 export 'src/deps/clean_up.dart';
 export 'src/deps/mutations.dart';

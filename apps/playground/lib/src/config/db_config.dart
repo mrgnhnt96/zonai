@@ -5,5 +5,12 @@ AppConfig main() {
     appName: 'Banana',
     passwordSecret: 'password',
     jwtSecret: 'jwt',
+    email: EmailConfig(
+      host: 'smtp.gmail.com',
+      port: 587,
+      username: 'link@hyrule.com',
+      password: 'heroOfHyrule00T1!',
+      from: EmailAddress(address: 'link@hyrule.com', name: 'Link'),
+    ),
   );
 }

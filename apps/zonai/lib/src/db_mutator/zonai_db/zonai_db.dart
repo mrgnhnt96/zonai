@@ -7,14 +7,10 @@ import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
-import 'package:zonai/src/deps/clean_up.dart';
-import 'package:zonai/src/deps/config.dart';
-import 'package:zonai/src/deps/config_resolver.dart';
-import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
-import 'package:zonai_schema/src/internal/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
@@ -23,15 +19,9 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
+import 'package:zonai_schema/src/internal/jwt_collection.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 
-import '../../deps/extensions.dart';
-import '../../deps/fs.dart';
-import '../../deps/logger.dart';
-import '../../deps/migrate.dart';
-import '../../deps/operations.dart';
-import '../../deps/rules.dart';
-import '../../deps/settings.dart';
 import '../operation_result.dart';
 import '../payloads/payloads.dart';
 import '../sqlite_internal_table_sync.dart';
@@ -39,14 +29,14 @@ import '../sqlite_internal_table_sync.dart';
 part 'parts/__auth_utils.dart';
 part 'parts/__utils.dart';
 part 'parts/auth.dart';
+part 'parts/count.dart';
 part 'parts/create.dart';
 part 'parts/delete.dart';
 part 'parts/list.dart';
+part 'parts/read.dart';
 part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
-part 'parts/read.dart';
-part 'parts/count.dart';
 
 typedef _CrudResult = Map<String, Object?>;
 typedef _CrudListResult = List<Map<String, Object?>>;
@@ -98,6 +88,10 @@ class ZonaiDb {
     AuthPayload payload,
   ) async {
     return await _run(() => _authenticate(collection, payload));
+  }
+
+  Future<void> sendTestEmail(Email email) async {
+    await _run(() => courier.send(email));
   }
 
   Future<_AuthResult> signIn(String collection, AuthPayload payload) async {
@@ -191,7 +185,7 @@ class ZonaiDb {
         false => stack,
       });
 
-      throw e;
+      rethrow;
     }
   }
 

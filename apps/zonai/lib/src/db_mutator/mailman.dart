@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/src/deps/courier.dart';
 
 import '../db_mutator/payloads/payloads.dart';
 import '../deps/mutations.dart';
@@ -299,6 +300,8 @@ class Mailman<S extends Request, R extends Response> {
         }
 
         switch (request) {
+          case final SendEmailRequest request:
+            courier.send(request.email);
           case final MutationRequest mutation:
             (_pendingMutations[mutation.parent.id] ??= []).add(mutation);
 

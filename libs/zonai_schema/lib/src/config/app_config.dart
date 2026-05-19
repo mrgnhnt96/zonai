@@ -1,3 +1,5 @@
+import 'package:zonai_schema/src/config/email_config.dart';
+
 /// Application secrets for password hashing and JWT signing, as served to the
 /// runtime via [AppConfig].
 ///
@@ -12,6 +14,7 @@ final class AppConfig {
     required this.jwtSecret,
     this.previousPasswordSecrets = const [],
     this.previousJwtSecrets = const [],
+    this.email,
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(
@@ -20,6 +23,7 @@ final class AppConfig {
     jwtSecret: json['jwtSecret'] as String,
     previousPasswordSecrets: _stringList(json['previousPasswordSecrets']),
     previousJwtSecrets: _stringList(json['previousJwtSecrets']),
+    email: json['email'] != null ? EmailConfig.fromJson(json['email']) : null,
   );
 
   /// Display name for the app (browser title, UI branding).
@@ -35,6 +39,8 @@ final class AppConfig {
   /// Retired JWT HMAC secrets used only to verify existing tokens.
   final List<String> previousJwtSecrets;
 
+  final EmailConfig? email;
+
   /// Active password secret first, then [previousPasswordSecrets] (verify).
   List<String> get passwordSecretsForVerify =>
       List<String>.unmodifiable([passwordSecret, ...previousPasswordSecrets]);
@@ -49,6 +55,7 @@ final class AppConfig {
     'jwtSecret': jwtSecret,
     'previousPasswordSecrets': previousPasswordSecrets,
     'previousJwtSecrets': previousJwtSecrets,
+    'email': email?.toJson(),
   };
 
   static List<String> _stringList(Object? value) {

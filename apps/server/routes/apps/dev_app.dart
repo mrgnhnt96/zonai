@@ -31,6 +31,7 @@ final class DevApp extends AppConfig {
       includeIfAbsent: {
         loggerProvider.overrideWith(() => Logger.print(level: .debug)),
         argsProvider,
+        courierProvider,
         cleanUpProvider,
         mutationsProvider,
         zonaiDbProvider,

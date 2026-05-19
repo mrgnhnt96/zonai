@@ -13,6 +13,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 part 'deps/__get.dart';
 part 'deps/__log.dart';
 part 'deps/__mutate.dart';
+part 'deps/__email.dart';
 part 'request.dart';
 part 'response.dart';
 
@@ -123,6 +124,9 @@ class MessageHandler {
                 );
               },
               includeIfAbsent: {
+                _emailProvider.overrideWith(
+                  () => _Email((email) => sendRequest(SendEmailRequest(email))),
+                ),
                 _mutateProvider.overrideWith(
                   () => _Mutate(
                     update: ({required collection, required updates, required where, limit}) async {

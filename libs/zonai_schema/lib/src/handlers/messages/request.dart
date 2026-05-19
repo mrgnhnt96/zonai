@@ -308,3 +308,22 @@ final class UpdateRecordRequest extends MutationRequest {
     };
   }
 }
+
+final class SendEmailRequest extends Request {
+  SendEmailRequest(this.email) : super(path: _path, id: Request.generateId());
+
+  factory SendEmailRequest.fromJson(Map<String, dynamic> json) {
+    return SendEmailRequest(
+      Email.fromJson(json['email'] as Map<String, dynamic>),
+    );
+  }
+
+  static const _path = '${Request.prefix}.send_email';
+
+  final Email email;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'email': email.toJson()};
+  }
+}
