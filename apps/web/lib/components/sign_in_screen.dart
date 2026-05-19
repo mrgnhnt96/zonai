@@ -1,6 +1,7 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
 import '../auth/auth_provider.dart';
@@ -179,41 +180,52 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'card', [
-      h1(classes: 'title', [.text('Sign in')]),
-      p(classes: 'subtitle', [.text('Enter your credentials to continue.')]),
-      if (_error case final error?)
-        p(classes: 'error', [.text(error)]),
-      div(classes: 'field', [
-        label(htmlFor: 'sign-in-email', classes: 'label', [.text('Email')]),
-        input<String>(
-          id: 'sign-in-email',
-          type: .email,
-          name: 'email',
-          classes: 'input',
-          attributes: const {'autocomplete': 'email'},
-          value: _email,
-          onInput: (v) => setState(() => _email = v),
+    return form(
+      [
+        h1(classes: 'title', [.text('Sign in')]),
+        p(classes: 'subtitle', [.text('Enter your credentials to continue.')]),
+        if (_error case final error?)
+          p(classes: 'error', [.text(error)]),
+        div(classes: 'field', [
+          label(htmlFor: 'sign-in-email', classes: 'label', [.text('Email')]),
+          input<String>(
+            id: 'sign-in-email',
+            type: .email,
+            name: 'email',
+            classes: 'input',
+            attributes: const {'autocomplete': 'email'},
+            value: _email,
+            onInput: (v) => setState(() => _email = v),
+          ),
+        ]),
+        div(classes: 'field', [
+          label(htmlFor: 'sign-in-password', classes: 'label', [.text('Password')]),
+          input<String>(
+            id: 'sign-in-password',
+            type: .password,
+            name: 'password',
+            classes: 'input',
+            attributes: const {'autocomplete': 'current-password'},
+            value: _password,
+            onInput: (v) => setState(() => _password = v),
+          ),
+        ]),
+        button(
+          classes: 'submit',
+          type: .submit,
+          disabled: _loading,
+          [.text(_loading ? 'Signing in…' : 'Sign in')],
         ),
-      ]),
-      div(classes: 'field', [
-        label(htmlFor: 'sign-in-password', classes: 'label', [.text('Password')]),
-        input<String>(
-          id: 'sign-in-password',
-          type: .password,
-          name: 'password',
-          classes: 'input',
-          attributes: const {'autocomplete': 'current-password'},
-          value: _password,
-          onInput: (v) => setState(() => _password = v),
-        ),
-      ]),
-      button(
-        classes: 'submit',
-        type: .button,
-        onClick: _loading ? null : () => _submit(),
-        [.text(_loading ? 'Signing in…' : 'Sign in')],
-      ),
-    ]);
+      ],
+      classes: 'card',
+      events: {
+        'submit': (web.Event event) {
+          event.preventDefault();
+          if (!_loading) {
+            _submit();
+          }
+        },
+      },
+    );
   }
 }

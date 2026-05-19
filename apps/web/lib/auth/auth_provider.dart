@@ -1,6 +1,8 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
+import 'package:zonai_web/auth/auth_route_provider.dart';
+import 'package:zonai_web/auth/auth_routes.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
 
 final authProvider = NotifierProvider<AuthNotifier, bool>(AuthNotifier.new);
@@ -41,6 +43,7 @@ class AuthNotifier extends Notifier<bool> {
   void signIn(String accessToken) {
     ZonaiCookie.authToken.write(accessToken);
     state = true;
+    _syncRouteForAuthState(signedIn: true);
   }
 
   Future<void> signOut() async {
@@ -52,6 +55,21 @@ class AuthNotifier extends Notifier<bool> {
     }
     ZonaiCookie.authToken.remove();
     state = false;
+    _syncRouteForAuthState(signedIn: false);
+  }
+
+  void _syncRouteForAuthState({required bool signedIn}) {
+    if (!ref.binding.isClient) return;
+
+    final route = ref.read(authRouteProvider.notifier);
+    if (signedIn) {
+      if (AuthRoutes.isSignInPath(ref.read(authRouteProvider))) {
+        route.navigateTo(AuthRoutes.home);
+      }
+      return;
+    }
+
+    route.navigateTo(AuthRoutes.signIn);
   }
 
   static bool _hasAuthToken() {

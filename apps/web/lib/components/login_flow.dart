@@ -23,7 +23,7 @@ class LoginFlow extends StatelessComponent {
       return const SignInScreen(child: _SignInMessage('No sign-in methods are configured.'));
     }
 
-    if (authTypes.length == 1 && path == AuthRoutes.signIn) {
+    if (authTypes.length == 1 && AuthRoutes.isSignInRoot(path)) {
       if (!context.binding.isClient) {
         return switch (authTypes.single) {
           .password => const PasswordSignInScreen(),
@@ -39,7 +39,7 @@ class LoginFlow extends StatelessComponent {
       };
     }
 
-    if (path != AuthRoutes.signIn) {
+    if (!AuthRoutes.isSignInRoot(path)) {
       return _RedirectToAuthType(authType: authTypes.first);
     }
 
