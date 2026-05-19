@@ -9,10 +9,11 @@ class JwtId implements Id {
 }
 
 class JwtEntry {
-  JwtEntry({required this.id, required this.userId});
+  JwtEntry({required this.id, required this.userId, required this.expiresAt});
 
   final JwtId id;
   final Id userId;
+  final DateTime expiresAt;
 }
 
 class JwtCollection extends Collection<JwtEntry> {
@@ -31,14 +32,25 @@ class JwtCollection extends Collection<JwtEntry> {
             throw Exception('User ID is required for JWT collection'),
         isPrimaryKey: false,
         synthetic: const UnknownId('__zonai_schema_registration__'),
+        // TODO: It would be nice to add a `references` to the table here
+      ),
+      expiresAt = $.dateTime(
+        'expires_at',
+        (s) => s.expiresAt,
+        defaultValue: '0',
       );
 
   final IdColumn<JwtId> id;
   final IdColumn<UnknownId> userId;
+  final DateTimeColumn expiresAt;
 
   @override
   JwtEntry fromRow(RowReader read) {
-    return JwtEntry(id: read(id), userId: read(userId));
+    return JwtEntry(
+      id: read(id),
+      userId: read(userId),
+      expiresAt: read(expiresAt),
+    );
   }
 }
 

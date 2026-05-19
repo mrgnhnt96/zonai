@@ -14,7 +14,7 @@ import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
-import 'package:zonai/src/internal_collections/jwt_collection.dart';
+import 'package:zonai_schema/src/internal/jwt_collection.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';

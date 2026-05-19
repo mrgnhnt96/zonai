@@ -44,17 +44,18 @@ class Rules {
 
     final directory = fs.directory(settings.rulesPath);
 
-    final files = directory
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((file) => fs.path.extension(file.path) == '.dart')
-        .toList();
+    final files = directory.existsSync()
+        ? directory
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => fs.path.extension(file.path) == '.dart')
+              .toList()
+        : <File>[];
 
     if (files.isEmpty) {
       logger.info(
-        'No Dart rule files under ${directory.path}; skipping compile.',
+        'No project rule files; compiling built-in internal table rules.',
       );
-      return;
     }
 
     final target = fs.path.join(settings.compiledRulesPath);
@@ -85,11 +86,9 @@ class Rules {
   Future<bool> _canCompile() async {
     final directory = fs.directory(settings.rulesPath);
     if (!directory.existsSync()) {
-      logger.error('Rules directory does not exist: ${directory.path}');
-      return false;
+      return true;
     }
 
-    // analyze directory for compile errors
     final result = await process.run('dart', ['analyze', directory.path]);
     final exitCode = result.exitCode;
 

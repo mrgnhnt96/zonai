@@ -42,17 +42,18 @@ class Operations {
     if (!await _canCompile()) return;
 
     final directory = fs.directory(settings.operationsPath);
-    final files = directory
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((file) => fs.path.extension(file.path) == '.dart')
-        .toList();
+    final files = directory.existsSync()
+        ? directory
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => fs.path.extension(file.path) == '.dart')
+              .toList()
+        : <File>[];
 
     if (files.isEmpty) {
       logger.info(
-        'No Dart operation files under ${directory.path}; skipping compile.',
+        'No project operation files; compiling built-in internal table operations.',
       );
-      return;
     }
 
     final target = fs.path.join(settings.compiledOperationsPath);
@@ -83,11 +84,9 @@ class Operations {
   Future<bool> _canCompile() async {
     final directory = fs.directory(settings.operationsPath);
     if (!directory.existsSync()) {
-      logger.error('Operations directory does not exist: ${directory.path}');
-      return false;
+      return true;
     }
 
-    // analyze directory for compile errors
     final result = await process.run('dart', ['analyze', directory.path]);
     final exitCode = result.exitCode;
 
