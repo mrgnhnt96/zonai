@@ -27,6 +27,8 @@ abstract base class Request {
       CreateRecordRequest._path => CreateRecordRequest.fromJson(json),
       DeleteRecordRequest._path => DeleteRecordRequest.fromJson(json),
       UpdateRecordRequest._path => UpdateRecordRequest.fromJson(json),
+      SendEmailRequest._path => SendEmailRequest.fromJson(json),
+      SendBuiltInEmailRequest._path => SendBuiltInEmailRequest.fromJson(json),
       _ => UnknownRequest(
         path: path,
         id: id,
@@ -309,12 +311,32 @@ final class UpdateRecordRequest extends MutationRequest {
   }
 }
 
-final class SendEmailRequest extends Request {
-  SendEmailRequest(this.email) : super(path: _path, id: Request.generateId());
+sealed class SendEmailRequestBase extends Request {
+  const SendEmailRequestBase({
+    required super.path,
+    required super.id,
+    super.jwt,
+  });
+
+  @override
+  @mustCallSuper
+  Map<String, dynamic> toJson() {
+    return {...super.toJson()};
+  }
+}
+
+final class SendEmailRequest extends SendEmailRequestBase {
+  SendEmailRequest(Email this.email)
+    : super(path: _path, id: Request.generateId());
+
+  SendEmailRequest._({required super.id, required this.email, super.jwt})
+    : super(path: _path);
 
   factory SendEmailRequest.fromJson(Map<String, dynamic> json) {
-    return SendEmailRequest(
-      Email.fromJson(json['email'] as Map<String, dynamic>),
+    return SendEmailRequest._(
+      id: json['id'] as String,
+      email: Email.fromJson(json['email'] as Map<String, dynamic>),
+      jwt: Jwt.maybeFromJson(json['jwt']),
     );
   }
 
@@ -325,5 +347,45 @@ final class SendEmailRequest extends Request {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'email': email.toJson()};
+  }
+}
+
+final class SendBuiltInEmailRequest extends SendEmailRequestBase {
+  SendBuiltInEmailRequest(
+    BuiltInEmails this.builtIn, {
+    required this.to,
+    this.variables,
+  }) : super(path: _path, id: Request.generateId());
+  SendBuiltInEmailRequest._({
+    required super.id,
+    required this.builtIn,
+    required this.to,
+    this.variables,
+    super.jwt,
+  }) : super(path: _path);
+
+  factory SendBuiltInEmailRequest.fromJson(Map<String, dynamic> json) {
+    return SendBuiltInEmailRequest._(
+      id: json['id'] as String,
+      builtIn: BuiltInEmails.values.byName(json['builtIn'] as String),
+      to: EmailAddress.fromJson(json['to'] as Map<String, dynamic>),
+      variables: json['variables'] as Map<String, dynamic>?,
+      jwt: Jwt.maybeFromJson(json['jwt']),
+    );
+  }
+  static const _path = '${Request.prefix}.send_built_in_email';
+
+  final BuiltInEmails builtIn;
+  final EmailAddress to;
+  final Map<String, dynamic>? variables;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'builtIn': builtIn.name,
+      'to': to.toJson(),
+      'variables': jsonDecode(jsonEncode(variables)),
+    };
   }
 }

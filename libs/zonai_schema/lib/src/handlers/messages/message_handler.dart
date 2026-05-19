@@ -8,6 +8,7 @@ import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_schema/src/handlers/messages/stdin.dart';
 import 'package:zonai_schema/src/handlers/messages/stdout.dart';
+import 'package:zonai_schema/src/types/built_in_emails.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 part 'deps/__get.dart';
@@ -125,7 +126,14 @@ class MessageHandler {
               },
               includeIfAbsent: {
                 _emailProvider.overrideWith(
-                  () => _Email((email) => sendRequest(SendEmailRequest(email))),
+                  () => _Email(
+                    (email) {
+                      sendRequest(SendEmailRequest(email));
+                    },
+                    (builtIn, to, variables) {
+                      sendRequest(SendBuiltInEmailRequest(builtIn, to: to, variables: variables));
+                    },
+                  ),
                 ),
                 _mutateProvider.overrideWith(
                   () => _Mutate(

@@ -6,7 +6,10 @@
 
 - [ ] Add OTP authentication
 - [ ] Add OAuth authentication (mixins)
-- [ ] Add passwordless authentication (mixin)
+- [ ] Add magic link authentication (mixin)
+- [ ] Add email verification
+- [ ] Add password reset
+- [ ] Add email change
 - [ ] Add impersonate
 
 ### UI
@@ -20,6 +23,7 @@
 - [ ] Filter records
   - [ ] Add search history
 - [ ] Sort by column
+- [ ] Send test email
 
 ### API
 
@@ -40,6 +44,14 @@
 - [ ] - if not compiled, before every request, check for a “stop” file (which will be generated on recompile) and restart the process. (Or check the file timestamp, and restart based off of that)
 
 ## CLI
+
+### `init` command
+
+- [ ] Create built-in email templates
+- [ ] Set up initial admin schema
+- [ ] Create zonai.yaml file, with default values
+
+### Other
 
 - write script to compile the server
 - write script to compile the web app

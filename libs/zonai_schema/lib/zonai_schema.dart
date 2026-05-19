@@ -27,6 +27,7 @@ export 'package:raindrop_sqlite/raindrop_sqlite.dart'
 
 export 'src/config/app_config.dart';
 export 'src/config/email_config.dart';
+export 'src/types/built_in_emails.dart';
 export 'src/types/email_address.dart';
 export 'src/types/email.dart';
 export 'src/column_types/email_column.dart';

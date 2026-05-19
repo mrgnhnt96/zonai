@@ -40,6 +40,56 @@ class Courier {
 
     await mailer.send(message, smtp);
   }
+
+  Future<void> sendBuiltIn(
+    BuiltInEmails builtIn,
+    Map<String, dynamic>? variables,
+  ) async {
+    final config = await configResolver.resolve();
+
+    final vars = {...?variables, 'appName': config.appName};
+
+    final email = switch (builtIn) {
+      .confirmEmailChange => Email(
+        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
+        subject: 'Confirm Email Change',
+        template: 'confirm_email_change',
+        variables: vars,
+      ),
+      .verifyEmail => Email(
+        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
+        subject: 'Verify Email',
+        template: 'verify_email',
+        variables: vars,
+      ),
+      .passwordReset => Email(
+        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
+        subject: 'Password Reset',
+        template: 'password_reset',
+        variables: vars,
+      ),
+      .optCode => Email(
+        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
+        subject: 'Opt Code',
+        template: 'opt_code',
+        variables: vars,
+      ),
+      .magicLink => Email(
+        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
+        subject: 'Magic Link',
+        template: 'magic_link',
+        variables: vars,
+      ),
+      .loginNotice => Email(
+        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
+        subject: 'Login Notice',
+        template: 'login_notice',
+        variables: vars,
+      ),
+    };
+
+    await send(email);
+  }
 }
 
 class _EmailContent {

@@ -302,6 +302,8 @@ class Mailman<S extends Request, R extends Response> {
         switch (request) {
           case final SendEmailRequest request:
             courier.send(request.email);
+          case final SendBuiltInEmailRequest request:
+            courier.sendBuiltIn(request.builtIn, request.variables);
           case final MutationRequest mutation:
             (_pendingMutations[mutation.parent.id] ??= []).add(mutation);
 
