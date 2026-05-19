@@ -32,5 +32,6 @@ class SignUpPasswordAuthPayload extends PasswordAuthPayload {
     required super.email,
     required super.password,
     super.object,
+    super.jwt,
   });
 }

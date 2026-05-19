@@ -10,6 +10,7 @@ environment:
 dependencies:
   client:
     path: ../server/.revali/revali_client
+  revali_client: ^2.0.4
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5
   universal_web: ^1.1.1

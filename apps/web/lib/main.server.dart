@@ -20,7 +20,8 @@ void main() {
       body: AsyncBuilder(
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();
-          final signedIn = context.cookies[ZonaiCookie.signedIn.key] == '1';
+          final token = context.cookies[ZonaiCookie.authToken.key];
+          final signedIn = token != null && token.isNotEmpty;
           final authTypes = signedIn ? <AuthType>[] : await loadSupportedAuthTypes();
           final initialPath = AuthRoutes.normalizePath(context.url);
           return App(

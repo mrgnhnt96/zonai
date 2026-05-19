@@ -17,6 +17,13 @@ class AuthController {
     return await authHandler.authenticate(body);
   }
 
+  @Post('admin')
+  Future<Map<String, Object?>> adminSignIn({
+    @Body() required AdminSignInAuthBody body,
+  }) async {
+    return await authHandler.adminSignIn(body);
+  }
+
   @Post('sign-in')
   Future<Map<String, Object?>> signIn({
     @Body() required SignInAuthBody body,
@@ -26,9 +33,10 @@ class AuthController {
 
   @Post('sign-up')
   Future<Map<String, Object?>> signUp({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Body() required SignUpAuthBody body,
   }) async {
-    return await authHandler.signUp(body);
+    return await authHandler.signUp(authorization, body);
   }
 
   @Delete()

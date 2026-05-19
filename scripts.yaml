@@ -42,6 +42,10 @@ server:
 playground:
   (aliases): [play]
 
+  zonai: |
+    cd apps/playground || exit 1
+    dart run zonai serve --log verbose
+
   compile: |
     cd apps/playground || exit 1
     dart run --enable-asserts zonai compile --log verbose

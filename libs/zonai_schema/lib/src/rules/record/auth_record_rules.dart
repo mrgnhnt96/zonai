@@ -12,6 +12,10 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
   /// it is the record that will be inserted into the database
   /// if [canSignUp] returns true.
   Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
+    if (jwt?.admin.isAdmin case true) {
+      return true;
+    }
+
     return switch (authType) {
       .password => true,
     };
@@ -24,6 +28,10 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
   }
 
   Future<bool> canView(Jwt? jwt, R record) async {
+    if (jwt?.admin.isAdmin case true) {
+      return true;
+    }
+
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
 
@@ -31,18 +39,30 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
   }
 
   Future<bool> canUpdate(Jwt? jwt, R record) async {
+    if (jwt?.admin.canEdit case true) {
+      return true;
+    }
+
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
     return _rowIdMatches(record, jwtUserId);
   }
 
   Future<bool> canDelete(Jwt? jwt, R record) async {
+    if (jwt?.admin.canEdit case true) {
+      return true;
+    }
+
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
     return _rowIdMatches(record, jwtUserId);
   }
 
   Future<bool> canCreate(Jwt? jwt, R record) async {
+    if (jwt?.admin.canEdit case true) {
+      return true;
+    }
+
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
     return _rowIdMatches(record, jwtUserId);

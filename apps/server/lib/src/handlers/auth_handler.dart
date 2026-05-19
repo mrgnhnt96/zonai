@@ -21,6 +21,14 @@ class AuthHandler {
     return _sessionPayload(result.user, result.jwt);
   }
 
+  Future<Map<String, Object?>> adminSignIn(AdminSignInAuthBody body) async {
+    final result = await zonaiDB.adminSignIn(
+      SignInPasswordAuthPayload(email: body.email, password: body.password),
+    );
+
+    return _sessionPayload(result.user, result.jwt);
+  }
+
   Future<Map<String, Object?>> signIn(SignInAuthBody body) async {
     final result = await zonaiDB.signIn(
       body.collection,
@@ -29,13 +37,21 @@ class AuthHandler {
     return _sessionPayload(result.user, result.jwt);
   }
 
-  Future<Map<String, Object?>> signUp(SignUpAuthBody body) async {
+  Future<Map<String, Object?>> signUp(
+    String? authorization,
+    SignUpAuthBody body,
+  ) async {
+    final token = switch (authorization) {
+      null => null,
+      final String bearerToken => _parseBearerAuthorization(bearerToken),
+    };
     final result = await zonaiDB.signUp(
       body.collection,
       SignUpPasswordAuthPayload(
         email: body.email,
         password: body.password,
         object: body.object,
+        jwt: token,
       ),
     );
     return _sessionPayload(result.user, result.jwt);

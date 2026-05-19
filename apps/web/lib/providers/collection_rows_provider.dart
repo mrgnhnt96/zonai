@@ -1,10 +1,8 @@
-import 'package:client/client.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_web/api/api_client.dart';
 
 import 'collection_focus_provider.dart';
-
-const _revaliBaseUrl = String.fromEnvironment('REVALI_BASE_URL', defaultValue: 'http://localhost:8080');
 
 final class CollectionRowsData {
   const CollectionRowsData({
@@ -25,8 +23,6 @@ final collectionRowsProvider = AsyncNotifierProvider<CollectionRowsNotifier, Col
 );
 
 class CollectionRowsNotifier extends AsyncNotifier<CollectionRowsData?> {
-  static final Server _server = Server(baseUrl: Uri.parse(_revaliBaseUrl));
-
   @override
   Future<CollectionRowsData?> build() async {
     final focus = ref.watch(collectionFocusProvider);
@@ -36,7 +32,7 @@ class CollectionRowsNotifier extends AsyncNotifier<CollectionRowsData?> {
     Map<String, Object?> data;
 
     try {
-      data = await _server.db.list(body: ListBody(collection: focus.sqliteName));
+      data = await revaliServer.db.list(body: ListBody(collection: focus.sqliteName));
     } catch (e) {
       throw StateError('Failed to get collection rows: $e');
     }

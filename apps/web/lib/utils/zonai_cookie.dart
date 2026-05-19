@@ -1,10 +1,10 @@
 import 'package:zonai_web/utils/cookie_storage.dart';
 
-/// Cookies used by the Zonai web app (non-secret UX flags, etc.).
+/// Cookies used by the Zonai web app.
 ///
-/// [signedIn] is not HttpOnly so JavaScript can set/clear it on sign-in/out.
+/// [authToken] is not HttpOnly so the client can attach it to API requests.
 enum ZonaiCookie {
-  signedIn(key: 'zonai_web_signed_in', maxAge: Duration(days: 180));
+  authToken(key: 'zonai_auth_token', maxAge: Duration(days: 180));
 
   const ZonaiCookie({required this.key, required this.maxAge});
 

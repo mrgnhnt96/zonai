@@ -7,6 +7,7 @@ sealed class AuthBody {
     return switch (json['type']) {
       SignInAuthBody._type => SignInAuthBody.fromJson(json),
       SignUpAuthBody._type => SignUpAuthBody.fromJson(json),
+      AdminSignInAuthBody._type => AdminSignInAuthBody.fromJson(json),
       _ => throw ArgumentError('Invalid auth body type: ${json['type']}'),
     };
   }
@@ -30,6 +31,32 @@ sealed class AuthBody {
   @mustCallSuper
   Map<String, dynamic> toJson() {
     return {'collection': collection, 'type': type};
+  }
+}
+
+class AdminSignInAuthBody implements SignInAuthBody {
+  const AdminSignInAuthBody({required this.email, required this.password});
+
+  static const _type = 'adminSignIn';
+
+  final String email;
+  final String password;
+  String get type => _type;
+
+  factory AdminSignInAuthBody.fromJson(Map<String, dynamic> json) {
+    return AdminSignInAuthBody(
+      email: json['email'] as String,
+      password: json['password'] as String,
+    );
+  }
+
+  Never get collection => throw UnimplementedError(
+    'AdminSignInAuthBody does not have a collection',
+  );
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {'type': type, 'email': email, 'password': password};
   }
 }
 

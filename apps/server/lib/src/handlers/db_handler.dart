@@ -4,53 +4,133 @@ import 'package:zonai_schema/zonai_schema.dart';
 class DbHandler {
   const DbHandler();
 
-  Future<Map<String, Object?>> get(GetBody body) async {
-    return await zonaiDB.read(body.collection, .new(where: body.where));
-  }
-
-  Future<Paginated<Map<String, Object?>>> list(ListBody body) async {
-    return await zonaiDB.list(
+  Future<Map<String, Object?>> get(String? authorization, GetBody body) async {
+    return await zonaiDB.read(
       body.collection,
-      .new(where: body.where, limit: body.limit, offset: body.offset),
+      .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
     );
   }
 
-  Future<Map<String, Object?>> create(CreateBody body) async {
-    return await zonaiDB.create(body.collection, .new(object: body.object));
+  Future<Paginated<Map<String, Object?>>> list(
+    String? authorization,
+    ListBody body,
+  ) async {
+    return await zonaiDB.list(
+      body.collection,
+      .new(
+        where: body.where,
+        limit: body.limit,
+        offset: body.offset,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
+    );
   }
 
-  Future<Map<String, Object?>> update(UpdateOneBody body) async {
+  Future<Map<String, Object?>> create(
+    String? authorization,
+    CreateBody body,
+  ) async {
+    return await zonaiDB.create(
+      body.collection,
+      .new(object: body.object, jwt: _parseBearerAuthorization(authorization)),
+    );
+  }
+
+  Future<Map<String, Object?>> update(
+    String? authorization,
+    UpdateOneBody body,
+  ) async {
     final result = await zonaiDB.update(
       body.collection,
-      .new(where: body.where, limit: body.limit, updates: body.updates),
+      .new(
+        where: body.where,
+        limit: body.limit,
+        updates: body.updates,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
     );
 
     return result.single;
   }
 
-  Future<List<Map<String, Object?>>> updateMany(UpdateBody body) async {
+  Future<List<Map<String, Object?>>> updateMany(
+    String? authorization,
+    UpdateBody body,
+  ) async {
     return await zonaiDB.update(
       body.collection,
-      .new(where: body.where, limit: body.limit, updates: body.updates),
+      .new(
+        where: body.where,
+        limit: body.limit,
+        updates: body.updates,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
     );
   }
 
-  Future<void> delete(DeleteOneBody body) async {
-    await zonaiDB.delete('items', .new(where: body.where, limit: body.limit));
+  Future<void> delete(String? authorization, DeleteOneBody body) async {
+    await zonaiDB.delete(
+      'items',
+      .new(
+        where: body.where,
+        limit: body.limit,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
+    );
   }
 
-  Future<void> deleteMany(DeleteBody body) async {
-    await zonaiDB.delete('items', .new(where: body.where, limit: body.limit));
+  Future<void> deleteMany(String? authorization, DeleteBody body) async {
+    await zonaiDB.delete(
+      'items',
+      .new(
+        where: body.where,
+        limit: body.limit,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
+    );
   }
 
-  Stream<Map<String, Object?>> streamOne(StreamBody body) {
-    return zonaiDB.streamOne(body.collection, .new(where: body.where));
+  Stream<Map<String, Object?>> streamOne(
+    String? authorization,
+    StreamBody body,
+  ) {
+    return zonaiDB.streamOne(
+      body.collection,
+      .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
+    );
   }
 
-  Stream<List<Map<String, Object?>>> streamList(StreamListBody body) {
+  Stream<List<Map<String, Object?>>> streamList(
+    String? authorization,
+    StreamListBody body,
+  ) {
     return zonaiDB.streamList(
       body.collection,
-      .new(where: body.where, limit: body.limit, offset: body.offset),
+      .new(
+        where: body.where,
+        limit: body.limit,
+        offset: body.offset,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
     );
+  }
+
+  String? _parseBearerAuthorization(String? authorizationHeader) {
+    if (authorizationHeader == null) {
+      return null;
+    }
+
+    final trimmed = authorizationHeader.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+
+    const prefix = 'Bearer ';
+    if (trimmed.length >= prefix.length &&
+        trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
+      return trimmed.substring(prefix.length).trim();
+    }
+
+    return null;
   }
 }

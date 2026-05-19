@@ -54,6 +54,11 @@ class SignInScreen extends StatelessComponent {
         fontSize: 0.95.rem,
         color: const Color('#64748b'),
       ),
+      css('.error').styles(
+        margin: .only(bottom: 16.px),
+        fontSize: 0.875.rem,
+        color: const Color('#b91c1c'),
+      ),
       css('.field').styles(margin: .only(bottom: 18.px)),
       css('.label').styles(
         display: .block,
@@ -147,12 +152,38 @@ class PasswordSignInForm extends StatefulComponent {
 class PasswordSignInFormState extends State<PasswordSignInForm> {
   String _email = '';
   String _password = '';
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _submit() async {
+    if (_loading) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await context.read(authProvider.notifier).signInWithPassword(
+        email: _email,
+        password: _password,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Sign in failed. Check your email and password.';
+      });
+    }
+  }
 
   @override
   Component build(BuildContext context) {
     return div(classes: 'card', [
       h1(classes: 'title', [.text('Sign in')]),
       p(classes: 'subtitle', [.text('Enter your credentials to continue.')]),
+      if (_error case final error?)
+        p(classes: 'error', [.text(error)]),
       div(classes: 'field', [
         label(htmlFor: 'sign-in-email', classes: 'label', [.text('Email')]),
         input<String>(
@@ -180,10 +211,8 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
       button(
         classes: 'submit',
         type: .button,
-        onClick: () {
-          context.read(authProvider.notifier).signIn();
-        },
-        [.text('Sign in')],
+        onClick: _loading ? null : () => _submit(),
+        [.text(_loading ? 'Signing in…' : 'Sign in')],
       ),
     ]);
   }

@@ -26,7 +26,7 @@ class HomeScreen extends StatelessComponent {
         if (tables.loadError case final error?)
           div(classes: 'tables-pane-error', [
             p(classes: 'tables-pane-msg', [.text('Could not load collections.')]),
-            p(classes: 'tables-pane-err-detail', [.text(error)]),
+            pre(classes: 'tables-pane-err-detail', [.text(error)]),
           ])
         else if (tables.collections.isEmpty)
           p(classes: 'tables-pane-msg', [.text('No collections yet.')])
@@ -54,7 +54,9 @@ class HomeScreen extends StatelessComponent {
             button(
               classes: 'sign-out',
               type: .button,
-              onClick: () => context.read(authProvider.notifier).signOut(),
+              onClick: () {
+                context.read(authProvider.notifier).signOut();
+              },
               [.text('Sign out')],
             ),
           ]),
@@ -96,9 +98,16 @@ class HomeScreen extends StatelessComponent {
           ),
           css('.tables-pane-msg').styles(fontSize: 0.875.rem, color: const Color('#64748b')),
           css('.tables-pane-error').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(8.px)),
-          css(
-            '.tables-pane-err-detail',
-          ).styles(fontSize: 0.75.rem, color: const Color('#b91c1c'), raw: {'overflow-wrap': 'anywhere'}),
+          css('.tables-pane-err-detail').styles(
+            fontSize: 0.75.rem,
+            color: const Color('#b91c1c'),
+            margin: .zero,
+            raw: const {
+              'overflow-wrap': 'anywhere',
+              'white-space': 'pre-wrap',
+              'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            },
+          ),
           css('.tables-list').styles(
             margin: .zero,
             padding: .zero,
@@ -183,6 +192,34 @@ class HomeScreen extends StatelessComponent {
             color: const Color('#64748b'),
             textAlign: .center,
           ),
+          css('.collection-detail-error').styles(
+            flex: Flex(grow: 1, shrink: 1),
+            display: .flex,
+            flexDirection: FlexDirection.column,
+            gap: Gap.all(12.px),
+            padding: .all(20.px),
+            border: .all(color: const Color('#fecaca'), width: 1.px, style: .solid),
+            radius: .all(Radius.circular(12.px)),
+            backgroundColor: const Color('#fef2f2'),
+            overflow: Overflow.auto,
+            minHeight: .zero,
+          ),
+          css('.collection-detail-error-title').styles(
+            margin: .zero,
+            fontSize: 0.95.rem,
+            fontWeight: .w600,
+            color: const Color('#b91c1c'),
+          ),
+          css('.collection-detail-error-detail').styles(
+            margin: .zero,
+            fontSize: 0.8125.rem,
+            color: const Color('#991b1b'),
+            raw: const {
+              'white-space': 'pre-wrap',
+              'overflow-wrap': 'anywhere',
+              'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            },
+          ),
           css('.collection-detail-panel').styles(
             flex: Flex(grow: 1, shrink: 1),
             display: .flex,
@@ -254,8 +291,9 @@ class _CollectionMain extends StatelessComponent {
     switch (rowsAsync) {
       case AsyncError(:final error):
         children.add(
-          div(classes: 'collection-detail-empty', [
-            p(classes: 'collection-detail-empty-msg', [.text('Could not load rows: $error')]),
+          div(classes: 'collection-detail-error', [
+            p(classes: 'collection-detail-error-title', [.text('Could not load rows')]),
+            pre(classes: 'collection-detail-error-detail', [.text(_errorText(error))]),
           ]),
         );
       case AsyncLoading():
@@ -312,5 +350,12 @@ class _CollectionMain extends StatelessComponent {
   static String _formatCell(Object? cell) {
     if (cell == null) return '—';
     return '$cell';
+  }
+
+  static String _errorText(Object error) {
+    return switch (error) {
+      StateError(:final message) => message,
+      _ => error.toString(),
+    };
   }
 }
