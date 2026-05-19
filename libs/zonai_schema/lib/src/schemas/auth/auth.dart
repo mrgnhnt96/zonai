@@ -6,7 +6,11 @@ abstract class Auth {
   ColumnType<Id> get id;
 }
 
-base mixin PasswordAuth on Auth implements SupportedAuths {
+mixin HasEmail on Auth {
+  EmailColumn get email;
+}
+
+base mixin PasswordAuth on Auth implements SupportedAuths, HasEmail {
   EmailColumn get email;
   PasswordColumn get passwordHash;
 

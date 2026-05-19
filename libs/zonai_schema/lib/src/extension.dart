@@ -14,9 +14,16 @@ abstract class Extension<T> {
 
 mixin CreateExtension<R> on Extension<R> {
   Future<void> beforeCreate(R object, Jwt? jwt) async {}
+
+  /// Called after a user is created successfully
+  ///
+  /// By default, sends a [email.send.loginNotice] to the user's email address
+  /// if the collection is a [HasEmail] collection
   Future<void> afterCreateSuccess(R row, Jwt? jwt) async {
-    if (row case PasswordAuth() when this is AuthExtension) {
-      email.send.loginNotice(EmailAddress(address: row.email));
+    if (row case HasEmail(email: final emailColumn)) {
+      if (emailColumn.$.valueOf?.call(row) case final String userEmail) {
+        email.send.loginNotice(EmailAddress(address: userEmail));
+      }
     }
   }
 
@@ -36,15 +43,27 @@ mixin DeleteExtension<R> on Extension<R> {
 }
 
 mixin AuthExtension<R> on Extension<R> {
+  /// Called when a user signs up
+  ///
+  /// By default, sends a [email.send.verifyEmail] to the user's email address
+  /// if the collection is a [HasEmail] collection
   Future<void> onSignUp(R user, Jwt? jwt) async {
-    if (user case PasswordAuth()) {
-      email.send.verifyEmail(EmailAddress(address: user.email));
+    if (schema case HasEmail(email: final emailColumn)) {
+      if (emailColumn.$.valueOf?.call(user) case final String userEmail) {
+        email.send.verifyEmail(EmailAddress(address: userEmail));
+      }
     }
   }
 
+  /// Called when a user signs in
+  ///
+  /// By default, sends a [email.send.loginNotice] to the user's email address
+  /// if the collection is a [HasEmail] collection
   Future<void> onSignIn(R user, Jwt? jwt) async {
-    if (user case PasswordAuth()) {
-      email.send.loginNotice(EmailAddress(address: user.email));
+    if (schema case HasEmail(email: final emailColumn)) {
+      if (emailColumn.$.valueOf?.call(user) case final String userEmail) {
+        email.send.loginNotice(EmailAddress(address: userEmail));
+      }
     }
   }
 

@@ -18,7 +18,8 @@ class Courier {
 
     final emailConfig = config.email;
     if (emailConfig == null) {
-      throw Exception('Missing email configuration with $AppConfig');
+      logger.warn('Cannot send email because email configuration is missing');
+      return;
     }
 
     final message = Message()
