@@ -1,11 +1,29 @@
 import 'package:zonai_schema/payloads.dart';
 
-/// Sign-in URL paths for the web app.
+/// URL paths for the web app.
 abstract final class AuthRoutes {
   static const home = '/';
   static const signIn = '/sign-in';
+  static const collections = '/collections';
 
   static String forType(AuthType type) => '$signIn/${type.name}';
+
+  static String forCollection(String sqliteName) => '$collections/${Uri.encodeComponent(sqliteName)}';
+
+  static String? collectionSqliteNameFromPath(String path) {
+    final normalized = normalizePath(path);
+    final prefix = '$collections/';
+    if (!normalized.startsWith(prefix)) {
+      return null;
+    }
+
+    final segment = normalized.substring(prefix.length);
+    if (segment.isEmpty || segment.contains('/')) {
+      return null;
+    }
+
+    return Uri.decodeComponent(segment);
+  }
 
   static bool isSignInPath(String path) {
     final normalized = normalizePath(path);

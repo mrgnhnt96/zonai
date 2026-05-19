@@ -63,7 +63,8 @@ class AuthNotifier extends Notifier<bool> {
 
     final route = ref.read(authRouteProvider.notifier);
     if (signedIn) {
-      if (AuthRoutes.isSignInPath(ref.read(authRouteProvider))) {
+      final path = ref.read(authRouteProvider);
+      if (AuthRoutes.isSignInPath(path)) {
         route.navigateTo(AuthRoutes.home);
       }
       return;
