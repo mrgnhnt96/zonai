@@ -11,23 +11,24 @@ import 'auth/auth_routes.dart';
 import 'auth/supported_auth_types_provider.dart';
 import 'components/home_screen.dart';
 import 'components/login_flow.dart';
+import 'components/page_title_head.dart';
+import 'providers/app_name_provider.dart';
 import 'providers/sqlite_tables_provider.dart';
 
 /// Root widget mounted into `<body>` by [runApp].
 class App extends StatelessComponent {
   const App({
     super.key,
+    required this.appConfig,
     required this.initialSqliteNames,
     required this.initialDisplayNames,
     this.tablesLoadError,
     required this.initialSignedIn,
     required this.initialPath,
     required this.initialAuthTypes,
-  }) : assert(
-          initialSqliteNames.length == initialDisplayNames.length,
-          'SQLite names and display labels must align',
-        );
+  }) : assert(initialSqliteNames.length == initialDisplayNames.length, 'SQLite names and display labels must align');
 
+  final AppConfig appConfig;
   final List<String> initialSqliteNames;
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
@@ -44,9 +45,8 @@ class App extends StatelessComponent {
         tablesLoadError: tablesLoadError,
         initialSignedIn: initialSignedIn,
         initialPath: initialPath,
-        initialAuthTypeNames: [
-          for (final type in initialAuthTypes) type.name,
-        ],
+        initialAppName: appConfig.appName,
+        initialAuthTypeNames: [for (final type in initialAuthTypes) type.name],
       ),
     ]);
   }
@@ -64,17 +64,16 @@ class AppShell extends StatelessComponent {
     this.tablesLoadError,
     required this.initialSignedIn,
     required this.initialPath,
+    required this.initialAppName,
     required this.initialAuthTypeNames,
-  }) : assert(
-          initialSqliteNames.length == initialDisplayNames.length,
-          'SQLite names and display labels must align',
-        );
+  }) : assert(initialSqliteNames.length == initialDisplayNames.length, 'SQLite names and display labels must align');
 
   final List<String> initialSqliteNames;
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
   final bool initialSignedIn;
   final String initialPath;
+  final String initialAppName;
   final List<String> initialAuthTypeNames;
 
   @override
@@ -83,19 +82,18 @@ class AppShell extends StatelessComponent {
       for (var i = 0; i < initialSqliteNames.length; i++)
         SqliteCollectionRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
     ];
-    final initialAuthTypes = [
-      for (final name in initialAuthTypeNames) AuthType.values.byName(name),
-    ];
+    final initialAuthTypes = [for (final name in initialAuthTypeNames) AuthType.values.byName(name)];
     return ProviderScope(
       overrides: [
-        sqliteTablesProvider.overrideWithValue(SqliteTablesSnapshot(collections: collections, loadError: tablesLoadError)),
-        authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),
-        authRouteProvider.overrideWith(
-          () => AuthRouteNotifier(initialPath: initialPath),
+        sqliteTablesProvider.overrideWithValue(
+          SqliteTablesSnapshot(collections: collections, loadError: tablesLoadError),
         ),
+        authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),
+        authRouteProvider.overrideWith(() => AuthRouteNotifier(initialPath: initialPath)),
         supportedAuthTypesProvider.overrideWithValue(initialAuthTypes),
+        appNameProvider.overrideWithValue(initialAppName),
       ],
-      child: const _AuthGate(),
+      child: Component.fragment([const PageTitleHead(), const _AuthGate()]),
     );
   }
 }

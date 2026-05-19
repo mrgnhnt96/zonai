@@ -227,7 +227,7 @@ class Mailman<S extends Request, R extends Response> {
 
     final p = _process = await process.start(executablePath, []);
     p.exitCode.whenComplete(() {
-      logger.warn('[$_prefix]: Exited');
+      logger.warn('$_prefix: Exited');
       _process = null;
       for (final completer in _pendingResponses.values) {
         completer.completeError(Exception('Process killed'));

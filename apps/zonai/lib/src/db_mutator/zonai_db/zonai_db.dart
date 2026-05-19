@@ -89,6 +89,10 @@ class ZonaiDb {
 
   File? __dbFile;
 
+  Future<AppConfig> getConfig() async {
+    return _run(() => configResolver.resolve());
+  }
+
   Future<_AuthResult> authenticate(
     String collection,
     AuthPayload payload,

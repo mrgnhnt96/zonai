@@ -8,6 +8,7 @@ import 'app.dart';
 import 'constants/theme.dart';
 import 'auth/auth_routes.dart';
 import 'main.server.options.dart';
+import 'server/app_config.dart';
 import 'server/sqlite_table_names.dart';
 import 'server/supported_auth_types.dart';
 import 'utils/zonai_cookie.dart';
@@ -17,10 +18,7 @@ void main() {
 
   runApp(
     Document(
-      title: 'Zonai — Sign in',
-      head: [
-        script(content: themeBootstrapScript),
-      ],
+      head: [script(content: themeBootstrapScript)],
       body: AsyncBuilder(
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();
@@ -28,8 +26,10 @@ void main() {
           final signedIn = token != null && token.isNotEmpty;
           // Always load so sign-out after an authenticated refresh still has auth types.
           final authTypes = await loadSupportedAuthTypes();
+          final appConfig = await loadAppConfig();
           final initialPath = AuthRoutes.normalizePath(context.url);
           return App(
+            appConfig: appConfig,
             initialSqliteNames: tables.sqliteNames,
             initialDisplayNames: tables.displayNames,
             tablesLoadError: tables.error,

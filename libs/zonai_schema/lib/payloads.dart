@@ -13,3 +13,4 @@ export 'src/payloads/stream_body.dart';
 export 'src/payloads/stream_list_body.dart';
 export 'src/payloads/update_body.dart';
 export 'src/types/supported_auths.dart';
+export 'src/config/app_config.dart';

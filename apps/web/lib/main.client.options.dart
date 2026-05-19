@@ -35,6 +35,7 @@ ClientOptions get defaultClientOptions => ClientOptions(
         tablesLoadError: p['tablesLoadError'] as String?,
         initialSignedIn: p['initialSignedIn'] as bool,
         initialPath: p['initialPath'] as String,
+        initialAppName: p['initialAppName'] as String,
         initialAuthTypeNames: (p['initialAuthTypeNames'] as List<Object?>)
             .cast<String>(),
       ),

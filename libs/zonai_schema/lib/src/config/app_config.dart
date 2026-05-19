@@ -7,6 +7,7 @@
 /// [passwordSecretsForVerify] / [jwtSecretsForVerify] in order.
 final class AppConfig {
   const AppConfig({
+    required this.appName,
     required this.passwordSecret,
     required this.jwtSecret,
     this.previousPasswordSecrets = const [],
@@ -14,11 +15,15 @@ final class AppConfig {
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(
+    appName: json['appName'] as String,
     passwordSecret: json['passwordSecret'] as String,
     jwtSecret: json['jwtSecret'] as String,
     previousPasswordSecrets: _stringList(json['previousPasswordSecrets']),
     previousJwtSecrets: _stringList(json['previousJwtSecrets']),
   );
+
+  /// Display name for the app (browser title, UI branding).
+  final String appName;
 
   final String passwordSecret;
   final String jwtSecret;
@@ -39,6 +44,7 @@ final class AppConfig {
       List<String>.unmodifiable([jwtSecret, ...previousJwtSecrets]);
 
   Map<String, dynamic> toJson() => {
+    'appName': appName,
     'passwordSecret': passwordSecret,
     'jwtSecret': jwtSecret,
     'previousPasswordSecrets': previousPasswordSecrets,
