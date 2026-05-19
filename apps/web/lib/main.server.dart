@@ -1,9 +1,11 @@
 /// Server entry: pre-renders [Document] and [App] for each request.
 library;
 
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'app.dart';
+import 'constants/theme.dart';
 import 'auth/auth_routes.dart';
 import 'main.server.options.dart';
 import 'server/sqlite_table_names.dart';
@@ -16,6 +18,9 @@ void main() {
   runApp(
     Document(
       title: 'Zonai — Sign in',
+      head: [
+        script(content: themeBootstrapScript),
+      ],
       body: AsyncBuilder(
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();

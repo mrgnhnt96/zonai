@@ -9,6 +9,7 @@ import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
 import '../constants/theme.dart';
+import 'theme_toggle.dart';
 
 /// Shared layout for sign-in screens.
 class SignInScreen extends StatelessComponent {
@@ -18,18 +19,25 @@ class SignInScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return main_(classes: 'sign-in', [child]);
+    return main_(classes: 'sign-in', [
+      div(classes: 'sign-in-theme', [const ThemeToggle()]),
+      child,
+    ]);
   }
 
   @css
   static List<StyleRule> get styles => [
-    css('.sign-in', [
+      css('.sign-in', [
       css('&').styles(
         flex: Flex(grow: 1, shrink: 0),
         display: .flex,
         alignItems: .center,
         justifyContent: .center,
         padding: .all(24.px),
+        position: Position.relative(),
+      ),
+      css('.sign-in-theme').styles(
+        position: Position.absolute(top: 20.px, right: 20.px),
       ),
       css('.card').styles(
         width: 100.percent,
@@ -37,13 +45,7 @@ class SignInScreen extends StatelessComponent {
         backgroundColor: surfaceColor,
         padding: .all(32.px),
         radius: .all(Radius.circular(16.px)),
-        shadow: BoxShadow(
-          offsetX: Unit.zero,
-          offsetY: 12.px,
-          blur: 40.px,
-          spread: (-8).px,
-          color: Colors.black.withOpacity(0.08),
-        ),
+        raw: const {'box-shadow': 'var(--zonai-shadow)'},
       ),
       css('.title').styles(
         margin: .only(bottom: 8.px),
@@ -53,12 +55,12 @@ class SignInScreen extends StatelessComponent {
       css('.subtitle').styles(
         margin: .only(bottom: 28.px),
         fontSize: 0.95.rem,
-        color: const Color('#64748b'),
+        color: mutedColor,
       ),
       css('.error').styles(
         margin: .only(bottom: 16.px),
         fontSize: 0.875.rem,
-        color: const Color('#b91c1c'),
+        color: errorColor,
       ),
       css('.field').styles(margin: .only(bottom: 18.px)),
       css('.label').styles(
@@ -73,6 +75,8 @@ class SignInScreen extends StatelessComponent {
         padding: .symmetric(horizontal: 12.px, vertical: 10.px),
         radius: .all(Radius.circular(8.px)),
         border: .all(color: borderColor, width: 1.px, style: .solid),
+        backgroundColor: surfaceColor,
+        color: fgColor,
         fontSize: 1.rem,
         outline: Outline(style: OutlineStyle.none),
       ),
@@ -88,10 +92,10 @@ class SignInScreen extends StatelessComponent {
         border: Border.none,
         fontWeight: .w600,
         fontSize: 1.rem,
-        color: Colors.white,
+        color: onPrimaryColor,
         backgroundColor: primaryColor,
       ),
-      css('.submit:hover, .auth-type:hover').styles(backgroundColor: const Color('#014a84')),
+      css('.submit:hover, .auth-type:hover').styles(backgroundColor: primaryHoverColor),
       css('.auth-type + .auth-type').styles(margin: .only(top: 12.px)),
     ]),
   ];

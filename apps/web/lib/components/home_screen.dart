@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import '../auth/auth_provider.dart';
+import 'theme_toggle.dart';
 import '../constants/theme.dart';
 import '../providers/collection_focus_provider.dart';
 import '../providers/collection_rows_provider.dart';
@@ -51,6 +52,7 @@ class HomeScreen extends StatelessComponent {
       div(classes: 'home-main', [
         div(classes: 'home-main-inner', [
           div(classes: 'home-toolbar', [
+            const ThemeToggle(),
             button(
               classes: 'sign-out',
               type: .button,
@@ -93,14 +95,14 @@ class HomeScreen extends StatelessComponent {
             fontSize: 0.75.rem,
             fontWeight: .w600,
             letterSpacing: 0.04.rem,
-            color: const Color('#64748b'),
+            color: mutedColor,
             textTransform: .upperCase,
           ),
-          css('.tables-pane-msg').styles(fontSize: 0.875.rem, color: const Color('#64748b')),
+          css('.tables-pane-msg').styles(fontSize: 0.875.rem, color: mutedColor),
           css('.tables-pane-error').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(8.px)),
           css('.tables-pane-err-detail').styles(
             fontSize: 0.75.rem,
-            color: const Color('#b91c1c'),
+            color: errorColor,
             margin: .zero,
             raw: const {
               'overflow-wrap': 'anywhere',
@@ -134,10 +136,10 @@ class HomeScreen extends StatelessComponent {
             raw: const {'font': 'inherit'},
           ),
           css('.tables-item:hover .tables-item-button').styles(
-            backgroundColor: const Color('#f8fafc'),
+            backgroundColor: hoverColor,
           ),
           css('.tables-item-focused .tables-item-button').styles(
-            backgroundColor: const Color('#eff6ff'),
+            backgroundColor: selectedBgColor,
             color: primaryColor,
             fontWeight: .w600,
           ),
@@ -163,6 +165,7 @@ class HomeScreen extends StatelessComponent {
           css('.home-toolbar').styles(
             display: .flex,
             flexDirection: FlexDirection.row,
+            gap: Gap.all(8.px),
             raw: const {'justify-content': 'flex-end'},
           ),
           css('.sign-out').styles(
@@ -175,7 +178,7 @@ class HomeScreen extends StatelessComponent {
             color: primaryColor,
             backgroundColor: Colors.transparent,
           ),
-          css('.sign-out:hover').styles(backgroundColor: const Color('#f8fafc')),
+          css('.sign-out:hover').styles(backgroundColor: hoverColor),
           css('.collection-detail-empty').styles(
             flex: Flex(grow: 1, shrink: 1),
             display: .flex,
@@ -189,7 +192,7 @@ class HomeScreen extends StatelessComponent {
           css('.collection-detail-empty-msg').styles(
             margin: .zero,
             fontSize: 0.95.rem,
-            color: const Color('#64748b'),
+            color: mutedColor,
             textAlign: .center,
           ),
           css('.collection-detail-error').styles(
@@ -198,9 +201,9 @@ class HomeScreen extends StatelessComponent {
             flexDirection: FlexDirection.column,
             gap: Gap.all(12.px),
             padding: .all(20.px),
-            border: .all(color: const Color('#fecaca'), width: 1.px, style: .solid),
+            border: .all(color: errorBorderColor, width: 1.px, style: .solid),
             radius: .all(Radius.circular(12.px)),
-            backgroundColor: const Color('#fef2f2'),
+            backgroundColor: errorBgColor,
             overflow: Overflow.auto,
             minHeight: .zero,
           ),
@@ -208,12 +211,12 @@ class HomeScreen extends StatelessComponent {
             margin: .zero,
             fontSize: 0.95.rem,
             fontWeight: .w600,
-            color: const Color('#b91c1c'),
+            color: errorColor,
           ),
           css('.collection-detail-error-detail').styles(
             margin: .zero,
             fontSize: 0.8125.rem,
-            color: const Color('#991b1b'),
+            color: errorFgColor,
             raw: const {
               'white-space': 'pre-wrap',
               'overflow-wrap': 'anywhere',
@@ -246,22 +249,26 @@ class HomeScreen extends StatelessComponent {
             raw: const {'border-collapse': 'collapse'},
           ),
           css('.rows-table th').styles(
-            backgroundColor: const Color('#f8fafc'),
+            backgroundColor: tableHeaderBgColor,
             textAlign: .left,
             padding: .symmetric(horizontal: 12.px, vertical: 10.px),
             fontWeight: .w600,
             raw: const {
               'position': 'sticky',
               'top': '0',
-              'border-bottom': '1px solid #e2e8f0',
+              'border-bottom': '1px solid var(--zonai-border)',
               'white-space': 'nowrap',
             },
           ),
           css('.rows-table td').styles(
             padding: .symmetric(horizontal: 12.px, vertical: 8.px),
-            raw: const {'border-bottom': '1px solid #e2e8f0', 'vertical-align': 'top', 'max-width': '320px'},
+            raw: const {
+              'border-bottom': '1px solid var(--zonai-border)',
+              'vertical-align': 'top',
+              'max-width': '320px',
+            },
           ),
-          css('.collection-rows-foot').styles(fontSize: 0.8125.rem, color: const Color('#64748b')),
+          css('.collection-rows-foot').styles(fontSize: 0.8125.rem, color: mutedColor),
         ]),
       ];
 }
