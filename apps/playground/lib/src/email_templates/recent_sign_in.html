@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Recent sign-in to {{appName}}</title>
+    <!--[if mso]>
+      <noscript>
+        <xml>
+          <o:OfficeDocumentSettings>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+          </o:OfficeDocumentSettings>
+        </xml>
+      </noscript>
+    <![endif]-->
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      width: 100% !important;
+      height: 100% !important;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        &quot;Segoe UI&quot;,
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    "
+  >
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="background-color: #f1f5f9"
+    >
+      <tr>
+        <td align="center" style="padding: 40px 16px">
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="100%"
+            style="max-width: 560px"
+          >
+            <!-- Header -->
+            <tr>
+              <td align="center" style="padding-bottom: 24px">
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 13px;
+                    line-height: 20px;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    color: #64748b;
+                    font-weight: 600;
+                  "
+                >
+                  {{appName}}
+                </p>
+              </td>
+            </tr>
+
+            <!-- Card -->
+            <tr>
+              <td
+                style="
+                  background-color: #ffffff;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 12px;
+                  padding: 40px 32px;
+                  box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.08);
+                "
+              >
+                <h1
+                  style="
+                    margin: 0 0 12px;
+                    font-size: 28px;
+                    line-height: 36px;
+                    font-weight: 600;
+                    color: #0f172a;
+                  "
+                >
+                  Recent sign-in
+                </h1>
+
+                <p
+                  style="
+                    margin: 0 0 24px;
+                    font-size: 16px;
+                    line-height: 24px;
+                    color: #334155;
+                  "
+                >
+                  Hi{{#name}} {{name}}{{/name}}, we noticed a new sign-in to
+                  your {{appName}} account for
+                  <strong style="color: #0f172a">{{email}}</strong>.
+                </p>
+
+                <!-- Sign-in details -->
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  width="100%"
+                  style="
+                    margin: 0 0 24px;
+                    background-color: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                  "
+                >
+                  <tr>
+                    <td style="padding: 20px 24px">
+                      <table
+                        role="presentation"
+                        cellpadding="0"
+                        cellspacing="0"
+                        border="0"
+                        width="100%"
+                      >
+                        <tr>
+                          <td
+                            style="
+                              padding: 0 0 12px;
+                              font-size: 13px;
+                              line-height: 20px;
+                              font-weight: 600;
+                              color: #64748b;
+                              text-transform: uppercase;
+                              letter-spacing: 0.06em;
+                            "
+                          >
+                            When
+                          </td>
+                        </tr>
+                        <tr>
+                          <td
+                            style="
+                              padding: 0 0 16px;
+                              font-size: 15px;
+                              line-height: 22px;
+                              color: #0f172a;
+                            "
+                          >
+                            {{signedInAt}}
+                          </td>
+                        </tr>
+                        {{#location}}
+                        <tr>
+                          <td
+                            style="
+                              padding: 0 0 12px;
+                              font-size: 13px;
+                              line-height: 20px;
+                              font-weight: 600;
+                              color: #64748b;
+                              text-transform: uppercase;
+                              letter-spacing: 0.06em;
+                            "
+                          >
+                            Location
+                          </td>
+                        </tr>
+                        <tr>
+                          <td
+                            style="
+                              padding: 0 0 16px;
+                              font-size: 15px;
+                              line-height: 22px;
+                              color: #0f172a;
+                            "
+                          >
+                            {{location}}
+                          </td>
+                        </tr>
+                        {{/location}}
+                        {{#ipAddress}}
+                        <tr>
+                          <td
+                            style="
+                              padding: 0 0 12px;
+                              font-size: 13px;
+                              line-height: 20px;
+                              font-weight: 600;
+                              color: #64748b;
+                              text-transform: uppercase;
+                              letter-spacing: 0.06em;
+                            "
+                          >
+                            IP address
+                          </td>
+                        </tr>
+                        <tr>
+                          <td
+                            style="
+                              padding: 0 0 16px;
+                              font-size: 15px;
+                              line-height: 22px;
+                              color: #0f172a;
+                            "
+                          >
+                            {{ipAddress}}
+                          </td>
+                        </tr>
+                        {{/ipAddress}}
+                        {{#device}}
+                        <tr>
+                          <td
+                            style="
+                              padding: 0 0 12px;
+                              font-size: 13px;
+                              line-height: 20px;
+                              font-weight: 600;
+                              color: #64748b;
+                              text-transform: uppercase;
+                              letter-spacing: 0.06em;
+                            "
+                          >
+                            Device
+                          </td>
+                        </tr>
+                        <tr>
+                          <td
+                            style="
+                              padding: 0;
+                              font-size: 15px;
+                              line-height: 22px;
+                              color: #0f172a;
+                            "
+                          >
+                            {{device}}
+                          </td>
+                        </tr>
+                        {{/device}}
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <p
+                  style="
+                    margin: 0 0 24px;
+                    font-size: 16px;
+                    line-height: 24px;
+                    color: #334155;
+                  "
+                >
+                  If this was you, no action is needed. If you do not recognize
+                  this sign-in, secure your account right away.
+                </p>
+
+                <!-- Button -->
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  width="100%"
+                  style="margin: 0 0 24px"
+                >
+                  <tr>
+                    <td align="center">
+                      <table
+                        role="presentation"
+                        cellpadding="0"
+                        cellspacing="0"
+                        border="0"
+                      >
+                        <tr>
+                          <td
+                            align="center"
+                            bgcolor="#01589B"
+                            style="border-radius: 8px"
+                          >
+                            <a
+                              href="{{secureAccountUrl}}"
+                              target="_blank"
+                              style="
+                                display: inline-block;
+                                padding: 14px 28px;
+                                font-size: 16px;
+                                line-height: 24px;
+                                font-weight: 600;
+                                color: #ffffff;
+                                text-decoration: none;
+                                border-radius: 8px;
+                                background-color: #01589b;
+                              "
+                            >
+                              Secure your account
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Footer notice -->
+                <p
+                  style="
+                    margin: 0;
+                    padding-top: 24px;
+                    border-top: 1px solid #e2e8f0;
+                    font-size: 14px;
+                    line-height: 22px;
+                    color: #64748b;
+                  "
+                >
+                  This is an automated security notice from {{appName}}. If you
+                  did not sign in, change your password and review your active
+                  sessions as soon as possible.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" style="padding-top: 24px">
+                <p
+                  style="
+                    margin: 0;
+                    font-size: 12px;
+                    line-height: 18px;
+                    color: #94a3b8;
+                  "
+                >
+                  Sent by {{appName}}. Please do not reply to this message.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
