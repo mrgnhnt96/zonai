@@ -2,7 +2,6 @@
 library;
 
 import 'package:jaspr/server.dart';
-import 'package:zonai_schema/payloads.dart';
 
 import 'app.dart';
 import 'auth/auth_routes.dart';
@@ -22,7 +21,8 @@ void main() {
           final tables = loadZonaiSqliteTableNames();
           final token = context.cookies[ZonaiCookie.authToken.key];
           final signedIn = token != null && token.isNotEmpty;
-          final authTypes = signedIn ? <AuthType>[] : await loadSupportedAuthTypes();
+          // Always load so sign-out after an authenticated refresh still has auth types.
+          final authTypes = await loadSupportedAuthTypes();
           final initialPath = AuthRoutes.normalizePath(context.url);
           return App(
             initialSqliteNames: tables.sqliteNames,
