@@ -3,9 +3,9 @@ import 'package:zonai_schema/src/types/id.dart';
 import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 
 extension IdColumnDefinition<S> on SchemaBuilder<S> {
-  T id<T extends IdColumn<Id>?>(
+  T id<T extends IdColumn<Id>?, V extends Id?>(
     String name,
-    Field<S, Id> field, {
+    Field<S, V> field, {
     required Id Function(String) fromString,
     required Id Function() generate,
     bool isPrimaryKey = true,
