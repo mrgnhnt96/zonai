@@ -97,6 +97,19 @@ class SignInScreen extends StatelessComponent {
       ),
       css('.submit:hover, .auth-type:hover').styles(backgroundColor: primaryHoverColor),
       css('.auth-type + .auth-type').styles(margin: .only(top: 12.px)),
+      css('.otp-secondary').styles(
+        width: 100.percent,
+        margin: .only(top: 12.px),
+        padding: .symmetric(vertical: 10.px),
+        cursor: .pointer,
+        radius: .all(Radius.circular(8.px)),
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        fontWeight: .w600,
+        fontSize: 0.9375.rem,
+        color: fgColor,
+        backgroundColor: surfaceColor,
+      ),
+      css('.otp-secondary:hover').styles(backgroundColor: borderColor),
     ]),
   ];
 }
@@ -132,6 +145,7 @@ class AuthTypePickerScreen extends StatelessComponent {
   static String _labelFor(AuthType authType) {
     return switch (authType) {
       AuthType.password => 'Email & password',
+      AuthType.otp => 'Email code',
     };
   }
 }

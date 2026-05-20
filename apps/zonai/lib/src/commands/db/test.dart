@@ -156,7 +156,7 @@ Future<(int?, String?)> _signUp() async {
 
   final email = 'test+$uniqueTimestamp@test.com';
 
-  final result = await zonaiDB.signUp(
+  final result = await zonaiDB.authenticate(
     'users',
     SignUpPasswordAuthPayload(
       email: email,
@@ -165,18 +165,18 @@ Future<(int?, String?)> _signUp() async {
     ),
   );
 
-  logger.info('Signed up user: ${result.user['Id']}');
+  logger.info('Signed up user: ${result!.user['Id']}');
 
   return (null, email);
 }
 
 Future<(int?, String?)> _signIn(String email) async {
-  final result = await zonaiDB.signIn(
+  final result = await zonaiDB.authenticate(
     'users',
     SignInPasswordAuthPayload(email: email, password: 'test'),
   );
 
-  logger.info('Signed in user: ${result.user['id']}');
+  logger.info('Signed in user: ${result!.user['id']}');
 
   return (null, result.jwt);
 }
@@ -186,11 +186,11 @@ Future<(int?, String?)> _adminSignIn(String email) async {
   logger.info(
     'Supported auth types (${authTypes.length}): ${authTypes.map((e) => e.name).join(', ')}',
   );
-  final result = await zonaiDB.adminSignIn(
+  final result = await zonaiDB.authenticateAdmin(
     SignInPasswordAuthPayload(email: email, password: 'test'),
   );
 
-  logger.info('Signed in user: ${result.user['id']}');
+  logger.info('Signed in user: ${result!.user['id']}');
 
   return (null, result.jwt);
 }
@@ -209,7 +209,7 @@ Future<int?> _authenticate() async {
     ),
   );
 
-  logger.info('Authenticated user: ${result.user['id']}');
+  logger.info('Authenticated user: ${result!.user['id']}');
 
   return null;
 }

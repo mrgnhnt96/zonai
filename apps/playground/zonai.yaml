@@ -2,3 +2,4 @@
 migrationsPath: .zonai/migrations
 schemasPath: lib/src/schemas
 configPath: lib/src/config
+emailTemplatesPath: lib/src/email_templates

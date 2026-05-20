@@ -75,3 +75,9 @@ class EnumTransformer<E extends Enum> extends ColumnTransformer<E, Object> {
     };
   }
 }
+
+// TODO: Add more operators for this and other columns
+extension EnumOperators<E extends Enum> on ColumnOf<E> {
+  /// String equals [value].
+  SQL equals(E value) => SQL([$, Op.equals, value]);
+}

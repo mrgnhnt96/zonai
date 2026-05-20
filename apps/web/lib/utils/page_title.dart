@@ -13,6 +13,7 @@ abstract final class PageTitle {
     if (!signedIn) {
       return switch (AuthRoutes.typeFromPath(path)) {
         .password => '$appName — Sign in',
+        .otp => '$appName — Sign in with code',
         null => '$appName — Sign in',
       };
     }

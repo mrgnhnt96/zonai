@@ -17,13 +17,15 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
     }
 
     return switch (authType) {
-      .password => true,
+      .password => schema is PasswordAuth,
+      .otp => schema is OtpAuth,
     };
   }
 
   Future<bool> canSignIn(Jwt? jwt, AuthType authType) async {
     return switch (authType) {
-      .password => true,
+      .password => schema is PasswordAuth,
+      .otp => schema is OtpAuth,
     };
   }
 

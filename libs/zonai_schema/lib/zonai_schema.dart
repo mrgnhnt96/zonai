@@ -31,6 +31,7 @@ export 'src/types/built_in_emails.dart';
 export 'src/types/email_address.dart';
 export 'src/types/email.dart';
 export 'src/column_types/email_column.dart';
+export 'src/column_types/is_verified_column.dart';
 export 'src/column_types/enum_column.dart';
 export 'src/column_types/password_column.dart';
 export 'src/column_types/create_primary_key.dart';

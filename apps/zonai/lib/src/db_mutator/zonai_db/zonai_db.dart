@@ -1,7 +1,9 @@
 library zonai_db;
 
 import 'dart:async';
+import 'dart:math';
 
+import 'package:clock/clock.dart';
 import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
 import 'package:raindrop/raindrop.dart' hide migrate;
@@ -19,6 +21,8 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
+import 'package:zonai_schema/src/internal/auth_challenge_collection.dart';
+import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai_schema/src/internal/jwt_collection.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 
@@ -83,31 +87,23 @@ class ZonaiDb {
     return _run(() => configResolver.resolve());
   }
 
-  Future<_AuthResult> authenticate(
+  Future<_AuthResult?> authenticate(
     String collection,
     AuthPayload payload,
   ) async {
     return await _run(() => _authenticate(collection, payload));
   }
 
+  Future<_AuthResult?> authenticateAdmin(AuthPayload payload) async {
+    return await _run(() => _authenticateAdmin(payload));
+  }
+
   Future<void> sendTestEmail(Email email) async {
     await _run(() => courier.send(email));
   }
 
-  Future<_AuthResult> signIn(String collection, AuthPayload payload) async {
-    return await _run(() => _signIn(collection, payload));
-  }
-
-  Future<_AuthResult> adminSignIn(AuthPayload payload) async {
-    return await _run(() => _adminSignIn(payload));
-  }
-
   Future<List<AuthType>> adminSupportedAuthTypes() async {
     return await _run(_adminSupportedAuthTypes);
-  }
-
-  Future<_AuthResult> signUp(String collection, AuthPayload payload) async {
-    return await _run(() => _signUp(collection, payload));
   }
 
   Future<void> logout(String jwt) async {

@@ -45,7 +45,9 @@ extension _UtilsX on ZonaiDb {
       onRebuildScheduled: (message) => logger.verbose(message, prefix: _prefix),
     );
 
-    await sqlSync.ensureMatchingTable(db, jwts);
+    for (final schema in InternalDbArtifacts.schemas) {
+      await sqlSync.ensureMatchingTable(db, schema);
+    }
   }
 
   Future<void> _requireCollectionAccess(

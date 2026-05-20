@@ -8,19 +8,21 @@ final class User {
     required this.passwordHash,
     required this.id,
     required this.createdAt,
+    required this.isVerified,
     this.updatedAt,
   });
 
   final UsersId id;
   final String name;
   final String email;
+  final bool isVerified;
   final String passwordHash;
   final DateTime createdAt;
   final DateTime? updatedAt;
 }
 
 final class UserCollection extends AuthCollection<User>
-    with PasswordAuth, AsAdmin {
+    with PasswordAuth, OtpAuth, AsAdmin {
   UserCollection(super.$)
     : id = $.id(
         'id',
@@ -30,6 +32,7 @@ final class UserCollection extends AuthCollection<User>
       ),
       name = $.text('name', (s) => s.name),
       email = $.email('email', (s) => s.email),
+      isVerified = $.isVerified('is_verified', (s) => s.isVerified),
       passwordHash = $.password('password', (s) => s.passwordHash),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
@@ -40,6 +43,7 @@ final class UserCollection extends AuthCollection<User>
       id: read(id),
       name: read(name),
       email: read(email),
+      isVerified: read(isVerified),
       passwordHash: read(passwordHash),
       createdAt: read(createdAt),
       updatedAt: read(updatedAt),
@@ -50,6 +54,7 @@ final class UserCollection extends AuthCollection<User>
   final DateTimeColumn createdAt;
   final EmailColumn email;
   final TextColumn name;
+  final IsVerifiedColumn isVerified;
   final PasswordColumn passwordHash;
   final DateTimeColumn? updatedAt;
 }

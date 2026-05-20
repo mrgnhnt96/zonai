@@ -24,6 +24,12 @@ class Revali {
       return true;
     }
 
+    // during development, the server could already be running, so we can just return true
+    if (await _checkHealth(quick: true)) {
+      _isRunning = true;
+      return true;
+    }
+
     logger.debug('Starting Revali server');
 
     if (kIsCompiled) {
@@ -104,8 +110,10 @@ class Revali {
     return false;
   }
 
-  Future<bool> _checkHealth() async {
-    final completer = Completer<void>();
+  Future<bool> _checkHealth({bool quick = false}) async {
+    if (quick) {
+      return await health();
+    }
 
     bool isReady = false;
     var attempts = 0;
@@ -114,6 +122,7 @@ class Revali {
       logger.debug('Checking health of Revali (server) - Attempt $attempts');
       isReady = await health();
       attempts++;
+
       await Future.delayed(const Duration(milliseconds: 100));
     }
 
@@ -125,7 +134,6 @@ class Revali {
     logger.debug('Revali (server) is ready!');
 
     try {
-      await completer.future;
       return true;
     } catch (e) {
       logger.err('Error starting server');

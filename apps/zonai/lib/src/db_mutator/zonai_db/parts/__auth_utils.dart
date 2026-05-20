@@ -1,9 +1,9 @@
 part of zonai_db;
 
 extension _AuthUtilsX on ZonaiDb {
-  Future<Map<String, Object?>?> _authRecord({
+  Future<Map<String, Object?>?> _passwordRecord({
     required String collection,
-    required AuthPayload payload,
+    required PasswordAuthPayload payload,
     required String rawPassword,
   }) async {
     final jwt = await _extractJwt(payload);
@@ -12,11 +12,7 @@ extension _AuthUtilsX on ZonaiDb {
       ViewAuthOperationRequest(
         collection: collection,
         jwt: jwt,
-        payload: switch (payload) {
-          PasswordAuthPayload() => PasswordAuthOperationPayload.get(
-            email: payload.email,
-          ),
-        },
+        payload: PasswordAuthOperationPayload.get(email: payload.email),
       ),
     );
 
@@ -52,14 +48,44 @@ extension _AuthUtilsX on ZonaiDb {
     }
 
     final passwordsMatch = await _hashPassword.verify(
-      rawPassword: switch (payload) {
-        PasswordAuthPayload() => payload.password,
-      },
+      rawPassword: payload.password,
       passwordHash: passwordHash,
     );
 
     if (!passwordsMatch) {
       throw StateError('Invalid password or email');
+    }
+
+    return await _sanitizeRow(collection, user);
+  }
+
+  Future<Map<String, Object?>?> _authRecord({
+    required String collection,
+    required String email,
+  }) async {
+    final response = await _operations.send(
+      ViewAuthOperationRequest(
+        collection: collection,
+        jwt: null,
+        payload: OtpAuthOperationPayload.get(email: email),
+      ),
+    );
+
+    if (response is! PerformOperationResponse) {
+      throw StateError('Failed to authenticate');
+    }
+
+    logger.verbose('Auth operation: ${response.query}', prefix: _prefix);
+
+    final (error, result) = await _execute((response.query, response.values));
+
+    if (error != null) {
+      throw StateError('Failed to authenticate: $error');
+    }
+
+    final user = result?.rows.singleOrNull?.toMap();
+    if (user == null) {
+      return null;
     }
 
     return await _sanitizeRow(collection, user);
@@ -79,6 +105,10 @@ extension _AuthUtilsX on ZonaiDb {
           PasswordAuthPayload() => PasswordAuthOperationPayload.get(
             email: payload.email,
           ),
+          SendOtpAuthPayload(:final email) ||
+          VerifyOtpAuthPayload(
+            :final email,
+          ) => OtpAuthOperationPayload.get(email: email),
         },
       ),
     );
@@ -177,6 +207,7 @@ extension _AuthUtilsX on ZonaiDb {
         jwt: jwt,
         authType: switch (payload) {
           PasswordAuthPayload() => .password,
+          SendOtpAuthPayload() || VerifyOtpAuthPayload() => .otp,
         },
       ),
     );

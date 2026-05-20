@@ -1,3 +1,9 @@
+schema:
+  gen:
+    internal-db-artifacts:
+      (command): cd libs/zonai_schema && dart run tool/generate_internal_db_artifacts.dart
+      (aliases): [internal, ida]
+
 db:
   gen:
     migrations:
@@ -57,3 +63,6 @@ playground:
   migrate: |
     cd apps/playground || exit 1
     dart run zonai db migrate generate --name update
+  serve: |
+    cd apps/playground || exit 1
+    dart run zonai serve --log verbose

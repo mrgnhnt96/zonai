@@ -5,8 +5,18 @@ import 'package:zonai_schema/zonai_schema.dart';
 class AuthHandler {
   const AuthHandler();
 
-  Future<Map<String, Object?>> authenticate(AuthBody body) async {
-    final result = await zonaiDB.authenticate(body.collection, switch (body) {
+  Future<Map<String, Object?>?> adminAuthenticate(AdminAuthBody body) async {
+    if (body case final AuthBody body) {
+      return authenticate(body);
+    }
+
+    throw ArgumentError(
+      'Unexpected body type, needs to be a $AuthBody, got ${body.runtimeType}',
+    );
+  }
+
+  Future<Map<String, Object?>?> authenticate(AuthBody body) async {
+    final payload = switch (body) {
       SignInAuthBody() => SignInPasswordAuthPayload(
         email: body.email,
         password: body.password,
@@ -16,25 +26,45 @@ class AuthHandler {
         password: body.password,
         object: body.object,
       ),
-    });
+      SendOtpAuthBody() => SendOtpAuthPayload(
+        email: body.email,
+        object: body.metadata,
+      ),
+      VerifyOtpAuthBody() => VerifyOtpAuthPayload(
+        email: body.email,
+        code: body.code,
+      ),
+    };
 
-    return _sessionPayload(result.user, result.jwt);
-  }
+    final result = switch (body) {
+      AdminAuthBody() => await zonaiDB.authenticateAdmin(payload),
+      _ => await zonaiDB.authenticate(body.collection, payload),
+    };
 
-  Future<Map<String, Object?>> adminSignIn(AdminSignInAuthBody body) async {
-    final result = await zonaiDB.adminSignIn(
-      SignInPasswordAuthPayload(email: body.email, password: body.password),
-    );
-
-    return _sessionPayload(result.user, result.jwt);
+    return switch ((body, result)) {
+      (SignInAuthBody(), final result?) => _sessionPayload(
+        result.user,
+        result.jwt,
+      ),
+      (SignUpAuthBody(), final result?) => _sessionPayload(
+        result.user,
+        result.jwt,
+      ),
+      (SendOtpAuthBody(), null) => null,
+      (VerifyOtpAuthBody(), final result?) => _sessionPayload(
+        result.user,
+        result.jwt,
+      ),
+      _ => throw UnimplementedError('Unknown auth body: $body'),
+    };
   }
 
   Future<Map<String, Object?>> signIn(SignInAuthBody body) async {
-    final result = await zonaiDB.signIn(
+    final result = await zonaiDB.authenticate(
       body.collection,
       SignInPasswordAuthPayload(email: body.email, password: body.password),
     );
-    return _sessionPayload(result.user, result.jwt);
+    return _sessionPayload(result!.user, result.jwt);
   }
 
   Future<Map<String, Object?>> signUp(
@@ -45,7 +75,7 @@ class AuthHandler {
       null => null,
       final String bearerToken => _parseBearerAuthorization(bearerToken),
     };
-    final result = await zonaiDB.signUp(
+    final result = await zonaiDB.authenticate(
       body.collection,
       SignUpPasswordAuthPayload(
         email: body.email,
@@ -54,7 +84,7 @@ class AuthHandler {
         jwt: token,
       ),
     );
-    return _sessionPayload(result.user, result.jwt);
+    return _sessionPayload(result!.user, result.jwt);
   }
 
   Future<void> logout(String authorizationHeader) async {

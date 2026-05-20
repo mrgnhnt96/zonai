@@ -10,6 +10,7 @@ abstract class Extension<T> {
   final Schema schema;
 
   Table get table => Table.getFor(schema);
+  String get collectionName => table.name;
 }
 
 mixin CreateExtension<R> on Extension<R> {
@@ -22,7 +23,10 @@ mixin CreateExtension<R> on Extension<R> {
   Future<void> afterCreateSuccess(R row, Jwt? jwt) async {
     if (row case HasEmail(email: final emailColumn)) {
       if (emailColumn.$.valueOf?.call(row) case final String userEmail) {
-        email.send.loginNotice(EmailAddress(address: userEmail));
+        email.send.loginNotice(
+          EmailAddress(address: userEmail),
+          collection: collectionName,
+        );
       }
     }
   }
@@ -50,7 +54,10 @@ mixin AuthExtension<R> on Extension<R> {
   Future<void> onSignUp(R user, Jwt? jwt) async {
     if (schema case HasEmail(email: final emailColumn)) {
       if (emailColumn.$.valueOf?.call(user) case final String userEmail) {
-        email.send.verifyEmail(EmailAddress(address: userEmail));
+        email.send.verifyEmail(
+          EmailAddress(address: userEmail),
+          collection: collectionName,
+        );
       }
     }
   }
@@ -62,7 +69,10 @@ mixin AuthExtension<R> on Extension<R> {
   Future<void> onSignIn(R user, Jwt? jwt) async {
     if (schema case HasEmail(email: final emailColumn)) {
       if (emailColumn.$.valueOf?.call(user) case final String userEmail) {
-        email.send.loginNotice(EmailAddress(address: userEmail));
+        email.send.loginNotice(
+          EmailAddress(address: userEmail),
+          collection: collectionName,
+        );
       }
     }
   }

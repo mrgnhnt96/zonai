@@ -4,17 +4,17 @@ import 'dart:io' as io;
 
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/src/deps/courier.dart';
-
-import '../db_mutator/payloads/payloads.dart';
-import '../deps/mutations.dart';
-import '../deps/clean_up.dart';
-import '../deps/zonai_db.dart';
-import '../deps/fs.dart';
-import '../deps/logger.dart';
-import '../deps/process.dart';
-import '../domain/constants.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
+
+import '../db_mutator/payloads/payloads.dart';
+import '../deps/clean_up.dart';
+import '../deps/fs.dart';
+import '../deps/logger.dart';
+import '../deps/mutations.dart';
+import '../deps/process.dart';
+import '../deps/zonai_db.dart';
+import '../domain/constants.dart';
 
 class Mailman<S extends Request, R extends Response> {
   Mailman({
@@ -303,7 +303,7 @@ class Mailman<S extends Request, R extends Response> {
           case final SendEmailRequest request:
             courier.send(request.email);
           case final SendBuiltInEmailRequest request:
-            courier.sendBuiltIn(request.builtIn, request.variables);
+            _sendBuiltInEmail(request);
           case final MutationRequest mutation:
             (_pendingMutations[mutation.parent.id] ??= []).add(mutation);
 
@@ -316,6 +316,22 @@ class Mailman<S extends Request, R extends Response> {
           '(expected "${Response.prefix}" or "${Request.prefix}"): '
           '$pathRaw',
         );
+    }
+  }
+
+  void _sendBuiltInEmail(SendBuiltInEmailRequest request) {
+    switch (request.builtIn) {
+      case .otp:
+        zonaiDB.authenticate(
+          request.collection,
+          SendOtpAuthPayload(email: request.to.address, object: request.object),
+        );
+      case .confirmEmailChange:
+      case .verifyEmail:
+      case .passwordReset:
+      case .magicLink:
+      case .loginNotice:
+        throw UnimplementedError('${request.builtIn} not implemented');
     }
   }
 

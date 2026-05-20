@@ -2,7 +2,7 @@ enum BuiltInEmails {
   confirmEmailChange,
   verifyEmail,
   passwordReset,
-  optCode,
+  otp,
   magicLink,
   loginNotice,
 }

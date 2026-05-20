@@ -5,6 +5,7 @@ typedef _SendBuiltInEmailFn =
     void Function(
       BuiltInEmails email,
       EmailAddress to,
+      String collection,
       Map<String, dynamic>? variables,
     );
 
@@ -14,7 +15,7 @@ _Email get email => read(_emailProvider);
 
 class _Email {
   _Email._() {
-    send = _SendEmail((_) {}, (_, _, _) {});
+    send = _SendEmail((_) {}, (_, _, _, _) {});
   }
   _Email(_SendEmailFn send, _SendBuiltInEmailFn sendBuiltIn)
     : send = _SendEmail(send, sendBuiltIn);
@@ -30,27 +31,51 @@ class _SendEmail {
 
   void call(Email email) => _fn(email);
 
-  void confirmEmailChange(EmailAddress to, {Map<String, dynamic>? variables}) {
-    _sendBuiltIn(.confirmEmailChange, to, variables);
+  void confirmEmailChange(
+    EmailAddress to, {
+    required String collection,
+    Map<String, dynamic>? variables,
+  }) {
+    _sendBuiltIn(.confirmEmailChange, to, collection, variables);
   }
 
-  void verifyEmail(EmailAddress to, {Map<String, dynamic>? variables}) {
-    _sendBuiltIn(.verifyEmail, to, variables);
+  void verifyEmail(
+    EmailAddress to, {
+    required String collection,
+    Map<String, dynamic>? variables,
+  }) {
+    _sendBuiltIn(.verifyEmail, to, collection, variables);
   }
 
-  void passwordReset(EmailAddress to, {Map<String, dynamic>? variables}) {
-    _sendBuiltIn(.passwordReset, to, variables);
+  void passwordReset(
+    EmailAddress to, {
+    required String collection,
+    Map<String, dynamic>? variables,
+  }) {
+    _sendBuiltIn(.passwordReset, to, collection, variables);
   }
 
-  void optCode(EmailAddress to, {Map<String, dynamic>? variables}) {
-    _sendBuiltIn(.optCode, to, variables);
+  void optCode(
+    EmailAddress to, {
+    required String collection,
+    Map<String, dynamic>? variables,
+  }) {
+    _sendBuiltIn(.otp, to, collection, variables);
   }
 
-  void magicLink(EmailAddress to, {Map<String, dynamic>? variables}) {
-    _sendBuiltIn(.magicLink, to, variables);
+  void magicLink(
+    EmailAddress to, {
+    required String collection,
+    Map<String, dynamic>? variables,
+  }) {
+    _sendBuiltIn(.magicLink, to, collection, variables);
   }
 
-  void loginNotice(EmailAddress to, {Map<String, dynamic>? variables}) {
-    _sendBuiltIn(.loginNotice, to, variables);
+  void loginNotice(
+    EmailAddress to, {
+    required String collection,
+    Map<String, dynamic>? variables,
+  }) {
+    _sendBuiltIn(.loginNotice, to, collection, variables);
   }
 }

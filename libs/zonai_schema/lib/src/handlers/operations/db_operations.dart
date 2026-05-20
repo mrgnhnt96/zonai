@@ -107,15 +107,11 @@ class DbOperations {
       _failMissingCollection(request.collection);
     }
 
-    final columns = collection.table.columns;
-
     final column = switch (request.columnName) {
-      .password => columns.firstWhere(
-        (column) => column.transformer is PasswordTransformer,
-      ),
-      .id => columns.firstWhere(
-        (column) => column.transformer is IdTransformer && column.isPrimaryKey,
-      ),
+      .password => _passwordColumn(collection.table),
+      .isVerified => _isVerifiedColumn(collection.table),
+      .email => _emailColumn(collection.table),
+      .id => _idColumn(collection.table),
     };
 
     return ColumnNameResponse(
@@ -133,37 +129,47 @@ class DbOperations {
       _failMissingCollection(request.collection);
     }
 
-    final emailColumn = switch (request.payload.authType) {
-      .password => collection.table.columns.firstWhere(
-        (column) => column.transformer is EmailTransformer,
-      ),
-    };
-
-    final passwordColumn = switch (request.payload.authType) {
-      .password => collection.table.columns.firstWhere(
-        (column) => column.transformer is PasswordTransformer,
-      ),
-    };
+    final emailColumn = _emailColumn(collection.table);
 
     final email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
-    };
-
-    final passwordHash = switch (request.payload) {
-      PasswordAuthOperationPayload(:final passwordHash) => passwordHash,
+      OtpAuthOperationPayload(:final email) => email,
     };
 
     final otherFields = switch (request.payload) {
       PasswordAuthOperationPayload(:final object) => object,
+      OtpAuthOperationPayload(:final object) => object,
+    };
+
+    Column? passwordColumn;
+    if (collection.schema is PasswordAuth) {
+      passwordColumn = _passwordColumn(collection.table);
+    }
+
+    Column? isVerifiedColumn;
+    if (collection.schema is HasEmail) {
+      isVerifiedColumn = _isVerifiedColumn(collection.table);
+    }
+
+    final object = switch (request.payload) {
+      PasswordAuthOperationPayload(:final passwordHash) => {
+        ...?otherFields,
+        emailColumn.name: email,
+        if (passwordColumn != null) passwordColumn.name: passwordHash,
+      },
+      OtpAuthOperationPayload() => {
+        ...?otherFields,
+        emailColumn.name: email,
+        if (isVerifiedColumn != null) isVerifiedColumn.name: true,
+        // provide empty password hash to comply
+        if (passwordColumn != null && !passwordColumn.isNullable)
+          passwordColumn.name: '',
+      },
     };
 
     final operationRequest = CreateOperationRequest(
       collection: request.collection,
-      object: {
-        ...?otherFields,
-        emailColumn.name: email,
-        passwordColumn.name: passwordHash,
-      },
+      object: object,
       jwt: request.jwt,
     );
 
@@ -185,14 +191,11 @@ class DbOperations {
 
     final table = collection.table;
 
-    final emailColumn = switch (request.payload.authType) {
-      .password => table.columns.firstWhere(
-        (column) => column.transformer is EmailTransformer,
-      ),
-    };
+    final emailColumn = _emailColumn(table);
 
     final email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
+      OtpAuthOperationPayload(:final email) => email,
     };
 
     final operationRequest = ReadOperationRequest(
@@ -279,6 +282,30 @@ class DbOperations {
       claims: claims,
       isAdmin: admin != null,
       canEdit: admin?.canEdit ?? false,
+    );
+  }
+
+  Column _emailColumn(Table table) {
+    return table.columns.firstWhere(
+      (column) => column.transformer is EmailTransformer,
+    );
+  }
+
+  Column _isVerifiedColumn(Table table) {
+    return table.columns.firstWhere(
+      (column) => column.transformer is IsVerifiedTransformer,
+    );
+  }
+
+  Column _passwordColumn(Table table) {
+    return table.columns.firstWhere(
+      (column) => column.transformer is PasswordTransformer,
+    );
+  }
+
+  Column _idColumn(Table table) {
+    return table.columns.firstWhere(
+      (column) => column.transformer is IdTransformer && column.isPrimaryKey,
     );
   }
 }

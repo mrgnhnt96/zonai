@@ -11,17 +11,17 @@ class AuthController {
   final AuthHandler authHandler;
 
   @Post()
-  Future<Map<String, Object?>> authenticate({
+  Future<Map<String, Object?>?> authenticate({
     @Body() required AuthBody body,
   }) async {
     return await authHandler.authenticate(body);
   }
 
   @Post('admin')
-  Future<Map<String, Object?>> adminSignIn({
-    @Body() required AdminSignInAuthBody body,
+  Future<Map<String, Object?>?> adminAuthenticate({
+    @Body() required AdminAuthBody body,
   }) async {
-    return await authHandler.adminSignIn(body);
+    return await authHandler.adminAuthenticate(body);
   }
 
   @Post('sign-in')

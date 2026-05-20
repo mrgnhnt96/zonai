@@ -1,6 +1,6 @@
 part of auth_collection;
 
-abstract class Auth {
+abstract class Auth implements SupportedAuths {
   const Auth();
 
   ColumnType<Id> get id;
@@ -8,13 +8,19 @@ abstract class Auth {
 
 mixin HasEmail on Auth {
   EmailColumn get email;
+  IsVerifiedColumn get isVerified;
 }
 
-base mixin PasswordAuth on Auth implements SupportedAuths, HasEmail {
-  EmailColumn get email;
+base mixin PasswordAuth on Auth implements HasEmail {
   PasswordColumn get passwordHash;
 
   @override
   @nonVirtual
   bool get supportsPassword => true;
+}
+
+base mixin OtpAuth on Auth implements HasEmail {
+  @override
+  @nonVirtual
+  bool get supportsOtp => true;
 }

@@ -62,6 +62,7 @@ class SendOtpEmail extends Email {
     bool isResend = false,
     required String code,
     required Duration expiresIn,
+    Map<String, dynamic>? variables,
   }) : super(
          subject: 'Opt Code',
          template: 'otp_code',
@@ -70,9 +71,10 @@ class SendOtpEmail extends Email {
            continueThread: isResend,
          ),
          variables: {
+           ...?variables,
            'otp': code,
            'email': to.address,
-           'expiresIn': expiresIn.inMinutes,
+           'expiresIn': '${expiresIn.inMinutes} minutes',
          },
        );
 }

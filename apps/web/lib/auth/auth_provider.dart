@@ -22,13 +22,35 @@ class AuthNotifier extends Notifier<bool> {
     return _hasAuthToken();
   }
 
+  Future<void> sendOtp({required String email}) async {
+    try {
+      await revaliServer.auth.authenticate(body: AdminSendOtpAuthBody(email: email));
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
+  Future<void> verifyOtp({required String email, required String code}) async {
+    try {
+      final response = await revaliServer.auth.authenticate(
+        body: AdminVerifyOtpAuthBody(email: email, code: code),
+      );
+
+      signIn(response!['accessToken'] as String);
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
   Future<void> signInWithPassword({required String email, required String password}) async {
     try {
-      final session = await revaliServer.auth.adminSignIn(
+      final session = await revaliServer.auth.adminAuthenticate(
         body: AdminSignInAuthBody(email: email, password: password),
       );
 
-      final accessToken = session['accessToken'];
+      final accessToken = session!['accessToken'];
       if (accessToken is! String || accessToken.isEmpty) {
         throw StateError('Sign-in succeeded but no access token was returned');
       }

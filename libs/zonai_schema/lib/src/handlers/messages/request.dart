@@ -154,21 +154,27 @@ sealed class MutationRequest extends Request {
     required super.path,
     required super.id,
     required this.parent,
+    required this.collection,
     super.jwt,
   });
 
   final Request parent;
+  final String collection;
 
   @override
   @mustCallSuper
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'parent': parent.toJson()};
+    return {
+      ...super.toJson(),
+      'parent': parent.toJson(),
+      'collection': collection,
+    };
   }
 }
 
 final class DeleteRecordRequest extends MutationRequest {
   DeleteRecordRequest({
-    required this.collection,
+    required super.collection,
     required this.where,
     required super.parent,
     this.limit,
@@ -177,7 +183,7 @@ final class DeleteRecordRequest extends MutationRequest {
 
   DeleteRecordRequest._({
     required super.id,
-    required this.collection,
+    required super.collection,
     required this.where,
     required super.parent,
     this.limit,
@@ -197,24 +203,18 @@ final class DeleteRecordRequest extends MutationRequest {
 
   static const _path = '${Request.prefix}.delete_record';
 
-  final String collection;
   final Where where;
   final int? limit;
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'collection': collection,
-      'where': where.toJson(),
-      'limit': limit,
-    };
+    return {...super.toJson(), 'where': where.toJson(), 'limit': limit};
   }
 }
 
 final class CreateRecordRequest extends MutationRequest {
   CreateRecordRequest({
-    required this.collection,
+    required super.collection,
     required this.objects,
     required super.parent,
     super.jwt,
@@ -222,7 +222,7 @@ final class CreateRecordRequest extends MutationRequest {
 
   CreateRecordRequest._({
     required super.id,
-    required this.collection,
+    required super.collection,
     required this.objects,
     required super.parent,
     super.jwt,
@@ -243,18 +243,17 @@ final class CreateRecordRequest extends MutationRequest {
 
   static const _path = '${Request.prefix}.create_record';
 
-  final String collection;
   final List<Map<String, dynamic>> objects;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'objects': objects};
+    return {...super.toJson(), 'objects': objects};
   }
 }
 
 final class UpdateRecordRequest extends MutationRequest {
   UpdateRecordRequest({
-    required this.collection,
+    required super.collection,
     required this.where,
     required this.updates,
     required super.parent,
@@ -265,7 +264,7 @@ final class UpdateRecordRequest extends MutationRequest {
 
   UpdateRecordRequest._({
     required super.id,
-    required this.collection,
+    required super.collection,
     required this.where,
     required this.updates,
     required super.parent,
@@ -292,7 +291,6 @@ final class UpdateRecordRequest extends MutationRequest {
 
   static const _path = '${Request.prefix}.update_record';
 
-  final String collection;
   final Where where;
   final List<Update> updates;
   final int? limit;
@@ -302,7 +300,6 @@ final class UpdateRecordRequest extends MutationRequest {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
       'where': where.toJson(),
       'limit': limit,
       'updates': updates.map((update) => update.toJson()).toList(),
@@ -353,13 +350,18 @@ final class SendEmailRequest extends SendEmailRequestBase {
 final class SendBuiltInEmailRequest extends SendEmailRequestBase {
   SendBuiltInEmailRequest(
     BuiltInEmails this.builtIn, {
+    required this.collection,
     required this.to,
+    this.object,
     this.variables,
   }) : super(path: _path, id: Request.generateId());
+
   SendBuiltInEmailRequest._({
     required super.id,
     required this.builtIn,
     required this.to,
+    required this.collection,
+    this.object,
     this.variables,
     super.jwt,
   }) : super(path: _path);
@@ -370,6 +372,8 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
       builtIn: BuiltInEmails.values.byName(json['builtIn'] as String),
       to: EmailAddress.fromJson(json['to'] as Map<String, dynamic>),
       variables: json['variables'] as Map<String, dynamic>?,
+      object: json['object'] as Map<String, dynamic>?,
+      collection: json['collection'] as String,
       jwt: Jwt.maybeFromJson(json['jwt']),
     );
   }
@@ -378,6 +382,11 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
   final BuiltInEmails builtIn;
   final EmailAddress to;
   final Map<String, dynamic>? variables;
+  final String collection;
+
+  /// Properties to add to the new auth record when
+  /// the user signs up
+  final Map<String, dynamic>? object;
 
   @override
   Map<String, dynamic> toJson() {
@@ -386,6 +395,8 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
       'builtIn': builtIn.name,
       'to': to.toJson(),
       'variables': jsonDecode(jsonEncode(variables)),
+      'collection': collection,
+      'object': jsonDecode(jsonEncode(object)),
     };
   }
 }

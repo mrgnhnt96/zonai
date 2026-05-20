@@ -11,17 +11,12 @@ extension type TypedMapColumn<T>(T _) implements ColumnType<T> {}
 
 extension MapColumnDefinition<S> on SchemaBuilder<S> {
   /// JSON object as [Map<String, dynamic>], stored in TEXT
-  MapColumn map(
+  T map<T extends MapColumn?, W extends Object?>(
     String name,
-    Field<S, Map<String, dynamic>> field, {
+    Field<S, W> field, {
     Map<String, dynamic> Function(dynamic) fromJson = _mapFromDynamic,
   }) {
-    return custom<
-          MapColumn,
-          Map<String, dynamic>,
-          Object,
-          Map<String, dynamic>
-        >(
+    return custom<MapColumn, Map<String, dynamic>, Object, W>(
           MapColumn.new,
           name,
           field,
@@ -29,28 +24,28 @@ extension MapColumnDefinition<S> on SchemaBuilder<S> {
           transformer: MapTransformer<Map<String, dynamic>>(fromJson: fromJson),
           synthetic: {},
         )
-        as MapColumn;
+        as T;
   }
 
   static Map<String, dynamic> _mapFromDynamic(dynamic d) =>
       Map<String, dynamic>.from(d as Map);
 
-  /// JSON object as [T], stored in TEXT
-  TypedMapColumn<T> mapAs<T extends Object>(
+  /// JSON object as [V], stored in TEXT
+  T mapAs<V extends Object, T extends TypedMapColumn<V>?, W extends Object?>(
     String name,
-    Field<S, T> field, {
-    required T Function(dynamic) fromJson,
-    required T synthetic,
+    Field<S, W> field, {
+    required V Function(dynamic) fromJson,
+    required V synthetic,
   }) {
-    return custom<TypedMapColumn<T>, T, Object, T>(
-          TypedMapColumn<T>.new,
+    return custom<TypedMapColumn<V>, V, Object, W>(
+          TypedMapColumn<V>.new,
           name,
           field,
           sqlType: 'TEXT',
-          transformer: MapTransformer<T>(fromJson: fromJson),
+          transformer: MapTransformer<V>(fromJson: fromJson),
           synthetic: synthetic,
         )
-        as TypedMapColumn<T>;
+        as T;
   }
 }
 

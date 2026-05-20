@@ -48,7 +48,7 @@ ${const JsonEncoder.withIndent('  ').convert(toJson())}
   }
 }
 
-enum ColumnName { password, id }
+enum ColumnName { password, id, isVerified, email }
 
 final class GetColumnNameRequest extends OperationRequest {
   GetColumnNameRequest({required this.collection, required this.columnName})
@@ -144,6 +144,7 @@ sealed class AuthOperationPayload {
   factory AuthOperationPayload.fromJson(Map<String, dynamic> json) {
     return switch (AuthType.values.byName(json['authType'] as String)) {
       .password => PasswordAuthOperationPayload.fromJson(json),
+      .otp => OtpAuthOperationPayload.fromJson(json),
     };
   }
 
@@ -153,6 +154,35 @@ sealed class AuthOperationPayload {
   }
 
   final AuthType authType;
+}
+
+final class OtpAuthOperationPayload extends AuthOperationPayload {
+  const OtpAuthOperationPayload.get({required this.email})
+    : object = null,
+      super(authType: .otp);
+  const OtpAuthOperationPayload.save({
+    required this.email,
+    required this.object,
+  }) : super(authType: .otp);
+  const OtpAuthOperationPayload._({required this.email, required this.object})
+    : super(authType: .otp);
+  factory OtpAuthOperationPayload.fromJson(Map<String, dynamic> json) {
+    return OtpAuthOperationPayload._(
+      email: json['email'] as String,
+      object: json['object'] as Map<String, dynamic>?,
+    );
+  }
+
+  final String email;
+  final Map<String, dynamic>? object;
+
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'email': email,
+      'object': jsonDecode(jsonEncode(object)),
+    };
+  }
 }
 
 final class PasswordAuthOperationPayload extends AuthOperationPayload {

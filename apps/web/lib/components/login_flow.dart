@@ -8,6 +8,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
+import 'otp_sign_in_screen.dart';
 import 'sign_in_screen.dart';
 
 /// Chooses the sign-in screen from supported auth types and the current path.
@@ -27,6 +28,7 @@ class LoginFlow extends StatelessComponent {
       if (!context.binding.isClient) {
         return switch (authTypes.single) {
           .password => const PasswordSignInScreen(),
+          .otp => const OtpSignInScreen(),
         };
       }
       return _RedirectToAuthType(authType: authTypes.single);
@@ -36,6 +38,7 @@ class LoginFlow extends StatelessComponent {
     if (selected != null && authTypes.contains(selected)) {
       return switch (selected) {
         .password => const PasswordSignInScreen(),
+        .otp => const OtpSignInScreen(),
       };
     }
 

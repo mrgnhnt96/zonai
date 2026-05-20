@@ -11,12 +11,12 @@ extension type ListColumn<T>(List<T> _)
     implements ColumnType<List<T>>, List<T> {}
 
 extension ListColumnDefinition<S> on SchemaBuilder<S> {
-  ListColumn<E> list<E, T extends ListColumn<E>?, W extends Object?>(
+  T list<E, T extends ListColumn<E>?, W extends Object?>(
     String name,
-    Field<S, List<E>> field, {
+    Field<S, W> field, {
     required E Function(dynamic) fromJson,
   }) {
-    return custom<ListColumn<E>, List<E>, Object, List<E>>(
+    return custom<ListColumn<E>, List<E>, Object, W>(
           ListColumn<E>.new,
           name,
           field,
@@ -24,7 +24,7 @@ extension ListColumnDefinition<S> on SchemaBuilder<S> {
           transformer: ListTransformer<E>(fromJson: fromJson),
           synthetic: [],
         )
-        as ListColumn<E>;
+        as T;
   }
 }
 

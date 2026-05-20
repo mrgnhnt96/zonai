@@ -35,3 +35,19 @@ class SignUpPasswordAuthPayload extends PasswordAuthPayload {
     super.jwt,
   });
 }
+
+class SendOtpAuthPayload extends AuthPayload {
+  const SendOtpAuthPayload({required this.email, this.object, super.jwt})
+    : super(authType: .otp);
+
+  final String email;
+  final Map<String, dynamic>? object;
+}
+
+class VerifyOtpAuthPayload extends AuthPayload {
+  const VerifyOtpAuthPayload({required this.email, required this.code, super.jwt})
+    : super(authType: .otp);
+
+  final String email;
+  final String code;
+}
