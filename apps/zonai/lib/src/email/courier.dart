@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/settings.dart';
@@ -9,11 +11,20 @@ import 'package:mailer/smtp_server.dart';
 
 class Courier {
   Courier({String? emailTemplatesPath})
-    : emailTemplatesPath = emailTemplatesPath ?? settings.emailTemplatesPath;
+    : emailTemplatesPath = emailTemplatesPath ?? settings.emailTemplatesPath,
+      send = _Send();
 
   final String emailTemplatesPath;
 
-  Future<void> send(Email email) async {
+  final _Send send;
+}
+
+class _Send {
+  const _Send();
+
+  Future<void> call(Email email) => _send(email);
+
+  Future<void> _send(Email email) async {
     final config = await configResolver.resolve();
 
     final emailConfig = config.email;
@@ -29,7 +40,10 @@ class Courier {
       )
       ..recipients.add(Address(email.to.address, email.to.name))
       ..subject = email.subject
-      ..html = _EmailContent(email, config).html;
+      ..html = _EmailContent(email, config).html();
+
+    final fromAddress = email.from?.address ?? emailConfig.from.address;
+    _applyThreadHeaders(message, email, fromAddress);
 
     final smtp = SmtpServer(
       emailConfig.host,
@@ -42,54 +56,53 @@ class Courier {
     await mailer.send(message, smtp);
   }
 
-  Future<void> sendBuiltIn(
-    BuiltInEmails builtIn,
-    Map<String, dynamic>? variables,
-  ) async {
-    final config = await configResolver.resolve();
+  void _applyThreadHeaders(Message message, Email email, String fromAddress) {
+    final thread = email.thread;
+    if (thread == null) return;
 
-    final vars = {...?variables, 'appName': config.appName};
+    final continues = thread.endsWith(Email.continueThreadSuffix);
+    final threadId = continues
+        ? thread.substring(0, thread.length - Email.continueThreadSuffix.length)
+        : thread;
+    final root = _threadRootMessageId(
+      thread: threadId,
+      fromAddress: fromAddress,
+    );
 
-    final email = switch (builtIn) {
-      .confirmEmailChange => Email(
-        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
-        subject: 'Confirm Email Change',
-        template: 'confirm_email_change',
-        variables: vars,
-      ),
-      .verifyEmail => Email(
-        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
-        subject: 'Verify Email',
-        template: 'verify_email',
-        variables: vars,
-      ),
-      .passwordReset => Email(
-        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
-        subject: 'Password Reset',
-        template: 'password_reset',
-        variables: vars,
-      ),
-      .optCode => Email(
-        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
-        subject: 'Opt Code',
-        template: 'opt_code',
-        variables: vars,
-      ),
-      .magicLink => Email(
-        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
-        subject: 'Magic Link',
-        template: 'magic_link',
-        variables: vars,
-      ),
-      .loginNotice => Email(
-        to: EmailAddress(address: 'email.to.address', name: 'email.to.name'),
-        subject: 'Login Notice',
-        template: 'login_notice',
-        variables: vars,
-      ),
-    };
+    if (continues) {
+      message.headers['Message-ID'] = _sendMessageId(fromAddress);
+      message.headers['In-Reply-To'] = root;
+      message.headers['References'] = root;
+    } else {
+      message.headers['Message-ID'] = root;
+    }
+  }
 
-    await send(email);
+  String _threadRootMessageId({
+    required String thread,
+    required String fromAddress,
+  }) {
+    final domain = _emailDomain(fromAddress);
+    final tag = base64Url.encode(utf8.encode(thread)).replaceAll('=', '');
+    return '<thread.$tag@$domain>';
+  }
+
+  String _sendMessageId(String fromAddress) {
+    final domain = _emailDomain(fromAddress);
+    final unique = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    return '<thread.send.$unique@$domain>';
+  }
+
+  String _emailDomain(String address) {
+    final at = address.lastIndexOf('@');
+    if (at < 0 || at == address.length - 1) {
+      throw ArgumentError.value(
+        address,
+        'fromAddress',
+        'must be a valid email',
+      );
+    }
+    return address.substring(at + 1);
   }
 }
 
@@ -98,19 +111,22 @@ class _EmailContent {
   final Email email;
   final AppConfig config;
 
-  String get html {
+  String html() {
     final file = fs.file(
       fs.path.join(settings.emailTemplatesPath, '${email.template}.html'),
     );
 
     if (!file.existsSync()) {
-      throw Exception('Eamil template file not found: ${file.path}');
+      throw Exception(
+        'Email template file not found: ${file.path} (Current Directory: ${fs.currentDirectory.path})',
+      );
     }
 
     final source = file.readAsStringSync();
     return Template(
       source,
       name: email.template,
+      lenient: true,
     ).renderString({...email.variables, 'appName': config.appName});
   }
 }

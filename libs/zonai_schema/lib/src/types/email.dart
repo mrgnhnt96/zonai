@@ -9,7 +9,15 @@ class Email {
     required this.template,
     this.variables = const {},
     this.from,
+    this.thread,
   });
+
+  /// Builds a [Email.thread] id. Pass [continueThread] when sending another message
+  /// in the same conversation.
+  static String createThread(String id, {bool continueThread = false}) =>
+      continueThread ? '$id$continueThreadSuffix' : id;
+
+  static const String continueThreadSuffix = ':continue';
 
   factory Email.fromJson(Map<String, dynamic> json) => Email(
     to: EmailAddress.fromJson(json['to'] as Map<String, dynamic>),
@@ -19,6 +27,7 @@ class Email {
     subject: json['subject'] as String,
     template: json['template'] as String,
     variables: json['variables'] as Map<String, dynamic>,
+    thread: json['thread'] as String?,
   );
 
   final EmailAddress to;
@@ -29,11 +38,41 @@ class Email {
   final String template;
   final Map<String, dynamic> variables;
 
+  /// Groups this message with earlier mail that used the same thread id.
+  ///
+  /// Use [createThread] to build the value. Append a continuation for follow-ups
+  /// (e.g. another OTP) by passing `continueThread: true`.
+  final String? thread;
+
   Map<String, dynamic> toJson() => {
     'to': to.toJson(),
     'from': from?.toJson(),
     'subject': subject,
     'template': template,
     'variables': jsonDecode(jsonEncode(variables)),
+    'thread': ?thread,
   };
+}
+
+class SendOtpEmail extends Email {
+  SendOtpEmail({
+    required super.to,
+    required String collection,
+    super.from,
+    bool isResend = false,
+    required String code,
+    required Duration expiresIn,
+  }) : super(
+         subject: 'Opt Code',
+         template: 'otp_code',
+         thread: Email.createThread(
+           'otp:$collection:${to.address.toLowerCase()}',
+           continueThread: isResend,
+         ),
+         variables: {
+           'otp': code,
+           'email': to.address,
+           'expiresIn': expiresIn.inMinutes,
+         },
+       );
 }
