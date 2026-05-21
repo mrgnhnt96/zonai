@@ -51,6 +51,16 @@ class SendOtpAuthPayload extends AuthPayload {
   final Map<String, dynamic>? object;
 }
 
+class SendVerifyEmailAuthPayload {
+  const SendVerifyEmailAuthPayload({
+    required this.email,
+    required this.collection,
+  });
+
+  final String email;
+  final String collection;
+}
+
 class VerifyOtpAuthPayload extends VerifyAuthPayload implements AuthPayload {
   const VerifyOtpAuthPayload({
     required this.email,

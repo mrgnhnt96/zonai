@@ -162,9 +162,18 @@ class AuthHandler {
     }
   }
 
-  Future<void> sendVerifyEmail({required String authorization}) async {
+  Future<void> sendVerifyEmail({
+    required String authorization,
+    VerifyEmailAuthBody? body,
+  }) async {
     final token = _parseBearerAuthorization(authorization);
-    await zonaiDB.sendVerifyEmailAuthenticated(token);
+    zonaiDB.sendVerifyEmailAuthenticated(token, switch (body) {
+      VerifyEmailAuthBody() => SendVerifyEmailAuthPayload(
+        email: body.email,
+        collection: body.collection,
+      ),
+      null => null,
+    });
   }
 
   Map<String, Object?> _sessionPayload(

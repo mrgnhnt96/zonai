@@ -32,8 +32,12 @@ class AuthController {
   @Post('verify-email')
   Future<void> sendVerifyEmail({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
+    @Body() VerifyEmailAuthBody? body,
   }) async {
-    await authHandler.sendVerifyEmail(authorization: authorization);
+    await authHandler.sendVerifyEmail(
+      authorization: authorization,
+      body: body,
+    );
   }
 
   @Post('confirm')

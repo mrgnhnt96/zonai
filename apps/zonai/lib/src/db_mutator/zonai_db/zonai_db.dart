@@ -152,15 +152,25 @@ class ZonaiDb {
     return await _run(() => _sendOtp(collection, payload, callerJwt: jwt));
   }
 
-  Future<void> sendVerifyEmailAuthenticated(String jwtToken) async {
+  Future<void> sendVerifyEmailAuthenticated(
+    String jwtToken,
+    SendVerifyEmailAuthPayload? payload,
+  ) async {
     return await _run(() async {
       final jwt = await _extractJwt(JwtPayload(jwt: jwtToken));
       if (jwt == null) {
         throw StateError('Authentication is required to send verify email');
       }
 
-      final collection = jwt.collection;
-      final targetEmail = await _emailFromJwt(collection: collection, jwt: jwt);
+      final collection = switch (jwt.admin.isAdmin) {
+        true when payload != null => payload.collection,
+        _ => jwt.collection,
+      };
+
+      final targetEmail = switch (jwt.admin.isAdmin) {
+        true when payload != null => payload.email,
+        _ => await _emailFromJwt(collection: collection, jwt: jwt),
+      };
       if (targetEmail == null) {
         throw StateError('Could not determine email address');
       }
