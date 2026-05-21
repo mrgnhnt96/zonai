@@ -42,6 +42,7 @@ extension _MagicLinkX on ZonaiDb {
     final lastMagicLink = await _lastChallenge(
       collection: collection,
       email: payload.email,
+      type: .magicLink,
     );
 
     if (lastMagicLink case final challenge?) {
@@ -134,6 +135,7 @@ extension _MagicLinkX on ZonaiDb {
     final challenge = await _lastChallenge(
       collection: collection,
       email: email,
+      type: .magicLink,
     );
 
     if (challenge == null) {

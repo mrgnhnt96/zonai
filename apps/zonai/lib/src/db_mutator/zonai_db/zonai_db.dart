@@ -36,7 +36,7 @@ part 'parts/__utils.dart';
 part 'parts/auth/auth.dart';
 part 'parts/auth/challenge.dart';
 part 'parts/auth/magic_link.dart';
-part 'parts/auth/opt.dart';
+part 'parts/auth/otp.dart';
 part 'parts/auth/password.dart';
 part 'parts/auth/logout.dart';
 part 'parts/count.dart';

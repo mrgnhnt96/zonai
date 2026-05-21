@@ -30,6 +30,7 @@ extension _OtpX on ZonaiDb {
     final lastOtp = await _lastChallenge(
       collection: collection,
       email: payload.email,
+      type: .otp,
     );
 
     if (lastOtp case final challenge?) {
@@ -106,6 +107,7 @@ extension _OtpX on ZonaiDb {
     final challenge = await _lastChallenge(
       collection: collection,
       email: payload.email,
+      type: .otp,
     );
 
     if (challenge == null) {

@@ -16,6 +16,7 @@ extension _ChallengeX on ZonaiDb {
   Future<AuthChallenge?> _lastChallenge({
     required String collection,
     required String email,
+    required AuthChallengeType type,
   }) async {
     final db = await open();
 
@@ -26,6 +27,7 @@ extension _ChallengeX on ZonaiDb {
         .where(
           authChallenges.target.equals(email) &
               authChallenges.collection.equals(collection) &
+              authChallenges.type.equals(type) &
               authChallenges.canConsume.isTrue(),
         )
         .limit(1);
