@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
@@ -7,7 +5,6 @@ import 'package:zonai_schema/payloads.dart';
 
 import 'auth/auth_provider.dart';
 import 'auth/auth_route_provider.dart';
-import 'auth/auth_routes.dart';
 import 'auth/supported_auth_types_provider.dart';
 import 'components/home_screen.dart';
 import 'components/login_flow.dart';
@@ -109,24 +106,9 @@ class _AuthGateState extends State<_AuthGate> {
   @override
   Component build(BuildContext context) {
     final signedIn = context.watch(authProvider);
-    if (context.binding.isClient) {
-      scheduleMicrotask(_syncRouteForAuthState);
-    }
     if (signedIn) {
       return const HomeScreen();
     }
     return const LoginFlow();
-  }
-
-  void _syncRouteForAuthState() {
-    if (!mounted) return;
-
-    final signedIn = context.read(authProvider);
-    final path = context.read(authRouteProvider);
-    final route = context.read(authRouteProvider.notifier);
-
-    if (signedIn && AuthRoutes.isSignInPath(path)) {
-      route.navigateTo(AuthRoutes.home);
-    }
   }
 }

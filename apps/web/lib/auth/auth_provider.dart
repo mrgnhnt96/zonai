@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
@@ -19,7 +21,25 @@ class AuthNotifier extends Notifier<bool> {
     if (!binding.isClient) {
       return initialSignedIn;
     }
+
+    ref.listen(authRouteProvider, _onAuthRouteChanged);
+    scheduleMicrotask(_syncRouteForAuthState);
     return _hasAuthToken();
+  }
+
+  void _onAuthRouteChanged(String? previous, String next) {
+    if (!state) return;
+
+    if (!AuthRoutes.isSignInPath(next)) return;
+
+    // Back from the app to a sign-in URL should leave the session.
+    if (previous != null && !AuthRoutes.isSignInPath(previous)) {
+      signOut();
+      return;
+    }
+
+    // Signed in but URL is still a sign-in path (bookmark, refresh, etc.).
+    ref.read(authRouteProvider.notifier).navigateTo(AuthRoutes.home, replace: true);
   }
 
   Future<void> sendOtp({required String email}) async {
@@ -106,7 +126,7 @@ class AuthNotifier extends Notifier<bool> {
   void signIn(String accessToken) {
     ZonaiCookie.authToken.write(accessToken);
     state = true;
-    _syncRouteForAuthState(signedIn: true);
+    _syncRouteForAuthStateWithSignedIn(true);
   }
 
   Future<void> signOut() async {
@@ -123,23 +143,30 @@ class AuthNotifier extends Notifier<bool> {
     ZonaiCookie.authToken.remove();
     state = false;
     if (notifyRoute) {
-      _syncRouteForAuthState(signedIn: false);
+      _syncRouteForAuthStateWithSignedIn(false);
     }
   }
 
-  void _syncRouteForAuthState({required bool signedIn}) {
+  void _syncRouteForAuthState() {
+    _syncRouteForAuthStateWithSignedIn(state);
+  }
+
+  void _syncRouteForAuthStateWithSignedIn(bool signedIn) {
     if (!ref.binding.isClient) return;
 
     final route = ref.read(authRouteProvider.notifier);
     if (signedIn) {
       final path = ref.read(authRouteProvider);
       if (AuthRoutes.isSignInPath(path)) {
-        route.navigateTo(AuthRoutes.home);
+        route.navigateTo(AuthRoutes.home, replace: true);
       }
       return;
     }
 
-    route.navigateTo(AuthRoutes.signIn);
+    final path = ref.read(authRouteProvider);
+    if (!AuthRoutes.isSignInPath(path)) {
+      route.navigateTo(AuthRoutes.signIn, replace: true);
+    }
   }
 
   static bool _hasAuthToken() {

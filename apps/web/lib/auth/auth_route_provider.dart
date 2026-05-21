@@ -26,13 +26,19 @@ class AuthRouteNotifier extends Notifier<String> {
     return AuthRoutes.normalizePath(_browserPath());
   }
 
-  void navigateTo(String path) {
+  /// Updates the URL and route state. Use [replace] for auth redirects so they
+  /// do not stack extra history entries (e.g. after sign-in or sign-out).
+  void navigateTo(String path, {bool replace = false}) {
     if (!ref.binding.isClient) {
       return;
     }
 
     final normalized = AuthRoutes.normalizePath(path);
-    web.window.history.pushState(null, '', normalized);
+    if (replace) {
+      web.window.history.replaceState(null, '', normalized);
+    } else {
+      web.window.history.pushState(null, '', normalized);
+    }
     state = normalized;
   }
 
