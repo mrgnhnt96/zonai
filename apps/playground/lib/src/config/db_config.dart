@@ -9,7 +9,7 @@ AppConfig main() {
       host: 'smtp.gmail.com',
       port: 587,
       username: 'mrgnhnt96@gmail.com',
-      password: 'bpek vnrv cilx ccev',
+      password: const String.fromEnvironment('GMAIL_APP_PASSWORD'),
       from: EmailAddress(address: 'mrgnhnt96@gmail.com', name: 'Link'),
     ),
   );

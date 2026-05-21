@@ -28,19 +28,10 @@ Future<int> serve() async {
   }
   migrate.listenForKeyboardInput();
 
-  extensions
-    ..watch()
-    ..listenForKeyboardInput();
-  rules
-    ..watch()
-    ..listenForKeyboardInput();
-  config
-    ..watch()
-    ..listenForKeyboardInput();
-
-  operations
-    ..watch()
-    ..listenForKeyboardInput();
+  extensions.watch();
+  rules.watch();
+  config.watch();
+  operations.watch();
 
   keyboardInput.addListener((event) {
     if (event.matches('c')) {

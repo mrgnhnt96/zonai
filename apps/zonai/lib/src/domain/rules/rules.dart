@@ -2,13 +2,14 @@ import 'dart:async';
 
 import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
+import 'package:zonai/src/deps/env.dart';
+import 'package:zonai/src/domain/constants.dart';
 
 import '../../deps/clean_up.dart';
+import '../../deps/executable_stop.dart';
 import '../../deps/fs.dart';
-import '../../deps/keyboard_input.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
-import '../../deps/executable_stop.dart';
 import '../../deps/settings.dart';
 import 'rule_generator.dart';
 
@@ -71,6 +72,8 @@ class Rules {
     final result = await process.run('dart', [
       'compile',
       'exe',
+      env.dartDefines,
+      if (!kIsCompiled) '--enable-asserts',
       RuleGenerator.executablePath,
       '-o',
       target,
@@ -109,14 +112,5 @@ class Rules {
     }
 
     return true;
-  }
-
-  void listenForKeyboardInput() {
-    keyboardInput.addListener((event) {
-      if (event.matches('r')) {
-        logger.info('Compiling rules...');
-        compile();
-      }
-    });
   }
 }

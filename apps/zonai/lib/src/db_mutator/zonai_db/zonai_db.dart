@@ -90,6 +90,16 @@ class ZonaiDb {
 
   File? __dbFile;
 
+  void dispose() {
+    db?.close();
+    db = null;
+    __dbFile = null;
+    _extensions.dispose();
+    _rules.dispose();
+    _operations.dispose();
+    _config.dispose();
+  }
+
   Future<AppConfig> getConfig() async {
     return _run(() => configResolver.resolve());
   }

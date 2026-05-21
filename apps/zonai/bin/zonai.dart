@@ -24,6 +24,7 @@ import 'package:zonai/src/deps/rules.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/stdin.dart';
 import 'package:zonai/src/deps/config.dart';
+import 'package:zonai/src/deps/env.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai/src/utils/args.dart';
 import 'package:zonai/src/zonai_runner.dart';
@@ -66,6 +67,7 @@ Future<void> _run(List<String> arguments) async {
       argsProvider.overrideWith(() => parsed),
       fsProvider,
       courierProvider,
+      envProvider,
       loggerProvider.overrideWith(() => log),
       processProvider,
       cleanUpProvider,

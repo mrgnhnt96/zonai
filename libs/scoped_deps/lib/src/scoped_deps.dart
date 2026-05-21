@@ -23,8 +23,7 @@ void _registerDirect(Zone zone, Map<Object?, Object?> zoneValues) {
   }
   if (incoming.isEmpty) return;
   final prior = _scopedDepsDirect[zone];
-  _scopedDepsDirect[zone] =
-      prior == null ? incoming : {...prior, ...incoming};
+  _scopedDepsDirect[zone] = prior == null ? incoming : {...prior, ...incoming};
 }
 
 bool _chainDefinesRefKey(Object? key) {
@@ -91,6 +90,10 @@ class ScopedRef<T> {
 /// Creates a [ScopedRef] which can later be used to access the
 /// value, [T] returned by [create].
 ScopedRef<T> create<T>(T Function() create) => ScopedRef<T>(create);
+
+bool isRegistered(ScopedRef<dynamic> ref) {
+  return Zone.current[ref._key] != null;
+}
 
 /// Attempts to retrieve the value for the [ref].
 /// If [read] is called with a [ref] which is not available
@@ -163,12 +166,10 @@ R runMergedScoped<R>(
     override: override,
     includeIfAbsent: includeIfAbsent,
   );
-  return Zone.current
-      .fork(zoneValues: zoneValues)
-      .run<R>(() {
-        _registerDirect(Zone.current, zoneValues);
-        return body();
-      });
+  return Zone.current.fork(zoneValues: zoneValues).run<R>(() {
+    _registerDirect(Zone.current, zoneValues);
+    return body();
+  });
 }
 
 /// Like [runMergedScoped], but keeps the merged zone active for every `await`
@@ -186,12 +187,10 @@ Future<R> runMergedScopedFuture<R>(
     override: override,
     includeIfAbsent: includeIfAbsent,
   );
-  return Zone.current
-      .fork(zoneValues: zoneValues)
-      .run<Future<R>>(() async {
-        _registerDirect(Zone.current, zoneValues);
-        return await body();
-      });
+  return Zone.current.fork(zoneValues: zoneValues).run<Future<R>>(() async {
+    _registerDirect(Zone.current, zoneValues);
+    return await body();
+  });
 }
 
 /// Runs [body] within a scope which has access to the set of refs in [values].

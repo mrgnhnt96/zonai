@@ -10,13 +10,15 @@ class Revali {
   Revali();
 
   io.Process? _process;
-  bool get isRunning => switch (kIsCompiled) {
-    true => _isRunning,
-    false => _process != null,
-  };
+  bool get isRunning =>
+      _isRunning ??
+      switch (kIsCompiled) {
+        true => false,
+        false => _process != null,
+      };
 
   /// Whether the server is running in compiled mode
-  bool _isRunning = false;
+  bool? _isRunning = false;
 
   Future<bool> start() async {
     if (isRunning) {
@@ -26,6 +28,7 @@ class Revali {
 
     // during development, the server could already be running, so we can just return true
     if (await _checkHealth(quick: true)) {
+      logger.debug('Revali server is already running');
       _isRunning = true;
       return true;
     }

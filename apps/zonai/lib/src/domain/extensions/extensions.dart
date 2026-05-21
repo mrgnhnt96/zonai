@@ -2,9 +2,10 @@ import 'dart:async' show StreamSubscription;
 
 import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
+import 'package:zonai/src/deps/env.dart';
+import 'package:zonai/src/domain/constants.dart';
 import '../../deps/clean_up.dart';
 import '../../deps/fs.dart';
-import '../../deps/keyboard_input.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/executable_stop.dart';
@@ -69,6 +70,8 @@ class Extensions {
     final result = await process.run('dart', [
       'compile',
       'exe',
+      env.dartDefines,
+      if (!kIsCompiled) '--enable-asserts',
       ExtensionGenerator.executablePath,
       '-o',
       target,
@@ -109,14 +112,5 @@ class Extensions {
     }
 
     return true;
-  }
-
-  void listenForKeyboardInput() {
-    keyboardInput.addListener((event) {
-      if (event.matches('e')) {
-        logger.info('Compiling extensions...');
-        compile();
-      }
-    });
   }
 }
