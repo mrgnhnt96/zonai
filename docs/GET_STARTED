@@ -42,7 +42,13 @@ Resolve the whole workspace from the repository root:
 fvm dart pub get
 ```
 
-## 4. Optional checks
+## 4. App configs and env flavors
+
+When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple **app config** Dart files and **`.env`** files for different targets (dev, staging, prod). Pass `--flavor <name>` to select which config file and which `.env.<flavor>` file to use.
+
+See **[config-and-env-flavors.md](config-and-env-flavors.md)** for naming rules, precedence, and examples.
+
+## 5. Optional checks
 
 - Run CLI package tests:
 
