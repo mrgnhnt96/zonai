@@ -42,12 +42,9 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<String> _adminCollectionFor(AuthType authType) async {
-    final authCollections = await _operations.send(
+    final authCollections = await _operations.send<AdminCollectionsResponse>(
       GetAdminCollectionsOperationRequest(),
     );
-    if (authCollections is! AdminCollectionsResponse) {
-      throw StateError('Failed to get admin collections');
-    }
 
     StateError? lastError;
     for (final (collection, authTypes) in authCollections.collections) {
@@ -82,7 +79,7 @@ extension _AuthX on ZonaiDb {
 
     final (newJwt, token) = await _createJwt(collection, user);
 
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onSignIn(
         collection: collection,
         object: user,
@@ -96,12 +93,9 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<List<AuthType>> _adminSupportedAuthTypes() async {
-    final authCollections = await _operations.send(
+    final authCollections = await _operations.send<AdminCollectionsResponse>(
       GetAdminCollectionsOperationRequest(),
     );
-    if (authCollections is! AdminCollectionsResponse) {
-      throw StateError('Failed to get admin collections');
-    }
 
     final types = <AuthType>{};
     for (final (_, authTypes) in authCollections.collections) {
@@ -117,12 +111,9 @@ extension _AuthX on ZonaiDb {
     Map<String, Object?> user,
   ) async {
     final jwtId = JwtId.generate();
-    final userIdColumn = await _operations.send(
+    final userIdColumn = await _operations.send<ColumnNameResponse>(
       GetColumnNameRequest(collection: collection, columnName: .id),
     );
-    if (userIdColumn is! ColumnNameResponse) {
-      throw StateError('Failed to get user ID column name');
-    }
 
     final userId = user[userIdColumn.name] as String;
 
@@ -135,13 +126,9 @@ extension _AuthX on ZonaiDb {
       claims: {},
     );
 
-    final claims = await _operations.send(
+    final claims = await _operations.send<ClaimsResponse>(
       GetClaimsOperationRequest(collection: collection, jwt: preJwt),
     );
-
-    if (claims is! ClaimsResponse) {
-      throw StateError('Failed to get claims');
-    }
 
     final jwt = Jwt(
       userId: preJwt.userId,

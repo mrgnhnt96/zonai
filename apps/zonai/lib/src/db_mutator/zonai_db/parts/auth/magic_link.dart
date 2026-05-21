@@ -219,7 +219,7 @@ extension _MagicLinkX on ZonaiDb {
 
     final (newJwt, token) = await _createJwt(collection, user);
 
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onSignUp(
         collection: collection,
         object: user,

@@ -20,11 +20,9 @@ class ConfigResolver {
       throw Exception('Mailman not set');
     }
 
-    final response = await mailman.send(GetAppConfigRequest());
-    if (response case final GetAppConfigResponse response) {
-      return response.data;
-    }
-
-    throw Exception('Failed to resolve config');
+    final response = await mailman.send<GetAppConfigResponse>(
+      GetAppConfigRequest(),
+    );
+    return response.data;
   }
 }

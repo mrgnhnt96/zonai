@@ -14,7 +14,7 @@ extension _DeleteX on ZonaiDb {
       deleteOperation.values,
     ));
     if (deleteError != null || deleteResult == null) {
-      await _extensions.send(
+      await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.delete(
           collection: collection,
           error: deleteError?.toString() ?? 'Unknown error',
@@ -42,7 +42,7 @@ extension _DeleteX on ZonaiDb {
     Jwt? jwt, {
     required List<Map<String, Object?>> objects,
   }) async {
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       DeleteExtensionRequest.afterSuccess(
         collection: collection,
         objects: objects,
@@ -88,7 +88,7 @@ extension _DeleteX on ZonaiDb {
 
     final sanitized = await _sanitizeRows(collection, rows);
 
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       DeleteExtensionRequest.before(
         collection: collection,
         objects: sanitized,

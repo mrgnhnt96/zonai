@@ -8,17 +8,13 @@ extension _AuthUtilsX on ZonaiDb {
   }) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _operations.send(
+    final response = await _operations.send<PerformOperationResponse>(
       ViewAuthOperationRequest(
         collection: collection,
         jwt: jwt,
         payload: PasswordAuthOperationPayload.get(email: payload.email),
       ),
     );
-
-    if (response is! PerformOperationResponse) {
-      throw StateError('Failed to authenticate');
-    }
 
     logger.verbose('Auth operation: ${response.query}', prefix: _prefix);
 
@@ -33,13 +29,9 @@ extension _AuthUtilsX on ZonaiDb {
       return null;
     }
 
-    final passwordColumn = await _operations.send(
+    final passwordColumn = await _operations.send<ColumnNameResponse>(
       GetColumnNameRequest(collection: collection, columnName: .password),
     );
-    if (passwordColumn is! ColumnNameResponse) {
-      logger.trace('Failed to get password column name', prefix: _prefix);
-      return null;
-    }
 
     final passwordHash = user.remove(passwordColumn.name);
     if (passwordHash is! String) {
@@ -63,17 +55,13 @@ extension _AuthUtilsX on ZonaiDb {
     required String collection,
     required String email,
   }) async {
-    final response = await _operations.send(
+    final response = await _operations.send<PerformOperationResponse>(
       ViewAuthOperationRequest(
         collection: collection,
         jwt: null,
         payload: OtpAuthOperationPayload.get(email: email),
       ),
     );
-
-    if (response is! PerformOperationResponse) {
-      throw StateError('Failed to authenticate');
-    }
 
     logger.verbose('Auth operation: ${response.query}', prefix: _prefix);
 
@@ -97,7 +85,7 @@ extension _AuthUtilsX on ZonaiDb {
   }) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _operations.send(
+    final response = await _operations.send<PerformOperationResponse>(
       ViewAuthOperationRequest(
         collection: collection,
         jwt: jwt,
@@ -116,10 +104,6 @@ extension _AuthUtilsX on ZonaiDb {
         },
       ),
     );
-
-    if (response is! PerformOperationResponse) {
-      throw StateError('Failed to authenticate');
-    }
 
     logger.verbose('Auth operation: ${response.query}', prefix: _prefix);
 
@@ -140,7 +124,7 @@ extension _AuthUtilsX on ZonaiDb {
   ) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _rules.send(
+    final response = await _rules.send<AuthRecordRulesResponse>(
       AuthRecordRulesRequest(
         collection: collection,
         jwt: jwt,
@@ -205,7 +189,7 @@ extension _AuthUtilsX on ZonaiDb {
   ) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _rules.send(
+    final response = await _rules.send<AuthCollectionRulesResponse>(
       AuthCollectionRulesRequest(
         collection: collection,
         jwt: jwt,

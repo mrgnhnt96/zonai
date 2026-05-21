@@ -335,16 +335,29 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
-  Future<R?> send(S request) async {
+  Future<T> send<T extends R?>(S request) async {
     final _mutations = mutations;
     return await runMergedScopedFuture(() async {
       final response = await _send(request);
 
-      if (response is R?) {
+      if (response is T) {
         return response;
       }
 
-      return _fromJson(response.payload);
+      final payload = response?.payload;
+      if (payload == null) {
+        throw StateError(
+          'Invalid response: Got ${response.runtimeType}, expected $T',
+        );
+      }
+
+      if (_fromJson(payload) case final T result) {
+        return result;
+      }
+
+      throw StateError(
+        'Invalid response: Got ${response.runtimeType}, expected $T',
+      );
     }, override: {mutationsProvider.overrideWith(() => _mutations)});
   }
 

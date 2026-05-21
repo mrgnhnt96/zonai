@@ -8,7 +8,7 @@ extension _CreateX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      await _extensions.send(
+      await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.create(
           collection: collection,
           error: error?.toString() ?? 'Unknown error',
@@ -34,7 +34,7 @@ extension _CreateX on ZonaiDb {
     Jwt? jwt, {
     required Map<String, Object?> object,
   }) async {
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       CreateExtensionRequest.afterSuccess(
         collection: collection,
         object: object,
@@ -50,7 +50,7 @@ extension _CreateX on ZonaiDb {
   ) async {
     await _requireRecordAccess(collection, .create, payload.object, jwt);
 
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       CreateExtensionRequest.before(
         collection: collection,
         object: payload.object,

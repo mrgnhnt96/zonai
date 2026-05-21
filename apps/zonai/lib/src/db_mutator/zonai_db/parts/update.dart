@@ -33,7 +33,7 @@ extension _UpdateX on ZonaiDb {
       readOperation.values,
     ));
     if (updatedError != null || updatedResult == null) {
-      await _extensions.send(
+      await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.update(
           collection: collection,
           error: updatedError?.toString() ?? 'Unknown error',
@@ -66,7 +66,7 @@ extension _UpdateX on ZonaiDb {
     required List<Map<String, Object?>> before,
     required List<Map<String, Object?>> after,
   }) async {
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       AfterUpdateExtensionRequest(
         collection: collection,
         before: before,
@@ -116,7 +116,7 @@ extension _UpdateX on ZonaiDb {
 
     final sanitizedBefore = await _sanitizeRows(collection, objects);
 
-    await _extensions.send(
+    await _extensions.send<NoActionExtensionResponse>(
       BeforeUpdateExtensionRequest(
         collection: collection,
         objects: sanitizedBefore,

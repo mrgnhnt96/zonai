@@ -76,7 +76,7 @@ extension _UtilsX on ZonaiDb {
     CollectionOperation operation,
     Jwt? jwt,
   ) async {
-    final rules = await _rules.send(
+    final rules = await _rules.send<CollectionRulesResponse?>(
       CollectionRulesRequest(
         collection: collection,
         operation: operation.name,
@@ -84,19 +84,13 @@ extension _UtilsX on ZonaiDb {
       ),
     );
 
-    if (rules is CollectionRulesResponse?) {
-      return rules ??
-          CollectionRulesResponse(
-            id: '-1',
-            collection: collection,
-            operation: operation.name,
-            canAccess: false,
-          );
-    }
-
-    throw StateError(
-      'Expected $CollectionRulesResponse, got ${rules.runtimeType}',
-    );
+    return rules ??
+        CollectionRulesResponse(
+          id: '-1',
+          collection: collection,
+          operation: operation.name,
+          canAccess: false,
+        );
   }
 
   Future<RecordRulesResponse> _recordRules(
@@ -105,7 +99,7 @@ extension _UtilsX on ZonaiDb {
     Map<String, dynamic> data,
     Jwt? jwt,
   ) async {
-    final rules = await _rules.send(
+    final rules = await _rules.send<RecordRulesResponse?>(
       RecordRulesRequest(
         collection: collection,
         operation: operation,
@@ -114,17 +108,13 @@ extension _UtilsX on ZonaiDb {
       ),
     );
 
-    if (rules is RecordRulesResponse?) {
-      return rules ??
-          RecordRulesResponse(
-            id: '-1',
-            collection: collection,
-            operation: operation,
-            canPerform: true,
-          );
-    }
-
-    throw StateError('Expected $RecordRulesResponse, got ${rules.runtimeType}');
+    return rules ??
+        RecordRulesResponse(
+          id: '-1',
+          collection: collection,
+          operation: operation,
+          canPerform: true,
+        );
   }
 
   Future<void> _requireRecordAccess(
@@ -144,15 +134,7 @@ extension _UtilsX on ZonaiDb {
   Future<PerformOperationResponse> _getOperation(
     OperationRequest request,
   ) async {
-    final response = await _operations.send(request);
-
-    if (response is PerformOperationResponse) {
-      return response;
-    }
-
-    throw StateError(
-      'Expected $PerformOperationResponse, got ${response.runtimeType}',
-    );
+    return await _operations.send<PerformOperationResponse>(request);
   }
 
   Future<Map<String, Object?>> _sanitizeRow(
@@ -171,17 +153,11 @@ extension _UtilsX on ZonaiDb {
       return const [];
     }
 
-    final response = await _operations.send(
+    final response = await _operations.send<SanitizeOperationResponse>(
       SanitizeOperationRequest(collection: collection, objects: rows),
     );
 
-    if (response case SanitizeOperationResponse(:final objects)) {
-      return objects;
-    }
-
-    throw StateError(
-      'Expected $SanitizeOperationResponse, got ${response.runtimeType}',
-    );
+    return response.objects;
   }
 
   Future<List<_SideEffect>> _getEffect(MutationRequest mut) async {
