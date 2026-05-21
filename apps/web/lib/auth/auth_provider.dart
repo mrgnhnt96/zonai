@@ -30,6 +30,8 @@ class AuthNotifier extends Notifier<bool> {
   void _onAuthRouteChanged(String? previous, String next) {
     if (!state) return;
 
+    if (AuthRoutes.isVerifyEmailCallbackPath(next)) return;
+
     if (!AuthRoutes.isSignInPath(next)) return;
 
     // Back from the app to a sign-in URL should leave the session.
@@ -105,6 +107,29 @@ class AuthNotifier extends Notifier<bool> {
     }
   }
 
+  Future<void> verifyEmail({required String token}) async {
+    try {
+      await revaliServer.auth.confirm(body: ConfirmVerifyEmailAuthBody(token: token));
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
+  Future<void> sendVerifyEmail() async {
+    final token = ZonaiCookie.authToken.read();
+    if (token == null || token.isEmpty) {
+      throw StateError('Sign in to send a verification email');
+    }
+
+    try {
+      await revaliServer.auth.sendVerifyEmail(authorization: 'Bearer $token');
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
   Future<void> signInWithPassword({required String email, required String password}) async {
     try {
       final session = await revaliServer.auth.adminAuthenticate(
@@ -157,14 +182,14 @@ class AuthNotifier extends Notifier<bool> {
     final route = ref.read(authRouteProvider.notifier);
     if (signedIn) {
       final path = ref.read(authRouteProvider);
-      if (AuthRoutes.isSignInPath(path)) {
+      if (AuthRoutes.isSignInPath(path) && !AuthRoutes.isVerifyEmailCallbackPath(path)) {
         route.navigateTo(AuthRoutes.home, replace: true);
       }
       return;
     }
 
     final path = ref.read(authRouteProvider);
-    if (!AuthRoutes.isSignInPath(path)) {
+    if (!AuthRoutes.isPublicAuthPath(path)) {
       route.navigateTo(AuthRoutes.signIn, replace: true);
     }
   }

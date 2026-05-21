@@ -59,10 +59,12 @@ class DbOperations {
             return await _sanitize(request);
           case final GetAdminCollectionsOperationRequest request:
             return await _getAdminCollections(request);
-          case final GetMagicLinkBaseUrlOperationRequest request:
-            return await _getMagicLinkBaseUrl(request);
-          case final GetResetPasswordBaseUrlOperationRequest request:
-            return await _getResetPasswordBaseUrl(request);
+          case final GetMagicLinkConfigOperationRequest request:
+            return await _getMagicLinkConfig(request);
+          case final GetResetPasswordConfigOperationRequest request:
+            return await _getResetPasswordConfig(request);
+          case final GetVerifyEmailConfigOperationRequest request:
+            return await _getVerifyEmailConfig(request);
         }
       },
     ).listen();
@@ -330,8 +332,8 @@ class DbOperations {
     );
   }
 
-  Future<MagicLinkBaseUrlResponse> _getMagicLinkBaseUrl(
-    GetMagicLinkBaseUrlOperationRequest request,
+  Future<MagicLinkConfigResponse> _getMagicLinkConfig(
+    GetMagicLinkConfigOperationRequest request,
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
@@ -342,11 +344,11 @@ class DbOperations {
       _ => throw StateError('Collection does not support magic link'),
     };
 
-    return MagicLinkBaseUrlResponse(id: request.id, config: config);
+    return MagicLinkConfigResponse(id: request.id, config: config);
   }
 
-  Future<ResetPasswordBaseUrlResponse> _getResetPasswordBaseUrl(
-    GetResetPasswordBaseUrlOperationRequest request,
+  Future<ResetPasswordConfigResponse> _getResetPasswordConfig(
+    GetResetPasswordConfigOperationRequest request,
   ) async {
     final collection = operationsByCollection[request.collection];
     if (collection == null) {
@@ -357,7 +359,22 @@ class DbOperations {
       _ => throw StateError('Collection does not support reset password'),
     };
 
-    return ResetPasswordBaseUrlResponse(id: request.id, config: config);
+    return ResetPasswordConfigResponse(id: request.id, config: config);
+  }
+
+  Future<VerifyEmailConfigResponse> _getVerifyEmailConfig(
+    GetVerifyEmailConfigOperationRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      _failMissingCollection(request.collection);
+    }
+    final config = switch (collection) {
+      AuthOperations(:final verifyEmailConfig) => await verifyEmailConfig(),
+      _ => throw StateError('Collection does not support verify email'),
+    };
+
+    return VerifyEmailConfigResponse(id: request.id, config: config);
   }
 
   Column _emailColumn(Table table) {

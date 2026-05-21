@@ -323,7 +323,7 @@ sealed class SendEmailRequestBase extends Request {
 }
 
 final class SendEmailRequest extends SendEmailRequestBase {
-  SendEmailRequest(Email this.email)
+  SendEmailRequest(Email this.email, {super.jwt})
     : super(path: _path, id: Request.generateId());
 
   SendEmailRequest._({required super.id, required this.email, super.jwt})
@@ -354,6 +354,7 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
     required this.to,
     this.object,
     this.variables,
+    super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
   SendBuiltInEmailRequest._({

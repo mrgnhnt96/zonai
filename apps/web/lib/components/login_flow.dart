@@ -14,6 +14,7 @@ import 'otp_sign_in_screen.dart';
 import 'reset_password_confirm_screen.dart';
 import 'reset_password_request_screen.dart';
 import 'sign_in_screen.dart';
+import 'verify_email_screen.dart';
 
 /// Chooses the sign-in screen from supported auth types and the current path.
 class LoginFlow extends StatelessComponent {
@@ -34,6 +35,10 @@ class LoginFlow extends StatelessComponent {
 
     if (AuthRoutes.isResetPasswordRequestPath(path)) {
       return const ResetPasswordRequestScreen();
+    }
+
+    if (AuthRoutes.isVerifyEmailCallbackPath(path)) {
+      return const VerifyEmailScreen();
     }
 
     if (authTypes.isEmpty) {

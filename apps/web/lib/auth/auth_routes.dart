@@ -8,6 +8,7 @@ abstract final class AuthRoutes {
   static const magicLinkCallback = '/auth/magic-link';
   static const resetPasswordCallback = '/auth/reset-password';
   static const resetPasswordRequest = '/auth/reset-password/request';
+  static const verifyEmailCallback = '/auth/verify-email';
 
   static String forType(AuthType type) => '$signIn/${type.name}';
 
@@ -34,7 +35,16 @@ abstract final class AuthRoutes {
         normalized.startsWith('$signIn/') ||
         normalized == magicLinkCallback ||
         normalized == resetPasswordCallback ||
-        normalized == resetPasswordRequest;
+        normalized == resetPasswordRequest ||
+        normalized == verifyEmailCallback;
+  }
+
+  static bool isVerifyEmailCallbackPath(String path) {
+    return normalizePath(path) == verifyEmailCallback;
+  }
+
+  static bool isPublicAuthPath(String path) {
+    return isSignInPath(path) || isVerifyEmailCallbackPath(path);
   }
 
   static bool isMagicLinkCallbackPath(String path) {

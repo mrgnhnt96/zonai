@@ -98,3 +98,10 @@ class ConfirmResetPasswordAuthPayload extends VerifyAuthPayload
   final String token;
   final String newPassword;
 }
+
+class VerifyEmailAuthPayload extends VerifyAuthPayload {
+  const VerifyEmailAuthPayload({required this.token, super.jwt})
+    : super(authType: .password);
+
+  final String token;
+}

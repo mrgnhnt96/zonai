@@ -329,12 +329,21 @@ class Mailman<S extends Request, R extends Response> {
   void _sendBuiltInEmail(SendBuiltInEmailRequest request) {
     switch (request.builtIn) {
       case .otp:
-        zonaiDB.authenticate(
+        zonaiDB.sendOtp(
           request.collection,
           SendOtpAuthPayload(email: request.to.address, object: request.object),
+          jwt: request.jwt,
         );
-      case .confirmEmailChange:
+
       case .verifyEmail:
+        zonaiDB.sendVerifyEmail(
+          request.collection,
+          email: request.to.address,
+          variables: request.object,
+          jwt: request.jwt,
+        );
+
+      case .confirmEmailChange:
       case .passwordReset:
       case .magicLink:
       case .loginNotice:

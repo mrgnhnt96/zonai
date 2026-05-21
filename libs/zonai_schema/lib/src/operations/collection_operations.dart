@@ -507,6 +507,10 @@ base mixin AuthOperations<S extends AuthCollection<R>, R>
   Future<ResetPasswordConfig> resetPasswordConfig() async {
     return ResetPasswordConfig();
   }
+
+  Future<VerifyEmailConfig> verifyEmailConfig() async {
+    return VerifyEmailConfig();
+  }
 }
 
 class MagicLinkConfig {
@@ -529,6 +533,33 @@ class MagicLinkConfig {
   final String path;
 
   /// The duration for which the magic link is valid.
+  final Duration expiresIn;
+
+  Map<String, dynamic> toJson() {
+    return {'path': path, 'expiresIn': expiresIn.inSeconds};
+  }
+}
+
+class VerifyEmailConfig {
+  VerifyEmailConfig({
+    this.path = '/auth/verify-email',
+    this.expiresIn = const Duration(hours: 24),
+  });
+
+  factory VerifyEmailConfig.fromJson(Map<String, dynamic> json) {
+    return VerifyEmailConfig(
+      path: json['path'] as String,
+      expiresIn: Duration(seconds: json['expiresIn'] as int),
+    );
+  }
+
+  /// The path to the verify email endpoint.
+  ///
+  /// Can include the base url if the domain differs from the app config's
+  /// base url.
+  final String path;
+
+  /// The duration for which the verify email link is valid.
   final Duration expiresIn;
 
   Map<String, dynamic> toJson() {

@@ -5,10 +5,12 @@ import 'package:zonai_schema/payloads.dart';
 
 import 'auth/auth_provider.dart';
 import 'auth/auth_route_provider.dart';
+import 'auth/auth_routes.dart';
 import 'auth/supported_auth_types_provider.dart';
 import 'components/home_screen.dart';
 import 'components/login_flow.dart';
 import 'components/page_title_head.dart';
+import 'components/verify_email_screen.dart';
 import 'providers/app_name_provider.dart';
 import 'providers/sqlite_tables_provider.dart';
 
@@ -105,6 +107,11 @@ class _AuthGate extends StatefulComponent {
 class _AuthGateState extends State<_AuthGate> {
   @override
   Component build(BuildContext context) {
+    final path = context.watch(authRouteProvider);
+    if (AuthRoutes.isVerifyEmailCallbackPath(path)) {
+      return const VerifyEmailScreen();
+    }
+
     final signedIn = context.watch(authProvider);
     if (signedIn) {
       return const HomeScreen();

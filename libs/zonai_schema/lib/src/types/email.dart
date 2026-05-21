@@ -104,6 +104,38 @@ class SendMagicLinkEmail extends Email {
        );
 }
 
+class SendVerifyEmailEmail extends Email {
+  SendVerifyEmailEmail({
+    required super.to,
+    required String collection,
+    super.from,
+    required String verificationUrl,
+    required Duration expiresIn,
+    Map<String, dynamic>? variables,
+  }) : super(
+         subject: 'Verify your email',
+         template: 'verify_email',
+         thread: Email.createThread(
+           'verify-email:$collection:${to.address.toLowerCase()}',
+         ),
+         variables: {
+           ...?variables,
+           'verificationUrl': verificationUrl,
+           'email': to.address,
+           'expiresIn': _formatExpiresIn(expiresIn),
+         },
+       );
+
+  static String _formatExpiresIn(Duration expiresIn) {
+    if (expiresIn.inHours >= 1 && expiresIn.inMinutes % 60 == 0) {
+      final hours = expiresIn.inHours;
+      return hours == 1 ? '1 hour' : '$hours hours';
+    }
+    final minutes = expiresIn.inMinutes;
+    return minutes == 1 ? '1 minute' : '$minutes minutes';
+  }
+}
+
 class SendResetPasswordEmail extends Email {
   SendResetPasswordEmail({
     required super.to,

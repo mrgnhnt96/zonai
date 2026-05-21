@@ -34,6 +34,7 @@ extension _AuthX on ZonaiDb {
       case VerifyOtpAuthPayload():
       case VerifyMagicLinkAuthPayload():
       case ConfirmResetPasswordAuthPayload():
+      case VerifyEmailAuthPayload():
         throw ArgumentError(
           'Call confirmAuth instead of authenticate to confirm a reset password',
         );

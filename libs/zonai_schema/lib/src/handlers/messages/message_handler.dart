@@ -127,7 +127,7 @@ class MessageHandler {
                 _emailProvider.overrideWith(
                   () => _Email(
                     (email) {
-                      sendRequest(SendEmailRequest(email));
+                      sendRequest(SendEmailRequest(email, jwt: request.jwt));
                     },
                     (builtIn, to, collection, variables) {
                       sendRequest(
@@ -136,6 +136,7 @@ class MessageHandler {
                           to: to,
                           variables: variables,
                           collection: collection,
+                          jwt: request.jwt,
                         ),
                       );
                     },

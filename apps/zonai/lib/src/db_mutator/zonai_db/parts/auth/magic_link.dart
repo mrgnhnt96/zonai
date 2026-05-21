@@ -59,8 +59,8 @@ extension _MagicLinkX on ZonaiDb {
       type: .magicLink,
     );
 
-    final magicLink = (await _operations.send<MagicLinkBaseUrlResponse>(
-      GetMagicLinkBaseUrlOperationRequest(collection: collection),
+    final magicLink = (await _operations.send<MagicLinkConfigResponse>(
+      GetMagicLinkConfigOperationRequest(collection: collection),
     )).config;
 
     final appConfig = await configResolver.resolve();

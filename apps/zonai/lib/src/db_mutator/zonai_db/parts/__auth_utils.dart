@@ -110,6 +110,9 @@ extension _AuthUtilsX on ZonaiDb {
           ConfirmResetPasswordAuthPayload() => throw ArgumentError(
             'Cannot get auth record for confirm reset password payload',
           ),
+          VerifyEmailAuthPayload() => throw ArgumentError(
+            'Cannot get auth record for verify email payload',
+          ),
         },
       ),
     );
@@ -218,5 +221,53 @@ extension _AuthUtilsX on ZonaiDb {
     }
 
     throw StateError('Cannot authenticate for collection: $collection');
+  }
+
+  Future<String?> _emailFromJwt({
+    required String collection,
+    required Jwt jwt,
+  }) async {
+    if (jwt.collection != collection) {
+      return null;
+    }
+
+    final emailColumn = await _operations.send<ColumnNameResponse>(
+      GetColumnNameRequest(collection: collection, columnName: .email),
+    );
+
+    return switch (jwt.user[emailColumn.name]) {
+      final String email => email,
+      _ => null,
+    };
+  }
+
+  Future<void> _requireAdminOrOwnEmail({
+    required String collection,
+    required String email,
+    required bool allowUnauthenticated,
+    Jwt? jwt,
+  }) async {
+    if (jwt == null) {
+      if (allowUnauthenticated) {
+        return;
+      }
+      throw StateError('Authentication is required to send this email');
+    }
+
+    final validated = await _validateJwt(jwt);
+
+    if (validated.admin.isAdmin) {
+      return;
+    }
+
+    final userEmail = await _emailFromJwt(
+      collection: collection,
+      jwt: validated,
+    );
+    if (userEmail != null && userEmail.toLowerCase() == email.toLowerCase()) {
+      return;
+    }
+
+    throw StateError('Cannot send email to another user\'s email address');
   }
 }

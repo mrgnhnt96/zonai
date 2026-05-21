@@ -15,7 +15,15 @@ class AuthHandler {
     );
   }
 
-  Future<Map<String, Object?>?> authenticate(AuthBody body) async {
+  Future<Map<String, Object?>?> authenticate(
+    AuthBody body, {
+    String? authorization,
+  }) async {
+    final token = switch (authorization) {
+      null => null,
+      final String bearerToken => _parseBearerAuthorization(bearerToken),
+    };
+
     final payload = switch (body) {
       SignInAuthBody() => SignInPasswordAuthPayload(
         email: body.email,
@@ -29,6 +37,7 @@ class AuthHandler {
       SendOtpAuthBody() => SendOtpAuthPayload(
         email: body.email,
         object: body.metadata,
+        jwt: token,
       ),
       SendMagicLinkAuthBody() => SendMagicLinkAuthPayload(
         email: body.email,
@@ -77,6 +86,7 @@ class AuthHandler {
         token: body.token,
         newPassword: body.newPassword,
       ),
+      ConfirmVerifyEmailAuthBody() => VerifyEmailAuthPayload(token: body.token),
     };
 
     final result = await zonaiDB.confirmAuth(payload);
@@ -91,6 +101,7 @@ class AuthHandler {
         result.jwt,
       ),
       (ConfirmResetPasswordAuthBody(), null) => null,
+      (ConfirmVerifyEmailAuthBody(), null) => null,
       _ => throw UnimplementedError('Unknown verify auth body: $body'),
     };
   }
@@ -149,6 +160,11 @@ class AuthHandler {
       case SendResetPasswordAuthBody():
         await zonaiDB.sendResetPassword(body.collection, payload);
     }
+  }
+
+  Future<void> sendVerifyEmail({required String authorization}) async {
+    final token = _parseBearerAuthorization(authorization);
+    await zonaiDB.sendVerifyEmailAuthenticated(token);
   }
 
   Map<String, Object?> _sessionPayload(

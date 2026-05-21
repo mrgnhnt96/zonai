@@ -5,7 +5,16 @@ extension _OtpX on ZonaiDb {
     String collection,
     SendOtpAuthPayload payload, {
     bool isAdmin = false,
+    Jwt? callerJwt,
   }) async {
+    final jwt = callerJwt ?? await _extractJwt(payload);
+    await _requireAdminOrOwnEmail(
+      collection: collection,
+      email: payload.email,
+      jwt: jwt,
+      allowUnauthenticated: true,
+    );
+
     final hasAuthRecord = await _hasAuthRecord(
       collection: collection,
       payload: payload,

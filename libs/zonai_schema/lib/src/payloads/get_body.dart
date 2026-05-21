@@ -15,7 +15,10 @@ class GetBody {
     return GetBody(
       collection: json['collection'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),
-      expand: json['expand'] as List<String>? ?? [],
+      expand: [
+        if (json['expand'] case final List list)
+          for (final item in list) item as String,
+      ],
     );
   }
 

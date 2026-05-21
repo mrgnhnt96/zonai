@@ -10,6 +10,10 @@ abstract final class PageTitle {
     required String path,
     String? collectionDisplayName,
   }) {
+    if (AuthRoutes.isVerifyEmailCallbackPath(path)) {
+      return '$appName — Verify email';
+    }
+
     if (!signedIn) {
       if (AuthRoutes.isMagicLinkCallbackPath(path)) {
         return '$appName — Sign in';

@@ -32,9 +32,13 @@ sealed class OperationResponse extends Response {
         json,
       ),
       AdminCollectionsResponse._path => AdminCollectionsResponse.fromJson(json),
-      MagicLinkBaseUrlResponse._path => MagicLinkBaseUrlResponse.fromJson(json),
-      ResetPasswordBaseUrlResponse._path =>
-        ResetPasswordBaseUrlResponse.fromJson(json),
+      MagicLinkConfigResponse._path => MagicLinkConfigResponse.fromJson(json),
+      ResetPasswordConfigResponse._path => ResetPasswordConfigResponse.fromJson(
+        json,
+      ),
+      VerifyEmailConfigResponse._path => VerifyEmailConfigResponse.fromJson(
+        json,
+      ),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
   }
@@ -237,12 +241,12 @@ final class AdminCollectionsResponse extends OperationResponse {
   }
 }
 
-final class MagicLinkBaseUrlResponse extends OperationResponse {
-  const MagicLinkBaseUrlResponse({required super.id, required this.config})
+final class MagicLinkConfigResponse extends OperationResponse {
+  const MagicLinkConfigResponse({required super.id, required this.config})
     : super(path: _path, payload: const {});
 
-  factory MagicLinkBaseUrlResponse.fromJson(Map<String, dynamic> json) {
-    return MagicLinkBaseUrlResponse(
+  factory MagicLinkConfigResponse.fromJson(Map<String, dynamic> json) {
+    return MagicLinkConfigResponse(
       id: json['id'] as String,
       config: MagicLinkConfig.fromJson(json['config'] as Map<String, dynamic>),
     );
@@ -258,12 +262,12 @@ final class MagicLinkBaseUrlResponse extends OperationResponse {
   }
 }
 
-final class ResetPasswordBaseUrlResponse extends OperationResponse {
-  const ResetPasswordBaseUrlResponse({required super.id, required this.config})
+final class ResetPasswordConfigResponse extends OperationResponse {
+  const ResetPasswordConfigResponse({required super.id, required this.config})
     : super(path: _path, payload: const {});
 
-  factory ResetPasswordBaseUrlResponse.fromJson(Map<String, dynamic> json) {
-    return ResetPasswordBaseUrlResponse(
+  factory ResetPasswordConfigResponse.fromJson(Map<String, dynamic> json) {
+    return ResetPasswordConfigResponse(
       id: json['id'] as String,
       config: ResetPasswordConfig.fromJson(
         json['config'] as Map<String, dynamic>,
@@ -274,6 +278,29 @@ final class ResetPasswordBaseUrlResponse extends OperationResponse {
   static const _path = '${Response.prefix}.auth.get_reset_password_base_url';
 
   final ResetPasswordConfig config;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'config': config.toJson()};
+  }
+}
+
+final class VerifyEmailConfigResponse extends OperationResponse {
+  const VerifyEmailConfigResponse({required super.id, required this.config})
+    : super(path: _path, payload: const {});
+
+  factory VerifyEmailConfigResponse.fromJson(Map<String, dynamic> json) {
+    return VerifyEmailConfigResponse(
+      id: json['id'] as String,
+      config: VerifyEmailConfig.fromJson(
+        json['config'] as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_verify_email_base_url';
+
+  final VerifyEmailConfig config;
 
   @override
   Map<String, dynamic> toJson() {

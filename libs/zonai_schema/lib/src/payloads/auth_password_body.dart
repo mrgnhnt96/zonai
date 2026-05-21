@@ -268,6 +268,10 @@ sealed class VerifyAuthBody {
       ConfirmResetPasswordAuthBody._type =>
         ConfirmResetPasswordAuthBody.fromJson(json),
 
+      ConfirmVerifyEmailAuthBody._type => ConfirmVerifyEmailAuthBody.fromJson(
+        json,
+      ),
+
       _ => throw ArgumentError(
         'Invalid verify auth body type: ${json['type']}',
       ),
@@ -294,6 +298,9 @@ sealed class VerifyAuthBody {
     required String token,
     required String newPassword,
   }) = ConfirmResetPasswordAuthBody;
+
+  factory VerifyAuthBody.confirmVerifyEmail({required String token}) =
+      ConfirmVerifyEmailAuthBody;
 
   final String type;
 
@@ -413,6 +420,20 @@ class ConfirmResetPasswordAuthBody extends VerifyAuthBody {
     'token': token,
     'newPassword': newPassword,
   };
+}
+
+class ConfirmVerifyEmailAuthBody extends VerifyAuthBody {
+  const ConfirmVerifyEmailAuthBody({required this.token}) : super(type: _type);
+
+  factory ConfirmVerifyEmailAuthBody.fromJson(Map<String, dynamic> json) {
+    return ConfirmVerifyEmailAuthBody(token: json['token'] as String);
+  }
+
+  static const _type = 'confirmVerifyEmail';
+
+  final String token;
+
+  Map<String, dynamic> toJson() => {...super.toJson(), 'token': token};
 }
 
 class AdminSignInAuthBody extends AdminAuthBody implements SignInAuthBody {

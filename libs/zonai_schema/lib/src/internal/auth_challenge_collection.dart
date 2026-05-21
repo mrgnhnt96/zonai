@@ -67,6 +67,19 @@ class AuthChallenge {
        canConsume = true,
        consumedAt = null;
 
+  AuthChallenge.verifyEmail({
+    required this.id,
+    required this.expiresAt,
+    required this.secretHash,
+    required this.target,
+    required this.collection,
+    this.metadata,
+  }) : userId = null,
+       type = .verifyEmail,
+       createdAt = DateTime.now(),
+       canConsume = true,
+       consumedAt = null;
+
   final AuthChallengeId id;
   final Id? userId;
   final DateTime expiresAt;

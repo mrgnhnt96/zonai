@@ -26,8 +26,9 @@ sealed class OperationRequest extends Request {
       CreateAuthOperationRequest._path =>
         CreateAuthOperationRequest.fromRequest(request),
       GetColumnNameRequest._path => GetColumnNameRequest.fromRequest(request),
-      GetColumnReferenceRequest._path =>
-        GetColumnReferenceRequest.fromRequest(request),
+      GetColumnReferenceRequest._path => GetColumnReferenceRequest.fromRequest(
+        request,
+      ),
       GetClaimsOperationRequest._path => GetClaimsOperationRequest.fromRequest(
         request,
       ),
@@ -36,10 +37,12 @@ sealed class OperationRequest extends Request {
       ),
       GetAdminCollectionsOperationRequest._path =>
         GetAdminCollectionsOperationRequest.fromRequest(request),
-      GetMagicLinkBaseUrlOperationRequest._path =>
-        GetMagicLinkBaseUrlOperationRequest.fromRequest(request),
-      GetResetPasswordBaseUrlOperationRequest._path =>
-        GetResetPasswordBaseUrlOperationRequest.fromRequest(request),
+      GetMagicLinkConfigOperationRequest._path =>
+        GetMagicLinkConfigOperationRequest.fromRequest(request),
+      GetResetPasswordConfigOperationRequest._path =>
+        GetResetPasswordConfigOperationRequest.fromRequest(request),
+      GetVerifyEmailConfigOperationRequest._path =>
+        GetVerifyEmailConfigOperationRequest.fromRequest(request),
       _ => throw ArgumentError(
         'Invalid operation request path: ${request.path}',
       ),
@@ -721,19 +724,19 @@ final class CountOperationRequest extends PerformOperationRequest {
   }
 }
 
-final class GetMagicLinkBaseUrlOperationRequest extends OperationRequest {
-  GetMagicLinkBaseUrlOperationRequest({required this.collection})
+final class GetMagicLinkConfigOperationRequest extends OperationRequest {
+  GetMagicLinkConfigOperationRequest({required this.collection})
     : super(path: _path, id: Request.generateId(), jwt: null);
 
-  GetMagicLinkBaseUrlOperationRequest._({
+  GetMagicLinkConfigOperationRequest._({
     required super.id,
     required this.collection,
   }) : super(path: _path, jwt: null);
 
-  factory GetMagicLinkBaseUrlOperationRequest.fromRequest(
+  factory GetMagicLinkConfigOperationRequest.fromRequest(
     UnknownRequest request,
   ) {
-    return GetMagicLinkBaseUrlOperationRequest._(
+    return GetMagicLinkConfigOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
     );
@@ -749,25 +752,53 @@ final class GetMagicLinkBaseUrlOperationRequest extends OperationRequest {
   }
 }
 
-final class GetResetPasswordBaseUrlOperationRequest extends OperationRequest {
-  GetResetPasswordBaseUrlOperationRequest({required this.collection})
+final class GetResetPasswordConfigOperationRequest extends OperationRequest {
+  GetResetPasswordConfigOperationRequest({required this.collection})
     : super(path: _path, id: Request.generateId(), jwt: null);
 
-  GetResetPasswordBaseUrlOperationRequest._({
+  GetResetPasswordConfigOperationRequest._({
     required super.id,
     required this.collection,
   }) : super(path: _path, jwt: null);
 
-  factory GetResetPasswordBaseUrlOperationRequest.fromRequest(
+  factory GetResetPasswordConfigOperationRequest.fromRequest(
     UnknownRequest request,
   ) {
-    return GetResetPasswordBaseUrlOperationRequest._(
+    return GetResetPasswordConfigOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
     );
   }
 
   static const _path = '${Request.prefix}.auth.get_reset_password_base_url';
+
+  final String collection;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection};
+  }
+}
+
+final class GetVerifyEmailConfigOperationRequest extends OperationRequest {
+  GetVerifyEmailConfigOperationRequest({required this.collection})
+    : super(path: _path, id: Request.generateId(), jwt: null);
+
+  GetVerifyEmailConfigOperationRequest._({
+    required super.id,
+    required this.collection,
+  }) : super(path: _path, jwt: null);
+
+  factory GetVerifyEmailConfigOperationRequest.fromRequest(
+    UnknownRequest request,
+  ) {
+    return GetVerifyEmailConfigOperationRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+    );
+  }
+
+  static const _path = '${Request.prefix}.auth.get_verify_email_base_url';
 
   final String collection;
 

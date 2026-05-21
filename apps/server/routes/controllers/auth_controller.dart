@@ -12,9 +12,10 @@ class AuthController {
 
   @Post()
   Future<Map<String, Object?>?> authenticate({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Body() required AuthBody body,
   }) async {
-    return await authHandler.authenticate(body);
+    return await authHandler.authenticate(body, authorization: authorization);
   }
 
   @Post('reset-password')
@@ -26,6 +27,13 @@ class AuthController {
       authorization: authorization,
       body: body,
     );
+  }
+
+  @Post('verify-email')
+  Future<void> sendVerifyEmail({
+    @Header(HttpHeaders.authorizationHeader) required String authorization,
+  }) async {
+    await authHandler.sendVerifyEmail(authorization: authorization);
   }
 
   @Post('confirm')

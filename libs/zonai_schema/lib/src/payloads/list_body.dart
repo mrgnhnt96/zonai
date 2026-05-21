@@ -21,7 +21,10 @@ class ListBody {
       where: json['where'] != null ? Where.fromJson(json['where']) : null,
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
-      expand: json['expand'] as List<String>? ?? [],
+      expand: [
+        if (json['expand'] case final List list)
+          for (final item in list) item as String,
+      ],
     );
   }
 

@@ -36,10 +36,12 @@ part 'parts/__utils.dart';
 part 'parts/auth/auth.dart';
 part 'parts/auth/challenge.dart';
 part 'parts/auth/reset_password.dart';
+part 'parts/auth/verify_email.dart';
 part 'parts/auth/magic_link.dart';
 part 'parts/auth/otp.dart';
 part 'parts/auth/password.dart';
 part 'parts/auth/logout.dart';
+part 'parts/admin/create_admin.dart';
 part 'parts/count.dart';
 part 'parts/create.dart';
 part 'parts/delete.dart';
@@ -126,6 +128,47 @@ class ZonaiDb {
     });
   }
 
+  Future<void> sendVerifyEmail(
+    String collection, {
+    required String email,
+    Map<String, dynamic>? variables,
+    Jwt? jwt,
+  }) async {
+    return await _run(
+      () => _sendVerifyEmail(
+        collection,
+        email: email,
+        variables: variables,
+        jwt: jwt,
+      ),
+    );
+  }
+
+  Future<void> sendOtp(
+    String collection,
+    SendOtpAuthPayload payload, {
+    Jwt? jwt,
+  }) async {
+    return await _run(() => _sendOtp(collection, payload, callerJwt: jwt));
+  }
+
+  Future<void> sendVerifyEmailAuthenticated(String jwtToken) async {
+    return await _run(() async {
+      final jwt = await _extractJwt(JwtPayload(jwt: jwtToken));
+      if (jwt == null) {
+        throw StateError('Authentication is required to send verify email');
+      }
+
+      final collection = jwt.collection;
+      final targetEmail = await _emailFromJwt(collection: collection, jwt: jwt);
+      if (targetEmail == null) {
+        throw StateError('Could not determine email address');
+      }
+
+      await _sendVerifyEmail(collection, email: targetEmail, jwt: jwt);
+    });
+  }
+
   Future<_AuthResult?> confirmAuth(VerifyAuthPayload payload) async {
     return await _run(() async {
       switch (payload) {
@@ -135,6 +178,9 @@ class ZonaiDb {
           return await _verifyMagicLink(payload);
         case ConfirmResetPasswordAuthPayload():
           await _confirmResetPassword(payload);
+          return null;
+        case VerifyEmailAuthPayload():
+          await _verifyEmail(payload);
           return null;
       }
     });
