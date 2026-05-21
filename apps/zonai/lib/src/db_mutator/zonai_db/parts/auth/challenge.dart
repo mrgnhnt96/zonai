@@ -3,8 +3,13 @@ part of zonai_db;
 extension _ChallengeX on ZonaiDb {
   Future<void> _consumeChallenge(AuthChallenge challenge) async {
     final db = await open();
+
     await db
-        .delete(from: authChallenges)
+        .update(authChallenges)
+        .set(
+          authChallenges.consumedAt.to(clock.now()),
+          authChallenges.canConsume.to(false),
+        )
         .where(authChallenges.id.equals(challenge.id.value));
   }
 
@@ -20,7 +25,8 @@ extension _ChallengeX on ZonaiDb {
         .from(authChallenges)
         .where(
           authChallenges.target.equals(email) &
-              authChallenges.collection.equals(collection),
+              authChallenges.collection.equals(collection) &
+              authChallenges.canConsume.isTrue(),
         )
         .limit(1);
 
@@ -36,11 +42,13 @@ extension _ChallengeX on ZonaiDb {
 
     // expire all old opts for this email
     await db
-        .delete(from: authChallenges)
+        .update(authChallenges)
+        .set(authChallenges.canConsume.to(false))
         .where(
           authChallenges.target.equals(email) &
               authChallenges.collection.equals(collection) &
-              authChallenges.type.equals(type),
+              authChallenges.type.equals(type) &
+              authChallenges.canConsume.isTrue(),
         );
   }
 }

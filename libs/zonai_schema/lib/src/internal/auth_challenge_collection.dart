@@ -11,7 +11,9 @@ class AuthChallenge {
     required this.target,
     required this.collection,
     required this.type,
-  }) : createdAt = DateTime.now();
+  }) : createdAt = DateTime.now(),
+       canConsume = true,
+       consumedAt = null;
 
   AuthChallenge._({
     required this.id,
@@ -24,6 +26,8 @@ class AuthChallenge {
     required this.collection,
     required this.type,
     required this.createdAt,
+    required this.consumedAt,
+    required this.canConsume,
   });
 
   AuthChallenge.otp({
@@ -36,7 +40,9 @@ class AuthChallenge {
   }) : userId = null,
        type = .otp,
        createdAt = DateTime.now(),
-       secretHash = null;
+       secretHash = null,
+       canConsume = true,
+       consumedAt = null;
 
   AuthChallenge.magicLink({
     required this.id,
@@ -48,7 +54,9 @@ class AuthChallenge {
   }) : userId = null,
        type = .magicLink,
        createdAt = DateTime.now(),
-       otpHash = null;
+       otpHash = null,
+       canConsume = true,
+       consumedAt = null;
 
   final AuthChallengeId id;
   final Id? userId;
@@ -60,6 +68,8 @@ class AuthChallenge {
   final String collection;
   final AuthChallengeType type;
   final DateTime createdAt;
+  final DateTime? consumedAt;
+  final bool canConsume;
 }
 
 enum AuthChallengeType {
@@ -109,7 +119,9 @@ class AuthChallengeCollection extends Collection<AuthChallenge> {
       target = $.text('target', (s) => s.target),
       collection = $.text('collection', (s) => s.collection),
       type = $.enumerator('type', AuthChallengeType.values, (s) => s.type),
-      createdAt = $.createdAt('created_at', (s) => s.createdAt);
+      createdAt = $.createdAt('created_at', (s) => s.createdAt),
+      consumedAt = $.dateTime('consumed_at', (s) => s.consumedAt),
+      canConsume = $.boolean('can_consume', (s) => s.canConsume);
 
   final IdColumn<AuthChallengeId> id;
   final IdColumn<UnknownId>? userId;
@@ -121,6 +133,8 @@ class AuthChallengeCollection extends Collection<AuthChallenge> {
   final TextColumn collection;
   final EnumColumn<AuthChallengeType> type;
   final DateTimeColumn createdAt;
+  final DateTimeColumn? consumedAt;
+  final BooleanColumn canConsume;
 
   @override
   AuthChallenge fromRow(RowReader read) {
@@ -135,6 +149,8 @@ class AuthChallengeCollection extends Collection<AuthChallenge> {
       collection: read(collection),
       type: read(type),
       createdAt: read(createdAt),
+      consumedAt: read(consumedAt),
+      canConsume: read(canConsume),
     );
   }
 }
@@ -143,8 +159,9 @@ final authChallenges = collection(
   '_auth_challenges',
   AuthChallengeCollection.new,
   (table) {
-    uniqueIndex(
+    index(
       'auth_challenges_target_collection_unique',
     ).on(table.target, table.collection);
+    index('auth_challenges_consumed_unique').on(table.canConsume);
   },
 );
