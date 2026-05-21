@@ -59,7 +59,12 @@ extension _MagicLinkX on ZonaiDb {
       type: .magicLink,
     );
 
-    final expiresIn = const Duration(minutes: 10);
+    final magicLink = (await _operations.send<MagicLinkBaseUrlResponse>(
+      GetMagicLinkBaseUrlOperationRequest(collection: collection),
+    )).config;
+
+    final appConfig = await configResolver.resolve();
+
     final secret = switch (kIsCompiled) {
       false => 'dev-magic-link',
       true => List.generate(
@@ -75,7 +80,7 @@ extension _MagicLinkX on ZonaiDb {
     await db.insert(into: authChallenges).values([
       AuthChallenge.magicLink(
         id: AuthChallengeId.generate(),
-        expiresAt: clock.now().add(expiresIn),
+        expiresAt: clock.now().add(magicLink.expiresIn),
         metadata: payload.object,
         secretHash: hashedSecret,
         target: payload.email,
@@ -83,17 +88,19 @@ extension _MagicLinkX on ZonaiDb {
       ),
     ]);
 
-    final url = await _operations.send<MagicLinkBaseUrlResponse>(
-      GetMagicLinkBaseUrlOperationRequest(collection: collection),
-    );
+    final domain = switch (magicLink.path) {
+      final path when path.startsWith('/') => '${appConfig.baseUrl}$path',
+      final path when !path.startsWith('http') => '${appConfig.baseUrl}/$path',
+      final path => path,
+    };
 
     courier.send(
       SendMagicLinkEmail(
         to: EmailAddress(address: payload.email),
         collection: collection,
         isResend: lastMagicLink != null,
-        magicLinkUrl: '${url.url}?s=${Uri.encodeComponent(encodedToken)}',
-        expiresIn: expiresIn,
+        magicLinkUrl: '$domain?s=${Uri.encodeComponent(encodedToken)}',
+        expiresIn: magicLink.expiresIn,
         variables: payload.object,
       ),
     );

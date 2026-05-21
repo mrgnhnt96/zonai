@@ -14,6 +14,7 @@ final class AppConfig {
     required this.jwtSecret,
     this.previousPasswordSecrets = const [],
     this.previousJwtSecrets = const [],
+    this.baseUrl = 'http://localhost:8080',
     this.email,
   });
 
@@ -24,6 +25,7 @@ final class AppConfig {
     previousPasswordSecrets: _stringList(json['previousPasswordSecrets']),
     previousJwtSecrets: _stringList(json['previousJwtSecrets']),
     email: json['email'] != null ? EmailConfig.fromJson(json['email']) : null,
+    baseUrl: json['baseUrl'] as String,
   );
 
   /// Display name for the app (browser title, UI branding).
@@ -41,6 +43,11 @@ final class AppConfig {
 
   final EmailConfig? email;
 
+  /// The base URL of the app.
+  ///
+  /// Defaults to `http://localhost:8080` if not set.
+  final String baseUrl;
+
   /// Active password secret first, then [previousPasswordSecrets] (verify).
   List<String> get passwordSecretsForVerify =>
       List<String>.unmodifiable([passwordSecret, ...previousPasswordSecrets]);
@@ -56,6 +63,7 @@ final class AppConfig {
     'previousPasswordSecrets': previousPasswordSecrets,
     'previousJwtSecrets': previousJwtSecrets,
     'email': email?.toJson(),
+    'baseUrl': baseUrl,
   };
 
   static List<String> _stringList(Object? value) {

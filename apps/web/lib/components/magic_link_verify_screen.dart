@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
-import 'package:universal_web/web.dart' as web;
 
 import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
@@ -29,7 +28,7 @@ class MagicLinkVerifyScreenState extends State<MagicLinkVerifyScreen> {
   }
 
   Future<void> _verifyFromUrl() async {
-    final token = Uri.parse(web.window.location.href).queryParameters['s'];
+    final token = Uri.parse(context.url).queryParameters['s'];
 
     if (token == null || token.isEmpty) {
       if (!mounted) return;
@@ -37,6 +36,10 @@ class MagicLinkVerifyScreenState extends State<MagicLinkVerifyScreen> {
         _loading = false;
         _error = 'This sign-in link is invalid or incomplete.';
       });
+      return;
+    }
+
+    if (!context.binding.isClient) {
       return;
     }
 

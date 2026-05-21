@@ -41,7 +41,10 @@ extension _ResetPasswordX on ZonaiDb {
       type: .passwordReset,
     );
 
-    final expiresIn = const Duration(minutes: 10);
+    final resetPassword = (await _operations.send<ResetPasswordBaseUrlResponse>(
+      GetResetPasswordBaseUrlOperationRequest(collection: collection),
+    )).config;
+
     final secret = switch (kIsCompiled) {
       false => 'dev-reset-password',
       true => List.generate(
@@ -57,23 +60,26 @@ extension _ResetPasswordX on ZonaiDb {
     await db.insert(into: authChallenges).values([
       AuthChallenge.passwordReset(
         id: AuthChallengeId.generate(),
-        expiresAt: clock.now().add(expiresIn),
+        expiresAt: clock.now().add(resetPassword.expiresIn),
         secretHash: hashedSecret,
         target: payload.email,
         collection: collection,
       ),
     ]);
 
-    final url = await _operations.send<ResetPasswordBaseUrlResponse>(
-      GetResetPasswordBaseUrlOperationRequest(collection: collection),
-    );
+    final appConfig = await configResolver.resolve();
+    final domain = switch (resetPassword.path) {
+      final path when path.startsWith('/') => '${appConfig.baseUrl}$path',
+      final path when !path.startsWith('http') => '${appConfig.baseUrl}/$path',
+      final path => path,
+    };
 
     courier.send(
       SendResetPasswordEmail(
         to: EmailAddress(address: payload.email),
         collection: collection,
-        passwordResetUrl: '${url.url}?s=${Uri.encodeComponent(encodedToken)}',
-        expiresIn: expiresIn,
+        passwordResetUrl: '$domain?s=${Uri.encodeComponent(encodedToken)}',
+        expiresIn: resetPassword.expiresIn,
       ),
     );
   }

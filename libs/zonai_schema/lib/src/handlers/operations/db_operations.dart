@@ -307,12 +307,12 @@ class DbOperations {
     if (collection == null) {
       _failMissingCollection(request.collection);
     }
-    final url = switch (collection) {
-      AuthOperations(:final magicLinkBaseUrl) => await magicLinkBaseUrl(),
+    final config = switch (collection) {
+      AuthOperations(:final magicLinkConfig) => await magicLinkConfig(),
       _ => throw StateError('Collection does not support magic link'),
     };
 
-    return MagicLinkBaseUrlResponse(id: request.id, url: url);
+    return MagicLinkBaseUrlResponse(id: request.id, config: config);
   }
 
   Future<ResetPasswordBaseUrlResponse> _getResetPasswordBaseUrl(
@@ -322,13 +322,12 @@ class DbOperations {
     if (collection == null) {
       _failMissingCollection(request.collection);
     }
-    final url = switch (collection) {
-      AuthOperations(:final resetPasswordBaseUrl) =>
-        await resetPasswordBaseUrl(),
+    final config = switch (collection) {
+      AuthOperations(:final resetPasswordConfig) => await resetPasswordConfig(),
       _ => throw StateError('Collection does not support reset password'),
     };
 
-    return ResetPasswordBaseUrlResponse(id: request.id, url: url);
+    return ResetPasswordBaseUrlResponse(id: request.id, config: config);
   }
 
   Column _emailColumn(Table table) {

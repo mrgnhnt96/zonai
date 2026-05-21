@@ -203,43 +203,45 @@ final class AdminCollectionsResponse extends OperationResponse {
 }
 
 final class MagicLinkBaseUrlResponse extends OperationResponse {
-  const MagicLinkBaseUrlResponse({required super.id, required this.url})
+  const MagicLinkBaseUrlResponse({required super.id, required this.config})
     : super(path: _path, payload: const {});
 
   factory MagicLinkBaseUrlResponse.fromJson(Map<String, dynamic> json) {
     return MagicLinkBaseUrlResponse(
       id: json['id'] as String,
-      url: json['url'] as String,
+      config: MagicLinkConfig.fromJson(json['config'] as Map<String, dynamic>),
     );
   }
 
   static const _path = '${Response.prefix}.auth.get_magic_link_base_url';
 
-  final String url;
+  final MagicLinkConfig config;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'url': url};
+    return {...super.toJson(), 'config': config.toJson()};
   }
 }
 
 final class ResetPasswordBaseUrlResponse extends OperationResponse {
-  const ResetPasswordBaseUrlResponse({required super.id, required this.url})
+  const ResetPasswordBaseUrlResponse({required super.id, required this.config})
     : super(path: _path, payload: const {});
 
   factory ResetPasswordBaseUrlResponse.fromJson(Map<String, dynamic> json) {
     return ResetPasswordBaseUrlResponse(
       id: json['id'] as String,
-      url: json['url'] as String,
+      config: ResetPasswordConfig.fromJson(
+        json['config'] as Map<String, dynamic>,
+      ),
     );
   }
 
   static const _path = '${Response.prefix}.auth.get_reset_password_base_url';
 
-  final String url;
+  final ResetPasswordConfig config;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'url': url};
+    return {...super.toJson(), 'config': config.toJson()};
   }
 }

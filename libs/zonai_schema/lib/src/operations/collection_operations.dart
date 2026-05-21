@@ -500,12 +500,66 @@ base mixin AuthOperations<S extends AuthCollection<R>, R>
     return Claims(jwt.claims);
   }
 
-  Future<String> magicLinkBaseUrl() async {
-    return 'http://localhost:8091/auth/magic-link';
+  Future<MagicLinkConfig> magicLinkConfig() async {
+    return MagicLinkConfig();
   }
 
-  Future<String> resetPasswordBaseUrl() async {
-    return 'http://localhost:8091/auth/reset-password';
+  Future<ResetPasswordConfig> resetPasswordConfig() async {
+    return ResetPasswordConfig();
+  }
+}
+
+class MagicLinkConfig {
+  MagicLinkConfig({
+    this.path = '/auth/magic-link',
+    this.expiresIn = const Duration(minutes: 10),
+  });
+
+  factory MagicLinkConfig.fromJson(Map<String, dynamic> json) {
+    return MagicLinkConfig(
+      path: json['path'] as String,
+      expiresIn: Duration(seconds: json['expiresIn'] as int),
+    );
+  }
+
+  /// The path to the magic link endpoint.
+  ///
+  /// Can include the base url if the domain differs from the app config's
+  /// base url.
+  final String path;
+
+  /// The duration for which the magic link is valid.
+  final Duration expiresIn;
+
+  Map<String, dynamic> toJson() {
+    return {'path': path, 'expiresIn': expiresIn.inSeconds};
+  }
+}
+
+class ResetPasswordConfig {
+  ResetPasswordConfig({
+    this.path = '/auth/reset-password',
+    this.expiresIn = const Duration(minutes: 10),
+  });
+
+  factory ResetPasswordConfig.fromJson(Map<String, dynamic> json) {
+    return ResetPasswordConfig(
+      path: json['path'] as String,
+      expiresIn: Duration(seconds: json['expiresIn'] as int),
+    );
+  }
+
+  /// The path to the reset password endpoint.
+  ///
+  /// Can include the base url if the domain differs from the app config's
+  /// base url.
+  final String path;
+
+  /// The duration for which the reset password is valid.
+  final Duration expiresIn;
+
+  Map<String, dynamic> toJson() {
+    return {'path': path, 'expiresIn': expiresIn.inSeconds};
   }
 }
 

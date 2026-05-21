@@ -10,9 +10,6 @@ final zonaiDbProvider = create<ZonaiDb Function()>(
   () => () {
     if (!kIsCompiled) {
       if (isRegistered(keyboardInputProvider)) {
-        logger.info(
-          'Registering keyboard input listener for clean up zonai db',
-        );
         keyboardInput.addListener((e) {
           if (e.matches('r')) {
             logger.info('Restarting Zonai DB');
@@ -20,8 +17,6 @@ final zonaiDbProvider = create<ZonaiDb Function()>(
             _db = null;
           }
         });
-      } else {
-        logger.error('Keyboard input provider is not registered');
       }
     }
 

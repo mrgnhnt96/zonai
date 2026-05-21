@@ -5,6 +5,7 @@ AppConfig main() {
     appName: 'Banana',
     passwordSecret: 'password',
     jwtSecret: 'jwt',
+    baseUrl: 'http://localhost:8091',
     email: EmailConfig(
       host: 'smtp.gmail.com',
       port: 587,
