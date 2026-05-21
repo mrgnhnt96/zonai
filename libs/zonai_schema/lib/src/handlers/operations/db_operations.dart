@@ -57,6 +57,8 @@ class DbOperations {
             return await _sanitize(request);
           case final GetAdminCollectionsOperationRequest request:
             return await _getAdminCollections(request);
+          case final GetMagicLinkBaseUrlOperationRequest request:
+            return await _getMagicLinkBaseUrl(request);
         }
       },
     ).listen();
@@ -294,6 +296,21 @@ class DbOperations {
       isAdmin: admin != null,
       canEdit: admin?.canEdit ?? false,
     );
+  }
+
+  Future<MagicLinkBaseUrlResponse> _getMagicLinkBaseUrl(
+    GetMagicLinkBaseUrlOperationRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      _failMissingCollection(request.collection);
+    }
+    final url = switch (collection) {
+      AuthOperations(:final magicLinkBaseUrl) => await magicLinkBaseUrl(),
+      _ => throw StateError('Collection does not support magic link'),
+    };
+
+    return MagicLinkBaseUrlResponse(id: request.id, url: url);
   }
 
   Column _emailColumn(Table table) {

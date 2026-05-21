@@ -499,6 +499,10 @@ base mixin AuthOperations<S extends AuthCollection<R>, R>
   Future<Claims> addClaims({required Jwt jwt}) async {
     return Claims(jwt.claims);
   }
+
+  Future<String> magicLinkBaseUrl() async {
+    return 'http://localhost:8091/auth/magic-link';
+  }
 }
 
 class Claims {

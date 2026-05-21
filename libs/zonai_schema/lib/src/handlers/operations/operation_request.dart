@@ -34,6 +34,8 @@ sealed class OperationRequest extends Request {
       ),
       GetAdminCollectionsOperationRequest._path =>
         GetAdminCollectionsOperationRequest.fromRequest(request),
+      GetMagicLinkBaseUrlOperationRequest._path =>
+        GetMagicLinkBaseUrlOperationRequest.fromRequest(request),
       _ => throw ArgumentError(
         'Invalid operation request path: ${request.path}',
       ),
@@ -677,5 +679,33 @@ final class CountOperationRequest extends PerformOperationRequest {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'where': where?.toJson()};
+  }
+}
+
+final class GetMagicLinkBaseUrlOperationRequest extends OperationRequest {
+  GetMagicLinkBaseUrlOperationRequest({required this.collection})
+    : super(path: _path, id: Request.generateId(), jwt: null);
+
+  GetMagicLinkBaseUrlOperationRequest._({
+    required super.id,
+    required this.collection,
+  }) : super(path: _path, jwt: null);
+
+  factory GetMagicLinkBaseUrlOperationRequest.fromRequest(
+    UnknownRequest request,
+  ) {
+    return GetMagicLinkBaseUrlOperationRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+    );
+  }
+
+  static const _path = '${Request.prefix}.auth.get_magic_link_base_url';
+
+  final String collection;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection};
   }
 }

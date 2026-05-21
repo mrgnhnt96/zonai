@@ -82,14 +82,16 @@ extension _MagicLinkX on ZonaiDb {
       ),
     ]);
 
+    final url = await _operations.send<MagicLinkBaseUrlResponse>(
+      GetMagicLinkBaseUrlOperationRequest(collection: collection),
+    );
+
     courier.send(
       SendMagicLinkEmail(
         to: EmailAddress(address: payload.email),
         collection: collection,
         isResend: lastMagicLink != null,
-        magicLinkUrl:
-            // TODO: make this configurable in operations
-            'http://localhost:8091/auth/magic-link?s=${Uri.encodeComponent(encodedToken)}',
+        magicLinkUrl: '${url.url}?s=${Uri.encodeComponent(encodedToken)}',
         expiresIn: expiresIn,
         variables: payload.object,
       ),

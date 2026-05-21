@@ -31,6 +31,7 @@ sealed class OperationResponse extends Response {
         json,
       ),
       AdminCollectionsResponse._path => AdminCollectionsResponse.fromJson(json),
+      MagicLinkBaseUrlResponse._path => MagicLinkBaseUrlResponse.fromJson(json),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
   }
@@ -196,5 +197,26 @@ final class AdminCollectionsResponse extends OperationResponse {
           )
           .toList(),
     };
+  }
+}
+
+final class MagicLinkBaseUrlResponse extends OperationResponse {
+  const MagicLinkBaseUrlResponse({required super.id, required this.url})
+    : super(path: _path, payload: const {});
+
+  factory MagicLinkBaseUrlResponse.fromJson(Map<String, dynamic> json) {
+    return MagicLinkBaseUrlResponse(
+      id: json['id'] as String,
+      url: json['url'] as String,
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_magic_link_base_url';
+
+  final String url;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'url': url};
   }
 }
