@@ -4,11 +4,8 @@
 
 ### Auth
 
-- [ ] Add OTP authentication
 - [ ] Add OAuth authentication (mixins)
-- [ ] Add magic link authentication (mixin)
 - [ ] Add email verification
-- [ ] Add password reset
 - [ ] Add email change
 - [ ] Add impersonate
 
