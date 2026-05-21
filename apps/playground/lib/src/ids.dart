@@ -11,7 +11,9 @@ sealed class Id implements z.Id {
     }
 
     return switch (parts[1]) {
+      AuthorsId._suffix => AuthorsId(json),
       ItemsId._suffix => ItemsId(json),
+      PostsId._suffix => PostsId(json),
       UsersId._suffix => UsersId(json),
       _ => throw ArgumentError('Invalid ID format: $json'),
     };
@@ -31,12 +33,28 @@ sealed class Id implements z.Id {
   int get hashCode => value.hashCode;
 }
 
+class AuthorsId extends Id {
+  const AuthorsId(super.value);
+
+  factory AuthorsId.generate() => AuthorsId(z.Id.generate(_suffix));
+
+  static const _suffix = 'au';
+}
+
 class ItemsId extends Id {
   const ItemsId(super.value);
 
   factory ItemsId.generate() => ItemsId(z.Id.generate(_suffix));
 
   static const _suffix = 'it';
+}
+
+class PostsId extends Id {
+  const PostsId(super.value);
+
+  factory PostsId.generate() => PostsId(z.Id.generate(_suffix));
+
+  static const _suffix = 'po';
 }
 
 class UsersId extends Id {

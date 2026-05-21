@@ -2,13 +2,6 @@
 
 ## 5.19.2026
 
-### Auth
-
-- [ ] Add OAuth authentication (mixins)
-- [ ] Add email verification
-- [ ] Add email change
-- [ ] Add impersonate
-
 ### UI
 
 - [ ] Add theme color support
@@ -27,12 +20,9 @@
 - [ ] Upload files (to local storage)
 - [ ] Support `order_by` in queries
 - [ ] Support cron jobs
-- [ ] Support enums
 - [ ] Support expand columns
 - [ ] Export records as JSON
 - [ ] Add rate limiting
-- [ ] Support multiple `AppConfig` with `flavor`s
-- [ ] Detect `[.<flavor>].env` files and compile them into the `appConfig` executable
 
 ## 4.15.2026
 
@@ -65,3 +55,12 @@
 
 - [ ] Add feature to alert/fail on breaking changes
 - Investigate how to handle base classes for schemas & extending them
+
+## Backlog
+
+### Auth
+
+- [ ] Add OAuth authentication (mixins)
+- [ ] Add email verification
+- [ ] Add email change
+- [ ] Add impersonate
