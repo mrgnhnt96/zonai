@@ -3,6 +3,7 @@ export 'src/deps/courier.dart';
 export 'src/deps/fs.dart';
 export 'src/deps/clean_up.dart';
 export 'src/deps/mutations.dart';
+export 'src/deps/executable_stop.dart';
 export 'src/deps/extensions.dart';
 export 'src/deps/keyboard_input.dart';
 export 'src/deps/kill.dart';

@@ -7,6 +7,7 @@ import '../../deps/fs.dart';
 import '../../deps/keyboard_input.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
+import '../../deps/executable_stop.dart';
 import '../../deps/settings.dart';
 import 'extension_generator.dart';
 
@@ -41,6 +42,8 @@ class Extensions {
 
   Future<void> compile() async {
     if (!await _canCompile()) return;
+
+    executableStop.request(executablePath);
 
     final directory = fs.directory(settings.extensionsPath);
     final files = directory

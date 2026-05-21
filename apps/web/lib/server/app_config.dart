@@ -20,6 +20,7 @@ Future<AppConfig> loadAppConfig() {
       configProvider,
       configResolverProvider,
       extensionsProvider,
+      executableStopProvider,
       processProvider,
       loggerProvider,
       fsProvider,

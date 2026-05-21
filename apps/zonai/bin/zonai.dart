@@ -9,6 +9,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai/src/deps/args.dart';
 import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/executable_stop.dart';
 import 'package:zonai/src/deps/extensions.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/keyboard_input.dart';
@@ -72,6 +73,7 @@ Future<void> _run(List<String> arguments) async {
       keyboardInputProvider,
       migrateProvider,
       extensionsProvider,
+      executableStopProvider,
       rulesProvider,
       configProvider,
       configResolverProvider,

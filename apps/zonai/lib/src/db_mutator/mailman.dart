@@ -12,6 +12,7 @@ import '../deps/clean_up.dart';
 import '../deps/fs.dart';
 import '../deps/logger.dart';
 import '../deps/mutations.dart';
+import '../deps/executable_stop.dart';
 import '../deps/process.dart';
 import '../deps/zonai_db.dart';
 import '../domain/constants.dart';
@@ -47,6 +48,8 @@ class Mailman<S extends Request, R extends Response> {
   final Map<String, Completer<(Response, List<MutationRequest>)>>
   _pendingResponses = {};
   final Map<String, List<MutationRequest>> _pendingMutations = {};
+
+  Future<void>? _restartFuture;
 
   Future<void> dispose() async {
     kill();
@@ -228,10 +231,14 @@ class Mailman<S extends Request, R extends Response> {
 
     final p = _process = await process.start(executablePath, []);
     p.exitCode.whenComplete(() {
+      if (!identical(_process, p)) return;
+
       logger.warn('$_prefix: Exited');
       _process = null;
       for (final completer in _pendingResponses.values) {
-        completer.completeError(Exception('Process killed'));
+        if (!completer.isCompleted) {
+          completer.completeError(Exception('Process exited'));
+        }
       }
       _pendingResponses.clear();
       _pendingMutations.clear();
@@ -361,7 +368,48 @@ class Mailman<S extends Request, R extends Response> {
     }, override: {mutationsProvider.overrideWith(() => _mutations)});
   }
 
+  /// Restarts the worker when a `.stop` file exists, after in-flight requests finish.
+  Future<void> _ensureRestartedIfRequested() async {
+    if (!executableStop.isRequested(executablePath)) return;
+
+    if (_restartFuture case final restart?) {
+      await restart;
+      return;
+    }
+
+    final restart = _restartFuture = _restartFromStopFile();
+    try {
+      await restart;
+    } finally {
+      if (identical(_restartFuture, restart)) {
+        _restartFuture = null;
+      }
+    }
+  }
+
+  Future<void> _restartFromStopFile() async {
+    if (!executableStop.isRequested(executablePath)) return;
+
+    if (!isRunning) {
+      executableStop.clear(executablePath);
+      return;
+    }
+
+    while (_pendingResponses.isNotEmpty) {
+      await Future.delayed(const Duration(milliseconds: 5));
+    }
+
+    executableStop.clear(executablePath);
+
+    if (isRunning) {
+      logger.debug('Restarting after stop file', prefix: _prefix);
+      await kill(failPending: false);
+    }
+  }
+
   Future<Response?> _send(Request request) async {
+    await _ensureRestartedIfRequested();
+
     final process = await _start();
     if (process == null) {
       logger.debug('Skipping send of request: $request', prefix: _prefix);
@@ -421,7 +469,7 @@ class Mailman<S extends Request, R extends Response> {
   ///
   /// Should only be called during development,
   /// and should never be called in production
-  Future<void> kill() async {
+  Future<void> kill({bool failPending = true}) async {
     if (_process case final process?) {
       logger.debug('Killing', prefix: _prefix);
       process.kill();
@@ -429,6 +477,8 @@ class Mailman<S extends Request, R extends Response> {
     }
 
     _pendingMutations.clear();
+
+    if (!failPending) return;
 
     for (final completer in _pendingResponses.values) {
       completer.completeError(Exception('Process killed'));

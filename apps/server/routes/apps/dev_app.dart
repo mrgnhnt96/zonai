@@ -36,6 +36,7 @@ final class DevApp extends AppConfig {
         mutationsProvider,
         zonaiDbProvider,
         extensionsProvider,
+        executableStopProvider,
         rulesProvider,
         operationsProvider,
         configProvider,

@@ -202,7 +202,7 @@ class ZonaiDb {
       final m = Mutations();
       return await runMergedScopedFuture(
         body,
-        includeIfAbsent: {cleanUpProvider},
+        includeIfAbsent: {cleanUpProvider, executableStopProvider},
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(
@@ -261,7 +261,7 @@ class ZonaiDb {
             }
           }
         },
-        includeIfAbsent: {cleanUpProvider},
+        includeIfAbsent: {cleanUpProvider, executableStopProvider},
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(

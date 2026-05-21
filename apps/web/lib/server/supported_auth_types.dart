@@ -20,6 +20,7 @@ Future<List<AuthType>> loadSupportedAuthTypes() {
       configProvider,
       configResolverProvider,
       extensionsProvider,
+      executableStopProvider,
       processProvider,
       loggerProvider,
       fsProvider,
