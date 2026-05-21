@@ -145,6 +145,7 @@ sealed class AuthOperationPayload {
     return switch (AuthType.values.byName(json['authType'] as String)) {
       .password => PasswordAuthOperationPayload.fromJson(json),
       .otp => OtpAuthOperationPayload.fromJson(json),
+      .magicLink => MagicLinkAuthOperationPayload.fromJson(json),
     };
   }
 
@@ -168,6 +169,37 @@ final class OtpAuthOperationPayload extends AuthOperationPayload {
     : super(authType: .otp);
   factory OtpAuthOperationPayload.fromJson(Map<String, dynamic> json) {
     return OtpAuthOperationPayload._(
+      email: json['email'] as String,
+      object: json['object'] as Map<String, dynamic>?,
+    );
+  }
+
+  final String email;
+  final Map<String, dynamic>? object;
+
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'email': email,
+      'object': jsonDecode(jsonEncode(object)),
+    };
+  }
+}
+
+final class MagicLinkAuthOperationPayload extends AuthOperationPayload {
+  const MagicLinkAuthOperationPayload.get({required this.email})
+    : object = null,
+      super(authType: .otp);
+  const MagicLinkAuthOperationPayload.save({
+    required this.email,
+    required this.object,
+  }) : super(authType: .otp);
+  const MagicLinkAuthOperationPayload._({
+    required this.email,
+    required this.object,
+  }) : super(authType: .otp);
+  factory MagicLinkAuthOperationPayload.fromJson(Map<String, dynamic> json) {
+    return MagicLinkAuthOperationPayload._(
       email: json['email'] as String,
       object: json['object'] as Map<String, dynamic>?,
     );

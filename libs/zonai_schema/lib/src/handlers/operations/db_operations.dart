@@ -134,11 +134,13 @@ class DbOperations {
     final email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
       OtpAuthOperationPayload(:final email) => email,
+      MagicLinkAuthOperationPayload(:final email) => email,
     };
 
     final otherFields = switch (request.payload) {
       PasswordAuthOperationPayload(:final object) => object,
       OtpAuthOperationPayload(:final object) => object,
+      MagicLinkAuthOperationPayload(:final object) => object,
     };
 
     Column? passwordColumn;
@@ -158,6 +160,14 @@ class DbOperations {
         if (passwordColumn != null) passwordColumn.name: passwordHash,
       },
       OtpAuthOperationPayload() => {
+        ...?otherFields,
+        emailColumn.name: email,
+        if (isVerifiedColumn != null) isVerifiedColumn.name: true,
+        // provide empty password hash to comply
+        if (passwordColumn != null && !passwordColumn.isNullable)
+          passwordColumn.name: '',
+      },
+      MagicLinkAuthOperationPayload() => {
         ...?otherFields,
         emailColumn.name: email,
         if (isVerifiedColumn != null) isVerifiedColumn.name: true,
@@ -196,6 +206,7 @@ class DbOperations {
     final email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
       OtpAuthOperationPayload(:final email) => email,
+      MagicLinkAuthOperationPayload(:final email) => email,
     };
 
     final operationRequest = ReadOperationRequest(

@@ -8,6 +8,8 @@ import 'package:zonai_schema/payloads.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
+import 'magic_link_sign_in_screen.dart';
+import 'magic_link_verify_screen.dart';
 import 'otp_sign_in_screen.dart';
 import 'sign_in_screen.dart';
 
@@ -20,6 +22,10 @@ class LoginFlow extends StatelessComponent {
     final authTypes = context.watch(supportedAuthTypesProvider);
     final path = context.watch(authRouteProvider);
 
+    if (AuthRoutes.isMagicLinkCallbackPath(path)) {
+      return const MagicLinkVerifyScreen();
+    }
+
     if (authTypes.isEmpty) {
       return const SignInScreen(child: _SignInMessage('No sign-in methods are configured.'));
     }
@@ -29,6 +35,7 @@ class LoginFlow extends StatelessComponent {
         return switch (authTypes.single) {
           .password => const PasswordSignInScreen(),
           .otp => const OtpSignInScreen(),
+          .magicLink => const MagicLinkSignInScreen(),
         };
       }
       return _RedirectToAuthType(authType: authTypes.single);
@@ -39,6 +46,7 @@ class LoginFlow extends StatelessComponent {
       return switch (selected) {
         .password => const PasswordSignInScreen(),
         .otp => const OtpSignInScreen(),
+        .magicLink => const MagicLinkSignInScreen(),
       };
     }
 

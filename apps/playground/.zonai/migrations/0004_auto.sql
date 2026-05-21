@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "is_verified" INTEGER NOT NULL DEFAULT 0;

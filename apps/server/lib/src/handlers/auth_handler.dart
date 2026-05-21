@@ -34,6 +34,13 @@ class AuthHandler {
         email: body.email,
         code: body.code,
       ),
+      SendMagicLinkAuthBody() => SendMagicLinkAuthPayload(
+        email: body.email,
+        object: body.metadata,
+      ),
+      VerifyMagicLinkAuthBody() => VerifyMagicLinkAuthPayload(
+        secret: body.secret,
+      ),
     };
 
     final result = switch (body) {
@@ -52,6 +59,11 @@ class AuthHandler {
       ),
       (SendOtpAuthBody(), null) => null,
       (VerifyOtpAuthBody(), final result?) => _sessionPayload(
+        result.user,
+        result.jwt,
+      ),
+      (SendMagicLinkAuthBody(), null) => null,
+      (VerifyMagicLinkAuthBody(), final result?) => _sessionPayload(
         result.user,
         result.jwt,
       ),

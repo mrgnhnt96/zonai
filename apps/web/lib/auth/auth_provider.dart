@@ -44,6 +44,30 @@ class AuthNotifier extends Notifier<bool> {
     }
   }
 
+  Future<void> sendMagicLink({required String email}) async {
+    try {
+      await revaliServer.auth.authenticate(
+        body: AdminSendMagicLinkAuthBody(email: email),
+      );
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
+  Future<void> verifyMagicLink({required String secret}) async {
+    try {
+      final response = await revaliServer.auth.authenticate(
+        body: AdminVerifyMagicLinkAuthBody(secret: secret),
+      );
+
+      signIn(response!['accessToken'] as String);
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
   Future<void> signInWithPassword({required String email, required String password}) async {
     try {
       final session = await revaliServer.auth.adminAuthenticate(

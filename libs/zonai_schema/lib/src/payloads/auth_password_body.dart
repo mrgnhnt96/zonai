@@ -11,10 +11,17 @@ sealed class AuthBody {
       SignUpAuthBody._type => SignUpAuthBody.fromJson(json),
       SendOtpAuthBody._type => SendOtpAuthBody.fromJson(json),
       VerifyOtpAuthBody._type => VerifyOtpAuthBody.fromJson(json),
+      SendMagicLinkAuthBody._type => SendMagicLinkAuthBody.fromJson(json),
+      VerifyMagicLinkAuthBody._type => VerifyMagicLinkAuthBody.fromJson(json),
 
       AdminSignInAuthBody._type => AdminSignInAuthBody.fromJson(json),
       AdminSendOtpAuthBody._type => AdminSendOtpAuthBody.fromJson(json),
       AdminVerifyOtpAuthBody._type => AdminVerifyOtpAuthBody.fromJson(json),
+      AdminSendMagicLinkAuthBody._type => AdminSendMagicLinkAuthBody.fromJson(
+        json,
+      ),
+      AdminVerifyMagicLinkAuthBody._type =>
+        AdminVerifyMagicLinkAuthBody.fromJson(json),
 
       _ => throw ArgumentError('Invalid auth body type: ${json['type']}'),
     };
@@ -60,6 +67,26 @@ sealed class AuthBody {
     required String code,
   }) = AdminVerifyOtpAuthBody;
 
+  factory AuthBody.sendMagicLink({
+    required String collection,
+    required String email,
+    Map<String, dynamic>? metadata,
+  }) = SendMagicLinkAuthBody;
+
+  factory AuthBody.verifyMagicLink({
+    required String collection,
+    required String secret,
+  }) = VerifyMagicLinkAuthBody;
+
+  factory AuthBody.adminSendMagicLink({
+    required String email,
+    Map<String, dynamic>? metadata,
+  }) = AdminSendMagicLinkAuthBody;
+
+  factory AuthBody.adminVerifyMagicLink({
+    required String secret,
+  }) = AdminVerifyMagicLinkAuthBody;
+
   final String collection;
   final String type;
 
@@ -71,6 +98,20 @@ sealed class AuthBody {
 
 abstract class AdminAuthBody {
   const AdminAuthBody({required this.type});
+
+  factory AdminAuthBody.fromJson(Map<String, dynamic> json) {
+    return switch (json['type'] as String) {
+      AdminSignInAuthBody._type => AdminSignInAuthBody.fromJson(json),
+      AdminSendOtpAuthBody._type => AdminSendOtpAuthBody.fromJson(json),
+      AdminVerifyOtpAuthBody._type => AdminVerifyOtpAuthBody.fromJson(json),
+      AdminSendMagicLinkAuthBody._type => AdminSendMagicLinkAuthBody.fromJson(
+        json,
+      ),
+      AdminVerifyMagicLinkAuthBody._type =>
+        AdminVerifyMagicLinkAuthBody.fromJson(json),
+      _ => throw ArgumentError('Invalid admin auth body type: ${json['type']}'),
+    };
+  }
 
   final String type;
 
@@ -184,6 +225,98 @@ class AdminVerifyOtpAuthBody extends AdminAuthBody
     'email': email,
     'code': code,
   };
+}
+
+class SendMagicLinkAuthBody extends AuthBody {
+  const SendMagicLinkAuthBody({
+    required this.email,
+    required super.collection,
+    this.metadata,
+  }) : super(type: _type);
+
+  factory SendMagicLinkAuthBody.fromJson(Map<String, dynamic> json) {
+    return SendMagicLinkAuthBody(
+      email: json['email'] as String,
+      collection: json['collection'] as String,
+      metadata: json['metadata'] != null
+          ? Map<String, dynamic>.from(json['metadata'] as Map)
+          : null,
+    );
+  }
+
+  static const _type = 'sendMagicLink';
+
+  final String email;
+  final Map<String, dynamic>? metadata;
+
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'email': email,
+    'metadata': metadata != null ? jsonDecode(jsonEncode(metadata)) : null,
+  };
+}
+
+class AdminSendMagicLinkAuthBody extends AdminAuthBody
+    implements SendMagicLinkAuthBody {
+  const AdminSendMagicLinkAuthBody({required this.email, this.metadata})
+    : super(type: _type);
+
+  factory AdminSendMagicLinkAuthBody.fromJson(Map<String, dynamic> json) {
+    return AdminSendMagicLinkAuthBody(
+      email: json['email'] as String,
+      metadata: json['metadata'] != null
+          ? Map<String, dynamic>.from(json['metadata'] as Map)
+          : null,
+    );
+  }
+
+  static const _type = 'adminSendMagicLink';
+
+  final String email;
+  final Map<String, dynamic>? metadata;
+
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'email': email,
+    'metadata': metadata != null ? jsonDecode(jsonEncode(metadata)) : null,
+  };
+}
+
+class VerifyMagicLinkAuthBody extends AuthBody {
+  const VerifyMagicLinkAuthBody({
+    required this.secret,
+    required super.collection,
+  }) : super(type: _type);
+
+  factory VerifyMagicLinkAuthBody.fromJson(Map<String, dynamic> json) {
+    return VerifyMagicLinkAuthBody(
+      collection: json['collection'] as String,
+      secret: json['secret'] as String,
+    );
+  }
+
+  static const _type = 'verifyMagicLink';
+
+  final String secret;
+
+  Map<String, dynamic> toJson() => {...super.toJson(), 'secret': secret};
+}
+
+class AdminVerifyMagicLinkAuthBody extends AdminAuthBody
+    implements VerifyMagicLinkAuthBody {
+  const AdminVerifyMagicLinkAuthBody({required this.secret}) : super(type: _type);
+
+  factory AdminVerifyMagicLinkAuthBody.fromJson(Map<String, dynamic> json) {
+    return AdminVerifyMagicLinkAuthBody(
+      secret: json['secret'] as String,
+    );
+  }
+
+  static const _type = 'adminVerifyMagicLink';
+
+  final String secret;
+
+  Map<String, dynamic> toJson() => {...super.toJson(), 'secret': secret};
 }
 
 class AdminSignInAuthBody extends AdminAuthBody implements SignInAuthBody {

@@ -38,6 +38,18 @@ class AuthChallenge {
        createdAt = DateTime.now(),
        secretHash = null;
 
+  AuthChallenge.magicLink({
+    required this.id,
+    required this.expiresAt,
+    required this.metadata,
+    required String this.secretHash,
+    required this.target,
+    required this.collection,
+  }) : userId = null,
+       type = .magicLink,
+       createdAt = DateTime.now(),
+       otpHash = null;
+
   final AuthChallengeId id;
   final Id? userId;
   final DateTime expiresAt;

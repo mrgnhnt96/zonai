@@ -109,6 +109,10 @@ extension _AuthUtilsX on ZonaiDb {
           VerifyOtpAuthPayload(
             :final email,
           ) => OtpAuthOperationPayload.get(email: email),
+          SendMagicLinkAuthPayload(:final email) ||
+          VerifyMagicLinkAuthPayload(
+            :final email,
+          ) => MagicLinkAuthOperationPayload.get(email: email),
         },
       ),
     );
@@ -208,6 +212,8 @@ extension _AuthUtilsX on ZonaiDb {
         authType: switch (payload) {
           PasswordAuthPayload() => .password,
           SendOtpAuthPayload() || VerifyOtpAuthPayload() => .otp,
+          SendMagicLinkAuthPayload() ||
+          VerifyMagicLinkAuthPayload() => .magicLink,
         },
       ),
     );

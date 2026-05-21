@@ -45,9 +45,29 @@ class SendOtpAuthPayload extends AuthPayload {
 }
 
 class VerifyOtpAuthPayload extends AuthPayload {
-  const VerifyOtpAuthPayload({required this.email, required this.code, super.jwt})
-    : super(authType: .otp);
+  const VerifyOtpAuthPayload({
+    required this.email,
+    required this.code,
+    super.jwt,
+  }) : super(authType: .otp);
 
   final String email;
   final String code;
+}
+
+class SendMagicLinkAuthPayload extends AuthPayload {
+  const SendMagicLinkAuthPayload({required this.email, this.object, super.jwt})
+    : super(authType: .magicLink);
+
+  final String email;
+  final Map<String, dynamic>? object;
+}
+
+class VerifyMagicLinkAuthPayload extends AuthPayload {
+  const VerifyMagicLinkAuthPayload({required this.secret, super.jwt})
+    : super(authType: .magicLink);
+
+  final String secret;
+  String get email =>
+      throw UnimplementedError('Email is not available in the secret');
 }

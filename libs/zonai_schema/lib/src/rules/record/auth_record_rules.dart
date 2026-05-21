@@ -19,6 +19,7 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
     return switch (authType) {
       .password => schema is PasswordAuth,
       .otp => schema is OtpAuth,
+      .magicLink => schema is MagicLinkAuth,
     };
   }
 
@@ -26,6 +27,7 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
     return switch (authType) {
       .password => schema is PasswordAuth,
       .otp => schema is OtpAuth,
+      .magicLink => schema is MagicLinkAuth,
     };
   }
 

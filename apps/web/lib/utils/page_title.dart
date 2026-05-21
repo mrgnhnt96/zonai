@@ -11,9 +11,14 @@ abstract final class PageTitle {
     String? collectionDisplayName,
   }) {
     if (!signedIn) {
+      if (AuthRoutes.isMagicLinkCallbackPath(path)) {
+        return '$appName — Sign in';
+      }
+
       return switch (AuthRoutes.typeFromPath(path)) {
         .password => '$appName — Sign in',
         .otp => '$appName — Sign in with code',
+        .magicLink => '$appName — Sign in with link',
         null => '$appName — Sign in',
       };
     }

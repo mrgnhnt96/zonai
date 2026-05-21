@@ -3,6 +3,7 @@ abstract interface class SupportedAuths {
 
   bool get supportsPassword;
   bool get supportsOtp;
+  bool get supportsMagicLink;
 }
 
-enum AuthType { password, otp }
+enum AuthType { password, otp, magicLink }

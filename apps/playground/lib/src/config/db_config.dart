@@ -8,9 +8,9 @@ AppConfig main() {
     email: EmailConfig(
       host: 'smtp.gmail.com',
       port: 587,
-      username: 'link@hyrule.com',
-      password: 'heroOfHyrule00T1!',
-      from: EmailAddress(address: 'link@hyrule.com', name: 'Link'),
+      username: 'mrgnhnt96@gmail.com',
+      password: 'bpek vnrv cilx ccev',
+      from: EmailAddress(address: 'mrgnhnt96@gmail.com', name: 'Link'),
     ),
   );
 }

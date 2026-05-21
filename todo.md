@@ -34,6 +34,8 @@
 - [ ] Support expand columns
 - [ ] Export records as JSON
 - [ ] Add rate limiting
+- [ ] Support multiple `AppConfig` with `flavor`s
+- [ ] Detect `[.<flavor>].env` files and compile them into the `appConfig` executable
 
 ## 4.15.2026
 

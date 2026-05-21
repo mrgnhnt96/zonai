@@ -78,3 +78,28 @@ class SendOtpEmail extends Email {
          },
        );
 }
+
+class SendMagicLinkEmail extends Email {
+  SendMagicLinkEmail({
+    required super.to,
+    required String collection,
+    super.from,
+    bool isResend = false,
+    required Duration expiresIn,
+    Map<String, dynamic>? variables,
+    required String magicLinkUrl,
+  }) : super(
+         subject: 'Sign in',
+         template: 'magic_link',
+         thread: Email.createThread(
+           'magic-link:$collection:${to.address.toLowerCase()}',
+           continueThread: isResend,
+         ),
+         variables: {
+           ...?variables,
+           'magicLinkUrl': magicLinkUrl,
+           'email': to.address,
+           'expiresIn': '${expiresIn.inMinutes} minutes',
+         },
+       );
+}

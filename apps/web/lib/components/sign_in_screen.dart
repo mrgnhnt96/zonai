@@ -146,6 +146,7 @@ class AuthTypePickerScreen extends StatelessComponent {
     return switch (authType) {
       AuthType.password => 'Email & password',
       AuthType.otp => 'Email code',
+      AuthType.magicLink => 'Magic link',
     };
   }
 }

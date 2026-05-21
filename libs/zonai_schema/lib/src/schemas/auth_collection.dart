@@ -14,11 +14,16 @@ abstract base class AuthCollection<T> extends Schema<T> implements Auth {
   AuthCollection(super.$);
 
   List<AuthType> get authTypes {
-    return [if (supportsPassword) .password, if (supportsOtp) .otp];
+    return [
+      if (supportsPassword) .password,
+      if (supportsOtp) .otp,
+      if (supportsMagicLink) .magicLink,
+    ];
   }
 
   bool get supportsPassword => false;
   bool get supportsOtp => false;
+  bool get supportsMagicLink => false;
 }
 
 mixin AsAdmin on Auth {

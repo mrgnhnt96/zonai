@@ -3,9 +3,9 @@ part of zonai_db;
 extension _UtilsX on ZonaiDb {
   File get _dbFile => __dbFile ??= fs.file(settings.zonaiSqlitePath);
 
-  Future<void> open() async {
-    if (this.db != null) {
-      return;
+  Future<Raindrop> open() async {
+    if (this.db case final db?) {
+      return db;
     }
 
     final dir = fs.directory(settings.dataPath);
@@ -38,6 +38,8 @@ extension _UtilsX on ZonaiDb {
 
     logger.verbose('Ensuring database is open', prefix: _prefix);
     await db.ensureOpen();
+
+    return db;
   }
 
   Future<void> _createInternalCollections(Raindrop db) async {

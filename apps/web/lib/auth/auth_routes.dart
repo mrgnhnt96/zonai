@@ -5,6 +5,7 @@ abstract final class AuthRoutes {
   static const home = '/';
   static const signIn = '/sign-in';
   static const collections = '/collections';
+  static const magicLinkCallback = '/auth/magic-link';
 
   static String forType(AuthType type) => '$signIn/${type.name}';
 
@@ -27,7 +28,13 @@ abstract final class AuthRoutes {
 
   static bool isSignInPath(String path) {
     final normalized = normalizePath(path);
-    return normalized == signIn || normalized.startsWith('$signIn/');
+    return normalized == signIn ||
+        normalized.startsWith('$signIn/') ||
+        normalized == magicLinkCallback;
+  }
+
+  static bool isMagicLinkCallbackPath(String path) {
+    return normalizePath(path) == magicLinkCallback;
   }
 
   static bool isSignInRoot(String path) {

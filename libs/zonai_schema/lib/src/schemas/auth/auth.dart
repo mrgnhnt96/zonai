@@ -24,3 +24,9 @@ base mixin OtpAuth on Auth implements HasEmail {
   @nonVirtual
   bool get supportsOtp => true;
 }
+
+base mixin MagicLinkAuth on Auth implements HasEmail {
+  @override
+  @nonVirtual
+  bool get supportsMagicLink => true;
+}

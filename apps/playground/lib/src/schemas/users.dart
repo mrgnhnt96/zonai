@@ -22,7 +22,7 @@ final class User {
 }
 
 final class UserCollection extends AuthCollection<User>
-    with PasswordAuth, OtpAuth, AsAdmin {
+    with PasswordAuth, OtpAuth, MagicLinkAuth, AsAdmin {
   UserCollection(super.$)
     : id = $.id(
         'id',
