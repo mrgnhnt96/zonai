@@ -1,21 +1,27 @@
 import 'package:file/file.dart';
 
+import '../../deps/args.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 
 class ConfigGenerator {
-  const ConfigGenerator(this.file);
+  const ConfigGenerator({required this.configs});
+
+  final List<File> configs;
 
   static String get executablePath =>
       fs.path.join('.dart_tool', 'zonai', 'db_config.dart');
 
-  final String file;
-
   Future<void> create() async {
     logger.debug('Starting config generator');
 
-    final configFile = fs.file(file);
-    if (fs.path.extension(configFile.path) != '.dart') return;
+    final dartConfigs = configs
+        .where((f) => fs.path.extension(f.path) == '.dart')
+        .toList();
+    if (dartConfigs.isEmpty) return;
+
+    final configFile = _resolveConfigFile(dartConfigs);
+    if (configFile == null) return;
 
     final root = fs.currentDirectory.path;
     final outDir = fs.directory(fs.path.join('.dart_tool', 'zonai'));
@@ -35,6 +41,47 @@ class ConfigGenerator {
 
     logger.debug('Generated config file: ${out.path}');
     logger.debug('  - $alias: $importPath');
+  }
+
+  File? _resolveConfigFile(List<File> files) {
+    final sorted = [...files]..sort((a, b) => a.path.compareTo(b.path));
+
+    if (sorted.length == 1) {
+      return sorted.first;
+    }
+
+    final flavor = args.getOrNull<String>('flavor');
+    if (flavor == null) {
+      logger.error('Missing `flavor` argument, run with `--flavor <flavor>`');
+      return null;
+    }
+
+    final matches = [
+      for (final file in sorted)
+        if (_flavorFor(file) == flavor) file,
+    ];
+
+    if (matches.isEmpty) {
+      logger.error('No config file found for flavor "$flavor"');
+      return null;
+    }
+
+    if (matches.length > 1) {
+      logger.error(
+        'Multiple config files match flavor "$flavor": '
+        '${matches.map((f) => f.path).join(', ')}',
+      );
+      return null;
+    }
+
+    return matches.first;
+  }
+
+  /// Flavor from `dev.dart` or trailing segment of `db_config.dev.dart`.
+  String _flavorFor(File file) {
+    final stem = fs.path.basenameWithoutExtension(file.path);
+    final dot = stem.lastIndexOf('.');
+    return dot == -1 ? stem : stem.substring(dot + 1);
   }
 
   String _relativePosixPath(File file, String root) {
@@ -89,11 +136,11 @@ class ConfigGenerator {
     b.writeln('  try {');
     b.writeln('    value = load();');
     b.writeln('  } catch (e, st) {');
+    b.writeln('    Error.throwWithStackTrace(StateError(');
     b.writeln(
-      '    Error.throwWithStackTrace(StateError(',
-    );
-    b.writeln(
-      "      'Failed to load config from ' + sourcePath + ': " r'$e' "',",
+      "      'Failed to load config from ' + sourcePath + ': "
+      r'$e'
+      "',",
     );
     b.writeln('    ), st);');
     b.writeln('  }');
@@ -105,7 +152,11 @@ class ConfigGenerator {
     b.writeln(
       "      'Config file at ' + sourcePath + ' must return a non-null AppConfig from main(); '",
     );
-    b.writeln("      'got " r'$got' ".',");
+    b.writeln(
+      "      'got "
+      r'$got'
+      ".',",
+    );
     b.writeln('    );');
     b.writeln('  }');
     b.writeln('  return value;');

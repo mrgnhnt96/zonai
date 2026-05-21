@@ -4,11 +4,11 @@ import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
 
 import '../../deps/clean_up.dart';
-import '../../deps/fs.dart';
-import '../../deps/logger.dart';
-import '../../deps/keyboard_input.dart';
-import '../../deps/process.dart';
 import '../../deps/executable_stop.dart';
+import '../../deps/fs.dart';
+import '../../deps/keyboard_input.dart';
+import '../../deps/logger.dart';
+import '../../deps/process.dart';
 import '../../deps/settings.dart';
 import 'config_generator.dart';
 
@@ -60,11 +60,6 @@ class Config {
       return false;
     }
 
-    if (files.length != 1) {
-      logger.error('Expected 1 config file, got ${files.length}');
-      return false;
-    }
-
     return true;
   }
 
@@ -93,12 +88,7 @@ class Config {
       dir.createSync(recursive: true);
     }
 
-    if (files.length != 1) {
-      logger.error('Expected 1 config file, got ${files.length}');
-      return;
-    }
-
-    await ConfigGenerator(files.first.path).create();
+    await ConfigGenerator(configs: files).create();
 
     final result = await process.run('dart', [
       'compile',
