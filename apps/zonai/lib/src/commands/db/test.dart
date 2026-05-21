@@ -33,7 +33,7 @@ Future<int> test() async {
     final email = Email(
       to: EmailAddress(address: 'mrgnhnt96+test@gmail.com', name: 'Test User'),
       subject: 'Test Email',
-      template: 'verify_your_email',
+      template: 'verify_email',
       variables: {
         'name': 'Test User',
         'verificationUrl': 'https://www.google.com',
@@ -123,6 +123,12 @@ Future<int> test() async {
 
   logger.info('VIEWING RECORD');
   if (await _view(id: id, jwt: jwt) case final int exitCode) {
+    return exitCode;
+  }
+  logger.info('--------------------------------');
+
+  logger.info('EXPANDING RECORD');
+  if (await _expand(jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
@@ -401,6 +407,105 @@ Future<int?> _delete({required String id, required String jwt}) async {
   return null;
 }
 
+Future<int?> _expand({required String jwt}) async {
+  const authorName = 'Expand Test Author';
+  const postTitle = 'Expand test post';
+
+  final authorId = _generateId(suffix: 'au');
+  await zonaiDB.create(
+    'authors',
+    .new(jwt: jwt, object: {'id': authorId, 'name': authorName}),
+  );
+
+  final postId = _generateId(suffix: 'po');
+  await zonaiDB.create(
+    'posts',
+    .new(
+      jwt: jwt,
+      object: {
+        'id': postId,
+        'author_id': authorId,
+        'title': postTitle,
+        'body': 'Expand test body',
+      },
+    ),
+  );
+
+  final expandedPost = await zonaiDB.read(
+    'posts',
+    .new(jwt: jwt, where: Eq('id', postId), expand: ['author_id']),
+  );
+
+  logger.info('Expanded post: $expandedPost');
+
+  if (expandedPost['author_id'] != authorId) {
+    logger.error(
+      'Expected author_id to remain the FK value "$authorId", got: ${expandedPost['author_id']}',
+    );
+    return 1;
+  }
+
+  final expanded = expandedPost['expanded'];
+  if (expanded is! Map<String, Object?>) {
+    logger.error('Expected expanded map, got: $expanded');
+    return 1;
+  }
+
+  final authorField = expanded['author_id'];
+  if (authorField is! Map<String, Object?>) {
+    logger.error(
+      'Expected expanded.author_id to be a record map, got: $authorField',
+    );
+    return 1;
+  }
+
+  if (authorField['name'] != authorName) {
+    logger.error(
+      'Expanded author name mismatch: expected "$authorName", got "${authorField['name']}"',
+    );
+    return 1;
+  }
+
+  final listedPosts = await zonaiDB.list(
+    'posts',
+    .new(jwt: jwt, where: Eq('id', postId), expand: ['author_id']),
+  );
+
+  final listedPost = listedPosts.items.single;
+  if (listedPost['author_id'] != authorId) {
+    logger.error(
+      'Expected list author_id to remain the FK value "$authorId", got: ${listedPost['author_id']}',
+    );
+    return 1;
+  }
+
+  final listedExpanded = listedPost['expanded'];
+  if (listedExpanded is! Map<String, Object?>) {
+    logger.error('Expected list expanded map, got: $listedExpanded');
+    return 1;
+  }
+
+  final listedAuthor = listedExpanded['author_id'];
+  if (listedAuthor is! Map<String, Object?>) {
+    logger.error(
+      'Expected list expanded.author_id to be a record map, got: $listedAuthor',
+    );
+    return 1;
+  }
+
+  if (listedAuthor['name'] != authorName) {
+    logger.error(
+      'List expanded author name mismatch: expected "$authorName", got "${listedAuthor['name']}"',
+    );
+    return 1;
+  }
+
+  await zonaiDB.delete('posts', .new(jwt: jwt, where: Eq('id', postId)));
+  await zonaiDB.delete('authors', .new(jwt: jwt, where: Eq('id', authorId)));
+
+  return null;
+}
+
 Future<int?> _view({required String id, required String jwt}) async {
   final result = await zonaiDB.read(
     'items',
@@ -427,6 +532,6 @@ Future<int?> _update({required String id, required String jwt}) async {
   return null;
 }
 
-String _generateId() {
-  return 'test-${DateTime.now().millisecondsSinceEpoch}_it';
+String _generateId({String suffix = 'it'}) {
+  return 'test-${DateTime.now().millisecondsSinceEpoch}_$suffix';
 }

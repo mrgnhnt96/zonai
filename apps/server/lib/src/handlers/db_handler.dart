@@ -7,7 +7,11 @@ class DbHandler {
   Future<Map<String, Object?>> get(String? authorization, GetBody body) async {
     return await zonaiDB.read(
       body.collection,
-      .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
+      .new(
+        where: body.where,
+        expand: body.expand,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
     );
   }
 
@@ -21,6 +25,7 @@ class DbHandler {
         where: body.where,
         limit: body.limit,
         offset: body.offset,
+        expand: body.expand,
         jwt: _parseBearerAuthorization(authorization),
       ),
     );
@@ -96,7 +101,11 @@ class DbHandler {
   ) {
     return zonaiDB.streamOne(
       body.collection,
-      .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
+      .new(
+        where: body.where,
+        expand: body.expand,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
     );
   }
 
@@ -110,6 +119,7 @@ class DbHandler {
         where: body.where,
         limit: body.limit,
         offset: body.offset,
+        expand: body.expand,
         jwt: _parseBearerAuthorization(authorization),
       ),
     );

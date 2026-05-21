@@ -77,6 +77,11 @@ class Migrate {
         },
         zoneSpecification: .new(
           print: (_, _, _, message) {
+            if (message.startsWith('Warning:')) {
+              logger.warn(message);
+              return;
+            }
+
             logger.debug(message);
 
             switch (message) {
@@ -85,7 +90,8 @@ class Migrate {
                 return;
               case final String m
                   when m.startsWith('Generated migration:') ||
-                      m.startsWith('Would generate migration:'):
+                      m.startsWith('Would generate migration:') ||
+                      m.startsWith('Updated snapshot:'):
                 hasChanges = true;
                 return;
             }

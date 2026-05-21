@@ -51,6 +51,8 @@ class DbOperations {
             return await _createAuthOperation(request);
           case final GetColumnNameRequest request:
             return await _getColumnName(request);
+          case final GetColumnReferenceRequest request:
+            return await _getColumnReference(request);
           case final GetClaimsOperationRequest request:
             return await _getClaims(request);
           case final SanitizeOperationRequest request:
@@ -125,6 +127,31 @@ class DbOperations {
     );
   }
 
+  Future<ColumnReferenceResponse> _getColumnReference(
+    GetColumnReferenceRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      _failMissingCollection(request.collection);
+    }
+
+    final column = collection.table.columns.firstWhere(
+      (c) => c.name == request.columnName,
+      orElse: () => throw StateError(
+        'Column "${request.columnName}" not found on "${request.collection}"',
+      ),
+    );
+
+    final fkRef = column.foreignKeyReference;
+
+    return ColumnReferenceResponse(
+      id: request.id,
+      columnName: column.name,
+      referencedTable: fkRef?.referencedTable,
+      referencedColumn: fkRef?.referencedColumnName,
+    );
+  }
+
   Future<PerformOperationResponse> _createAuthOperation(
     CreateAuthOperationRequest request,
   ) async {
@@ -162,6 +189,8 @@ class DbOperations {
         ...?otherFields,
         emailColumn.name: email,
         if (passwordColumn != null) passwordColumn.name: passwordHash,
+        if (isVerifiedColumn != null && !isVerifiedColumn.isNullable)
+          isVerifiedColumn.name: false,
       },
       OtpAuthOperationPayload() => {
         ...?otherFields,
@@ -174,7 +203,8 @@ class DbOperations {
       MagicLinkAuthOperationPayload() => {
         ...?otherFields,
         emailColumn.name: email,
-        if (isVerifiedColumn != null) isVerifiedColumn.name: true,
+        if (isVerifiedColumn != null && !isVerifiedColumn.isNullable)
+          isVerifiedColumn.name: true,
         // provide empty password hash to comply
         if (passwordColumn != null && !passwordColumn.isNullable)
           passwordColumn.name: '',

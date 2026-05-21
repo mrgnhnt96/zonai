@@ -26,6 +26,7 @@ sealed class OperationResponse extends Response {
     return switch (path) {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
       ColumnNameResponse._path => ColumnNameResponse.fromJson(json),
+      ColumnReferenceResponse._path => ColumnReferenceResponse.fromJson(json),
       ClaimsResponse._path => ClaimsResponse.fromJson(json),
       SanitizeOperationResponse._path => SanitizeOperationResponse.fromJson(
         json,
@@ -62,6 +63,40 @@ final class ColumnNameResponse extends OperationResponse {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'name': name, 'column': column.name};
+  }
+}
+
+final class ColumnReferenceResponse extends OperationResponse {
+  const ColumnReferenceResponse({
+    required super.id,
+    required this.columnName,
+    this.referencedTable,
+    this.referencedColumn,
+  }) : super(path: _path, payload: const {});
+
+  factory ColumnReferenceResponse.fromJson(Map<String, dynamic> json) {
+    return ColumnReferenceResponse(
+      id: json['id'] as String,
+      columnName: json['columnName'] as String,
+      referencedTable: json['referencedTable'] as String?,
+      referencedColumn: json['referencedColumn'] as String?,
+    );
+  }
+
+  static const _path = '${Response.prefix}.operation.get_column_reference';
+
+  final String columnName;
+  final String? referencedTable;
+  final String? referencedColumn;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'columnName': columnName,
+      'referencedTable': referencedTable,
+      'referencedColumn': referencedColumn,
+    };
   }
 }
 

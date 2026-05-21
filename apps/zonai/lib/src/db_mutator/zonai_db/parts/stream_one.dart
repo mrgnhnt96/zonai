@@ -33,7 +33,11 @@ extension _StreamOneX on ZonaiDb {
       if (result.rows.isEmpty) {
         throw StateError('No record found or record was deleted');
       }
-      yield await _sanitizeRow(collection, result.rows.single.toMap());
+      final sanitized = await _sanitizeRow(
+        collection,
+        result.rows.single.toMap(),
+      );
+      yield await _expandRow(collection, sanitized, payload.expand, jwt);
     }
   }
 }

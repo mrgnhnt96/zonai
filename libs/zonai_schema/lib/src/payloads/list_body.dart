@@ -6,10 +6,12 @@ class ListBody {
     this.where,
     this.limit,
     this.offset,
+    this.expand = const [],
   });
 
   final String collection;
   final Where? where;
+  final List<String> expand;
   final int? limit;
   final int? offset;
 
@@ -19,6 +21,7 @@ class ListBody {
       where: json['where'] != null ? Where.fromJson(json['where']) : null,
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
+      expand: json['expand'] as List<String>? ?? [],
     );
   }
 
@@ -28,6 +31,7 @@ class ListBody {
       'where': ?where?.toJson(),
       'limit': ?limit,
       'offset': ?offset,
+      'expand': expand,
     };
   }
 }

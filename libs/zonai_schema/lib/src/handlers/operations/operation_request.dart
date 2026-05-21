@@ -26,6 +26,8 @@ sealed class OperationRequest extends Request {
       CreateAuthOperationRequest._path =>
         CreateAuthOperationRequest.fromRequest(request),
       GetColumnNameRequest._path => GetColumnNameRequest.fromRequest(request),
+      GetColumnReferenceRequest._path =>
+        GetColumnReferenceRequest.fromRequest(request),
       GetClaimsOperationRequest._path => GetClaimsOperationRequest.fromRequest(
         request,
       ),
@@ -85,6 +87,41 @@ final class GetColumnNameRequest extends OperationRequest {
       ...super.toJson(),
       'collection': collection,
       'columnName': columnName.name,
+    };
+  }
+}
+
+final class GetColumnReferenceRequest extends OperationRequest {
+  GetColumnReferenceRequest({
+    required this.collection,
+    required this.columnName,
+  }) : super(path: _path, id: Request.generateId(), jwt: null);
+
+  GetColumnReferenceRequest._({
+    required super.id,
+    required this.collection,
+    required this.columnName,
+  }) : super(path: _path, jwt: null);
+
+  factory GetColumnReferenceRequest.fromRequest(UnknownRequest request) {
+    return GetColumnReferenceRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+      columnName: request.payload['columnName'] as String,
+    );
+  }
+
+  static const _path = '${Request.prefix}.operation.get_column_reference';
+
+  final String collection;
+  final String columnName;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'collection': collection,
+      'columnName': columnName,
     };
   }
 }

@@ -31,6 +31,7 @@ extension _ReadX on ZonaiDb {
 
     await _requireRecordAccess(collection, .view, object, jwt);
 
-    return await _sanitizeRow(collection, object);
+    final sanitized = await _sanitizeRow(collection, object);
+    return await _expandRow(collection, sanitized, payload.expand, jwt);
   }
 }

@@ -43,6 +43,7 @@ part 'parts/auth/logout.dart';
 part 'parts/count.dart';
 part 'parts/create.dart';
 part 'parts/delete.dart';
+part 'parts/expand.dart';
 part 'parts/list.dart';
 part 'parts/read.dart';
 part 'parts/stream_list.dart';

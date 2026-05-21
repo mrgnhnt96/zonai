@@ -58,6 +58,7 @@ class DeleteOnePayload extends JwtPayload implements DeletePayload {
 class ListPayload extends JwtPayload {
   ListPayload({
     required this.where,
+    this.expand = const [],
     int? limit = maxLimit,
     super.jwt,
     this.offset,
@@ -68,11 +69,13 @@ class ListPayload extends JwtPayload {
   final Where? where;
   final int limit;
   final int? offset;
+  final List<String> expand;
 }
 
 class ListWithJwtPayload extends ListPayload implements FullJwtPayload {
   ListWithJwtPayload({
     required this.userJwt,
+    super.expand,
     super.where,
     super.limit,
     super.offset,
@@ -85,9 +88,10 @@ class ListWithJwtPayload extends ListPayload implements FullJwtPayload {
 }
 
 class ViewPayload extends JwtPayload {
-  const ViewPayload({required this.where, super.jwt});
+  const ViewPayload({required this.where, this.expand = const [], super.jwt});
 
   final Where where;
+  final List<String> expand;
 }
 
 class CountPayload extends JwtPayload {

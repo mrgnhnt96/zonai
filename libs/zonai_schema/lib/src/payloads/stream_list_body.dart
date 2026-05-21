@@ -6,12 +6,14 @@ class StreamListBody {
     this.where,
     this.limit,
     this.offset,
+    this.expand = const [],
   });
 
   final String collection;
   final Where? where;
   final int? limit;
   final int? offset;
+  final List<String> expand;
 
   factory StreamListBody.fromJson(Map<String, dynamic> json) {
     return StreamListBody(
@@ -19,6 +21,7 @@ class StreamListBody {
       where: json['where'] != null ? Where.fromJson(json['where']) : null,
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
+      expand: json['expand'] as List<String>? ?? [],
     );
   }
 
@@ -28,6 +31,7 @@ class StreamListBody {
       'where': ?where?.toJson(),
       'limit': ?limit,
       'offset': ?offset,
+      'expand': expand,
     };
   }
 }
