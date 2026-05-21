@@ -408,13 +408,23 @@ Future<int?> _delete({required String id, required String jwt}) async {
 }
 
 Future<int?> _expand({required String jwt}) async {
+  const companyName = 'Expand Test Company';
   const authorName = 'Expand Test Author';
   const postTitle = 'Expand test post';
+
+  final companyId = _generateId(suffix: 'co');
+  await zonaiDB.create(
+    'companies',
+    .new(jwt: jwt, object: {'id': companyId, 'name': companyName}),
+  );
 
   final authorId = _generateId(suffix: 'au');
   await zonaiDB.create(
     'authors',
-    .new(jwt: jwt, object: {'id': authorId, 'name': authorName}),
+    .new(
+      jwt: jwt,
+      object: {'id': authorId, 'name': authorName, 'company_id': companyId},
+    ),
   );
 
   final postId = _generateId(suffix: 'po');
@@ -500,8 +510,63 @@ Future<int?> _expand({required String jwt}) async {
     return 1;
   }
 
+  final nestedPost = await zonaiDB.read(
+    'posts',
+    .new(jwt: jwt, where: Eq('id', postId), expand: ['author_id.company_id']),
+  );
+
+  if (nestedPost['author_id'] != authorId) {
+    logger.error(
+      'Expected nested expand to keep author_id FK, got: ${nestedPost['author_id']}',
+    );
+    return 1;
+  }
+
+  final nestedExpanded = nestedPost['expanded'];
+  if (nestedExpanded is! Map<String, Object?>) {
+    logger.error('Expected nested expanded map, got: $nestedExpanded');
+    return 1;
+  }
+
+  final nestedAuthor = nestedExpanded['author_id'];
+  if (nestedAuthor is! Map<String, Object?>) {
+    logger.error('Expected nested expanded.author_id, got: $nestedAuthor');
+    return 1;
+  }
+
+  if (nestedAuthor['company_id'] != companyId) {
+    logger.error(
+      'Expected nested author company_id FK "$companyId", got: ${nestedAuthor['company_id']}',
+    );
+    return 1;
+  }
+
+  final nestedAuthorExpanded = nestedAuthor['expanded'];
+  if (nestedAuthorExpanded is! Map<String, Object?>) {
+    logger.error(
+      'Expected nested author expanded map, got: $nestedAuthorExpanded',
+    );
+    return 1;
+  }
+
+  final nestedCompany = nestedAuthorExpanded['company_id'];
+  if (nestedCompany is! Map<String, Object?>) {
+    logger.error(
+      'Expected nested expanded.author_id.company_id, got: $nestedCompany',
+    );
+    return 1;
+  }
+
+  if (nestedCompany['name'] != companyName) {
+    logger.error(
+      'Nested company name mismatch: expected "$companyName", got "${nestedCompany['name']}"',
+    );
+    return 1;
+  }
+
   await zonaiDB.delete('posts', .new(jwt: jwt, where: Eq('id', postId)));
   await zonaiDB.delete('authors', .new(jwt: jwt, where: Eq('id', authorId)));
+  await zonaiDB.delete('companies', .new(jwt: jwt, where: Eq('id', companyId)));
 
   return null;
 }

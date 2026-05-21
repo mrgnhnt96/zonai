@@ -12,6 +12,7 @@ sealed class Id implements z.Id {
 
     return switch (parts[1]) {
       AuthorsId._suffix => AuthorsId(json),
+      CompaniesId._suffix => CompaniesId(json),
       ItemsId._suffix => ItemsId(json),
       PostsId._suffix => PostsId(json),
       UsersId._suffix => UsersId(json),
@@ -39,6 +40,14 @@ class AuthorsId extends Id {
   factory AuthorsId.generate() => AuthorsId(z.Id.generate(_suffix));
 
   static const _suffix = 'au';
+}
+
+class CompaniesId extends Id {
+  const CompaniesId(super.value);
+
+  factory CompaniesId.generate() => CompaniesId(z.Id.generate(_suffix));
+
+  static const _suffix = 'co';
 }
 
 class ItemsId extends Id {

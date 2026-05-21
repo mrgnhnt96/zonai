@@ -43,6 +43,13 @@
       "when": 1779397782931,
       "tag": "0005_authors_and_posts",
       "snapshotId": "b06424d1-496b-4657-a7f3-7f2c2c845ce7"
+    },
+    {
+      "idx": 6,
+      "version": "1",
+      "when": 1779400735565,
+      "tag": "0006_companies",
+      "snapshotId": "c384e3e6-be4f-4d58-8fcb-aea6bf9a71f7"
     }
   ]
 }
