@@ -31,6 +31,14 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
     };
   }
 
+  Future<bool> canPasswordReset(Jwt? jwt, AuthType authType) async {
+    return switch (authType) {
+      .password => schema is PasswordAuth,
+      .otp => false,
+      .magicLink => false,
+    };
+  }
+
   Future<bool> canView(Jwt? jwt, R record) async {
     if (jwt?.admin.isAdmin case true) {
       return true;

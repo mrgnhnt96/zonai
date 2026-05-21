@@ -7,6 +7,13 @@ sealed class AuthPayload extends Payload implements JwtPayload {
   final String? jwt;
 }
 
+sealed class VerifyAuthPayload extends Payload implements JwtPayload {
+  const VerifyAuthPayload({required this.authType, this.jwt});
+
+  final AuthType authType;
+  final String? jwt;
+}
+
 class PasswordAuthPayload extends AuthPayload {
   const PasswordAuthPayload({
     required this.email,
@@ -44,7 +51,7 @@ class SendOtpAuthPayload extends AuthPayload {
   final Map<String, dynamic>? object;
 }
 
-class VerifyOtpAuthPayload extends AuthPayload {
+class VerifyOtpAuthPayload extends VerifyAuthPayload implements AuthPayload {
   const VerifyOtpAuthPayload({
     required this.email,
     required this.code,
@@ -63,11 +70,31 @@ class SendMagicLinkAuthPayload extends AuthPayload {
   final Map<String, dynamic>? object;
 }
 
-class VerifyMagicLinkAuthPayload extends AuthPayload {
+class VerifyMagicLinkAuthPayload extends VerifyAuthPayload
+    implements AuthPayload {
   const VerifyMagicLinkAuthPayload({required this.secret, super.jwt})
     : super(authType: .magicLink);
 
   final String secret;
   String get email =>
       throw UnimplementedError('Email is not available in the secret');
+}
+
+class ResetPasswordAuthPayload extends AuthPayload {
+  const ResetPasswordAuthPayload({required this.email, super.jwt})
+    : super(authType: .password);
+
+  final String email;
+}
+
+class ConfirmResetPasswordAuthPayload extends VerifyAuthPayload
+    implements AuthPayload {
+  const ConfirmResetPasswordAuthPayload({
+    required this.token,
+    required this.newPassword,
+    super.jwt,
+  }) : super(authType: .password);
+
+  final String token;
+  final String newPassword;
 }

@@ -6,6 +6,8 @@ abstract final class AuthRoutes {
   static const signIn = '/sign-in';
   static const collections = '/collections';
   static const magicLinkCallback = '/auth/magic-link';
+  static const resetPasswordCallback = '/auth/reset-password';
+  static const resetPasswordRequest = '/auth/reset-password/request';
 
   static String forType(AuthType type) => '$signIn/${type.name}';
 
@@ -30,11 +32,21 @@ abstract final class AuthRoutes {
     final normalized = normalizePath(path);
     return normalized == signIn ||
         normalized.startsWith('$signIn/') ||
-        normalized == magicLinkCallback;
+        normalized == magicLinkCallback ||
+        normalized == resetPasswordCallback ||
+        normalized == resetPasswordRequest;
   }
 
   static bool isMagicLinkCallbackPath(String path) {
     return normalizePath(path) == magicLinkCallback;
+  }
+
+  static bool isResetPasswordCallbackPath(String path) {
+    return normalizePath(path) == resetPasswordCallback;
+  }
+
+  static bool isResetPasswordRequestPath(String path) {
+    return normalizePath(path) == resetPasswordRequest;
   }
 
   static bool isSignInRoot(String path) {
@@ -65,7 +77,8 @@ abstract final class AuthRoutes {
       return home;
     }
 
-    var normalized = path;
+    final uri = path.contains('://') ? Uri.parse(path) : Uri.parse('http://localhost$path');
+    var normalized = uri.path;
     if (!normalized.startsWith('/')) {
       normalized = '/$normalized';
     }

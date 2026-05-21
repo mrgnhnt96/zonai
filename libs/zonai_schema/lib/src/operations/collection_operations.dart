@@ -503,6 +503,10 @@ base mixin AuthOperations<S extends AuthCollection<R>, R>
   Future<String> magicLinkBaseUrl() async {
     return 'http://localhost:8091/auth/magic-link';
   }
+
+  Future<String> resetPasswordBaseUrl() async {
+    return 'http://localhost:8091/auth/reset-password';
+  }
 }
 
 class Claims {

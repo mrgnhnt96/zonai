@@ -202,7 +202,7 @@ final class RecordRulesRequest extends RuleRequest {
   }
 }
 
-enum AuthOperation { signIn, signUp }
+enum AuthOperation { signIn, signUp, passwordReset }
 
 enum CollectionOperation {
   create,

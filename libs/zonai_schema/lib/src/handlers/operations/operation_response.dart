@@ -32,6 +32,8 @@ sealed class OperationResponse extends Response {
       ),
       AdminCollectionsResponse._path => AdminCollectionsResponse.fromJson(json),
       MagicLinkBaseUrlResponse._path => MagicLinkBaseUrlResponse.fromJson(json),
+      ResetPasswordBaseUrlResponse._path =>
+        ResetPasswordBaseUrlResponse.fromJson(json),
       _ => throw ArgumentError('Invalid operation response path: $path'),
     };
   }
@@ -212,6 +214,27 @@ final class MagicLinkBaseUrlResponse extends OperationResponse {
   }
 
   static const _path = '${Response.prefix}.auth.get_magic_link_base_url';
+
+  final String url;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'url': url};
+  }
+}
+
+final class ResetPasswordBaseUrlResponse extends OperationResponse {
+  const ResetPasswordBaseUrlResponse({required super.id, required this.url})
+    : super(path: _path, payload: const {});
+
+  factory ResetPasswordBaseUrlResponse.fromJson(Map<String, dynamic> json) {
+    return ResetPasswordBaseUrlResponse(
+      id: json['id'] as String,
+      url: json['url'] as String,
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_reset_password_base_url';
 
   final String url;
 

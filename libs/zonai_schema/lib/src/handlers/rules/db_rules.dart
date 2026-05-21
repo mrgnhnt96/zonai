@@ -245,6 +245,10 @@ class DbRules {
         canAccess: switch (request.operation) {
           .signIn => await recordRules.canSignIn(request.jwt, request.authType),
           .signUp => await recordRules.canSignUp(request.jwt, request.authType),
+          .passwordReset => await recordRules.canPasswordReset(
+            request.jwt,
+            request.authType,
+          ),
         },
         authType: request.authType,
         operation: request.operation,

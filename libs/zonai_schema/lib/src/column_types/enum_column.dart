@@ -78,6 +78,12 @@ class EnumTransformer<E extends Enum> extends ColumnTransformer<E, Object> {
 
 // TODO: Add more operators for this and other columns
 extension EnumOperators<E extends Enum> on ColumnOf<E> {
-  /// String equals [value].
-  SQL equals(E value) => SQL([$, Op.equals, value]);
+  /// String equals [value] using the column's wire encoding (enum [.name] by default).
+  SQL equals(E value) {
+    final wire = switch (ColumnType.lookup(this)?.transformer) {
+      EnumTransformer<E>(:final toWire) => toWire(value),
+      _ => value.name,
+    };
+    return SQL([$, Op.equals, wire]);
+  }
 }

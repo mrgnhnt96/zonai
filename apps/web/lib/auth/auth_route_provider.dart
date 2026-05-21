@@ -27,10 +27,12 @@ class AuthRouteNotifier extends Notifier<String> {
   }
 
   void navigateTo(String path) {
-    final normalized = AuthRoutes.normalizePath(path);
-    if (ref.binding.isClient) {
-      web.window.history.pushState(null, '', normalized);
+    if (!ref.binding.isClient) {
+      return;
     }
+
+    final normalized = AuthRoutes.normalizePath(path);
+    web.window.history.pushState(null, '', normalized);
     state = normalized;
   }
 

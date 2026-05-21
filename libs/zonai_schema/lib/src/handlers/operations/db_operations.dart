@@ -59,6 +59,8 @@ class DbOperations {
             return await _getAdminCollections(request);
           case final GetMagicLinkBaseUrlOperationRequest request:
             return await _getMagicLinkBaseUrl(request);
+          case final GetResetPasswordBaseUrlOperationRequest request:
+            return await _getResetPasswordBaseUrl(request);
         }
       },
     ).listen();
@@ -311,6 +313,22 @@ class DbOperations {
     };
 
     return MagicLinkBaseUrlResponse(id: request.id, url: url);
+  }
+
+  Future<ResetPasswordBaseUrlResponse> _getResetPasswordBaseUrl(
+    GetResetPasswordBaseUrlOperationRequest request,
+  ) async {
+    final collection = operationsByCollection[request.collection];
+    if (collection == null) {
+      _failMissingCollection(request.collection);
+    }
+    final url = switch (collection) {
+      AuthOperations(:final resetPasswordBaseUrl) =>
+        await resetPasswordBaseUrl(),
+      _ => throw StateError('Collection does not support reset password'),
+    };
+
+    return ResetPasswordBaseUrlResponse(id: request.id, url: url);
   }
 
   Column _emailColumn(Table table) {

@@ -100,15 +100,28 @@ extension _MagicLinkX on ZonaiDb {
   }
 
   Future<_AuthResult> _verifyMagicLink(
-    String collection,
     VerifyMagicLinkAuthPayload payload, {
     bool isAdmin = false,
   }) async {
     final decodedToken = base64Decode(payload.secret);
     final [secret, email] = utf8.decode(decodedToken).split(':');
 
+    final challenge = await _lastChallenge(
+      collection: null,
+      email: email,
+      type: .magicLink,
+    );
+
+    if (challenge == null) {
+      throw StateError('Invalid or expired code');
+    }
+
+    if (challenge.expiresAt.isBefore(clock.now())) {
+      throw StateError('Code expired');
+    }
+
     final hasAuthRecord = await _hasAuthRecord(
-      collection: collection,
+      collection: challenge.collection,
       payload: _VerifyMagicLinkPayload(
         secret: secret,
         email: email,
@@ -129,35 +142,12 @@ extension _MagicLinkX on ZonaiDb {
       false => AuthOperation.signUp,
     };
 
-    await _requireAuthCollectionAccess(collection, payload);
-    await _requireAuthRecordAccess(collection, operation, payload);
-
-    final challenge = await _lastChallenge(
-      collection: collection,
-      email: email,
-      type: .magicLink,
-    );
-
-    if (challenge == null) {
-      throw StateError('Invalid or expired code');
-    }
-
-    if (challenge.type != .magicLink) {
-      throw StateError('Invalid or expired magic link');
-    }
-
-    if (challenge.expiresAt.isBefore(clock.now())) {
-      throw StateError('Code expired');
-    }
-
-    final secretHash = challenge.secretHash;
-    if (secretHash == null) {
-      throw StateError('Invalid or expired code');
-    }
+    await _requireAuthCollectionAccess(challenge.collection, payload);
+    await _requireAuthRecordAccess(challenge.collection, operation, payload);
 
     final secretMatches = await _hashPassword.verify(
       rawPassword: secret,
-      passwordHash: secretHash,
+      passwordHash: challenge.secretHash,
     );
     if (!secretMatches) {
       throw StateError('Invalid or expired magic link');
@@ -167,14 +157,14 @@ extension _MagicLinkX on ZonaiDb {
 
     if (hasAuthRecord) {
       return await _signIntoCollection(
-        collection: collection,
+        collection: challenge.collection,
         email: email,
         jwt: payload.jwt,
       );
     }
 
     return await _signUpWithMagicLink(
-      collection,
+      challenge.collection,
       email: email,
       object: challenge.metadata,
       jwt: payload.jwt,

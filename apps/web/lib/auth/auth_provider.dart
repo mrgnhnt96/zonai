@@ -33,7 +33,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> verifyOtp({required String email, required String code}) async {
     try {
-      final response = await revaliServer.auth.authenticate(
+      final response = await revaliServer.auth.confirm(
         body: AdminVerifyOtpAuthBody(email: email, code: code),
       );
 
@@ -46,9 +46,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> sendMagicLink({required String email}) async {
     try {
-      await revaliServer.auth.authenticate(
-        body: AdminSendMagicLinkAuthBody(email: email),
-      );
+      await revaliServer.auth.authenticate(body: AdminSendMagicLinkAuthBody(email: email));
     } catch (e) {
       print(e);
       rethrow;
@@ -57,11 +55,30 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> verifyMagicLink({required String secret}) async {
     try {
-      final response = await revaliServer.auth.authenticate(
-        body: AdminVerifyMagicLinkAuthBody(secret: secret),
-      );
+      final response = await revaliServer.auth.confirm(body: AdminVerifyMagicLinkAuthBody(secret: secret));
 
       signIn(response!['accessToken'] as String);
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
+  Future<void> sendResetPassword({required String email}) async {
+    try {
+      await revaliServer.auth.sendResetPassword(body: AdminSendResetPasswordAuthBody(email: email));
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
+  Future<void> confirmResetPassword({required String token, required String newPassword}) async {
+    try {
+      await revaliServer.auth.confirm(
+        body: ConfirmResetPasswordAuthBody(token: token, newPassword: newPassword),
+      );
+      await _clearSession(notifyRoute: false);
     } catch (e) {
       print(e);
       rethrow;
@@ -93,6 +110,10 @@ class AuthNotifier extends Notifier<bool> {
   }
 
   Future<void> signOut() async {
+    await _clearSession();
+  }
+
+  Future<void> _clearSession({bool notifyRoute = true}) async {
     final token = ZonaiCookie.authToken.read();
     if (token != null) {
       try {
@@ -101,7 +122,9 @@ class AuthNotifier extends Notifier<bool> {
     }
     ZonaiCookie.authToken.remove();
     state = false;
-    _syncRouteForAuthState(signedIn: false);
+    if (notifyRoute) {
+      _syncRouteForAuthState(signedIn: false);
+    }
   }
 
   void _syncRouteForAuthState({required bool signedIn}) {

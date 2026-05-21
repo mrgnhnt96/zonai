@@ -14,6 +14,12 @@ abstract final class PageTitle {
       if (AuthRoutes.isMagicLinkCallbackPath(path)) {
         return '$appName — Sign in';
       }
+      if (AuthRoutes.isResetPasswordCallbackPath(path)) {
+        return '$appName — Reset password';
+      }
+      if (AuthRoutes.isResetPasswordRequestPath(path)) {
+        return '$appName — Reset password';
+      }
 
       return switch (AuthRoutes.typeFromPath(path)) {
         .password => '$appName — Sign in',

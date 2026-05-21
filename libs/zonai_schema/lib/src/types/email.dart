@@ -64,7 +64,7 @@ class SendOtpEmail extends Email {
     required Duration expiresIn,
     Map<String, dynamic>? variables,
   }) : super(
-         subject: 'Opt Code',
+         subject: 'Otp Code',
          template: 'otp_code',
          thread: Email.createThread(
            'otp:$collection:${to.address.toLowerCase()}',
@@ -98,6 +98,31 @@ class SendMagicLinkEmail extends Email {
          variables: {
            ...?variables,
            'magicLinkUrl': magicLinkUrl,
+           'email': to.address,
+           'expiresIn': '${expiresIn.inMinutes} minutes',
+         },
+       );
+}
+
+class SendResetPasswordEmail extends Email {
+  SendResetPasswordEmail({
+    required super.to,
+    required String collection,
+    super.from,
+    required String passwordResetUrl,
+    required Duration expiresIn,
+    String? name,
+    Map<String, dynamic>? variables,
+  }) : super(
+         subject: 'Reset Password',
+         template: 'password_reset',
+         thread: Email.createThread(
+           'reset-password:$collection:${to.address.toLowerCase()}',
+         ),
+         variables: {
+           ...?variables,
+           'name': name,
+           'passwordResetUrl': passwordResetUrl,
            'email': to.address,
            'expiresIn': '${expiresIn.inMinutes} minutes',
          },

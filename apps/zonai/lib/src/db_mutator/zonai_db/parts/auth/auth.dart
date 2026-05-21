@@ -23,15 +23,20 @@ extension _AuthX on ZonaiDb {
         await _sendOtp(collection, payload, isAdmin: isAdmin);
         return null;
 
-      case VerifyOtpAuthPayload():
-        return await _verifyOtp(collection, payload, isAdmin: isAdmin);
-
       case SendMagicLinkAuthPayload():
         await _sendMagicLink(collection, payload, isAdmin: isAdmin);
         return null;
 
+      case ResetPasswordAuthPayload():
+        await _sendResetPassword(collection, payload, isAdmin: isAdmin);
+        return null;
+
+      case VerifyOtpAuthPayload():
       case VerifyMagicLinkAuthPayload():
-        return await _verifyMagicLink(collection, payload, isAdmin: isAdmin);
+      case ConfirmResetPasswordAuthPayload():
+        throw ArgumentError(
+          'Call confirmAuth instead of authenticate to confirm a reset password',
+        );
     }
   }
 

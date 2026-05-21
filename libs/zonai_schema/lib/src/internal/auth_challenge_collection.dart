@@ -6,7 +6,6 @@ class AuthChallenge {
     required this.userId,
     required this.expiresAt,
     required this.metadata,
-    required this.otpHash,
     required this.secretHash,
     required this.target,
     required this.collection,
@@ -20,7 +19,6 @@ class AuthChallenge {
     required this.userId,
     required this.expiresAt,
     required this.metadata,
-    required this.otpHash,
     required this.secretHash,
     required this.target,
     required this.collection,
@@ -33,28 +31,39 @@ class AuthChallenge {
   AuthChallenge.otp({
     required this.id,
     required this.expiresAt,
-    required this.metadata,
-    required String this.otpHash,
+    required this.secretHash,
     required this.target,
     required this.collection,
+    this.metadata,
   }) : userId = null,
        type = .otp,
        createdAt = DateTime.now(),
-       secretHash = null,
        canConsume = true,
        consumedAt = null;
 
   AuthChallenge.magicLink({
     required this.id,
     required this.expiresAt,
-    required this.metadata,
-    required String this.secretHash,
+    required this.secretHash,
     required this.target,
     required this.collection,
+    this.metadata,
   }) : userId = null,
        type = .magicLink,
        createdAt = DateTime.now(),
-       otpHash = null,
+       canConsume = true,
+       consumedAt = null;
+
+  AuthChallenge.passwordReset({
+    required this.id,
+    required this.expiresAt,
+    required this.secretHash,
+    required this.target,
+    required this.collection,
+    this.metadata,
+  }) : userId = null,
+       type = .passwordReset,
+       createdAt = DateTime.now(),
        canConsume = true,
        consumedAt = null;
 
@@ -62,8 +71,7 @@ class AuthChallenge {
   final Id? userId;
   final DateTime expiresAt;
   final Map<String, Object?>? metadata;
-  final String? otpHash;
-  final String? secretHash;
+  final String secretHash;
   final String target;
   final String collection;
   final AuthChallengeType type;
@@ -114,7 +122,6 @@ class AuthChallengeCollection extends Collection<AuthChallenge> {
       ),
       expiresAt = $.dateTime('expires_at', (s) => s.expiresAt),
       metadata = $.map('metadata', (s) => s.metadata),
-      otpHash = $.text('otp_hash', (s) => s.otpHash),
       secretHash = $.text('secret_hash', (s) => s.secretHash),
       target = $.text('target', (s) => s.target),
       collection = $.text('collection', (s) => s.collection),
@@ -127,8 +134,7 @@ class AuthChallengeCollection extends Collection<AuthChallenge> {
   final IdColumn<UnknownId>? userId;
   final DateTimeColumn expiresAt;
   final MapColumn? metadata;
-  final TextColumn? otpHash;
-  final TextColumn? secretHash;
+  final TextColumn secretHash;
   final TextColumn target;
   final TextColumn collection;
   final EnumColumn<AuthChallengeType> type;
@@ -143,7 +149,6 @@ class AuthChallengeCollection extends Collection<AuthChallenge> {
       userId: read(userId),
       expiresAt: read(expiresAt),
       metadata: read(metadata),
-      otpHash: read(otpHash),
       secretHash: read(secretHash),
       target: read(target)!,
       collection: read(collection),

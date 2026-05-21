@@ -60,7 +60,7 @@ extension _OtpX on ZonaiDb {
         id: AuthChallengeId.generate(),
         expiresAt: clock.now().add(expiresIn),
         metadata: payload.object,
-        otpHash: hashedOtp,
+        secretHash: hashedOtp,
         target: payload.email,
         collection: collection,
       ),
@@ -79,12 +79,25 @@ extension _OtpX on ZonaiDb {
   }
 
   Future<_AuthResult> _verifyOtp(
-    String collection,
     VerifyOtpAuthPayload payload, {
     bool isAdmin = false,
   }) async {
+    final challenge = await _lastChallenge(
+      collection: null,
+      email: payload.email,
+      type: .otp,
+    );
+
+    if (challenge == null) {
+      throw StateError('Invalid or expired code');
+    }
+
+    if (challenge.expiresAt.isBefore(clock.now())) {
+      throw StateError('Code expired');
+    }
+
     final hasAuthRecord = await _hasAuthRecord(
-      collection: collection,
+      collection: challenge.collection,
       payload: payload,
     );
 
@@ -101,35 +114,12 @@ extension _OtpX on ZonaiDb {
       false => AuthOperation.signUp,
     };
 
-    await _requireAuthCollectionAccess(collection, payload);
-    await _requireAuthRecordAccess(collection, operation, payload);
-
-    final challenge = await _lastChallenge(
-      collection: collection,
-      email: payload.email,
-      type: .otp,
-    );
-
-    if (challenge == null) {
-      throw StateError('Invalid or expired code');
-    }
-
-    if (challenge.type != .otp) {
-      throw StateError('Invalid or expired code');
-    }
-
-    if (challenge.expiresAt.isBefore(clock.now())) {
-      throw StateError('Code expired');
-    }
-
-    final otpHash = challenge.otpHash;
-    if (otpHash == null) {
-      throw StateError('Invalid or expired code');
-    }
+    await _requireAuthCollectionAccess(challenge.collection, payload);
+    await _requireAuthRecordAccess(challenge.collection, operation, payload);
 
     final codeMatches = await _hashPassword.verify(
       rawPassword: payload.code,
-      passwordHash: otpHash,
+      passwordHash: challenge.secretHash,
     );
     if (!codeMatches) {
       throw StateError('Invalid or expired code');
@@ -139,14 +129,14 @@ extension _OtpX on ZonaiDb {
 
     if (hasAuthRecord) {
       return await _signIntoCollection(
-        collection: collection,
+        collection: challenge.collection,
         email: payload.email,
         jwt: payload.jwt,
       );
     }
 
     return await _signUpWithOtp(
-      collection,
+      challenge.collection,
       email: payload.email,
       object: challenge.metadata,
       jwt: payload.jwt,

@@ -35,6 +35,7 @@ part 'parts/__auth_utils.dart';
 part 'parts/__utils.dart';
 part 'parts/auth/auth.dart';
 part 'parts/auth/challenge.dart';
+part 'parts/auth/reset_password.dart';
 part 'parts/auth/magic_link.dart';
 part 'parts/auth/otp.dart';
 part 'parts/auth/password.dart';
@@ -98,6 +99,34 @@ class ZonaiDb {
     AuthPayload payload,
   ) async {
     return await _run(() => _authenticate(collection, payload));
+  }
+
+  Future<void> sendResetPassword(
+    String collection,
+    ResetPasswordAuthPayload payload,
+  ) async {
+    return await _run(() => _sendResetPassword(collection, payload));
+  }
+
+  Future<void> sendAdminResetPassword(ResetPasswordAuthPayload payload) async {
+    return await _run(() async {
+      final collection = await _adminCollectionFor(.password);
+      await _sendResetPassword(collection, payload);
+    });
+  }
+
+  Future<_AuthResult?> confirmAuth(VerifyAuthPayload payload) async {
+    return await _run(() async {
+      switch (payload) {
+        case final VerifyOtpAuthPayload payload:
+          return await _verifyOtp(payload);
+        case VerifyMagicLinkAuthPayload():
+          return await _verifyMagicLink(payload);
+        case ConfirmResetPasswordAuthPayload():
+          await _confirmResetPassword(payload);
+          return null;
+      }
+    });
   }
 
   Future<_AuthResult?> authenticateAdmin(AuthPayload payload) async {

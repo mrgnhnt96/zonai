@@ -36,6 +36,8 @@ sealed class OperationRequest extends Request {
         GetAdminCollectionsOperationRequest.fromRequest(request),
       GetMagicLinkBaseUrlOperationRequest._path =>
         GetMagicLinkBaseUrlOperationRequest.fromRequest(request),
+      GetResetPasswordBaseUrlOperationRequest._path =>
+        GetResetPasswordBaseUrlOperationRequest.fromRequest(request),
       _ => throw ArgumentError(
         'Invalid operation request path: ${request.path}',
       ),
@@ -701,6 +703,34 @@ final class GetMagicLinkBaseUrlOperationRequest extends OperationRequest {
   }
 
   static const _path = '${Request.prefix}.auth.get_magic_link_base_url';
+
+  final String collection;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'collection': collection};
+  }
+}
+
+final class GetResetPasswordBaseUrlOperationRequest extends OperationRequest {
+  GetResetPasswordBaseUrlOperationRequest({required this.collection})
+    : super(path: _path, id: Request.generateId(), jwt: null);
+
+  GetResetPasswordBaseUrlOperationRequest._({
+    required super.id,
+    required this.collection,
+  }) : super(path: _path, jwt: null);
+
+  factory GetResetPasswordBaseUrlOperationRequest.fromRequest(
+    UnknownRequest request,
+  ) {
+    return GetResetPasswordBaseUrlOperationRequest._(
+      id: request.id,
+      collection: request.payload['collection'] as String,
+    );
+  }
+
+  static const _path = '${Request.prefix}.auth.get_reset_password_base_url';
 
   final String collection;
 

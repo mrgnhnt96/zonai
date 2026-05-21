@@ -14,22 +14,26 @@ extension _ChallengeX on ZonaiDb {
   }
 
   Future<AuthChallenge?> _lastChallenge({
-    required String collection,
+    required String? collection,
     required String email,
     required AuthChallengeType type,
   }) async {
     final db = await open();
 
+    Filter where =
+        authChallenges.target.equals(email) &
+        authChallenges.type.equals(type) &
+        authChallenges.canConsume.isTrue();
+
+    if (collection != null) {
+      where = where & authChallenges.collection.equals(collection);
+    }
+
     // must wait 1 minute before sending a new OTP
     final lastOtp = await db
         .select()
         .from(authChallenges)
-        .where(
-          authChallenges.target.equals(email) &
-              authChallenges.collection.equals(collection) &
-              authChallenges.type.equals(type) &
-              authChallenges.canConsume.isTrue(),
-        )
+        .where(where)
         .limit(1);
 
     return lastOtp.singleOrNull;

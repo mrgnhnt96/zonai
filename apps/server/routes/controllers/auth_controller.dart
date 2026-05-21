@@ -17,6 +17,24 @@ class AuthController {
     return await authHandler.authenticate(body);
   }
 
+  @Post('reset-password')
+  Future<void> sendResetPassword({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Body() required ResetPasswordAuthBody body,
+  }) async {
+    await authHandler.sendResetPassword(
+      authorization: authorization,
+      body: body,
+    );
+  }
+
+  @Post('confirm')
+  Future<Map<String, Object?>?> confirm({
+    @Body() required VerifyAuthBody body,
+  }) async {
+    return await authHandler.verifyAuth(body);
+  }
+
   @Post('admin')
   Future<Map<String, Object?>?> adminAuthenticate({
     @Body() required AdminAuthBody body,

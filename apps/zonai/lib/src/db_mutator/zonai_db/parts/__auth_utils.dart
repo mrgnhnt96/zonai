@@ -54,6 +54,7 @@ extension _AuthUtilsX on ZonaiDb {
   Future<Map<String, Object?>?> _authRecord({
     required String collection,
     required String email,
+    bool sanitize = true,
   }) async {
     final response = await _operations.send<PerformOperationResponse>(
       ViewAuthOperationRequest(
@@ -76,6 +77,10 @@ extension _AuthUtilsX on ZonaiDb {
       return null;
     }
 
+    if (!sanitize) {
+      return user;
+    }
+
     return await _sanitizeRow(collection, user);
   }
 
@@ -90,9 +95,10 @@ extension _AuthUtilsX on ZonaiDb {
         collection: collection,
         jwt: jwt,
         payload: switch (payload) {
-          PasswordAuthPayload() => PasswordAuthOperationPayload.get(
-            email: payload.email,
-          ),
+          PasswordAuthPayload(:final email) ||
+          ResetPasswordAuthPayload(
+            :final email,
+          ) => PasswordAuthOperationPayload.get(email: email),
           SendOtpAuthPayload(:final email) ||
           VerifyOtpAuthPayload(
             :final email,
@@ -101,6 +107,9 @@ extension _AuthUtilsX on ZonaiDb {
           VerifyMagicLinkAuthPayload(
             :final email,
           ) => MagicLinkAuthOperationPayload.get(email: email),
+          ConfirmResetPasswordAuthPayload() => throw ArgumentError(
+            'Cannot get auth record for confirm reset password payload',
+          ),
         },
       ),
     );
@@ -198,6 +207,8 @@ extension _AuthUtilsX on ZonaiDb {
           SendOtpAuthPayload() || VerifyOtpAuthPayload() => .otp,
           SendMagicLinkAuthPayload() ||
           VerifyMagicLinkAuthPayload() => .magicLink,
+          ResetPasswordAuthPayload() => .password,
+          ConfirmResetPasswordAuthPayload() => .password,
         },
       ),
     );

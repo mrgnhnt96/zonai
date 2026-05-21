@@ -30,16 +30,9 @@ class AuthHandler {
         email: body.email,
         object: body.metadata,
       ),
-      VerifyOtpAuthBody() => VerifyOtpAuthPayload(
-        email: body.email,
-        code: body.code,
-      ),
       SendMagicLinkAuthBody() => SendMagicLinkAuthPayload(
         email: body.email,
         object: body.metadata,
-      ),
-      VerifyMagicLinkAuthBody() => VerifyMagicLinkAuthPayload(
-        secret: body.secret,
       ),
     };
 
@@ -68,6 +61,37 @@ class AuthHandler {
         result.jwt,
       ),
       _ => throw UnimplementedError('Unknown auth body: $body'),
+    };
+  }
+
+  Future<Map<String, Object?>?> verifyAuth(VerifyAuthBody body) async {
+    final VerifyAuthPayload payload = switch (body) {
+      VerifyOtpAuthBody() => VerifyOtpAuthPayload(
+        email: body.email,
+        code: body.code,
+      ),
+      VerifyMagicLinkAuthBody() => VerifyMagicLinkAuthPayload(
+        secret: body.secret,
+      ),
+      ConfirmResetPasswordAuthBody() => ConfirmResetPasswordAuthPayload(
+        token: body.token,
+        newPassword: body.newPassword,
+      ),
+    };
+
+    final result = await zonaiDB.confirmAuth(payload);
+
+    return switch ((body, result)) {
+      (VerifyOtpAuthBody(), final result?) => _sessionPayload(
+        result.user,
+        result.jwt,
+      ),
+      (VerifyMagicLinkAuthBody(), final result?) => _sessionPayload(
+        result.user,
+        result.jwt,
+      ),
+      (ConfirmResetPasswordAuthBody(), null) => null,
+      _ => throw UnimplementedError('Unknown verify auth body: $body'),
     };
   }
 
@@ -107,6 +131,24 @@ class AuthHandler {
   Future<void> logoutAll(String authorizationHeader) async {
     final token = _parseBearerAuthorization(authorizationHeader);
     await zonaiDB.logoutAll(token);
+  }
+
+  Future<void> sendResetPassword({
+    required ResetPasswordAuthBody body,
+    String? authorization,
+  }) async {
+    final token = switch (authorization) {
+      null => null,
+      final String bearerToken => _parseBearerAuthorization(bearerToken),
+    };
+    final payload = ResetPasswordAuthPayload(email: body.email, jwt: token);
+
+    switch (body) {
+      case AdminSendResetPasswordAuthBody():
+        await zonaiDB.sendAdminResetPassword(payload);
+      case SendResetPasswordAuthBody():
+        await zonaiDB.sendResetPassword(body.collection, payload);
+    }
   }
 
   Map<String, Object?> _sessionPayload(

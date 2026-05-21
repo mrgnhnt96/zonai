@@ -235,6 +235,16 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
           disabled: _loading,
           [.text(_loading ? 'Signing in…' : 'Sign in')],
         ),
+        button(
+          classes: 'otp-secondary',
+          type: .button,
+          onClick: () {
+            context.read(authRouteProvider.notifier).navigateTo(
+              AuthRoutes.resetPasswordRequest,
+            );
+          },
+          [.text('Forgot password?')],
+        ),
       ],
       classes: 'card',
       events: {

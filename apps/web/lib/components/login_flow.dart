@@ -11,6 +11,8 @@ import '../auth/supported_auth_types_provider.dart';
 import 'magic_link_sign_in_screen.dart';
 import 'magic_link_verify_screen.dart';
 import 'otp_sign_in_screen.dart';
+import 'reset_password_confirm_screen.dart';
+import 'reset_password_request_screen.dart';
 import 'sign_in_screen.dart';
 
 /// Chooses the sign-in screen from supported auth types and the current path.
@@ -24,6 +26,14 @@ class LoginFlow extends StatelessComponent {
 
     if (AuthRoutes.isMagicLinkCallbackPath(path)) {
       return const MagicLinkVerifyScreen();
+    }
+
+    if (AuthRoutes.isResetPasswordCallbackPath(path)) {
+      return const ResetPasswordConfirmScreen();
+    }
+
+    if (AuthRoutes.isResetPasswordRequestPath(path)) {
+      return const ResetPasswordRequestScreen();
     }
 
     if (authTypes.isEmpty) {
@@ -71,6 +81,9 @@ class _RedirectToAuthTypeState extends State<_RedirectToAuthType> {
   @override
   void initState() {
     super.initState();
+    if (!context.binding.isClient) {
+      return;
+    }
     scheduleMicrotask(() {
       if (!mounted) return;
       context.read(authRouteProvider.notifier).navigateTo(AuthRoutes.forType(component.authType));
