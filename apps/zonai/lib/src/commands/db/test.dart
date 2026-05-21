@@ -42,7 +42,7 @@ Future<int> test() async {
       },
     );
 
-    await zonaiDB.sendTestEmail(email);
+    await zonaiDB.sendEmail(email);
     logger.info('Test email sent');
   }
 

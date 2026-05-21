@@ -144,7 +144,7 @@ class ZonaiDb {
     return await _run(() => _authenticateAdmin(payload));
   }
 
-  Future<void> sendTestEmail(Email email) async {
+  Future<void> sendEmail(Email email) async {
     await _run(() => courier.send(email));
   }
 

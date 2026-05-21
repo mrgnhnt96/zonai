@@ -20,7 +20,6 @@
 - [ ] Upload files (to local storage)
 - [ ] Support `order_by` in queries
 - [ ] Support cron jobs
-- [ ] Support expand columns
 - [ ] Export records as JSON
 - [ ] Add rate limiting
 
