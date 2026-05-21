@@ -49,6 +49,9 @@
 - [ ] Create built-in email templates
 - [ ] Set up initial admin schema
 - [ ] Create zonai.yaml file, with default values
+- [ ] Add to `.gitignore`
+  - [ ] `*.stop`
+  - [ ] `zonai.sqlite*`
 
 ### Other
 
@@ -57,14 +60,6 @@
 - set up cli to serve the compiled server
 - serve the compiled web app from the server
 - when deployed, the cli should not watch the filesystem for changes, not have the ability to recompile
-
-### Message Handler
-
-- Don't kill the process until after the compilation is complete (when a restart is needed)
-  - The DB should auto start the rule/extension process if it is not available
-- Check for `.stop` file and restart the process if it exists
-  - Should pause all requests until the process is restarted
-  - Should wait until all pending requests are completed
 
 ## Raindrop
 
