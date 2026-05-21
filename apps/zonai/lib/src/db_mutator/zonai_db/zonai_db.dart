@@ -144,6 +144,22 @@ class ZonaiDb {
     return await _run(() => _authenticateAdmin(payload));
   }
 
+  Future<Map<String, Object?>> createAdmin({
+    required String email,
+    required String password,
+    Map<String, dynamic>? object,
+    bool verified = true,
+  }) async {
+    return await _run(
+      () => _createAdmin(
+        email: email,
+        password: password,
+        object: object,
+        verified: verified,
+      ),
+    );
+  }
+
   Future<void> sendEmail(Email email) async {
     await _run(() => courier.send(email));
   }

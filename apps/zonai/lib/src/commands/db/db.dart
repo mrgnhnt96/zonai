@@ -1,3 +1,4 @@
+import 'admin.dart';
 import 'test.dart';
 import '../migrate/migrate.dart';
 import '../../deps/args.dart';
@@ -11,6 +12,7 @@ Options:
 
 Subcommands:
   migrate         Manage SQL migrations
+  admin           Manage admin accounts
 
 Commands:
   help            Show help information
@@ -28,6 +30,10 @@ Future<int> db(List<String> path) async {
 
     case ['test']:
       return await test();
+
+    case ['admin', ...final path]:
+      return await admin(path);
+
     default:
       logger.info(_usage);
       return 1;
