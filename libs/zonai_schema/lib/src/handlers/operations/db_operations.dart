@@ -191,13 +191,15 @@ class DbOperations {
         ...?otherFields,
         emailColumn.name: email,
         if (passwordColumn != null) passwordColumn.name: passwordHash,
-        if (isVerifiedColumn != null && !isVerifiedColumn.isNullable)
-          isVerifiedColumn.name: false,
+        if (isVerifiedColumn != null) isVerifiedColumn.name: false,
       },
       OtpAuthOperationPayload() => {
         ...?otherFields,
         emailColumn.name: email,
-        if (isVerifiedColumn != null) isVerifiedColumn.name: true,
+        if (isVerifiedColumn != null)
+          isVerifiedColumn.name: true
+        else
+          '': throw StateError('Is verified column is required'),
         // provide empty password hash to comply
         if (passwordColumn != null && !passwordColumn.isNullable)
           passwordColumn.name: '',
@@ -205,8 +207,10 @@ class DbOperations {
       MagicLinkAuthOperationPayload() => {
         ...?otherFields,
         emailColumn.name: email,
-        if (isVerifiedColumn != null && !isVerifiedColumn.isNullable)
-          isVerifiedColumn.name: true,
+        if (isVerifiedColumn != null)
+          isVerifiedColumn.name: true
+        else
+          '': throw StateError('Is verified column is required'),
         // provide empty password hash to comply
         if (passwordColumn != null && !passwordColumn.isNullable)
           passwordColumn.name: '',

@@ -6,6 +6,9 @@ schema:
       (aliases): [internal, ida]
 
 db:
+  clear-logs:
+    (command): cd apps/playground && dart run zonai db logs clear
+    (aliases): [logs-clear, clear-logs]
   gen:
     migrations:
       (command): cd apps/db && dart run raindrop_cli:raindrop generate {-n} {--name}
@@ -67,6 +70,11 @@ playground:
   migrate: |
     cd apps/playground || exit 1
     dart run zonai db migrate generate --name update
+
   serve: |
     cd apps/playground || exit 1
     dart run zonai serve --log verbose
+
+  clear-logs: |
+    cd apps/playground || exit 1
+    dart run zonai db logs clear --log verbose

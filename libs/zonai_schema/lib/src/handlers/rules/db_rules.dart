@@ -104,10 +104,6 @@ class DbRules {
       );
     }
 
-    logger.info(
-      '[RULES]: ${op.name} | ${collectionRules.schema.runtimeType} (Auth? ${collectionRules is AuthCollectionRules})',
-    );
-
     if (op == .create && collectionRules is AuthCollectionRules) {
       throw StateError('Cannot create auth records, use the auth API instead');
     }

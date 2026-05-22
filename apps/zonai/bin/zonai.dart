@@ -40,11 +40,11 @@ Future<void> _run(List<String> arguments) async {
 
   final log = Logger(
     level:
-        Level.fromString(parsed.getOrNull('log')) ??
+        .fromString(parsed.getOrNull('log')) ??
         switch ((parsed['quiet'], parsed['loud'])) {
-          (true, _) => Level.error,
-          (_, true) => Level.verbose,
-          (_, _) => Level.info,
+          (true, _) => .error,
+          (_, true) => .verbose,
+          (_, _) => .info,
         },
   );
 

@@ -4,6 +4,20 @@ import 'package:zonai_logger/src/print_sink.dart';
 
 import 'level.dart';
 
+class LogDetails {
+  const LogDetails({
+    required this.message,
+    required this.level,
+    this.error,
+    this.stackTrace,
+  });
+
+  final String message;
+  final Level level;
+  final Object? error;
+  final StackTrace? stackTrace;
+}
+
 /// Console-oriented logger with optional ANSI styling.
 
 class Logger {
@@ -20,6 +34,8 @@ class Logger {
   final io.IOSink _stdout;
   final io.IOSink _stderr;
 
+  final List<void Function(LogDetails)> _callbacks = [];
+
   bool _emit(Level messageLevel) => messageLevel.index >= level.index;
 
   void verbose(String message, {String? prefix}) =>
@@ -32,7 +48,20 @@ class Logger {
   void warn(String message, {String? prefix}) =>
       _log(Level.warning, message, _stderr, _yellow, prefix: prefix);
 
-  void err(String message, [Object? error, StackTrace? stackTrace]) {
+  void _err(String message, [Object? error, StackTrace? stackTrace]) {
+    final details = LogDetails(
+      message: message,
+      level: Level.error,
+      error: error,
+      stackTrace: stackTrace,
+    );
+
+    for (final callback in _callbacks) {
+      try {
+        callback(details);
+      } catch (_) {}
+    }
+
     if (!_emit(Level.error)) return;
     final buffer = StringBuffer(message);
     if (error != null) {
@@ -48,7 +77,7 @@ class Logger {
 
   /// Alias for [err] for call sites that prefer `error`.
   void error(String message, [Object? error, StackTrace? stackTrace]) =>
-      err(message, error, stackTrace);
+      _err(message, error, stackTrace);
 
   void _log(
     Level messageLevel,
@@ -57,6 +86,19 @@ class Logger {
     String Function(String)? style, {
     String? prefix,
   }) {
+    final details = LogDetails(
+      message: switch (prefix) {
+        null => message,
+        final p => '$p: $message',
+      },
+      level: messageLevel,
+    );
+    for (final callback in _callbacks) {
+      try {
+        callback(details);
+      } catch (_) {}
+    }
+
     if (!_emit(messageLevel)) return;
     if (prefix != null) {
       for (final line in message.split('\n')) {
@@ -70,6 +112,14 @@ class Logger {
   void _writeLine(io.IOSink sink, String text, String Function(String)? style) {
     final line = style != null ? style(text) : text;
     sink.writeln(line);
+  }
+
+  void addCallback(void Function(LogDetails) callback) {
+    _callbacks.add(callback);
+  }
+
+  void removeCallback(void Function(LogDetails) callback) {
+    _callbacks.remove(callback);
   }
 
   String _dim(String s) => '\x1B[90m$s\x1B[0m';

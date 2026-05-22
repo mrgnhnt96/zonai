@@ -12,6 +12,7 @@
 import 'package:raindrop/raindrop.dart' show Schema;
 import 'package:zonai_schema/src/internal/auth_challenge_collection.dart' as _schema_authChallenges;
 import 'package:zonai_schema/src/internal/jwt_collection.dart' as _schema_jwts;
+import 'package:zonai_schema/src/internal/logs_collection.dart' as _schema_logs;
 import 'package:zonai_schema/src/internal/raindrop_migrations_collection.dart' as _schema_raindropMigrations;
 import 'package:zonai_schema/src/internal/rate_limit_collection.dart' as _schema_rateLimits;
 
@@ -26,6 +27,11 @@ abstract final class InternalDbArtifacts {
       importPath:
           'package:zonai_schema/src/internal/operations/jwt_operations.dart',
       alias: 'zonai_internal_jwt_operations',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/operations/log_operations.dart',
+      alias: 'zonai_internal_log_operations',
     ),
     (
       importPath:
@@ -59,6 +65,16 @@ abstract final class InternalDbArtifacts {
       importPath:
           'package:zonai_schema/src/internal/rules/jwt_record_rules.dart',
       alias: 'zonai_internal_jwt_record_rules',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/rules/log_collection_rules.dart',
+      alias: 'zonai_internal_log_collection_rules',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/rules/log_record_rules.dart',
+      alias: 'zonai_internal_log_record_rules',
     ),
     (
       importPath:
@@ -101,6 +117,12 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
+          'package:zonai_schema/src/internal/logs_collection.dart',
+      getter: 'logs',
+      tableName: '_log',
+    ),
+    (
+      importPath:
           'package:zonai_schema/src/internal/raindrop_migrations_collection.dart',
       getter: 'raindropMigrations',
       tableName: '_raindrop_migrations',
@@ -117,11 +139,12 @@ abstract final class InternalDbArtifacts {
   static final schemas = <Schema<Object?>>[
     _schema_authChallenges.authChallenges,
     _schema_jwts.jwts,
+    _schema_logs.logs,
     _schema_raindropMigrations.raindropMigrations,
     _schema_rateLimits.rateLimits,
   ];
 
   /// SQLite table names managed by the framework (not user schemas).
-  static const tableNames = {'_auth_challenges', '_jwt', '_raindrop_migrations', '_rate_limit'};
+  static const tableNames = {'_auth_challenges', '_jwt', '_log', '_raindrop_migrations', '_rate_limit'};
 }
 

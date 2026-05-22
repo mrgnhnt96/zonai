@@ -797,12 +797,11 @@ packages:
     source: path
     version: "2.1.0"
   revali_core:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_core
-      sha256: d9e25a405d7467ff88ddbff7193a14dc36b01cec5505e4c0f3a7f79998e259e1
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Documents/develop.nosync/revali/packages/revali_core"
+      relative: false
+    source: path
     version: "1.5.0"
   revali_router:
     dependency: "direct overridden"

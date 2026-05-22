@@ -22,7 +22,7 @@ class Revali {
 
   Future<bool> start() async {
     if (isRunning) {
-      logger.err('Revali is already running');
+      logger.debug('Revali is already running');
       return true;
     }
 
@@ -79,7 +79,7 @@ class Revali {
     logger.debug('revaliProjectPath: $revaliProjectPath');
 
     if (!fs.directory(revaliProjectPath).existsSync()) {
-      logger.err('Revali project path does not exist: $revaliProjectPath');
+      logger.error('Revali project path does not exist: $revaliProjectPath');
       return false;
     }
 
@@ -100,7 +100,7 @@ class Revali {
       if (success) {
         logger.debug('Killed Revali (server)');
       } else {
-        logger.err('Failed to kill Revali (server)');
+        logger.error('Failed to kill Revali (server)');
         logger.debug('Revali PID: $pid');
       }
     });
@@ -130,7 +130,7 @@ class Revali {
     }
 
     if (!isReady) {
-      logger.err('Unexpectedly failed to make connection to Revali (server)');
+      logger.error('Unexpectedly failed to make connection to Revali (server)');
       return false;
     }
 
@@ -139,8 +139,8 @@ class Revali {
     try {
       return true;
     } catch (e) {
-      logger.err('Error starting server');
-      logger.err('$e');
+      logger.error('Error starting server');
+      logger.error('$e');
       return false;
     }
   }

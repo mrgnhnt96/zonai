@@ -23,4 +23,10 @@ enum Level {
       _ => null,
     };
   }
+
+  bool operator <=(Level other) => index <= other.index;
+  bool operator <(Level other) => index < other.index;
+
+  bool operator >=(Level other) => index >= other.index;
+  bool operator >(Level other) => index > other.index;
 }

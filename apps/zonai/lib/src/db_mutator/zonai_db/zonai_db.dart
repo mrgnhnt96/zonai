@@ -296,10 +296,7 @@ class ZonaiDb {
         },
       );
     } catch (e, stack) {
-      logger.error('Failed to list records: $e', switch (kIsCompiled) {
-        true => null,
-        false => stack,
-      });
+      logger.error('Failed to list records', e, stack);
 
       rethrow;
     }
@@ -336,10 +333,7 @@ class ZonaiDb {
 
             await subscription.asFuture();
           } catch (e, stack) {
-            logger.error('Failed to list records: $e', switch (kIsCompiled) {
-              true => null,
-              false => stack,
-            });
+            logger.error('Failed to list records', e, stack);
             listener.addError(e, stack);
             if (!listener.isClosed) {
               listener.close();
