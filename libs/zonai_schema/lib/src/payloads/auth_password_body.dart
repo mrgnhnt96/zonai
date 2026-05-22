@@ -422,6 +422,23 @@ class ConfirmResetPasswordAuthBody extends VerifyAuthBody {
   };
 }
 
+class VerifyEmailAuthBody {
+  const VerifyEmailAuthBody({required this.email, required this.collection});
+
+  factory VerifyEmailAuthBody.fromJson(Map<String, dynamic> json) {
+    return VerifyEmailAuthBody(
+      email: json['email'] as String,
+      collection: json['collection'] as String,
+    );
+  }
+
+  final String email;
+  final String collection;
+
+  @mustCallSuper
+  Map<String, dynamic> toJson() => {'email': email, 'collection': collection};
+}
+
 class ConfirmVerifyEmailAuthBody extends VerifyAuthBody {
   const ConfirmVerifyEmailAuthBody({required this.token}) : super(type: _type);
 
