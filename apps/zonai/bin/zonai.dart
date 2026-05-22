@@ -20,6 +20,8 @@ import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/deps/operations.dart';
 import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/revali.dart';
+import 'package:zonai/src/deps/rate_limiter.dart';
+import 'package:zonai/src/deps/rate_limits.dart';
 import 'package:zonai/src/deps/rules.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/stdin.dart';
@@ -77,6 +79,8 @@ Future<void> _run(List<String> arguments) async {
       extensionsProvider,
       executableStopProvider,
       rulesProvider,
+      rateLimitsProvider,
+      rateLimiterProvider,
       configProvider,
       configResolverProvider,
       killProvider,

@@ -26,6 +26,7 @@ Future<AppConfig> loadAppConfig() {
       fsProvider,
       operationsProvider,
       rulesProvider,
+      rateLimitsProvider,
       settingsProvider.overrideWith(() {
         if (kIsCompiled) {
           return Settings.load();

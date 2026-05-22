@@ -1,5 +1,7 @@
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
+import 'package:zonai_schema/src/handlers/config/config_request.dart';
+import 'package:zonai_schema/src/handlers/config/config_response.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final configResolverProvider = create<ConfigResolver>(ConfigResolver._);

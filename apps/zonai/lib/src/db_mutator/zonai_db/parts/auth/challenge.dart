@@ -10,7 +10,7 @@ extension _ChallengeX on ZonaiDb {
           authChallenges.consumedAt.to(clock.now()),
           authChallenges.canConsume.to(false),
         )
-        .where(authChallenges.id.equals(challenge.id.value));
+        .where(authChallenges.id.equals(challenge.id));
   }
 
   Future<AuthChallenge?> _lastChallenge({

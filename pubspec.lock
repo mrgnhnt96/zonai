@@ -812,12 +812,11 @@ packages:
     source: path
     version: "3.2.1"
   revali_router_annotations:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_router_annotations
-      sha256: "02c5064086f33d9f1bf2cbf00c9a6a2c4a6284df460c7dcd857f39046440ee47"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router_annotations"
+      relative: false
+    source: path
     version: "2.0.2+1"
   revali_router_core:
     dependency: "direct overridden"

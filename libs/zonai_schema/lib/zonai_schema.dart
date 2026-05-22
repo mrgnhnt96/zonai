@@ -16,6 +16,8 @@ export 'package:raindrop_sqlite/raindrop_sqlite.dart'
         BooleanColumn,
         BigIntColumn,
         BigIntColumnDefinition,
+        IntColumn,
+        IntColumnDefinition,
         TextColumn,
         TextColumnDefinition,
         DateTimeColumn,
@@ -41,10 +43,12 @@ export 'src/column_types/list_column.dart';
 export 'src/column_types/map_column.dart';
 export 'src/column_types/updated_at_column.dart';
 export 'src/extension.dart';
-export 'src/handlers/config/config_request.dart';
-export 'src/handlers/config/config_response.dart';
-export 'src/handlers/config/db_config.dart';
 export 'src/handlers/messages/message_handler.dart' hide Request;
+export 'src/internal/rate_limit_collection.dart';
+export 'src/rate_limit/rate_limit_policy.dart';
+export 'src/types/rate_limit_operation.dart';
+export 'src/rate_limits/collection/rate_limits.dart'
+    show AuthCollectionRateLimits, CollectionRateLimits, RateLimits;
 export 'src/operations/collection_operations.dart';
 export 'src/raw_sql_filter.dart';
 export 'src/rules/rules.dart' hide BaseCollectionRules, BaseRecordRules;

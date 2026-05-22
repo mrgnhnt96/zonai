@@ -64,7 +64,7 @@ class IdTransformer extends ColumnTransformer<Id, Object>
   Id primaryKey() => generate();
 }
 
-extension IdOperators on ColumnOf<Id> {
+extension IdOperators<T extends Id> on ColumnOf<T> {
   /// String equals [value].
-  SQL equals(String value) => SQL([$, Op.equals, value]);
+  SQL equals(T value) => SQL([$, Op.equals, value.value]);
 }

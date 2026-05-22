@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:clock/clock.dart';
+import 'package:zonai_schema/src/internal/jwt_collection.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 /// A JWT token for a [user].
 ///
@@ -26,12 +28,12 @@ class Jwt {
     required String userId,
     required String collection,
     required Map<String, Object?> user,
-    required String jwtId,
+    required JwtId jwtId,
     required Duration expiresIn,
     required Map<String, Object?> claims,
   }) {
     return Jwt(
-      userId: userId,
+      userId: UnknownId(userId),
       collection: collection,
       user: user,
       jwtId: jwtId,
@@ -43,10 +45,10 @@ class Jwt {
 
   factory Jwt.fromJson(Map<String, dynamic> json) {
     return Jwt(
-      userId: json['userId'],
+      userId: UnknownId(json['userId']),
       collection: json['collection'],
       user: json['user'] ?? {},
-      jwtId: json['jwtId'],
+      jwtId: JwtId(json['jwtId']),
       expiresAt: DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] * 1000),
       claims: json['claims'],
       admin: switch (json['admin']) {
@@ -69,9 +71,9 @@ class Jwt {
 
   Map<String, dynamic> toJson() {
     return {
-      'userId': userId,
+      'userId': userId.value,
       'collection': collection,
-      'jwtId': jwtId,
+      'jwtId': jwtId.value,
       'expiresAt': expiresAt.toUtc().millisecondsSinceEpoch ~/ 1000,
       'claims': jsonDecode(jsonEncode(claims)),
       'user': jsonDecode(jsonEncode(user)),
@@ -79,10 +81,10 @@ class Jwt {
     };
   }
 
-  final String userId;
+  final UnknownId userId;
   final String collection;
   final Map<String, Object?> user;
-  final String jwtId;
+  final JwtId jwtId;
   final ({bool isAdmin, bool? canEdit}) admin;
   final DateTime expiresAt;
   final Map<String, Object?> claims;

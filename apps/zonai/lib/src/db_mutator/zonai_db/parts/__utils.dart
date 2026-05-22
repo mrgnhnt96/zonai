@@ -1,6 +1,6 @@
 part of zonai_db;
 
-extension _UtilsX on ZonaiDb {
+extension UtilsX on ZonaiDb {
   File get _dbFile => __dbFile ??= fs.file(settings.zonaiSqlitePath);
 
   Future<Raindrop> open() async {

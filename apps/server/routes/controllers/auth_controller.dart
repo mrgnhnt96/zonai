@@ -4,12 +4,15 @@ import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../components/body_rate_limit.dart';
+
 @Controller('auth')
 class AuthController {
   const AuthController({required this.authHandler});
 
   final AuthHandler authHandler;
 
+  @BodyRateLimit<AuthBody>(.authenticate)
   @Post()
   Future<Map<String, Object?>?> authenticate({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -18,6 +21,7 @@ class AuthController {
     return await authHandler.authenticate(body, authorization: authorization);
   }
 
+  @BodyRateLimit<ResetPasswordAuthBody>(.sendResetPassword)
   @Post('reset-password')
   Future<void> sendResetPassword({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -29,15 +33,13 @@ class AuthController {
     );
   }
 
+  @BodyRateLimit<VerifyEmailAuthBody>(.sendVerifyEmail)
   @Post('verify-email')
   Future<void> sendVerifyEmail({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
     @Body() VerifyEmailAuthBody? body,
   }) async {
-    await authHandler.sendVerifyEmail(
-      authorization: authorization,
-      body: body,
-    );
+    await authHandler.sendVerifyEmail(authorization: authorization, body: body);
   }
 
   @Post('confirm')
@@ -54,6 +56,7 @@ class AuthController {
     return await authHandler.adminAuthenticate(body);
   }
 
+  @BodyRateLimit<SignInAuthBody>(.signIn)
   @Post('sign-in')
   Future<Map<String, Object?>> signIn({
     @Body() required SignInAuthBody body,
@@ -61,6 +64,7 @@ class AuthController {
     return await authHandler.signIn(body);
   }
 
+  @BodyRateLimit<SignUpAuthBody>(.signUp)
   @Post('sign-up')
   Future<Map<String, Object?>> signUp({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,

@@ -81,10 +81,10 @@ class AuthRecordRules<S extends AuthCollection<R>, R>
   }
 
   // TODO: see if we can get the id column from Table.getFor(schema) somehow
-  bool _rowIdMatches(R record, String jwtUserId) {
+  bool _rowIdMatches(R record, UnknownId jwtUserId) {
     try {
       return switch ((record as dynamic).id) {
-        final Id id => id.value == jwtUserId,
+        final Id id => id.value == jwtUserId.value,
         _ => false,
       };
     } catch (e) {

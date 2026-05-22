@@ -46,7 +46,7 @@ server:
   start: |
     cd apps/server || exit 1
     dart pub get || exit 1
-    dart run revali dev --flavor dev {--recompile}
+    dart run revali dev --flavor dev {--recompile} {--loud}
 
 playground:
   (aliases): [play]

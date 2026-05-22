@@ -22,6 +22,7 @@
 - [ ] Support cron jobs
 - [ ] Export records as JSON
 - [ ] Add rate limiting
+  - [ ] Blacklist IPs (needs to be outside of code to be reactive)
 
 ## 4.15.2026
 
@@ -60,6 +61,5 @@
 ### Auth
 
 - [ ] Add OAuth authentication (mixins)
-- [ ] Add email verification
 - [ ] Add email change
 - [ ] Add impersonate

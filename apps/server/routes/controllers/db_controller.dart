@@ -4,6 +4,9 @@ import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../components/body_rate_limit.dart';
+import '../components/query_rate_limit.dart';
+
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
 @Controller('db')
 class DbController {
@@ -11,6 +14,7 @@ class DbController {
 
   final DbHandler dbHandler;
 
+  @QueryRateLimit<GetBody>(.get)
   @Get()
   Future<Map<String, Object?>> get({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -19,6 +23,7 @@ class DbController {
     return await dbHandler.get(authorization, body);
   }
 
+  @QueryRateLimit<ListBody>(.list)
   @Get('list')
   Future<Map<String, Object?>> list({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -27,6 +32,7 @@ class DbController {
     return (await dbHandler.list(authorization, body)).toJson();
   }
 
+  @BodyRateLimit<CreateBody>(.create)
   @Post()
   Future<Map<String, Object?>> create({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -35,6 +41,7 @@ class DbController {
     return await dbHandler.create(authorization, body);
   }
 
+  @BodyRateLimit<UpdateOneBody>(.update)
   @Patch()
   Future<Map<String, Object?>> update({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -43,6 +50,7 @@ class DbController {
     return await dbHandler.update(authorization, body);
   }
 
+  @BodyRateLimit<UpdateBody>(.update)
   @Patch('many')
   Future<List<Map<String, Object?>>> updateMany({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -51,6 +59,7 @@ class DbController {
     return await dbHandler.updateMany(authorization, body);
   }
 
+  @BodyRateLimit<DeleteOneBody>(.delete)
   @Delete()
   Future<void> delete({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -59,6 +68,7 @@ class DbController {
     await dbHandler.delete(authorization, body);
   }
 
+  @BodyRateLimit<DeleteBody>(.delete)
   @Delete('many')
   Future<void> deleteMany({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -67,6 +77,7 @@ class DbController {
     await dbHandler.deleteMany(authorization, body);
   }
 
+  @BodyRateLimit<StreamBody>(.get)
   @Get('stream')
   Stream<Map<String, Object?>> streamOne({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -75,6 +86,7 @@ class DbController {
     return dbHandler.streamOne(authorization, body);
   }
 
+  @BodyRateLimit<StreamListBody>(.list)
   @Get('stream/list')
   Stream<List<Map<String, Object?>>> streamList({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,

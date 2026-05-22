@@ -26,6 +26,7 @@ Future<List<AuthType>> loadSupportedAuthTypes() {
       fsProvider,
       operationsProvider,
       rulesProvider,
+      rateLimitsProvider,
       settingsProvider.overrideWith(() {
         if (kIsCompiled) {
           return Settings.load();

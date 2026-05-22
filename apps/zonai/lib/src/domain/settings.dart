@@ -14,6 +14,7 @@ class Settings {
     required this.configPath,
     required this.dataPath,
     required this.emailTemplatesPath,
+    required this.rateLimitPath,
     this.basePath,
   });
 
@@ -45,6 +46,7 @@ class Settings {
       operationsPath: normalize(['lib', 'src', 'operations']),
       configPath: normalize(['lib', 'src', 'config']),
       emailTemplatesPath: normalize(['lib', 'src', 'email_templates']),
+      rateLimitPath: normalize(['lib', 'src', 'rate_limit']),
     );
 
     if (settings == null) {
@@ -79,6 +81,10 @@ class Settings {
         final String value => normalize([value]),
         _ => defaultSettings.operationsPath,
       },
+      rateLimitPath: switch (map['rateLimitPath']) {
+        final String value => normalize([value]),
+        _ => defaultSettings.rateLimitPath,
+      },
       configPath: switch (map['configPath']) {
         final String value => normalize([value]),
         _ => defaultSettings.configPath,
@@ -96,6 +102,7 @@ class Settings {
   final String schemasPath;
   final String extensionsPath;
   final String rulesPath;
+  final String rateLimitPath;
   final String operationsPath;
   final String configPath;
   final String? basePath;
@@ -114,6 +121,8 @@ class Settings {
       _normalize([defaultZonaiDirectory, 'executables', 'db_operations.exe']);
   String get compiledConfigPath =>
       _normalize([defaultZonaiDirectory, 'executables', 'db_config.exe']);
+  String get compiledRateLimitPath =>
+      _normalize([defaultZonaiDirectory, 'executables', 'db_rate_limit.exe']);
   String get zonaiSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai.sqlite'));
 }

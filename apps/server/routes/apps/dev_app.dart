@@ -10,8 +10,10 @@ import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_server/src/handlers/email_handler.dart';
 
+import '../components/exception_catcher.dart';
 import '../components/log_observer.dart';
 
+@Exceptions()
 @Observers([LogObserver])
 @AllowOrigins.all()
 @App(flavor: 'dev')
@@ -40,6 +42,8 @@ final class DevApp extends AppConfig {
         zonaiDbProvider,
         extensionsProvider,
         executableStopProvider,
+        rateLimiterProvider,
+        rateLimitsProvider,
         rulesProvider,
         operationsProvider,
         configProvider,

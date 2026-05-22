@@ -8,6 +8,7 @@ import '../deps/kill.dart';
 import '../deps/logger.dart';
 import '../deps/migrate.dart';
 import '../deps/operations.dart';
+import '../deps/rate_limits.dart';
 import '../deps/revali.dart';
 import '../deps/rules.dart';
 import '../db_mutator/mailman.dart';
@@ -30,6 +31,7 @@ Future<int> serve() async {
 
   extensions.watch();
   rules.watch();
+  rateLimitsCompiler.watch();
   config.watch();
   operations.watch();
 
@@ -39,6 +41,7 @@ Future<int> serve() async {
       operations.compile();
       extensions.compile();
       rules.compile();
+      rateLimitsCompiler.compile();
       config.compile();
     }
   });
