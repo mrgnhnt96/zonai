@@ -3,20 +3,20 @@ import 'package:zonai_schema/src/types/id.dart';
 import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 
 extension IdColumnDefinition<S> on SchemaBuilder<S> {
-  T id<T extends IdColumn<Id>?, V extends Id?>(
+  T id<I extends Id, T extends IdColumn<I>?, V extends Object?>(
     String name,
     Field<S, V> field, {
-    required Id Function(String) fromString,
-    required Id Function() generate,
+    required I Function(String) fromString,
+    required I Function() generate,
     bool isPrimaryKey = true,
-    Id? synthetic,
+    I? synthetic,
   }) {
     final c =
-        custom(
-              IdColumn.new,
+        custom<IdColumn<I>, I, Object, V>(
+              IdColumn<I>.new,
               name,
               field,
-              transformer: IdTransformer(
+              transformer: IdTransformer<I>(
                 fromString: fromString,
                 generate: generate,
               ),
@@ -37,20 +37,21 @@ extension type IdColumn<T extends Id>(T _) implements ColumnType<T>, Id {}
 
 /// Wire type [Object] so [decode] accepts SQL strings and in-memory [Id]
 /// values (e.g. some drivers / RETURNING rows surface bound Dart values).
-class IdTransformer extends ColumnTransformer<Id, Object>
-    with CreatePrimaryKey<Id> {
+class IdTransformer<I extends Id> extends ColumnTransformer<I, Object>
+    with CreatePrimaryKey<I> {
   IdTransformer({required this.fromString, required this.generate});
 
-  final Id Function(String) fromString;
-  final Id Function() generate;
+  final I Function(String) fromString;
+  final I Function() generate;
 
   @override
-  String encode(Id input) => input.value;
+  String encode(I input) => input.value;
 
   @override
-  Id decode(Object input) {
+  I decode(Object input) {
     return switch (input) {
-      final Id id => id,
+      final I id => id,
+      final Id id => fromString(id.value),
       final String s => fromString(s),
       _ => throw ArgumentError.value(
         input,
@@ -61,7 +62,7 @@ class IdTransformer extends ColumnTransformer<Id, Object>
   }
 
   @override
-  Id primaryKey() => generate();
+  I primaryKey() => generate();
 }
 
 extension IdOperators<T extends Id> on ColumnOf<T> {
