@@ -4,6 +4,21 @@ import 'package:zonai_web/auth/auth_routes.dart';
 
 import 'sqlite_tables_provider.dart';
 
+/// Collection implied by the current URL (derived from route + SSR table list).
+SqliteCollectionRef? resolveCollectionFocus(String path, SqliteTablesSnapshot tables) {
+  final sqliteName = AuthRoutes.collectionSqliteNameFromPath(path);
+  if (sqliteName == null) {
+    return null;
+  }
+
+  for (final collection in tables.collections) {
+    if (collection.sqliteName == sqliteName) {
+      return collection;
+    }
+  }
+  return null;
+}
+
 final collectionFocusProvider = NotifierProvider<CollectionFocusNotifier, SqliteCollectionRef?>(
   CollectionFocusNotifier.new,
 );
@@ -11,19 +26,9 @@ final collectionFocusProvider = NotifierProvider<CollectionFocusNotifier, Sqlite
 class CollectionFocusNotifier extends Notifier<SqliteCollectionRef?> {
   @override
   SqliteCollectionRef? build() {
-    ref.watch(authRouteProvider);
+    final path = ref.watch(authRouteProvider);
     final tables = ref.watch(sqliteTablesProvider);
-    final sqliteName = AuthRoutes.collectionSqliteNameFromPath(ref.read(authRouteProvider));
-    if (sqliteName == null) {
-      return null;
-    }
-
-    for (final collection in tables.collections) {
-      if (collection.sqliteName == sqliteName) {
-        return collection;
-      }
-    }
-    return null;
+    return resolveCollectionFocus(path, tables);
   }
 
   void setFocused(SqliteCollectionRef collection) {

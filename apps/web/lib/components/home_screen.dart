@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import '../auth/auth_provider.dart';
+import '../auth/auth_route_provider.dart';
 import 'theme_toggle.dart';
 import '../constants/theme.dart';
 import '../providers/collection_focus_provider.dart';
@@ -14,8 +15,9 @@ class HomeScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
+    final path = context.watch(authRouteProvider);
     final tables = context.watch(sqliteTablesProvider);
-    final focused = context.watch(collectionFocusProvider);
+    final focused = resolveCollectionFocus(path, tables);
     // Async providers must not notify after SSR completes (no frames on the server).
     final rowsAsync = context.binding.isClient
         ? context.watch(collectionRowsProvider)
