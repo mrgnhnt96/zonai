@@ -63,11 +63,4 @@ export 'src/types/paginated.dart';
 export 'src/update/update.dart';
 export 'src/types/jwt.dart';
 
-export 'src/payloads/auth_password_body.dart';
-export 'src/payloads/create_body.dart';
-export 'src/payloads/delete_body.dart';
-export 'src/payloads/get_body.dart';
-export 'src/payloads/list_body.dart';
-export 'src/payloads/stream_body.dart';
-export 'src/payloads/stream_list_body.dart';
-export 'src/payloads/update_body.dart';
+export 'payloads.dart';

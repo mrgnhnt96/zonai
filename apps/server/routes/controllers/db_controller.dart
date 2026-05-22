@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/payloads.dart';
 
 import '../components/body_rate_limit.dart';
 import '../components/query_rate_limit.dart';
@@ -93,5 +93,14 @@ class DbController {
     @Body() required StreamListBody body,
   }) {
     return dbHandler.streamList(authorization, body);
+  }
+
+  @QueryRateLimit<CountBody>(.count)
+  @Get('count')
+  Future<int> count({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Query() required CountBody body,
+  }) async {
+    return await dbHandler.count(authorization, body);
   }
 }

@@ -143,4 +143,11 @@ class DbHandler {
 
     return null;
   }
+
+  Future<int> count(String? authorization, CountBody body) async {
+    return await zonaiDB.count(
+      body.collection,
+      .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
+    );
+  }
 }
