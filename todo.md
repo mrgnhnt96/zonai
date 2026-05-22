@@ -2,6 +2,8 @@
 
 ## 5.19.2026
 
+- [ ] Move the internal collections to zonai instead of zonai schema
+
 ### UI
 
 - [ ] Add theme color support
@@ -23,11 +25,6 @@
 - [ ] Add rate limiting
   - [ ] Blacklist IPs (needs to be outside of code to be reactive)
 
-## 4.15.2026
-
-- [ ] Support compiling to different arch-types
-- [ ] Compile for linux
-
 ## Cron
 
 - [ ] Create cron
@@ -45,6 +42,11 @@
 - [ ] Add to `.gitignore`
   - [ ] `*.stop`
   - [ ] `zonai.sqlite*`
+
+## 4.15.2026
+
+- [ ] Support compiling to different arch-types
+- [ ] Compile for linux
 
 ### Other
 

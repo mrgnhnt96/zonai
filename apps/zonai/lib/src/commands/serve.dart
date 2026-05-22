@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../native/resqlite_native.dart';
 import '../deps/args.dart';
 import '../deps/config.dart';
 import '../deps/extensions.dart';
@@ -22,6 +23,8 @@ import 'package:zonai_schema/src/handlers/config/config_request.dart';
 import 'package:zonai_schema/src/handlers/config/config_response.dart';
 
 Future<int> serve() async {
+  await ensureResqliteNativeInstalled();
+
   keyboardInput.watch();
 
   if (args['auto-migrate'] case != false) {

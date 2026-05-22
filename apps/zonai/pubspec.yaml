@@ -16,6 +16,8 @@ dependencies:
   mustache_template: ^2.0.4
   raindrop_cli:
     path: ../../libs/raindrop/packages/raindrop_cli
+  resqlite:
+    path: ../../libs/resqlite
   scoped_deps:
     path: ../../libs/scoped_deps
   watcher: ^1.2.1

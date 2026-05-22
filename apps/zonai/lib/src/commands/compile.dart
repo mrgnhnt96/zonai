@@ -10,5 +10,6 @@ Future<int> compile() async {
     rateLimitsCompiler.compile(),
     config.compile(),
   ]);
+
   return 0;
 }

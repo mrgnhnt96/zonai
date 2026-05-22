@@ -14,6 +14,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
+import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai_schema/src/handlers/config/config_request.dart';

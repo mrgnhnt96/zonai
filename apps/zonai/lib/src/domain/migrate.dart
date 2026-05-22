@@ -54,6 +54,11 @@ class Migrate {
     if (_running case final completer?) {
       return completer.future;
     }
+
+    if (!fs.directory(settings.migrationsPath).existsSync()) {
+      return 0;
+    }
+
     try {
       _running = Completer<int>();
       bool hasChanges = false;

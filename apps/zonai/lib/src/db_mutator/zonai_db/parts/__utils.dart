@@ -8,6 +8,8 @@ extension UtilsX on ZonaiDb {
       return db;
     }
 
+    await ensureResqliteNativeInstalled();
+
     final dir = fs.directory(settings.dataPath);
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);

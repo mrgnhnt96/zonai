@@ -5,6 +5,14 @@ schema:
       (command): cd libs/zonai_schema && dart run tool/generate_internal_db_artifacts.dart
       (aliases): [internal, ida]
 
+resqlite:
+  gen:
+    (command):
+      - mkdir -p apps/zonai/lib/gen/native
+      - cd libs/resqlite && dart pub get && dart run tool/build_native.dart --output ../../apps/zonai/lib/gen/native
+      - cd apps/zonai && dart run tool/generate_resqlite_native.dart
+    (aliases): [resqlite-native, rn]
+
 db:
   clear-logs:
     (command): cd apps/playground && dart run zonai db logs clear
@@ -30,7 +38,7 @@ server:
     (aliases): [cli, copy, c]
     (bail):
     (command):
-      # - cd apps/server && dart run revali dev --generate-only --flavor dev --profile --recompile
+      - cd apps/server && dart run revali dev --generate-only --flavor dev --profile --recompile
       - rm -rf apps/zonai/lib/.revali
       - mkdir -p apps/zonai/lib/gen/server
       - cp -r apps/server apps/zonai/lib/gen
@@ -39,6 +47,7 @@ server:
         rm pubspec.yaml
         rm -rf .revali/revali_client
         rm -rf .dart_tool
+        rm revali.yaml
 
         # replace `package:zonai_server` with `./` from all *.dart files.
         # Use perl instead of sed for in-place replacement
@@ -65,7 +74,7 @@ playground:
 
   test: |
     cd apps/playground || exit 1
-    dart run --enable-experiment=native-assets --enable-asserts zonai db test --log verbose
+    dart run --enable-asserts zonai db test --log verbose
 
   migrate: |
     cd apps/playground || exit 1
@@ -78,3 +87,24 @@ playground:
   clear-logs: |
     cd apps/playground || exit 1
     dart run zonai db logs clear --log verbose
+
+zonai:
+  # compiles server, web, and cli in 1 executable
+  compile:
+    (bail):
+    (command):
+      - ${{ server.copy-to-cli }}
+      - |
+        echo "Generating resqlite native library"
+        ${{ resqlite.gen }}
+      - |
+        BUILD_DIR="$(pwd)/build"
+        rm -rf $BUILD_DIR
+        mkdir -p $BUILD_DIR
+
+        cd apps/zonai || exit 1
+        dart pub get || exit 1
+
+        echo "Compiling zonai"
+
+        dart compile exe -D__ZONAI_COMPILED__=true bin/zonai.dart -o $BUILD_DIR/zonai
