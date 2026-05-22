@@ -82,7 +82,8 @@ final class RateLimitsCompiler {
       return;
     }
 
-    logger.info('Compiled ${files.length} rate limit file(s)');
+    final s = files.length == 1 ? '' : 's';
+    logger.info('Compiled ${files.length} rate limit$s');
   }
 
   Future<bool> _canCompile() async {

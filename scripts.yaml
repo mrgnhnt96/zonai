@@ -1,4 +1,5 @@
 schema:
+  (aliases): [schemas]
   gen:
     internal-db-artifacts:
       (command): cd libs/zonai_schema && dart run tool/generate_internal_db_artifacts.dart

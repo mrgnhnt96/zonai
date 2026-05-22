@@ -84,7 +84,8 @@ class Extensions {
       return;
     }
 
-    logger.info('Compiled ${files.length} extensions');
+    final s = files.length == 1 ? '' : 's';
+    logger.info('Compiled ${files.length} extension$s');
   }
 
   Future<bool> _canCompile() async {

@@ -86,7 +86,8 @@ class Rules {
       return;
     }
 
-    logger.info('Compiled ${files.length} rules');
+    final s = files.length == 1 ? '' : 's';
+    logger.info('Compiled ${files.length} rule$s');
   }
 
   Future<bool> _canCompile() async {

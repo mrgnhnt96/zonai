@@ -85,7 +85,8 @@ class Operations {
       return;
     }
 
-    logger.info('Compiled ${files.length} operations');
+    final s = files.length == 1 ? '' : 's';
+    logger.info('Compiled ${files.length} operation$s');
   }
 
   Future<bool> _canCompile() async {

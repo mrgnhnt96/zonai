@@ -1,4 +1,5 @@
 import 'package:file/file.dart';
+import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 
@@ -18,8 +19,13 @@ class RateLimitGenerator {
         .toList();
 
     final root = fs.currentDirectory.path;
-    final usedAliases = <String>{};
-    final entries = <({String alias, String importPath})>[];
+    final usedAliases = <String>{
+      for (final e in InternalDbArtifacts.rateLimits) e.alias,
+    };
+    final entries = <({String alias, String importPath})>[
+      for (final e in InternalDbArtifacts.rateLimits)
+        (alias: e.alias, importPath: e.importPath),
+    ];
 
     final outDir = fs.directory(fs.path.join('.dart_tool', 'zonai'));
     if (!outDir.existsSync()) {
@@ -39,6 +45,9 @@ class RateLimitGenerator {
 
     logger.debug('Generated rate limit file: $executablePath');
     logger.debug('Used ${entries.length} rate limit modules');
+    for (final e in entries) {
+      logger.debug('  - ${e.alias}: ${e.importPath}');
+    }
   }
 
   String _relativePosixPath(File file, String root) {
@@ -74,7 +83,7 @@ class RateLimitGenerator {
     b.writeln(
       "import 'package:zonai_schema/src/handlers/rate_limits/db_rate_limits.dart' as db_rate_limits;",
     );
-    b.writeln("import 'package:zonai_schema/rate_limits.dart';");
+    b.writeln("import 'package:zonai_schema/zonai_schema.dart';");
     for (final e in entries) {
       b.writeln("import '${e.importPath}' as ${e.alias};");
     }
@@ -100,7 +109,9 @@ class RateLimitGenerator {
     b.writeln('  } catch (e, st) {');
     b.writeln('    Error.throwWithStackTrace(StateError(');
     b.writeln(
-      "      'Failed to load rate limits from ' + sourcePath + ': " r'$e' "',",
+      "      'Failed to load rate limits from ' + sourcePath + ': "
+      r'$e'
+      "',",
     );
     b.writeln('    ), st);');
     b.writeln('  }');
@@ -110,7 +121,9 @@ class RateLimitGenerator {
     );
     b.writeln('    throw StateError(');
     b.writeln(
-      "      'Rate limit file at ' + sourcePath + ' must return RateLimits from main(); got " r'$got' ".',",
+      "      'Rate limit file at ' + sourcePath + ' must return RateLimits from main(); got "
+      r'$got'
+      ".',",
     );
     b.writeln('    );');
     b.writeln('  }');

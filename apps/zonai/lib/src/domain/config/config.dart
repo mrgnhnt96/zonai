@@ -108,6 +108,7 @@ class Config {
       return;
     }
 
-    logger.info('Compiled ${files.length} config');
+    final s = files.length == 1 ? '' : 's';
+    logger.info('Compiled ${files.length} config$s');
   }
 }

@@ -2,18 +2,18 @@
 //
 // Built-in operations and rules for framework-managed SQLite tables.
 //
-// These are merged into generated `db_operations` / `db_rules` executables;
-// app authors do not add files for them under `lib/src/operations` or
-// `lib/src/rules`.
+// These are merged into generated `db_operations` / `db_rules` /
+// `db_rate_limit` executables; app authors do not add files for them under
+// `lib/src/operations`, `lib/src/rules`, or `lib/src/rate_limit`.
 //
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 
 
 import 'package:raindrop/raindrop.dart' show Schema;
-import 'package:zonai_schema/src/internal/auth_challenge_collection.dart';
-import 'package:zonai_schema/src/internal/jwt_collection.dart';
-import 'package:zonai_schema/src/internal/raindrop_migrations_collection.dart';
-import 'package:zonai_schema/src/internal/rate_limit_collection.dart';
+import 'package:zonai_schema/src/internal/auth_challenge_collection.dart' as _schema_authChallenges;
+import 'package:zonai_schema/src/internal/jwt_collection.dart' as _schema_jwts;
+import 'package:zonai_schema/src/internal/raindrop_migrations_collection.dart' as _schema_raindropMigrations;
+import 'package:zonai_schema/src/internal/rate_limit_collection.dart' as _schema_rateLimits;
 
 abstract final class InternalDbArtifacts {
   static const operations = <({String importPath, String alias})>[
@@ -82,6 +82,9 @@ abstract final class InternalDbArtifacts {
     ),
   ];
 
+  static const rateLimits = <({String importPath, String alias})>[
+  ];
+
   /// Framework-managed collections (import path, top-level getter, table).
   static const collections = <({String importPath, String getter, String tableName})>[
     (
@@ -112,10 +115,10 @@ abstract final class InternalDbArtifacts {
 
   /// Collection schemas synced to SQLite on database open.
   static final schemas = <Schema<Object?>>[
-    authChallenges,
-    jwts,
-    raindropMigrations,
-    rateLimits,
+    _schema_authChallenges.authChallenges,
+    _schema_jwts.jwts,
+    _schema_raindropMigrations.raindropMigrations,
+    _schema_rateLimits.rateLimits,
   ];
 
   /// SQLite table names managed by the framework (not user schemas).
