@@ -48,7 +48,11 @@ When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple
 
 See **[config-and-env-flavors.md](config-and-env-flavors.md)** for naming rules, precedence, and examples.
 
-## 5. Optional checks
+## 5. Rate limiting
+
+To throttle API traffic per client IP and collection, add Dart files under `lib/src/rate_limit` (or your `rateLimitPath`). See **[rate-limiting.md](rate-limiting.md)** for policy methods, defaults, and examples.
+
+## 6. Optional checks
 
 - Run CLI package tests:
 

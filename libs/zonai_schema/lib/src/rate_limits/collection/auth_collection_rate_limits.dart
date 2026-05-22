@@ -10,27 +10,33 @@ base class AuthCollectionRateLimits<S extends AuthCollection<R>, R>
   @override
   Table<S, R> get table => Table.getFor(schema);
 
-  Future<RateLimitPolicy?> signInPolicy() async => null;
+  Future<RateLimitPolicy?> signInPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> signUpPolicy() async => null;
+  Future<RateLimitPolicy?> signUpPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> authenticatePolicy() async => null;
+  Future<RateLimitPolicy?> authenticatePolicy() async =>
+      RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> sendResetPasswordPolicy() async => null;
+  Future<RateLimitPolicy?> sendResetPasswordPolicy() async =>
+      RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> sendVerifyEmailPolicy() async => null;
+  Future<RateLimitPolicy?> sendVerifyEmailPolicy() async =>
+      RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> confirmPolicy() async => null;
+  Future<RateLimitPolicy?> confirmPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> sendOtpPolicy() async => null;
+  Future<RateLimitPolicy?> sendOtpPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> sendMagicLinkPolicy() async => null;
+  Future<RateLimitPolicy?> sendMagicLinkPolicy() async =>
+      RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> logoutPolicy() async => null;
+  Future<RateLimitPolicy?> logoutPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> logoutAllPolicy() async => null;
+  Future<RateLimitPolicy?> logoutAllPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => null;
+  Future<RateLimitPolicy?> adminAuthenticatePolicy() async =>
+      RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> adminSignInPolicy() async => null;
+  Future<RateLimitPolicy?> adminSignInPolicy() async =>
+      RateLimitPolicy.defaultPolicy;
 }

@@ -90,7 +90,7 @@ From your app directory (where `zonai.yaml` lives):
 # Dev flavor
 dart run zonai serve --flavor dev
 
-# Compile workers only (config, rules, extensions, operations)
+# Compile workers only (config, rules, extensions, operations, rate limits)
 dart run zonai compile --flavor prod
 ```
 

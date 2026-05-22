@@ -10,15 +10,15 @@ base class CollectionRateLimits<S extends Collection<R>, R>
   @override
   Table<S, R> get table => Table.getFor(schema);
 
-  Future<RateLimitPolicy?> getPolicy() async => null;
+  Future<RateLimitPolicy?> getPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> limitPolicy() async => null;
+  Future<RateLimitPolicy?> limitPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> countPolicy() async => null;
+  Future<RateLimitPolicy?> countPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> createPolicy() async => null;
+  Future<RateLimitPolicy?> createPolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> updatePolicy() async => null;
+  Future<RateLimitPolicy?> updatePolicy() async => RateLimitPolicy.defaultPolicy;
 
-  Future<RateLimitPolicy?> deletePolicy() async => null;
+  Future<RateLimitPolicy?> deletePolicy() async => RateLimitPolicy.defaultPolicy;
 }
