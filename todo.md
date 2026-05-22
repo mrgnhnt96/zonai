@@ -19,7 +19,6 @@
 
 - [ ] Upload files (to local storage)
 - [ ] Support `order_by` in queries
-- [ ] Support cron jobs
 - [ ] Export records as JSON
 - [ ] Add rate limiting
   - [ ] Blacklist IPs (needs to be outside of code to be reactive)
@@ -28,9 +27,13 @@
 
 - [ ] Support compiling to different arch-types
 - [ ] Compile for linux
-- [ ] create a \_logs table, forward all logs to it
-  - [ ] Run ttl of 1 week
-- [ ] - if not compiled, before every request, check for a “stop” file (which will be generated on recompile) and restart the process. (Or check the file timestamp, and restart based off of that)
+
+## Cron
+
+- [ ] Create cron
+- [ ] Support user defined cron jobs
+- [ ] Clear logs after a week (configurable)
+- [ ] Clear rate limits after a week (configurable)
 
 ## CLI
 
