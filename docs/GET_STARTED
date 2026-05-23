@@ -44,9 +44,9 @@ fvm dart pub get
 
 ## 4. App configs and env flavors
 
-When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple **app config** Dart files and **`.env`** files for different targets (dev, staging, prod). Pass `--flavor <name>` to select which config file and which `.env.<flavor>` file to use.
+When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple **app config** Dart files and **`.env`** files for different targets (dev, staging, prod). Pass `--flavor <name>` to select which config file and which `.env.<flavor>` file to use. Env keys are baked into worker executables at compile time via `String.fromEnvironment`, not read from disk at runtime.
 
-See **[config-and-env-flavors.md](config-and-env-flavors.md)** for naming rules, precedence, and examples.
+See **[config-and-env-flavors.md](config-and-env-flavors.md)** for file precedence, compile flow, worker outputs, and examples.
 
 ## 5. Rate limiting
 

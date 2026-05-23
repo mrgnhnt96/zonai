@@ -96,6 +96,22 @@ dart run zonai compile --flavor prod
 
 `serve` watches `configPath` and recompiles when files change; keep the same `--flavor` for the session you intend.
 
+## Environment files
+
+Place `.env` files in your **app root** (same directory as `zonai.yaml`, where you run `dart run zonai`). Keys are read when Zonai compiles worker executables and passed to `dart compile exe` as compile-time defines (`-DKEY=value`).
+
+### Which file is loaded
+
+| `--flavor` | Files checked (in order) | Result |
+| ---------- | ------------------------ | ------ |
+| omitted    | `.env` only                | Use `.env` if it exists; otherwise no env vars |
+| `dev`      | `.env.dev`, then `.env`    | Use `.env.dev` if it exists; otherwise fall back to `.env` |
+| `prod`     | `.env.prod`, then `.env`   | Same pattern for any flavor name |
+
+If you pass `--flavor dev` but `.env.dev` is missing, Zonai logs a warning and falls back to `.env` when that file exists. If neither file exists, compilation proceeds with no env defines (unless your Dart code supplies `defaultValue` on `fromEnvironment`).
+
+Flavor-specific env files are **not merged** with `.env`: one file wins. Put shared keys in `.env` and use `.env.<flavor>` only when you need a full replacement set for that target.
+
 ### File format
 
 Standard `KEY=value` lines:
@@ -109,3 +125,79 @@ Standard `KEY=value` lines:
 GMAIL_APP_PASSWORD=your-app-password
 JWT_SECRET=local-jwt-secret
 ```
+
+### Example layout
+
+```
+apps/playground/
+  zonai.yaml
+  .env                 # optional defaults
+  .env.dev             # used with --flavor dev
+  .env.prod            # used with --flavor prod
+  lib/src/config/
+    db_config.dev.dart
+    db_config.prod.dart
+```
+
+## Baking env into worker executables
+
+Zonai does not read `.env` at runtime inside compiled workers. Instead, when you run `serve` or `compile`, each worker is built with:
+
+```bash
+dart compile exe -DKEY1=value1,-DKEY2=value2 ... <generated-entry.dart> -o .zonai/executables/<worker>.exe
+```
+
+Every key from the selected env file becomes a **compile-time** define. In your config, rules, extensions, operations, or rate-limit Dart sources, read them with `const String.fromEnvironment('KEY')` (or `bool` / `int` variants). Values are fixed in the binary when compilation succeeds.
+
+### Which workers receive env defines
+
+All of these compile steps pass the same `env.dartDefines` string:
+
+| Worker | Source directory (default) | Output executable |
+| ------ | -------------------------- | ----------------- |
+| Config | `lib/src/config` | `.zonai/executables/db_config.exe` |
+| Rules | `lib/src/rules` | `.zonai/executables/db_rules.exe` |
+| Operations | `lib/src/operations` | `.zonai/executables/db_operations.exe` |
+| Extensions | `lib/src/extensions` | `.zonai/executables/db_extensions.exe` |
+| Rate limits | `lib/src/rate_limit` | `.zonai/executables/db_rate_limit.exe` |
+
+`dart run zonai compile` builds all of them in one go. `dart run zonai serve` compiles them on startup and recompiles when watched sources change (press `c` in the serve TUI to recompile everything).
+
+### Using env in config (example)
+
+`lib/src/config/db_config.dart`:
+
+```dart
+email: EmailConfig(
+  username: 'app@example.com',
+  password: const String.fromEnvironment('GMAIL_APP_PASSWORD'),
+),
+```
+
+With `apps/playground/.env` containing `GMAIL_APP_PASSWORD=...`, run:
+
+```bash
+cd apps/playground
+dart run zonai compile
+# or
+dart run zonai serve --flavor dev
+```
+
+After compile, the password is embedded in `db_config.exe`; changing `.env` has no effect until you recompile.
+
+### Flavor + env together
+
+`--flavor` selects **both** the config Dart file (when multiple exist) **and** the env file (`.env.<flavor>` with `.env` fallback). Keep flavor names aligned across config filenames and env files:
+
+```bash
+dart run zonai serve --flavor dev
+# → db_config.dev.dart (or matching flavor name)
+# → .env.dev, else .env
+```
+
+### Production and secrets
+
+- Treat compiled `.zonai/executables/*.exe` as containing any secrets you passed via `-D` defines.
+- Do not commit `.env` files with real credentials; add them to `.gitignore`.
+- For production, prefer CI or deploy-time env injection: set variables in the environment that runs `dart run zonai compile`, or maintain a `.env.prod` only on the build host.
+- Missing keys compile to empty strings unless you pass `defaultValue:` to `fromEnvironment`; validate required secrets in config `main()` if needed.

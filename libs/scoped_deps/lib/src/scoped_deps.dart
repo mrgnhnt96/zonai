@@ -182,15 +182,18 @@ Future<R> runMergedScopedFuture<R>(
   Future<R> Function() body, {
   Set<ScopedRef<dynamic>> override = const {},
   Set<ScopedRef<dynamic>> includeIfAbsent = const {},
+  ZoneSpecification? zoneSpecification,
 }) {
   final zoneValues = _mergedZoneValues(
     override: override,
     includeIfAbsent: includeIfAbsent,
   );
-  return Zone.current.fork(zoneValues: zoneValues).run<Future<R>>(() async {
-    _registerDirect(Zone.current, zoneValues);
-    return await body();
-  });
+  return Zone.current
+      .fork(zoneValues: zoneValues, specification: zoneSpecification)
+      .run<Future<R>>(() async {
+        _registerDirect(Zone.current, zoneValues);
+        return await body();
+      });
 }
 
 /// Runs [body] within a scope which has access to the set of refs in [values].

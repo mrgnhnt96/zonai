@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' as io;
 
 import 'package:http/http.dart';
+import 'package:scoped_deps/scoped_deps.dart';
 import '../../deps.dart';
 import '../../gen/server/.revali/server/server.dart' as server;
 import '../domain/constants.dart';
@@ -43,14 +44,14 @@ class Revali {
   }
 
   Future<bool> _startCompiled() async {
+    final cliLogger = logger;
+
     () async {
-      await runZoned(
-        () async {
-          await server.createServer(null, []);
-        },
+      await runMergedScopedFuture(
+        () => server.createServer(null, []),
         zoneSpecification: .new(
-          print: (_, _, _, message) {
-            logger.debug(message);
+          print: (self, parent, zone, message) {
+            cliLogger.debug(message);
           },
         ),
       );
