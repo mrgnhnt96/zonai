@@ -16,7 +16,6 @@ Future<void> ensureResqliteNativeInstalled() async {
     false => _developmentLibraryPath(),
   };
 
-  await _syncNativeAssetLibrary(path);
   install(path);
 }
 
@@ -34,30 +33,6 @@ Future<String> _extractCompiledLibrary() async {
   await _writeLibraryBytes(dest, resqliteNativeLibraryBytes);
 
   return dest.absolute.path;
-}
-
-Future<void> _syncNativeAssetLibrary(String sourcePath) async {
-  final source = fs.file(sourcePath);
-  final dest = fs.file(
-    fs.path.join(
-      fs.currentDirectory.path,
-      '.dart_tool',
-      'lib',
-      defaultLibraryFileName,
-    ),
-  );
-
-  if (!source.existsSync()) {
-    throw StateError('Resqlite native library not found at $sourcePath');
-  }
-
-  if (dest.existsSync() &&
-      dest.lengthSync() == source.lengthSync() &&
-      !source.lastModifiedSync().isAfter(dest.lastModifiedSync())) {
-    return;
-  }
-
-  await _writeLibraryBytes(dest, await source.readAsBytes());
 }
 
 Future<void> _writeLibraryBytes(File dest, List<int> bytes) async {
