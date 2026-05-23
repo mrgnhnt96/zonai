@@ -14,7 +14,12 @@ class Env {
       }
     }
 
-    return '-D${items().join(',')}';
+    final defines = items().toList();
+    if (defines.isEmpty) {
+      return '';
+    }
+
+    return '-D${defines.join(',')}';
   }
 
   Map<String, String> get items {
