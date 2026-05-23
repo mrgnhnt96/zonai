@@ -2,7 +2,12 @@
 
 ## 5.19.2026
 
-- [ ] Move the internal collections to zonai instead of zonai schema
+- [ ] When running with no config, make sure no exceptions are thrown
+- [ ] When there are no admins, act as if the project hasn't been setup up and treat as a new project (provide docs)
+- [ ] When serve is first run, if no zonai.yaml exists, treat as new project (set up project)
+- [ ] When serving the app, use nocterm to provide a good experience
+- [ ] Create a command for `./zonai dev` that is interactive and `./zonai serve` that prints logs only
+- [ ] Create GHA to compile the executable for different platforms (linux, macos, windows)
 
 ### UI
 
@@ -16,6 +21,14 @@
   - [ ] Add search history
 - [ ] Sort by column
 - [ ] Send test email
+
+### Dashboard
+
+The dashboard will be the first page on website load. It should show a quick overview of the project and a snapshot of the database.
+
+- [ ] Show requests per minute
+- [ ] Show latest errors in 24 hours
+- [ ]
 
 ### API
 

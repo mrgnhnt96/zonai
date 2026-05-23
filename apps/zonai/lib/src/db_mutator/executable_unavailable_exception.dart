@@ -4,11 +4,15 @@ final class ExecutableUnavailableException implements Exception {
     required this.workerName,
     required this.executablePath,
     required this.message,
+    this.stackTrace,
   });
 
   final String workerName;
   final String executablePath;
   final String message;
+  final StackTrace? stackTrace;
+
+  String get error => 'Worker $workerName is not compiled ($executablePath)';
 
   @override
   String toString() => message;

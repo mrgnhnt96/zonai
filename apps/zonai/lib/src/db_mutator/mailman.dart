@@ -10,14 +10,13 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
 import '../db_mutator/executable_unavailable_exception.dart';
 import '../db_mutator/payloads/payloads.dart';
 import '../deps/clean_up.dart';
-import '../deps/settings.dart';
+import '../deps/executable_stop.dart';
 import '../deps/fs.dart';
 import '../deps/logger.dart';
 import '../deps/mutations.dart';
-import '../deps/executable_stop.dart';
 import '../deps/process.dart';
+import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
-import '../domain/constants.dart';
 
 class Mailman<S extends Request, R extends Response> {
   static final _loggedMissingExecutables = <String>{};
@@ -99,17 +98,20 @@ class Mailman<S extends Request, R extends Response> {
     };
   }
 
-  void _logExecutableRequired() {
-    if (!_loggedMissingExecutables.add(executablePath)) return;
-    logger.info(_executableRequiredMessage());
-  }
-
-  Never _throwExecutableUnavailable() {
-    throw ExecutableUnavailableException(
+  ExecutableUnavailableException _logExecutableRequiredStack() {
+    final error = ExecutableUnavailableException(
       workerName: debugName,
       executablePath: executablePath,
       message: _executableRequiredMessage(),
+      stackTrace: StackTrace.current,
     );
+    if (!_loggedMissingExecutables.add(executablePath)) return error;
+    logger.error(error.message, error.runtimeType, error.stackTrace);
+    return error;
+  }
+
+  Never _throwExecutableUnavailable() {
+    throw _logExecutableRequiredStack();
   }
 
   void _log(DebugResponse response) {
@@ -128,14 +130,9 @@ class Mailman<S extends Request, R extends Response> {
           response.error,
           switch (response.stackTrace) {
             null => null,
-            _ when kIsCompiled => null,
             final trace => StackTrace.fromString(trace),
           },
         );
-
-        if (response.stackTrace case final trace? when !kIsCompiled) {
-          logger.debug(trace, prefix: _prefix);
-        }
     }
     final jsonProps = switch (response.properties) {
       null => null,
@@ -274,7 +271,6 @@ class Mailman<S extends Request, R extends Response> {
     }
 
     if (!hasExecutable) {
-      logger.verbose('No executable: $executablePath', prefix: _prefix);
       return null;
     }
 
@@ -407,16 +403,20 @@ class Mailman<S extends Request, R extends Response> {
     return await runMergedScopedFuture(() async {
       final response = await _send(request);
 
-      if (response is T) {
-        return response;
-      }
-
       if (response == null) {
         if (!hasExecutable) {
           _throwExecutableUnavailable();
         }
 
+        if (null is T) {
+          return null as T;
+        }
+
         throw StateError('Invalid response: Got Null, expected $T');
+      }
+
+      if (response case final T response) {
+        return response;
       }
 
       final payload = response.payload;
@@ -475,9 +475,7 @@ class Mailman<S extends Request, R extends Response> {
 
     final process = await _start();
     if (process == null) {
-      if (!hasExecutable) {
-        _logExecutableRequired();
-      } else {
+      if (hasExecutable) {
         logger.debug('Skipping send of request: $request', prefix: _prefix);
       }
       return null;

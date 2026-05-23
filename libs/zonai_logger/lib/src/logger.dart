@@ -36,7 +36,7 @@ class Logger {
 
   final List<void Function(LogDetails)> _callbacks = [];
 
-  bool _emit(Level messageLevel) => messageLevel.index >= level.index;
+  bool _emit(Level messageLevel) => messageLevel >= level;
 
   void verbose(String message, {String? prefix}) =>
       _log(Level.verbose, message, _stdout, _dim, prefix: prefix);
@@ -62,16 +62,18 @@ class Logger {
       } catch (_) {}
     }
 
-    if (!_emit(Level.error)) return;
+    if (!_emit(.error)) return;
     final buffer = StringBuffer(message);
     if (error != null) {
       buffer.writeln();
       buffer.write(error);
     }
-    if (stackTrace != null) {
+    if (stackTrace != null &&
+        !const bool.fromEnvironment('__ZONAI_COMPILED__')) {
       buffer.writeln();
       buffer.write(stackTrace);
     }
+
     _writeLine(_stderr, buffer.toString(), _red);
   }
 
@@ -102,10 +104,15 @@ class Logger {
     if (!_emit(messageLevel)) return;
     if (prefix != null) {
       for (final line in message.split('\n')) {
-        _writeLine(sink, '$prefix: $line', style);
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) continue;
+
+        _writeLine(sink, '$prefix: $trimmed', style);
       }
     } else {
-      _writeLine(sink, message, style);
+      final trimmed = message.trim();
+      if (trimmed.isEmpty) return;
+      _writeLine(sink, trimmed, style);
     }
   }
 

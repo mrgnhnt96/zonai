@@ -46,7 +46,7 @@ server:
     (aliases): [cli, copy, c]
     (bail):
     (command):
-      - cd apps/server && dart run revali dev --generate-only --flavor dev --profile --recompile
+      - cd apps/server && dart run revali dev --generate-only --flavor dev --release --recompile
       - rm -rf apps/zonai/lib/.revali
       - mkdir -p apps/zonai/lib/gen/server
       - cp -r apps/server apps/zonai/lib/gen

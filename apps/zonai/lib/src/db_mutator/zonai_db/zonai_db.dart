@@ -299,8 +299,7 @@ class ZonaiDb {
     } on ExecutableUnavailableException {
       rethrow;
     } catch (e, stack) {
-      logger.error('Failed to list records', e, stack);
-
+      logger.error('Failed to run database operation', e, stack);
       rethrow;
     }
   }
@@ -341,7 +340,7 @@ class ZonaiDb {
               listener.close();
             }
           } catch (e, stack) {
-            logger.error('Failed to list records', e, stack);
+            logger.error('Failed to run database operation', e, stack);
             listener.addError(e, stack);
             if (!listener.isClosed) {
               listener.close();

@@ -32,10 +32,17 @@ final class DevApp extends AppConfig {
 
   @override
   Future<HttpServer> runStartup(Future<HttpServer> Function() startup) async {
+    final parentLogger = read(
+      loggerProvider,
+      orElse: () => Logger.print(level: .verbose),
+    );
+
     return await runMergedScoped(
       startup,
+      override: {
+        loggerProvider.overrideWith(() => parentLogger),
+      },
       includeIfAbsent: {
-        loggerProvider.overrideWith(() => Logger.print(level: .verbose)),
         argsProvider,
         courierProvider,
         envProvider,
@@ -51,7 +58,6 @@ final class DevApp extends AppConfig {
         configProvider,
         configResolverProvider,
         migrateProvider,
-        loggerProvider,
         fsProvider,
         processProvider,
         settingsProvider.overrideWith(() {

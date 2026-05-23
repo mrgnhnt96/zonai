@@ -51,7 +51,7 @@ class Revali {
         () => server.createServer(null, []),
         zoneSpecification: .new(
           print: (self, parent, zone, message) {
-            cliLogger.debug(message);
+            cliLogger.info(message);
           },
         ),
       );
