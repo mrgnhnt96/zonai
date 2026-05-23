@@ -48,11 +48,23 @@ When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple
 
 See **[config-and-env-flavors.md](config-and-env-flavors.md)** for file precedence, compile flow, worker outputs, and examples.
 
-## 5. Rate limiting
+## 5. Collection operations
+
+Each database collection needs an operations class that turns API requests into SQL. Add one Dart file per collection under `lib/src/operations` (or your `operationsPath`). See **[operations.md](operations.md)** for layout, `CollectionOperations`, auth mixins, and custom operations.
+
+## 6. Access rules
+
+Each collection needs rules that decide who may read and write data. Add collection- and record-level Dart files under `lib/src/rules` (or your `rulesPath`). See **[rules.md](rules.md)** for the two-level model, JWT checks, auth rules, and examples.
+
+## 7. Extensions
+
+To run Dart hooks around creates, updates, deletes, and auth events (side effects, emails, related row updates), add one extension file per collection under `lib/src/extensions` (or your `extensionsPath`). See **[extensions.md](extensions.md)** for hook methods, `get` / `mutate` / `email` APIs, and examples.
+
+## 8. Rate limiting
 
 To throttle API traffic per client IP and collection, add Dart files under `lib/src/rate_limit` (or your `rateLimitPath`). See **[rate-limiting.md](rate-limiting.md)** for policy methods, defaults, and examples.
 
-## 6. Optional checks
+## 9. Optional checks
 
 - Run CLI package tests:
 
