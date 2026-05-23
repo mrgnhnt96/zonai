@@ -110,8 +110,9 @@ zonai:
         ${{ web.gen }}
       - |
         BUILD_DIR="$(pwd)/build"
-        rm -rf $BUILD_DIR
+        # Without deleting the directory, clear out all the files (recursively) in the directory
         mkdir -p $BUILD_DIR
+        find $BUILD_DIR -type f -delete
 
         cd apps/zonai || exit 1
         dart pub get || exit 1
