@@ -102,15 +102,13 @@ Place `.env` files in your **app root** (same directory as `zonai.yaml`, where y
 
 ### Which file is loaded
 
-| `--flavor` | Files checked (in order) | Result |
-| ---------- | ------------------------ | ------ |
-| omitted    | `.env` only                | Use `.env` if it exists; otherwise no env vars |
-| `dev`      | `.env.dev`, then `.env`    | Use `.env.dev` if it exists; otherwise fall back to `.env` |
-| `prod`     | `.env.prod`, then `.env`   | Same pattern for any flavor name |
+| `--flavor` | Files checked (in order) | Result                                                     |
+| ---------- | ------------------------ | ---------------------------------------------------------- |
+| omitted    | `.env` only              | Use `.env` if it exists; otherwise no env vars             |
+| `dev`      | `.env.dev`, then `.env`  | Use `.env.dev` if it exists; otherwise fall back to `.env` |
+| `prod`     | `.env.prod`, then `.env` | Same pattern for any flavor name                           |
 
 If you pass `--flavor dev` but `.env.dev` is missing, Zonai logs a warning and falls back to `.env` when that file exists. If neither file exists, compilation proceeds with no env defines (unless your Dart code supplies `defaultValue` on `fromEnvironment`).
-
-Flavor-specific env files are **not merged** with `.env`: one file wins. Put shared keys in `.env` and use `.env.<flavor>` only when you need a full replacement set for that target.
 
 ### File format
 
@@ -151,15 +149,15 @@ Every key from the selected env file becomes a **compile-time** define. In your 
 
 ### Which workers receive env defines
 
-All of these compile steps pass the same `env.dartDefines` string:
+All of these compile steps pass the same `env.dartDefineArgs` flags (omitted when no env file is loaded):
 
-| Worker | Source directory (default) | Output executable |
-| ------ | -------------------------- | ----------------- |
-| Config | `lib/src/config` | `.zonai/executables/db_config.exe` |
-| Rules | `lib/src/rules` | `.zonai/executables/db_rules.exe` |
-| Operations | `lib/src/operations` | `.zonai/executables/db_operations.exe` |
-| Extensions | `lib/src/extensions` | `.zonai/executables/db_extensions.exe` |
-| Rate limits | `lib/src/rate_limit` | `.zonai/executables/db_rate_limit.exe` |
+| Worker      | Source directory (default) | Output executable                      |
+| ----------- | -------------------------- | -------------------------------------- |
+| Config      | `lib/src/config`           | `.zonai/executables/db_config.exe`     |
+| Rules       | `lib/src/rules`            | `.zonai/executables/db_rules.exe`      |
+| Operations  | `lib/src/operations`       | `.zonai/executables/db_operations.exe` |
+| Extensions  | `lib/src/extensions`       | `.zonai/executables/db_extensions.exe` |
+| Rate limits | `lib/src/rate_limit`       |
 
 `dart run zonai compile` builds all of them in one go. `dart run zonai serve` compiles them on startup and recompiles when watched sources change (press `c` in the serve TUI to recompile everything).
 
@@ -197,6 +195,7 @@ dart run zonai serve --flavor dev
 
 ### Production and secrets
 
+- Pass **`--release`** when compiling or serving for production so worker executables are built without `--enable-asserts`. See **[release-mode.md](release-mode.md)**.
 - Treat compiled `.zonai/executables/*.exe` as containing any secrets you passed via `-D` defines.
 - Do not commit `.env` files with real credentials; add them to `.gitignore`.
 - For production, prefer CI or deploy-time env injection: set variables in the environment that runs `dart run zonai compile`, or maintain a `.env.prod` only on the build host.

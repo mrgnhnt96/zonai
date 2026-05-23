@@ -48,6 +48,8 @@ When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple
 
 See **[config-and-env-flavors.md](config-and-env-flavors.md)** for file precedence, compile flow, worker outputs, and examples.
 
+For production builds and server deploys, pass **`--release`** so worker executables are compiled without `--enable-asserts`. See **[release-mode.md](release-mode.md)**.
+
 ## 5. Collection operations
 
 Each database collection needs an operations class that turns API requests into SQL. Add one Dart file per collection under `lib/src/operations` (or your `operationsPath`). See **[operations.md](operations.md)** for layout, `CollectionOperations`, auth mixins, and custom operations.
