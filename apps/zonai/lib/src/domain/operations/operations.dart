@@ -72,7 +72,7 @@ class Operations {
       'compile',
       'exe',
       env.dartDefines,
-      if (!kIsCompiled) '--enable-asserts',
+      if (!kReleaseMode) '--enable-asserts',
       OperationGenerator.executablePath,
       '-o',
       target,

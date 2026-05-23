@@ -70,7 +70,7 @@ final class RateLimitsCompiler {
       'compile',
       'exe',
       env.dartDefines,
-      if (!kIsCompiled) '--enable-asserts',
+      if (!kReleaseMode) '--enable-asserts',
       RateLimitGenerator.executablePath,
       '-o',
       target,

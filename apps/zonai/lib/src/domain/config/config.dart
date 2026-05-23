@@ -95,7 +95,7 @@ class Config {
       'compile',
       'exe',
       env.dartDefines,
-      if (!kIsCompiled) '--enable-asserts',
+      if (!kReleaseMode) '--enable-asserts',
       ConfigGenerator.executablePath,
       '-o',
       target,
