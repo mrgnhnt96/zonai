@@ -94,7 +94,7 @@ class Config {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      env.dartDefines,
+      ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
       ConfigGenerator.executablePath,
       '-o',

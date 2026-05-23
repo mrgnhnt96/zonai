@@ -69,7 +69,7 @@ final class RateLimitsCompiler {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      env.dartDefines,
+      ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
       RateLimitGenerator.executablePath,
       '-o',

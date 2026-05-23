@@ -63,11 +63,15 @@ class Logger {
     }
 
     if (!_emit(.error)) return;
-    final buffer = StringBuffer(message);
+
+    final buffer = StringBuffer();
     if (error != null) {
       buffer.writeln();
       buffer.write(error);
     }
+
+    buffer.write(message);
+
     if (stackTrace != null &&
         !const bool.fromEnvironment('__ZONAI_COMPILED__')) {
       buffer.writeln();

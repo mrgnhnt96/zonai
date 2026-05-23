@@ -72,7 +72,7 @@ class Rules {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      env.dartDefines,
+      ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
       RuleGenerator.executablePath,
       '-o',

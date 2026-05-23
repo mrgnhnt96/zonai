@@ -70,7 +70,7 @@ class Extensions {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      env.dartDefines,
+      ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
       ExtensionGenerator.executablePath,
       '-o',

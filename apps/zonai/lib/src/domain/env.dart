@@ -7,7 +7,7 @@ class Env {
 
   Map<String, String>? _items;
 
-  String get dartDefines {
+  List<String> get dartDefineArgs {
     Iterable<String> items() sync* {
       for (final MapEntry(:key, :value) in this.items.entries) {
         yield '$key=$value';
@@ -16,10 +16,10 @@ class Env {
 
     final defines = items().toList();
     if (defines.isEmpty) {
-      return '';
+      return const [];
     }
 
-    return '-D${defines.join(',')}';
+    return ['-D${defines.join(',')}'];
   }
 
   Map<String, String> get items {

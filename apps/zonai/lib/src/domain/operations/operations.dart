@@ -71,7 +71,7 @@ class Operations {
     final result = await process.run('dart', [
       'compile',
       'exe',
-      env.dartDefines,
+      ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
       OperationGenerator.executablePath,
       '-o',
