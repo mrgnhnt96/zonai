@@ -2,7 +2,7 @@ schema:
   (aliases): [schemas]
   gen:
     internal-db-artifacts:
-      (command): cd libs/zonai_schema && dart run tool/generate_internal_db_artifacts.dart
+      (command): cd apps/zonai && dart run tool/generate_internal_db_artifacts.dart
       (aliases): [internal, ida]
 
 resqlite:

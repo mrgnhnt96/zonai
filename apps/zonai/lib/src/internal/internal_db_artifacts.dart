@@ -10,37 +10,37 @@
 
 
 import 'package:raindrop/raindrop.dart' show Schema;
-import 'package:zonai_schema/src/internal/auth_challenge_collection.dart' as _schema_authChallenges;
-import 'package:zonai_schema/src/internal/jwt_collection.dart' as _schema_jwts;
-import 'package:zonai_schema/src/internal/logs_collection.dart' as _schema_logs;
-import 'package:zonai_schema/src/internal/raindrop_migrations_collection.dart' as _schema_raindropMigrations;
-import 'package:zonai_schema/src/internal/rate_limit_collection.dart' as _schema_rateLimits;
+import 'package:zonai/src/internal/auth_challenge_collection.dart' as _schema_authChallenges;
+import 'package:zonai/src/internal/jwt_collection.dart' as _schema_jwts;
+import 'package:zonai/src/internal/logs_collection.dart' as _schema_logs;
+import 'package:zonai/src/internal/raindrop_migrations_collection.dart' as _schema_raindropMigrations;
+import 'package:zonai/src/internal/rate_limit_collection.dart' as _schema_rateLimits;
 
 abstract final class InternalDbArtifacts {
   static const operations = <({String importPath, String alias})>[
     (
       importPath:
-          'package:zonai_schema/src/internal/operations/auth_challenge_operations.dart',
+          'package:zonai/src/internal/operations/auth_challenge_operations.dart',
       alias: 'zonai_internal_auth_challenge_operations',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/operations/jwt_operations.dart',
+          'package:zonai/src/internal/operations/jwt_operations.dart',
       alias: 'zonai_internal_jwt_operations',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/operations/log_operations.dart',
+          'package:zonai/src/internal/operations/log_operations.dart',
       alias: 'zonai_internal_log_operations',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/operations/raindrop_migrations_operations.dart',
+          'package:zonai/src/internal/operations/raindrop_migrations_operations.dart',
       alias: 'zonai_internal_raindrop_migrations_operations',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/operations/rate_limit_operations.dart',
+          'package:zonai/src/internal/operations/rate_limit_operations.dart',
       alias: 'zonai_internal_rate_limit_operations',
     ),
   ];
@@ -48,52 +48,52 @@ abstract final class InternalDbArtifacts {
   static const rules = <({String importPath, String alias})>[
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/auth_challenge_collection_rules.dart',
+          'package:zonai/src/internal/rules/auth_challenge_collection_rules.dart',
       alias: 'zonai_internal_auth_challenge_collection_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/auth_challenge_record_rules.dart',
+          'package:zonai/src/internal/rules/auth_challenge_record_rules.dart',
       alias: 'zonai_internal_auth_challenge_record_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/jwt_collection_rules.dart',
+          'package:zonai/src/internal/rules/jwt_collection_rules.dart',
       alias: 'zonai_internal_jwt_collection_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/jwt_record_rules.dart',
+          'package:zonai/src/internal/rules/jwt_record_rules.dart',
       alias: 'zonai_internal_jwt_record_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/log_collection_rules.dart',
+          'package:zonai/src/internal/rules/log_collection_rules.dart',
       alias: 'zonai_internal_log_collection_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/log_record_rules.dart',
+          'package:zonai/src/internal/rules/log_record_rules.dart',
       alias: 'zonai_internal_log_record_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/raindrop_migrations_collection_rules.dart',
+          'package:zonai/src/internal/rules/raindrop_migrations_collection_rules.dart',
       alias: 'zonai_internal_raindrop_migrations_collection_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/raindrop_migrations_record_rules.dart',
+          'package:zonai/src/internal/rules/raindrop_migrations_record_rules.dart',
       alias: 'zonai_internal_raindrop_migrations_record_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/rate_limit_collection_rules.dart',
+          'package:zonai/src/internal/rules/rate_limit_collection_rules.dart',
       alias: 'zonai_internal_rate_limit_collection_rules',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rules/rate_limit_record_rules.dart',
+          'package:zonai/src/internal/rules/rate_limit_record_rules.dart',
       alias: 'zonai_internal_rate_limit_record_rules',
     ),
   ];
@@ -105,31 +105,31 @@ abstract final class InternalDbArtifacts {
   static const collections = <({String importPath, String getter, String tableName})>[
     (
       importPath:
-          'package:zonai_schema/src/internal/auth_challenge_collection.dart',
+          'package:zonai/src/internal/auth_challenge_collection.dart',
       getter: 'authChallenges',
       tableName: '_auth_challenges',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/jwt_collection.dart',
+          'package:zonai/src/internal/jwt_collection.dart',
       getter: 'jwts',
       tableName: '_jwt',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/logs_collection.dart',
+          'package:zonai/src/internal/logs_collection.dart',
       getter: 'logs',
       tableName: '_log',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/raindrop_migrations_collection.dart',
+          'package:zonai/src/internal/raindrop_migrations_collection.dart',
       getter: 'raindropMigrations',
       tableName: '_raindrop_migrations',
     ),
     (
       importPath:
-          'package:zonai_schema/src/internal/rate_limit_collection.dart',
+          'package:zonai/src/internal/rate_limit_collection.dart',
       getter: 'rateLimits',
       tableName: '_rate_limit',
     ),

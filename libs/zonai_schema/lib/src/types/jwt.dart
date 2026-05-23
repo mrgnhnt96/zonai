@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:clock/clock.dart';
-import 'package:zonai_schema/src/internal/jwt_collection.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// A JWT token for a [user].

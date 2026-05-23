@@ -1,13 +1,5 @@
 import 'package:zonai_schema/zonai_schema.dart';
 
-class JwtId implements Id {
-  const JwtId(this.value);
-  static JwtId generate() => JwtId(Id.generate('jwt'));
-
-  @override
-  final String value;
-}
-
 class JwtEntry {
   JwtEntry({required this.id, required this.userId, required this.expiresAt});
 

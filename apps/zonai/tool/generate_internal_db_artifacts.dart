@@ -28,7 +28,7 @@ void main(List<String> args) {
   final libRoot = Directory('${packageRoot.path}/lib/src/internal');
   if (!libRoot.existsSync()) {
     stderr.writeln(
-      'Run from the zonai_schema package root (lib/src/internal not found).',
+      'Run from the zonai package root (lib/src/internal not found).',
     );
     exit(1);
   }
@@ -36,18 +36,18 @@ void main(List<String> args) {
   final operations = _discoverEntries(
     Directory('${libRoot.path}/operations'),
     suffix: '_operations.dart',
-    importPrefix: 'package:zonai_schema/src/internal/operations/',
+    importPrefix: 'package:zonai/src/internal/operations/',
   );
   final rules = _discoverEntries(
     Directory('${libRoot.path}/rules'),
     suffix: '_rules.dart',
-    importPrefix: 'package:zonai_schema/src/internal/rules/',
+    importPrefix: 'package:zonai/src/internal/rules/',
     exclude: {'internal_rules.dart'},
   );
   final rateLimits = _discoverEntries(
     Directory('${libRoot.path}/rate_limits'),
     suffix: '_rate_limits.dart',
-    importPrefix: 'package:zonai_schema/src/internal/rate_limits/',
+    importPrefix: 'package:zonai/src/internal/rate_limits/',
   );
   final collections = _discoverCollections(libRoot);
 
@@ -143,7 +143,7 @@ _discoverCollections(Directory internalRoot) {
       continue;
     }
     collections.add((
-      importPath: 'package:zonai_schema/src/internal/$name',
+      importPath: 'package:zonai/src/internal/$name',
       getter: getterMatch.group(1)!,
       tableName: tableMatch.group(1)!,
     ));

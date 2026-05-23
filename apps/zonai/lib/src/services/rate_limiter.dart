@@ -5,7 +5,7 @@ import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_response.dart';
-import 'package:zonai_schema/src/internal/rate_limit_collection.dart'
+import 'package:zonai/src/internal/rate_limit_collection.dart'
     as rate_limit_table;
 import 'package:zonai_schema/zonai_schema.dart';
 
@@ -53,7 +53,7 @@ final class RateLimiter {
 
     if (entry == null) {
       await db.insert(into: table).values([
-        RateLimitEntry(
+        rate_limit_table.RateLimitEntry(
           clientIp: ipAddress,
           collection: collection,
           operation: operation,

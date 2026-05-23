@@ -44,7 +44,6 @@ export 'src/column_types/map_column.dart';
 export 'src/column_types/updated_at_column.dart';
 export 'src/extension.dart';
 export 'src/handlers/messages/message_handler.dart' hide Request;
-export 'src/internal/rate_limit_collection.dart';
 export 'src/rate_limit/rate_limit_policy.dart';
 export 'src/types/rate_limit_operation.dart';
 export 'src/rate_limits/collection/rate_limits.dart'
@@ -62,5 +61,6 @@ export 'src/types/where.dart';
 export 'src/types/paginated.dart';
 export 'src/update/update.dart';
 export 'src/types/jwt.dart';
+export 'src/types/jwt_id.dart';
 
 export 'payloads.dart';

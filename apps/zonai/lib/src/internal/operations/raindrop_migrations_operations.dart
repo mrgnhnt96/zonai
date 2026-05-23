@@ -1,4 +1,4 @@
-import 'package:zonai_schema/src/internal/raindrop_migrations_collection.dart';
+import 'package:zonai/src/internal/raindrop_migrations_collection.dart';
 import 'package:zonai_schema/src/operations/collection_operations.dart';
 
 final class RaindropMigrationsOperations

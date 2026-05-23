@@ -25,9 +25,9 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
-import 'package:zonai_schema/src/internal/auth_challenge_collection.dart';
-import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
-import 'package:zonai_schema/src/internal/jwt_collection.dart';
+import 'package:zonai/src/internal/auth_challenge_collection.dart';
+import 'package:zonai/src/internal/internal_db_artifacts.dart';
+import 'package:zonai/src/internal/jwt_collection.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 
 import '../operation_result.dart';

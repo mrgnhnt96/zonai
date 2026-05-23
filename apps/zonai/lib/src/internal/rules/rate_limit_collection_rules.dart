@@ -1,5 +1,5 @@
-import 'package:zonai_schema/src/internal/rate_limit_collection.dart';
-import 'package:zonai_schema/src/internal/rules/internal_rules.dart';
+import 'package:zonai/src/internal/rate_limit_collection.dart';
+import 'package:zonai/src/internal/rules/internal_rules.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
 RateLimitCollectionRules main() => RateLimitCollectionRules();
