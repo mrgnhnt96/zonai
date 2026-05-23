@@ -25,7 +25,14 @@ class Migrate {
 
     if (fs.directory(settings.migrationsPath) case final dir
         when !dir.existsSync()) {
-      run(name: 'initialize');
+      if (!fs.directory(settings.schemasPath).existsSync()) {
+        return;
+      }
+
+      run(name: 'initialize').catchError((e, stack) {
+        logger.error('$e', 'Failed to initialize migrations', stack);
+        return 1;
+      }).ignore();
     }
 
     __subscription = _watcher.events.listen((event) async {
@@ -36,10 +43,19 @@ class Migrate {
   }
 
   void listenForKeyboardInput() {
-    keyboardInput.addListener((event) {
-      if (event.matches('m')) {
-        logger.info('Running auto migration...');
-        run(name: 'auto');
+    bool _running = false;
+    keyboardInput.addListener((event) async {
+      if (_running) return;
+      _running = true;
+      try {
+        if (event.matches('m')) {
+          logger.info('Running auto migration...');
+          await run(name: 'auto');
+        }
+      } catch (e, stack) {
+        logger.error('Auto migration failed: $e', e, stack);
+      } finally {
+        _running = false;
       }
     });
   }
@@ -55,15 +71,17 @@ class Migrate {
       return completer.future;
     }
 
-    if (!fs.directory(settings.migrationsPath).existsSync()) {
+    if (!fs.directory(settings.schemasPath).existsSync()) {
+      logger.warn('Schemas directory does not exist: ${settings.schemasPath}');
       return 0;
     }
 
+    var result = 0;
     try {
       _running = Completer<int>();
       bool hasChanges = false;
 
-      final result = await runZoned(
+      result = await runZoned(
         () async {
           final exitCode = await CliRunner().run([
             '--dialect',
@@ -99,10 +117,18 @@ class Migrate {
                       m.startsWith('Updated snapshot:'):
                 hasChanges = true;
                 return;
+              case final String m when m.startsWith('No tables found'):
+                logger.warn(message);
+                return;
             }
           },
         ),
       );
+
+      if (result != 0) {
+        logger.warn('Migration failed (exit code $result)');
+        return result;
+      }
 
       switch (hasChanges) {
         case true:
@@ -113,7 +139,7 @@ class Migrate {
 
       return result;
     } finally {
-      _running?.complete(0);
+      _running?.complete(result);
       _running = null;
     }
   }
