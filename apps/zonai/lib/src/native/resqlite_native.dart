@@ -16,6 +16,7 @@ Future<void> ensureResqliteNativeInstalled() async {
     false => _developmentLibraryPath(),
   };
 
+  await _syncNativeAssetLibrary(path);
   install(path);
 }
 
@@ -30,14 +31,41 @@ Future<String> _extractCompiledLibrary() async {
   final dest = fs.file(
     fs.path.join(libDir.path, defaultLibraryFileName),
   );
-  if (!dest.existsSync()) {
-    await dest.writeAsBytes(resqliteNativeLibraryBytes, flush: true);
-    if (!Platform.isWindows) {
-      await Process.run('chmod', ['755', dest.path]);
-    }
-  }
+  await _writeLibraryBytes(dest, resqliteNativeLibraryBytes);
 
   return dest.absolute.path;
+}
+
+Future<void> _syncNativeAssetLibrary(String sourcePath) async {
+  final source = fs.file(sourcePath);
+  final dest = fs.file(
+    fs.path.join(
+      fs.currentDirectory.path,
+      '.dart_tool',
+      'lib',
+      defaultLibraryFileName,
+    ),
+  );
+
+  if (!source.existsSync()) {
+    throw StateError('Resqlite native library not found at $sourcePath');
+  }
+
+  if (dest.existsSync() &&
+      dest.lengthSync() == source.lengthSync() &&
+      !source.lastModifiedSync().isAfter(dest.lastModifiedSync())) {
+    return;
+  }
+
+  await _writeLibraryBytes(dest, await source.readAsBytes());
+}
+
+Future<void> _writeLibraryBytes(File dest, List<int> bytes) async {
+  dest.parent.createSync(recursive: true);
+  await dest.writeAsBytes(bytes, flush: true);
+  if (!Platform.isWindows) {
+    await Process.run('chmod', ['755', dest.path]);
+  }
 }
 
 String _developmentLibraryPath() {
@@ -61,6 +89,19 @@ List<String> _developmentLibraryCandidates() {
   final libName = defaultLibraryFileName;
   final candidates = <String>[];
 
+  var dir = fs.directory(fs.currentDirectory.path);
+  while (true) {
+    candidates.addAll([
+      fs.path.join(dir.path, 'apps', 'zonai', 'lib', 'gen', 'native', libName),
+      fs.path.join(dir.path, 'lib', 'gen', 'native', libName),
+    ]);
+
+    if (dir.path == dir.parent.path) {
+      break;
+    }
+    dir = dir.parent;
+  }
+
   if (Platform.script.scheme == 'file') {
     candidates.add(
       fs.path.normalize(
@@ -74,19 +115,6 @@ List<String> _developmentLibraryCandidates() {
         ),
       ),
     );
-  }
-
-  var dir = fs.directory(fs.currentDirectory.path);
-  while (true) {
-    candidates.addAll([
-      fs.path.join(dir.path, 'apps', 'zonai', 'lib', 'gen', 'native', libName),
-      fs.path.join(dir.path, 'lib', 'gen', 'native', libName),
-    ]);
-
-    if (dir.path == dir.parent.path) {
-      break;
-    }
-    dir = dir.parent;
   }
 
   return candidates;

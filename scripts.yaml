@@ -11,6 +11,7 @@ resqlite:
       - mkdir -p apps/zonai/lib/gen/native
       - cd libs/resqlite && dart pub get && dart run tool/build_native.dart --output ../../apps/zonai/lib/gen/native
       - cd apps/zonai && dart run tool/generate_resqlite_native.dart
+      - dart pub get
     (aliases): [resqlite-native, rn]
 
 db:
