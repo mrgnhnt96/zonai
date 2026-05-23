@@ -44,7 +44,6 @@ class Config {
   Future<bool> _canCompile() async {
     final directory = fs.directory(settings.configPath);
     if (!directory.existsSync()) {
-      logger.error('Config directory does not exist: ${directory.path}');
       return false;
     }
 

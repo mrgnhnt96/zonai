@@ -57,9 +57,7 @@ class Rules {
         : <File>[];
 
     if (files.isEmpty) {
-      logger.info(
-        'No project rule files; compiling built-in internal table rules.',
-      );
+      logger.warn('Nothing in rules, creating empty worker');
     }
 
     final target = fs.path.join(settings.compiledRulesPath);

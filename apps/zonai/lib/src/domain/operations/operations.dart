@@ -56,9 +56,7 @@ class Operations {
         : <File>[];
 
     if (files.isEmpty) {
-      logger.info(
-        'No project operation files; compiling built-in internal table operations.',
-      );
+      logger.warn('Nothing in operations, creating an empty worker');
     }
 
     final target = fs.path.join(settings.compiledOperationsPath);

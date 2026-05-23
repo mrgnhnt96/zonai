@@ -56,7 +56,7 @@ final class RateLimitsCompiler {
         : <File>[];
 
     if (files.isEmpty) {
-      logger.info('No project rate limit files; compiling empty worker.');
+      logger.warn('Nothing in rate limits, creating an empty worker');
     }
 
     final target = settings.compiledRateLimitPath;

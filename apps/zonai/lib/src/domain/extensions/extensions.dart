@@ -91,7 +91,6 @@ class Extensions {
   Future<bool> _canCompile() async {
     final directory = fs.directory(settings.extensionsPath);
     if (!directory.existsSync()) {
-      logger.error('Extensions directory does not exist: ${directory.path}');
       return false;
     }
 
