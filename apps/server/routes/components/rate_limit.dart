@@ -10,6 +10,11 @@ class RateLimit {
     String ipAddress,
     RateLimitOperation operation,
   ) async {
+    // TODO:  get collection from AdminAuthBody
+    if (body is AdminAuthBody) {
+      return const .pass();
+    }
+
     final collection = switch (body) {
       GetBody(:final collection) => collection,
       ListBody(:final collection) => collection,
