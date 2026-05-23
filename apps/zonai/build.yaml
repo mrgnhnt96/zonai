@@ -1,0 +1,22 @@
+# zonai is a dependency of zonai_web (Jaspr). jaspr_builder's all_packages
+# builders would otherwise re-bundle zonai_web client/style modules here and
+# duplicate entries in main.*.options.dart.
+#
+# lib/gen/web/ must contain only Dart sources from generate_web_assets.dart.
+# Do not copy Jaspr build output there; raw files under lib/ get re-bundled
+# into apps/web/build/jaspr/web and recurse on the next web gen.
+targets:
+  $default:
+    builders:
+      jaspr_builder:client_module:
+        enabled: false
+      jaspr_builder:clients_bundle:
+        enabled: false
+      jaspr_builder:styles_module:
+        enabled: false
+      jaspr_builder:styles_bundle:
+        enabled: false
+      jaspr_builder:codec_module:
+        enabled: false
+      jaspr_builder:codec_bundle:
+        enabled: false

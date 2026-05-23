@@ -13,6 +13,8 @@ dependencies:
   revali_client: ^2.0.4
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5
+  path: ^1.9.1
+  revali_router:
   universal_web: ^1.1.1
   scoped_deps:
     path: ../../libs/scoped_deps

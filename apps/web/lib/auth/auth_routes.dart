@@ -10,6 +10,9 @@ abstract final class AuthRoutes {
   static const resetPasswordRequest = '/auth/reset-password/request';
   static const verifyEmailCallback = '/auth/verify-email';
 
+  /// Base path for the web app and Jaspr asset URL stripping.
+  static const mountPath = '/_';
+
   static String forType(AuthType type) => '$signIn/${type.name}';
 
   static String forCollection(String sqliteName) => '$collections/${Uri.encodeComponent(sqliteName)}';
@@ -82,6 +85,20 @@ abstract final class AuthRoutes {
 
   static String normalizePath(String path) => _normalizePath(path);
 
+  static String fromUrlPath(String url) => normalizePath(url);
+
+  /// Maps an app route (e.g. `/sign-in`) to its URL under [mountPath].
+  static String toUrlPath(String path) {
+    final normalized = normalizePath(path);
+    if (mountPath == '/' || mountPath.isEmpty) {
+      return normalized;
+    }
+    if (normalized == home) {
+      return mountPath;
+    }
+    return '$mountPath$normalized';
+  }
+
   static String _normalizePath(String path) {
     if (path.isEmpty) {
       return home;
@@ -95,6 +112,17 @@ abstract final class AuthRoutes {
     if (normalized.length > 1 && normalized.endsWith('/')) {
       normalized = normalized.substring(0, normalized.length - 1);
     }
+
+    if (mountPath != '/' && mountPath.isNotEmpty) {
+      if (normalized == mountPath) {
+        return home;
+      }
+      final prefix = '$mountPath/';
+      if (normalized.startsWith(prefix)) {
+        normalized = normalized.substring(mountPath.length);
+      }
+    }
+
     return normalized;
   }
 }

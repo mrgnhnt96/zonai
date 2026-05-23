@@ -34,10 +34,11 @@ class AuthRouteNotifier extends Notifier<String> {
     }
 
     final normalized = AuthRoutes.normalizePath(path);
+    final urlPath = AuthRoutes.toUrlPath(normalized);
     if (replace) {
-      web.window.history.replaceState(null, '', normalized);
+      web.window.history.replaceState(null, '', urlPath);
     } else {
-      web.window.history.pushState(null, '', normalized);
+      web.window.history.pushState(null, '', urlPath);
     }
     state = normalized;
   }

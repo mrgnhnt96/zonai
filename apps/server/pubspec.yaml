@@ -7,6 +7,7 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
+  jaspr: ^0.23.1
   path: ^1.9.1
   revali_client: # ^2.0.4
     path: /Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client
@@ -16,6 +17,8 @@ dependencies:
     path: ../../libs/scoped_deps
   zonai:
     path: ../zonai
+  zonai_web:
+    path: ../web
 
 dev_dependencies:
   revali: # ^2.0.9

@@ -32,6 +32,13 @@ raindrop:
       git fetch upstream main:main
 
 web:
+  gen:
+    (bail):
+    (command):
+      - cd apps/web && dart pub get && dart run jaspr_cli:jaspr build
+      - cd apps/zonai && dart run tool/generate_web_assets.dart
+      - dart pub get
+    (aliases): [web-assets, wa]
   start: cd apps/web && dart run jaspr_cli:jaspr serve
 
 server:
@@ -98,6 +105,9 @@ zonai:
       - |
         echo "Generating resqlite native library"
         ${{ resqlite.gen }}
+      - |
+        echo "Generating embedded web assets"
+        ${{ web.gen }}
       - |
         BUILD_DIR="$(pwd)/build"
         rm -rf $BUILD_DIR
