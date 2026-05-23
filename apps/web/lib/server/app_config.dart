@@ -3,15 +3,20 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/zonai.dart';
 import 'package:zonai_schema/payloads.dart';
 
+const _unconfiguredAppConfig = AppConfig(
+  appName: 'Zonai (not configured)',
+  passwordSecret: 'unconfigured',
+  jwtSecret: 'unconfigured',
+);
+
 /// Loads [AppConfig.appName] from the Zonai config worker during SSR.
 Future<AppConfig> loadAppConfig() {
   return runMergedScopedFuture(
     () async {
       try {
         return await zonaiDB.getConfig();
-      } catch (e) {
-        print(e);
-        rethrow;
+      } on ExecutableUnavailableException {
+        return _unconfiguredAppConfig;
       }
     },
     includeIfAbsent: {

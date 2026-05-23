@@ -9,8 +9,7 @@ Future<List<AuthType>> loadSupportedAuthTypes() {
     () async {
       try {
         return await zonaiDB.adminSupportedAuthTypes();
-      } catch (e) {
-        print(e);
+      } on ExecutableUnavailableException {
         return const [];
       }
     },

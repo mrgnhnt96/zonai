@@ -1,3 +1,4 @@
+export 'src/db_mutator/executable_unavailable_exception.dart';
 export 'src/deps/args.dart';
 export 'src/deps/env.dart';
 export 'src/deps/courier.dart';

@@ -7,8 +7,10 @@ import 'package:zonai/src/deps/courier.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
 
+import '../db_mutator/executable_unavailable_exception.dart';
 import '../db_mutator/payloads/payloads.dart';
 import '../deps/clean_up.dart';
+import '../deps/settings.dart';
 import '../deps/fs.dart';
 import '../deps/logger.dart';
 import '../deps/mutations.dart';
@@ -18,6 +20,8 @@ import '../deps/zonai_db.dart';
 import '../domain/constants.dart';
 
 class Mailman<S extends Request, R extends Response> {
+  static final _loggedMissingExecutables = <String>{};
+
   Mailman({
     required this.debugName,
     required this.executablePath,
@@ -60,6 +64,53 @@ class Mailman<S extends Request, R extends Response> {
   }
 
   String get _prefix => '[${debugName.toUpperCase()}_EXE]';
+
+  String _executableRequiredMessage() {
+    return switch (debugName) {
+      'CONFIG' =>
+        'Config worker is not compiled ($executablePath).\n'
+            'Add Dart files under ${settings.configPath} and run `zonai serve` '
+            '(or press c while serving) to compile workers.\n'
+            'See docs/config-and-env-flavors.md',
+      'OPERATIONS' =>
+        'Operations worker is not compiled ($executablePath).\n'
+            'Add Dart files under ${settings.operationsPath} and run `zonai serve` '
+            '(or press c while serving) to compile workers.\n'
+            'See docs/operations.md',
+
+      'RULES' =>
+        'Rules worker is not compiled ($executablePath).\n'
+            'Add Dart files under ${settings.rulesPath} and run `zonai serve` '
+            '(or press c while serving) to compile workers.\n'
+            'See docs/rules.md',
+      'EXTENSIONS' =>
+        'Extensions worker is not compiled ($executablePath).\n'
+            'Add Dart files under ${settings.extensionsPath} and run `zonai serve` '
+            '(or press c while serving) to compile workers.\n'
+            'See docs/extensions.md',
+      'RATE_LIMIT' =>
+        'Rate limit worker is not compiled ($executablePath).\n'
+            'Add Dart files under ${settings.rateLimitPath} and run `zonai serve` '
+            '(or press c while serving) to compile workers.\n'
+            'See docs/rate-limiting.md',
+      _ =>
+        'Worker is not compiled ($executablePath).\n'
+            'Run `zonai serve` (or press c while serving) to compile workers.',
+    };
+  }
+
+  void _logExecutableRequired() {
+    if (!_loggedMissingExecutables.add(executablePath)) return;
+    logger.info(_executableRequiredMessage());
+  }
+
+  Never _throwExecutableUnavailable() {
+    throw ExecutableUnavailableException(
+      workerName: debugName,
+      executablePath: executablePath,
+      message: _executableRequiredMessage(),
+    );
+  }
 
   void _log(DebugResponse response) {
     switch (response.level) {
@@ -360,12 +411,15 @@ class Mailman<S extends Request, R extends Response> {
         return response;
       }
 
-      final payload = response?.payload;
-      if (payload == null) {
-        throw StateError(
-          'Invalid response: Got ${response.runtimeType}, expected $T',
-        );
+      if (response == null) {
+        if (!hasExecutable) {
+          _throwExecutableUnavailable();
+        }
+
+        throw StateError('Invalid response: Got Null, expected $T');
       }
+
+      final payload = response.payload;
 
       if (_fromJson(payload) case final T result) {
         return result;
@@ -421,7 +475,11 @@ class Mailman<S extends Request, R extends Response> {
 
     final process = await _start();
     if (process == null) {
-      logger.debug('Skipping send of request: $request', prefix: _prefix);
+      if (!hasExecutable) {
+        _logExecutableRequired();
+      } else {
+        logger.debug('Skipping send of request: $request', prefix: _prefix);
+      }
       return null;
     }
 

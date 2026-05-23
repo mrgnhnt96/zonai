@@ -26,9 +26,20 @@ final class RateLimiter {
     required String ipAddress,
     required RateLimitOperation operation,
   }) async {
-    final response = await _mailman.send<RateLimitResponse>(
-      RateLimitRequest(collection: collection, operation: operation),
-    );
+    final response = await _mailman
+        .send<RateLimitResponse>(
+          RateLimitRequest(collection: collection, operation: operation),
+        )
+        .catchError((e, stack) {
+          if (e is ExecutableUnavailableException) {
+            return RateLimitResponse(
+              policy: RateLimitPolicy.defaultPolicy,
+              id: '',
+            );
+          }
+
+          throw Error.throwWithStackTrace(e, stack);
+        });
 
     final policy = response.policy;
     if (policy == null) {
