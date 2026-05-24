@@ -114,31 +114,31 @@ zonai:
         BUILD_DIR="$(pwd)/build"
         mkdir -p "$BUILD_DIR/logs"
         : > "$BUILD_DIR/logs/compile.log"
-        echo "Build log: $BUILD_DIR/logs/compile.log" | tee -a "$BUILD_DIR/logs/compile.log"
+        echo "Build log: $BUILD_DIR/logs/compile.log"
       - ${{ server.copy-to-cli }}
       - |
         set -o pipefail
-        echo "Generating resqlite native library" | tee -a build/logs/compile.log
-        ${{ resqlite.gen }} 2>&1 | tee -a build/logs/compile.log
+        echo "Generating resqlite native library"
+        ${{ resqlite.gen }}
       - |
         set -o pipefail
-        echo "Generating embedded web assets" | tee -a build/logs/compile.log
-        ${{ web.gen }} 2>&1 | tee -a build/logs/compile.log
+        echo "Generating embedded web assets"
+        ${{ web.gen }}
       - |
         set -o pipefail
         BUILD_DIR="$(pwd)/build"
         # Without deleting the directory, clear out all the files (recursively) in the directory
         mkdir -p $BUILD_DIR
-        find $BUILD_DIR -type f -not -path "$BUILD_DIR/logs/*" -delete
+        find $BUILD_DIR -type f -delete
 
         cd apps/zonai || exit 1
         dart pub get || exit 1
 
-        echo "Compiling zonai" | tee -a "$BUILD_DIR/logs/compile.log"
+        echo "Compiling zonai"
 
         OUTPUT="$BUILD_DIR/zonai"
         if [ "$RUNNER_OS" = "Windows" ]; then
           OUTPUT="$OUTPUT.exe"
         fi
 
-        dart compile exe -D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT" 2>&1 | tee -a "$BUILD_DIR/logs/compile.log"
+        dart compile exe -D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT"
