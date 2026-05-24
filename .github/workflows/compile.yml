@@ -51,7 +51,7 @@ jobs:
         run: bash tool/ci/bootstrap_revali_client.sh
 
       - name: Get dependencies
-        run: sip pub get
+        run: dart pub get
 
       - name: Build zonai
         shell: bash
