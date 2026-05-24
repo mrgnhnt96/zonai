@@ -19,4 +19,7 @@ git -C "${SUBMODULE}" sparse-checkout init --no-cone
 git -C "${SUBMODULE}" sparse-checkout set '/*' '!/pubspec.yaml' '!/.gitignore' '/packages/'
 git -C "${SUBMODULE}" sparse-checkout reapply
 
+# Fallback: sparse-checkout can leave root files on some platforms (notably Windows).
+rm -f "${SUBMODULE}/pubspec.yaml" "${SUBMODULE}/.gitignore"
+
 echo "Raindrop submodule: sparse checkout applied (packages/ only, root pubspec.yaml omitted)."

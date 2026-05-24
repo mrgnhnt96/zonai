@@ -24,4 +24,8 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 git -C $Submodule sparse-checkout reapply
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+# Fallback: sparse-checkout can leave root files on some platforms.
+Remove-Item -Force (Join-Path $Submodule "pubspec.yaml") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $Submodule ".gitignore") -ErrorAction SilentlyContinue
+
 Write-Host "Raindrop submodule: sparse checkout applied (packages/ only, root pubspec.yaml omitted)."
