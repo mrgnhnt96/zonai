@@ -25,6 +25,8 @@ jobs:
       - name: Checkout zonai
         uses: actions/checkout@v4
         with:
+          # GITHUB_TOKEN cannot read private submodule repos; raindrop is private.
+          token: ${{ secrets.SUBMODULES_PAT }}
           submodules: recursive
 
       - name: Configure raindrop sparse checkout
