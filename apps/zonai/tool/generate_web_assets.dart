@@ -4,6 +4,8 @@
 //   dart run tool/generate_web_assets.dart
 //
 // Pass --check to exit 1 when generated files are out of date (for CI).
+// Pass --stub to write a placeholder web_assets.dart before `jaspr build`
+// (the server compile step imports it before real assets exist).
 
 import 'dart:convert';
 import 'dart:io';
@@ -37,8 +39,15 @@ const _binaryExtensions = {'ico', 'png', 'wasm'};
 
 void main(List<String> args) {
   final checkOnly = args.contains('--check');
+  final stubOnly = args.contains('--stub');
   final packageRoot = Directory.current.absolute;
   final outputDir = Directory('${packageRoot.path}/lib/gen/web');
+
+  if (stubOnly) {
+    _writeStub(outputDir);
+    stdout.writeln('Wrote stub ${outputDir.path}/web_assets.dart');
+    return;
+  }
 
   final sourceDir = _resolveSourceDir(packageRoot, args);
   final manifestFile = File('${sourceDir.path}/$_manifestName');
@@ -108,6 +117,23 @@ bool _shouldEmbedAsset(String relativePath) {
 
   final suffix = relativePath.split('.').last.toLowerCase();
   return _serveableSuffixes.contains(suffix);
+}
+
+void _writeStub(Directory outputDir) {
+  outputDir.createSync(recursive: true);
+  File('${outputDir.path}/web_assets.dart').writeAsStringSync('''
+// GENERATED STUB - replaced after `jaspr build` by generate_web_assets.dart
+library;
+
+class JasprWebAsset {
+  const JasprWebAsset({required this.bytes, this.contentType});
+
+  final List<int> bytes;
+  final String? contentType;
+}
+
+JasprWebAsset? lookupJasprWebAsset(String relativePath) => null;
+''');
 }
 
 void _removeOrphanOutputDir(Directory packageRoot) {

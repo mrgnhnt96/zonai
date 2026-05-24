@@ -35,6 +35,7 @@ web:
   gen:
     (bail):
     (command):
+      - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
       - cd apps/web && dart pub get && dart run jaspr_cli:jaspr build
       - cd apps/zonai && dart run tool/generate_web_assets.dart
       - dart pub get
