@@ -50,6 +50,7 @@ server:
       - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
       - dart run tool/materialize_workspace_package_config.dart apps/server
       - cd apps/server && dart run revali dev --generate-only --flavor dev --release --recompile
+      - test -f apps/server/.revali/server/server.dart || (echo "Revali server generation failed" && exit 1)
       - rm -rf apps/zonai/lib/.revali
       - mkdir -p apps/zonai/lib/gen/server
       - cp -r apps/server apps/zonai/lib/gen

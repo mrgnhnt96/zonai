@@ -1,6 +1,8 @@
 // Copies the workspace root package_config.json into a member package's
-// .dart_tool/ so tools (e.g. Revali) that look for a local package config
-// find one on Windows as well as Unix.
+// .dart_tool/pub/ so tools (e.g. Revali) that scan .dart_tool for
+// package_config.json find it on Windows. Workspace members normally only
+// have pub/workspace_ref.json after `dart pub get`; Revali resolves that on
+// Unix but not reliably on Windows.
 //
 // Run from the repository root:
 //   dart run tool/materialize_workspace_package_config.dart apps/server
@@ -31,10 +33,10 @@ Future<void> main(List<String> args) async {
       exit(1);
     }
 
-    final dartToolDir = Directory('${packageDir.path}/.dart_tool');
-    dartToolDir.createSync(recursive: true);
+    final pubDir = Directory('${packageDir.path}/.dart_tool/pub');
+    pubDir.createSync(recursive: true);
 
-    final destination = File('${dartToolDir.path}/package_config.json');
+    final destination = File('${pubDir.path}/package_config.json');
     await workspaceConfig.copy(destination.path);
     stdout.writeln('Wrote ${destination.path}');
   }
