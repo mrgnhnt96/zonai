@@ -2,12 +2,17 @@
 
 ## 5.19.2026
 
+when running zonai serve, its important that we dont prompt or require input. We dont want to block a fresh deployment to a server
+
 - [ ] When running with no config, make sure no exceptions are thrown
 - [ ] When there are no admins, act as if the project hasn't been setup up and treat as a new project (provide docs)
-- [ ] When serve is first run, if no zonai.yaml exists, treat as new project (set up project)
+- [ ] When serve is first run, if no .zonai dir exists, treat as new project (set up project)
 - [ ] When serving the app, use nocterm to provide a good experience
 - [ ] Create a command for `./zonai dev` that is interactive and `./zonai serve` that prints logs only
+  - [ ] should prompt for new admin (text fields).  If class isn't created (can create admin class if one doesnt exist)
 - [ ] Create GHA to compile the executable for different platforms (linux, macos, windows)
+- [ ] Create a "request" for logger to save into db
+    - this will help with tracking requests
 
 ### UI
 
@@ -28,22 +33,28 @@ The dashboard will be the first page on website load. It should show a quick ove
 
 - [ ] Show requests per minute
 - [ ] Show latest errors in 24 hours
-- [ ]
 
 ### API
 
 - [ ] Upload files (to local storage)
 - [ ] Support `order_by` in queries
 - [ ] Export records as JSON
-- [ ] Add rate limiting
-  - [ ] Blacklist IPs (needs to be outside of code to be reactive)
+- [ ] Add streamCount as new endpoint
+- [ ] Blacklist IPs (needs to be outside of code to be reactive)
+- [ ] Add last seen to jwt entry (?)
+- [ ] Add refresh token endpoint (returns new JWT)
+- [ ] add ability to set host and port in flags or .env
 
 ## Cron
 
 - [ ] Create cron
+  - Clean up logs
+  - Clean up auth challenges
+  - Clean up cron entries
+  - Delete expired JWTs
+  - Delete expired Photos signed urls
+  - Delete old rate limits
 - [ ] Support user defined cron jobs
-- [ ] Clear logs after a week (configurable)
-- [ ] Clear rate limits after a week (configurable)
 
 ## CLI
 
@@ -56,6 +67,10 @@ The dashboard will be the first page on website load. It should show a quick ove
   - [ ] `*.stop`
   - [ ] `zonai.sqlite*`
 
+### `create` command
+
+- [ ] Create schema (auto create all classes)
+
 ## 4.15.2026
 
 - [ ] Support compiling to different arch-types
@@ -63,11 +78,8 @@ The dashboard will be the first page on website load. It should show a quick ove
 
 ### Other
 
-- write script to compile the server
-- write script to compile the web app
-- set up cli to serve the compiled server
-- serve the compiled web app from the server
 - when deployed, the cli should not watch the filesystem for changes, not have the ability to recompile
+  - use the `--release` flag to determine this
 
 ## Raindrop
 
