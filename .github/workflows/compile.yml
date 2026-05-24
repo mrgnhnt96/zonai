@@ -61,7 +61,8 @@ jobs:
 
       - name: Build zonai
         shell: bash
-        run: sip run zonai compile
+        # Use `dart pub global run` so Windows Git Bash finds sip (global stubs are .bat-only).
+        run: dart pub global run sip_cli:sip run zonai compile
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
