@@ -1,0 +1,62 @@
+name: Compile
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compile:
+    name: ${{ matrix.artifact_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: zonai-linux-x64
+            output_name: zonai
+          - os: macos-latest
+            artifact_name: zonai-macos-arm64
+            output_name: zonai
+          - os: windows-latest
+            artifact_name: zonai-windows-x64
+            output_name: zonai.exe
+
+    steps:
+      - name: Checkout zonai
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Install sip
+        # Temporary: install from GitHub until a pub.dev release is pinned.
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Bootstrap revali client
+        shell: bash
+        run: bash tool/ci/bootstrap_revali_client.sh
+
+      - name: Get dependencies
+        run: sip pub get
+
+      - name: Build zonai
+        shell: bash
+        run: sip run zonai compile
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: build/${{ matrix.output_name }}

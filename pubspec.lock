@@ -763,9 +763,11 @@ packages:
   revali:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/packages/revali"
-      relative: false
-    source: path
+      path: "packages/revali"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.1"
   revali_annotations:
     dependency: transitive
@@ -778,58 +780,74 @@ packages:
   revali_client:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client"
-      relative: false
-    source: path
+      path: "constructs/revali_client/revali_client"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.0.4"
   revali_client_gen:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client_gen"
-      relative: false
-    source: path
+      path: "constructs/revali_client/revali_client_gen"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.0"
   revali_construct:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/packages/revali_construct"
-      relative: false
-    source: path
+      path: "packages/revali_construct"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.0"
   revali_core:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/packages/revali_core"
-      relative: false
-    source: path
+      path: "packages/revali_core"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "1.5.0"
   revali_router:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router"
-      relative: false
-    source: path
+      path: "revali_router/revali_router"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "3.3.0"
   revali_router_annotations:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router_annotations"
-      relative: false
-    source: path
+      path: "revali_router/revali_router_annotations"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.0"
   revali_router_core:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router_core"
-      relative: false
-    source: path
+      path: "revali_router/revali_router_core"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.2.0"
   revali_server:
     dependency: "direct overridden"
     description:
-      path: "/Users/morgan/Documents/develop.nosync/revali/constructs/revali_server"
-      relative: false
-    source: path
+      path: "constructs/revali_server"
+      ref: "feat/wrap-request"
+      resolved-ref: "3913c1baab720ce77b320d4bd92ebdc390b3a3d9"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.3.0"
   riverpod:
     dependency: transitive

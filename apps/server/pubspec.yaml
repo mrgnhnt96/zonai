@@ -9,10 +9,8 @@ environment:
 dependencies:
   jaspr: ^0.23.1
   path: ^1.9.1
-  revali_client: # ^2.0.4
-    path: /Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client
-  revali_router: # ^3.1.0
-    path: /Users/morgan/Documents/develop.nosync/revali/revali_router/revali_router
+  revali_client: ^2.0.4
+  revali_router: ^3.3.0
   scoped_deps:
     path: ../../libs/scoped_deps
   zonai:
@@ -21,9 +19,6 @@ dependencies:
     path: ../web
 
 dev_dependencies:
-  revali: # ^2.0.9
-    path: /Users/morgan/Documents/develop.nosync/revali/packages/revali
-  revali_client_gen: # ^2.0.2
-    path: /Users/morgan/Documents/develop.nosync/revali/constructs/revali_client/revali_client_gen
-  revali_server: # ^2.1.0
-    path: /Users/morgan/Documents/develop.nosync/revali/constructs/revali_server
+  revali: ^2.1.1
+  revali_client_gen: ^2.1.0
+  revali_server: ^2.3.0

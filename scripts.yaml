@@ -119,4 +119,9 @@ zonai:
 
         echo "Compiling zonai"
 
-        dart compile exe -D__ZONAI_COMPILED__=true bin/zonai.dart -o $BUILD_DIR/zonai
+        OUTPUT="$BUILD_DIR/zonai"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          OUTPUT="$OUTPUT.exe"
+        fi
+
+        dart compile exe -D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT"
