@@ -43,30 +43,36 @@ web:
   start: cd apps/web && dart run jaspr_cli:jaspr serve
 
 server:
+  sync-to-cli:
+    (aliases): [sync, s]
+    (bail):
+    (command):
+      - test -f apps/server/.revali/server/server.dart || (echo "Revali server generation failed" && exit 1)
+      - rm -rf apps/zonai/lib/gen/server
+      - mkdir -p apps/zonai/lib/gen
+      - cp -r apps/server apps/zonai/lib/gen
+      - |
+        cd apps/zonai/lib/gen/server || exit 1
+        rm -f pubspec.yaml
+        rm -rf .revali/revali_client
+        rm -rf .dart_tool
+        rm -f revali.yaml
+
+        # replace `package:zonai_server` with `./` from all *.dart files.
+        # Use perl instead of sed for in-place replacement
+        find lib -name '*.dart' -exec perl -pi -e 's|package:zonai_server/src|..|g' {} +
+        find . -name '*.dart' -exec perl -pi -e 's|package:zonai_server|../../lib|g' {} +
   copy-to-cli:
     (aliases): [cli, copy, c]
     (bail):
     (command):
       - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
       - cd apps/server && dart run revali dev --generate-only --flavor dev --release --recompile
-      - test -f apps/server/.revali/server/server.dart || (echo "Revali server generation failed" && exit 1)
-      - rm -rf apps/zonai/lib/.revali
-      - mkdir -p apps/zonai/lib/gen/server
-      - cp -r apps/server apps/zonai/lib/gen
-      - |
-        cd apps/zonai/lib/gen/server || exit 1
-        rm pubspec.yaml
-        rm -rf .revali/revali_client
-        rm -rf .dart_tool
-        rm revali.yaml
-
-        # replace `package:zonai_server` with `./` from all *.dart files.
-        # Use perl instead of sed for in-place replacement
-        find lib -name '*.dart' -exec perl -pi -e 's|package:zonai_server/src|..|g' {} +
-        find . -name '*.dart' -exec perl -pi -e 's|package:zonai_server|../../lib|g' {} +
+      - ${{ server.sync-to-cli }}
   gen: |
     cd apps/server || exit 1
     dart run revali dev --flavor dev --profile --recompile --generate-only
+    ${{ server.sync-to-cli }}
   start: |
     cd apps/server || exit 1
     dart pub get || exit 1
