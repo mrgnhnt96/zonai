@@ -41,6 +41,7 @@ class LogId implements Id {
 enum Level {
   verbose,
   trace,
+  request,
   debug,
   info,
   warning,
@@ -52,6 +53,7 @@ enum Level {
     return switch (level) {
       'verbose' || 'v' => verbose,
       'trace' || 't' => trace,
+      'request' || 'r' => request,
       'debug' || 'd' => debug,
       'info' || 'i' => info,
       'warning' || 'w' => warning,
@@ -97,4 +99,5 @@ class LogsCollection extends Collection<LogEntry> {
 
 final logs = collection('_log', LogsCollection.new, (table) {
   uniqueIndex('log_id_unique').on(table.id);
+  index('log_level_timestamp_index').on(table.level, table.timestamp);
 });

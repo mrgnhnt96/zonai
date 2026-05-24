@@ -42,6 +42,8 @@ class Logger {
       _log(Level.verbose, message, _stdout, _dim, prefix: prefix);
   void trace(String message, {String? prefix}) =>
       _log(Level.trace, message, _stdout, _dim, prefix: prefix);
+  void request(String message, {String? prefix}) =>
+      _log(Level.request, message, _stdout, _dim, prefix: prefix);
   void debug(String message, {String? prefix}) =>
       _log(Level.debug, message, _stdout, _dim, prefix: prefix);
   void info(String message) => _log(Level.info, message, _stdout, null);

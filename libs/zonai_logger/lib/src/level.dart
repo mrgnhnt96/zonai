@@ -5,6 +5,7 @@
 enum Level {
   verbose,
   trace,
+  request,
   debug,
   info,
   warning,
@@ -16,6 +17,7 @@ enum Level {
     return switch (level) {
       'verbose' || 'v' => verbose,
       'trace' || 't' => trace,
+      'request' || 'r' => request,
       'debug' || 'd' => debug,
       'info' || 'i' => info,
       'warning' || 'w' => warning,

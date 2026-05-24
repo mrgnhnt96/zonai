@@ -12,10 +12,8 @@ import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_server/src/handlers/email_handler.dart';
 
 import '../components/exception_catcher.dart';
-import '../components/log_observer.dart';
 
 @Exceptions()
-@Observers([LogObserver])
 @AllowOrigins.all()
 @Trace()
 @App(flavor: 'dev')
