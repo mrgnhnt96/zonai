@@ -5,6 +5,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
+import 'package:zonai_schema/src/types/order_by.dart';
 import 'package:zonai_schema/src/types/where.dart';
 import 'package:zonai_schema/src/update/update.dart';
 
@@ -541,6 +542,7 @@ final class ListOperationRequest extends PerformOperationRequest {
     required this.where,
     required this.limit,
     required this.offset,
+    this.orderBy,
     required super.jwt,
   }) : super(operation: CollectionOperation.list.name);
 
@@ -550,6 +552,7 @@ final class ListOperationRequest extends PerformOperationRequest {
     required this.where,
     required this.limit,
     required this.offset,
+    this.orderBy,
     required super.jwt,
   }) : super._(operation: CollectionOperation.list.name);
 
@@ -563,6 +566,18 @@ final class ListOperationRequest extends PerformOperationRequest {
         final Map<String, dynamic> json => Where.fromJson(json),
         _ => null,
       },
+      orderBy: switch (request.payload['order_by']) {
+        null => null,
+        final List list => [
+          for (final item in list)
+            OrderByTerm.fromJson(Map<String, dynamic>.from(item as Map)),
+        ],
+        final value => throw ArgumentError.value(
+          value,
+          'order_by',
+          'Expected a list of order terms',
+        ),
+      },
       jwt: request.jwt,
     );
   }
@@ -570,6 +585,7 @@ final class ListOperationRequest extends PerformOperationRequest {
   final int? limit;
   final int? offset;
   final Where? where;
+  final List<OrderByTerm>? orderBy;
 
   @override
   Map<String, dynamic> toJson() {
@@ -578,6 +594,13 @@ final class ListOperationRequest extends PerformOperationRequest {
       'where': where?.toJson(),
       'limit': limit,
       'offset': offset,
+      'order_by': ?switch (orderBy) {
+        null => null,
+        final terms when terms.isNotEmpty => [
+          for (final term in terms) term.toJson(),
+        ],
+        _ => null,
+      },
     };
   }
 }

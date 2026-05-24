@@ -254,7 +254,12 @@ Future<int?> _create(String jwt) async {
 Future<(int?, String?)> _list({required String jwt}) async {
   final result = await zonaiDB.list(
     'items',
-    .new(jwt: jwt, where: NotContains('body', 'Test'), limit: 20),
+    .new(
+      jwt: jwt,
+      where: NotContains('body', 'Test'),
+      limit: 20,
+      orderBy: [OrderByTerm(column: 'id', direction: SortDirection.desc)],
+    ),
   );
 
   logger.info('Found ${result.items.length}/${result.total} records');

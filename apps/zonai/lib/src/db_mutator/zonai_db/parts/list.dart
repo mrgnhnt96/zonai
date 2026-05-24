@@ -29,6 +29,7 @@ extension _ListX on ZonaiDb {
         where: payload.where,
         limit: payload.limit,
         offset: payload.offset,
+        orderBy: payload.orderBy,
         jwt: jwt,
       ),
     );

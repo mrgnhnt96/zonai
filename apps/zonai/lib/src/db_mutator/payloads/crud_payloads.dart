@@ -62,6 +62,7 @@ class ListPayload extends JwtPayload {
     int? limit = maxLimit,
     super.jwt,
     this.offset,
+    this.orderBy,
   }) : limit = limit?.clamp(1, maxLimit) ?? maxLimit;
 
   static const maxLimit = 500;
@@ -70,6 +71,7 @@ class ListPayload extends JwtPayload {
   final int limit;
   final int? offset;
   final List<String> expand;
+  final List<OrderByTerm>? orderBy;
 }
 
 class ListWithJwtPayload extends ListPayload implements FullJwtPayload {
@@ -79,6 +81,7 @@ class ListWithJwtPayload extends ListPayload implements FullJwtPayload {
     super.where,
     super.limit,
     super.offset,
+    super.orderBy,
   });
 
   final Jwt? userJwt;

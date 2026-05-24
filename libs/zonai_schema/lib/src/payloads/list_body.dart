@@ -1,3 +1,4 @@
+import '../types/order_by.dart';
 import '../types/where.dart';
 
 class ListBody {
@@ -6,6 +7,7 @@ class ListBody {
     this.where,
     this.limit,
     this.offset,
+    this.orderBy,
     this.expand = const [],
   });
 
@@ -14,6 +16,7 @@ class ListBody {
   final List<String> expand;
   final int? limit;
   final int? offset;
+  final List<OrderByTerm>? orderBy;
 
   factory ListBody.fromJson(Map json) {
     return ListBody(
@@ -21,6 +24,18 @@ class ListBody {
       where: json['where'] != null ? Where.fromJson(json['where']) : null,
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
+      orderBy: switch (json['order_by']) {
+        null => null,
+        final List list => [
+          for (final item in list)
+            OrderByTerm.fromJson(Map<String, dynamic>.from(item as Map)),
+        ],
+        final value => throw ArgumentError.value(
+          value,
+          'order_by',
+          'Expected a list of order terms',
+        ),
+      },
       expand: [
         if (json['expand'] case final List list)
           for (final item in list) item as String,
@@ -34,6 +49,13 @@ class ListBody {
       'where': ?where?.toJson(),
       'limit': ?limit,
       'offset': ?offset,
+      'order_by': ?switch (orderBy) {
+        null => null,
+        final terms when terms.isNotEmpty => [
+          for (final term in terms) term.toJson(),
+        ],
+        _ => null,
+      },
       'expand': expand,
     };
   }

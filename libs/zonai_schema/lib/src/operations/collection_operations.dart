@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart' as rd;
-import 'package:raindrop/raindrop.dart' hide Update;
+import 'package:raindrop/raindrop.dart' hide Update, OrderByTerm;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/where_sql.dart';
@@ -396,12 +396,22 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
     Where? where,
     int? limit,
     int? offset,
+    List<OrderByTerm>? orderBy,
     Selectable<dynamic>? groupBy,
   }) {
     var builder = db.select().from(schema);
 
     if (where != null) {
       builder = builder.where(RawSqlFilter(where.sql(table.name)));
+    }
+
+    if (orderBy != null) {
+      for (final term in orderBy) {
+        builder = builder.orderBy(
+          table[term.column],
+          ascending: term.direction == SortDirection.asc,
+        );
+      }
     }
 
     if (limit != null) {
@@ -471,11 +481,18 @@ abstract base class CollectionOperations<S extends rd.Schema<R>, R>
         limit: 1,
         where: where,
       ).toQuery(),
-      ListOperationRequest(:final where, :final limit, :final offset) => list(
-        where: where,
-        limit: limit,
-        offset: offset,
-      ).toQuery(),
+      ListOperationRequest(
+        :final where,
+        :final limit,
+        :final offset,
+        :final orderBy,
+      ) =>
+        list(
+          where: where,
+          limit: limit,
+          offset: offset,
+          orderBy: orderBy,
+        ).toQuery(),
       CustomOperationRequest(:final where, :final operation, :final values) =>
         custom(operation, where: where, values: values).toQuery(),
       PerformOperationRequest(:final operation) => throw StateError(

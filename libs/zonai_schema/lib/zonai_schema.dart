@@ -58,6 +58,7 @@ export 'src/tables/collection.dart';
 export 'src/types/id.dart';
 export 'src/types/supported_auths.dart';
 export 'src/types/where.dart';
+export 'src/types/order_by.dart';
 export 'src/types/paginated.dart';
 export 'src/update/update.dart';
 export 'src/types/jwt.dart';

@@ -88,7 +88,7 @@ The framework also uses operations for auth-specific SQL (lookup by email, sign-
 | `insertMany` | Bulk insert typed rows                                |
 | `update`     | Patch rows matching a `Where` clause                  |
 | `delete`     | Delete rows matching a `Where` clause                 |
-| `list`       | Select with optional filter, limit, offset, `groupBy` |
+| `list`       | Select with optional filter, limit, offset, `order_by`, `groupBy` |
 | `count`      | Count rows with optional filter                       |
 | `custom`     | Non-standard operation names (override required)      |
 
@@ -106,6 +106,8 @@ These map to `CollectionOperation` names in rules and rate limiting:
 | `view`    | `list` (limit 1)  | `GET /db`, stream-one           |
 | `list`    | `list`            | `GET /db/list`, stream-list     |
 | `count`   | `count`           | `GET /db/count`                 |
+
+`list` requests accept an optional `order_by` array of `{ "column": "...", "direction": "asc" | "desc" }` terms. Columns must exist on the collection schema; unknown columns are rejected when SQL is built.
 
 Any other operation string is treated as a **custom operation** and routed to `custom()`.
 

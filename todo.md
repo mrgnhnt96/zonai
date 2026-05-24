@@ -9,10 +9,10 @@ when running zonai serve, its important that we dont prompt or require input. We
 - [ ] When serve is first run, if no .zonai dir exists, treat as new project (set up project)
 - [ ] When serving the app, use nocterm to provide a good experience
 - [ ] Create a command for `./zonai dev` that is interactive and `./zonai serve` that prints logs only
-  - [ ] should prompt for new admin (text fields).  If class isn't created (can create admin class if one doesnt exist)
+  - [ ] should prompt for new admin (text fields). If class isn't created (can create admin class if one doesnt exist)
 - [ ] Create GHA to compile the executable for different platforms (linux, macos, windows)
 - [ ] Create a "request" for logger to save into db
-    - this will help with tracking requests
+  - this will help with tracking requests
 
 ### UI
 
