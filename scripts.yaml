@@ -110,22 +110,14 @@ zonai:
   compile:
     (bail):
     (command):
-      - |
-        BUILD_DIR="$(pwd)/build"
-        mkdir -p "$BUILD_DIR/logs"
-        : > "$BUILD_DIR/logs/compile.log"
-        echo "Build log: $BUILD_DIR/logs/compile.log"
       - ${{ server.copy-to-cli }}
       - |
-        set -o pipefail
         echo "Generating resqlite native library"
         ${{ resqlite.gen }}
       - |
-        set -o pipefail
         echo "Generating embedded web assets"
         ${{ web.gen }}
       - |
-        set -o pipefail
         BUILD_DIR="$(pwd)/build"
         # Without deleting the directory, clear out all the files (recursively) in the directory
         mkdir -p $BUILD_DIR
