@@ -158,7 +158,10 @@ extension _AuthX on ZonaiDb {
       GetColumnNameRequest(collection: collection, columnName: .id),
     );
 
-    final userId = user[userIdColumn.name] as String;
+    final userId = switch (user[userIdColumn.name]) {
+      final String userId => userId,
+      _ => throw StateError('User ID not found'),
+    };
 
     final preJwt = Jwt.create(
       userId: userId,
