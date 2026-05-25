@@ -23,8 +23,22 @@ class Stdin {
   Stream<List<int>> get stream => _controller.stream;
 
   bool get hasTerminal => io.stdin.hasTerminal;
-  set echoMode(bool value) => io.stdin.echoMode = value;
-  set lineMode(bool value) => io.stdin.lineMode = value;
+
+  set echoMode(bool value) {
+    try {
+      io.stdin.echoMode = value;
+    } on io.StdinException {
+      // CI and piped stdin may report a terminal but reject mode changes.
+    }
+  }
+
+  set lineMode(bool value) {
+    try {
+      io.stdin.lineMode = value;
+    } on io.StdinException {
+      // CI and piped stdin may report a terminal but reject mode changes.
+    }
+  }
 
   void dispose() {
     _subscription?.cancel();
