@@ -8,6 +8,7 @@ schema:
 version:
   gen: |
     VERSION=$(cat VERSION)
+    mkdir -p apps/zonai/lib/gen
     echo "const kVersion = \"$VERSION\";" > apps/zonai/lib/gen/version.dart
 
 resqlite:
