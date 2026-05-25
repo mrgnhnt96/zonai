@@ -22,3 +22,4 @@ export 'src/deps/zonai_db.dart';
 export 'src/deps/logger.dart';
 export 'src/deps/rate_limiter.dart';
 export 'src/deps/rate_limits.dart';
+export 'src/deps/versions.dart';

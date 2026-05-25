@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:yaml/yaml.dart';
+import 'package:zonai/gen/version.dart';
 import '../deps/args.dart';
 import '../deps/fs.dart';
 
@@ -15,6 +16,7 @@ class Settings {
     required this.dataPath,
     required this.emailTemplatesPath,
     required this.rateLimitPath,
+    required this.version,
     this.basePath,
   });
 
@@ -47,6 +49,7 @@ class Settings {
       configPath: normalize(['lib', 'src', 'config']),
       emailTemplatesPath: normalize(['lib', 'src', 'email_templates']),
       rateLimitPath: normalize(['lib', 'src', 'rate_limit']),
+      version: kVersion,
     );
 
     if (settings == null) {
@@ -93,6 +96,10 @@ class Settings {
         final String value => normalize([value]),
         _ => defaultSettings.emailTemplatesPath,
       },
+      version: switch (map['version']) {
+        final String value => value,
+        _ => defaultSettings.version,
+      },
       basePath: basePath,
     );
   }
@@ -107,6 +114,7 @@ class Settings {
   final String configPath;
   final String? basePath;
   final String emailTemplatesPath;
+  final String version;
 
   String _normalize(List<String> paths) {
     return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));

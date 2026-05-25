@@ -5,6 +5,11 @@ schema:
       (command): cd apps/zonai && dart run tool/generate_internal_db_artifacts.dart
       (aliases): [internal, ida]
 
+version:
+  gen: |
+    VERSION=$(cat VERSION)
+    echo "const kVersion = \"$VERSION\";" > apps/zonai/lib/gen/version.dart
+
 resqlite:
   gen:
     (command):
@@ -130,6 +135,7 @@ zonai:
   compile:
     (bail):
     (command):
+      - ${{ version.gen }}
       - ${{ server.copy-to-cli }}
       - |
         echo "Generating resqlite native library"

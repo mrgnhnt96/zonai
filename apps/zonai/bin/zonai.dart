@@ -28,6 +28,7 @@ import 'package:zonai/src/deps/stdin.dart';
 import 'package:zonai/src/deps/config.dart';
 import 'package:zonai/src/deps/env.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai/src/deps/versions.dart';
 import 'package:zonai/src/utils/args.dart';
 import 'package:zonai/src/zonai_runner.dart';
 
@@ -89,6 +90,7 @@ Future<void> _run(List<String> arguments) async {
       revaliProvider,
       zonaiDbProvider,
       settingsProvider,
+      versionsProvider,
     },
   );
 }

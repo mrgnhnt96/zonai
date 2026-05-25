@@ -1,4 +1,6 @@
-# Sample config for `dart run zonai` from apps/playground.
+# The current version of the playground app
+version: 0.1.0
+
 migrationsPath: .zonai/migrations
 schemasPath: lib/src/schemas
 configPath: lib/src/config
