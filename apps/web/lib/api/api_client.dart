@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:client/client.dart';
+import 'package:zonai_web/gen/client/client.dart';
 import 'package:revali_client/revali_client.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
 

@@ -8,8 +8,6 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  client:
-    path: ../server/.revali/revali_client
   revali_client: ^2.0.4
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5

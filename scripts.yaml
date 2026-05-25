@@ -39,15 +39,28 @@ raindrop:
       git fetch upstream main:main
 
 web:
+  sync-client:
+    (aliases): [client, sc]
+    (bail):
+    (command):
+      - test -f apps/server/.revali/revali_client/lib/client.dart || (echo "Revali client generation failed; run server gen first" && exit 1)
+      - rm -rf apps/web/lib/gen/client
+      - mkdir -p apps/web/lib/gen/client
+      - cp -r apps/server/.revali/revali_client/lib/. apps/web/lib/gen/client/
   gen:
     (bail):
     (command):
       - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
+      - ${{ web.sync-client }}
       - cd apps/web && dart pub get && dart run jaspr_cli:jaspr build
       - cd apps/zonai && dart run tool/generate_web_assets.dart
       - dart pub get
     (aliases): [web-assets, wa]
-  start: cd apps/web && dart run jaspr_cli:jaspr serve
+  start:
+    (bail):
+    (command):
+      - ${{ web.sync-client }}
+      - cd apps/web && dart pub get && dart run jaspr_cli:jaspr serve
 
 server:
   sync-to-cli:
