@@ -5,9 +5,9 @@ import 'package:zonai/src/deps/args.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/migrate.dart';
+import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/versions.dart';
 import 'package:zonai/src/domain/constants.dart';
-import 'package:zonai/src/domain/settings.dart';
 
 const _usage = '''
 Usage: zonai build
@@ -22,7 +22,6 @@ Future<int> build() async {
     return 1;
   }
 
-  final settings = Settings.load();
   if (fs.directory(settings.buildDirectory) case final dir
       when dir.existsSync()) {
     dir.deleteSync(recursive: true);

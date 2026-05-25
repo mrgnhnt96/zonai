@@ -41,8 +41,6 @@ class Versions {
   }
 
   Future<int?> assertVersion() async {
-    final settings = Settings.load();
-
     if (settings.version == kVersion) {
       return null;
     }

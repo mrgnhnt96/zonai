@@ -1,20 +1,18 @@
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:zonai/deps.dart';
+import 'package:zonai/deps.dart' as deps;
 import 'package:zonai/zonai.dart';
 
 typedef SqliteTablesPayload = ({List<String> sqliteNames, List<String> displayNames, String? error});
 
 /// Label shown in the UI (e.g. Raindrop's migrations table uses a shorter name).
-String sqliteTableDisplayName(String rawName) =>
-    rawName == '_raindrop_migrations' ? '_migrations' : rawName;
+String sqliteTableDisplayName(String rawName) => rawName == '_raindrop_migrations' ? '_migrations' : rawName;
 
 /// Alphabetized with non-`_` tables first; `_`-prefixed tables last (also alphabetized by label).
 List<({String raw, String label})> orderSqliteTablesForDisplay(Iterable<String> rawNames) {
-  final rows = [
-    for (final raw in rawNames)
-      (raw: raw, label: sqliteTableDisplayName(raw)),
-  ]..sort((a, b) {
+  final rows = [for (final raw in rawNames) (raw: raw, label: sqliteTableDisplayName(raw))]
+    ..sort((a, b) {
       final aInternal = a.raw.startsWith('_');
       final bInternal = b.raw.startsWith('_');
       if (aInternal != bInternal) {
@@ -28,7 +26,7 @@ List<({String raw, String label})> orderSqliteTablesForDisplay(Iterable<String> 
 SqliteTablesPayload loadZonaiSqliteTableNames() {
   return runScoped(() {
     try {
-      final settings = kIsCompiled ? Settings.load() : Settings.load(fs.path.join('..', 'playground'));
+      final settings = kIsCompiled ? deps.settings : Settings.load(fs.path.join('..', 'playground'));
       final dbFile = fs.file(settings.zonaiSqlitePath);
       if (!dbFile.existsSync()) {
         return (sqliteNames: <String>[], displayNames: <String>[], error: null);
