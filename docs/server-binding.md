@@ -46,7 +46,7 @@ schemasPath: lib/src/schemas
 configPath: lib/src/config
 ```
 
-When you run `dart run zonai build`, your settings file is copied into the build output (under `build/`, keeping the same filename), so compiled deployments pick up the same host and port unless overridden at launch.
+When you run `dart run zonai build`, your settings file is copied into the build output (under `build/`, keeping the same filename), so deployments started from that directory pick up the same host and port unless overridden at launch. See **[release-mode.md](release-mode.md)** for the full `build/` layout and production workflow.
 
 ## Public URLs in app config (`baseUrl`)
 
@@ -89,4 +89,12 @@ dart run zonai serve --host 0.0.0.0
 # → http://0.0.0.0:8091
 ```
 
-**Production-style compiled run** — set host and port in `zonai.yaml` before `zonai build`, then run the compiled binary from the build directory with the copied settings file.
+**Production-style compiled run** — set host and port in `zonai.yaml` before `zonai build`, then from the `build/` directory:
+
+```bash
+cd build
+./zonai serve --release
+# optional overrides: ./zonai serve --release --host 0.0.0.0 --port 8091
+```
+
+The copied `zonai.yaml` in `build/` supplies defaults; CLI flags still win at runtime.

@@ -105,11 +105,14 @@ From your app directory (where `zonai.yaml` lives):
 # Dev flavor
 dart run zonai serve --flavor dev
 
-# Compile workers only (config, rules, extensions, operations, rate limits)
+# Deploy bundle (workers, migrations, settings, zonai binary under build/)
+dart run zonai build --flavor prod --release
+
+# Compile workers only into .zonai/executables/ (local serve, no build/ bundle)
 dart run zonai compile --flavor prod
 ```
 
-During development, `serve` watches worker source directories and recompiles when files change; keep the same `--flavor` for the session you intend. With **`--release`**, watchers and recompiles are disabled — run `compile --release` first. See **[release-mode.md](release-mode.md)**.
+During development, `serve` watches worker source directories and recompiles when files change; keep the same `--flavor` for the session you intend. With **`--release`**, watchers and recompiles are disabled — run `build --release` or `compile --release` first. See **[release-mode.md](release-mode.md)**.
 
 ## Environment files
 
@@ -174,7 +177,7 @@ All of these compile steps pass the same `env.dartDefineArgs` flags (omitted whe
 | Extensions  | `lib/src/extensions`       | `.zonai/executables/db_extensions.exe` |
 | Rate limits | `lib/src/rate_limit`       |
 
-`dart run zonai compile` builds all of them in one go. During development, `dart run zonai serve` recompiles when watched sources change (press `c` to recompile everything). With **`--release`**, `serve` uses pre-built executables and does not watch or recompile — run `compile --release` before serving. See **[release-mode.md](release-mode.md)**.
+`dart run zonai compile` and `dart run zonai build` both compile all workers in one go (`build` also copies migrations, settings, and a `zonai` binary into `build/`). During development, `dart run zonai serve` recompiles when watched sources change (press `c` to recompile everything). With **`--release`**, `serve` uses pre-built executables and does not watch or recompile — run `build --release` or `compile --release` before serving. See **[release-mode.md](release-mode.md)**.
 
 ### Using env in config (example)
 
@@ -213,5 +216,5 @@ dart run zonai serve --flavor dev
 - Pass **`--release`** when compiling or serving for production so worker executables are built without `--enable-asserts`. See **[release-mode.md](release-mode.md)**.
 - Treat compiled `.zonai/executables/*.exe` as containing any secrets you passed via `-D` defines.
 - Do not commit `.env` files with real credentials; add them to `.gitignore`.
-- For production, prefer CI or deploy-time env injection: set variables in the environment that runs `dart run zonai compile`, or maintain a `.env.prod` only on the build host.
+- For production, prefer CI or deploy-time env injection: set variables in the environment that runs `dart run zonai build` (or `compile`), or maintain a `.env.prod` only on the build host.
 - Missing keys compile to empty strings unless you pass `defaultValue:` to `fromEnvironment`; validate required secrets in config `main()` if needed.

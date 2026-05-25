@@ -75,7 +75,7 @@ class ItemExtensions extends Extension<Item>
 
 Only files with a `.dart` extension under `extensionsPath` are included. Define **one extension file per collection**. Each file’s `main()` must return a non-null `Extension`. If two files target the same table name, the last one loaded wins.
 
-Unlike rules and operations, extensions have **no built-in internal handlers**. You need **at least one** extension file (even a no-op class) for the worker to compile. The **`extensionsPath` directory must exist** before `zonai compile` or `zonai serve` can build extensions.
+Unlike rules and operations, extensions have **no built-in internal handlers**. You need **at least one** extension file (even a no-op class) for the worker to compile. The **`extensionsPath` directory must exist** before `zonai build`, `zonai compile`, or `zonai serve` can build extensions.
 
 ## Base class and mixins
 
