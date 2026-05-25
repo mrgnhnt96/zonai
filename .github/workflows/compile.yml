@@ -17,10 +17,11 @@ jobs:
           - os: macos-latest
             artifact_name: zonai-macos-arm64
             output_name: zonai
-          - os: macos-latest
+          - os: macos-15-intel
             artifact_name: zonai-macos-x64
             output_name: zonai
             target_arch: x64
+            dart_architecture: x64
           - os: windows-latest
             artifact_name: zonai-windows-x64
             output_name: zonai.exe
@@ -44,9 +45,17 @@ jobs:
         run: ./tool/setup_raindrop_submodule.ps1
 
       - name: Set up Dart
+        if: matrix.dart_architecture != 'x64'
         uses: dart-lang/setup-dart@v1
         with:
           sdk: "3.12.0"
+
+      - name: Set up Dart (x64)
+        if: matrix.dart_architecture == 'x64'
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+          architecture: x64
 
       - name: Install sip
         # Temporary: install from GitHub until a pub.dev release is pinned.

@@ -141,13 +141,10 @@ zonai:
         fi
 
         compile_args=(-D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT")
-        if [ -n "$TARGET_ARCH" ]; then
-          compile_args=(--target-arch "$TARGET_ARCH" "${compile_args[@]}")
-          if [ "$(uname -s)" = "Darwin" ]; then
-            compile_args=(--target-os macos "${compile_args[@]}")
-          elif [ "$(uname -s)" = "Linux" ]; then
-            compile_args=(--target-os linux "${compile_args[@]}")
-          fi
+        # Dart cannot cross-compile to macOS from Apple Silicon; macOS x64
+        # builds must run on Intel hardware (e.g. macos-15-intel in CI).
+        if [ -n "$TARGET_ARCH" ] && [ "$(uname -s)" = "Linux" ]; then
+          compile_args=(--target-os linux --target-arch "$TARGET_ARCH" "${compile_args[@]}")
         fi
 
         dart compile exe "${compile_args[@]}"
