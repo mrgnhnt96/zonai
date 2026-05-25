@@ -4,6 +4,7 @@ import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
 import 'package:watcher/watcher.dart';
+import 'package:zonai/src/deps/args.dart';
 import '../deps/clean_up.dart';
 import '../deps/fs.dart';
 import '../deps/keyboard_input.dart';
@@ -21,6 +22,7 @@ class Migrate {
   StreamSubscription<WatchEvent>? __subscription;
 
   void auto() {
+    if (args.release) return;
     if (__subscription != null) return;
 
     if (fs.directory(settings.migrationsPath) case final dir
@@ -67,6 +69,11 @@ class Migrate {
 
   Completer<int>? _running;
   Future<int> run({required String name, bool? dryRun}) async {
+    if (args.release) {
+      logger.warn('Cannot generate migrations in release mode');
+      return 0;
+    }
+
     if (_running case final completer?) {
       return completer.future;
     }

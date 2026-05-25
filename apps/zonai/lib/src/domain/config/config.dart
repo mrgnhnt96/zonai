@@ -2,17 +2,16 @@ import 'dart:async';
 
 import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
-import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/settings.dart';
 
+import '../../deps/args.dart';
 import '../../deps/clean_up.dart';
+import '../../deps/env.dart';
 import '../../deps/executable_stop.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
-import '../../deps/args.dart';
-import '../../deps/env.dart';
 import 'config_generator.dart';
 
 class Config {
@@ -27,7 +26,7 @@ class Config {
   String get executablePath => fs.path.join(settings.compiledConfigPath);
 
   void watch() {
-    if (args['release'] case true) return;
+    if (args.release) return;
     if (__subscription != null) return;
 
     __subscription = _watcher.events.listen((event) {
@@ -101,7 +100,7 @@ class Config {
       'compile',
       'exe',
       ...env.dartDefineArgs,
-      if (!kReleaseMode) '--enable-asserts',
+      if (!args.release) '--enable-asserts',
       if (buildSettings case final build?) ...[
         '--target-os',
         build.targetOs.name,

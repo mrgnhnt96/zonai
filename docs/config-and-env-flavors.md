@@ -109,7 +109,7 @@ dart run zonai serve --flavor dev
 dart run zonai compile --flavor prod
 ```
 
-`serve` watches `configPath` and recompiles when files change; keep the same `--flavor` for the session you intend.
+During development, `serve` watches worker source directories and recompiles when files change; keep the same `--flavor` for the session you intend. With **`--release`**, watchers and recompiles are disabled — run `compile --release` first. See **[release-mode.md](release-mode.md)**.
 
 ## Environment files
 
@@ -174,7 +174,7 @@ All of these compile steps pass the same `env.dartDefineArgs` flags (omitted whe
 | Extensions  | `lib/src/extensions`       | `.zonai/executables/db_extensions.exe` |
 | Rate limits | `lib/src/rate_limit`       |
 
-`dart run zonai compile` builds all of them in one go. `dart run zonai serve` compiles them on startup and recompiles when watched sources change (press `c` in the serve TUI to recompile everything).
+`dart run zonai compile` builds all of them in one go. During development, `dart run zonai serve` recompiles when watched sources change (press `c` to recompile everything). With **`--release`**, `serve` uses pre-built executables and does not watch or recompile — run `compile --release` before serving. See **[release-mode.md](release-mode.md)**.
 
 ### Using env in config (example)
 

@@ -257,6 +257,10 @@ class Args {
   Object? operator [](String key) => getOrNull(key);
 
   bool get help => wasParsed('help', abbr: 'h');
+  bool get release => switch (this['release']) {
+    true => true,
+    _ => false,
+  };
 
   @override
   String toString() {

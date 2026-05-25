@@ -18,7 +18,7 @@ class KeyboardInput {
   final List<void Function(KeyboardEvent)> _listeners;
 
   void addListener(void Function(KeyboardEvent) listener) {
-    if (args['release'] case true) return;
+    if (args.release) return;
 
     _listeners.add(listener);
   }
@@ -28,7 +28,7 @@ class KeyboardInput {
   }
 
   void watch() {
-    if (args['release'] case true) return;
+    if (args.release) return;
 
     if (__subscription != null) return;
 
@@ -66,6 +66,8 @@ class KeyboardInput {
   }
 
   void lockInput() {
+    if (args.release) return;
+
     // hide cursor
     stdout.write('\x1B[?25l');
 
@@ -76,6 +78,7 @@ class KeyboardInput {
   }
 
   void unlockInput() {
+    if (args.release) return;
     // show cursor
     stdout.write('\x1B[?25h');
 
