@@ -17,6 +17,10 @@ jobs:
           - os: macos-latest
             artifact_name: zonai-macos-arm64
             output_name: zonai
+          - os: macos-latest
+            artifact_name: zonai-macos-x64
+            output_name: zonai
+            target_arch: x64
           - os: windows-latest
             artifact_name: zonai-windows-x64
             output_name: zonai.exe
@@ -61,6 +65,8 @@ jobs:
 
       - name: Build zonai
         shell: bash
+        env:
+          TARGET_ARCH: ${{ matrix.target_arch }}
         # Use `dart pub global run` so Windows Git Bash finds sip (global stubs are .bat-only).
         run: |
           mkdir -p build-logs

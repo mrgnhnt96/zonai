@@ -9,7 +9,14 @@ resqlite:
   gen:
     (command):
       - mkdir -p apps/zonai/lib/gen/native
-      - cd libs/resqlite && dart pub get && dart run tool/build_native.dart --output ../../apps/zonai/lib/gen/native
+      - |
+        cd libs/resqlite || exit 1
+        dart pub get || exit 1
+        build_args=(--output ../../apps/zonai/lib/gen/native)
+        if [ -n "$TARGET_ARCH" ]; then
+          build_args+=(--arch "$TARGET_ARCH")
+        fi
+        dart run tool/build_native.dart "${build_args[@]}"
       - cd apps/zonai && dart run tool/generate_resqlite_native.dart
       - dart pub get
     (aliases): [resqlite-native, rn]
@@ -133,4 +140,14 @@ zonai:
           OUTPUT="$OUTPUT.exe"
         fi
 
-        dart compile exe -D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT"
+        compile_args=(-D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT")
+        if [ -n "$TARGET_ARCH" ]; then
+          compile_args=(--target-arch "$TARGET_ARCH" "${compile_args[@]}")
+          if [ "$(uname -s)" = "Darwin" ]; then
+            compile_args=(--target-os macos "${compile_args[@]}")
+          elif [ "$(uname -s)" = "Linux" ]; then
+            compile_args=(--target-os linux "${compile_args[@]}")
+          fi
+        fi
+
+        dart compile exe "${compile_args[@]}"
