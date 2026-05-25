@@ -68,10 +68,12 @@ If refresh fails (revoked token, expired token, or user deleted), treat the sess
 | Who may sign in / sign up | [rules.md](rules.md#auth-collections) |
 | Hooks on refresh (`onRefresh`) | [extensions.md](extensions.md#authextension) |
 | Per-IP refresh limits | [rate-limiting.md](rate-limiting.md#auth-operations-authcollectionratelimits) |
+| SMTP, templates, and sending email | [email.md](email.md) |
 | Public base URL in auth emails | [server-binding.md](server-binding.md) |
 
 ## See also
 
 - **[extensions.md](extensions.md)** — `onSignUp`, `onSignIn`, `onRefresh`, `onLogout` hooks
+- **[email.md](email.md)** — SMTP setup, HTML templates, and transactional email
 - **[rules.md](rules.md)** — auth collection and record rules
 - **[rate-limiting.md](rate-limiting.md)** — `refreshTokenPolicy()` and other auth limits

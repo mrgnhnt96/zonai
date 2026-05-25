@@ -2,6 +2,8 @@
 
 Zonai lets you keep multiple **app configs** (secrets, branding, email settings) and **environment files** for different targets—local dev, staging, production—without duplicating the whole project. You pick a flavor at the CLI with `--flavor <name>`.
 
+For SMTP credentials, HTML templates, and how email is sent, see **[email.md](email.md)**.
+
 Both features are resolved from the **current working directory** when you run `dart run zonai` (typically your app root, e.g. `apps/playground`).
 
 ## App config flavors

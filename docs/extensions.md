@@ -94,7 +94,7 @@ You can combine mixins on one class (for example `CreateExtension` + `UpdateExte
 
 ### Default email behavior
 
-Several hooks send email automatically when the schema implements **`HasEmail`**:
+Several hooks send email automatically when the schema implements **`HasEmail`**. For SMTP setup, template files, and variable reference, see **[email.md](email.md)**.
 
 | Hook / method        | Default email (if collection has email) |
 | -------------------- | --------------------------------------- |
@@ -183,7 +183,7 @@ Built-in email helpers on `email.send`:
 | `optCode`            | OTP code             |
 | `confirmEmailChange` | Email change confirm |
 
-Pass `collection:` and optional `variables:` for template substitution.
+Pass `collection:` and optional `variables:` for template substitution. See **[email.md](email.md)** for built-in template variables and custom `Email` sends.
 
 ## Compilation and analysis
 

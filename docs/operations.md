@@ -76,6 +76,8 @@ UserOperations main() => UserOperations();
 | `resetPasswordConfig` | Reset-password path and expiry (default `/auth/reset-password`, 10 min) |
 | `verifyEmailConfig`   | Verify-email path and expiry (default `/auth/verify-email`, 24 hours)   |
 
+Auth emails use these paths with `AppConfig.baseUrl` to build link URLs. See **[email.md](email.md)** for templates and SMTP configuration.
+
 The framework also uses operations for auth-specific SQL (lookup by email, sign-up row shape, column name resolution for password/email/id fields). You normally only override the methods above unless you need custom query behavior via the standard CRUD helpers.
 
 ## Built-in query helpers
