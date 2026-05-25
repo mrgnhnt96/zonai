@@ -21,6 +21,7 @@ class Settings {
     required this.rateLimitPath,
     required this.version,
     required this.buildSettings,
+    required this.path,
     this.basePath,
   });
 
@@ -44,6 +45,7 @@ class Settings {
     }
 
     final defaultSettings = Settings(
+      path: 'zonai.yml',
       migrationsPath: normalize([defaultZonaiDirectory, 'migrations']),
       dataPath: normalize([defaultZonaiDirectory, 'data']),
       schemasPath: normalize(['lib', 'src', 'schemas']),
@@ -65,6 +67,7 @@ class Settings {
     final map = jsonDecode(jsonEncode(yaml));
 
     return Settings(
+      path: settings.path,
       migrationsPath: switch (map['migrationsPath']) {
         final String value => normalize([value]),
         _ => defaultSettings.migrationsPath,
@@ -125,6 +128,7 @@ class Settings {
   final String emailTemplatesPath;
   final String version;
   final BuildSettings buildSettings;
+  final String path;
 
   String _normalize(List<String> paths) {
     return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));
@@ -152,6 +156,7 @@ class Settings {
       _normalize([buildExecutableDirectory, 'db_extensions.exe']);
   String get buildMigrationsPath =>
       _normalize([buildDirectory, migrationsPath]);
+  String get buildSettingsPath => _normalize([buildDirectory, path]);
 
   /// The path to the binary for the extensions
   String get compiledExecutableDirectory =>

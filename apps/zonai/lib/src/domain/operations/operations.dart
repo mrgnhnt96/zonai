@@ -60,7 +60,10 @@ class Operations {
       logger.warn('Nothing in operations, creating an empty worker');
     }
 
-    final target = fs.path.join(settings.compiledOperationsPath);
+    final target = switch (buildSettings) {
+      != null => settings.buildOperationsPath,
+      _ => settings.compiledOperationsPath,
+    };
     if (fs.file(target).parent case final dir when !dir.existsSync()) {
       dir.createSync(recursive: true);
     }

@@ -46,6 +46,10 @@ Future<int> build() async {
       ..writeAsString(migration.sql);
   }
 
+  if (fs.file(settings.path) case final file when file.existsSync()) {
+    file.copySync(settings.buildSettingsPath);
+  }
+
   if (settings.buildSettings.targetsCurrentPlatform() && kIsCompiled) {
     fs.file(settings.buildExecutablePath).copySync(Platform.executable);
   } else {
