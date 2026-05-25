@@ -154,6 +154,30 @@ class AuthNotifier extends Notifier<bool> {
     _syncRouteForAuthStateWithSignedIn(true);
   }
 
+  Future<void> refreshSession() async {
+    final token = ZonaiCookie.authToken.read();
+    if (token == null || token.isEmpty) {
+      throw StateError('No session to refresh');
+    }
+
+    try {
+      final session = await revaliServer.auth.refreshToken(
+        authorization: 'Bearer $token',
+      );
+
+      final accessToken = session?['accessToken'];
+      if (accessToken is! String || accessToken.isEmpty) {
+        throw StateError('Refresh succeeded but no access token was returned');
+      }
+
+      ZonaiCookie.authToken.write(accessToken);
+      state = true;
+    } catch (e) {
+      print(e);
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
     await _clearSession();
   }

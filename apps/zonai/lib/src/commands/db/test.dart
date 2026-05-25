@@ -60,12 +60,46 @@ Future<int> test() async {
   {
     logger.info('--------------------------------');
     logger.info('REFRESH TOKEN');
+    final oldJwt = jwt;
     final (exitCode, refreshedJwt) = await _refreshToken(jwt);
     if (exitCode != null || refreshedJwt == null) {
       return exitCode ?? 1;
     }
 
     jwt = refreshedJwt;
+
+    logger.info('VERIFY OLD TOKEN REVOKED');
+    try {
+      await zonaiDB.list(
+        'items',
+        .new(jwt: oldJwt, where: NotNull('id'), limit: 1),
+      );
+      logger.info('Expected old token to be rejected');
+      return 1;
+    } catch (_) {
+      logger.info('Old token correctly rejected');
+    }
+
+    logger.info('VERIFY OLD TOKEN CANNOT REFRESH AGAIN');
+    try {
+      await zonaiDB.refreshToken(oldJwt);
+      logger.error('Expected refresh with old token to fail');
+      return 1;
+    } catch (_) {
+      logger.info('Double refresh correctly rejected');
+    }
+
+    logger.info('VERIFY NEW TOKEN WORKS AFTER REFRESH');
+    try {
+      await zonaiDB.list(
+        'items',
+        .new(jwt: jwt, where: NotNull('id'), limit: 1),
+      );
+      logger.info('New token accepted');
+    } catch (error, stack) {
+      logger.error('Expected refreshed token to work', error, stack);
+      return 1;
+    }
   }
 
   {

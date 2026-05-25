@@ -22,7 +22,7 @@ class AuthController {
   }
 
   @BodyRateLimit<AuthBody>(.refreshToken)
-  @Post()
+  @Post('refresh')
   Future<Map<String, Object?>?> refreshToken({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
   }) async {

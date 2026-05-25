@@ -77,5 +77,11 @@ mixin AuthExtension<R> on Extension<R> {
     }
   }
 
+  /// Called when a session token is refreshed via `POST /auth/refresh`.
+  ///
+  /// The previous access token is revoked when refresh succeeds. Unlike
+  /// [onSignIn], no login notice email is sent by default.
+  Future<void> onRefresh(R user, Jwt? jwt) async {}
+
   Future<void> onLogout(R user, Jwt? jwt) async {}
 }

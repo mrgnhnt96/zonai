@@ -141,6 +141,7 @@ extension _OtpX on ZonaiDb {
         collection: challenge.collection,
         email: payload.email,
         jwt: payload.jwt,
+        extensionStep: .onSignIn,
       );
     }
 

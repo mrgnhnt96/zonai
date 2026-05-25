@@ -77,6 +77,7 @@ Override the methods that correspond to the operations you want to customize. Ea
 | ------------------- | --------------------------- | --------------------------- |
 | `authenticate`      | `authenticatePolicy()`      | `POST /auth`                |
 | `signIn`            | `signInPolicy()`            | `POST /auth/sign-in`        |
+| `refreshToken`      | `refreshTokenPolicy()`      | `POST /auth/refresh`        |
 | `signUp`            | `signUpPolicy()`            | `POST /auth/sign-up`        |
 | `sendResetPassword` | `sendResetPasswordPolicy()` | `POST /auth/reset-password` |
 | `sendVerifyEmail`   | `sendVerifyEmailPolicy()`   | `POST /auth/verify-email`   |
@@ -177,3 +178,9 @@ When a client exceeds a limit, the guard returns:
 - **Body:** `Rate limit exceeded`
 
 There is no `Retry-After` header today. Clients should back off until the policy window expires.
+
+## See also
+
+- **[auth.md](auth.md)** — session tokens and the refresh endpoint
+- **[extensions.md](extensions.md)** — lifecycle hooks around mutations and auth
+- **[rules.md](rules.md)** — authorization (checked before rate limits on data routes)

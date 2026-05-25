@@ -167,6 +167,7 @@ extension _MagicLinkX on ZonaiDb {
         collection: challenge.collection,
         email: email,
         jwt: payload.jwt,
+        extensionStep: .onSignIn,
       );
     }
 

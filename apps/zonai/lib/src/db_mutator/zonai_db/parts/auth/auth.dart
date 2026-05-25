@@ -22,6 +22,7 @@ extension _AuthX on ZonaiDb {
       collection: oldJwt.collection,
       email: email,
       jwt: null,
+      extensionStep: .onRefresh,
     );
 
     final db = await open();
@@ -100,6 +101,7 @@ extension _AuthX on ZonaiDb {
     required String collection,
     required String email,
     required String? jwt,
+    required AuthExtensionStep extensionStep,
   }) async {
     if (jwt != null) {
       throw StateError('User already authenticated');
@@ -112,13 +114,21 @@ extension _AuthX on ZonaiDb {
 
     final (newJwt, token) = await _createJwt(collection, user);
 
-    await _extensions.send<NoActionExtensionResponse>(
-      AuthExtensionRequest.onSignIn(
+    await _extensions.send<NoActionExtensionResponse>(switch (extensionStep) {
+      .onSignIn => AuthExtensionRequest.onSignIn(
         collection: collection,
         object: user,
         jwt: newJwt,
       ),
-    );
+      .onRefresh => AuthExtensionRequest.onRefresh(
+        collection: collection,
+        object: user,
+        jwt: newJwt,
+      ),
+      _ => throw ArgumentError(
+        'Unsupported auth extension step: $extensionStep',
+      ),
+    });
 
     await _executeEffects();
 
