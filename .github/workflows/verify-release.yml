@@ -1,0 +1,85 @@
+name: Verify Release
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Compile]
+    types: [completed]
+
+jobs:
+  verify:
+    name: ${{ matrix.artifact_name }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: zonai-linux-x64
+            executable_name: zonai
+          - os: macos-latest
+            artifact_name: zonai-macos-arm64
+            executable_name: zonai
+          - os: macos-15-intel
+            artifact_name: zonai-macos-x64
+            executable_name: zonai
+          - os: windows-latest
+            artifact_name: zonai-windows-x64
+            executable_name: zonai.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # GITHUB_TOKEN cannot read private submodule repos; raindrop is private.
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Configure raindrop sparse checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/setup_raindrop_submodule.ps1
+
+      - name: Download artifact (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ${{ matrix.artifact_name }}
+          path: build
+
+      - name: Download artifact (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: ${{ matrix.artifact_name }}
+          path: build
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Verify release artifact (Unix)
+        if: runner.os != 'Windows'
+        run: bash tool/ci/verify_release_artifact.sh "build/${{ matrix.executable_name }}"
+
+      - name: Verify release artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/ci/verify_release_artifact.ps1 -Executable "build/${{ matrix.executable_name }}"
