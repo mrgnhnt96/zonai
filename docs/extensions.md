@@ -1,10 +1,10 @@
 # Extensions
 
-Zonai **extensions** are lifecycle hooks that run around database mutations and auth events. They let you run Dart code when records are created, updated, or deleted, or when users sign up, sign in, or log out — without putting that logic in HTTP handlers or SQL.
+Zonai **extensions** are lifecycle hooks that run around database mutations and auth events. They let you run Dart code when records are created, updated, or deleted, or when users sign up, sign in, refresh their session, or log out — without putting that logic in HTTP handlers or SQL.
 
 Extensions are defined under your project’s **`extensionsPath`** (default `lib/src/extensions`, overridable in `zonai.yaml`). At compile time, Zonai bundles your extension classes into the `db_extensions` worker executable.
 
-Extensions do **not** replace [rules](rules.md) or [operations](operations.md). Rules decide *whether* a request is allowed; operations build SQL; extensions run *before or after* those steps to observe or react to changes.
+Extensions do **not** replace [rules](rules.md) or [operations](operations.md). Rules decide _whether_ a request is allowed; operations build SQL; extensions run _before or after_ those steps to observe or react to changes.
 
 ## How it works
 
@@ -26,21 +26,22 @@ collection rules → record rules → beforeCreate → SQL insert → afterCreat
                                                afterCreateError
 ```
 
-| Operation | Before SQL                         | After SQL success              | After SQL error        |
-| --------- | ---------------------------------- | ------------------------------ | ---------------------- |
-| Create    | `beforeCreate`                     | `afterCreateSuccess`           | `afterCreateError`     |
-| Update    | `beforeUpdate`                     | `afterUpdateSuccess`           | `afterUpdateError`     |
-| Delete    | `beforeDelete`                     | `afterDeleteSuccess`           | `afterDeleteError`     |
+| Operation | Before SQL     | After SQL success    | After SQL error    |
+| --------- | -------------- | -------------------- | ------------------ |
+| Create    | `beforeCreate` | `afterCreateSuccess` | `afterCreateError` |
+| Update    | `beforeUpdate` | `afterUpdateSuccess` | `afterUpdateError` |
+| Delete    | `beforeDelete` | `afterDeleteSuccess` | `afterDeleteError` |
 
 Update hooks receive the row **before** the patch is applied (`beforeUpdate`) and typed **before/after** rows on success (`afterUpdateSuccess`). Delete hooks receive the rows about to be removed.
 
 Auth hooks run after the auth flow succeeds (JWT issued or session cleared):
 
-| Hook       | When called                          |
-| ---------- | ------------------------------------ |
-| `onSignUp` | New user registered                  |
-| `onSignIn` | Existing user signed in              |
-| `onLogout` | User logged out                      |
+| Hook        | When called             |
+| ----------- | ----------------------- |
+| `onSignUp`  | New user registered     |
+| `onSignIn`  | Existing user signed in |
+| `onRefresh` | Session token refreshed |
+| `onLogout`  | User logged out         |
 
 For auth hooks, the **`jwt` argument is the caller making the request**, not necessarily the user row in `object`. On sign-up, `jwt` is typically `null`.
 
@@ -82,12 +83,12 @@ Extend **`Extension<R>`** with your row type `R` and pass the schema getter (for
 
 Add only the mixins you need:
 
-| Mixin            | Use for                                      |
-| ---------------- | -------------------------------------------- |
-| `CreateExtension` | Create hooks                                |
-| `UpdateExtension` | Update hooks                                |
-| `DeleteExtension` | Delete hooks                                |
-| `AuthExtension`   | Sign-up, sign-in, logout hooks (auth collections) |
+| Mixin             | Use for                                                    |
+| ----------------- | ---------------------------------------------------------- |
+| `CreateExtension` | Create hooks                                               |
+| `UpdateExtension` | Update hooks                                               |
+| `DeleteExtension` | Delete hooks                                               |
+| `AuthExtension`   | Sign-up, sign-in, refresh, logout hooks (auth collections) |
 
 You can combine mixins on one class (for example `CreateExtension` + `UpdateExtension` + `DeleteExtension` on a regular collection, or add `AuthExtension` on a user collection).
 
@@ -109,46 +110,47 @@ All hook methods are `async` and receive an optional **`Jwt?`** for the authenti
 
 ### `CreateExtension`
 
-| Method               | Arguments              | Purpose                                      |
-| -------------------- | ---------------------- | -------------------------------------------- |
-| `beforeCreate`       | `R object`, `Jwt? jwt` | Run before insert; throw to abort            |
-| `afterCreateSuccess` | `R row`, `Jwt? jwt`    | Run after row is in the database             |
-| `afterCreateError`   | `Object error`, `Jwt? jwt` | Run when insert fails                    |
+| Method               | Arguments                  | Purpose                           |
+| -------------------- | -------------------------- | --------------------------------- |
+| `beforeCreate`       | `R object`, `Jwt? jwt`     | Run before insert; throw to abort |
+| `afterCreateSuccess` | `R row`, `Jwt? jwt`        | Run after row is in the database  |
+| `afterCreateError`   | `Object error`, `Jwt? jwt` | Run when insert fails             |
 
 ### `UpdateExtension`
 
-| Method               | Arguments                         | Purpose                           |
-| -------------------- | --------------------------------- | --------------------------------- |
-| `beforeUpdate`       | `R row`, `Jwt? jwt`               | Run before patch; throw to abort  |
-| `afterUpdateSuccess` | `R before`, `R after`, `Jwt? jwt` | Run after successful update       |
-| `afterUpdateError`   | `Object error`, `Jwt? jwt`        | Run when update fails             |
+| Method               | Arguments                         | Purpose                          |
+| -------------------- | --------------------------------- | -------------------------------- |
+| `beforeUpdate`       | `R row`, `Jwt? jwt`               | Run before patch; throw to abort |
+| `afterUpdateSuccess` | `R before`, `R after`, `Jwt? jwt` | Run after successful update      |
+| `afterUpdateError`   | `Object error`, `Jwt? jwt`        | Run when update fails            |
 
 ### `DeleteExtension`
 
-| Method               | Arguments              | Purpose                           |
-| -------------------- | ---------------------- | --------------------------------- |
-| `beforeDelete`       | `R row`, `Jwt? jwt`    | Run before delete; throw to abort |
-| `afterDeleteSuccess` | `R row`, `Jwt? jwt`    | Run after rows are removed        |
-| `afterDeleteError`   | `Object error`, `Jwt? jwt` | Run when delete fails         |
+| Method               | Arguments                  | Purpose                           |
+| -------------------- | -------------------------- | --------------------------------- |
+| `beforeDelete`       | `R row`, `Jwt? jwt`        | Run before delete; throw to abort |
+| `afterDeleteSuccess` | `R row`, `Jwt? jwt`        | Run after rows are removed        |
+| `afterDeleteError`   | `Object error`, `Jwt? jwt` | Run when delete fails             |
 
 ### `AuthExtension`
 
-| Method     | Arguments           | Purpose                    |
-| ---------- | ------------------- | -------------------------- |
-| `onSignUp` | `R user`, `Jwt? jwt`| After successful sign-up   |
-| `onSignIn` | `R user`, `Jwt? jwt`| After successful sign-in   |
-| `onLogout` | `R user`, `Jwt? jwt`| After logout               |
+| Method      | Arguments            | Purpose                                                     |
+| ----------- | -------------------- | ----------------------------------------------------------- |
+| `onSignUp`  | `R user`, `Jwt? jwt` | After successful sign-up                                    |
+| `onSignIn`  | `R user`, `Jwt? jwt` | After successful sign-in                                    |
+| `onRefresh` | `R user`, `Jwt? jwt` | After a new access token is issued via `POST /auth/refresh` |
+| `onLogout`  | `R user`, `Jwt? jwt` | After logout                                                |
 
 ## Side effects: `get`, `mutate`, and `email`
 
 Inside the extension worker, Zonai exposes globals (from `package:zonai_schema/zonai_schema.dart`) that talk back to the server:
 
-| Global   | Purpose                                                                 |
-| -------- | ----------------------------------------------------------------------- |
-| `get`    | Read rows (`get.one`, `get.many`) with the same rules as the public API |
+| Global   | Purpose                                                                                |
+| -------- | -------------------------------------------------------------------------------------- |
+| `get`    | Read rows (`get.one`, `get.many`) with the same rules as the public API                |
 | `mutate` | Queue creates, updates, or deletes (`mutate.create`, `mutate.update`, `mutate.delete`) |
-| `email`  | Send custom or built-in transactional email                               |
-| `logger` | Log at debug/info/warn/error (forwarded to the server console)          |
+| `email`  | Send custom or built-in transactional email                                            |
+| `logger` | Log at debug/info/warn/error (forwarded to the server console)                         |
 
 **Reads** (`get`) run immediately and respect collection/record rules for the JWT passed to the hook.
 
@@ -172,14 +174,14 @@ Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
 
 Built-in email helpers on `email.send`:
 
-| Method              | Purpose              |
-| ------------------- | -------------------- |
-| `verifyEmail`       | Email verification   |
-| `loginNotice`       | Login notification   |
-| `passwordReset`     | Password reset link  |
-| `magicLink`         | Magic-link sign-in   |
-| `optCode`           | OTP code             |
-| `confirmEmailChange`| Email change confirm |
+| Method               | Purpose              |
+| -------------------- | -------------------- |
+| `verifyEmail`        | Email verification   |
+| `loginNotice`        | Login notification   |
+| `passwordReset`      | Password reset link  |
+| `magicLink`          | Magic-link sign-in   |
+| `optCode`            | OTP code             |
+| `confirmEmailChange` | Email change confirm |
 
 Pass `collection:` and optional `variables:` for template substitution.
 
@@ -247,10 +249,11 @@ class ItemExtensions extends Extension<Item>
 }
 ```
 
-For auth collections, mix in `AuthExtension` and override `onSignUp`, `onSignIn`, or `onLogout` as needed.
+For auth collections, mix in `AuthExtension` and override `onSignUp`, `onSignIn`, `onRefresh`, or `onLogout` as needed.
 
 ## See also
 
+- **[auth.md](auth.md)** — session tokens and the refresh endpoint
 - **[rules.md](rules.md)** — authorization (checked before extension hooks)
 - **[operations.md](operations.md)** — SQL generation (runs after before-hooks)
 - **[rate-limiting.md](rate-limiting.md)** — per-operation request limits
