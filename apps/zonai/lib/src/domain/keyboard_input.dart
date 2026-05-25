@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' show stdout;
 
 import '../deps/clean_up.dart';
+import '../deps/args.dart';
 import '../deps/logger.dart';
 import '../deps/stdin.dart';
 
@@ -17,6 +18,8 @@ class KeyboardInput {
   final List<void Function(KeyboardEvent)> _listeners;
 
   void addListener(void Function(KeyboardEvent) listener) {
+    if (args['release'] case true) return;
+
     _listeners.add(listener);
   }
 
@@ -25,6 +28,8 @@ class KeyboardInput {
   }
 
   void watch() {
+    if (args['release'] case true) return;
+
     if (__subscription != null) return;
 
     __subscription = stdin.stream

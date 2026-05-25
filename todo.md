@@ -67,16 +67,6 @@ The dashboard will be the first page on website load. It should show a quick ove
 
 - [ ] Create schema (auto create all classes)
 
-## 4.15.2026
-
-- [ ] Support compiling to different arch-types
-- [ ] Compile for linux
-
-### Other
-
-- when deployed, the cli should not watch the filesystem for changes, not have the ability to recompile
-  - use the `--release` flag to determine this
-
 ## Raindrop
 
 - [ ] Add feature to alert/fail on breaking changes
