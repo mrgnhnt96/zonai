@@ -6,6 +6,10 @@ on:
     workflows: [Compile]
     types: [completed]
 
+permissions:
+  actions: read
+  contents: read
+
 jobs:
   verify:
     name: ${{ matrix.artifact_name }}
