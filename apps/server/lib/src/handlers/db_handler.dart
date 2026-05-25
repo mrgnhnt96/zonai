@@ -127,6 +127,13 @@ class DbHandler {
     );
   }
 
+  Stream<int> streamCount(String? authorization, StreamCountBody body) {
+    return zonaiDB.streamCount(
+      body.collection,
+      .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
+    );
+  }
+
   String? _parseBearerAuthorization(String? authorizationHeader) {
     if (authorizationHeader == null) {
       return null;

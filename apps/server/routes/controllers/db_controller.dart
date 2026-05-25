@@ -77,6 +77,15 @@ class DbController {
     await dbHandler.deleteMany(authorization, body);
   }
 
+  @QueryRateLimit<CountBody>(.count)
+  @Get('count')
+  Future<int> count({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Query() required CountBody body,
+  }) async {
+    return await dbHandler.count(authorization, body);
+  }
+
   @BodyRateLimit<StreamBody>(.get)
   @Get('stream')
   Stream<Map<String, Object?>> streamOne({
@@ -95,12 +104,12 @@ class DbController {
     return dbHandler.streamList(authorization, body);
   }
 
-  @QueryRateLimit<CountBody>(.count)
-  @Get('count')
-  Future<int> count({
+  @BodyRateLimit<StreamCountBody>(.count)
+  @Get('stream/count')
+  Stream<int> streamCount({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
-    @Query() required CountBody body,
-  }) async {
-    return await dbHandler.count(authorization, body);
+    @Body() required StreamCountBody body,
+  }) {
+    return dbHandler.streamCount(authorization, body);
   }
 }
