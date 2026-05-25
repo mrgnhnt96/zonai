@@ -50,6 +50,8 @@ See **[config-and-env-flavors.md](config-and-env-flavors.md)** for file preceden
 
 For production builds and server deploys, pass **`--release`** so worker executables are compiled without `--enable-asserts`. See **[release-mode.md](release-mode.md)**.
 
+To change which address the HTTP server listens on, set **`host`** and **`port`** in `zonai.yaml` or pass **`--host`** / **`--port`** to `serve`. See **[server-binding.md](server-binding.md)**.
+
 ## 5. Collection operations
 
 Each database collection needs an operations class that turns API requests into SQL. Add one Dart file per collection under `lib/src/operations` (or your `operationsPath`). See **[operations.md](operations.md)** for layout, `CollectionOperations`, auth mixins, and custom operations.

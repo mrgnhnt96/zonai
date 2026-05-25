@@ -22,6 +22,8 @@ class Settings {
     required this.version,
     required this.buildSettings,
     required this.path,
+    this.host,
+    this.port,
     this.basePath,
   });
 
@@ -112,6 +114,14 @@ class Settings {
         final Map<String, dynamic> value => BuildSettings.fromJson(value),
         _ => defaultSettings.buildSettings,
       },
+      host: switch (map['host']) {
+        final String value => value,
+        _ => defaultSettings.host,
+      },
+      port: switch (map['port']) {
+        final int value => value,
+        _ => defaultSettings.port,
+      },
       basePath: basePath,
     );
   }
@@ -129,6 +139,8 @@ class Settings {
   final String version;
   final BuildSettings buildSettings;
   final String path;
+  final String? host;
+  final int? port;
 
   String _normalize(List<String> paths) {
     return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));
