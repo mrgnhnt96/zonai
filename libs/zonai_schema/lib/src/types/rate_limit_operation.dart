@@ -8,6 +8,7 @@ enum RateLimitOperation {
   signIn,
   signUp,
   authenticate,
+  refreshToken,
   sendResetPassword,
   sendVerifyEmail,
   confirm,

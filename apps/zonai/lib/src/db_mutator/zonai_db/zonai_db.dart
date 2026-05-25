@@ -117,6 +117,10 @@ class ZonaiDb {
     return await _run(() => _authenticate(collection, payload));
   }
 
+  Future<_AuthResult?> refreshToken(String jwt) async {
+    return await _run(() => _refreshToken(jwt));
+  }
+
   Future<void> sendResetPassword(
     String collection,
     ResetPasswordAuthPayload payload,

@@ -60,6 +60,10 @@ class DbRateLimits {
     final defaults = _defaultBucket;
 
     final policy = switch (request.operation) {
+      .refreshToken => switch (bucket?.auth) {
+        null => defaults.auth.refreshTokenPolicy(),
+        final c => c.refreshTokenPolicy(),
+      },
       .get => switch (bucket?.collection) {
         null => defaults.collection.getPolicy(),
         final c => c.getPolicy(),
@@ -152,50 +156,45 @@ class _DefaultBucket {
 final class _DefaultCollectionRateLimits {
   const _DefaultCollectionRateLimits();
 
-  Future<RateLimitPolicy?> getPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> getPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> limitPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> limitPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> countPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> countPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> createPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> createPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> updatePolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> updatePolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> deletePolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> deletePolicy() async => .defaultPolicy;
 }
 
 final class _DefaultAuthCollectionRateLimits {
   const _DefaultAuthCollectionRateLimits();
 
-  Future<RateLimitPolicy?> signInPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> signInPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> signUpPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> refreshTokenPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> authenticatePolicy() async =>
-      RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> signUpPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> sendResetPasswordPolicy() async =>
-      RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> authenticatePolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> sendVerifyEmailPolicy() async =>
-      RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> sendResetPasswordPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> confirmPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> sendVerifyEmailPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> sendOtpPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> confirmPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> sendMagicLinkPolicy() async =>
-      RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> sendOtpPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> logoutPolicy() async => RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> sendMagicLinkPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> logoutAllPolicy() async =>
-      RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> logoutPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> adminAuthenticatePolicy() async =>
-      RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> logoutAllPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> adminSignInPolicy() async =>
-      RateLimitPolicy.defaultPolicy;
+  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
+
+  Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
 }

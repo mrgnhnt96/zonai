@@ -3,6 +3,33 @@ part of zonai_db;
 typedef _AuthResult = ({Map<String, Object?> user, String jwt});
 
 extension _AuthX on ZonaiDb {
+  Future<_AuthResult?> _refreshToken(String token) async {
+    final oldJwt = await _extractJwt(JwtPayload(jwt: token));
+    if (oldJwt == null) {
+      throw StateError('Invalid JWT');
+    }
+
+    final emailColumn = await _operations.send<ColumnNameResponse>(
+      GetColumnNameRequest(collection: oldJwt.collection, columnName: .email),
+    );
+
+    final email = switch (oldJwt.user[emailColumn.name]) {
+      final String email => email,
+      _ => throw StateError('Email not found'),
+    };
+
+    final result = await _signIntoCollection(
+      collection: oldJwt.collection,
+      email: email,
+      jwt: null,
+    );
+
+    final db = await open();
+    await db.delete(from: jwts).where(jwts.id.equals(oldJwt.jwtId));
+
+    return result;
+  }
+
   /// Signs in a user if the credentials are valid
   ///
   /// Signs up a user if the record does not exist

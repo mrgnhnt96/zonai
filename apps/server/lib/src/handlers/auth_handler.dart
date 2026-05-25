@@ -15,6 +15,20 @@ class AuthHandler {
     );
   }
 
+  Future<Map<String, Object?>?> refreshToken(String authorization) async {
+    final token = switch (authorization) {
+      final String bearerToken => _parseBearerAuthorization(bearerToken),
+    };
+
+    final result = await zonaiDB.refreshToken(token);
+
+    if (result == null) {
+      throw StateError('Failed to refresh token');
+    }
+
+    return _sessionPayload(result.user, result.jwt);
+  }
+
   Future<Map<String, Object?>?> authenticate(
     AuthBody body, {
     String? authorization,

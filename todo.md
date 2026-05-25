@@ -39,13 +39,11 @@ The dashboard will be the first page on website load. It should show a quick ove
 ### API
 
 - [ ] Upload files (to local storage)
-- [ ] Support `order_by` in queries
 - [ ] Export records as JSON
 - [ ] Add streamCount as new endpoint
 - [ ] Blacklist IPs (needs to be outside of code to be reactive)
 - [ ] Add last seen to jwt entry (?)
 - [ ] Add refresh token endpoint (returns new JWT)
-- [ ] add ability to set host and port in flags or .env
 
 ## Cron
 

@@ -21,6 +21,14 @@ class AuthController {
     return await authHandler.authenticate(body, authorization: authorization);
   }
 
+  @BodyRateLimit<AuthBody>(.refreshToken)
+  @Post()
+  Future<Map<String, Object?>?> refreshToken({
+    @Header(HttpHeaders.authorizationHeader) required String authorization,
+  }) async {
+    return await authHandler.refreshToken(authorization);
+  }
+
   @BodyRateLimit<ResetPasswordAuthBody>(.sendResetPassword)
   @Post('reset-password')
   Future<void> sendResetPassword({

@@ -59,6 +59,17 @@ Future<int> test() async {
 
   {
     logger.info('--------------------------------');
+    logger.info('REFRESH TOKEN');
+    final (exitCode, refreshedJwt) = await _refreshToken(jwt);
+    if (exitCode != null || refreshedJwt == null) {
+      return exitCode ?? 1;
+    }
+
+    jwt = refreshedJwt;
+  }
+
+  {
+    logger.info('--------------------------------');
     logger.info('ADMIN SIGN IN');
     final (exitCode, signedInJwt) = await _adminSignIn(email);
     if (exitCode != null || signedInJwt == null) {
@@ -183,6 +194,14 @@ Future<(int?, String?)> _signIn(String email) async {
   );
 
   logger.info('Signed in user: ${result!.user['id']}');
+
+  return (null, result.jwt);
+}
+
+Future<(int?, String?)> _refreshToken(String jwt) async {
+  final result = await zonaiDB.refreshToken(jwt);
+
+  logger.info('Refreshed token for user: ${result!.user['id']}');
 
   return (null, result.jwt);
 }
