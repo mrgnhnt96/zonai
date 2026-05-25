@@ -4,6 +4,7 @@ import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai/src/deps/env.dart';
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/settings.dart';
 
 import '../../deps/clean_up.dart';
 import '../../deps/executable_stop.dart';
@@ -63,7 +64,7 @@ class Config {
     return true;
   }
 
-  Future<void> compile() async {
+  Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
     executableStop.request(executablePath);
@@ -83,7 +84,11 @@ class Config {
       return;
     }
 
-    final target = fs.path.join(settings.compiledConfigPath);
+    final target = switch (buildSettings) {
+      != null => settings.buildConfigPath,
+      _ => settings.compiledConfigPath,
+    };
+
     if (fs.file(target).parent case final dir when !dir.existsSync()) {
       dir.createSync(recursive: true);
     }
@@ -95,6 +100,12 @@ class Config {
       'exe',
       ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
+      if (buildSettings case final build?) ...[
+        '--target-os',
+        build.targetOs.name,
+        '--target-arch',
+        build.targetArch.name,
+      ],
       ConfigGenerator.executablePath,
       '-o',
       target,

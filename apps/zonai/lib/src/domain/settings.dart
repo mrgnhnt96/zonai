@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:yaml/yaml.dart';
 import 'package:zonai/gen/version.dart';
+import 'package:zonai/src/domain/arch.dart';
+import 'package:zonai/src/domain/target_os.dart';
+
 import '../deps/args.dart';
 import '../deps/fs.dart';
 
@@ -17,6 +20,7 @@ class Settings {
     required this.emailTemplatesPath,
     required this.rateLimitPath,
     required this.version,
+    required this.buildSettings,
     this.basePath,
   });
 
@@ -49,6 +53,7 @@ class Settings {
       configPath: normalize(['lib', 'src', 'config']),
       emailTemplatesPath: normalize(['lib', 'src', 'email_templates']),
       rateLimitPath: normalize(['lib', 'src', 'rate_limit']),
+      buildSettings: BuildSettings.current(),
       version: kVersion,
     );
 
@@ -100,6 +105,10 @@ class Settings {
         final String value => value,
         _ => defaultSettings.version,
       },
+      buildSettings: switch (map['buildSettings']) {
+        final Map<String, dynamic> value => BuildSettings.fromJson(value),
+        _ => defaultSettings.buildSettings,
+      },
       basePath: basePath,
     );
   }
@@ -115,22 +124,87 @@ class Settings {
   final String? basePath;
   final String emailTemplatesPath;
   final String version;
+  final BuildSettings buildSettings;
 
   String _normalize(List<String> paths) {
     return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));
   }
 
+  String get buildDirectory => _normalize(['build']);
+  String get buildExecutableDirectory =>
+      _normalize([buildDirectory, compiledExecutableDirectory]);
+  String get buildExecutablePath => _normalize([
+    buildDirectory,
+    switch (buildSettings.targetOs) {
+      .windows => 'zonai.exe',
+      _ => 'zonai',
+    },
+  ]);
+  String get buildRulesPath =>
+      _normalize([buildExecutableDirectory, 'db_rules.exe']);
+  String get buildOperationsPath =>
+      _normalize([buildExecutableDirectory, 'db_operations.exe']);
+  String get buildConfigPath =>
+      _normalize([buildExecutableDirectory, 'db_config.exe']);
+  String get buildRateLimitPath =>
+      _normalize([buildExecutableDirectory, 'db_rate_limit.exe']);
+  String get buildExtensionsPath =>
+      _normalize([buildExecutableDirectory, 'db_extensions.exe']);
+  String get buildMigrationsPath =>
+      _normalize([buildDirectory, migrationsPath]);
+
   /// The path to the binary for the extensions
+  String get compiledExecutableDirectory =>
+      _normalize([defaultZonaiDirectory, 'executables']);
   String get compiledExtensionsPath =>
-      _normalize([defaultZonaiDirectory, 'executables', 'db_extensions.exe']);
+      _normalize([compiledExecutableDirectory, 'db_extensions.exe']);
   String get compiledRulesPath =>
-      _normalize([defaultZonaiDirectory, 'executables', 'db_rules.exe']);
+      _normalize([compiledExecutableDirectory, 'db_rules.exe']);
   String get compiledOperationsPath =>
-      _normalize([defaultZonaiDirectory, 'executables', 'db_operations.exe']);
+      _normalize([compiledExecutableDirectory, 'db_operations.exe']);
   String get compiledConfigPath =>
-      _normalize([defaultZonaiDirectory, 'executables', 'db_config.exe']);
+      _normalize([compiledExecutableDirectory, 'db_config.exe']);
   String get compiledRateLimitPath =>
-      _normalize([defaultZonaiDirectory, 'executables', 'db_rate_limit.exe']);
+      _normalize([compiledExecutableDirectory, 'db_rate_limit.exe']);
+
   String get zonaiSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai.sqlite'));
+}
+
+class BuildSettings {
+  BuildSettings({required this.targetOs, required this.targetArch}) {
+    if (!TargetOs.current().canCompile(targetOs)) {
+      throw Exception('Target OS is not compatible with current architecture');
+    }
+  }
+
+  factory BuildSettings.fromJson(Map<String, dynamic> json) {
+    return BuildSettings(
+      targetOs: TargetOs.values.byName(json['targetOs']),
+      targetArch: Arch.values.byName(json['targetArch']),
+    );
+  }
+
+  static BuildSettings current() {
+    return BuildSettings(
+      targetOs: TargetOs.current(),
+      targetArch: Arch.current(),
+    );
+  }
+
+  final TargetOs targetOs;
+  final Arch targetArch;
+
+  bool targetsCurrentPlatform() {
+    return targetOs == TargetOs.current() && targetArch == Arch.current();
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'targetOs': targetOs.name, 'targetArch': targetArch.name};
+  }
+
+  @override
+  String toString() {
+    return 'BuildSettings(os: ${targetOs.name}, arch: ${targetArch.name})';
+  }
 }

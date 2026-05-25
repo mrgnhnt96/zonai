@@ -1,3 +1,4 @@
+import 'package:zonai/src/commands/build.dart';
 import 'package:zonai/src/commands/version.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/versions.dart';
@@ -13,6 +14,7 @@ Usage: zonai <command> [options]
 Commands:
   help        Show help information
   version     Show version information
+  build       Build the application for deployment
   db          Manage database
   serve       Serve the application
   compile     Compile all workers
@@ -38,6 +40,8 @@ Future<int> run() async {
   switch (args.path) {
     case ['version', ...final path]:
       return await version(path);
+    case ['build']:
+      return await build();
     case ['db', ...final path]:
       return await db(path);
     case ['serve']:

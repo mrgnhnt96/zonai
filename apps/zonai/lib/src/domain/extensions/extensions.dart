@@ -4,6 +4,7 @@ import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai/src/deps/env.dart';
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/settings.dart';
 import '../../deps/clean_up.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
@@ -41,7 +42,7 @@ class Extensions {
 
   String get executablePath => fs.path.join(settings.compiledExtensionsPath);
 
-  Future<void> compile() async {
+  Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
     executableStop.request(executablePath);
@@ -60,7 +61,11 @@ class Extensions {
       return;
     }
 
-    final target = fs.path.join(settings.compiledExtensionsPath);
+    final target = switch (buildSettings) {
+      != null => settings.buildExtensionsPath,
+      _ => settings.compiledExtensionsPath,
+    };
+
     if (fs.file(target).parent case final dir when !dir.existsSync()) {
       dir.createSync(recursive: true);
     }
@@ -72,6 +77,12 @@ class Extensions {
       'exe',
       ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
+      if (buildSettings case final build?) ...[
+        '--target-os',
+        build.targetOs.name,
+        '--target-arch',
+        build.targetArch.name,
+      ],
       ExtensionGenerator.executablePath,
       '-o',
       target,

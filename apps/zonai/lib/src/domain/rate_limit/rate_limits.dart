@@ -4,6 +4,7 @@ import 'package:file/file.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai/src/deps/env.dart';
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/settings.dart';
 
 import '../../deps/clean_up.dart';
 import '../../deps/executable_stop.dart';
@@ -41,7 +42,7 @@ final class RateLimitsCompiler {
     __subscription = null;
   }
 
-  Future<void> compile() async {
+  Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
     executableStop.request(executablePath);
@@ -59,7 +60,11 @@ final class RateLimitsCompiler {
       logger.warn('Nothing in rate limits, creating an empty worker');
     }
 
-    final target = settings.compiledRateLimitPath;
+    final target = switch (buildSettings) {
+      != null => settings.buildRateLimitPath,
+      _ => settings.compiledRateLimitPath,
+    };
+
     if (fs.file(target).parent case final dir when !dir.existsSync()) {
       dir.createSync(recursive: true);
     }
@@ -71,6 +76,12 @@ final class RateLimitsCompiler {
       'exe',
       ...env.dartDefineArgs,
       if (!kReleaseMode) '--enable-asserts',
+      if (buildSettings case final build?) ...[
+        '--target-os',
+        build.targetOs.name,
+        '--target-arch',
+        build.targetArch.name,
+      ],
       RateLimitGenerator.executablePath,
       '-o',
       target,

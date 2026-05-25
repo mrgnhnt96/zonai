@@ -1,12 +1,14 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:http/http.dart' as http;
 import 'package:zonai/deps.dart';
 import 'package:zonai/gen/version.dart';
+import 'package:zonai/src/domain/arch.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/settings.dart';
+import 'package:zonai/src/domain/target_os.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
 const _repo = 'mrgnhnt96/zonai';
@@ -21,6 +23,10 @@ class Versions {
   ///
   /// Disable by passing `--no-version-check`
   Future<void> checkForUpdate() async {
+    if (!kIsCompiled) {
+      return;
+    }
+
     if (args['no-version-check'] case true) {
       return;
     }
@@ -87,6 +93,29 @@ class Versions {
     return null;
   }
 
+  Future<void> downloadBinary({
+    required String version,
+    required String targetDestination,
+    required TargetOs targetOs,
+    required Arch targetArch,
+  }) async {
+    logger.debug('Downloading binary for $targetOs/$targetArch');
+    logger.debug('Version: $version');
+    logger.debug('Target destination: $targetDestination');
+
+    final release = await _fetchRelease(version);
+    final assetName = _artifactNameFor(targetOs, targetArch);
+    final asset = _findAsset(release, assetName);
+
+    final response = await _downloadAsset(asset);
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to download binary for $assetName');
+    }
+
+    await _installExecutableFromArchive(targetDestination, response.bodyBytes);
+  }
+
   Future<void> downloadUpdate([String? version]) async {
     if (!kIsCompiled) {
       throw Exception('Cannot download update for non-compiled version');
@@ -102,16 +131,18 @@ class Versions {
       return;
     }
 
-    final asset = _findAsset(release, _artifactName);
-    final response = await http.get(
-      Uri.parse(asset['browser_download_url'] as String),
-    );
+    final assetName = _artifactName;
+    final asset = _findAsset(release, assetName);
+    final response = await _downloadAsset(asset);
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to download update for $_artifactName');
+      throw Exception('Failed to download update for $assetName');
     }
 
-    await _installExecutable(Platform.executable, response.bodyBytes);
+    await _installExecutableFromArchive(
+      Platform.executable,
+      response.bodyBytes,
+    );
   }
 
   String _parseVersion(Map<String, dynamic> release) {
@@ -119,25 +150,59 @@ class Versions {
   }
 
   Future<Map<String, dynamic>> _fetchLatestRelease() async {
-    final response = await http.get(Uri.parse('$_apiBase/releases/latest'));
+    final response = await _githubGet(Uri.parse('$_apiBase/releases/latest'));
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to get latest version');
+      throw _releaseRequestError('latest release', response.statusCode);
     }
 
     return json.decode(response.body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> _fetchRelease(String version) async {
-    final response = await http.get(
-      Uri.parse('$_apiBase/releases/tags/v$version'),
+    final tag = version.startsWith('v') ? version : 'v$version';
+    final response = await _githubGet(
+      Uri.parse('$_apiBase/releases/tags/$tag'),
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to get release v$version');
+      throw _releaseRequestError(tag, response.statusCode);
     }
 
     return json.decode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<http.Response> _githubGet(Uri uri) {
+    return http.get(uri, headers: _githubHeaders);
+  }
+
+  Future<http.Response> _downloadAsset(Map<String, dynamic> asset) {
+    return http.get(
+      Uri.parse(asset['url'] as String),
+      headers: {..._githubHeaders, 'Accept': 'application/octet-stream'},
+    );
+  }
+
+  Map<String, String> get _githubHeaders {
+    final token =
+        Platform.environment['GITHUB_TOKEN'] ??
+        Platform.environment['GH_TOKEN'];
+    if (token == null || token.isEmpty) {
+      return const {};
+    }
+
+    return {'Authorization': 'Bearer $token'};
+  }
+
+  Exception _releaseRequestError(String release, int statusCode) {
+    if (statusCode == 404 && _githubHeaders.isEmpty) {
+      return Exception(
+        'Failed to get release $release. '
+        'This repository is private; set GITHUB_TOKEN or GH_TOKEN.',
+      );
+    }
+
+    return Exception('Failed to get release $release');
   }
 
   Map<String, dynamic> _findAsset(
@@ -154,26 +219,39 @@ class Versions {
     throw Exception('Release asset not found: $assetName');
   }
 
-  String get _artifactName {
-    if (Platform.isLinux) {
-      return 'zonai-linux-x64';
+  String get _artifactName => _artifactNameFor(.current(), .current());
+
+  String _artifactNameFor(TargetOs targetOs, Arch targetArch) {
+    return switch ((targetOs, targetArch)) {
+      (.linux, .x64) => 'zonai-linux-x64.zip',
+      (.windows, .x64) => 'zonai-windows-x64.zip',
+      (.macos, .arm64) => 'zonai-macos-arm64.zip',
+      (.macos, .x64) => 'zonai-macos-x64.zip',
+      _ => throw UnsupportedError(
+        'Unsupported release target: $targetOs/$targetArch',
+      ),
+    };
+  }
+
+  Future<void> _installExecutableFromArchive(
+    String targetDestination,
+    List<int> bytes,
+  ) async {
+    final archive = ZipDecoder().decodeBytes(bytes);
+    if (archive.isEmpty) {
+      throw Exception('Release archive is empty');
     }
 
-    if (Platform.isWindows) {
-      return 'zonai-windows-x64';
+    ArchiveFile? entry;
+    for (final file in archive) {
+      if (file.name == 'zonai' || file.name == 'zonai.exe') {
+        entry = file;
+        break;
+      }
     }
+    entry ??= archive.first;
 
-    if (Platform.isMacOS) {
-      return switch (Abi.current()) {
-        Abi.macosArm64 => 'zonai-macos-arm64',
-        Abi.macosX64 => 'zonai-macos-x64',
-        _ => throw UnsupportedError(
-          'Unsupported macOS architecture: ${Abi.current()}',
-        ),
-      };
-    }
-
-    throw UnsupportedError('Unsupported platform: ${Platform.operatingSystem}');
+    await _installExecutable(targetDestination, entry.content);
   }
 
   Future<void> _installExecutable(
