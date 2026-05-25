@@ -27,7 +27,7 @@ sealed class OperationResponse extends Response {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
       ColumnNameResponse._path => ColumnNameResponse.fromJson(json),
       ColumnReferenceResponse._path => ColumnReferenceResponse.fromJson(json),
-      ClaimsResponse._path => ClaimsResponse.fromJson(json),
+      JwtConfigResponse._path => JwtConfigResponse.fromJson(json),
       SanitizeOperationResponse._path => SanitizeOperationResponse.fromJson(
         json,
       ),
@@ -140,37 +140,24 @@ ${const JsonEncoder.withIndent('  ').convert(toJson())}
   }
 }
 
-final class ClaimsResponse extends OperationResponse {
-  const ClaimsResponse({
-    required super.id,
-    required this.claims,
-    required this.isAdmin,
-    required this.canEdit,
-  }) : super(path: _path, payload: const {});
+final class JwtConfigResponse extends OperationResponse {
+  const JwtConfigResponse({required super.id, required this.config})
+    : super(path: _path, payload: const {});
 
-  factory ClaimsResponse.fromJson(Map<String, dynamic> json) {
-    return ClaimsResponse(
+  factory JwtConfigResponse.fromJson(Map<String, dynamic> json) {
+    return JwtConfigResponse(
       id: json['id'] as String,
-      isAdmin: json['isAdmin'] as bool,
-      canEdit: json['canEdit'] as bool,
-      claims: Claims.fromJson(json['claims'] as Map<String, dynamic>),
+      config: JwtConfig.fromJson(json['config'] as Map<String, dynamic>),
     );
   }
 
-  static const _path = '${Response.prefix}.auth.get_claims';
+  static const _path = '${Response.prefix}.auth.get_jwt_config';
 
-  final Claims claims;
-  final bool isAdmin;
-  final bool canEdit;
+  final JwtConfig config;
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'claims': claims.toJson(),
-      'isAdmin': isAdmin,
-      'canEdit': canEdit,
-    };
+    return {...super.toJson(), 'config': config.toJson()};
   }
 }
 

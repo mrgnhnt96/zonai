@@ -163,27 +163,32 @@ extension _AuthX on ZonaiDb {
       _ => throw StateError('User ID not found'),
     };
 
+    final appConfig = await getConfig();
+
     final preJwt = Jwt.create(
       userId: userId,
       collection: collection,
       user: user,
       jwtId: jwtId,
-      expiresIn: const Duration(days: 365),
+      expiresIn: appConfig.jwtExpiresIn,
       claims: {},
     );
 
-    final claims = await _operations.send<ClaimsResponse>(
-      GetClaimsOperationRequest(collection: collection, jwt: preJwt),
+    final jwtConfig = await _operations.send<JwtConfigResponse>(
+      GetJwtConfigOperationRequest(collection: collection, jwt: preJwt),
     );
+
+    final config = jwtConfig.config;
+    final expiresIn = config.expiresIn ?? appConfig.jwtExpiresIn;
 
     final jwt = Jwt(
       userId: preJwt.userId,
       collection: preJwt.collection,
       jwtId: preJwt.jwtId,
-      expiresAt: preJwt.expiresAt,
+      expiresAt: clock.now().add(expiresIn),
       user: preJwt.user,
-      claims: claims.claims.toJson(),
-      admin: (isAdmin: claims.isAdmin, canEdit: claims.canEdit),
+      claims: config.claims.toJson(),
+      admin: (isAdmin: config.isAdmin, canEdit: config.canEdit),
     );
 
     final token = await _jwt.generate(jwt);

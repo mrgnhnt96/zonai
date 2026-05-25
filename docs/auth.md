@@ -64,7 +64,8 @@ If refresh fails (revoked token, expired token, or user deleted), treat the sess
 
 | Topic | Doc |
 | ----- | --- |
-| JWT claims and email link settings | [operations.md](operations.md#auth-collections) |
+| JWT claims, session lifetime, and email link settings | [operations.md](operations.md#auth-collections) |
+| Global JWT lifetime (`jwtExpiresIn`, default 14 days) | [config-and-env-flavors.md](config-and-env-flavors.md) |
 | Who may sign in / sign up | [rules.md](rules.md#auth-collections) |
 | Hooks on refresh (`onRefresh`) | [extensions.md](extensions.md#authextension) |
 | Per-IP refresh limits | [rate-limiting.md](rate-limiting.md#auth-operations-authcollectionratelimits) |

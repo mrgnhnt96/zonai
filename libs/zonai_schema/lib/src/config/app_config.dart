@@ -16,6 +16,7 @@ final class AppConfig {
     this.previousJwtSecrets = const [],
     this.baseUrl = 'http://localhost:8080',
     this.email,
+    this.jwtExpiresIn = const Duration(days: 14),
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(
@@ -25,7 +26,10 @@ final class AppConfig {
     previousPasswordSecrets: _stringList(json['previousPasswordSecrets']),
     previousJwtSecrets: _stringList(json['previousJwtSecrets']),
     email: json['email'] != null ? EmailConfig.fromJson(json['email']) : null,
-    baseUrl: json['baseUrl'] as String,
+    baseUrl: json['baseUrl'] as String? ?? 'http://localhost:8080',
+    jwtExpiresIn: json['jwtExpiresIn'] == null
+        ? const Duration(days: 14)
+        : Duration(seconds: json['jwtExpiresIn'] as int),
   );
 
   /// Display name for the app (browser title, UI branding).
@@ -48,6 +52,11 @@ final class AppConfig {
   /// Defaults to `http://localhost:8080` if not set.
   final String baseUrl;
 
+  /// Default lifetime for issued access tokens (JWTs).
+  ///
+  /// Defaults to 14 days. Auth collections may override via `jwtExpiresIn`.
+  final Duration jwtExpiresIn;
+
   /// Active password secret first, then [previousPasswordSecrets] (verify).
   List<String> get passwordSecretsForVerify =>
       List<String>.unmodifiable([passwordSecret, ...previousPasswordSecrets]);
@@ -64,6 +73,7 @@ final class AppConfig {
     'previousJwtSecrets': previousJwtSecrets,
     'email': email?.toJson(),
     'baseUrl': baseUrl,
+    'jwtExpiresIn': jwtExpiresIn.inSeconds,
   };
 
   static List<String> _stringList(Object? value) {

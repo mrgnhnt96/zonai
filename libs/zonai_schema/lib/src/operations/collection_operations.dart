@@ -517,6 +517,9 @@ base mixin AuthOperations<S extends AuthCollection<R>, R>
     return Claims(jwt.claims);
   }
 
+  /// Per-collection JWT lifetime override. `null` uses [AppConfig.jwtExpiresIn].
+  Duration? get jwtExpiresIn => null;
+
   Future<MagicLinkConfig> magicLinkConfig() async {
     return MagicLinkConfig();
   }
@@ -608,6 +611,42 @@ class ResetPasswordConfig {
 
   Map<String, dynamic> toJson() {
     return {'path': path, 'expiresIn': expiresIn.inSeconds};
+  }
+}
+
+class JwtConfig {
+  const JwtConfig({
+    required this.claims,
+    required this.isAdmin,
+    required this.canEdit,
+    this.expiresIn,
+  });
+
+  factory JwtConfig.fromJson(Map<String, dynamic> json) {
+    return JwtConfig(
+      claims: Claims.fromJson(json['claims'] as Map<String, dynamic>),
+      isAdmin: json['isAdmin'] as bool,
+      canEdit: json['canEdit'] as bool,
+      expiresIn: json['expiresIn'] == null
+          ? null
+          : Duration(seconds: json['expiresIn'] as int),
+    );
+  }
+
+  final Claims claims;
+  final bool isAdmin;
+  final bool canEdit;
+
+  /// When set, overrides [AppConfig.jwtExpiresIn] for this collection.
+  final Duration? expiresIn;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'claims': claims.toJson(),
+      'isAdmin': isAdmin,
+      'canEdit': canEdit,
+      'expiresIn': ?expiresIn?.inSeconds,
+    };
   }
 }
 

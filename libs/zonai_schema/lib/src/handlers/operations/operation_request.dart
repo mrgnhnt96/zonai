@@ -30,9 +30,8 @@ sealed class OperationRequest extends Request {
       GetColumnReferenceRequest._path => GetColumnReferenceRequest.fromRequest(
         request,
       ),
-      GetClaimsOperationRequest._path => GetClaimsOperationRequest.fromRequest(
-        request,
-      ),
+      GetJwtConfigOperationRequest._path =>
+        GetJwtConfigOperationRequest.fromRequest(request),
       SanitizeOperationRequest._path => SanitizeOperationRequest.fromRequest(
         request,
       ),
@@ -646,18 +645,18 @@ final class CustomOperationRequest extends PerformOperationRequest {
   }
 }
 
-final class GetClaimsOperationRequest extends OperationRequest {
-  GetClaimsOperationRequest({required this.collection, required this.jwt})
+final class GetJwtConfigOperationRequest extends OperationRequest {
+  GetJwtConfigOperationRequest({required this.collection, required this.jwt})
     : super(path: _path, id: Request.generateId(), jwt: jwt);
 
-  GetClaimsOperationRequest._({
+  GetJwtConfigOperationRequest._({
     required super.id,
     required this.collection,
     required this.jwt,
   }) : super(path: _path, jwt: jwt);
 
-  factory GetClaimsOperationRequest.fromRequest(UnknownRequest request) {
-    return GetClaimsOperationRequest._(
+  factory GetJwtConfigOperationRequest.fromRequest(UnknownRequest request) {
+    return GetJwtConfigOperationRequest._(
       id: request.id,
       collection: request.payload['collection'] as String,
       jwt:
@@ -666,7 +665,7 @@ final class GetClaimsOperationRequest extends OperationRequest {
     );
   }
 
-  static const _path = '${Request.prefix}.auth.get_claims';
+  static const _path = '${Request.prefix}.auth.get_jwt_config';
 
   final String collection;
   final Jwt jwt;

@@ -53,8 +53,8 @@ class DbOperations {
             return await _getColumnName(request);
           case final GetColumnReferenceRequest request:
             return await _getColumnReference(request);
-          case final GetClaimsOperationRequest request:
-            return await _getClaims(request);
+          case final GetJwtConfigOperationRequest request:
+            return await _getJwtConfig(request);
           case final SanitizeOperationRequest request:
             return await _sanitize(request);
           case final GetAdminCollectionsOperationRequest request:
@@ -316,11 +316,18 @@ class DbOperations {
     return SanitizeOperationResponse(id: request.id, objects: sanitized);
   }
 
-  Future<ClaimsResponse> _getClaims(GetClaimsOperationRequest request) async {
+  Future<JwtConfigResponse> _getJwtConfig(
+    GetJwtConfigOperationRequest request,
+  ) async {
     final collection = operationsByCollection[request.collection];
     final claims = switch (collection) {
       AuthOperations(:final addClaims) => await addClaims(jwt: request.jwt),
       _ => Claims(const {}),
+    };
+
+    final expiresIn = switch (collection) {
+      AuthOperations(:final jwtExpiresIn) => jwtExpiresIn,
+      _ => null,
     };
 
     final admin = switch (collection?.schema) {
@@ -328,11 +335,14 @@ class DbOperations {
       _ => null,
     };
 
-    return ClaimsResponse(
+    return JwtConfigResponse(
       id: request.id,
-      claims: claims,
-      isAdmin: admin != null,
-      canEdit: admin?.canEdit ?? false,
+      config: JwtConfig(
+        claims: claims,
+        isAdmin: admin != null,
+        canEdit: admin?.canEdit ?? false,
+        expiresIn: expiresIn,
+      ),
     );
   }
 

@@ -69,14 +69,17 @@ final class UserOperations extends CollectionOperations<UserCollection, User>
 UserOperations main() => UserOperations();
 ```
 
-| Method                | Purpose                                                                 |
+| Method / property     | Purpose                                                                 |
 | --------------------- | ----------------------------------------------------------------------- |
 | `addClaims`           | Extra JWT claims merged into tokens for this collection                 |
+| `jwtExpiresIn`        | Optional JWT lifetime override (`null` uses `AppConfig.jwtExpiresIn`)   |
 | `magicLinkConfig`     | Magic-link path and expiry (default `/auth/magic-link`, 10 minutes)     |
 | `resetPasswordConfig` | Reset-password path and expiry (default `/auth/reset-password`, 10 min) |
 | `verifyEmailConfig`   | Verify-email path and expiry (default `/auth/verify-email`, 24 hours)   |
 
-Auth emails use these paths with `AppConfig.baseUrl` to build link URLs. See **[email.md](email.md)** for templates and SMTP configuration.
+Access token lifetime defaults to **14 days** via `AppConfig.jwtExpiresIn`. Set `jwtExpiresIn` on the config worker to change the global default; override per collection with the `jwtExpiresIn` getter on `AuthOperations`.
+
+Auth emails use magic-link / reset / verify paths with `AppConfig.baseUrl` to build link URLs. See **[email.md](email.md)** for templates and SMTP configuration.
 
 The framework also uses operations for auth-specific SQL (lookup by email, sign-up row shape, column name resolution for password/email/id fields). You normally only override the methods above unless you need custom query behavior via the standard CRUD helpers.
 

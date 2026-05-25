@@ -26,6 +26,19 @@ AppConfig main() {
 
 Only files with a `.dart` extension are considered.
 
+### JWT session lifetime
+
+`AppConfig.jwtExpiresIn` sets the default access-token lifetime (**14 days** if omitted). Value is stored in JSON as seconds:
+
+```dart
+AppConfig(
+  // ...
+  jwtExpiresIn: const Duration(days: 7),
+);
+```
+
+Per auth collection, override with `jwtExpiresIn` on `AuthOperations` (see **[operations.md](operations.md#auth-collections)**).
+
 ### How the flavor name is chosen from the filename
 
 The flavor is the **last dot-separated segment** of the file stem (basename without `.dart`):
