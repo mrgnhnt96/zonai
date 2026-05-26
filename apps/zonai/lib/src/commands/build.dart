@@ -35,6 +35,30 @@ Future<int> build() async {
     return exitCode;
   }
 
+  // copy Email templates
+  if (fs.directory(settings.emailTemplatesPath) case final dir
+      when dir.existsSync()) {
+    final emails = dir.listSync();
+    if (emails.isNotEmpty) {
+      fs
+          .directory(settings.buildEmailTemplatesPath)
+          .createSync(recursive: true);
+    }
+
+    for (final email in emails) {
+      if (email is File) {
+        fs
+            .file(email.path)
+            .copySync(
+              fs.path.join(
+                settings.buildEmailTemplatesPath,
+                fs.path.basename(email.path),
+              ),
+            );
+      }
+    }
+  }
+
   // copy SQL migrations
   final migrations = await migrate.migrations();
   String target;
