@@ -1,13 +1,11 @@
-import 'package:zonai/src/internal/photos_collection.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
-import 'package:zonai_schema/src/types/jwt.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 PhotoRecordRules main() => PhotoRecordRules();
 
-// TODO: figure out way for user to override these rules
-base class PhotoRecordRules
+final class PhotoRecordRules
     extends InternalRecordRules<PhotosCollection, PhotoEntry> {
-  PhotoRecordRules() : super(photos);
+  PhotoRecordRules() : super(photos, canBeOverridden: true);
 
   @override
   Future<bool> canView(Jwt? jwt, PhotoEntry record) async => true;

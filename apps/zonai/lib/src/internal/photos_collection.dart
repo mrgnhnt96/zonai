@@ -1,43 +1,8 @@
 import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/src/internal/collections.dart';
+import 'package:zonai_schema/src/internal/photos_collection.dart' as schema;
 
-class PhotoEntry {
-  PhotoEntry({
-    required this.id,
-    required this.ownerId,
-    required this.ownerCollection,
-    required this.collection,
-    required this.path,
-    required this.extension,
-  }) : createdAt = .now();
-
-  PhotoEntry._({
-    required this.id,
-    required this.ownerId,
-    required this.ownerCollection,
-    required this.collection,
-    required this.createdAt,
-    required this.path,
-    required this.extension,
-  });
-
-  final PhotoId id;
-  final Id ownerId;
-  final String ownerCollection;
-  final DateTime createdAt;
-  final String collection;
-  final String path;
-  final String extension;
-}
-
-class PhotoId implements Id {
-  PhotoId(this.value);
-  static PhotoId generate() => PhotoId(Id.generate('ph'));
-
-  @override
-  final String value;
-}
-
-class PhotosCollection extends Collection<PhotoEntry> {
+class PhotosCollection extends schema.PhotosCollection {
   PhotosCollection(super.$)
     : id = $.id(
         'id',
@@ -61,7 +26,7 @@ class PhotosCollection extends Collection<PhotoEntry> {
 
   @override
   PhotoEntry fromRow(RowReader read) {
-    return PhotoEntry._(
+    return PhotoEntry(
       id: read(id),
       ownerId: read(ownerId),
       ownerCollection: read(ownerCollection),
@@ -81,4 +46,10 @@ class PhotosCollection extends Collection<PhotoEntry> {
   final TextColumn extension;
 }
 
-final photos = collection('_photos', PhotosCollection.new);
+final photos = () {
+  final c = collection('_photos', PhotosCollection.new);
+
+  setupInternalCollections(photos: c);
+
+  return c;
+}();
