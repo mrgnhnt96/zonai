@@ -53,6 +53,11 @@ enum ImageMimeType {
     return _byMimeType[normalized];
   }
 
+  /// Parses a stored file extension (without a leading dot).
+  static ImageMimeType? fromFileExtension(String extension) {
+    return _byFileExtension[extension.toLowerCase()];
+  }
+
   /// Detects the image format from the leading bytes of a file or stream chunk.
   static ImageMimeType? detect(List<int> bytes) {
     for (final type in values) {
@@ -89,5 +94,9 @@ enum ImageMimeType {
 
   static final Map<String, ImageMimeType> _byMimeType = {
     for (final type in values) type.mimeType: type,
+  };
+
+  static final Map<String, ImageMimeType> _byFileExtension = {
+    for (final type in values) type.fileExtension: type,
   };
 }

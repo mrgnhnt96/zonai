@@ -100,13 +100,16 @@ extension _PhotoX on ZonaiDb {
       insertedRow = result;
 
       await file.parent.create(recursive: true);
-      await file.openWrite().addStream(switch (config.photos.maxBytes) {
-        null => image,
-        final maxBytes => limitStreamBytes(image, maxBytes),
-      });
+      await file.openWrite().addStream(
+        PhotoStreamUtils.verifiedPhotoImageStream(
+          image: image,
+          imageType: imageType,
+          maxBytes: config.photos.maxBytes,
+        ),
+      );
 
       await _postCreate(table.name, jwt, object: table.mapOut(insertedRow));
-    } catch (e, stack) {
+    } catch (e) {
       if (file.existsSync()) {
         await file.delete();
       }
@@ -115,7 +118,6 @@ extension _PhotoX on ZonaiDb {
         await db.delete(from: photos).where(photos.id.equals(row.id));
       }
 
-      logger.error('$e', 'Failed to create photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.create(
           table: table.name,
@@ -164,6 +166,11 @@ extension _PhotoX on ZonaiDb {
     }
 
     final config = await configResolver.resolve();
+    final imageType = ImageMimeType.fromFileExtension(photo.extension);
+    if (imageType == null) {
+      throw StateError('Unsupported photo extension: ${photo.extension}');
+    }
+
     final tempFile = fs.file('${file.path}.tmp');
 
     try {
@@ -179,10 +186,13 @@ extension _PhotoX on ZonaiDb {
         await tempFile.delete();
       }
 
-      await tempFile.openWrite().addStream(switch (config.photos.maxBytes) {
-        null => image,
-        final maxBytes => limitStreamBytes(image, maxBytes),
-      });
+      await tempFile.openWrite().addStream(
+        PhotoStreamUtils.verifiedPhotoImageStream(
+          image: image,
+          imageType: imageType,
+          maxBytes: config.photos.maxBytes,
+        ),
+      );
 
       if (file.existsSync()) {
         await file.delete();
@@ -195,12 +205,11 @@ extension _PhotoX on ZonaiDb {
         before: [table.mapOut(photo)],
         after: [table.mapOut(photo)],
       );
-    } catch (e, stack) {
+    } catch (e) {
       if (tempFile.existsSync()) {
         await tempFile.delete();
       }
 
-      logger.error('$e', 'Failed to update photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.update(
           table: table.name,

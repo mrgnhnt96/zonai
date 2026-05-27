@@ -41,8 +41,13 @@ Future<int> photos() async {
 }
 
 /// Returns a stream one byte over [maxBytes] for limit enforcement checks.
-Stream<List<int>> oversizedImage(int maxBytes) =>
-    Stream.value(List.filled(maxBytes + 1, 0));
+Stream<List<int>> oversizedImage(int maxBytes) => Stream.value([
+  ...ImageMimeType.jpeg.magicBytes,
+  ...List.filled(
+    maxBytes - ImageMimeType.jpeg.magicBytes.length + 1,
+    0,
+  ),
+]);
 
 /// Exercises create, view, update, and delete for photo uploads.
 ///
@@ -67,6 +72,29 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
     }
   } else {
     logger.info('SKIP MAX BYTES CHECK (maxBytes not configured)');
+  }
+
+  logger.info('VERIFY MIME TYPE ENFORCED ON CREATE');
+  try {
+    await zonaiDB.createPhoto(
+      token: jwt,
+      meta: createMeta,
+      contentType: ImageMimeType.jpeg.mimeType,
+      image: Stream.value([
+        0x89,
+        0x50,
+        0x4E,
+        0x47,
+        0x0D,
+        0x0A,
+        0x1A,
+        0x0A,
+      ]),
+    );
+    logger.error('Expected mismatched create to be rejected');
+    return 1;
+  } catch (error) {
+    logger.info('Mismatched create rejected: $error');
   }
 
   logger.info('UPLOAD PHOTO');
@@ -157,6 +185,41 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
 
     logger.info('Photo bytes unchanged after rejected oversized update');
   }
+
+  logger.info('VERIFY MIME TYPE ENFORCED ON UPDATE');
+  try {
+    await zonaiDB.updatePhoto(
+      token: jwt,
+      id: photoId,
+      image: Stream.value([
+        0x89,
+        0x50,
+        0x4E,
+        0x47,
+        0x0D,
+        0x0A,
+        0x1A,
+        0x0A,
+      ]),
+    );
+    logger.error('Expected mismatched update to be rejected');
+    return 1;
+  } catch (error) {
+    logger.info('Mismatched update rejected: $error');
+  }
+
+  final bytesAfterRejectedMimeUpdate = await zonaiDB
+      .getPhoto(photoId, token: jwt)
+      .toList();
+  if (!_sameBytes(
+    bytesAfterRejectedMimeUpdate.expand((e) => e).toList(),
+    updatedImageBytes,
+  )) {
+    logger.error('Photo bytes changed after rejected mismatched update');
+    return 1;
+  }
+
+  logger.info('Photo bytes unchanged after rejected mismatched update');
 
   logger.info('DELETE PHOTO');
   await zonaiDB.deletePhoto(token: jwt, id: photoId);

@@ -10,6 +10,10 @@ void main() {
       );
     });
 
+    test('fromFileExtension resolves stored extensions', () {
+      expect(ImageMimeType.fromFileExtension('jpg'), ImageMimeType.jpeg);
+    });
+
     test('detect identifies each supported format', () {
       expect(
         ImageMimeType.detect([0xFF, 0xD8, 0xFF, 0xD9]),
