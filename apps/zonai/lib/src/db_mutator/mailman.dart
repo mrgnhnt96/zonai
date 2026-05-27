@@ -8,6 +8,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
 
 import '../db_mutator/executable_unavailable_exception.dart';
+import '../db_mutator/worker_process_failed_exception.dart';
 import '../db_mutator/payloads/payloads.dart';
 import '../deps/clean_up.dart';
 import '../deps/executable_stop.dart';
@@ -42,6 +43,7 @@ class Mailman<S extends Request, R extends Response> {
   final String executablePath;
 
   io.Process? _process;
+  final StringBuffer _stderrBuffer = StringBuffer();
   final StreamController<Request> _request;
   late final StreamSubscription<Request> _requestSubscription;
   final StreamController<(Response, List<MutationRequest>)> _response;
@@ -276,15 +278,28 @@ class Mailman<S extends Request, R extends Response> {
 
     logger.debug('Starting | $executablePath', prefix: _prefix);
 
+    _stderrBuffer.clear();
     final p = _process = await process.start(executablePath, []);
-    p.exitCode.whenComplete(() {
+    p.stderr.transform(utf8.decoder).listen(_stderrBuffer.write);
+    p.exitCode.then((exitCode) {
       if (!identical(_process, p)) return;
 
-      logger.warn('$_prefix: Exited');
+      final stderr = _stderrBuffer.toString();
+      if (stderr.trim().isNotEmpty) {
+        logger.error('$_prefix: stderr', stderr);
+      }
+
+      logger.warn('$_prefix: Exited (exit code: $exitCode)');
       _process = null;
+      final failure = WorkerProcessFailedException(
+        workerName: debugName,
+        executablePath: executablePath,
+        exitCode: exitCode,
+        stderr: stderr,
+      );
       for (final completer in _pendingResponses.values) {
         if (!completer.isCompleted) {
-          completer.completeError(Exception('Process exited'));
+          completer.completeError(failure);
         }
       }
       _pendingResponses.clear();
@@ -507,13 +522,21 @@ class Mailman<S extends Request, R extends Response> {
       return response;
     } on MessageHandlerFailedException {
       rethrow;
+    } on WorkerProcessFailedException {
+      rethrow;
     } catch (e, stack) {
       _pendingResponses.remove(request.id);
       _pendingMutations.remove(request.id);
-      logger.error('${_prefix} Response never received', e, stack);
+      Error.throwWithStackTrace(
+        WorkerProcessFailedException(
+          workerName: debugName,
+          executablePath: executablePath,
+          cause: e,
+          stackTrace: stack,
+        ),
+        stack,
+      );
     }
-
-    return null;
   }
 
   Future<bool> ping() async {
@@ -545,8 +568,15 @@ class Mailman<S extends Request, R extends Response> {
 
     if (!failPending) return;
 
+    final stderr = _stderrBuffer.toString();
+    final failure = WorkerProcessFailedException(
+      workerName: debugName,
+      executablePath: executablePath,
+      stderr: stderr,
+      cause: 'Process killed',
+    );
     for (final completer in _pendingResponses.values) {
-      completer.completeError(Exception('Process killed'));
+      completer.completeError(failure);
     }
 
     _pendingResponses.clear();

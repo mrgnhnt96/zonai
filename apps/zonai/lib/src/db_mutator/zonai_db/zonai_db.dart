@@ -12,6 +12,7 @@ import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
+import 'package:zonai/src/db_mutator/worker_process_failed_exception.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
@@ -340,6 +341,9 @@ class ZonaiDb {
         },
       );
     } on ExecutableUnavailableException {
+      rethrow;
+    } on WorkerProcessFailedException catch (e, stack) {
+      logger.error('Failed to run database operation', e, stack);
       rethrow;
     } catch (e, stack) {
       logger.error('Failed to run database operation', e, stack);
