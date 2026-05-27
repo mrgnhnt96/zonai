@@ -79,6 +79,7 @@ extension _PhotoX on ZonaiDb {
       collection: meta.collection,
       path: relativePath,
       extension: extension,
+      createdAt: .now(),
     );
 
     await _requireRecordAccess(table.name, .create, table.mapOut(entry), jwt);
