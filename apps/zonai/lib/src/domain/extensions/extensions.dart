@@ -50,18 +50,13 @@ class Extensions {
     executableStop.request(executablePath);
 
     final directory = fs.directory(settings.extensionsPath);
-    final files = directory
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((file) => fs.path.extension(file.path) == '.dart')
-        .toList();
-
-    if (files.isEmpty) {
-      logger.info(
-        'No Dart extension files under ${directory.path}; skipping compile.',
-      );
-      return;
-    }
+    final files = directory.existsSync()
+        ? directory
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((file) => fs.path.extension(file.path) == '.dart')
+              .toList()
+        : <File>[];
 
     final target = switch (buildSettings) {
       != null => settings.buildExtensionsPath,
@@ -104,7 +99,7 @@ class Extensions {
   Future<bool> _canCompile() async {
     final directory = fs.directory(settings.extensionsPath);
     if (!directory.existsSync()) {
-      return false;
+      return true;
     }
 
     // analyze directory for compile errors

@@ -13,8 +13,9 @@ const _generatedHeader = '''
 // Built-in operations and rules for framework-managed SQLite tables.
 //
 // These are merged into generated `db_operations` / `db_rules` /
-// `db_rate_limit` executables; app authors do not add files for them under
-// `lib/src/operations`, `lib/src/rules`, or `lib/src/rate_limit`.
+// `db_rate_limit` / `db_extensions` executables; app authors do not add files
+// for them under `lib/src/operations`, `lib/src/rules`, `lib/src/rate_limit`,
+// or `lib/src/extensions`.
 //
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 ''';
@@ -49,12 +50,18 @@ void main(List<String> args) {
     suffix: '_rate_limits.dart',
     importPrefix: 'package:zonai/src/internal/rate_limits/',
   );
+  final extensions = _discoverEntries(
+    Directory('${libRoot.path}/extensions'),
+    suffix: '_extension.dart',
+    importPrefix: 'package:zonai/src/internal/extensions/',
+  );
   final collections = _discoverCollections(libRoot);
 
   final output = _formatDart(
     operations: operations,
     rules: rules,
     rateLimits: rateLimits,
+    extensions: extensions,
     collections: collections,
   );
   final outFile = File('${libRoot.path}/internal_db_artifacts.dart');
@@ -75,7 +82,8 @@ void main(List<String> args) {
   stdout.writeln('Wrote ${outFile.path}');
   stdout.writeln(
     '  ${operations.length} operations, ${rules.length} rules, '
-    '${rateLimits.length} rate limits, ${collections.length} collections',
+    '${rateLimits.length} rate limits, ${extensions.length} extensions, '
+    '${collections.length} collections',
   );
   stdout.writeln('collections:');
   for (final c in collections) {
@@ -92,6 +100,10 @@ void main(List<String> args) {
   stdout.writeln('rate limits:');
   for (final r in rateLimits) {
     stdout.writeln('  - ${r.alias}');
+  }
+  stdout.writeln('extensions:');
+  for (final e in extensions) {
+    stdout.writeln('  - ${e.alias}');
   }
 }
 
@@ -156,6 +168,7 @@ String _formatDart({
   required List<({String importPath, String alias})> operations,
   required List<({String importPath, String alias})> rules,
   required List<({String importPath, String alias})> rateLimits,
+  required List<({String importPath, String alias})> extensions,
   required List<({String importPath, String getter, String tableName})>
   collections,
 }) {
@@ -195,6 +208,18 @@ String _formatDart({
     '  static const rateLimits = <({String importPath, String alias})>[',
   );
   for (final e in rateLimits) {
+    buffer.writeln('    (');
+    buffer.writeln('      importPath:');
+    buffer.writeln("          '${e.importPath}',");
+    buffer.writeln("      alias: '${e.alias}',");
+    buffer.writeln('    ),');
+  }
+  buffer.writeln('  ];');
+  buffer.writeln();
+  buffer.writeln(
+    '  static const extensions = <({String importPath, String alias})>[',
+  );
+  for (final e in extensions) {
     buffer.writeln('    (');
     buffer.writeln('      importPath:');
     buffer.writeln("          '${e.importPath}',");

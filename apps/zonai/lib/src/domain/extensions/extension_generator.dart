@@ -1,4 +1,5 @@
 import 'package:file/file.dart';
+import 'package:zonai/src/internal/internal_db_artifacts.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 
@@ -16,11 +17,15 @@ class ExtensionGenerator {
     final dartExts = extensions
         .where((f) => fs.path.extension(f.path) == '.dart')
         .toList();
-    if (dartExts.isEmpty) return;
 
     final root = fs.currentDirectory.path;
-    final usedAliases = <String>{};
-    final entries = <({String alias, String importPath})>[];
+    final usedAliases = <String>{
+      for (final e in InternalDbArtifacts.extensions) e.alias,
+    };
+    final entries = <({String alias, String importPath})>[
+      for (final e in InternalDbArtifacts.extensions)
+        (alias: e.alias, importPath: e.importPath),
+    ];
 
     final outDir = fs.directory(fs.path.join('.dart_tool', 'zonai'));
     if (!outDir.existsSync()) {
