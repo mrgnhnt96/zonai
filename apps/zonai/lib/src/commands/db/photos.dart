@@ -57,7 +57,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
       await zonaiDB.createPhoto(
         token: jwt,
         meta: createMeta,
-        contentType: 'image/jpeg',
+        contentType: ImageMimeType.jpeg.mimeType,
         image: oversizedImage(limit),
       );
       logger.error('Expected oversized create to be rejected');
@@ -73,7 +73,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   final createResponse = await zonaiDB.createPhoto(
     token: jwt,
     meta: createMeta,
-    contentType: 'image/jpeg',
+    contentType: ImageMimeType.jpeg.mimeType,
     image: Stream.value(testImageBytes),
   );
   final photoId = createResponse['id'] as String;

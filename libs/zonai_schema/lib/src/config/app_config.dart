@@ -1,5 +1,6 @@
 import 'package:zonai_schema/src/config/email_config.dart';
 import 'package:zonai_schema/src/config/photos_config.dart';
+import 'package:zonai_schema/src/types/image_mime_type.dart';
 
 /// Application secrets for password hashing and JWT signing, as served to the
 /// runtime via [AppConfig].
@@ -20,7 +21,7 @@ final class AppConfig {
     this.jwtExpiresIn = const Duration(days: 14),
     this.photos = const PhotosConfig(
       maxBytes: 5 * 1024 * 1024, // 5MB
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+      allowedMimeTypes: ImageMimeType.defaultAllowed,
     ),
   });
 

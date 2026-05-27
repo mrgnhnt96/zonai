@@ -52,30 +52,22 @@ extension _PhotoX on ZonaiDb {
 
     final config = await configResolver.resolve();
 
-    final rawExtension = contentType?.split(';').first.trim().toLowerCase();
-    if (rawExtension == null) {
+    final imageType = ImageMimeType.fromContentType(contentType);
+    if (imageType == null) {
       throw StateError('Invalid content type: $contentType');
     }
 
     if (config.photos case final config) {
       if (config.allowedMimeTypes case final allowed?) {
-        if (!allowed.contains(contentType)) {
-          throw StateError('Content type not allowed: $contentType');
+        if (!allowed.contains(imageType)) {
+          throw StateError('Content type not allowed: ${imageType.mimeType}');
         }
       }
     }
 
-    final extension = switch (rawExtension) {
-      'image/jpeg' => 'jpg',
-      'image/png' => 'png',
-      'image/webp' => 'webp',
-      'image/gif' => 'gif',
-      _ => 'bin',
-    };
-
     final id = Id.generate('ph');
     final relativePath = fs.path.normalize(
-      fs.path.join(meta.table, '$id.$extension'),
+      fs.path.join(meta.table, '$id.${imageType.fileExtension}'),
     );
     final file = fs.file(fs.path.join(settings.imagesPath, relativePath));
     if (fs.path.isWithin(settings.imagesPath, relativePath)) {
@@ -91,7 +83,7 @@ extension _PhotoX on ZonaiDb {
       ownerTable: jwt?.table ?? '',
       table: meta.table,
       path: relativePath,
-      extension: extension,
+      extension: imageType.fileExtension,
       createdAt: .now(),
     );
 

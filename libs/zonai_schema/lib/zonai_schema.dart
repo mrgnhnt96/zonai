@@ -62,6 +62,7 @@ export 'src/types/built_in_emails.dart';
 export 'src/types/email.dart';
 export 'src/types/email_address.dart';
 export 'src/types/id.dart';
+export 'src/types/image_mime_type.dart';
 export 'src/types/jwt.dart';
 export 'src/types/jwt_id.dart';
 export 'src/types/order_by.dart';

@@ -1,12 +1,24 @@
+import '../types/image_mime_type.dart';
+
 class PhotosConfig {
-  const PhotosConfig({required this.maxBytes, required this.allowedMimeTypes});
+  const PhotosConfig({
+    this.maxBytes = 5 * 1024 * 1024, // 5MB
+    this.allowedMimeTypes = ImageMimeType.defaultAllowed,
+  });
 
   factory PhotosConfig.fromJson(Map<String, dynamic> json) => PhotosConfig(
-    maxBytes: json['maxBytes'] as int,
-    allowedMimeTypes: [
-      for (final mimeType in json['allowedMimeTypes'] as List<dynamic>)
-        mimeType as String,
-    ],
+    maxBytes: json['maxBytes'] as int?,
+    allowedMimeTypes: json['allowedMimeTypes'] == null
+        ? null
+        : [
+            for (final mimeType in json['allowedMimeTypes'] as List<dynamic>)
+              ImageMimeType.fromContentType(mimeType as String) ??
+                  (throw ArgumentError.value(
+                    mimeType,
+                    'allowedMimeTypes',
+                    'Unsupported image mime type',
+                  )),
+          ],
   );
 
   /// The maximum number of bytes allowed for a photo upload.
@@ -17,10 +29,10 @@ class PhotosConfig {
   /// The allowed mime types for a photo upload.
   ///
   /// If not set, all mime types are allowed.
-  final List<String>? allowedMimeTypes;
+  final List<ImageMimeType>? allowedMimeTypes;
 
   Map<String, dynamic> toJson() => {
     'maxBytes': maxBytes,
-    'allowedMimeTypes': allowedMimeTypes,
+    'allowedMimeTypes': allowedMimeTypes?.map((type) => type.mimeType).toList(),
   };
 }
