@@ -3,8 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 ItemExtensions main() => ItemExtensions();
 
-class ItemExtensions extends Extension<Item>
-    with CreateExtension, UpdateExtension, DeleteExtension {
+class ItemExtensions extends Extension<Item> {
   ItemExtensions() : super(items);
 
   @override

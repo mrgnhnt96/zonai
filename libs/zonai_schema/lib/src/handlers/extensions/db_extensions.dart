@@ -75,13 +75,13 @@ class DbExtensions {
 
     switch (request.step) {
       case .before:
-        if (extension case DeleteExtension(:final beforeDelete)) {
+        if (extension case Extension(:final beforeDelete)) {
           for (final o in request.objects) {
             await beforeDelete(object(o), request.jwt);
           }
         }
       case .afterSuccess:
-        if (extension case DeleteExtension(:final afterDeleteSuccess)) {
+        if (extension case Extension(:final afterDeleteSuccess)) {
           for (final o in request.objects) {
             await afterDeleteSuccess(object(o), request.jwt);
           }
@@ -101,7 +101,7 @@ class DbExtensions {
       return extension.table.safeCreate(object);
     }
 
-    if (extension case UpdateExtension(:final beforeUpdate)) {
+    if (extension case Extension(:final beforeUpdate)) {
       for (final o in request.objects) {
         await beforeUpdate(object(o), request.jwt);
       }
@@ -118,7 +118,7 @@ class DbExtensions {
       return extension.table.safeCreate(object);
     }
 
-    if (extension case UpdateExtension(:final afterUpdateSuccess)) {
+    if (extension case Extension(:final afterUpdateSuccess)) {
       for (var i = 0; i < request.before.length; i++) {
         final before = request.before[i];
         final after = request.after[i];
@@ -137,11 +137,11 @@ class DbExtensions {
 
     switch (request.step) {
       case .before:
-        if (extension case CreateExtension(:final beforeCreate)) {
+        if (extension case Extension(:final beforeCreate)) {
           await beforeCreate(object(), request.jwt);
         }
       case .afterSuccess:
-        if (extension case CreateExtension(:final afterCreateSuccess)) {
+        if (extension case Extension(:final afterCreateSuccess)) {
           await afterCreateSuccess(object(), request.jwt);
         }
       case .afterError:
@@ -154,15 +154,15 @@ class DbExtensions {
 
     switch (request.type) {
       case .create:
-        if (extension case CreateExtension(:final afterCreateError)) {
+        if (extension case Extension(:final afterCreateError)) {
           await afterCreateError(request.error, request.jwt);
         }
       case .update:
-        if (extension case UpdateExtension(:final afterUpdateError)) {
+        if (extension case Extension(:final afterUpdateError)) {
           await afterUpdateError(request.error, request.jwt);
         }
       case .delete:
-        if (extension case DeleteExtension(:final afterDeleteError)) {
+        if (extension case Extension(:final afterDeleteError)) {
           await afterDeleteError(request.error, request.jwt);
         }
     }

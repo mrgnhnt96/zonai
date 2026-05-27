@@ -11,16 +11,14 @@ abstract class Extension<T> {
 
   Table get table => Table.getFor(schema);
   String get collectionName => table.name;
-}
 
-mixin CreateExtension<R> on Extension<R> {
-  Future<void> beforeCreate(R object, Jwt? jwt) async {}
+  Future<void> beforeCreate(T object, Jwt? jwt) async {}
 
   /// Called after a user is created successfully
   ///
   /// By default, sends a [email.send.loginNotice] to the user's email address
   /// if the collection is a [HasEmail] collection
-  Future<void> afterCreateSuccess(R row, Jwt? jwt) async {
+  Future<void> afterCreateSuccess(T row, Jwt? jwt) async {
     if (row case HasEmail(email: final emailColumn)) {
       if (emailColumn.$.valueOf?.call(row) case final String userEmail) {
         email.send.loginNotice(
@@ -32,17 +30,13 @@ mixin CreateExtension<R> on Extension<R> {
   }
 
   Future<void> afterCreateError(Object error, Jwt? jwt) async {}
-}
 
-mixin UpdateExtension<R> on Extension<R> {
-  Future<void> beforeUpdate(R row, Jwt? jwt) async {}
-  Future<void> afterUpdateSuccess(R before, R after, Jwt? jwt) async {}
+  Future<void> beforeUpdate(T row, Jwt? jwt) async {}
+  Future<void> afterUpdateSuccess(T before, T after, Jwt? jwt) async {}
   Future<void> afterUpdateError(Object error, Jwt? jwt) async {}
-}
 
-mixin DeleteExtension<R> on Extension<R> {
-  Future<void> beforeDelete(R row, Jwt? jwt) async {}
-  Future<void> afterDeleteSuccess(R row, Jwt? jwt) async {}
+  Future<void> beforeDelete(T row, Jwt? jwt) async {}
+  Future<void> afterDeleteSuccess(T row, Jwt? jwt) async {}
   Future<void> afterDeleteError(Object error, Jwt? jwt) async {}
 }
 
