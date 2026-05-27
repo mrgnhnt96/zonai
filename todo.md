@@ -49,17 +49,11 @@ The dashboard will be the first page on website load. It should show a quick ove
 
 #### Upload Files
 
-Add method for “can upload image” which will be hit before creating the signed url
-Add method for “can get image” which will be hit before downloading the bytes for the image
 Add method for “photo upload config” (global app config, and per schema)
 
 - max bytes upload
 - allowed mime types
-- ttl
-  When uploading images,
 - require mime type (verified on server too)
-- optional ttl
-- require collection
 
 After upload, ID is returned. To get the photo, use the id to fetch the record, the record will contain the path
 

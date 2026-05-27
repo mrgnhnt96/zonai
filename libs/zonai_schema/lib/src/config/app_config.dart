@@ -1,4 +1,5 @@
 import 'package:zonai_schema/src/config/email_config.dart';
+import 'package:zonai_schema/src/config/photos_config.dart';
 
 /// Application secrets for password hashing and JWT signing, as served to the
 /// runtime via [AppConfig].
@@ -17,6 +18,10 @@ final class AppConfig {
     this.baseUrl = 'http://localhost:8080',
     this.email,
     this.jwtExpiresIn = const Duration(days: 14),
+    this.photos = const PhotosConfig(
+      maxBytes: 5 * 1024 * 1024, // 5MB
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    ),
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(
@@ -56,6 +61,8 @@ final class AppConfig {
   ///
   /// Defaults to 14 days. Auth tables may override via `jwtExpiresIn`.
   final Duration jwtExpiresIn;
+
+  final PhotosConfig photos;
 
   /// Active password secret first, then [previousPasswordSecrets] (verify).
   List<String> get passwordSecretsForVerify =>
