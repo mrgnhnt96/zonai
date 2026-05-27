@@ -29,6 +29,9 @@ abstract interface class Id {
   bool operator ==(Object other) => other is Id && other.value == value;
 
   int get hashCode => value.hashCode;
+
+  @override
+  String toString() => value;
 }
 
 class UnknownId implements Id {
