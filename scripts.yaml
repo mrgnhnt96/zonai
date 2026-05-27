@@ -98,7 +98,6 @@ server:
   gen: |
     cd apps/server || exit 1
     dart run revali dev --flavor dev --profile --recompile --generate-only
-    ${{ server.sync-to-cli }}
   start: |
     cd apps/server || exit 1
     dart pub get || exit 1
