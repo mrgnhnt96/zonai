@@ -19,7 +19,7 @@ class PhotosTable extends schema.PhotosTable {
         isPrimaryKey: false,
       ),
       ownerTable = $.text('owner_collection', (s) => s.ownerTable),
-      collection = $.text('collection', (s) => s.table),
+      collection = $.text('table', (s) => s.table),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       path = $.text('path', (s) => s.path),
       extension = $.text('extension', (s) => s.extension);

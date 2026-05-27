@@ -5,8 +5,7 @@ import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_response.dart';
-import 'package:zonai/src/internal/rate_limit_table.dart'
-    as rate_limit_table;
+import 'package:zonai/src/internal/rate_limit_table.dart' as rate_limit_table;
 import 'package:zonai_schema/zonai_schema.dart';
 
 // TODO: we need a cron to clean this every day or something
@@ -54,7 +53,7 @@ final class RateLimiter {
         .select()
         .from(rateLimitSchema)
         .where(
-          rateLimitSchema.collection.equals(table) &
+          rateLimitSchema.table.equals(table) &
               rateLimitSchema.clientIp.equals(ipAddress) &
               rateLimitSchema.operation.equals(operation),
         )

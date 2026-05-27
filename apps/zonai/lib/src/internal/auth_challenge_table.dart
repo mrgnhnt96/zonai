@@ -137,7 +137,7 @@ class AuthChallengeTable extends Table<AuthChallenge> {
       metadata = $.map('metadata', (s) => s.metadata),
       secretHash = $.text('secret_hash', (s) => s.secretHash),
       target = $.text('target', (s) => s.target),
-      collection = $.text('collection', (s) => s.table),
+      table = $.text('table', (s) => s.table),
       type = $.enumerator('type', AuthChallengeType.values, (s) => s.type),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       consumedAt = $.dateTime('consumed_at', (s) => s.consumedAt),
@@ -149,7 +149,7 @@ class AuthChallengeTable extends Table<AuthChallenge> {
   final MapColumn? metadata;
   final TextColumn secretHash;
   final TextColumn target;
-  final TextColumn collection;
+  final TextColumn table;
   final EnumColumn<AuthChallengeType> type;
   final DateTimeColumn createdAt;
   final DateTimeColumn? consumedAt;
@@ -164,7 +164,7 @@ class AuthChallengeTable extends Table<AuthChallenge> {
       metadata: read(metadata),
       secretHash: read(secretHash),
       target: read(target)!,
-      table: read(collection),
+      table: read(table),
       type: read(type),
       createdAt: read(createdAt),
       consumedAt: read(consumedAt),
@@ -173,13 +173,11 @@ class AuthChallengeTable extends Table<AuthChallenge> {
   }
 }
 
-final authChallenges = table(
-  '_auth_challenges',
-  AuthChallengeTable.new,
-  (table) {
-    index(
-      'auth_challenges_target_collection_unique',
-    ).on(table.target, table.collection);
-    index('auth_challenges_consumed_unique').on(table.canConsume);
-  },
-);
+final authChallenges = table('_auth_challenges', AuthChallengeTable.new, (
+  table,
+) {
+  index(
+    'auth_challenges_target_collection_unique',
+  ).on(table.target, table.table);
+  index('auth_challenges_consumed_unique').on(table.canConsume);
+});

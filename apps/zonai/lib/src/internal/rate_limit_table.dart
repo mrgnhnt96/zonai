@@ -48,7 +48,7 @@ class RateLimitTable extends Table<RateLimitEntry> {
         RateLimitOperation.values,
         (s) => s.operation,
       ),
-      collection = $.text('collection', (s) => s.table),
+      table = $.text('table', (s) => s.table),
       count = $.integer('count', (s) => s.count),
       windowStart = $.dateTime('window_start', (s) => s.windowStart);
 
@@ -58,7 +58,7 @@ class RateLimitTable extends Table<RateLimitEntry> {
       id: read(id),
       clientIp: read(clientIp),
       operation: read(operation),
-      table: read(collection),
+      table: read(table),
       count: read(count),
       windowStart: read(windowStart),
     );
@@ -67,7 +67,7 @@ class RateLimitTable extends Table<RateLimitEntry> {
   final IdColumn<RateLimitId> id;
   final TextColumn clientIp;
   final EnumColumn<RateLimitOperation> operation;
-  final TextColumn collection;
+  final TextColumn table;
   final IntColumn count;
   final DateTimeColumn windowStart;
 }
@@ -75,5 +75,5 @@ class RateLimitTable extends Table<RateLimitEntry> {
 final rateLimits = table('_rate_limit', RateLimitTable.new, (table) {
   uniqueIndex(
     'rate_limit_bucket_unique',
-  ).on(table.clientIp, table.collection, table.operation);
+  ).on(table.clientIp, table.table, table.operation);
 });

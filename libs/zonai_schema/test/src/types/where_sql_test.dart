@@ -6,7 +6,7 @@ void main() {
   group(WhereSql, () {
     test('fromJson parses collection and Where data', () {
       final sql = WhereSql.fromJson(<String, dynamic>{
-        'collection': 'items',
+        'table': 'items',
         'data': <String, dynamic>{
           'type': 'and',
           'conditions': <dynamic>[

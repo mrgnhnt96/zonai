@@ -26,7 +26,7 @@ extension _ChallengeX on ZonaiDb {
         authChallenges.canConsume.isTrue();
 
     if (table != null) {
-      where = where & authChallenges.collection.equals(table);
+      where = where & authChallenges.table.equals(table);
     }
 
     // must wait 1 minute before sending a new OTP
@@ -52,7 +52,7 @@ extension _ChallengeX on ZonaiDb {
         .set(authChallenges.canConsume.to(false))
         .where(
           authChallenges.target.equals(email) &
-              authChallenges.collection.equals(table) &
+              authChallenges.table.equals(table) &
               authChallenges.type.equals(type) &
               authChallenges.canConsume.isTrue(),
         );

@@ -198,7 +198,7 @@ final class AdminTablesResponse extends OperationResponse {
       tables: [
         for (final e in json['tables'] as List<dynamic>)
           (
-            e['collection'] as String,
+            e['table'] as String,
             [
               for (final authType in e['authTypes'] as List<dynamic>)
                 AuthType.values.byName(authType as String),
@@ -219,7 +219,7 @@ final class AdminTablesResponse extends OperationResponse {
       'tables': tables
           .map(
             (e) => {
-              'collection': e.$1,
+              'table': e.$1,
               'authTypes': e.$2.map((e) => e.name).toList(),
             },
           )

@@ -40,13 +40,12 @@ final class AuthExtensionRequest extends ExtensionRequest {
   AuthExtensionRequest.onPasswordReset({required this.table, required this.object, required super.jwt})
     : step = .onPasswordReset,
       super(path: _path, id: Request.generateId());
-  AuthExtensionRequest._({required super.id, required this.table, required this.object, required this.step, required super.jwt})
-    : super(path: _path);
+  AuthExtensionRequest._({required super.id, required this.table, required this.object, required this.step, required super.jwt}) : super(path: _path);
 
   factory AuthExtensionRequest.fromRequest(UnknownRequest request) {
     return AuthExtensionRequest._(
       id: request.id,
-      table: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       object: request.payload['object'] as Map<String, dynamic>,
       step: AuthExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -85,19 +84,13 @@ final class ErrorExtensionRequest extends RecordExtensionRequest {
   ErrorExtensionRequest.delete({required this.table, required this.error, required super.jwt})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .delete);
 
-  ErrorExtensionRequest._({
-    required super.id,
-    required this.table,
-    required this.error,
-    required super.step,
-    required super.type,
-    required super.jwt,
-  }) : super(path: _path);
+  ErrorExtensionRequest._({required super.id, required this.table, required this.error, required super.step, required super.type, required super.jwt})
+    : super(path: _path);
 
   factory ErrorExtensionRequest.fromRequest(UnknownRequest request) {
     return ErrorExtensionRequest._(
       id: request.id,
-      table: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       error: request.payload['error'] as String,
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       type: ExtensionType.values.byName(request.payload['type'] as String),
@@ -128,7 +121,7 @@ final class CreateExtensionRequest extends RecordExtensionRequest {
   factory CreateExtensionRequest.fromRequest(UnknownRequest request) {
     return CreateExtensionRequest._(
       id: request.id,
-      table: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       object: request.payload['object'] as Map<String, dynamic>,
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -158,7 +151,7 @@ final class DeleteExtensionRequest extends RecordExtensionRequest {
   factory DeleteExtensionRequest.fromRequest(UnknownRequest request) {
     return DeleteExtensionRequest._(
       id: request.id,
-      table: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       objects: (request.payload['object'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -186,7 +179,7 @@ final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
   factory BeforeUpdateExtensionRequest.fromRequest(UnknownRequest request) {
     return BeforeUpdateExtensionRequest._(
       id: request.id,
-      table: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       objects: (request.payload['object'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -221,7 +214,7 @@ final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
   factory AfterUpdateExtensionRequest.fromRequest(UnknownRequest request) {
     return AfterUpdateExtensionRequest._(
       id: request.id,
-      table: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       before: (request.payload['before'] as List).cast(),
       after: (request.payload['after'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),

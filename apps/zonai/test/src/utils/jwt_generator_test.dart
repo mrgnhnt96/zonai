@@ -51,7 +51,7 @@ void main() {
         final decoded = await jwt.verify(token);
         expect(decoded, isNotNull);
         expect(decoded!['userId'], 'user-42');
-        expect(decoded['collection'], 'things');
+        expect(decoded['table'], 'things');
         expect(decoded['jwtId'], 'jti-ab');
         expect(
           decoded['expiresAt'],
@@ -143,9 +143,10 @@ void main() {
               'col': 'c',
               'usr': {},
               'jti': 'j',
-              'exp': DateTime.utc(2020)
-                  .add(const Duration(days: 365000))
-                  .millisecondsSinceEpoch ~/
+              'exp':
+                  DateTime.utc(
+                    2020,
+                  ).add(const Duration(days: 365000)).millisecondsSinceEpoch ~/
                   1000,
               'claims': <String, Object?>{},
             },
