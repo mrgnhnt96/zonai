@@ -4,7 +4,9 @@
 
 - [ ] When we have more credits, we need to verify the release process, everything passes except for windows atm
 
-## 5.19.2026
+- [ ] Figure out way to allow users to override internal rules
+  - [ ] Photos
+    - What if we had a property in the `InternalCollectionRules` (etc) that is `canBeOverridden` that is `false` by default? Then the user could override it by creating their own rules and importing it (the collection would need to live within zonai_schema package). Then if a user defined collection exists, and the collection can be overridded, then use the user defined rules instead. If no user defined collection exists, then use the internal rules. If the user defined collection exists, and the collection cannot be overridden, then throw an error.
 
 when running zonai serve, its important that we dont prompt or require input. We dont want to block a fresh deployment to a server
 

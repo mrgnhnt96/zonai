@@ -3,8 +3,9 @@
 // Built-in operations and rules for framework-managed SQLite tables.
 //
 // These are merged into generated `db_operations` / `db_rules` /
-// `db_rate_limit` executables; app authors do not add files for them under
-// `lib/src/operations`, `lib/src/rules`, or `lib/src/rate_limit`.
+// `db_rate_limit` / `db_extensions` executables; app authors do not add files
+// for them under `lib/src/operations`, `lib/src/rules`, `lib/src/rate_limit`,
+// or `lib/src/extensions`.
 //
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 
@@ -13,6 +14,7 @@ import 'package:raindrop/raindrop.dart' show Schema;
 import 'package:zonai/src/internal/auth_challenge_collection.dart' as _schema_authChallenges;
 import 'package:zonai/src/internal/jwt_collection.dart' as _schema_jwts;
 import 'package:zonai/src/internal/logs_collection.dart' as _schema_logs;
+import 'package:zonai/src/internal/photos_collection.dart' as _schema_photos;
 import 'package:zonai/src/internal/raindrop_migrations_collection.dart' as _schema_raindropMigrations;
 import 'package:zonai/src/internal/rate_limit_collection.dart' as _schema_rateLimits;
 
@@ -32,6 +34,11 @@ abstract final class InternalDbArtifacts {
       importPath:
           'package:zonai/src/internal/operations/log_operations.dart',
       alias: 'zonai_internal_log_operations',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/operations/photo_operations.dart',
+      alias: 'zonai_internal_photo_operations',
     ),
     (
       importPath:
@@ -78,6 +85,16 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
+          'package:zonai/src/internal/rules/photo_collection_rules.dart',
+      alias: 'zonai_internal_photo_collection_rules',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/rules/photo_record_rules.dart',
+      alias: 'zonai_internal_photo_record_rules',
+    ),
+    (
+      importPath:
           'package:zonai/src/internal/rules/raindrop_migrations_collection_rules.dart',
       alias: 'zonai_internal_raindrop_migrations_collection_rules',
     ),
@@ -99,6 +116,14 @@ abstract final class InternalDbArtifacts {
   ];
 
   static const rateLimits = <({String importPath, String alias})>[
+  ];
+
+  static const extensions = <({String importPath, String alias})>[
+    (
+      importPath:
+          'package:zonai/src/internal/extensions/photo_extension.dart',
+      alias: 'zonai_internal_photo_extension',
+    ),
   ];
 
   /// Framework-managed collections (import path, top-level getter, table).
@@ -123,6 +148,12 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
+          'package:zonai/src/internal/photos_collection.dart',
+      getter: 'photos',
+      tableName: '_photos',
+    ),
+    (
+      importPath:
           'package:zonai/src/internal/raindrop_migrations_collection.dart',
       getter: 'raindropMigrations',
       tableName: '_raindrop_migrations',
@@ -140,11 +171,12 @@ abstract final class InternalDbArtifacts {
     _schema_authChallenges.authChallenges,
     _schema_jwts.jwts,
     _schema_logs.logs,
+    _schema_photos.photos,
     _schema_raindropMigrations.raindropMigrations,
     _schema_rateLimits.rateLimits,
   ];
 
   /// SQLite table names managed by the framework (not user schemas).
-  static const tableNames = {'_auth_challenges', '_jwt', '_log', '_raindrop_migrations', '_rate_limit'};
+  static const tableNames = {'_auth_challenges', '_jwt', '_log', '_photos', '_raindrop_migrations', '_rate_limit'};
 }
 
