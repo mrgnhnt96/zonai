@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// Stream helpers for photo uploads (size limits and mime verification).
@@ -25,6 +27,62 @@ abstract final class PhotoStreamUtils {
       }
       yield chunk;
     }
+  }
+
+  /// Reads up to [_maxMagicLength] bytes from [source] and returns a stream
+  /// that replays those chunks before continuing with the rest of [source].
+  static Future<({List<int> prefix, Stream<List<int>> stream})> peekPrefix(
+    Stream<List<int>> source,
+  ) async {
+    final pending = <List<int>>[];
+    final prefix = <int>[];
+    final iterator = StreamIterator(source);
+
+    while (prefix.length < _maxMagicLength && await iterator.moveNext()) {
+      final chunk = iterator.current;
+      pending.add(chunk);
+      prefix.addAll(chunk);
+    }
+
+    Stream<List<int>> replay() async* {
+      for (final chunk in pending) {
+        yield chunk;
+      }
+      while (await iterator.moveNext()) {
+        yield iterator.current;
+      }
+    }
+
+    return (prefix: prefix, stream: replay());
+  }
+
+  /// Detects the image format from magic bytes at the start of [source].
+  ///
+  /// Returns a replay stream that includes the peeked prefix.
+  static Future<(ImageMimeType?, Stream<List<int>>)> detectMimeType(
+    Stream<List<int>> source,
+  ) async {
+    final peek = await peekPrefix(source);
+    final detected = peek.prefix.isEmpty
+        ? null
+        : ImageMimeType.detect(peek.prefix);
+    return (detected, peek.stream);
+  }
+
+  /// Verifies [expected] matches the leading bytes of [source].
+  ///
+  /// Returns a replay stream that includes the peeked prefix.
+  static Future<Stream<List<int>>> verifyExpectedType(
+    Stream<List<int>> source,
+    ImageMimeType expected,
+  ) async {
+    final peek = await peekPrefix(source);
+    if (peek.prefix.isEmpty) {
+      throw StateError('Empty image stream');
+    }
+
+    _verifyBuffer(peek.prefix, expected);
+    return peek.stream;
   }
 
   /// Yields chunks from [source] after verifying the leading bytes match [expected].
@@ -85,6 +143,17 @@ abstract final class PhotoStreamUtils {
     return switch (maxBytes) {
       null => stream,
       final limit => limitBytes(stream, limit),
+    };
+  }
+
+  /// Applies [maxBytes] when set; otherwise returns [image] unchanged.
+  static Stream<List<int>> limitedPhotoImageStream({
+    required Stream<List<int>> image,
+    required int? maxBytes,
+  }) {
+    return switch (maxBytes) {
+      null => image,
+      final limit => limitBytes(image, limit),
     };
   }
 

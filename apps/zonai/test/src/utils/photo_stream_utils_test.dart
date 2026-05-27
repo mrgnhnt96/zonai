@@ -45,6 +45,77 @@ void main() {
     });
   });
 
+  group('PhotoStreamUtils.detectMimeType', () {
+    test('detects jpeg from split chunks', () async {
+      final (detected, stream) = await PhotoStreamUtils.detectMimeType(
+        Stream.fromIterable([
+          [0xFF],
+          [0xD8, 0xFF, 0xD9],
+        ]),
+      );
+
+      expect(detected, ImageMimeType.jpeg);
+      expect(
+        await stream.expand((chunk) => chunk).toList(),
+        [0xFF, 0xD8, 0xFF, 0xD9],
+      );
+    });
+
+    test('returns null for empty stream', () async {
+      final (detected, stream) = await PhotoStreamUtils.detectMimeType(
+        const Stream.empty(),
+      );
+
+      expect(detected, isNull);
+      expect(await stream.toList(), isEmpty);
+    });
+  });
+
+  group('PhotoStreamUtils.verifyExpectedType', () {
+    test('returns replay stream when bytes match', () async {
+      final chunks = [
+        [0xFF, 0xD8, 0xFF],
+        [0xD9],
+      ];
+
+      final stream = await PhotoStreamUtils.verifyExpectedType(
+        Stream.fromIterable(chunks),
+        ImageMimeType.jpeg,
+      );
+
+      expect(await stream.toList(), chunks);
+    });
+
+    test('throws when bytes do not match expected type', () async {
+      expect(
+        PhotoStreamUtils.verifyExpectedType(
+          Stream.value([
+            0x89,
+            0x50,
+            0x4E,
+            0x47,
+            0x0D,
+            0x0A,
+            0x1A,
+            0x0A,
+          ]),
+          ImageMimeType.jpeg,
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('throws on empty stream', () async {
+      expect(
+        PhotoStreamUtils.verifyExpectedType(
+          const Stream.empty(),
+          ImageMimeType.jpeg,
+        ),
+        throwsStateError,
+      );
+    });
+  });
+
   group('PhotoStreamUtils.verifyMimeType', () {
     test('passes through matching bytes', () async {
       final chunks = [

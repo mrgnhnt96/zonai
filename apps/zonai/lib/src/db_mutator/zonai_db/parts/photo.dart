@@ -51,17 +51,32 @@ extension _PhotoX on ZonaiDb {
     await _requireTableAccess(table.name, .create, jwt);
 
     final config = await configResolver.resolve();
+    final photosConfig = config.photos;
 
-    final imageType = ImageMimeType.fromContentType(contentType);
-    if (imageType == null) {
-      throw StateError('Invalid content type: $contentType');
+    final ImageMimeType imageType;
+    final Stream<List<int>> imageStream;
+
+    if (photosConfig.requiredMimeType) {
+      final declared = ImageMimeType.fromContentType(contentType);
+      if (declared == null) {
+        throw StateError('Invalid content type: $contentType');
+      }
+
+      imageStream = await PhotoStreamUtils.verifyExpectedType(image, declared);
+      imageType = declared;
+    } else {
+      final (detected, stream) = await PhotoStreamUtils.detectMimeType(image);
+      if (detected == null) {
+        throw StateError('Could not detect image type from stream');
+      }
+
+      imageStream = stream;
+      imageType = detected;
     }
 
-    if (config.photos case final config) {
-      if (config.allowedMimeTypes case final allowed?) {
-        if (!allowed.contains(imageType)) {
-          throw StateError('Content type not allowed: ${imageType.mimeType}');
-        }
+    if (photosConfig.allowedMimeTypes case final allowed?) {
+      if (!allowed.contains(imageType)) {
+        throw StateError('Content type not allowed: ${imageType.mimeType}');
       }
     }
 
@@ -101,10 +116,9 @@ extension _PhotoX on ZonaiDb {
 
       await file.parent.create(recursive: true);
       await file.openWrite().addStream(
-        PhotoStreamUtils.verifiedPhotoImageStream(
-          image: image,
-          imageType: imageType,
-          maxBytes: config.photos.maxBytes,
+        PhotoStreamUtils.limitedPhotoImageStream(
+          image: imageStream,
+          maxBytes: photosConfig.maxBytes,
         ),
       );
 
@@ -171,6 +185,11 @@ extension _PhotoX on ZonaiDb {
       throw StateError('Unsupported photo extension: ${photo.extension}');
     }
 
+    final imageStream = await PhotoStreamUtils.verifyExpectedType(
+      image,
+      imageType,
+    );
+
     final tempFile = fs.file('${file.path}.tmp');
 
     try {
@@ -187,9 +206,8 @@ extension _PhotoX on ZonaiDb {
       }
 
       await tempFile.openWrite().addStream(
-        PhotoStreamUtils.verifiedPhotoImageStream(
-          image: image,
-          imageType: imageType,
+        PhotoStreamUtils.limitedPhotoImageStream(
+          image: imageStream,
           maxBytes: config.photos.maxBytes,
         ),
       );

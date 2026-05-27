@@ -3,6 +3,7 @@ import '../types/image_mime_type.dart';
 class PhotosConfig {
   const PhotosConfig({
     this.maxBytes = 5 * 1024 * 1024, // 5MB
+    this.requiredMimeType = true,
     this.allowedMimeTypes = ImageMimeType.defaultAllowed,
   });
 
@@ -30,6 +31,12 @@ class PhotosConfig {
   ///
   /// If not set, all mime types are allowed.
   final List<ImageMimeType>? allowedMimeTypes;
+
+  /// Require the mime type to be present in the Content-Type header
+  /// when uploading a photo.
+  ///
+  /// When `false`, the mime type will be detected from the "magic bytes" of the image.
+  final bool requiredMimeType;
 
   Map<String, dynamic> toJson() => {
     'maxBytes': maxBytes,
