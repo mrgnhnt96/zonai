@@ -1,3 +1,5 @@
+import 'package:raindrop/raindrop.dart';
+
 class ObjectedRow {
   const ObjectedRow({required this.columns, required this.values});
 
@@ -11,5 +13,14 @@ class ObjectedRow {
   @override
   String toString() {
     return '${toMap()}';
+  }
+}
+
+extension TableMapOutX<T extends Schema<R>, R> on Table<T, R> {
+  Map<String, Object?> mapOut(R row) {
+    return ObjectedRow(
+      columns: columns.map((e) => e.name).toList(),
+      values: this.values(row),
+    ).toMap();
   }
 }

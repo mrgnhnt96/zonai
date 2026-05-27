@@ -10,6 +10,7 @@ export 'src/payloads/count_body.dart';
 export 'src/payloads/create_body.dart';
 export 'src/payloads/delete_body.dart';
 export 'src/payloads/get_body.dart';
+export 'src/payloads/photo_bodies.dart';
 export 'src/payloads/list_body.dart';
 export 'src/payloads/stream_body.dart';
 export 'src/payloads/stream_count_body.dart';

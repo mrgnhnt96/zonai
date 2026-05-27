@@ -12,8 +12,10 @@ import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
+import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
+import 'package:zonai/src/internal/photos_collection.dart';
 import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
@@ -54,6 +56,7 @@ part 'parts/read.dart';
 part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
+part 'parts/photo.dart';
 
 typedef _CrudResult = Map<String, Object?>;
 typedef _CrudListResult = List<Map<String, Object?>>;
@@ -223,6 +226,38 @@ class ZonaiDb {
     );
   }
 
+  Stream<List<int>> getPhoto(String id, {required String? token}) {
+    return _runStream(() => _getPhoto(id, token: token));
+  }
+
+  Future<Map<String, Object?>> createPhoto({
+    required String? token,
+    required PhotoCreateMeta meta,
+    required String? contentType,
+    required Stream<List<int>> image,
+  }) async {
+    return await _run(
+      () => _createPhoto(
+        token: token,
+        meta: meta,
+        contentType: contentType,
+        image: image,
+      ),
+    );
+  }
+
+  Future<void> updatePhoto({
+    required String? token,
+    required String id,
+    required Stream<List<int>> image,
+  }) async {
+    return await _run(() => _updatePhoto(token: token, id: id, image: image));
+  }
+
+  Future<void> deletePhoto({required String? token, required String id}) async {
+    return await _run(() => _deletePhoto(token: token, id: id));
+  }
+
   Future<void> sendEmail(Email email) async {
     await _run(() => courier.send(email));
   }
@@ -241,6 +276,10 @@ class ZonaiDb {
 
   Future<_CrudResult> create(String collection, CreatePayload payload) async {
     return await _run(() => _create(collection, payload));
+  }
+
+  Future<Jwt?> parseJwt(String? jwt) async {
+    return await _extractJwt(JwtPayload(jwt: jwt));
   }
 
   Future<_CrudListResult> update(
@@ -308,57 +347,17 @@ class ZonaiDb {
     }
   }
 
-  Stream<T> _runStream<T>(Stream<T> Function() body) {
+  Stream<T> _runStream<T>(Stream<T> Function() body) async* {
     final m = Mutations();
-    return Stream<T>.multi((listener) {
-      runMergedScopedFuture(
-        () async {
-          late final StreamSubscription<T> subscription;
-          try {
-            subscription = body().listen(
-              listener.add,
-              onError: listener.addError,
-              onDone: () {
-                if (!listener.isClosed) {
-                  listener.close();
-                }
-              },
-              cancelOnError: false,
-            );
-
-            listener
-              ..onCancel = () {
-                subscription.cancel().whenComplete(() {
-                  if (!listener.isClosed) {
-                    listener.close();
-                  }
-                });
-              }
-              ..onPause = subscription.pause
-              ..onResume = subscription.resume;
-
-            await subscription.asFuture();
-          } on ExecutableUnavailableException catch (e, stack) {
-            listener.addError(e, stack);
-            if (!listener.isClosed) {
-              listener.close();
-            }
-          } catch (e, stack) {
-            logger.error('Failed to run database operation', e, stack);
-            listener.addError(e, stack);
-            if (!listener.isClosed) {
-              listener.close();
-            }
-          }
-        },
-        includeIfAbsent: {cleanUpProvider, executableStopProvider},
-        override: {
-          mutationsProvider.overrideWith(() => m),
-          configResolverProvider.overrideWith(
-            () => ConfigResolver(mailman: _config),
-          ),
-        },
-      );
-    });
+    yield* await runMergedScopedFuture(
+      () async => body(),
+      includeIfAbsent: {cleanUpProvider, executableStopProvider},
+      override: {
+        mutationsProvider.overrideWith(() => m),
+        configResolverProvider.overrideWith(
+          () => ConfigResolver(mailman: _config),
+        ),
+      },
+    );
   }
 }

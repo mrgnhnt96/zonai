@@ -186,6 +186,8 @@ class Settings {
   String get compiledRateLimitPath =>
       _normalize([compiledExecutableDirectory, 'db_rate_limit.exe']);
 
+  String get imagesPath => _normalize(['images']);
+
   String get zonaiSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai.sqlite'));
 }

@@ -10,6 +10,7 @@ import 'package:zonai_server/config/server_binding.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_server/src/handlers/email_handler.dart';
+import 'package:zonai_server/src/handlers/photo_handler.dart';
 
 import '../components/exception_catcher.dart';
 
@@ -26,6 +27,7 @@ final class DevApp extends AppConfig {
     di.registerFactory(DbHandler.new);
     di.registerFactory(AuthHandler.new);
     di.registerFactory(EmailHandler.new);
+    di.registerFactory(PhotoHandler.new);
   }
 
   @override
@@ -37,9 +39,7 @@ final class DevApp extends AppConfig {
 
     return await runMergedScoped(
       startup,
-      override: {
-        loggerProvider.overrideWith(() => parentLogger),
-      },
+      override: {loggerProvider.overrideWith(() => parentLogger)},
       includeIfAbsent: {
         argsProvider,
         courierProvider,

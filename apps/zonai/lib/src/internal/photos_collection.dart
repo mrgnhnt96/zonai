@@ -7,6 +7,7 @@ class PhotoEntry {
     required this.ownerCollection,
     required this.collection,
     required this.path,
+    required this.extension,
   }) : createdAt = .now();
 
   PhotoEntry._({
@@ -16,6 +17,7 @@ class PhotoEntry {
     required this.collection,
     required this.createdAt,
     required this.path,
+    required this.extension,
   });
 
   final PhotoId id;
@@ -24,6 +26,7 @@ class PhotoEntry {
   final DateTime createdAt;
   final String collection;
   final String path;
+  final String extension;
 }
 
 class PhotoId implements Id {
@@ -53,7 +56,8 @@ class PhotosCollection extends Collection<PhotoEntry> {
       ownerCollection = $.text('owner_collection', (s) => s.ownerCollection),
       collection = $.text('collection', (s) => s.collection),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
-      path = $.text('path', (s) => s.path);
+      path = $.text('path', (s) => s.path),
+      extension = $.text('extension', (s) => s.extension);
 
   @override
   PhotoEntry fromRow(RowReader read) {
@@ -64,6 +68,7 @@ class PhotosCollection extends Collection<PhotoEntry> {
       collection: read(collection),
       createdAt: read(createdAt),
       path: read(path),
+      extension: read(extension),
     );
   }
 
@@ -73,6 +78,7 @@ class PhotosCollection extends Collection<PhotoEntry> {
   final TextColumn collection;
   final DateTimeColumn createdAt;
   final TextColumn path;
+  final TextColumn extension;
 }
 
 final photos = collection('_photos', PhotosCollection.new);
