@@ -9,9 +9,9 @@ class DbExtensions {
 
   final List<Extension> extensions;
 
-  Map<String, Extension>? _extensionsByCollection;
-  Map<String, Extension> get extensionsByCollection {
-    if (_extensionsByCollection case final map?) return map;
+  Map<String, Extension>? _extensionsByTable;
+  Map<String, Extension> get extensionsByTable {
+    if (_extensionsByTable case final map?) return map;
 
     final map = <String, Extension>{};
     for (final extension in this.extensions) {
@@ -23,7 +23,7 @@ class DbExtensions {
       }
     }
 
-    return _extensionsByCollection = map;
+    return _extensionsByTable = map;
   }
 
   void start() {
@@ -75,7 +75,7 @@ class DbExtensions {
   }
 
   Future<void> _delete(DeleteExtensionRequest request) async {
-    final extension = extensionsByCollection[request.collection];
+    final extension = extensionsByTable[request.table];
     if (extension == null) {
       return;
     }
@@ -102,7 +102,7 @@ class DbExtensions {
   }
 
   Future<void> _beforeUpdate(BeforeUpdateExtensionRequest request) async {
-    final extension = extensionsByCollection[request.collection];
+    final extension = extensionsByTable[request.table];
     if (extension == null) {
       return;
     }
@@ -119,7 +119,7 @@ class DbExtensions {
   }
 
   Future<void> _afterUpdate(AfterUpdateExtensionRequest request) async {
-    final extension = extensionsByCollection[request.collection];
+    final extension = extensionsByTable[request.table];
     if (extension == null) {
       return;
     }
@@ -139,7 +139,7 @@ class DbExtensions {
   }
 
   Future<void> _create(CreateExtensionRequest request) async {
-    final extension = extensionsByCollection[request.collection];
+    final extension = extensionsByTable[request.table];
     if (extension == null) {
       return;
     }
@@ -160,7 +160,7 @@ class DbExtensions {
   }
 
   Future<void> _error(ErrorExtensionRequest request) async {
-    final extension = extensionsByCollection[request.collection];
+    final extension = extensionsByTable[request.table];
 
     switch (request.type) {
       case .create:
@@ -179,7 +179,7 @@ class DbExtensions {
   }
 
   Future<void> _auth(AuthExtensionRequest request) async {
-    final extension = extensionsByCollection[request.collection];
+    final extension = extensionsByTable[request.table];
     if (extension == null) {
       return;
     }

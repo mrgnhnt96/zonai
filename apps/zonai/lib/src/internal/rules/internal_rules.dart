@@ -1,9 +1,9 @@
 import 'package:zonai_schema/zonai_schema.dart';
 
-/// Collection rules for framework tables: never exposed via the public DB API.
-base class InternalCollectionRules<S extends Collection<R>, R>
-    extends CollectionRules<S, R> {
-  const InternalCollectionRules(super.schema, {this.canBeOverridden = false});
+/// Table rules for framework tables: never exposed via the public DB API.
+base class InternalTableRules<S extends Table<R>, R>
+    extends TableRules<S, R> {
+  const InternalTableRules(super.schema, {this.canBeOverridden = false});
 
   final bool canBeOverridden;
 
@@ -27,7 +27,7 @@ base class InternalCollectionRules<S extends Collection<R>, R>
 }
 
 /// Record rules for framework tables: never exposed via the public DB API.
-base class InternalRecordRules<S extends Collection<R>, R>
+base class InternalRecordRules<S extends Table<R>, R>
     extends RecordRules<S, R> {
   const InternalRecordRules(super.schema, {this.canBeOverridden = false});
 

@@ -19,12 +19,12 @@ Every user-facing collection typically needs **two** rule files:
 
 | Level      | Class                                     | Question answered                                                |
 | ---------- | ----------------------------------------- | ---------------------------------------------------------------- |
-| Collection | `CollectionRules` / `AuthCollectionRules` | Can this caller perform this operation on the collection at all? |
+| Table | `TableRules` / `AuthTableRules` | Can this caller perform this operation on the collection at all? |
 | Record     | `RecordRules` / `AuthRecordRules`         | Can this caller perform this operation on **this row**?          |
 
 The server checks **collection rules first**, then **record rules** when a specific row is involved.
 
-| API flow                       | Collection check          | Record check                        |
+| API flow                       | Table check          | Record check                        |
 | ------------------------------ | ------------------------- | ----------------------------------- |
 | `create`                       | `canCreate`               | `canCreate` (with the payload row)  |
 | `update` / `delete`            | `canUpdate` / `canDelete` | `canUpdate` / `canDelete` (per row) |
@@ -41,9 +41,9 @@ Default directory (override with `rulesPath` in `zonai.yaml`):
 
 ```text
 lib/src/rules/
-  item_collection_rules.dart
+  item_table_rules.dart
   item_record_rules.dart
-  user_collection_rules.dart
+  user_table_rules.dart
   user_record_rules.dart
 ```
 
@@ -53,10 +53,10 @@ Each `.dart` file must export a **`main()`** that returns a **`Rules`** instance
 import 'package:my_app/src/schemas/items.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-ItemCollectionRules main() => ItemCollectionRules();
+ItemTableRules main() => ItemTableRules();
 
-final class ItemCollectionRules extends CollectionRules<ItemCollection, Item> {
-  ItemCollectionRules() : super(items);
+final class ItemTableRules extends TableRules<ItemTable, Item> {
+  ItemTableRules() : super(items);
 
   @override
   Future<bool> canList(Jwt? jwt) async => true;
@@ -72,7 +72,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 ItemRecordRules main() => ItemRecordRules();
 
-class ItemRecordRules extends RecordRules<ItemCollection, Item> {
+class ItemRecordRules extends RecordRules<ItemTable, Item> {
   ItemRecordRules() : super(items);
 
   @override
@@ -86,10 +86,10 @@ Define **one rules file per class per collection** — one collection-rules file
 
 ## Base classes
 
-| Collection type    | Collection rules            | Record rules            |
+| Table type    | Table rules            | Record rules            |
 | ------------------ | --------------------------- | ----------------------- |
-| Regular collection | `CollectionRules<S, R>`     | `RecordRules<S, R>`     |
-| Auth collection    | `AuthCollectionRules<S, R>` | `AuthRecordRules<S, R>` |
+| Regular collection | `TableRules<S, R>`     | `RecordRules<S, R>`     |
+| Auth collection    | `AuthTableRules<S, R>` | `AuthRecordRules<S, R>` |
 
 Both are parameterized by your **schema** (`S`) and **row type** (`R`). Pass the schema getter (for example `items`, `users`) to the superclass constructor.
 
@@ -143,11 +143,11 @@ Future<bool> canUpdate(Jwt? jwt, Item record) async {
 }
 ```
 
-## Collection rule methods
+## Table rule methods
 
 Override the methods that correspond to operations your API uses. Each returns `Future<bool>`.
 
-| Method      | `CollectionOperation` | Typical HTTP use                   |
+| Method      | `TableOperation` | Typical HTTP use                   |
 | ----------- | --------------------- | ---------------------------------- |
 | `canCreate` | `create`              | `POST /db`                         |
 | `canUpdate` | `update`              | `PATCH /db`, `PATCH /db/many`      |
@@ -155,7 +155,7 @@ Override the methods that correspond to operations your API uses. Each returns `
 | `canView`   | `view`                | `GET /db`, stream-one              |
 | `canList`   | `list`                | `GET /db/list`, stream-list, count |
 
-Collection rules currently evaluate only these standard operation names. Custom operation strings (handled by `CollectionOperations.custom`) are denied at the collection-rules layer until custom-operation rule support is added.
+Table rules currently evaluate only these standard operation names. Custom operation strings (handled by `TableOperations.custom`) are denied at the collection-rules layer until custom-operation rule support is added.
 
 ## Record rule methods
 
@@ -174,7 +174,7 @@ You cannot create auth collection rows through the generic DB API (`canCreate` o
 
 Auth collections extend the base classes with sign-in and sign-up authorization.
 
-### `AuthCollectionRules`
+### `AuthTableRules`
 
 | Method            | Purpose                                                   |
 | ----------------- | --------------------------------------------------------- |
@@ -201,11 +201,11 @@ Record CRUD defaults for auth collections allow users to view and modify **their
 Minimal auth setup (defaults only):
 
 ```dart
-final class UserCollectionRules extends AuthCollectionRules<UserCollection, User> {
-  UserCollectionRules() : super(users);
+final class UserTableRules extends AuthTableRules<UserTable, User> {
+  UserTableRules() : super(users);
 }
 
-class UserRecordRules extends AuthRecordRules<UserCollection, User> {
+class UserRecordRules extends AuthRecordRules<UserTable, User> {
   UserRecordRules() : super(users);
 }
 ```
@@ -224,7 +224,7 @@ The `_photos` table stores metadata for uploaded images (file path, owner, targe
 
 Each photo request runs the same rule pipeline as other operations: **collection rules first**, then **record rules** when a row is involved.
 
-| Photo API operation           | Collection check | Record check                                  |
+| Photo API operation           | Table check | Record check                                  |
 | ----------------------------- | ---------------- | --------------------------------------------- |
 | Create (`POST /photos`)       | `canCreate`      | `canCreate` (payload row built before insert) |
 | View (`GET /photos/:id`)      | `canView`        | `canView`                                     |
@@ -239,7 +239,7 @@ Rule methods receive a typed **`PhotoEntry`** from `package:zonai_schema/zonai_s
 | ------------------------ | ------------------------------------------------------------------------------------- |
 | `record.id`              | Photo ID (`PhotoId`)                                                                  |
 | `record.ownerId`         | Authenticated user at upload time (`jwt.userId` when a token was sent)                |
-| `record.ownerCollection` | Auth collection name from the JWT                                                     |
+| `record.ownerTable` | Auth collection name from the JWT                                                     |
 | `record.collection`      | App collection the photo is attached to (from `PhotoCreateMeta.collection` on create) |
 | `record.path`            | Relative path under the configured images directory                                   |
 | `record.extension`       | Normalized file extension (`jpg`, `png`, etc.)                                        |
@@ -250,7 +250,7 @@ Pass the schema getter **`photos`** to your rule class constructors (same patter
 
 If you do not add override files, Zonai uses the built-in photo rules:
 
-**Collection rules** — allow create, update, delete, and view for all callers (including unauthenticated).
+**Table rules** — allow create, update, delete, and view for all callers (including unauthenticated).
 
 **Record rules**:
 
@@ -263,20 +263,20 @@ If you do not add override files, Zonai uses the built-in photo rules:
 
 ### Overriding photo rules
 
-Photo rules set `canBeOverridden: true`, so you can register your own **`CollectionRules`** and **`RecordRules`** for `_photos` under `rulesPath`. Add **both** files — one collection-rules file and one record-rules file — using the same layout as your app collections.
+Photo rules set `canBeOverridden: true`, so you can register your own **`TableRules`** and **`RecordRules`** for `_photos` under `rulesPath`. Add **both** files — one collection-rules file and one record-rules file — using the same layout as your app collections.
 
 User rules are loaded **after** built-in internal rules and replace them for `_photos`. Other internal tables cannot be overridden; registering rules for them throws a duplicate-registration error when the rules worker loads.
 
 Example — restrict uploads to signed-in users and reads to owners or admins:
 
 ```dart
-// lib/src/rules/photo_collection_rules.dart
+// lib/src/rules/photo_table_rules.dart
 import 'package:zonai_schema/zonai_schema.dart';
 
-PhotoCollectionRules main() => PhotoCollectionRules();
+PhotoTableRules main() => PhotoTableRules();
 
-final class PhotoCollectionRules extends CollectionRules<PhotosCollection, PhotoEntry> {
-  PhotoCollectionRules() : super(photos);
+final class PhotoTableRules extends TableRules<PhotosTable, PhotoEntry> {
+  PhotoTableRules() : super(photos);
 
   @override
   Future<bool> canCreate(Jwt? jwt) async => jwt != null;
@@ -298,7 +298,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 PhotoRecordRules main() => PhotoRecordRules();
 
-final class PhotoRecordRules extends RecordRules<PhotosCollection, PhotoEntry> {
+final class PhotoRecordRules extends RecordRules<PhotosTable, PhotoEntry> {
   PhotoRecordRules() : super(photos);
 
   @override
@@ -365,11 +365,11 @@ rulesPath: lib/src/rules
 
 ## Minimal example
 
-From `apps/playground/lib/src/rules/item_collection_rules.dart` and `item_record_rules.dart` — open access for development:
+From `apps/playground/lib/src/rules/item_table_rules.dart` and `item_record_rules.dart` — open access for development:
 
 ```dart
-final class ItemCollectionRules extends CollectionRules<ItemCollection, Item> {
-  ItemCollectionRules() : super(items);
+final class ItemTableRules extends TableRules<ItemTable, Item> {
+  ItemTableRules() : super(items);
 
   @override
   Future<bool> canCreate(Jwt? jwt) async => true;
@@ -389,7 +389,7 @@ final class ItemCollectionRules extends CollectionRules<ItemCollection, Item> {
 ```
 
 ```dart
-class ItemRecordRules extends RecordRules<ItemCollection, Item> {
+class ItemRecordRules extends RecordRules<ItemTable, Item> {
   ItemRecordRules() : super(items);
 
   @override

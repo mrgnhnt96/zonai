@@ -129,13 +129,13 @@ class MessageHandler {
                     (email) {
                       sendRequest(SendEmailRequest(email, jwt: request.jwt));
                     },
-                    (builtIn, to, collection, variables) {
+                    (builtIn, to, tableName, variables) {
                       sendRequest(
                         SendBuiltInEmailRequest(
                           builtIn,
                           to: to,
                           variables: variables,
-                          collection: collection,
+                          table: tableName,
                           jwt: request.jwt,
                         ),
                       );
@@ -144,10 +144,10 @@ class MessageHandler {
                 ),
                 _mutateProvider.overrideWith(
                   () => _Mutate(
-                    update: ({required collection, required updates, required where, limit}) async {
+                    update: ({required tableName, required updates, required where, limit}) async {
                       await sendRequest(
                         UpdateRecordRequest(
-                          collection: collection,
+                          table: tableName,
                           updates: updates,
                           where: where,
                           jwt: request.jwt,
@@ -156,10 +156,10 @@ class MessageHandler {
                         expectResponse: false,
                       );
                     },
-                    delete: ({required collection, required updates, required where, limit}) async {
+                    delete: ({required tableName, required updates, required where, limit}) async {
                       await sendRequest(
                         DeleteRecordRequest(
-                          collection: collection,
+                          table: tableName,
                           where: where,
                           parent: request,
                           jwt: request.jwt,
@@ -167,10 +167,10 @@ class MessageHandler {
                         expectResponse: false,
                       );
                     },
-                    create: ({required collection, required objects}) async {
+                    create: ({required tableName, required objects}) async {
                       await sendRequest(
                         CreateRecordRequest(
-                          collection: collection,
+                          table: tableName,
                           objects: objects,
                           parent: request,
                           jwt: request.jwt,
@@ -206,10 +206,10 @@ class MessageHandler {
           _listen,
           values: {
             _getRecordRequestProvider.overrideWith(
-              () => _Get(({required collection, required where, limit, offset, jwt}) async {
+              () => _Get(({required tableName, required where, limit, offset, jwt}) async {
                 final result = await sendRequest(
                   GetRecordRequest(
-                    collection: collection,
+                    table: tableName,
                     where: where,
                     limit: limit,
                     offset: offset,

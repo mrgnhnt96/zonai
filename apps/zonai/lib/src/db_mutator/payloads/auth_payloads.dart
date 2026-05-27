@@ -54,11 +54,11 @@ class SendOtpAuthPayload extends AuthPayload {
 class SendVerifyEmailAuthPayload {
   const SendVerifyEmailAuthPayload({
     required this.email,
-    required this.collection,
+    required this.table,
   });
 
   final String email;
-  final String collection;
+  final String table;
 }
 
 class VerifyOtpAuthPayload extends VerifyAuthPayload implements AuthPayload {

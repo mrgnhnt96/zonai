@@ -57,7 +57,7 @@ class Email {
 class SendOtpEmail extends Email {
   SendOtpEmail({
     required super.to,
-    required String collection,
+    required String table,
     super.from,
     bool isResend = false,
     String subject = 'Your confirmation code',
@@ -68,7 +68,7 @@ class SendOtpEmail extends Email {
          subject: subject,
          template: 'otp_code',
          thread: Email.createThread(
-           'otp:$collection:${to.address.toLowerCase()}',
+           'otp:$table:${to.address.toLowerCase()}',
            continueThread: isResend,
          ),
          variables: {
@@ -83,7 +83,7 @@ class SendOtpEmail extends Email {
 class SendMagicLinkEmail extends Email {
   SendMagicLinkEmail({
     required super.to,
-    required String collection,
+    required String table,
     super.from,
     String subject = 'Sign in',
     bool isResend = false,
@@ -94,7 +94,7 @@ class SendMagicLinkEmail extends Email {
          subject: subject,
          template: 'magic_link',
          thread: Email.createThread(
-           'magic-link:$collection:${to.address.toLowerCase()}',
+           'magic-link:$table:${to.address.toLowerCase()}',
            continueThread: isResend,
          ),
          variables: {
@@ -109,7 +109,7 @@ class SendMagicLinkEmail extends Email {
 class SendVerifyEmailEmail extends Email {
   SendVerifyEmailEmail({
     required super.to,
-    required String collection,
+    required String table,
     super.from,
     required String verificationUrl,
     required Duration expiresIn,
@@ -119,7 +119,7 @@ class SendVerifyEmailEmail extends Email {
          subject: subject,
          template: 'verify_email',
          thread: Email.createThread(
-           'verify-email:$collection:${to.address.toLowerCase()}',
+           'verify-email:$table:${to.address.toLowerCase()}',
          ),
          variables: {
            ...?variables,
@@ -142,7 +142,7 @@ class SendVerifyEmailEmail extends Email {
 class SendResetPasswordEmail extends Email {
   SendResetPasswordEmail({
     required super.to,
-    required String collection,
+    required String table,
     super.from,
     required String passwordResetUrl,
     required Duration expiresIn,
@@ -153,7 +153,7 @@ class SendResetPasswordEmail extends Email {
          subject: subject,
          template: 'password_reset',
          thread: Email.createThread(
-           'reset-password:$collection:${to.address.toLowerCase()}',
+           'reset-password:$table:${to.address.toLowerCase()}',
          ),
          variables: {
            ...?variables,

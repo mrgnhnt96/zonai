@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:meta/meta.dart';
 
 sealed class AuthBody {
-  const AuthBody({required this.collection, required this.type});
+  const AuthBody({required this.table, required this.type});
 
   factory AuthBody.fromJson(Map<String, dynamic> json) {
     return switch (json['type']) {
@@ -23,20 +23,20 @@ sealed class AuthBody {
   }
 
   factory AuthBody.signIn({
-    required String collection,
+    required String table,
     required String email,
     required String password,
   }) = SignInAuthBody;
 
   factory AuthBody.signUp({
-    required String collection,
+    required String table,
     required String email,
     required String password,
     required Map<String, dynamic> object,
   }) = SignUpAuthBody;
 
   factory AuthBody.sendOtp({
-    required String collection,
+    required String table,
     required String email,
     Map<String, dynamic>? metadata,
   }) = SendOtpAuthBody;
@@ -52,7 +52,7 @@ sealed class AuthBody {
   }) = AdminSignInAuthBody;
 
   factory AuthBody.sendMagicLink({
-    required String collection,
+    required String table,
     required String email,
     Map<String, dynamic>? metadata,
   }) = SendMagicLinkAuthBody;
@@ -62,12 +62,12 @@ sealed class AuthBody {
     Map<String, dynamic>? metadata,
   }) = AdminSendMagicLinkAuthBody;
 
-  final String collection;
+  final String table;
   final String type;
 
   @mustCallSuper
   Map<String, dynamic> toJson() {
-    return {'collection': collection, 'type': type};
+    return {'table': table, 'type': type};
   }
 }
 
@@ -90,7 +90,7 @@ abstract class AdminAuthBody {
 
   final String type;
 
-  String get collection =>
+  String get table =>
       throw UnimplementedError('$AdminAuthBody does not have a collection');
 
   @mustCallSuper
@@ -100,14 +100,14 @@ abstract class AdminAuthBody {
 class SendOtpAuthBody extends AuthBody {
   const SendOtpAuthBody({
     required this.email,
-    required super.collection,
+    required super.table,
     this.metadata,
   }) : super(type: _type);
 
   factory SendOtpAuthBody.fromJson(Map<String, dynamic> json) {
     return SendOtpAuthBody(
       email: json['email'] as String,
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       metadata: json['metadata'] != null
           ? Map<String, dynamic>.from(json['metadata'] as Map)
           : null,
@@ -201,14 +201,14 @@ class AdminVerifyOtpAuthBody extends AdminAuthBody
 class SendMagicLinkAuthBody extends AuthBody {
   const SendMagicLinkAuthBody({
     required this.email,
-    required super.collection,
+    required super.table,
     this.metadata,
   }) : super(type: _type);
 
   factory SendMagicLinkAuthBody.fromJson(Map<String, dynamic> json) {
     return SendMagicLinkAuthBody(
       email: json['email'] as String,
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       metadata: json['metadata'] != null
           ? Map<String, dynamic>.from(json['metadata'] as Map)
           : null,
@@ -364,23 +364,23 @@ sealed class ResetPasswordAuthBody {
 class SendResetPasswordAuthBody extends ResetPasswordAuthBody {
   const SendResetPasswordAuthBody({
     required super.email,
-    required this.collection,
+    required this.table,
   }) : super(type: _type);
 
   factory SendResetPasswordAuthBody.fromJson(Map<String, dynamic> json) {
     return SendResetPasswordAuthBody(
       email: json['email'] as String,
-      collection: json['collection'] as String,
+      table: json['table'] as String,
     );
   }
 
   static const _type = 'sendResetPassword';
 
-  final String collection;
+  final String table;
 
   Map<String, dynamic> toJson() => {
     ...super.toJson(),
-    'collection': collection,
+    'table': table,
   };
 }
 
@@ -423,20 +423,20 @@ class ConfirmResetPasswordAuthBody extends VerifyAuthBody {
 }
 
 class VerifyEmailAuthBody {
-  const VerifyEmailAuthBody({required this.email, required this.collection});
+  const VerifyEmailAuthBody({required this.email, required this.table});
 
   factory VerifyEmailAuthBody.fromJson(Map<String, dynamic> json) {
     return VerifyEmailAuthBody(
       email: json['email'] as String,
-      collection: json['collection'] as String,
+      table: json['table'] as String,
     );
   }
 
   final String email;
-  final String collection;
+  final String table;
 
   @mustCallSuper
-  Map<String, dynamic> toJson() => {'email': email, 'collection': collection};
+  Map<String, dynamic> toJson() => {'email': email, 'table': table};
 }
 
 class ConfirmVerifyEmailAuthBody extends VerifyAuthBody {
@@ -477,7 +477,7 @@ class AdminSignInAuthBody extends AdminAuthBody implements SignInAuthBody {
 
 class SignInAuthBody extends AuthBody {
   const SignInAuthBody({
-    required super.collection,
+    required super.table,
     required this.email,
     required this.password,
   }) : super(type: _type);
@@ -489,7 +489,7 @@ class SignInAuthBody extends AuthBody {
 
   factory SignInAuthBody.fromJson(Map<String, dynamic> json) {
     return SignInAuthBody(
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       email: json['email'] as String,
       password: json['password'] as String,
     );
@@ -503,7 +503,7 @@ class SignInAuthBody extends AuthBody {
 
 class SignUpAuthBody extends AuthBody {
   const SignUpAuthBody({
-    required super.collection,
+    required super.table,
     required this.email,
     required this.password,
     this.object,
@@ -517,7 +517,7 @@ class SignUpAuthBody extends AuthBody {
 
   factory SignUpAuthBody.fromJson(Map<String, dynamic> json) {
     return SignUpAuthBody(
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       email: json['email'] as String,
       password: json['password'] as String,
       object: json['object'] != null

@@ -16,7 +16,7 @@ void main() {
         },
       });
 
-      expect(sql.collection, 'items');
+      expect(sql.table, 'items');
       expect(
         sql.data,
         isA<And>().having((a) => a.conditions.length, 'conditions.length', 2),

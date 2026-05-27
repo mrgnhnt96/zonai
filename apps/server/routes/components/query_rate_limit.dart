@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 import 'rate_limit.dart';
 
-/// Rate limits for handlers that pass the collection via `@Query()`.
+/// Rate limits for handlers that pass the table via `@Query()`.
 ///
 /// Annotate with `@QueryRateLimit<GetBody>(RateLimitOperation.get)` etc.
 final class QueryRateLimit<T> extends RateLimit implements LifecycleComponent {

@@ -20,8 +20,8 @@ const _generatedHeader = '''
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 ''';
 
-final _tableNamePattern = RegExp(r"collection\s*\(\s*'([^']+)'");
-final _collectionGetterPattern = RegExp(r'final\s+(\w+)\s*=\s*collection\s*\(');
+final _tableNamePattern = RegExp(r"table\s*\(\s*'([^']+)'");
+final _tableGetterPattern = RegExp(r'final\s+(\w+)\s*=\s*table\s*\(');
 
 void main(List<String> args) {
   final checkOnly = args.contains('--check');
@@ -55,14 +55,14 @@ void main(List<String> args) {
     suffix: '_extension.dart',
     importPrefix: 'package:zonai/src/internal/extensions/',
   );
-  final collections = _discoverCollections(libRoot);
+  final tables = _discoverTables(libRoot);
 
   final output = _formatDart(
     operations: operations,
     rules: rules,
     rateLimits: rateLimits,
     extensions: extensions,
-    collections: collections,
+    tables: tables,
   );
   final outFile = File('${libRoot.path}/internal_db_artifacts.dart');
 
@@ -83,10 +83,10 @@ void main(List<String> args) {
   stdout.writeln(
     '  ${operations.length} operations, ${rules.length} rules, '
     '${rateLimits.length} rate limits, ${extensions.length} extensions, '
-    '${collections.length} collections',
+    '${tables.length} tables',
   );
-  stdout.writeln('collections:');
-  for (final c in collections) {
+  stdout.writeln('tables:');
+  for (final c in tables) {
     stdout.writeln('  - ${c.tableName}');
   }
   stdout.writeln('operations:');
@@ -133,35 +133,35 @@ List<({String importPath, String alias})> _discoverEntries(
   return entries;
 }
 
-List<({String importPath, String getter, String tableName})>
-_discoverCollections(Directory internalRoot) {
-  final collections =
-      <({String importPath, String getter, String tableName})>[];
+List<({String importPath, String getter, String tableName})> _discoverTables(
+  Directory internalRoot,
+) {
+  final tables = <({String importPath, String getter, String tableName})>[];
   for (final entity in internalRoot.listSync()) {
     if (entity is! File) {
       continue;
     }
     final name = entity.uri.pathSegments.last;
-    if (!name.endsWith('_collection.dart')) {
+    if (!name.endsWith('_table.dart')) {
       continue;
     }
     final content = entity.readAsStringSync();
     final tableMatch = _tableNamePattern.firstMatch(content);
-    final getterMatch = _collectionGetterPattern.firstMatch(content);
+    final getterMatch = _tableGetterPattern.firstMatch(content);
     if (tableMatch == null || getterMatch == null) {
       stderr.writeln(
-        'Skipping $name: expected `final <getter> = collection(\'<table>\', ...)`',
+        'Skipping $name: expected `final <getter> = table(\'<table>\', ...)`',
       );
       continue;
     }
-    collections.add((
+    tables.add((
       importPath: 'package:zonai/src/internal/$name',
       getter: getterMatch.group(1)!,
       tableName: tableMatch.group(1)!,
     ));
   }
-  collections.sort((a, b) => a.tableName.compareTo(b.tableName));
-  return collections;
+  tables.sort((a, b) => a.tableName.compareTo(b.tableName));
+  return tables;
 }
 
 String _formatDart({
@@ -170,12 +170,12 @@ String _formatDart({
   required List<({String importPath, String alias})> rateLimits,
   required List<({String importPath, String alias})> extensions,
   required List<({String importPath, String getter, String tableName})>
-  collections,
+  tables,
 }) {
   final buffer = StringBuffer()..writeln('$_generatedHeader');
   buffer.writeln();
   buffer.writeln("import 'package:raindrop/raindrop.dart' show Schema;");
-  for (final c in collections) {
+  for (final c in tables) {
     buffer.writeln("import '${c.importPath}' as _schema_${c.getter};");
   }
   buffer.writeln();
@@ -229,12 +229,12 @@ String _formatDart({
   buffer.writeln('  ];');
   buffer.writeln();
   buffer.writeln(
-    '  /// Framework-managed collections (import path, top-level getter, table).',
+    '  /// Framework-managed tables (import path, top-level getter, table).',
   );
   buffer.writeln(
-    '  static const collections = <({String importPath, String getter, String tableName})>[',
+    '  static const tables = <({String importPath, String getter, String tableName})>[',
   );
-  for (final c in collections) {
+  for (final c in tables) {
     buffer.writeln('    (');
     buffer.writeln('      importPath:');
     buffer.writeln("          '${c.importPath}',");
@@ -244,9 +244,9 @@ String _formatDart({
   }
   buffer.writeln('  ];');
   buffer.writeln();
-  buffer.writeln('  /// Collection schemas synced to SQLite on database open.');
+  buffer.writeln('  /// Table schemas synced to SQLite on database open.');
   buffer.writeln('  static final schemas = <Schema<Object?>>[');
-  for (final c in collections) {
+  for (final c in tables) {
     buffer.writeln('    _schema_${c.getter}.${c.getter},');
   }
   buffer.writeln('  ];');
@@ -254,7 +254,7 @@ String _formatDart({
   buffer.writeln(
     '  /// SQLite table names managed by the framework (not user schemas).',
   );
-  final tableLiteral = collections.map((c) => "'${c.tableName}'").join(', ');
+  final tableLiteral = tables.map((c) => "'${c.tableName}'").join(', ');
   buffer.writeln('  static const tableNames = {$tableLiteral};');
   buffer.writeln('}');
   buffer.writeln();

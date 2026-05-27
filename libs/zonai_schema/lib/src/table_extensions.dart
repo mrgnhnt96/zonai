@@ -1,9 +1,9 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 import 'package:zonai_schema/src/column_types/updated_at_column.dart';
 
-extension TableExtensions<S extends Schema<R>, R> on Table<S, R> {
+extension TableExtensions<S extends rd.Schema<R>, R> on rd.Table<S, R> {
   R safeCreate(Map<String, dynamic> data) {
     final mutable = {...data};
     for (final column in columns) {

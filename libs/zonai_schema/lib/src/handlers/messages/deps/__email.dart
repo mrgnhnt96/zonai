@@ -5,7 +5,7 @@ typedef _SendBuiltInEmailFn =
     void Function(
       BuiltInEmails email,
       EmailAddress to,
-      String collection,
+      String table,
       Map<String, dynamic>? variables,
     );
 
@@ -33,49 +33,49 @@ class _SendEmail {
 
   void confirmEmailChange(
     EmailAddress to, {
-    required String collection,
+    required String table,
     Map<String, dynamic>? variables,
   }) {
-    _sendBuiltIn(.confirmEmailChange, to, collection, variables);
+    _sendBuiltIn(.confirmEmailChange, to, table, variables);
   }
 
   void verifyEmail(
     EmailAddress to, {
-    required String collection,
+    required String table,
     Map<String, dynamic>? variables,
   }) {
-    _sendBuiltIn(.verifyEmail, to, collection, variables);
+    _sendBuiltIn(.verifyEmail, to, table, variables);
   }
 
   void passwordReset(
     EmailAddress to, {
-    required String collection,
+    required String table,
     Map<String, dynamic>? variables,
   }) {
-    _sendBuiltIn(.passwordReset, to, collection, variables);
+    _sendBuiltIn(.passwordReset, to, table, variables);
   }
 
   void otpCode(
     EmailAddress to, {
-    required String collection,
+    required String table,
     Map<String, dynamic>? variables,
   }) {
-    _sendBuiltIn(.otp, to, collection, variables);
+    _sendBuiltIn(.otp, to, table, variables);
   }
 
   void magicLink(
     EmailAddress to, {
-    required String collection,
+    required String table,
     Map<String, dynamic>? variables,
   }) {
-    _sendBuiltIn(.magicLink, to, collection, variables);
+    _sendBuiltIn(.magicLink, to, table, variables);
   }
 
   void loginNotice(
     EmailAddress to, {
-    required String collection,
+    required String table,
     Map<String, dynamic>? variables,
   }) {
-    _sendBuiltIn(.loginNotice, to, collection, variables);
+    _sendBuiltIn(.loginNotice, to, table, variables);
   }
 }

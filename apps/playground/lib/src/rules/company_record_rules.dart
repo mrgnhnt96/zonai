@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 CompanyRecordRules main() => CompanyRecordRules();
 
-class CompanyRecordRules extends RecordRules<CompanyCollection, Company> {
+class CompanyRecordRules extends RecordRules<CompanyTable, Company> {
   CompanyRecordRules() : super(companies);
 
   @override

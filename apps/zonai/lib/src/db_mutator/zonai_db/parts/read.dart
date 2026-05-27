@@ -2,16 +2,16 @@ part of zonai_db;
 
 extension _ReadX on ZonaiDb {
   Future<_CrudResult> _read(
-    String collection,
+    String table,
     ViewPayload payload, {
     Jwt? userJwt,
   }) async {
     final jwt = userJwt ?? await _extractJwt(payload);
-    await _requireCollectionAccess(collection, .view, jwt);
+    await _requireTableAccess(table, .view, jwt);
 
     final operation = await _getOperation(
       ReadOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         jwt: jwt,
       ),
@@ -29,9 +29,9 @@ extension _ReadX on ZonaiDb {
     final object = result.rows.first.toMap();
     logger.verbose('Found object: ${object}', prefix: _prefix);
 
-    await _requireRecordAccess(collection, .view, object, jwt);
+    await _requireRecordAccess(table, .view, object, jwt);
 
-    final sanitized = await _sanitizeRow(collection, object);
-    return await _expandRow(collection, sanitized, payload.expand, jwt);
+    final sanitized = await _sanitizeRow(table, object);
+    return await _expandRow(table, sanitized, payload.expand, jwt);
   }
 }

@@ -1,10 +1,10 @@
 part of zonai_db;
 
 extension _DeleteX on ZonaiDb {
-  Future<int> _delete(String collection, DeletePayload payload) async {
+  Future<int> _delete(String table, DeletePayload payload) async {
     final jwt = await _extractJwt(payload);
     final (objects, :deleteOperation) = await _deleteOperation(
-      collection,
+      table,
       payload,
       jwt,
     );
@@ -16,7 +16,7 @@ extension _DeleteX on ZonaiDb {
     if (deleteError != null || deleteResult == null) {
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.delete(
-          collection: collection,
+          table: table,
           error: deleteError?.toString() ?? 'Unknown error',
           jwt: jwt,
         ),
@@ -30,7 +30,7 @@ extension _DeleteX on ZonaiDb {
       prefix: _prefix,
     );
 
-    await _postDelete(collection, jwt, objects: objects);
+    await _postDelete(table, jwt, objects: objects);
 
     await _executeEffects();
 
@@ -38,13 +38,13 @@ extension _DeleteX on ZonaiDb {
   }
 
   Future<void> _postDelete(
-    String collection,
+    String table,
     Jwt? jwt, {
     required List<Map<String, Object?>> objects,
   }) async {
     await _extensions.send<NoActionExtensionResponse>(
       DeleteExtensionRequest.afterSuccess(
-        collection: collection,
+        table: table,
         objects: objects,
         jwt: jwt,
       ),
@@ -54,12 +54,12 @@ extension _DeleteX on ZonaiDb {
   Future<
     (List<Map<String, Object?>>, {PerformOperationResponse deleteOperation})
   >
-  _deleteOperation(String collection, DeletePayload payload, Jwt? jwt) async {
-    await _requireCollectionAccess(collection, .delete, jwt);
+  _deleteOperation(String table, DeletePayload payload, Jwt? jwt) async {
+    await _requireTableAccess(table, .delete, jwt);
 
     final readOperation = await _getOperation(
       ListOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         limit: payload.limit,
         offset: null,
@@ -83,14 +83,14 @@ extension _DeleteX on ZonaiDb {
 
     final rows = readResult.rows.map((e) => e.toMap()).toList();
     for (final object in rows) {
-      await _requireRecordAccess(collection, .delete, object, jwt);
+      await _requireRecordAccess(table, .delete, object, jwt);
     }
 
-    final sanitized = await _sanitizeRows(collection, rows);
+    final sanitized = await _sanitizeRows(table, rows);
 
     await _extensions.send<NoActionExtensionResponse>(
       DeleteExtensionRequest.before(
-        collection: collection,
+        table: table,
         objects: sanitized,
         jwt: jwt,
       ),
@@ -98,7 +98,7 @@ extension _DeleteX on ZonaiDb {
 
     final deleteOperation = await _getOperation(
       DeleteOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         limit: payload.limit,
         jwt: jwt,

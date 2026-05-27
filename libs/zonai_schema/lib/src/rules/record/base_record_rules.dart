@@ -1,11 +1,11 @@
 part of rules;
 
-class BaseRecordRules<S extends Schema<R>, R> {
+class BaseRecordRules<S extends rd.Schema<R>, R> {
   const BaseRecordRules(this.schema);
 
   final S schema;
 
-  Table<S, R> get table => Table.getFor(schema);
+  rd.Table<S, R> get table => rd.Table.getFor(schema);
 
   Future<bool> canView(Jwt? jwt, R record) async {
     if (jwt?.admin.isAdmin case true) {

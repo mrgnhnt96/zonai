@@ -14,7 +14,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 class Jwt {
   Jwt({
     required this.userId,
-    required this.collection,
+    required this.table,
     required this.jwtId,
     required this.expiresAt,
     required Map<String, Object?> user,
@@ -25,7 +25,7 @@ class Jwt {
 
   factory Jwt.create({
     required String userId,
-    required String collection,
+    required String table,
     required Map<String, Object?> user,
     required JwtId jwtId,
     required Duration expiresIn,
@@ -33,7 +33,7 @@ class Jwt {
   }) {
     return Jwt(
       userId: UnknownId(userId),
-      collection: collection,
+      table: table,
       user: user,
       jwtId: jwtId,
       expiresAt: clock.now().add(expiresIn),
@@ -45,7 +45,7 @@ class Jwt {
   factory Jwt.fromJson(Map<String, dynamic> json) {
     return Jwt(
       userId: UnknownId(json['userId']),
-      collection: json['collection'],
+      table: json['table'],
       user: json['user'] ?? {},
       jwtId: JwtId(json['jwtId']),
       expiresAt: DateTime.fromMillisecondsSinceEpoch(json['expiresAt'] * 1000),
@@ -71,7 +71,7 @@ class Jwt {
   Map<String, dynamic> toJson() {
     return {
       'userId': userId.value,
-      'collection': collection,
+      'table': table,
       'jwtId': jwtId.value,
       'expiresAt': expiresAt.toUtc().millisecondsSinceEpoch ~/ 1000,
       'claims': jsonDecode(jsonEncode(claims)),
@@ -81,7 +81,7 @@ class Jwt {
   }
 
   final UnknownId userId;
-  final String collection;
+  final String table;
   final Map<String, Object?> user;
   final JwtId jwtId;
   final ({bool isAdmin, bool? canEdit}) admin;

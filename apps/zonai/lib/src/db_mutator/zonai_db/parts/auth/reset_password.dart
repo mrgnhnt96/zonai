@@ -2,12 +2,12 @@ part of zonai_db;
 
 extension _ResetPasswordX on ZonaiDb {
   Future<void> _sendResetPassword(
-    String collection,
+    String table,
     ResetPasswordAuthPayload payload, {
     bool isAdmin = false,
   }) async {
     final hasAuthRecord = await _hasAuthRecord(
-      collection: collection,
+      table: table,
       payload: payload,
     );
 
@@ -16,11 +16,11 @@ extension _ResetPasswordX on ZonaiDb {
       return;
     }
 
-    await _requireAuthCollectionAccess(collection, payload);
-    await _requireAuthRecordAccess(collection, .passwordReset, payload);
+    await _requireAuthTableAccess(table, payload);
+    await _requireAuthRecordAccess(table, .passwordReset, payload);
 
     final challenge = await _lastChallenge(
-      collection: collection,
+      table: table,
       email: payload.email,
       type: .passwordReset,
     );
@@ -36,13 +36,13 @@ extension _ResetPasswordX on ZonaiDb {
     }
 
     await _expireOldChallenges(
-      collection: collection,
+      table: table,
       email: payload.email,
       type: .passwordReset,
     );
 
     final resetPassword = (await _operations.send<ResetPasswordConfigResponse>(
-      GetResetPasswordConfigOperationRequest(collection: collection),
+      GetResetPasswordConfigOperationRequest(table: table),
     )).config;
 
     final secret = switch (kIsCompiled) {
@@ -63,7 +63,7 @@ extension _ResetPasswordX on ZonaiDb {
         expiresAt: clock.now().add(resetPassword.expiresIn),
         secretHash: hashedSecret,
         target: payload.email,
-        collection: collection,
+        table: table,
       ),
     ]);
 
@@ -77,20 +77,20 @@ extension _ResetPasswordX on ZonaiDb {
     courier.send(
       SendResetPasswordEmail(
         to: EmailAddress(address: payload.email),
-        collection: collection,
+        table: table,
         passwordResetUrl: '$domain?s=${Uri.encodeComponent(encodedToken)}',
         expiresIn: resetPassword.expiresIn,
       ),
     );
 
-    final user = await _authRecord(collection: collection, email: payload.email);
+    final user = await _authRecord(table: table, email: payload.email);
     if (user == null) {
       return;
     }
 
     await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onPasswordReset(
-        collection: collection,
+        table: table,
         object: user,
         jwt: await _extractJwt(payload),
       ),
@@ -106,7 +106,7 @@ extension _ResetPasswordX on ZonaiDb {
     final [secret, email] = utf8.decode(decodedToken).split(':');
 
     final challenge = await _lastChallenge(
-      collection: null,
+      table: null,
       email: email,
       type: .passwordReset,
     );
@@ -120,7 +120,7 @@ extension _ResetPasswordX on ZonaiDb {
     }
 
     final authRecord = await _authRecord(
-      collection: challenge.collection,
+      table: challenge.table,
       email: email,
       sanitize: false,
     );
@@ -129,9 +129,9 @@ extension _ResetPasswordX on ZonaiDb {
       throw StateError('Invalid or expired reset password link');
     }
 
-    await _requireAuthCollectionAccess(challenge.collection, payload);
+    await _requireAuthTableAccess(challenge.table, payload);
     await _requireAuthRecordAccess(
-      challenge.collection,
+      challenge.table,
       .passwordReset,
       payload,
     );
@@ -148,12 +148,12 @@ extension _ResetPasswordX on ZonaiDb {
 
     final passwordColumn = await _operations.send<ColumnNameResponse>(
       GetColumnNameRequest(
-        collection: challenge.collection,
+        table: challenge.table,
         columnName: .password,
       ),
     );
     final idColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: challenge.collection, columnName: .id),
+      GetColumnNameRequest(table: challenge.table, columnName: .id),
     );
 
     final authRecordId = authRecord[idColumn.name];
@@ -175,7 +175,7 @@ extension _ResetPasswordX on ZonaiDb {
 
     final operation = await _operations.send<PerformOperationResponse>(
       UpdateOperationRequest(
-        collection: challenge.collection,
+        table: challenge.table,
         jwt: null,
         where: Eq(idColumn.name, authRecordId),
         updates: [ColumnUpdate(passwordColumn.name, Literal(newPasswordHash))],

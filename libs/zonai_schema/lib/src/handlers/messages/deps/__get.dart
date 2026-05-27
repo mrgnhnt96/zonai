@@ -2,7 +2,7 @@ part of '../message_handler.dart';
 
 typedef _GetManyRecords =
     Future<List<Map<String, Object?>>?> Function({
-      required String collection,
+      required String tableName,
       required Where where,
       int? limit,
       int? offset,
@@ -11,7 +11,7 @@ typedef _GetManyRecords =
 
 typedef _GetOneRecord =
     Future<Map<String, Object?>?> Function({
-      required String collection,
+      required String tableName,
       required Where where,
       int? offset,
       Jwt? jwt,
@@ -23,15 +23,15 @@ _Get get get => read(_getRecordRequestProvider);
 
 class _Get {
   _Get._() {
-    many = ({required collection, required where, limit, offset, jwt}) async =>
+    many = ({required String tableName, required where, limit, offset, jwt}) async =>
         null;
-    one = ({required collection, required where, offset, jwt}) async => null;
+    one = ({required String tableName, required where, offset, jwt}) async => null;
   }
 
   _Get(this.many) {
-    one = ({required collection, required where, offset, jwt}) async {
+    one = ({required String tableName, required where, offset, jwt}) async {
       final result = await many(
-        collection: collection,
+        tableName: tableName,
         where: where,
         limit: 1,
         offset: offset,

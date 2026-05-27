@@ -14,7 +14,7 @@ extension _ChallengeX on ZonaiDb {
   }
 
   Future<AuthChallenge?> _lastChallenge({
-    required String? collection,
+    required String? table,
     required String email,
     required AuthChallengeType type,
   }) async {
@@ -25,8 +25,8 @@ extension _ChallengeX on ZonaiDb {
         authChallenges.type.equals(type) &
         authChallenges.canConsume.isTrue();
 
-    if (collection != null) {
-      where = where & authChallenges.collection.equals(collection);
+    if (table != null) {
+      where = where & authChallenges.collection.equals(table);
     }
 
     // must wait 1 minute before sending a new OTP
@@ -40,7 +40,7 @@ extension _ChallengeX on ZonaiDb {
   }
 
   Future<void> _expireOldChallenges({
-    required String collection,
+    required String table,
     required String email,
     required AuthChallengeType type,
   }) async {
@@ -52,7 +52,7 @@ extension _ChallengeX on ZonaiDb {
         .set(authChallenges.canConsume.to(false))
         .where(
           authChallenges.target.equals(email) &
-              authChallenges.collection.equals(collection) &
+              authChallenges.collection.equals(table) &
               authChallenges.type.equals(type) &
               authChallenges.canConsume.isTrue(),
         );

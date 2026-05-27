@@ -27,12 +27,12 @@ Each `.dart` file must export a `main()` that returns a `RateLimits` instance fo
 
 ```dart
 import 'package:my_app/src/schemas/items.dart';
-import 'package:zonai_schema/src/rate_limits/collection/rate_limits.dart';
+import 'package:zonai_schema/src/rate_limits/table/rate_limits.dart';
 import 'package:zonai_schema/src/rate_limit/rate_limit_policy.dart';
 
 ItemRateLimits main() => ItemRateLimits();
 
-final class ItemRateLimits extends CollectionRateLimits<ItemCollection, Item> {
+final class ItemRateLimits extends TableRateLimits<ItemTable, Item> {
   ItemRateLimits() : super(items);
 
   @override
@@ -49,18 +49,18 @@ Only files with a `.dart` extension under `rateLimitPath` are compiled. If the d
 
 ## Base classes
 
-| Collection type    | Extend                           | Example                      |
+| Table type    | Extend                           | Example                      |
 | ------------------ | -------------------------------- | ---------------------------- |
-| Regular collection | `CollectionRateLimits<S, R>`     | Items, posts, companies      |
-| Auth collection    | `AuthCollectionRateLimits<S, R>` | Users with sign-in / sign-up |
+| Regular collection | `TableRateLimits<S, R>`     | Items, posts, companies      |
+| Auth collection    | `AuthTableRateLimits<S, R>` | Users with sign-in / sign-up |
 
-Define **one rate-limit file per collection**. If multiple files target the same table, the last one loaded wins for each base class (`CollectionRateLimits` vs `AuthCollectionRateLimits`).
+Define **one rate-limit file per collection**. If multiple files target the same table, the last one loaded wins for each base class (`TableRateLimits` vs `AuthTableRateLimits`).
 
 ## Policy methods
 
 Override the methods that correspond to the operations you want to customize. Each base-class method returns `RateLimitPolicy.defaultPolicy` (**100 requests per minute**). Return a different `RateLimitPolicy` to tighten or loosen a limit, or return **`null`** to disable limiting for that operation.
 
-### Data operations (`CollectionRateLimits`)
+### Data operations (`TableRateLimits`)
 
 | Operation | Policy method    | Used by                         |
 | --------- | ---------------- | ------------------------------- |
@@ -71,7 +71,7 @@ Override the methods that correspond to the operations you want to customize. Ea
 | `update`  | `updatePolicy()` | `PATCH /db`, `PATCH /db/many`   |
 | `delete`  | `deletePolicy()` | `DELETE /db`, `DELETE /db/many` |
 
-### Auth operations (`AuthCollectionRateLimits`)
+### Auth operations (`AuthTableRateLimits`)
 
 | Operation           | Policy method               | Used by                     |
 | ------------------- | --------------------------- | --------------------------- |
@@ -107,7 +107,7 @@ Return **`null`** from an override to allow unlimited requests for that operatio
 
 ## Defaults
 
-Every policy method on `CollectionRateLimits` and `AuthCollectionRateLimits` returns `RateLimitPolicy.defaultPolicy` (**100 requests per minute**) unless you override it.
+Every policy method on `TableRateLimits` and `AuthTableRateLimits` returns `RateLimitPolicy.defaultPolicy` (**100 requests per minute**) unless you override it.
 
 | Situation                                 | Behavior                                                                                                                                                   |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -122,7 +122,7 @@ From `apps/playground/lib/src/rate_limit/user_rate_limits.dart`:
 
 ```dart
 final class UserRateLimits
-    extends AuthCollectionRateLimits<UserCollection, User> {
+    extends AuthTableRateLimits<UserTable, User> {
   UserRateLimits() : super(users);
 
   @override

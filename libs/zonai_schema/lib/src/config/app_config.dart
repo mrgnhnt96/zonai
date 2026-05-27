@@ -54,7 +54,7 @@ final class AppConfig {
 
   /// Default lifetime for issued access tokens (JWTs).
   ///
-  /// Defaults to 14 days. Auth collections may override via `jwtExpiresIn`.
+  /// Defaults to 14 days. Auth tables may override via `jwtExpiresIn`.
   final Duration jwtExpiresIn;
 
   /// Active password secret first, then [previousPasswordSecrets] (verify).

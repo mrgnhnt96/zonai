@@ -1,4 +1,4 @@
-part of auth_collection;
+part of auth_table;
 
 abstract class Auth implements SupportedAuths {
   const Auth();

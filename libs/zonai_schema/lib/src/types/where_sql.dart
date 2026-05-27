@@ -1,22 +1,22 @@
 import 'package:zonai_schema/zonai_schema.dart';
 
 extension WhereX on Where {
-  String sql(String collection) {
-    return WhereSql(collection, this).toSql();
+  String sql(String tableName) {
+    return WhereSql(tableName, this).toSql();
   }
 }
 
 class WhereSql {
-  const WhereSql(this.collection, this.data);
+  const WhereSql(this.table, this.data);
 
   factory WhereSql.fromJson(Map<String, dynamic> json) {
     return WhereSql(
-      json['collection'] as String,
+      json['table'] as String,
       Where.fromJson(json['data'] as Map<String, dynamic>),
     );
   }
 
-  final String collection;
+  final String table;
   final Where data;
 
   String toSql([Where? data]) {
@@ -24,48 +24,48 @@ class WhereSql {
 
     switch (where) {
       case Eq(:final column, :final value):
-        return '"${collection}"."${column}" = \'$value\'';
+        return '"${table}"."${column}" = \'$value\'';
 
       case Null(:final column):
-        return '"${collection}"."${column}" IS NULL';
+        return '"${table}"."${column}" IS NULL';
 
       case NotNull(:final column):
-        return '"${collection}"."${column}" IS NOT NULL';
+        return '"${table}"."${column}" IS NOT NULL';
 
       case Gt(:final column, :final value):
-        return '"${collection}"."${column}" > \'$value\'';
+        return '"${table}"."${column}" > \'$value\'';
 
       case Lt(:final column, :final value):
-        return '"${collection}"."${column}" < \'$value\'';
+        return '"${table}"."${column}" < \'$value\'';
 
       case Gte(:final column, :final value):
-        return '"${collection}"."${column}" >= \'$value\'';
+        return '"${table}"."${column}" >= \'$value\'';
 
       case Lte(:final column, :final value):
-        return '"${collection}"."${column}" <= \'$value\'';
+        return '"${table}"."${column}" <= \'$value\'';
 
       case In(:final column, :final values):
         final placeholders = values.map((e) => '\'$e\'').join(', ');
-        return '"${collection}"."${column}" IN ($placeholders)';
+        return '"${table}"."${column}" IN ($placeholders)';
 
       case NotIn(:final column, :final values):
         if (values.isEmpty) {
-          return '"${collection}"."${column}" IS NULL';
+          return '"${table}"."${column}" IS NULL';
         }
         final placeholders = values.map((e) => '\'$e\'').join(', ');
-        return '"${collection}"."${column}" NOT IN ($placeholders)';
+        return '"${table}"."${column}" NOT IN ($placeholders)';
 
       case Contains(:final column, :final value):
-        return '"${collection}"."${column}" LIKE \'%$value%\'';
+        return '"${table}"."${column}" LIKE \'%$value%\'';
 
       case StartsWith(:final column, :final value):
-        return '"${collection}"."${column}" LIKE \'${value}%\'';
+        return '"${table}"."${column}" LIKE \'${value}%\'';
 
       case EndsWith(:final column, :final value):
-        return '"${collection}"."${column}" LIKE \'%${value}\'';
+        return '"${table}"."${column}" LIKE \'%${value}\'';
 
       case NotContains(:final column, :final value):
-        return '"${collection}"."${column}" NOT LIKE \'%$value%\'';
+        return '"${table}"."${column}" NOT LIKE \'%$value%\'';
 
       case And(:final conditions):
         if (conditions.isEmpty) {
@@ -74,7 +74,7 @@ class WhereSql {
 
         final statements = [
           for (final condition in conditions)
-            WhereSql(collection, condition).toSql(),
+            WhereSql(table, condition).toSql(),
         ];
 
         return '(${statements.join(' AND ')})';
@@ -86,7 +86,7 @@ class WhereSql {
 
         final statements = [
           for (final condition in conditions)
-            WhereSql(collection, condition).toSql(),
+            WhereSql(table, condition).toSql(),
         ];
 
         return '(${statements.join(' OR ')})';

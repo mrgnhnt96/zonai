@@ -103,7 +103,7 @@ final class RequestKill extends Request {
 
 final class GetRecordRequest extends Request {
   GetRecordRequest({
-    required this.collection,
+    required this.table,
     required this.where,
     this.limit,
     this.offset,
@@ -112,7 +112,7 @@ final class GetRecordRequest extends Request {
 
   GetRecordRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.where,
     this.limit,
     this.offset,
@@ -122,7 +122,7 @@ final class GetRecordRequest extends Request {
   factory GetRecordRequest.fromJson(Map<String, dynamic> json) {
     return GetRecordRequest._(
       id: json['id'] as String,
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
@@ -132,7 +132,7 @@ final class GetRecordRequest extends Request {
 
   static const _path = '${Request.prefix}.get_record';
 
-  final String collection;
+  final String table;
   final Where where;
   final int? limit;
   final int? offset;
@@ -141,7 +141,7 @@ final class GetRecordRequest extends Request {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'where': where.toJson(),
       'limit': limit,
       'offset': offset,
@@ -154,12 +154,12 @@ sealed class MutationRequest extends Request {
     required super.path,
     required super.id,
     required this.parent,
-    required this.collection,
+    required this.table,
     super.jwt,
   });
 
   final Request parent;
-  final String collection;
+  final String table;
 
   @override
   @mustCallSuper
@@ -167,14 +167,14 @@ sealed class MutationRequest extends Request {
     return {
       ...super.toJson(),
       'parent': parent.toJson(),
-      'collection': collection,
+      'table': table,
     };
   }
 }
 
 final class DeleteRecordRequest extends MutationRequest {
   DeleteRecordRequest({
-    required super.collection,
+    required super.table,
     required this.where,
     required super.parent,
     this.limit,
@@ -183,7 +183,7 @@ final class DeleteRecordRequest extends MutationRequest {
 
   DeleteRecordRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.where,
     required super.parent,
     this.limit,
@@ -194,7 +194,7 @@ final class DeleteRecordRequest extends MutationRequest {
     return DeleteRecordRequest._(
       id: json['id'] as String,
       parent: Request.fromJson(json['parent'] as Map<String, dynamic>),
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),
       limit: json['limit'] as int?,
       jwt: Jwt.maybeFromJson(json['jwt']),
@@ -214,7 +214,7 @@ final class DeleteRecordRequest extends MutationRequest {
 
 final class CreateRecordRequest extends MutationRequest {
   CreateRecordRequest({
-    required super.collection,
+    required super.table,
     required this.objects,
     required super.parent,
     super.jwt,
@@ -222,7 +222,7 @@ final class CreateRecordRequest extends MutationRequest {
 
   CreateRecordRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.objects,
     required super.parent,
     super.jwt,
@@ -232,7 +232,7 @@ final class CreateRecordRequest extends MutationRequest {
     return CreateRecordRequest._(
       id: json['id'] as String,
       parent: Request.fromJson(json['parent'] as Map<String, dynamic>),
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       objects: [
         for (final o in json['objects'] as List<dynamic>)
           Map<String, dynamic>.from(o as Map),
@@ -253,7 +253,7 @@ final class CreateRecordRequest extends MutationRequest {
 
 final class UpdateRecordRequest extends MutationRequest {
   UpdateRecordRequest({
-    required super.collection,
+    required super.table,
     required this.where,
     required this.updates,
     required super.parent,
@@ -264,7 +264,7 @@ final class UpdateRecordRequest extends MutationRequest {
 
   UpdateRecordRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.where,
     required this.updates,
     required super.parent,
@@ -277,7 +277,7 @@ final class UpdateRecordRequest extends MutationRequest {
     return UpdateRecordRequest._(
       id: json['id'] as String,
       parent: Request.fromJson(json['parent'] as Map<String, dynamic>),
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),
       updates: [
         for (final update in json['updates'] as List<dynamic>)
@@ -350,7 +350,7 @@ final class SendEmailRequest extends SendEmailRequestBase {
 final class SendBuiltInEmailRequest extends SendEmailRequestBase {
   SendBuiltInEmailRequest(
     BuiltInEmails this.builtIn, {
-    required this.collection,
+    required this.table,
     required this.to,
     this.object,
     this.variables,
@@ -361,7 +361,7 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
     required super.id,
     required this.builtIn,
     required this.to,
-    required this.collection,
+    required this.table,
     this.object,
     this.variables,
     super.jwt,
@@ -374,7 +374,7 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
       to: EmailAddress.fromJson(json['to'] as Map<String, dynamic>),
       variables: json['variables'] as Map<String, dynamic>?,
       object: json['object'] as Map<String, dynamic>?,
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       jwt: Jwt.maybeFromJson(json['jwt']),
     );
   }
@@ -383,7 +383,7 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
   final BuiltInEmails builtIn;
   final EmailAddress to;
   final Map<String, dynamic>? variables;
-  final String collection;
+  final String table;
 
   /// Properties to add to the new auth record when
   /// the user signs up
@@ -396,7 +396,7 @@ final class SendBuiltInEmailRequest extends SendEmailRequestBase {
       'builtIn': builtIn.name,
       'to': to.toJson(),
       'variables': jsonDecode(jsonEncode(variables)),
-      'collection': collection,
+      'table': table,
       'object': jsonDecode(jsonEncode(object)),
     };
   }

@@ -247,7 +247,7 @@ class Mailman<S extends Request, R extends Response> {
   Future<Response> _fetch(GetRecordRequest request) async {
     try {
       final results = await zonaiDB.list(
-        request.collection,
+        request.table,
         ListWithJwtPayload(
           where: request.where,
           limit: request.limit,
@@ -392,14 +392,14 @@ class Mailman<S extends Request, R extends Response> {
     switch (request.builtIn) {
       case .otp:
         zonaiDB.sendOtp(
-          request.collection,
+          request.table,
           SendOtpAuthPayload(email: request.to.address, object: request.object),
           jwt: request.jwt,
         );
 
       case .verifyEmail:
         zonaiDB.sendVerifyEmail(
-          request.collection,
+          request.table,
           email: request.to.address,
           variables: request.object,
           jwt: request.jwt,
@@ -407,7 +407,7 @@ class Mailman<S extends Request, R extends Response> {
 
       case .passwordReset:
         zonaiDB.sendResetPassword(
-          request.collection,
+          request.table,
           ResetPasswordAuthPayload(email: request.to.address),
         );
 

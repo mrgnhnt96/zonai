@@ -4,7 +4,7 @@ import 'package:raindrop/raindrop.dart';
 
 /// Column handle for a JSON string array stored in TEXT (SQLite json1).
 ///
-/// On columns using [ListTransformer], `CollectionOperations.update` maps
+/// On columns using [ListTransformer], `TableOperations.update` maps
 /// add / remove update operations to JSON array append and remove-by-value
 /// (not numeric `+` / `-`).
 extension type ListColumn<T>(List<T> _)

@@ -21,9 +21,9 @@ final class User {
   final DateTime? updatedAt;
 }
 
-final class UserCollection extends AuthCollection<User>
+final class UserTable extends AuthTable<User>
     with PasswordAuth, OtpAuth, MagicLinkAuth, AsAdmin {
-  UserCollection(super.$)
+  UserTable(super.$)
     : id = $.id(
         'id',
         (s) => s.id,
@@ -59,4 +59,4 @@ final class UserCollection extends AuthCollection<User>
   final DateTimeColumn? updatedAt;
 }
 
-final users = authCollection('users', UserCollection.new);
+final users = authTable('users', UserTable.new);

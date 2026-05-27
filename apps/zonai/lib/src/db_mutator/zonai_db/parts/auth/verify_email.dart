@@ -2,25 +2,25 @@ part of zonai_db;
 
 extension _VerifyEmailX on ZonaiDb {
   Future<void> _sendVerifyEmail(
-    String collection, {
+    String table, {
     required String email,
     Map<String, dynamic>? variables,
     Jwt? jwt,
   }) async {
     await _requireAdminOrOwnEmail(
-      collection: collection,
+      table: table,
       email: email,
       jwt: jwt,
       allowUnauthenticated: false,
     );
 
-    final authRecord = await _authRecord(collection: collection, email: email);
+    final authRecord = await _authRecord(table: table, email: email);
     if (authRecord == null) {
       return;
     }
 
     final isVerifiedColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: collection, columnName: .isVerified),
+      GetColumnNameRequest(table: table, columnName: .isVerified),
     );
 
     if (authRecord[isVerifiedColumn.name] == true) {
@@ -28,7 +28,7 @@ extension _VerifyEmailX on ZonaiDb {
     }
 
     final lastChallenge = await _lastChallenge(
-      collection: collection,
+      table: table,
       email: email,
       type: .verifyEmail,
     );
@@ -44,13 +44,13 @@ extension _VerifyEmailX on ZonaiDb {
     }
 
     await _expireOldChallenges(
-      collection: collection,
+      table: table,
       email: email,
       type: .verifyEmail,
     );
 
     final verifyEmail = (await _operations.send<VerifyEmailConfigResponse>(
-      GetVerifyEmailConfigOperationRequest(collection: collection),
+      GetVerifyEmailConfigOperationRequest(table: table),
     )).config;
 
     final secret = switch (kIsCompiled) {
@@ -72,7 +72,7 @@ extension _VerifyEmailX on ZonaiDb {
         metadata: variables,
         secretHash: hashedSecret,
         target: email,
-        collection: collection,
+        table: table,
       ),
     ]);
 
@@ -86,7 +86,7 @@ extension _VerifyEmailX on ZonaiDb {
     courier.send(
       SendVerifyEmailEmail(
         to: EmailAddress(address: email),
-        collection: collection,
+        table: table,
         verificationUrl: '$domain?s=${Uri.encodeComponent(encodedToken)}',
         expiresIn: verifyEmail.expiresIn,
         variables: variables,
@@ -99,7 +99,7 @@ extension _VerifyEmailX on ZonaiDb {
     final [secret, email] = utf8.decode(decodedToken).split(':');
 
     final challenge = await _lastChallenge(
-      collection: null,
+      table: null,
       email: email,
       type: .verifyEmail,
     );
@@ -113,7 +113,7 @@ extension _VerifyEmailX on ZonaiDb {
     }
 
     final authRecord = await _authRecord(
-      collection: challenge.collection,
+      table: challenge.table,
       email: email,
       sanitize: false,
     );
@@ -134,12 +134,12 @@ extension _VerifyEmailX on ZonaiDb {
 
     final isVerifiedColumn = await _operations.send<ColumnNameResponse>(
       GetColumnNameRequest(
-        collection: challenge.collection,
+        table: challenge.table,
         columnName: .isVerified,
       ),
     );
     final idColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: challenge.collection, columnName: .id),
+      GetColumnNameRequest(table: challenge.table, columnName: .id),
     );
 
     final authRecordId = authRecord[idColumn.name];
@@ -155,7 +155,7 @@ extension _VerifyEmailX on ZonaiDb {
 
     final operation = await _operations.send<PerformOperationResponse>(
       UpdateOperationRequest(
-        collection: challenge.collection,
+        table: challenge.table,
         jwt: jwt,
         where: Eq(idColumn.name, authRecordId),
         updates: [ColumnUpdate(isVerifiedColumn.name, Literal(true))],

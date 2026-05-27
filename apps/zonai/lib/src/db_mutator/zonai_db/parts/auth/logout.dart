@@ -23,7 +23,7 @@ extension _LogoutX on ZonaiDb {
 
     await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onLogout(
-        collection: appJwt.collection,
+        table: appJwt.table,
         object: appJwt.user,
         jwt: appJwt,
       ),

@@ -15,12 +15,12 @@ class _VerifyMagicLinkPayload implements VerifyMagicLinkAuthPayload {
 
 extension _MagicLinkX on ZonaiDb {
   Future<void> _sendMagicLink(
-    String collection,
+    String table,
     SendMagicLinkAuthPayload payload, {
     bool isAdmin = false,
   }) async {
     final hasAuthRecord = await _hasAuthRecord(
-      collection: collection,
+      table: table,
       payload: payload,
     );
 
@@ -37,10 +37,10 @@ extension _MagicLinkX on ZonaiDb {
       false => AuthOperation.signUp,
     };
 
-    await _requireAuthCollectionAccess(collection, payload);
-    await _requireAuthRecordAccess(collection, operation, payload);
+    await _requireAuthTableAccess(table, payload);
+    await _requireAuthRecordAccess(table, operation, payload);
     final lastMagicLink = await _lastChallenge(
-      collection: collection,
+      table: table,
       email: payload.email,
       type: .magicLink,
     );
@@ -54,13 +54,13 @@ extension _MagicLinkX on ZonaiDb {
     }
 
     await _expireOldChallenges(
-      collection: collection,
+      table: table,
       email: payload.email,
       type: .magicLink,
     );
 
     final magicLink = (await _operations.send<MagicLinkConfigResponse>(
-      GetMagicLinkConfigOperationRequest(collection: collection),
+      GetMagicLinkConfigOperationRequest(table: table),
     )).config;
 
     final appConfig = await configResolver.resolve();
@@ -84,7 +84,7 @@ extension _MagicLinkX on ZonaiDb {
         metadata: payload.object,
         secretHash: hashedSecret,
         target: payload.email,
-        collection: collection,
+        table: table,
       ),
     ]);
 
@@ -97,7 +97,7 @@ extension _MagicLinkX on ZonaiDb {
     courier.send(
       SendMagicLinkEmail(
         to: EmailAddress(address: payload.email),
-        collection: collection,
+        table: table,
         isResend: lastMagicLink != null,
         magicLinkUrl: '$domain?s=${Uri.encodeComponent(encodedToken)}',
         expiresIn: magicLink.expiresIn,
@@ -114,7 +114,7 @@ extension _MagicLinkX on ZonaiDb {
     final [secret, email] = utf8.decode(decodedToken).split(':');
 
     final challenge = await _lastChallenge(
-      collection: null,
+      table: null,
       email: email,
       type: .magicLink,
     );
@@ -128,7 +128,7 @@ extension _MagicLinkX on ZonaiDb {
     }
 
     final hasAuthRecord = await _hasAuthRecord(
-      collection: challenge.collection,
+      table: challenge.table,
       payload: _VerifyMagicLinkPayload(
         secret: secret,
         email: email,
@@ -149,8 +149,8 @@ extension _MagicLinkX on ZonaiDb {
       false => AuthOperation.signUp,
     };
 
-    await _requireAuthCollectionAccess(challenge.collection, payload);
-    await _requireAuthRecordAccess(challenge.collection, operation, payload);
+    await _requireAuthTableAccess(challenge.table, payload);
+    await _requireAuthRecordAccess(challenge.table, operation, payload);
 
     final secretMatches = await _hashPassword.verify(
       rawPassword: secret,
@@ -164,7 +164,7 @@ extension _MagicLinkX on ZonaiDb {
 
     if (hasAuthRecord) {
       return await _signIntoCollection(
-        collection: challenge.collection,
+        table: challenge.table,
         email: email,
         jwt: payload.jwt,
         extensionStep: .onSignIn,
@@ -172,7 +172,7 @@ extension _MagicLinkX on ZonaiDb {
     }
 
     return await _signUpWithMagicLink(
-      challenge.collection,
+      challenge.table,
       email: email,
       object: challenge.metadata,
       jwt: payload.jwt,
@@ -180,7 +180,7 @@ extension _MagicLinkX on ZonaiDb {
   }
 
   Future<_AuthResult> _signUpWithMagicLink(
-    String collection, {
+    String table, {
     required String email,
     String? jwt,
     Map<String, Object?>? object,
@@ -188,19 +188,19 @@ extension _MagicLinkX on ZonaiDb {
     final appJwt = await _extractJwt(
       SendMagicLinkAuthPayload(email: email, jwt: jwt),
     );
-    await _requireAuthCollectionAccess(
-      collection,
+    await _requireAuthTableAccess(
+      table,
       SendMagicLinkAuthPayload(email: email, jwt: jwt),
     );
     await _requireAuthRecordAccess(
-      collection,
+      table,
       .signUp,
       SendMagicLinkAuthPayload(email: email, object: object, jwt: jwt),
     );
 
     final operation = await _getOperation(
       CreateAuthOperationRequest(
-        collection: collection,
+        table: table,
         jwt: appJwt,
         payload: MagicLinkAuthOperationPayload.save(
           email: email,
@@ -215,15 +215,15 @@ extension _MagicLinkX on ZonaiDb {
       throw error ?? StateError('Failed to create user');
     }
 
-    final user = await _sanitizeRow(collection, result.rows.single.toMap());
+    final user = await _sanitizeRow(table, result.rows.single.toMap());
 
     logger.verbose('Created user using OTP', prefix: _prefix);
 
-    final (newJwt, token) = await _createJwt(collection, user);
+    final (newJwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onSignUp(
-        collection: collection,
+        table: table,
         object: user,
         jwt: newJwt,
       ),

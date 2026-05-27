@@ -1,11 +1,11 @@
-import 'package:zonai/src/internal/jwt_collection.dart';
+import 'package:zonai/src/internal/jwt_table.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
 JwtRecordRules main() => JwtRecordRules();
 
 final class JwtRecordRules
-    extends InternalRecordRules<JwtCollection, JwtEntry> {
+    extends InternalRecordRules<JwtTable, JwtEntry> {
   JwtRecordRules() : super(jwts);
 
   @override

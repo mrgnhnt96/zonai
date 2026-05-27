@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 import 'rate_limit.dart';
 
-/// Rate limits for handlers that pass the collection via `@Body()`.
+/// Rate limits for handlers that pass the table via `@Body()`.
 ///
 /// Annotate with `@BodyRateLimit<CreateBody>(RateLimitOperation.create)` etc.
 final class BodyRateLimit<T> extends RateLimit implements LifecycleComponent {

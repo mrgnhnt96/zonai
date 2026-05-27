@@ -2,12 +2,12 @@ part of zonai_db;
 
 extension _PasswordX on ZonaiDb {
   Future<_AuthResult> _authenticatePassword(
-    String collection,
+    String table,
     PasswordAuthPayload payload, {
     bool isAdmin = false,
   }) async {
     final hasAuthRecord = await _hasAuthRecord(
-      collection: collection,
+      table: table,
       payload: payload,
     );
 
@@ -18,25 +18,25 @@ extension _PasswordX on ZonaiDb {
         );
       }
 
-      return await _signUpWithPassword(collection, payload);
+      return await _signUpWithPassword(table, payload);
     }
 
-    return await _signInWithPassword(collection, payload);
+    return await _signInWithPassword(table, payload);
   }
 
   Future<_AuthResult> _signInWithPassword(
-    String collection,
+    String table,
     PasswordAuthPayload payload,
   ) async {
     if (payload.jwt != null) {
       throw StateError('User already authenticated');
     }
 
-    await _requireAuthCollectionAccess(collection, payload);
-    await _requireAuthRecordAccess(collection, .signIn, payload);
+    await _requireAuthTableAccess(table, payload);
+    await _requireAuthRecordAccess(table, .signIn, payload);
 
     final user = await _passwordRecord(
-      collection: collection,
+      table: table,
       payload: payload,
       rawPassword: switch (payload) {
         PasswordAuthPayload() => payload.password,
@@ -47,11 +47,11 @@ extension _PasswordX on ZonaiDb {
       throw StateError('User not found, cannot sign in');
     }
 
-    final (jwt, token) = await _createJwt(collection, user);
+    final (jwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onSignIn(
-        collection: collection,
+        table: table,
         object: user,
         jwt: jwt,
       ),
@@ -63,12 +63,12 @@ extension _PasswordX on ZonaiDb {
   }
 
   Future<_AuthResult> _signUpWithPassword(
-    String collection,
+    String table,
     PasswordAuthPayload payload,
   ) async {
     final jwt = await _extractJwt(payload);
-    await _requireAuthCollectionAccess(collection, payload);
-    await _requireAuthRecordAccess(collection, .signUp, payload);
+    await _requireAuthTableAccess(table, payload);
+    await _requireAuthRecordAccess(table, .signUp, payload);
 
     final hashedPassword = await _hashPassword.hash(
       password: switch (payload) {
@@ -78,7 +78,7 @@ extension _PasswordX on ZonaiDb {
 
     final operation = await _getOperation(
       CreateAuthOperationRequest(
-        collection: collection,
+        table: table,
         jwt: jwt,
         payload: PasswordAuthOperationPayload.save(
           email: payload.email,
@@ -94,15 +94,15 @@ extension _PasswordX on ZonaiDb {
       throw error ?? StateError('Failed to create user');
     }
 
-    final user = await _sanitizeRow(collection, result.rows.single.toMap());
+    final user = await _sanitizeRow(table, result.rows.single.toMap());
 
     logger.verbose('Created: ${user}', prefix: _prefix);
 
-    final (newJwt, token) = await _createJwt(collection, user);
+    final (newJwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onSignUp(
-        collection: collection,
+        table: table,
         object: user,
         jwt: newJwt,
       ),

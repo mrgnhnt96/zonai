@@ -2,7 +2,7 @@ part of zonai_db;
 
 extension _ListX on ZonaiDb {
   Future<_CrudPaginatedResult> _list(
-    String collection,
+    String table,
     ListPayload payload, {
     Jwt? userJwt,
   }) async {
@@ -15,17 +15,17 @@ extension _ListX on ZonaiDb {
           },
           final ListPayload payload => await _extractJwt(payload),
         };
-    await _requireCollectionAccess(collection, .list, jwt);
+    await _requireTableAccess(table, .list, jwt);
 
     final count = await _count(
-      collection,
+      table,
       CountPayload(where: payload.where),
       userJwt: jwt,
     );
 
     final operation = await _getOperation(
       ListOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         limit: payload.limit,
         offset: payload.offset,
@@ -43,14 +43,14 @@ extension _ListX on ZonaiDb {
     logger.verbose('Found ${objects.length} objects', prefix: _prefix);
 
     for (final object in objects) {
-      await _requireRecordAccess(collection, .view, object, jwt);
+      await _requireRecordAccess(table, .view, object, jwt);
     }
 
-    final sanitized = await _sanitizeRows(collection, objects);
+    final sanitized = await _sanitizeRows(table, objects);
 
     return Paginated(
       items: await _expandRows(
-        collection,
+        table,
         sanitized,
         payload.expand,
         jwt,

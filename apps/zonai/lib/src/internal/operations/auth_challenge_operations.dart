@@ -1,8 +1,8 @@
-import 'package:zonai/src/internal/auth_challenge_collection.dart';
-import 'package:zonai_schema/src/operations/collection_operations.dart';
+import 'package:zonai/src/internal/auth_challenge_table.dart';
+import 'package:zonai_schema/src/operations/table_operations.dart';
 
 final class AuthChallengeOperations
-    extends CollectionOperations<AuthChallengeCollection, AuthChallenge> {
+    extends TableOperations<AuthChallengeTable, AuthChallenge> {
   AuthChallengeOperations() : super(authChallenges);
 }
 

@@ -77,15 +77,15 @@ class AppShell extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final collections = <SqliteCollectionRef>[
+    final tables = <SqliteTableRef>[
       for (var i = 0; i < initialSqliteNames.length; i++)
-        SqliteCollectionRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
+        SqliteTableRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
     ];
     final initialAuthTypes = [for (final name in initialAuthTypeNames) AuthType.values.byName(name)];
     return ProviderScope(
       overrides: [
         sqliteTablesProvider.overrideWithValue(
-          SqliteTablesSnapshot(collections: collections, loadError: tablesLoadError),
+          SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),
         ),
         authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),
         authRouteProvider.overrideWith(() => AuthRouteNotifier(initialPath: initialPath)),

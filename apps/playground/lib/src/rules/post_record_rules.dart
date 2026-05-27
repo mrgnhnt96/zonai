@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 PostRecordRules main() => PostRecordRules();
 
-class PostRecordRules extends RecordRules<PostCollection, Post> {
+class PostRecordRules extends RecordRules<PostTable, Post> {
   PostRecordRules() : super(posts);
 
   @override

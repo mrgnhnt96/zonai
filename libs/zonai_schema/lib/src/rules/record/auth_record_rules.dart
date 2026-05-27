@@ -1,6 +1,6 @@
 part of rules;
 
-class AuthRecordRules<S extends AuthCollection<R>, R>
+class AuthRecordRules<S extends AuthTable<R>, R>
     extends BaseRecordRules<S, R>
     implements Rules<S, R> {
   const AuthRecordRules(super.schema);

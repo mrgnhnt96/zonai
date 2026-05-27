@@ -1,4 +1,4 @@
-# Collection operations
+# Table operations
 
 Zonai turns HTTP and auth requests into SQL through **collection operations**: Dart classes that describe how each table is read and written. Your app defines one operations file per collection under **`operationsPath`** (default `lib/src/operations`, overridable in `zonai.yaml`). At compile time, Zonai bundles those files with built-in internal-table operations into the `db_operations` worker executable.
 
@@ -8,7 +8,7 @@ Operations do **not** run queries themselves. The server sends a structured requ
 
 1. An HTTP or auth handler needs SQL for a collection (for example `create` on `items`).
 2. The server sends an **operation request** to the compiled `db_operations` worker.
-3. The worker finds the matching `CollectionOperations` instance (keyed by table name) and builds a Raindrop query.
+3. The worker finds the matching `TableOperations` instance (keyed by table name) and builds a Raindrop query.
 4. The worker translates the query to SQL for the configured dialect (SQLite by default) and returns it.
 5. The server runs the SQL on the database and returns the result to the client.
 
@@ -25,13 +25,13 @@ lib/src/operations/
   post_operations.dart
 ```
 
-Each `.dart` file must export a **`main()`** that returns a **`CollectionOperations`** instance for one collection:
+Each `.dart` file must export a **`main()`** that returns a **`TableOperations`** instance for one collection:
 
 ```dart
 import 'package:my_app/src/schemas/items.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class ItemOperations extends CollectionOperations<ItemCollection, Item> {
+final class ItemOperations extends TableOperations<ItemTable, Item> {
   ItemOperations() : super(items);
 }
 
@@ -40,23 +40,23 @@ ItemOperations main() => ItemOperations();
 
 Only files with a `.dart` extension under `operationsPath` are included. If the directory is missing or empty, the worker still compiles with **built-in internal table operations** only (see [Internal tables](#internal-tables)).
 
-Define **one operations file per collection**. Each file’s `main()` must return a non-null `CollectionOperations`. If two files target the same table name, the last one loaded wins.
+Define **one operations file per collection**. Each file’s `main()` must return a non-null `TableOperations`. If two files target the same table name, the last one loaded wins.
 
 ## Base classes
 
-| Collection type    | Extend / mix in                                 | Example                         |
+| Table type    | Extend / mix in                                 | Example                         |
 | ------------------ | ----------------------------------------------- | ------------------------------- |
-| Regular collection | `CollectionOperations<S, R>`                    | Items, posts, companies         |
-| Auth collection    | `CollectionOperations<S, R>` + `AuthOperations` | Users with sign-in / JWT claims |
+| Regular collection | `TableOperations<S, R>`                    | Items, posts, companies         |
+| Auth collection    | `TableOperations<S, R>` + `AuthOperations` | Users with sign-in / JWT claims |
 
-`CollectionOperations` is parameterized by your **schema** (`S`) and **row type** (`R`). Pass the schema getter (for example `items`, `users`) to the superclass constructor.
+`TableOperations` is parameterized by your **schema** (`S`) and **row type** (`R`). Pass the schema getter (for example `items`, `users`) to the superclass constructor.
 
 ### Auth collections
 
 Auth collections mix in **`AuthOperations`** to customize JWT claims and auth email link settings:
 
 ```dart
-final class UserOperations extends CollectionOperations<UserCollection, User>
+final class UserOperations extends TableOperations<UserTable, User>
     with AuthOperations {
   UserOperations() : super(users);
 
@@ -85,7 +85,7 @@ The framework also uses operations for auth-specific SQL (lookup by email, sign-
 
 ## Built-in query helpers
 
-`CollectionOperations` exposes Raindrop builders for the operations the API uses. Override a method when you need different SQL; otherwise the defaults apply.
+`TableOperations` exposes Raindrop builders for the operations the API uses. Override a method when you need different SQL; otherwise the defaults apply.
 
 | Method       | Used for                                              |
 | ------------ | ----------------------------------------------------- |
@@ -101,7 +101,7 @@ Builders are awaitable or can be chained further before awaiting. Inserts use `.
 
 ### Standard operations and HTTP
 
-These map to `CollectionOperation` names in rules and rate limiting:
+These map to `TableOperation` names in rules and rate limiting:
 
 | Operation | Operations helper | Typical HTTP use                |
 | --------- | ----------------- | ------------------------------- |
@@ -145,7 +145,7 @@ Override **`custom`** to handle operation names that are not `create`, `update`,
 
 ```dart
 @override
-rd.ToQuery<PostCollection, Post> custom(
+rd.ToQuery<PostTable, Post> custom(
   String operation, {
   Where? where,
   Map<String, dynamic>? values,
@@ -209,14 +209,14 @@ From `apps/playground/lib/src/operations/item_operations.dart`:
 import 'package:zonai_playground/src/schemas/items.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class ItemOperations extends CollectionOperations<ItemCollection, Item> {
+final class ItemOperations extends TableOperations<ItemTable, Item> {
   ItemOperations() : super(items);
 }
 
 ItemOperations main() => ItemOperations();
 ```
 
-No overrides are required for standard CRUD; rules and the default `CollectionOperations` implementation handle SQL for typical REST endpoints.
+No overrides are required for standard CRUD; rules and the default `TableOperations` implementation handle SQL for typical REST endpoints.
 
 ## See also
 
@@ -224,4 +224,4 @@ No overrides are required for standard CRUD; rules and the default `CollectionOp
 - **[extensions.md](extensions.md)** — lifecycle hooks around mutations and auth (before/after SQL)
 - **[rate-limiting.md](rate-limiting.md)** — per-operation request limits (separate worker, same compile flow)
 - **[config-and-env-flavors.md](config-and-env-flavors.md)** — worker executables and compile-time env
-- **`libs/zonai_schema/lib/src/operations/collection_operations.dart`** — full implementation of query helpers and auth mixins
+- **`libs/zonai_schema/lib/src/operations/table_operations.dart`** — full implementation of query helpers and auth mixins

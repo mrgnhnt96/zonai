@@ -2,13 +2,13 @@ part of zonai_db;
 
 extension _UpdateX on ZonaiDb {
   Future<_CrudListResult> _update(
-    String collection,
+    String table,
     UpdatePayload payload, {
     Jwt? userJwt,
   }) async {
     final jwt = userJwt ?? await _extractJwt(payload);
     final (beforeObjects, :readOperation, :updateOperation) =
-        await _updateOperation(collection, payload, jwt);
+        await _updateOperation(table, payload, jwt);
 
     final (updateError, updateResult) = await _execute((
       updateOperation.query,
@@ -35,7 +35,7 @@ extension _UpdateX on ZonaiDb {
     if (updatedError != null || updatedResult == null) {
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.update(
-          collection: collection,
+          table: table,
           error: updatedError?.toString() ?? 'Unknown error',
           jwt: jwt,
         ),
@@ -46,10 +46,10 @@ extension _UpdateX on ZonaiDb {
 
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
 
-    final sanitizedUpdated = await _sanitizeRows(collection, updatedObjects);
+    final sanitizedUpdated = await _sanitizeRows(table, updatedObjects);
 
     await _postUpdate(
-      collection,
+      table,
       jwt,
       before: beforeObjects,
       after: sanitizedUpdated,
@@ -61,14 +61,14 @@ extension _UpdateX on ZonaiDb {
   }
 
   Future<void> _postUpdate(
-    String collection,
+    String table,
     Jwt? jwt, {
     required List<Map<String, Object?>> before,
     required List<Map<String, Object?>> after,
   }) async {
     await _extensions.send<NoActionExtensionResponse>(
       AfterUpdateExtensionRequest(
-        collection: collection,
+        table: table,
         before: before,
         after: after,
         jwt: jwt,
@@ -83,12 +83,12 @@ extension _UpdateX on ZonaiDb {
       PerformOperationResponse updateOperation,
     })
   >
-  _updateOperation(String collection, UpdatePayload payload, Jwt? jwt) async {
-    await _requireCollectionAccess(collection, .update, jwt);
+  _updateOperation(String table, UpdatePayload payload, Jwt? jwt) async {
+    await _requireTableAccess(table, .update, jwt);
 
     final readOperation = await _getOperation(
       ListOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         limit: payload.limit,
         offset: null,
@@ -111,14 +111,14 @@ extension _UpdateX on ZonaiDb {
     final objects = readResult.rows.map((e) => e.toMap()).toList();
 
     for (final row in objects) {
-      await _requireRecordAccess(collection, .update, row, jwt);
+      await _requireRecordAccess(table, .update, row, jwt);
     }
 
-    final sanitizedBefore = await _sanitizeRows(collection, objects);
+    final sanitizedBefore = await _sanitizeRows(table, objects);
 
     await _extensions.send<NoActionExtensionResponse>(
       BeforeUpdateExtensionRequest(
-        collection: collection,
+        table: table,
         objects: sanitizedBefore,
         jwt: jwt,
       ),
@@ -126,7 +126,7 @@ extension _UpdateX on ZonaiDb {
 
     final operation = await _getOperation(
       UpdateOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         updates: payload.updates,
         jwt: jwt,

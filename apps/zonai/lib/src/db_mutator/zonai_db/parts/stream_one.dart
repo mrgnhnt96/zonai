@@ -2,15 +2,15 @@ part of zonai_db;
 
 extension _StreamOneX on ZonaiDb {
   Stream<Map<String, Object?>> _streamOne(
-    String collection,
+    String table,
     ViewPayload payload,
   ) async* {
     final jwt = await _extractJwt(payload);
-    await _requireCollectionAccess(collection, .view, jwt);
+    await _requireTableAccess(table, .view, jwt);
 
     final operation = await _getOperation(
       ListOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         limit: 1,
         offset: null,
@@ -27,17 +27,17 @@ extension _StreamOneX on ZonaiDb {
     }
 
     final object = readResult.rows.single.toMap();
-    await _requireRecordAccess(collection, .view, object, jwt);
+    await _requireRecordAccess(table, .view, object, jwt);
 
     await for (final result in _stream(operation.query, operation.values)) {
       if (result.rows.isEmpty) {
         throw StateError('No record found or record was deleted');
       }
       final sanitized = await _sanitizeRow(
-        collection,
+        table,
         result.rows.single.toMap(),
       );
-      yield await _expandRow(collection, sanitized, payload.expand, jwt);
+      yield await _expandRow(table, sanitized, payload.expand, jwt);
     }
   }
 }

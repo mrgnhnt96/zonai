@@ -688,7 +688,7 @@ bool _sameBytes(List<int> a, List<int> b) {
 }
 
 Future<int?> _photos({required String jwt}) async {
-  final createMeta = PhotoCreateMeta(collection: 'items');
+  final createMeta = PhotoCreateMeta(table: 'items');
 
   logger.info('UPLOAD PHOTO');
   final createResponse = await zonaiDB.createPhoto(

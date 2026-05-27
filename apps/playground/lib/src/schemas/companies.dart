@@ -15,8 +15,8 @@ final class Company {
   final DateTime? updatedAt;
 }
 
-final class CompanyCollection extends Collection<Company> {
-  CompanyCollection(super.$)
+final class CompanyTable extends Table<Company> {
+  CompanyTable(super.$)
     : id = $.id(
         'id',
         (s) => s.id,
@@ -43,4 +43,4 @@ final class CompanyCollection extends Collection<Company> {
   final DateTimeColumn? updatedAt;
 }
 
-final companies = collection('companies', CompanyCollection.new);
+final companies = table('companies', CompanyTable.new);

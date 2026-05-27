@@ -22,8 +22,8 @@ final class Post {
   final DateTime? updatedAt;
 }
 
-final class PostCollection extends Collection<Post> {
-  PostCollection(super.$)
+final class PostTable extends Table<Post> {
+  PostTable(super.$)
     : id = $.id(
         'id',
         (s) => s.id,
@@ -62,4 +62,4 @@ final class PostCollection extends Collection<Post> {
   final DateTimeColumn? updatedAt;
 }
 
-final posts = collection('posts', PostCollection.new);
+final posts = table('posts', PostTable.new);

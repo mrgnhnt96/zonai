@@ -4,7 +4,7 @@ import 'package:zonai_schema/payloads.dart';
 abstract final class AuthRoutes {
   static const home = '/';
   static const signIn = '/sign-in';
-  static const collections = '/collections';
+  static const tables = '/tables';
   static const magicLinkCallback = '/auth/magic-link';
   static const resetPasswordCallback = '/auth/reset-password';
   static const resetPasswordRequest = '/auth/reset-password/request';
@@ -15,11 +15,11 @@ abstract final class AuthRoutes {
 
   static String forType(AuthType type) => '$signIn/${type.name}';
 
-  static String forCollection(String sqliteName) => '$collections/${Uri.encodeComponent(sqliteName)}';
+  static String forTable(String sqliteName) => '$tables/${Uri.encodeComponent(sqliteName)}';
 
-  static String? collectionSqliteNameFromPath(String path) {
+  static String? tableSqliteNameFromPath(String path) {
     final normalized = normalizePath(path);
-    final prefix = '$collections/';
+    final prefix = '$tables/';
     if (!normalized.startsWith(prefix)) {
       return null;
     }

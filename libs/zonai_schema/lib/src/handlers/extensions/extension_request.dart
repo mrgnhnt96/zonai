@@ -25,28 +25,28 @@ enum AuthExtensionStep { onSignUp, onSignIn, onRefresh, onLogout, onPasswordRese
 
 /// The [jwt] belongs to the user who is making the request, not the user that is being created or signed in.
 final class AuthExtensionRequest extends ExtensionRequest {
-  AuthExtensionRequest.onSignUp({required this.collection, required this.object, required super.jwt})
+  AuthExtensionRequest.onSignUp({required this.table, required this.object, required super.jwt})
     : step = .onSignUp,
       super(path: _path, id: Request.generateId());
-  AuthExtensionRequest.onSignIn({required this.collection, required this.object, required super.jwt})
+  AuthExtensionRequest.onSignIn({required this.table, required this.object, required super.jwt})
     : step = .onSignIn,
       super(path: _path, id: Request.generateId());
-  AuthExtensionRequest.onRefresh({required this.collection, required this.object, required super.jwt})
+  AuthExtensionRequest.onRefresh({required this.table, required this.object, required super.jwt})
     : step = .onRefresh,
       super(path: _path, id: Request.generateId());
-  AuthExtensionRequest.onLogout({required this.collection, required this.object, required super.jwt})
+  AuthExtensionRequest.onLogout({required this.table, required this.object, required super.jwt})
     : step = .onLogout,
       super(path: _path, id: Request.generateId());
-  AuthExtensionRequest.onPasswordReset({required this.collection, required this.object, required super.jwt})
+  AuthExtensionRequest.onPasswordReset({required this.table, required this.object, required super.jwt})
     : step = .onPasswordReset,
       super(path: _path, id: Request.generateId());
-  AuthExtensionRequest._({required super.id, required this.collection, required this.object, required this.step, required super.jwt})
+  AuthExtensionRequest._({required super.id, required this.table, required this.object, required this.step, required super.jwt})
     : super(path: _path);
 
   factory AuthExtensionRequest.fromRequest(UnknownRequest request) {
     return AuthExtensionRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['collection'] as String,
       object: request.payload['object'] as Map<String, dynamic>,
       step: AuthExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -55,13 +55,13 @@ final class AuthExtensionRequest extends ExtensionRequest {
 
   static const _path = '${Request.prefix}.extension.auth';
 
-  final String collection;
+  final String table;
   final Map<String, dynamic> object;
   final AuthExtensionStep step;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'object': object, 'step': step.name};
+    return {...super.toJson(), 'table': table, 'object': object, 'step': step.name};
   }
 }
 
@@ -78,16 +78,16 @@ sealed class RecordExtensionRequest extends ExtensionRequest {
 }
 
 final class ErrorExtensionRequest extends RecordExtensionRequest {
-  ErrorExtensionRequest.create({required this.collection, required this.error, required super.jwt})
+  ErrorExtensionRequest.create({required this.table, required this.error, required super.jwt})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .create);
-  ErrorExtensionRequest.update({required this.collection, required this.error, required super.jwt})
+  ErrorExtensionRequest.update({required this.table, required this.error, required super.jwt})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .update);
-  ErrorExtensionRequest.delete({required this.collection, required this.error, required super.jwt})
+  ErrorExtensionRequest.delete({required this.table, required this.error, required super.jwt})
     : super(id: Request.generateId(), path: _path, step: .afterError, type: .delete);
 
   ErrorExtensionRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.error,
     required super.step,
     required super.type,
@@ -97,7 +97,7 @@ final class ErrorExtensionRequest extends RecordExtensionRequest {
   factory ErrorExtensionRequest.fromRequest(UnknownRequest request) {
     return ErrorExtensionRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['collection'] as String,
       error: request.payload['error'] as String,
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       type: ExtensionType.values.byName(request.payload['type'] as String),
@@ -107,28 +107,28 @@ final class ErrorExtensionRequest extends RecordExtensionRequest {
 
   static const _path = '${Request.prefix}.extension.error';
 
-  final String collection;
+  final String table;
   final String error;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'error': error};
+    return {...super.toJson(), 'table': table, 'error': error};
   }
 }
 
 final class CreateExtensionRequest extends RecordExtensionRequest {
-  CreateExtensionRequest.before({required this.collection, required this.object, required super.jwt})
+  CreateExtensionRequest.before({required this.table, required this.object, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .before, type: .create);
-  CreateExtensionRequest.afterSuccess({required this.collection, required this.object, required super.jwt})
+  CreateExtensionRequest.afterSuccess({required this.table, required this.object, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .afterSuccess, type: .create);
 
-  CreateExtensionRequest._({required super.id, required this.collection, required this.object, required super.step, required super.jwt})
+  CreateExtensionRequest._({required super.id, required this.table, required this.object, required super.step, required super.jwt})
     : super(path: _path, type: .create);
 
   factory CreateExtensionRequest.fromRequest(UnknownRequest request) {
     return CreateExtensionRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['collection'] as String,
       object: request.payload['object'] as Map<String, dynamic>,
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -137,28 +137,28 @@ final class CreateExtensionRequest extends RecordExtensionRequest {
 
   static const _path = '${Request.prefix}.extension.create';
 
-  final String collection;
+  final String table;
   final Map<String, dynamic> object;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'object': object};
+    return {...super.toJson(), 'table': table, 'object': object};
   }
 }
 
 final class DeleteExtensionRequest extends RecordExtensionRequest {
-  DeleteExtensionRequest.before({required this.collection, required this.objects, required super.jwt})
+  DeleteExtensionRequest.before({required this.table, required this.objects, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .before, type: .create);
-  DeleteExtensionRequest.afterSuccess({required this.collection, required this.objects, required super.jwt})
+  DeleteExtensionRequest.afterSuccess({required this.table, required this.objects, required super.jwt})
     : super(path: _path, id: Request.generateId(), step: .afterSuccess, type: .create);
 
-  DeleteExtensionRequest._({required super.id, required this.collection, required this.objects, required super.step, required super.jwt})
+  DeleteExtensionRequest._({required super.id, required this.table, required this.objects, required super.step, required super.jwt})
     : super(path: _path, type: .create);
 
   factory DeleteExtensionRequest.fromRequest(UnknownRequest request) {
     return DeleteExtensionRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['collection'] as String,
       objects: (request.payload['object'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -167,26 +167,26 @@ final class DeleteExtensionRequest extends RecordExtensionRequest {
 
   static const _path = '${Request.prefix}.extension.delete';
 
-  final String collection;
+  final String table;
   final List<Map<String, dynamic>> objects;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'object': objects};
+    return {...super.toJson(), 'table': table, 'object': objects};
   }
 }
 
 final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
-  BeforeUpdateExtensionRequest({required this.collection, required this.objects, required super.jwt})
+  BeforeUpdateExtensionRequest({required this.table, required this.objects, required super.jwt})
     : super(path: _path, step: .before, type: .update, id: Request.generateId());
 
-  BeforeUpdateExtensionRequest._({required super.id, required this.collection, required this.objects, required super.step, required super.jwt})
+  BeforeUpdateExtensionRequest._({required super.id, required this.table, required this.objects, required super.step, required super.jwt})
     : super(path: _path, type: .update);
 
   factory BeforeUpdateExtensionRequest.fromRequest(UnknownRequest request) {
     return BeforeUpdateExtensionRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['collection'] as String,
       objects: (request.payload['object'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
       jwt: request.jwt,
@@ -195,23 +195,23 @@ final class BeforeUpdateExtensionRequest extends RecordExtensionRequest {
 
   static const _path = '${Request.prefix}.extension.update.before';
 
-  final String collection;
+  final String table;
   final List<Map<String, dynamic>> objects;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'object': objects};
+    return {...super.toJson(), 'table': table, 'object': objects};
   }
 }
 
 final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
-  AfterUpdateExtensionRequest({required this.collection, required this.before, required this.after, required super.jwt})
+  AfterUpdateExtensionRequest({required this.table, required this.before, required this.after, required super.jwt})
     : assert(before.length == after.length, 'Before and after must have the same length (${before.length} != ${after.length})'),
       super(path: _path, step: .afterSuccess, type: .update, id: Request.generateId());
 
   AfterUpdateExtensionRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.before,
     required this.after,
     required super.step,
@@ -221,7 +221,7 @@ final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
   factory AfterUpdateExtensionRequest.fromRequest(UnknownRequest request) {
     return AfterUpdateExtensionRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['collection'] as String,
       before: (request.payload['before'] as List).cast(),
       after: (request.payload['after'] as List).cast(),
       step: ExtensionStep.values.byName(request.payload['step'] as String),
@@ -231,12 +231,12 @@ final class AfterUpdateExtensionRequest extends RecordExtensionRequest {
 
   static const _path = '${Request.prefix}.extension.update.after_success';
 
-  final String collection;
+  final String table;
   final List<Map<String, dynamic>> before;
   final List<Map<String, dynamic>> after;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'before': before, 'after': after};
+    return {...super.toJson(), 'table': table, 'before': before, 'after': after};
   }
 }

@@ -20,8 +20,8 @@ final class Author {
   final DateTime? updatedAt;
 }
 
-final class AuthorCollection extends Collection<Author> {
-  AuthorCollection(super.$)
+final class AuthorTable extends Table<Author> {
+  AuthorTable(super.$)
     : id = $.id(
         'id',
         (s) => s.id,
@@ -57,4 +57,4 @@ final class AuthorCollection extends Collection<Author> {
   final DateTimeColumn? updatedAt;
 }
 
-final authors = collection('authors', AuthorCollection.new);
+final authors = table('authors', AuthorTable.new);

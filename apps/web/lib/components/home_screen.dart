@@ -6,8 +6,8 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
 import 'theme_toggle.dart';
 import '../constants/theme.dart';
-import '../providers/collection_focus_provider.dart';
-import '../providers/collection_rows_provider.dart';
+import '../providers/table_focus_provider.dart';
+import '../providers/table_rows_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 
 class HomeScreen extends StatelessComponent {
@@ -17,25 +17,25 @@ class HomeScreen extends StatelessComponent {
   Component build(BuildContext context) {
     final path = context.watch(authRouteProvider);
     final tables = context.watch(sqliteTablesProvider);
-    final focused = resolveCollectionFocus(path, tables);
+    final focused = resolveTableFocus(path, tables);
     // Async providers must not notify after SSR completes (no frames on the server).
     final rowsAsync = context.binding.isClient
-        ? context.watch(collectionRowsProvider)
-        : const AsyncValue<CollectionRowsData?>.data(null);
+        ? context.watch(tableRowsProvider)
+        : const AsyncValue<TableRowsData?>.data(null);
 
     return main_(classes: 'home', [
       aside(classes: 'tables-pane', [
-        div(classes: 'tables-pane-header', [.text('Collections')]),
+        div(classes: 'tables-pane-header', [.text('Tables')]),
         if (tables.loadError case final error?)
           div(classes: 'tables-pane-error', [
-            p(classes: 'tables-pane-msg', [.text('Could not load collections.')]),
+            p(classes: 'tables-pane-msg', [.text('Could not load tables.')]),
             pre(classes: 'tables-pane-err-detail', [.text(error)]),
           ])
-        else if (tables.collections.isEmpty)
-          p(classes: 'tables-pane-msg', [.text('No collections yet.')])
+        else if (tables.tables.isEmpty)
+          p(classes: 'tables-pane-msg', [.text('No tables yet.')])
         else
           ul(classes: 'tables-list', [
-            for (final c in tables.collections)
+            for (final c in tables.tables)
               li(
                 classes: 'tables-item${focused == c ? ' tables-item-focused' : ''}',
                 [
@@ -44,7 +44,7 @@ class HomeScreen extends StatelessComponent {
                     type: .button,
                     classes: 'tables-item-button',
                     onClick: () {
-                      context.read(collectionFocusProvider.notifier).setFocused(c);
+                      context.read(tableFocusProvider.notifier).setFocused(c);
                     },
                   ),
                 ],
@@ -64,7 +64,7 @@ class HomeScreen extends StatelessComponent {
               [.text('Sign out')],
             ),
           ]),
-          _CollectionMain(focused: focused, rowsAsync: rowsAsync),
+          _TableMain(focused: focused, rowsAsync: rowsAsync),
         ]),
       ]),
     ]);
@@ -181,7 +181,7 @@ class HomeScreen extends StatelessComponent {
             backgroundColor: Colors.transparent,
           ),
           css('.sign-out:hover').styles(backgroundColor: hoverColor),
-          css('.collection-detail-empty').styles(
+          css('.table-detail-empty').styles(
             flex: Flex(grow: 1, shrink: 1),
             display: .flex,
             alignItems: .center,
@@ -191,13 +191,13 @@ class HomeScreen extends StatelessComponent {
             radius: .all(Radius.circular(16.px)),
             backgroundColor: surfaceColor,
           ),
-          css('.collection-detail-empty-msg').styles(
+          css('.table-detail-empty-msg').styles(
             margin: .zero,
             fontSize: 0.95.rem,
             color: mutedColor,
             textAlign: .center,
           ),
-          css('.collection-detail-error').styles(
+          css('.table-detail-error').styles(
             flex: Flex(grow: 1, shrink: 1),
             display: .flex,
             flexDirection: FlexDirection.column,
@@ -209,13 +209,13 @@ class HomeScreen extends StatelessComponent {
             overflow: Overflow.auto,
             minHeight: .zero,
           ),
-          css('.collection-detail-error-title').styles(
+          css('.table-detail-error-title').styles(
             margin: .zero,
             fontSize: 0.95.rem,
             fontWeight: .w600,
             color: errorColor,
           ),
-          css('.collection-detail-error-detail').styles(
+          css('.table-detail-error-detail').styles(
             margin: .zero,
             fontSize: 0.8125.rem,
             color: errorFgColor,
@@ -225,7 +225,7 @@ class HomeScreen extends StatelessComponent {
               'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
             },
           ),
-          css('.collection-detail-panel').styles(
+          css('.table-detail-panel').styles(
             flex: Flex(grow: 1, shrink: 1),
             display: .flex,
             flexDirection: FlexDirection.column,
@@ -233,12 +233,12 @@ class HomeScreen extends StatelessComponent {
             minHeight: .zero,
             overflow: Overflow.hidden,
           ),
-          css('.collection-detail-title').styles(
+          css('.table-detail-title').styles(
             margin: .zero,
             fontSize: 1.25.rem,
             fontWeight: .w600,
           ),
-          css('.collection-rows-wrap').styles(
+          css('.table-rows-wrap').styles(
             flex: Flex(grow: 1, shrink: 1),
             overflow: Overflow.auto,
             border: .all(color: borderColor, width: 1.px, style: .solid),
@@ -270,52 +270,52 @@ class HomeScreen extends StatelessComponent {
               'max-width': '320px',
             },
           ),
-          css('.collection-rows-foot').styles(fontSize: 0.8125.rem, color: mutedColor),
+          css('.table-rows-foot').styles(fontSize: 0.8125.rem, color: mutedColor),
         ]),
       ];
 }
 
-class _CollectionMain extends StatelessComponent {
-  const _CollectionMain({
+class _TableMain extends StatelessComponent {
+  const _TableMain({
     required this.focused,
     required this.rowsAsync,
   });
 
-  final SqliteCollectionRef? focused;
-  final AsyncValue<CollectionRowsData?> rowsAsync;
+  final SqliteTableRef? focused;
+  final AsyncValue<TableRowsData?> rowsAsync;
 
   @override
   Component build(BuildContext context) {
     if (focused == null) {
-      return div(classes: 'collection-detail-empty', [
-        p(classes: 'collection-detail-empty-msg', [.text('Select a collection to view its rows.')]),
+      return div(classes: 'table-detail-empty', [
+        p(classes: 'table-detail-empty-msg', [.text('Select a table to view its rows.')]),
       ]);
     }
 
     final title = focused!.displayName;
     final children = <Component>[
-      h1(classes: 'collection-detail-title', [.text(title)]),
+      h1(classes: 'table-detail-title', [.text(title)]),
     ];
 
     switch (rowsAsync) {
       case AsyncError(:final error):
         children.add(
-          div(classes: 'collection-detail-error', [
-            p(classes: 'collection-detail-error-title', [.text('Could not load rows')]),
-            pre(classes: 'collection-detail-error-detail', [.text(_errorText(error))]),
+          div(classes: 'table-detail-error', [
+            p(classes: 'table-detail-error-title', [.text('Could not load rows')]),
+            pre(classes: 'table-detail-error-detail', [.text(_errorText(error))]),
           ]),
         );
       case AsyncLoading():
         if (context.binding.isClient) {
           children.add(
-            div(classes: 'collection-detail-empty', [
-              p(classes: 'collection-detail-empty-msg', [.text('Loading rows…')]),
+            div(classes: 'table-detail-empty', [
+              p(classes: 'table-detail-empty-msg', [.text('Loading rows…')]),
             ]),
           );
         } else {
           children.add(
-            div(classes: 'collection-detail-empty', [
-              p(classes: 'collection-detail-empty-msg', [.text('Rows load in the browser after sign-in.')]),
+            div(classes: 'table-detail-empty', [
+              p(classes: 'table-detail-empty-msg', [.text('Rows load in the browser after sign-in.')]),
             ]),
           );
         }
@@ -323,18 +323,18 @@ class _CollectionMain extends StatelessComponent {
         final data = value;
         if (data == null) {
           children.add(
-            div(classes: 'collection-detail-empty', [
-              p(classes: 'collection-detail-empty-msg', [.text('Rows load in the browser.')]),
+            div(classes: 'table-detail-empty', [
+              p(classes: 'table-detail-empty-msg', [.text('Rows load in the browser.')]),
             ]),
           );
         } else if (data.rows.isEmpty) {
           children.add(
-            div(classes: 'collection-detail-empty', [
-              p(classes: 'collection-detail-empty-msg', [.text('This collection has no rows.')]),
+            div(classes: 'table-detail-empty', [
+              p(classes: 'table-detail-empty-msg', [.text('This table has no rows.')]),
             ]),
           );
         } else {
-          children.add(div(classes: 'collection-rows-wrap', [
+          children.add(div(classes: 'table-rows-wrap', [
             table(classes: 'rows-table', [
               thead([
                 tr([for (final col in data.columns) th([.text(col)])]),
@@ -348,12 +348,12 @@ class _CollectionMain extends StatelessComponent {
             ]),
           ]));
           if (data.truncated) {
-            children.add(p(classes: 'collection-rows-foot', [.text('Showing first page only (results truncated).')]));
+            children.add(p(classes: 'table-rows-foot', [.text('Showing first page only (results truncated).')]));
           }
         }
     }
 
-    return div(classes: 'collection-detail-panel', children);
+    return div(classes: 'table-detail-panel', children);
   }
 
   static String _formatCell(Object? cell) {

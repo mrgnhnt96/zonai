@@ -10,12 +10,12 @@ sealed class RuleRequest extends Request {
 
   factory RuleRequest.fromRequest(UnknownRequest request) {
     switch (request.path) {
-      case CollectionRulesRequest._path:
-        return CollectionRulesRequest.fromRequest(request);
+      case TableRulesRequest._path:
+        return TableRulesRequest.fromRequest(request);
       case RecordRulesRequest._path:
         return RecordRulesRequest.fromRequest(request);
-      case AuthCollectionRulesRequest._path:
-        return AuthCollectionRulesRequest.fromRequest(request);
+      case AuthTableRulesRequest._path:
+        return AuthTableRulesRequest.fromRequest(request);
       case AuthRecordRulesRequest._path:
         return AuthRecordRulesRequest.fromRequest(request);
       default:
@@ -24,52 +24,52 @@ sealed class RuleRequest extends Request {
   }
 }
 
-final class AuthCollectionRulesRequest extends RuleRequest {
-  AuthCollectionRulesRequest({
-    required this.collection,
+final class AuthTableRulesRequest extends RuleRequest {
+  AuthTableRulesRequest({
+    required this.table,
     required this.authType,
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
-  AuthCollectionRulesRequest._({
+  AuthTableRulesRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.authType,
     required super.jwt,
   }) : super(path: _path);
 
-  factory AuthCollectionRulesRequest.fromRequest(UnknownRequest request) {
-    return AuthCollectionRulesRequest._(
+  factory AuthTableRulesRequest.fromRequest(UnknownRequest request) {
+    return AuthTableRulesRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       authType: AuthType.values.byName(request.payload['authType'] as String),
       jwt: request.jwt,
     );
   }
 
-  static const _path = '${Request.prefix}.collection.auth.can_authenticate';
+  static const _path = '${Request.prefix}.table.auth.can_authenticate';
 
-  final String collection;
+  final String table;
   final AuthType authType;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'authType': authType.name,
     };
   }
 
   @override
   String toString() {
-    return 'CanAuthenticateRequest(collection: $collection, authType: $authType)';
+    return 'CanAuthenticateRequest(table: $table, authType: $authType)';
   }
 }
 
 final class AuthRecordRulesRequest extends RuleRequest {
   AuthRecordRulesRequest({
-    required this.collection,
+    required this.table,
     required this.authType,
     required this.operation,
     required super.jwt,
@@ -77,7 +77,7 @@ final class AuthRecordRulesRequest extends RuleRequest {
 
   AuthRecordRulesRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.authType,
     required this.operation,
     required super.jwt,
@@ -86,7 +86,7 @@ final class AuthRecordRulesRequest extends RuleRequest {
   factory AuthRecordRulesRequest.fromRequest(UnknownRequest request) {
     return AuthRecordRulesRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       authType: AuthType.values.byName(request.payload['authType'] as String),
       operation: AuthOperation.values.byName(
         request.payload['operation'] as String,
@@ -97,7 +97,7 @@ final class AuthRecordRulesRequest extends RuleRequest {
 
   static const _path = '${Request.prefix}.record.auth.can_authenticate';
 
-  final String collection;
+  final String table;
   final AuthType authType;
   final AuthOperation operation;
 
@@ -105,7 +105,7 @@ final class AuthRecordRulesRequest extends RuleRequest {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'authType': authType.name,
       'operation': operation.name,
     };
@@ -113,45 +113,45 @@ final class AuthRecordRulesRequest extends RuleRequest {
 
   @override
   String toString() {
-    return 'AuthRecordRulesRequest(collection: $collection, authType: $authType)';
+    return 'AuthRecordRulesRequest(table: $table, authType: $authType)';
   }
 }
 
-final class CollectionRulesRequest extends RuleRequest {
-  CollectionRulesRequest({
-    required this.collection,
+final class TableRulesRequest extends RuleRequest {
+  TableRulesRequest({
+    required this.table,
     required this.operation,
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
-  CollectionRulesRequest._({
+  TableRulesRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.operation,
     required super.jwt,
   }) : super(path: _path);
 
-  factory CollectionRulesRequest.fromRequest(UnknownRequest request) {
-    return CollectionRulesRequest._(
+  factory TableRulesRequest.fromRequest(UnknownRequest request) {
+    return TableRulesRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       operation: request.payload['operation'] as String,
       jwt: request.jwt,
     );
   }
 
-  static const _path = '${Request.prefix}.collection.can_access';
+  static const _path = '${Request.prefix}.table.can_access';
 
-  final String collection;
+  final String table;
   final String operation;
 
-  CollectionOperation? get classicOperation => .fromString(operation);
+  TableOperation? get classicOperation => .fromString(operation);
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'operation': operation,
     };
   }
@@ -159,7 +159,7 @@ final class CollectionRulesRequest extends RuleRequest {
 
 final class RecordRulesRequest extends RuleRequest {
   RecordRulesRequest({
-    required this.collection,
+    required this.table,
     required this.operation,
     required this.data,
     required super.jwt,
@@ -167,7 +167,7 @@ final class RecordRulesRequest extends RuleRequest {
 
   RecordRulesRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.operation,
     required this.data,
     required super.jwt,
@@ -176,7 +176,7 @@ final class RecordRulesRequest extends RuleRequest {
   factory RecordRulesRequest.fromRequest(UnknownRequest request) {
     return RecordRulesRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       operation: RecordOperation.fromString(
         request.payload['operation'] as String,
       )!,
@@ -187,7 +187,7 @@ final class RecordRulesRequest extends RuleRequest {
 
   static const _path = '${Request.prefix}.record.can_access';
 
-  final String collection;
+  final String table;
   final RecordOperation operation;
   final Map<String, dynamic> data;
 
@@ -195,7 +195,7 @@ final class RecordRulesRequest extends RuleRequest {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'operation': operation.name,
       'data': data,
     };
@@ -204,16 +204,16 @@ final class RecordRulesRequest extends RuleRequest {
 
 enum AuthOperation { signIn, signUp, passwordReset }
 
-enum CollectionOperation {
+enum TableOperation {
   create,
   update,
   delete,
   view,
   list;
 
-  const CollectionOperation();
+  const TableOperation();
 
-  static CollectionOperation? fromString(String operation) {
+  static TableOperation? fromString(String operation) {
     for (final value in values) {
       if (value.name == operation) {
         return value;

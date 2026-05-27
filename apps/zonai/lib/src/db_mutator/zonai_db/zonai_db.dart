@@ -16,7 +16,7 @@ import 'package:zonai/src/db_mutator/worker_process_failed_exception.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
-import 'package:zonai/src/internal/photos_collection.dart';
+import 'package:zonai/src/internal/photos_table.dart';
 import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
@@ -28,10 +28,10 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
-import 'package:zonai/src/internal/auth_challenge_collection.dart';
+import 'package:zonai/src/internal/auth_challenge_table.dart';
 import 'package:zonai/src/internal/internal_db_artifacts.dart';
-import 'package:zonai/src/internal/jwt_collection.dart';
-import 'package:zonai_schema/zonai_schema.dart' hide logger, photos;
+import 'package:zonai/src/internal/jwt_table.dart';
+import 'package:zonai_schema/zonai_schema.dart' hide logger, photos, Table;
 
 import '../operation_result.dart';
 import '../payloads/payloads.dart';
@@ -115,10 +115,10 @@ class ZonaiDb {
   }
 
   Future<_AuthResult?> authenticate(
-    String collection,
+    String table,
     AuthPayload payload,
   ) async {
-    return await _run(() => _authenticate(collection, payload));
+    return await _run(() => _authenticate(table, payload));
   }
 
   Future<_AuthResult?> refreshToken(String jwt) async {
@@ -126,28 +126,28 @@ class ZonaiDb {
   }
 
   Future<void> sendResetPassword(
-    String collection,
+    String table,
     ResetPasswordAuthPayload payload,
   ) async {
-    return await _run(() => _sendResetPassword(collection, payload));
+    return await _run(() => _sendResetPassword(table, payload));
   }
 
   Future<void> sendAdminResetPassword(ResetPasswordAuthPayload payload) async {
     return await _run(() async {
-      final collection = await _adminCollectionFor(.password);
-      await _sendResetPassword(collection, payload);
+      final table = await _adminCollectionFor(.password);
+      await _sendResetPassword(table, payload);
     });
   }
 
   Future<void> sendVerifyEmail(
-    String collection, {
+    String table, {
     required String email,
     Map<String, dynamic>? variables,
     Jwt? jwt,
   }) async {
     return await _run(
       () => _sendVerifyEmail(
-        collection,
+        table,
         email: email,
         variables: variables,
         jwt: jwt,
@@ -156,11 +156,11 @@ class ZonaiDb {
   }
 
   Future<void> sendOtp(
-    String collection,
+    String table,
     SendOtpAuthPayload payload, {
     Jwt? jwt,
   }) async {
-    return await _run(() => _sendOtp(collection, payload, callerJwt: jwt));
+    return await _run(() => _sendOtp(table, payload, callerJwt: jwt));
   }
 
   Future<void> sendVerifyEmailAuthenticated(
@@ -173,20 +173,20 @@ class ZonaiDb {
         throw StateError('Authentication is required to send verify email');
       }
 
-      final collection = switch (jwt.admin.isAdmin) {
-        true when payload != null => payload.collection,
-        _ => jwt.collection,
+      final table = switch (jwt.admin.isAdmin) {
+        true when payload != null => payload.table,
+        _ => jwt.table,
       };
 
       final targetEmail = switch (jwt.admin.isAdmin) {
         true when payload != null => payload.email,
-        _ => await _emailFromJwt(collection: collection, jwt: jwt),
+        _ => await _emailFromJwt(table: table, jwt: jwt),
       };
       if (targetEmail == null) {
         throw StateError('Could not determine email address');
       }
 
-      await _sendVerifyEmail(collection, email: targetEmail, jwt: jwt);
+      await _sendVerifyEmail(table, email: targetEmail, jwt: jwt);
     });
   }
 
@@ -275,8 +275,8 @@ class ZonaiDb {
     return await _run(() => _logoutAll(jwt));
   }
 
-  Future<_CrudResult> create(String collection, CreatePayload payload) async {
-    return await _run(() => _create(collection, payload));
+  Future<_CrudResult> create(String table, CreatePayload payload) async {
+    return await _run(() => _create(table, payload));
   }
 
   Future<Jwt?> parseJwt(String? jwt) async {
@@ -284,47 +284,47 @@ class ZonaiDb {
   }
 
   Future<_CrudListResult> update(
-    String collection,
+    String table,
     UpdatePayload payload,
   ) async {
-    return await _run(() => _update(collection, payload));
+    return await _run(() => _update(table, payload));
   }
 
-  Future<int> delete(String collection, DeletePayload payload) async {
-    return await _run(() => _delete(collection, payload));
+  Future<int> delete(String table, DeletePayload payload) async {
+    return await _run(() => _delete(table, payload));
   }
 
-  Future<_CrudResult> read(String collection, ViewPayload payload) async {
-    return await _run(() => _read(collection, payload));
+  Future<_CrudResult> read(String table, ViewPayload payload) async {
+    return await _run(() => _read(table, payload));
   }
 
   Future<_CrudPaginatedResult> list(
-    String collection,
+    String table,
     ListPayload payload,
   ) async {
-    return await _run(() => _list(collection, payload));
+    return await _run(() => _list(table, payload));
   }
 
-  Future<int> count(String collection, CountPayload payload) async {
-    return await _run(() => _count(collection, payload));
+  Future<int> count(String table, CountPayload payload) async {
+    return await _run(() => _count(table, payload));
   }
 
-  Stream<int> streamCount(String collection, CountPayload payload) async* {
-    yield* await _runStream(() => _streamCount(collection, payload));
+  Stream<int> streamCount(String table, CountPayload payload) async* {
+    yield* await _runStream(() => _streamCount(table, payload));
   }
 
   Stream<Map<String, Object?>> streamOne(
-    String collection,
+    String table,
     ViewPayload payload,
   ) async* {
-    yield* _runStream(() => _streamOne(collection, payload));
+    yield* _runStream(() => _streamOne(table, payload));
   }
 
   Stream<List<Map<String, Object?>>> streamList(
-    String collection,
+    String table,
     ListPayload payload,
   ) async* {
-    yield* _runStream(() => _streamList(collection, payload));
+    yield* _runStream(() => _streamList(table, payload));
   }
 
   Future<T> _run<T>(Future<T> Function() body) async {

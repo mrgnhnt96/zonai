@@ -1,19 +1,19 @@
 import '../types/where.dart';
 
 class StreamCountBody {
-  const StreamCountBody({required this.collection, required this.where});
+  const StreamCountBody({required this.table, required this.where});
 
-  final String collection;
+  final String table;
   final Where where;
 
   factory StreamCountBody.fromJson(Map<String, dynamic> json) {
     return StreamCountBody(
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       where: Where.fromJson(json['where'] as Map<String, dynamic>),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'collection': collection, 'where': where.toJson()};
+    return {'table': table, 'where': where.toJson()};
   }
 }

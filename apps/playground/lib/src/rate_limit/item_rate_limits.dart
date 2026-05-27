@@ -1,10 +1,10 @@
 import 'package:zonai_playground/src/schemas/items.dart';
-import 'package:zonai_schema/src/rate_limits/collection/rate_limits.dart';
+import 'package:zonai_schema/src/rate_limits/table/rate_limits.dart';
 import 'package:zonai_schema/src/rate_limit/rate_limit_policy.dart';
 
 ItemRateLimits main() => ItemRateLimits();
 
-final class ItemRateLimits extends CollectionRateLimits<ItemCollection, Item> {
+final class ItemRateLimits extends TableRateLimits<ItemTable, Item> {
   ItemRateLimits() : super(items);
 
   @override

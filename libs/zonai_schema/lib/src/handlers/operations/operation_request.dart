@@ -35,8 +35,8 @@ sealed class OperationRequest extends Request {
       SanitizeOperationRequest._path => SanitizeOperationRequest.fromRequest(
         request,
       ),
-      GetAdminCollectionsOperationRequest._path =>
-        GetAdminCollectionsOperationRequest.fromRequest(request),
+      GetAdminTablesOperationRequest._path =>
+        GetAdminTablesOperationRequest.fromRequest(request),
       GetMagicLinkConfigOperationRequest._path =>
         GetMagicLinkConfigOperationRequest.fromRequest(request),
       GetResetPasswordConfigOperationRequest._path =>
@@ -60,19 +60,19 @@ ${const JsonEncoder.withIndent('  ').convert(toJson())}
 enum ColumnName { password, id, isVerified, email }
 
 final class GetColumnNameRequest extends OperationRequest {
-  GetColumnNameRequest({required this.collection, required this.columnName})
+  GetColumnNameRequest({required this.table, required this.columnName})
     : super(path: _path, id: Request.generateId(), jwt: null);
 
   GetColumnNameRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.columnName,
   }) : super(path: _path, jwt: null);
 
   factory GetColumnNameRequest.fromRequest(UnknownRequest request) {
     return GetColumnNameRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       columnName: ColumnName.values.byName(
         request.payload['columnName'] as String,
       ),
@@ -81,14 +81,14 @@ final class GetColumnNameRequest extends OperationRequest {
 
   static const _path = '${Request.prefix}.operation.get_column_name';
 
-  final String collection;
+  final String table;
   final ColumnName columnName;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'columnName': columnName.name,
     };
   }
@@ -96,34 +96,34 @@ final class GetColumnNameRequest extends OperationRequest {
 
 final class GetColumnReferenceRequest extends OperationRequest {
   GetColumnReferenceRequest({
-    required this.collection,
+    required this.table,
     required this.columnName,
   }) : super(path: _path, id: Request.generateId(), jwt: null);
 
   GetColumnReferenceRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.columnName,
   }) : super(path: _path, jwt: null);
 
   factory GetColumnReferenceRequest.fromRequest(UnknownRequest request) {
     return GetColumnReferenceRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       columnName: request.payload['columnName'] as String,
     );
   }
 
   static const _path = '${Request.prefix}.operation.get_column_reference';
 
-  final String collection;
+  final String table;
   final String columnName;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'columnName': columnName,
     };
   }
@@ -131,14 +131,14 @@ final class GetColumnReferenceRequest extends OperationRequest {
 
 final class PerformOperationRequest extends OperationRequest {
   PerformOperationRequest({
-    required this.collection,
+    required this.table,
     required this.operation,
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
   PerformOperationRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.operation,
     required super.jwt,
   }) : super(path: _path);
@@ -146,7 +146,7 @@ final class PerformOperationRequest extends OperationRequest {
   factory PerformOperationRequest.fromRequest(UnknownRequest request) {
     final p = request.payload;
     final operation = p['operation'] as String;
-    final classicOperation = CollectionOperation.fromString(operation);
+    final classicOperation = TableOperation.fromString(operation);
 
     switch (classicOperation) {
       case .create:
@@ -166,17 +166,17 @@ final class PerformOperationRequest extends OperationRequest {
 
   static const _path = '${Request.prefix}.operation.perform';
 
-  final String collection;
+  final String table;
   final String operation;
 
-  CollectionOperation? get classicOperation =>
-      CollectionOperation.fromString(operation);
+  TableOperation? get classicOperation =>
+      TableOperation.fromString(operation);
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'operation': operation,
     };
   }
@@ -301,31 +301,31 @@ final class PasswordAuthOperationPayload extends AuthOperationPayload {
   }
 }
 
-final class GetAdminCollectionsOperationRequest extends OperationRequest {
-  GetAdminCollectionsOperationRequest()
+final class GetAdminTablesOperationRequest extends OperationRequest {
+  GetAdminTablesOperationRequest()
     : super(path: _path, id: Request.generateId(), jwt: null);
-  GetAdminCollectionsOperationRequest._({required super.id})
+  GetAdminTablesOperationRequest._({required super.id})
     : super(path: _path, jwt: null);
 
-  static const _path = '${Request.prefix}.auth.get_admin_collections';
+  static const _path = '${Request.prefix}.auth.get_admin_tables';
 
-  factory GetAdminCollectionsOperationRequest.fromRequest(
+  factory GetAdminTablesOperationRequest.fromRequest(
     UnknownRequest request,
   ) {
-    return GetAdminCollectionsOperationRequest._(id: request.id);
+    return GetAdminTablesOperationRequest._(id: request.id);
   }
 }
 
 final class ViewAuthOperationRequest extends OperationRequest {
   ViewAuthOperationRequest({
-    required this.collection,
+    required this.table,
     required this.payload,
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
   ViewAuthOperationRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.payload,
     required super.jwt,
   }) : super(path: _path);
@@ -333,7 +333,7 @@ final class ViewAuthOperationRequest extends OperationRequest {
   factory ViewAuthOperationRequest.fromRequest(UnknownRequest request) {
     return ViewAuthOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       payload: AuthOperationPayload.fromJson(
         request.payload['payload'] as Map<String, dynamic>,
       ),
@@ -344,13 +344,13 @@ final class ViewAuthOperationRequest extends OperationRequest {
   static const _path = '${Request.prefix}.auth.view';
 
   final AuthOperationPayload payload;
-  final String collection;
+  final String table;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'payload': payload.toJson(),
     };
   }
@@ -358,7 +358,7 @@ final class ViewAuthOperationRequest extends OperationRequest {
 
 final class CreateAuthOperationRequest extends OperationRequest {
   CreateAuthOperationRequest({
-    required this.collection,
+    required this.table,
     required this.payload,
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
@@ -366,7 +366,7 @@ final class CreateAuthOperationRequest extends OperationRequest {
   CreateAuthOperationRequest._({
     required super.id,
     required this.payload,
-    required this.collection,
+    required this.table,
     required super.jwt,
   }) : super(path: _path);
 
@@ -376,21 +376,21 @@ final class CreateAuthOperationRequest extends OperationRequest {
       payload: AuthOperationPayload.fromJson(
         request.payload['payload'] as Map<String, dynamic>,
       ),
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       jwt: request.jwt,
     );
   }
 
   static const _path = '${Request.prefix}.auth.create';
 
-  final String collection;
+  final String table;
   final AuthOperationPayload payload;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'payload': payload.toJson(),
     };
   }
@@ -398,23 +398,23 @@ final class CreateAuthOperationRequest extends OperationRequest {
 
 final class CreateOperationRequest extends PerformOperationRequest {
   CreateOperationRequest({
-    required super.collection,
+    required super.table,
     required this.object,
     required super.jwt,
-  }) : super(operation: CollectionOperation.create.name);
+  }) : super(operation: TableOperation.create.name);
 
   CreateOperationRequest._({
     required super.id,
     required this.object,
-    required super.collection,
+    required super.table,
     required super.jwt,
-  }) : super._(operation: CollectionOperation.create.name);
+  }) : super._(operation: TableOperation.create.name);
 
   factory CreateOperationRequest.fromRequest(UnknownRequest request) {
     return CreateOperationRequest._(
       id: request.id,
       object: request.payload['object'] as Map<String, dynamic>,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       jwt: request.jwt,
     );
   }
@@ -429,24 +429,24 @@ final class CreateOperationRequest extends PerformOperationRequest {
 
 final class UpdateOperationRequest extends PerformOperationRequest {
   UpdateOperationRequest({
-    required super.collection,
+    required super.table,
     required this.where,
     required this.updates,
     required super.jwt,
-  }) : super(operation: CollectionOperation.update.name);
+  }) : super(operation: TableOperation.update.name);
 
   UpdateOperationRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.where,
     required this.updates,
     required super.jwt,
-  }) : super._(operation: CollectionOperation.update.name);
+  }) : super._(operation: TableOperation.update.name);
 
   factory UpdateOperationRequest.fromRequest(UnknownRequest request) {
     return UpdateOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       where: Where.fromJson(request.payload['where'] as Map<String, dynamic>),
       updates: [
         for (final update in request.payload['updates'] as List<dynamic>)
@@ -471,24 +471,24 @@ final class UpdateOperationRequest extends PerformOperationRequest {
 
 final class DeleteOperationRequest extends PerformOperationRequest {
   DeleteOperationRequest({
-    required super.collection,
+    required super.table,
     required this.where,
     required this.limit,
     required super.jwt,
-  }) : super(operation: CollectionOperation.delete.name);
+  }) : super(operation: TableOperation.delete.name);
 
   DeleteOperationRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.where,
     required this.limit,
     required super.jwt,
-  }) : super._(operation: CollectionOperation.delete.name);
+  }) : super._(operation: TableOperation.delete.name);
 
   factory DeleteOperationRequest.fromRequest(UnknownRequest request) {
     return DeleteOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       limit: request.payload['limit'] as int?,
       where: Where.fromJson(request.payload['where'] as Map<String, dynamic>),
       jwt: request.jwt,
@@ -506,22 +506,22 @@ final class DeleteOperationRequest extends PerformOperationRequest {
 
 final class ReadOperationRequest extends PerformOperationRequest {
   ReadOperationRequest({
-    required super.collection,
+    required super.table,
     required this.where,
     super.jwt,
-  }) : super(operation: CollectionOperation.view.name);
+  }) : super(operation: TableOperation.view.name);
 
   ReadOperationRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.where,
     required super.jwt,
-  }) : super._(operation: CollectionOperation.view.name);
+  }) : super._(operation: TableOperation.view.name);
 
   factory ReadOperationRequest.fromRequest(UnknownRequest request) {
     return ReadOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       where: Where.fromJson(request.payload['where'] as Map<String, dynamic>),
       jwt: request.jwt,
     );
@@ -537,28 +537,28 @@ final class ReadOperationRequest extends PerformOperationRequest {
 
 final class ListOperationRequest extends PerformOperationRequest {
   ListOperationRequest({
-    required super.collection,
+    required super.table,
     required this.where,
     required this.limit,
     required this.offset,
     this.orderBy,
     required super.jwt,
-  }) : super(operation: CollectionOperation.list.name);
+  }) : super(operation: TableOperation.list.name);
 
   ListOperationRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.where,
     required this.limit,
     required this.offset,
     this.orderBy,
     required super.jwt,
-  }) : super._(operation: CollectionOperation.list.name);
+  }) : super._(operation: TableOperation.list.name);
 
   factory ListOperationRequest.fromRequest(UnknownRequest request) {
     return ListOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       limit: request.payload['limit'] as int?,
       offset: request.payload['offset'] as int?,
       where: switch (request.payload['where']) {
@@ -606,7 +606,7 @@ final class ListOperationRequest extends PerformOperationRequest {
 
 final class CustomOperationRequest extends PerformOperationRequest {
   CustomOperationRequest({
-    required super.collection,
+    required super.table,
     required super.operation,
     required this.where,
     required this.values,
@@ -615,7 +615,7 @@ final class CustomOperationRequest extends PerformOperationRequest {
 
   CustomOperationRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required super.operation,
     required this.where,
     required this.values,
@@ -625,7 +625,7 @@ final class CustomOperationRequest extends PerformOperationRequest {
   factory CustomOperationRequest.fromRequest(UnknownRequest request) {
     return CustomOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       operation: request.payload['operation'] as String,
       where: switch (request.payload['where']) {
         final Map<String, dynamic> json => Where.fromJson(json),
@@ -646,19 +646,19 @@ final class CustomOperationRequest extends PerformOperationRequest {
 }
 
 final class GetJwtConfigOperationRequest extends OperationRequest {
-  GetJwtConfigOperationRequest({required this.collection, required this.jwt})
+  GetJwtConfigOperationRequest({required this.table, required this.jwt})
     : super(path: _path, id: Request.generateId(), jwt: jwt);
 
   GetJwtConfigOperationRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.jwt,
   }) : super(path: _path, jwt: jwt);
 
   factory GetJwtConfigOperationRequest.fromRequest(UnknownRequest request) {
     return GetJwtConfigOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       jwt:
           request.jwt ??
           (throw StateError('JWT is required for this operation')),
@@ -667,25 +667,25 @@ final class GetJwtConfigOperationRequest extends OperationRequest {
 
   static const _path = '${Request.prefix}.auth.get_jwt_config';
 
-  final String collection;
+  final String table;
   final Jwt jwt;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection};
+    return {...super.toJson(), 'table': table};
   }
 }
 
 final class SanitizeOperationRequest extends OperationRequest {
   SanitizeOperationRequest({
-    required this.collection,
+    required this.table,
     required List<Map<String, dynamic>> objects,
   }) : objects = List.unmodifiable(objects),
        super(path: _path, id: Request.generateId(), jwt: null);
 
   SanitizeOperationRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
     required List<Map<String, dynamic>> objects,
   }) : objects = List.unmodifiable(objects),
        super(path: _path, jwt: null);
@@ -693,7 +693,7 @@ final class SanitizeOperationRequest extends OperationRequest {
   factory SanitizeOperationRequest.fromRequest(UnknownRequest request) {
     return SanitizeOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       objects: [
         for (final e in request.payload['objects'] as List<dynamic>)
           Map<String, dynamic>.from(e),
@@ -703,33 +703,33 @@ final class SanitizeOperationRequest extends OperationRequest {
 
   static const _path = '${Request.prefix}.operation.sanitize';
 
-  final String collection;
+  final String table;
   final List<Map<String, dynamic>> objects;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection, 'objects': objects};
+    return {...super.toJson(), 'table': table, 'objects': objects};
   }
 }
 
 final class CountOperationRequest extends PerformOperationRequest {
   CountOperationRequest({
-    required super.collection,
+    required super.table,
     required this.where,
     super.jwt,
-  }) : super(operation: CollectionOperation.list.name);
+  }) : super(operation: TableOperation.list.name);
 
   CountOperationRequest._({
     required super.id,
-    required super.collection,
+    required super.table,
     required this.where,
     required super.jwt,
-  }) : super._(operation: CollectionOperation.list.name);
+  }) : super._(operation: TableOperation.list.name);
 
   factory CountOperationRequest.fromRequest(UnknownRequest request) {
     return CountOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
       where: switch (request.payload['where']) {
         final Map<String, dynamic> json => Where.fromJson(json),
         _ => null,
@@ -747,12 +747,12 @@ final class CountOperationRequest extends PerformOperationRequest {
 }
 
 final class GetMagicLinkConfigOperationRequest extends OperationRequest {
-  GetMagicLinkConfigOperationRequest({required this.collection})
+  GetMagicLinkConfigOperationRequest({required this.table})
     : super(path: _path, id: Request.generateId(), jwt: null);
 
   GetMagicLinkConfigOperationRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
   }) : super(path: _path, jwt: null);
 
   factory GetMagicLinkConfigOperationRequest.fromRequest(
@@ -760,27 +760,27 @@ final class GetMagicLinkConfigOperationRequest extends OperationRequest {
   ) {
     return GetMagicLinkConfigOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
     );
   }
 
   static const _path = '${Request.prefix}.auth.get_magic_link_base_url';
 
-  final String collection;
+  final String table;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection};
+    return {...super.toJson(), 'table': table};
   }
 }
 
 final class GetResetPasswordConfigOperationRequest extends OperationRequest {
-  GetResetPasswordConfigOperationRequest({required this.collection})
+  GetResetPasswordConfigOperationRequest({required this.table})
     : super(path: _path, id: Request.generateId(), jwt: null);
 
   GetResetPasswordConfigOperationRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
   }) : super(path: _path, jwt: null);
 
   factory GetResetPasswordConfigOperationRequest.fromRequest(
@@ -788,27 +788,27 @@ final class GetResetPasswordConfigOperationRequest extends OperationRequest {
   ) {
     return GetResetPasswordConfigOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
     );
   }
 
   static const _path = '${Request.prefix}.auth.get_reset_password_base_url';
 
-  final String collection;
+  final String table;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection};
+    return {...super.toJson(), 'table': table};
   }
 }
 
 final class GetVerifyEmailConfigOperationRequest extends OperationRequest {
-  GetVerifyEmailConfigOperationRequest({required this.collection})
+  GetVerifyEmailConfigOperationRequest({required this.table})
     : super(path: _path, id: Request.generateId(), jwt: null);
 
   GetVerifyEmailConfigOperationRequest._({
     required super.id,
-    required this.collection,
+    required this.table,
   }) : super(path: _path, jwt: null);
 
   factory GetVerifyEmailConfigOperationRequest.fromRequest(
@@ -816,16 +816,16 @@ final class GetVerifyEmailConfigOperationRequest extends OperationRequest {
   ) {
     return GetVerifyEmailConfigOperationRequest._(
       id: request.id,
-      collection: request.payload['collection'] as String,
+      table: request.payload['table'] as String,
     );
   }
 
   static const _path = '${Request.prefix}.auth.get_verify_email_base_url';
 
-  final String collection;
+  final String table;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'collection': collection};
+    return {...super.toJson(), 'table': table};
   }
 }

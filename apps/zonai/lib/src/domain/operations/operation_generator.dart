@@ -104,8 +104,8 @@ class OperationGenerator {
     b.writeln('}');
     b.writeln();
     b.writeln(
-      'CollectionOperations loadOperation('
-      'String sourcePath, CollectionOperations Function() load) {',
+      'TableOperations loadOperation('
+      'String sourcePath, TableOperations Function() load) {',
     );
     b.writeln('  Object? value;');
     b.writeln('  try {');
@@ -119,13 +119,13 @@ class OperationGenerator {
     );
     b.writeln('    ), st);');
     b.writeln('  }');
-    b.writeln('  if (value is! CollectionOperations) {');
+    b.writeln('  if (value is! TableOperations) {');
     b.writeln(
       '    final got = value == null ? "null" : value.runtimeType.toString();',
     );
     b.writeln('    throw StateError(');
     b.writeln(
-      "      'Operations file at ' + sourcePath + ' must return a non-null CollectionOperations from main(); '",
+      "      'Operations file at ' + sourcePath + ' must return a non-null TableOperations from main(); '",
     );
     b.writeln("      'got " r'$got' ".',");
     b.writeln('    );');

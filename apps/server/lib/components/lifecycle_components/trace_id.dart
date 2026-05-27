@@ -5,7 +5,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
-import 'package:zonai/src/internal/logs_collection.dart';
+import 'package:zonai/src/internal/logs_table.dart';
 
 class TraceId {
   TraceId(this.value);

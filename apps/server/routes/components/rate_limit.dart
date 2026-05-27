@@ -10,31 +10,31 @@ class RateLimit {
     String ipAddress,
     RateLimitOperation operation,
   ) async {
-    // TODO:  get collection from AdminAuthBody
+    // TODO:  get table from AdminAuthBody
     if (body is AdminAuthBody) {
       return const .pass();
     }
 
-    final collection = switch (body) {
-      GetBody(:final collection) => collection,
-      ListBody(:final collection) => collection,
-      AuthBody(:final collection) => collection,
-      CreateBody(:final collection) => collection,
-      UpdateOneBody(:final collection) => collection,
-      UpdateBody(:final collection) => collection,
-      DeleteOneBody(:final collection) => collection,
-      DeleteBody(:final collection) => collection,
-      StreamBody(:final collection) => collection,
-      StreamListBody(:final collection) => collection,
-      SendResetPasswordAuthBody(:final collection) => collection,
-      VerifyEmailAuthBody(:final collection) => collection,
+    final table = switch (body) {
+      GetBody(:final table) => table,
+      ListBody(:final table) => table,
+      AuthBody(:final table) => table,
+      CreateBody(:final table) => table,
+      UpdateOneBody(:final table) => table,
+      UpdateBody(:final table) => table,
+      DeleteOneBody(:final table) => table,
+      DeleteBody(:final table) => table,
+      StreamBody(:final table) => table,
+      StreamListBody(:final table) => table,
+      SendResetPasswordAuthBody(:final table) => table,
+      VerifyEmailAuthBody(:final table) => table,
       _ => throw ArgumentError(
         'Unexpected query body type for rate limit: ${body.runtimeType}',
       ),
     };
 
     final isAllowed = await rateLimiter.check(
-      collection: collection,
+      table: table,
       ipAddress: ipAddress,
       operation: operation,
     );

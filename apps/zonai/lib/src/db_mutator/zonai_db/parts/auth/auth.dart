@@ -10,7 +10,7 @@ extension _AuthX on ZonaiDb {
     }
 
     final emailColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: oldJwt.collection, columnName: .email),
+      GetColumnNameRequest(table: oldJwt.table, columnName: .email),
     );
 
     final email = switch (oldJwt.user[emailColumn.name]) {
@@ -19,7 +19,7 @@ extension _AuthX on ZonaiDb {
     };
 
     final result = await _signIntoCollection(
-      collection: oldJwt.collection,
+      table: oldJwt.table,
       email: email,
       jwt: null,
       extensionStep: .onRefresh,
@@ -35,28 +35,28 @@ extension _AuthX on ZonaiDb {
   ///
   /// Signs up a user if the record does not exist
   Future<_AuthResult?> _authenticate(
-    String collection,
+    String table,
     AuthPayload payload, {
     bool isAdmin = false,
   }) async {
     switch (payload) {
       case PasswordAuthPayload():
         return await _authenticatePassword(
-          collection,
+          table,
           payload,
           isAdmin: isAdmin,
         );
 
       case SendOtpAuthPayload():
-        await _sendOtp(collection, payload, isAdmin: isAdmin);
+        await _sendOtp(table, payload, isAdmin: isAdmin);
         return null;
 
       case SendMagicLinkAuthPayload():
-        await _sendMagicLink(collection, payload, isAdmin: isAdmin);
+        await _sendMagicLink(table, payload, isAdmin: isAdmin);
         return null;
 
       case ResetPasswordAuthPayload():
-        await _sendResetPassword(collection, payload, isAdmin: isAdmin);
+        await _sendResetPassword(table, payload, isAdmin: isAdmin);
         return null;
 
       case VerifyOtpAuthPayload():
@@ -70,24 +70,24 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<_AuthResult?> _authenticateAdmin(AuthPayload payload) async {
-    final collection = await _adminCollectionFor(payload.authType);
+    final table = await _adminCollectionFor(payload.authType);
 
-    return await _authenticate(collection, payload, isAdmin: true);
+    return await _authenticate(table, payload, isAdmin: true);
   }
 
   Future<String> _adminCollectionFor(AuthType authType) async {
-    final authCollections = await _operations.send<AdminCollectionsResponse>(
-      GetAdminCollectionsOperationRequest(),
+    final authTables = await _operations.send<AdminTablesResponse>(
+      GetAdminTablesOperationRequest(),
     );
 
     StateError? lastError;
-    for (final (collection, authTypes) in authCollections.collections) {
+    for (final (table, authTypes) in authTables.tables) {
       if (!authTypes.contains(authType)) {
         continue;
       }
 
       try {
-        return collection;
+        return table;
       } on StateError catch (error) {
         lastError = error;
       }
@@ -98,7 +98,7 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<_AuthResult> _signIntoCollection({
-    required String collection,
+    required String table,
     required String email,
     required String? jwt,
     required AuthExtensionStep extensionStep,
@@ -107,21 +107,21 @@ extension _AuthX on ZonaiDb {
       throw StateError('User already authenticated');
     }
 
-    final user = await _authRecord(collection: collection, email: email);
+    final user = await _authRecord(table: table, email: email);
     if (user == null) {
       throw StateError('User not found, cannot sign in');
     }
 
-    final (newJwt, token) = await _createJwt(collection, user);
+    final (newJwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(switch (extensionStep) {
       .onSignIn => AuthExtensionRequest.onSignIn(
-        collection: collection,
+        table: table,
         object: user,
         jwt: newJwt,
       ),
       .onRefresh => AuthExtensionRequest.onRefresh(
-        collection: collection,
+        table: table,
         object: user,
         jwt: newJwt,
       ),
@@ -136,12 +136,12 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<List<AuthType>> _adminSupportedAuthTypes() async {
-    final authCollections = await _operations.send<AdminCollectionsResponse>(
-      GetAdminCollectionsOperationRequest(),
+    final authTables = await _operations.send<AdminTablesResponse>(
+      GetAdminTablesOperationRequest(),
     );
 
     final types = <AuthType>{};
-    for (final (_, authTypes) in authCollections.collections) {
+    for (final (_, authTypes) in authTables.tables) {
       types.addAll(authTypes);
     }
 
@@ -150,12 +150,12 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<(Jwt, String)> _createJwt(
-    String collection,
+    String table,
     Map<String, Object?> user,
   ) async {
     final jwtId = JwtId.generate();
     final userIdColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: collection, columnName: .id),
+      GetColumnNameRequest(table: table, columnName: .id),
     );
 
     final userId = switch (user[userIdColumn.name]) {
@@ -167,7 +167,7 @@ extension _AuthX on ZonaiDb {
 
     final preJwt = Jwt.create(
       userId: userId,
-      collection: collection,
+      table: table,
       user: user,
       jwtId: jwtId,
       expiresIn: appConfig.jwtExpiresIn,
@@ -175,7 +175,7 @@ extension _AuthX on ZonaiDb {
     );
 
     final jwtConfig = await _operations.send<JwtConfigResponse>(
-      GetJwtConfigOperationRequest(collection: collection, jwt: preJwt),
+      GetJwtConfigOperationRequest(table: table, jwt: preJwt),
     );
 
     final config = jwtConfig.config;
@@ -183,7 +183,7 @@ extension _AuthX on ZonaiDb {
 
     final jwt = Jwt(
       userId: preJwt.userId,
-      collection: preJwt.collection,
+      table: preJwt.table,
       jwtId: preJwt.jwtId,
       expiresAt: clock.now().add(expiresIn),
       user: preJwt.user,

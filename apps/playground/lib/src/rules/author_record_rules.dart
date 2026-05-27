@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 AuthorRecordRules main() => AuthorRecordRules();
 
-class AuthorRecordRules extends RecordRules<AuthorCollection, Author> {
+class AuthorRecordRules extends RecordRules<AuthorTable, Author> {
   AuthorRecordRules() : super(authors);
 
   @override

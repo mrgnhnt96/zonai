@@ -3,7 +3,7 @@ import '../types/where.dart';
 
 class ListBody {
   const ListBody({
-    required this.collection,
+    required this.table,
     this.where,
     this.limit,
     this.offset,
@@ -11,7 +11,7 @@ class ListBody {
     this.expand = const [],
   });
 
-  final String collection;
+  final String table;
   final Where? where;
   final List<String> expand;
   final int? limit;
@@ -20,7 +20,7 @@ class ListBody {
 
   factory ListBody.fromJson(Map json) {
     return ListBody(
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       where: json['where'] != null ? Where.fromJson(json['where']) : null,
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
@@ -45,7 +45,7 @@ class ListBody {
 
   Map<String, dynamic> toJson() {
     return {
-      'collection': collection,
+      'table': table,
       'where': ?where?.toJson(),
       'limit': ?limit,
       'offset': ?offset,

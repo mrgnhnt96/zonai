@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:raindrop/raindrop.dart' hide Table;
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 
 extension PasswordColumnDefinition<S> on SchemaBuilder<S> {

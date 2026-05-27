@@ -1,16 +1,16 @@
 part of zonai_db;
 
 extension _CreateX on ZonaiDb {
-  Future<_CrudResult> _create(String collection, CreatePayload payload) async {
+  Future<_CrudResult> _create(String table, CreatePayload payload) async {
     final jwt = await _extractJwt(payload);
-    await _requireCollectionAccess(collection, .create, jwt);
-    final operation = await _createOperation(collection, payload, jwt);
+    await _requireTableAccess(table, .create, jwt);
+    final operation = await _createOperation(table, payload, jwt);
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.create(
-          collection: collection,
+          table: table,
           error: error?.toString() ?? 'Unknown error',
           jwt: jwt,
         ),
@@ -19,9 +19,9 @@ extension _CreateX on ZonaiDb {
       throw error ?? StateError('Failed to create record');
     }
 
-    final created = await _sanitizeRow(collection, result.rows.single.toMap());
+    final created = await _sanitizeRow(table, result.rows.single.toMap());
 
-    await _postCreate(collection, jwt, object: created);
+    await _postCreate(table, jwt, object: created);
 
     await _executeEffects();
 
@@ -30,13 +30,13 @@ extension _CreateX on ZonaiDb {
 
   // TODO: add failed
   Future<void> _postCreate(
-    String collection,
+    String table,
     Jwt? jwt, {
     required Map<String, Object?> object,
   }) async {
     await _extensions.send<NoActionExtensionResponse>(
       CreateExtensionRequest.afterSuccess(
-        collection: collection,
+        table: table,
         object: object,
         jwt: jwt,
       ),
@@ -44,15 +44,15 @@ extension _CreateX on ZonaiDb {
   }
 
   Future<PerformOperationResponse> _createOperation(
-    String collection,
+    String table,
     CreatePayload payload,
     Jwt? jwt,
   ) async {
-    await _requireRecordAccess(collection, .create, payload.object, jwt);
+    await _requireRecordAccess(table, .create, payload.object, jwt);
 
     await _extensions.send<NoActionExtensionResponse>(
       CreateExtensionRequest.before(
-        collection: collection,
+        table: table,
         object: payload.object,
         jwt: jwt,
       ),
@@ -60,7 +60,7 @@ extension _CreateX on ZonaiDb {
 
     return await _getOperation(
       CreateOperationRequest(
-        collection: collection,
+        table: table,
         object: payload.object,
         jwt: jwt,
       ),

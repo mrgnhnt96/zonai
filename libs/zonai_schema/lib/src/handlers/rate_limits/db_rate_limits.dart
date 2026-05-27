@@ -1,12 +1,12 @@
-import 'package:zonai_schema/src/rate_limits/collection/rate_limits.dart';
+import 'package:zonai_schema/src/rate_limits/table/rate_limits.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_response.dart';
 import 'package:zonai_schema/src/rate_limit/rate_limit_policy.dart';
 
 class _RateLimitRules {
-  CollectionRateLimits? collection;
-  AuthCollectionRateLimits? auth;
+  TableRateLimits? tableRateLimits;
+  AuthTableRateLimits? auth;
 }
 
 class DbRateLimits {
@@ -46,16 +46,16 @@ class DbRateLimits {
     for (final rateLimit in rateLimits) {
       final bucket = map[rateLimit.table.name] ??= _RateLimitRules();
       switch (rateLimit) {
-        case final CollectionRateLimits rules:
-          if (bucket.collection != null) {
+        case final TableRateLimits rules:
+          if (bucket.tableRateLimits != null) {
             throw StateError(
-              'Collection rate limits already registered for ${rateLimit.table.name}. '
-              'Existing rate limits: ${bucket.collection?.runtimeType}, tried to register ${rules.runtimeType}',
+              'Table rate limits already registered for ${rateLimit.table.name}. '
+              'Existing rate limits: ${bucket.tableRateLimits?.runtimeType}, tried to register ${rules.runtimeType}',
             );
           }
 
-          bucket.collection = rules;
-        case final AuthCollectionRateLimits rules:
+          bucket.tableRateLimits = rules;
+        case final AuthTableRateLimits rules:
           if (bucket.auth != null) {
             throw StateError(
               'Auth collection rate limits already registered for ${rateLimit.table.name}. '
@@ -70,7 +70,7 @@ class DbRateLimits {
   }
 
   Future<RateLimitResponse> _resolve(RateLimitRequest request) async {
-    final bucket = byTable[request.collection];
+    final bucket = byTable[request.table];
     final defaults = _defaultBucket;
 
     final policy = switch (request.operation) {
@@ -78,28 +78,28 @@ class DbRateLimits {
         null => defaults.auth.refreshTokenPolicy(),
         final c => c.refreshTokenPolicy(),
       },
-      .get => switch (bucket?.collection) {
-        null => defaults.collection.getPolicy(),
+      .get => switch (bucket?.tableRateLimits) {
+        null => defaults.tableRateLimits.getPolicy(),
         final c => c.getPolicy(),
       },
-      .list => switch (bucket?.collection) {
-        null => defaults.collection.limitPolicy(),
+      .list => switch (bucket?.tableRateLimits) {
+        null => defaults.tableRateLimits.limitPolicy(),
         final c => c.limitPolicy(),
       },
-      .count => switch (bucket?.collection) {
-        null => defaults.collection.countPolicy(),
+      .count => switch (bucket?.tableRateLimits) {
+        null => defaults.tableRateLimits.countPolicy(),
         final c => c.countPolicy(),
       },
-      .create => switch (bucket?.collection) {
-        null => defaults.collection.createPolicy(),
+      .create => switch (bucket?.tableRateLimits) {
+        null => defaults.tableRateLimits.createPolicy(),
         final c => c.createPolicy(),
       },
-      .update => switch (bucket?.collection) {
-        null => defaults.collection.updatePolicy(),
+      .update => switch (bucket?.tableRateLimits) {
+        null => defaults.tableRateLimits.updatePolicy(),
         final c => c.updatePolicy(),
       },
-      .delete => switch (bucket?.collection) {
-        null => defaults.collection.deletePolicy(),
+      .delete => switch (bucket?.tableRateLimits) {
+        null => defaults.tableRateLimits.deletePolicy(),
         final c => c.deletePolicy(),
       },
       .signIn => switch (bucket?.auth) {
@@ -160,15 +160,15 @@ final _defaultBucket = _DefaultBucket();
 
 class _DefaultBucket {
   _DefaultBucket()
-    : collection = _DefaultCollectionRateLimits(),
-      auth = _DefaultAuthCollectionRateLimits();
+    : tableRateLimits = _DefaultTableRateLimits(),
+      auth = _DefaultAuthTableRateLimits();
 
-  final _DefaultCollectionRateLimits collection;
-  final _DefaultAuthCollectionRateLimits auth;
+  final _DefaultTableRateLimits tableRateLimits;
+  final _DefaultAuthTableRateLimits auth;
 }
 
-final class _DefaultCollectionRateLimits {
-  const _DefaultCollectionRateLimits();
+final class _DefaultTableRateLimits {
+  const _DefaultTableRateLimits();
 
   Future<RateLimitPolicy?> getPolicy() async => .defaultPolicy;
 
@@ -183,8 +183,8 @@ final class _DefaultCollectionRateLimits {
   Future<RateLimitPolicy?> deletePolicy() async => .defaultPolicy;
 }
 
-final class _DefaultAuthCollectionRateLimits {
-  const _DefaultAuthCollectionRateLimits();
+final class _DefaultAuthTableRateLimits {
+  const _DefaultAuthTableRateLimits();
 
   Future<RateLimitPolicy?> signInPolicy() async => .defaultPolicy;
 

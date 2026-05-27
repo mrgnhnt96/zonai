@@ -21,9 +21,9 @@ sealed class RuleResponse extends Response {
     }
 
     return switch (path) {
-      CollectionRulesResponse._path => CollectionRulesResponse.fromJson(json),
+      TableRulesResponse._path => TableRulesResponse.fromJson(json),
       RecordRulesResponse._path => RecordRulesResponse.fromJson(json),
-      AuthCollectionRulesResponse._path => AuthCollectionRulesResponse.fromJson(
+      AuthTableRulesResponse._path => AuthTableRulesResponse.fromJson(
         json,
       ),
       AuthRecordRulesResponse._path => AuthRecordRulesResponse.fromJson(json),
@@ -32,33 +32,33 @@ sealed class RuleResponse extends Response {
   }
 }
 
-final class AuthCollectionRulesResponse extends RuleResponse {
-  AuthCollectionRulesResponse({
+final class AuthTableRulesResponse extends RuleResponse {
+  AuthTableRulesResponse({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.canAuthenticate,
     required this.authType,
   }) : super(
          path: _path,
          payload: {
-           'collection': collection,
+           'table': table,
            'canAuthenticate': canAuthenticate,
            'authType': authType.name,
          },
        );
 
-  factory AuthCollectionRulesResponse.fromJson(Map<String, dynamic> json) {
-    return AuthCollectionRulesResponse(
+  factory AuthTableRulesResponse.fromJson(Map<String, dynamic> json) {
+    return AuthTableRulesResponse(
       id: json['id'],
-      collection: json['collection'],
+      table: json['table'],
       canAuthenticate: json['canAuthenticate'],
       authType: AuthType.values.byName(json['authType']),
     );
   }
 
-  static const _path = '${Response.prefix}.collection.auth.can_authenticate';
+  static const _path = '${Response.prefix}.table.auth.can_authenticate';
 
-  final String collection;
+  final String table;
   final bool canAuthenticate;
   final AuthType authType;
 
@@ -66,7 +66,7 @@ final class AuthCollectionRulesResponse extends RuleResponse {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'canAuthenticate': canAuthenticate,
       'authType': authType.name,
     };
@@ -74,21 +74,21 @@ final class AuthCollectionRulesResponse extends RuleResponse {
 
   @override
   String toString() {
-    return 'AuthCollectionRulesResponse(collection: $collection, canAuthenticate: $canAuthenticate, authType: $authType)';
+    return 'AuthTableRulesResponse(table: $table, canAuthenticate: $canAuthenticate, authType: $authType)';
   }
 }
 
 final class AuthRecordRulesResponse extends RuleResponse {
   AuthRecordRulesResponse({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.canAccess,
     required this.authType,
     required this.operation,
   }) : super(
          path: _path,
          payload: {
-           'collection': collection,
+           'table': table,
            'canAuthenticate': canAccess,
            'authType': authType.name,
            'operation': operation.name,
@@ -98,7 +98,7 @@ final class AuthRecordRulesResponse extends RuleResponse {
   factory AuthRecordRulesResponse.fromJson(Map<String, dynamic> json) {
     return AuthRecordRulesResponse(
       id: json['id'],
-      collection: json['collection'],
+      table: json['table'],
       canAccess: json['canAuthenticate'],
       authType: AuthType.values.byName(json['authType']),
       operation: AuthOperation.values.byName(json['operation']),
@@ -107,7 +107,7 @@ final class AuthRecordRulesResponse extends RuleResponse {
 
   static const _path = '${Response.prefix}.record.auth.can_access';
 
-  final String collection;
+  final String table;
   final bool canAccess;
   final AuthType authType;
   final AuthOperation operation;
@@ -116,7 +116,7 @@ final class AuthRecordRulesResponse extends RuleResponse {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collection': collection,
+      'table': table,
       'canAuthenticate': canAccess,
       'authType': authType.name,
       'operation': operation.name,
@@ -125,44 +125,44 @@ final class AuthRecordRulesResponse extends RuleResponse {
 
   @override
   String toString() {
-    return 'AuthRecordRulesResponse(collection: $collection, canAccess: $canAccess, authType: $authType, operation: $operation)';
+    return 'AuthRecordRulesResponse(table: $table, canAccess: $canAccess, authType: $authType, operation: $operation)';
   }
 }
 
-final class CollectionRulesResponse extends RuleResponse {
-  CollectionRulesResponse({
+final class TableRulesResponse extends RuleResponse {
+  TableRulesResponse({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.operation,
     required this.canAccess,
   }) : super(
          path: _path,
          payload: {
-           'collection': collection,
+           'table': table,
            'operation': operation,
            'canAccess': canAccess,
          },
        );
 
-  factory CollectionRulesResponse.fromJson(Map<String, dynamic> json) {
-    return CollectionRulesResponse(
+  factory TableRulesResponse.fromJson(Map<String, dynamic> json) {
+    return TableRulesResponse(
       id: json['id'],
-      collection: json['collection'],
+      table: json['table'],
       operation: json['operation'],
       canAccess: json['canAccess'],
     );
   }
 
-  static const _path = '${Response.prefix}.collection.can_access';
+  static const _path = '${Response.prefix}.table.can_access';
 
-  final String collection;
+  final String table;
   final String operation;
   final bool canAccess;
 
   @override
   Map<String, dynamic> toJson() {
     return {
-      'collection': collection,
+      'table': table,
       'operation': operation,
       'canAccess': canAccess,
       ...super.toJson(),
@@ -171,20 +171,20 @@ final class CollectionRulesResponse extends RuleResponse {
 
   @override
   String toString() {
-    return 'CollectionRulesResponse(collection: $collection, operation: $operation, canAccess: $canAccess)';
+    return 'TableRulesResponse(table: $table, operation: $operation, canAccess: $canAccess)';
   }
 }
 
 final class RecordRulesResponse extends RuleResponse {
   RecordRulesResponse({
     required super.id,
-    required this.collection,
+    required this.table,
     required this.operation,
     required this.canPerform,
   }) : super(
          path: _path,
          payload: {
-           'collection': collection,
+           'table': table,
            'operation': operation.name,
            'canPerform': canPerform,
          },
@@ -193,7 +193,7 @@ final class RecordRulesResponse extends RuleResponse {
   factory RecordRulesResponse.fromJson(Map<String, dynamic> json) {
     return RecordRulesResponse(
       id: json['id'] as String,
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       operation: RecordOperation.fromString(json['operation'])!,
       canPerform: json['canPerform'] as bool,
     );
@@ -201,14 +201,14 @@ final class RecordRulesResponse extends RuleResponse {
 
   static const _path = '${Response.prefix}.record.can_access';
 
-  final String collection;
+  final String table;
   final RecordOperation operation;
   final bool canPerform;
 
   @override
   Map<String, dynamic> toJson() {
     return {
-      'collection': collection,
+      'table': table,
       'operation': operation.name,
       'canPerform': canPerform,
       ...super.toJson(),
@@ -217,6 +217,6 @@ final class RecordRulesResponse extends RuleResponse {
 
   @override
   String toString() {
-    return 'RecordRulesResponse(collection: $collection, operation: $operation, canPerform: $canPerform)';
+    return 'RecordRulesResponse(table: $table, operation: $operation, canPerform: $canPerform)';
   }
 }

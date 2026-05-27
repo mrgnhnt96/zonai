@@ -39,7 +39,7 @@ void main() {
         final token = await jwt.generate(
           Jwt.create(
             userId: 'user-42',
-            collection: 'things',
+            table: 'things',
             user: {},
             jwtId: 'jti-ab',
             expiresIn: expiresIn,
@@ -76,7 +76,7 @@ void main() {
       final token = await jwt.generate(
         Jwt.create(
           userId: 'u',
-          collection: 'c',
+          table: 'c',
           user: {},
           jwtId: 'j',
           expiresIn: const Duration(days: 365000),
@@ -98,7 +98,7 @@ void main() {
         final token = await jwt.generate(
           Jwt.create(
             userId: 'u',
-            collection: 'c',
+            table: 'c',
             user: {},
             jwtId: 'j',
             expiresIn: expiresIn,
@@ -118,7 +118,7 @@ void main() {
         final token = await jwt.generate(
           Jwt.create(
             userId: 'u',
-            collection: 'c',
+            table: 'c',
             user: {},
             jwtId: 'j',
             expiresIn: const Duration(days: 365000),
@@ -179,7 +179,7 @@ void main() {
         final token = await jwt.generate(
           Jwt.create(
             userId: 'original',
-            collection: 'c',
+            table: 'c',
             user: {},
             jwtId: 'j',
             expiresIn: const Duration(days: 365000),
@@ -199,7 +199,7 @@ void main() {
         final token = await jwt.generate(
           Jwt.create(
             userId: 'u',
-            collection: 'c',
+            table: 'c',
             user: {},
             jwtId: 'j',
             expiresIn: const Duration(days: 365000),
@@ -235,7 +235,7 @@ void main() {
           final token = await jwt.generate(
             Jwt.create(
               userId: 'u',
-              collection: 'c',
+              table: 'c',
               user: {},
               jwtId: 'j',
               expiresIn: const Duration(days: -365),
@@ -252,7 +252,7 @@ void main() {
           final token = await jwt.generate(
             Jwt.create(
               userId: 'u',
-              collection: 'c',
+              table: 'c',
               user: {},
               jwtId: 'j',
               expiresIn: ttl,
@@ -310,7 +310,7 @@ void main() {
           jwt.generate(
             Jwt.create(
               userId: 'u',
-              collection: 'c',
+              table: 'c',
               user: {},
               jwtId: 'j',
               expiresIn: const Duration(days: 365),

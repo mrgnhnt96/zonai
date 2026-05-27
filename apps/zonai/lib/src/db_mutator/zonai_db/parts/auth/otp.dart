@@ -2,21 +2,21 @@ part of zonai_db;
 
 extension _OtpX on ZonaiDb {
   Future<void> _sendOtp(
-    String collection,
+    String table,
     SendOtpAuthPayload payload, {
     bool isAdmin = false,
     Jwt? callerJwt,
   }) async {
     final jwt = callerJwt ?? await _extractJwt(payload);
     await _requireAdminOrOwnEmail(
-      collection: collection,
+      table: table,
       email: payload.email,
       jwt: jwt,
       allowUnauthenticated: true,
     );
 
     final hasAuthRecord = await _hasAuthRecord(
-      collection: collection,
+      table: table,
       payload: payload,
     );
 
@@ -33,11 +33,11 @@ extension _OtpX on ZonaiDb {
       false => AuthOperation.signUp,
     };
 
-    await _requireAuthCollectionAccess(collection, payload);
-    await _requireAuthRecordAccess(collection, operation, payload);
+    await _requireAuthTableAccess(table, payload);
+    await _requireAuthRecordAccess(table, operation, payload);
 
     final lastOtp = await _lastChallenge(
-      collection: collection,
+      table: table,
       email: payload.email,
       type: .otp,
     );
@@ -51,7 +51,7 @@ extension _OtpX on ZonaiDb {
     }
 
     await _expireOldChallenges(
-      collection: collection,
+      table: table,
       email: payload.email,
       type: .otp,
     );
@@ -71,14 +71,14 @@ extension _OtpX on ZonaiDb {
         metadata: payload.object,
         secretHash: hashedOtp,
         target: payload.email,
-        collection: collection,
+        table: table,
       ),
     ]);
 
     courier.send(
       SendOtpEmail(
         to: EmailAddress(address: payload.email),
-        collection: collection,
+        table: table,
         isResend: lastOtp != null,
         code: otp,
         expiresIn: expiresIn,
@@ -92,7 +92,7 @@ extension _OtpX on ZonaiDb {
     bool isAdmin = false,
   }) async {
     final challenge = await _lastChallenge(
-      collection: null,
+      table: null,
       email: payload.email,
       type: .otp,
     );
@@ -106,7 +106,7 @@ extension _OtpX on ZonaiDb {
     }
 
     final hasAuthRecord = await _hasAuthRecord(
-      collection: challenge.collection,
+      table: challenge.table,
       payload: payload,
     );
 
@@ -123,8 +123,8 @@ extension _OtpX on ZonaiDb {
       false => AuthOperation.signUp,
     };
 
-    await _requireAuthCollectionAccess(challenge.collection, payload);
-    await _requireAuthRecordAccess(challenge.collection, operation, payload);
+    await _requireAuthTableAccess(challenge.table, payload);
+    await _requireAuthRecordAccess(challenge.table, operation, payload);
 
     final codeMatches = await _hashPassword.verify(
       rawPassword: payload.code,
@@ -138,7 +138,7 @@ extension _OtpX on ZonaiDb {
 
     if (hasAuthRecord) {
       return await _signIntoCollection(
-        collection: challenge.collection,
+        table: challenge.table,
         email: payload.email,
         jwt: payload.jwt,
         extensionStep: .onSignIn,
@@ -146,7 +146,7 @@ extension _OtpX on ZonaiDb {
     }
 
     return await _signUpWithOtp(
-      challenge.collection,
+      challenge.table,
       email: payload.email,
       object: challenge.metadata,
       jwt: payload.jwt,
@@ -154,7 +154,7 @@ extension _OtpX on ZonaiDb {
   }
 
   Future<_AuthResult> _signUpWithOtp(
-    String collection, {
+    String table, {
     required String email,
     Map<String, Object?>? object,
     String? jwt,
@@ -162,19 +162,19 @@ extension _OtpX on ZonaiDb {
     final appJwt = await _extractJwt(
       SendOtpAuthPayload(email: email, jwt: jwt),
     );
-    await _requireAuthCollectionAccess(
-      collection,
+    await _requireAuthTableAccess(
+      table,
       SendOtpAuthPayload(email: email, jwt: jwt),
     );
     await _requireAuthRecordAccess(
-      collection,
+      table,
       .signUp,
       SendOtpAuthPayload(email: email, object: object, jwt: jwt),
     );
 
     final operation = await _getOperation(
       CreateAuthOperationRequest(
-        collection: collection,
+        table: table,
         jwt: appJwt,
         payload: OtpAuthOperationPayload.save(
           email: email,
@@ -189,15 +189,15 @@ extension _OtpX on ZonaiDb {
       throw error ?? StateError('Failed to create user');
     }
 
-    final user = await _sanitizeRow(collection, result.rows.single.toMap());
+    final user = await _sanitizeRow(table, result.rows.single.toMap());
 
     logger.verbose('Created user using OTP', prefix: _prefix);
 
-    final (newJwt, token) = await _createJwt(collection, user);
+    final (newJwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
       AuthExtensionRequest.onSignUp(
-        collection: collection,
+        table: table,
         object: user,
         jwt: newJwt,
       ),

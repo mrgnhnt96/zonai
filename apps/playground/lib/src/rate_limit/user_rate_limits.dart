@@ -1,11 +1,11 @@
 import 'package:zonai_playground/src/schemas/users.dart';
-import 'package:zonai_schema/src/rate_limits/collection/rate_limits.dart';
+import 'package:zonai_schema/src/rate_limits/table/rate_limits.dart';
 import 'package:zonai_schema/src/rate_limit/rate_limit_policy.dart';
 
 UserRateLimits main() => UserRateLimits();
 
 final class UserRateLimits
-    extends AuthCollectionRateLimits<UserCollection, User> {
+    extends AuthTableRateLimits<UserTable, User> {
   UserRateLimits() : super(users);
 
   @override

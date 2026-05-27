@@ -61,7 +61,7 @@ class AuthHandler {
 
     final result = switch (body) {
       AdminAuthBody() => await zonaiDB.authenticateAdmin(payload),
-      _ => await zonaiDB.authenticate(body.collection, payload),
+      _ => await zonaiDB.authenticate(body.table, payload),
     };
 
     return switch ((body, result)) {
@@ -122,7 +122,7 @@ class AuthHandler {
 
   Future<Map<String, Object?>> signIn(SignInAuthBody body) async {
     final result = await zonaiDB.authenticate(
-      body.collection,
+      body.table,
       SignInPasswordAuthPayload(email: body.email, password: body.password),
     );
     return _sessionPayload(result!.user, result.jwt);
@@ -137,7 +137,7 @@ class AuthHandler {
       final String bearerToken => _parseBearerAuthorization(bearerToken),
     };
     final result = await zonaiDB.authenticate(
-      body.collection,
+      body.table,
       SignUpPasswordAuthPayload(
         email: body.email,
         password: body.password,
@@ -172,7 +172,7 @@ class AuthHandler {
       case AdminSendResetPasswordAuthBody():
         await zonaiDB.sendAdminResetPassword(payload);
       case SendResetPasswordAuthBody():
-        await zonaiDB.sendResetPassword(body.collection, payload);
+        await zonaiDB.sendResetPassword(body.table, payload);
     }
   }
 
@@ -184,7 +184,7 @@ class AuthHandler {
     zonaiDB.sendVerifyEmailAuthenticated(token, switch (body) {
       VerifyEmailAuthBody() => SendVerifyEmailAuthPayload(
         email: body.email,
-        collection: body.collection,
+        table: body.table,
       ),
       null => null,
     });

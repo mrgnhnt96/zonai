@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
-import 'package:zonai_schema/src/operations/collection_operations.dart';
+import 'package:zonai_schema/src/operations/table_operations.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
 
 sealed class OperationResponse extends Response {
@@ -31,7 +31,7 @@ sealed class OperationResponse extends Response {
       SanitizeOperationResponse._path => SanitizeOperationResponse.fromJson(
         json,
       ),
-      AdminCollectionsResponse._path => AdminCollectionsResponse.fromJson(json),
+      AdminTablesResponse._path => AdminTablesResponse.fromJson(json),
       MagicLinkConfigResponse._path => MagicLinkConfigResponse.fromJson(json),
       ResetPasswordConfigResponse._path => ResetPasswordConfigResponse.fromJson(
         json,
@@ -188,15 +188,15 @@ final class SanitizeOperationResponse extends OperationResponse {
   }
 }
 
-final class AdminCollectionsResponse extends OperationResponse {
-  const AdminCollectionsResponse({required super.id, required this.collections})
+final class AdminTablesResponse extends OperationResponse {
+  const AdminTablesResponse({required super.id, required this.tables})
     : super(path: _path, payload: const {});
 
-  factory AdminCollectionsResponse.fromJson(Map<String, dynamic> json) {
-    return AdminCollectionsResponse(
+  factory AdminTablesResponse.fromJson(Map<String, dynamic> json) {
+    return AdminTablesResponse(
       id: json['id'] as String,
-      collections: [
-        for (final e in json['collections'] as List<dynamic>)
+      tables: [
+        for (final e in json['tables'] as List<dynamic>)
           (
             e['collection'] as String,
             [
@@ -208,15 +208,15 @@ final class AdminCollectionsResponse extends OperationResponse {
     );
   }
 
-  static const _path = '${Response.prefix}.auth.get_admin_collections';
+  static const _path = '${Response.prefix}.auth.get_admin_tables';
 
-  final List<(String, List<AuthType>)> collections;
+  final List<(String, List<AuthType>)> tables;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'collections': collections
+      'tables': tables
           .map(
             (e) => {
               'collection': e.$1,

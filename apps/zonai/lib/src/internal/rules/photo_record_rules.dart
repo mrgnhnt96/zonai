@@ -1,11 +1,11 @@
-import 'package:zonai/src/internal/photos_collection.dart';
+import 'package:zonai/src/internal/photos_table.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
-import 'package:zonai_schema/zonai_schema.dart' hide photos, PhotosCollection;
+import 'package:zonai_schema/zonai_schema.dart' hide photos, PhotosTable;
 
 PhotoRecordRules main() => PhotoRecordRules();
 
 final class PhotoRecordRules
-    extends InternalRecordRules<PhotosCollection, PhotoEntry> {
+    extends InternalRecordRules<PhotosTable, PhotoEntry> {
   PhotoRecordRules() : super(photos, canBeOverridden: true);
 
   @override

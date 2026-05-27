@@ -54,56 +54,56 @@ extension UtilsX on ZonaiDb {
     }
   }
 
-  Future<void> _requireCollectionAccess(
-    String collection,
-    CollectionOperation operation,
+  Future<void> _requireTableAccess(
+    String table,
+    TableOperation operation,
     Jwt? jwt,
   ) async {
     logger.verbose(
-      'Checking collection rules for $collection $operation',
+      'Checking table rules for $table $operation',
       prefix: _prefix,
     );
-    final collectionRules = await _collectionRules(collection, operation, jwt);
-    logger.verbose('Collection rules: $collectionRules', prefix: _prefix);
+    final tableRules = await _tableRules(table, operation, jwt);
+    logger.verbose('Table rules: $tableRules', prefix: _prefix);
 
-    if (!collectionRules.canAccess) {
+    if (!tableRules.canAccess) {
       throw StateError(
-        'User permissions are restricted. Action: "${operation.name}" on collection: "$collection"',
+        'User permissions are restricted. Action: "${operation.name}" on table: "$table"',
       );
     }
   }
 
-  Future<CollectionRulesResponse> _collectionRules(
-    String collection,
-    CollectionOperation operation,
+  Future<TableRulesResponse> _tableRules(
+    String table,
+    TableOperation operation,
     Jwt? jwt,
   ) async {
-    final rules = await _rules.send<CollectionRulesResponse?>(
-      CollectionRulesRequest(
-        collection: collection,
+    final rules = await _rules.send<TableRulesResponse?>(
+      TableRulesRequest(
+        table: table,
         operation: operation.name,
         jwt: jwt,
       ),
     );
 
     return rules ??
-        CollectionRulesResponse(
+        TableRulesResponse(
           id: '-1',
-          collection: collection,
+          table: table,
           operation: operation.name,
           canAccess: false,
         );
   }
 
   Future<RecordRulesResponse> _recordRules(
-    String collection,
+    String table,
     RecordOperation operation,
     Map<String, dynamic> data,
     Jwt? jwt,
   ) async {
     final rules = await _rules.send<RecordRulesResponse?>(
       RecordRulesRequest(
-        collection: collection,
+        table: table,
         operation: operation,
         data: data,
         jwt: jwt,
@@ -113,22 +113,22 @@ extension UtilsX on ZonaiDb {
     return rules ??
         RecordRulesResponse(
           id: '-1',
-          collection: collection,
+          table: table,
           operation: operation,
           canPerform: true,
         );
   }
 
   Future<void> _requireRecordAccess(
-    String collection,
+    String table,
     RecordOperation operation,
     Map<String, dynamic> data,
     Jwt? jwt,
   ) async {
-    final result = await _recordRules(collection, operation, data, jwt);
+    final result = await _recordRules(table, operation, data, jwt);
     if (result.canPerform case false) {
       throw StateError(
-        'User permissions are restricted. Action: "$operation" on collection: "$collection"',
+        'User permissions are restricted. Action: "$operation" on table: "$table"',
       );
     }
   }
@@ -140,15 +140,15 @@ extension UtilsX on ZonaiDb {
   }
 
   Future<Map<String, Object?>> _sanitizeRow(
-    String collection,
+    String table,
     Map<String, Object?> row,
   ) async {
-    final rows = await _sanitizeRows(collection, [row]);
+    final rows = await _sanitizeRows(table, [row]);
     return rows.single;
   }
 
   Future<List<Map<String, Object?>>> _sanitizeRows(
-    String collection,
+    String table,
     List<Map<String, Object?>> rows,
   ) async {
     if (rows.isEmpty) {
@@ -156,7 +156,7 @@ extension UtilsX on ZonaiDb {
     }
 
     final response = await _operations.send<SanitizeOperationResponse>(
-      SanitizeOperationRequest(collection: collection, objects: rows),
+      SanitizeOperationRequest(table: table, objects: rows),
     );
 
     return response.objects;
@@ -166,7 +166,7 @@ extension UtilsX on ZonaiDb {
     switch (mut) {
       case final DeleteRecordRequest mut:
         final (objects, :deleteOperation) = await _deleteOperation(
-          mut.collection,
+          mut.table,
           DeletePayload(where: mut.where, limit: mut.limit),
           mut.jwt,
         );
@@ -188,7 +188,7 @@ extension UtilsX on ZonaiDb {
           :readOperation,
           :updateOperation,
         ) = await _updateOperation(
-          mut.collection,
+          mut.table,
           UpdatePayload(where: mut.where, updates: mut.updates),
           mut.jwt,
         );
@@ -213,11 +213,11 @@ extension UtilsX on ZonaiDb {
           return [];
         }
 
-        await _requireCollectionAccess(mut.collection, .create, mut.jwt);
+        await _requireTableAccess(mut.table, .create, mut.jwt);
         final futures = <Future<_CreateSideEffect>>[];
         for (final object in mut.objects) {
           final operation = _createOperation(
-            mut.collection,
+            mut.table,
             CreatePayload(object: object),
             mut.jwt,
           );
@@ -307,7 +307,7 @@ extension UtilsX on ZonaiDb {
         switch (effect) {
           case _DeleteSideEffect():
             await _postDelete(
-              effect.request.collection,
+              effect.request.table,
               effect.request.jwt,
               objects: effect.objects,
             );
@@ -315,11 +315,11 @@ extension UtilsX on ZonaiDb {
             final raw = operationResults[effect]?.rows.single.toMap();
             if (raw != null) {
               final created = await _sanitizeRow(
-                effect.request.collection,
+                effect.request.table,
                 raw,
               );
               await _postCreate(
-                effect.request.collection,
+                effect.request.table,
                 effect.request.jwt,
                 object: created,
               );
@@ -339,12 +339,12 @@ extension UtilsX on ZonaiDb {
 
             if (afterRows != null) {
               final after = await _sanitizeRows(
-                effect.request.collection,
+                effect.request.table,
                 afterRows,
               );
 
               await _postUpdate(
-                effect.request.collection,
+                effect.request.table,
                 effect.request.jwt,
                 before: effect.before,
                 after: after,

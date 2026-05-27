@@ -1,8 +1,8 @@
-import 'package:zonai/src/internal/jwt_collection.dart';
-import 'package:zonai_schema/src/operations/collection_operations.dart';
+import 'package:zonai/src/internal/jwt_table.dart';
+import 'package:zonai_schema/src/operations/table_operations.dart';
 
 final class JwtOperations
-    extends CollectionOperations<JwtCollection, JwtEntry> {
+    extends TableOperations<JwtTable, JwtEntry> {
   JwtOperations() : super(jwts);
 }
 

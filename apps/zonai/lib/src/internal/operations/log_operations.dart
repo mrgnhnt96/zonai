@@ -1,8 +1,8 @@
-import 'package:zonai/src/internal/logs_collection.dart';
-import 'package:zonai_schema/src/operations/collection_operations.dart';
+import 'package:zonai/src/internal/logs_table.dart';
+import 'package:zonai_schema/src/operations/table_operations.dart';
 
 final class LogOperations
-    extends CollectionOperations<LogsCollection, LogEntry> {
+    extends TableOperations<LogsTable, LogEntry> {
   LogOperations() : super(logs);
 }
 

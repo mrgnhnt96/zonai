@@ -3,7 +3,7 @@ import '../types/where.dart';
 
 class StreamListBody {
   const StreamListBody({
-    required this.collection,
+    required this.table,
     this.where,
     this.limit,
     this.offset,
@@ -11,7 +11,7 @@ class StreamListBody {
     this.expand = const [],
   });
 
-  final String collection;
+  final String table;
   final Where? where;
   final int? limit;
   final int? offset;
@@ -20,7 +20,7 @@ class StreamListBody {
 
   factory StreamListBody.fromJson(Map<String, dynamic> json) {
     return StreamListBody(
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       where: json['where'] != null ? Where.fromJson(json['where']) : null,
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
@@ -42,7 +42,7 @@ class StreamListBody {
 
   Map<String, dynamic> toJson() {
     return {
-      'collection': collection,
+      'table': table,
       'where': ?where?.toJson(),
       'limit': ?limit,
       'offset': ?offset,

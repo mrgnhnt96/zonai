@@ -1,9 +1,9 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/zonai_schema.dart' hide Table;
 
 class DbOperations {
   DbOperations({
@@ -11,14 +11,14 @@ class DbOperations {
     this.dialect = const SQLiteDialect(),
   });
 
-  final List<CollectionOperations> operations;
-  final BaseSqlDialect dialect;
+  final List<TableOperations> operations;
+  final rd.BaseSqlDialect dialect;
 
-  Map<String, CollectionOperations>? _operationsByCollection;
-  Map<String, CollectionOperations> get operationsByCollection {
-    if (_operationsByCollection case final map?) return map;
+  Map<String, TableOperations>? _operationsByTable;
+  Map<String, TableOperations> get operationsByTable {
+    if (_operationsByTable case final map?) return map;
 
-    final map = <String, CollectionOperations>{};
+    final map = <String, TableOperations>{};
     for (final operation in this.operations) {
       if (map[operation.table.name] != null) {
         throw StateError(
@@ -30,7 +30,7 @@ class DbOperations {
       map[operation.table.name] = operation;
     }
 
-    return _operationsByCollection = map;
+    return _operationsByTable = map;
   }
 
   void start() {
@@ -69,8 +69,8 @@ class DbOperations {
             return await _getJwtConfig(request);
           case final SanitizeOperationRequest request:
             return await _sanitize(request);
-          case final GetAdminCollectionsOperationRequest request:
-            return await _getAdminCollections(request);
+          case final GetAdminTablesOperationRequest request:
+            return await _getAdminTables(request);
           case final GetMagicLinkConfigOperationRequest request:
             return await _getMagicLinkConfig(request);
           case final GetResetPasswordConfigOperationRequest request:
@@ -82,32 +82,32 @@ class DbOperations {
     ).listen();
   }
 
-  Future<AdminCollectionsResponse> _getAdminCollections(
-    GetAdminCollectionsOperationRequest request,
+  Future<AdminTablesResponse> _getAdminTables(
+    GetAdminTablesOperationRequest request,
   ) async {
-    final collections = <(String, List<AuthType>)>[];
+    final tables = <(String, List<AuthType>)>[];
     for (final op in operations) {
       if ((op.schema, op.schema) case (
-        final AuthCollection collection,
+        final AuthTable ops,
         AsAdmin(),
       )) {
-        collections.add((op.table.name, collection.authTypes));
+        tables.add((op.table.name, ops.authTypes));
       }
     }
 
-    return AdminCollectionsResponse(id: request.id, collections: collections);
+    return AdminTablesResponse(id: request.id, tables: tables);
   }
 
-  Never _failMissingCollection(String collection) {
-    final registered = operationsByCollection.keys.toList()..sort();
+  Never _failMissingTable(String tableName) {
+    final registered = operationsByTable.keys.toList()..sort();
     final buf = StringBuffer(
-      'Operations request for "$collection" could not be handled.\n',
+      'Operations request for "$tableName" could not be handled.\n',
     );
     buf
       ..writeln(
-        'No operations are registered for table name "$collection". '
-        'The operations list may be missing this collection (e.g. loadOperation '
-        'failed, or main() did not return CollectionOperations).',
+        'No operations are registered for table name "$tableName". '
+        'The operations list may be missing this table (e.g. loadOperation '
+        'failed, or main() did not return TableOperations).',
       )
       ..writeln(
         'Registered table names: '
@@ -122,16 +122,16 @@ class DbOperations {
   Future<ColumnNameResponse> _getColumnName(
     GetColumnNameRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
 
     final column = switch (request.columnName) {
-      .password => _passwordColumn(collection.table),
-      .isVerified => _isVerifiedColumn(collection.table),
-      .email => _emailColumn(collection.table),
-      .id => _idColumn(collection.table),
+      .password => _passwordColumn(ops.table),
+      .isVerified => _isVerifiedColumn(ops.table),
+      .email => _emailColumn(ops.table),
+      .id => _idColumn(ops.table),
     };
 
     return ColumnNameResponse(
@@ -144,15 +144,15 @@ class DbOperations {
   Future<ColumnReferenceResponse> _getColumnReference(
     GetColumnReferenceRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
 
-    final column = collection.table.columns.firstWhere(
+    final column = ops.table.columns.firstWhere(
       (c) => c.name == request.columnName,
       orElse: () => throw StateError(
-        'Column "${request.columnName}" not found on "${request.collection}"',
+        'Column "${request.columnName}" not found on "${request.table}"',
       ),
     );
 
@@ -169,12 +169,12 @@ class DbOperations {
   Future<PerformOperationResponse> _createAuthOperation(
     CreateAuthOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
 
-    final emailColumn = _emailColumn(collection.table);
+    final emailColumn = _emailColumn(ops.table);
 
     final email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
@@ -188,14 +188,14 @@ class DbOperations {
       MagicLinkAuthOperationPayload(:final object) => object,
     };
 
-    Column? passwordColumn;
-    if (collection.schema is PasswordAuth) {
-      passwordColumn = _passwordColumn(collection.table);
+    rd.Column? passwordColumn;
+    if (ops.schema is PasswordAuth) {
+      passwordColumn = _passwordColumn(ops.table);
     }
 
-    Column? isVerifiedColumn;
-    if (collection.schema is HasEmail) {
-      isVerifiedColumn = _isVerifiedColumn(collection.table);
+    rd.Column? isVerifiedColumn;
+    if (ops.schema is HasEmail) {
+      isVerifiedColumn = _isVerifiedColumn(ops.table);
     }
 
     final object = switch (request.payload) {
@@ -230,13 +230,13 @@ class DbOperations {
     };
 
     final operationRequest = CreateOperationRequest(
-      collection: request.collection,
+      table: request.table,
       object: object,
       jwt: request.jwt,
     );
 
-    final (sql, values) = CollectionTranslator(
-      collection,
+    final (sql, values) = TableTranslator(
+      ops,
       dialect,
     ).translate(operationRequest);
 
@@ -246,12 +246,12 @@ class DbOperations {
   Future<PerformOperationResponse> _viewAuthOperation(
     ViewAuthOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
 
-    final table = collection.table;
+    final table = ops.table;
 
     final emailColumn = _emailColumn(table);
 
@@ -262,13 +262,13 @@ class DbOperations {
     };
 
     final operationRequest = ReadOperationRequest(
-      collection: request.collection,
+      table: request.table,
       where: Eq(emailColumn.name, email),
       jwt: request.jwt,
     );
 
-    final (sql, values) = CollectionTranslator(
-      collection,
+    final (sql, values) = TableTranslator(
+      ops,
       dialect,
     ).translate(operationRequest);
 
@@ -278,13 +278,13 @@ class DbOperations {
   Future<PerformOperationResponse> _performOperation(
     PerformOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
 
-    final (sql, values) = CollectionTranslator(
-      collection,
+    final (sql, values) = TableTranslator(
+      ops,
       dialect,
     ).translate(request);
 
@@ -292,13 +292,13 @@ class DbOperations {
   }
 
   Future<PerformOperationResponse> _count(CountOperationRequest request) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
 
-    final (sql, values) = CollectionTranslator(
-      collection,
+    final (sql, values) = TableTranslator(
+      ops,
       dialect,
     ).translate(request);
 
@@ -308,12 +308,12 @@ class DbOperations {
   Future<SanitizeOperationResponse> _sanitize(
     SanitizeOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
 
-    final columns = collection.table.columns;
+    final columns = ops.table.columns;
     final sanitized = <Map<String, dynamic>>[];
     for (final raw in request.objects) {
       final mutable = {...raw};
@@ -331,18 +331,18 @@ class DbOperations {
   Future<JwtConfigResponse> _getJwtConfig(
     GetJwtConfigOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    final claims = switch (collection) {
+    final ops = operationsByTable[request.table];
+    final claims = switch (ops) {
       AuthOperations(:final addClaims) => await addClaims(jwt: request.jwt),
       _ => Claims(const {}),
     };
 
-    final expiresIn = switch (collection) {
+    final expiresIn = switch (ops) {
       AuthOperations(:final jwtExpiresIn) => jwtExpiresIn,
       _ => null,
     };
 
-    final admin = switch (collection?.schema) {
+    final admin = switch (ops?.schema) {
       final AsAdmin admin => admin,
       _ => null,
     };
@@ -361,13 +361,13 @@ class DbOperations {
   Future<MagicLinkConfigResponse> _getMagicLinkConfig(
     GetMagicLinkConfigOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
-    final config = switch (collection) {
+    final config = switch (ops) {
       AuthOperations(:final magicLinkConfig) => await magicLinkConfig(),
-      _ => throw StateError('Collection does not support magic link'),
+      _ => throw StateError('Table does not support magic link'),
     };
 
     return MagicLinkConfigResponse(id: request.id, config: config);
@@ -376,13 +376,13 @@ class DbOperations {
   Future<ResetPasswordConfigResponse> _getResetPasswordConfig(
     GetResetPasswordConfigOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
-    final config = switch (collection) {
+    final config = switch (ops) {
       AuthOperations(:final resetPasswordConfig) => await resetPasswordConfig(),
-      _ => throw StateError('Collection does not support reset password'),
+      _ => throw StateError('Table does not support reset password'),
     };
 
     return ResetPasswordConfigResponse(id: request.id, config: config);
@@ -391,37 +391,37 @@ class DbOperations {
   Future<VerifyEmailConfigResponse> _getVerifyEmailConfig(
     GetVerifyEmailConfigOperationRequest request,
   ) async {
-    final collection = operationsByCollection[request.collection];
-    if (collection == null) {
-      _failMissingCollection(request.collection);
+    final ops = operationsByTable[request.table];
+    if (ops == null) {
+      _failMissingTable(request.table);
     }
-    final config = switch (collection) {
+    final config = switch (ops) {
       AuthOperations(:final verifyEmailConfig) => await verifyEmailConfig(),
-      _ => throw StateError('Collection does not support verify email'),
+      _ => throw StateError('Table does not support verify email'),
     };
 
     return VerifyEmailConfigResponse(id: request.id, config: config);
   }
 
-  Column _emailColumn(Table table) {
+  rd.Column _emailColumn(rd.Table table) {
     return table.columns.firstWhere(
       (column) => column.transformer is EmailTransformer,
     );
   }
 
-  Column _isVerifiedColumn(Table table) {
+  rd.Column _isVerifiedColumn(rd.Table table) {
     return table.columns.firstWhere(
       (column) => column.transformer is IsVerifiedTransformer,
     );
   }
 
-  Column _passwordColumn(Table table) {
+  rd.Column _passwordColumn(rd.Table table) {
     return table.columns.firstWhere(
       (column) => column.transformer is PasswordTransformer,
     );
   }
 
-  Column _idColumn(Table table) {
+  rd.Column _idColumn(rd.Table table) {
     return table.columns.firstWhere(
       (column) => column.transformer is IdTransformer && column.isPrimaryKey,
     );

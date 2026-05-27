@@ -4,17 +4,17 @@ const _maxExpandDepth = 4;
 
 extension _ExpandX on ZonaiDb {
   Future<Map<String, Object?>> _expandRow(
-    String collection,
+    String table,
     Map<String, Object?> row,
     List<String> expand,
     Jwt? jwt,
   ) async {
-    final rows = await _expandRows(collection, [row], expand, jwt);
+    final rows = await _expandRows(table, [row], expand, jwt);
     return rows.single;
   }
 
   Future<List<Map<String, Object?>>> _expandRows(
-    String collection,
+    String table,
     List<Map<String, Object?>> rows,
     List<String> expand,
     Jwt? jwt,
@@ -32,7 +32,7 @@ extension _ExpandX on ZonaiDb {
     for (final row in rows) {
       results.add(
         await _expandRecord(
-          collection,
+          table,
           Map<String, Object?>.from(row),
           tree,
           jwt,
@@ -44,7 +44,7 @@ extension _ExpandX on ZonaiDb {
   }
 
   Future<Map<String, Object?>> _expandRecord(
-    String collection,
+    String table,
     Map<String, Object?> record,
     _ExpandPathTree tree,
     Jwt? jwt,
@@ -58,9 +58,9 @@ extension _ExpandX on ZonaiDb {
         continue;
       }
 
-      final reference = await _getColumnReference(collection, field);
+      final reference = await _getColumnReference(table, field);
       var related = await _fetchReferencedRecord(
-        collection: reference.referencedTable,
+        table: reference.referencedTable,
         referencedColumn: reference.referencedColumn,
         referencedId: fkValue,
         jwt: jwt,
@@ -86,18 +86,18 @@ extension _ExpandX on ZonaiDb {
   }
 
   Future<_ColumnReference> _getColumnReference(
-    String collection,
+    String table,
     String columnName,
   ) async {
     final response = await _operations.send<ColumnReferenceResponse>(
-      GetColumnReferenceRequest(collection: collection, columnName: columnName),
+      GetColumnReferenceRequest(table: table, columnName: columnName),
     );
 
     final referencedTable = response.referencedTable;
     final referencedColumn = response.referencedColumn;
     if (referencedTable == null || referencedColumn == null) {
       throw StateError(
-        'Column "$columnName" on "$collection" cannot be expanded',
+        'Column "$columnName" on "$table" cannot be expanded',
       );
     }
 
@@ -109,16 +109,16 @@ extension _ExpandX on ZonaiDb {
   }
 
   Future<Map<String, Object?>> _fetchReferencedRecord({
-    required String collection,
+    required String table,
     required String referencedColumn,
     required Object referencedId,
     required Jwt? jwt,
   }) async {
-    await _requireCollectionAccess(collection, .view, jwt);
+    await _requireTableAccess(table, .view, jwt);
 
     final operation = await _getOperation(
       ReadOperationRequest(
-        collection: collection,
+        table: table,
         where: Eq(referencedColumn, referencedId),
         jwt: jwt,
       ),
@@ -134,9 +134,9 @@ extension _ExpandX on ZonaiDb {
     }
 
     final object = result.rows.first.toMap();
-    await _requireRecordAccess(collection, .view, object, jwt);
+    await _requireRecordAccess(table, .view, object, jwt);
 
-    return await _sanitizeRow(collection, object);
+    return await _sanitizeRow(table, object);
   }
 }
 

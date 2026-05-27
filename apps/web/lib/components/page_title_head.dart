@@ -17,10 +17,10 @@ class PageTitleHead extends StatelessComponent {
     final signedIn = context.watch(authProvider);
     final path = context.watch(authRouteProvider);
     final tables = context.watch(sqliteTablesProvider);
-    final collectionDisplayName = PageTitle.collectionDisplayNameForPath(
+    final tableDisplayName = PageTitle.tableDisplayNameForPath(
       path,
-      sqliteNames: [for (final c in tables.collections) c.sqliteName],
-      displayNames: [for (final c in tables.collections) c.displayName],
+      sqliteNames: [for (final c in tables.tables) c.sqliteName],
+      displayNames: [for (final c in tables.tables) c.displayName],
     );
 
     return Document.head(
@@ -28,7 +28,7 @@ class PageTitleHead extends StatelessComponent {
         appName: appName,
         signedIn: signedIn,
         path: path,
-        collectionDisplayName: collectionDisplayName,
+        tableDisplayName: tableDisplayName,
       ),
     );
   }

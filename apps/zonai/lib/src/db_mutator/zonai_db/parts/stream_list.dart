@@ -2,15 +2,15 @@ part of zonai_db;
 
 extension _StreamListX on ZonaiDb {
   Stream<List<Map<String, Object?>>> _streamList(
-    String collection,
+    String table,
     ListPayload payload,
   ) async* {
     final jwt = await _extractJwt(payload);
-    await _requireCollectionAccess(collection, .list, jwt);
+    await _requireTableAccess(table, .list, jwt);
 
     final operation = await _getOperation(
       ListOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         limit: payload.limit,
         offset: payload.offset,
@@ -29,14 +29,14 @@ extension _StreamListX on ZonaiDb {
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();
     for (final object in objects) {
-      await _requireRecordAccess(collection, .view, object, jwt);
+      await _requireRecordAccess(table, .view, object, jwt);
     }
 
     await for (final result in _stream(operation.query, operation.values)) {
       yield await _expandRows(
-        collection,
+        table,
         await _sanitizeRows(
-          collection,
+          table,
           result.rows.map((e) => e.toMap()).toList(),
         ),
         payload.expand,

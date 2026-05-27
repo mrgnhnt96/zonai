@@ -9,7 +9,7 @@ extension _PhotoX on ZonaiDb {
       throw StateError('Photos table not found');
     }
 
-    await _requireCollectionAccess(table.name, .view, jwt);
+    await _requireTableAccess(table.name, .view, jwt);
 
     // drop the extension if provided
     final idOnly = id.split('.').first;
@@ -48,7 +48,7 @@ extension _PhotoX on ZonaiDb {
     if (table == null) {
       throw StateError('Photos table not found');
     }
-    await _requireCollectionAccess(table.name, .create, jwt);
+    await _requireTableAccess(table.name, .create, jwt);
 
     final rawExtension = contentType?.split(';').first.trim().toLowerCase();
 
@@ -62,7 +62,7 @@ extension _PhotoX on ZonaiDb {
 
     final id = Id.generate('ph');
     final relativePath = fs.path.normalize(
-      fs.path.join(meta.collection, '$id.$extension'),
+      fs.path.join(meta.table, '$id.$extension'),
     );
     final file = fs.file(fs.path.join(settings.imagesPath, relativePath));
     if (fs.path.isWithin(settings.imagesPath, relativePath)) {
@@ -75,8 +75,8 @@ extension _PhotoX on ZonaiDb {
     final entry = PhotoEntry(
       id: PhotoId(id),
       ownerId: jwt?.userId ?? UnknownId(''),
-      ownerCollection: jwt?.collection ?? '',
-      collection: meta.collection,
+      ownerTable: jwt?.table ?? '',
+      table: meta.table,
       path: relativePath,
       extension: extension,
       createdAt: .now(),
@@ -101,7 +101,7 @@ extension _PhotoX on ZonaiDb {
       logger.error('$e', 'Failed to create photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.create(
-          collection: table.name,
+          table: table.name,
           error: e.toString(),
           jwt: jwt,
         ),
@@ -125,7 +125,7 @@ extension _PhotoX on ZonaiDb {
     if (table == null) {
       throw StateError('Photos table not found');
     }
-    await _requireCollectionAccess(table.name, .update, jwt);
+    await _requireTableAccess(table.name, .update, jwt);
 
     final db = await open();
     final rows = await db
@@ -149,7 +149,7 @@ extension _PhotoX on ZonaiDb {
     try {
       await _extensions.send<NoActionExtensionResponse>(
         BeforeUpdateExtensionRequest(
-          collection: table.name,
+          table: table.name,
           objects: [table.mapOut(photo)],
           jwt: jwt,
         ),
@@ -167,7 +167,7 @@ extension _PhotoX on ZonaiDb {
       logger.error('$e', 'Failed to update photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.update(
-          collection: table.name,
+          table: table.name,
           error: e.toString(),
           jwt: jwt,
         ),
@@ -186,7 +186,7 @@ extension _PhotoX on ZonaiDb {
     if (table == null) {
       throw StateError('Photos table not found');
     }
-    await _requireCollectionAccess(table.name, .delete, jwt);
+    await _requireTableAccess(table.name, .delete, jwt);
 
     final db = await open();
     final rows = await db
@@ -206,7 +206,7 @@ extension _PhotoX on ZonaiDb {
     try {
       await _extensions.send<NoActionExtensionResponse>(
         DeleteExtensionRequest.before(
-          collection: table.name,
+          table: table.name,
           objects: [table.mapOut(photo)],
           jwt: jwt,
         ),
@@ -222,7 +222,7 @@ extension _PhotoX on ZonaiDb {
       logger.error('$e', 'Failed to update photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.delete(
-          collection: table.name,
+          table: table.name,
           error: e.toString(),
           jwt: jwt,
         ),

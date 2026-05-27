@@ -2,16 +2,16 @@ part of zonai_db;
 
 extension _CountX on ZonaiDb {
   Future<int> _count(
-    String collection,
+    String table,
     CountPayload payload, {
     Jwt? userJwt,
   }) async {
     final jwt = userJwt ?? await _extractJwt(payload);
-    await _requireCollectionAccess(collection, .list, jwt);
+    await _requireTableAccess(table, .list, jwt);
 
     final operation = await _getOperation(
       CountOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         jwt: jwt,
       ),
@@ -25,13 +25,13 @@ extension _CountX on ZonaiDb {
     return result.rows.length;
   }
 
-  Stream<int> _streamCount(String collection, CountPayload payload) async* {
+  Stream<int> _streamCount(String table, CountPayload payload) async* {
     final jwt = await _extractJwt(payload);
-    await _requireCollectionAccess(collection, .list, jwt);
+    await _requireTableAccess(table, .list, jwt);
 
     final operation = await _getOperation(
       CountOperationRequest(
-        collection: collection,
+        table: table,
         where: payload.where,
         jwt: jwt,
       ),

@@ -8,7 +8,7 @@ abstract final class PageTitle {
     required String appName,
     required bool signedIn,
     required String path,
-    String? collectionDisplayName,
+    String? tableDisplayName,
   }) {
     if (AuthRoutes.isVerifyEmailCallbackPath(path)) {
       return '$appName — Verify email';
@@ -33,20 +33,20 @@ abstract final class PageTitle {
       };
     }
 
-    if (collectionDisplayName != null) {
-      return '$collectionDisplayName — $appName';
+    if (tableDisplayName != null) {
+      return '$tableDisplayName — $appName';
     }
 
-    return '$appName — Collections';
+    return '$appName — Tables';
   }
 
-  /// Resolves a collection label from [path] using parallel name lists from SSR.
-  static String? collectionDisplayNameForPath(
+  /// Resolves a table label from [path] using parallel name lists from SSR.
+  static String? tableDisplayNameForPath(
     String path, {
     required List<String> sqliteNames,
     required List<String> displayNames,
   }) {
-    final sqliteName = AuthRoutes.collectionSqliteNameFromPath(path);
+    final sqliteName = AuthRoutes.tableSqliteNameFromPath(path);
     if (sqliteName == null) return null;
 
     for (var i = 0; i < sqliteNames.length; i++) {

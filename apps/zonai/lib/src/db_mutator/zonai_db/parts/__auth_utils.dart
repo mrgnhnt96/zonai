@@ -2,7 +2,7 @@ part of zonai_db;
 
 extension _AuthUtilsX on ZonaiDb {
   Future<Map<String, Object?>?> _passwordRecord({
-    required String collection,
+    required String table,
     required PasswordAuthPayload payload,
     required String rawPassword,
   }) async {
@@ -10,7 +10,7 @@ extension _AuthUtilsX on ZonaiDb {
 
     final response = await _operations.send<PerformOperationResponse>(
       ViewAuthOperationRequest(
-        collection: collection,
+        table: table,
         jwt: jwt,
         payload: PasswordAuthOperationPayload.get(email: payload.email),
       ),
@@ -30,7 +30,7 @@ extension _AuthUtilsX on ZonaiDb {
     }
 
     final passwordColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: collection, columnName: .password),
+      GetColumnNameRequest(table: table, columnName: .password),
     );
 
     final passwordHash = user.remove(passwordColumn.name);
@@ -48,17 +48,17 @@ extension _AuthUtilsX on ZonaiDb {
       throw StateError('Invalid password or email');
     }
 
-    return await _sanitizeRow(collection, user);
+    return await _sanitizeRow(table, user);
   }
 
   Future<Map<String, Object?>?> _authRecord({
-    required String collection,
+    required String table,
     required String email,
     bool sanitize = true,
   }) async {
     final response = await _operations.send<PerformOperationResponse>(
       ViewAuthOperationRequest(
-        collection: collection,
+        table: table,
         jwt: null,
         payload: OtpAuthOperationPayload.get(email: email),
       ),
@@ -81,18 +81,18 @@ extension _AuthUtilsX on ZonaiDb {
       return user;
     }
 
-    return await _sanitizeRow(collection, user);
+    return await _sanitizeRow(table, user);
   }
 
   Future<bool> _hasAuthRecord({
-    required String collection,
+    required String table,
     required AuthPayload payload,
   }) async {
     final jwt = await _extractJwt(payload);
 
     final response = await _operations.send<PerformOperationResponse>(
       ViewAuthOperationRequest(
-        collection: collection,
+        table: table,
         jwt: jwt,
         payload: switch (payload) {
           PasswordAuthPayload(:final email) ||
@@ -130,7 +130,7 @@ extension _AuthUtilsX on ZonaiDb {
   }
 
   Future<void> _requireAuthRecordAccess(
-    String collection,
+    String table,
     AuthOperation operation,
     AuthPayload payload,
   ) async {
@@ -138,7 +138,7 @@ extension _AuthUtilsX on ZonaiDb {
 
     final response = await _rules.send<AuthRecordRulesResponse>(
       AuthRecordRulesRequest(
-        collection: collection,
+        table: table,
         jwt: jwt,
         operation: operation,
         authType: payload.authType,
@@ -150,7 +150,7 @@ extension _AuthUtilsX on ZonaiDb {
     }
 
     throw StateError(
-      'User permissions are restricted. Action: "${operation.name}" on collection: "$collection"',
+      'User permissions are restricted. Action: "${operation.name}" on table: "$table"',
     );
   }
 
@@ -196,15 +196,15 @@ extension _AuthUtilsX on ZonaiDb {
     return jwt;
   }
 
-  Future<void> _requireAuthCollectionAccess(
-    String collection,
+  Future<void> _requireAuthTableAccess(
+    String table,
     AuthPayload payload,
   ) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _rules.send<AuthCollectionRulesResponse>(
-      AuthCollectionRulesRequest(
-        collection: collection,
+    final response = await _rules.send<AuthTableRulesResponse>(
+      AuthTableRulesRequest(
+        table: table,
         jwt: jwt,
         authType: switch (payload) {
           PasswordAuthPayload() => .password,
@@ -217,23 +217,23 @@ extension _AuthUtilsX on ZonaiDb {
       ),
     );
 
-    if (response case AuthCollectionRulesResponse(canAuthenticate: true)) {
+    if (response case AuthTableRulesResponse(canAuthenticate: true)) {
       return;
     }
 
-    throw StateError('Cannot authenticate for collection: $collection');
+    throw StateError('Cannot authenticate for table: $table');
   }
 
   Future<String?> _emailFromJwt({
-    required String collection,
+    required String table,
     required Jwt jwt,
   }) async {
-    if (jwt.collection != collection) {
+    if (jwt.table != table) {
       return null;
     }
 
     final emailColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: collection, columnName: .email),
+      GetColumnNameRequest(table: table, columnName: .email),
     );
 
     return switch (jwt.user[emailColumn.name]) {
@@ -243,7 +243,7 @@ extension _AuthUtilsX on ZonaiDb {
   }
 
   Future<void> _requireAdminOrOwnEmail({
-    required String collection,
+    required String table,
     required String email,
     required bool allowUnauthenticated,
     Jwt? jwt,
@@ -262,7 +262,7 @@ extension _AuthUtilsX on ZonaiDb {
     }
 
     final userEmail = await _emailFromJwt(
-      collection: collection,
+      table: table,
       jwt: validated,
     );
     if (userEmail != null && userEmail.toLowerCase() == email.toLowerCase()) {

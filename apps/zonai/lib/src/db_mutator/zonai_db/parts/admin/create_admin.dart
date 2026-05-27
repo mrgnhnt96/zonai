@@ -7,10 +7,10 @@ extension _CreateAdminX on ZonaiDb {
     Map<String, dynamic>? object,
     bool verified = true,
   }) async {
-    final collection = await _adminCollectionFor(.password);
+    final table = await _adminCollectionFor(.password);
 
     final payload = PasswordAuthPayload(email: email, password: password);
-    if (await _hasAuthRecord(collection: collection, payload: payload)) {
+    if (await _hasAuthRecord(table: table, payload: payload)) {
       throw StateError('An account with email "$email" already exists');
     }
 
@@ -18,7 +18,7 @@ extension _CreateAdminX on ZonaiDb {
 
     final operation = await _getOperation(
       CreateAuthOperationRequest(
-        collection: collection,
+        table: table,
         jwt: null,
         payload: PasswordAuthOperationPayload.save(
           email: email,
@@ -33,23 +33,23 @@ extension _CreateAdminX on ZonaiDb {
       throw error ?? StateError('Failed to create admin account');
     }
 
-    var user = await _sanitizeRow(collection, result.rows.single.toMap());
+    var user = await _sanitizeRow(table, result.rows.single.toMap());
 
     if (verified) {
-      user = await _markAdminVerified(collection: collection, user: user);
+      user = await _markAdminVerified(table: table, user: user);
     }
 
-    logger.verbose('Created admin account in "$collection"', prefix: _prefix);
+    logger.verbose('Created admin account in "$table"', prefix: _prefix);
 
     return user;
   }
 
   Future<Map<String, Object?>> _markAdminVerified({
-    required String collection,
+    required String table,
     required Map<String, Object?> user,
   }) async {
     final isVerifiedColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: collection, columnName: .isVerified),
+      GetColumnNameRequest(table: table, columnName: .isVerified),
     );
 
     if (user[isVerifiedColumn.name] == true) {
@@ -57,7 +57,7 @@ extension _CreateAdminX on ZonaiDb {
     }
 
     final idColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(collection: collection, columnName: .id),
+      GetColumnNameRequest(table: table, columnName: .id),
     );
 
     final userId = user[idColumn.name];
@@ -67,7 +67,7 @@ extension _CreateAdminX on ZonaiDb {
 
     final operation = await _operations.send<PerformOperationResponse>(
       UpdateOperationRequest(
-        collection: collection,
+        table: table,
         jwt: null,
         where: Eq(idColumn.name, userId),
         updates: [ColumnUpdate(isVerifiedColumn.name, Literal(true))],

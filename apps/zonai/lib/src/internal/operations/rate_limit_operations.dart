@@ -1,8 +1,8 @@
-import 'package:zonai/src/internal/rate_limit_collection.dart';
-import 'package:zonai_schema/src/operations/collection_operations.dart';
+import 'package:zonai/src/internal/rate_limit_table.dart';
+import 'package:zonai_schema/src/operations/table_operations.dart';
 
 final class RateLimitOperations
-    extends CollectionOperations<RateLimitCollection, RateLimitEntry> {
+    extends TableOperations<RateLimitTable, RateLimitEntry> {
   RateLimitOperations() : super(rateLimits);
 }
 

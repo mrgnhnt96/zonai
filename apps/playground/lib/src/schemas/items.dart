@@ -22,8 +22,8 @@ class Item {
   final DateTime? updatedAt;
 }
 
-final class ItemCollection extends Collection<Item> {
-  ItemCollection(super.$)
+final class ItemTable extends Table<Item> {
+  ItemTable(super.$)
     : id = $.id(
         'id',
         (s) => s.id,
@@ -56,4 +56,4 @@ final class ItemCollection extends Collection<Item> {
   final DateTimeColumn? updatedAt;
 }
 
-final items = collection('items', ItemCollection.new);
+final items = table('items', ItemTable.new);

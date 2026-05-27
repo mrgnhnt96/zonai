@@ -40,13 +40,13 @@ class DeletePayload extends JwtPayload {
 
 class DeleteOnePayload extends JwtPayload implements DeletePayload {
   const DeleteOnePayload({
-    required this.collection,
+    required this.table,
     required this.id,
     this.column = 'id',
     super.jwt,
   }) : limit = 1;
 
-  final String collection;
+  final String table;
   final String id;
   final String column;
   final int limit;

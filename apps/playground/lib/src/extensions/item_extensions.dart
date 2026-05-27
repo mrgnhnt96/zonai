@@ -14,14 +14,14 @@ class ItemExtensions extends Extension<Item> {
   @override
   Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
     logger.warn('JWT: $jwt');
-    final item = await get.one(collection: 'items', where: Eq('id', object.id));
+    final item = await get.one(tableName: 'items', where: Eq('id', object.id));
 
     if (item == null) {
       throw StateError('Failed to get item');
     }
 
     mutate.update.one(
-      collection: 'items',
+      table: 'items',
       updates: [Update.column('body', .literal('Something else!!!'))],
       where: Eq('id', object.id),
     );

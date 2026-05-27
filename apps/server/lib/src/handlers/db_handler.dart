@@ -6,7 +6,7 @@ class DbHandler {
 
   Future<Map<String, Object?>> get(String? authorization, GetBody body) async {
     return await zonaiDB.read(
-      body.collection,
+      body.table,
       .new(
         where: body.where,
         expand: body.expand,
@@ -20,7 +20,7 @@ class DbHandler {
     ListBody body,
   ) async {
     return await zonaiDB.list(
-      body.collection,
+      body.table,
       .new(
         where: body.where,
         limit: body.limit,
@@ -37,7 +37,7 @@ class DbHandler {
     CreateBody body,
   ) async {
     return await zonaiDB.create(
-      body.collection,
+      body.table,
       .new(object: body.object, jwt: _parseBearerAuthorization(authorization)),
     );
   }
@@ -47,7 +47,7 @@ class DbHandler {
     UpdateOneBody body,
   ) async {
     final result = await zonaiDB.update(
-      body.collection,
+      body.table,
       .new(
         where: body.where,
         limit: body.limit,
@@ -64,7 +64,7 @@ class DbHandler {
     UpdateBody body,
   ) async {
     return await zonaiDB.update(
-      body.collection,
+      body.table,
       .new(
         where: body.where,
         limit: body.limit,
@@ -101,7 +101,7 @@ class DbHandler {
     StreamBody body,
   ) {
     return zonaiDB.streamOne(
-      body.collection,
+      body.table,
       .new(
         where: body.where,
         expand: body.expand,
@@ -115,7 +115,7 @@ class DbHandler {
     StreamListBody body,
   ) {
     return zonaiDB.streamList(
-      body.collection,
+      body.table,
       .new(
         where: body.where,
         limit: body.limit,
@@ -129,7 +129,7 @@ class DbHandler {
 
   Stream<int> streamCount(String? authorization, StreamCountBody body) {
     return zonaiDB.streamCount(
-      body.collection,
+      body.table,
       .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
     );
   }
@@ -155,7 +155,7 @@ class DbHandler {
 
   Future<int> count(String? authorization, CountBody body) async {
     return await zonaiDB.count(
-      body.collection,
+      body.table,
       .new(where: body.where, jwt: _parseBearerAuthorization(authorization)),
     );
   }

@@ -24,8 +24,8 @@ class _User {
   final String name;
 }
 
-final class _UserCollection extends AuthCollection<_User> with PasswordAuth {
-  _UserCollection(super.$)
+final class _UserTable extends AuthTable<_User> with PasswordAuth {
+  _UserTable(super.$)
     : id = $.id(
         'id',
         (s) => s.id,
@@ -62,22 +62,22 @@ final class _UserCollection extends AuthCollection<_User> with PasswordAuth {
   final TextColumn name;
 }
 
-class _UserRecordRules extends AuthRecordRules<_UserCollection, _User> {
+class _UserRecordRules extends AuthRecordRules<_UserTable, _User> {
   const _UserRecordRules(super.schema);
 }
 
 void main() {
-  late _UserCollection users;
+  late _UserTable users;
   late _UserRecordRules rules;
 
   setUp(() {
-    users = authCollection('_test_users', _UserCollection.new);
+    users = authTable('_test_users', _UserTable.new);
     rules = _UserRecordRules(users);
   });
 
   Jwt _jwtFor(String userId) => Jwt.create(
     userId: userId,
-    collection: '_test_users',
+    table: '_test_users',
     user: const {},
     jwtId: JwtId('jwt-1'),
     expiresIn: const Duration(hours: 1),

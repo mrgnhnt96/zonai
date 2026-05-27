@@ -1,11 +1,11 @@
-import 'package:zonai/src/internal/logs_collection.dart';
+import 'package:zonai/src/internal/logs_table.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
 LogRecordRules main() => LogRecordRules();
 
 final class LogRecordRules
-    extends InternalRecordRules<LogsCollection, LogEntry> {
+    extends InternalRecordRules<LogsTable, LogEntry> {
   LogRecordRules() : super(logs);
 
   @override

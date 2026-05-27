@@ -15,12 +15,12 @@ class _Mutate {
   }
   _Mutate._() {
     update = _Update(
-      ({required collection, required updates, required where, limit}) {},
+      ({required String tableName, required updates, required where, limit}) {},
     );
     delete = _Delete(
-      ({required collection, required updates, required where, limit}) {},
+      ({required String tableName, required updates, required where, limit}) {},
     );
-    create = _Create(({required collection, required objects}) {});
+    create = _Create(({required String tableName, required objects}) {});
   }
 
   late final _Update update;
@@ -30,7 +30,7 @@ class _Mutate {
 
 typedef _UpdateMany =
     void Function({
-      required String collection,
+      required String tableName,
       required List<Update> updates,
       required Where where,
       int? limit,
@@ -42,31 +42,26 @@ class _Update {
   final _UpdateMany _update;
 
   void many({
-    required String collection,
+    required String tableName,
     required List<Update> updates,
     required Where where,
     int? limit,
   }) {
-    _update(
-      collection: collection,
-      updates: updates,
-      where: where,
-      limit: limit,
-    );
+    _update(tableName: tableName, updates: updates, where: where, limit: limit);
   }
 
   void one({
-    required String collection,
+    required String table,
     required List<Update> updates,
     required Where where,
   }) {
-    many(collection: collection, updates: updates, where: where, limit: 1);
+    many(tableName: table, updates: updates, where: where, limit: 1);
   }
 }
 
 typedef _DeleteMany =
     void Function({
-      required String collection,
+      required String tableName,
       required List<Update> updates,
       required Where where,
       int? limit,
@@ -78,31 +73,26 @@ class _Delete {
   final _DeleteMany _delete;
 
   void many({
-    required String collection,
+    required String tableName,
     required List<Update> updates,
     required Where where,
     int? limit,
   }) {
-    _delete(
-      collection: collection,
-      updates: updates,
-      where: where,
-      limit: limit,
-    );
+    _delete(tableName: tableName, updates: updates, where: where, limit: limit);
   }
 
   void one({
-    required String collection,
+    required String tableName,
     required List<Update> updates,
     required Where where,
   }) {
-    many(collection: collection, updates: updates, where: where, limit: 1);
+    many(tableName: tableName, updates: updates, where: where, limit: 1);
   }
 }
 
 typedef _CreateMany =
     void Function({
-      required String collection,
+      required String tableName,
       required List<Map<String, dynamic>> objects,
     });
 
@@ -112,13 +102,13 @@ class _Create {
   final _CreateMany _create;
 
   void many({
-    required String collection,
+    required String tableName,
     required List<Map<String, dynamic>> objects,
   }) {
-    _create(collection: collection, objects: objects);
+    _create(tableName: tableName, objects: objects);
   }
 
-  void one({required String collection, required Map<String, dynamic> object}) {
-    many(collection: collection, objects: [object]);
+  void one({required String tableName, required Map<String, dynamic> object}) {
+    many(tableName: tableName, objects: [object]);
   }
 }

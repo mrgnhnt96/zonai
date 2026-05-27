@@ -1,17 +1,17 @@
 class CreateBody {
-  const CreateBody({required this.collection, required this.object});
+  const CreateBody({required this.table, required this.object});
 
-  final String collection;
+  final String table;
   final Map<String, dynamic> object;
 
   factory CreateBody.fromJson(Map<String, dynamic> json) {
     return CreateBody(
-      collection: json['collection'] as String,
+      table: json['table'] as String,
       object: json['object'] as Map<String, dynamic>,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'collection': collection, 'object': object};
+    return {'table': table, 'object': object};
   }
 }
