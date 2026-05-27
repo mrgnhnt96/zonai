@@ -8,6 +8,7 @@ abstract interface class Id {
 
   String get value;
 
+  // TODO: add prefix + suffix
   static String generate([String? suffix]) {
     final random = Random.secure();
     final nonce = List<int>.generate(16, (_) => random.nextInt(256));
