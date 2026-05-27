@@ -3,7 +3,9 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// Collection rules for framework tables: never exposed via the public DB API.
 base class InternalCollectionRules<S extends Collection<R>, R>
     extends CollectionRules<S, R> {
-  const InternalCollectionRules(super.schema);
+  const InternalCollectionRules(super.schema, {this.canBeOverridden = false});
+
+  final bool canBeOverridden;
 
   @override
   Future<bool> canCreate(Jwt? jwt) async => false;
@@ -27,7 +29,9 @@ base class InternalCollectionRules<S extends Collection<R>, R>
 /// Record rules for framework tables: never exposed via the public DB API.
 base class InternalRecordRules<S extends Collection<R>, R>
     extends RecordRules<S, R> {
-  const InternalRecordRules(super.schema);
+  const InternalRecordRules(super.schema, {this.canBeOverridden = false});
+
+  final bool canBeOverridden;
 
   @override
   Future<bool> canView(Jwt? jwt, R record) async =>
