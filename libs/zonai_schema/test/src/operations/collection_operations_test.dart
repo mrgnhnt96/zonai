@@ -40,7 +40,7 @@ class _Collection extends Collection<_Row> implements _Row {
   );
 
   @override
-  final IntColumn? id;
+  final IntColumn id;
 
   @override
   final TextColumn title;
@@ -71,7 +71,7 @@ class _JsonCollection extends Collection<_JsonRow> implements _JsonRow {
       _JsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
 
   @override
-  final IntColumn? id;
+  final IntColumn id;
 
   @override
   final TextColumn title;
@@ -131,7 +131,7 @@ class _TypedJsonCollection extends Collection<_TypedJsonRow> {
   _TypedJsonRow fromRow(RowReader read) =>
       _TypedJsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
 
-  final IntColumn? id;
+  final IntColumn id;
 
   final TextColumn title;
 
