@@ -55,7 +55,7 @@ class _SendEmail {
     _sendBuiltIn(.passwordReset, to, collection, variables);
   }
 
-  void optCode(
+  void otpCode(
     EmailAddress to, {
     required String collection,
     Map<String, dynamic>? variables,
