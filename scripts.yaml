@@ -1,9 +1,13 @@
 schema:
   (aliases): [schemas]
   gen:
-    internal-db-artifacts:
-      (command): cd apps/zonai && dart run tool/generate_internal_db_artifacts.dart
-      (aliases): [internal, ida]
+    internal:
+      tables:
+        (command): cd apps/zonai && dart run tool/generate_internal_db_artifacts.dart
+        (aliases): [db]
+      migrations:
+        (command): cd apps/zonai && dart run tool/generate_internal_db_artifacts.dart --migrate {--name}
+        (aliases): [migrate, m]
 
 version:
   gen: |
@@ -45,19 +49,11 @@ raindrop:
       git fetch upstream main:main
 
 web:
-  sync-client:
-    (aliases): [client, sc]
-    (bail):
-    (command):
-      - test -f apps/server/.revali/revali_client/lib/client.dart || (echo "Revali client generation failed; run server gen first" && exit 1)
-      - rm -rf apps/web/lib/gen/client
-      - mkdir -p apps/web/lib/gen/client
-      - cp -r apps/server/.revali/revali_client/lib/. apps/web/lib/gen/client/
   gen:
     (bail):
     (command):
       - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
-      - ${{ web.sync-client }}
+      - ${{ server.sync-to-cli }}
       - cd apps/web && dart pub get && dart run jaspr_cli:jaspr build
       - cd apps/zonai && dart run tool/generate_web_assets.dart
       - dart pub get
@@ -65,7 +61,7 @@ web:
   start:
     (bail):
     (command):
-      - ${{ web.sync-client }}
+      - ${{ server.sync-to-cli }}
       - cd apps/web && dart pub get && dart run jaspr_cli:jaspr serve
 
 server:
@@ -88,6 +84,11 @@ server:
         # Use perl instead of sed for in-place replacement
         find lib -name '*.dart' -exec perl -pi -e 's|package:zonai_server/src|..|g' {} +
         find . -name '*.dart' -exec perl -pi -e 's|package:zonai_server|../../lib|g' {} +
+
+      - test -f apps/server/.revali/revali_client/lib/client.dart || (echo "Revali client generation failed; run server gen first" && exit 1)
+      - rm -rf apps/web/lib/gen/client
+      - mkdir -p apps/web/lib/gen/client
+      - cp -r apps/server/.revali/revali_client/lib/. apps/web/lib/gen/client/
   copy-to-cli:
     (aliases): [cli, copy, c]
     (bail):
@@ -95,9 +96,11 @@ server:
       - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
       - cd apps/server && dart run revali dev --generate-only --flavor dev --release --recompile
       - ${{ server.sync-to-cli }}
-  gen: |
-    cd apps/server || exit 1
-    dart run revali dev --flavor dev --profile --recompile --generate-only
+  gen:
+    - |
+      cd apps/server || exit 1
+      dart run revali dev --flavor dev --profile --recompile --generate-only
+    - ${{ server.sync-to-cli }}
   start: |
     cd apps/server || exit 1
     dart pub get || exit 1

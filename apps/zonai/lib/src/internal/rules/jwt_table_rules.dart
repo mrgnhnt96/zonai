@@ -1,4 +1,4 @@
-import 'package:zonai/src/internal/jwt_table.dart';
+import 'package:zonai/src/internal/tables/jwt_table.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 

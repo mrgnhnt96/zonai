@@ -36,6 +36,9 @@ extension UtilsX on ZonaiDb {
       await raindrop.migrate(db, migrations);
     }
 
+    logger.verbose('Applying internal table migrations', prefix: _prefix);
+    await InternalDbMigrate.apply(db);
+
     await _createInternalCollections(db);
 
     logger.verbose('Ensuring database is open', prefix: _prefix);
@@ -45,9 +48,7 @@ extension UtilsX on ZonaiDb {
   }
 
   Future<void> _createInternalCollections(Raindrop db) async {
-    final sqlSync = SqliteInternalTableSync(
-      onRebuildScheduled: (message) => logger.verbose(message, prefix: _prefix),
-    );
+    final sqlSync = SqliteInternalTableSync();
 
     for (final schema in InternalDbArtifacts.schemas) {
       await sqlSync.ensureMatchingTable(db, schema);

@@ -1,0 +1,10 @@
+dialect: sqlite
+
+# Migratable internal tables (_raindrop_migrations lives outside this dir).
+schemas: lib/src/internal/tables
+
+# SQL migrations and journal/snapshots checked into the repo.
+out: lib/src/internal/migrations
+
+# Embedded migrations applied at runtime (compiled into the zonai package).
+dart: lib/src/internal/internal_db_migrations.dart

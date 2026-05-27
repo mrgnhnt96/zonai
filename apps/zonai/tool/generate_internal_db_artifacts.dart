@@ -3,9 +3,19 @@
 // Run from this package:
 //   dart run tool/generate_internal_db_artifacts.dart
 //
-// Pass --check to exit 1 when the file is out of date (for CI).
+// Generate a new internal-table migration (after editing *_table.dart):
+//   dart run tool/generate_internal_db_artifacts.dart --migrate --name <description>
+//
+// Resync internal_db_migrations.dart from committed .sql files:
+//   dart run tool/generate_internal_db_artifacts.dart --sync-migrations-dart
+//
+// Pass --check to exit 1 when generated files are out of date (for CI).
 
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:path/path.dart' as p;
+import 'package:raindrop_cli/src/cli/cli_runner.dart';
 
 const _generatedHeader = '''
 // GENERATED CODE - DO NOT MODIFY BY HAND
@@ -20,11 +30,28 @@ const _generatedHeader = '''
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 ''';
 
+const _migrationsDartHeader = '''
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// Embedded internal-table migrations applied at runtime via [InternalDbMigrate].
+//
+// Regenerate SQL: dart run tool/generate_internal_db_artifacts.dart --migrate -n <name>
+// Resync this file: dart run tool/generate_internal_db_artifacts.dart --sync-migrations-dart
+''';
+
+const _raindropConfig = 'raindrop.yaml';
+const _migrationsDir = 'lib/src/internal/migrations';
+const _migrationsDartPath = 'lib/src/internal/internal_db_migrations.dart';
+
 final _tableNamePattern = RegExp(r"table\s*\(\s*'([^']+)'");
 final _tableGetterPattern = RegExp(r'final\s+(\w+)\s*=\s*table\s*\(');
 
-void main(List<String> args) {
+Future<void> main(List<String> args) async {
   final checkOnly = args.contains('--check');
+  final syncMigrationsDart = args.contains('--sync-migrations-dart');
+  final generateMigration = args.contains('--migrate');
+  final migrationName = _readOption(args, '--name') ?? 'internal_update';
+
   final packageRoot = Directory.current;
   final libRoot = Directory('${packageRoot.path}/lib/src/internal');
   if (!libRoot.existsSync()) {
@@ -32,6 +59,17 @@ void main(List<String> args) {
       'Run from the zonai package root (lib/src/internal not found).',
     );
     exit(1);
+  }
+
+  if (generateMigration) {
+    final exitCode = await _runRaindropGenerate(migrationName);
+    if (exitCode != 0) {
+      exit(exitCode);
+    }
+    _postProcessMigrationSqlFiles(packageRoot);
+    _writeMigrationsDartFile(packageRoot);
+  } else if (syncMigrationsDart) {
+    _writeMigrationsDartFile(packageRoot);
   }
 
   final operations = _discoverEntries(
@@ -57,7 +95,7 @@ void main(List<String> args) {
   );
   final tables = _discoverTables(libRoot);
 
-  final output = _formatDart(
+  final output = _formatArtifactsDart(
     operations: operations,
     rules: rules,
     rateLimits: rateLimits,
@@ -67,14 +105,29 @@ void main(List<String> args) {
   final outFile = File('${libRoot.path}/internal_db_artifacts.dart');
 
   if (checkOnly) {
-    final existing = outFile.existsSync() ? outFile.readAsStringSync() : '';
-    if (existing != output) {
+    final migrationsDart = File('${packageRoot.path}/$_migrationsDartPath');
+    final existingArtifacts = outFile.existsSync() ? outFile.readAsStringSync() : '';
+    final existingMigrations = migrationsDart.existsSync()
+        ? migrationsDart.readAsStringSync()
+        : '';
+    final expectedMigrations = _formatMigrationsDart(
+      _loadMigrationEntries(packageRoot),
+    );
+
+    if (existingArtifacts != output || existingMigrations != expectedMigrations) {
       stderr.writeln(
-        '${outFile.path} is out of date. Run: dart run tool/generate_internal_db_artifacts.dart',
+        'Generated internal DB files are out of date. Run: '
+        'dart run tool/generate_internal_db_artifacts.dart',
       );
+      if (existingArtifacts != output) {
+        stderr.writeln('  - ${outFile.path}');
+      }
+      if (existingMigrations != expectedMigrations) {
+        stderr.writeln('  - ${migrationsDart.path}');
+      }
       exit(1);
     }
-    stdout.writeln('${outFile.path} is up to date.');
+    stdout.writeln('Internal DB generated files are up to date.');
     return;
   }
 
@@ -105,6 +158,108 @@ void main(List<String> args) {
   for (final e in extensions) {
     stdout.writeln('  - ${e.alias}');
   }
+
+  if (generateMigration || syncMigrationsDart) {
+    stdout.writeln('Wrote ${packageRoot.path}/$_migrationsDartPath');
+  }
+}
+
+String? _readOption(List<String> args, String name) {
+  final index = args.indexOf(name);
+  if (index == -1 || index + 1 >= args.length) {
+    return null;
+  }
+  return args[index + 1];
+}
+
+Future<int> _runRaindropGenerate(String migrationName) async {
+  return CliRunner().run([
+    '--config',
+    _raindropConfig,
+    'generate',
+    '--name',
+    migrationName,
+  ]);
+}
+
+void _postProcessMigrationSqlFiles(Directory packageRoot) {
+  final migrationsRoot = Directory(p.join(packageRoot.path, _migrationsDir));
+  if (!migrationsRoot.existsSync()) {
+    return;
+  }
+
+  for (final entity in migrationsRoot.listSync()) {
+    if (entity is! File || !entity.path.endsWith('.sql')) {
+      continue;
+    }
+    final sql = entity.readAsStringSync();
+    final updated = _ensureCreateIfNotExists(sql);
+    if (updated != sql) {
+      entity.writeAsStringSync(updated);
+      stdout.writeln('Post-processed ${entity.path} (IF NOT EXISTS)');
+    }
+  }
+}
+
+String _ensureCreateIfNotExists(String sql) {
+  return sql
+      .replaceAll('CREATE UNIQUE INDEX "', 'CREATE UNIQUE INDEX IF NOT EXISTS "')
+      .replaceAll('CREATE INDEX "', 'CREATE INDEX IF NOT EXISTS "')
+      .replaceAll('CREATE TABLE "', 'CREATE TABLE IF NOT EXISTS "');
+}
+
+List<({String tag, String sql})> _loadMigrationEntries(Directory packageRoot) {
+  final journalFile = File(
+    p.join(packageRoot.path, _migrationsDir, 'meta', '_journal.json'),
+  );
+  if (!journalFile.existsSync()) {
+    return const [];
+  }
+
+  final journal = jsonDecode(journalFile.readAsStringSync()) as Map<String, dynamic>;
+  final entries = journal['entries'] as List<dynamic>? ?? const [];
+  final migrations = <({String tag, String sql})>[];
+
+  for (final raw in entries) {
+    final entry = raw as Map<String, dynamic>;
+    final tag = entry['tag'] as String;
+    final sqlFile = File(p.join(packageRoot.path, _migrationsDir, '$tag.sql'));
+    if (!sqlFile.existsSync()) {
+      throw StateError('Missing migration SQL for tag "$tag": ${sqlFile.path}');
+    }
+    migrations.add((tag: tag, sql: sqlFile.readAsStringSync().trim()));
+  }
+
+  return migrations;
+}
+
+void _writeMigrationsDartFile(Directory packageRoot) {
+  final output = _formatMigrationsDart(_loadMigrationEntries(packageRoot));
+  final outFile = File(p.join(packageRoot.path, _migrationsDartPath));
+  outFile.parent.createSync(recursive: true);
+  outFile.writeAsStringSync(output);
+}
+
+String _formatMigrationsDart(List<({String tag, String sql})> migrations) {
+  final buffer = StringBuffer()..writeln('$_migrationsDartHeader');
+  buffer
+    ..writeln()
+    ..writeln("import 'package:raindrop/raindrop.dart';")
+    ..writeln()
+    ..writeln('/// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).')
+    ..writeln('final internalDbMigrations = [');
+
+  for (final migration in migrations) {
+    final escapedSql = migration.sql.replaceAll("'''", r"\'''");
+    buffer
+      ..writeln("  const Migration('${migration.tag}', '''")
+      ..write(escapedSql)
+      ..writeln("'''),");
+  }
+
+  buffer.writeln('];');
+  buffer.writeln();
+  return buffer.toString();
 }
 
 List<({String importPath, String alias})> _discoverEntries(
@@ -137,34 +292,47 @@ List<({String importPath, String getter, String tableName})> _discoverTables(
   Directory internalRoot,
 ) {
   final tables = <({String importPath, String getter, String tableName})>[];
-  for (final entity in internalRoot.listSync()) {
-    if (entity is! File) {
-      continue;
+
+  void scanDir(Directory dir, String importPrefix) {
+    if (!dir.existsSync()) {
+      return;
     }
-    final name = entity.uri.pathSegments.last;
-    if (!name.endsWith('_table.dart')) {
-      continue;
+    for (final entity in dir.listSync()) {
+      if (entity is! File) {
+        continue;
+      }
+      final name = entity.uri.pathSegments.last;
+      if (!name.endsWith('_table.dart')) {
+        continue;
+      }
+      final content = entity.readAsStringSync();
+      final tableMatch = _tableNamePattern.firstMatch(content);
+      final getterMatch = _tableGetterPattern.firstMatch(content);
+      if (tableMatch == null || getterMatch == null) {
+        stderr.writeln(
+          'Skipping $name: expected `final <getter> = table(\'<table>\', ...)`',
+        );
+        continue;
+      }
+      tables.add((
+        importPath: '$importPrefix$name',
+        getter: getterMatch.group(1)!,
+        tableName: tableMatch.group(1)!,
+      ));
     }
-    final content = entity.readAsStringSync();
-    final tableMatch = _tableNamePattern.firstMatch(content);
-    final getterMatch = _tableGetterPattern.firstMatch(content);
-    if (tableMatch == null || getterMatch == null) {
-      stderr.writeln(
-        'Skipping $name: expected `final <getter> = table(\'<table>\', ...)`',
-      );
-      continue;
-    }
-    tables.add((
-      importPath: 'package:zonai/src/internal/$name',
-      getter: getterMatch.group(1)!,
-      tableName: tableMatch.group(1)!,
-    ));
   }
+
+  scanDir(
+    Directory('${internalRoot.path}/tables'),
+    'package:zonai/src/internal/tables/',
+  );
+  scanDir(internalRoot, 'package:zonai/src/internal/');
+
   tables.sort((a, b) => a.tableName.compareTo(b.tableName));
   return tables;
 }
 
-String _formatDart({
+String _formatArtifactsDart({
   required List<({String importPath, String alias})> operations,
   required List<({String importPath, String alias})> rules,
   required List<({String importPath, String alias})> rateLimits,
@@ -244,7 +412,7 @@ String _formatDart({
   }
   buffer.writeln('  ];');
   buffer.writeln();
-  buffer.writeln('  /// Table schemas synced to SQLite on database open.');
+  buffer.writeln('  /// Table schemas ensured on database open (migrations apply changes).');
   buffer.writeln('  static final schemas = <Schema<Object?>>[');
   for (final c in tables) {
     buffer.writeln('    _schema_${c.getter}.${c.getter},');

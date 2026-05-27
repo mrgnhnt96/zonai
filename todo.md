@@ -4,8 +4,6 @@
 
 - [ ] When we have more credits, we need to verify the release process, everything passes except for windows atm
 
-- jsonB could be faster than json
-- could we use FFI instead of stdin?
 - make base record and collection rules (etc) JWT non null by default
 
 when running zonai serve, its important that we dont prompt or require input. We dont want to block a fresh deployment to a server

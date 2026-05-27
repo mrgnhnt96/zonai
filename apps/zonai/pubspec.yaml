@@ -17,6 +17,8 @@ dependencies:
   mailer: ^7.1.0
   mustache_template: ^2.0.4
   path: ^1.9.1
+  raindrop:
+    path: ../../libs/raindrop/packages/raindrop
   raindrop_cli:
     path: ../../libs/raindrop/packages/raindrop_cli
   resqlite:
@@ -34,6 +36,10 @@ dependencies:
     path: ../web
 
 dev_dependencies:
+  raindrop_sqlite:
+    path: ../../libs/raindrop/packages/raindrop_sqlite
+  resqlite:
+    path: ../../libs/resqlite
   test: ^1.26.0
 
 executables:

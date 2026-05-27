@@ -11,12 +11,11 @@
 
 
 import 'package:raindrop/raindrop.dart' show Schema;
-import 'package:zonai/src/internal/auth_challenge_table.dart' as _schema_authChallenges;
-import 'package:zonai/src/internal/jwt_table.dart' as _schema_jwts;
-import 'package:zonai/src/internal/logs_table.dart' as _schema_logs;
-import 'package:zonai/src/internal/photos_table.dart' as _schema_photos;
-import 'package:zonai/src/internal/raindrop_migrations_table.dart' as _schema_raindropMigrations;
-import 'package:zonai/src/internal/rate_limit_table.dart' as _schema_rateLimits;
+import 'package:zonai/src/internal/tables/auth_challenge_table.dart' as _schema_authChallenges;
+import 'package:zonai/src/internal/tables/jwt_table.dart' as _schema_jwts;
+import 'package:zonai/src/internal/tables/logs_table.dart' as _schema_logs;
+import 'package:zonai/src/internal/tables/photos_table.dart' as _schema_photos;
+import 'package:zonai/src/internal/tables/rate_limit_table.dart' as _schema_rateLimits;
 
 abstract final class InternalDbArtifacts {
   static const operations = <({String importPath, String alias})>[
@@ -125,53 +124,46 @@ abstract final class InternalDbArtifacts {
   static const tables = <({String importPath, String getter, String tableName})>[
     (
       importPath:
-          'package:zonai/src/internal/auth_challenge_table.dart',
+          'package:zonai/src/internal/tables/auth_challenge_table.dart',
       getter: 'authChallenges',
       tableName: '_auth_challenges',
     ),
     (
       importPath:
-          'package:zonai/src/internal/jwt_table.dart',
+          'package:zonai/src/internal/tables/jwt_table.dart',
       getter: 'jwts',
       tableName: '_jwt',
     ),
     (
       importPath:
-          'package:zonai/src/internal/logs_table.dart',
+          'package:zonai/src/internal/tables/logs_table.dart',
       getter: 'logs',
       tableName: '_log',
     ),
     (
       importPath:
-          'package:zonai/src/internal/photos_table.dart',
+          'package:zonai/src/internal/tables/photos_table.dart',
       getter: 'photos',
       tableName: '_photos',
     ),
     (
       importPath:
-          'package:zonai/src/internal/raindrop_migrations_table.dart',
-      getter: 'raindropMigrations',
-      tableName: '_raindrop_migrations',
-    ),
-    (
-      importPath:
-          'package:zonai/src/internal/rate_limit_table.dart',
+          'package:zonai/src/internal/tables/rate_limit_table.dart',
       getter: 'rateLimits',
       tableName: '_rate_limit',
     ),
   ];
 
-  /// Table schemas synced to SQLite on database open.
+  /// Table schemas ensured on database open (migrations apply changes).
   static final schemas = <Schema<Object?>>[
     _schema_authChallenges.authChallenges,
     _schema_jwts.jwts,
     _schema_logs.logs,
     _schema_photos.photos,
-    _schema_raindropMigrations.raindropMigrations,
     _schema_rateLimits.rateLimits,
   ];
 
   /// SQLite table names managed by the framework (not user schemas).
-  static const tableNames = {'_auth_challenges', '_jwt', '_log', '_photos', '_raindrop_migrations', '_rate_limit'};
+  static const tableNames = {'_auth_challenges', '_jwt', '_log', '_photos', '_rate_limit'};
 }
 

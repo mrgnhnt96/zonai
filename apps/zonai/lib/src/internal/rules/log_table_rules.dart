@@ -1,4 +1,4 @@
-import 'package:zonai/src/internal/logs_table.dart';
+import 'package:zonai/src/internal/tables/logs_table.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 

@@ -1,4 +1,4 @@
-import 'package:zonai/src/internal/jwt_table.dart';
+import 'package:zonai/src/internal/tables/jwt_table.dart';
 import 'package:zonai_schema/src/operations/table_operations.dart';
 
 final class JwtOperations
