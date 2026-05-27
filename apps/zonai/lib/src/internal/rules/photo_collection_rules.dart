@@ -1,5 +1,6 @@
+import 'package:zonai/src/internal/photos_collection.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/zonai_schema.dart' hide photos, PhotosCollection;
 
 PhotoCollectionRules main() => PhotoCollectionRules();
 
