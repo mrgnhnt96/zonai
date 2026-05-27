@@ -11,9 +11,19 @@ class DbExtensions {
 
   Map<String, Extension>? _extensionsByCollection;
   Map<String, Extension> get extensionsByCollection {
-    return _extensionsByCollection ??= {
-      for (final extension in this.extensions) extension.table.name: extension,
-    };
+    if (_extensionsByCollection case final map?) return map;
+
+    final map = <String, Extension>{};
+    for (final extension in this.extensions) {
+      if (map[extension.table.name] != null) {
+        throw StateError(
+          'Extensions already registered for ${extension.table.name}. '
+          'Existing extensions: ${map[extension.table.name]?.runtimeType}, tried to register ${extension.runtimeType}',
+        );
+      }
+    }
+
+    return _extensionsByCollection = map;
   }
 
   void start() {

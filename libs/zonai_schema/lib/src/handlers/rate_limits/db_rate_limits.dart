@@ -47,8 +47,22 @@ class DbRateLimits {
       final bucket = map[rateLimit.table.name] ??= _RateLimitRules();
       switch (rateLimit) {
         case final CollectionRateLimits rules:
+          if (bucket.collection != null) {
+            throw StateError(
+              'Collection rate limits already registered for ${rateLimit.table.name}. '
+              'Existing rate limits: ${bucket.collection?.runtimeType}, tried to register ${rules.runtimeType}',
+            );
+          }
+
           bucket.collection = rules;
         case final AuthCollectionRateLimits rules:
+          if (bucket.auth != null) {
+            throw StateError(
+              'Auth collection rate limits already registered for ${rateLimit.table.name}. '
+              'Existing rate limits: ${bucket.auth?.runtimeType}, tried to register ${rules.runtimeType}',
+            );
+          }
+
           bucket.auth = rules;
       }
     }

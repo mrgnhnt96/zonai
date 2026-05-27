@@ -52,6 +52,36 @@ class DbRules {
     ).listen();
   }
 
+  void _assertCollectionRules(_Rules rules) {
+    final collection = rules.collection;
+    if (collection == null) {
+      return;
+    }
+
+    if (collection case InternalCollectionRules(canBeOverridden: true)) {
+      return;
+    }
+
+    throw StateError(
+      'Collection rules already registered for ${collection.table.name}',
+    );
+  }
+
+  void _assertRecordRules(_Rules rules) {
+    final record = rules.record;
+    if (record == null) {
+      return;
+    }
+
+    if (record case InternalRecordRules(canBeOverridden: true)) {
+      return;
+    }
+
+    throw StateError(
+      'Collection rules already registered for ${record.table.name}',
+    );
+  }
+
   Map<String, _Rules>? _rulesByTable;
   Map<String, _Rules> get rulesByTable {
     if (_rulesByTable case final rules?) return rules;
@@ -62,13 +92,17 @@ class DbRules {
 
       switch (rule) {
         case final CollectionRules rule:
+          _assertCollectionRules(r);
           r.collection = rule;
         case final AuthCollectionRules rule:
+          _assertCollectionRules(r);
           r.collection = rule;
 
         case final RecordRules rule:
+          _assertRecordRules(r);
           r.record = rule;
         case final AuthRecordRules rule:
+          _assertRecordRules(r);
           r.record = rule;
       }
     }

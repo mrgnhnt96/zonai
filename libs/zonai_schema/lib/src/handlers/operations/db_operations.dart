@@ -16,9 +16,21 @@ class DbOperations {
 
   Map<String, CollectionOperations>? _operationsByCollection;
   Map<String, CollectionOperations> get operationsByCollection {
-    return _operationsByCollection ??= {
-      for (final operation in this.operations) operation.table.name: operation,
-    };
+    if (_operationsByCollection case final map?) return map;
+
+    final map = <String, CollectionOperations>{};
+    for (final operation in this.operations) {
+      if (map[operation.table.name] != null) {
+        throw StateError(
+          'Operations already registered for ${operation.table.name}. '
+          'Existing operations: ${map[operation.table.name]?.runtimeType}, tried to register ${operation.runtimeType}',
+        );
+      }
+
+      map[operation.table.name] = operation;
+    }
+
+    return _operationsByCollection = map;
   }
 
   void start() {
