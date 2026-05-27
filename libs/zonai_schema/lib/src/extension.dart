@@ -78,4 +78,10 @@ mixin AuthExtension<R> on Extension<R> {
   Future<void> onRefresh(R user, Jwt? jwt) async {}
 
   Future<void> onLogout(R user, Jwt? jwt) async {}
+
+  /// Called after a password reset email is sent to the user.
+  ///
+  /// Unlike [onSignIn], no email is sent by default — the server sends the
+  /// reset link before this hook runs.
+  Future<void> onPasswordReset(R user, Jwt? jwt) async {}
 }

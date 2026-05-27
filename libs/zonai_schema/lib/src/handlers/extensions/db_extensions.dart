@@ -213,6 +213,13 @@ class DbExtensions {
             request.jwt,
           );
         }
+      case .onPasswordReset:
+        if (extension case AuthExtension(:final onPasswordReset)) {
+          await onPasswordReset(
+            extension.table.safeCreate(request.object),
+            request.jwt,
+          );
+        }
     }
   }
 }

@@ -82,6 +82,21 @@ extension _ResetPasswordX on ZonaiDb {
         expiresIn: resetPassword.expiresIn,
       ),
     );
+
+    final user = await _authRecord(collection: collection, email: payload.email);
+    if (user == null) {
+      return;
+    }
+
+    await _extensions.send<NoActionExtensionResponse>(
+      AuthExtensionRequest.onPasswordReset(
+        collection: collection,
+        object: user,
+        jwt: await _extractJwt(payload),
+      ),
+    );
+
+    await _executeEffects();
   }
 
   Future<void> _confirmResetPassword(

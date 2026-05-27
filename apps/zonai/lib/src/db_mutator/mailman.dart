@@ -405,8 +405,13 @@ class Mailman<S extends Request, R extends Response> {
           jwt: request.jwt,
         );
 
-      case .confirmEmailChange:
       case .passwordReset:
+        zonaiDB.sendResetPassword(
+          request.collection,
+          ResetPasswordAuthPayload(email: request.to.address),
+        );
+
+      case .confirmEmailChange:
       case .magicLink:
       case .loginNotice:
         throw UnimplementedError('${request.builtIn} not implemented');

@@ -21,7 +21,7 @@ enum ExtensionStep { before, afterSuccess, afterError }
 
 enum ExtensionType { create, update, delete }
 
-enum AuthExtensionStep { onSignUp, onSignIn, onRefresh, onLogout }
+enum AuthExtensionStep { onSignUp, onSignIn, onRefresh, onLogout, onPasswordReset }
 
 /// The [jwt] belongs to the user who is making the request, not the user that is being created or signed in.
 final class AuthExtensionRequest extends ExtensionRequest {
@@ -36,6 +36,9 @@ final class AuthExtensionRequest extends ExtensionRequest {
       super(path: _path, id: Request.generateId());
   AuthExtensionRequest.onLogout({required this.collection, required this.object, required super.jwt})
     : step = .onLogout,
+      super(path: _path, id: Request.generateId());
+  AuthExtensionRequest.onPasswordReset({required this.collection, required this.object, required super.jwt})
+    : step = .onPasswordReset,
       super(path: _path, id: Request.generateId());
   AuthExtensionRequest._({required super.id, required this.collection, required this.object, required this.step, required super.jwt})
     : super(path: _path);
