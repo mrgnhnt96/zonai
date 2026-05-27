@@ -60,11 +60,12 @@ class SendOtpEmail extends Email {
     required String collection,
     super.from,
     bool isResend = false,
+    String subject = 'Your confirmation code',
     required String code,
     required Duration expiresIn,
     Map<String, dynamic>? variables,
   }) : super(
-         subject: 'Otp Code',
+         subject: subject,
          template: 'otp_code',
          thread: Email.createThread(
            'otp:$collection:${to.address.toLowerCase()}',
@@ -84,12 +85,13 @@ class SendMagicLinkEmail extends Email {
     required super.to,
     required String collection,
     super.from,
+    String subject = 'Sign in',
     bool isResend = false,
     required Duration expiresIn,
     Map<String, dynamic>? variables,
     required String magicLinkUrl,
   }) : super(
-         subject: 'Sign in',
+         subject: subject,
          template: 'magic_link',
          thread: Email.createThread(
            'magic-link:$collection:${to.address.toLowerCase()}',
@@ -112,8 +114,9 @@ class SendVerifyEmailEmail extends Email {
     required String verificationUrl,
     required Duration expiresIn,
     Map<String, dynamic>? variables,
+    String subject = 'Verify your email',
   }) : super(
-         subject: 'Verify your email',
+         subject: subject,
          template: 'verify_email',
          thread: Email.createThread(
            'verify-email:$collection:${to.address.toLowerCase()}',
@@ -145,8 +148,9 @@ class SendResetPasswordEmail extends Email {
     required Duration expiresIn,
     String? name,
     Map<String, dynamic>? variables,
+    String subject = 'Reset Password',
   }) : super(
-         subject: 'Reset Password',
+         subject: subject,
          template: 'password_reset',
          thread: Email.createThread(
            'reset-password:$collection:${to.address.toLowerCase()}',
