@@ -2,6 +2,7 @@ import 'package:zonai/src/domain/constants.dart';
 
 import 'admin.dart';
 import 'logs.dart';
+import 'photos.dart';
 import 'test.dart';
 import '../migrate/migrate.dart';
 import '../../deps/args.dart';
@@ -34,6 +35,9 @@ Future<int> db(List<String> path) async {
 
     case ['test'] when !kIsCompiled:
       return await test();
+
+    case ['photos' || 'photo'] when !kIsCompiled:
+      return await photos();
 
     case ['admin', ...final path]:
       return await admin(path);

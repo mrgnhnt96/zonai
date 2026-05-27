@@ -20,6 +20,7 @@ import 'package:zonai/src/internal/tables/photos_table.dart';
 import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
+import 'package:zonai/src/utils/limit_stream_bytes.dart';
 import 'package:zonai_schema/src/handlers/config/config_request.dart';
 import 'package:zonai_schema/src/handlers/config/config_response.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';

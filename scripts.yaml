@@ -117,9 +117,17 @@ playground:
     cd apps/playground || exit 1
     dart run --enable-asserts zonai compile --log verbose
 
-  test: |
+  test:
+    (command): |
+      cd apps/playground || exit 1
+      dart run --enable-asserts zonai db test --log verbose
+    photos: |
+      cd apps/playground || exit 1
+      dart run --enable-asserts zonai db photos --log verbose
+
+  photos: |
     cd apps/playground || exit 1
-    dart run --enable-asserts zonai db test --log verbose
+    dart run --enable-asserts zonai db photos --log verbose
 
   migrate: |
     cd apps/playground || exit 1

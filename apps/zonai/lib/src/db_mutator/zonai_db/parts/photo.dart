@@ -50,7 +50,20 @@ extension _PhotoX on ZonaiDb {
     }
     await _requireTableAccess(table.name, .create, jwt);
 
+    final config = await configResolver.resolve();
+
     final rawExtension = contentType?.split(';').first.trim().toLowerCase();
+    if (rawExtension == null) {
+      throw StateError('Invalid content type: $contentType');
+    }
+
+    if (config.photos case final config) {
+      if (config.allowedMimeTypes case final allowed?) {
+        if (!allowed.contains(contentType)) {
+          throw StateError('Content type not allowed: $contentType');
+        }
+      }
+    }
 
     final extension = switch (rawExtension) {
       'image/jpeg' => 'jpg',
@@ -84,7 +97,7 @@ extension _PhotoX on ZonaiDb {
 
     await _requireRowAccess(table.name, .create, table.mapOut(entry), jwt);
 
-    PhotoEntry row;
+    PhotoEntry? insertedRow;
 
     try {
       final db = await open();
@@ -92,12 +105,24 @@ extension _PhotoX on ZonaiDb {
         entry,
       ]).returning();
 
-      await file.parent.create(recursive: true);
-      await file.openWrite().addStream(image);
+      insertedRow = result;
 
-      row = result;
-      await _postCreate(table.name, jwt, object: table.mapOut(row));
+      await file.parent.create(recursive: true);
+      await file.openWrite().addStream(switch (config.photos.maxBytes) {
+        null => image,
+        final maxBytes => limitStreamBytes(image, maxBytes),
+      });
+
+      await _postCreate(table.name, jwt, object: table.mapOut(insertedRow));
     } catch (e, stack) {
+      if (file.existsSync()) {
+        await file.delete();
+      }
+      if (insertedRow case final row?) {
+        final db = await open();
+        await db.delete(from: photos).where(photos.id.equals(row.id));
+      }
+
       logger.error('$e', 'Failed to create photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.create(
@@ -112,7 +137,7 @@ extension _PhotoX on ZonaiDb {
 
     await _executeEffects();
 
-    return {'id': row.id.value};
+    return {'id': insertedRow.id.value};
   }
 
   Future<void> _updatePhoto({
@@ -146,6 +171,9 @@ extension _PhotoX on ZonaiDb {
       throw StateError('Photo file not found');
     }
 
+    final config = await configResolver.resolve();
+    final tempFile = fs.file('${file.path}.tmp');
+
     try {
       await _extensions.send<NoActionExtensionResponse>(
         BeforeUpdateExtensionRequest(
@@ -155,7 +183,19 @@ extension _PhotoX on ZonaiDb {
         ),
       );
 
-      await file.openWrite().addStream(image);
+      if (tempFile.existsSync()) {
+        await tempFile.delete();
+      }
+
+      await tempFile.openWrite().addStream(switch (config.photos.maxBytes) {
+        null => image,
+        final maxBytes => limitStreamBytes(image, maxBytes),
+      });
+
+      if (file.existsSync()) {
+        await file.delete();
+      }
+      await tempFile.rename(file.path);
 
       await _postUpdate(
         table.name,
@@ -164,6 +204,10 @@ extension _PhotoX on ZonaiDb {
         after: [table.mapOut(photo)],
       );
     } catch (e, stack) {
+      if (tempFile.existsSync()) {
+        await tempFile.delete();
+      }
+
       logger.error('$e', 'Failed to update photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.update(
@@ -172,6 +216,8 @@ extension _PhotoX on ZonaiDb {
           jwt: jwt,
         ),
       );
+
+      rethrow;
     }
 
     await _executeEffects();

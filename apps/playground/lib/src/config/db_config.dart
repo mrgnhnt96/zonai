@@ -13,5 +13,10 @@ AppConfig main() {
       password: const String.fromEnvironment('GMAIL_APP_PASSWORD'),
       from: EmailAddress(address: 'mrgnhnt96@gmail.com', name: 'Link'),
     ),
+    photos: PhotosConfig(
+      // 100 bytes
+      maxBytes: 100,
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    ),
   );
 }
