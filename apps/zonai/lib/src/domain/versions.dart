@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' hide stdin;
 
 import 'package:archive/archive.dart';
 import 'package:http/http.dart' as http;
@@ -309,10 +309,27 @@ class Versions {
   }
 }
 
-// TODO: Implement interactive logger extension
 extension InteractiveLogger on Logger {
-  Future<bool> confirm(String message) async {
-    info(message);
-    return true;
+  Future<bool> confirm(String message, {bool defaultYes = false}) async {
+    final hint = defaultYes ? '[Y/n]' : '[y/N]';
+
+    if (stdin.hasTerminal) {
+      info('$message $hint');
+      stdout.write('> ');
+    } else {
+      info(message);
+    }
+
+    final line = stdin.readLineSync()?.trim().toLowerCase();
+    if (line == null) {
+      return defaultYes;
+    }
+
+    return switch (line) {
+      'y' || 'yes' => true,
+      'n' || 'no' => false,
+      '' => defaultYes,
+      _ => defaultYes,
+    };
   }
 }

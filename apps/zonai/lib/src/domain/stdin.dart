@@ -42,6 +42,14 @@ class Stdin {
     }
   }
 
+  String? readLineSync() {
+    try {
+      return io.stdin.readLineSync();
+    } on io.StdinException {
+      return null;
+    }
+  }
+
   void _dispose() {
     _subscription?.cancel();
     _subscription = null;
