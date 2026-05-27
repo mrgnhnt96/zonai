@@ -2,8 +2,11 @@ import 'package:raindrop/raindrop.dart' hide Table;
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 
 extension PasswordColumnDefinition<S> on SchemaBuilder<S> {
-  T password<T extends PasswordColumn?>(String name, Field<S, String> field) {
-    return custom(
+  T password<T extends PasswordColumn?, W extends String?>(
+    String name,
+    Field<S, W> field,
+  ) {
+    return custom<PasswordColumn, String, String, W>(
           PasswordColumn.new,
           name,
           field,

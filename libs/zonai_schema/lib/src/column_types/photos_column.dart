@@ -3,8 +3,11 @@ import 'dart:convert';
 import 'package:raindrop/raindrop.dart';
 
 extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
-  T photos<T extends PhotosColumn?>(String name, Field<S, List<String>> field) {
-    return custom(
+  T photos<T extends PhotosColumn?, W extends List<String>?>(
+    String name,
+    Field<S, W> field,
+  ) {
+    return custom<PhotosColumn, List<String>, String, W>(
           PhotosColumn.new,
           name,
           field,

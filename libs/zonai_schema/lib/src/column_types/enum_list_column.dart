@@ -8,11 +8,11 @@ extension EnumListColumnDefinition<S> on SchemaBuilder<S> {
   T enumList<E extends Enum, T extends EnumListColumn<E>?, W extends Object?>(
     String name,
     List<E> values,
-    Field<S, List<E>> field, {
+    Field<S, W> field, {
     String Function(E value)? toWire,
     E Function(String wire)? fromWire,
   }) {
-    return custom<EnumListColumn<E>, List<E>, Object, List<E>>(
+    return custom<EnumListColumn<E>, List<E>, Object, W>(
           EnumListColumn<E>.new,
           name,
           field,

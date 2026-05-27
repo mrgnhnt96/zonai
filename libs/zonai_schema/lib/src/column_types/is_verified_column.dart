@@ -1,8 +1,11 @@
 import 'package:raindrop/raindrop.dart';
 
 extension IsVerifiedColumnDefinition<S> on SchemaBuilder<S> {
-  T isVerified<T extends IsVerifiedColumn?>(String name, Field<S, bool> field) {
-    return custom(
+  T isVerified<T extends IsVerifiedColumn?, W extends bool?>(
+    String name,
+    Field<S, W> field,
+  ) {
+    return custom<IsVerifiedColumn, bool, Object, W>(
           IsVerifiedColumn.new,
           name,
           field,

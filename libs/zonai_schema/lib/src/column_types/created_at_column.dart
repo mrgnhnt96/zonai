@@ -2,11 +2,11 @@ import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 
 extension CreatedAtColumnDefinition<S> on SchemaBuilder<S> {
-  T createdAt<T extends DateTimeColumn?>(
+  T createdAt<T extends DateTimeColumn?, W extends DateTime?>(
     String name,
-    Field<S, DateTime> field,
+    Field<S, W> field,
   ) {
-    return custom(
+    return custom<DateTimeColumn, DateTime, int, W>(
           DateTimeColumn.new,
           name,
           field,
