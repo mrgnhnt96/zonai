@@ -21,7 +21,7 @@ While `serve` is running, changes under `extensionsPath` trigger a recompile so 
 Extensions sit between authorization and persistence. The order for a **create** is:
 
 ```text
-collection rules → record rules → beforeCreate → SQL insert → afterCreateSuccess
+collection rules → row rules → beforeCreate → SQL insert → afterCreateSuccess
                                                       ↓ (on failure)
                                                afterCreateError
 ```
@@ -152,7 +152,7 @@ Inside the extension worker, Zonai exposes globals (from `package:zonai_schema/z
 | `email`  | Send custom or built-in transactional email                                            |
 | `logger` | Log at debug/info/warn/error (forwarded to the server console)                         |
 
-**Reads** (`get`) run immediately and respect collection/record rules for the JWT passed to the hook.
+**Reads** (`get`) run immediately and respect collection/row rules for the JWT passed to the hook.
 
 **Writes** (`mutate`) are **queued** as side effects. They run after the main mutation commits, in a separate transaction. Each side effect goes through rules and extension hooks again (up to 10 chained iterations). Use this to update related rows or send follow-up work without blocking the original SQL.
 

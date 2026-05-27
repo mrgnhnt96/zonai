@@ -43,7 +43,7 @@ extension _ListX on ZonaiDb {
     logger.verbose('Found ${objects.length} objects', prefix: _prefix);
 
     for (final object in objects) {
-      await _requireRecordAccess(table, .view, object, jwt);
+      await _requireRowAccess(table, .view, object, jwt);
     }
 
     final sanitized = await _sanitizeRows(table, objects);

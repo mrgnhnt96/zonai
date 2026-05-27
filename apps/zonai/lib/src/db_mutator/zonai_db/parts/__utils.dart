@@ -95,14 +95,14 @@ extension UtilsX on ZonaiDb {
         );
   }
 
-  Future<RecordRulesResponse> _recordRules(
+  Future<RowRulesResponse> _rowRules(
     String table,
-    RecordOperation operation,
+    RowOperation operation,
     Map<String, dynamic> data,
     Jwt? jwt,
   ) async {
-    final rules = await _rules.send<RecordRulesResponse?>(
-      RecordRulesRequest(
+    final rules = await _rules.send<RowRulesResponse?>(
+      RowRulesRequest(
         table: table,
         operation: operation,
         data: data,
@@ -111,7 +111,7 @@ extension UtilsX on ZonaiDb {
     );
 
     return rules ??
-        RecordRulesResponse(
+        RowRulesResponse(
           id: '-1',
           table: table,
           operation: operation,
@@ -119,13 +119,13 @@ extension UtilsX on ZonaiDb {
         );
   }
 
-  Future<void> _requireRecordAccess(
+  Future<void> _requireRowAccess(
     String table,
-    RecordOperation operation,
+    RowOperation operation,
     Map<String, dynamic> data,
     Jwt? jwt,
   ) async {
-    final result = await _recordRules(table, operation, data, jwt);
+    final result = await _rowRules(table, operation, data, jwt);
     if (result.canPerform case false) {
       throw StateError(
         'User permissions are restricted. Action: "$operation" on table: "$table"',

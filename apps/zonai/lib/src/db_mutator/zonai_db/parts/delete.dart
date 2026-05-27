@@ -83,7 +83,7 @@ extension _DeleteX on ZonaiDb {
 
     final rows = readResult.rows.map((e) => e.toMap()).toList();
     for (final object in rows) {
-      await _requireRecordAccess(table, .delete, object, jwt);
+      await _requireRowAccess(table, .delete, object, jwt);
     }
 
     final sanitized = await _sanitizeRows(table, rows);

@@ -26,7 +26,7 @@ extension _PhotoX on ZonaiDb {
 
     final photo = rows.first;
 
-    await _requireRecordAccess(table.name, .view, table.mapOut(photo), jwt);
+    await _requireRowAccess(table.name, .view, table.mapOut(photo), jwt);
 
     final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
 
@@ -82,7 +82,7 @@ extension _PhotoX on ZonaiDb {
       createdAt: .now(),
     );
 
-    await _requireRecordAccess(table.name, .create, table.mapOut(entry), jwt);
+    await _requireRowAccess(table.name, .create, table.mapOut(entry), jwt);
 
     PhotoEntry row;
 
@@ -140,7 +140,7 @@ extension _PhotoX on ZonaiDb {
 
     final photo = rows.first;
 
-    await _requireRecordAccess(table.name, .update, table.mapOut(photo), jwt);
+    await _requireRowAccess(table.name, .update, table.mapOut(photo), jwt);
     final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
     if (!file.existsSync()) {
       throw StateError('Photo file not found');
@@ -201,7 +201,7 @@ extension _PhotoX on ZonaiDb {
 
     final photo = rows.first;
 
-    await _requireRecordAccess(table.name, .delete, table.mapOut(photo), jwt);
+    await _requireRowAccess(table.name, .delete, table.mapOut(photo), jwt);
 
     try {
       await _extensions.send<NoActionExtensionResponse>(

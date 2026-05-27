@@ -2,14 +2,14 @@ import 'package:zonai/src/internal/logs_table.dart';
 import 'package:zonai/src/internal/rules/internal_rules.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
-LogRecordRules main() => LogRecordRules();
+LogRowRules main() => LogRowRules();
 
-final class LogRecordRules
-    extends InternalRecordRules<LogsTable, LogEntry> {
-  LogRecordRules() : super(logs);
+final class LogRowRules
+    extends InternalRowRules<LogsTable, LogEntry> {
+  LogRowRules() : super(logs);
 
   @override
-  Future<bool> canDelete(Jwt? jwt, LogEntry record) async =>
+  Future<bool> canDelete(Jwt? jwt, LogEntry row) async =>
       switch (jwt?.admin.canEdit) {
         true => true,
         _ => false,

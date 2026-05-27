@@ -10,7 +10,7 @@ class _Rules {
   _Rules();
 
   BaseTableRules? tableRules;
-  BaseRecordRules? record;
+  BaseRowRules? row;
 }
 
 class DbRules {
@@ -41,12 +41,12 @@ class DbRules {
         switch (request) {
           case final TableRulesRequest request:
             return await _tableRules(request);
-          case final RecordRulesRequest request:
-            return await _recordRules(request);
+          case final RowRulesRequest request:
+            return await _rowRules(request);
           case final AuthTableRulesRequest request:
             return await _authTableRules(request);
-          case final AuthRecordRulesRequest request:
-            return await _authRecordRules(request);
+          case final AuthRowRulesRequest request:
+            return await _authRowRules(request);
         }
       },
     ).listen();
@@ -67,18 +67,18 @@ class DbRules {
     );
   }
 
-  void _assertRecordRules(_Rules rules) {
-    final record = rules.record;
-    if (record == null) {
+  void _assertRowRules(_Rules rules) {
+    final row = rules.row;
+    if (row == null) {
       return;
     }
 
-    if (record case InternalRecordRules(canBeOverridden: true)) {
+    if (row case InternalRowRules(canBeOverridden: true)) {
       return;
     }
 
     throw StateError(
-      'Table rules already registered for ${record.table.name}',
+      'Row rules already registered for ${row.table.name}',
     );
   }
 
@@ -98,12 +98,12 @@ class DbRules {
           _assertTableRules(r);
           r.tableRules = rule;
 
-        case final RecordRules rule:
-          _assertRecordRules(r);
-          r.record = rule;
-        case final AuthRecordRules rule:
-          _assertRecordRules(r);
-          r.record = rule;
+        case final RowRules rule:
+          _assertRowRules(r);
+          r.row = rule;
+        case final AuthRowRules rule:
+          _assertRowRules(r);
+          r.row = rule;
       }
     }
 
@@ -181,7 +181,7 @@ class DbRules {
     } else if (tableRules == null) {
       buf.writeln(
         'Rules exist for "$table" but there are no table-level rules '
-        '(only record rules may be registered).',
+        '(only row rules may be registered).',
       );
     } else {
       buf
@@ -201,14 +201,14 @@ class DbRules {
     throw StateError(message);
   }
 
-  Never _failAuthRecordRules(
+  Never _failAuthRowRules(
     String table,
     _Rules? bucket,
-    BaseRecordRules? recordRules,
+    BaseRowRules? rowRules,
   ) {
     final registered = rulesByTable.keys.toList()..sort();
     final buf = StringBuffer(
-      'Auth record rules request for "$table" could not be handled.\n',
+      'Auth row rules request for "$table" could not be handled.\n',
     );
     if (bucket == null) {
       buf
@@ -221,19 +221,19 @@ class DbRules {
           'Registered table names: '
           '${registered.isEmpty ? '(none)' : registered.join(', ')}.',
         );
-    } else if (recordRules == null) {
+    } else if (rowRules == null) {
       buf.writeln(
-        'Rules exist for "$table" but there are no record-level rules.',
+        'Rules exist for "$table" but there are no row-level rules.',
       );
     } else {
       buf
         ..writeln(
-          'Expected AuthRecordRules for "$table", but record rules are '
-          '${recordRules.runtimeType} '
-          '(schema: ${recordRules.schema.runtimeType}).',
+          'Expected AuthRowRules for "$table", but row rules are '
+          '${rowRules.runtimeType} '
+          '(schema: ${rowRules.schema.runtimeType}).',
         )
         ..writeln(
-          'If you recently added both RecordRules and AuthRecordRules for the '
+          'If you recently added both RowRules and AuthRowRules for the '
           'same table, note that the last registration wins when building the '
           'rules map.',
         );
@@ -263,19 +263,19 @@ class DbRules {
     _failAuthTableRules(request.table, bucket, tableRules);
   }
 
-  Future<AuthRecordRulesResponse> _authRecordRules(
-    AuthRecordRulesRequest request,
+  Future<AuthRowRulesResponse> _authRowRules(
+    AuthRowRulesRequest request,
   ) async {
     final bucket = rulesByTable[request.table];
-    final recordRules = bucket?.record;
-    if (recordRules is AuthRecordRules) {
-      return AuthRecordRulesResponse(
+    final rowRules = bucket?.row;
+    if (rowRules is AuthRowRules) {
+      return AuthRowRulesResponse(
         id: request.id,
         table: request.table,
         canAccess: switch (request.operation) {
-          .signIn => await recordRules.canSignIn(request.jwt, request.authType),
-          .signUp => await recordRules.canSignUp(request.jwt, request.authType),
-          .passwordReset => await recordRules.canPasswordReset(
+          .signIn => await rowRules.canSignIn(request.jwt, request.authType),
+          .signUp => await rowRules.canSignUp(request.jwt, request.authType),
+          .passwordReset => await rowRules.canPasswordReset(
             request.jwt,
             request.authType,
           ),
@@ -285,17 +285,17 @@ class DbRules {
       );
     }
 
-    _failAuthRecordRules(request.table, bucket, recordRules);
+    _failAuthRowRules(request.table, bucket, rowRules);
   }
 
-  Future<RecordRulesResponse> _recordRules(RecordRulesRequest request) async {
+  Future<RowRulesResponse> _rowRules(RowRulesRequest request) async {
     final rules = rulesByTable[request.table];
-    final recordRules = rules?.record;
+    final rowRules = rules?.row;
 
     final op = request.operation;
-    if (recordRules == null) {
-      logger.warn('No rules found for record: ${request.table}');
-      return RecordRulesResponse(
+    if (rowRules == null) {
+      logger.warn('No rules found for row: ${request.table}');
+      return RowRulesResponse(
         id: request.id,
         table: request.table,
         operation: request.operation,
@@ -303,20 +303,20 @@ class DbRules {
       );
     }
 
-    if (recordRules case AuthRecordRules() when op == .create) {
-      throw StateError('Cannot create auth records, use the auth API instead');
+    if (rowRules case AuthRowRules() when op == .create) {
+      throw StateError('Cannot create auth rows, use the auth API instead');
     }
 
-    final object = recordRules.table.safeCreate(request.data);
+    final object = rowRules.table.safeCreate(request.data);
 
     final canPerform = await switch (op) {
-      .view => recordRules.canView(request.jwt, object),
-      .update => recordRules.canUpdate(request.jwt, object),
-      .delete => recordRules.canDelete(request.jwt, object),
-      .create => recordRules.canCreate(request.jwt, object),
+      .view => rowRules.canView(request.jwt, object),
+      .update => rowRules.canUpdate(request.jwt, object),
+      .delete => rowRules.canDelete(request.jwt, object),
+      .create => rowRules.canCreate(request.jwt, object),
     };
 
-    return RecordRulesResponse(
+    return RowRulesResponse(
       id: request.id,
       table: request.table,
       operation: request.operation,

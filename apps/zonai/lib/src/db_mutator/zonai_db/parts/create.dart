@@ -48,7 +48,7 @@ extension _CreateX on ZonaiDb {
     CreatePayload payload,
     Jwt? jwt,
   ) async {
-    await _requireRecordAccess(table, .create, payload.object, jwt);
+    await _requireRowAccess(table, .create, payload.object, jwt);
 
     await _extensions.send<NoActionExtensionResponse>(
       CreateExtensionRequest.before(

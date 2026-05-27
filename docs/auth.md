@@ -76,5 +76,5 @@ If refresh fails (revoked token, expired token, or user deleted), treat the sess
 
 - **[extensions.md](extensions.md)** — `onSignUp`, `onSignIn`, `onRefresh`, `onLogout` hooks
 - **[email.md](email.md)** — SMTP setup, HTML templates, and transactional email
-- **[rules.md](rules.md)** — auth collection and record rules
+- **[rules.md](rules.md)** — auth collection and row rules
 - **[rate-limiting.md](rate-limiting.md)** — `refreshTokenPolicy()` and other auth limits

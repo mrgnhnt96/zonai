@@ -29,7 +29,7 @@ extension _ReadX on ZonaiDb {
     final object = result.rows.first.toMap();
     logger.verbose('Found object: ${object}', prefix: _prefix);
 
-    await _requireRecordAccess(table, .view, object, jwt);
+    await _requireRowAccess(table, .view, object, jwt);
 
     final sanitized = await _sanitizeRow(table, object);
     return await _expandRow(table, sanitized, payload.expand, jwt);

@@ -12,12 +12,12 @@ sealed class RuleRequest extends Request {
     switch (request.path) {
       case TableRulesRequest._path:
         return TableRulesRequest.fromRequest(request);
-      case RecordRulesRequest._path:
-        return RecordRulesRequest.fromRequest(request);
+      case RowRulesRequest._path:
+        return RowRulesRequest.fromRequest(request);
       case AuthTableRulesRequest._path:
         return AuthTableRulesRequest.fromRequest(request);
-      case AuthRecordRulesRequest._path:
-        return AuthRecordRulesRequest.fromRequest(request);
+      case AuthRowRulesRequest._path:
+        return AuthRowRulesRequest.fromRequest(request);
       default:
         throw ArgumentError('Invalid rule request path: ${request.path}');
     }
@@ -67,15 +67,15 @@ final class AuthTableRulesRequest extends RuleRequest {
   }
 }
 
-final class AuthRecordRulesRequest extends RuleRequest {
-  AuthRecordRulesRequest({
+final class AuthRowRulesRequest extends RuleRequest {
+  AuthRowRulesRequest({
     required this.table,
     required this.authType,
     required this.operation,
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
-  AuthRecordRulesRequest._({
+  AuthRowRulesRequest._({
     required super.id,
     required this.table,
     required this.authType,
@@ -83,8 +83,8 @@ final class AuthRecordRulesRequest extends RuleRequest {
     required super.jwt,
   }) : super(path: _path);
 
-  factory AuthRecordRulesRequest.fromRequest(UnknownRequest request) {
-    return AuthRecordRulesRequest._(
+  factory AuthRowRulesRequest.fromRequest(UnknownRequest request) {
+    return AuthRowRulesRequest._(
       id: request.id,
       table: request.payload['table'] as String,
       authType: AuthType.values.byName(request.payload['authType'] as String),
@@ -95,7 +95,7 @@ final class AuthRecordRulesRequest extends RuleRequest {
     );
   }
 
-  static const _path = '${Request.prefix}.record.auth.can_authenticate';
+  static const _path = '${Request.prefix}.row.auth.can_authenticate';
 
   final String table;
   final AuthType authType;
@@ -113,7 +113,7 @@ final class AuthRecordRulesRequest extends RuleRequest {
 
   @override
   String toString() {
-    return 'AuthRecordRulesRequest(table: $table, authType: $authType)';
+    return 'AuthRowRulesRequest(table: $table, authType: $authType)';
   }
 }
 
@@ -157,15 +157,15 @@ final class TableRulesRequest extends RuleRequest {
   }
 }
 
-final class RecordRulesRequest extends RuleRequest {
-  RecordRulesRequest({
+final class RowRulesRequest extends RuleRequest {
+  RowRulesRequest({
     required this.table,
     required this.operation,
     required this.data,
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
-  RecordRulesRequest._({
+  RowRulesRequest._({
     required super.id,
     required this.table,
     required this.operation,
@@ -173,11 +173,11 @@ final class RecordRulesRequest extends RuleRequest {
     required super.jwt,
   }) : super(path: _path);
 
-  factory RecordRulesRequest.fromRequest(UnknownRequest request) {
-    return RecordRulesRequest._(
+  factory RowRulesRequest.fromRequest(UnknownRequest request) {
+    return RowRulesRequest._(
       id: request.id,
       table: request.payload['table'] as String,
-      operation: RecordOperation.fromString(
+      operation: RowOperation.fromString(
         request.payload['operation'] as String,
       )!,
       data: request.payload['data'] as Map<String, dynamic>,
@@ -185,10 +185,10 @@ final class RecordRulesRequest extends RuleRequest {
     );
   }
 
-  static const _path = '${Request.prefix}.record.can_access';
+  static const _path = '${Request.prefix}.row.can_access';
 
   final String table;
-  final RecordOperation operation;
+  final RowOperation operation;
   final Map<String, dynamic> data;
 
   @override
@@ -222,7 +222,7 @@ enum TableOperation {
     return null;
   }
 
-  RecordOperation get recordOperation => switch (this) {
+  RowOperation get rowOperation => switch (this) {
     .create => .create,
     .update => .update,
     .delete => .delete,
@@ -239,15 +239,15 @@ enum TableOperation {
   };
 }
 
-enum RecordOperation {
+enum RowOperation {
   view,
   create,
   update,
   delete;
 
-  const RecordOperation();
+  const RowOperation();
 
-  static RecordOperation? fromString(String operation) {
+  static RowOperation? fromString(String operation) {
     for (final value in values) {
       if (value.name == operation) {
         return value;

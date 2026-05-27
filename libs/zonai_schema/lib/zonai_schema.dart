@@ -56,9 +56,9 @@ export 'src/raw_sql_filter.dart';
 export 'src/rules/rules.dart'
     hide
         BaseTableRules,
-        BaseRecordRules,
+        BaseRowRules,
         InternalTableRules,
-        InternalRecordRules;
+        InternalRowRules;
 export 'src/schemas/auth_table.dart' hide Auth;
 export 'src/schemas/table.dart';
 export 'src/tables/auth_table.dart';

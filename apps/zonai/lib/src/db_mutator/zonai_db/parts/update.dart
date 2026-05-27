@@ -111,7 +111,7 @@ extension _UpdateX on ZonaiDb {
     final objects = readResult.rows.map((e) => e.toMap()).toList();
 
     for (final row in objects) {
-      await _requireRecordAccess(table, .update, row, jwt);
+      await _requireRowAccess(table, .update, row, jwt);
     }
 
     final sanitizedBefore = await _sanitizeRows(table, objects);

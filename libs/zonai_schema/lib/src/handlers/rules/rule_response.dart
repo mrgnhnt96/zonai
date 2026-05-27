@@ -22,11 +22,11 @@ sealed class RuleResponse extends Response {
 
     return switch (path) {
       TableRulesResponse._path => TableRulesResponse.fromJson(json),
-      RecordRulesResponse._path => RecordRulesResponse.fromJson(json),
+      RowRulesResponse._path => RowRulesResponse.fromJson(json),
       AuthTableRulesResponse._path => AuthTableRulesResponse.fromJson(
         json,
       ),
-      AuthRecordRulesResponse._path => AuthRecordRulesResponse.fromJson(json),
+      AuthRowRulesResponse._path => AuthRowRulesResponse.fromJson(json),
       _ => throw ArgumentError('Invalid rule response path: $path'),
     };
   }
@@ -78,8 +78,8 @@ final class AuthTableRulesResponse extends RuleResponse {
   }
 }
 
-final class AuthRecordRulesResponse extends RuleResponse {
-  AuthRecordRulesResponse({
+final class AuthRowRulesResponse extends RuleResponse {
+  AuthRowRulesResponse({
     required super.id,
     required this.table,
     required this.canAccess,
@@ -95,8 +95,8 @@ final class AuthRecordRulesResponse extends RuleResponse {
          },
        );
 
-  factory AuthRecordRulesResponse.fromJson(Map<String, dynamic> json) {
-    return AuthRecordRulesResponse(
+  factory AuthRowRulesResponse.fromJson(Map<String, dynamic> json) {
+    return AuthRowRulesResponse(
       id: json['id'],
       table: json['table'],
       canAccess: json['canAuthenticate'],
@@ -105,7 +105,7 @@ final class AuthRecordRulesResponse extends RuleResponse {
     );
   }
 
-  static const _path = '${Response.prefix}.record.auth.can_access';
+  static const _path = '${Response.prefix}.row.auth.can_access';
 
   final String table;
   final bool canAccess;
@@ -125,7 +125,7 @@ final class AuthRecordRulesResponse extends RuleResponse {
 
   @override
   String toString() {
-    return 'AuthRecordRulesResponse(table: $table, canAccess: $canAccess, authType: $authType, operation: $operation)';
+    return 'AuthRowRulesResponse(table: $table, canAccess: $canAccess, authType: $authType, operation: $operation)';
   }
 }
 
@@ -175,8 +175,8 @@ final class TableRulesResponse extends RuleResponse {
   }
 }
 
-final class RecordRulesResponse extends RuleResponse {
-  RecordRulesResponse({
+final class RowRulesResponse extends RuleResponse {
+  RowRulesResponse({
     required super.id,
     required this.table,
     required this.operation,
@@ -190,19 +190,19 @@ final class RecordRulesResponse extends RuleResponse {
          },
        );
 
-  factory RecordRulesResponse.fromJson(Map<String, dynamic> json) {
-    return RecordRulesResponse(
+  factory RowRulesResponse.fromJson(Map<String, dynamic> json) {
+    return RowRulesResponse(
       id: json['id'] as String,
       table: json['table'] as String,
-      operation: RecordOperation.fromString(json['operation'])!,
+      operation: RowOperation.fromString(json['operation'])!,
       canPerform: json['canPerform'] as bool,
     );
   }
 
-  static const _path = '${Response.prefix}.record.can_access';
+  static const _path = '${Response.prefix}.row.can_access';
 
   final String table;
-  final RecordOperation operation;
+  final RowOperation operation;
   final bool canPerform;
 
   @override
@@ -217,6 +217,6 @@ final class RecordRulesResponse extends RuleResponse {
 
   @override
   String toString() {
-    return 'RecordRulesResponse(table: $table, operation: $operation, canPerform: $canPerform)';
+    return 'RowRulesResponse(table: $table, operation: $operation, canPerform: $canPerform)';
   }
 }

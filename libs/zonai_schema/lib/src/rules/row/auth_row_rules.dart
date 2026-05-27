@@ -1,15 +1,15 @@
 part of rules;
 
-class AuthRecordRules<S extends AuthTable<R>, R>
-    extends BaseRecordRules<S, R>
+class AuthRowRules<S extends AuthTable<R>, R>
+    extends BaseRowRules<S, R>
     implements Rules<S, R> {
-  const AuthRecordRules(super.schema);
+  const AuthRowRules(super.schema);
 
-  /// Whether the user can sign up for this record. [canSignUp] is only called
-  /// if the record is not yet in the database
+  /// Whether the user can sign up for this row. [canSignUp] is only called
+  /// if the row is not yet in the database
   ///
-  /// [record] HAS NOT been inserted into the DB yet,
-  /// it is the record that will be inserted into the database
+  /// [row] HAS NOT been inserted into the DB yet,
+  /// it is the row that will be inserted into the database
   /// if [canSignUp] returns true.
   Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
     if (jwt?.admin.isAdmin case true) {
@@ -39,7 +39,7 @@ class AuthRecordRules<S extends AuthTable<R>, R>
     };
   }
 
-  Future<bool> canView(Jwt? jwt, R record) async {
+  Future<bool> canView(Jwt? jwt, R row) async {
     if (jwt?.admin.isAdmin case true) {
       return true;
     }
@@ -47,42 +47,42 @@ class AuthRecordRules<S extends AuthTable<R>, R>
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
 
-    return _rowIdMatches(record, jwtUserId);
+    return _rowIdMatches(row, jwtUserId);
   }
 
-  Future<bool> canUpdate(Jwt? jwt, R record) async {
+  Future<bool> canUpdate(Jwt? jwt, R row) async {
     if (jwt?.admin.canEdit case true) {
       return true;
     }
 
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
-    return _rowIdMatches(record, jwtUserId);
+    return _rowIdMatches(row, jwtUserId);
   }
 
-  Future<bool> canDelete(Jwt? jwt, R record) async {
+  Future<bool> canDelete(Jwt? jwt, R row) async {
     if (jwt?.admin.canEdit case true) {
       return true;
     }
 
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
-    return _rowIdMatches(record, jwtUserId);
+    return _rowIdMatches(row, jwtUserId);
   }
 
-  Future<bool> canCreate(Jwt? jwt, R record) async {
+  Future<bool> canCreate(Jwt? jwt, R row) async {
     if (jwt?.admin.canEdit case true) {
       return true;
     }
 
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
-    return _rowIdMatches(record, jwtUserId);
+    return _rowIdMatches(row, jwtUserId);
   }
 
-  bool _rowIdMatches(R record, UnknownId jwtUserId) {
+  bool _rowIdMatches(R row, UnknownId jwtUserId) {
     try {
-      final rowId = schema.id.$.readValueOf(record);
+      final rowId = schema.id.$.readValueOf(row);
       return rowId is Id && rowId.value == jwtUserId.value;
     } catch (_) {
       return false;

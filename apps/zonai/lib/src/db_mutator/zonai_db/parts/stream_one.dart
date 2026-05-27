@@ -27,7 +27,7 @@ extension _StreamOneX on ZonaiDb {
     }
 
     final object = readResult.rows.single.toMap();
-    await _requireRecordAccess(table, .view, object, jwt);
+    await _requireRowAccess(table, .view, object, jwt);
 
     await for (final result in _stream(operation.query, operation.values)) {
       if (result.rows.isEmpty) {

@@ -136,8 +136,8 @@ extension _AuthUtilsX on ZonaiDb {
   ) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _rules.send<AuthRecordRulesResponse>(
-      AuthRecordRulesRequest(
+    final response = await _rules.send<AuthRowRulesResponse>(
+      AuthRowRulesRequest(
         table: table,
         jwt: jwt,
         operation: operation,
@@ -145,7 +145,7 @@ extension _AuthUtilsX on ZonaiDb {
       ),
     );
 
-    if (response case AuthRecordRulesResponse(canAccess: true)) {
+    if (response case AuthRowRulesResponse(canAccess: true)) {
       return;
     }
 

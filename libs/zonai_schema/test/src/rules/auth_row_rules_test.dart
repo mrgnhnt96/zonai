@@ -62,17 +62,17 @@ final class _UserTable extends AuthTable<_User> with PasswordAuth {
   final TextColumn name;
 }
 
-class _UserRecordRules extends AuthRecordRules<_UserTable, _User> {
-  const _UserRecordRules(super.schema);
+class _UserRowRules extends AuthRowRules<_UserTable, _User> {
+  const _UserRowRules(super.schema);
 }
 
 void main() {
   late _UserTable users;
-  late _UserRecordRules rules;
+  late _UserRowRules rules;
 
   setUp(() {
     users = authTable('_test_users', _UserTable.new);
-    rules = _UserRecordRules(users);
+    rules = _UserRowRules(users);
   });
 
   Jwt _jwtFor(String userId) => Jwt.create(
@@ -85,7 +85,7 @@ void main() {
   );
 
   test('canView allows the signed-in user to read their own row', () async {
-    const record = _User(
+    const row = _User(
       id: _UserId('user-1'),
       email: 'a@b.com',
       isVerified: true,
@@ -93,13 +93,13 @@ void main() {
       name: 'Ada',
     );
 
-    expect(await rules.canView(_jwtFor('user-1'), record), isTrue);
+    expect(await rules.canView(_jwtFor('user-1'), row), isTrue);
   });
 
   test(
     'canView denies access when jwt user id does not match row id',
     () async {
-      const record = _User(
+      const row = _User(
         id: _UserId('user-1'),
         email: 'a@b.com',
         isVerified: true,
@@ -107,7 +107,7 @@ void main() {
         name: 'Ada',
       );
 
-      expect(await rules.canView(_jwtFor('user-2'), record), isFalse);
+      expect(await rules.canView(_jwtFor('user-2'), row), isFalse);
     },
   );
 }

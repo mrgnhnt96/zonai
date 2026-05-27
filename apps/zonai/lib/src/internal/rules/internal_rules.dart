@@ -26,26 +26,26 @@ base class InternalTableRules<S extends Table<R>, R>
   };
 }
 
-/// Record rules for framework tables: never exposed via the public DB API.
-base class InternalRecordRules<S extends Table<R>, R>
-    extends RecordRules<S, R> {
-  const InternalRecordRules(super.schema, {this.canBeOverridden = false});
+/// Row rules for framework tables: never exposed via the public DB API.
+base class InternalRowRules<S extends Table<R>, R>
+    extends RowRules<S, R> {
+  const InternalRowRules(super.schema, {this.canBeOverridden = false});
 
   final bool canBeOverridden;
 
   @override
-  Future<bool> canView(Jwt? jwt, R record) async =>
+  Future<bool> canView(Jwt? jwt, R row) async =>
       switch (jwt?.admin.isAdmin) {
         true => true,
         _ => false,
       };
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, R record) async => false;
+  Future<bool> canUpdate(Jwt? jwt, R row) async => false;
 
   @override
-  Future<bool> canDelete(Jwt? jwt, R record) async => false;
+  Future<bool> canDelete(Jwt? jwt, R row) async => false;
 
   @override
-  Future<bool> canCreate(Jwt? jwt, R record) async => false;
+  Future<bool> canCreate(Jwt? jwt, R row) async => false;
 }

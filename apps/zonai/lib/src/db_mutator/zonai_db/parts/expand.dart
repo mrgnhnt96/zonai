@@ -45,7 +45,7 @@ extension _ExpandX on ZonaiDb {
 
   Future<Map<String, Object?>> _expandRecord(
     String table,
-    Map<String, Object?> record,
+    Map<String, Object?> row,
     _ExpandPathTree tree,
     Jwt? jwt,
   ) async {
@@ -53,7 +53,7 @@ extension _ExpandX on ZonaiDb {
 
     for (final MapEntry(key: field, value: childTree)
         in tree.children.entries) {
-      final fkValue = record[field];
+      final fkValue = row[field];
       if (fkValue == null) {
         continue;
       }
@@ -78,7 +78,7 @@ extension _ExpandX on ZonaiDb {
       expanded[field] = related;
     }
 
-    final result = Map<String, Object?>.from(record);
+    final result = Map<String, Object?>.from(row);
     if (expanded.isNotEmpty) {
       result['expanded'] = expanded;
     }
@@ -134,7 +134,7 @@ extension _ExpandX on ZonaiDb {
     }
 
     final object = result.rows.first.toMap();
-    await _requireRecordAccess(table, .view, object, jwt);
+    await _requireRowAccess(table, .view, object, jwt);
 
     return await _sanitizeRow(table, object);
   }

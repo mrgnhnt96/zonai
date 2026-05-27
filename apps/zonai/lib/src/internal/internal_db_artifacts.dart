@@ -11,6 +11,12 @@
 
 
 import 'package:raindrop/raindrop.dart' show Schema;
+import 'package:zonai/src/internal/auth_challenge_table.dart' as _schema_authChallenges;
+import 'package:zonai/src/internal/jwt_table.dart' as _schema_jwts;
+import 'package:zonai/src/internal/logs_table.dart' as _schema_logs;
+import 'package:zonai/src/internal/photos_table.dart' as _schema_photos;
+import 'package:zonai/src/internal/raindrop_migrations_table.dart' as _schema_raindropMigrations;
+import 'package:zonai/src/internal/rate_limit_table.dart' as _schema_rateLimits;
 
 abstract final class InternalDbArtifacts {
   static const operations = <({String importPath, String alias})>[
@@ -49,8 +55,8 @@ abstract final class InternalDbArtifacts {
   static const rules = <({String importPath, String alias})>[
     (
       importPath:
-          'package:zonai/src/internal/rules/auth_challenge_record_rules.dart',
-      alias: 'zonai_internal_auth_challenge_record_rules',
+          'package:zonai/src/internal/rules/auth_challenge_row_rules.dart',
+      alias: 'zonai_internal_auth_challenge_row_rules',
     ),
     (
       importPath:
@@ -59,8 +65,8 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
-          'package:zonai/src/internal/rules/jwt_record_rules.dart',
-      alias: 'zonai_internal_jwt_record_rules',
+          'package:zonai/src/internal/rules/jwt_row_rules.dart',
+      alias: 'zonai_internal_jwt_row_rules',
     ),
     (
       importPath:
@@ -69,8 +75,8 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
-          'package:zonai/src/internal/rules/log_record_rules.dart',
-      alias: 'zonai_internal_log_record_rules',
+          'package:zonai/src/internal/rules/log_row_rules.dart',
+      alias: 'zonai_internal_log_row_rules',
     ),
     (
       importPath:
@@ -79,8 +85,8 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
-          'package:zonai/src/internal/rules/photo_record_rules.dart',
-      alias: 'zonai_internal_photo_record_rules',
+          'package:zonai/src/internal/rules/photo_row_rules.dart',
+      alias: 'zonai_internal_photo_row_rules',
     ),
     (
       importPath:
@@ -89,8 +95,8 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
-          'package:zonai/src/internal/rules/raindrop_migrations_record_rules.dart',
-      alias: 'zonai_internal_raindrop_migrations_record_rules',
+          'package:zonai/src/internal/rules/raindrop_migrations_row_rules.dart',
+      alias: 'zonai_internal_raindrop_migrations_row_rules',
     ),
     (
       importPath:
@@ -99,8 +105,8 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
-          'package:zonai/src/internal/rules/rate_limit_record_rules.dart',
-      alias: 'zonai_internal_rate_limit_record_rules',
+          'package:zonai/src/internal/rules/rate_limit_row_rules.dart',
+      alias: 'zonai_internal_rate_limit_row_rules',
     ),
     (
       importPath:
@@ -117,13 +123,55 @@ abstract final class InternalDbArtifacts {
 
   /// Framework-managed tables (import path, top-level getter, table).
   static const tables = <({String importPath, String getter, String tableName})>[
+    (
+      importPath:
+          'package:zonai/src/internal/auth_challenge_table.dart',
+      getter: 'authChallenges',
+      tableName: '_auth_challenges',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/jwt_table.dart',
+      getter: 'jwts',
+      tableName: '_jwt',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/logs_table.dart',
+      getter: 'logs',
+      tableName: '_log',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/photos_table.dart',
+      getter: 'photos',
+      tableName: '_photos',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/raindrop_migrations_table.dart',
+      getter: 'raindropMigrations',
+      tableName: '_raindrop_migrations',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/rate_limit_table.dart',
+      getter: 'rateLimits',
+      tableName: '_rate_limit',
+    ),
   ];
 
   /// Table schemas synced to SQLite on database open.
   static final schemas = <Schema<Object?>>[
+    _schema_authChallenges.authChallenges,
+    _schema_jwts.jwts,
+    _schema_logs.logs,
+    _schema_photos.photos,
+    _schema_raindropMigrations.raindropMigrations,
+    _schema_rateLimits.rateLimits,
   ];
 
   /// SQLite table names managed by the framework (not user schemas).
-  static const tableNames = {};
+  static const tableNames = {'_auth_challenges', '_jwt', '_log', '_photos', '_raindrop_migrations', '_rate_limit'};
 }
 
