@@ -47,9 +47,9 @@ class PhotosCollection extends schema.PhotosCollection {
 }
 
 final photos = () {
-  final c = collection('_photos', PhotosCollection.new);
+  final photos = collection('_photos', PhotosCollection.new);
 
-  setupInternalCollections(photos: c);
+  setupInternalCollections(photos: photos);
 
-  return c;
+  return photos;
 }();

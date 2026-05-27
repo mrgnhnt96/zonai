@@ -119,11 +119,6 @@ abstract final class InternalDbArtifacts {
   ];
 
   static const extensions = <({String importPath, String alias})>[
-    (
-      importPath:
-          'package:zonai/src/internal/extensions/photo_extension.dart',
-      alias: 'zonai_internal_photo_extension',
-    ),
   ];
 
   /// Framework-managed collections (import path, top-level getter, table).
