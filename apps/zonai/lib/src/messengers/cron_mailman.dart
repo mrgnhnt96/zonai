@@ -74,7 +74,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
   }
 
   @override
-  void onUnexpectedDelivery(CronResponse response) async {
+  Future<void> onUnexpectedDelivery(CronResponse response) async {
     switch (response) {
       case JobStarted(:final name):
         logger.info('Cron Job started: ${response.name}');
@@ -116,7 +116,9 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
       case CronsStopped():
       case CronsStarted():
       case LastJobRunResponse():
-        throw Exception('Unexpected cron response: ${response.runtimeType}');
+        logger.warn(
+          'Ignoring unexpected cron notification: ${response.runtimeType}',
+        );
     }
   }
 }

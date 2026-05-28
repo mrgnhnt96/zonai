@@ -5,6 +5,7 @@ import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
+import 'package:zonai/src/utils/serve_guard.dart';
 
 import '../deps/args.dart';
 import '../deps/config.dart';
@@ -21,12 +22,28 @@ import '../deps/rules.dart';
 import '../native/resqlite_native.dart';
 
 Future<int> serve() async {
+  var exitCode = 0;
+
+  await runServeGuarded(() async {
+    try {
+      exitCode = await _startServing();
+      if (exitCode != 0) return;
+    } catch (error, stack) {
+      logger.error('Error while serving (process continues)', error, stack);
+    }
+    await kill.wait();
+  });
+
+  return exitCode;
+}
+
+Future<int> _startServing() async {
   await ensureResqliteNativeInstalled();
 
   keyboardInput.watch();
 
   if (args['auto-migrate'] case != false) {
-    migrate.auto();
+    catchErrors(migrate.auto);
   }
   migrate.listenForKeyboardInput();
 
@@ -39,13 +56,15 @@ Future<int> serve() async {
 
   keyboardInput.addListener((event) {
     if (event.matches('c')) {
-      logger.info('Compiling all workers...');
-      operations.compile();
-      extensions.compile();
-      rules.compile();
-      rateLimitsCompiler.compile();
-      cronsCompiler.compile();
-      config.compile();
+      catchErrors(() {
+        logger.info('Compiling all workers...');
+        catchErrors(operations.compile);
+        catchErrors(extensions.compile);
+        catchErrors(rules.compile);
+        catchErrors(rateLimitsCompiler.compile);
+        catchErrors(cronsCompiler.compile);
+        catchErrors(config.compile);
+      });
     }
   });
 
@@ -62,20 +81,20 @@ Future<int> serve() async {
   final cronMailman = CronMailman()..start();
 
   keyboardInput.addListener((event) {
-    final print = (bool success, String name) {
-      logger.info('Ping $name ${success ? 'succeeded' : 'failed'}');
-    };
-
     if (event.matches('p')) {
-      extensionMailman.ping().then((s) => print(s, 'extension'));
-      rulesMailman.ping().then((s) => print(s, 'rules'));
-      operationMailman.ping().then((s) => print(s, 'operation'));
-      configMailman.ping().then((s) => print(s, 'config'));
-      cronMailman.ping().then((s) => print(s, 'cron'));
+      catchErrors(() async {
+        final print = (bool success, String name) {
+          logger.info('Ping $name ${success ? 'succeeded' : 'failed'}');
+        };
+
+        print(await extensionMailman.ping(), 'extension');
+        print(await rulesMailman.ping(), 'rules');
+        print(await operationMailman.ping(), 'operation');
+        print(await configMailman.ping(), 'config');
+        print(await cronMailman.ping(), 'cron');
+      });
     }
   });
-
-  await kill.wait();
 
   return 0;
 }

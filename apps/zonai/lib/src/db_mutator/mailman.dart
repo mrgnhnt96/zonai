@@ -28,7 +28,7 @@ import '../deps/zonai_db.dart';
 mixin Receivable<S extends Request, R extends Response> on Mailman<S, R> {
   Future<R> onRequest(S request);
 
-  void onUnexpectedDelivery(R response);
+  Future<void> onUnexpectedDelivery(R response);
 }
 
 class Mailman<S extends Request, R extends Response> {
@@ -46,8 +46,18 @@ class Mailman<S extends Request, R extends Response> {
        _request = StreamController.broadcast(sync: true),
        _fromJson = fromJson {
     cleanUp.add(dispose);
-    _responseSubscription = _response.stream.listen(_handleResponse);
-    _requestSubscription = _request.stream.listen(_handleRequest);
+    _responseSubscription = _response.stream.listen(
+      _handleResponse,
+      onError: _onStreamError,
+    );
+    _requestSubscription = _request.stream.listen(
+      _handleRequest,
+      onError: _onStreamError,
+    );
+  }
+
+  void _onStreamError(Object error, StackTrace stack) {
+    logger.error('$_prefix: Stream handler error', error, stack);
   }
 
   final String debugName;
@@ -133,6 +143,21 @@ class Mailman<S extends Request, R extends Response> {
     throw _logExecutableRequiredStack();
   }
 
+  Future<void> _deliverUnexpected(
+    Future<void> Function(R response) onUnexpectedDelivery,
+    R response,
+  ) async {
+    try {
+      await onUnexpectedDelivery(response);
+    } catch (error, stack) {
+      logger.error(
+        '$_prefix: Error handling worker notification',
+        error,
+        stack,
+      );
+    }
+  }
+
   void _log(DebugResponse response) {
     switch (response.level) {
       case .debug:
@@ -172,7 +197,7 @@ class Mailman<S extends Request, R extends Response> {
         case final Request request:
           if (this case Receivable(:final onRequest) when request is S) {
             response = await onRequest(request);
-            return;
+            break;
           }
 
           if (request is UnknownRequest) {
@@ -257,7 +282,7 @@ class Mailman<S extends Request, R extends Response> {
       if (this case Receivable(
         :final onUnexpectedDelivery,
       ) when response is R) {
-        onUnexpectedDelivery(response);
+        _deliverUnexpected(onUnexpectedDelivery, response);
         return;
       }
 
@@ -309,30 +334,36 @@ class Mailman<S extends Request, R extends Response> {
 
     _stderrBuffer.clear();
     final p = _process = await process.start(executablePath, []);
-    p.stderr.transform(utf8.decoder).listen(_stderrBuffer.write);
+    p.stderr
+        .transform(utf8.decoder)
+        .listen(_stderrBuffer.write, onError: _onStreamError);
     p.exitCode.then((exitCode) {
-      if (!identical(_process, p)) return;
+      try {
+        if (!identical(_process, p)) return;
 
-      final stderr = _stderrBuffer.toString();
-      if (stderr.trim().isNotEmpty) {
-        logger.error('$_prefix: stderr', stderr);
-      }
-
-      logger.warn('$_prefix: Exited (exit code: $exitCode)');
-      _process = null;
-      final failure = WorkerProcessFailedException(
-        workerName: debugName,
-        executablePath: executablePath,
-        exitCode: exitCode,
-        stderr: stderr,
-      );
-      for (final completer in _pendingResponses.values) {
-        if (!completer.isCompleted) {
-          completer.completeError(failure);
+        final stderr = _stderrBuffer.toString();
+        if (stderr.trim().isNotEmpty) {
+          logger.error('$_prefix: stderr', stderr);
         }
+
+        logger.warn('$_prefix: Exited (exit code: $exitCode)');
+        _process = null;
+        final failure = WorkerProcessFailedException(
+          workerName: debugName,
+          executablePath: executablePath,
+          exitCode: exitCode,
+          stderr: stderr,
+        );
+        for (final completer in _pendingResponses.values) {
+          if (!completer.isCompleted) {
+            completer.completeError(failure);
+          }
+        }
+        _pendingResponses.clear();
+        _pendingMutations.clear();
+      } catch (error, stack) {
+        _onStreamError(error, stack);
       }
-      _pendingResponses.clear();
-      _pendingMutations.clear();
     });
 
     p.stdout
@@ -340,6 +371,7 @@ class Mailman<S extends Request, R extends Response> {
         .transform(const LineSplitter())
         .listen(
           Zone.current.bindUnaryCallback<void, String>(_listenToMessages),
+          onError: _onStreamError,
         );
 
     logger.debug('Started', prefix: _prefix);
