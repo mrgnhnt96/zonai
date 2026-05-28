@@ -511,8 +511,28 @@ final class _CountColumn extends rd.Expression<int> {
   rd.SQL build() => rd.SQL.function('COUNT', [_column]);
 }
 
-base mixin AuthOperations<S extends AuthTable<R>, R>
-    on TableOperations<S, R> {
+/// Default CRUD operations for a collection with no custom operations file.
+final class _DefaultTableOperations
+    extends TableOperations<rd.Schema<Object?>, Object?> {
+  _DefaultTableOperations(rd.Schema<Object?> schema) : super(schema);
+}
+
+/// Default auth operations for a collection with no custom operations file.
+final class _DefaultAuthTableOperations
+    extends TableOperations<AuthTable<Object?>, Object?>
+    with AuthOperations<AuthTable<Object?>, Object?> {
+  _DefaultAuthTableOperations(AuthTable<Object?> schema) : super(schema);
+}
+
+/// Builds default [TableOperations] for [schema] when no user-defined file exists.
+TableOperations defaultOperationsFor(rd.Schema<Object?> schema) {
+  if (schema is AuthTable<Object?>) {
+    return _DefaultAuthTableOperations(schema);
+  }
+  return _DefaultTableOperations(schema);
+}
+
+base mixin AuthOperations<S extends AuthTable<R>, R> on TableOperations<S, R> {
   Future<Claims> addClaims({required Jwt jwt}) async {
     return Claims(jwt.claims);
   }

@@ -4,9 +4,17 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 
 class OperationGenerator {
-  const OperationGenerator({required this.operations});
+  const OperationGenerator({
+    required this.operations,
+    required this.schemasPath,
+  });
 
   final List<File> operations;
+  final String schemasPath;
+
+  static final _schemaTablePattern = RegExp(
+    r"final\s+(\w+)\s*=\s*(?:authTable|table)\s*\(\s*'([^']+)'",
+  );
 
   static String get executablePath =>
       fs.path.join('.dart_tool', 'zonai', 'db_operations.dart');
@@ -41,14 +49,75 @@ class OperationGenerator {
       entries.add((alias: alias, importPath: importPath));
     }
 
+    final schemaEntries = _discoverSchemas(
+      root: root,
+      outDirAbsolute: outDirAbsolute,
+      usedAliases: usedAliases,
+    );
+
     final out = fs.file(executablePath);
-    out.writeAsStringSync(_dbOperationsDartSource(entries));
+    out.writeAsStringSync(_dbOperationsDartSource(entries, schemaEntries));
 
     logger.debug('Generated operation file: ${out.path}');
     logger.debug('Used ${entries.length} operations');
     for (final e in entries) {
       logger.debug('  - ${e.alias}: ${e.importPath}');
     }
+    logger.debug('Used ${schemaEntries.length} schema tables');
+    for (final e in schemaEntries) {
+      logger.debug('  - ${e.alias}.${e.getter} (${e.tableName})');
+    }
+  }
+
+  List<({String alias, String importPath, String getter, String tableName})>
+  _discoverSchemas({
+    required String root,
+    required String outDirAbsolute,
+    required Set<String> usedAliases,
+  }) {
+    final directory = fs.directory(schemasPath);
+    if (!directory.existsSync()) {
+      return [];
+    }
+
+    final tables =
+        <
+          ({String alias, String importPath, String getter, String tableName})
+        >[];
+
+    for (final entity in directory.listSync(recursive: true)) {
+      if (entity is! File || fs.path.extension(entity.path) != '.dart') {
+        continue;
+      }
+
+      final content = entity.readAsStringSync();
+      final tableMatches = _schemaTablePattern.allMatches(content).toList();
+      if (tableMatches.isEmpty) {
+        continue;
+      }
+
+      final relativePosix = _relativePosixPath(entity, root);
+      final importPath = _relativePosixPath(entity, outDirAbsolute);
+      final alias = _uniqueAlias('schema_$relativePosix', usedAliases);
+
+      for (final match in tableMatches) {
+        final getter = match.group(1)!;
+        final tableName = match.group(2)!;
+        if (InternalDbArtifacts.tableNames.contains(tableName)) {
+          continue;
+        }
+
+        tables.add((
+          alias: alias,
+          importPath: importPath,
+          getter: getter,
+          tableName: tableName,
+        ));
+      }
+    }
+
+    tables.sort((a, b) => a.tableName.compareTo(b.tableName));
+    return tables;
   }
 
   String _relativePosixPath(File file, String root) {
@@ -81,6 +150,8 @@ class OperationGenerator {
 
   String _dbOperationsDartSource(
     List<({String alias, String importPath})> entries,
+    List<({String alias, String importPath, String getter, String tableName})>
+    schemaEntries,
   ) {
     final b = StringBuffer();
     b.writeln(
@@ -90,6 +161,15 @@ class OperationGenerator {
     for (final e in entries) {
       b.writeln("import '${e.importPath}' as ${e.alias};");
     }
+
+    final schemaImports = <String, String>{};
+    for (final e in schemaEntries) {
+      schemaImports.putIfAbsent(e.importPath, () => e.alias);
+    }
+    for (final entry in schemaImports.entries) {
+      b.writeln("import '${entry.key}' as ${entry.value};");
+    }
+
     b.writeln();
     b.writeln('void main() {');
     b.writeln('  db_operations.DbOperations(');
@@ -98,6 +178,11 @@ class OperationGenerator {
       b.writeln(
         '      loadOperation(${_dartStringLiteral(e.importPath)}, ${e.alias}.main),',
       );
+    }
+    b.writeln('    ],');
+    b.writeln('    tables: [');
+    for (final e in schemaEntries) {
+      b.writeln('      ${e.alias}.${e.getter},');
     }
     b.writeln('    ],');
     b.writeln('  ).start();');

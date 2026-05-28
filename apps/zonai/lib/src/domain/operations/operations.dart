@@ -67,7 +67,10 @@ class Operations {
       dir.createSync(recursive: true);
     }
 
-    await OperationGenerator(operations: files).create();
+    await OperationGenerator(
+      operations: files,
+      schemasPath: settings.schemasPath,
+    ).create();
 
     final result = await process.run('dart', [
       'compile',

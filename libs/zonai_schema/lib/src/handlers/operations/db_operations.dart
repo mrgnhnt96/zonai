@@ -8,10 +8,12 @@ import 'package:zonai_schema/zonai_schema.dart' hide Table;
 class DbOperations {
   DbOperations({
     required this.operations,
+    required this.tables,
     this.dialect = const SQLiteDialect(),
   });
 
   final List<TableOperations> operations;
+  final List<rd.Schema> tables;
   final rd.BaseSqlDialect dialect;
 
   Map<String, TableOperations>? _operationsByTable;
@@ -28,6 +30,11 @@ class DbOperations {
       }
 
       map[operation.table.name] = operation;
+    }
+
+    for (final schema in tables) {
+      final name = rd.Table.getFor(schema).name;
+      map.putIfAbsent(name, () => defaultOperationsFor(schema));
     }
 
     return _operationsByTable = map;
@@ -71,7 +78,7 @@ class DbOperations {
     GetAdminTablesOperationRequest request,
   ) async {
     final tables = <(String, List<AuthType>)>[];
-    for (final op in operations) {
+    for (final op in operationsByTable.values) {
       if ((op.schema, op.schema) case (final AuthTable ops, AsAdmin())) {
         tables.add((op.table.name, ops.authTypes));
       }
