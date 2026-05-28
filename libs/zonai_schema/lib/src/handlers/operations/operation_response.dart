@@ -165,7 +165,9 @@ final class SanitizeOperationResponse extends OperationResponse {
   SanitizeOperationResponse({
     required super.id,
     required List<Map<String, dynamic>> objects,
+    List<String> photoColumns = const [],
   }) : objects = List.unmodifiable(objects),
+       photoColumns = List.unmodifiable(photoColumns),
        super(path: _path, payload: const {});
 
   factory SanitizeOperationResponse.fromJson(Map<String, dynamic> json) {
@@ -175,16 +177,25 @@ final class SanitizeOperationResponse extends OperationResponse {
         for (final e in json['objects'] as List<dynamic>)
           Map<String, dynamic>.from(e),
       ],
+      photoColumns: [
+        for (final column in json['photoColumns'] as List<dynamic>? ?? const [])
+          column as String,
+      ],
     );
   }
 
   static const _path = '${Response.prefix}.operation.sanitize';
 
   final List<Map<String, dynamic>> objects;
+  final List<String> photoColumns;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'objects': jsonDecode(jsonEncode(objects))};
+    return {
+      ...super.toJson(),
+      'objects': jsonDecode(jsonEncode(objects)),
+      'photoColumns': photoColumns,
+    };
   }
 }
 

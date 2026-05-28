@@ -9,6 +9,7 @@ class Item {
     required this.body,
     required this.createdAt,
     this.description,
+    this.image,
     this.status,
     this.updatedAt,
   });
@@ -16,6 +17,7 @@ class Item {
   final ItemsId id;
   final String body;
   final String? description;
+  final String? image;
   final int? status;
 
   final DateTime createdAt;
@@ -32,6 +34,7 @@ final class ItemTable extends Table<Item> {
       ),
       body = $.text('body', (s) => s.body),
       description = $.text('description', (s) => s.description),
+      image = $.photo('image', (s) => s.image),
       status = $.integer('status', (s) => s.status),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
@@ -42,6 +45,7 @@ final class ItemTable extends Table<Item> {
       id: read(id),
       body: read(body),
       description: read(description),
+      image: read(image),
       status: read(status),
       createdAt: read(createdAt),
       updatedAt: read(updatedAt),
@@ -51,6 +55,7 @@ final class ItemTable extends Table<Item> {
   final IdColumn<ItemsId> id;
   final TextColumn body;
   final TextColumn? description;
+  final PhotoColumn? image;
   final IntColumn? status;
   final DateTimeColumn createdAt;
   final DateTimeColumn? updatedAt;

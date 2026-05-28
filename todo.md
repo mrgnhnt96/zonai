@@ -42,23 +42,9 @@ The dashboard will be the first page on website load. It should show a quick ove
 
 ### API
 
-- [ ] Upload files (to local storage)
 - [ ] Export records as JSON
 - [ ] Blacklist IPs (needs to be outside of code to be reactive)
 - [ ] Add last seen to jwt entry (?)
-
-#### Upload Files
-
-Add method for “photo upload config” (global app config, and per schema)
-
-- max bytes upload
-- allowed mime types
-- require mime type (verified on server too)
-
-After upload, ID is returned. To get the photo, use the id to fetch the record, the record will contain the path
-
-- We will need a custom column for this
-  - Return the http url to the photo in the response, keep the id for the record
 
 ## Cron
 

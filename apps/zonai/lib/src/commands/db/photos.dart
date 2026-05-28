@@ -227,6 +227,45 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
 
   logger.info('Photo type changed to PNG: ${imageFile.path}');
 
+  logger.info('CREATE ITEM WITH PHOTO');
+  final itemId = Id.generate('it');
+  await zonaiDB.create(
+    'items',
+    CreatePayload(
+      jwt: jwt,
+      object: {
+        'id': itemId,
+        'body': 'Photo item',
+        'image': photoId,
+      },
+    ),
+  );
+
+  logger.info('READ ITEM WITH RESOLVED PHOTO URL');
+  final item = await zonaiDB.read(
+    'items',
+    ViewPayload(jwt: jwt, where: Eq('id', itemId)),
+  );
+  final config = await zonaiDB.getConfig();
+  final baseUrl = config.baseUrl.endsWith('/')
+      ? config.baseUrl.substring(0, config.baseUrl.length - 1)
+      : config.baseUrl;
+  final expectedImageUrl = '$baseUrl/img/$photoId.png';
+  if (item['image'] != expectedImageUrl) {
+    logger.error(
+      'Expected image URL $expectedImageUrl, got ${item['image']}',
+    );
+    return 1;
+  }
+
+  logger.info('Resolved image URL: ${item['image']}');
+
+  logger.info('DELETE ITEM WITH PHOTO');
+  await zonaiDB.delete(
+    'items',
+    DeletePayload(jwt: jwt, where: Eq('id', itemId)),
+  );
+
   logger.info('DELETE PHOTO');
   await zonaiDB.deletePhoto(token: jwt, id: photoId);
 

@@ -87,10 +87,7 @@ class DbOperations {
   ) async {
     final tables = <(String, List<AuthType>)>[];
     for (final op in operations) {
-      if ((op.schema, op.schema) case (
-        final AuthTable ops,
-        AsAdmin(),
-      )) {
+      if ((op.schema, op.schema) case (final AuthTable ops, AsAdmin())) {
         tables.add((op.table.name, ops.authTypes));
       }
     }
@@ -283,10 +280,7 @@ class DbOperations {
       _failMissingTable(request.table);
     }
 
-    final (sql, values) = TableTranslator(
-      ops,
-      dialect,
-    ).translate(request);
+    final (sql, values) = TableTranslator(ops, dialect).translate(request);
 
     return PerformOperationResponse(id: request.id, query: sql, values: values);
   }
@@ -297,10 +291,7 @@ class DbOperations {
       _failMissingTable(request.table);
     }
 
-    final (sql, values) = TableTranslator(
-      ops,
-      dialect,
-    ).translate(request);
+    final (sql, values) = TableTranslator(ops, dialect).translate(request);
 
     return PerformOperationResponse(id: request.id, query: sql, values: values);
   }
@@ -314,6 +305,16 @@ class DbOperations {
     }
 
     final columns = ops.table.columns;
+    final photoColumns = <String>[];
+    for (final column in columns) {
+      switch (column.transformer) {
+        case PhotoTransformer():
+          photoColumns.add(column.name);
+        case PhotosTransformer():
+          photoColumns.add(column.name);
+        case _:
+      }
+    }
     final sanitized = <Map<String, dynamic>>[];
     for (final raw in request.objects) {
       final mutable = {...raw};
@@ -325,7 +326,11 @@ class DbOperations {
       sanitized.add(mutable);
     }
 
-    return SanitizeOperationResponse(id: request.id, objects: sanitized);
+    return SanitizeOperationResponse(
+      id: request.id,
+      objects: sanitized,
+      photoColumns: photoColumns,
+    );
   }
 
   Future<JwtConfigResponse> _getJwtConfig(

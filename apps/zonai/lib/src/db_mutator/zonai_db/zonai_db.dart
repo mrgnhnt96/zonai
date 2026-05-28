@@ -60,6 +60,7 @@ part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
 part 'parts/photo.dart';
+part 'parts/resolve_photos.dart';
 
 typedef _CrudResult = Map<String, Object?>;
 typedef _CrudListResult = List<Map<String, Object?>>;

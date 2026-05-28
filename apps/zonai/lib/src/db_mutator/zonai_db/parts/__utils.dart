@@ -160,7 +160,7 @@ extension UtilsX on ZonaiDb {
       SanitizeOperationRequest(table: table, objects: rows),
     );
 
-    return response.objects;
+    return _resolvePhotoFields(response.objects, response.photoColumns);
   }
 
   Future<List<_SideEffect>> _getEffect(MutationRequest mut) async {

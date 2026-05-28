@@ -50,6 +50,13 @@
       "when": 1779400735565,
       "tag": "0006_companies",
       "snapshotId": "c384e3e6-be4f-4d58-8fcb-aea6bf9a71f7"
+    },
+    {
+      "idx": 7,
+      "version": "1",
+      "when": 1779402000000,
+      "tag": "0007_items_image",
+      "snapshotId": "0007-items-image"
     }
   ]
 }
