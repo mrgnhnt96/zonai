@@ -207,7 +207,7 @@ dart run zonai compile
 dart run zonai serve
 ```
 
-While `serve` is running, press **`c`** to recompile all workers (config, rules, extensions, operations, rate limits).
+While `serve` is running, press **`c`** to recompile all workers (config, rules, extensions, operations, rate limits, crons).
 
 See also **[config-and-env-flavors.md](config-and-env-flavors.md)** for `--flavor` and env defines passed into worker executables.
 
@@ -257,5 +257,6 @@ For auth collections, mix in `AuthExtension` and override `onSignUp`, `onSignIn`
 - **[rules.md](rules.md)** — authorization (checked before extension hooks)
 - **[operations.md](operations.md)** — SQL generation (runs after before-hooks)
 - **[rate-limiting.md](rate-limiting.md)** — per-operation request limits
+- **[cron.md](cron.md)** — scheduled background jobs
 - **[config-and-env-flavors.md](config-and-env-flavors.md)** — worker executables and compile-time env
 - **`libs/zonai_schema/lib/src/extension.dart`** — base class and mixin defaults

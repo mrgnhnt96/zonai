@@ -154,7 +154,7 @@ dart run zonai compile
 dart run zonai serve
 ```
 
-While `serve` is running, press **`c`** to recompile all workers (config, rules, extensions, operations, rate limits).
+While `serve` is running, press **`c`** to recompile all workers (config, rules, extensions, operations, rate limits, crons).
 
 The compiled executable is written to `.zonai/executables/db_rate_limit.exe` (path configurable via the zonai data directory).
 
@@ -184,3 +184,4 @@ There is no `Retry-After` header today. Clients should back off until the policy
 - **[auth.md](auth.md)** — session tokens and the refresh endpoint
 - **[extensions.md](extensions.md)** — lifecycle hooks around mutations and auth
 - **[rules.md](rules.md)** — authorization (checked before rate limits on data routes)
+- **[cron.md](cron.md)** — scheduled background jobs

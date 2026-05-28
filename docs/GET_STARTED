@@ -70,7 +70,11 @@ For session token refresh (`POST /auth/refresh`), see **[auth.md](auth.md)**.
 
 To throttle API traffic per client IP and collection, add Dart files under `lib/src/rate_limit` (or your `rateLimitPath`). See **[rate-limiting.md](rate-limiting.md)** for policy methods, defaults, and examples.
 
-## 9. Optional checks
+## 9. Cron jobs
+
+To run scheduled background tasks (cleanup, reports, maintenance), add one Dart file per job under `lib/src/crons` (or your `cronsPath`). See **[cron.md](cron.md)** for schedules, `strict` / catch-up, run history, and examples.
+
+## 10. Optional checks
 
 - Run CLI package tests:
 

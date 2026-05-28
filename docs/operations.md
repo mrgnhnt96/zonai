@@ -1,6 +1,8 @@
 # Table operations
 
-Zonai turns HTTP and auth requests into SQL through **collection operations**: Dart classes that describe how each table is read and written. Your app defines one operations file per collection under **`operationsPath`** (default `lib/src/operations`, overridable in `zonai.yaml`). At compile time, Zonai bundles those files with built-in internal-table operations into the `db_operations` worker executable.
+Zonai turns HTTP and auth requests into SQL through **collection operations**: Dart classes that describe how each table is read and written. For every collection declared under **`schemasPath`** (default `lib/src/schemas`), Zonai generates **default operations** at compile time — you do not need an operations file unless you want to customize behavior.
+
+Optional overrides live under **`operationsPath`** (default `lib/src/operations`, overridable in `zonai.yaml`). At compile time, Zonai bundles any custom operations files with built-in internal-table operations into the `db_operations` worker executable.
 
 Operations do **not** run queries themselves. The server sends a structured request to the worker; the worker returns SQL and bound values; the server executes that SQL against SQLite after rules and rate limits have been checked.
 
@@ -8,39 +10,69 @@ Operations do **not** run queries themselves. The server sends a structured requ
 
 1. An HTTP or auth handler needs SQL for a collection (for example `create` on `items`).
 2. The server sends an **operation request** to the compiled `db_operations` worker.
-3. The worker finds the matching `TableOperations` instance (keyed by table name) and builds a Raindrop query.
+3. The worker finds the matching `TableOperations` instance (keyed by table name) — either a custom file from `operationsPath` or a generated default — and builds a Raindrop query.
 4. The worker translates the query to SQL for the configured dialect (SQLite by default) and returns it.
 5. The server runs the SQL on the database and returns the result to the client.
 
-While `serve` is running, changes under `operationsPath` trigger a recompile so SQL generation stays in sync with your Dart code without restarting the database.
+While `serve` is running, changes under `operationsPath` trigger a recompile so custom SQL generation stays in sync with your Dart code without restarting the database. Schema changes under `schemasPath` are picked up the next time workers are compiled (`dart run zonai compile` or **`c`** in `serve`).
+
+## When you need an operations file
+
+| Situation | Operations file required? |
+| --------- | ------------------------- |
+| Standard CRUD on a regular collection | No — default operations are generated from the schema |
+| Auth collection with default sign-in / JWT / email-link behavior | No |
+| Custom CRUD SQL, `custom()` operations, JWT claims, or auth email settings | Yes |
+
+## Default operations
+
+At compile time, **`OperationGenerator`** scans **`schemasPath`** for `table(...)` and `authTable(...)` declarations and passes those schema getters to the worker as `tables: [...]`. For each table without a matching operations file, the worker uses:
+
+- **`DefaultTableOperations`** — standard CRUD for regular collections
+- **`DefaultAuthTableOperations`** — same CRUD plus default **`AuthOperations`** (JWT claims, magic-link / reset-password / verify-email config) for auth collections
+
+These classes extend **`TableOperations`** and reuse the same [built-in query helpers](#built-in-query-helpers). Custom operations files replace the default for that table only.
 
 ## Project layout
 
-Default directory (override with `operationsPath` in `zonai.yaml`):
+Schemas (required for default operations):
+
+```text
+lib/src/schemas/
+  items.dart
+  users.dart
+  posts.dart
+```
+
+Operations (optional — add only when customizing):
 
 ```text
 lib/src/operations/
-  item_operations.dart
-  user_operations.dart
-  post_operations.dart
+  user_operations.dart   # example: custom JWT claims on users
 ```
 
-Each `.dart` file must export a **`main()`** that returns a **`TableOperations`** instance for one collection:
+Each operations `.dart` file must export a **`main()`** that returns a **`TableOperations`** instance for one collection:
 
 ```dart
-import 'package:my_app/src/schemas/items.dart';
+import 'package:my_app/src/schemas/users.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class ItemOperations extends TableOperations<ItemTable, Item> {
-  ItemOperations() : super(items);
+final class UserOperations extends TableOperations<UserTable, User>
+    with AuthOperations {
+  UserOperations() : super(users);
+
+  @override
+  Future<Claims> addClaims({required Jwt jwt}) async {
+    return Claims({'is_awesome': true});
+  }
 }
 
-ItemOperations main() => ItemOperations();
+UserOperations main() => UserOperations();
 ```
 
-Only files with a `.dart` extension under `operationsPath` are included. If the directory is missing or empty, the worker still compiles with **built-in internal table operations** only (see [Internal tables](#internal-tables)).
+Only files with a `.dart` extension under `operationsPath` are included. If the directory is missing or empty, the worker still compiles: default operations are generated for every collection in `schemasPath`, plus **built-in internal table operations** (see [Internal tables](#internal-tables)).
 
-Define **one operations file per collection**. Each file’s `main()` must return a non-null `TableOperations`. If two files target the same table name, the last one loaded wins.
+Define **at most one operations file per collection**. Each file’s `main()` must return a non-null `TableOperations`. A custom file overrides the generated default for that table name. If two files target the same table name, registration fails at startup.
 
 ## Base classes
 
@@ -171,11 +203,11 @@ Framework-managed SQLite tables (`_jwt`, `_log`, `_rate_limit`, `_auth_challenge
 
 When operations are compiled:
 
-1. **`dart analyze`** runs on `operationsPath`. Compilation aborts if analysis fails.
-2. **`OperationGenerator`** writes `.dart_tool/zonai/db_operations.dart`, importing every operations file plus internal operations, and wiring `DbOperations(...).start()`.
+1. **`dart analyze`** runs on `operationsPath` when that directory exists and contains `.dart` files. Compilation aborts if analysis fails.
+2. **`OperationGenerator`** writes `.dart_tool/zonai/db_operations.dart`, importing custom operations files (if any), internal operations, and schema getters from `schemasPath`, and wiring `DbOperations(operations: [...], tables: [...]).start()`.
 3. **`dart compile exe`** produces `.zonai/executables/db_operations.exe` (path configurable via the Zonai data directory).
 
-If the executable is missing at runtime, the server logs instructions to add files under `operationsPath` and run `zonai serve` or press **`c`** to recompile.
+If the executable is missing at runtime, the server logs instructions to run `zonai serve` or press **`c`** to recompile.
 
 ## Commands
 
@@ -189,7 +221,7 @@ dart run zonai compile
 dart run zonai serve
 ```
 
-While `serve` is running, press **`c`** to recompile all workers (config, rules, extensions, operations, rate limits).
+While `serve` is running, press **`c`** to recompile all workers (config, rules, extensions, operations, rate limits, crons).
 
 See also **[config-and-env-flavors.md](config-and-env-flavors.md)** for `--flavor` and env defines passed into worker executables.
 
@@ -198,30 +230,38 @@ See also **[config-and-env-flavors.md](config-and-env-flavors.md)** for `--flavo
 `zonai.yaml`:
 
 ```yaml
-operationsPath: lib/src/operations
+schemasPath: lib/src/schemas
+operationsPath: lib/src/operations   # optional overrides
 ```
 
 ## Minimal example
 
-From `apps/playground/lib/src/operations/item_operations.dart`:
+Most collections need **no operations file**. Define the schema under `schemasPath` and the default operations handle standard CRUD for typical REST endpoints (subject to your [rules](rules.md)).
+
+Add a file under `operationsPath` only when you need to customize behavior — for example, extra JWT claims on `users` in `apps/playground/lib/src/operations/user_operations.dart`:
 
 ```dart
-import 'package:zonai_playground/src/schemas/items.dart';
+import 'package:zonai_playground/src/schemas/users.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class ItemOperations extends TableOperations<ItemTable, Item> {
-  ItemOperations() : super(items);
+final class UserOperations extends TableOperations<UserTable, User>
+    with AuthOperations {
+  UserOperations() : super(users);
+
+  @override
+  Future<Claims> addClaims({required Jwt jwt}) async {
+    return Claims({'is_awesome': true});
+  }
 }
 
-ItemOperations main() => ItemOperations();
+UserOperations main() => UserOperations();
 ```
-
-No overrides are required for standard CRUD; rules and the default `TableOperations` implementation handle SQL for typical REST endpoints.
 
 ## See also
 
 - **[rules.md](rules.md)** — collection and record access rules (checked before SQL runs)
 - **[extensions.md](extensions.md)** — lifecycle hooks around mutations and auth (before/after SQL)
 - **[rate-limiting.md](rate-limiting.md)** — per-operation request limits (separate worker, same compile flow)
+- **[cron.md](cron.md)** — scheduled background jobs (separate worker, same compile flow)
 - **[config-and-env-flavors.md](config-and-env-flavors.md)** — worker executables and compile-time env
 - **`libs/zonai_schema/lib/src/operations/table_operations.dart`** — full implementation of query helpers and auth mixins
