@@ -23,8 +23,6 @@ class Rules {
 
   StreamSubscription<WatchEvent>? __subscription;
 
-  String get executablePath => fs.path.join(settings.compiledRulesPath);
-
   void watch() {
     if (args.release) return;
 
@@ -47,7 +45,7 @@ class Rules {
   Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
-    executableStop.request(executablePath);
+    executableStop.request(settings.compiledRulesPath);
 
     final directory = fs.directory(settings.rulesPath);
 

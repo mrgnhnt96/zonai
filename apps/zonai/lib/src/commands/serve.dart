@@ -1,6 +1,11 @@
 import 'dart:async';
 
-import '../native/resqlite_native.dart';
+import 'package:zonai/src/messengers/config_mailman.dart';
+import 'package:zonai/src/messengers/cron_mailman.dart';
+import 'package:zonai/src/messengers/extensions_mailman.dart';
+import 'package:zonai/src/messengers/operations_mailman.dart';
+import 'package:zonai/src/messengers/rules_mailman.dart';
+
 import '../deps/args.dart';
 import '../deps/config.dart';
 import '../deps/extensions.dart';
@@ -12,15 +17,7 @@ import '../deps/operations.dart';
 import '../deps/rate_limits.dart';
 import '../deps/revali.dart';
 import '../deps/rules.dart';
-import '../db_mutator/mailman.dart';
-import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
-import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
-import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
-import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
-import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
-import 'package:zonai_schema/src/handlers/config/config_request.dart';
-import 'package:zonai_schema/src/handlers/config/config_response.dart';
+import '../native/resqlite_native.dart';
 
 Future<int> serve() async {
   await ensureResqliteNativeInstalled();
@@ -55,29 +52,11 @@ Future<int> serve() async {
 
   logger.info('serving');
 
-  final extensionMailman = Mailman<ExtensionRequest, ExtensionResponse>(
-    debugName: 'EXTENSIONS',
-    executablePath: extensions.executablePath,
-    fromJson: ExtensionResponse.fromJson,
-  );
-
-  final rulesMailman = Mailman<RuleRequest, RuleResponse>(
-    debugName: 'RULES',
-    executablePath: rules.executablePath,
-    fromJson: RuleResponse.fromJson,
-  );
-
-  final operationMailman = Mailman<OperationRequest, OperationResponse>(
-    debugName: 'OPERATIONS',
-    executablePath: operations.executablePath,
-    fromJson: OperationResponse.fromJson,
-  );
-
-  final configMailman = Mailman<ConfigRequest, ConfigResponse>(
-    debugName: 'CONFIG',
-    executablePath: config.executablePath,
-    fromJson: ConfigResponse.fromJson,
-  );
+  final extensionMailman = ExtensionsMailman();
+  final rulesMailman = RulesMailman();
+  final operationMailman = OperationsMailman();
+  final configMailman = ConfigMailman();
+  final cronMailman = CronMailman()..start();
 
   keyboardInput.addListener((event) {
     final print = (bool success, String name) {
@@ -89,6 +68,7 @@ Future<int> serve() async {
       rulesMailman.ping().then((s) => print(s, 'rules'));
       operationMailman.ping().then((s) => print(s, 'operation'));
       configMailman.ping().then((s) => print(s, 'config'));
+      cronMailman.ping().then((s) => print(s, 'cron'));
     }
   });
 

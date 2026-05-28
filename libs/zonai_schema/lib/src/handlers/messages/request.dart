@@ -29,6 +29,7 @@ abstract base class Request {
       UpdateRecordRequest._path => UpdateRecordRequest.fromJson(json),
       SendEmailRequest._path => SendEmailRequest.fromJson(json),
       SendBuiltInEmailRequest._path => SendBuiltInEmailRequest.fromJson(json),
+      _ when path.startsWith(CronRequest.prefix) => CronRequest.fromJson(json),
       _ => UnknownRequest(
         path: path,
         id: id,
@@ -164,11 +165,7 @@ sealed class MutationRequest extends Request {
   @override
   @mustCallSuper
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'parent': parent.toJson(),
-      'table': table,
-    };
+    return {...super.toJson(), 'parent': parent.toJson(), 'table': table};
   }
 }
 

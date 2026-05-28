@@ -44,7 +44,7 @@ export 'src/config/app_config.dart';
 export 'src/config/email_config.dart';
 export 'src/config/photos_config.dart';
 export 'src/extension.dart';
-export 'src/handlers/messages/message_handler.dart' hide Request;
+export 'src/handlers/messages/message_handler.dart' hide Request, Response, msg;
 export 'src/internal/photos_table.dart';
 export 'src/internal/tables.dart' hide setupInternalTables;
 export 'src/operations/table_operations.dart';

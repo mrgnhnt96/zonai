@@ -11,28 +11,29 @@ import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
-import 'package:zonai/src/db_mutator/mailman.dart';
-import 'package:zonai/src/db_mutator/worker_process_failed_exception.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
+import 'package:zonai/src/db_mutator/worker_process_failed_exception.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
+import 'package:zonai/src/internal/internal_db_artifacts.dart';
+import 'package:zonai/src/internal/internal_db_migrate.dart';
+import 'package:zonai/src/internal/tables/auth_challenge_table.dart';
+import 'package:zonai/src/internal/tables/jwt_table.dart';
 import 'package:zonai/src/internal/tables/photos_table.dart';
+import 'package:zonai/src/messengers/config_mailman.dart';
+import 'package:zonai/src/messengers/extensions_mailman.dart';
+import 'package:zonai/src/messengers/operations_mailman.dart';
+import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai/src/utils/photo_stream_utils.dart';
-import 'package:zonai_schema/src/handlers/config/config_request.dart';
-import 'package:zonai_schema/src/handlers/config/config_response.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
-import 'package:zonai/src/internal/tables/auth_challenge_table.dart';
-import 'package:zonai/src/internal/internal_db_artifacts.dart';
-import 'package:zonai/src/internal/internal_db_migrate.dart';
-import 'package:zonai/src/internal/tables/jwt_table.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger, photos, Table;
 
 import '../operation_result.dart';
@@ -55,12 +56,12 @@ part 'parts/create.dart';
 part 'parts/delete.dart';
 part 'parts/expand.dart';
 part 'parts/list.dart';
+part 'parts/photo.dart';
 part 'parts/read.dart';
+part 'parts/resolve_photos.dart';
 part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
-part 'parts/photo.dart';
-part 'parts/resolve_photos.dart';
 
 typedef _CrudResult = Map<String, Object?>;
 typedef _CrudListResult = List<Map<String, Object?>>;
@@ -70,34 +71,18 @@ const _prefix = '[ZONAI_DB]';
 
 class ZonaiDb {
   ZonaiDb()
-    : _extensions = Mailman(
-        debugName: 'EXTENSIONS',
-        executablePath: extensions.executablePath,
-        fromJson: ExtensionResponse.fromJson,
-      ),
-      _rules = Mailman(
-        debugName: 'RULES',
-        executablePath: rules.executablePath,
-        fromJson: RuleResponse.fromJson,
-      ),
-      _operations = Mailman(
-        debugName: 'OPERATIONS',
-        executablePath: operations.executablePath,
-        fromJson: OperationResponse.fromJson,
-      ),
-      _config = Mailman(
-        debugName: 'CONFIG',
-        executablePath: config.executablePath,
-        fromJson: ConfigResponse.fromJson,
-      ),
+    : _extensions = ExtensionsMailman(),
+      _rules = RulesMailman(),
+      _operations = OperationsMailman(),
+      _config = ConfigMailman(),
       _jwt = JwtGenerator(),
       _hashPassword = HashPassword();
 
   Raindrop? db;
-  final Mailman<ExtensionRequest, ExtensionResponse> _extensions;
-  final Mailman<RuleRequest, RuleResponse> _rules;
-  final Mailman<OperationRequest, OperationResponse> _operations;
-  final Mailman<ConfigRequest, ConfigResponse> _config;
+  final ExtensionsMailman _extensions;
+  final RulesMailman _rules;
+  final OperationsMailman _operations;
+  final ConfigMailman _config;
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
@@ -117,10 +102,7 @@ class ZonaiDb {
     return _run(() => configResolver.resolve());
   }
 
-  Future<_AuthResult?> authenticate(
-    String table,
-    AuthPayload payload,
-  ) async {
+  Future<_AuthResult?> authenticate(String table, AuthPayload payload) async {
     return await _run(() => _authenticate(table, payload));
   }
 
@@ -149,12 +131,8 @@ class ZonaiDb {
     Jwt? jwt,
   }) async {
     return await _run(
-      () => _sendVerifyEmail(
-        table,
-        email: email,
-        variables: variables,
-        jwt: jwt,
-      ),
+      () =>
+          _sendVerifyEmail(table, email: email, variables: variables, jwt: jwt),
     );
   }
 
@@ -286,10 +264,7 @@ class ZonaiDb {
     return await _extractJwt(JwtPayload(jwt: jwt));
   }
 
-  Future<_CrudListResult> update(
-    String table,
-    UpdatePayload payload,
-  ) async {
+  Future<_CrudListResult> update(String table, UpdatePayload payload) async {
     return await _run(() => _update(table, payload));
   }
 
@@ -301,10 +276,7 @@ class ZonaiDb {
     return await _run(() => _read(table, payload));
   }
 
-  Future<_CrudPaginatedResult> list(
-    String table,
-    ListPayload payload,
-  ) async {
+  Future<_CrudPaginatedResult> list(String table, ListPayload payload) async {
     return await _run(() => _list(table, payload));
   }
 

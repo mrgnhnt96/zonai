@@ -1,3 +1,4 @@
+import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 sealed class ConfigResponse extends Response {

@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
 import 'package:zonai_schema/src/handlers/messages/stdin.dart';
 import 'package:zonai_schema/src/handlers/messages/stdout.dart';
 import 'package:zonai_schema/zonai_schema.dart';
@@ -14,6 +15,7 @@ part 'deps/__email.dart';
 part 'deps/__get.dart';
 part 'deps/__log.dart';
 part 'deps/__mutate.dart';
+part 'deps/__notify.dart';
 part 'request.dart';
 part 'response.dart';
 
@@ -124,6 +126,7 @@ class MessageHandler {
                 );
               },
               includeIfAbsent: {
+                _msgProvider.overrideWith(() => _Msg(reply, sendRequest)),
                 _emailProvider.overrideWith(
                   () => _Email(
                     (email) {

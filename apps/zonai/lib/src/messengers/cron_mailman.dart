@@ -1,0 +1,117 @@
+import 'package:raindrop/raindrop.dart';
+import 'package:zonai/src/db_mutator/mailman.dart';
+import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
+import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai/src/internal/tables/crons_table.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
+
+class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
+  CronMailman()
+    : super(
+        debugName: debug,
+        executablePath: settings.compiledCronsPath,
+        fromJson: CronResponse.fromJson,
+      );
+
+  static const debug = 'CRON';
+
+  void start() {
+    send(StartCronsRequest());
+  }
+
+  void stop() {
+    send(StopCronsRequest());
+  }
+
+  @override
+  Future<CronResponse> onRequest(CronRequest request) async {
+    switch (request) {
+      case StartCronsRequest():
+        throw Exception(
+          '$StartCronsRequest should not be called from main thread',
+        );
+      case StopCronsRequest():
+        throw Exception(
+          '$StopCronsRequest should not be called from main thread',
+        );
+
+      case final LastJobRunRequest request:
+        final db = await zonaiDB.open();
+
+        final rows = await db
+            .select()
+            .from(crons)
+            .where(crons.name.equals(request.name))
+            .orderBy(crons.started.$, ascending: false)
+            .limit(1);
+
+        if (rows.isEmpty) {
+          return LastJobRunResponse(
+            id: request.id,
+            name: request.name,
+            time: null,
+            wasSuccessful: false,
+          );
+        }
+
+        final lastRun = rows.first;
+
+        return LastJobRunResponse(
+          id: request.id,
+          name: request.name,
+          time: lastRun.started,
+          wasSuccessful: lastRun.completed != null,
+        );
+    }
+  }
+
+  @override
+  void onUnexpectedDelivery(CronResponse response) async {
+    switch (response) {
+      case JobStarted(:final name):
+        logger.info('Cron Job started: ${response.name}');
+
+        final db = await zonaiDB.open();
+
+        await db.insert(into: crons).values([CronEntry.create(name: name)]);
+      case JobCompleted(:final name):
+        logger.info('Cron Job completed: ${response.name}');
+
+        final db = await zonaiDB.open();
+
+        await db
+            .update(crons)
+            .set(crons.completed.to(.now()))
+            .where(
+              crons.name.equals(name) &
+                  crons.completed.isNull() &
+                  crons.failed.isNull(),
+            );
+      case JobFailed(:final name, :final error, :final stackTrace):
+        logger.warn('Cron Job failed: ${response.name}');
+
+        final db = await zonaiDB.open();
+
+        await db
+            .update(crons)
+            .set(
+              crons.failed.to(.now()),
+              crons.error.to(error),
+              crons.stackTrace.to(stackTrace),
+            )
+            .where(
+              crons.name.equals(name) &
+                  crons.completed.isNull() &
+                  crons.failed.isNull(),
+            );
+
+      case CronsStopped():
+      case CronsStarted():
+      case LastJobRunResponse():
+        throw Exception('Unexpected cron response: ${response.runtimeType}');
+    }
+  }
+}

@@ -1,24 +1,20 @@
 import 'package:clock/clock.dart';
 import 'package:raindrop/raindrop.dart' hide Table;
 import 'package:zonai/deps.dart';
-import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
+import 'package:zonai/src/internal/tables/rate_limit_table.dart'
+    as rate_limit_table;
+import 'package:zonai/src/messengers/rate_limit_mailman.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_response.dart';
-import 'package:zonai/src/internal/tables/rate_limit_table.dart' as rate_limit_table;
 import 'package:zonai_schema/zonai_schema.dart';
 
 // TODO: we need a cron to clean this every day or something
 final class RateLimiter {
   RateLimiter();
 
-  Mailman<RateLimitRequest, RateLimitResponse>? __mailman;
-  Mailman<RateLimitRequest, RateLimitResponse> get _mailman =>
-      __mailman ??= Mailman(
-        debugName: 'RATE_LIMIT',
-        executablePath: settings.compiledRateLimitPath,
-        fromJson: RateLimitResponse.fromJson,
-      );
+  RateLimitsMailman? __mailman;
+  RateLimitsMailman get _mailman => __mailman ??= RateLimitsMailman();
 
   Future<bool> check({
     required String table,

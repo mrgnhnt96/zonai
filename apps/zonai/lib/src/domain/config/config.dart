@@ -23,8 +23,6 @@ class Config {
 
   StreamSubscription<WatchEvent>? __subscription;
 
-  String get executablePath => fs.path.join(settings.compiledConfigPath);
-
   void watch() {
     if (args.release) return;
     if (__subscription != null) return;
@@ -68,7 +66,7 @@ class Config {
   Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
-    executableStop.request(executablePath);
+    executableStop.request(settings.compiledConfigPath);
 
     final directory = fs.directory(settings.configPath);
 

@@ -42,12 +42,10 @@ class Extensions {
     __subscription = null;
   }
 
-  String get executablePath => fs.path.join(settings.compiledExtensionsPath);
-
   Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
-    executableStop.request(executablePath);
+    executableStop.request(settings.compiledExtensionsPath);
 
     final directory = fs.directory(settings.extensionsPath);
     final files = directory.existsSync()

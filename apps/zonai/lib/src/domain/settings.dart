@@ -21,6 +21,7 @@ class Settings {
     required this.rateLimitPath,
     required this.version,
     required this.buildSettings,
+    required this.cronsPath,
     required this.path,
     this.host,
     this.port,
@@ -57,6 +58,7 @@ class Settings {
       configPath: normalize(['lib', 'src', 'config']),
       emailTemplatesPath: normalize(['lib', 'src', 'email_templates']),
       rateLimitPath: normalize(['lib', 'src', 'rate_limit']),
+      cronsPath: normalize(['lib', 'src', 'crons']),
       buildSettings: BuildSettings.current(),
       version: kVersion,
     );
@@ -110,6 +112,10 @@ class Settings {
         final String value => value,
         _ => defaultSettings.version,
       },
+      cronsPath: switch (map['cronsPath']) {
+        final String value => normalize([value]),
+        _ => defaultSettings.cronsPath,
+      },
       buildSettings: switch (map['buildSettings']) {
         final Map<String, dynamic> value => BuildSettings.fromJson(value),
         _ => defaultSettings.buildSettings,
@@ -132,6 +138,7 @@ class Settings {
   final String extensionsPath;
   final String rulesPath;
   final String rateLimitPath;
+  final String cronsPath;
   final String operationsPath;
   final String configPath;
   final String? basePath;
@@ -166,6 +173,8 @@ class Settings {
       _normalize([buildExecutableDirectory, 'db_rate_limit.exe']);
   String get buildExtensionsPath =>
       _normalize([buildExecutableDirectory, 'db_extensions.exe']);
+  String get buildCronsPath =>
+      _normalize([buildExecutableDirectory, 'db_crons.exe']);
   String get buildMigrationsPath =>
       _normalize([buildDirectory, migrationsPath]);
   String get buildSettingsPath => _normalize([buildDirectory, path]);
@@ -185,6 +194,8 @@ class Settings {
       _normalize([compiledExecutableDirectory, 'db_config.exe']);
   String get compiledRateLimitPath =>
       _normalize([compiledExecutableDirectory, 'db_rate_limit.exe']);
+  String get compiledCronsPath =>
+      _normalize([compiledExecutableDirectory, 'db_crons.exe']);
 
   String get imagesPath => _normalize(['images']);
 

@@ -23,8 +23,6 @@ class Operations {
 
   StreamSubscription<WatchEvent>? __subscription;
 
-  String get executablePath => fs.path.join(settings.compiledOperationsPath);
-
   void watch() {
     if (args.release) return;
     if (__subscription != null) return;
@@ -46,7 +44,7 @@ class Operations {
   Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
-    executableStop.request(executablePath);
+    executableStop.request(settings.compiledOperationsPath);
 
     final directory = fs.directory(settings.operationsPath);
     final files = directory.existsSync()

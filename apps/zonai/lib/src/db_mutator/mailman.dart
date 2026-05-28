@@ -4,12 +4,18 @@ import 'dart:io' as io;
 
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/src/deps/courier.dart';
+import 'package:zonai/src/messengers/config_mailman.dart';
+import 'package:zonai/src/messengers/cron_mailman.dart';
+import 'package:zonai/src/messengers/extensions_mailman.dart';
+import 'package:zonai/src/messengers/operations_mailman.dart';
+import 'package:zonai/src/messengers/rate_limit_mailman.dart';
+import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
 
 import '../db_mutator/executable_unavailable_exception.dart';
-import '../db_mutator/worker_process_failed_exception.dart';
 import '../db_mutator/payloads/payloads.dart';
+import '../db_mutator/worker_process_failed_exception.dart';
 import '../deps/clean_up.dart';
 import '../deps/executable_stop.dart';
 import '../deps/fs.dart';
@@ -18,6 +24,12 @@ import '../deps/mutations.dart';
 import '../deps/process.dart';
 import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
+
+mixin Receivable<S extends Request, R extends Response> on Mailman<S, R> {
+  Future<R> onRequest(S request);
+
+  void onUnexpectedDelivery(R response);
+}
 
 class Mailman<S extends Request, R extends Response> {
   static final _loggedMissingExecutables = <String>{};
@@ -68,32 +80,37 @@ class Mailman<S extends Request, R extends Response> {
 
   String _executableRequiredMessage() {
     return switch (debugName) {
-      'CONFIG' =>
+      ConfigMailman.debug =>
         'Config worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.configPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
             'See docs/config-and-env-flavors.md',
-      'OPERATIONS' =>
+      OperationsMailman.debug =>
         'Operations worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.operationsPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
             'See docs/operations.md',
 
-      'RULES' =>
+      RulesMailman.debug =>
         'Rules worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.rulesPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
             'See docs/rules.md',
-      'EXTENSIONS' =>
+      ExtensionsMailman.debug =>
         'Extensions worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.extensionsPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
             'See docs/extensions.md',
-      'RATE_LIMIT' =>
+      RateLimitsMailman.debug =>
         'Rate limit worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.rateLimitPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
             'See docs/rate-limiting.md',
+      CronMailman.debug =>
+        'Cron worker is not compiled ($executablePath).\n'
+            'Add Dart files under ${settings.cronsPath} and run `zonai serve` '
+            '(or press c while serving) to compile workers.\n'
+            'See docs/cron.md',
       _ =>
         'Worker is not compiled ($executablePath).\n'
             'Run `zonai serve` (or press c while serving) to compile workers.',
@@ -153,6 +170,11 @@ class Mailman<S extends Request, R extends Response> {
           response = await _fetch(request);
 
         case final Request request:
+          if (this case Receivable(:final onRequest) when request is S) {
+            response = await onRequest(request);
+            return;
+          }
+
           if (request is UnknownRequest) {
             logger.warn(
               'Unsupported extension worker request '
@@ -232,6 +254,13 @@ class Mailman<S extends Request, R extends Response> {
 
     final completer = _pendingResponses.remove(response.id);
     if (completer == null) {
+      if (this case Receivable(
+        :final onUnexpectedDelivery,
+      ) when response is R) {
+        onUnexpectedDelivery(response);
+        return;
+      }
+
       logger.error(
         '$_prefix: Received response for unknown request: ${response.path}',
       );
