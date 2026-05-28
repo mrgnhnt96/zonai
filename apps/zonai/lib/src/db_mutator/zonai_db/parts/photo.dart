@@ -238,15 +238,22 @@ extension _PhotoX on ZonaiDb {
           await oldFile.delete();
         }
 
-        final [result] = await db
+        await db
             .update(photos)
             .set(
               photos.path.to(newRelativePath),
               photos.extension.to(imageType.fileExtension),
             )
-            .where(photos.id.equals(photo.id))
-            .returning();
-        updatedRow = result;
+            .where(photos.id.equals(photo.id));
+        updatedRow = PhotoEntry(
+          id: photo.id,
+          ownerId: photo.ownerId,
+          ownerTable: photo.ownerTable,
+          table: photo.table,
+          path: newRelativePath,
+          extension: imageType.fileExtension,
+          createdAt: photo.createdAt,
+        );
       } else {
         if (oldFile.existsSync()) {
           await oldFile.delete();

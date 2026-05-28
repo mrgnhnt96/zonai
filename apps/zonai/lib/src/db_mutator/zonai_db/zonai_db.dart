@@ -344,12 +344,13 @@ class ZonaiDb {
       );
     } on ExecutableUnavailableException {
       rethrow;
-    } on WorkerProcessFailedException catch (e, stack) {
-      logger.error('Failed to run database operation', e, stack);
+    } on WorkerProcessFailedException {
       rethrow;
     } catch (e, stack) {
-      logger.error('Failed to run database operation', e, stack);
-      rethrow;
+      Error.throwWithStackTrace(
+        StateError('Failed to run database operation: $e'),
+        stack,
+      );
     }
   }
 

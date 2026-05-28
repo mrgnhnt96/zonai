@@ -61,7 +61,7 @@ Future<void> _run(List<String> arguments) async {
         logger.verbose('Exited with code: $exitCode');
         kill.force();
       } catch (e, stack) {
-        logger.error('$e', 'Crash!', stack);
+        logger.error('Crash!', e, stack);
         kill.force();
         exitCode = 1;
       }
