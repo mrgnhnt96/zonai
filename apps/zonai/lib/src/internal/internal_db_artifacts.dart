@@ -122,11 +122,6 @@ abstract final class InternalDbArtifacts {
   ];
 
   static const crons = <({String importPath, String alias})>[
-    (
-      importPath:
-          'package:zonai/src/internal/crons/log_cron.dart',
-      alias: 'zonai_internal_log_cron',
-    ),
   ];
 
   /// Framework-managed tables (import path, top-level getter, table).
