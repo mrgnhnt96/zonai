@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
 import 'package:zonai_schema/src/handlers/messages/stdin.dart';
 import 'package:zonai_schema/src/handlers/messages/stdout.dart';
 import 'package:zonai_schema/zonai_schema.dart';
@@ -19,14 +20,19 @@ part 'deps/__notify.dart';
 part 'request.dart';
 part 'response.dart';
 
-class MessageHandler {
-  MessageHandler({required this.onMessage, Stdin? stdin, Stdout? stdout})
-    : stdin = Stdin(),
-      stdout = Stdout();
+class MessageHandler<R extends Request> {
+  MessageHandler({
+    required this.onMessage,
+    required this.fromUnknownRequest,
+    Stdin? stdin,
+    Stdout? stdout,
+  }) : stdin = Stdin(),
+       stdout = Stdout();
 
-  final Future<Response?> Function(UnknownRequest) onMessage;
+  final Future<Response?> Function(R) onMessage;
   final Stdin stdin;
   final Stdout stdout;
+  final R Function(UnknownRequest) fromUnknownRequest;
 
   final Map<String, Completer<Response>> _pendingHostReplies = {};
 
@@ -104,87 +110,13 @@ class MessageHandler {
             continue;
           case RequestKill():
             break queue;
+
+          case final R request:
+            _handleResponse(request);
+
           case final UnknownRequest request:
-            runMergedScoped(
-              () async {
-                onMessage(request).then(
-                  reply,
-                  onError: (Object error, StackTrace stackTrace) {
-                    logger.debug(
-                      'Error handling request',
-                      properties: {'request': request.toJson(), 'error': e.toString()},
-                    );
-                    reply(
-                      MessageErrorResponse(
-                        id: request.id,
-                        message: 'Error handling request',
-                        error: error.toString(),
-                        stackTrace: stackTrace.toString(),
-                      ),
-                    );
-                  },
-                );
-              },
-              includeIfAbsent: {
-                _msgProvider.overrideWith(() => _Msg(reply, sendRequest)),
-                _emailProvider.overrideWith(
-                  () => _Email(
-                    (email) {
-                      sendRequest(SendEmailRequest(email, jwt: request.jwt));
-                    },
-                    (builtIn, to, tableName, variables) {
-                      sendRequest(
-                        SendBuiltInEmailRequest(
-                          builtIn,
-                          to: to,
-                          variables: variables,
-                          table: tableName,
-                          jwt: request.jwt,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                _mutateProvider.overrideWith(
-                  () => _Mutate(
-                    update: ({required tableName, required updates, required where, limit}) async {
-                      await sendRequest(
-                        UpdateRecordRequest(
-                          table: tableName,
-                          updates: updates,
-                          where: where,
-                          jwt: request.jwt,
-                          parent: request,
-                        ),
-                        expectResponse: false,
-                      );
-                    },
-                    delete: ({required tableName, required updates, required where, limit}) async {
-                      await sendRequest(
-                        DeleteRecordRequest(
-                          table: tableName,
-                          where: where,
-                          parent: request,
-                          jwt: request.jwt,
-                        ),
-                        expectResponse: false,
-                      );
-                    },
-                    create: ({required tableName, required objects}) async {
-                      await sendRequest(
-                        CreateRecordRequest(
-                          table: tableName,
-                          objects: objects,
-                          parent: request,
-                          jwt: request.jwt,
-                        ),
-                        expectResponse: false,
-                      );
-                    },
-                  ),
-                ),
-              },
-            );
+            _handleResponse(fromUnknownRequest(request));
+
           case _:
             reply(
               MessageErrorResponse(
@@ -253,6 +185,89 @@ class MessageHandler {
           reply(DebugResponse(message: message, level: .info));
         },
       ),
+    );
+  }
+
+  void _handleResponse(R request) {
+    runMergedScoped(
+      () async {
+        onMessage(request).then(
+          reply,
+          onError: (Object error, StackTrace stackTrace) {
+            logger.debug(
+              'Error handling request',
+              properties: {'request': request.toJson(), 'error': error.toString()},
+            );
+            reply(
+              MessageErrorResponse(
+                id: request.id,
+                message: 'Error handling request',
+                error: error.toString(),
+                stackTrace: stackTrace.toString(),
+              ),
+            );
+          },
+        );
+      },
+      includeIfAbsent: {
+        _msgProvider.overrideWith(() => _Msg(reply, sendRequest)),
+        _emailProvider.overrideWith(
+          () => _Email(
+            (email) {
+              sendRequest(SendEmailRequest(email, jwt: request.jwt));
+            },
+            (builtIn, to, tableName, variables) {
+              sendRequest(
+                SendBuiltInEmailRequest(
+                  builtIn,
+                  to: to,
+                  variables: variables,
+                  table: tableName,
+                  jwt: request.jwt,
+                ),
+              );
+            },
+          ),
+        ),
+        _mutateProvider.overrideWith(
+          () => _Mutate(
+            update: ({required tableName, required updates, required where, limit}) async {
+              await sendRequest(
+                UpdateRecordRequest(
+                  table: tableName,
+                  updates: updates,
+                  where: where,
+                  jwt: request.jwt,
+                  parent: request,
+                ),
+                expectResponse: false,
+              );
+            },
+            delete: ({required tableName, required updates, required where, limit}) async {
+              await sendRequest(
+                DeleteRecordRequest(
+                  table: tableName,
+                  where: where,
+                  parent: request,
+                  jwt: request.jwt,
+                ),
+                expectResponse: false,
+              );
+            },
+            create: ({required tableName, required objects}) async {
+              await sendRequest(
+                CreateRecordRequest(
+                  table: tableName,
+                  objects: objects,
+                  parent: request,
+                  jwt: request.jwt,
+                ),
+                expectResponse: false,
+              );
+            },
+          ),
+        ),
+      },
     );
   }
 

@@ -15,9 +15,8 @@ class DbCrons {
 
   void start() {
     MessageHandler(
-      onMessage: (UnknownRequest msg) async {
-        final request = CronRequest.fromRequest(msg);
-
+      fromUnknownRequest: CronRequest.fromRequest,
+      onMessage: (request) async {
         switch (request) {
           case StartCronsRequest():
             _startCrons();
@@ -37,7 +36,7 @@ class DbCrons {
   Future<void> _runJob(CronJob job) async {
     try {
       msg.notify(JobStarted(name: job.name));
-      await job.callback();
+      await job.run();
       msg.notify(JobCompleted(name: job.name));
     } catch (e, stack) {
       msg.notify(
@@ -54,13 +53,20 @@ class DbCrons {
     for (final job in jobs) {
       final task = cron.schedule(job.schedule, () => _runJob(job));
 
-      final lastRun = await msg.request<LastJobRunResponse>(
-        LastJobRunRequest(name: job.name),
-      );
+      if (job.runOnStartup) {
+        await _runJob(job);
 
-      if (lastRun.time case final time?) {
-        if (job.schedule.isDue(time)) {
-          await _runJob(job);
+        // if the job is not strict, then we can potentially run the job
+        // right away. There must always be a previous run to check against
+      } else if (!job.strict) {
+        final lastRun = await msg.request<LastJobRunResponse>(
+          LastJobRunRequest(name: job.name),
+        );
+
+        if (lastRun.time case final time?) {
+          if (job.schedule.isDue(time)) {
+            await _runJob(job);
+          }
         }
       }
 

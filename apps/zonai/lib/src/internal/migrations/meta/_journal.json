@@ -8,6 +8,13 @@
       "when": 1779921149808,
       "tag": "0000_internal_initial",
       "snapshotId": "f8b2931c-7e7f-43a5-bada-bd7f5db194cf"
+    },
+    {
+      "idx": 1,
+      "version": "1",
+      "when": 1779979493461,
+      "tag": "0001_internal_update",
+      "snapshotId": "a56ab78b-64a1-4dd5-a424-d8431671c42d"
     }
   ]
 }

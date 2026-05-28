@@ -76,7 +76,7 @@ class CronsTable extends Table<CronEntry> {
   }
 }
 
-final crons = table('crons', CronsTable.new, (t) {
+final crons = table('_cron_jobs', CronsTable.new, (t) {
   index('cron_name_index').on(t.name);
   index('cron_incomplete_index').on(t.name, t.completed, t.failed);
 });

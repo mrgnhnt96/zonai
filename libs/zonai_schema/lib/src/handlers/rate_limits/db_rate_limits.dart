@@ -15,26 +15,9 @@ class DbRateLimits {
   final List<RateLimits> rateLimits;
 
   void start() {
-    MessageHandler(
-      onMessage: (UnknownRequest msg) async {
-        RateLimitRequest request;
-        try {
-          request = RateLimitRequest.fromRequest(msg);
-        } catch (e, stack) {
-          logger.debug(
-            'Error handling rate limit request',
-            properties: {'request': msg.toJson(), 'error': e.toString()},
-          );
-          return MessageErrorResponse(
-            id: msg.id,
-            message: 'Error handling rate limit request',
-            error: e.toString(),
-            stackTrace: stack.toString(),
-          );
-        }
-
-        return await _resolve(request);
-      },
+    MessageHandler<RateLimitRequest>(
+      fromUnknownRequest: RateLimitRequest.fromRequest,
+      onMessage: _resolve,
     ).listen();
   }
 

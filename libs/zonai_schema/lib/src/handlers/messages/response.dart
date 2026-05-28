@@ -26,6 +26,9 @@ base class Response {
       PongResponse._path => PongResponse.fromJson(json),
       MessageErrorResponse._path => MessageErrorResponse.fromJson(json),
       GetRecordResponse._path => GetRecordResponse.fromJson(json),
+      _ when path.startsWith(CronResponse.prefix) => CronResponse.fromJson(
+        json,
+      ),
       _ => Response(path: path, id: id, payload: json),
     };
   }

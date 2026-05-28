@@ -28,23 +28,8 @@ class DbExtensions {
 
   void start() {
     MessageHandler(
-      onMessage: (UnknownRequest msg) async {
-        ExtensionRequest request;
-        try {
-          request = ExtensionRequest.fromRequest(msg);
-        } catch (e, stack) {
-          logger.debug(
-            'Error handling request',
-            properties: {'request': msg.toJson(), 'error': e.toString()},
-          );
-          return MessageErrorResponse(
-            id: msg.id,
-            message: 'Error handling extension request',
-            error: e.toString(),
-            stackTrace: stack.toString(),
-          );
-        }
-
+      fromUnknownRequest: ExtensionRequest.fromRequest,
+      onMessage: (request) async {
         switch (request) {
           case final CreateExtensionRequest request:
             await _create(request);

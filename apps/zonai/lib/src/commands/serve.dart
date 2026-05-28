@@ -15,6 +15,7 @@ import '../deps/logger.dart';
 import '../deps/migrate.dart';
 import '../deps/operations.dart';
 import '../deps/rate_limits.dart';
+import '../deps/crons.dart';
 import '../deps/revali.dart';
 import '../deps/rules.dart';
 import '../native/resqlite_native.dart';
@@ -32,6 +33,7 @@ Future<int> serve() async {
   extensions.watch();
   rules.watch();
   rateLimitsCompiler.watch();
+  cronsCompiler.watch();
   config.watch();
   operations.watch();
 
@@ -42,6 +44,7 @@ Future<int> serve() async {
       extensions.compile();
       rules.compile();
       rateLimitsCompiler.compile();
+      cronsCompiler.compile();
       config.compile();
     }
   });

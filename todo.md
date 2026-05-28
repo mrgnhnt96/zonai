@@ -11,15 +11,6 @@ when running zonai serve, its important that we dont prompt or require input. We
 - [ ] Update all zonai table id suffixes to include `-z` (for zonai)
 - [ ] Add prefix & suffix positional optional params to Id.generate
 
-- [ ] Compile all workers if `zonai.yaml` does not exist (unless in release mode)
-  - [ ] Create `zonai.yaml` with default values
-
-- [ ] When there are no admins, act as if the project hasn't been setup up and treat as a new project (provide docs)
-- [ ] When serve (`dev`)is first run, if no .zonai dir exists, treat as new project
-- [ ] When serving (`dev`) the app, use nocterm to provide a good experience
-- [ ] Create a command for `./zonai dev` that is interactive and `./zonai serve` that prints logs only
-  - [ ] should prompt for new admin (text fields). If class isn't created (can create admin class if one doesnt exist)
-
 ### UI
 
 - [ ] Add theme color support
@@ -57,6 +48,7 @@ The dashboard will be the first page on website load. It should show a quick ove
   - Delete old rate limits
 - [ ] Support user defined cron jobs
 - [ ] Have a “strict” prop to determine whether the job can only run on the schedule, or on “next available”. Some cloud providers will save resources to 0 machines (which stops the cron)
+- [ ] It would be cool to trigger the cron jobs from within extensions
 
 ## CLI
 
@@ -68,6 +60,14 @@ The dashboard will be the first page on website load. It should show a quick ove
 - [ ] Add to `.gitignore`
   - [ ] `*.stop`
   - [ ] `zonai.sqlite*`
+- [ ] Compile all workers if `zonai.yaml` does not exist (unless in release mode)
+  - [ ] Create `zonai.yaml` with default values
+
+- [ ] When there are no admins, act as if the project hasn't been setup up and treat as a new project (provide docs)
+- [ ] When serve (`dev`)is first run, if no .zonai dir exists, treat as new project
+- [ ] When serving (`dev`) the app, use nocterm to provide a good experience
+- [ ] Create a command for `./zonai dev` that is interactive and `./zonai serve` that prints logs only
+  - [ ] should prompt for new admin (text fields). If class isn't created (can create admin class if one doesnt exist)
 
 ### `create` command
 

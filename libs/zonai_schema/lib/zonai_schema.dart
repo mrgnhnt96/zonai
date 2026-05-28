@@ -27,6 +27,8 @@ export 'package:raindrop_sqlite/raindrop_sqlite.dart'
         BlobColumn,
         BlobColumnDefinition;
 
+export 'package:cron/cron.dart' show Schedule;
+
 export 'payloads.dart';
 export 'src/column_types/create_primary_key.dart';
 export 'src/column_types/created_at_column.dart';
@@ -43,6 +45,7 @@ export 'src/column_types/updated_at_column.dart';
 export 'src/config/app_config.dart';
 export 'src/config/email_config.dart';
 export 'src/config/photos_config.dart';
+export 'src/types/cron_job.dart';
 export 'src/extension.dart';
 export 'src/handlers/messages/message_handler.dart' hide Request, Response, msg;
 export 'src/internal/photos_table.dart';

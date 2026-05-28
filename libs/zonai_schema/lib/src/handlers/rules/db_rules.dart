@@ -21,23 +21,8 @@ class DbRules {
 
   void start() {
     MessageHandler(
-      onMessage: (UnknownRequest msg) async {
-        RuleRequest request;
-        try {
-          request = RuleRequest.fromRequest(msg);
-        } catch (e, stack) {
-          logger.debug(
-            'Error handling request',
-            properties: {'request': msg.toJson(), 'error': e.toString()},
-          );
-          return MessageErrorResponse(
-            id: msg.id,
-            message: 'Error handling request',
-            error: e.toString(),
-            stackTrace: stack.toString(),
-          );
-        }
-
+      fromUnknownRequest: RuleRequest.fromRequest,
+      onMessage: (request) async {
         switch (request) {
           case final TableRulesRequest request:
             return await _tableRules(request);
@@ -77,9 +62,7 @@ class DbRules {
       return;
     }
 
-    throw StateError(
-      'Row rules already registered for ${row.table.name}',
-    );
+    throw StateError('Row rules already registered for ${row.table.name}');
   }
 
   Map<String, _Rules>? _rulesByTable;
@@ -110,9 +93,7 @@ class DbRules {
     return _rulesByTable = rules;
   }
 
-  Future<TableRulesResponse> _tableRules(
-    TableRulesRequest request,
-  ) async {
+  Future<TableRulesResponse> _tableRules(TableRulesRequest request) async {
     final rules = rulesByTable[request.table];
     final tableRules = rules?.tableRules;
 
@@ -222,9 +203,7 @@ class DbRules {
           '${registered.isEmpty ? '(none)' : registered.join(', ')}.',
         );
     } else if (rowRules == null) {
-      buf.writeln(
-        'Rules exist for "$table" but there are no row-level rules.',
-      );
+      buf.writeln('Rules exist for "$table" but there are no row-level rules.');
     } else {
       buf
         ..writeln(

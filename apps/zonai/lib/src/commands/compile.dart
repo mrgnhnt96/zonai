@@ -10,6 +10,7 @@ Future<int> compile([BuildSettings? settings]) async {
     extensions.compile(buildSettings: settings),
     rules.compile(buildSettings: settings),
     rateLimitsCompiler.compile(buildSettings: settings),
+    cronsCompiler.compile(buildSettings: settings),
     config.compile(buildSettings: settings),
   ]);
 

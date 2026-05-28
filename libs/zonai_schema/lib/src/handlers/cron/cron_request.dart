@@ -74,4 +74,9 @@ final class LastJobRunRequest extends CronRequest {
   static const _path = '${CronRequest.prefix}.last_job_run';
 
   final String name;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'name': name};
+  }
 }

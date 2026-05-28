@@ -10,23 +10,8 @@ class DbConfig {
 
   void start() {
     MessageHandler(
-      onMessage: (UnknownRequest msg) async {
-        ConfigRequest request;
-        try {
-          request = ConfigRequest.fromRequest(msg);
-        } catch (e, stack) {
-          logger.debug(
-            'Error handling request',
-            properties: {'request': msg.toJson(), 'error': e.toString()},
-          );
-          return MessageErrorResponse(
-            id: msg.id,
-            message: 'Error handling request',
-            error: e.toString(),
-            stackTrace: stack.toString(),
-          );
-        }
-
+      fromUnknownRequest: ConfigRequest.fromRequest,
+      onMessage: (request) async {
         switch (request) {
           case final GetAppConfigRequest request:
             return await _getConfig(request);

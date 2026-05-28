@@ -3,7 +3,7 @@ import '../messages/message_handler.dart';
 sealed class ConfigRequest extends Request {
   const ConfigRequest({required super.path, required super.id});
 
-  factory ConfigRequest.fromRequest(UnknownRequest request) {
+  factory ConfigRequest.fromRequest(Request request) {
     switch (request.path) {
       case GetAppConfigRequest._path:
         return GetAppConfigRequest.fromRequest(request);
@@ -18,7 +18,7 @@ final class GetAppConfigRequest extends ConfigRequest {
 
   GetAppConfigRequest._({required super.id}) : super(path: _path);
 
-  factory GetAppConfigRequest.fromRequest(UnknownRequest request) {
+  factory GetAppConfigRequest.fromRequest(Request request) {
     return GetAppConfigRequest._(id: request.id);
   }
 

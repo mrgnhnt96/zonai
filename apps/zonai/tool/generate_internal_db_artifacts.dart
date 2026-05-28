@@ -23,9 +23,9 @@ const _generatedHeader = '''
 // Built-in operations and rules for framework-managed SQLite tables.
 //
 // These are merged into generated `db_operations` / `db_rules` /
-// `db_rate_limit` / `db_extensions` executables; app authors do not add files
+// `db_rate_limit` / `db_extensions` / `db_crons` executables; app authors do not add files
 // for them under `lib/src/operations`, `lib/src/rules`, `lib/src/rate_limit`,
-// or `lib/src/extensions`.
+// `lib/src/extensions`, or `lib/src/crons`.
 //
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 ''';
@@ -93,6 +93,11 @@ Future<void> main(List<String> args) async {
     suffix: '_extension.dart',
     importPrefix: 'package:zonai/src/internal/extensions/',
   );
+  final crons = _discoverEntries(
+    Directory('${libRoot.path}/crons'),
+    suffix: '_cron.dart',
+    importPrefix: 'package:zonai/src/internal/crons/',
+  );
   final tables = _discoverTables(libRoot);
 
   final output = _formatArtifactsDart(
@@ -100,13 +105,16 @@ Future<void> main(List<String> args) async {
     rules: rules,
     rateLimits: rateLimits,
     extensions: extensions,
+    crons: crons,
     tables: tables,
   );
   final outFile = File('${libRoot.path}/internal_db_artifacts.dart');
 
   if (checkOnly) {
     final migrationsDart = File('${packageRoot.path}/$_migrationsDartPath');
-    final existingArtifacts = outFile.existsSync() ? outFile.readAsStringSync() : '';
+    final existingArtifacts = outFile.existsSync()
+        ? outFile.readAsStringSync()
+        : '';
     final existingMigrations = migrationsDart.existsSync()
         ? migrationsDart.readAsStringSync()
         : '';
@@ -114,7 +122,8 @@ Future<void> main(List<String> args) async {
       _loadMigrationEntries(packageRoot),
     );
 
-    if (existingArtifacts != output || existingMigrations != expectedMigrations) {
+    if (existingArtifacts != output ||
+        existingMigrations != expectedMigrations) {
       stderr.writeln(
         'Generated internal DB files are out of date. Run: '
         'dart run tool/generate_internal_db_artifacts.dart',
@@ -136,6 +145,7 @@ Future<void> main(List<String> args) async {
   stdout.writeln(
     '  ${operations.length} operations, ${rules.length} rules, '
     '${rateLimits.length} rate limits, ${extensions.length} extensions, '
+    '${crons.length} crons, '
     '${tables.length} tables',
   );
   stdout.writeln('tables:');
@@ -157,6 +167,10 @@ Future<void> main(List<String> args) async {
   stdout.writeln('extensions:');
   for (final e in extensions) {
     stdout.writeln('  - ${e.alias}');
+  }
+  stdout.writeln('crons:');
+  for (final c in crons) {
+    stdout.writeln('  - ${c.alias}');
   }
 
   if (generateMigration || syncMigrationsDart) {
@@ -203,7 +217,10 @@ void _postProcessMigrationSqlFiles(Directory packageRoot) {
 
 String _ensureCreateIfNotExists(String sql) {
   return sql
-      .replaceAll('CREATE UNIQUE INDEX "', 'CREATE UNIQUE INDEX IF NOT EXISTS "')
+      .replaceAll(
+        'CREATE UNIQUE INDEX "',
+        'CREATE UNIQUE INDEX IF NOT EXISTS "',
+      )
       .replaceAll('CREATE INDEX "', 'CREATE INDEX IF NOT EXISTS "')
       .replaceAll('CREATE TABLE "', 'CREATE TABLE IF NOT EXISTS "');
 }
@@ -216,7 +233,8 @@ List<({String tag, String sql})> _loadMigrationEntries(Directory packageRoot) {
     return const [];
   }
 
-  final journal = jsonDecode(journalFile.readAsStringSync()) as Map<String, dynamic>;
+  final journal =
+      jsonDecode(journalFile.readAsStringSync()) as Map<String, dynamic>;
   final entries = journal['entries'] as List<dynamic>? ?? const [];
   final migrations = <({String tag, String sql})>[];
 
@@ -246,7 +264,9 @@ String _formatMigrationsDart(List<({String tag, String sql})> migrations) {
     ..writeln()
     ..writeln("import 'package:raindrop/raindrop.dart';")
     ..writeln()
-    ..writeln('/// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).')
+    ..writeln(
+      '/// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).',
+    )
     ..writeln('final internalDbMigrations = [');
 
   for (final migration in migrations) {
@@ -337,8 +357,8 @@ String _formatArtifactsDart({
   required List<({String importPath, String alias})> rules,
   required List<({String importPath, String alias})> rateLimits,
   required List<({String importPath, String alias})> extensions,
-  required List<({String importPath, String getter, String tableName})>
-  tables,
+  required List<({String importPath, String alias})> crons,
+  required List<({String importPath, String getter, String tableName})> tables,
 }) {
   final buffer = StringBuffer()..writeln('$_generatedHeader');
   buffer.writeln();
@@ -397,6 +417,18 @@ String _formatArtifactsDart({
   buffer.writeln('  ];');
   buffer.writeln();
   buffer.writeln(
+    '  static const crons = <({String importPath, String alias})>[',
+  );
+  for (final e in crons) {
+    buffer.writeln('    (');
+    buffer.writeln('      importPath:');
+    buffer.writeln("          '${e.importPath}',");
+    buffer.writeln("      alias: '${e.alias}',");
+    buffer.writeln('    ),');
+  }
+  buffer.writeln('  ];');
+  buffer.writeln();
+  buffer.writeln(
     '  /// Framework-managed tables (import path, top-level getter, table).',
   );
   buffer.writeln(
@@ -412,7 +444,9 @@ String _formatArtifactsDart({
   }
   buffer.writeln('  ];');
   buffer.writeln();
-  buffer.writeln('  /// Table schemas ensured on database open (migrations apply changes).');
+  buffer.writeln(
+    '  /// Table schemas ensured on database open (migrations apply changes).',
+  );
   buffer.writeln('  static final schemas = <Schema<Object?>>[');
   for (final c in tables) {
     buffer.writeln('    _schema_${c.getter}.${c.getter},');

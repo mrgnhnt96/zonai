@@ -19,7 +19,12 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
   static const debug = 'CRON';
 
   void start() {
-    send(StartCronsRequest());
+    send(StartCronsRequest()).then(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        logger.error('Failed to start cron worker', error, stackTrace);
+      },
+    );
   }
 
   void stop() {

@@ -70,5 +70,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS "log_id_unique" ON "_log" ("id");
 CREATE INDEX IF NOT EXISTS "log_level_timestamp_index" ON "_log" ("level", "timestamp");
 
 CREATE UNIQUE INDEX IF NOT EXISTS "rate_limit_bucket_unique" ON "_rate_limit" ("client_ip", "table", "operation");'''),
+  const Migration('0001_internal_update', '''
+CREATE TABLE IF NOT EXISTS "_cron_jobs" (
+  "completed" INTEGER,
+  "error" TEXT,
+  "failed" INTEGER,
+  "id" TEXT PRIMARY KEY,
+  "name" TEXT NOT NULL,
+  "stack_trace" TEXT,
+  "started" INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS "cron_incomplete_index" ON "_cron_jobs" ("name", "completed", "failed");
+
+CREATE INDEX IF NOT EXISTS "cron_name_index" ON "_cron_jobs" ("name");'''),
 ];
 
