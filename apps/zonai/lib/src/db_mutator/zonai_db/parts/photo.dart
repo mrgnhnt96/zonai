@@ -174,23 +174,43 @@ extension _PhotoX on ZonaiDb {
     final photo = rows.first;
 
     await _requireRowAccess(table.name, .update, table.mapOut(photo), jwt);
-    final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
-    if (!file.existsSync()) {
+
+    final config = await configResolver.resolve();
+    final photosConfig = config.photos;
+
+    final (detected, imageStream) = await PhotoStreamUtils.detectMimeType(
+      image,
+    );
+    if (detected == null) {
+      throw StateError('Could not detect image type from stream');
+    }
+    final imageType = detected;
+
+    if (photosConfig.allowedMimeTypes case final allowed?) {
+      if (!allowed.contains(imageType)) {
+        throw StateError('Content type not allowed: ${imageType.mimeType}');
+      }
+    }
+
+    final oldFile = fs.file(fs.path.join(settings.imagesPath, photo.path));
+    if (!oldFile.existsSync()) {
       throw StateError('Photo file not found');
     }
 
-    final config = await configResolver.resolve();
-    final imageType = ImageMimeType.fromFileExtension(photo.extension);
-    if (imageType == null) {
-      throw StateError('Unsupported photo extension: ${photo.extension}');
+    final newRelativePath = fs.path.normalize(
+      fs.path.join(photo.table, '${photo.id.value}.${imageType.fileExtension}'),
+    );
+    final newFile = fs.file(fs.path.join(settings.imagesPath, newRelativePath));
+    final extensionChanged = imageType.fileExtension != photo.extension;
+
+    if (extensionChanged && newFile.existsSync()) {
+      throw StateError('Photo file already exists');
     }
 
-    final imageStream = await PhotoStreamUtils.verifyExpectedType(
-      image,
-      imageType,
-    );
+    final targetFile = extensionChanged ? newFile : oldFile;
+    final tempFile = fs.file('${targetFile.path}.tmp');
 
-    final tempFile = fs.file('${file.path}.tmp');
+    PhotoEntry? updatedRow;
 
     try {
       await _extensions.send<NoActionExtensionResponse>(
@@ -208,24 +228,46 @@ extension _PhotoX on ZonaiDb {
       await tempFile.openWrite().addStream(
         PhotoStreamUtils.limitedPhotoImageStream(
           image: imageStream,
-          maxBytes: config.photos.maxBytes,
+          maxBytes: photosConfig.maxBytes,
         ),
       );
 
-      if (file.existsSync()) {
-        await file.delete();
+      if (extensionChanged) {
+        await tempFile.rename(newFile.path);
+        if (oldFile.existsSync()) {
+          await oldFile.delete();
+        }
+
+        final [result] = await db
+            .update(photos)
+            .set(
+              photos.path.to(newRelativePath),
+              photos.extension.to(imageType.fileExtension),
+            )
+            .where(photos.id.equals(photo.id))
+            .returning();
+        updatedRow = result;
+      } else {
+        if (oldFile.existsSync()) {
+          await oldFile.delete();
+        }
+        await tempFile.rename(oldFile.path);
       }
-      await tempFile.rename(file.path);
+
+      final afterPhoto = updatedRow ?? photo;
 
       await _postUpdate(
         table.name,
         jwt,
         before: [table.mapOut(photo)],
-        after: [table.mapOut(photo)],
+        after: [table.mapOut(afterPhoto)],
       );
     } catch (e) {
       if (tempFile.existsSync()) {
         await tempFile.delete();
+      }
+      if (extensionChanged && newFile.existsSync() && updatedRow == null) {
+        await newFile.delete();
       }
 
       await _extensions.send<NoActionExtensionResponse>(
