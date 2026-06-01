@@ -189,26 +189,35 @@ class MessageHandler<R extends Request> {
   }
 
   void _handleResponse(R request) {
-    runMergedScoped(
-      () async {
-        onMessage(request).then(
-          reply,
-          onError: (Object error, StackTrace stackTrace) {
-            logger.debug(
-              'Error handling request',
-              properties: {'request': request.toJson(), 'error': error.toString()},
-            );
-            reply(
-              MessageErrorResponse(
-                id: request.id,
-                message: 'Error handling request',
-                error: error.toString(),
-                stackTrace: stackTrace.toString(),
-              ),
-            );
-          },
-        );
-      },
+    runWithParent(request, () async {
+      onMessage(request).then(
+        reply,
+        onError: (Object error, StackTrace stackTrace) {
+          logger.debug(
+            'Error handling request',
+            properties: {'request': request.toJson(), 'error': error.toString()},
+          );
+          reply(
+            MessageErrorResponse(
+              id: request.id,
+              message: 'Error handling request',
+              error: error.toString(),
+              stackTrace: stackTrace.toString(),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  /// Runs [body] with worker [get], [mutate], and [email] scoped to [parent].
+  ///
+  /// Side-effect [MutationRequest]s emitted during [body] use [parent.id] as
+  /// their parent id so the host can commit them when the matching notification
+  /// response arrives.
+  Future<void> runWithParent(covariant Request request, Future<void> Function() body) {
+    return runMergedScoped(
+      body,
       includeIfAbsent: {
         _msgProvider.overrideWith(() => _Msg(reply, sendRequest)),
         _emailProvider.overrideWith(

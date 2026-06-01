@@ -34,7 +34,6 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
-import 'package:zonai_schema/src/types/cron_jwt.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger, photos, Table;
 
 import '../operation_result.dart';
@@ -55,6 +54,7 @@ part 'parts/auth/verify_email.dart';
 part 'parts/count.dart';
 part 'parts/create.dart';
 part 'parts/delete.dart';
+part 'parts/effects.dart';
 part 'parts/expand.dart';
 part 'parts/list.dart';
 part 'parts/photo.dart';

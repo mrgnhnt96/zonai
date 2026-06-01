@@ -11,6 +11,7 @@ sealed class CronRequest extends Request {
       StartCronsRequest._path => StartCronsRequest.fromJson(json),
       StopCronsRequest._path => StopCronsRequest.fromJson(json),
       LastJobRunRequest._path => LastJobRunRequest.fromJson(json),
+      RunCronJobRequest._path => RunCronJobRequest.fromJson(json),
       _ => throw ArgumentError('Invalid cron request path: ${json['path']}'),
     };
   }
@@ -20,6 +21,7 @@ sealed class CronRequest extends Request {
       StartCronsRequest._path => StartCronsRequest.fromRequest(request),
       StopCronsRequest._path => StopCronsRequest.fromRequest(request),
       LastJobRunRequest._path => LastJobRunRequest.fromRequest(request),
+      RunCronJobRequest._path => RunCronJobRequest.fromRequest(request),
       _ => throw ArgumentError('Invalid cron request path: ${request.path}'),
     };
   }
@@ -73,6 +75,33 @@ final class LastJobRunRequest extends CronRequest {
   }
 
   static const _path = '${CronRequest.prefix}.last_job_run';
+
+  final String name;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'name': name};
+  }
+}
+
+final class RunCronJobRequest extends CronRequest {
+  RunCronJobRequest({required this.name})
+    : super(path: _path, id: Request.generateId());
+  RunCronJobRequest._({required super.id, required this.name})
+    : super(path: _path);
+
+  factory RunCronJobRequest.fromJson(Map<String, dynamic> json) {
+    return RunCronJobRequest._(id: json['id'], name: json['name'] as String);
+  }
+
+  factory RunCronJobRequest.fromRequest(UnknownRequest request) {
+    return RunCronJobRequest._(
+      id: request.id,
+      name: request.payload['name'] as String,
+    );
+  }
+
+  static const _path = '${CronRequest.prefix}.run_job';
 
   final String name;
 

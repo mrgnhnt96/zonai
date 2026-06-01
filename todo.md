@@ -1,5 +1,14 @@
 # TODO
 
+## 6.1.26
+
+- [ ] Watch ENV file to re-compile executions
+- [x] Double check that we are retrieving the IP correctly, pocket base gets the right, or left most IP, which we aren’t handling
+- [ ] When saving a photo to an object we need to verify that it exists
+
+- [x] Need to make sure that the effects are being committed (transactions) after the cron job
+- [ ] Add abuse tracking and add temporary IP block to IP white/black list table
+
 ## Future
 
 - [ ] When we have more credits, we need to verify the release process, everything passes except for windows atm
@@ -23,6 +32,7 @@ when running zonai serve, its important that we dont prompt or require input. We
   - [ ] Add search history
 - [ ] Sort by column
 - [ ] Send test email
+- [ ] Run cron job manually
 
 #### Dashboard
 

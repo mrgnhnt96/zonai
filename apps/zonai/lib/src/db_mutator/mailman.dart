@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/deps/courier.dart';
 import 'package:zonai/src/messengers/config_mailman.dart';
 import 'package:zonai/src/messengers/cron_mailman.dart';
@@ -283,6 +284,13 @@ class Mailman<S extends Request, R extends Response> {
         :final onUnexpectedDelivery,
       ) when response is R) {
         _deliverUnexpected(onUnexpectedDelivery, response);
+
+        if (mutations.isNotEmpty) {
+          zonaiDB.commitEffects(mutations).catchError((error, stack) {
+            logger.error('Failed to commit effects', error, stack);
+          });
+        }
+
         return;
       }
 

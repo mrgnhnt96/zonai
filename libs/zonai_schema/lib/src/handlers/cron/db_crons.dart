@@ -6,18 +6,14 @@ import 'package:zonai_schema/src/types/cron_job.dart';
 import 'package:zonai_schema/src/utils/cron_extension.dart';
 
 class DbCrons {
-  DbCrons({required this.jobs, Cron? cron}) : cron = cron ?? Cron();
-
-  final Cron cron;
-  final List<CronJob> jobs;
-
-  List<ScheduledTask> tasks = [];
-
-  void start() {
-    MessageHandler(
+  DbCrons({required this.jobs, Cron? cron}) : cron = cron ?? Cron() {
+    handler = MessageHandler(
       fromUnknownRequest: CronRequest.fromRequest,
       onMessage: (request) async {
         switch (request) {
+          case RunCronJobRequest():
+            await _manuallyRunJob(request);
+            return null;
           case StartCronsRequest():
             _startCrons();
             return CronsStarted(id: request.id);
@@ -30,17 +26,41 @@ class DbCrons {
             );
         }
       },
-    ).listen();
+    );
   }
 
-  Future<void> _runJob(CronJob job) async {
+  final Cron cron;
+  final List<CronJob> jobs;
+  late final MessageHandler<CronRequest> handler;
+
+  List<ScheduledTask> tasks = [];
+
+  void start() {
+    handler.listen();
+  }
+
+  Future<void> _manuallyRunJob(RunCronJobRequest request) async {
+    for (final job in jobs) {
+      if (job.name == request.name) {
+        await _runJob(job, request);
+        return;
+      }
+    }
+
+    throw Exception('Job not found: ${request.name}');
+  }
+
+  Future<void> _runJob(CronJob job, [RunCronJobRequest? r]) async {
+    final request = r ?? RunCronJobRequest(name: job.name);
+
     try {
-      msg.notify(JobStarted(name: job.name));
-      await job.run();
-      msg.notify(JobCompleted(name: job.name));
+      msg.notify(JobStarted(id: request.id, name: job.name));
+      await handler.runWithParent(request, job.run);
+      msg.notify(JobCompleted(id: request.id, name: job.name));
     } catch (e, stack) {
       msg.notify(
         JobFailed(
+          id: request.id,
           name: job.name,
           error: e.toString(),
           stackTrace: stack.toString(),

@@ -34,13 +34,17 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
   @override
   Future<CronResponse> onRequest(CronRequest request) async {
     switch (request) {
+      case RunCronJobRequest():
+        throw Exception(
+          '$RunCronJobRequest should not be called to main thread',
+        );
       case StartCronsRequest():
         throw Exception(
-          '$StartCronsRequest should not be called from main thread',
+          '$StartCronsRequest should not be called to main thread',
         );
       case StopCronsRequest():
         throw Exception(
-          '$StopCronsRequest should not be called from main thread',
+          '$StopCronsRequest should not be called to main thread',
         );
 
       case final LastJobRunRequest request:

@@ -44,12 +44,11 @@ final class CronsStarted extends CronResponse {
 }
 
 final class JobStarted extends CronResponse {
-  JobStarted({required this.name}) : super(path: _path, id: '', payload: {});
-  JobStarted._({required super.id, required this.name})
-    : super(path: _path, payload: {'name': name});
+  JobStarted({required super.id, required this.name})
+    : super(path: _path, payload: {});
 
   factory JobStarted.fromJson(Map<String, dynamic> json) {
-    return JobStarted._(id: json['id'], name: json['name'] as String);
+    return JobStarted(id: json['id'], name: json['name'] as String);
   }
 
   static const _path = '${CronResponse.prefix}.job.started';
@@ -63,13 +62,11 @@ final class JobStarted extends CronResponse {
 }
 
 final class JobCompleted extends CronResponse {
-  const JobCompleted({required this.name})
-    : super(path: _path, id: '', payload: const {});
-  JobCompleted._({required super.id, required this.name})
-    : super(path: _path, payload: {'name': name});
+  const JobCompleted({required super.id, required this.name})
+    : super(path: _path, payload: const {});
 
   factory JobCompleted.fromJson(Map<String, dynamic> json) {
-    return JobCompleted._(id: json['id'], name: json['name'] as String);
+    return JobCompleted(id: json['id'], name: json['name'] as String);
   }
 
   static const _path = '${CronResponse.prefix}.job.completed';
@@ -83,17 +80,15 @@ final class JobCompleted extends CronResponse {
 }
 
 final class JobFailed extends CronResponse {
-  JobFailed({required this.name, required this.error, required this.stackTrace})
-    : super(path: _path, id: '', payload: {});
-  JobFailed._({
+  JobFailed({
     required super.id,
     required this.name,
     required this.error,
     required this.stackTrace,
-  }) : super(path: _path, payload: {'name': name, 'error': error});
+  }) : super(path: _path, payload: {});
 
   factory JobFailed.fromJson(Map<String, dynamic> json) {
-    return JobFailed._(
+    return JobFailed(
       id: json['id'],
       name: json['name'] as String,
       error: json['error'] as String,
