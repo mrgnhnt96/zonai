@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
+import 'package:zonai/gen/version.dart';
 
 const _generatedHeader = '''
 // GENERATED CODE - DO NOT MODIFY BY HAND
@@ -50,7 +51,7 @@ Future<void> main(List<String> args) async {
   final checkOnly = args.contains('--check');
   final syncMigrationsDart = args.contains('--sync-migrations-dart');
   final generateMigration = args.contains('--migrate');
-  final migrationName = _readOption(args, '--name') ?? 'internal_update';
+  final migrationName = _readOption(args, '--name') ?? '__zonai_v${kVersion}__';
 
   final packageRoot = Directory.current;
   final libRoot = Directory('${packageRoot.path}/lib/src/internal');
