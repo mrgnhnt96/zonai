@@ -141,6 +141,8 @@ class Versions {
       Platform.executable,
       response.bodyBytes,
     );
+
+    settings.version = targetVersion;
   }
 
   String _parseVersion(Map<String, dynamic> release) {

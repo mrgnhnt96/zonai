@@ -31,11 +31,9 @@ extension UtilsX on ZonaiDb {
       prefix: _prefix,
     );
     await InternalDbMigrate.apply(db);
-
     await _createInternalCollections(db);
 
     logger.verbose('Retrieving migrations', prefix: _prefix);
-
     if (await migrate.migrations() case final migrations
         when migrations.isNotEmpty) {
       logger.verbose('Found ${migrations.length} migrations', prefix: _prefix);

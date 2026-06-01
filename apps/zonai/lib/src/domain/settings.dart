@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:yaml/yaml.dart';
+import 'package:yaml_edit/yaml_edit.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai/src/domain/arch.dart';
 import 'package:zonai/src/domain/target_os.dart';
@@ -201,6 +202,19 @@ class Settings {
 
   String get zonaiSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai.sqlite'));
+
+  set version(String value) {
+    final file = fs.file(path);
+    if (!file.existsSync()) {
+      return;
+    }
+
+    final yaml = YamlEditor(file.readAsStringSync());
+
+    yaml.update(['version'], value);
+
+    file.writeAsStringSync(yaml.toString());
+  }
 }
 
 class BuildSettings {
