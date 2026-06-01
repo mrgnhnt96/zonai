@@ -1,32 +1,36 @@
 import 'dart:convert';
 
 import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/src/internal/photos_table.dart';
+import 'package:zonai_schema/src/internal/tables.dart' as tables;
 
 extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
-  T photos<T extends PhotosColumn?, W extends List<String>?>(
+  T photos<T extends PhotosColumn?, W extends List<PhotoId>?>(
     String name,
     Field<S, W> field,
   ) {
-    return custom<PhotosColumn, List<String>, String, W>(
+    return custom<PhotosColumn, List<PhotoId>, String, W>(
           PhotosColumn.new,
           name,
           field,
           sqlType: 'TEXT',
           transformer: const PhotosTransformer(),
-        )
+        ).references(() => tables.photos.id)
         as T;
   }
 }
 
-extension type PhotosColumn(List<String> _)
-    implements ColumnType<List<String>>, List<String> {}
+extension type PhotosColumn(List<PhotoId> _)
+    implements ColumnType<List<PhotoId>>, List<PhotoId> {}
 
-class PhotosTransformer extends ColumnTransformer<List<String>, String> {
+class PhotosTransformer extends ColumnTransformer<List<PhotoId>, String> {
   const PhotosTransformer();
 
   @override
-  String encode(List<String> input) => jsonEncode(input);
+  String encode(List<PhotoId> input) =>
+      jsonEncode(input.map((e) => e.value).toList());
 
   @override
-  List<String> decode(String input) => jsonDecode(input);
+  List<PhotoId> decode(String input) =>
+      jsonDecode(input).map((e) => PhotoId(e)).toList();
 }

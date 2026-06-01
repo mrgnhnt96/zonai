@@ -1,29 +1,31 @@
 import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/src/internal/photos_table.dart';
+import 'package:zonai_schema/src/internal/tables.dart';
 
 extension PhotoColumnDefinition<S> on SchemaBuilder<S> {
-  T photo<T extends PhotoColumn?, W extends String?>(
+  T photo<T extends PhotoColumn?, W extends PhotoId?>(
     String name,
     Field<S, W> field,
   ) {
-    return custom<PhotoColumn, String, String, W>(
+    return custom<PhotoColumn, PhotoId, String, W>(
           PhotoColumn.new,
           name,
           field,
           sqlType: 'TEXT',
           transformer: const PhotoTransformer(),
-        )
+        ).references(() => photos.id)
         as T;
   }
 }
 
-extension type PhotoColumn(String _) implements ColumnType<String>, String {}
+extension type PhotoColumn(PhotoId _) implements ColumnType<PhotoId>, PhotoId {}
 
-class PhotoTransformer extends ColumnTransformer<String, String> {
+class PhotoTransformer extends ColumnTransformer<PhotoId, String> {
   const PhotoTransformer();
 
   @override
-  String encode(String input) => input;
+  String encode(PhotoId input) => input.value;
 
   @override
-  String decode(String input) => input;
+  PhotoId decode(String input) => PhotoId(input);
 }

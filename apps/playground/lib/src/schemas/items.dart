@@ -17,7 +17,7 @@ class Item {
   final ItemsId id;
   final String body;
   final String? description;
-  final String? image;
+  final PhotoId? image;
   final int? status;
 
   final DateTime createdAt;

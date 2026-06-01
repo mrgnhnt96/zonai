@@ -31,8 +31,19 @@ class PhotoEntry {
 }
 
 class PhotoId implements Id {
-  PhotoId(this.value);
-  static PhotoId generate() => PhotoId(Id.generate('ph'));
+  PhotoId(this.value) {
+    if (!value.endsWith(_suffix)) {
+      throw ArgumentError.value(value, 'value', 'Value must end with $_suffix');
+    }
+  }
+
+  factory PhotoId.fromJson(String value) => PhotoId(value);
+
+  static PhotoId generate() => PhotoId(Id.generate(_suffix));
+
+  static const _suffix = 'ph';
+
+  String toJson() => value;
 
   @override
   final String value;
