@@ -100,6 +100,12 @@ Future<void> main(List<String> args) async {
   );
   final tables = _discoverTables(libRoot);
 
+  _validateTableArtifacts(
+    tables: tables,
+    operationsDir: Directory('${libRoot.path}/operations'),
+    rulesDir: Directory('${libRoot.path}/rules'),
+  );
+
   final output = _formatArtifactsDart(
     operations: operations,
     rules: rules,
@@ -350,6 +356,89 @@ List<({String importPath, String getter, String tableName})> _discoverTables(
 
   tables.sort((a, b) => a.tableName.compareTo(b.tableName));
   return tables;
+}
+
+void _validateTableArtifacts({
+  required List<({String importPath, String getter, String tableName})> tables,
+  required Directory operationsDir,
+  required Directory rulesDir,
+}) {
+  final errors = <String>[];
+
+  for (final table in tables) {
+    if (!_artifactImportsTable(
+      operationsDir,
+      tableImport: table.importPath,
+      suffix: '_operations.dart',
+    )) {
+      errors.add(
+        'Missing operations for "${table.tableName}" '
+        '(expected lib/src/internal/operations/*_operations.dart '
+        'importing ${table.importPath})',
+      );
+    }
+
+    if (!_artifactImportsTable(
+      rulesDir,
+      tableImport: table.importPath,
+      suffix: '_row_rules.dart',
+    )) {
+      errors.add(
+        'Missing row rules for "${table.tableName}" '
+        '(expected lib/src/internal/rules/*_row_rules.dart '
+        'importing ${table.importPath})',
+      );
+    }
+
+    if (!_artifactImportsTable(
+      rulesDir,
+      tableImport: table.importPath,
+      suffix: '_table_rules.dart',
+    )) {
+      errors.add(
+        'Missing table rules for "${table.tableName}" '
+        '(expected lib/src/internal/rules/*_table_rules.dart '
+        'importing ${table.importPath})',
+      );
+    }
+  }
+
+  if (errors.isEmpty) {
+    return;
+  }
+
+  stderr.writeln('Internal table artifact validation failed:');
+  for (final error in errors) {
+    stderr.writeln('  - $error');
+  }
+  exit(1);
+}
+
+bool _artifactImportsTable(
+  Directory dir, {
+  required String tableImport,
+  required String suffix,
+}) {
+  if (!dir.existsSync()) {
+    return false;
+  }
+
+  final importPattern = RegExp(
+    "import\\s+['\"]${RegExp.escape(tableImport)}['\"]",
+  );
+
+  for (final entity in dir.listSync().whereType<File>()) {
+    final name = entity.uri.pathSegments.last;
+    if (!name.endsWith(suffix)) {
+      continue;
+    }
+
+    if (importPattern.hasMatch(entity.readAsStringSync())) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 String _formatArtifactsDart({

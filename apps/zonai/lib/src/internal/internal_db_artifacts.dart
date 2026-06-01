@@ -27,6 +27,11 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
+          'package:zonai/src/internal/operations/cron_operations.dart',
+      alias: 'zonai_internal_cron_operations',
+    ),
+    (
+      importPath:
           'package:zonai/src/internal/operations/jwt_operations.dart',
       alias: 'zonai_internal_jwt_operations',
     ),
