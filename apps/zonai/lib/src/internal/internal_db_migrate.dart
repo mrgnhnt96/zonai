@@ -31,9 +31,7 @@ abstract final class InternalDbMigrate {
       if (!await _sqliteColumnExists(db, table, from)) {
         continue;
       }
-      await db.execute(
-        'ALTER TABLE "$table" RENAME COLUMN "$from" TO "$to"',
-      );
+      await db.execute('ALTER TABLE "$table" RENAME COLUMN "$from" TO "$to"');
     }
   }
 

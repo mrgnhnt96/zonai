@@ -54,11 +54,7 @@ final class AuthTableRulesRequest extends RuleRequest {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'authType': authType.name,
-    };
+    return {...super.toJson(), 'table': table, 'authType': authType.name};
   }
 
   @override
@@ -149,11 +145,7 @@ final class TableRulesRequest extends RuleRequest {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'operation': operation,
-    };
+    return {...super.toJson(), 'table': table, 'operation': operation};
   }
 }
 
@@ -237,6 +229,11 @@ enum TableOperation {
     .view => false,
     .list => false,
   };
+
+  @override
+  String toString() {
+    return name;
+  }
 }
 
 enum RowOperation {
@@ -255,5 +252,10 @@ enum RowOperation {
     }
 
     return null;
+  }
+
+  @override
+  String toString() {
+    return name;
   }
 }

@@ -26,6 +26,14 @@ extension UtilsX on ZonaiDb {
     logger.debug('Opening database: ${_dbFile.path}', prefix: _prefix);
     final db = this.db = Raindrop(await ResqliteDelegate.open(_dbFile.path));
 
+    logger.verbose(
+      'Applying (${InternalDbMigrate.migrations.length}) internal table migrations',
+      prefix: _prefix,
+    );
+    await InternalDbMigrate.apply(db);
+
+    await _createInternalCollections(db);
+
     logger.verbose('Retrieving migrations', prefix: _prefix);
 
     if (await migrate.migrations() case final migrations
@@ -35,11 +43,6 @@ extension UtilsX on ZonaiDb {
       logger.debug('Migrating database', prefix: _prefix);
       await raindrop.migrate(db, migrations);
     }
-
-    logger.verbose('Applying internal table migrations', prefix: _prefix);
-    await InternalDbMigrate.apply(db);
-
-    await _createInternalCollections(db);
 
     logger.verbose('Ensuring database is open', prefix: _prefix);
     await db.ensureOpen();
@@ -65,7 +68,6 @@ extension UtilsX on ZonaiDb {
       prefix: _prefix,
     );
     final tableRules = await _tableRules(table, operation, jwt);
-    logger.verbose('Table rules: $tableRules', prefix: _prefix);
 
     if (!tableRules.canAccess) {
       throw StateError(
@@ -80,11 +82,7 @@ extension UtilsX on ZonaiDb {
     Jwt? jwt,
   ) async {
     final rules = await _rules.send<TableRulesResponse?>(
-      TableRulesRequest(
-        table: table,
-        operation: operation.name,
-        jwt: jwt,
-      ),
+      TableRulesRequest(table: table, operation: operation.name, jwt: jwt),
     );
 
     return rules ??
@@ -103,12 +101,7 @@ extension UtilsX on ZonaiDb {
     Jwt? jwt,
   ) async {
     final rules = await _rules.send<RowRulesResponse?>(
-      RowRulesRequest(
-        table: table,
-        operation: operation,
-        data: data,
-        jwt: jwt,
-      ),
+      RowRulesRequest(table: table, operation: operation, data: data, jwt: jwt),
     );
 
     return rules ??
@@ -315,10 +308,7 @@ extension UtilsX on ZonaiDb {
           case _CreateSideEffect():
             final raw = operationResults[effect]?.rows.single.toMap();
             if (raw != null) {
-              final created = await _sanitizeRow(
-                effect.request.table,
-                raw,
-              );
+              final created = await _sanitizeRow(effect.request.table, raw);
               await _postCreate(
                 effect.request.table,
                 effect.request.jwt,
