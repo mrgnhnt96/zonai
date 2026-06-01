@@ -1,0 +1,1 @@
+ALTER TABLE "_auth_challenges" ADD COLUMN "allowed_attempts" INTEGER NOT NULL DEFAULT 0;

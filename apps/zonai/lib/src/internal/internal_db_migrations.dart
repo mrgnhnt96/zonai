@@ -84,5 +84,7 @@ CREATE TABLE IF NOT EXISTS "_cron_jobs" (
 CREATE INDEX IF NOT EXISTS "cron_incomplete_index" ON "_cron_jobs" ("name", "completed", "failed");
 
 CREATE INDEX IF NOT EXISTS "cron_name_index" ON "_cron_jobs" ("name");'''),
+  const Migration('0002_internal_update', '''
+ALTER TABLE "_auth_challenges" ADD COLUMN "allowed_attempts" INTEGER NOT NULL DEFAULT 0;'''),
 ];
 
