@@ -65,6 +65,16 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
+          'package:zonai/src/internal/rules/cron_row_rules.dart',
+      alias: 'zonai_internal_cron_row_rules',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/rules/cron_table_rules.dart',
+      alias: 'zonai_internal_cron_table_rules',
+    ),
+    (
+      importPath:
           'package:zonai/src/internal/rules/jwt_row_rules.dart',
       alias: 'zonai_internal_jwt_row_rules',
     ),

@@ -2,6 +2,10 @@ schema:
   (aliases): [schemas]
   gen:
     internal:
+      (command):
+        - ${{ schema.gen.internal.tables }}
+        - ${{ schema.gen.internal.migrations }}
+
       tables:
         (command): cd apps/zonai && dart run tool/generate_internal_db_artifacts.dart
         (aliases): [db]
