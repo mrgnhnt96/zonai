@@ -5,19 +5,20 @@ extension IsVerifiedColumnDefinition<S> on SchemaBuilder<S> {
     String name,
     Field<S, W> field,
   ) {
-    return custom<IsVerifiedColumn, bool, Object, W>(
+    return custom<IsVerifiedColumn, Object, Object, W>(
           IsVerifiedColumn.new,
           name,
           field,
           transformer: const IsVerifiedTransformer(),
           sqlType: 'INTEGER',
           defaultValue: '0',
+          synthetic: Object(),
         )
         as T;
   }
 }
 
-extension type IsVerifiedColumn(bool _) implements ColumnType<bool>, bool {}
+extension type IsVerifiedColumn(Object _) implements ColumnType<Object>, Object {}
 
 /// Wire type [Object] so [decode] accepts SQL integers and in-memory [bool]
 /// values (e.g. some drivers / RETURNING rows surface bound Dart values).
