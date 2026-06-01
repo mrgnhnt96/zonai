@@ -38,8 +38,6 @@ dependencies:
 dev_dependencies:
   raindrop_sqlite:
     path: ../../libs/raindrop/packages/raindrop_sqlite
-  resqlite:
-    path: ../../libs/resqlite
   test: ^1.26.0
 
 executables:
