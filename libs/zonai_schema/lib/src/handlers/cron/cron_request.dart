@@ -1,7 +1,8 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/types/cron_jwt.dart';
 
 sealed class CronRequest extends Request {
-  const CronRequest({required super.path, required super.id});
+  CronRequest({required super.path, required super.id}) : super(jwt: CronJwt());
 
   static const prefix = '${Request.prefix}.cron';
 

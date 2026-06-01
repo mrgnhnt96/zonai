@@ -49,12 +49,7 @@ extension _ListX on ZonaiDb {
     final sanitized = await _sanitizeRows(table, objects);
 
     return Paginated(
-      items: await _expandRows(
-        table,
-        sanitized,
-        payload.expand,
-        jwt,
-      ),
+      items: await _expandRows(table, sanitized, payload.expand, jwt),
       total: count,
     );
   }

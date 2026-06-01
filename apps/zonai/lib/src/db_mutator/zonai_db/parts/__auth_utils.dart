@@ -166,6 +166,15 @@ extension _AuthUtilsX on ZonaiDb {
       throw StateError('Invalid JWT');
     }
 
+    /// Do not allow cron JWT to be a user JWT.
+    if (Jwt.isCronWorkerPayload(decoded)) {
+      logger.error(
+        'Attempt to use cron JWT as a user JWT, this is absolutely not expected and should be considered a security threat'
+        'Rotate the JWT secret and deploy a new version of the application immediately',
+      );
+      throw StateError('Invalid JWT');
+    }
+
     Jwt appJwt;
 
     try {
@@ -178,6 +187,10 @@ extension _AuthUtilsX on ZonaiDb {
   }
 
   Future<Jwt> _validateJwt(Jwt jwt) async {
+    if (jwt is CronJwt) {
+      return jwt;
+    }
+
     await open();
     final db = this.db;
     if (db == null) {
@@ -261,10 +274,7 @@ extension _AuthUtilsX on ZonaiDb {
       return;
     }
 
-    final userEmail = await _emailFromJwt(
-      table: table,
-      jwt: validated,
-    );
+    final userEmail = await _emailFromJwt(table: table, jwt: validated);
     if (userEmail != null && userEmail.toLowerCase() == email.toLowerCase()) {
       return;
     }

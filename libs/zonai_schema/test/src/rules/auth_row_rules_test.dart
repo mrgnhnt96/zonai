@@ -58,7 +58,6 @@ final class _UserTable extends AuthTable<_User> with PasswordAuth {
   @override
   final PasswordColumn passwordHash;
 
-  @override
   final TextColumn name;
 }
 
