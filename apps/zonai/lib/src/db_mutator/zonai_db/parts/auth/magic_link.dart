@@ -19,10 +19,7 @@ extension _MagicLinkX on ZonaiDb {
     SendMagicLinkAuthPayload payload, {
     bool isAdmin = false,
   }) async {
-    final hasAuthRecord = await _hasAuthRecord(
-      table: table,
-      payload: payload,
-    );
+    final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
 
     if (isAdmin) {
       if (!hasAuthRecord) {
@@ -157,6 +154,7 @@ extension _MagicLinkX on ZonaiDb {
       passwordHash: challenge.secretHash,
     );
     if (!secretMatches) {
+      await _challengeFailed(challenge);
       throw StateError('Invalid or expired magic link');
     }
 
@@ -222,11 +220,7 @@ extension _MagicLinkX on ZonaiDb {
     final (newJwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
-      AuthExtensionRequest.onSignUp(
-        table: table,
-        object: user,
-        jwt: newJwt,
-      ),
+      AuthExtensionRequest.onSignUp(table: table, object: user, jwt: newJwt),
     );
 
     return (user: user, jwt: token);

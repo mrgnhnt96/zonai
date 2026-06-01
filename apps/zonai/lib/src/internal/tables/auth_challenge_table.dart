@@ -10,7 +10,8 @@ class AuthChallenge {
     required this.target,
     required this.table,
     required this.type,
-  }) : createdAt = DateTime.now(),
+    required this.allowedAttempts,
+  }) : createdAt = .now(),
        canConsume = true,
        consumedAt = null;
 
@@ -26,6 +27,7 @@ class AuthChallenge {
     required this.createdAt,
     required this.consumedAt,
     required this.canConsume,
+    required this.allowedAttempts,
   });
 
   AuthChallenge.otp({
@@ -37,6 +39,7 @@ class AuthChallenge {
     this.metadata,
   }) : userId = null,
        type = .otp,
+       allowedAttempts = 3,
        createdAt = DateTime.now(),
        canConsume = true,
        consumedAt = null;
@@ -49,6 +52,7 @@ class AuthChallenge {
     required this.table,
     this.metadata,
   }) : userId = null,
+       allowedAttempts = 1,
        type = .magicLink,
        createdAt = DateTime.now(),
        canConsume = true,
@@ -62,8 +66,9 @@ class AuthChallenge {
     required this.table,
     this.metadata,
   }) : userId = null,
+       allowedAttempts = 1,
        type = .passwordReset,
-       createdAt = DateTime.now(),
+       createdAt = .now(),
        canConsume = true,
        consumedAt = null;
 
@@ -75,8 +80,9 @@ class AuthChallenge {
     required this.table,
     this.metadata,
   }) : userId = null,
+       allowedAttempts = 1,
        type = .verifyEmail,
-       createdAt = DateTime.now(),
+       createdAt = .now(),
        canConsume = true,
        consumedAt = null;
 
@@ -91,6 +97,7 @@ class AuthChallenge {
   final DateTime createdAt;
   final DateTime? consumedAt;
   final bool canConsume;
+  final int allowedAttempts;
 }
 
 enum AuthChallengeType {
@@ -141,7 +148,8 @@ class AuthChallengeTable extends Table<AuthChallenge> {
       type = $.enumerator('type', AuthChallengeType.values, (s) => s.type),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       consumedAt = $.dateTime('consumed_at', (s) => s.consumedAt),
-      canConsume = $.boolean('can_consume', (s) => s.canConsume);
+      canConsume = $.boolean('can_consume', (s) => s.canConsume),
+      allowedAttempts = $.integer('allowed_attempts', (s) => s.allowedAttempts);
 
   final IdColumn<AuthChallengeId> id;
   final IdColumn<UnknownId>? userId;
@@ -154,6 +162,7 @@ class AuthChallengeTable extends Table<AuthChallenge> {
   final DateTimeColumn createdAt;
   final DateTimeColumn? consumedAt;
   final BooleanColumn canConsume;
+  final IntColumn allowedAttempts;
 
   @override
   AuthChallenge fromRow(RowReader read) {
@@ -169,6 +178,7 @@ class AuthChallengeTable extends Table<AuthChallenge> {
       createdAt: read(createdAt),
       consumedAt: read(consumedAt),
       canConsume: read(canConsume),
+      allowedAttempts: read(allowedAttempts),
     );
   }
 }

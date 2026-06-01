@@ -15,10 +15,7 @@ extension _OtpX on ZonaiDb {
       allowUnauthenticated: true,
     );
 
-    final hasAuthRecord = await _hasAuthRecord(
-      table: table,
-      payload: payload,
-    );
+    final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
 
     if (isAdmin) {
       if (!hasAuthRecord) {
@@ -50,11 +47,7 @@ extension _OtpX on ZonaiDb {
       }
     }
 
-    await _expireOldChallenges(
-      table: table,
-      email: payload.email,
-      type: .otp,
-    );
+    await _expireOldChallenges(table: table, email: payload.email, type: .otp);
 
     final expiresIn = const Duration(minutes: 10);
     final otp = switch (kIsCompiled) {
@@ -131,6 +124,7 @@ extension _OtpX on ZonaiDb {
       passwordHash: challenge.secretHash,
     );
     if (!codeMatches) {
+      await _challengeFailed(challenge);
       throw StateError('Invalid or expired code');
     }
 
@@ -196,11 +190,7 @@ extension _OtpX on ZonaiDb {
     final (newJwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
-      AuthExtensionRequest.onSignUp(
-        table: table,
-        object: user,
-        jwt: newJwt,
-      ),
+      AuthExtensionRequest.onSignUp(table: table, object: user, jwt: newJwt),
     );
 
     return (user: user, jwt: token);
