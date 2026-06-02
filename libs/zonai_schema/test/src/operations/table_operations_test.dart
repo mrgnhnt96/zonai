@@ -191,7 +191,7 @@ void main() {
       expect(sql, contains('UPDATE "widgets"'));
       expect(sql.toUpperCase(), contains('SET'));
       expect(sql, contains('WHERE'));
-      expect(sql, contains('"widgets"."id" = \'1\''));
+      expect(sql, contains('"widgets"."id" = 1'));
     });
 
     test('update applies increment expression for Increment value', () {

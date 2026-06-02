@@ -1,3 +1,5 @@
+import 'where_value.dart';
+
 sealed class Where {
   const Where();
 
@@ -45,7 +47,7 @@ final class Eq extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -95,7 +97,7 @@ final class Gt extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -115,7 +117,7 @@ final class Gte extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -135,7 +137,7 @@ final class Lt extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -155,7 +157,7 @@ final class Lte extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -174,7 +176,7 @@ final class In extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'values': values,
+    'values': serializeWhereValues(values),
   };
 }
 
@@ -194,7 +196,7 @@ final class NotIn extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'values': values,
+    'values': serializeWhereValues(values),
   };
 }
 
@@ -256,7 +258,7 @@ final class Contains extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -276,7 +278,7 @@ final class StartsWith extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -296,7 +298,7 @@ final class EndsWith extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }
 
@@ -316,6 +318,6 @@ final class NotContains extends Where {
   Map<String, Object?> toJson() => {
     'type': _type,
     'column': column,
-    'value': value,
+    'value': serializeWhereValue(value),
   };
 }

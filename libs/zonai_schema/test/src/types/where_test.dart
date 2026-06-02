@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/types/where.dart';
+import 'package:zonai_schema/src/types/where_sql.dart';
 
 void main() {
   void expectRoundTrip(Where where) {
@@ -33,6 +34,18 @@ void main() {
     test('In and NotIn round-trip', () {
       expectRoundTrip(In('status', <Object>['open', 'pending']));
       expectRoundTrip(NotIn('id', <Object>[1, 2, 3]));
+    });
+
+    test('DateTime serializes as epoch ms for JSON and SQL', () {
+      final at = DateTime.utc(2024, 6, 1, 12, 30);
+      final ms = at.millisecondsSinceEpoch;
+
+      expectRoundTrip(Lt('timestamp', at));
+      expect(Lt('timestamp', at).toJson()['value'], ms);
+
+      final restored = Where.fromJson(Lt('timestamp', at).toJson()) as Lt;
+      expect(restored.value, ms);
+      expect(restored.sql('_log'), contains('< $ms'));
     });
 
     test('And round-trips nested conditions', () {

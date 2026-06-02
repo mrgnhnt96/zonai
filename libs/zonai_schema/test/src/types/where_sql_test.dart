@@ -28,5 +28,24 @@ void main() {
       expect(and.conditions[1], isA<Null>());
       expect((and.conditions[1] as Null).column, 'deleted_at');
     });
+
+    test('DateTime and numeric values use unquoted SQL literals', () {
+      final at = DateTime.utc(2024, 6, 1, 12, 30);
+      final ms = at.millisecondsSinceEpoch;
+
+      expect(
+        Lt('timestamp', at).sql('_log'),
+        '"_log"."timestamp" < $ms',
+      );
+      expect(const Eq('id', 42).sql('items'), '"items"."id" = 42');
+      expect(const Eq('title', 't').sql('items'), '"items"."title" = \'t\'');
+    });
+
+    test('JSON round-trip preserves SQL for DateTime columns', () {
+      final at = DateTime.utc(2024, 6, 1, 12, 30);
+      final before = Lt('timestamp', at).sql('_log');
+      final after = Where.fromJson(Lt('timestamp', at).toJson()).sql('_log');
+      expect(after, before);
+    });
   });
 }
