@@ -17,6 +17,7 @@ part 'deps/__get.dart';
 part 'deps/__log.dart';
 part 'deps/__mutate.dart';
 part 'deps/__notify.dart';
+part 'deps/__cron.dart';
 part 'request.dart';
 part 'response.dart';
 
@@ -220,6 +221,11 @@ class MessageHandler<R extends Request> {
       body,
       includeIfAbsent: {
         _msgProvider.overrideWith(() => _Msg(reply, sendRequest)),
+        _cronProvider.overrideWith(
+          () => _Cron((name) {
+            sendRequest(RunCronJobRequest(name: name));
+          }),
+        ),
         _emailProvider.overrideWith(
           () => _Email(
             (email) {
