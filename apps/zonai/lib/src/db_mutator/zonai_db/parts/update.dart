@@ -116,6 +116,8 @@ extension _UpdateX on ZonaiDb {
 
     final sanitizedBefore = await _sanitizeRows(table, objects);
 
+    await _requirePhotoReferencesFromUpdates(table, payload.updates);
+
     await _extensions.send<NoActionExtensionResponse>(
       BeforeUpdateExtensionRequest(
         table: table,

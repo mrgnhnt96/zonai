@@ -7,7 +7,7 @@ import 'dart:math';
 import 'package:clock/clock.dart';
 import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
-import 'package:raindrop/raindrop.dart' hide migrate;
+import 'package:raindrop/raindrop.dart' hide migrate, Update;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';

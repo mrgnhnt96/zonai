@@ -1,6 +1,94 @@
 part of zonai_db;
 
 extension _ResolvePhotosX on ZonaiDb {
+  Future<List<String>> _photoColumnsFor(String table) async {
+    final response = await _operations.send<SanitizeOperationResponse>(
+      SanitizeOperationRequest(table: table, objects: const [{}]),
+    );
+
+    return response.photoColumns;
+  }
+
+  /// checks whether the table has photo columns
+  Future<void> _requireRegisteredTable(String table) async {
+    await _photoColumnsFor(table);
+  }
+
+  Future<void> _requirePhotoReferences(
+    String table,
+    Map<String, Object?> data,
+  ) async {
+    final photoColumns = await _photoColumnsFor(table);
+    if (photoColumns.isEmpty) {
+      return;
+    }
+
+    final photoIds = _collectPhotoIds(data, photoColumns);
+    await _verifyPhotoIds(table, photoIds);
+  }
+
+  Future<void> _requirePhotoReferencesFromUpdates(
+    String table,
+    List<Update> updates,
+  ) async {
+    final photoColumns = await _photoColumnsFor(table);
+    if (photoColumns.isEmpty) {
+      return;
+    }
+
+    final photoColumnSet = photoColumns.toSet();
+    final photoIds = <String>{};
+
+    for (final update in updates) {
+      switch (update) {
+        case ObjectUpdate(:final object):
+          photoIds.addAll(_collectPhotoIds(object, photoColumns));
+        case ColumnUpdate(:final column, :final value)
+            when photoColumnSet.contains(column):
+          switch (value) {
+            case Literal(:final value):
+              photoIds.addAll(_collectPhotoIds({column: value}, [column]));
+            case Add(:final value):
+              photoIds.addAll(_collectPhotoIds({column: value}, [column]));
+            case AddAll(:final values):
+              photoIds.addAll(_collectPhotoIds({column: values}, [column]));
+            case Increment() || Decrement() || Remove() || RemoveAll():
+          }
+        case ColumnUpdate():
+          break;
+      }
+    }
+
+    await _verifyPhotoIds(table, photoIds);
+  }
+
+  Future<void> _verifyPhotoIds(String table, Set<String> photoIds) async {
+    if (photoIds.isEmpty) {
+      return;
+    }
+
+    final db = await open();
+
+    for (final id in photoIds) {
+      final rows = await db
+          .select()
+          .from(photos)
+          .where(photos.id.inList(photoIds.map(PhotoId.new).toList()))
+          .limit(1);
+
+      if (rows.isEmpty) {
+        throw StateError('Photo not found: $id');
+      }
+
+      final row = rows.first;
+      if (row.table != table) {
+        throw StateError(
+          'Photo ${row.id.value} belongs to ${row.table}, not $table',
+        );
+      }
+    }
+  }
+
   Future<List<Map<String, Object?>>> _resolvePhotoFields(
     List<Map<String, Object?>> rows,
     List<String> photoColumns,
@@ -11,24 +99,7 @@ extension _ResolvePhotosX on ZonaiDb {
 
     final photoIds = <String>{};
     for (final row in rows) {
-      for (final column in photoColumns) {
-        final value = row[column];
-        if (value == null) {
-          continue;
-        }
-
-        switch (value) {
-          case final List<Object?> list:
-            for (final id in list) {
-              if (id is String) {
-                photoIds.add(id);
-              }
-            }
-
-          case final String id:
-            photoIds.add(id);
-        }
-      }
+      photoIds.addAll(_collectPhotoIds(row, photoColumns));
     }
 
     if (photoIds.isEmpty) {
@@ -109,6 +180,36 @@ extension _ResolvePhotosX on ZonaiDb {
 
     return extensions;
   }
+}
+
+Set<String> _collectPhotoIds(
+  Map<String, Object?> data,
+  List<String> photoColumns,
+) {
+  final photoIds = <String>{};
+
+  for (final column in photoColumns) {
+    final value = data[column];
+    if (value == null) {
+      continue;
+    }
+
+    switch (value) {
+      case final List<Object?> list:
+        for (final id in list) {
+          if (id is String && id.isNotEmpty) {
+            photoIds.add(id);
+          }
+        }
+
+      case final String id when id.isNotEmpty:
+        photoIds.add(id);
+
+      case _:
+    }
+  }
+
+  return photoIds;
 }
 
 String _buildPhotoUrl({

@@ -227,6 +227,25 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
 
   logger.info('Photo type changed to PNG: ${imageFile.path}');
 
+  logger.info('VERIFY PHOTO MUST EXIST WHEN SAVING TO OBJECT');
+  try {
+    await zonaiDB.create(
+      'items',
+      CreatePayload(
+        jwt: jwt,
+        object: {
+          'id': Id.generate('it'),
+          'body': 'Missing photo',
+          'image': '0123456789abcde_ph',
+        },
+      ),
+    );
+    logger.error('Expected create with missing photo to be rejected');
+    return 1;
+  } catch (error) {
+    logger.info('Missing photo rejected: $error');
+  }
+
   logger.info('CREATE ITEM WITH PHOTO');
   final itemId = Id.generate('it');
   await zonaiDB.create(

@@ -49,6 +49,7 @@ extension _CreateX on ZonaiDb {
     Jwt? jwt,
   ) async {
     await _requireRowAccess(table, .create, payload.object, jwt);
+    await _requirePhotoReferences(table, payload.object);
 
     await _extensions.send<NoActionExtensionResponse>(
       CreateExtensionRequest.before(

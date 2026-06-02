@@ -49,6 +49,7 @@ extension _PhotoX on ZonaiDb {
       throw StateError('Photos table not found');
     }
     await _requireTableAccess(table.name, .create, jwt);
+    await _requireRegisteredTable(meta.table);
 
     final config = await configResolver.resolve();
     final photosConfig = config.photos;
