@@ -17,7 +17,11 @@ serve → CronMailman.start() → db_crons worker
                                     ↓
                               schedule + run()
                                     ↓
+                    get / mutate / email → server (CronJwt)
+                                    ↓
                          notify server → _cron_jobs rows
+                                    ↓
+                         queued mutate → rules → SQL → extensions
 ```
 
 While `serve` is running, changes under `cronsPath` trigger a recompile so schedules stay in sync with your Dart code without restarting the database.
@@ -47,7 +51,7 @@ final class CleanupLogsJob extends CronJob {
 
   @override
   Future<void> run() async {
-    // Your maintenance logic (HTTP, SQLite client, etc.)
+    // Use get, mutate, email, and logger — see "Side effects" below.
   }
 }
 
@@ -100,9 +104,60 @@ When **`runOnStartup` is `true`**, the job runs once as soon as crons start, in 
 
 ## Where job code runs
 
-Cron jobs execute inside the **`db_crons` worker process**, not in HTTP handlers. The framework does not route `run()` through operations, rules, or extensions. Implement side effects yourself (for example calling your API over HTTP, or opening SQLite with the same database path and env defines you use for other workers — see **[config-and-env-flavors.md](config-and-env-flavors.md)**).
+Cron jobs execute inside the **`db_crons` worker process**, not in HTTP handlers. Each scheduled tick wraps your `run()` method in the same worker IPC scope used by [extensions](extensions.md): reads and writes go back to the server over stdin/stdout instead of opening SQLite directly.
 
 Overlapping runs: if a previous `run()` is still in progress when the next tick fires, the `cron` package delays the new run until the current one finishes.
+
+## Side effects: `get`, `mutate`, and `email`
+
+Inside `run()`, Zonai exposes the same globals as the extension worker (from `package:zonai_schema/zonai_schema.dart`):
+
+| Global   | Purpose                                                                                |
+| -------- | -------------------------------------------------------------------------------------- |
+| `get`    | Read rows (`get.one`, `get.many`) with the same rules as the public API                |
+| `mutate` | Queue creates, updates, or deletes (`mutate.create`, `mutate.update`, `mutate.delete`) |
+| `email`  | Send custom or built-in transactional email                                            |
+| `logger` | Log at debug/info/warn/error (forwarded to the server console)                         |
+
+Every cron run acts as **`CronJwt`**: an internal worker identity with admin edit access. Rules and row rules evaluate against that JWT — design maintenance jobs so collections your crons touch allow admin deletes/updates. `CronJwt` is **not** a user session token; HTTP clients cannot present it as a bearer token (see `CronJwt` in `package:zonai_schema`).
+
+**Reads** (`get`) run immediately and respect collection/row rules for `CronJwt`.
+
+**Writes** (`mutate`) are **queued** during `run()` and committed when the job finishes (`JobCompleted` or `JobFailed`). Each queued mutation goes through [rules](rules.md), [operations](operations.md), and [extensions](extensions.md) the same way as extension side effects (up to 10 chained iterations).
+
+Cron jobs do **not** invoke extension hooks for the cron tick itself — only for rows changed via `mutate`. You do not need a separate HTTP call or raw SQLite access for normal cleanup; use `get`/`mutate`/`email` unless you have a reason to bypass the API pipeline.
+
+Example — delete rows older than 30 days:
+
+```dart
+import 'package:cron/cron.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
+final class PurgeOldLogsJob extends CronJob {
+  const PurgeOldLogsJob()
+    : super(
+        name: 'purge_old_logs',
+        schedule: Schedule.parse('0 2 * * *'),
+      );
+
+  @override
+  Future<void> run() async {
+    final cutoff = DateTime.now().subtract(const Duration(days: 30));
+
+    mutate.delete.many(
+      tableName: 'logs',
+      updates: [],
+      where: Lt('created_at', cutoff),
+    );
+
+    logger.info('Queued purge of logs older than $cutoff');
+  }
+}
+
+PurgeOldLogsJob main() => const PurgeOldLogsJob();
+```
+
+For SMTP setup, template files, and `email.send.*` helpers, see **[email.md](email.md)**. For compile-time env passed into the cron worker executable, see **[config-and-env-flavors.md](config-and-env-flavors.md)**.
 
 ## Run history (`_cron_jobs`)
 
@@ -176,7 +231,11 @@ final class PurgeExpiredJwtsJob extends CronJob {
 
   @override
   Future<void> run() async {
-    // Delete or archive expired rows
+    mutate.delete.many(
+      tableName: 'jwts',
+      updates: [],
+      where: Lt('expires_at', DateTime.now()),
+    );
   }
 }
 

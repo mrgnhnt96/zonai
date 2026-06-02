@@ -152,6 +152,8 @@ Inside the extension worker, Zonai exposes globals (from `package:zonai_schema/z
 | `email`  | Send custom or built-in transactional email                                            |
 | `logger` | Log at debug/info/warn/error (forwarded to the server console)                         |
 
+The same globals are available inside [cron](cron.md) `run()` methods (using `CronJwt` instead of the caller’s session token).
+
 **Reads** (`get`) run immediately and respect collection/row rules for the JWT passed to the hook.
 
 **Writes** (`mutate`) are **queued** as side effects. They run after the main mutation commits, in a separate transaction. Each side effect goes through rules and extension hooks again (up to 10 chained iterations). Use this to update related rows or send follow-up work without blocking the original SQL.
