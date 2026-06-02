@@ -4,14 +4,6 @@
 
 - [ ] When we have more credits, we need to verify the release process, everything passes except for windows atm
 
-- make base record and collection rules (etc) JWT non null by default
-
-when running zonai serve, its important that we dont prompt or require input. We dont want to block a fresh deployment to a server
-
-- [ ] Update all zonai table id suffixes to include `-z` (for zonai)
-- [ ] Add prefix & suffix positional optional params to Id.generate
-- [ ] Add column for `DateTime` when a column is updated
-
 ### UI
 
 - [ ] Add theme color support
@@ -37,16 +29,6 @@ The dashboard will be the first page on website load. It should show a quick ove
 
 - [ ] Export records as JSON
 
-## Cron
-
-- [ ] Create cron
-  - Clean up logs
-  - Clean up auth challenges
-  - Clean up cron entries
-  - Delete expired JWTs
-  - Delete expired Photos signed urls
-  - Delete old rate limits
-
 ## CLI
 
 ### `init` command
@@ -65,6 +47,14 @@ The dashboard will be the first page on website load. It should show a quick ove
 - [ ] When serving (`dev`) the app, use nocterm to provide a good experience
 - [ ] Create a command for `./zonai dev` that is interactive and `./zonai serve` that prints logs only
   - [ ] should prompt for new admin (text fields). If class isn't created (can create admin class if one doesnt exist)
+
+### `serve` command
+
+when running zonai serve, its important that we dont prompt or require input. We dont want to block a fresh deployment to a server
+
+- [ ] Update all zonai table id suffixes to include `-z` (for zonai) (?)
+- [ ] Add prefix & suffix positional optional params to Id.generate
+- [ ] Add column for `DateTime` when a column is updated
 
 ### `create` command
 

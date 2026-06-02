@@ -7,14 +7,15 @@ extension PhotoColumnDefinition<S> on SchemaBuilder<S> {
     String name,
     Field<S, W> field,
   ) {
-    return custom<PhotoColumn, PhotoId, String, W>(
-          PhotoColumn.new,
-          name,
-          field,
-          sqlType: 'TEXT',
-          transformer: const PhotoTransformer(),
-        ).references(() => photos.id)
-        as T;
+    final c = custom<PhotoColumn, PhotoId, String, W>(
+      PhotoColumn.new,
+      name,
+      field,
+      sqlType: 'TEXT',
+      transformer: const PhotoTransformer(),
+    ) as PhotoColumn?;
+
+    return c?.references(() => photos.id) as T;
   }
 }
 
