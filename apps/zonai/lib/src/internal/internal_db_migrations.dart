@@ -86,5 +86,15 @@ CREATE INDEX IF NOT EXISTS "cron_incomplete_index" ON "_cron_jobs" ("name", "com
 CREATE INDEX IF NOT EXISTS "cron_name_index" ON "_cron_jobs" ("name");'''),
   const Migration('0002_internal_update', '''
 ALTER TABLE "_auth_challenges" ADD COLUMN "allowed_attempts" INTEGER NOT NULL DEFAULT 0;'''),
+  const Migration('0003__zonai_v0_1_0_', '''
+CREATE TABLE IF NOT EXISTS "_abusers" (
+  "black_listed" INTEGER NOT NULL,
+  "blocked_until" INTEGER,
+  "created_at" INTEGER NOT NULL,
+  "id" TEXT PRIMARY KEY,
+  "ip" TEXT NOT NULL,
+  "report" TEXT NOT NULL,
+  "updated_at" INTEGER
+);'''),
 ];
 

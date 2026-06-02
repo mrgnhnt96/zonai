@@ -11,6 +11,7 @@
 
 
 import 'package:raindrop/raindrop.dart' show Schema;
+import 'package:zonai/src/internal/tables/abusers_table.dart' as _schema_abusers;
 import 'package:zonai/src/internal/tables/auth_challenge_table.dart' as _schema_authChallenges;
 import 'package:zonai/src/internal/tables/crons_table.dart' as _schema_crons;
 import 'package:zonai/src/internal/tables/jwt_table.dart' as _schema_jwts;
@@ -20,6 +21,11 @@ import 'package:zonai/src/internal/tables/rate_limit_table.dart' as _schema_rate
 
 abstract final class InternalDbArtifacts {
   static const operations = <({String importPath, String alias})>[
+    (
+      importPath:
+          'package:zonai/src/internal/operations/abuser_operations.dart',
+      alias: 'zonai_internal_abuser_operations',
+    ),
     (
       importPath:
           'package:zonai/src/internal/operations/auth_challenge_operations.dart',
@@ -58,6 +64,16 @@ abstract final class InternalDbArtifacts {
   ];
 
   static const rules = <({String importPath, String alias})>[
+    (
+      importPath:
+          'package:zonai/src/internal/rules/abuser_row_rules.dart',
+      alias: 'zonai_internal_abuser_row_rules',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/rules/abuser_table_rules.dart',
+      alias: 'zonai_internal_abuser_table_rules',
+    ),
     (
       importPath:
           'package:zonai/src/internal/rules/auth_challenge_row_rules.dart',
@@ -143,6 +159,12 @@ abstract final class InternalDbArtifacts {
   static const tables = <({String importPath, String getter, String tableName})>[
     (
       importPath:
+          'package:zonai/src/internal/tables/abusers_table.dart',
+      getter: 'abusers',
+      tableName: '_abusers',
+    ),
+    (
+      importPath:
           'package:zonai/src/internal/tables/auth_challenge_table.dart',
       getter: 'authChallenges',
       tableName: '_auth_challenges',
@@ -181,6 +203,7 @@ abstract final class InternalDbArtifacts {
 
   /// Table schemas ensured on database open (migrations apply changes).
   static final schemas = <Schema<Object?>>[
+    _schema_abusers.abusers,
     _schema_authChallenges.authChallenges,
     _schema_crons.crons,
     _schema_jwts.jwts,
@@ -190,6 +213,6 @@ abstract final class InternalDbArtifacts {
   ];
 
   /// SQLite table names managed by the framework (not user schemas).
-  static const tableNames = {'_auth_challenges', '_cron_jobs', '_jwt', '_log', '_photos', '_rate_limit'};
+  static const tableNames = {'_abusers', '_auth_challenges', '_cron_jobs', '_jwt', '_log', '_photos', '_rate_limit'};
 }
 

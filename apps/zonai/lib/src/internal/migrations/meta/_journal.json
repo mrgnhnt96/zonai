@@ -22,6 +22,13 @@
       "when": 1780350471108,
       "tag": "0002_internal_update",
       "snapshotId": "abc02bc2-8bc6-4ddf-8cef-1c0678e4032c"
+    },
+    {
+      "idx": 3,
+      "version": "1",
+      "when": 1780411619756,
+      "tag": "0003__zonai_v0_1_0_",
+      "snapshotId": "f421adc4-a7fc-46dd-812c-d4a74f1bdcd3"
     }
   ]
 }

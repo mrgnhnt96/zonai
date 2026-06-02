@@ -51,7 +51,9 @@ Future<void> main(List<String> args) async {
   final checkOnly = args.contains('--check');
   final syncMigrationsDart = args.contains('--sync-migrations-dart');
   final generateMigration = args.contains('--migrate');
-  final migrationName = _readOption(args, '--name') ?? '__zonai_v${kVersion}__';
+  final migrationName =
+      _readOption(args, '--name') ??
+      '_zonai_v${kVersion.replaceAll('.', '-')}__';
 
   final packageRoot = Directory.current;
   final libRoot = Directory('${packageRoot.path}/lib/src/internal');

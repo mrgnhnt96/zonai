@@ -12,11 +12,13 @@ import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_server/src/handlers/email_handler.dart';
 import 'package:zonai_server/src/handlers/photo_handler.dart';
 
+import '../components/black_list.dart';
 import '../components/exception_catcher.dart';
 
 @Exceptions()
 @AllowOrigins.all()
 @Trace()
+@BlackList()
 @App(flavor: 'dev')
 final class DevApp extends AppConfig {
   DevApp()
