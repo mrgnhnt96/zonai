@@ -23,8 +23,6 @@ final class CronsCompiler {
 
   StreamSubscription<WatchEvent>? __subscription;
 
-  String get executablePath => fs.path.join(settings.compiledCronsPath);
-
   void watch() {
     if (args.release) return;
 
@@ -47,7 +45,7 @@ final class CronsCompiler {
   Future<void> compile({BuildSettings? buildSettings}) async {
     if (!await _canCompile()) return;
 
-    executableStop.request(executablePath);
+    executableStop.request(settings.compiledCronsPath);
 
     final directory = fs.directory(settings.cronsPath);
     final files = directory.existsSync()

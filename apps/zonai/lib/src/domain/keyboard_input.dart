@@ -23,6 +23,16 @@ class KeyboardInput {
     _listeners.add(listener);
   }
 
+  void onKey(String key, void Function() callback) {
+    if (args.release) return;
+
+    _listeners.add((event) {
+      if (event.matches(key)) {
+        callback();
+      }
+    });
+  }
+
   void removeListener(void Function(KeyboardEvent) listener) {
     _listeners.remove(listener);
   }

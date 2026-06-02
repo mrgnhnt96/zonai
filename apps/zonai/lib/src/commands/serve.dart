@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:zonai/src/deps/env.dart';
 import 'package:zonai/src/messengers/config_mailman.dart';
 import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
@@ -81,20 +82,18 @@ Future<int> _startServing() async {
   final configMailman = ConfigMailman();
   final cronMailman = CronMailman()..start();
 
-  keyboardInput.addListener((event) {
-    if (event.matches('p')) {
-      catchErrors(() async {
-        final print = (bool success, String name) {
-          logger.info('Ping $name ${success ? 'succeeded' : 'failed'}');
-        };
+  keyboardInput.onKey('p', () {
+    catchErrors(() async {
+      final print = (bool success, String name) {
+        logger.info('Ping $name ${success ? 'succeeded' : 'failed'}');
+      };
 
-        print(await extensionMailman.ping(), 'extension');
-        print(await rulesMailman.ping(), 'rules');
-        print(await operationMailman.ping(), 'operation');
-        print(await configMailman.ping(), 'config');
-        print(await cronMailman.ping(), 'cron');
-      });
-    }
+      print(await extensionMailman.ping(), 'extension');
+      print(await rulesMailman.ping(), 'rules');
+      print(await operationMailman.ping(), 'operation');
+      print(await configMailman.ping(), 'config');
+      print(await cronMailman.ping(), 'cron');
+    });
   });
 
   return 0;

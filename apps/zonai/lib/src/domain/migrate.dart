@@ -46,14 +46,12 @@ class Migrate {
 
   void listenForKeyboardInput() {
     bool _running = false;
-    keyboardInput.addListener((event) async {
+    keyboardInput.onKey('m', () async {
       if (_running) return;
       _running = true;
       try {
-        if (event.matches('m')) {
-          logger.info('Running auto migration...');
-          await run(name: 'auto');
-        }
+        logger.info('Running auto migration...');
+        await run(name: 'auto');
       } catch (e, stack) {
         logger.error('Auto migration failed: $e', e, stack);
       } finally {

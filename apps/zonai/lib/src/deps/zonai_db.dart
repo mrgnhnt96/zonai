@@ -10,12 +10,10 @@ final zonaiDbProvider = create<ZonaiDb Function()>(
   () => () {
     if (!kIsCompiled) {
       if (isRegistered(keyboardInputProvider)) {
-        keyboardInput.addListener((e) {
-          if (e.matches('r')) {
-            logger.info('Restarting Zonai DB');
-            _db?.dispose();
-            _db = null;
-          }
+        keyboardInput.onKey('r', () {
+          logger.info('Restarting Zonai DB');
+          _db?.dispose();
+          _db = null;
         });
       }
     }

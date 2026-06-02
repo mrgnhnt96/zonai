@@ -64,11 +64,7 @@ class Kill {
   }
 
   void listenForKeyboardInput() {
-    keyboardInput.addListener((event) {
-      if (event.matches('q')) {
-        force();
-      }
-    });
+    keyboardInput.onKey('q', force);
   }
 
   Future<void> wait() async => await _lifeline.future;
