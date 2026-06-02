@@ -22,6 +22,11 @@ final class DevApp extends AppConfig {
   DevApp()
     : super(host: ServerBinding.host, port: ServerBinding.port, prefix: '');
 
+  TrustedProxy _trustedProxy = const TrustedProxy();
+
+  @override
+  TrustedProxy get trustedProxy => _trustedProxy;
+
   @override
   Future<void> configureDependencies(DI di) async {
     di.registerFactory(DbHandler.new);
@@ -38,7 +43,14 @@ final class DevApp extends AppConfig {
     );
 
     return await runMergedScoped(
-      startup,
+      () async {
+        final config = await configResolver.resolve();
+        _trustedProxy = TrustedProxy(
+          headers: config.trustedProxy.headers,
+          useLeftmostIp: config.trustedProxy.useLeftmostIp,
+        );
+        return startup();
+      },
       override: {loggerProvider.overrideWith(() => parentLogger)},
       includeIfAbsent: {
         argsProvider,

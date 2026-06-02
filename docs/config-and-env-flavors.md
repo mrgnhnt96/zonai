@@ -39,6 +39,21 @@ AppConfig(
 
 Per auth collection, override with `jwtExpiresIn` on `AuthOperations` (see **[operations.md](operations.md#auth-collections)**).
 
+### Trusted proxy (client IP)
+
+`AppConfig.trustedProxy` controls how the HTTP server resolves client IPs when you run behind a reverse proxy (rate limits, future abuse tracking, login emails). Defaults to no headers (TCP remote address only).
+
+```dart
+AppConfig(
+  // ...
+  trustedProxy: const TrustedProxyConfig(
+    headers: ['X-Forwarded-For', 'CF-Connecting-IP'],
+  ),
+);
+```
+
+See **[rate-limiting.md](rate-limiting.md#client-ip)** for rightmost vs leftmost IP behavior.
+
 ### How the flavor name is chosen from the filename
 
 The flavor is the **last dot-separated segment** of the file stem (basename without `.dart`):

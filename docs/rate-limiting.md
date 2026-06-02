@@ -13,6 +13,38 @@ Rate limit policies are defined in Dart under your project’s **`rateLimitPath`
 
 Policies are resolved at request time, so you can change limits in Dart and recompile without restarting the database.
 
+## Client IP
+
+Rate limits key on the client IP from Revali’s `@Ip()` / `request.ip`. Behind a reverse proxy (nginx, Coolify, Cloudflare, Fly.io, etc.), the TCP peer is usually the proxy — not the browser — so you must configure **trusted proxy headers**.
+
+In your config worker (`lib/src/config/db_config*.dart`), set `AppConfig.trustedProxy`:
+
+```dart
+AppConfig main() {
+  return AppConfig(
+    appName: 'My App',
+    passwordSecret: '...',
+    jwtSecret: '...',
+    trustedProxy: const TrustedProxyConfig(
+      headers: ['X-Forwarded-For', 'X-Real-IP', 'CF-Connecting-IP'],
+      // useLeftmostIp: false, // default — rightmost IP (recommended)
+    ),
+  );
+}
+```
+
+At server startup, the HTTP app loads this config and passes it to [Revali Router’s `TrustedProxy`](https://github.com/mrgnhnt96/revali/tree/main/revali_router/revali_router). Resolution rules:
+
+| Setting | Behavior |
+| ------- | -------- |
+| `headers` empty | Use TCP remote address only (local dev, no proxy). |
+| `useLeftmostIp: false` (default) | **Rightmost** valid IP in each comma-separated header value — the one your trusted proxy appended. |
+| `useLeftmostIp: true` | **Leftmost** valid IP — only when you understand the spoofing risk. |
+
+List headers in the order your deployment uses; the first header that yields a valid IP wins. Put your proxy’s primary header first (for example `CF-Connecting-IP` on Cloudflare, `X-Forwarded-For` behind nginx).
+
+See also **[server-binding.md](server-binding.md)** for binding behind Docker and reverse proxies.
+
 ## Project layout
 
 Default directory (override with `rateLimitPath` in `zonai.yaml`):
@@ -181,6 +213,8 @@ There is no `Retry-After` header today. Clients should back off until the policy
 
 ## See also
 
+- **[server-binding.md](server-binding.md)** — host/port and reverse-proxy deployment
+- **[config-and-env-flavors.md](config-and-env-flavors.md)** — `trustedProxy` on `AppConfig`
 - **[auth.md](auth.md)** — session tokens and the refresh endpoint
 - **[extensions.md](extensions.md)** — lifecycle hooks around mutations and auth
 - **[rules.md](rules.md)** — authorization (checked before rate limits on data routes)

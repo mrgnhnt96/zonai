@@ -1,5 +1,6 @@
 import 'package:zonai_schema/src/config/email_config.dart';
 import 'package:zonai_schema/src/config/photos_config.dart';
+import 'package:zonai_schema/src/config/trusted_proxy_config.dart';
 import 'package:zonai_schema/src/types/image_mime_type.dart';
 
 /// Application secrets for password hashing and JWT signing, as served to the
@@ -23,6 +24,7 @@ final class AppConfig {
       maxBytes: 5 * 1024 * 1024, // 5MB
       allowedMimeTypes: ImageMimeType.defaultAllowed,
     ),
+    this.trustedProxy = const TrustedProxyConfig(),
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(
@@ -36,6 +38,9 @@ final class AppConfig {
     jwtExpiresIn: json['jwtExpiresIn'] == null
         ? const Duration(days: 14)
         : Duration(seconds: json['jwtExpiresIn'] as int),
+    trustedProxy: TrustedProxyConfig.fromJson(
+      json['trustedProxy'] as Map<String, dynamic>?,
+    ),
   );
 
   /// Display name for the app (browser title, UI branding).
@@ -65,6 +70,9 @@ final class AppConfig {
 
   final PhotosConfig photos;
 
+  /// Trusted proxy headers for client IP resolution (rate limits, logging).
+  final TrustedProxyConfig trustedProxy;
+
   /// Active password secret first, then [previousPasswordSecrets] (verify).
   List<String> get passwordSecretsForVerify =>
       List<String>.unmodifiable([passwordSecret, ...previousPasswordSecrets]);
@@ -82,6 +90,7 @@ final class AppConfig {
     'email': email?.toJson(),
     'baseUrl': baseUrl,
     'jwtExpiresIn': jwtExpiresIn.inSeconds,
+    'trustedProxy': trustedProxy.toJson(),
   };
 
   static List<String> _stringList(Object? value) {
