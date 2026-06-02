@@ -57,6 +57,8 @@ class DbOperations {
             return await _getColumnName(request);
           case final GetColumnReferenceRequest request:
             return await _getColumnReference(request);
+          case final GetAllTableSchemaShapesRequest request:
+            return await _getAllTableSchemaShapes(request);
           case final GetJwtConfigOperationRequest request:
             return await _getJwtConfig(request);
           case final SanitizeOperationRequest request:
@@ -128,6 +130,17 @@ class DbOperations {
       name: column.name,
       column: request.columnName,
     );
+  }
+
+  Future<AllTableSchemaShapesResponse> _getAllTableSchemaShapes(
+    GetAllTableSchemaShapesRequest request,
+  ) async {
+    final shapes = <String, TableSchemaShape>{};
+    for (final name in operationsByTable.keys) {
+      final ops = operationsByTable[name]!;
+      shapes[name] = tableSchemaShapeFromTable(ops.table);
+    }
+    return AllTableSchemaShapesResponse(id: request.id, shapes: shapes);
   }
 
   Future<ColumnReferenceResponse> _getColumnReference(

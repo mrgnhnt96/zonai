@@ -45,6 +45,7 @@ Map<String, Object?> __appAppShell(_app.AppShell c) => {
   'initialSqliteNames': c.initialSqliteNames,
   'initialDisplayNames': c.initialDisplayNames,
   'tablesLoadError': c.tablesLoadError,
+  'initialSchemaShapes': c.initialSchemaShapes,
   'initialSignedIn': c.initialSignedIn,
   'initialPath': c.initialPath,
   'initialAppName': c.initialAppName,

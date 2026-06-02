@@ -33,6 +33,8 @@ ClientOptions get defaultClientOptions => ClientOptions(
         initialDisplayNames: (p['initialDisplayNames'] as List<Object?>)
             .cast<String>(),
         tablesLoadError: p['tablesLoadError'] as String?,
+        initialSchemaShapes: (p['initialSchemaShapes'] as Map<String, Object?>)
+            .map((k, v) => MapEntry(k, (v as Map<String, Object?>))),
         initialSignedIn: p['initialSignedIn'] as bool,
         initialPath: p['initialPath'] as String,
         initialAppName: p['initialAppName'] as String,

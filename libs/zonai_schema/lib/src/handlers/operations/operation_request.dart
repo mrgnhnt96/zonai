@@ -30,6 +30,8 @@ sealed class OperationRequest extends Request {
       GetColumnReferenceRequest._path => GetColumnReferenceRequest.fromRequest(
         request,
       ),
+      GetAllTableSchemaShapesRequest._path =>
+        GetAllTableSchemaShapesRequest.fromRequest(request),
       GetJwtConfigOperationRequest._path =>
         GetJwtConfigOperationRequest.fromRequest(request),
       SanitizeOperationRequest._path => SanitizeOperationRequest.fromRequest(
@@ -127,6 +129,19 @@ final class GetColumnReferenceRequest extends OperationRequest {
       'columnName': columnName,
     };
   }
+}
+
+final class GetAllTableSchemaShapesRequest extends OperationRequest {
+  GetAllTableSchemaShapesRequest()
+    : super(path: _path, id: Request.generateId(), jwt: null);
+
+  GetAllTableSchemaShapesRequest._({required super.id}) : super(path: _path, jwt: null);
+
+  factory GetAllTableSchemaShapesRequest.fromRequest(UnknownRequest request) {
+    return GetAllTableSchemaShapesRequest._(id: request.id);
+  }
+
+  static const _path = '${Request.prefix}.operation.get_all_table_schema_shapes';
 }
 
 final class PerformOperationRequest extends OperationRequest {

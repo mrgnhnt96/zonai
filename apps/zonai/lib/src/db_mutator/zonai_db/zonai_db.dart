@@ -249,6 +249,15 @@ class ZonaiDb {
     return await _run(_adminSupportedAuthTypes);
   }
 
+  Future<Map<String, TableSchemaShape>> schemaShapes() async {
+    return await _run(() async {
+      final response = await _operations.send<AllTableSchemaShapesResponse>(
+        GetAllTableSchemaShapesRequest(),
+      );
+      return response.shapes;
+    });
+  }
+
   Future<void> logout(String jwt) async {
     return await _run(() => _logout(jwt));
   }

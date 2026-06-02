@@ -11,6 +11,7 @@ import 'main.server.options.dart';
 import 'server/app_config.dart';
 import 'server/sqlite_table_names.dart';
 import 'server/supported_auth_types.dart';
+import 'server/table_schema_shapes.dart';
 import 'utils/zonai_cookie.dart';
 
 void main() {
@@ -22,6 +23,7 @@ void main() {
       body: AsyncBuilder(
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();
+          final schemaShapes = await loadTableSchemaShapes();
           final token = context.cookies[ZonaiCookie.authToken.key];
           final signedIn = token != null && token.isNotEmpty;
           // Always load so sign-out after an authenticated refresh still has auth types.
@@ -33,6 +35,9 @@ void main() {
             initialSqliteNames: tables.sqliteNames,
             initialDisplayNames: tables.displayNames,
             tablesLoadError: tables.error,
+            initialSchemaShapes: {
+              for (final e in schemaShapes.entries) e.key: e.value.toJson(),
+            },
             initialSignedIn: signedIn,
             initialPath: initialPath,
             initialAuthTypes: authTypes,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/operations/table_operations.dart';
+import 'package:zonai_schema/src/types/schema_shape.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
 
 sealed class OperationResponse extends Response {
@@ -27,6 +28,7 @@ sealed class OperationResponse extends Response {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
       ColumnNameResponse._path => ColumnNameResponse.fromJson(json),
       ColumnReferenceResponse._path => ColumnReferenceResponse.fromJson(json),
+      AllTableSchemaShapesResponse._path => AllTableSchemaShapesResponse.fromJson(json),
       JwtConfigResponse._path => JwtConfigResponse.fromJson(json),
       SanitizeOperationResponse._path => SanitizeOperationResponse.fromJson(
         json,
@@ -102,6 +104,36 @@ final class ColumnReferenceResponse extends OperationResponse {
       'referencedColumn': referencedColumn,
     };
   }
+}
+
+final class AllTableSchemaShapesResponse extends OperationResponse {
+  const AllTableSchemaShapesResponse({
+    required super.id,
+    required this.shapes,
+  }) : super(path: _path, payload: const {});
+
+  factory AllTableSchemaShapesResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['shapes'] as Map;
+    return AllTableSchemaShapesResponse(
+      id: json['id'] as String,
+      shapes: {
+        for (final MapEntry(:key, :value) in raw.entries)
+          key as String: TableSchemaShape.fromJson(
+            Map<String, dynamic>.from(value as Map),
+          ),
+      },
+    );
+  }
+
+  static const _path = '${Response.prefix}.operation.get_all_table_schema_shapes';
+
+  final Map<String, TableSchemaShape> shapes;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'shapes': {for (final e in shapes.entries) e.key: e.value.toJson()},
+  };
 }
 
 final class PerformOperationResponse extends OperationResponse {

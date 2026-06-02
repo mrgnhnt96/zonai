@@ -8,6 +8,7 @@ import '../utils/zonai_cookie.dart';
 import 'app_config.dart';
 import 'sqlite_table_names.dart';
 import 'supported_auth_types.dart';
+import 'table_schema_shapes.dart';
 
 /// Shared document tree for SSR rendering in compiled Revali builds.
 Component buildWebAppDocument() {
@@ -17,6 +18,7 @@ Component buildWebAppDocument() {
     body: AsyncBuilder(
       builder: (context) async {
         final tables = loadZonaiSqliteTableNames();
+        final schemaShapes = await loadTableSchemaShapes();
         final token = context.cookies[ZonaiCookie.authToken.key];
         final signedIn = token != null && token.isNotEmpty;
         final authTypes = await loadSupportedAuthTypes();
@@ -27,6 +29,9 @@ Component buildWebAppDocument() {
           initialSqliteNames: tables.sqliteNames,
           initialDisplayNames: tables.displayNames,
           tablesLoadError: tables.error,
+          initialSchemaShapes: {
+            for (final e in schemaShapes.entries) e.key: e.value.toJson(),
+          },
           initialSignedIn: signedIn,
           initialPath: initialPath,
           initialAuthTypes: authTypes,

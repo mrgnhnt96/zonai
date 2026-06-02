@@ -13,6 +13,7 @@ import 'components/page_title_head.dart';
 import 'components/verify_email_screen.dart';
 import 'providers/app_name_provider.dart';
 import 'providers/sqlite_tables_provider.dart';
+import 'providers/table_schema_provider.dart';
 
 /// Root widget mounted into `<body>` by [runApp].
 class App extends StatelessComponent {
@@ -22,6 +23,7 @@ class App extends StatelessComponent {
     required this.initialSqliteNames,
     required this.initialDisplayNames,
     this.tablesLoadError,
+    required this.initialSchemaShapes,
     required this.initialSignedIn,
     required this.initialPath,
     required this.initialAuthTypes,
@@ -31,6 +33,7 @@ class App extends StatelessComponent {
   final List<String> initialSqliteNames;
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
+  final Map<String, Map<String, Object?>> initialSchemaShapes;
   final bool initialSignedIn;
   final String initialPath;
   final List<AuthType> initialAuthTypes;
@@ -42,6 +45,7 @@ class App extends StatelessComponent {
         initialSqliteNames: initialSqliteNames,
         initialDisplayNames: initialDisplayNames,
         tablesLoadError: tablesLoadError,
+        initialSchemaShapes: initialSchemaShapes,
         initialSignedIn: initialSignedIn,
         initialPath: initialPath,
         initialAppName: appConfig.appName,
@@ -61,6 +65,7 @@ class AppShell extends StatelessComponent {
     required this.initialSqliteNames,
     required this.initialDisplayNames,
     this.tablesLoadError,
+    required this.initialSchemaShapes,
     required this.initialSignedIn,
     required this.initialPath,
     required this.initialAppName,
@@ -70,6 +75,7 @@ class AppShell extends StatelessComponent {
   final List<String> initialSqliteNames;
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
+  final Map<String, Map<String, Object?>> initialSchemaShapes;
   final bool initialSignedIn;
   final String initialPath;
   final String initialAppName;
@@ -82,11 +88,16 @@ class AppShell extends StatelessComponent {
         SqliteTableRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
     ];
     final initialAuthTypes = [for (final name in initialAuthTypeNames) AuthType.values.byName(name)];
+    final schemaShapes = {
+      for (final MapEntry(:key, :value) in initialSchemaShapes.entries)
+        key: TableSchemaShape.fromJson(Map<String, dynamic>.from(value)),
+    };
     return ProviderScope(
       overrides: [
         sqliteTablesProvider.overrideWithValue(
           SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),
         ),
+        tableSchemasProvider.overrideWithValue(schemaShapes),
         authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),
         authRouteProvider.overrideWith(() => AuthRouteNotifier(initialPath: initialPath)),
         supportedAuthTypesProvider.overrideWithValue(initialAuthTypes),

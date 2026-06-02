@@ -75,4 +75,7 @@ export 'src/types/paginated.dart';
 export 'src/types/rate_limit_operation.dart';
 export 'src/types/supported_auths.dart';
 export 'src/types/where.dart';
+export 'src/types/column_shape_kind.dart';
+export 'src/types/schema_shape.dart';
+export 'src/schema_shape_from_table.dart';
 export 'src/update/update.dart';
