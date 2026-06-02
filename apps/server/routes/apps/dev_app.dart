@@ -46,7 +46,7 @@ final class DevApp extends AppConfig {
 
     return await runMergedScoped(
       () async {
-        final config = await configResolver.resolve();
+        final config = await zonaiDB.getConfig();
         _trustedProxy = TrustedProxy(
           headers: config.trustedProxy.headers,
           useLeftmostIp: config.trustedProxy.useLeftmostIp,
@@ -68,7 +68,6 @@ final class DevApp extends AppConfig {
         rulesProvider,
         operationsProvider,
         configProvider,
-        configResolverProvider,
         migrateProvider,
         fsProvider,
         processProvider,
