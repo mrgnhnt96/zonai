@@ -153,6 +153,31 @@ abstract final class InternalDbArtifacts {
   ];
 
   static const crons = <({String importPath, String alias})>[
+    (
+      importPath:
+          'package:zonai/src/internal/crons/cleanup_auth_challenges_cron.dart',
+      alias: 'zonai_internal_cleanup_auth_challenges_cron',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/crons/cleanup_cron_entries_cron.dart',
+      alias: 'zonai_internal_cleanup_cron_entries_cron',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/crons/cleanup_logs_cron.dart',
+      alias: 'zonai_internal_cleanup_logs_cron',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/crons/delete_expired_jwts_cron.dart',
+      alias: 'zonai_internal_delete_expired_jwts_cron',
+    ),
+    (
+      importPath:
+          'package:zonai/src/internal/crons/delete_old_rate_limits_cron.dart',
+      alias: 'zonai_internal_delete_old_rate_limits_cron',
+    ),
   ];
 
   /// Framework-managed tables (import path, top-level getter, table).

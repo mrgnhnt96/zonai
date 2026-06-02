@@ -2,15 +2,6 @@
 
 ## 6.1.26
 
-- [ ] Watch ENV file to re-compile executions
-- [x] Double check that we are retrieving the IP correctly, pocket base gets the right, or left most IP, which we aren’t handling
-- [ ] When saving a photo to an object we need to verify that it exists
-
-- [x] Need to make sure that the effects are being committed (transactions) after the cron job
-- [ ] Add abuse tracking and add temporary IP block to IP white/black list table
-
-## Future
-
 - [ ] When we have more credits, we need to verify the release process, everything passes except for windows atm
 
 - make base record and collection rules (etc) JWT non null by default
@@ -19,6 +10,7 @@ when running zonai serve, its important that we dont prompt or require input. We
 
 - [ ] Update all zonai table id suffixes to include `-z` (for zonai)
 - [ ] Add prefix & suffix positional optional params to Id.generate
+- [ ] Add column for `DateTime` when a column is updated
 
 ### UI
 
@@ -44,8 +36,6 @@ The dashboard will be the first page on website load. It should show a quick ove
 ### API
 
 - [ ] Export records as JSON
-- [ ] Blacklist IPs (needs to be outside of code to be reactive)
-- [ ] Add last seen to jwt entry (?)
 
 ## Cron
 
@@ -56,9 +46,6 @@ The dashboard will be the first page on website load. It should show a quick ove
   - Delete expired JWTs
   - Delete expired Photos signed urls
   - Delete old rate limits
-- [ ] Support user defined cron jobs
-- [ ] Have a “strict” prop to determine whether the job can only run on the schedule, or on “next available”. Some cloud providers will save resources to 0 machines (which stops the cron)
-- [ ] It would be cool to trigger the cron jobs from within extensions
 
 ## CLI
 
