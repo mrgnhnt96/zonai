@@ -37,6 +37,18 @@ Future<int> serve() async {
   return exitCode;
 }
 
+void _compileWorkers() {
+  catchErrors(() {
+    logger.info('Compiling all workers...');
+    catchErrors(operations.compile);
+    catchErrors(extensions.compile);
+    catchErrors(rules.compile);
+    catchErrors(rateLimitsCompiler.compile);
+    catchErrors(cronsCompiler.compile);
+    catchErrors(config.compile);
+  });
+}
+
 Future<int> _startServing() async {
   await ensureResqliteNativeInstalled();
 
@@ -53,20 +65,9 @@ Future<int> _startServing() async {
   cronsCompiler.watch();
   config.watch();
   operations.watch();
+  env.watch(_compileWorkers);
 
-  keyboardInput.addListener((event) {
-    if (event.matches('c')) {
-      catchErrors(() {
-        logger.info('Compiling all workers...');
-        catchErrors(operations.compile);
-        catchErrors(extensions.compile);
-        catchErrors(rules.compile);
-        catchErrors(rateLimitsCompiler.compile);
-        catchErrors(cronsCompiler.compile);
-        catchErrors(config.compile);
-      });
-    }
-  });
+  keyboardInput.onKey('c', _compileWorkers);
 
   if (!await revali.start()) {
     return 1;

@@ -1,11 +1,37 @@
+import 'dart:async';
+
 import 'package:file/file.dart';
+import 'package:watcher/watcher.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/domain/constants.dart';
 
 class Env {
   Env();
 
+  DirectoryWatcher? __watcher;
+  DirectoryWatcher get _watcher =>
+      __watcher ??= DirectoryWatcher(env.file.path);
+
+  StreamSubscription<WatchEvent>? __subscription;
+
   Map<String, String>? _items;
+
+  void watch(void Function() onChange) {
+    if (args.release) return;
+    if (__subscription != null) return;
+
+    __subscription = _watcher.events.listen((event) {
+      logger.debug('Env changed: ${event.path}');
+      onChange();
+    });
+
+    cleanUp.add(stop);
+  }
+
+  void stop() {
+    __subscription?.cancel();
+    __subscription = null;
+  }
 
   List<String> get dartDefineArgs {
     Iterable<String> items() sync* {
@@ -22,42 +48,36 @@ class Env {
     return ['-D${defines.join(',')}'];
   }
 
+  ({File file, bool exists}) get env {
+    final flavor = args.getOrNull<String>('flavor');
+
+    final baseEnv = fs.file('.env');
+    final hasBaseEnv = baseEnv.existsSync();
+    if (flavor == null) {
+      return (file: baseEnv, exists: hasBaseEnv);
+    }
+
+    File? flavorEnv;
+
+    flavorEnv = fs.file('.env.${flavor}');
+    final hasFlavorEnv = flavorEnv.existsSync();
+    if (!hasFlavorEnv) {
+      logger.warn(
+        'No flavor-specific .env file found for flavor: $flavor (expected path: ${flavorEnv.path})',
+      );
+    }
+
+    return (file: flavorEnv, exists: hasFlavorEnv);
+  }
+
   Map<String, String> get items {
     if (_items case final items? when kIsCompiled) {
       return Map.unmodifiable(items);
     }
 
-    final flavor = args.getOrNull<String>('flavor');
+    final (file: env, :exists) = this.env;
 
-    final baseEnv = fs.file('.env');
-    final hasBaseEnv = baseEnv.existsSync();
-    if (!hasBaseEnv && flavor == null) {
-      return {};
-    }
-
-    File? flavorEnv;
-
-    if (flavor case final flavor?) {
-      flavorEnv = fs.file('.env.${flavor}');
-      final hasFlavorEnv = flavorEnv.existsSync();
-      if (!hasFlavorEnv) {
-        logger.warn(
-          'No flavor-specific .env file found for flavor: $flavor (expected path: ${flavorEnv.path})',
-        );
-
-        if (!hasBaseEnv) {
-          return {};
-        }
-      }
-    }
-
-    final env = switch ((baseEnv, flavorEnv)) {
-      (_, final env?) when env.existsSync() => env,
-      (final base, _) when base.existsSync() => base,
-      _ => null,
-    };
-
-    if (env == null) {
+    if (!exists) {
       return {};
     }
 
