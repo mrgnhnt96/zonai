@@ -17,7 +17,7 @@ const tableHeaderBgColor = Color.variable('--zonai-table-header-bg');
 const onPrimaryColor = Color.variable('--zonai-on-primary');
 
 const _lightTokens = {
-  '--zonai-bg': '#f1f5f9',
+  '--zonai-bg': '#f4f6f9',
   '--zonai-fg': '#0f172a',
   '--zonai-surface': '#ffffff',
   '--zonai-border': '#e2e8f0',
@@ -25,34 +25,40 @@ const _lightTokens = {
   '--zonai-primary-hover': '#014a84',
   '--zonai-on-primary': '#ffffff',
   '--zonai-muted': '#64748b',
-  '--zonai-hover': '#f8fafc',
-  '--zonai-selected-bg': '#eff6ff',
+  '--zonai-hover': '#f1f5f9',
+  '--zonai-selected-bg': '#e8f2fc',
   '--zonai-error': '#b91c1c',
   '--zonai-error-bg': '#fef2f2',
   '--zonai-error-border': '#fecaca',
   '--zonai-error-fg': '#991b1b',
   '--zonai-table-header-bg': '#f8fafc',
-  '--zonai-shadow': '0 12px 40px -8px rgb(0 0 0 / 0.08)',
+  '--zonai-shadow': '0 20px 50px -12px rgb(15 23 42 / 0.12)',
+  '--zonai-shadow-sm': '0 1px 3px rgb(15 23 42 / 0.06)',
+  '--zonai-focus-ring': 'rgb(1 88 155 / 0.22)',
+  '--zonai-glow': 'rgb(1 88 155 / 0.08)',
   'color-scheme': 'light',
 };
 
 const _darkTokens = {
-  '--zonai-bg': '#0f172a',
+  '--zonai-bg': '#0b1220',
   '--zonai-fg': '#f1f5f9',
-  '--zonai-surface': '#1e293b',
-  '--zonai-border': '#334155',
+  '--zonai-surface': '#1a2332',
+  '--zonai-border': '#2d3a4f',
   '--zonai-primary': '#38bdf8',
   '--zonai-primary-hover': '#0ea5e9',
-  '--zonai-on-primary': '#0f172a',
+  '--zonai-on-primary': '#0b1220',
   '--zonai-muted': '#94a3b8',
-  '--zonai-hover': '#334155',
+  '--zonai-hover': '#243044',
   '--zonai-selected-bg': '#1e3a5f',
   '--zonai-error': '#fca5a5',
   '--zonai-error-bg': '#450a0a',
   '--zonai-error-border': '#7f1d1d',
   '--zonai-error-fg': '#fecaca',
-  '--zonai-table-header-bg': '#334155',
-  '--zonai-shadow': '0 12px 40px -8px rgb(0 0 0 / 0.45)',
+  '--zonai-table-header-bg': '#243044',
+  '--zonai-shadow': '0 20px 50px -12px rgb(0 0 0 / 0.5)',
+  '--zonai-shadow-sm': '0 1px 3px rgb(0 0 0 / 0.35)',
+  '--zonai-focus-ring': 'rgb(56 189 248 / 0.28)',
+  '--zonai-glow': 'rgb(56 189 248 / 0.12)',
   'color-scheme': 'dark',
 };
 
@@ -70,7 +76,7 @@ const themeBootstrapScript = '''
 
 @css
 List<StyleRule> get styles => [
-  css.import('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap'),
+  css.import('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'),
   css(':root').styles(
     raw: _lightTokens,
   ),
@@ -91,6 +97,10 @@ List<StyleRule> get styles => [
     fontFamily: const .list([FontFamily('Inter'), FontFamilies.sansSerif]),
     backgroundColor: bgColor,
     color: fgColor,
+    raw: const {
+      '-webkit-font-smoothing': 'antialiased',
+      '-moz-osx-font-smoothing': 'grayscale',
+    },
   ),
   css('*', [css('&').styles(boxSizing: .inherit)]),
 ];

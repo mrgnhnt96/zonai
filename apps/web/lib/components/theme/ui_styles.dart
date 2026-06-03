@@ -1,0 +1,230 @@
+import 'package:jaspr/dom.dart';
+
+import '../../constants/theme.dart';
+
+/// Shared UI class names used by theme components.
+abstract final class ZonaiClasses {
+  static const card = 'z-card';
+  static const pageTitle = 'z-page-title';
+  static const pageSubtitle = 'z-page-subtitle';
+  static const errorText = 'z-error';
+  static const field = 'z-field';
+  static const label = 'z-label';
+  static const input = 'z-input';
+  static const btn = 'z-btn';
+  static const btnPrimary = 'z-btn z-btn--primary';
+  static const btnSecondary = 'z-btn z-btn--secondary';
+  static const btnGhost = 'z-btn z-btn--ghost';
+  static const btnFullWidth = 'z-btn--full';
+  static const authPage = 'z-auth-page';
+  static const authPageTheme = 'z-auth-page__theme';
+  static const sectionLabel = 'z-section-label';
+  static const alertError = 'z-alert z-alert--error';
+  static const alertTitle = 'z-alert__title';
+  static const alertBody = 'z-alert__body';
+  static const panel = 'z-panel';
+  static const panelEmpty = 'z-panel z-panel--empty';
+  static const panelTitle = 'z-panel__title';
+  static const stack = 'z-stack';
+}
+
+@css
+List<StyleRule> get zonaiUiStyles => [
+  css('.z-card').styles(
+    width: 100.percent,
+    maxWidth: 420.px,
+    backgroundColor: surfaceColor,
+    padding: .all(36.px),
+    radius: .all(Radius.circular(20.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    raw: const {
+      'box-shadow': 'var(--zonai-shadow)',
+    },
+  ),
+  css('.z-page-title').styles(
+    margin: .only(bottom: 8.px),
+    fontSize: 1.625.rem,
+    fontWeight: .w600,
+    raw: const {
+      'letter-spacing': '-0.02em',
+      'line-height': '1.25',
+    },
+  ),
+  css('.z-page-subtitle').styles(
+    margin: .only(bottom: 28.px),
+    fontSize: 0.9375.rem,
+    color: mutedColor,
+    raw: const {'line-height': '1.5'},
+  ),
+  css('.z-error').styles(
+    margin: .only(bottom: 16.px),
+    fontSize: 0.875.rem,
+    color: errorColor,
+    raw: const {'line-height': '1.45'},
+  ),
+  css('.z-field').styles(margin: .only(bottom: 20.px)),
+  css('.z-label').styles(
+    display: .block,
+    margin: .only(bottom: 8.px),
+    fontSize: 0.8125.rem,
+    fontWeight: .w600,
+    letterSpacing: 0.01.rem,
+    color: fgColor,
+  ),
+  css('.z-input').styles(
+    display: .block,
+    width: 100.percent,
+    padding: .symmetric(horizontal: 14.px, vertical: 11.px),
+    radius: .all(Radius.circular(10.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    backgroundColor: bgColor,
+    color: fgColor,
+    fontSize: 0.9375.rem,
+    outline: Outline(style: OutlineStyle.none),
+    raw: const {
+      'font': 'inherit',
+      'line-height': '1.4',
+      'transition': 'border-color 0.15s ease, box-shadow 0.15s ease',
+    },
+  ),
+  css('.z-input::placeholder').styles(color: mutedColor),
+  css('.z-input:hover:not(:disabled)').styles(border: .all(color: mutedColor, width: 1.px, style: .solid)),
+  css('.z-input:focus-visible').styles(
+    border: .all(color: primaryColor, width: 1.px, style: .solid),
+    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
+  ),
+  css('.z-input:disabled').styles(
+    opacity: 0.6,
+    cursor: .notAllowed,
+    backgroundColor: hoverColor,
+  ),
+  css('.z-btn').styles(
+    display: .inlineFlex,
+    alignItems: .center,
+    justifyContent: .center,
+    gap: Gap.all(8.px),
+    padding: .symmetric(horizontal: 18.px, vertical: 11.px),
+    cursor: .pointer,
+    radius: .all(Radius.circular(10.px)),
+    border: Border.none,
+    fontWeight: .w600,
+    fontSize: 0.9375.rem,
+    outline: Outline(style: OutlineStyle.none),
+    raw: const {
+      'font': 'inherit',
+      'line-height': '1.2',
+      'transition': 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease',
+    },
+  ),
+  css('.z-btn--full').styles(width: 100.percent),
+  css('.z-btn--primary').styles(
+    color: onPrimaryColor,
+    backgroundColor: primaryColor,
+    raw: const {'box-shadow': '0 1px 2px rgb(0 0 0 / 0.06)'},
+  ),
+  css('.z-btn--primary:hover:not(:disabled)').styles(backgroundColor: primaryHoverColor),
+  css('.z-btn--primary:focus-visible').styles(
+    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring), 0 1px 2px rgb(0 0 0 / 0.06)'},
+  ),
+  css('.z-btn--secondary').styles(
+    color: fgColor,
+    backgroundColor: surfaceColor,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+  ),
+  css('.z-btn--secondary:hover:not(:disabled)').styles(
+    backgroundColor: hoverColor,
+    border: .all(color: mutedColor, width: 1.px, style: .solid),
+  ),
+  css('.z-btn--secondary:focus-visible').styles(
+    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
+  ),
+  css('.z-btn--ghost').styles(
+    color: mutedColor,
+    backgroundColor: surfaceColor,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    padding: .symmetric(horizontal: 14.px, vertical: 9.px),
+    fontSize: 0.8125.rem,
+  ),
+  css('.z-btn--ghost:hover:not(:disabled)').styles(
+    backgroundColor: hoverColor,
+    color: fgColor,
+  ),
+  css('.z-btn:disabled').styles(
+    opacity: 0.55,
+    cursor: .notAllowed,
+  ),
+  css('.z-btn + .z-btn').styles(margin: .only(top: 10.px)),
+  css('.z-auth-page').styles(
+    flex: Flex(grow: 1, shrink: 0),
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    padding: .all(32.px),
+    position: Position.relative(),
+    raw: const {
+      'background': 'radial-gradient(ellipse 80% 60% at 50% -20%, var(--zonai-glow), transparent)',
+    },
+  ),
+  css('.z-auth-page__theme').styles(
+    position: Position.absolute(top: 24.px, right: 24.px),
+  ),
+  css('.z-section-label').styles(
+    fontSize: 0.6875.rem,
+    fontWeight: .w600,
+    letterSpacing: 0.06.rem,
+    color: mutedColor,
+    textTransform: .upperCase,
+  ),
+  css('.z-stack').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(10.px),
+  ),
+  css('.z-alert').styles(
+    padding: .all(16.px),
+    radius: .all(Radius.circular(12.px)),
+    border: .all(color: errorBorderColor, width: 1.px, style: .solid),
+    backgroundColor: errorBgColor,
+  ),
+  css('.z-alert__title').styles(
+    margin: .only(bottom: 8.px),
+    fontSize: 0.9375.rem,
+    fontWeight: .w600,
+    color: errorColor,
+  ),
+  css('.z-alert__body').styles(
+    margin: .zero,
+    fontSize: 0.8125.rem,
+    color: errorFgColor,
+    raw: const {
+      'line-height': '1.45',
+      'white-space': 'pre-wrap',
+      'overflow-wrap': 'anywhere',
+      'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+    },
+  ),
+  css('.z-panel').styles(
+    flex: Flex(grow: 1, shrink: 1),
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(12.px),
+    minHeight: .zero,
+    overflow: Overflow.hidden,
+    padding: .all(24.px),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(16.px)),
+    backgroundColor: surfaceColor,
+    raw: const {'box-shadow': 'var(--zonai-shadow-sm)'},
+  ),
+  css('.z-panel--empty').styles(
+    alignItems: .center,
+    justifyContent: .center,
+    padding: .all(40.px),
+  ),
+  css('.z-panel__title').styles(
+    margin: .zero,
+    fontSize: 1.375.rem,
+    fontWeight: .w600,
+    raw: const {'letter-spacing': '-0.02em'},
+  ),
+];

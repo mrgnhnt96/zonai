@@ -5,6 +5,7 @@
 // Generated with jaspr_builder
 
 import 'package:jaspr/server.dart';
+import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
 import 'package:zonai_web/components/home_screen.dart' as _home_screen;
 import 'package:zonai_web/components/sign_in_screen.dart' as _sign_in_screen;
 import 'package:zonai_web/components/theme_toggle.dart' as _theme_toggle;
@@ -33,6 +34,7 @@ ServerOptions get defaultServerOptions => ServerOptions(
     _app.AppShell: ClientTarget<_app.AppShell>('app', params: __appAppShell),
   },
   styles: () => [
+    ..._ui_styles.zonaiUiStyles,
     ..._theme.styles,
     ..._app.App.styles,
     ..._home_screen.HomeScreen.styles,
