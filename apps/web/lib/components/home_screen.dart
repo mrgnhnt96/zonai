@@ -1,6 +1,7 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
 import '../constants/theme.dart';
@@ -8,7 +9,9 @@ import '../providers/home_ui_provider.dart';
 import '../providers/table_focus_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/table_schema_provider.dart';
+import '../providers/table_sort_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
+import '../utils/table_rows_sort.dart';
 import '../auth/auth_route_provider.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
@@ -28,12 +31,23 @@ class HomeScreen extends StatelessComponent {
         ? context.watch(tableRowsProvider)
         : const AsyncValue<TableRowsData?>.data(null);
 
+    final sortTooltip = context.watch(tableSortTooltipProvider);
+
     return main_(classes: 'home${mobileNavOpen ? ' home--mobile-nav-open' : ''}', [
       HomeSidebar(focused: focused),
       div(classes: 'home-main', [
         _MobileNavHeader(focused: focused),
         _TableMain(focused: focused, rowsAsync: rowsAsync),
       ]),
+      if (context.binding.isClient && sortTooltip.text != null)
+        span(
+          classes: 'rows-sort-tooltip rows-sort-tooltip--visible',
+          attributes: {
+            'role': 'tooltip',
+            'style': 'top: ${sortTooltip.top}px; left: ${sortTooltip.left}px;',
+          },
+          [.text(sortTooltip.text!)],
+        ),
       if (mobileNavOpen)
         div(
           classes: 'home-mobile-backdrop',
@@ -200,6 +214,69 @@ class HomeScreen extends StatelessComponent {
           'text-overflow': 'ellipsis',
         },
       ),
+      css('.rows-header').styles(
+        cursor: .pointer,
+        overflow: Overflow.visible,
+        raw: const {'user-select': 'none'},
+      ),
+      css('.rows-header:hover').styles(backgroundColor: hoverColor),
+      css('.rows-table th.rows-header').styles(overflow: Overflow.visible),
+      css('.rows-header-inner').styles(
+        display: .flex,
+        alignItems: .center,
+        justifyContent: .spaceBetween,
+        gap: Gap.all(8.px),
+        width: 100.percent,
+        minWidth: .zero,
+      ),
+      css('.rows-header-label').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        minWidth: .zero,
+        overflow: Overflow.hidden,
+        raw: const {'text-overflow': 'ellipsis'},
+      ),
+      css('.rows-header-sort-icon').styles(
+        flex: Flex(grow: 0, shrink: 0),
+        display: .inlineFlex,
+        alignItems: .center,
+        justifyContent: .center,
+        width: 1.25.rem,
+        height: 1.25.rem,
+        fontSize: 0.625.rem,
+        color: mutedColor,
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        radius: .all(Radius.circular(5.px)),
+        boxSizing: .borderBox,
+        raw: const {
+          'line-height': '1',
+          'background-color': 'color-mix(in srgb, var(--zonai-surface) 72%, var(--zonai-table-header-bg))',
+        },
+      ),
+      css('.rows-header-sort-icon--idle').styles(
+        visibility: .hidden,
+        raw: const {'pointer-events': 'none'},
+      ),
+      css('.rows-sort-tooltip').styles(
+        padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+        radius: .all(Radius.circular(6.px)),
+        backgroundColor: surfaceColor,
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        fontSize: 0.8125.rem,
+        fontWeight: .w500,
+        color: fgColor,
+        pointerEvents: .none,
+        raw: const {
+          'position': 'fixed',
+          'white-space': 'nowrap',
+          'z-index': '300',
+          'box-shadow': 'var(--zonai-shadow-sm)',
+          'transform': 'translateX(-50%)',
+          'opacity': '0',
+          'visibility': 'hidden',
+          'transition': 'opacity 0.15s ease, visibility 0.15s ease',
+        },
+      ),
+      css('.rows-sort-tooltip--visible').styles(raw: const {'opacity': '1', 'visibility': 'visible'}),
       css('.rows-table td').styles(
         padding: .symmetric(horizontal: 12.px, vertical: 8.px),
         overflow: Overflow.hidden,
@@ -313,33 +390,12 @@ class _TableMain extends StatelessComponent {
           );
         } else {
           subtitleParts.add('${data.total} rows');
-          final tableBlockChildren = <Component>[
-            div(classes: 'table-rows-wrap', [
-              table(classes: 'rows-table', [
-                thead([
-                  tr([
-                    for (final shape in data.columnShapes)
-                      th(classes: 'rows-header', [.text(columnShapeHeaderLabel(shape))]),
-                  ]),
-                ]),
-                tbody([
-                  for (final row in data.rows)
-                    tr([
-                      for (var i = 0; i < row.length; i++)
-                        td(classes: 'rows-cell', [
-                          .text(formatSchemaCell(row[i], data.columnShapes.elementAtOrNull(i))),
-                        ]),
-                    ]),
-                ]),
-              ]),
-            ]),
-          ];
-          if (data.truncated) {
-            tableBlockChildren.add(
-              p(classes: 'table-rows-foot', [.text('Showing ${data.rows.length} of ${data.total} rows')]),
-            );
-          }
-          bodyChildren.add(div(classes: 'table-rows-block', tableBlockChildren));
+          bodyChildren.add(
+            _TableRowsBlock(
+              data: data,
+              sort: context.watch(tableSortProvider),
+            ),
+          );
         }
     }
 
@@ -357,5 +413,175 @@ class _TableMain extends StatelessComponent {
       StateError(:final message) => message,
       _ => error.toString(),
     };
+  }
+}
+
+class _TableRowsBlock extends StatefulComponent {
+  const _TableRowsBlock({required this.data, required this.sort});
+
+  final TableRowsData data;
+  final TableSortState? sort;
+
+  @override
+  State<_TableRowsBlock> createState() => _TableRowsBlockState();
+}
+
+class _TableRowsBlockState extends State<_TableRowsBlock> {
+  String? _hoveredSortColumn;
+
+  void _showSortTooltip(web.Event event, String columnName, String text) {
+    if (!context.binding.isClient) return;
+    _hoveredSortColumn = columnName;
+    _positionSortTooltip(event, text);
+  }
+
+  void _positionSortTooltip(web.Event event, String text) {
+    final el = event.currentTarget;
+    if (el is! web.HTMLElement) return;
+    final icon = el.querySelector('.rows-header-sort-icon');
+    final anchor = icon is web.HTMLElement ? icon : el;
+    final rect = anchor.getBoundingClientRect();
+    context.read(tableSortTooltipProvider.notifier).show(
+      text: text,
+      top: rect.bottom + 6,
+      left: rect.left + rect.width / 2,
+    );
+  }
+
+  void _refreshTooltipForHoveredColumn() {
+    final column = _hoveredSortColumn;
+    if (column == null || !context.binding.isClient) return;
+    final sort = context.read(tableSortProvider);
+    if (sort?.columnName != column) {
+      context.read(tableSortTooltipProvider.notifier).hide();
+      return;
+    }
+    final text = sort!.ascending ? 'Sorted ascending' : 'Sorted descending';
+    final header = web.document.querySelector('[data-sort-column="$column"]');
+    if (header is! web.HTMLElement) return;
+    final icon = header.querySelector('.rows-header-sort-icon');
+    final anchor = icon is web.HTMLElement ? icon : header;
+    final rect = anchor.getBoundingClientRect();
+    context.read(tableSortTooltipProvider.notifier).show(
+      text: text,
+      top: rect.bottom + 6,
+      left: rect.left + rect.width / 2,
+    );
+  }
+
+  void _hideSortTooltip(_) {
+    _hoveredSortColumn = null;
+    context.read(tableSortTooltipProvider.notifier).hide();
+  }
+
+  @override
+  void didUpdateComponent(covariant _TableRowsBlock oldComponent) {
+    super.didUpdateComponent(oldComponent);
+    if (_hoveredSortColumn != null && oldComponent.sort != component.sort) {
+      // Re-run after reconcile so the header DOM matches the new sort arrow.
+      Future.microtask(_refreshTooltipForHoveredColumn);
+    }
+  }
+
+  @override
+  Component build(BuildContext context) {
+    final data = component.data;
+    final sort = component.sort;
+    final sortColumnIndex = sort == null ? -1 : data.columns.indexOf(sort.columnName);
+    final displayRows = sortColumnIndex < 0
+        ? data.rows
+        : sortTableRows(
+            rows: data.rows,
+            columnIndex: sortColumnIndex,
+            shape: data.columnShapes.elementAtOrNull(sortColumnIndex),
+            ascending: sort!.ascending,
+          );
+
+    return div(classes: 'table-rows-block', [
+      div(classes: 'table-rows-wrap', [
+        table(classes: 'rows-table', [
+          thead([
+            tr([
+              for (final shape in data.columnShapes)
+                _SortableHeader(
+                  shape: shape,
+                  sort: sort,
+                  onShowSortTooltip: _showSortTooltip,
+                  onHideSortTooltip: _hideSortTooltip,
+                ),
+            ]),
+          ]),
+          tbody([
+            for (final row in displayRows)
+              tr([
+                for (var i = 0; i < row.length; i++)
+                  td(classes: 'rows-cell', [
+                    .text(formatSchemaCell(row[i], data.columnShapes.elementAtOrNull(i))),
+                  ]),
+              ]),
+          ]),
+        ]),
+      ]),
+      if (data.truncated)
+        p(classes: 'table-rows-foot', [.text('Showing ${data.rows.length} of ${data.total} rows')]),
+    ]);
+  }
+}
+
+class _SortableHeader extends StatelessComponent {
+  const _SortableHeader({
+    required this.shape,
+    required this.sort,
+    this.onShowSortTooltip,
+    this.onHideSortTooltip,
+  });
+
+  final ColumnShape shape;
+  final TableSortState? sort;
+  final void Function(web.Event event, String columnName, String tooltipText)? onShowSortTooltip;
+  final void Function(web.Event event)? onHideSortTooltip;
+
+  @override
+  Component build(BuildContext context) {
+    final isActive = sort?.columnName == shape.name;
+    final label = columnShapeHeaderLabel(shape);
+    final tooltipText = isActive
+        ? (sort!.ascending ? 'Sorted ascending' : 'Sorted descending')
+        : null;
+
+    return th(
+      classes: 'rows-header${isActive ? ' rows-header--active' : ''}',
+      attributes: {
+        'data-sort-column': shape.name,
+        if (isActive) 'aria-sort': sort!.ascending ? 'ascending' : 'descending',
+      },
+      events: {
+        'click': (event) {
+          context.read(tableSortProvider.notifier).toggleColumn(shape.name);
+          final updated = context.read(tableSortProvider);
+          if (updated?.columnName == shape.name && onShowSortTooltip != null) {
+            final text = updated!.ascending ? 'Sorted ascending' : 'Sorted descending';
+            onShowSortTooltip!(event, shape.name, text);
+          } else {
+            onHideSortTooltip?.call(event);
+          }
+        },
+        if (tooltipText != null && onShowSortTooltip != null)
+          'mouseenter': (event) => onShowSortTooltip!(event, shape.name, tooltipText),
+        if (onHideSortTooltip != null) 'mouseleave': onHideSortTooltip!,
+      },
+      [
+        span(classes: 'rows-header-inner', [
+          span(classes: 'rows-header-label', [.text(label)]),
+          span(
+            classes: 'rows-header-sort-icon${isActive ? '' : ' rows-header-sort-icon--idle'}',
+            attributes: {if (!isActive) 'aria-hidden': 'true'},
+            [
+              if (isActive) .text(sort!.ascending ? '↑' : '↓'),
+            ],
+          ),
+        ]),
+      ],
+    );
   }
 }
