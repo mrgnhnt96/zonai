@@ -351,6 +351,14 @@ void main() {
       expect(sql.toUpperCase(), contains('OFFSET'));
     });
 
+    test('list orders by primary key descending when orderBy is omitted', () {
+      final query = ops.list().toQuery();
+      final (sql, _) = dialect.translate(query);
+      expect(sql.toUpperCase(), contains('ORDER BY'));
+      expect(sql, contains('"id"'));
+      expect(sql.toUpperCase(), contains('DESC'));
+    });
+
     test('list with groupBy builds translatable SELECT', () {
       final query = ops.list(groupBy: widgets.title).toQuery();
       final (sql, _) = dialect.translate(query);
@@ -449,6 +457,14 @@ void main() {
       }
       final page = await execOps.list(where: const Gt('id', 0), limit: 2);
       expect(page, hasLength(2));
+    });
+
+    test('list returns newest records first by default', () async {
+      for (var i = 0; i < 5; i++) {
+        await execOps.insert({'title': 'row_$i', 'qty': 100, 'tags': '[]'});
+      }
+      final rows = await execOps.list();
+      expect(rows.map((r) => r.id).toList(), [5, 4, 3, 2, 1]);
     });
 
     test('list groupBy runs successfully', () async {

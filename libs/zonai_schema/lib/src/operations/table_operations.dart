@@ -391,6 +391,38 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     return builder;
   }
 
+  /// Default sort when [orderBy] is omitted: newest records first.
+  ///
+  /// Prefers [CreatedAtTransformer] columns, then auto-increment primary keys,
+  /// then any primary key.
+  List<OrderByTerm>? _defaultListOrderBy() {
+    for (final column in table.columns) {
+      if (column.transformer is CreatedAtTransformer) {
+        return [
+          OrderByTerm(column: column.name, direction: SortDirection.desc),
+        ];
+      }
+    }
+
+    for (final column in table.columns) {
+      if (column.isPrimaryKey && column.autoIncrement) {
+        return [
+          OrderByTerm(column: column.name, direction: SortDirection.desc),
+        ];
+      }
+    }
+
+    for (final column in table.columns) {
+      if (column.isPrimaryKey) {
+        return [
+          OrderByTerm(column: column.name, direction: SortDirection.desc),
+        ];
+      }
+    }
+
+    return null;
+  }
+
   /// [selectFrom] with optional filter and pagination applied first.
   rd.SelectFromBuilder<rd.Schema<R>, R, R> list({
     Where? where,
@@ -405,8 +437,9 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
       builder = builder.where(RawSqlFilter(where.sql(table.name)));
     }
 
-    if (orderBy != null) {
-      for (final term in orderBy) {
+    final resolvedOrderBy = orderBy ?? _defaultListOrderBy();
+    if (resolvedOrderBy != null) {
+      for (final term in resolvedOrderBy) {
         builder = builder.orderBy(
           table[term.column],
           ascending: term.direction == SortDirection.asc,
