@@ -76,7 +76,7 @@ class DbHandler {
 
   Future<void> delete(String? authorization, DeleteOneBody body) async {
     await zonaiDB.delete(
-      'items',
+      body.table,
       .new(
         where: body.where,
         limit: body.limit,
@@ -87,7 +87,7 @@ class DbHandler {
 
   Future<void> deleteMany(String? authorization, DeleteBody body) async {
     await zonaiDB.delete(
-      'items',
+      body.table,
       .new(
         where: body.where,
         limit: body.limit,

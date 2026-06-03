@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/types/where.dart';
 import 'package:zonai_schema/src/types/where_sql.dart';
@@ -34,6 +36,16 @@ void main() {
     test('In and NotIn round-trip', () {
       expectRoundTrip(In('status', <Object>['open', 'pending']));
       expectRoundTrip(NotIn('id', <Object>[1, 2, 3]));
+    });
+
+    test('In and NotIn survive jsonEncode/jsonDecode', () {
+      for (final where in <Where>[
+        In('id', <Object>[1, 2, 3]),
+        NotIn('status', <Object>['open', 'pending']),
+      ]) {
+        final decoded = jsonDecode(jsonEncode(where.toJson())) as Map<String, dynamic>;
+        expect(Where.fromJson(decoded).toJson(), where.toJson());
+      }
     });
 
     test('DateTime serializes as epoch ms for JSON and SQL', () {

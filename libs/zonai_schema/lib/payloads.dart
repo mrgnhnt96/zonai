@@ -22,3 +22,4 @@ export 'src/payloads/update_body.dart';
 export 'src/types/email.dart';
 export 'src/types/email_address.dart';
 export 'src/types/supported_auths.dart';
+export 'src/types/where.dart';

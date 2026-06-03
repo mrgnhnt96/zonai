@@ -165,7 +165,10 @@ final class In extends Where {
   const In(this.column, this.values);
 
   factory In.fromJson(Map<String, dynamic> json) {
-    return In(json['column'] as String, json['values'] as List<Object>);
+    return In(json['column'] as String, [
+      for (final value in json['values'] as List<dynamic>)
+        serializeWhereValue(value),
+    ]);
   }
 
   final String column;
@@ -184,7 +187,10 @@ final class NotIn extends Where {
   const NotIn(this.column, this.values);
 
   factory NotIn.fromJson(Map<String, dynamic> json) {
-    return NotIn(json['column'] as String, json['values'] as List<Object>);
+    return NotIn(json['column'] as String, [
+      for (final value in json['values'] as List<dynamic>)
+        serializeWhereValue(value),
+    ]);
   }
 
   final String column;
