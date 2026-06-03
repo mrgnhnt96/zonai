@@ -2,7 +2,9 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
+import '../utils/table_row_key.dart';
 import 'table_focus_provider.dart';
+import 'table_row_selection_provider.dart';
 import 'table_schema_provider.dart';
 
 final class TableRowsData {
@@ -38,73 +40,193 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
 
     final schema = ref.watch(tableSchemaProvider);
 
-    Map<String, Object?> data;
-
     try {
-      data = await revaliServer.db.list(body: ListBody(table: focus.sqliteName));
+      return await _loadTableRows(
+        sqliteName: focus.sqliteName,
+        schema: schema,
+      );
     } catch (e) {
       throw StateError('Failed to get table rows: $e');
     }
+  }
 
-    final itemsRaw = data['items'];
-    if (itemsRaw is! List) {
-      throw StateError('Invalid /db/list payload: missing items list');
+  /// Deletes the current selection, then reloads the table.
+  Future<void> deleteSelected(TableRowSelectionState selection) async {
+    final data = state.value;
+    if (data == null || selection.isEmpty) return;
+
+    try {
+      if (selection.coversEntireTable) {
+        await _deleteEntireTable(data);
+      } else {
+        await _deleteRowKeys(data, selection.keys, rows: data.rows);
+      }
+    } catch (e) {
+      throw StateError('Failed to delete rows: $e');
     }
 
-    final items = <Map<String, Object?>>[
-      for (final e in itemsRaw)
-        {
-          if (e is Map)
-            for (final MapEntry(:key, :value) in e.entries) key.toString(): value as Object?,
-        },
+    ref.read(tableRowSelectionProvider.notifier).clear();
+    ref.invalidateSelf();
+  }
+
+  Future<void> _deleteEntireTable(TableRowsData data) async {
+    const pageSize = 500;
+    while (true) {
+      final page = await _fetchRowPage(
+        sqliteName: data.sqliteName,
+        columns: data.columns,
+        columnShapes: data.columnShapes,
+        offset: 0,
+        limit: pageSize,
+      );
+      if (page.isEmpty) return;
+
+      final keys = {
+        for (final row in page) tableRowKey(row, data.columnShapes),
+      };
+      await _deleteRowKeys(data, keys, rows: page);
+      if (page.length < pageSize) return;
+    }
+  }
+
+  Future<List<List<Object?>>> _fetchRowPage({
+    required String sqliteName,
+    required List<String> columns,
+    required List<ColumnShape> columnShapes,
+    required int offset,
+    required int limit,
+  }) async {
+    final data = await revaliServer.db.list(
+      body: ListBody(table: sqliteName, offset: offset, limit: limit),
+    );
+    final items = _parseListItems(data);
+    return [
+      for (final item in items) [for (final col in columns) item[col]],
     ];
+  }
 
-    final total = switch (data['total']) {
-      final int t => t,
-      final num t => t.toInt(),
-      _ => items.length,
-    };
+  Future<void> _deleteRowKeys(
+    TableRowsData data,
+    Set<String> keys, {
+    required List<List<Object?>> rows,
+  }) async {
+    if (keys.isEmpty) return;
 
-    if (items.isEmpty) {
-      return TableRowsData(
-        sqliteName: focus.sqliteName,
-        columns: const [],
-        columnShapes: const [],
-        rows: const [],
-        total: total,
-        truncated: false,
-        schema: schema,
+    final pkShapes = data.columnShapes.where((s) => s.isPrimaryKey).toList();
+    if (pkShapes.isEmpty) {
+      throw StateError('Cannot delete rows: table has no primary key.');
+    }
+
+    if (pkShapes.length == 1) {
+      final pkName = pkShapes.single.name;
+      final pkIndex = data.columns.indexOf(pkName);
+      if (pkIndex < 0) {
+        throw StateError('Cannot delete rows: primary key column missing from row data.');
+      }
+      final values = <Object>[
+        for (final row in rows)
+          if (keys.contains(tableRowKey(row, data.columnShapes))) row[pkIndex] as Object,
+      ];
+      if (values.isEmpty) return;
+
+      await revaliServer.db.deleteMany(
+        body: DeleteBody(
+          table: data.sqliteName,
+          where: In(pkName, values),
+        ),
+      );
+      return;
+    }
+
+    for (final row in rows) {
+      final key = tableRowKey(row, data.columnShapes);
+      if (!keys.contains(key)) continue;
+      final where = tableRowWhere(
+        row: row,
+        columns: data.columns,
+        columnShapes: data.columnShapes,
+      );
+      if (where == null) {
+        throw StateError('Cannot delete row: incomplete primary key.');
+      }
+      await revaliServer.db.delete(
+        body: DeleteOneBody(table: data.sqliteName, where: where),
       );
     }
+  }
+}
 
-    final columnOrder = _columnOrder(schema, items);
-    final columnShapes = [
-      for (final name in columnOrder)
-        schema?.columnNamed(name) ??
-            ColumnShape(
-              name: name,
-              kind: ColumnShapeKind.text,
-              isNullable: true,
-              isPrimaryKey: false,
-              autoIncrement: false,
-              sqlType: 'TEXT',
-            ),
-    ];
+Future<TableRowsData> _loadTableRows({
+  required String sqliteName,
+  required TableSchemaShape? schema,
+  int? limit,
+  int? offset,
+}) async {
+  final data = await revaliServer.db.list(
+    body: ListBody(table: sqliteName, limit: limit, offset: offset),
+  );
 
-    final rows = <List<Object?>>[
-      for (final row in items) [for (final col in columnOrder) row[col]],
-    ];
+  final items = _parseListItems(data);
+  final total = switch (data['total']) {
+    final int t => t,
+    final num t => t.toInt(),
+    _ => items.length,
+  };
 
+  if (items.isEmpty) {
     return TableRowsData(
-      sqliteName: focus.sqliteName,
-      columns: columnOrder,
-      columnShapes: columnShapes,
-      rows: rows,
+      sqliteName: sqliteName,
+      columns: const [],
+      columnShapes: const [],
+      rows: const [],
       total: total,
-      truncated: total > items.length,
+      truncated: false,
       schema: schema,
     );
   }
+
+  final columnOrder = _columnOrder(schema, items);
+  final columnShapes = [
+    for (final name in columnOrder)
+      schema?.columnNamed(name) ??
+          ColumnShape(
+            name: name,
+            kind: ColumnShapeKind.text,
+            isNullable: true,
+            isPrimaryKey: false,
+            autoIncrement: false,
+            sqlType: 'TEXT',
+          ),
+  ];
+
+  final rows = <List<Object?>>[
+    for (final row in items) [for (final col in columnOrder) row[col]],
+  ];
+
+  return TableRowsData(
+    sqliteName: sqliteName,
+    columns: columnOrder,
+    columnShapes: columnShapes,
+    rows: rows,
+    total: total,
+    truncated: total > items.length,
+    schema: schema,
+  );
+}
+
+List<Map<String, Object?>> _parseListItems(Map<String, Object?> data) {
+  final itemsRaw = data['items'];
+  if (itemsRaw is! List) {
+    throw StateError('Invalid /db/list payload: missing items list');
+  }
+
+  return [
+    for (final e in itemsRaw)
+      {
+        if (e is Map)
+          for (final MapEntry(:key, :value) in e.entries) key.toString(): value as Object?,
+      },
+  ];
 }
 
 List<String> _columnOrder(TableSchemaShape? schema, List<Map<String, Object?>> items) {

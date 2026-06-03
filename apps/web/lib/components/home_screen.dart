@@ -7,15 +7,22 @@ import 'package:zonai_schema/payloads.dart';
 import '../constants/theme.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/table_focus_provider.dart';
+import '../providers/table_row_selection_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/table_schema_provider.dart';
 import '../providers/table_sort_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
+import '../providers/toast_provider.dart';
+import '../utils/table_row_key.dart';
 import '../utils/table_rows_sort.dart';
 import '../auth/auth_route_provider.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
+import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
+
+const _rowsSelectCheckboxCheckSvg =
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 6l3 3 5-6'/%3E%3C/svg%3E\")";
 
 class HomeScreen extends StatelessComponent {
   const HomeScreen({super.key});
@@ -56,6 +63,7 @@ class HomeScreen extends StatelessComponent {
           [],
         ),
       const HomeSettingsOverlay(),
+      if (context.binding.isClient) const ToastOverlay(),
     ]);
   }
 
@@ -63,6 +71,7 @@ class HomeScreen extends StatelessComponent {
   static List<StyleRule> get styles => [
     ...HomeSidebar.styles,
     ...HomeSettingsOverlay.styles,
+    ...ToastOverlay.styles,
     css('.home', [
       css('&').styles(
         flex: Flex(grow: 1, shrink: 1),
@@ -193,8 +202,10 @@ class HomeScreen extends StatelessComponent {
         border: .all(color: borderColor, width: 1.px, style: .solid),
         radius: .all(Radius.circular(12.px)),
         backgroundColor: surfaceColor,
+        raw: const {'position': 'relative'},
       ),
       css('.table-rows-wrap').styles(flex: Flex(grow: 1, shrink: 1), overflow: Overflow.auto, minHeight: .zero),
+      css('.table-rows-wrap--selection-open').styles(padding: .only(bottom: 72.px)),
       css('.rows-table').styles(
         fontSize: 0.8125.rem,
         raw: const {'border-collapse': 'collapse', 'width': 'max-content', 'min-width': '100%'},
@@ -287,6 +298,139 @@ class HomeScreen extends StatelessComponent {
           'text-overflow': 'ellipsis',
           'white-space': 'nowrap',
         },
+      ),
+      css('.rows-table th.rows-select-header, .rows-table td.rows-select-cell').styles(
+        width: 3.rem,
+        minWidth: 3.rem,
+        maxWidth: 3.rem,
+        padding: .zero,
+        textAlign: .center,
+        overflow: Overflow.visible,
+        raw: const {
+          'border-bottom': '1px solid var(--zonai-border)',
+          'vertical-align': 'middle',
+        },
+      ),
+      css('.rows-table th.rows-select-header').styles(
+        backgroundColor: tableHeaderBgColor,
+        raw: const {'position': 'sticky', 'top': '0', 'z-index': '1'},
+      ),
+      css('.rows-select-checkbox-wrap').styles(
+        display: .flex,
+        alignItems: .start,
+        justifyContent: .center,
+        width: 100.percent,
+        padding: .symmetric(horizontal: 12.px, vertical: 10.px),
+        boxSizing: .borderBox,
+      ),
+      css('.rows-select-checkbox').styles(
+        width: 1.0625.rem,
+        height: 1.0625.rem,
+        margin: .zero,
+        flex: Flex(grow: 0, shrink: 0),
+        cursor: .pointer,
+        radius: .all(Radius.circular(4.px)),
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        backgroundColor: surfaceColor,
+        raw: const {
+          'appearance': 'none',
+          '-webkit-appearance': 'none',
+          'transition': 'border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease',
+        },
+      ),
+      css('.rows-select-checkbox:hover').styles(
+        border: .all(color: mutedColor, width: 1.px, style: .solid),
+      ),
+      css('.rows-select-checkbox:focus-visible').styles(
+        outline: Outline(style: OutlineStyle.none),
+        raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
+      ),
+      css('.rows-select-checkbox:checked').styles(
+        backgroundColor: primaryColor,
+        border: .all(color: primaryColor, width: 1.px, style: .solid),
+        raw: const {
+          'background-image': _rowsSelectCheckboxCheckSvg,
+          'background-repeat': 'no-repeat',
+          'background-position': 'center',
+          'background-size': '0.65rem 0.65rem',
+        },
+      ),
+      css('.rows-row--selected td').styles(backgroundColor: selectedBgColor),
+      css('.table-rows-selection-float').styles(
+        display: .flex,
+        justifyContent: .center,
+        position: Position.absolute(left: 16.px, right: 16.px, bottom: 16.px),
+        pointerEvents: .none,
+        raw: const {'z-index': '20'},
+      ),
+      css('.table-rows-selection-bar').styles(
+        display: .flex,
+        flexDirection: FlexDirection.row,
+        alignItems: .center,
+        justifyContent: .spaceBetween,
+        gap: Gap.all(12.px),
+        width: 100.percent,
+        maxWidth: 40.rem,
+        padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+        radius: .all(Radius.circular(12.px)),
+        backgroundColor: tableHeaderBgColor,
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        pointerEvents: .auto,
+        raw: const {
+          'box-shadow': 'var(--zonai-shadow)',
+        },
+      ),
+      css('.table-rows-selection-meta').styles(
+        display: .flex,
+        flexWrap: FlexWrap.wrap,
+        alignItems: .center,
+        gap: Gap.all(6.px),
+        minWidth: .zero,
+        flex: Flex(grow: 1, shrink: 1),
+        fontSize: 0.875.rem,
+        fontWeight: .w500,
+        color: fgColor,
+        raw: const {'line-height': '1.4'},
+      ),
+      css('.table-rows-selection-sep').styles(
+        color: mutedColor,
+        fontWeight: .w400,
+        raw: const {'user-select': 'none'},
+      ),
+      css('.table-rows-selection-select-all').styles(
+        padding: .zero,
+        margin: .zero,
+        border: Border.none,
+        color: mutedColor,
+        cursor: .pointer,
+        fontSize: 0.875.rem,
+        fontWeight: .w500,
+        textAlign: .left,
+        raw: const {
+          'background-color': 'transparent',
+          'font': 'inherit',
+          'line-height': 'inherit',
+        },
+      ),
+      css('.table-rows-selection-select-all:hover:not(:disabled)').styles(
+        color: fgColor,
+      ),
+      css('.rows-selection-delete').styles(
+        color: onPrimaryColor,
+        backgroundColor: errorColor,
+        border: Border.none,
+        fontWeight: .w600,
+        raw: const {'box-shadow': '0 1px 2px rgb(0 0 0 / 0.12)'},
+      ),
+      css('.rows-selection-delete:hover:not(:disabled)').styles(
+        backgroundColor: errorColor,
+        color: onPrimaryColor,
+        border: Border.none,
+        raw: const {'filter': 'brightness(0.88)'},
+      ),
+      css('.rows-selection-delete:disabled').styles(
+        opacity: 0.65,
+        cursor: .notAllowed,
       ),
       css('.table-rows-foot').styles(
         flex: Flex(grow: 0, shrink: 0),
@@ -487,6 +631,8 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
   Component build(BuildContext context) {
     final data = component.data;
     final sort = component.sort;
+    final selection = context.watch(tableRowSelectionProvider);
+    final selectionNotifier = context.read(tableRowSelectionProvider.notifier);
     final sortColumnIndex = sort == null ? -1 : data.columns.indexOf(sort.columnName);
     final displayRows = sortColumnIndex < 0
         ? data.rows
@@ -496,12 +642,35 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
             shape: data.columnShapes.elementAtOrNull(sortColumnIndex),
             ascending: sort!.ascending,
           );
+    final displayKeys = [
+      for (final row in displayRows) tableRowKey(row, data.columnShapes),
+    ];
+    final allDisplaySelected = displayKeys.isNotEmpty && displayKeys.every(selection.isSelected);
+    final showSelectAllInToolbar = !selection.coversEntireTable &&
+        data.total > data.rows.length &&
+        allDisplaySelected;
 
     return div(classes: 'table-rows-block', [
-      div(classes: 'table-rows-wrap', [
+      div(
+        classes: 'table-rows-wrap${!selection.isEmpty ? ' table-rows-wrap--selection-open' : ''}',
+        [
         table(classes: 'rows-table', [
           thead([
             tr([
+              th(classes: 'rows-select-header', [
+                div(classes: 'rows-select-checkbox-wrap', [
+                  input<bool>(
+                    type: InputType.checkbox,
+                    classes: 'rows-select-checkbox',
+                    checked: allDisplaySelected,
+                    attributes: {'aria-label': 'Select all rows on this page'},
+                    onChange: (selected) => selectionNotifier.setAll(
+                      displayKeys,
+                      selected: selected,
+                    ),
+                  ),
+                ]),
+              ]),
               for (final shape in data.columnShapes)
                 _SortableHeader(
                   shape: shape,
@@ -512,18 +681,140 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
             ]),
           ]),
           tbody([
-            for (final row in displayRows)
-              tr([
-                for (var i = 0; i < row.length; i++)
-                  td(classes: 'rows-cell', [
-                    .text(formatSchemaCell(row[i], data.columnShapes.elementAtOrNull(i))),
-                  ]),
-              ]),
+            for (var r = 0; r < displayRows.length; r++)
+              _SelectableRow(
+                row: displayRows[r],
+                rowKey: displayKeys[r],
+                columnShapes: data.columnShapes,
+                selected: selection.isSelected(displayKeys[r]),
+                onSelectedChanged: (selected) => selectionNotifier.setSelected(
+                  displayKeys[r],
+                  selected: selected,
+                  pageKeys: displayKeys,
+                ),
+              ),
           ]),
         ]),
       ]),
+      if (!selection.isEmpty)
+        div(classes: 'table-rows-selection-float', [
+          _SelectionToolbox(
+            data: data,
+            selection: selection,
+            showSelectAll: showSelectAllInToolbar,
+          ),
+        ]),
       if (data.truncated)
         p(classes: 'table-rows-foot', [.text('Showing ${data.rows.length} of ${data.total} rows')]),
+    ]);
+  }
+}
+
+class _SelectableRow extends StatelessComponent {
+  const _SelectableRow({
+    required this.row,
+    required this.rowKey,
+    required this.columnShapes,
+    required this.selected,
+    required this.onSelectedChanged,
+  });
+
+  final List<Object?> row;
+  final String rowKey;
+  final List<ColumnShape> columnShapes;
+  final bool selected;
+  final void Function(bool selected) onSelectedChanged;
+
+  @override
+  Component build(BuildContext context) {
+    return tr(classes: selected ? 'rows-row--selected' : null, [
+      td(classes: 'rows-select-cell', [
+        div(classes: 'rows-select-checkbox-wrap', [
+          input<bool>(
+            type: InputType.checkbox,
+            classes: 'rows-select-checkbox',
+            checked: selected,
+            attributes: {'aria-label': 'Select row'},
+            onChange: onSelectedChanged,
+          ),
+        ]),
+      ]),
+      for (var i = 0; i < row.length; i++)
+        td(classes: 'rows-cell', [
+          .text(formatSchemaCell(row[i], columnShapes.elementAtOrNull(i))),
+        ]),
+    ]);
+  }
+}
+
+class _SelectionToolbox extends StatefulComponent {
+  const _SelectionToolbox({
+    required this.data,
+    required this.selection,
+    required this.showSelectAll,
+  });
+
+  final TableRowsData data;
+  final TableRowSelectionState selection;
+  final bool showSelectAll;
+
+  @override
+  State<_SelectionToolbox> createState() => _SelectionToolboxState();
+}
+
+class _SelectionToolboxState extends State<_SelectionToolbox> {
+  var _deleting = false;
+
+  Future<void> _deleteSelected() async {
+    if (_deleting) return;
+    setState(() => _deleting = true);
+
+    final selection = context.read(tableRowSelectionProvider);
+    try {
+      await context.read(tableRowsProvider.notifier).deleteSelected(selection);
+    } catch (e) {
+      if (!mounted) return;
+      context.read(toastProvider.notifier).showError(
+        switch (e) {
+          StateError(:final message) => message,
+          _ => e.toString(),
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _deleting = false);
+      }
+    }
+  }
+
+  @override
+  Component build(BuildContext context) {
+    final data = component.data;
+    final selection = component.selection;
+    final selectedCount = selection.displayCount(data.total);
+    final label = selectedCount == 1 ? '1 row selected' : '$selectedCount rows selected';
+
+    return div(classes: 'table-rows-selection-bar', [
+      div(classes: 'table-rows-selection-meta', [
+        span([.text(label)]),
+        if (component.showSelectAll) ...[
+          span(classes: 'table-rows-selection-sep', [.text('·')]),
+          button(
+            classes: 'table-rows-selection-select-all',
+            type: .button,
+            disabled: _deleting,
+            onClick: () => context.read(tableRowSelectionProvider.notifier).selectEntireTable(),
+            [.text('Select all ${data.total} rows')],
+          ),
+        ],
+      ]),
+      button(
+        classes: '${ZonaiClasses.btn} rows-selection-delete',
+        type: .button,
+        disabled: _deleting,
+        onClick: _deleteSelected,
+        [.text(_deleting ? 'Deleting…' : 'Delete selected')],
+      ),
     ]);
   }
 }
