@@ -72,7 +72,7 @@ class LogsTable extends Table<LogEntry> {
         generate: LogId.generate,
       ),
       traceId = $.text('trace_id', (s) => s.traceId),
-      timestamp = $.dateTime('timestamp', (s) => s.timestamp),
+      timestamp = $.createdAt('timestamp', (s) => s.timestamp),
       level = $.enumerator('level', Level.values, (s) => s.level),
       message = $.text('message', (s) => s.message),
       error = $.text('error', (s) => s.error);
