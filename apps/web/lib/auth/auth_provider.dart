@@ -22,9 +22,17 @@ class AuthNotifier extends Notifier<bool> {
       return initialSignedIn;
     }
 
+    registerUnauthorizedHandler(_onUnauthorizedResponse);
+    ref.onDispose(() => registerUnauthorizedHandler(null));
+
     ref.listen(authRouteProvider, _onAuthRouteChanged);
     scheduleMicrotask(_syncRouteForAuthState);
     return _hasAuthToken();
+  }
+
+  void _onUnauthorizedResponse() {
+    if (!state) return;
+    unawaited(signOut(callServer: false));
   }
 
   void _onAuthRouteChanged(String? previous, String next) {
@@ -178,16 +186,18 @@ class AuthNotifier extends Notifier<bool> {
     }
   }
 
-  Future<void> signOut() async {
-    await _clearSession();
+  Future<void> signOut({bool callServer = true}) async {
+    await _clearSession(callServer: callServer);
   }
 
-  Future<void> _clearSession({bool notifyRoute = true}) async {
-    final token = ZonaiCookie.authToken.read();
-    if (token != null) {
-      try {
-        await revaliServer.auth.logout(authorization: 'Bearer $token');
-      } catch (_) {}
+  Future<void> _clearSession({bool notifyRoute = true, bool callServer = true}) async {
+    if (callServer) {
+      final token = ZonaiCookie.authToken.read();
+      if (token != null) {
+        try {
+          await revaliServer.auth.logout(authorization: 'Bearer $token');
+        } catch (_) {}
+      }
     }
     ZonaiCookie.authToken.remove();
     state = false;

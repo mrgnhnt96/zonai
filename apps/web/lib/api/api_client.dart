@@ -6,10 +6,21 @@ import 'package:zonai_web/utils/zonai_cookie.dart';
 
 const revaliBaseUrl = String.fromEnvironment('REVALI_BASE_URL', defaultValue: 'http://localhost:8080');
 
+typedef UnauthorizedHandler = void Function();
+
+UnauthorizedHandler? _unauthorizedHandler;
+
+/// Called by [AuthNotifier] on the client so API 403 responses sign the user out.
+void registerUnauthorizedHandler(UnauthorizedHandler? handler) {
+  _unauthorizedHandler = handler;
+}
+
 /// Shared Revali client for the web app.
 final revaliServer = Server(
   baseUrl: Uri.parse(revaliBaseUrl),
-  client: HttpPackageClient(interceptors: [_AuthorizationInterceptor()]),
+  client: HttpPackageClient(
+    interceptors: [_AuthorizationInterceptor(), _UnauthorizedInterceptor()],
+  ),
 );
 
 final class _AuthorizationInterceptor implements HttpInterceptor {
@@ -23,4 +34,16 @@ final class _AuthorizationInterceptor implements HttpInterceptor {
 
   @override
   FutureOr<void> onResponse(HttpResponse response) {}
+}
+
+final class _UnauthorizedInterceptor implements HttpInterceptor {
+  @override
+  void onRequest(HttpRequest request) {}
+
+  @override
+  void onResponse(HttpResponse response) {
+    if (response.statusCode == 403) {
+      _unauthorizedHandler?.call();
+    }
+  }
 }
