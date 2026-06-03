@@ -206,7 +206,12 @@ class HomeScreen extends StatelessComponent {
         backgroundColor: surfaceColor,
         raw: const {'position': 'relative'},
       ),
-      css('.table-rows-wrap').styles(flex: Flex(grow: 1, shrink: 1), overflow: Overflow.auto, minHeight: .zero),
+      css('.table-rows-wrap').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        overflow: Overflow.auto,
+        minHeight: .zero,
+        raw: const {'transition': 'padding-bottom 0.2s ease-out'},
+      ),
       css('.table-rows-wrap--selection-open').styles(padding: .only(bottom: 72.px)),
       css('.rows-table').styles(
         fontSize: 0.8125.rem,
@@ -363,8 +368,22 @@ class HomeScreen extends StatelessComponent {
         justifyContent: .center,
         position: Position.absolute(left: 16.px, right: 16.px, bottom: 16.px),
         pointerEvents: .none,
-        raw: const {'z-index': '20'},
+        raw: const {
+          'z-index': '20',
+          'opacity': '0',
+          'transform': 'translateY(16px)',
+          'transition': 'opacity 0.25s ease-out, transform 0.25s ease-out',
+        },
       ),
+      css('.table-rows-selection-float--open').styles(
+        pointerEvents: .none,
+        raw: const {
+          'opacity': '1',
+          'transform': 'translateY(0)',
+        },
+      ),
+      css('.table-rows-selection-float:not(.table-rows-selection-float--open) .table-rows-selection-bar')
+          .styles(pointerEvents: .none),
       css('.table-rows-selection-bar').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -417,6 +436,13 @@ class HomeScreen extends StatelessComponent {
       css('.table-rows-selection-select-all:hover:not(:disabled)').styles(
         color: fgColor,
       ),
+      css('.table-rows-selection-actions').styles(
+        display: .flex,
+        alignItems: .center,
+        gap: Gap.all(8.px),
+        flex: Flex(grow: 0, shrink: 0),
+      ),
+      css('.table-rows-selection-actions .z-btn + .z-btn').styles(margin: .zero),
       css('.rows-selection-delete').styles(
         color: onPrimaryColor,
         backgroundColor: errorColor,
@@ -574,8 +600,12 @@ class _TableRowsBlock extends StatefulComponent {
 
 class _TableRowsBlockState extends State<_TableRowsBlock> {
   String? _hoveredSortColumn;
+  var _hadSelection = false;
+  var _selectionBarClosing = false;
+  Timer? _selectionBarTimer;
 
   static const _loadMoreThresholdPx = 200.0;
+  static const _selectionBarAnimationMs = 250;
 
   void _onTableScroll(web.Event event) {
     _maybeLoadMore(event.currentTarget);
@@ -609,6 +639,38 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
   void initState() {
     super.initState();
     _scheduleFillViewportCheck();
+  }
+
+  @override
+  void dispose() {
+    _selectionBarTimer?.cancel();
+    super.dispose();
+  }
+
+  void _syncSelectionBar(bool hasSelection) {
+    if (hasSelection == _hadSelection) return;
+    _hadSelection = hasSelection;
+
+    if (hasSelection) {
+      _selectionBarTimer?.cancel();
+      if (_selectionBarClosing) {
+        setState(() => _selectionBarClosing = false);
+      }
+      return;
+    }
+
+    if (_selectionBarClosing) return;
+    setState(() => _selectionBarClosing = true);
+    _selectionBarTimer?.cancel();
+    _selectionBarTimer = Timer(
+      const Duration(milliseconds: _selectionBarAnimationMs),
+      () {
+        if (!mounted) return;
+        if (context.read(tableRowSelectionProvider).isEmpty) {
+          setState(() => _selectionBarClosing = false);
+        }
+      },
+    );
   }
 
   void _showSortTooltip(web.Event event, String columnName, String text) {
@@ -691,10 +753,18 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     final showSelectAllInToolbar = !selection.coversEntireTable &&
         data.total > data.rows.length &&
         allDisplaySelected;
+    final hasSelection = !selection.isEmpty;
+    final selectionBarOpen =
+        hasSelection || _selectionBarClosing || (!hasSelection && _hadSelection);
+    if (hasSelection != _hadSelection) {
+      scheduleMicrotask(() {
+        if (mounted) _syncSelectionBar(hasSelection);
+      });
+    }
 
     return div(classes: 'table-rows-block', [
       div(
-        classes: 'table-rows-wrap${!selection.isEmpty ? ' table-rows-wrap--selection-open' : ''}',
+        classes: 'table-rows-wrap${selectionBarOpen ? ' table-rows-wrap--selection-open' : ''}',
         events: {
           'scroll': _onTableScroll,
         },
@@ -739,14 +809,16 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
           ]),
         ]),
       ]),
-      if (!selection.isEmpty)
-        div(classes: 'table-rows-selection-float', [
+      div(
+        classes: 'table-rows-selection-float${selectionBarOpen ? ' table-rows-selection-float--open' : ''}',
+        [
           _SelectionToolbox(
             data: data,
             selection: selection,
             showSelectAll: showSelectAllInToolbar,
           ),
-        ]),
+        ],
+      ),
       if (data.isLoadingMore)
         p(classes: 'table-rows-foot', [.text('Loading more rows…')]),
     ]);
@@ -863,13 +935,23 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
           ),
         ],
       ]),
-      button(
-        classes: '${ZonaiClasses.btn} rows-selection-delete',
-        type: .button,
-        disabled: _deleting,
-        onClick: _deleteSelected,
-        [.text(_deleting ? 'Deleting…' : 'Delete selected')],
-      ),
+      div(classes: 'table-rows-selection-actions', [
+        button(
+          classes: ZonaiClasses.btnSecondary,
+          type: .button,
+          disabled: _deleting,
+          attributes: {'aria-label': 'Deselect rows'},
+          onClick: () => context.read(tableRowSelectionProvider.notifier).clear(),
+          [.text('Deselect')],
+        ),
+        button(
+          classes: '${ZonaiClasses.btn} rows-selection-delete',
+          type: .button,
+          disabled: _deleting,
+          onClick: _deleteSelected,
+          [.text(_deleting ? 'Deleting…' : 'Delete selected')],
+        ),
+      ]),
     ]);
   }
 }
