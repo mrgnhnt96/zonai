@@ -116,12 +116,14 @@ class HomeSettingsOverlay extends StatelessComponent {
       raw: const {
         'left': 'calc(260px + 12px)',
         'bottom': '24px',
+        'transition': 'left 0.2s ease',
       },
     ),
     css('.home-settings-panel--collapsed-sidebar').styles(
       raw: const {
         'left': 'calc(52px + 12px)',
         'bottom': '24px',
+        'transition': 'left 0.2s ease',
       },
     ),
     css('.home-settings-panel-header').styles(

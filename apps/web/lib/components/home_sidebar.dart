@@ -52,7 +52,7 @@ class HomeSidebar extends StatelessComponent {
         div(classes: 'home-sidebar-header', [
           div(classes: 'home-sidebar-brand', [
             div(classes: 'home-sidebar-logo', [.text(initial)]),
-            if (!collapsed) span(classes: 'home-sidebar-app-name', [.text(appName)]),
+            span(classes: 'home-sidebar-app-name', [.text(appName)]),
           ]),
           button(
             classes: 'home-sidebar-toggle',
@@ -65,11 +65,12 @@ class HomeSidebar extends StatelessComponent {
             [.text(collapsed ? '›' : '‹')],
           ),
         ]),
-        if (!collapsed)
+        div(classes: 'home-sidebar-panels', [
           _SidebarListArea(
             regionClass: 'home-sidebar-body',
+            panelClass: 'home-sidebar-panel home-sidebar-panel--expanded',
             focused: focused,
-            collapsed: collapsed,
+            collapsed: false,
             mobileNavOpen: ui.mobileNavOpen,
             children: [
               if (tables.loadError case final error?)
@@ -104,17 +105,19 @@ class HomeSidebar extends StatelessComponent {
                   ]),
               ],
             ],
-          )
-        else if (railTables.isNotEmpty)
-          _SidebarListArea(
-            regionClass: 'home-sidebar-rail',
-            focused: focused,
-            collapsed: collapsed,
-            mobileNavOpen: ui.mobileNavOpen,
-            children: [
-              _TablesList(tables: railTables, focused: focused, collapsed: true),
-            ],
           ),
+          if (railTables.isNotEmpty)
+            _SidebarListArea(
+              regionClass: 'home-sidebar-rail',
+              panelClass: 'home-sidebar-panel home-sidebar-panel--rail',
+              focused: focused,
+              collapsed: true,
+              mobileNavOpen: ui.mobileNavOpen,
+              children: [
+                _TablesList(tables: railTables, focused: focused, collapsed: true),
+              ],
+            ),
+        ]),
         const _SidebarFooter(),
       ],
     );
@@ -134,9 +137,58 @@ class HomeSidebar extends StatelessComponent {
         flexDirection: FlexDirection.column,
         minHeight: .zero,
         overflow: Overflow.hidden,
-        raw: const {'box-shadow': 'var(--zonai-shadow-sm)', 'overflow-x': 'hidden'},
+        raw: const {
+          'box-shadow': 'var(--zonai-shadow-sm)',
+          'overflow-x': 'hidden',
+          'transition': 'width 0.2s ease',
+        },
       ),
       css('&--collapsed').styles(width: 52.px),
+      css('.home-sidebar-panels').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        minHeight: .zero,
+        position: Position.relative(),
+        overflow: Overflow.hidden,
+      ),
+      css('.home-sidebar-panel').styles(
+        raw: const {'transition': 'opacity 0.2s ease, visibility 0.2s ease'},
+      ),
+      css('.home-sidebar-panel--expanded').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        minHeight: .zero,
+        raw: const {'opacity': '1', 'visibility': 'visible'},
+      ),
+      css('.home-sidebar-panel--rail').styles(
+        raw: const {
+          'opacity': '0',
+          'visibility': 'hidden',
+          'pointer-events': 'none',
+          'position': 'absolute',
+          'inset': '0',
+        },
+      ),
+      css('&--collapsed .home-sidebar-panel--expanded').styles(
+        raw: const {
+          'opacity': '0',
+          'visibility': 'hidden',
+          'pointer-events': 'none',
+          'position': 'absolute',
+          'inset': '0',
+          'flex': 'none',
+        },
+      ),
+      css('&--collapsed .home-sidebar-panel--rail').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        minHeight: .zero,
+        raw: const {
+          'opacity': '1',
+          'visibility': 'visible',
+          'pointer-events': 'auto',
+          'position': 'relative',
+        },
+      ),
       css('.home-sidebar-header').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -151,6 +203,11 @@ class HomeSidebar extends StatelessComponent {
         maxWidth: 100.percent,
         raw: const {'overflow-x': 'hidden'},
       ),
+      css('&--collapsed .home-sidebar-header').styles(
+        justifyContent: .center,
+        padding: .symmetric(horizontal: 8.px, vertical: 16.px),
+      ),
+      css('&--collapsed .home-sidebar-brand').styles(display: .none),
       css('.home-sidebar-brand').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -177,7 +234,30 @@ class HomeSidebar extends StatelessComponent {
         fontSize: 0.875.rem,
         fontWeight: .w600,
         overflow: Overflow.hidden,
-        raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'},
+        flex: Flex(grow: 1, shrink: 1),
+        minWidth: .zero,
+        raw: const {
+          'text-overflow': 'ellipsis',
+          'white-space': 'nowrap',
+          'transition': 'opacity 0.2s ease, max-width 0.2s ease, flex-grow 0.2s ease',
+          'max-width': '200px',
+          'opacity': '1',
+        },
+      ),
+      css('&--collapsed .home-sidebar-app-name').styles(
+        flex: Flex(grow: 0, shrink: 0),
+        raw: const {'max-width': '0', 'opacity': '0'},
+      ),
+      css('.home-sidebar-expand-only').styles(
+        overflow: Overflow.hidden,
+        raw: const {
+          'transition': 'opacity 0.2s ease, max-width 0.2s ease',
+          'max-width': '200px',
+          'opacity': '1',
+        },
+      ),
+      css('&--collapsed .home-sidebar-expand-only').styles(
+        raw: const {'max-width': '0', 'opacity': '0', 'pointer-events': 'none'},
       ),
       css('.home-sidebar-toggle').styles(
         flex: Flex(grow: 0, shrink: 0),
@@ -275,6 +355,20 @@ class HomeSidebar extends StatelessComponent {
       css(
         '.home-sidebar-footer--collapsed',
       ).styles(display: .flex, flexDirection: FlexDirection.column, alignItems: .center, gap: Gap.all(8.px)),
+      css('&--collapsed .home-sidebar-footer').styles(
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        alignItems: .center,
+        padding: .symmetric(horizontal: 8.px, vertical: 12.px),
+      ),
+      css('&--collapsed .home-sidebar-profile-trigger').styles(
+        width: 36.px,
+        height: 36.px,
+        padding: .zero,
+        justifyContent: .center,
+        gap: Gap.all(0.px),
+      ),
+      css('&--collapsed .home-sidebar-profile-trigger .home-sidebar-expand-only').styles(display: .none),
       css('.home-sidebar-profile-trigger').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -409,6 +503,25 @@ class HomeSidebar extends StatelessComponent {
       css('.home-sidebar--collapsed').styles(width: 260.px),
       css('.home-sidebar--mobile-open').styles(raw: const {'transform': 'translateX(0)'}),
       css('.home-sidebar-toggle').styles(display: .none),
+      css('.home-sidebar-panel--rail').styles(display: .none),
+      css('.home-sidebar-panel--expanded').styles(
+        raw: const {
+          'opacity': '1',
+          'visibility': 'visible',
+          'pointer-events': 'auto',
+          'position': 'relative',
+          'inset': 'auto',
+        },
+      ),
+      css('.home-sidebar--collapsed .home-sidebar-panel--expanded').styles(
+        raw: const {
+          'opacity': '1',
+          'visibility': 'visible',
+          'pointer-events': 'auto',
+          'position': 'relative',
+          'inset': 'auto',
+        },
+      ),
     ]),
   ];
 }
@@ -442,6 +555,7 @@ void _sidebarScrollToRevealRow(web.Element scrollEl, web.Element item) {
 class _SidebarListArea extends StatefulComponent {
   const _SidebarListArea({
     required this.regionClass,
+    this.panelClass,
     required this.focused,
     required this.collapsed,
     required this.mobileNavOpen,
@@ -449,6 +563,7 @@ class _SidebarListArea extends StatefulComponent {
   });
 
   final String regionClass;
+  final String? panelClass;
   final SqliteTableRef? focused;
   final bool collapsed;
   final bool mobileNavOpen;
@@ -474,8 +589,11 @@ class _SidebarListAreaState extends State<_SidebarListArea> {
   @override
   Component build(BuildContext context) {
     _scheduleScrollWork();
+    final classes = component.panelClass == null
+        ? component.regionClass
+        : '${component.regionClass} ${component.panelClass}';
     return div(
-      classes: component.regionClass,
+      classes: classes,
       events: {
         'scroll': (web.Event event) {
           if (!context.binding.isClient) return;
@@ -697,13 +815,11 @@ class _SidebarFooter extends StatelessComponent {
         onClick: () => context.read(homeUiProvider.notifier).toggleSettings(),
         [
           div(classes: 'home-sidebar-avatar', [.text(initial)]),
-          if (!collapsed) ...[
-            div(classes: 'home-sidebar-profile-text', [
-              span(classes: 'home-sidebar-email', attributes: {'title': label}, [.text(label)]),
-              if (sessionUser?.isAdmin == true) span(classes: 'home-sidebar-badge', [.text('Admin')]),
-            ]),
-            span(classes: 'home-sidebar-settings-icon', [.text('⚙')]),
-          ],
+          div(classes: 'home-sidebar-profile-text home-sidebar-expand-only', [
+            span(classes: 'home-sidebar-email', attributes: {'title': label}, [.text(label)]),
+            if (sessionUser?.isAdmin == true) span(classes: 'home-sidebar-badge', [.text('Admin')]),
+          ]),
+          span(classes: 'home-sidebar-settings-icon home-sidebar-expand-only', [.text('⚙')]),
         ],
       ),
     ]);
