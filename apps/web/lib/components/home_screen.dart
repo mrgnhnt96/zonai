@@ -38,9 +38,7 @@ class HomeScreen extends StatelessComponent {
         div(
           classes: 'home-mobile-backdrop',
           attributes: {'aria-hidden': 'true'},
-          events: {
-            'click': (_) => context.read(homeUiProvider.notifier).closeMobileNav(),
-          },
+          events: {'click': (_) => context.read(homeUiProvider.notifier).closeMobileNav()},
           [],
         ),
       const HomeSettingsOverlay(),
@@ -101,28 +99,17 @@ class HomeScreen extends StatelessComponent {
         fontSize: 1.rem,
         fontWeight: .w600,
         overflow: Overflow.hidden,
-        raw: const {
-          'text-overflow': 'ellipsis',
-          'white-space': 'nowrap',
-        },
+        raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'},
       ),
       css('.home-mobile-backdrop').styles(
         display: .block,
         position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
-        raw: const {
-          'z-index': '140',
-          'background-color': 'rgb(15 23 42 / 0.45)',
-        },
+        raw: const {'z-index': '140', 'background-color': 'rgb(15 23 42 / 0.45)'},
       ),
-      css.media(
-        MediaQuery.all(maxWidth: 640.px),
-        [
-          css('&').styles(
-            overflow: Overflow.visible,
-          ),
-          css('.home-mobile-nav-header').styles(display: .flex),
-        ],
-      ),
+      css.media(MediaQuery.all(maxWidth: 640.px), [
+        css('&').styles(overflow: Overflow.visible),
+        css('.home-mobile-nav-header').styles(display: .flex),
+      ]),
       css('.table-detail-panel').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
@@ -131,25 +118,17 @@ class HomeScreen extends StatelessComponent {
         minHeight: .zero,
         overflow: Overflow.hidden,
       ),
-      css('.table-detail-header').styles(
-        flex: Flex(grow: 0, shrink: 0),
-        display: .flex,
-        flexDirection: FlexDirection.column,
-        gap: Gap.all(4.px),
-      ),
-      css('.table-detail-title').styles(
-        margin: .zero,
-        fontSize: 1.375.rem,
-        fontWeight: .w600,
-        raw: const {'letter-spacing': '-0.02em'},
-      ),
+      css(
+        '.table-detail-header',
+      ).styles(flex: Flex(grow: 0, shrink: 0), display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px)),
+      css(
+        '.table-detail-title',
+      ).styles(margin: .zero, fontSize: 1.375.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),
       css('.table-detail-subtitle').styles(
         margin: .zero,
         fontSize: 0.8125.rem,
         color: mutedColor,
-        raw: const {
-          'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-        },
+        raw: const {'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'},
       ),
       css('.table-detail-body').styles(
         flex: Flex(grow: 1, shrink: 1),
@@ -167,12 +146,7 @@ class HomeScreen extends StatelessComponent {
         padding: .all(32.px),
         minHeight: .zero,
       ),
-      css('.table-detail-empty-msg').styles(
-        margin: .zero,
-        fontSize: 0.95.rem,
-        color: mutedColor,
-        textAlign: .center,
-      ),
+      css('.table-detail-empty-msg').styles(margin: .zero, fontSize: 0.95.rem, color: mutedColor, textAlign: .center),
       css('.table-detail-error').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
@@ -185,12 +159,7 @@ class HomeScreen extends StatelessComponent {
         overflow: Overflow.auto,
         minHeight: .zero,
       ),
-      css('.table-detail-error-title').styles(
-        margin: .zero,
-        fontSize: 0.95.rem,
-        fontWeight: .w600,
-        color: errorColor,
-      ),
+      css('.table-detail-error-title').styles(margin: .zero, fontSize: 0.95.rem, fontWeight: .w600, color: errorColor),
       css('.table-detail-error-detail').styles(
         margin: .zero,
         fontSize: 0.8125.rem,
@@ -201,42 +170,58 @@ class HomeScreen extends StatelessComponent {
           'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
         },
       ),
-      css('.table-rows-wrap').styles(
+      css('.table-rows-block').styles(
         flex: Flex(grow: 1, shrink: 1),
-        overflow: Overflow.auto,
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        minHeight: .zero,
+        overflow: Overflow.hidden,
         border: .all(color: borderColor, width: 1.px, style: .solid),
         radius: .all(Radius.circular(12.px)),
         backgroundColor: surfaceColor,
-        minHeight: .zero,
       ),
+      css('.table-rows-wrap').styles(flex: Flex(grow: 1, shrink: 1), overflow: Overflow.auto, minHeight: .zero),
       css('.rows-table').styles(
-        width: 100.percent,
         fontSize: 0.8125.rem,
-        raw: const {'border-collapse': 'collapse'},
+        raw: const {'border-collapse': 'collapse', 'width': 'max-content', 'min-width': '100%'},
       ),
       css('.rows-table th').styles(
         backgroundColor: tableHeaderBgColor,
         textAlign: .left,
         padding: .symmetric(horizontal: 12.px, vertical: 10.px),
         fontWeight: .w600,
+        overflow: Overflow.hidden,
         raw: const {
           'position': 'sticky',
           'top': '0',
           'border-bottom': '1px solid var(--zonai-border)',
           'white-space': 'nowrap',
+          'max-width': '14rem',
+          'text-overflow': 'ellipsis',
         },
       ),
       css('.rows-table td').styles(
         padding: .symmetric(horizontal: 12.px, vertical: 8.px),
+        overflow: Overflow.hidden,
         raw: const {
           'border-bottom': '1px solid var(--zonai-border)',
           'vertical-align': 'top',
-          'max-width': '320px',
-          'white-space': 'pre-wrap',
-          'overflow-wrap': 'anywhere',
+          'max-width': '14rem',
+          'text-overflow': 'ellipsis',
+          'white-space': 'nowrap',
         },
       ),
-      css('.table-rows-foot').styles(fontSize: 0.8125.rem, color: mutedColor, margin: .zero),
+      css('.table-rows-foot').styles(
+        flex: Flex(grow: 0, shrink: 0),
+        margin: .zero,
+        padding: .symmetric(horizontal: 12.px, vertical: 6.px),
+        fontSize: 0.8125.rem,
+        color: mutedColor,
+        border: .only(
+          top: BorderSide.solid(color: borderColor, width: 1.px),
+        ),
+        raw: const {'line-height': '1.25'},
+      ),
     ]),
   ];
 }
@@ -328,7 +313,7 @@ class _TableMain extends StatelessComponent {
           );
         } else {
           subtitleParts.add('${data.total} rows');
-          bodyChildren.add(
+          final tableBlockChildren = <Component>[
             div(classes: 'table-rows-wrap', [
               table(classes: 'rows-table', [
                 thead([
@@ -348,14 +333,13 @@ class _TableMain extends StatelessComponent {
                 ]),
               ]),
             ]),
-          );
+          ];
           if (data.truncated) {
-            bodyChildren.add(
-              p(classes: 'table-rows-foot', [
-                .text('Showing ${data.rows.length} of ${data.total} rows (results truncated).'),
-              ]),
+            tableBlockChildren.add(
+              p(classes: 'table-rows-foot', [.text('Showing ${data.rows.length} of ${data.total} rows')]),
             );
           }
+          bodyChildren.add(div(classes: 'table-rows-block', tableBlockChildren));
         }
     }
 
