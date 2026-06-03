@@ -6,6 +6,10 @@ import '../utils/table_row_key.dart';
 import 'table_focus_provider.dart';
 import 'table_row_selection_provider.dart';
 import 'table_schema_provider.dart';
+import 'toast_provider.dart';
+
+/// Page size for table row list / infinite scroll requests.
+const tableRowsPageSize = 100;
 
 final class TableRowsData {
   const TableRowsData({
@@ -16,6 +20,7 @@ final class TableRowsData {
     required this.truncated,
     required this.sqliteName,
     this.schema,
+    this.isLoadingMore = false,
   });
 
   final List<String> columns;
@@ -25,6 +30,7 @@ final class TableRowsData {
   final bool truncated;
   final String sqliteName;
   final TableSchemaShape? schema;
+  final bool isLoadingMore;
 }
 
 final tableRowsProvider = AsyncNotifierProvider<TableRowsNotifier, TableRowsData?>(
@@ -32,6 +38,8 @@ final tableRowsProvider = AsyncNotifierProvider<TableRowsNotifier, TableRowsData
 );
 
 class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
+  var _loadingMore = false;
+
   @override
   Future<TableRowsData?> build() async {
     final focus = ref.watch(tableFocusProvider);
@@ -44,9 +52,62 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       return await _loadTableRows(
         sqliteName: focus.sqliteName,
         schema: schema,
+        limit: tableRowsPageSize,
+        offset: 0,
       );
     } catch (e) {
       throw StateError('Failed to get table rows: $e');
+    }
+  }
+
+  /// Fetches the next page and appends rows when the user scrolls near the end.
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.truncated || _loadingMore) return;
+
+    _loadingMore = true;
+    state = AsyncData(
+      TableRowsData(
+        columns: current.columns,
+        columnShapes: current.columnShapes,
+        rows: current.rows,
+        total: current.total,
+        truncated: current.truncated,
+        sqliteName: current.sqliteName,
+        schema: current.schema,
+        isLoadingMore: true,
+      ),
+    );
+
+    try {
+      final page = await _loadTableRows(
+        sqliteName: current.sqliteName,
+        schema: current.schema,
+        limit: tableRowsPageSize,
+        offset: current.rows.length,
+      );
+      final mergedRows = [...current.rows, ...page.rows];
+      state = AsyncData(
+        TableRowsData(
+          columns: current.columns,
+          columnShapes: current.columnShapes,
+          rows: mergedRows,
+          total: page.total,
+          truncated: mergedRows.length < page.total,
+          sqliteName: current.sqliteName,
+          schema: current.schema,
+        ),
+      );
+    } catch (e) {
+      state = AsyncData(current);
+      ref.read(toastProvider.notifier).showError(
+        switch (e) {
+          StateError(:final message) => message,
+          _ => 'Failed to load more rows: $e',
+        },
+      );
+    } finally {
+      _loadingMore = false;
     }
   }
 

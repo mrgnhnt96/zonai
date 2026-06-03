@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
@@ -573,6 +575,42 @@ class _TableRowsBlock extends StatefulComponent {
 class _TableRowsBlockState extends State<_TableRowsBlock> {
   String? _hoveredSortColumn;
 
+  static const _loadMoreThresholdPx = 200.0;
+
+  void _onTableScroll(web.Event event) {
+    _maybeLoadMore(event.currentTarget);
+  }
+
+  void _maybeLoadMore([web.EventTarget? scrollTarget]) {
+    if (!context.binding.isClient || !mounted) return;
+
+    final data = context.read(tableRowsProvider).value;
+    if (data == null || !data.truncated || data.isLoadingMore) return;
+
+    final el = scrollTarget ?? web.document.querySelector('.table-rows-wrap');
+    if (el is! web.Element) return;
+
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - _loadMoreThresholdPx) {
+      return;
+    }
+
+    unawaited(context.read(tableRowsProvider.notifier).loadMore());
+  }
+
+  void _scheduleFillViewportCheck() {
+    if (!context.binding.isClient) return;
+    scheduleMicrotask(() {
+      if (!mounted) return;
+      _maybeLoadMore();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleFillViewportCheck();
+  }
+
   void _showSortTooltip(web.Event event, String columnName, String text) {
     if (!context.binding.isClient) return;
     _hoveredSortColumn = columnName;
@@ -625,6 +663,10 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
       // Re-run after reconcile so the header DOM matches the new sort arrow.
       Future.microtask(_refreshTooltipForHoveredColumn);
     }
+    if (oldComponent.data.rows.length != component.data.rows.length ||
+        oldComponent.data.truncated != component.data.truncated) {
+      _scheduleFillViewportCheck();
+    }
   }
 
   @override
@@ -653,6 +695,9 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     return div(classes: 'table-rows-block', [
       div(
         classes: 'table-rows-wrap${!selection.isEmpty ? ' table-rows-wrap--selection-open' : ''}',
+        events: {
+          'scroll': _onTableScroll,
+        },
         [
         table(classes: 'rows-table', [
           thead([
@@ -702,8 +747,8 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
             showSelectAll: showSelectAllInToolbar,
           ),
         ]),
-      if (data.truncated)
-        p(classes: 'table-rows-foot', [.text('Showing ${data.rows.length} of ${data.total} rows')]),
+      if (data.isLoadingMore)
+        p(classes: 'table-rows-foot', [.text('Loading more rows…')]),
     ]);
   }
 }
