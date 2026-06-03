@@ -17,7 +17,7 @@ class _Row {
   final List<String> tags;
 }
 
-class _TestTable extends Table<_Row> implements _Row {
+class _TestTable extends Table<_Row> {
   _TestTable(super.$)
     : id = $.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
       title = $.text('title', (s) => s.title),
@@ -39,16 +39,12 @@ class _TestTable extends Table<_Row> implements _Row {
     tags: read(tags)!,
   );
 
-  @override
   final IntColumn id;
 
-  @override
   final TextColumn title;
 
-  @override
   final IntColumn qty;
 
-  @override
   final ListColumn<String> tags;
 }
 
@@ -60,7 +56,7 @@ class _JsonRow {
   final Map<String, dynamic> profile;
 }
 
-class _JsonTable extends Table<_JsonRow> implements _JsonRow {
+class _JsonTable extends Table<_JsonRow> {
   _JsonTable(super.$)
     : id = $.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
       title = $.text('title', (s) => s.title),
@@ -70,13 +66,10 @@ class _JsonTable extends Table<_JsonRow> implements _JsonRow {
   _JsonRow fromRow(RowReader read) =>
       _JsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
 
-  @override
   final IntColumn id;
 
-  @override
   final TextColumn title;
 
-  @override
   final MapColumn profile;
 }
 
@@ -359,7 +352,7 @@ void main() {
     });
 
     test('list with groupBy builds translatable SELECT', () {
-      final query = ops.list(groupBy: widgets.title.$).toQuery();
+      final query = ops.list(groupBy: widgets.title).toQuery();
       final (sql, _) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('GROUP BY'));
       expect(sql, contains('"title"'));
@@ -461,7 +454,7 @@ void main() {
     test('list groupBy runs successfully', () async {
       await execOps.insert({'title': 'g', 'qty': 1, 'tags': '[]'});
       await execOps.insert({'title': 'g', 'qty': 1, 'tags': '[]'});
-      final rows = await execOps.list(groupBy: widgets.title.$);
+      final rows = await execOps.list(groupBy: widgets.title);
       expect(rows, isNotEmpty);
     });
 

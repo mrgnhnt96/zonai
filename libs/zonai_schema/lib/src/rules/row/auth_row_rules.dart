@@ -82,7 +82,7 @@ class AuthRowRules<S extends AuthTable<R>, R>
 
   bool _rowIdMatches(R row, UnknownId jwtUserId) {
     try {
-      final rowId = schema.id.$.readValueOf(row);
+      final rowId = schema.id.readValueOf(row);
       return rowId is Id && rowId.value == jwtUserId.value;
     } catch (_) {
       return false;

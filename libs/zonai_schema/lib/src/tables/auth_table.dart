@@ -45,7 +45,7 @@ S authTable<S extends AuthTable<T>, T>(
         extra.call(table);
 
         for (final index in rd.Table.getFor(table).indexes) {
-          if (index.columns.contains(table.id.$)) {
+          if (index.columns.contains(table.id)) {
             if (index.isUnique) {
               continue;
             }

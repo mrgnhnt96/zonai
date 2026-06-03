@@ -3,7 +3,7 @@ import 'package:raindrop/raindrop.dart';
 extension EmailColumnDefinition<S> on SchemaBuilder<S> {
   T email<T extends EmailColumn?, W extends String?>(
     String name,
-    Field<S, W> field,
+    W Function(S) field,
   ) {
     return custom<EmailColumn, String, String, W>(
           EmailColumn.new,
@@ -16,7 +16,8 @@ extension EmailColumnDefinition<S> on SchemaBuilder<S> {
   }
 }
 
-extension type EmailColumn(String _) implements ColumnType<String>, String {}
+extension type EmailColumn(Column<dynamic, String> _)
+    implements ColumnType<String> {}
 
 class EmailTransformer extends ColumnTransformer<String, String> {
   const EmailTransformer();

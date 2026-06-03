@@ -1,0 +1,160 @@
+import 'dart:convert';
+
+import 'package:zonai_schema/src/types/column_shape_kind.dart';
+import 'package:zonai_schema/src/types/schema_shape.dart';
+
+/// Human-readable table header for a [ColumnShape].
+String columnShapeHeaderLabel(ColumnShape shape) => shape.name;
+
+/// Formats a raw cell value from `/db/list` using [shape] metadata.
+String formatSchemaCell(Object? value, ColumnShape? shape) {
+  if (value == null) return '—';
+  if (shape?.isSecret == true || shape?.kind == ColumnShapeKind.password) {
+    return '••••••••';
+  }
+
+  return switch (shape?.kind) {
+    ColumnShapeKind.boolean ||
+    ColumnShapeKind.isVerified => _formatBoolean(value),
+    ColumnShapeKind.integer || ColumnShapeKind.id => _formatInteger(value),
+    ColumnShapeKind.real => _formatReal(value),
+    ColumnShapeKind.bigInt => '$value',
+    ColumnShapeKind.dateTime ||
+    ColumnShapeKind.createdAt ||
+    ColumnShapeKind.updatedAt => _formatDateTime(value),
+    ColumnShapeKind.enum_ => _formatEnum(value, shape!.enumValues),
+    ColumnShapeKind.enumList => _formatEnumList(value, shape!.enumValues),
+    ColumnShapeKind.photo => _formatPhoto(value),
+    ColumnShapeKind.photos => _formatPhotos(value),
+    ColumnShapeKind.map || ColumnShapeKind.list => _formatStructured(value),
+    ColumnShapeKind.blob => _formatBlob(value),
+    _ => '$value',
+  };
+}
+
+String _formatBoolean(Object value) => switch (value) {
+  true || 1 || '1' || 'true' => 'Yes',
+  false || 0 || '0' || 'false' => 'No',
+  _ => '$value',
+};
+
+String _formatInteger(Object value) {
+  return switch (value) {
+    int i => i.toString(),
+    num n => n.toInt().toString(),
+    String s => int.tryParse(s)?.toString() ?? s,
+    _ => '$value',
+  };
+}
+
+String _formatReal(Object value) {
+  return switch (value) {
+    double d => d.toString(),
+    num n => n.toString(),
+    String s => double.tryParse(s)?.toString() ?? s,
+    _ => '$value',
+  };
+}
+
+String _formatDateTime(Object value) {
+  final DateTime? parsed = switch (value) {
+    DateTime d => d,
+    int ms => DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true),
+    num n => DateTime.fromMillisecondsSinceEpoch(n.toInt(), isUtc: true),
+    String s => DateTime.tryParse(s),
+    _ => null,
+  };
+
+  if (parsed == null) return '$value';
+
+  final utc = parsed.isUtc ? parsed : parsed.toUtc();
+  final y = utc.year.toString().padLeft(4, '0');
+  final m = utc.month.toString().padLeft(2, '0');
+  final d = utc.day.toString().padLeft(2, '0');
+  final h = utc.hour.toString().padLeft(2, '0');
+  final min = utc.minute.toString().padLeft(2, '0');
+  final sec = utc.second.toString().padLeft(2, '0');
+  return '$y-$m-$d $h:$min:$sec UTC';
+}
+
+String _formatEnum(Object value, List<String> enumValues) {
+  if (value is String) return value;
+  if (value is int && enumValues.isNotEmpty) {
+    final index = value;
+    if (index >= 0 && index < enumValues.length) return enumValues[index];
+  }
+  return '$value';
+}
+
+String _formatEnumList(Object value, List<String> enumValues) {
+  final list = _asList(value);
+  if (list == null) return _formatStructured(value);
+
+  final labels = [
+    for (final item in list)
+      if (item != null) _formatEnum(item, enumValues),
+  ];
+  return labels.join(', ');
+}
+
+String _formatPhoto(Object value) {
+  final text = '$value';
+  if (text.startsWith('http://') || text.startsWith('https://')) {
+    return _truncate(text, 64);
+  }
+  return text;
+}
+
+String _formatPhotos(Object value) {
+  final list = _asList(value);
+  if (list == null) return _formatStructured(value);
+  if (list.isEmpty) return '—';
+
+  final urls = [
+    for (final item in list)
+      if (item != null) _formatPhoto(item),
+  ];
+  if (urls.length == 1) return urls.single;
+  return '${urls.length} photos';
+}
+
+String _formatStructured(Object value) {
+  final decoded = _decodeJsonValue(value);
+  if (decoded == null) return '$value';
+
+  const encoder = JsonEncoder.withIndent('  ');
+  try {
+    return encoder.convert(decoded);
+  } on Object {
+    return '$decoded';
+  }
+}
+
+String _formatBlob(Object value) => switch (value) {
+  final List<int> bytes => 'BLOB (${bytes.length} bytes)',
+  final String s when s.isEmpty => '—',
+  final String s => _truncate(s, 80),
+  _ => '$value',
+};
+
+Object? _decodeJsonValue(Object value) {
+  if (value is Map || value is List) return value;
+  if (value is! String || value.isEmpty) return null;
+  try {
+    return jsonDecode(value);
+  } on FormatException {
+    return null;
+  }
+}
+
+List<Object?>? _asList(Object value) {
+  if (value is List) return value;
+  final decoded = _decodeJsonValue(value);
+  if (decoded is List) return decoded;
+  return null;
+}
+
+String _truncate(String text, int maxLength) {
+  if (text.length <= maxLength) return text;
+  return '${text.substring(0, maxLength - 1)}…';
+}

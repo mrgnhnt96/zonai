@@ -5,7 +5,7 @@ import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 extension IdColumnDefinition<S> on SchemaBuilder<S> {
   T id<I extends Id, T extends IdColumn<I>?, V extends Object?>(
     String name,
-    Field<S, V> field, {
+    V Function(S) field, {
     required I Function(String) fromString,
     required I Function() generate,
     bool isPrimaryKey = true,
@@ -19,9 +19,9 @@ extension IdColumnDefinition<S> on SchemaBuilder<S> {
               transformer: IdTransformer<I>(
                 fromString: fromString,
                 generate: generate,
+                synthetic: synthetic,
               ),
               sqlType: 'TEXT',
-              synthetic: synthetic ?? generate(),
             )
             as T;
 
@@ -33,16 +33,22 @@ extension IdColumnDefinition<S> on SchemaBuilder<S> {
   }
 }
 
-extension type IdColumn<T extends Id>(T _) implements ColumnType<T>, Id {}
+extension type IdColumn<T extends Id>(Column<dynamic, T> _)
+    implements ColumnType<T> {}
 
 /// Wire type [Object] so [decode] accepts SQL strings and in-memory [Id]
 /// values (e.g. some drivers / RETURNING rows surface bound Dart values).
 class IdTransformer<I extends Id> extends ColumnTransformer<I, Object>
     with CreatePrimaryKey<I> {
-  IdTransformer({required this.fromString, required this.generate});
+  IdTransformer({
+    required this.fromString,
+    required this.generate,
+    this.synthetic,
+  });
 
   final I Function(String) fromString;
   final I Function() generate;
+  final I? synthetic;
 
   @override
   String encode(I input) => input.value;
@@ -62,10 +68,10 @@ class IdTransformer<I extends Id> extends ColumnTransformer<I, Object>
   }
 
   @override
-  I primaryKey() => generate();
+  I primaryKey() => synthetic ?? generate();
 }
 
 extension IdOperators<T extends Id> on ColumnOf<T> {
   /// String equals [value].
-  SQL equals(T value) => SQL([$, Op.equals, value.value]);
+  SQL equals(T value) => SQL([this, Op.equals, value.value]);
 }

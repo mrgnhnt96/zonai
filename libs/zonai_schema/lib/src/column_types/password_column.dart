@@ -4,7 +4,7 @@ import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 extension PasswordColumnDefinition<S> on SchemaBuilder<S> {
   T password<T extends PasswordColumn?, W extends String?>(
     String name,
-    Field<S, W> field,
+    W Function(S) field,
   ) {
     return custom<PasswordColumn, String, String, W>(
           PasswordColumn.new,
@@ -17,7 +17,8 @@ extension PasswordColumnDefinition<S> on SchemaBuilder<S> {
   }
 }
 
-extension type PasswordColumn(String _) implements ColumnType<String>, String {}
+extension type PasswordColumn(Column<dynamic, String> _)
+    implements ColumnType<String> {}
 
 class PasswordTransformer extends ColumnTransformer<String, String>
     implements SecretTransformer<String, String> {

@@ -14,6 +14,7 @@ export 'src/payloads/photo_bodies.dart';
 export 'src/payloads/list_body.dart';
 export 'src/types/column_shape_kind.dart';
 export 'src/types/schema_shape.dart';
+export 'src/schema_cell_display.dart';
 export 'src/payloads/stream_body.dart';
 export 'src/payloads/stream_count_body.dart';
 export 'src/payloads/stream_list_body.dart';

@@ -7,7 +7,7 @@ import 'package:zonai_schema/src/internal/tables.dart' as tables;
 extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
   T photos<T extends PhotosColumn?, W extends List<PhotoId>?>(
     String name,
-    Field<S, W> field,
+    W Function(S) field,
   ) {
     final c =
         custom<PhotosColumn, List<PhotoId>, String, W>(
@@ -16,7 +16,6 @@ extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
               field,
               sqlType: 'TEXT',
               transformer: const PhotosTransformer(),
-              synthetic: [],
             )
             as PhotosColumn?;
 
@@ -24,8 +23,8 @@ extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
   }
 }
 
-extension type PhotosColumn(List<PhotoId> _)
-    implements ColumnType<List<PhotoId>>, List<PhotoId> {}
+extension type PhotosColumn(Column<dynamic, List<PhotoId>> _)
+    implements ColumnType<List<PhotoId>> {}
 
 class PhotosTransformer extends ColumnTransformer<List<PhotoId>, String> {
   const PhotosTransformer();

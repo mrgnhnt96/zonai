@@ -1,4 +1,5 @@
-import 'package:revali_router_core/revali_router_core.dart';
+import 'package:revali_router_core/method_mutations/headers/headers.dart';
+import 'package:revali_router_core/trusted_proxy/trusted_proxy.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/config/trusted_proxy_config.dart';
 
@@ -30,17 +31,16 @@ final class _TestHeaders implements Headers {
 }
 
 void main() {
-  group('resolveClientIp with TrustedProxyConfig', () {
+  group('TrustedProxy.resolve with TrustedProxyConfig', () {
     const remote = '10.0.0.1';
 
     test('returns remote IP when trusted proxy headers are not configured', () {
       expect(
-        resolveClientIp(
-          remoteIp: remote,
-          headers: _TestHeaders({
+        _toTrustedProxy(const TrustedProxyConfig()).resolve(
+          remote,
+          _TestHeaders({
             'x-forwarded-for': ['203.0.113.1, 198.51.100.178'],
           }),
-          trustedProxy: _toTrustedProxy(const TrustedProxyConfig()),
         ),
         remote,
       );
@@ -48,14 +48,13 @@ void main() {
 
     test('uses rightmost valid IP by default', () {
       expect(
-        resolveClientIp(
-          remoteIp: remote,
-          headers: _TestHeaders({
+        _toTrustedProxy(
+          const TrustedProxyConfig(headers: ['X-Forwarded-For']),
+        ).resolve(
+          remote,
+          _TestHeaders({
             'x-forwarded-for': ['203.0.113.1, 198.51.100.178'],
           }),
-          trustedProxy: _toTrustedProxy(
-            const TrustedProxyConfig(headers: ['X-Forwarded-For']),
-          ),
         ),
         '198.51.100.178',
       );
@@ -63,17 +62,16 @@ void main() {
 
     test('uses leftmost valid IP when useLeftmostIp is true', () {
       expect(
-        resolveClientIp(
-          remoteIp: remote,
-          headers: _TestHeaders({
+        _toTrustedProxy(
+          const TrustedProxyConfig(
+            headers: ['X-Forwarded-For'],
+            useLeftmostIp: true,
+          ),
+        ).resolve(
+          remote,
+          _TestHeaders({
             'x-forwarded-for': ['203.0.113.1, 198.51.100.178'],
           }),
-          trustedProxy: _toTrustedProxy(
-            const TrustedProxyConfig(
-              headers: ['X-Forwarded-For'],
-              useLeftmostIp: true,
-            ),
-          ),
         ),
         '203.0.113.1',
       );

@@ -240,7 +240,13 @@ class HomeScreen extends StatelessComponent {
       ),
       css('.rows-table td').styles(
         padding: .symmetric(horizontal: 12.px, vertical: 8.px),
-        raw: const {'border-bottom': '1px solid var(--zonai-border)', 'vertical-align': 'top', 'max-width': '320px'},
+        raw: const {
+          'border-bottom': '1px solid var(--zonai-border)',
+          'vertical-align': 'top',
+          'max-width': '320px',
+          'white-space': 'pre-wrap',
+          'overflow-wrap': 'anywhere',
+        },
       ),
       css('.table-rows-foot').styles(fontSize: 0.8125.rem, color: mutedColor),
     ]),
@@ -308,14 +314,17 @@ class _TableMain extends StatelessComponent {
               table(classes: 'rows-table', [
                 thead([
                   tr([
-                    for (final shape in data.columnShapes) th(classes: 'rows-header', [.text(_columnHeader(shape))]),
+                    for (final shape in data.columnShapes)
+                      th(classes: 'rows-header', [.text(columnShapeHeaderLabel(shape))]),
                   ]),
                 ]),
                 tbody([
                   for (final row in data.rows)
                     tr([
                       for (var i = 0; i < row.length; i++)
-                        td(classes: 'rows-cell', [.text(_formatCell(row[i], data.columnShapes.elementAtOrNull(i)))]),
+                        td(classes: 'rows-cell', [
+                          .text(formatSchemaCell(row[i], data.columnShapes.elementAtOrNull(i))),
+                        ]),
                     ]),
                 ]),
               ]),
@@ -328,39 +337,6 @@ class _TableMain extends StatelessComponent {
     }
 
     return div(classes: 'table-detail-panel', children);
-  }
-
-  static String _columnHeader(ColumnShape shape) {
-    final label = shape.name;
-    return switch (shape.kind) {
-      .email => '$label (email)',
-      .photo => '$label (photo)',
-      .photos => '$label (photos)',
-      .password => '$label (password)',
-      .isVerified => '$label (verified)',
-      .enum_ => '$label (enum)',
-      _ => label,
-    };
-  }
-
-  static String _formatCell(Object? cell, ColumnShape? shape) {
-    if (cell == null) return '—';
-    if (shape?.isSecret == true) return '••••••••';
-
-    return switch (shape?.kind) {
-      .boolean || .isVerified => switch (cell) {
-        true || 1 => 'Yes',
-        false || 0 => 'No',
-        _ => '$cell',
-      },
-      .photo => 'Photo $cell',
-      .photos => switch (cell) {
-        final List list => '${list.length} photo(s)',
-        _ => '$cell',
-      },
-      .dateTime || .createdAt || .updatedAt => '$cell',
-      _ => '$cell',
-    };
   }
 
   static String _errorText(Object error) {

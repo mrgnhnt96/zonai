@@ -4,6 +4,7 @@ import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
+import 'package:zonai_schema/src/types/jwt_id.dart';
 
 import '../../../lib/src/utils/jwt_generator.dart';
 
@@ -41,7 +42,7 @@ void main() {
             userId: 'user-42',
             table: 'things',
             user: {},
-            jwtId: 'jti-ab',
+            jwtId: JwtId('jti-ab'),
             expiresIn: expiresIn,
             claims: {'role': 'admin', 'n': 1, 'nested': <String, Object?>{}},
           ),
@@ -78,7 +79,7 @@ void main() {
           userId: 'u',
           table: 'c',
           user: {},
-          jwtId: 'j',
+          jwtId: JwtId('j'),
           expiresIn: const Duration(days: 365000),
           claims: claims,
         ),
@@ -100,7 +101,7 @@ void main() {
             userId: 'u',
             table: 'c',
             user: {},
-            jwtId: 'j',
+            jwtId: JwtId('j'),
             expiresIn: expiresIn,
             claims: {},
           ),
@@ -120,7 +121,7 @@ void main() {
             userId: 'u',
             table: 'c',
             user: {},
-            jwtId: 'j',
+            jwtId: JwtId('j'),
             expiresIn: const Duration(days: 365000),
             claims: {},
           ),
@@ -182,7 +183,7 @@ void main() {
             userId: 'original',
             table: 'c',
             user: {},
-            jwtId: 'j',
+            jwtId: JwtId('j'),
             expiresIn: const Duration(days: 365000),
             claims: {},
           ),
@@ -202,7 +203,7 @@ void main() {
             userId: 'u',
             table: 'c',
             user: {},
-            jwtId: 'j',
+            jwtId: JwtId('j'),
             expiresIn: const Duration(days: 365000),
             claims: {},
           ),
@@ -238,7 +239,7 @@ void main() {
               userId: 'u',
               table: 'c',
               user: {},
-              jwtId: 'j',
+              jwtId: JwtId('j'),
               expiresIn: const Duration(days: -365),
               claims: {},
             ),
@@ -255,7 +256,7 @@ void main() {
               userId: 'u',
               table: 'c',
               user: {},
-              jwtId: 'j',
+              jwtId: JwtId('j'),
               expiresIn: ttl,
               claims: {},
             ),
@@ -313,7 +314,7 @@ void main() {
               userId: 'u',
               table: 'c',
               user: {},
-              jwtId: 'j',
+              jwtId: JwtId('j'),
               expiresIn: const Duration(days: 365),
               claims: {'bad': Object()},
             ),

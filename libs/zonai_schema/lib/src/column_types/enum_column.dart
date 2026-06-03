@@ -1,13 +1,14 @@
 import 'package:raindrop/raindrop.dart';
 
 /// Dart [Enum] stored as TEXT (enum [.name] on the wire by default).
-extension type EnumColumn<E extends Enum>(E _) implements ColumnType<E> {}
+extension type EnumColumn<E extends Enum>(Column<dynamic, E> _)
+    implements ColumnType<E> {}
 
 extension EnumColumnDefinition<S> on SchemaBuilder<S> {
   T enumerator<E extends Enum, T extends EnumColumn<E>?, W extends Object?>(
     String name,
     List<E> values,
-    Field<S, W> field, {
+    W Function(S) field, {
     String Function(E value)? toWire,
     E Function(String wire)? fromWire,
   }) {
@@ -21,7 +22,6 @@ extension EnumColumnDefinition<S> on SchemaBuilder<S> {
             toWire: toWire,
             fromWire: fromWire,
           ),
-          synthetic: values.first,
         )
         as T;
   }
@@ -80,10 +80,10 @@ class EnumTransformer<E extends Enum> extends ColumnTransformer<E, Object> {
 extension EnumOperators<E extends Enum> on ColumnOf<E> {
   /// String equals [value] using the column's wire encoding (enum [.name] by default).
   SQL equals(E value) {
-    final wire = switch (ColumnType.lookup(this)?.transformer) {
+    final wire = switch (this?.transformer) {
       EnumTransformer<E>(:final toWire) => toWire(value),
       _ => value.name,
     };
-    return SQL([$, Op.equals, wire]);
+    return SQL([this, Op.equals, wire]);
   }
 }

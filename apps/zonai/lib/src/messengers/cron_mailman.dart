@@ -54,7 +54,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
             .select()
             .from(crons)
             .where(crons.name.equals(request.name))
-            .orderBy(crons.started.$, ascending: false)
+            .orderBy(crons.started, ascending: false)
             .limit(1);
 
         if (rows.isEmpty) {

@@ -1,14 +1,14 @@
 import 'package:raindrop/raindrop.dart';
 
 /// Dart [Enum] stored as TEXT (enum [.name] on the wire by default).
-extension type EnumListColumn<E extends Enum>(List<E> _)
+extension type EnumListColumn<E extends Enum>(Column<dynamic, List<E>> _)
     implements ColumnType<List<E>> {}
 
 extension EnumListColumnDefinition<S> on SchemaBuilder<S> {
   T enumList<E extends Enum, T extends EnumListColumn<E>?, W extends Object?>(
     String name,
     List<E> values,
-    Field<S, W> field, {
+    W Function(S) field, {
     String Function(E value)? toWire,
     E Function(String wire)? fromWire,
   }) {
@@ -22,7 +22,6 @@ extension EnumListColumnDefinition<S> on SchemaBuilder<S> {
             toWire: toWire,
             fromWire: fromWire,
           ),
-          synthetic: [],
         )
         as T;
   }

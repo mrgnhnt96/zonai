@@ -3,7 +3,7 @@ import 'package:raindrop/raindrop.dart';
 extension IsVerifiedColumnDefinition<S> on SchemaBuilder<S> {
   T isVerified<T extends IsVerifiedColumn?, W extends bool?>(
     String name,
-    Field<S, W> field,
+    W Function(S) field,
   ) {
     return custom<IsVerifiedColumn, bool, Object, W>(
           IsVerifiedColumn.new,
@@ -17,7 +17,8 @@ extension IsVerifiedColumnDefinition<S> on SchemaBuilder<S> {
   }
 }
 
-extension type IsVerifiedColumn(bool _) implements ColumnType<bool>, bool {}
+extension type IsVerifiedColumn(Column<dynamic, bool> _)
+    implements ColumnType<bool> {}
 
 /// Wire type [Object] so [decode] accepts SQL integers and in-memory [bool]
 /// values (e.g. some drivers / RETURNING rows surface bound Dart values).
