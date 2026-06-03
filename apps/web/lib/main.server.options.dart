@@ -9,6 +9,9 @@ import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
 import 'package:zonai_web/components/auth_app_shell.dart' as _auth_app_shell;
 import 'package:zonai_web/components/home_app_shell.dart' as _home_app_shell;
 import 'package:zonai_web/components/home_screen.dart' as _home_screen;
+import 'package:zonai_web/components/home_settings_overlay.dart'
+    as _home_settings_overlay;
+import 'package:zonai_web/components/home_sidebar.dart' as _home_sidebar;
 import 'package:zonai_web/constants/theme.dart' as _theme;
 import 'package:zonai_web/app.dart' as _app;
 
@@ -44,7 +47,10 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._ui_styles.zonaiUiStyles,
     ..._theme.styles,
     ..._app.App.styles,
+    ..._home_app_shell.HomeAppShell.styles,
     ..._home_screen.HomeScreen.styles,
+    ..._home_settings_overlay.HomeSettingsOverlay.styles,
+    ..._home_sidebar.HomeSidebar.styles,
   ],
 );
 

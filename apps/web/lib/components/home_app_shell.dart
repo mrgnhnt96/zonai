@@ -1,3 +1,4 @@
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
@@ -37,16 +38,40 @@ class HomeAppShell extends StatelessComponent {
       for (final MapEntry(:key, :value) in initialSchemaShapes.entries)
         key: TableSchemaShape.fromJson(Map<String, dynamic>.from(value)),
     };
-    return ProviderScope(
-      overrides: appShellOverrides(
-        initialSignedIn: true,
-        initialPath: initialPath,
-        initialAppName: initialAppName,
-        initialAuthTypes: const [],
-        tables: SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),
-        schemaShapes: schemaShapes,
+    return div(classes: 'home-app-shell', [
+      ProviderScope(
+        overrides: appShellOverrides(
+          initialSignedIn: true,
+          initialPath: initialPath,
+          initialAppName: initialAppName,
+          initialAuthTypes: const [],
+          tables: SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),
+          schemaShapes: schemaShapes,
+        ),
+        child: Component.fragment([
+          const PageTitleHead(),
+          div(classes: 'home-app-shell-body', [const HomeRouter()]),
+        ]),
       ),
-      child: Component.fragment([const PageTitleHead(), const HomeRouter()]),
-    );
+    ]);
   }
+
+  @css
+  static List<StyleRule> get styles => [
+    css('.home-app-shell').styles(
+      flex: Flex(grow: 1, shrink: 1),
+      display: .flex,
+      flexDirection: FlexDirection.column,
+      minHeight: .zero,
+      overflow: Overflow.hidden,
+      width: 100.percent,
+    ),
+    css('.home-app-shell-body').styles(
+      flex: Flex(grow: 1, shrink: 1),
+      display: .flex,
+      flexDirection: FlexDirection.column,
+      minHeight: .zero,
+      overflow: Overflow.hidden,
+    ),
+  ];
 }

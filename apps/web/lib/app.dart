@@ -4,6 +4,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import 'components/auth_app_shell.dart';
 import 'components/home_app_shell.dart';
+import 'utils/page_title.dart';
 
 /// Root widget mounted into `<body>` by [runApp].
 class App extends StatelessComponent {
@@ -30,7 +31,34 @@ class App extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
+    final tableDisplayName = initialSignedIn
+        ? PageTitle.tableDisplayNameForPath(
+            initialPath,
+            sqliteNames: initialSqliteNames,
+            displayNames: initialDisplayNames,
+          )
+        : null;
+    final title = PageTitle.resolve(
+      appName: appConfig.appName,
+      signedIn: initialSignedIn,
+      path: initialPath,
+      tableDisplayName: tableDisplayName,
+    );
+
     return div(classes: 'app-root', [
+      Document.head(
+        title: title,
+        meta: {
+          'viewport': 'width=device-width, initial-scale=1',
+          'description': PageTitle.description(
+            appName: appConfig.appName,
+            signedIn: initialSignedIn,
+            path: initialPath,
+            tableDisplayName: tableDisplayName,
+          ),
+          'og:title': title,
+        },
+      ),
       if (initialSignedIn)
         HomeAppShell(
           initialSqliteNames: initialSqliteNames,
@@ -50,5 +78,16 @@ class App extends StatelessComponent {
   }
 
   @css
-  static List<StyleRule> get styles => [css('.app-root').styles(minHeight: 100.vh, display: .flex)];
+  static List<StyleRule> get styles => [
+    css('.app-root').styles(
+      height: 100.vh,
+      display: .flex,
+      flexDirection: FlexDirection.column,
+      overflow: Overflow.hidden,
+    ),
+    css('.app-root > .home-app-shell').styles(
+      flex: Flex(grow: 1, shrink: 1),
+      minHeight: .zero,
+    ),
+  ];
 }

@@ -7,7 +7,7 @@ import '../providers/app_name_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import '../utils/page_title.dart';
 
-/// Keeps `<title>` in sync with auth state and the current route.
+/// Keeps `<title>` and meta tags in sync with auth state and the current route.
 class PageTitleHead extends StatelessComponent {
   const PageTitleHead({super.key});
 
@@ -26,13 +26,25 @@ class PageTitleHead extends StatelessComponent {
       );
     }
 
+    final title = PageTitle.resolve(
+      appName: appName,
+      signedIn: signedIn,
+      path: path,
+      tableDisplayName: tableDisplayName,
+    );
+
     return Document.head(
-      title: PageTitle.resolve(
-        appName: appName,
-        signedIn: signedIn,
-        path: path,
-        tableDisplayName: tableDisplayName,
-      ),
+      title: title,
+      meta: {
+        'viewport': 'width=device-width, initial-scale=1',
+        'description': PageTitle.description(
+          appName: appName,
+          signedIn: signedIn,
+          path: path,
+          tableDisplayName: tableDisplayName,
+        ),
+        'og:title': title,
+      },
     );
   }
 }

@@ -14,7 +14,10 @@ import 'table_schema_shapes.dart';
 Component buildWebAppDocument() {
   return Document(
     base: AuthRoutes.mountPath,
-    head: [script(content: themeBootstrapScript)],
+    head: [
+      script(content: themeBootstrapScript),
+      meta(name: 'viewport', content: 'width=device-width, initial-scale=1'),
+    ],
     body: AsyncBuilder(
       builder: (context) async {
         final tables = loadZonaiSqliteTableNames();

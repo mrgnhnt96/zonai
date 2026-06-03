@@ -3,6 +3,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/deps.dart' as deps;
 import 'package:zonai/zonai.dart';
+import 'package:zonai_web/utils/sqlite_table_utils.dart';
 
 typedef SqliteTablesPayload = ({List<String> sqliteNames, List<String> displayNames, String? error});
 
@@ -13,8 +14,8 @@ String sqliteTableDisplayName(String rawName) => rawName == '_raindrop_migration
 List<({String raw, String label})> orderSqliteTablesForDisplay(Iterable<String> rawNames) {
   final rows = [for (final raw in rawNames) (raw: raw, label: sqliteTableDisplayName(raw))]
     ..sort((a, b) {
-      final aInternal = a.raw.startsWith('_');
-      final bInternal = b.raw.startsWith('_');
+      final aInternal = isSystemSqliteTable(a.raw);
+      final bInternal = isSystemSqliteTable(b.raw);
       if (aInternal != bInternal) {
         return aInternal ? 1 : -1;
       }

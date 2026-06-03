@@ -19,7 +19,10 @@ void main() {
 
   runApp(
     Document(
-      head: [script(content: themeBootstrapScript)],
+      head: [
+        script(content: themeBootstrapScript),
+        meta(name: 'viewport', content: 'width=device-width, initial-scale=1'),
+      ],
       body: AsyncBuilder(
         builder: (context) async {
           final tables = loadZonaiSqliteTableNames();
