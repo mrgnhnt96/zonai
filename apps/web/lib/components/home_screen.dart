@@ -683,15 +683,13 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
           tbody([
             for (var r = 0; r < displayRows.length; r++)
               _SelectableRow(
+                rowIndex: r,
                 row: displayRows[r],
                 rowKey: displayKeys[r],
+                pageKeys: displayKeys,
                 columnShapes: data.columnShapes,
                 selected: selection.isSelected(displayKeys[r]),
-                onSelectedChanged: (selected) => selectionNotifier.setSelected(
-                  displayKeys[r],
-                  selected: selected,
-                  pageKeys: displayKeys,
-                ),
+                selectionNotifier: selectionNotifier,
               ),
           ]),
         ]),
@@ -712,18 +710,22 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
 
 class _SelectableRow extends StatelessComponent {
   const _SelectableRow({
+    required this.rowIndex,
     required this.row,
     required this.rowKey,
+    required this.pageKeys,
     required this.columnShapes,
     required this.selected,
-    required this.onSelectedChanged,
+    required this.selectionNotifier,
   });
 
+  final int rowIndex;
   final List<Object?> row;
   final String rowKey;
+  final List<String> pageKeys;
   final List<ColumnShape> columnShapes;
   final bool selected;
-  final void Function(bool selected) onSelectedChanged;
+  final TableRowSelectionNotifier selectionNotifier;
 
   @override
   Component build(BuildContext context) {
@@ -735,7 +737,15 @@ class _SelectableRow extends StatelessComponent {
             classes: 'rows-select-checkbox',
             checked: selected,
             attributes: {'aria-label': 'Select row'},
-            onChange: onSelectedChanged,
+            events: {
+              'click': selectionNotifier.noteCheckboxClick,
+            },
+            onChange: (selected) => selectionNotifier.handleRowCheckboxChange(
+              index: rowIndex,
+              key: rowKey,
+              selected: selected,
+              pageKeys: pageKeys,
+            ),
           ),
         ]),
       ]),
