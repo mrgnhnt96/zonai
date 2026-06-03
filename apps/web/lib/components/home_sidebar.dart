@@ -39,6 +39,9 @@ class HomeSidebar extends StatelessComponent {
       for (final t in tables.tables)
         if (isSystemSqliteTable(t.sqliteName)) t,
     ];
+    final peekFocusedSystem =
+        !systemExpanded && focused != null && isSystemSqliteTable(focused!.sqliteName);
+    final panelShown = systemExpanded || peekFocusedSystem;
 
     final railTables = <SqliteTableRef>[
       ...userTables,
@@ -101,7 +104,18 @@ class HomeSidebar extends StatelessComponent {
                         span(classes: ZonaiClasses.sectionLabel, [.text('System')]),
                       ],
                     ),
-                    if (systemExpanded) _TablesList(tables: systemTables, focused: focused, collapsed: false),
+                    div(
+                      classes:
+                          'home-sidebar-system-panel'
+                          '${panelShown ? ' home-sidebar-system-panel--shown' : ''}'
+                          '${peekFocusedSystem ? ' home-sidebar-system-panel--peek' : ''}',
+                      attributes: {'aria-hidden': panelShown ? 'false' : 'true'},
+                      [
+                        div(classes: 'home-sidebar-system-panel-inner', [
+                          _TablesList(tables: systemTables, focused: focused, collapsed: false),
+                        ]),
+                      ],
+                    ),
                   ]),
               ],
             ],
@@ -341,6 +355,39 @@ class HomeSidebar extends StatelessComponent {
         raw: const {'line-height': '1', 'transition': 'transform 0.15s ease'},
       ),
       css('.home-sidebar-system-chevron--open').styles(raw: const {'transform': 'rotate(90deg)'}),
+      css('.home-sidebar-system-panel').styles(
+        raw: const {
+          'display': 'grid',
+          'grid-template-rows': '0fr',
+          'transition': 'grid-template-rows 0.2s ease',
+        },
+      ),
+      css('.home-sidebar-system-panel--shown').styles(
+        raw: const {'grid-template-rows': '1fr'},
+      ),
+      css('.home-sidebar-system-panel-inner').styles(
+        overflow: Overflow.hidden,
+        minHeight: .zero,
+      ),
+      css(
+        '.home-sidebar-system-panel .home-sidebar-item:not(.home-sidebar-item-focused)',
+      ).styles(
+        overflow: Overflow.hidden,
+        raw: const {
+          'max-height': '2.75rem',
+          'transition': 'max-height 0.2s ease, margin-bottom 0.2s ease, opacity 0.2s ease',
+        },
+      ),
+      css(
+        '.home-sidebar-system-panel--peek .home-sidebar-item:not(.home-sidebar-item-focused)',
+      ).styles(
+        margin: .zero,
+        raw: const {
+          'max-height': '0',
+          'opacity': '0',
+          'pointer-events': 'none',
+        },
+      ),
       css('.home-sidebar-footer').styles(
         margin: .only(top: .auto),
         padding: .all(12.px),
