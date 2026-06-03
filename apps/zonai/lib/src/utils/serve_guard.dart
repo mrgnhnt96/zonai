@@ -13,7 +13,6 @@ void catchErrors(Function() body) {
   } catch (error, stack) {
     _logServeFutureError(error, stack);
   }
-  body().catchError(_logServeFutureError);
 }
 
 /// Runs [body] in a guarded zone so unhandled async errors during `serve` are
