@@ -60,7 +60,7 @@ class AuthBackButton extends StatelessComponent {
   Component build(BuildContext context) {
     return ZonaiButton(
       variant: ZonaiButtonVariant.ghost,
-      onClick: () => context.read(authRouteProvider.notifier).navigateTo(to),
+      onClick: () => context.goApp(to),
       child: .text('← Back'),
     );
   }

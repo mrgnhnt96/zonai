@@ -1,62 +1,35 @@
-import 'dart:async';
-
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
-import 'package:universal_web/web.dart' as web;
 
 import 'auth_routes.dart';
+
+export '../router/app_navigation.dart' show AppNavigation, appPathFromContext;
 
 final authRouteProvider = NotifierProvider<AuthRouteNotifier, String>(
   AuthRouteNotifier.new,
 );
 
+/// Tracks the normalized app path for guards, titles, and table focus.
+///
+/// Updated by [RoutePathSync] from [jaspr_router] [RouteState].
 class AuthRouteNotifier extends Notifier<String> {
   AuthRouteNotifier({this.initialPath});
 
   final String? initialPath;
 
-  StreamSubscription<web.PopStateEvent>? _popStateSubscription;
+  String? _previous;
 
   @override
-  String build() {
-    if (!ref.binding.isClient) {
-      return AuthRoutes.normalizePath(initialPath ?? AuthRoutes.signIn);
-    }
+  String build() => AuthRoutes.normalizePath(initialPath ?? AuthRoutes.signIn);
 
-    _listenToPopState();
-    return AuthRoutes.normalizePath(_browserPath());
-  }
-
-  /// Updates the URL and route state. Use [replace] for auth redirects so they
-  /// do not stack extra history entries (e.g. after sign-in or sign-out).
-  void navigateTo(String path, {bool replace = false}) {
-    if (!ref.binding.isClient) {
+  /// Called when the active [RouteState] location changes.
+  void notifyPathChanged(String path, {String? previous}) {
+    final normalized = AuthRoutes.normalizePath(path);
+    if (state == normalized) {
       return;
     }
-
-    final normalized = AuthRoutes.normalizePath(path);
-    final urlPath = AuthRoutes.toUrlPath(normalized);
-    if (replace) {
-      web.window.history.replaceState(null, '', urlPath);
-    } else {
-      web.window.history.pushState(null, '', urlPath);
-    }
+    _previous = previous ?? _previous ?? state;
     state = normalized;
   }
 
-  void _listenToPopState() {
-    if (_popStateSubscription != null) {
-      return;
-    }
-
-    _popStateSubscription = web.window.onPopState.listen((_) {
-      state = AuthRoutes.normalizePath(_browserPath());
-    });
-
-    ref.onDispose(() {
-      _popStateSubscription?.cancel();
-      _popStateSubscription = null;
-    });
-  }
-
-  static String _browserPath() => web.window.location.pathname;
+  String? get previousPath => _previous;
 }

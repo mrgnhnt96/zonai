@@ -43,7 +43,7 @@ class HomeScreen extends StatelessComponent {
                   type: .button,
                   classes: 'tables-item-button',
                   onClick: () {
-                    context.read(tableFocusProvider.notifier).setFocused(c);
+                    context.read(tableFocusProvider.notifier).setFocused(context, c);
                   },
                 ),
               ]),

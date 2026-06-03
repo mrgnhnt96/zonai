@@ -62,9 +62,7 @@ class VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   void _continue() {
     final signedIn = context.read(authProvider);
-    context.read(authRouteProvider.notifier).navigateTo(
-      signedIn ? AuthRoutes.home : AuthRoutes.signIn,
-    );
+    context.goApp(signedIn ? AuthRoutes.home : AuthRoutes.signIn);
   }
 
   @override

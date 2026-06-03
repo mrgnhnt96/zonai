@@ -46,9 +46,7 @@ class AuthTypePickerScreen extends StatelessComponent {
                 title: _titleFor(authType),
                 description: _descriptionFor(authType),
                 onSelect: () {
-                  context.read(authRouteProvider.notifier).navigateTo(
-                    AuthRoutes.forType(authType),
-                  );
+                  context.goApp(AuthRoutes.forType(authType));
                 },
               ),
           ]),
@@ -158,9 +156,7 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
             AuthTextLink(
               label: 'Forgot password?',
               onClick: () {
-                context.read(authRouteProvider.notifier).navigateTo(
-                  AuthRoutes.resetPasswordRequest,
-                );
+                context.goApp(AuthRoutes.resetPasswordRequest);
               },
             ),
           ],

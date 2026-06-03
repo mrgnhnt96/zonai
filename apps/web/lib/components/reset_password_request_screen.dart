@@ -62,7 +62,7 @@ class ResetPasswordRequestFormState extends State<ResetPasswordRequestForm> {
   }
 
   void _returnToSignIn() {
-    context.read(authRouteProvider.notifier).navigateTo(AuthRoutes.forType(.password));
+    context.goApp(AuthRoutes.forType(.password));
   }
 
   @override

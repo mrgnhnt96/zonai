@@ -1,3 +1,4 @@
+import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_web/auth/auth_route_provider.dart';
 import 'package:zonai_web/auth/auth_routes.dart';
@@ -31,13 +32,11 @@ class TableFocusNotifier extends Notifier<SqliteTableRef?> {
     return resolveTableFocus(path, tables);
   }
 
-  void setFocused(SqliteTableRef table) {
-    ref.read(authRouteProvider.notifier).navigateTo(
-      AuthRoutes.forTable(table.sqliteName),
-    );
+  void setFocused(BuildContext context, SqliteTableRef table) {
+    context.goApp(AuthRoutes.forTable(table.sqliteName));
   }
 
-  void clear() {
-    ref.read(authRouteProvider.notifier).navigateTo(AuthRoutes.home);
+  void clear(BuildContext context) {
+    context.goApp(AuthRoutes.home);
   }
 }

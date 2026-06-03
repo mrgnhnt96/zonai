@@ -16,12 +16,15 @@ class PageTitleHead extends StatelessComponent {
     final appName = context.watch(appNameProvider);
     final signedIn = context.watch(authProvider);
     final path = context.watch(authRouteProvider);
-    final tables = context.watch(sqliteTablesProvider);
-    final tableDisplayName = PageTitle.tableDisplayNameForPath(
-      path,
-      sqliteNames: [for (final c in tables.tables) c.sqliteName],
-      displayNames: [for (final c in tables.tables) c.displayName],
-    );
+    String? tableDisplayName;
+    if (signedIn) {
+      final tables = context.watch(sqliteTablesProvider);
+      tableDisplayName = PageTitle.tableDisplayNameForPath(
+        path,
+        sqliteNames: [for (final c in tables.tables) c.sqliteName],
+        displayNames: [for (final c in tables.tables) c.displayName],
+      );
+    }
 
     return Document.head(
       title: PageTitle.resolve(

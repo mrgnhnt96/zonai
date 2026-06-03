@@ -55,7 +55,7 @@ class MagicLinkVerifyScreenState extends State<MagicLinkVerifyScreen> {
   }
 
   void _returnToSignIn() {
-    context.read(authRouteProvider.notifier).navigateTo(AuthRoutes.signIn);
+    context.goApp(AuthRoutes.signIn);
   }
 
   @override

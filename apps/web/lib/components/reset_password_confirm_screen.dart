@@ -94,7 +94,7 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
   }
 
   void _returnToSignIn() {
-    context.read(authRouteProvider.notifier).navigateTo(AuthRoutes.forType(.password));
+    context.goApp(AuthRoutes.forType(.password));
   }
 
   @override

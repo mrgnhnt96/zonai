@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 import 'package:zonai_web/auth/auth_route_provider.dart';
@@ -49,7 +50,7 @@ class AuthNotifier extends Notifier<bool> {
     }
 
     // Signed in but URL is still a sign-in path (bookmark, refresh, etc.).
-    ref.read(authRouteProvider.notifier).navigateTo(AuthRoutes.home, replace: true);
+    web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
   }
 
   Future<void> sendOtp({required String email}) async {
@@ -158,6 +159,10 @@ class AuthNotifier extends Notifier<bool> {
 
   void signIn(String accessToken) {
     ZonaiCookie.authToken.write(accessToken);
+    if (ref.binding.isClient) {
+      web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
+      return;
+    }
     state = true;
     _syncRouteForAuthStateWithSignedIn(true);
   }
@@ -200,6 +205,10 @@ class AuthNotifier extends Notifier<bool> {
       }
     }
     ZonaiCookie.authToken.remove();
+    if (ref.binding.isClient && notifyRoute) {
+      web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.signIn));
+      return;
+    }
     state = false;
     if (notifyRoute) {
       _syncRouteForAuthStateWithSignedIn(false);
@@ -213,18 +222,17 @@ class AuthNotifier extends Notifier<bool> {
   void _syncRouteForAuthStateWithSignedIn(bool signedIn) {
     if (!ref.binding.isClient) return;
 
-    final route = ref.read(authRouteProvider.notifier);
     if (signedIn) {
       final path = ref.read(authRouteProvider);
       if (AuthRoutes.isSignInPath(path) && !AuthRoutes.isVerifyEmailCallbackPath(path)) {
-        route.navigateTo(AuthRoutes.home, replace: true);
+        web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
       }
       return;
     }
 
     final path = ref.read(authRouteProvider);
     if (!AuthRoutes.isPublicAuthPath(path)) {
-      route.navigateTo(AuthRoutes.signIn, replace: true);
+      web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.signIn));
     }
   }
 
