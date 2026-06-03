@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
@@ -8,6 +7,7 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import 'sign_in_screen.dart';
+import 'theme/theme_components.dart';
 
 /// Verifies a magic link from query parameters and signs the user in.
 class MagicLinkVerifyScreen extends StatefulComponent {
@@ -61,20 +61,27 @@ class MagicLinkVerifyScreenState extends State<MagicLinkVerifyScreen> {
   @override
   Component build(BuildContext context) {
     return SignInScreen(
-      child: div(classes: 'card', [
-        h1(classes: 'title', [.text('Signing you in')]),
-        if (_loading) ...[
-          p(classes: 'subtitle', [.text('Verifying your sign-in link…')]),
-        ] else if (_error case final error?) ...[
-          p(classes: 'error', [.text(error)]),
-          button(
-            classes: 'submit',
-            type: .button,
-            onClick: _returnToSignIn,
-            [.text('Back to sign in')],
-          ),
+      tagline: 'Magic link sign-in',
+      child: AuthFormCard(
+        children: [
+          if (_loading) ...[
+            const ZonaiPageTitle('Signing you in'),
+            const ZonaiPageSubtitle('Verifying your sign-in link…'),
+          ] else if (_error case final error?) ...[
+            const ZonaiPageTitle('Sign-in link'),
+            ZonaiErrorText(error),
+            AuthActions(
+              children: [
+                ZonaiButton(
+                  fullWidth: true,
+                  onClick: _returnToSignIn,
+                  child: .text('Back to sign in'),
+                ),
+              ],
+            ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }

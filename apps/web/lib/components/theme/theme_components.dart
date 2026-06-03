@@ -1,4 +1,5 @@
 export 'auth_page.dart';
+export 'auth_shell.dart';
 export 'ui_styles.dart';
 export 'zonai_alert.dart';
 export 'zonai_button.dart';

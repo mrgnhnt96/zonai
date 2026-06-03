@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
@@ -8,6 +7,7 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import 'sign_in_screen.dart';
+import 'theme/theme_components.dart';
 
 /// Verifies an email address from a link query parameter.
 class VerifyEmailScreen extends StatefulComponent {
@@ -70,30 +70,42 @@ class VerifyEmailScreenState extends State<VerifyEmailScreen> {
   @override
   Component build(BuildContext context) {
     return SignInScreen(
-      child: div(classes: 'card', [
-        if (_success) ...[
-          h1(classes: 'title', [.text('Email verified')]),
-          p(classes: 'subtitle', [.text('Your email address has been verified.')]),
-          button(
-            classes: 'submit',
-            type: .button,
-            onClick: _continue,
-            [.text(context.watch(authProvider) ? 'Continue' : 'Sign in')],
-          ),
-        ] else if (_loading) ...[
-          h1(classes: 'title', [.text('Verify your email')]),
-          p(classes: 'subtitle', [.text('Verifying your email address…')]),
-        ] else if (_error case final error?) ...[
-          h1(classes: 'title', [.text('Verify your email')]),
-          p(classes: 'error', [.text(error)]),
-          button(
-            classes: 'submit',
-            type: .button,
-            onClick: _continue,
-            [.text(context.watch(authProvider) ? 'Continue' : 'Back to sign in')],
-          ),
+      tagline: 'Email verification',
+      child: AuthFormCard(
+        children: [
+          if (_success) ...[
+            AuthSentHeader(
+              icon: '✓',
+              title: 'Email verified',
+              subtitle: 'Your email address has been verified.',
+            ),
+            AuthActions(
+              children: [
+                ZonaiButton(
+                  fullWidth: true,
+                  onClick: _continue,
+                  child: .text(context.watch(authProvider) ? 'Continue' : 'Sign in'),
+                ),
+              ],
+            ),
+          ] else if (_loading) ...[
+            const ZonaiPageTitle('Verify your email'),
+            const ZonaiPageSubtitle('Verifying your email address…'),
+          ] else if (_error case final error?) ...[
+            const ZonaiPageTitle('Verify your email'),
+            ZonaiErrorText(error),
+            AuthActions(
+              children: [
+                ZonaiButton(
+                  fullWidth: true,
+                  onClick: _continue,
+                  child: .text(context.watch(authProvider) ? 'Continue' : 'Back to sign in'),
+                ),
+              ],
+            ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 }

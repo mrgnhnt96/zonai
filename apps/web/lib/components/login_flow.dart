@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
@@ -14,6 +13,7 @@ import 'otp_sign_in_screen.dart';
 import 'reset_password_confirm_screen.dart';
 import 'reset_password_request_screen.dart';
 import 'sign_in_screen.dart';
+import 'theme/theme_components.dart';
 import 'verify_email_screen.dart';
 
 /// Chooses the sign-in screen from supported auth types and the current path.
@@ -106,10 +106,12 @@ class _SignInLoading extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'card', [
-      h1(classes: 'title', [.text('Sign in')]),
-      p(classes: 'subtitle', [.text('Loading sign-in options…')]),
-    ]);
+    return AuthFormCard(
+      children: [
+        const ZonaiPageTitle('Sign in'),
+        const ZonaiPageSubtitle('Loading sign-in options…'),
+      ],
+    );
   }
 }
 
@@ -120,9 +122,11 @@ class _SignInMessage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'card', [
-      h1(classes: 'title', [.text('Sign in')]),
-      p(classes: 'subtitle', [.text(message)]),
-    ]);
+    return AuthFormCard(
+      children: [
+        const ZonaiPageTitle('Sign in'),
+        ZonaiPageSubtitle(message),
+      ],
+    );
   }
 }

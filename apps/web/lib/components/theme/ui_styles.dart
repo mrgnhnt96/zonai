@@ -18,6 +18,7 @@ abstract final class ZonaiClasses {
   static const btnFullWidth = 'z-btn--full';
   static const authPage = 'z-auth-page';
   static const authPageTheme = 'z-auth-page__theme';
+  static const authPageBack = 'z-auth-page__back';
   static const sectionLabel = 'z-section-label';
   static const alertError = 'z-alert z-alert--error';
   static const alertTitle = 'z-alert__title';
@@ -26,6 +27,19 @@ abstract final class ZonaiClasses {
   static const panelEmpty = 'z-panel z-panel--empty';
   static const panelTitle = 'z-panel__title';
   static const stack = 'z-stack';
+  static const authLayout = 'z-auth-layout';
+  static const authBrand = 'z-auth-brand';
+  static const authLogo = 'z-auth-logo';
+  static const authAppName = 'z-auth-app-name';
+  static const authTagline = 'z-auth-tagline';
+  static const authMethods = 'z-auth-methods';
+  static const authMethod = 'z-auth-method';
+  static const authMethodTitle = 'z-auth-method__title';
+  static const authMethodDesc = 'z-auth-method__desc';
+  static const authActions = 'z-auth-actions';
+  static const authFooter = 'z-auth-footer';
+  static const authLink = 'z-auth-link';
+  static const authSentIcon = 'z-auth-sent';
 }
 
 @css
@@ -167,6 +181,126 @@ List<StyleRule> get zonaiUiStyles => [
   ),
   css('.z-auth-page__theme').styles(
     position: Position.absolute(top: 24.px, right: 24.px),
+  ),
+  css('.z-auth-page__back').styles(
+    position: Position.absolute(top: 24.px, left: 24.px),
+  ),
+  css('.z-auth-layout').styles(
+    width: 100.percent,
+    maxWidth: 440.px,
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    alignItems: .stretch,
+    gap: Gap.all(24.px),
+  ),
+  css('.z-auth-brand').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    alignItems: .center,
+    gap: Gap.all(10.px),
+    textAlign: .center,
+  ),
+  css('.z-auth-logo').styles(
+    width: 52.px,
+    height: 52.px,
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    radius: .all(Radius.circular(14.px)),
+    backgroundColor: primaryColor,
+    color: onPrimaryColor,
+    fontSize: 1.375.rem,
+    fontWeight: .w700,
+    raw: const {
+      'box-shadow': '0 8px 24px -6px var(--zonai-focus-ring)',
+    },
+  ),
+  css('.z-auth-app-name').styles(
+    margin: .zero,
+    fontSize: 1.25.rem,
+    fontWeight: .w600,
+    raw: const {'letter-spacing': '-0.02em'},
+  ),
+  css('.z-auth-tagline').styles(
+    margin: .zero,
+    fontSize: 0.875.rem,
+    color: mutedColor,
+  ),
+  css('.z-auth-methods').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(10.px),
+    width: 100.percent,
+  ),
+  css('.z-auth-method').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    alignItems: .start,
+    gap: Gap.all(4.px),
+    width: 100.percent,
+    padding: .all(16.px),
+    cursor: .pointer,
+    textAlign: .left,
+    radius: .all(Radius.circular(12.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    backgroundColor: bgColor,
+    raw: const {
+      'font': 'inherit',
+      'transition': 'border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease',
+    },
+  ),
+  css('.z-auth-method:hover').styles(
+    backgroundColor: hoverColor,
+    border: .all(color: primaryColor, width: 1.px, style: .solid),
+    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
+  ),
+  css('.z-auth-method__title').styles(
+    fontSize: 0.9375.rem,
+    fontWeight: .w600,
+    color: fgColor,
+  ),
+  css('.z-auth-method__desc').styles(
+    fontSize: 0.8125.rem,
+    color: mutedColor,
+    raw: const {'line-height': '1.4'},
+  ),
+  css('.z-auth-actions').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(10.px),
+    margin: .only(top: 4.px),
+  ),
+  css('.z-auth-footer').styles(
+    margin: .only(top: 4.px),
+    textAlign: .center,
+  ),
+  css('.z-auth-link').styles(
+    padding: .symmetric(vertical: 8.px),
+    cursor: .pointer,
+    border: Border.none,
+    backgroundColor: Colors.transparent,
+    color: primaryColor,
+    fontSize: 0.875.rem,
+    fontWeight: .w600,
+    raw: const {
+      'font': 'inherit',
+      'text-decoration': 'underline',
+      'text-underline-offset': '3px',
+    },
+  ),
+  css('.z-auth-link:hover').styles(color: primaryHoverColor),
+  css('.z-auth-sent').styles(
+    width: 48.px,
+    height: 48.px,
+    margin: .only(bottom: 8.px),
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    radius: .all(Radius.circular(12.px)),
+    backgroundColor: selectedBgColor,
+    color: primaryColor,
+    fontSize: 1.5.rem,
+    raw: const {'align-self': 'center'},
   ),
   css('.z-section-label').styles(
     fontSize: 0.6875.rem,

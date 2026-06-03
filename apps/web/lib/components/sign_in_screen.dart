@@ -8,110 +8,23 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
-import '../constants/theme.dart';
-import 'theme_toggle.dart';
+import 'theme/theme_components.dart';
 
-/// Shared layout for sign-in screens.
+/// Shared layout for sign-in screens (centered auth page with branding).
 class SignInScreen extends StatelessComponent {
-  const SignInScreen({super.key, required this.child});
+  const SignInScreen({
+    super.key,
+    required this.child,
+    this.tagline = 'Sign in to your workspace',
+  });
 
   final Component child;
+  final String tagline;
 
   @override
   Component build(BuildContext context) {
-    return main_(classes: 'sign-in', [
-      div(classes: 'sign-in-theme', [const ThemeToggle()]),
-      child,
-    ]);
+    return AuthPage(tagline: tagline, child: child);
   }
-
-  @css
-  static List<StyleRule> get styles => [
-      css('.sign-in', [
-      css('&').styles(
-        flex: Flex(grow: 1, shrink: 0),
-        display: .flex,
-        alignItems: .center,
-        justifyContent: .center,
-        padding: .all(24.px),
-        position: Position.relative(),
-      ),
-      css('.sign-in-theme').styles(
-        position: Position.absolute(top: 20.px, right: 20.px),
-      ),
-      css('.card').styles(
-        width: 100.percent,
-        maxWidth: 400.px,
-        backgroundColor: surfaceColor,
-        padding: .all(32.px),
-        radius: .all(Radius.circular(16.px)),
-        raw: const {'box-shadow': 'var(--zonai-shadow)'},
-      ),
-      css('.title').styles(
-        margin: .only(bottom: 8.px),
-        fontSize: 1.5.rem,
-        fontWeight: .w600,
-      ),
-      css('.subtitle').styles(
-        margin: .only(bottom: 28.px),
-        fontSize: 0.95.rem,
-        color: mutedColor,
-      ),
-      css('.error').styles(
-        margin: .only(bottom: 16.px),
-        fontSize: 0.875.rem,
-        color: errorColor,
-      ),
-      css('.field').styles(margin: .only(bottom: 18.px)),
-      css('.label').styles(
-        display: .block,
-        margin: .only(bottom: 6.px),
-        fontSize: 0.875.rem,
-        fontWeight: .w600,
-      ),
-      css('.input').styles(
-        display: .block,
-        width: 100.percent,
-        padding: .symmetric(horizontal: 12.px, vertical: 10.px),
-        radius: .all(Radius.circular(8.px)),
-        border: .all(color: borderColor, width: 1.px, style: .solid),
-        backgroundColor: surfaceColor,
-        color: fgColor,
-        fontSize: 1.rem,
-        outline: Outline(style: OutlineStyle.none),
-      ),
-      css('.input:focus-visible').styles(
-        outline: Outline(style: OutlineStyle.solid, width: OutlineWidth(2.px), color: primaryColor, offset: 2.px),
-      ),
-      css('.submit, .auth-type').styles(
-        width: 100.percent,
-        margin: .only(top: 8.px),
-        padding: .symmetric(vertical: 12.px),
-        cursor: .pointer,
-        radius: .all(Radius.circular(8.px)),
-        border: Border.none,
-        fontWeight: .w600,
-        fontSize: 1.rem,
-        color: onPrimaryColor,
-        backgroundColor: primaryColor,
-      ),
-      css('.submit:hover, .auth-type:hover').styles(backgroundColor: primaryHoverColor),
-      css('.auth-type + .auth-type').styles(margin: .only(top: 12.px)),
-      css('.otp-secondary').styles(
-        width: 100.percent,
-        margin: .only(top: 12.px),
-        padding: .symmetric(vertical: 10.px),
-        cursor: .pointer,
-        radius: .all(Radius.circular(8.px)),
-        border: .all(color: borderColor, width: 1.px, style: .solid),
-        fontWeight: .w600,
-        fontSize: 0.9375.rem,
-        color: fgColor,
-        backgroundColor: surfaceColor,
-      ),
-      css('.otp-secondary:hover').styles(backgroundColor: borderColor),
-    ]),
-  ];
 }
 
 /// Lists available sign-in methods.
@@ -122,31 +35,41 @@ class AuthTypePickerScreen extends StatelessComponent {
   Component build(BuildContext context) {
     final authTypes = context.watch(supportedAuthTypesProvider);
     return SignInScreen(
-      child: div(classes: 'card', [
-        h1(classes: 'title', [.text('Sign in')]),
-        p(classes: 'subtitle', [
-          .text('Choose how you want to sign in.'),
-        ]),
-        for (final authType in authTypes)
-          button(
-            classes: 'auth-type',
-            type: .button,
-            onClick: () {
-              context.read(authRouteProvider.notifier).navigateTo(
-                AuthRoutes.forType(authType),
-              );
-            },
-            [.text(_labelFor(authType))],
-          ),
-      ]),
+      tagline: 'Choose how you want to sign in',
+      child: AuthFormCard(
+        children: [
+          const ZonaiPageTitle('Welcome back'),
+          const ZonaiPageSubtitle('Pick a sign-in method to continue.'),
+          div(classes: ZonaiClasses.authMethods, [
+            for (final authType in authTypes)
+              AuthMethodTile(
+                title: _titleFor(authType),
+                description: _descriptionFor(authType),
+                onSelect: () {
+                  context.read(authRouteProvider.notifier).navigateTo(
+                    AuthRoutes.forType(authType),
+                  );
+                },
+              ),
+          ]),
+        ],
+      ),
     );
   }
 
-  static String _labelFor(AuthType authType) {
+  static String _titleFor(AuthType authType) {
     return switch (authType) {
       AuthType.password => 'Email & password',
       AuthType.otp => 'Email code',
       AuthType.magicLink => 'Magic link',
+    };
+  }
+
+  static String _descriptionFor(AuthType authType) {
+    return switch (authType) {
+      AuthType.password => 'Sign in with the email and password on your account.',
+      AuthType.otp => 'We\'ll send a one-time code to your inbox.',
+      AuthType.magicLink => 'We\'ll email you a secure link — no password needed.',
     };
   }
 }
@@ -201,52 +124,48 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
   Component build(BuildContext context) {
     return form(
       [
-        h1(classes: 'title', [.text('Sign in')]),
-        p(classes: 'subtitle', [.text('Enter your credentials to continue.')]),
-        if (_error case final error?)
-          p(classes: 'error', [.text(error)]),
-        div(classes: 'field', [
-          label(htmlFor: 'sign-in-email', classes: 'label', [.text('Email')]),
-          input<String>(
-            id: 'sign-in-email',
-            type: .email,
-            name: 'email',
-            classes: 'input',
-            attributes: const {'autocomplete': 'email'},
-            value: _email,
-            onInput: (v) => setState(() => _email = v),
-          ),
-        ]),
-        div(classes: 'field', [
-          label(htmlFor: 'sign-in-password', classes: 'label', [.text('Password')]),
-          input<String>(
-            id: 'sign-in-password',
-            type: .password,
-            name: 'password',
-            classes: 'input',
-            attributes: const {'autocomplete': 'current-password'},
-            value: _password,
-            onInput: (v) => setState(() => _password = v),
-          ),
-        ]),
-        button(
-          classes: 'submit',
-          type: .submit,
-          disabled: _loading,
-          [.text(_loading ? 'Signing in…' : 'Sign in')],
-        ),
-        button(
-          classes: 'otp-secondary',
-          type: .button,
-          onClick: () {
-            context.read(authRouteProvider.notifier).navigateTo(
-              AuthRoutes.resetPasswordRequest,
-            );
-          },
-          [.text('Forgot password?')],
+        AuthFormCard(
+          children: [
+            const ZonaiPageTitle('Sign in'),
+            const ZonaiPageSubtitle('Enter your credentials to continue.'),
+            if (_error case final error?) ZonaiErrorText(error),
+            ZonaiTextField(
+              id: 'sign-in-email',
+              fieldLabel: 'Email',
+              type: .email,
+              autocomplete: 'email',
+              placeholder: 'you@example.com',
+              value: _email,
+              onInput: (v) => setState(() => _email = v),
+            ),
+            ZonaiTextField(
+              id: 'sign-in-password',
+              fieldLabel: 'Password',
+              type: .password,
+              autocomplete: 'current-password',
+              value: _password,
+              onInput: (v) => setState(() => _password = v),
+            ),
+            AuthActions(
+              children: [
+                AuthSubmitButton(
+                  label: 'Sign in',
+                  loadingLabel: 'Signing in…',
+                  loading: _loading,
+                ),
+              ],
+            ),
+            AuthTextLink(
+              label: 'Forgot password?',
+              onClick: () {
+                context.read(authRouteProvider.notifier).navigateTo(
+                  AuthRoutes.resetPasswordRequest,
+                );
+              },
+            ),
+          ],
         ),
       ],
-      classes: 'card',
       events: {
         'submit': (web.Event event) {
           event.preventDefault();

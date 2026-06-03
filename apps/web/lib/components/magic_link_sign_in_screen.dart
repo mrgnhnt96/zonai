@@ -5,6 +5,7 @@ import 'package:universal_web/web.dart' as web;
 
 import '../auth/auth_provider.dart';
 import 'sign_in_screen.dart';
+import 'theme/theme_components.dart';
 
 /// Magic link sign-in form (email, then check-your-email confirmation).
 class MagicLinkSignInScreen extends StatelessComponent {
@@ -12,7 +13,10 @@ class MagicLinkSignInScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const SignInScreen(child: MagicLinkSignInForm());
+    return const SignInScreen(
+      tagline: 'Passwordless sign-in',
+      child: MagicLinkSignInForm(),
+    );
   }
 }
 
@@ -73,31 +77,32 @@ class MagicLinkSignInFormState extends State<MagicLinkSignInForm> {
   Component _buildEmailStep() {
     return form(
       [
-        h1(classes: 'title', [.text('Sign in')]),
-        p(classes: 'subtitle', [
-          .text('Enter your email and we\'ll send you a sign-in link.'),
-        ]),
-        if (_error case final error?) p(classes: 'error', [.text(error)]),
-        div(classes: 'field', [
-          label(htmlFor: 'sign-in-email', classes: 'label', [.text('Email')]),
-          input<String>(
-            id: 'sign-in-email',
-            type: .email,
-            name: 'email',
-            classes: 'input',
-            attributes: const {'autocomplete': 'email'},
-            value: _email,
-            onInput: (v) => setState(() => _email = v),
-          ),
-        ]),
-        button(
-          classes: 'submit',
-          type: .submit,
-          disabled: _loading,
-          [.text(_loading ? 'Sending link…' : 'Send sign-in link')],
+        AuthFormCard(
+          children: [
+            const ZonaiPageTitle('Magic link'),
+            const ZonaiPageSubtitle('Enter your email and we\'ll send you a sign-in link.'),
+            if (_error case final error?) ZonaiErrorText(error),
+            ZonaiTextField(
+              id: 'sign-in-email',
+              fieldLabel: 'Email',
+              type: .email,
+              autocomplete: 'email',
+              placeholder: 'you@example.com',
+              value: _email,
+              onInput: (v) => setState(() => _email = v),
+            ),
+            AuthActions(
+              children: [
+                AuthSubmitButton(
+                  label: 'Send sign-in link',
+                  loadingLabel: 'Sending link…',
+                  loading: _loading,
+                ),
+              ],
+            ),
+          ],
         ),
       ],
-      classes: 'card',
       events: {
         'submit': (web.Event event) {
           event.preventDefault();
@@ -110,29 +115,35 @@ class MagicLinkSignInFormState extends State<MagicLinkSignInForm> {
   }
 
   Component _buildSentStep() {
-    return div(classes: 'card', [
-      h1(classes: 'title', [.text('Check your email')]),
-      p(classes: 'subtitle', [
-        .text('We sent a sign-in link to $_email. Open the link to continue.'),
-      ]),
-      button(
-        classes: 'otp-secondary',
-        type: .button,
-        disabled: _loading,
-        onClick: _useDifferentEmail,
-        [.text('Use a different email')],
-      ),
-      button(
-        classes: 'otp-secondary',
-        type: .button,
-        disabled: _loading,
-        onClick: () {
-          if (!_loading) {
-            _sendLink();
-          }
-        },
-        [.text(_loading ? 'Sending…' : 'Resend link')],
-      ),
-    ]);
+    return AuthFormCard(
+      children: [
+        AuthSentHeader(
+          title: 'Check your email',
+          subtitle: 'We sent a sign-in link to $_email. Open the link to continue.',
+        ),
+        AuthActions(
+          children: [
+            ZonaiButton(
+              variant: ZonaiButtonVariant.secondary,
+              fullWidth: true,
+              disabled: _loading,
+              onClick: _useDifferentEmail,
+              child: .text('Use a different email'),
+            ),
+            ZonaiButton(
+              variant: ZonaiButtonVariant.secondary,
+              fullWidth: true,
+              disabled: _loading,
+              onClick: () {
+                if (!_loading) {
+                  _sendLink();
+                }
+              },
+              child: .text(_loading ? 'Sending…' : 'Resend link'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }

@@ -9,6 +9,7 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import 'sign_in_screen.dart';
+import 'theme/theme_components.dart';
 
 /// Sets a new password from a reset link query parameter.
 class ResetPasswordConfirmScreen extends StatelessComponent {
@@ -16,7 +17,10 @@ class ResetPasswordConfirmScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const SignInScreen(child: ResetPasswordConfirmForm());
+    return const SignInScreen(
+      tagline: 'Choose a new password',
+      child: ResetPasswordConfirmForm(),
+    );
   }
 }
 
@@ -96,69 +100,94 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
   @override
   Component build(BuildContext context) {
     if (_success) {
-      return div(classes: 'card', [
-        h1(classes: 'title', [.text('Password updated')]),
-        p(classes: 'subtitle', [.text('Your password has been reset. You can sign in with your new password.')]),
-        button(classes: 'submit', type: .button, onClick: _returnToSignIn, [.text('Sign in')]),
-      ]);
+      return AuthFormCard(
+        children: [
+          AuthSentHeader(
+            icon: '✓',
+            title: 'Password updated',
+            subtitle: 'Your password has been reset. You can sign in with your new password.',
+          ),
+          AuthActions(
+            children: [
+              ZonaiButton(
+                fullWidth: true,
+                onClick: _returnToSignIn,
+                child: .text('Sign in'),
+              ),
+            ],
+          ),
+        ],
+      );
     }
 
     if (_linkError case final linkError?) {
-      return div(classes: 'card', [
-        h1(classes: 'title', [.text('Reset password')]),
-        p(classes: 'error', [.text(linkError)]),
-        button(classes: 'submit', type: .button, onClick: _returnToSignIn, [.text('Back to sign in')]),
-      ]);
+      return AuthFormCard(
+        children: [
+          const ZonaiPageTitle('Reset password'),
+          ZonaiErrorText(linkError),
+          AuthActions(
+            children: [
+              ZonaiButton(
+                fullWidth: true,
+                onClick: _returnToSignIn,
+                child: .text('Back to sign in'),
+              ),
+            ],
+          ),
+        ],
+      );
     }
 
     if (!_tokenChecked || _token == null) {
-      return div(classes: 'card', [
-        h1(classes: 'title', [.text('Choose a new password')]),
-        p(classes: 'subtitle', [.text('Loading reset link…')]),
-      ]);
+      return AuthFormCard(
+        children: [
+          const ZonaiPageTitle('Choose a new password'),
+          const ZonaiPageSubtitle('Loading reset link…'),
+        ],
+      );
     }
 
     return form(
       [
-        h1(classes: 'title', [.text('Choose a new password')]),
-        p(classes: 'subtitle', [.text('Enter a new password to reset your password.')]),
-        if (_error case final error?) p(classes: 'error', [.text(error)]),
-        div(classes: 'field', [
-          label(htmlFor: 'new-password', classes: 'label', [.text('New password')]),
-          input<String>(
-            id: 'new-password',
-            type: .password,
-            classes: 'input',
-            attributes: const {'autocomplete': 'new-password'},
-            value: _password,
-            onInput: (v) => setState(() {
-              _password = v;
-              _error = null;
-            }),
-          ),
-        ]),
-        div(classes: 'field', [
-          label(htmlFor: 'confirm-password', classes: 'label', [.text('Confirm password')]),
-          input<String>(
-            id: 'confirm-password',
-            type: .password,
-            classes: 'input',
-            attributes: const {'autocomplete': 'new-password'},
-            value: _confirmPassword,
-            onInput: (v) => setState(() {
-              _confirmPassword = v;
-              _error = null;
-            }),
-          ),
-        ]),
-        button(
-          classes: 'submit',
-          type: .submit,
-          disabled: _loading,
-          [.text(_loading ? 'Updating…' : 'Update password')],
+        AuthFormCard(
+          children: [
+            const ZonaiPageTitle('Choose a new password'),
+            const ZonaiPageSubtitle('Enter a new password for your account.'),
+            if (_error case final error?) ZonaiErrorText(error),
+            ZonaiTextField(
+              id: 'new-password',
+              fieldLabel: 'New password',
+              type: .password,
+              autocomplete: 'new-password',
+              value: _password,
+              onInput: (v) => setState(() {
+                _password = v;
+                _error = null;
+              }),
+            ),
+            ZonaiTextField(
+              id: 'confirm-password',
+              fieldLabel: 'Confirm password',
+              type: .password,
+              autocomplete: 'new-password',
+              value: _confirmPassword,
+              onInput: (v) => setState(() {
+                _confirmPassword = v;
+                _error = null;
+              }),
+            ),
+            AuthActions(
+              children: [
+                AuthSubmitButton(
+                  label: 'Update password',
+                  loadingLabel: 'Updating…',
+                  loading: _loading,
+                ),
+              ],
+            ),
+          ],
         ),
       ],
-      classes: 'card',
       events: {
         'submit': (web.Event event) {
           event.preventDefault();

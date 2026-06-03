@@ -15,6 +15,7 @@ class ZonaiButton extends StatelessComponent {
     this.disabled = false,
     this.fullWidth = false,
     this.onClick,
+    this.attributes = const {},
   });
 
   final Component child;
@@ -23,6 +24,7 @@ class ZonaiButton extends StatelessComponent {
   final bool disabled;
   final bool fullWidth;
   final void Function()? onClick;
+  final Map<String, String> attributes;
 
   String get _variantClass => switch (variant) {
     ZonaiButtonVariant.primary => ZonaiClasses.btnPrimary,
@@ -40,6 +42,7 @@ class ZonaiButton extends StatelessComponent {
     return button(
       type: type,
       classes: classes,
+      attributes: attributes,
       disabled: disabled,
       onClick: onClick,
       [child],

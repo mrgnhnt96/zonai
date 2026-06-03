@@ -7,6 +7,7 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import 'sign_in_screen.dart';
+import 'theme/theme_components.dart';
 
 /// Form to request a password reset email.
 class ResetPasswordRequestScreen extends StatelessComponent {
@@ -14,7 +15,10 @@ class ResetPasswordRequestScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const SignInScreen(child: ResetPasswordRequestForm());
+    return const SignInScreen(
+      tagline: 'Reset your password',
+      child: ResetPasswordRequestForm(),
+    );
   }
 }
 
@@ -72,37 +76,32 @@ class ResetPasswordRequestFormState extends State<ResetPasswordRequestForm> {
   Component _buildEmailStep() {
     return form(
       [
-        h1(classes: 'title', [.text('Reset password')]),
-        p(classes: 'subtitle', [
-          .text('Enter your email and we\'ll send you a link to reset your password.'),
-        ]),
-        if (_error case final error?) p(classes: 'error', [.text(error)]),
-        div(classes: 'field', [
-          label(htmlFor: 'reset-email', classes: 'label', [.text('Email')]),
-          input<String>(
-            id: 'reset-email',
-            type: .email,
-            name: 'email',
-            classes: 'input',
-            attributes: const {'autocomplete': 'email'},
-            value: _email,
-            onInput: (v) => setState(() => _email = v),
-          ),
-        ]),
-        button(
-          classes: 'submit',
-          type: .submit,
-          disabled: _loading,
-          [.text(_loading ? 'Sending link…' : 'Send reset link')],
-        ),
-        button(
-          classes: 'otp-secondary',
-          type: .button,
-          onClick: _returnToSignIn,
-          [.text('Back to sign in')],
+        AuthFormCard(
+          children: [
+            const ZonaiPageTitle('Reset password'),
+            const ZonaiPageSubtitle('Enter your email and we\'ll send you a link to reset your password.'),
+            if (_error case final error?) ZonaiErrorText(error),
+            ZonaiTextField(
+              id: 'reset-email',
+              fieldLabel: 'Email',
+              type: .email,
+              autocomplete: 'email',
+              placeholder: 'you@example.com',
+              value: _email,
+              onInput: (v) => setState(() => _email = v),
+            ),
+            AuthActions(
+              children: [
+                AuthSubmitButton(
+                  label: 'Send reset link',
+                  loadingLabel: 'Sending link…',
+                  loading: _loading,
+                ),
+              ],
+            ),
+          ],
         ),
       ],
-      classes: 'card',
       events: {
         'submit': (web.Event event) {
           event.preventDefault();
@@ -115,42 +114,47 @@ class ResetPasswordRequestFormState extends State<ResetPasswordRequestForm> {
   }
 
   Component _buildSentStep() {
-    return div(classes: 'card', [
-      h1(classes: 'title', [.text('Check your email')]),
-      p(classes: 'subtitle', [
-        .text(
-          'If an account exists for $_email, we sent a password reset link. '
-          'Open the link to choose a new password.',
+    return AuthFormCard(
+      children: [
+        AuthSentHeader(
+          title: 'Check your email',
+          subtitle:
+              'If an account exists for $_email, we sent a password reset link. '
+              'Open the link to choose a new password.',
         ),
-      ]),
-      button(
-        classes: 'otp-secondary',
-        type: .button,
-        onClick: () {
-          setState(() {
-            _step = _ResetPasswordRequestStep.email;
-            _error = null;
-          });
-        },
-        [.text('Use a different email')],
-      ),
-      button(
-        classes: 'otp-secondary',
-        type: .button,
-        disabled: _loading,
-        onClick: () {
-          if (!_loading) {
-            _sendResetLink();
-          }
-        },
-        [.text(_loading ? 'Sending…' : 'Resend link')],
-      ),
-      button(
-        classes: 'otp-secondary',
-        type: .button,
-        onClick: _returnToSignIn,
-        [.text('Back to sign in')],
-      ),
-    ]);
+        AuthActions(
+          children: [
+            ZonaiButton(
+              variant: ZonaiButtonVariant.secondary,
+              fullWidth: true,
+              onClick: () {
+                setState(() {
+                  _step = _ResetPasswordRequestStep.email;
+                  _error = null;
+                });
+              },
+              child: .text('Use a different email'),
+            ),
+            ZonaiButton(
+              variant: ZonaiButtonVariant.secondary,
+              fullWidth: true,
+              disabled: _loading,
+              onClick: () {
+                if (!_loading) {
+                  _sendResetLink();
+                }
+              },
+              child: .text(_loading ? 'Sending…' : 'Resend link'),
+            ),
+            ZonaiButton(
+              variant: ZonaiButtonVariant.secondary,
+              fullWidth: true,
+              onClick: _returnToSignIn,
+              child: .text('Back to sign in'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }

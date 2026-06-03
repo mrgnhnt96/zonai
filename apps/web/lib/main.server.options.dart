@@ -7,8 +7,6 @@
 import 'package:jaspr/server.dart';
 import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
 import 'package:zonai_web/components/home_screen.dart' as _home_screen;
-import 'package:zonai_web/components/sign_in_screen.dart' as _sign_in_screen;
-import 'package:zonai_web/components/theme_toggle.dart' as _theme_toggle;
 import 'package:zonai_web/constants/theme.dart' as _theme;
 import 'package:zonai_web/app.dart' as _app;
 
@@ -38,8 +36,6 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._theme.styles,
     ..._app.App.styles,
     ..._home_screen.HomeScreen.styles,
-    ..._sign_in_screen.SignInScreen.styles,
-    ..._theme_toggle.ThemeToggle.styles,
   ],
 );
 

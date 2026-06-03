@@ -67,6 +67,34 @@ abstract final class AuthRoutes {
     return normalized == home || normalized == signIn;
   }
 
+  /// Destination for the auth back control, or `null` when back should be hidden.
+  static String? backPath(String path, List<AuthType> authTypes) {
+    if (isResetPasswordRequestPath(path)) {
+      if (authTypes.contains(AuthType.password)) {
+        return forType(AuthType.password);
+      }
+      return authTypes.length > 1 ? signIn : null;
+    }
+
+    if (isResetPasswordCallbackPath(path) ||
+        isMagicLinkCallbackPath(path) ||
+        isVerifyEmailCallbackPath(path)) {
+      if (authTypes.length > 1) {
+        return signIn;
+      }
+      if (authTypes.length == 1) {
+        return forType(authTypes.single);
+      }
+      return signIn;
+    }
+
+    if (typeFromPath(path) != null && authTypes.length > 1) {
+      return signIn;
+    }
+
+    return null;
+  }
+
   static AuthType? typeFromPath(String path) {
     final normalized = _normalizePath(path);
     if (!normalized.startsWith('$signIn/')) {
