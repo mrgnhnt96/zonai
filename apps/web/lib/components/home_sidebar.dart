@@ -332,7 +332,7 @@ class HomeSidebar extends StatelessComponent {
       css('.home-sidebar-settings-icon').styles(
         margin: .only(left: .auto),
         flex: Flex(grow: 0, shrink: 0),
-        fontSize: 0.875.rem,
+        fontSize: 1.125.rem,
         color: mutedColor,
       ),
       css(
