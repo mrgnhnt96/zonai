@@ -10,6 +10,7 @@ final class TableRowsData {
     required this.columns,
     required this.columnShapes,
     required this.rows,
+    required this.total,
     required this.truncated,
     required this.sqliteName,
     this.schema,
@@ -18,6 +19,7 @@ final class TableRowsData {
   final List<String> columns;
   final List<ColumnShape> columnShapes;
   final List<List<Object?>> rows;
+  final int total;
   final bool truncated;
   final String sqliteName;
   final TableSchemaShape? schema;
@@ -57,12 +59,19 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
         },
     ];
 
+    final total = switch (data['total']) {
+      final int t => t,
+      final num t => t.toInt(),
+      _ => items.length,
+    };
+
     if (items.isEmpty) {
       return TableRowsData(
         sqliteName: focus.sqliteName,
         columns: const [],
         columnShapes: const [],
         rows: const [],
+        total: total,
         truncated: false,
         schema: schema,
       );
@@ -86,17 +95,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       for (final row in items) [for (final col in columnOrder) row[col]],
     ];
 
-    final total = switch (data['total']) {
-      final int t => t,
-      final num t => t.toInt(),
-      _ => items.length,
-    };
-
     return TableRowsData(
       sqliteName: focus.sqliteName,
       columns: columnOrder,
       columnShapes: columnShapes,
       rows: rows,
+      total: total,
       truncated: total > items.length,
       schema: schema,
     );

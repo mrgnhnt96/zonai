@@ -320,14 +320,14 @@ class _TableMain extends StatelessComponent {
             ]),
           );
         } else if (data.rows.isEmpty) {
-          subtitleParts.add('0 rows');
+          subtitleParts.add('${data.total} rows');
           bodyChildren.add(
             div(classes: 'table-detail-empty', [
               p(classes: 'table-detail-empty-msg', [.text('This table has no rows.')]),
             ]),
           );
         } else {
-          subtitleParts.add('${data.rows.length} rows');
+          subtitleParts.add('${data.total} rows');
           bodyChildren.add(
             div(classes: 'table-rows-wrap', [
               table(classes: 'rows-table', [
@@ -351,7 +351,9 @@ class _TableMain extends StatelessComponent {
           );
           if (data.truncated) {
             bodyChildren.add(
-              p(classes: 'table-rows-foot', [.text('Showing first page only (results truncated).')]),
+              p(classes: 'table-rows-foot', [
+                .text('Showing ${data.rows.length} of ${data.total} rows (results truncated).'),
+              ]),
             );
           }
         }
