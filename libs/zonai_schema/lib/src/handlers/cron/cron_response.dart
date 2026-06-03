@@ -16,6 +16,7 @@ sealed class CronResponse extends Response {
       JobStarted._path => JobStarted.fromJson(json),
       JobCompleted._path => JobCompleted.fromJson(json),
       JobFailed._path => JobFailed.fromJson(json),
+      LastJobRunResponse._path => LastJobRunResponse.fromJson(json),
       final path => throw ArgumentError('Invalid cron response path: $path'),
     };
   }
@@ -132,7 +133,11 @@ final class LastJobRunResponse extends CronResponse {
     return LastJobRunResponse(
       id: json['id'],
       name: json['name'] as String,
-      time: DateTime.tryParse(json['lastRun'] as String),
+      time: switch (json['lastRun']) {
+        final String time => DateTime.tryParse(time),
+        final DateTime time => time,
+        _ => null,
+      },
       wasSuccessful: json['wasSuccessful'] as bool,
     );
   }
