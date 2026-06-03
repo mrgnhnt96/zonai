@@ -516,7 +516,7 @@ class _TableMain extends StatelessComponent {
 
     final schema = context.watch(tableSchemaProvider);
     final title = focused!.displayName;
-    final subtitleParts = <String>[focused!.sqliteName];
+    final subtitleParts = <String>[];
     if (schema != null) {
       subtitleParts.add('${schema.columns.length} columns');
     }
@@ -574,7 +574,8 @@ class _TableMain extends StatelessComponent {
     return div(classes: ZonaiClasses.panel, [
       div(classes: 'table-detail-header', [
         h1(classes: 'table-detail-title', [.text(title)]),
-        p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
+        if (subtitleParts.isNotEmpty)
+          p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
       ]),
       div(classes: 'table-detail-body', bodyChildren),
     ]);
