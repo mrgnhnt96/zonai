@@ -139,11 +139,19 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         return;
       }
       final detail = _cachedDetail;
-      if (detail != null) {
-        _requestDismiss(detail, _PendingDismiss.closePanel);
+      if (detail == null) {
+        context.read(tableRowDetailProvider.notifier).close();
         return;
       }
-      context.read(tableRowDetailProvider.notifier).close();
+      if (_editing) {
+        if (detail.openedViaEditShortcut) {
+          _requestDismiss(detail, _PendingDismiss.closePanel);
+        } else {
+          _requestDismiss(detail, _PendingDismiss.cancelEditing);
+        }
+        return;
+      }
+      _requestDismiss(detail, _PendingDismiss.closePanel);
       return;
     }
 
@@ -333,12 +341,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     setState(() {
       _open = false;
       _resizing = false;
-      _showRawJson = false;
-      _rawJsonRowKey = null;
-      _editing = false;
       _saving = false;
-      _draft = null;
-      _textInputs = {};
       _pendingDismiss = null;
     });
     _unmountTimer?.cancel();
@@ -347,6 +350,11 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       setState(() {
         _render = false;
         _cachedDetail = null;
+        _showRawJson = false;
+        _rawJsonRowKey = null;
+        _editing = false;
+        _draft = null;
+        _textInputs = {};
       });
     });
   }
@@ -354,13 +362,26 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   void _syncDetail(TableRowDetailState? detail) {
     final hasDetail = detail != null;
     if (hasDetail) {
-      if (_cachedDetail?.rowKey != detail.rowKey) {
+      final prev = _cachedDetail;
+      final rowChanged = prev?.rowKey != detail.rowKey;
+      final viewChanged = prev?.viewMode != detail.viewMode;
+      if (rowChanged) {
         _editing = false;
         _saving = false;
         _draft = null;
         _textInputs = {};
+        _showRawJson = false;
+        _rawJsonRowKey = null;
       }
       _cachedDetail = detail;
+      if (rowChanged || viewChanged) {
+        scheduleMicrotask(() {
+          if (!mounted) return;
+          final current = context.read(tableRowDetailProvider);
+          if (current == null || current.rowKey != detail.rowKey) return;
+          _applyViewModeFromDetail(current);
+        });
+      }
     }
 
     if (_lastHadDetail == hasDetail) {
@@ -406,7 +427,40 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     });
   }
 
+  void _applyViewModeFromDetail(TableRowDetailState detail) {
+    switch (detail.viewMode) {
+      case TableRowDetailViewMode.fields:
+        if (!_editing && !_showRawJson) return;
+        setState(() {
+          _editing = false;
+          _draft = null;
+          _textInputs = {};
+          _pendingDismiss = null;
+          _showRawJson = false;
+          _rawJsonRowKey = null;
+        });
+      case TableRowDetailViewMode.json:
+        if (_showRawJson && _rawJsonRowKey == detail.rowKey && !_editing) return;
+        setState(() {
+          _editing = false;
+          _draft = null;
+          _textInputs = {};
+          _pendingDismiss = null;
+          _showRawJson = true;
+          _rawJsonRowKey = detail.rowKey;
+        });
+      case TableRowDetailViewMode.edit:
+        if (!_canEditRow(detail)) {
+          context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.fields);
+          return;
+        }
+        if (_editing) return;
+        _startEditing(detail);
+    }
+  }
+
   void _cancelEditing() {
+    context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.fields);
     setState(() {
       _editing = false;
       _draft = null;
@@ -566,7 +620,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       if (!mounted) return;
 
       final newRow = rowFromRecord(record, detail.columns);
-      context.read(tableRowDetailProvider.notifier).replaceRow(newRow);
+      final detailNotifier = context.read(tableRowDetailProvider.notifier);
+      detailNotifier.replaceRow(newRow);
+      detailNotifier.setViewMode(TableRowDetailViewMode.fields);
       context.read(toastProvider.notifier).showSuccess('Row updated');
       setState(() {
         _editing = false;
@@ -653,15 +709,10 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                     },
                     onClick: () {
                       context.read(appTooltipProvider.notifier).hide();
-                      setState(() {
-                        if (showRawJson) {
-                          _showRawJson = false;
-                          _rawJsonRowKey = null;
-                        } else {
-                          _showRawJson = true;
-                          _rawJsonRowKey = cached.rowKey;
-                        }
-                      });
+                      final notifier = context.read(tableRowDetailProvider.notifier);
+                      notifier.setViewMode(
+                        showRawJson ? TableRowDetailViewMode.fields : TableRowDetailViewMode.json,
+                      );
                     },
                     [.text(showRawJson ? 'Fields' : 'JSON')],
                   ),
@@ -711,7 +762,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                     classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
                     type: .button,
                     attributes: {'aria-label': 'Edit row'},
-                    onClick: () => _startEditing(cached),
+                    onClick: () => context.read(tableRowDetailProvider.notifier).setViewMode(
+                      TableRowDetailViewMode.edit,
+                    ),
                     [.text('Edit row')],
                   ),
               ]),

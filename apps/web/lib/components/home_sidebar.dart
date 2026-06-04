@@ -11,6 +11,7 @@ import '../providers/home_ui_provider.dart';
 import '../providers/session_user_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import '../providers/table_focus_provider.dart';
+import '../providers/table_row_keyboard_focus_provider.dart';
 import '../utils/sqlite_table_utils.dart';
 import 'app_tooltip_overlay.dart';
 import '../providers/app_tooltip_provider.dart';
@@ -524,6 +525,12 @@ class HomeSidebar extends StatelessComponent {
       css(
         '.home-sidebar-item-focused .home-sidebar-item-button',
       ).styles(backgroundColor: selectedBgColor, color: primaryColor, fontWeight: .w600),
+      css('.home-sidebar-item--keyboard-focus .home-sidebar-item-button').styles(
+        raw: const {'box-shadow': 'inset 0 0 0 2px var(--zonai-focus-ring)'},
+      ),
+      css('.home-sidebar-item-button--rail.home-sidebar-item-button--keyboard-focus').styles(
+        raw: const {'box-shadow': '0 0 0 2px var(--zonai-focus-ring)'},
+      ),
     ]),
     css.media(MediaQuery.all(maxWidth: 640.px), [
       css('.home-sidebar').styles(
@@ -719,17 +726,24 @@ class _TablesList extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
+    final keyboard = context.watch(tableRowKeyboardFocusProvider);
+    final keyboardSidebarSqlite = keyboard.zone == HomeKeyboardFocusZone.sidebar
+        ? keyboard.sidebarTableSqliteName
+        : null;
+
     return ul(classes: collapsed ? 'home-sidebar-tables home-sidebar-tables--rail' : 'home-sidebar-tables', [
       for (final table in tables)
         li(
-          classes: 'home-sidebar-item${focused == table ? ' home-sidebar-item-focused' : ''}',
+          classes: 'home-sidebar-item'
+              '${focused == table ? ' home-sidebar-item-focused' : ''}'
+              '${keyboardSidebarSqlite == table.sqliteName ? ' home-sidebar-item--keyboard-focus' : ''}',
           attributes: {'id': _sidebarTableItemId(table.sqliteName)},
           [
             if (collapsed)
               _RailTableButton(
                 table: table,
                 label: _railLabel(table),
-                focused: focused == table,
+                keyboardFocused: keyboardSidebarSqlite == table.sqliteName,
                 onSelect: () {
                   context.read(homeUiProvider.notifier).captureSidebarScrollFromDom();
                   context.read(homeUiProvider.notifier).closeMobileNav();
@@ -760,21 +774,26 @@ class _TablesList extends StatelessComponent {
 }
 
 class _RailTableButton extends StatelessComponent {
-  const _RailTableButton({required this.table, required this.label, required this.focused, required this.onSelect});
+  const _RailTableButton({
+    required this.table,
+    required this.label,
+    required this.keyboardFocused,
+    required this.onSelect,
+  });
 
   final SqliteTableRef table;
   final String label;
-  final bool focused;
+  final bool keyboardFocused;
   final void Function() onSelect;
 
   @override
   Component build(BuildContext context) {
+    final parts = <String>['home-sidebar-item-button', 'home-sidebar-item-button--rail'];
+    if (keyboardFocused) parts.add('home-sidebar-item-button--keyboard-focus');
     return button(
       [.text(label)],
       type: .button,
-      classes: focused
-          ? 'home-sidebar-item-button home-sidebar-item-button--rail'
-          : 'home-sidebar-item-button home-sidebar-item-button--rail',
+      classes: parts.join(' '),
       attributes: {'aria-label': table.displayName},
       events: appTooltipEvents(
         context,

@@ -45,8 +45,10 @@ class TableRowSelectionNotifier extends Notifier<TableRowSelectionState> {
     required String key,
     required bool selected,
     required List<String> pageKeys,
+    bool shiftKey = false,
   }) {
-    if (_shiftClick && _anchorIndex != null) {
+    final shiftSelect = shiftKey || _shiftClick;
+    if (shiftSelect && _anchorIndex != null) {
       setSelectedRange(
         fromIndex: _anchorIndex!,
         toIndex: index,

@@ -12,6 +12,7 @@ import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/table_focus_provider.dart';
 import '../providers/table_row_detail_provider.dart';
+import '../providers/table_row_keyboard_focus_provider.dart';
 import '../providers/table_row_selection_provider.dart';
 import '../providers/session_user_provider.dart';
 import '../providers/table_rows_provider.dart';
@@ -62,6 +63,7 @@ class HomeScreen extends StatelessComponent {
           [],
         ),
       const HomeSettingsOverlay(),
+      if (context.binding.isClient) const HomeKeyboardShortcuts(),
       if (context.binding.isClient) const TableRowDetailPanel(),
       if (context.binding.isClient) const ToastOverlay(),
     ]);
@@ -214,7 +216,12 @@ class HomeScreen extends StatelessComponent {
       css('.table-rows-wrap--selection-open').styles(padding: .only(bottom: 72.px)),
       css('.rows-table').styles(
         fontSize: 0.8125.rem,
-        raw: const {'border-collapse': 'collapse', 'width': 'max-content', 'min-width': '100%'},
+        raw: const {
+          'border-collapse': 'separate',
+          'border-spacing': '0',
+          'width': 'max-content',
+          'min-width': '100%',
+        },
       ),
       css('.rows-table th').styles(
         backgroundColor: tableHeaderBgColor,
@@ -331,6 +338,12 @@ class HomeScreen extends StatelessComponent {
       ),
       css('.rows-row').styles(cursor: .pointer),
       css('.rows-row--selected td').styles(backgroundColor: selectedBgColor),
+      css('.rows-row--keyboard-focus').styles(
+        raw: const {
+          'outline': '2px solid var(--zonai-focus-ring)',
+          'outline-offset': '-2px',
+        },
+      ),
       css('.table-rows-selection-float').styles(
         display: .flex,
         justifyContent: .center,
@@ -592,36 +605,9 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
   var _hadSelection = false;
   var _selectionBarClosing = false;
   Timer? _selectionBarTimer;
-  web.EventListener? _escapeKeyListener;
 
   static const _loadMoreThresholdPx = 200.0;
   static const _selectionBarAnimationMs = 250;
-
-  void _bindEscapeKeyListener() {
-    if (_escapeKeyListener != null || !context.binding.isClient) return;
-    _escapeKeyListener = _onEscapeKeyDown.toJS;
-    web.document.addEventListener('keydown', _escapeKeyListener);
-  }
-
-  void _onEscapeKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent || event.key != 'Escape') return;
-    if (!mounted) return;
-
-    if (context.read(tableRowDetailProvider) != null) {
-      return;
-    }
-
-    final selection = context.read(tableRowSelectionProvider);
-    if (selection.isEmpty) return;
-    context.read(tableRowSelectionProvider.notifier).clear();
-  }
-
-  void _unbindEscapeKeyListener() {
-    final listener = _escapeKeyListener;
-    if (listener == null) return;
-    web.document.removeEventListener('keydown', listener);
-    _escapeKeyListener = null;
-  }
 
   void _onTableScroll(web.Event event) {
     _maybeLoadMore(event.currentTarget);
@@ -655,12 +641,10 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
   void initState() {
     super.initState();
     _scheduleFillViewportCheck();
-    scheduleMicrotask(_bindEscapeKeyListener);
   }
 
   @override
   void dispose() {
-    _unbindEscapeKeyListener();
     _selectionBarTimer?.cancel();
     super.dispose();
   }
@@ -742,6 +726,8 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     final selection = context.watch(tableRowSelectionProvider);
     final selectionNotifier = context.read(tableRowSelectionProvider.notifier);
     final detailKey = context.watch(tableRowDetailProvider)?.rowKey;
+    final keyboardFocus = context.watch(tableRowKeyboardFocusProvider);
+    final keyboardFocusKey = keyboardFocus.zone == HomeKeyboardFocusZone.tableRows ? keyboardFocus.rowKey : null;
     final detailNotifier = context.read(tableRowDetailProvider.notifier);
     final sortColumnIndex = sort == null ? -1 : data.columns.indexOf(sort.columnName);
     final displayRows = sortColumnIndex < 0
@@ -803,6 +789,7 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
                   columnShapes: data.columnShapes,
                   selected: selection.isSelected(displayKeys[r]),
                   detailActive: displayKeys[r] == detailKey,
+                  keyboardFocused: displayKeys[r] == keyboardFocusKey,
                   selectionNotifier: selectionNotifier,
                   detailNotifier: detailNotifier,
                 ),
@@ -829,6 +816,7 @@ class _SelectableRow extends StatelessComponent {
     required this.columnShapes,
     required this.selected,
     required this.detailActive,
+    required this.keyboardFocused,
     required this.selectionNotifier,
     required this.detailNotifier,
   });
@@ -842,12 +830,14 @@ class _SelectableRow extends StatelessComponent {
   final List<ColumnShape> columnShapes;
   final bool selected;
   final bool detailActive;
+  final bool keyboardFocused;
   final TableRowSelectionNotifier selectionNotifier;
   final TableRowDetailNotifier detailNotifier;
 
   String? get _rowClass {
     final parts = <String>['rows-row'];
     if (selected || detailActive) parts.add('rows-row--selected');
+    if (keyboardFocused) parts.add('rows-row--keyboard-focus');
     return parts.join(' ');
   }
 
@@ -855,14 +845,21 @@ class _SelectableRow extends StatelessComponent {
   Component build(BuildContext context) {
     return tr(
       classes: _rowClass,
+      attributes: {'data-row-key': rowKey},
       events: {
-        'click': (_) => detailNotifier.toggle(
+        'click': (_) {
+          context.read(tableRowKeyboardFocusProvider.notifier).focusRowKey(
+            rowKey,
+            tableSqliteName: sqliteName,
+          );
+          detailNotifier.toggle(
           rowKey: rowKey,
           row: row,
           sqliteName: sqliteName,
           columns: columns,
           columnShapes: columnShapes,
-        ),
+          );
+        },
       },
       [
         td(
@@ -1276,4 +1273,277 @@ class _SortableHeader extends StatelessComponent {
       ],
     );
   }
+}
+
+bool _shouldIgnoreHomeKeyboard(web.KeyboardEvent event) {
+  if (event.metaKey || event.ctrlKey || event.altKey) return true;
+  final target = event.target;
+  if (target is! web.HTMLElement) return false;
+  final tag = target.tagName.toLowerCase();
+  if (tag == 'input' || tag == 'textarea' || tag == 'select') return true;
+  return target.isContentEditable;
+}
+
+({List<List<Object?>> rows, List<String> keys}) _displayRowsAndKeys(
+  TableRowsData data,
+  TableSortState? sort,
+) {
+  final sortColumnIndex = sort == null ? -1 : data.columns.indexOf(sort.columnName);
+  final displayRows = sortColumnIndex < 0
+      ? data.rows
+      : sortTableRows(
+          rows: data.rows,
+          columnIndex: sortColumnIndex,
+          shape: data.columnShapes.elementAtOrNull(sortColumnIndex),
+          ascending: sort!.ascending,
+        );
+  final displayKeys = [for (final row in displayRows) tableRowKey(row, data.columnShapes)];
+  return (rows: displayRows, keys: displayKeys);
+}
+
+void _scrollFocusedRowIntoView(String rowKey) {
+  final row = web.document.querySelector('[data-row-key="$rowKey"]');
+  row?.scrollIntoView(web.ScrollIntoViewOptions(block: 'nearest'));
+}
+
+void _openDetailForRowKey({
+  required BuildContext context,
+  required String rowKey,
+  required List<List<Object?>> displayRows,
+  required List<String> displayKeys,
+  required TableRowsData data,
+  required TableRowDetailViewMode viewMode,
+  bool viaEditShortcut = false,
+}) {
+  final index = displayKeys.indexOf(rowKey);
+  if (index < 0) return;
+  context.read(tableRowDetailProvider.notifier).openFocusedRow(
+    rowKey: rowKey,
+    row: displayRows[index],
+    sqliteName: data.sqliteName,
+    columns: data.columns,
+    columnShapes: data.columnShapes,
+    viewMode: viewMode,
+    viaEditShortcut: viaEditShortcut,
+  );
+}
+
+class HomeKeyboardShortcuts extends StatefulComponent {
+  const HomeKeyboardShortcuts({super.key});
+
+  @override
+  State<HomeKeyboardShortcuts> createState() => _HomeKeyboardShortcutsState();
+}
+
+class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
+  web.EventListener? _keyListener;
+
+  @override
+  void initState() {
+    super.initState();
+    scheduleMicrotask(_bindKeyListener);
+  }
+
+  @override
+  void dispose() {
+    _unbindKeyListener();
+    super.dispose();
+  }
+
+  void _bindKeyListener() {
+    if (_keyListener != null || !context.binding.isClient) return;
+    _keyListener = _onKeyDown.toJS;
+    web.document.addEventListener('keydown', _keyListener);
+  }
+
+  void _unbindKeyListener() {
+    final listener = _keyListener;
+    if (listener == null) return;
+    web.document.removeEventListener('keydown', listener);
+    _keyListener = null;
+  }
+
+  void _onKeyDown(web.Event event) {
+    if (event is! web.KeyboardEvent) return;
+    if (!mounted) return;
+    if (_shouldIgnoreHomeKeyboard(event)) return;
+
+    final detail = context.read(tableRowDetailProvider);
+    if (detail?.viewMode == TableRowDetailViewMode.edit) return;
+
+    final focusNotifier = context.read(tableRowKeyboardFocusProvider.notifier);
+    final keyboardFocus = context.read(tableRowKeyboardFocusProvider);
+    final zone = keyboardFocus.zone;
+    final tableFocus = context.read(tableFocusProvider);
+    final sort = context.read(tableSortProvider);
+    final data = context.read(tableRowsProvider).value;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        if (zone != HomeKeyboardFocusZone.tableRows || tableFocus == null) return;
+        event.preventDefault();
+        focusNotifier.enterSidebar(
+          tableSqliteName: tableFocus.sqliteName,
+          currentRowKey: keyboardFocus.rowKey,
+        );
+        return;
+      case 'ArrowRight':
+        if (zone != HomeKeyboardFocusZone.sidebar || tableFocus == null) return;
+        event.preventDefault();
+        final pageKeys = data == null ? <String>[] : _displayRowsAndKeys(data, sort).keys;
+        focusNotifier.exitToTableRows(
+          tableSqliteName: tableFocus.sqliteName,
+          pageKeys: pageKeys,
+        );
+        final rowKey = context.read(tableRowKeyboardFocusProvider).rowKey;
+        if (rowKey != null) _scrollFocusedRowIntoView(rowKey);
+        return;
+      case 'ArrowUp':
+        if (zone == HomeKeyboardFocusZone.sidebar) {
+          event.preventDefault();
+          focusNotifier.moveSidebarTableBy(-1);
+          return;
+        }
+      case 'ArrowDown':
+        if (zone == HomeKeyboardFocusZone.sidebar) {
+          event.preventDefault();
+          focusNotifier.moveSidebarTableBy(1);
+          return;
+        }
+      case ' ':
+      case 'Enter':
+        if (zone == HomeKeyboardFocusZone.sidebar) {
+          if (keyboardFocus.sidebarTableSqliteName == null) return;
+          event.preventDefault();
+          focusNotifier.selectSidebarTable(context);
+          return;
+        }
+      default:
+        if (zone == HomeKeyboardFocusZone.sidebar) return;
+    }
+
+    if (data == null || data.rows.isEmpty) return;
+
+    final displayed = _displayRowsAndKeys(data, sort);
+    final displayRows = displayed.rows;
+    final displayKeys = displayed.keys;
+    final focusKey = keyboardFocus.rowKey;
+    final selectionNotifier = context.read(tableRowSelectionProvider.notifier);
+    final detailNotifier = context.read(tableRowDetailProvider.notifier);
+    final activeKey = focusKey ?? detail?.rowKey;
+    final tableSqliteName = data.sqliteName;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        focusNotifier.moveBy(1, displayKeys, tableSqliteName: tableSqliteName);
+        final nextKey = context.read(tableRowKeyboardFocusProvider).rowKey;
+        if (nextKey != null) {
+          _scrollFocusedRowIntoView(nextKey);
+          if (detail != null) {
+            _openDetailForRowKey(
+              context: context,
+              rowKey: nextKey,
+              displayRows: displayRows,
+              displayKeys: displayKeys,
+              data: data,
+              viewMode: detail.viewMode,
+            );
+          }
+        }
+      case 'ArrowUp':
+        event.preventDefault();
+        focusNotifier.moveBy(-1, displayKeys, tableSqliteName: tableSqliteName);
+        final nextKey = context.read(tableRowKeyboardFocusProvider).rowKey;
+        if (nextKey != null) {
+          _scrollFocusedRowIntoView(nextKey);
+          if (detail != null) {
+            _openDetailForRowKey(
+              context: context,
+              rowKey: nextKey,
+              displayRows: displayRows,
+              displayKeys: displayKeys,
+              data: data,
+              viewMode: detail.viewMode,
+            );
+          }
+        }
+      case ' ':
+        if (activeKey == null) return;
+        event.preventDefault();
+        final index = displayKeys.indexOf(activeKey);
+        if (index < 0) return;
+        final selected = context.read(tableRowSelectionProvider).isSelected(activeKey);
+        selectionNotifier.handleRowCheckboxChange(
+          index: index,
+          key: activeKey,
+          selected: !selected,
+          pageKeys: displayKeys,
+          shiftKey: event.shiftKey,
+        );
+      case 'Enter':
+        if (activeKey == null) return;
+        event.preventDefault();
+        _openDetailForRowKey(
+          context: context,
+          rowKey: activeKey,
+          displayRows: displayRows,
+          displayKeys: displayKeys,
+          data: data,
+          viewMode: TableRowDetailViewMode.fields,
+        );
+      case 'j':
+      case 'J':
+        if (activeKey == null) return;
+        event.preventDefault();
+        _openDetailForRowKey(
+          context: context,
+          rowKey: activeKey,
+          displayRows: displayRows,
+          displayKeys: displayKeys,
+          data: data,
+          viewMode: TableRowDetailViewMode.json,
+        );
+      case 'f':
+      case 'F':
+        if (activeKey == null) return;
+        event.preventDefault();
+        if (detail?.rowKey == activeKey) {
+          detailNotifier.setViewMode(TableRowDetailViewMode.fields);
+        } else {
+          _openDetailForRowKey(
+            context: context,
+            rowKey: activeKey,
+            displayRows: displayRows,
+            displayKeys: displayKeys,
+            data: data,
+            viewMode: TableRowDetailViewMode.fields,
+          );
+        }
+      case 'e':
+      case 'E':
+        if (activeKey == null) return;
+        event.preventDefault();
+        _openDetailForRowKey(
+          context: context,
+          rowKey: activeKey,
+          displayRows: displayRows,
+          displayKeys: displayKeys,
+          data: data,
+          viewMode: TableRowDetailViewMode.edit,
+          viaEditShortcut: true,
+        );
+      case 'Escape':
+        if (context.read(tableRowDetailProvider) != null) return;
+        final selection = context.read(tableRowSelectionProvider);
+        if (selection.isEmpty) return;
+        event.preventDefault();
+        context.read(tableRowSelectionProvider.notifier).clear();
+      default:
+        return;
+    }
+  }
+
+  @override
+  Component build(BuildContext context) => Component.empty();
 }
