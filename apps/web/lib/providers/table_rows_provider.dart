@@ -3,6 +3,7 @@ import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
 import '../utils/table_row_key.dart';
+import '../utils/table_rows_json.dart';
 import 'table_focus_provider.dart';
 import 'table_row_detail_provider.dart';
 import 'table_row_selection_provider.dart';
@@ -110,6 +111,42 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     } finally {
       _loadingMore = false;
     }
+  }
+
+  /// Rows matching [selection], fetching all pages when the whole table is selected.
+  Future<List<List<Object?>>> rowsForSelection(TableRowSelectionState selection) async {
+    final data = state.value;
+    if (data == null || selection.isEmpty) return const [];
+
+    if (selection.coversEntireTable) {
+      final all = <List<Object?>>[];
+      const pageSize = 500;
+      while (true) {
+        final page = await _fetchRowPage(
+          sqliteName: data.sqliteName,
+          columns: data.columns,
+          columnShapes: data.columnShapes,
+          offset: all.length,
+          limit: pageSize,
+        );
+        all.addAll(page);
+        if (page.length < pageSize) return all;
+      }
+    }
+
+    return [
+      for (final row in data.rows)
+        if (selection.keys.contains(tableRowKey(row, data.columnShapes))) row,
+    ];
+  }
+
+  /// Pretty-printed JSON array of the current row selection.
+  Future<String> jsonForSelectedRows(TableRowSelectionState selection) async {
+    final data = state.value;
+    if (data == null || selection.isEmpty) return '[]';
+
+    final rows = await rowsForSelection(selection);
+    return encodeTableRowsAsJson(columns: data.columns, rows: rows);
   }
 
   /// Deletes the current selection, then reloads the table.

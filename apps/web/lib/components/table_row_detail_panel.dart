@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
@@ -13,6 +12,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../constants/theme.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../utils/dom_event_values.dart';
+import '../utils/table_rows_json.dart';
 
 const _collapsibleMinLength = 320;
 const _slideDuration = Duration(milliseconds: 250);
@@ -450,10 +450,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 }
 
 String _detailRawJson(TableRowDetailState detail) {
-  final map = <String, Object?>{
-    for (var i = 0; i < detail.columns.length; i++)
-      detail.columns[i]: _jsonEncodableValue(i < detail.row.length ? detail.row[i] : null),
-  };
+  final map = tableRowToJsonMap(columns: detail.columns, row: detail.row);
   const encoder = JsonEncoder.withIndent('  ');
   try {
     return encoder.convert(map);
@@ -462,19 +459,6 @@ String _detailRawJson(TableRowDetailState detail) {
       for (final entry in map.entries) entry.key: entry.value?.toString(),
     });
   }
-}
-
-Object? _jsonEncodableValue(Object? value) {
-  return switch (value) {
-    DateTime d => d.millisecondsSinceEpoch,
-    Uint8List bytes => base64Encode(bytes),
-    final Map m => {
-      for (final entry in m.entries)
-        entry.key.toString(): _jsonEncodableValue(entry.value),
-    },
-    final List l => [for (final e in l) _jsonEncodableValue(e)],
-    _ => value,
-  };
 }
 
 class _RawJsonCard extends StatelessComponent {

@@ -17,6 +17,7 @@ import '../providers/table_schema_provider.dart';
 import '../providers/table_sort_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import '../providers/toast_provider.dart';
+import '../utils/download_text_file.dart';
 import '../utils/table_row_key.dart';
 import '../utils/table_rows_sort.dart';
 import '../auth/auth_route_provider.dart';
@@ -959,9 +960,40 @@ class _SelectionToolbox extends StatefulComponent {
 
 class _SelectionToolboxState extends State<_SelectionToolbox> {
   var _deleting = false;
+  var _exporting = false;
+
+  bool get _busy => _deleting || _exporting;
+
+  Future<void> _exportSelectedAsJson() async {
+    if (_busy) return;
+    setState(() => _exporting = true);
+
+    final selection = context.read(tableRowSelectionProvider);
+    try {
+      final json = await context.read(tableRowsProvider.notifier).jsonForSelectedRows(selection);
+      final tableName = component.data.sqliteName;
+      downloadTextFile(
+        filename: '$tableName-rows.json',
+        content: json,
+        mimeType: 'application/json;charset=utf-8',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      context.read(toastProvider.notifier).showError(
+        switch (e) {
+          StateError(:final message) => message,
+          _ => 'Failed to export rows: $e',
+        },
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _exporting = false);
+      }
+    }
+  }
 
   Future<void> _deleteSelected() async {
-    if (_deleting) return;
+    if (_busy) return;
     setState(() => _deleting = true);
 
     final selection = context.read(tableRowSelectionProvider);
@@ -997,7 +1029,7 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
           button(
             classes: 'table-rows-selection-select-all',
             type: .button,
-            disabled: _deleting,
+            disabled: _busy,
             onClick: () => context.read(tableRowSelectionProvider.notifier).selectEntireTable(),
             [.text('Select all ${data.total} rows')],
           ),
@@ -1007,15 +1039,23 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
         button(
           classes: ZonaiClasses.btnSecondary,
           type: .button,
-          disabled: _deleting,
+          disabled: _busy,
           attributes: {'aria-label': 'Deselect rows'},
           onClick: () => context.read(tableRowSelectionProvider.notifier).clear(),
           [.text('Deselect')],
         ),
         button(
+          classes: ZonaiClasses.btnSecondary,
+          type: .button,
+          disabled: _busy,
+          attributes: {'aria-label': 'Export selected rows as JSON'},
+          onClick: _exportSelectedAsJson,
+          [.text(_exporting ? 'Exporting…' : 'Export JSON')],
+        ),
+        button(
           classes: '${ZonaiClasses.btn} rows-selection-delete',
           type: .button,
-          disabled: _deleting,
+          disabled: _busy,
           onClick: _deleteSelected,
           [.text(_deleting ? 'Deleting…' : 'Delete selected')],
         ),
