@@ -828,16 +828,11 @@ class _SidebarFooter extends StatelessComponent {
           'aria-haspopup': 'dialog',
           'aria-expanded': settingsOpen ? 'true' : 'false',
         },
-        events: appTooltipEvents(context, text: 'Account and settings'),
         onClick: () => context.read(homeUiProvider.notifier).toggleSettings(),
         [
           div(classes: 'home-sidebar-avatar', [.text(initial)]),
           div(classes: 'home-sidebar-profile-text home-sidebar-expand-only', [
-            span(
-              classes: 'home-sidebar-email',
-              events: appTooltipEvents(context, text: label),
-              [.text(label)],
-            ),
+            span(classes: 'home-sidebar-email', [.text(label)]),
             if (sessionUser?.isAdmin == true) span(classes: 'home-sidebar-badge', [.text('Admin')]),
           ]),
           span(classes: 'home-sidebar-settings-icon home-sidebar-expand-only', [.text('⚙')]),
