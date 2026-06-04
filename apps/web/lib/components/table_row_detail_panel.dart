@@ -16,9 +16,8 @@ import '../providers/table_row_detail_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/toast_provider.dart';
 import '../utils/dom_event_values.dart';
-import '../utils/sqlite_table_utils.dart';
 import '../utils/table_cell_edit.dart';
-import '../utils/table_row_key.dart';
+import '../utils/table_row_edit.dart';
 import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
@@ -385,16 +384,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 
   bool _canEditRow(TableRowDetailState detail) {
-    if (isSystemSqliteTable(detail.sqliteName)) return false;
-    if (tableRowWhere(
-          row: detail.row,
-          columns: detail.columns,
-          columnShapes: detail.columnShapes,
-        ) ==
-        null) {
-      return false;
-    }
-    return hasEditableColumns(detail.columnShapes);
+    return canEditTableRows(
+      sqliteName: detail.sqliteName,
+      columns: detail.columns,
+      columnShapes: detail.columnShapes,
+      row: detail.row,
+    );
   }
 
   void _startEditing(TableRowDetailState detail) {

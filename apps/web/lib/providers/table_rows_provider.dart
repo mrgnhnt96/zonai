@@ -2,12 +2,14 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
+import '../utils/table_row_edit.dart';
 import '../utils/table_row_key.dart';
 import '../utils/table_rows_json.dart';
 import 'table_focus_provider.dart';
 import 'table_row_detail_provider.dart';
 import 'table_row_selection_provider.dart';
 import 'table_schema_provider.dart';
+import 'session_user_provider.dart';
 import 'toast_provider.dart';
 
 /// Page size for table row list / infinite scroll requests.
@@ -189,6 +191,16 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
   Future<void> deleteSelected(TableRowSelectionState selection) async {
     final data = state.value;
     if (data == null || selection.isEmpty) return;
+
+    final sessionUser = ref.read(sessionUserProvider);
+    if (sessionUser?.canEdit != true ||
+        !canEditTableRows(
+          sqliteName: data.sqliteName,
+          columns: data.columns,
+          columnShapes: data.columnShapes,
+        )) {
+      throw StateError('Cannot delete rows: this table is read-only.');
+    }
 
     try {
       if (selection.coversEntireTable) {

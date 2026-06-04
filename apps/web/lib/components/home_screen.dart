@@ -13,12 +13,14 @@ import '../providers/home_ui_provider.dart';
 import '../providers/table_focus_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../providers/table_row_selection_provider.dart';
+import '../providers/session_user_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/table_schema_provider.dart';
 import '../providers/table_sort_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import '../providers/toast_provider.dart';
 import '../utils/download_text_file.dart';
+import '../utils/table_row_edit.dart';
 import '../utils/table_row_key.dart';
 import '../utils/table_rows_sort.dart';
 import '../auth/auth_route_provider.dart';
@@ -1117,6 +1119,14 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     final selection = component.selection;
     final selectedCount = selection.displayCount(data.total);
     final label = selectedCount == 1 ? '1 selected' : '$selectedCount selected';
+    final sessionUser = context.watch(sessionUserProvider);
+    final canDeleteRows =
+        sessionUser?.canEdit == true &&
+        canEditTableRows(
+          sqliteName: data.sqliteName,
+          columns: data.columns,
+          columnShapes: data.columnShapes,
+        );
 
     return div(classes: 'table-rows-selection-bar', [
       div(classes: 'table-rows-selection-meta', [
@@ -1144,41 +1154,42 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
           onClick: _exportSelectedAsJson,
           [_selectionExportIcon()],
         ),
-        button(
-          classes: [
-            ZonaiClasses.btn,
-            'rows-selection-delete',
-            if (_deleteHoldPhase == _DeleteHoldPhase.holding) 'rows-selection-delete--holding',
-            if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete--resetting',
-          ].join(' '),
-          type: .button,
-          disabled: _busy,
-          attributes: {
-            if (_requiresDeleteHold) 'aria-label': 'Hold for 2.5 seconds to delete all rows',
-            if (_deleting) 'aria-busy': 'true',
-          },
-          events: _requiresDeleteHold
-              ? {
-                  'pointerdown': _startDeleteHold,
-                  'mousedown': _startDeleteHold,
-                  'click': _blockDeleteClick,
-                  ...appTooltipEvents(context, text: 'Hold to delete all rows'),
-                }
-              : null,
-          onClick: _onDeleteButtonClick,
-          [
-            if (_requiresDeleteHold)
-              div(
-                classes: [
-                  'rows-selection-delete__progress',
-                  if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete__progress--resetting',
-                ].join(' '),
-                attributes: {'aria-hidden': 'true', 'style': 'transform: scaleX($_holdProgress);'},
-                [],
-              ),
-            span(classes: 'rows-selection-delete__label', [.text('Delete')]),
-          ],
-        ),
+        if (canDeleteRows)
+          button(
+            classes: [
+              ZonaiClasses.btn,
+              'rows-selection-delete',
+              if (_deleteHoldPhase == _DeleteHoldPhase.holding) 'rows-selection-delete--holding',
+              if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete--resetting',
+            ].join(' '),
+            type: .button,
+            disabled: _busy,
+            attributes: {
+              if (_requiresDeleteHold) 'aria-label': 'Hold for 2.5 seconds to delete all rows',
+              if (_deleting) 'aria-busy': 'true',
+            },
+            events: _requiresDeleteHold
+                ? {
+                    'pointerdown': _startDeleteHold,
+                    'mousedown': _startDeleteHold,
+                    'click': _blockDeleteClick,
+                    ...appTooltipEvents(context, text: 'Hold to delete all rows'),
+                  }
+                : null,
+            onClick: _onDeleteButtonClick,
+            [
+              if (_requiresDeleteHold)
+                div(
+                  classes: [
+                    'rows-selection-delete__progress',
+                    if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete__progress--resetting',
+                  ].join(' '),
+                  attributes: {'aria-hidden': 'true', 'style': 'transform: scaleX($_holdProgress);'},
+                  [],
+                ),
+              span(classes: 'rows-selection-delete__label', [.text('Delete')]),
+            ],
+          ),
         button(
           classes: 'rows-selection-icon-btn',
           type: .button,
