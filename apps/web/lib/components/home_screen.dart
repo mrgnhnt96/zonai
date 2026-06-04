@@ -31,6 +31,7 @@ import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'app_tooltip_overlay.dart';
 import 'syntax_highlighted_code.dart';
+import 'schema_table_cell.dart';
 import 'table_row_detail_panel.dart';
 import 'table_edit/table_edit_datetime_field.dart';
 import 'table_edit/table_edit_enum_multi_select.dart';
@@ -306,13 +307,37 @@ class HomeScreen extends StatelessComponent {
         },
       ),
       css('.rows-header-sort-icon--idle').styles(visibility: .hidden, raw: const {'pointer-events': 'none'}),
-      css('.rows-table td').styles(
+      css('.rows-table .rows-row td').styles(
         padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s4),
         overflow: Overflow.hidden,
         raw: const {
           'border-bottom': '1px solid var(--zonai-border)',
-          'vertical-align': 'top',
-          'max-width': '14rem',
+          'vertical-align': 'middle',
+          'min-height': '2.75rem',
+          'box-sizing': 'border-box',
+        },
+      ),
+      css('.rows-table .rows-row td.rows-cell').styles(
+        maxWidth: 14.rem,
+        raw: const {
+          'text-overflow': 'ellipsis',
+          'white-space': 'nowrap',
+        },
+      ),
+      css('.rows-table .rows-row td.rows-cell--rich').styles(
+        whiteSpace: WhiteSpace.normal,
+        raw: const {'text-overflow': 'clip'},
+      ),
+      css('.rows-cell-inner').styles(
+        display: .flex,
+        alignItems: .center,
+        maxWidth: 100.percent,
+        minHeight: 100.percent,
+      ),
+      css('.rows-cell:not(.rows-cell--rich) .rows-cell-inner').styles(
+        display: .block,
+        overflow: Overflow.hidden,
+        raw: const {
           'text-overflow': 'ellipsis',
           'white-space': 'nowrap',
         },
@@ -331,10 +356,11 @@ class HomeScreen extends StatelessComponent {
       ).styles(backgroundColor: tableHeaderBgColor, raw: const {'position': 'sticky', 'top': '0', 'z-index': '1'}),
       css('.rows-select-checkbox-wrap').styles(
         display: .flex,
-        alignItems: .start,
+        alignItems: .center,
         justifyContent: .center,
         width: 100.percent,
-        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s5),
+        minHeight: 100.percent,
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s4),
         boxSizing: .borderBox,
       ),
       css('.rows-select-checkbox').styles(
@@ -897,6 +923,12 @@ class _SelectableRow extends StatelessComponent {
     return parts.join(' ');
   }
 
+  String _cellClasses(ColumnShape? shape) {
+    final parts = <String>['rows-cell'];
+    if (SchemaTableCell.usesRichLayout(shape)) parts.add('rows-cell--rich');
+    return parts.join(' ');
+  }
+
   @override
   Component build(BuildContext context) {
     return tr(
@@ -940,7 +972,17 @@ class _SelectableRow extends StatelessComponent {
           ],
         ),
         for (var i = 0; i < row.length; i++)
-          td(classes: 'rows-cell', [.text(formatSchemaCell(row[i], columnShapes.elementAtOrNull(i)))]),
+          td(
+            classes: _cellClasses(columnShapes.elementAtOrNull(i)),
+            [
+              div(classes: 'rows-cell-inner', [
+                SchemaTableCell(
+                  rawValue: row[i],
+                  shape: columnShapes.elementAtOrNull(i),
+                ),
+              ]),
+            ],
+          ),
       ],
     );
   }
