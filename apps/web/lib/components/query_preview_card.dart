@@ -7,21 +7,21 @@ import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 
 import '../providers/app_tooltip_provider.dart';
-import '../utils/json_syntax_highlight.dart';
+import 'syntax_highlighted_code.dart';
 
-/// Read-only code block with copy (JSON syntax highlighting when [highlightJson]).
+/// Read-only code block with copy and optional [opal] syntax highlighting.
 class QueryPreviewCard extends StatelessComponent {
   const QueryPreviewCard({
     required this.label,
     required this.text,
-    this.highlightJson = false,
+    this.highlightLanguage,
     this.showToolbar = true,
     super.key,
   });
 
   final String label;
   final String text;
-  final bool highlightJson;
+  final SyntaxHighlightLanguage? highlightLanguage;
   final bool showToolbar;
 
   @override
@@ -32,10 +32,14 @@ class QueryPreviewCard extends StatelessComponent {
           CopyPreviewTextButton(label: label, text: text),
         ]),
       pre(classes: 'table-row-detail-json-card-pre', [
-        code(
-          classes: 'table-row-detail-json-highlight',
-          highlightJson ? highlightedJsonSpans(text) : [.text(text)],
-        ),
+        if (highlightLanguage case final language?)
+          SyntaxHighlightedCode(
+            source: text,
+            language: language,
+            extraClasses: 'table-row-detail-json-highlight',
+          )
+        else
+          code(classes: 'table-row-detail-json-highlight', [.text(text)]),
       ]),
     ]);
   }

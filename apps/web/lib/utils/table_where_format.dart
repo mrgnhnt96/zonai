@@ -10,7 +10,8 @@ String formatListBodyJson({required String table, required Where where}) {
 
 /// Dart source for a [ListBody] filter request (zonai_schema payloads).
 String formatListBodyDart({required String table, required Where where}) {
-  final whereExpr = formatWhereDart(where);
+  // indent: 1 aligns nested And/Or items under the `where:` field in ListBody.
+  final whereExpr = formatWhereDart(where, indent: 1);
   return '''
 // import 'package:zonai_schema/zonai_schema.dart';
 

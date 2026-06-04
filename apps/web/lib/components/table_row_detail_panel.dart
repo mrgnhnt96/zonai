@@ -23,6 +23,7 @@ import '../utils/table_row_edit.dart';
 import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
+import 'syntax_highlighted_code.dart';
 
 const _collapsibleMinLength = 320;
 const _slideDuration = Duration(milliseconds: 250);
@@ -876,129 +877,14 @@ class _RawJsonCard extends StatelessComponent {
         _CopyFieldValueButton(label: 'JSON', text: json),
       ]),
       pre(classes: 'table-row-detail-json-card-pre', [
-        code(classes: 'table-row-detail-json-highlight', _highlightedJsonSpans(json)),
+        SyntaxHighlightedCode(
+          source: json,
+          language: SyntaxHighlightLanguage.json,
+          extraClasses: 'table-row-detail-json-highlight',
+        ),
       ]),
     ]);
   }
-}
-
-enum _JsonHighlightKind { key, string, number, boolean, nullToken, punctuation, whitespace }
-
-final class _JsonHighlightToken {
-  const _JsonHighlightToken(this.text, this.kind);
-
-  final String text;
-  final _JsonHighlightKind kind;
-}
-
-List<Component> _highlightedJsonSpans(String source) {
-  return [
-    for (final token in _tokenizeJson(source))
-      span(classes: _jsonHighlightClass(token.kind), [.text(token.text)]),
-  ];
-}
-
-String _jsonHighlightClass(_JsonHighlightKind kind) => switch (kind) {
-  _JsonHighlightKind.key => 'json-hl-key',
-  _JsonHighlightKind.string => 'json-hl-string',
-  _JsonHighlightKind.number => 'json-hl-number',
-  _JsonHighlightKind.boolean => 'json-hl-bool',
-  _JsonHighlightKind.nullToken => 'json-hl-null',
-  _JsonHighlightKind.punctuation => 'json-hl-punct',
-  _JsonHighlightKind.whitespace => 'json-hl-ws',
-};
-
-List<_JsonHighlightToken> _tokenizeJson(String source) {
-  final tokens = <_JsonHighlightToken>[];
-  var i = 0;
-
-  while (i < source.length) {
-    final char = source[i];
-
-    if (char == '"') {
-      final start = i;
-      i++;
-      while (i < source.length) {
-        if (source[i] == r'\') {
-          i += 2;
-          continue;
-        }
-        if (source[i] == '"') {
-          i++;
-          break;
-        }
-        i++;
-      }
-      final text = source.substring(start, i);
-      var peek = i;
-      while (peek < source.length && _isJsonWhitespace(source[peek])) {
-        peek++;
-      }
-      final kind = peek < source.length && source[peek] == ':'
-          ? _JsonHighlightKind.key
-          : _JsonHighlightKind.string;
-      tokens.add(_JsonHighlightToken(text, kind));
-      continue;
-    }
-
-    if (char == '{' || char == '}' || char == '[' || char == ']' || char == ':' || char == ',') {
-      tokens.add(_JsonHighlightToken(char, _JsonHighlightKind.punctuation));
-      i++;
-      continue;
-    }
-
-    if (_isJsonWhitespace(char)) {
-      final start = i;
-      while (i < source.length && _isJsonWhitespace(source[i])) {
-        i++;
-      }
-      tokens.add(_JsonHighlightToken(source.substring(start, i), _JsonHighlightKind.whitespace));
-      continue;
-    }
-
-    if (char == '-' || _isJsonDigit(char)) {
-      final start = i;
-      if (source[i] == '-') i++;
-      while (i < source.length) {
-        final c = source[i];
-        if (_isJsonDigit(c) || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-') {
-          i++;
-          continue;
-        }
-        break;
-      }
-      tokens.add(_JsonHighlightToken(source.substring(start, i), _JsonHighlightKind.number));
-      continue;
-    }
-
-    if (source.startsWith('true', i)) {
-      tokens.add(const _JsonHighlightToken('true', _JsonHighlightKind.boolean));
-      i += 4;
-      continue;
-    }
-    if (source.startsWith('false', i)) {
-      tokens.add(const _JsonHighlightToken('false', _JsonHighlightKind.boolean));
-      i += 5;
-      continue;
-    }
-    if (source.startsWith('null', i)) {
-      tokens.add(const _JsonHighlightToken('null', _JsonHighlightKind.nullToken));
-      i += 4;
-      continue;
-    }
-
-    tokens.add(_JsonHighlightToken(char, _JsonHighlightKind.punctuation));
-    i++;
-  }
-
-  return tokens;
-}
-
-bool _isJsonWhitespace(String char) => char == ' ' || char == '\t' || char == '\n' || char == '\r';
-
-bool _isJsonDigit(String char) {
-  final code = char.codeUnitAt(0);
-  return code >= 0x30 && code <= 0x39;
 }
 
 String _detailSubtitle(TableRowDetailState detail) {
@@ -1637,26 +1523,6 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'overflow-wrap': 'anywhere',
     },
   ),
-  css('.table-row-detail-json-highlight').styles(
-    display: .inline,
-    margin: .zero,
-    padding: .zero,
-    color: const Color('#e2e8f0'),
-    raw: const {
-      'font-family': 'inherit',
-      'font-size': 'inherit',
-      'line-height': 'inherit',
-      'white-space': 'inherit',
-      'tab-size': 'inherit',
-    },
-  ),
-  css('.table-row-detail-json-highlight .json-hl-key').styles(color: const Color('#7dd3fc')),
-  css('.table-row-detail-json-highlight .json-hl-string').styles(color: const Color('#86efac')),
-  css('.table-row-detail-json-highlight .json-hl-number').styles(color: const Color('#fcd34d')),
-  css('.table-row-detail-json-highlight .json-hl-bool').styles(color: const Color('#f9a8d4')),
-  css('.table-row-detail-json-highlight .json-hl-null').styles(color: const Color('#c4b5fd')),
-  css('.table-row-detail-json-highlight .json-hl-punct').styles(color: const Color('#64748b')),
-  css('.table-row-detail-json-highlight .json-hl-ws').styles(color: const Color('#e2e8f0')),
   css(
     '.table-row-detail-field',
   ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px), minWidth: .zero),

@@ -12,6 +12,7 @@ import '../utils/table_where_format.dart';
 import '../utils/table_where_operators.dart';
 import 'app_tooltip_overlay.dart';
 import 'query_preview_card.dart';
+import 'syntax_highlighted_code.dart';
 import 'table_filter_value_field.dart';
 import 'theme/theme_components.dart';
 import 'theme/ui_styles.dart';

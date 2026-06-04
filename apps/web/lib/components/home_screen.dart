@@ -30,6 +30,7 @@ import '../auth/auth_route_provider.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'app_tooltip_overlay.dart';
+import 'syntax_highlighted_code.dart';
 import 'table_row_detail_panel.dart';
 import 'table_edit/table_edit_datetime_field.dart';
 import 'table_edit/table_edit_enum_multi_select.dart';
@@ -81,6 +82,7 @@ class HomeScreen extends StatelessComponent {
   static List<StyleRule> get styles => [
     ...HomeSidebar.styles,
     ...HomeSettingsOverlay.styles,
+    ...syntaxHighlightedCodeStyles,
     ...tableRowDetailPanelStyles,
     ...ToastOverlay.styles,
     ...tableSearchPanelStyles,

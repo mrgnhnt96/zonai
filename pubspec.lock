@@ -657,6 +657,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.2"
+  opal:
+    dependency: transitive
+    description:
+      name: opal
+      sha256: fe88e8d3b944bdf224da66f5a403ee1f9294ca078d9e1a13237b6efd1ebfdeec
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.3"
   package_config:
     dependency: transitive
     description:

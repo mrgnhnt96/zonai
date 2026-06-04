@@ -21,9 +21,14 @@ void main() {
           const Null('b'),
         ]),
       );
-      expect(dart, contains('And(['));
-      expect(dart, contains("Eq('a', 1)"));
-      expect(dart, contains("Null('b')"));
+      expect(
+        dart,
+        '''
+And([
+  Eq('a', 1),
+  Null('b'),
+])''',
+      );
     });
 
     test('In list values', () {
@@ -43,6 +48,29 @@ void main() {
       expect(dart, contains("table: 'users'"));
       expect(dart, contains("Eq('id', 1)"));
       expect(dart, contains('ListBody('));
+    });
+
+    test('indents And conditions under where', () {
+      final dart = formatListBodyDart(
+        table: '_log',
+        where: And([
+          const Eq('id', 'asfd'),
+          const Eq('id', 'fffff'),
+        ]),
+      );
+      expect(
+        dart,
+        '''
+// import 'package:zonai_schema/zonai_schema.dart';
+
+ListBody(
+  table: '_log',
+  where: And([
+    Eq('id', 'asfd'),
+    Eq('id', 'fffff'),
+  ]),
+)''',
+      );
     });
   });
 
