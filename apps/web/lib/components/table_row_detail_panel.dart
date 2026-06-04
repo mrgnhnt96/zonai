@@ -64,6 +64,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   web.EventListener? _documentResizeMoveListener;
   web.EventListener? _documentResizeUpListener;
   web.EventListener? _handleResizeDownListener;
+  web.EventListener? _windowResizeListener;
   web.Element? _resizeBoundPanel;
   var _resizeBindAttempts = 0;
   Timer? _resizeBindTimer;
@@ -82,6 +83,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _documentResizeMoveListener = _onDocumentResizeMove.toJS;
     _documentResizeUpListener = _onDocumentResizeUp.toJS;
     _handleResizeDownListener = _onResizeHandleMouseDown.toJS;
+    _windowResizeListener = _onWindowResize.toJS;
   }
 
   double _viewportWidthPx() {
@@ -113,9 +115,34 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 
   void _syncPanelWidthToViewport() {
     final vw = _viewportWidthPx();
-    if (!_isMobilePanelViewport(vw)) return;
-    _panelWidthPx = vw;
-    _applyPanelWidthPx(vw);
+    if (_isMobilePanelViewport(vw)) {
+      _applyPanelWidthPx(vw);
+      return;
+    }
+    if (_panelWidthPx >= vw * 0.9) {
+      _panelWidthPx = _panelDefaultWidthPx.clamp(_panelMinWidthPx, _panelMaxWidthPx);
+    }
+    _applyPanelWidthPx(_panelWidthPx);
+  }
+
+  void _bindWindowResizeListener() {
+    final listener = _windowResizeListener;
+    if (listener == null || !context.binding.isClient) return;
+    web.window.addEventListener('resize', listener);
+    web.window.visualViewport?.addEventListener('resize', listener);
+  }
+
+  void _unbindWindowResizeListener() {
+    final listener = _windowResizeListener;
+    if (listener == null) return;
+    web.window.removeEventListener('resize', listener);
+    web.window.visualViewport?.removeEventListener('resize', listener);
+  }
+
+  void _onWindowResize(web.Event event) {
+    if (!mounted || !_render || _resizing) return;
+    _syncPanelWidthToViewport();
+    setState(() {});
   }
 
   double _panelRightEdgePx() {
@@ -132,6 +159,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _unmountTimer?.cancel();
     _openTimer?.cancel();
     _unbindDocumentKeyListener();
+    _unbindWindowResizeListener();
     _resizeBindTimer?.cancel();
     _unbindResizeHandleDom();
     _endResizeDrag();
@@ -204,7 +232,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       final maxPxRounded = maxWidth.round();
       style.setProperty('width', '${widthPxRounded}px');
       style.setProperty('max-width', '${maxPxRounded}px');
-      style.setProperty('min-width', '${_panelMinWidthPx.round()}px');
+      if (_isMobilePanelViewport(vw)) {
+        style.setProperty('min-width', '100%');
+        style.setProperty('max-width', '100%');
+      } else {
+        style.setProperty('min-width', '${_panelMinWidthPx.round()}px');
+      }
     }
   }
 
@@ -345,6 +378,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       if (!mounted) return;
       setState(() => _open = true);
       _bindDocumentKeyListener();
+      _bindWindowResizeListener();
       scheduleMicrotask(() {
         if (!mounted || !_open) return;
         _focusPanel();
@@ -361,6 +395,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       context.read(appTooltipProvider.notifier).hide();
     }
     _unbindDocumentKeyListener();
+    _unbindWindowResizeListener();
     _unbindResizeHandleDom();
     _endResizeDrag();
     setState(() {
@@ -1371,7 +1406,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
     css('.table-row-detail-panel').styles(
       width: 100.percent,
-      raw: const {'max-width': '100%', 'min-width': '100%', 'left': '0', 'right': '0'},
+      raw: const {'max-width': '100%', 'min-width': '100%'},
     ),
     css('.table-row-detail-resize-handle').styles(display: .none),
   ]),

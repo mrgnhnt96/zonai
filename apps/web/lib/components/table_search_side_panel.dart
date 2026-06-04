@@ -41,6 +41,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
   web.EventListener? _documentResizeUpListener;
   web.EventListener? _handleResizeDownListener;
   web.EventListener? _documentKeyListener;
+  web.EventListener? _windowResizeListener;
   web.Element? _resizeBoundPanel;
   var _resizeListenersActive = false;
 
@@ -51,6 +52,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     _documentResizeUpListener = _onDocumentResizeUp.toJS;
     _handleResizeDownListener = _onResizeHandleMouseDown.toJS;
     _documentKeyListener = _onDocumentKeyDown.toJS;
+    _windowResizeListener = _onWindowResize.toJS;
   }
 
   @override
@@ -58,6 +60,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     _unmountTimer?.cancel();
     _openTimer?.cancel();
     _unbindDocumentKeyListener();
+    _unbindWindowResizeListener();
     _endResizeDrag();
     super.dispose();
   }
@@ -155,7 +158,43 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
       style.setProperty('width', '${width.round()}px');
       style.setProperty('max-width', '${_panelMaxWidthPx.round()}px');
       style.setProperty('min-width', '${_panelMinWidthPx.round()}px');
+      if (_isMobilePanelViewport(vw)) {
+        style.setProperty('min-width', '100%');
+        style.setProperty('max-width', '100%');
+      }
     }
+  }
+
+  void _syncPanelLayoutToViewport() {
+    final vw = _viewportWidthPx();
+    if (_isMobilePanelViewport(vw)) {
+      _applyPanelWidthPx(vw);
+      return;
+    }
+    if (_panelWidthPx >= vw * 0.9) {
+      _panelWidthPx = _defaultPanelWidthPx();
+    }
+    _applyPanelWidthPx(_panelWidthPx);
+  }
+
+  void _bindWindowResizeListener() {
+    final listener = _windowResizeListener;
+    if (listener == null || !context.binding.isClient) return;
+    web.window.addEventListener('resize', listener);
+    web.window.visualViewport?.addEventListener('resize', listener);
+  }
+
+  void _unbindWindowResizeListener() {
+    final listener = _windowResizeListener;
+    if (listener == null) return;
+    web.window.removeEventListener('resize', listener);
+    web.window.visualViewport?.removeEventListener('resize', listener);
+  }
+
+  void _onWindowResize(web.Event event) {
+    if (!mounted || !_render || _resizing) return;
+    _syncPanelLayoutToViewport();
+    setState(() {});
   }
 
   void _applyResizeFromClientX(double clientX) {
@@ -241,6 +280,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
       if (!mounted) return;
       setState(() => _open = true);
       _bindDocumentKeyListener();
+      _bindWindowResizeListener();
       scheduleMicrotask(_bindResizeDom);
     });
   }
@@ -252,6 +292,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
       context.read(appTooltipProvider.notifier).hide();
     }
     _unbindDocumentKeyListener();
+    _unbindWindowResizeListener();
     _endResizeDrag();
     setState(() {
       _open = false;

@@ -807,7 +807,7 @@ List<StyleRule> tableSearchSidePanelStyles = [
   css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
     css('.table-search-side-panel').styles(
       width: 100.percent,
-      raw: const {'max-width': '100%', 'min-width': '100%', 'left': '0', 'right': '0'},
+      raw: const {'max-width': '100%', 'min-width': '100%'},
     ),
     css('.table-search-resize-handle').styles(display: .none),
   ]),
