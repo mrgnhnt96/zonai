@@ -14,6 +14,8 @@ class TableEditSelect extends StatelessComponent {
     this.labelId,
     this.placeholder,
     this.boolAsYesNo = true,
+    this.allowNullable = false,
+    this.disabled = false,
   });
 
   final String id;
@@ -23,17 +25,23 @@ class TableEditSelect extends StatelessComponent {
   final String? labelId;
   final String? placeholder;
   final bool boolAsYesNo;
+  final bool allowNullable;
+  final bool disabled;
 
   @override
   Component build(BuildContext context) {
     final options = _buildOptions();
+    final effectivePlaceholder = allowNullable
+        ? (placeholder ?? '—')
+        : (placeholder ?? 'Choose value');
     return ZonaiSelect(
       id: id,
       value: value,
       options: options,
-      placeholder: placeholder ?? 'Choose value',
+      placeholder: effectivePlaceholder,
       onChange: onChange,
       labelId: labelId,
+      disabled: disabled,
     );
   }
 
@@ -63,4 +71,9 @@ class TableEditSelect extends StatelessComponent {
   static String boolValueToSelectString(bool value) => value ? 'true' : 'false';
 
   static bool selectStringToBool(String value) => value == 'true';
+
+  static bool? selectStringToNullableBool(String value) {
+    if (value.isEmpty) return null;
+    return selectStringToBool(value);
+  }
 }

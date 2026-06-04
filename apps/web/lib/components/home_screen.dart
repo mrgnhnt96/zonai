@@ -159,9 +159,26 @@ class HomeScreen extends StatelessComponent {
         minHeight: .zero,
         overflow: Overflow.hidden,
       ),
-      css(
-        '.table-detail-header',
-      ).styles(flex: Flex(grow: 0, shrink: 0), display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px)),
+      css('.table-detail-header').styles(
+        flex: Flex(grow: 0, shrink: 0),
+        display: .flex,
+        flexDirection: FlexDirection.row,
+        alignItems: .end,
+        justifyContent: .spaceBetween,
+        gap: Gap.all(12.px),
+      ),
+      css('.table-detail-header-text').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        minWidth: .zero,
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(4.px),
+      ),
+      css('.table-detail-header-text .table-detail-title').styles(
+        margin: .zero,
+        overflow: Overflow.hidden,
+        raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'},
+      ),
       css(
         '.table-detail-title',
       ).styles(margin: .zero, fontSize: 1.375.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),
@@ -610,11 +627,11 @@ class _TableMain extends StatelessComponent {
 
     return div(classes: ZonaiClasses.panel, [
       div(classes: 'table-detail-header', [
-        div(classes: 'table-detail-header-top', [
+        div(classes: 'table-detail-header-text', [
           h1(classes: 'table-detail-title', [.text(title)]),
-          if (showSearchToggle) const TableSearchToggle(),
+          if (subtitleParts.isNotEmpty) p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
         ]),
-        if (subtitleParts.isNotEmpty) p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
+        if (showSearchToggle) const TableSearchToggle(),
       ]),
       div(classes: 'table-detail-body', bodyChildren),
     ]);

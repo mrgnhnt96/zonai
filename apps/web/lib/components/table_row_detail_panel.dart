@@ -24,6 +24,9 @@ import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
 import 'syntax_highlighted_code.dart';
+import 'table_edit/foreign_key_picker_dialog.dart';
+import 'table_edit/table_cell_edit_field.dart';
+import 'table_edit/table_edit_styles.dart';
 
 const _collapsibleMinLength = 320;
 const _slideDuration = Duration(milliseconds: 250);
@@ -429,11 +432,25 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   void _startEditing(TableRowDetailState detail) {
     setState(() {
       _editing = true;
-      _draft = List<Object?>.from(detail.row);
+      _draft = [
+        for (var i = 0; i < detail.row.length; i++)
+          normalizeCellValueForEdit(
+            detail.row[i],
+            detail.columnShapes.elementAtOrNull(i) ??
+                ColumnShape(
+                  name: detail.columns.elementAtOrNull(i) ?? 'column_$i',
+                  kind: ColumnShapeKind.text,
+                  isNullable: true,
+                  isPrimaryKey: false,
+                  autoIncrement: false,
+                  sqlType: 'TEXT',
+                ),
+          ),
+      ];
       _textInputs = {
         for (var i = 0; i < detail.row.length; i++)
           if (_usesTextInput(detail.columnShapes.elementAtOrNull(i)))
-            i: cellToEditString(detail.row[i], detail.columnShapes.elementAtOrNull(i)),
+            i: cellToEditWireText(detail.row[i], detail.columnShapes.elementAtOrNull(i)),
       };
       _showRawJson = false;
       _rawJsonRowKey = null;
@@ -498,11 +515,21 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       for (var i = 0; i < detail.row.length; i++) {
         final shape = detail.columnShapes.elementAtOrNull(i);
         if (shape == null || !isColumnEditable(shape)) continue;
-        if (shape.kind == ColumnShapeKind.boolean || shape.kind == ColumnShapeKind.isVerified) {
+        if (usesDraftValueColumn(shape)) {
           if (!cellValuesEqual(detail.row[i], _draft![i], shape)) return true;
         } else {
           final text = _textInputs[i];
-          if (text != null && text != cellToEditString(detail.row[i], shape)) return true;
+          if (text == null) continue;
+          try {
+            final parsed = parseEditValue(
+              draftValue: _draft![i],
+              textInput: text,
+              shape: shape,
+            );
+            if (!cellValuesEqual(detail.row[i], parsed, shape)) return true;
+          } on FormatException {
+            if (text != cellToEditWireText(detail.row[i], shape)) return true;
+          }
         }
       }
       return false;
@@ -529,10 +556,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 
   bool _usesTextInput(ColumnShape? shape) {
     if (shape == null || !isColumnEditable(shape)) return false;
-    return switch (shape.kind) {
-      ColumnShapeKind.boolean || ColumnShapeKind.isVerified => false,
-      _ => true,
-    };
+    if (usesDraftValueColumn(shape)) return false;
+    return true;
   }
 
   List<Object?> _parsedDraft(TableRowDetailState detail) {
@@ -546,13 +571,14 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         parsed[i] = detail.row[i];
         continue;
       }
-      if (shape.kind == ColumnShapeKind.boolean || shape.kind == ColumnShapeKind.isVerified) {
+      if (usesDraftValueColumn(shape)) {
+        parsed[i] = parseDraftCellValue(draftValue: _draft![i], shape: shape);
         continue;
       }
       final text = _textInputs[i];
       if (text == null) continue;
       parsed[i] = parseEditValue(
-        draftValue: detail.row[i],
+        draftValue: _draft![i],
         textInput: text,
         shape: shape,
       );
@@ -580,7 +606,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         value: _draft?[index],
         textValue: _textInputs[index] ?? '',
         disabled: _saving,
-        onBoolChanged: (value) {
+        labelId: 'table-row-edit-label-${shape.name}',
+        onDraftChanged: (value) {
           setState(() {
             _draft ??= List<Object?>.from(detail.row);
             _draft![index] = value;
@@ -948,7 +975,8 @@ class _EditDetailField extends StatelessComponent {
     required this.value,
     required this.textValue,
     required this.disabled,
-    required this.onBoolChanged,
+    required this.labelId,
+    required this.onDraftChanged,
     required this.onTextChanged,
   });
 
@@ -957,56 +985,31 @@ class _EditDetailField extends StatelessComponent {
   final Object? value;
   final String textValue;
   final bool disabled;
-  final void Function(bool value) onBoolChanged;
+  final String labelId;
+  final void Function(Object? value) onDraftChanged;
   final void Function(String value) onTextChanged;
 
   @override
   Component build(BuildContext context) {
     final fieldId = 'table-row-edit-${shape.name}';
 
-    final enumHint = shape.kind == ColumnShapeKind.enum_ && shape.enumValues.isNotEmpty
-        ? shape.enumValues.join(', ')
-        : null;
-
     return div(classes: 'table-row-detail-field table-row-detail-field--edit', [
       label(
+        id: labelId,
         htmlFor: fieldId,
         classes: 'table-row-detail-label table-row-detail-label--stacked',
         [.text(fieldLabel)],
       ),
-      switch (shape.kind) {
-        ColumnShapeKind.boolean || ColumnShapeKind.isVerified => input<bool>(
-          id: fieldId,
-          type: InputType.checkbox,
-          classes: 'table-row-detail-edit-checkbox',
-          checked: cellEditValueAsBool(value),
-          disabled: disabled,
-          onChange: onBoolChanged,
-        ),
-        ColumnShapeKind.enum_ => input<String>(
-          id: fieldId,
-          type: InputType.text,
-          classes: 'table-row-detail-edit-input',
-          value: textValue,
-          disabled: disabled,
-          attributes: {
-            if (enumHint != null) 'placeholder': enumHint,
-            if (shape.isNullable) 'aria-description': 'Leave empty for null',
-          },
-          onInput: onTextChanged,
-        ),
-        _ => input<String>(
-          id: fieldId,
-          type: InputType.text,
-          classes: 'table-row-detail-edit-input',
-          value: textValue,
-          disabled: disabled,
-          attributes: {
-            if (shape.isNullable) 'placeholder': 'Leave empty for null',
-          },
-          onInput: onTextChanged,
-        ),
-      },
+      TableCellEditField(
+        id: fieldId,
+        shape: shape,
+        value: value,
+        textValue: textValue,
+        disabled: disabled,
+        labelId: labelId,
+        onTextChanged: onTextChanged,
+        onDraftChanged: onDraftChanged,
+      ),
     ]);
   }
 }
@@ -1647,4 +1650,6 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     raw: const {'font': 'inherit'},
   ),
   css('.table-row-detail-expand:hover').styles(color: primaryHoverColor),
+  ...tableEditSharedStyles,
+  ...foreignKeyPickerDialogStyles,
 ];

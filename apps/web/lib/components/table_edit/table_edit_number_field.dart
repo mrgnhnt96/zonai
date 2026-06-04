@@ -32,13 +32,26 @@ class TableEditNumberField extends StatelessComponent {
       'autocomplete': 'off',
     };
 
-    return input<String>(
+    return input<num>(
       id: id,
       type: .number,
       classes: ZonaiClasses.input,
       attributes: attrs,
       value: value,
-      onInput: onInput,
+      onInput: _emitText,
+      onChange: _emitText,
     );
+  }
+
+  void _emitText(num raw) => onInput(_numberInputToText(raw, shape));
+
+  /// Jaspr number inputs emit [num] (see `events.dart`); wire text stays [String].
+  String _numberInputToText(num raw, ColumnShape shape) {
+    if (raw.isNaN) return '';
+    return switch (shape.kind) {
+      ColumnShapeKind.integer => raw.toInt().toString(),
+      ColumnShapeKind.bigInt => raw.toInt().toString(),
+      _ => raw.toString(),
+    };
   }
 }

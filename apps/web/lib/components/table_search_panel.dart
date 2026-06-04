@@ -481,21 +481,6 @@ String? tableFilterPanelSummary(TableFilterState filter, List<ColumnShape> shape
 
 @css
 List<StyleRule> tableSearchPanelStyles = [
-  css('.table-detail-header-top').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    alignItems: .center,
-    justifyContent: .spaceBetween,
-    gap: Gap.all(12.px),
-    flex: Flex(grow: 0, shrink: 0),
-  ),
-  css('.table-detail-header-top .table-detail-title').styles(
-    margin: .zero,
-    flex: Flex(grow: 1, shrink: 1),
-    minWidth: .zero,
-    overflow: Overflow.hidden,
-    raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'},
-  ),
   css('.table-search-toggle').styles(
     width: 36.px,
     height: 36.px,

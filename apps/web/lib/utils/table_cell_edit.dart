@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:zonai_schema/payloads.dart';
+
+const _deepCollectionEquality = DeepCollectionEquality();
 
 /// Whether the admin UI should offer editing for this column.
 bool isColumnEditable(ColumnShape shape) {
@@ -232,6 +235,15 @@ bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
   if (a == b) return true;
   if (a == null || b == null) return false;
 
+  if (shape?.kind == ColumnShapeKind.boolean || shape?.kind == ColumnShapeKind.isVerified) {
+    return cellEditValueAsBool(a) == cellEditValueAsBool(b);
+  }
+
+  if (shape?.kind == ColumnShapeKind.enum_) {
+    final enumValues = shape?.enumValues ?? const [];
+    return _formatEnumForEdit(a, enumValues) == _formatEnumForEdit(b, enumValues);
+  }
+
   if (shape?.kind == ColumnShapeKind.id) {
     final sa = a.toString();
     final sb = b.toString();
@@ -241,9 +253,13 @@ bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
   if (shape?.kind == ColumnShapeKind.dateTime ||
       shape?.kind == ColumnShapeKind.createdAt ||
       shape?.kind == ColumnShapeKind.updatedAt) {
-    final da = _toDateTime(a);
-    final db = _toDateTime(b);
-    if (da != null && db != null) return da.toUtc() == db.toUtc();
+    return _dateTimesEqualForEdit(a, b);
+  }
+
+  if (shape?.kind == ColumnShapeKind.integer) {
+    final ia = _toInt(a);
+    final ib = _toInt(b);
+    if (ia != null && ib != null) return ia == ib;
   }
 
   if (shape?.kind == ColumnShapeKind.real) {
@@ -255,11 +271,7 @@ bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
   if (shape?.kind == ColumnShapeKind.list || shape?.kind == ColumnShapeKind.enumList) {
     final la = cellValueAsStringList(a, shape?.enumValues ?? const []);
     final lb = cellValueAsStringList(b, shape?.enumValues ?? const []);
-    if (la.length != lb.length) return false;
-    for (var i = 0; i < la.length; i++) {
-      if (la[i] != lb[i]) return false;
-    }
-    return true;
+    return _deepCollectionEquality.equals(la, lb);
   }
 
   if (shape?.kind == ColumnShapeKind.bigInt) {
@@ -281,10 +293,34 @@ DateTime? _toDateTime(Object value) => switch (value) {
   _ => null,
 };
 
+/// Edit panel datetimes are picked to minute precision (no seconds in wire round-trip).
+bool _dateTimesEqualForEdit(Object? a, Object? b) {
+  if (a == null || b == null) return a == b;
+
+  final da = _toDateTime(a);
+  final db = _toDateTime(b);
+  if (da == null || db == null) return false;
+
+  final au = da.toUtc();
+  final bu = db.toUtc();
+  return au.year == bu.year &&
+      au.month == bu.month &&
+      au.day == bu.day &&
+      au.hour == bu.hour &&
+      au.minute == bu.minute;
+}
+
 double? _toDouble(Object value) => switch (value) {
   double d => d,
   num n => n.toDouble(),
   String s => double.tryParse(s),
+  _ => null,
+};
+
+int? _toInt(Object value) => switch (value) {
+  int i => i,
+  num n when n == n.roundToDouble() => n.toInt(),
+  String s => int.tryParse(s),
   _ => null,
 };
 
