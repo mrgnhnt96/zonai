@@ -51,7 +51,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   TableRowDetailState? _cachedDetail;
   Timer? _unmountTimer;
   Timer? _openTimer;
-  web.EventListener? _escapeKeyListener;
+  web.EventListener? _documentKeyListener;
   web.EventListener? _documentResizeMoveListener;
   web.EventListener? _documentResizeUpListener;
   web.EventListener? _handleResizeDownListener;
@@ -109,40 +109,52 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   void dispose() {
     _unmountTimer?.cancel();
     _openTimer?.cancel();
-    _unbindEscapeKeyListener();
+    _unbindDocumentKeyListener();
     _resizeBindTimer?.cancel();
     _unbindResizeHandleDom();
     _endResizeDrag();
     super.dispose();
   }
 
-  void _bindEscapeKeyListener() {
-    if (_escapeKeyListener != null || !context.binding.isClient) return;
-    _escapeKeyListener = _onDocumentEscapeKeyDown.toJS;
-    web.document.addEventListener('keydown', _escapeKeyListener);
+  void _bindDocumentKeyListener() {
+    if (_documentKeyListener != null || !context.binding.isClient) return;
+    _documentKeyListener = _onDocumentKeyDown.toJS;
+    web.document.addEventListener('keydown', _documentKeyListener);
   }
 
-  void _unbindEscapeKeyListener() {
-    final listener = _escapeKeyListener;
+  void _unbindDocumentKeyListener() {
+    final listener = _documentKeyListener;
     if (listener == null) return;
     web.document.removeEventListener('keydown', listener);
-    _escapeKeyListener = null;
+    _documentKeyListener = null;
   }
 
-  void _onDocumentEscapeKeyDown(web.Event event) {
-    if (event is! web.KeyboardEvent || event.key != 'Escape') return;
+  void _onDocumentKeyDown(web.Event event) {
+    if (event is! web.KeyboardEvent) return;
     if (!mounted || !_open) return;
-    event.preventDefault();
-    if (_pendingDismiss != null) {
-      setState(() => _pendingDismiss = null);
+
+    if (event.key == 'Escape') {
+      event.preventDefault();
+      if (_pendingDismiss != null) {
+        setState(() => _pendingDismiss = null);
+        return;
+      }
+      final detail = _cachedDetail;
+      if (detail != null) {
+        _requestDismiss(detail, _PendingDismiss.closePanel);
+        return;
+      }
+      context.read(tableRowDetailProvider.notifier).close();
       return;
     }
-    final detail = _cachedDetail;
-    if (detail != null) {
-      _requestDismiss(detail, _PendingDismiss.closePanel);
-      return;
+
+    if (event.key == 'Enter' && (event.metaKey || event.ctrlKey)) {
+      if (_pendingDismiss != null || !_editing || _saving) return;
+      final detail = _cachedDetail;
+      if (detail == null || !_hasUnsavedChanges(detail)) return;
+      event.preventDefault();
+      _saveRow(detail);
     }
-    context.read(tableRowDetailProvider.notifier).close();
   }
 
   double? _eventClientX(web.Event event) {
@@ -300,7 +312,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _openTimer = Timer(const Duration(milliseconds: 20), () {
       if (!mounted) return;
       setState(() => _open = true);
-      _bindEscapeKeyListener();
+      _bindDocumentKeyListener();
       scheduleMicrotask(() {
         if (!mounted || !_open) return;
         _focusPanel();
@@ -316,7 +328,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (context.binding.isClient) {
       context.read(appTooltipProvider.notifier).hide();
     }
-    _unbindEscapeKeyListener();
+    _unbindDocumentKeyListener();
     _unbindResizeHandleDom();
     _endResizeDrag();
     setState(() {

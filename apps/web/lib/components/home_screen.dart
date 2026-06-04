@@ -229,11 +229,7 @@ class HomeScreen extends StatelessComponent {
           'text-overflow': 'ellipsis',
         },
       ),
-      css('.rows-header').styles(
-        cursor: .pointer,
-        overflow: Overflow.visible,
-        raw: const {'user-select': 'none'},
-      ),
+      css('.rows-header').styles(cursor: .pointer, overflow: Overflow.visible, raw: const {'user-select': 'none'}),
       css('.rows-header:hover').styles(backgroundColor: hoverColor),
       css('.rows-table th.rows-header').styles(overflow: Overflow.visible),
       css('.rows-header-inner').styles(
@@ -267,10 +263,7 @@ class HomeScreen extends StatelessComponent {
           'background-color': 'color-mix(in srgb, var(--zonai-surface) 72%, var(--zonai-table-header-bg))',
         },
       ),
-      css('.rows-header-sort-icon--idle').styles(
-        visibility: .hidden,
-        raw: const {'pointer-events': 'none'},
-      ),
+      css('.rows-header-sort-icon--idle').styles(visibility: .hidden, raw: const {'pointer-events': 'none'}),
       css('.rows-table td').styles(
         padding: .symmetric(horizontal: 12.px, vertical: 8.px),
         overflow: Overflow.hidden,
@@ -289,15 +282,11 @@ class HomeScreen extends StatelessComponent {
         padding: .zero,
         textAlign: .center,
         overflow: Overflow.visible,
-        raw: const {
-          'border-bottom': '1px solid var(--zonai-border)',
-          'vertical-align': 'middle',
-        },
+        raw: const {'border-bottom': '1px solid var(--zonai-border)', 'vertical-align': 'middle'},
       ),
-      css('.rows-table th.rows-select-header').styles(
-        backgroundColor: tableHeaderBgColor,
-        raw: const {'position': 'sticky', 'top': '0', 'z-index': '1'},
-      ),
+      css(
+        '.rows-table th.rows-select-header',
+      ).styles(backgroundColor: tableHeaderBgColor, raw: const {'position': 'sticky', 'top': '0', 'z-index': '1'}),
       css('.rows-select-checkbox-wrap').styles(
         display: .flex,
         alignItems: .start,
@@ -352,15 +341,12 @@ class HomeScreen extends StatelessComponent {
           'transition': 'opacity 0.25s ease-out, transform 0.25s ease-out',
         },
       ),
-      css('.table-rows-selection-float--open').styles(
-        pointerEvents: .none,
-        raw: const {
-          'opacity': '1',
-          'transform': 'translateY(0)',
-        },
-      ),
-      css('.table-rows-selection-float:not(.table-rows-selection-float--open) .table-rows-selection-bar')
-          .styles(pointerEvents: .none),
+      css(
+        '.table-rows-selection-float--open',
+      ).styles(pointerEvents: .none, raw: const {'opacity': '1', 'transform': 'translateY(0)'}),
+      css(
+        '.table-rows-selection-float:not(.table-rows-selection-float--open) .table-rows-selection-bar',
+      ).styles(pointerEvents: .none),
       css('.table-rows-selection-bar').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -374,9 +360,7 @@ class HomeScreen extends StatelessComponent {
         backgroundColor: tableHeaderBgColor,
         border: .all(color: borderColor, width: 1.px, style: .solid),
         pointerEvents: .auto,
-        raw: const {
-          'box-shadow': 'var(--zonai-shadow)',
-        },
+        raw: const {'box-shadow': 'var(--zonai-shadow)'},
       ),
       css('.table-rows-selection-meta').styles(
         display: .flex,
@@ -390,11 +374,7 @@ class HomeScreen extends StatelessComponent {
         color: fgColor,
         raw: const {'line-height': '1.4'},
       ),
-      css('.table-rows-selection-sep').styles(
-        color: mutedColor,
-        fontWeight: .w400,
-        raw: const {'user-select': 'none'},
-      ),
+      css('.table-rows-selection-sep').styles(color: mutedColor, fontWeight: .w400, raw: const {'user-select': 'none'}),
       css('.table-rows-selection-select-all').styles(
         padding: .zero,
         margin: .zero,
@@ -404,21 +384,12 @@ class HomeScreen extends StatelessComponent {
         fontSize: 0.875.rem,
         fontWeight: .w500,
         textAlign: .left,
-        raw: const {
-          'background-color': 'transparent',
-          'font': 'inherit',
-          'line-height': 'inherit',
-        },
+        raw: const {'background-color': 'transparent', 'font': 'inherit', 'line-height': 'inherit'},
       ),
-      css('.table-rows-selection-select-all:hover:not(:disabled)').styles(
-        color: fgColor,
-      ),
-      css('.table-rows-selection-actions').styles(
-        display: .flex,
-        alignItems: .center,
-        gap: Gap.all(6.px),
-        flex: Flex(grow: 0, shrink: 0),
-      ),
+      css('.table-rows-selection-select-all:hover:not(:disabled)').styles(color: fgColor),
+      css(
+        '.table-rows-selection-actions',
+      ).styles(display: .flex, alignItems: .center, gap: Gap.all(6.px), flex: Flex(grow: 0, shrink: 0)),
       css('.table-rows-selection-actions .z-btn + .z-btn').styles(margin: .zero),
       css('.table-rows-selection-actions .z-btn').styles(
         padding: .symmetric(horizontal: 10.px, vertical: 6.px),
@@ -449,10 +420,7 @@ class HomeScreen extends StatelessComponent {
         color: fgColor,
         border: .all(color: mutedColor, width: 1.px, style: .solid),
       ),
-      css('.rows-selection-icon-btn:disabled').styles(
-        opacity: 0.55,
-        cursor: .notAllowed,
-      ),
+      css('.rows-selection-icon-btn:disabled').styles(opacity: 0.55, cursor: .notAllowed),
       css('.rows-selection-delete').styles(
         color: onPrimaryColor,
         backgroundColor: errorColor,
@@ -479,17 +447,9 @@ class HomeScreen extends StatelessComponent {
           'z-index': '0',
         },
       ),
-      css('.rows-selection-delete__progress--resetting').styles(
-        raw: const {'transition': 'transform 75ms ease'},
-      ),
-      css('.rows-selection-delete__label').styles(
-        position: Position.relative(),
-        raw: const {'z-index': '1'},
-      ),
-      css('.rows-selection-delete:disabled').styles(
-        opacity: 0.65,
-        cursor: .notAllowed,
-      ),
+      css('.rows-selection-delete__progress--resetting').styles(raw: const {'transition': 'transform 75ms ease'}),
+      css('.rows-selection-delete__label').styles(position: Position.relative(), raw: const {'z-index': '1'}),
+      css('.rows-selection-delete:disabled').styles(opacity: 0.65, cursor: .notAllowed),
       css('.table-rows-foot').styles(
         flex: Flex(grow: 0, shrink: 0),
         margin: .zero,
@@ -584,28 +544,24 @@ class _TableMain extends StatelessComponent {
             ]),
           );
         } else if (data.rows.isEmpty) {
-          subtitleParts.add('${data.total} rows');
+          final s = data.total == 1 ? '' : 's';
+          subtitleParts.add('${data.total} row$s');
           bodyChildren.add(
             div(classes: 'table-detail-empty', [
               p(classes: 'table-detail-empty-msg', [.text('This table has no rows.')]),
             ]),
           );
         } else {
-          subtitleParts.add('${data.total} rows');
-          bodyChildren.add(
-            _TableRowsBlock(
-              data: data,
-              sort: context.watch(tableSortProvider),
-            ),
-          );
+          final s = data.total == 1 ? '' : 's';
+          subtitleParts.add('${data.total} row$s');
+          bodyChildren.add(_TableRowsBlock(data: data, sort: context.watch(tableSortProvider)));
         }
     }
 
     return div(classes: ZonaiClasses.panel, [
       div(classes: 'table-detail-header', [
         h1(classes: 'table-detail-title', [.text(title)]),
-        if (subtitleParts.isNotEmpty)
-          p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
+        if (subtitleParts.isNotEmpty) p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
       ]),
       div(classes: 'table-detail-body', bodyChildren),
     ]);
@@ -722,15 +678,12 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     if (_selectionBarClosing) return;
     setState(() => _selectionBarClosing = true);
     _selectionBarTimer?.cancel();
-    _selectionBarTimer = Timer(
-      const Duration(milliseconds: _selectionBarAnimationMs),
-      () {
-        if (!mounted) return;
-        if (context.read(tableRowSelectionProvider).isEmpty) {
-          setState(() => _selectionBarClosing = false);
-        }
-      },
-    );
+    _selectionBarTimer = Timer(const Duration(milliseconds: _selectionBarAnimationMs), () {
+      if (!mounted) return;
+      if (context.read(tableRowSelectionProvider).isEmpty) {
+        setState(() => _selectionBarClosing = false);
+      }
+    });
   }
 
   void _showSortTooltip(web.Event event, String columnName, String text) {
@@ -744,11 +697,7 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     if (el is! web.HTMLElement) return;
     final icon = el.querySelector('.rows-header-sort-icon');
     final anchor = icon ?? el;
-    showAppTooltipForElement(
-      context.read(appTooltipProvider.notifier),
-      anchor: anchor,
-      text: text,
-    );
+    showAppTooltipForElement(context.read(appTooltipProvider.notifier), anchor: anchor, text: text);
   }
 
   void _refreshTooltipForHoveredColumn() {
@@ -763,11 +712,7 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     final header = web.document.querySelector('[data-sort-column="$column"]');
     if (header == null) return;
     final icon = header.querySelector('.rows-header-sort-icon');
-    showAppTooltipForElement(
-      context.read(appTooltipProvider.notifier),
-      anchor: icon ?? header,
-      text: text,
-    );
+    showAppTooltipForElement(context.read(appTooltipProvider.notifier), anchor: icon ?? header, text: text);
   }
 
   void _hideSortTooltip(_) {
@@ -805,16 +750,11 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
             shape: data.columnShapes.elementAtOrNull(sortColumnIndex),
             ascending: sort!.ascending,
           );
-    final displayKeys = [
-      for (final row in displayRows) tableRowKey(row, data.columnShapes),
-    ];
+    final displayKeys = [for (final row in displayRows) tableRowKey(row, data.columnShapes)];
     final allDisplaySelected = displayKeys.isNotEmpty && displayKeys.every(selection.isSelected);
-    final showSelectAllInToolbar = !selection.coversEntireTable &&
-        data.total > data.rows.length &&
-        allDisplaySelected;
+    final showSelectAllInToolbar = !selection.coversEntireTable && data.total > data.rows.length && allDisplaySelected;
     final hasSelection = !selection.isEmpty;
-    final selectionBarOpen =
-        hasSelection || _selectionBarClosing || (!hasSelection && _hadSelection);
+    final selectionBarOpen = hasSelection || _selectionBarClosing || (!hasSelection && _hadSelection);
     if (hasSelection != _hadSelection) {
       scheduleMicrotask(() {
         if (mounted) _syncSelectionBar(hasSelection);
@@ -824,66 +764,54 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     return div(classes: 'table-rows-block', [
       div(
         classes: 'table-rows-wrap${selectionBarOpen ? ' table-rows-wrap--selection-open' : ''}',
-        events: {
-          'scroll': _onTableScroll,
-        },
+        events: {'scroll': _onTableScroll},
         [
-        table(classes: 'rows-table', [
-          thead([
-            tr([
-              th(classes: 'rows-select-header', [
-                div(classes: 'rows-select-checkbox-wrap', [
-                  input<bool>(
-                    type: InputType.checkbox,
-                    classes: 'rows-select-checkbox',
-                    checked: allDisplaySelected,
-                    attributes: {'aria-label': 'Select all rows on this page'},
-                    onChange: (selected) => selectionNotifier.setAll(
-                      displayKeys,
-                      selected: selected,
+          table(classes: 'rows-table', [
+            thead([
+              tr([
+                th(classes: 'rows-select-header', [
+                  div(classes: 'rows-select-checkbox-wrap', [
+                    input<bool>(
+                      type: InputType.checkbox,
+                      classes: 'rows-select-checkbox',
+                      checked: allDisplaySelected,
+                      attributes: {'aria-label': 'Select all rows on this page'},
+                      onChange: (selected) => selectionNotifier.setAll(displayKeys, selected: selected),
                     ),
-                  ),
+                  ]),
                 ]),
+                for (final shape in data.columnShapes)
+                  _SortableHeader(
+                    shape: shape,
+                    sort: sort,
+                    onShowSortTooltip: _showSortTooltip,
+                    onHideSortTooltip: _hideSortTooltip,
+                  ),
               ]),
-              for (final shape in data.columnShapes)
-                _SortableHeader(
-                  shape: shape,
-                  sort: sort,
-                  onShowSortTooltip: _showSortTooltip,
-                  onHideSortTooltip: _hideSortTooltip,
+            ]),
+            tbody([
+              for (var r = 0; r < displayRows.length; r++)
+                _SelectableRow(
+                  rowIndex: r,
+                  row: displayRows[r],
+                  rowKey: displayKeys[r],
+                  pageKeys: displayKeys,
+                  sqliteName: data.sqliteName,
+                  columns: data.columns,
+                  columnShapes: data.columnShapes,
+                  selected: selection.isSelected(displayKeys[r]),
+                  detailActive: displayKeys[r] == detailKey,
+                  selectionNotifier: selectionNotifier,
+                  detailNotifier: detailNotifier,
                 ),
             ]),
           ]),
-          tbody([
-            for (var r = 0; r < displayRows.length; r++)
-              _SelectableRow(
-                rowIndex: r,
-                row: displayRows[r],
-                rowKey: displayKeys[r],
-                pageKeys: displayKeys,
-                sqliteName: data.sqliteName,
-                columns: data.columns,
-                columnShapes: data.columnShapes,
-                selected: selection.isSelected(displayKeys[r]),
-                detailActive: displayKeys[r] == detailKey,
-                selectionNotifier: selectionNotifier,
-                detailNotifier: detailNotifier,
-              ),
-          ]),
-        ]),
-      ]),
-      div(
-        classes: 'table-rows-selection-float${selectionBarOpen ? ' table-rows-selection-float--open' : ''}',
-        [
-          _SelectionToolbox(
-            data: data,
-            selection: selection,
-            showSelectAll: showSelectAllInToolbar,
-          ),
         ],
       ),
-      if (data.isLoadingMore)
-        p(classes: 'table-rows-foot', [.text('Loading more rows…')]),
+      div(classes: 'table-rows-selection-float${selectionBarOpen ? ' table-rows-selection-float--open' : ''}', [
+        _SelectionToolbox(data: data, selection: selection, showSelectAll: showSelectAllInToolbar),
+      ]),
+      if (data.isLoadingMore) p(classes: 'table-rows-foot', [.text('Loading more rows…')]),
     ]);
   }
 }
@@ -935,44 +863,36 @@ class _SelectableRow extends StatelessComponent {
         ),
       },
       [
-      td(
-        classes: 'rows-select-cell',
-        events: {
-          'click': (event) => event.stopPropagation(),
-        },
-        [
-        div(classes: 'rows-select-checkbox-wrap', [
-          input<bool>(
-            type: InputType.checkbox,
-            classes: 'rows-select-checkbox',
-            checked: selected,
-            attributes: {'aria-label': 'Select row'},
-            events: {
-              'click': selectionNotifier.noteCheckboxClick,
-            },
-            onChange: (selected) => selectionNotifier.handleRowCheckboxChange(
-              index: rowIndex,
-              key: rowKey,
-              selected: selected,
-              pageKeys: pageKeys,
-            ),
-          ),
-        ]),
-      ]),
-      for (var i = 0; i < row.length; i++)
-        td(classes: 'rows-cell', [
-          .text(formatSchemaCell(row[i], columnShapes.elementAtOrNull(i))),
-        ]),
-    ]);
+        td(
+          classes: 'rows-select-cell',
+          events: {'click': (event) => event.stopPropagation()},
+          [
+            div(classes: 'rows-select-checkbox-wrap', [
+              input<bool>(
+                type: InputType.checkbox,
+                classes: 'rows-select-checkbox',
+                checked: selected,
+                attributes: {'aria-label': 'Select row'},
+                events: {'click': selectionNotifier.noteCheckboxClick},
+                onChange: (selected) => selectionNotifier.handleRowCheckboxChange(
+                  index: rowIndex,
+                  key: rowKey,
+                  selected: selected,
+                  pageKeys: pageKeys,
+                ),
+              ),
+            ]),
+          ],
+        ),
+        for (var i = 0; i < row.length; i++)
+          td(classes: 'rows-cell', [.text(formatSchemaCell(row[i], columnShapes.elementAtOrNull(i)))]),
+      ],
+    );
   }
 }
 
 class _SelectionToolbox extends StatefulComponent {
-  const _SelectionToolbox({
-    required this.data,
-    required this.selection,
-    required this.showSelectAll,
-  });
+  const _SelectionToolbox({required this.data, required this.selection, required this.showSelectAll});
 
   final TableRowsData data;
   final TableRowSelectionState selection;
@@ -1146,19 +1066,13 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     try {
       final json = await context.read(tableRowsProvider.notifier).jsonForSelectedRows(selection);
       final tableName = component.data.sqliteName;
-      downloadTextFile(
-        filename: '$tableName-rows.json',
-        content: json,
-        mimeType: 'application/json;charset=utf-8',
-      );
+      downloadTextFile(filename: '$tableName-rows.json', content: json, mimeType: 'application/json;charset=utf-8');
     } catch (e) {
       if (!mounted) return;
-      context.read(toastProvider.notifier).showError(
-        switch (e) {
-          StateError(:final message) => message,
-          _ => 'Failed to export rows: $e',
-        },
-      );
+      context.read(toastProvider.notifier).showError(switch (e) {
+        StateError(:final message) => message,
+        _ => 'Failed to export rows: $e',
+      });
     } finally {
       if (mounted) {
         setState(() => _exporting = false);
@@ -1180,12 +1094,10 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
       await context.read(tableRowsProvider.notifier).deleteSelected(selection);
     } catch (e) {
       if (!mounted) return;
-      context.read(toastProvider.notifier).showError(
-        switch (e) {
-          StateError(:final message) => message,
-          _ => e.toString(),
-        },
-      );
+      context.read(toastProvider.notifier).showError(switch (e) {
+        StateError(:final message) => message,
+        _ => e.toString(),
+      });
     } finally {
       _hideTooltip();
       if (mounted) {
@@ -1227,9 +1139,7 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
           classes: 'rows-selection-icon-btn',
           type: .button,
           disabled: _busy,
-          attributes: {
-            'aria-label': _exporting ? 'Exporting rows' : 'Export selected rows as JSON',
-          },
+          attributes: {'aria-label': _exporting ? 'Exporting rows' : 'Export selected rows as JSON'},
           events: appTooltipEvents(context, text: 'Export JSON'),
           onClick: _exportSelectedAsJson,
           [_selectionExportIcon()],
@@ -1261,13 +1171,9 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
               div(
                 classes: [
                   'rows-selection-delete__progress',
-                  if (_deleteHoldPhase == _DeleteHoldPhase.resetting)
-                    'rows-selection-delete__progress--resetting',
+                  if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete__progress--resetting',
                 ].join(' '),
-                attributes: {
-                  'aria-hidden': 'true',
-                  'style': 'transform: scaleX($_holdProgress);',
-                },
+                attributes: {'aria-hidden': 'true', 'style': 'transform: scaleX($_holdProgress);'},
                 [],
               ),
             span(classes: 'rows-selection-delete__label', [.text('Delete')]),
@@ -1313,12 +1219,7 @@ Component _selectionExportIcon() {
 }
 
 class _SortableHeader extends StatelessComponent {
-  const _SortableHeader({
-    required this.shape,
-    required this.sort,
-    this.onShowSortTooltip,
-    this.onHideSortTooltip,
-  });
+  const _SortableHeader({required this.shape, required this.sort, this.onShowSortTooltip, this.onHideSortTooltip});
 
   final ColumnShape shape;
   final TableSortState? sort;
@@ -1329,9 +1230,7 @@ class _SortableHeader extends StatelessComponent {
   Component build(BuildContext context) {
     final isActive = sort?.columnName == shape.name;
     final label = columnShapeHeaderLabel(shape);
-    final tooltipText = isActive
-        ? (sort!.ascending ? 'Sorted ascending' : 'Sorted descending')
-        : null;
+    final tooltipText = isActive ? (sort!.ascending ? 'Sorted ascending' : 'Sorted descending') : null;
 
     return th(
       classes: 'rows-header${isActive ? ' rows-header--active' : ''}',
@@ -1360,9 +1259,7 @@ class _SortableHeader extends StatelessComponent {
           span(
             classes: 'rows-header-sort-icon${isActive ? '' : ' rows-header-sort-icon--idle'}',
             attributes: {if (!isActive) 'aria-hidden': 'true'},
-            [
-              if (isActive) .text(sort!.ascending ? '↑' : '↓'),
-            ],
+            [if (isActive) .text(sort!.ascending ? '↑' : '↓')],
           ),
         ]),
       ],
