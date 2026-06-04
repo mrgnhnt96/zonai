@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
@@ -42,6 +44,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _resizeBindAttempts = 0;
   Timer? _resizeBindTimer;
   var _resizeListenersActive = false;
+  var _showRawJson = false;
+  String? _rawJsonRowKey;
 
   @override
   void initState() {
@@ -289,6 +293,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     setState(() {
       _open = false;
       _resizing = false;
+      _showRawJson = false;
+      _rawJsonRowKey = null;
     });
     _unmountTimer?.cancel();
     _unmountTimer = Timer(_slideDuration, () {
@@ -343,6 +349,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final copyTooltip = context.watch(tableRowDetailCopyTooltipProvider);
     void close() => context.read(tableRowDetailProvider.notifier).close();
     final subtitle = _detailSubtitle(cached);
+    final showRawJson = _showRawJson && _rawJsonRowKey == cached.rowKey;
     final openClass = _open ? ' table-row-detail--open' : '';
     final resizeClass = _resizing ? ' table-row-detail--resizing' : '';
     final maxWidth = _panelMaxWidthPx.round();
@@ -380,31 +387,51 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                 h2(classes: 'table-row-detail-title', [.text('Row details')]),
                 if (subtitle.isNotEmpty) p(classes: 'table-row-detail-subtitle', [.text(subtitle)]),
               ]),
-              button(
-                classes: 'table-row-detail-close',
-                type: .button,
-                attributes: {'aria-label': 'Close row details'},
-                onClick: close,
-                [.text('×')],
-              ),
+              div(classes: 'table-row-detail-header-actions', [
+                button(
+                  classes: 'table-row-detail-view-toggle',
+                  type: .button,
+                  attributes: {
+                    'aria-label': showRawJson ? 'Show field details' : 'Show raw JSON',
+                  },
+                  onClick: () => setState(() {
+                    if (showRawJson) {
+                      _showRawJson = false;
+                      _rawJsonRowKey = null;
+                    } else {
+                      _showRawJson = true;
+                      _rawJsonRowKey = cached.rowKey;
+                    }
+                  }),
+                  [.text(showRawJson ? 'Fields' : 'JSON')],
+                ),
+                button(
+                  classes: 'table-row-detail-close',
+                  type: .button,
+                  attributes: {'aria-label': 'Close row details'},
+                  onClick: close,
+                  [.text('×')],
+                ),
+              ]),
             ]),
             div(classes: 'table-row-detail-body', [
-              for (var i = 0; i < cached.row.length; i++)
-                _DetailField(
-                  label: columnShapeHeaderLabel(
-                    cached.columnShapes.elementAtOrNull(i) ??
-                        ColumnShape(
-                          name: cached.columns.elementAtOrNull(i) ?? 'column_$i',
-                          kind: ColumnShapeKind.text,
-                          isNullable: true,
-                          isPrimaryKey: false,
-                          autoIncrement: false,
-                          sqlType: 'TEXT',
-                        ),
+              if (showRawJson) _RawJsonCard(json: _detailRawJson(cached)) else
+                for (var i = 0; i < cached.row.length; i++)
+                  _DetailField(
+                    label: columnShapeHeaderLabel(
+                      cached.columnShapes.elementAtOrNull(i) ??
+                          ColumnShape(
+                            name: cached.columns.elementAtOrNull(i) ?? 'column_$i',
+                            kind: ColumnShapeKind.text,
+                            isNullable: true,
+                            isPrimaryKey: false,
+                            autoIncrement: false,
+                            sqlType: 'TEXT',
+                          ),
+                    ),
+                    value: formatSchemaCell(cached.row[i], cached.columnShapes.elementAtOrNull(i), truncate: false),
+                    shape: cached.columnShapes.elementAtOrNull(i),
                   ),
-                  value: formatSchemaCell(cached.row[i], cached.columnShapes.elementAtOrNull(i), truncate: false),
-                  shape: cached.columnShapes.elementAtOrNull(i),
-                ),
             ]),
           ]),
         ],
@@ -420,6 +447,171 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         ),
     ]);
   }
+}
+
+String _detailRawJson(TableRowDetailState detail) {
+  final map = <String, Object?>{
+    for (var i = 0; i < detail.columns.length; i++)
+      detail.columns[i]: _jsonEncodableValue(i < detail.row.length ? detail.row[i] : null),
+  };
+  const encoder = JsonEncoder.withIndent('  ');
+  try {
+    return encoder.convert(map);
+  } on Object {
+    return encoder.convert({
+      for (final entry in map.entries) entry.key: entry.value?.toString(),
+    });
+  }
+}
+
+Object? _jsonEncodableValue(Object? value) {
+  return switch (value) {
+    DateTime d => d.millisecondsSinceEpoch,
+    Uint8List bytes => base64Encode(bytes),
+    final Map m => {
+      for (final entry in m.entries)
+        entry.key.toString(): _jsonEncodableValue(entry.value),
+    },
+    final List l => [for (final e in l) _jsonEncodableValue(e)],
+    _ => value,
+  };
+}
+
+class _RawJsonCard extends StatelessComponent {
+  const _RawJsonCard({required this.json});
+
+  final String json;
+
+  @override
+  Component build(BuildContext context) {
+    return div(classes: 'table-row-detail-json-card', [
+      div(classes: 'table-row-detail-json-card-toolbar', [
+        _CopyFieldValueButton(label: 'JSON', text: json),
+      ]),
+      pre(classes: 'table-row-detail-json-card-pre', [
+        code(classes: 'table-row-detail-json-highlight', _highlightedJsonSpans(json)),
+      ]),
+    ]);
+  }
+}
+
+enum _JsonHighlightKind { key, string, number, boolean, nullToken, punctuation, whitespace }
+
+final class _JsonHighlightToken {
+  const _JsonHighlightToken(this.text, this.kind);
+
+  final String text;
+  final _JsonHighlightKind kind;
+}
+
+List<Component> _highlightedJsonSpans(String source) {
+  return [
+    for (final token in _tokenizeJson(source))
+      span(classes: _jsonHighlightClass(token.kind), [.text(token.text)]),
+  ];
+}
+
+String _jsonHighlightClass(_JsonHighlightKind kind) => switch (kind) {
+  _JsonHighlightKind.key => 'json-hl-key',
+  _JsonHighlightKind.string => 'json-hl-string',
+  _JsonHighlightKind.number => 'json-hl-number',
+  _JsonHighlightKind.boolean => 'json-hl-bool',
+  _JsonHighlightKind.nullToken => 'json-hl-null',
+  _JsonHighlightKind.punctuation => 'json-hl-punct',
+  _JsonHighlightKind.whitespace => 'json-hl-ws',
+};
+
+List<_JsonHighlightToken> _tokenizeJson(String source) {
+  final tokens = <_JsonHighlightToken>[];
+  var i = 0;
+
+  while (i < source.length) {
+    final char = source[i];
+
+    if (char == '"') {
+      final start = i;
+      i++;
+      while (i < source.length) {
+        if (source[i] == r'\') {
+          i += 2;
+          continue;
+        }
+        if (source[i] == '"') {
+          i++;
+          break;
+        }
+        i++;
+      }
+      final text = source.substring(start, i);
+      var peek = i;
+      while (peek < source.length && _isJsonWhitespace(source[peek])) {
+        peek++;
+      }
+      final kind = peek < source.length && source[peek] == ':'
+          ? _JsonHighlightKind.key
+          : _JsonHighlightKind.string;
+      tokens.add(_JsonHighlightToken(text, kind));
+      continue;
+    }
+
+    if (char == '{' || char == '}' || char == '[' || char == ']' || char == ':' || char == ',') {
+      tokens.add(_JsonHighlightToken(char, _JsonHighlightKind.punctuation));
+      i++;
+      continue;
+    }
+
+    if (_isJsonWhitespace(char)) {
+      final start = i;
+      while (i < source.length && _isJsonWhitespace(source[i])) {
+        i++;
+      }
+      tokens.add(_JsonHighlightToken(source.substring(start, i), _JsonHighlightKind.whitespace));
+      continue;
+    }
+
+    if (char == '-' || _isJsonDigit(char)) {
+      final start = i;
+      if (source[i] == '-') i++;
+      while (i < source.length) {
+        final c = source[i];
+        if (_isJsonDigit(c) || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-') {
+          i++;
+          continue;
+        }
+        break;
+      }
+      tokens.add(_JsonHighlightToken(source.substring(start, i), _JsonHighlightKind.number));
+      continue;
+    }
+
+    if (source.startsWith('true', i)) {
+      tokens.add(const _JsonHighlightToken('true', _JsonHighlightKind.boolean));
+      i += 4;
+      continue;
+    }
+    if (source.startsWith('false', i)) {
+      tokens.add(const _JsonHighlightToken('false', _JsonHighlightKind.boolean));
+      i += 5;
+      continue;
+    }
+    if (source.startsWith('null', i)) {
+      tokens.add(const _JsonHighlightToken('null', _JsonHighlightKind.nullToken));
+      i += 4;
+      continue;
+    }
+
+    tokens.add(_JsonHighlightToken(char, _JsonHighlightKind.punctuation));
+    i++;
+  }
+
+  return tokens;
+}
+
+bool _isJsonWhitespace(String char) => char == ' ' || char == '\t' || char == '\n' || char == '\r';
+
+bool _isJsonDigit(String char) {
+  final code = char.codeUnitAt(0);
+  return code >= 0x30 && code <= 0x39;
 }
 
 String _detailSubtitle(TableRowDetailState detail) {
@@ -761,6 +953,26 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'line-height': '1.35',
     },
   ),
+  css('.table-row-detail-header-actions').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(6.px),
+    flex: Flex(grow: 0, shrink: 0),
+  ),
+  css('.table-row-detail-view-toggle').styles(
+    padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+    margin: .zero,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(8.px)),
+    backgroundColor: Colors.transparent,
+    color: mutedColor,
+    cursor: .pointer,
+    fontSize: 0.75.rem,
+    fontWeight: .w600,
+    raw: const {'font': 'inherit', 'line-height': '1.2'},
+  ),
+  css('.table-row-detail-view-toggle:hover').styles(backgroundColor: hoverColor, color: fgColor),
   css('.table-row-detail-close').styles(
     width: 32.px,
     height: 32.px,
@@ -787,6 +999,67 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     gap: Gap.all(14.px),
     minHeight: .zero,
   ),
+  css('.table-row-detail-json-card').styles(
+    position: Position.relative(),
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    flex: Flex(grow: 0, shrink: 0),
+    alignSelf: .start,
+    width: 100.percent,
+    radius: .all(Radius.circular(10.px)),
+    border: .all(color: const Color('#334155'), width: 1.px, style: .solid),
+    backgroundColor: const Color('#0f172a'),
+    raw: const {'box-shadow': 'inset 0 1px 0 rgb(148 163 184 / 0.08)'},
+  ),
+  css('.table-row-detail-json-card-toolbar').styles(
+    position: Position.absolute(top: 8.px, right: 8.px),
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .end,
+    raw: const {'z-index': '2'},
+  ),
+  css('.table-row-detail-json-card .table-row-detail-copy').styles(color: const Color('#94a3b8')),
+  css(
+    '.table-row-detail-json-card .table-row-detail-copy-wrap:hover .table-row-detail-copy',
+  ).styles(color: const Color('#e2e8f0')),
+  css(
+    '.table-row-detail-json-card .table-row-detail-copy-wrap:hover .table-row-detail-copy--copied',
+  ).styles(color: const Color('#7dd3fc')),
+  css('.table-row-detail-json-card .table-row-detail-copy--copied').styles(color: const Color('#7dd3fc')),
+  css('.table-row-detail-json-card-pre').styles(
+    margin: .zero,
+    padding: .only(top: 36.px, left: 12.px, right: 12.px, bottom: 12.px),
+    overflow: Overflow.auto,
+    whiteSpace: WhiteSpace.preWrap,
+    fontSize: 0.75.rem,
+    raw: const {
+      'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+      'line-height': '1.5',
+      'tab-size': '2',
+      'max-height': 'min(24rem, 70vh)',
+      'overflow-wrap': 'anywhere',
+    },
+  ),
+  css('.table-row-detail-json-highlight').styles(
+    display: .inline,
+    margin: .zero,
+    padding: .zero,
+    color: const Color('#e2e8f0'),
+    raw: const {
+      'font-family': 'inherit',
+      'font-size': 'inherit',
+      'line-height': 'inherit',
+      'white-space': 'inherit',
+      'tab-size': 'inherit',
+    },
+  ),
+  css('.table-row-detail-json-highlight .json-hl-key').styles(color: const Color('#7dd3fc')),
+  css('.table-row-detail-json-highlight .json-hl-string').styles(color: const Color('#86efac')),
+  css('.table-row-detail-json-highlight .json-hl-number').styles(color: const Color('#fcd34d')),
+  css('.table-row-detail-json-highlight .json-hl-bool').styles(color: const Color('#f9a8d4')),
+  css('.table-row-detail-json-highlight .json-hl-null').styles(color: const Color('#c4b5fd')),
+  css('.table-row-detail-json-highlight .json-hl-punct').styles(color: const Color('#64748b')),
+  css('.table-row-detail-json-highlight .json-hl-ws').styles(color: const Color('#e2e8f0')),
   css(
     '.table-row-detail-field',
   ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px), minWidth: .zero),
