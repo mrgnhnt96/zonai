@@ -11,6 +11,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../utils/dom_event_values.dart';
 import '../providers/table_filter_provider.dart';
+import '../providers/table_focus_provider.dart';
 import '../providers/table_schema_provider.dart';
 import 'app_tooltip_overlay.dart';
 import 'table_search_panel.dart';
@@ -248,6 +249,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
 
     final schema = context.watch(tableSchemaProvider);
     final shapes = schema?.columns ?? const <ColumnShape>[];
+    final tableName = context.watch(tableFocusProvider)?.sqliteName ?? '';
     final summary = tableFilterPanelSummary(filter, shapes);
     final openClass = _open ? ' table-search--open' : '';
     final resizeClass = _resizing ? ' table-search--resizing' : '';
@@ -290,8 +292,8 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
               ]),
               if (summary != null) p(classes: 'table-search-side-summary', [.text(summary)]),
             ]),
-            if (shapes.isNotEmpty)
-              TableSearchPanel(columnShapes: shapes, state: filter)
+            if (shapes.isNotEmpty && tableName.isNotEmpty)
+              TableSearchPanel(columnShapes: shapes, state: filter, tableName: tableName)
             else
               div(classes: 'table-search-panel-body', [
                 p(classes: 'table-search-side-summary', [.text('Load table schema to build filters.')]),

@@ -8,10 +8,15 @@ import '../providers/table_filter_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../utils/table_cell_edit.dart';
 import '../utils/table_where_build.dart';
+import '../utils/table_where_format.dart';
 import '../utils/table_where_operators.dart';
 import 'app_tooltip_overlay.dart';
+import 'query_preview_card.dart';
 import 'table_filter_value_field.dart';
 import 'theme/theme_components.dart';
+import 'theme/ui_styles.dart';
+
+enum _SearchPreviewMode { json, dart }
 
 /// Search toggle for the table header (opens side panel).
 class TableSearchToggle extends StatelessComponent {
@@ -56,11 +61,13 @@ class TableSearchPanel extends StatelessComponent {
   const TableSearchPanel({
     required this.columnShapes,
     required this.state,
+    required this.tableName,
     super.key,
   });
 
   final List<ColumnShape> columnShapes;
   final TableFilterState state;
+  final String tableName;
 
   @override
   Component build(BuildContext context) {
@@ -92,6 +99,11 @@ class TableSearchPanel extends StatelessComponent {
           onClick: notifier.addRow,
           [.text('+ Add filter')],
         ),
+        _SearchFilterPreview(
+          tableName: tableName,
+          state: state,
+          columnShapes: columnShapes,
+        ),
         div(classes: 'table-search-panel-actions-primary', [
           ZonaiButton(
             variant: ZonaiButtonVariant.secondary,
@@ -110,6 +122,118 @@ class TableSearchPanel extends StatelessComponent {
       ]),
     ]);
   }
+}
+
+class _SearchFilterPreview extends StatefulComponent {
+  const _SearchFilterPreview({
+    required this.tableName,
+    required this.state,
+    required this.columnShapes,
+  });
+
+  final String tableName;
+  final TableFilterState state;
+  final List<ColumnShape> columnShapes;
+
+  @override
+  State<_SearchFilterPreview> createState() => _SearchFilterPreviewState();
+}
+
+class _SearchFilterPreviewState extends State<_SearchFilterPreview> {
+  var _expanded = false;
+  _SearchPreviewMode _mode = _SearchPreviewMode.json;
+
+  @override
+  Component build(BuildContext context) {
+    final result = buildWhereFromDraft(
+      rows: component.state.draftRows,
+      combine: component.state.combine,
+      columnShapes: component.columnShapes,
+    );
+
+    final showDart = _mode == _SearchPreviewMode.dart;
+    final previewLabel = showDart ? 'Dart' : 'JSON';
+    final previewText = switch (result) {
+      TableWhereBuildSuccess(:final where) => showDart
+          ? formatListBodyDart(table: component.tableName, where: where)
+          : formatListBodyJson(table: component.tableName, where: where),
+      TableWhereBuildError() => '',
+    };
+
+    return div(classes: 'table-search-preview', [
+      div(classes: 'home-sidebar-system table-search-preview-system', [
+        button(
+          type: .button,
+          classes: 'home-sidebar-system-toggle',
+          attributes: {'aria-expanded': _expanded ? 'true' : 'false'},
+          onClick: () => setState(() => _expanded = !_expanded),
+          [
+            span(
+              classes:
+                  'home-sidebar-system-chevron${_expanded ? ' home-sidebar-system-chevron--open' : ''}',
+              [.text('›')],
+            ),
+            span(classes: ZonaiClasses.sectionLabel, [.text('Generated query')]),
+          ],
+        ),
+        div(
+          classes:
+              'home-sidebar-system-panel${_expanded ? ' home-sidebar-system-panel--shown' : ''}',
+          attributes: {'aria-hidden': _expanded ? 'false' : 'true'},
+          [
+            div(classes: 'home-sidebar-system-panel-inner', [
+              div(
+                classes: 'table-search-combine table-search-preview-format',
+                attributes: {'role': 'group', 'aria-label': 'Preview format'},
+                [
+                  _previewFormatSegment(
+                    label: 'JSON',
+                    selected: !showDart,
+                    onSelect: () => setState(() => _mode = _SearchPreviewMode.json),
+                  ),
+                  _previewFormatSegment(
+                    label: 'Dart',
+                    selected: showDart,
+                    onSelect: () => setState(() => _mode = _SearchPreviewMode.dart),
+                  ),
+                ],
+              ),
+              switch (result) {
+                TableWhereBuildError(:final message) =>
+                  p(classes: 'table-search-preview-hint', [.text(message)]),
+                TableWhereBuildSuccess() => div(classes: 'table-search-preview-code', [
+                  QueryPreviewCard(
+                    label: previewLabel,
+                    text: previewText,
+                    highlightLanguage: showDart
+                        ? SyntaxHighlightLanguage.dart
+                        : SyntaxHighlightLanguage.json,
+                  ),
+                ]),
+              },
+            ]),
+          ],
+        ),
+      ]),
+    ]);
+  }
+}
+
+Component _previewFormatSegment({
+  required String label,
+  required bool selected,
+  required void Function() onSelect,
+}) {
+  return button(
+    type: .button,
+    classes: [
+      'table-search-segment',
+      if (selected) 'table-search-segment--active',
+    ].join(' '),
+    attributes: {'aria-pressed': selected ? 'true' : 'false'},
+    onClick: onSelect,
+    [.text(label)],
+  );
 }
 
 class _CombineControl extends StatelessComponent {
@@ -555,6 +679,121 @@ List<StyleRule> tableSearchPanelStyles = [
     minHeight: .zero,
     overflow: Overflow.auto,
     padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+  ),
+  css('.table-search-preview').styles(
+    flex: Flex(grow: 0, shrink: 0),
+    width: 100.percent,
+  ),
+  css('.table-search-preview-system').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(4.px),
+    width: 100.percent,
+  ),
+  css('.table-search-preview-system .home-sidebar-system-toggle').styles(
+    cursor: .pointer,
+    padding: .symmetric(vertical: 4.px),
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(6.px),
+    width: 100.percent,
+    border: Border.none,
+    backgroundColor: Colors.transparent,
+    textAlign: .left,
+    outline: Outline(style: OutlineStyle.none),
+    raw: const {
+      'font': 'inherit',
+      'appearance': 'none',
+      '-webkit-appearance': 'none',
+    },
+  ),
+  css('.table-search-preview-system .home-sidebar-system-toggle:hover').styles(
+    backgroundColor: Colors.transparent,
+    raw: const {'& .home-sidebar-system-chevron': 'color: var(--zonai-fg)'},
+  ),
+  css('.table-search-preview-system .home-sidebar-system-toggle:focus-visible').styles(
+    backgroundColor: Colors.transparent,
+    raw: const {
+      'box-shadow': '0 0 0 2px var(--zonai-focus-ring)',
+      'border-radius': '4px',
+    },
+  ),
+  css('.table-search-preview-system .home-sidebar-system-toggle:active').styles(
+    backgroundColor: Colors.transparent,
+  ),
+  css('.table-search-preview-system .home-sidebar-system-chevron').styles(
+    display: .inlineFlex,
+    alignItems: .center,
+    justifyContent: .center,
+    width: 14.px,
+    fontSize: 0.875.rem,
+    fontWeight: .w700,
+    color: mutedColor,
+    flex: Flex(grow: 0, shrink: 0),
+    raw: const {'line-height': '1', 'transition': 'transform 0.15s ease'},
+  ),
+  css('.table-search-preview-system .home-sidebar-system-chevron--open').styles(
+    raw: const {'transform': 'rotate(90deg)'},
+  ),
+  css('.table-search-preview-system .home-sidebar-system-panel').styles(
+    raw: const {
+      'display': 'grid',
+      'grid-template-rows': '0fr',
+      'transition': 'grid-template-rows 0.2s ease',
+    },
+  ),
+  css('.table-search-preview-system .home-sidebar-system-panel--shown').styles(
+    raw: const {'grid-template-rows': '1fr'},
+  ),
+  css('.table-search-preview-system .home-sidebar-system-panel-inner').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(8.px),
+    overflow: Overflow.hidden,
+    minHeight: .zero,
+  ),
+  css('.table-search-preview-format').styles(
+    flex: Flex(grow: 0, shrink: 0),
+    gap: Gap.all(4.px),
+    padding: .all(3.px),
+    radius: .all(Radius.circular(8.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    backgroundColor: hoverColor,
+  ),
+  css('.table-search-preview-format .table-search-segment').styles(
+    minWidth: 36.px,
+    padding: .symmetric(horizontal: 8.px, vertical: 6.px),
+    textAlign: TextAlign.center,
+    border: Border.none,
+    radius: .all(Radius.circular(6.px)),
+    raw: const {
+      'appearance': 'none',
+      '-webkit-appearance': 'none',
+    },
+  ),
+  css('.table-search-preview-format .table-search-segment--active').styles(
+    backgroundColor: primaryColor,
+    color: onPrimaryColor,
+    border: Border.none,
+    fontWeight: .w700,
+  ),
+  css('.table-search-preview-format .table-search-segment--active:hover').styles(
+    backgroundColor: primaryHoverColor,
+    color: onPrimaryColor,
+  ),
+  css('.table-search-preview-code .table-row-detail-json-card-toolbar').styles(
+    position: Position.absolute(top: 6.px, right: 6.px),
+  ),
+  css('.table-search-preview-code .table-row-detail-json-card-pre').styles(
+    margin: .zero,
+    padding: .only(top: 26.px, left: 12.px, right: 12.px, bottom: 12.px),
+  ),
+  css('.table-search-preview-hint').styles(
+    margin: .zero,
+    fontSize: 0.8125.rem,
+    color: mutedColor,
+    raw: const {'line-height': '1.45'},
   ),
   css('.table-search-panel-footer').styles(
     flex: Flex(grow: 0, shrink: 0),
