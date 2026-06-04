@@ -15,6 +15,7 @@ import '../providers/table_filter_provider.dart';
 import '../providers/table_focus_provider.dart';
 import '../providers/table_schema_provider.dart';
 import 'app_tooltip_overlay.dart';
+import 'table_edit/table_edit_datetime_field.dart';
 import 'table_search_panel.dart';
 
 const _slideDuration = Duration(milliseconds: 250);
@@ -100,12 +101,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     }
   }
 
-  bool _isDatetimePickerOpenInPanel() {
-    return web.document.querySelector(
-          '.table-search-side-panel .table-edit-datetime__trigger--open',
-        ) !=
-        null;
-  }
+  bool _isDatetimePickerOpenInPanel() => isDatetimePickerPopoverOpen();
 
   double _viewportWidthPx() {
     final vv = web.window.visualViewport;

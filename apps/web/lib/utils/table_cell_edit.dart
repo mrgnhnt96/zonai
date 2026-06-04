@@ -37,6 +37,70 @@ bool hasEditableColumns(List<ColumnShape> columnShapes) {
   return columnShapes.any(isColumnEditable);
 }
 
+/// Whether the user must supply a value when creating a row.
+bool isCreateFieldRequired(ColumnShape shape) {
+  if (!isColumnEditable(shape) || shape.isNullable) return false;
+
+  return switch (shape.kind) {
+    ColumnShapeKind.boolean || ColumnShapeKind.isVerified => false,
+    _ => true,
+  };
+}
+
+/// Display labels for editable non-nullable create fields (excludes booleans with defaults).
+List<String> createRequiredFieldLabels(List<ColumnShape> columnShapes) {
+  return [
+    for (final shape in columnShapes)
+      if (isCreateFieldRequired(shape)) columnShapeHeaderLabel(shape),
+  ];
+}
+
+/// Whether a required create field has valid user input.
+bool isCreateFieldSatisfied({
+  required ColumnShape shape,
+  required Object? draftValue,
+  String? textInput,
+}) {
+  if (!isCreateFieldRequired(shape)) return true;
+
+  try {
+    if (usesDraftValueColumn(shape)) {
+      parseDraftCellValue(draftValue: draftValue, shape: shape);
+      if (shape.kind == ColumnShapeKind.list || shape.kind == ColumnShapeKind.enumList) {
+        if (cellValueAsStringList(draftValue, shape.enumValues).isEmpty) return false;
+      }
+      return true;
+    }
+
+    parseEditValue(
+      draftValue: draftValue,
+      textInput: textInput ?? '',
+      shape: shape,
+    );
+    return true;
+  } on FormatException {
+    return false;
+  }
+}
+
+/// Required create field labels that are not yet filled with valid values.
+List<String> remainingCreateRequiredFieldLabels({
+  required List<Object?> draft,
+  required Map<int, String> textInputs,
+  required List<ColumnShape> columnShapes,
+}) {
+  return [
+    for (var i = 0; i < columnShapes.length; i++)
+      if (isCreateFieldRequired(columnShapes[i]) &&
+          !isCreateFieldSatisfied(
+            shape: columnShapes[i],
+            draftValue: draft.elementAtOrNull(i),
+            textInput: textInputs[i],
+          ))
+        columnShapeHeaderLabel(columnShapes[i]),
+  ];
+}
+
 /// String shown in text inputs before editing (not used for checkbox fields).
 String cellToEditString(Object? value, ColumnShape? shape) {
   if (value == null) return '';
@@ -683,6 +747,51 @@ Map<String, Object?> diffRowUpdates({
     updates[columns[i]] = draft[i];
   }
   return updates;
+}
+
+/// Builds the create payload (column name → value) from a parsed draft row.
+Map<String, Object?> buildCreateObject({
+  required List<Object?> draft,
+  required List<String> columns,
+  required List<ColumnShape> columnShapes,
+}) {
+  final object = <String, Object?>{};
+  for (var i = 0; i < columns.length; i++) {
+    final shape = columnShapes.elementAtOrNull(i);
+    if (shape == null || !isColumnEditable(shape)) continue;
+    final value = draft[i];
+    if (value == null) continue;
+    object[columns[i]] = value;
+  }
+  return object;
+}
+
+/// Initial draft values when opening the create-row panel.
+List<Object?> initialCreateDraft(List<ColumnShape> columnShapes) {
+  return [
+    for (final shape in columnShapes)
+      switch (shape.kind) {
+        ColumnShapeKind.boolean || ColumnShapeKind.isVerified => false,
+        ColumnShapeKind.list || ColumnShapeKind.enumList => <String>[],
+        _ => null,
+      },
+  ];
+}
+
+/// Whether the create draft differs from its initial empty state.
+bool createDraftHasChanges({
+  required List<Object?> draft,
+  required List<ColumnShape> columnShapes,
+}) {
+  final initial = initialCreateDraft(columnShapes);
+  for (var i = 0; i < columnShapes.length; i++) {
+    final shape = columnShapes[i];
+    if (!isColumnEditable(shape)) continue;
+    if (!cellValuesEqual(initial.elementAtOrNull(i), draft.elementAtOrNull(i), shape)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 String formatReadOnlyCell(Object? value, ColumnShape? shape) {

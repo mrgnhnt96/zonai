@@ -2,6 +2,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
 import 'table_focus_provider.dart';
+import 'table_row_create_provider.dart';
 
 enum TableRowDetailViewMode { fields, json, edit }
 
@@ -63,6 +64,7 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
     TableRowDetailViewMode viewMode = TableRowDetailViewMode.fields,
     bool viaEditShortcut = false,
   }) {
+    ref.read(tableRowCreateProvider.notifier).close();
     state = TableRowDetailState(
       rowKey: rowKey,
       row: List<Object?>.from(row),

@@ -640,4 +640,153 @@ void main() {
       expect(identical(reorderStringListToInsertIndex(values, 1, 2), values), isTrue);
     });
   });
+
+  group('buildCreateObject', () {
+    const pkShape = ColumnShape(
+      name: 'id',
+      kind: ColumnShapeKind.id,
+      isNullable: false,
+      isPrimaryKey: true,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+    const titleShape = ColumnShape(
+      name: 'title',
+      kind: ColumnShapeKind.text,
+      isNullable: false,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+    const createdAtShape = ColumnShape(
+      name: 'created_at',
+      kind: ColumnShapeKind.createdAt,
+      isNullable: false,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'INTEGER',
+    );
+
+    test('includes editable non-null fields and skips automated columns', () {
+      expect(
+        buildCreateObject(
+          draft: [null, 'Hello', null],
+          columns: const ['id', 'title', 'created_at'],
+          columnShapes: const [pkShape, titleShape, createdAtShape],
+        ),
+        {'title': 'Hello'},
+      );
+    });
+
+    test('omits null editable fields', () {
+      expect(
+        buildCreateObject(
+          draft: [null, null, null],
+          columns: const ['id', 'title', 'created_at'],
+          columnShapes: const [pkShape, titleShape, createdAtShape],
+        ),
+        isEmpty,
+      );
+    });
+  });
+
+  group('createDraftHasChanges', () {
+    const titleShape = ColumnShape(
+      name: 'title',
+      kind: ColumnShapeKind.text,
+      isNullable: false,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+
+    test('returns false for initial draft', () {
+      expect(
+        createDraftHasChanges(
+          draft: initialCreateDraft(const [titleShape]),
+          columnShapes: const [titleShape],
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns true when an editable field changed', () {
+      expect(
+        createDraftHasChanges(
+          draft: ['Hello'],
+          columnShapes: const [titleShape],
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  group('createRequiredFieldLabels', () {
+    const titleShape = ColumnShape(
+      name: 'title',
+      kind: ColumnShapeKind.text,
+      isNullable: false,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+    const bioShape = ColumnShape(
+      name: 'bio',
+      kind: ColumnShapeKind.text,
+      isNullable: true,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+    const createdAtShape = ColumnShape(
+      name: 'created_at',
+      kind: ColumnShapeKind.createdAt,
+      isNullable: false,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'INTEGER',
+    );
+    const activeShape = ColumnShape(
+      name: 'active',
+      kind: ColumnShapeKind.boolean,
+      isNullable: false,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'INTEGER',
+    );
+
+    test('lists editable non-nullable fields and skips automated columns', () {
+      expect(
+        createRequiredFieldLabels(const [titleShape, bioShape, createdAtShape, activeShape]),
+        ['title'],
+      );
+    });
+
+    test('remainingCreateRequiredFieldLabels drops fields with valid input', () {
+      expect(
+        remainingCreateRequiredFieldLabels(
+          draft: const ['Hello', null],
+          textInputs: const {0: 'Hello'},
+          columnShapes: const [titleShape, bioShape],
+        ),
+        isEmpty,
+      );
+      expect(
+        remainingCreateRequiredFieldLabels(
+          draft: const [null, null],
+          textInputs: const {},
+          columnShapes: const [titleShape, bioShape],
+        ),
+        ['title'],
+      );
+      expect(
+        remainingCreateRequiredFieldLabels(
+          draft: const [null, null],
+          textInputs: const {0: 'partial'},
+          columnShapes: const [titleShape, bioShape],
+        ),
+        isEmpty,
+      );
+    });
+  });
 }

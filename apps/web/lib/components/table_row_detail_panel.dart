@@ -14,12 +14,14 @@ import '../providers/app_tooltip_provider.dart';
 import '../providers/resolved_collection_provider.dart';
 import '../providers/session_user_provider.dart';
 import '../providers/table_filter_provider.dart';
+import '../providers/table_row_create_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/toast_provider.dart';
 import '../utils/dom_event_values.dart';
 import '../utils/table_cell_edit.dart';
 import '../utils/table_row_edit.dart';
+import '../utils/table_row_key.dart';
 import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
@@ -28,6 +30,7 @@ import 'syntax_highlighted_code.dart';
 import 'table_edit/foreign_key_picker_dialog.dart';
 import 'theme/theme_components.dart';
 import 'table_edit/table_cell_edit_field.dart';
+import 'table_edit/table_edit_datetime_field.dart';
 import 'table_edit/table_edit_styles.dart';
 import '../constants/spacing.dart';
 
@@ -55,8 +58,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _open = false;
   var _panelWidthPx = _panelDefaultWidthPx;
   var _resizing = false;
-  bool? _lastHadDetail;
+  bool? _lastHadPanel;
   TableRowDetailState? _cachedDetail;
+  TableRowCreateState? _cachedCreate;
   Timer? _unmountTimer;
   Timer? _openTimer;
   web.EventListener? _documentKeyListener;
@@ -183,9 +187,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (!mounted || !_open) return;
 
     if (event.key == 'Escape') {
+      if (isDatetimePickerPopoverOpen()) return;
       event.preventDefault();
       if (_pendingDismiss != null) {
         setState(() => _pendingDismiss = null);
+        return;
+      }
+      final create = _cachedCreate;
+      if (create != null) {
+        _requestCreateDismiss(_PendingDismiss.closeCreate);
         return;
       }
       final detail = _cachedDetail;
@@ -206,7 +216,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     if (event.key == 'Enter' && (event.metaKey || event.ctrlKey)) {
-      if (_pendingDismiss != null || !_editing || _saving) return;
+      if (_pendingDismiss != null || _saving) return;
+      final create = _cachedCreate;
+      if (create != null) {
+        if (!_canSubmitCreate(create)) return;
+        event.preventDefault();
+        _saveCreate(create);
+        return;
+      }
+      if (!_editing) return;
       final detail = _cachedDetail;
       if (detail == null || !_hasUnsavedChanges(detail)) return;
       event.preventDefault();
@@ -409,6 +427,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       setState(() {
         _render = false;
         _cachedDetail = null;
+        _cachedCreate = null;
         _showRawJson = false;
         _rawJsonRowKey = null;
         _editing = false;
@@ -418,9 +437,27 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     });
   }
 
-  void _syncDetail(TableRowDetailState? detail) {
-    final hasDetail = detail != null;
-    if (hasDetail) {
+  void _syncPanelOpen(TableRowDetailState? detail, TableRowCreateState? create) {
+    final hasPanel = detail != null || create != null;
+
+    if (create != null) {
+      final isNewCreateSession =
+          _cachedCreate == null ||
+          _cachedCreate!.sqliteName != create.sqliteName ||
+          !_columnListsEqual(_cachedCreate!.columns, create.columns);
+      _cachedCreate = create;
+      if (isNewCreateSession) {
+        _cachedDetail = null;
+        _draft = initialCreateDraft(create.columnShapes);
+        _textInputs = {};
+        _saving = false;
+        _pendingDismiss = null;
+        _showRawJson = false;
+        _rawJsonRowKey = null;
+        _editing = false;
+      }
+    } else if (detail != null) {
+      _cachedCreate = null;
       final prev = _cachedDetail;
       final rowChanged = prev?.rowKey != detail.rowKey;
       final viewChanged = prev?.viewMode != detail.viewMode;
@@ -443,27 +480,26 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       }
     }
 
-    if (_lastHadDetail == hasDetail) {
+    if (_lastHadPanel == hasPanel) {
       return;
     }
 
-    if (hasDetail) {
-      if (_lastHadDetail != true) {
+    if (hasPanel) {
+      if (_lastHadPanel != true) {
         context.read(tableFilterProvider.notifier).closePanel();
       }
       if (!_render) {
         scheduleMicrotask(_onOpen);
       } else if (!_open) {
-        // Re-open while a close animation was still running.
         _unmountTimer?.cancel();
         _openTimer?.cancel();
         scheduleMicrotask(_onOpen);
       }
-    } else if (_lastHadDetail == true) {
+    } else if (_lastHadPanel == true) {
       scheduleMicrotask(_onClose);
     }
 
-    _lastHadDetail = hasDetail;
+    _lastHadPanel = hasPanel;
   }
 
   bool _canEditRow(
@@ -604,6 +640,13 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         context.read(tableRowDetailProvider.notifier).close();
       case _PendingDismiss.cancelEditing:
         _cancelEditing();
+      case _PendingDismiss.closeCreate:
+        context.read(tableRowCreateProvider.notifier).close();
+        setState(() {
+          _draft = null;
+          _textInputs = {};
+          _pendingDismiss = null;
+        });
     }
   }
 
@@ -680,6 +723,173 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     );
   }
 
+  List<Object?> _parsedCreateDraft(TableRowCreateState create) {
+    final draft = _draft;
+    if (draft == null) return initialCreateDraft(create.columnShapes);
+
+    final parsed = List<Object?>.from(draft);
+    for (var i = 0; i < create.columns.length; i++) {
+      final shape = create.columnShapes.elementAtOrNull(i);
+      if (shape == null || !isColumnEditable(shape)) continue;
+      if (usesDraftValueColumn(shape)) {
+        parsed[i] = parseDraftCellValue(draftValue: draft[i], shape: shape);
+        continue;
+      }
+      final text = _textInputs[i];
+      if (text == null) continue;
+      parsed[i] = parseEditValue(
+        draftValue: draft[i],
+        textInput: text,
+        shape: shape,
+      );
+    }
+    return parsed;
+  }
+
+  bool _columnListsEqual(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  bool _hasUnsavedCreateChanges(TableRowCreateState create) {
+    if (_draft == null) return false;
+    final initial = initialCreateDraft(create.columnShapes);
+
+    for (var i = 0; i < create.columnShapes.length; i++) {
+      final shape = create.columnShapes[i];
+      if (!isColumnEditable(shape)) continue;
+
+      if (usesDraftValueColumn(shape)) {
+        if (!cellValuesEqual(initial[i], _draft![i], shape)) return true;
+        continue;
+      }
+
+      final text = _textInputs[i];
+      final initialWire = cellToEditWireText(initial[i], shape);
+      if (text != null && text != initialWire) return true;
+    }
+    return false;
+  }
+
+  void _handleCreateCloseRequest() {
+    if (!mounted) return;
+    context.read(tableRowCreateProvider.notifier).clearCloseRequest();
+    _requestCreateDismiss(_PendingDismiss.closeCreate);
+  }
+
+  void _requestCreateDismiss(_PendingDismiss action) {
+    if (_saving) return;
+    if (_cachedCreate == null) {
+      context.read(tableRowCreateProvider.notifier).close();
+      return;
+    }
+    setState(() => _pendingDismiss = action);
+  }
+
+  _DiscardDialogMode _discardDialogMode(_PendingDismiss action) {
+    return switch (action) {
+      _PendingDismiss.closeCreate => _DiscardDialogMode.create,
+      _ => _DiscardDialogMode.edit,
+    };
+  }
+
+  Component _buildCreateField(BuildContext context, TableRowCreateState create, int index) {
+    final shape =
+        create.columnShapes.elementAtOrNull(index) ??
+        ColumnShape(
+          name: create.columns.elementAtOrNull(index) ?? 'column_$index',
+          kind: ColumnShapeKind.text,
+          isNullable: true,
+          isPrimaryKey: false,
+          autoIncrement: false,
+          sqlType: 'TEXT',
+        );
+    final label = columnShapeHeaderLabel(shape);
+
+    if (isColumnEditable(shape)) {
+      return _EditDetailField(
+        fieldLabel: label,
+        shape: shape,
+        value: _draft?[index],
+        textValue: _textInputs[index] ?? '',
+        disabled: _saving,
+        labelId: 'table-row-create-label-${shape.name}',
+        onDraftChanged: (value) {
+          setState(() {
+            _draft ??= initialCreateDraft(create.columnShapes);
+            _draft![index] = value;
+          });
+        },
+        onTextChanged: (value) {
+          setState(() => _textInputs = {..._textInputs, index: value});
+        },
+      );
+    }
+
+    return _DetailField(
+      label: label,
+      rawValue: null,
+      shape: shape,
+      readOnlyHint: true,
+    );
+  }
+
+  Future<void> _saveCreate(TableRowCreateState create) async {
+    if (_saving) return;
+
+    List<Object?> parsedDraft;
+    try {
+      parsedDraft = _parsedCreateDraft(create);
+    } on FormatException catch (e) {
+      context.read(toastProvider.notifier).showError(userFacingError(e));
+      return;
+    }
+
+    final object = buildCreateObject(
+      draft: parsedDraft,
+      columns: create.columns,
+      columnShapes: create.columnShapes,
+    );
+
+    if (object.isEmpty) {
+      context.read(toastProvider.notifier).showError('Enter at least one field to create a row.');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final record = await context.read(tableRowsProvider.notifier).createRow(
+        sqliteName: create.sqliteName,
+        object: object,
+      );
+      if (!mounted) return;
+
+      final newRow = rowFromRecord(record, create.columns);
+      final rowKey = tableRowKey(newRow, create.columnShapes);
+      context.read(tableRowDetailProvider.notifier).open(
+        rowKey: rowKey,
+        row: newRow,
+        sqliteName: create.sqliteName,
+        columns: create.columns,
+        columnShapes: create.columnShapes,
+      );
+      context.read(toastProvider.notifier).showSuccess('Row created');
+      setState(() {
+        _saving = false;
+        _draft = null;
+        _textInputs = {};
+        _cachedCreate = null;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      context.read(toastProvider.notifier).showError(userFacingError(e));
+    }
+  }
+
   Future<void> _saveRow(TableRowDetailState detail) async {
     if (_saving) return;
 
@@ -739,13 +949,154 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     final detail = context.watch(tableRowDetailProvider);
-    _syncDetail(detail);
+    final create = context.watch(tableRowCreateProvider);
+    _syncPanelOpen(detail, create);
+    if (create?.closeRequested == true) {
+      scheduleMicrotask(_handleCreateCloseRequest);
+    }
 
-    if (!_render || _cachedDetail == null) {
+    if (!_render) {
       return Component.empty();
     }
 
-    final cached = _cachedDetail!;
+    final cachedCreate = _cachedCreate;
+    if (cachedCreate != null) {
+      return _buildCreatePanel(context, cachedCreate);
+    }
+
+    final cached = _cachedDetail;
+    if (cached == null) {
+      return Component.empty();
+    }
+
+    return _buildDetailPanel(context, cached);
+  }
+
+  bool _canSubmitCreate(TableRowCreateState create) {
+    if (_saving || !_hasUnsavedCreateChanges(create)) return false;
+    final draft = _draft ?? initialCreateDraft(create.columnShapes);
+    return remainingCreateRequiredFieldLabels(
+      draft: draft,
+      textInputs: _textInputs,
+      columnShapes: create.columnShapes,
+    ).isEmpty;
+  }
+
+  Component _buildCreatePanel(BuildContext context, TableRowCreateState create) {
+    final canSubmit = _canSubmitCreate(create);
+    final draft = _draft ?? initialCreateDraft(create.columnShapes);
+    final requiredFields = remainingCreateRequiredFieldLabels(
+      draft: draft,
+      textInputs: _textInputs,
+      columnShapes: create.columnShapes,
+    );
+    void close() => _requestCreateDismiss(_PendingDismiss.closeCreate);
+    final openClass = _open ? ' table-row-detail--open' : '';
+    const editingClass = ' table-row-detail--editing';
+    final resizeClass = _resizing ? ' table-row-detail--resizing' : '';
+    final vw = _viewportWidthPx();
+    final isMobile = _isMobilePanelViewport(vw);
+    final maxWidth = _panelMaxWidthPx.round();
+    final panelStyle = isMobile
+        ? 'width: ${vw.round()}px; min-width: 100%; max-width: 100%;'
+        : 'width: ${_panelWidthPx.round()}px; min-width: ${_panelMinWidthPx.round()}px; max-width: ${maxWidth}px;';
+
+    return Component.fragment([
+      div(
+        classes: 'table-row-detail-backdrop$openClass',
+        attributes: {'aria-hidden': 'true'},
+        events: {'click': (_) => close()},
+        [],
+      ),
+      aside(
+        classes: 'table-row-detail-panel$openClass$resizeClass$editingClass',
+        attributes: {'aria-label': 'New row', 'tabindex': '-1', 'style': panelStyle},
+        events: {'click': (event) => event.stopPropagation()},
+        [
+          div(
+            classes: 'table-row-detail-resize-handle',
+            attributes: {
+              'aria-hidden': 'true',
+              'style':
+                  'position: absolute; top: 0; left: 0; bottom: 0; height: 100%; '
+                  'width: ${_resizeStripWidthPx.round()}px; cursor: ew-resize; touch-action: none; '
+                  'background: transparent; z-index: 10;',
+            },
+            events: {
+              'mousedown': _onResizeHandleMouseDown,
+              'pointerdown': _onResizeHandleMouseDown,
+              ...appTooltipEvents(context, text: 'Drag to resize'),
+            },
+            [],
+          ),
+          div(classes: 'table-row-detail-main', [
+            div(classes: 'table-row-detail-header', [
+              div(classes: 'table-row-detail-header-text', [
+                h2(classes: 'table-row-detail-title', [.text('New row')]),
+              ]),
+              div(classes: 'table-row-detail-header-actions', [
+                button(
+                  classes: 'table-row-detail-close',
+                  type: .button,
+                  attributes: {'aria-label': 'Close new row panel'},
+                  onClick: close,
+                  [.text('×')],
+                ),
+              ]),
+            ]),
+            div(classes: 'table-row-detail-body', [
+              for (var i = 0; i < create.columns.length; i++)
+                _buildCreateField(context, create, i),
+            ]),
+            div(classes: 'table-row-detail-footer table-row-detail-footer--create', [
+              if (requiredFields.isNotEmpty)
+                p(classes: 'table-row-create-required-hint', [
+                  .text('Required: ${requiredFields.join(', ')}'),
+                ]),
+              div(classes: 'table-row-detail-footer-actions', [
+                button(
+                  classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
+                  type: .button,
+                  attributes: {
+                    'aria-label': 'Create row',
+                    if (!canSubmit) 'disabled': 'true',
+                  },
+                  onClick: canSubmit ? () => _saveCreate(create) : null,
+                  [.text(_saving ? 'Creating…' : 'Create')],
+                ),
+                button(
+                  classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
+                  type: .button,
+                  attributes: {
+                    'aria-label': 'Cancel creating row',
+                    if (_saving) 'disabled': 'true',
+                  },
+                  onClick: _saving ? null : () => _requestCreateDismiss(_PendingDismiss.closeCreate),
+                  [.text('Cancel')],
+                ),
+              ]),
+            ]),
+          ]),
+        ],
+      ),
+      if (_pendingDismiss != null)
+        _DiscardChangesDialog(
+          mode: _discardDialogMode(_pendingDismiss!),
+          hasUnsavedChanges: switch (_pendingDismiss) {
+            _PendingDismiss.closeCreate => _cachedCreate != null && _hasUnsavedCreateChanges(_cachedCreate!),
+            _ => _cachedDetail != null && _hasUnsavedChanges(_cachedDetail!),
+          },
+          onKeepEditing: () => setState(() => _pendingDismiss = null),
+          onDiscard: () {
+            final action = _pendingDismiss!;
+            setState(() => _pendingDismiss = null);
+            _executeDismiss(action);
+          },
+        ),
+    ]);
+  }
+
+  Component _buildDetailPanel(BuildContext context, TableRowDetailState cached) {
     final allActions = context.watch(tableCollectionActionsProvider);
     final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
     final rowEditable = _canEditRow(cached, allActions, sessionCanEdit);
@@ -869,31 +1220,59 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           ]),
         ],
       ),
-      if (_pendingDismiss != null) _DiscardChangesDialog(
-        onKeepEditing: () => setState(() => _pendingDismiss = null),
-        onDiscard: () {
-          final action = _pendingDismiss!;
-          setState(() => _pendingDismiss = null);
-          _executeDismiss(action);
-        },
-      ),
+      if (_pendingDismiss != null)
+        _DiscardChangesDialog(
+          mode: _discardDialogMode(_pendingDismiss!),
+          hasUnsavedChanges: switch (_pendingDismiss) {
+            _PendingDismiss.closeCreate => _cachedCreate != null && _hasUnsavedCreateChanges(_cachedCreate!),
+            _ => _hasUnsavedChanges(cached),
+          },
+          onKeepEditing: () => setState(() => _pendingDismiss = null),
+          onDiscard: () {
+            final action = _pendingDismiss!;
+            setState(() => _pendingDismiss = null);
+            _executeDismiss(action);
+          },
+        ),
     ]);
   }
 }
 
-enum _PendingDismiss { closePanel, cancelEditing }
+enum _PendingDismiss { closePanel, cancelEditing, closeCreate }
+
+enum _DiscardDialogMode { edit, create }
 
 class _DiscardChangesDialog extends StatelessComponent {
   const _DiscardChangesDialog({
+    required this.mode,
+    required this.hasUnsavedChanges,
     required this.onKeepEditing,
     required this.onDiscard,
   });
 
+  final _DiscardDialogMode mode;
+  final bool hasUnsavedChanges;
   final VoidCallback onKeepEditing;
   final VoidCallback onDiscard;
 
   @override
   Component build(BuildContext context) {
+    final title = switch (mode) {
+      _DiscardDialogMode.create => 'Stop creating row?',
+      _DiscardDialogMode.edit => 'Discard changes?',
+    };
+    final message = switch ((mode, hasUnsavedChanges)) {
+      (_DiscardDialogMode.create, true) =>
+        'You have unsaved changes. If you leave now, this row will not be created.',
+      (_DiscardDialogMode.create, false) => 'If you leave now, this row will not be created.',
+      (_, true) => 'You have unsaved changes. If you leave now, your edits will be lost.',
+      (_, false) => 'If you leave now, your edits will be lost.',
+    };
+    final keepLabel = switch (mode) {
+      _DiscardDialogMode.create => 'Keep creating',
+      _DiscardDialogMode.edit => 'Keep editing',
+    };
+
     return div(
       classes: 'table-row-detail-discard-backdrop',
       events: {'click': (_) => onKeepEditing()},
@@ -910,17 +1289,17 @@ class _DiscardChangesDialog extends StatelessComponent {
             h3(
               id: 'table-row-detail-discard-title',
               classes: 'table-row-detail-discard-title',
-              [.text('Discard changes?')],
+              [.text(title)],
             ),
             p(classes: 'table-row-detail-discard-message', [
-              .text('You have unsaved changes. If you leave now, your edits will be lost.'),
+              .text(message),
             ]),
             div(classes: 'table-row-detail-discard-actions', [
               button(
                 classes: 'table-row-detail-discard-btn table-row-detail-discard-btn--secondary',
                 type: .button,
                 onClick: onKeepEditing,
-                [.text('Keep editing')],
+                [.text(keepLabel)],
               ),
               button(
                 classes: 'table-row-detail-discard-btn table-row-detail-discard-btn--danger',
@@ -1496,6 +1875,24 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       top: BorderSide.solid(color: borderColor, width: 1.px),
     ),
     backgroundColor: surfaceColor,
+  ),
+  css('.table-row-detail-footer--create').styles(
+    flexDirection: FlexDirection.column,
+    alignItems: .stretch,
+    gap: Gap.all(ZonaiSpacing.s3),
+  ),
+  css('.table-row-create-required-hint').styles(
+    margin: .zero,
+    fontSize: 0.75.rem,
+    fontWeight: .w400,
+    color: mutedColor,
+    raw: const {
+      'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+      'line-height': '1.4',
+    },
+  ),
+  css('.table-row-detail-footer--create .table-row-detail-footer-actions').styles(
+    alignSelf: .end,
   ),
   css('.table-row-detail-footer-actions').styles(
     display: .flex,

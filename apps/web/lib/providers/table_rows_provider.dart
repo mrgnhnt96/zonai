@@ -159,6 +159,29 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     return encodeTableRowsAsJson(columns: data.columns, rows: rows);
   }
 
+  /// Creates one row and reloads the table. Returns the created record map.
+  Future<Map<String, Object?>> createRow({
+    required String sqliteName,
+    required Map<String, Object?> object,
+  }) async {
+    if (object.isEmpty) {
+      throw StateError('No fields to create');
+    }
+
+    try {
+      final created = await revaliServer.db.create(
+        body: CreateBody(
+          table: sqliteName,
+          object: Map<String, dynamic>.from(object),
+        ),
+      );
+      ref.invalidateSelf();
+      return created;
+    } catch (e) {
+      throw StateError('Failed to create row: $e');
+    }
+  }
+
   /// Updates one row and reloads the table. Returns the updated record map.
   Future<Map<String, Object?>> updateRow({
     required String sqliteName,

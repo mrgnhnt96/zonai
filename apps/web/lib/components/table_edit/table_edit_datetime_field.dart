@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:universal_web/js_interop.dart';
@@ -6,6 +8,54 @@ import 'package:universal_web/web.dart' as web;
 import '../../constants/theme.dart';
 import '../../utils/table_cell_edit.dart';
 import '../../constants/spacing.dart';
+
+/// True when any [TableEditDatetimeField] popover is open.
+bool isDatetimePickerPopoverOpen() {
+  return web.document.querySelector('.table-edit-datetime__trigger--open') != null;
+}
+
+/// When a datetime popover is open, picker keys should not reach table navigation.
+bool shouldDeferKeyboardToOpenDatetimePicker(web.KeyboardEvent event) {
+  switch (event.key) {
+    case 'ArrowUp':
+    case 'ArrowDown':
+    case 'ArrowLeft':
+    case 'ArrowRight':
+    case ' ':
+      break;
+    default:
+      return false;
+  }
+  if (!isDatetimePickerPopoverOpen()) return false;
+  return _eventTargetsDatetimePicker(event);
+}
+
+/// Skip table/home keyboard shortcuts when focus is in a datetime picker control.
+bool shouldDeferKeyboardToDatetimePicker(web.KeyboardEvent event) {
+  if (shouldDeferKeyboardToOpenDatetimePicker(event)) return true;
+  return _eventTargetsDatetimePicker(event);
+}
+
+bool _eventTargetsDatetimePicker(web.KeyboardEvent event) {
+  final triggers = web.document.querySelectorAll('.table-edit-datetime__trigger--open');
+  for (var i = 0; i < triggers.length; i++) {
+    final trigger = triggers.item(i);
+    if (trigger is! web.Element) continue;
+    final root = trigger.closest('.table-edit-datetime');
+    if (root == null) continue;
+    final target = event.target;
+    if (target is web.Node && root.contains(target)) return true;
+    final active = web.document.activeElement;
+    if (active is web.Node && root.contains(active)) return true;
+  }
+
+  for (final node in [event.target, web.document.activeElement]) {
+    if (node is web.Element && node.closest('.table-edit-datetime') != null) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /// Date + time picker for filter/edit datetime values (stores UTC ms wire text).
 class TableEditDatetimeField extends StatefulComponent {
@@ -39,6 +89,9 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   var _open = false;
   var _viewYear = 0;
   var _viewMonth = 0;
+  int? _keyboardFocusYear;
+  int? _keyboardFocusMonth;
+  int? _keyboardFocusDay;
   var _dismissListenersAttached = false;
   web.EventListener? _outsideListener;
   web.EventListener? _keyListener;
@@ -84,13 +137,68 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     if (_open == open) return;
     setState(() {
       _open = open;
-      if (open) _syncViewToValue();
+      if (open) {
+        _syncViewToValue();
+        _initKeyboardFocusForOpen();
+      } else {
+        _clearKeyboardFocus();
+      }
     });
     if (open) {
       _attachDismissListeners();
+      scheduleMicrotask(_focusKeyboardFocusDayButton);
     } else {
       _detachDismissListeners();
     }
+  }
+
+  void _initKeyboardFocusForOpen() {
+    final selected = _selectedWall;
+    if (selected != null) {
+      _syncKeyboardFocusToWall(selected);
+      return;
+    }
+    _resetKeyboardFocusToToday();
+  }
+
+  void _resetKeyboardFocusToToday() {
+    _syncKeyboardFocusToWall(_nowWall);
+  }
+
+  void _syncKeyboardFocusToWall(DateTime wall) {
+    _keyboardFocusYear = wall.year;
+    _keyboardFocusMonth = wall.month;
+    _keyboardFocusDay = wall.day;
+  }
+
+  void _clearKeyboardFocus() {
+    _keyboardFocusYear = null;
+    _keyboardFocusMonth = null;
+    _keyboardFocusDay = null;
+  }
+
+  DateTime _keyboardFocusWall() {
+    final y = _keyboardFocusYear ?? _nowWall.year;
+    final m = _keyboardFocusMonth ?? _nowWall.month;
+    final d = _keyboardFocusDay ?? _nowWall.day;
+    return component.useUtc ? DateTime.utc(y, m, d) : DateTime(y, m, d);
+  }
+
+  bool _isKeyboardFocusedDay(int day) {
+    return _hasKeyboardFocus &&
+        _keyboardFocusYear == _viewYear &&
+        _keyboardFocusMonth == _viewMonth &&
+        _keyboardFocusDay == day;
+  }
+
+  bool _shouldSpaceSelectFocusedDay(web.HTMLElement? target) {
+    if (target == null) return true;
+    if (target.classList.contains('table-edit-datetime__time-native')) return false;
+    if (target.classList.contains('table-edit-datetime__nav')) return false;
+    if (target.classList.contains('table-search-segment')) return false;
+    if (target.classList.contains('table-edit-datetime__footer-btn')) return false;
+    if (target.classList.contains('table-edit-datetime__trigger')) return false;
+    return true;
   }
 
   void _attachDismissListeners() {
@@ -101,6 +209,14 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     _dismissListenersAttached = true;
     web.document.addEventListener('mousedown', outside);
     web.document.addEventListener('keydown', key);
+  }
+
+  void _onTriggerKeyDown(web.Event event) {
+    if (event is! web.KeyboardEvent) return;
+    if (event.key != ' ' && event.key != 'Enter') return;
+    event.preventDefault();
+    event.stopPropagation();
+    _setOpen(!_open);
   }
 
   void _detachDismissListeners() {
@@ -124,20 +240,183 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     _setOpen(false);
   }
 
+  bool _eventInsideRoot(web.Event event) {
+    final root = web.document.getElementById(component.id);
+    if (root == null) return false;
+    final target = event.target;
+    if (target is web.Node && root.contains(target)) return true;
+    final active = web.document.activeElement;
+    return active is web.Node && root.contains(active);
+  }
+
   void _onDocumentKeyDown(web.Event event) {
     if (!_open || !mounted) return;
     if (event is! web.KeyboardEvent) return;
     final key = event.key;
-    if (key != 'Escape' && key != 'Enter') return;
 
-    final root = web.document.getElementById(component.id);
-    final target = event.target;
-    final inside = root != null && target is web.Node && root.contains(target);
-
-    if (key == 'Escape' || (key == 'Enter' && inside)) {
+    if (key == 'Escape') {
       _setOpen(false);
       event.stopPropagation();
       event.preventDefault();
+      return;
+    }
+
+    final inside = _eventInsideRoot(event);
+    final target = event.target is web.HTMLElement ? event.target as web.HTMLElement : null;
+
+    if (_isArrowKey(key)) {
+      if (!inside) return;
+      if (target?.classList.contains('table-edit-datetime__time-native') == true &&
+          key != 'ArrowUp' &&
+          key != 'ArrowDown') {
+        return;
+      }
+      event.stopPropagation();
+      event.preventDefault();
+      _handleArrowKey(key, target);
+      return;
+    }
+
+    if (key == ' ' && inside && _shouldSpaceSelectFocusedDay(target)) {
+      event.stopPropagation();
+      event.preventDefault();
+      _selectKeyboardFocusedDay();
+      return;
+    }
+
+    if (key != 'Enter' || !inside) return;
+
+    _setOpen(false);
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  static bool _isArrowKey(String key) {
+    return key == 'ArrowUp' ||
+        key == 'ArrowDown' ||
+        key == 'ArrowLeft' ||
+        key == 'ArrowRight';
+  }
+
+  void _handleArrowKey(String key, web.HTMLElement? target) {
+    if (target?.classList.contains('table-edit-datetime__time-native') == true) {
+      final delta = key == 'ArrowUp' ? 1 : -1;
+      if (target!.id.endsWith('-hour')) {
+        _nudgeHour(delta);
+      } else if (target.id.endsWith('-minute')) {
+        _nudgeMinute(delta);
+      }
+      return;
+    }
+
+    if (target?.classList.contains('table-edit-datetime__nav') == true) {
+      if (key == 'ArrowLeft') {
+        _shiftMonth(-1);
+      } else if (key == 'ArrowRight') {
+        _shiftMonth(1);
+      }
+      return;
+    }
+
+    if (target?.classList.contains('table-search-segment') == true) {
+      final selectPm = key == 'ArrowRight' || key == 'ArrowDown';
+      final selectAm = key == 'ArrowLeft' || key == 'ArrowUp';
+      if (selectPm || selectAm) {
+        final selected = _selectedWall ?? _nowWall;
+        final (hour12, _) = hour24To12Parts(selected.hour);
+        _setTime(
+          hour: hour12To24(hour12, selectPm),
+          minute: selected.minute,
+        );
+      }
+      return;
+    }
+
+    final dayDelta = switch (key) {
+      'ArrowLeft' => -1,
+      'ArrowRight' => 1,
+      'ArrowUp' => -7,
+      'ArrowDown' => 7,
+      _ => 0,
+    };
+    if (dayDelta == 0) return;
+    _moveKeyboardFocusBy(dayDelta);
+  }
+
+  void _selectKeyboardFocusedDay() {
+    if (!_hasKeyboardFocus) _initKeyboardFocusForOpen();
+    final focus = _keyboardFocusWall();
+    if (focus.year != _viewYear || focus.month != _viewMonth) {
+      setState(() {
+        _viewYear = focus.year;
+        _viewMonth = focus.month;
+      });
+    }
+    _selectDay(focus.day);
+  }
+
+  void _moveKeyboardFocusBy(int dayDelta) {
+    if (!_hasKeyboardFocus) _resetKeyboardFocusToToday();
+    final next = _keyboardFocusWall().add(Duration(days: dayDelta));
+    setState(() {
+      _keyboardFocusYear = next.year;
+      _keyboardFocusMonth = next.month;
+      _keyboardFocusDay = next.day;
+      _viewYear = next.year;
+      _viewMonth = next.month;
+    });
+    scheduleMicrotask(_focusKeyboardFocusDayButton);
+  }
+
+  bool get _hasKeyboardFocus =>
+      _keyboardFocusYear != null && _keyboardFocusMonth != null && _keyboardFocusDay != null;
+
+  void _nudgeHour(int delta) {
+    final base = _selectedWall ?? _nowWall;
+    final (hour12, isPm) = hour24To12Parts(base.hour);
+    var next = hour12 + delta;
+    while (next < 1) {
+      next += 12;
+    }
+    while (next > 12) {
+      next -= 12;
+    }
+    _setTime(hour: hour12To24(next, isPm), minute: base.minute);
+  }
+
+  void _nudgeMinute(int delta) {
+    final base = _selectedWall ?? _nowWall;
+    var next = base.minute + delta;
+    while (next < 0) {
+      next += 60;
+    }
+    while (next > 59) {
+      next -= 60;
+    }
+    _setTime(hour: base.hour, minute: next);
+  }
+
+  void _focusKeyboardFocusDayButton() {
+    if (!_hasKeyboardFocus) return;
+    _focusDayButton(_keyboardFocusYear!, _keyboardFocusMonth!, _keyboardFocusDay!);
+  }
+
+  void _focusDayButton(int year, int month, int day) {
+    if (!mounted || !_open) return;
+    if (year != _viewYear || month != _viewMonth) return;
+    final root = web.document.getElementById(component.id);
+    if (root == null) return;
+    final dayLabel = '$day';
+    final dayButtons = root.querySelectorAll(
+      '.table-edit-datetime__day:not(.table-edit-datetime__day--empty)',
+    );
+    for (var i = 0; i < dayButtons.length; i++) {
+      final node = dayButtons.item(i);
+      if (node is! web.Element) continue;
+      if (node.textContent?.trim() == dayLabel) {
+        (node as web.HTMLElement).focus();
+        return;
+      }
     }
   }
 
@@ -173,6 +452,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     setState(() {
       _viewYear = next.year;
       _viewMonth = next.month;
+      _syncKeyboardFocusToWall(next);
     });
   }
 
@@ -203,6 +483,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     setState(() {
       _viewYear = now.year;
       _viewMonth = now.month;
+      _syncKeyboardFocusToWall(now);
     });
   }
 
@@ -251,6 +532,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                 event.stopPropagation();
                 _setOpen(!_open);
               },
+              'keydown': _onTriggerKeyDown,
             },
             [
               span(
@@ -318,10 +600,29 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                               today.month == _viewMonth &&
                               today.day == day)
                             'table-edit-datetime__day--today',
+                          if (_isKeyboardFocusedDay(day))
+                            'table-edit-datetime__day--focused',
                         ].join(' '),
+                        attributes: {
+                          if (today.year == _viewYear &&
+                              today.month == _viewMonth &&
+                              today.day == day)
+                            'aria-current': 'date',
+                        },
                         events: {
                           'click': (event) {
                             event.stopPropagation();
+                            _selectDay(day);
+                          },
+                          'keydown': (event) {
+                            if (event is! web.KeyboardEvent || event.key != ' ') return;
+                            event.stopPropagation();
+                            event.preventDefault();
+                            setState(() => _syncKeyboardFocusToWall(
+                              component.useUtc
+                                  ? DateTime.utc(_viewYear, _viewMonth, day)
+                                  : DateTime(_viewYear, _viewMonth, day),
+                            ));
                             _selectDay(day);
                           },
                         },
@@ -713,6 +1014,12 @@ List<StyleRule> tableEditDatetimeStyles = [
   css('.table-edit-datetime__day--today').styles(
     fontWeight: .w600,
     raw: const {'box-shadow': 'inset 0 0 0 1px var(--zonai-border)'},
+  ),
+  css('.table-edit-datetime__day--focused').styles(
+    raw: const {'box-shadow': '0 0 0 2px var(--zonai-focus-ring)'},
+  ),
+  css('.table-edit-datetime__day--focused.table-edit-datetime__day--today').styles(
+    raw: const {'box-shadow': 'inset 0 0 0 1px var(--zonai-border), 0 0 0 2px var(--zonai-focus-ring)'},
   ),
   css('.table-edit-datetime__day--selected').styles(
     backgroundColor: primaryColor,

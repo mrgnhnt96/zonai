@@ -55,3 +55,20 @@ bool canDeleteTableRows({
 
   return columnShapes.any((s) => s.isPrimaryKey);
 }
+
+/// Whether the admin UI should allow creating rows in this table.
+bool canCreateTableRows({
+  required Map<String, TableCollectionActions>? allActions,
+  required TableCollectionActions? actions,
+  required bool sessionCanEdit,
+  required String sqliteName,
+  required List<ColumnShape> columnShapes,
+}) {
+  if (_rulesResolved(allActions)) {
+    if (actions?.canCreate != true) return false;
+  } else {
+    if (sessionCanEdit != true || isSystemSqliteTable(sqliteName)) return false;
+  }
+
+  return hasEditableColumns(columnShapes);
+}

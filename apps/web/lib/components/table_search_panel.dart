@@ -6,9 +6,15 @@ import 'package:zonai_schema/payloads.dart';
 import '../constants/layout.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
+import '../providers/session_user_provider.dart';
 import '../providers/table_filter_provider.dart';
+import '../providers/table_focus_provider.dart';
+import '../providers/table_row_create_provider.dart';
 import '../providers/table_rows_provider.dart';
+import '../providers/resolved_collection_provider.dart';
+import '../providers/table_schema_provider.dart';
 import '../utils/table_cell_edit.dart';
+import '../utils/table_row_edit.dart';
 import '../utils/table_where_build.dart';
 import '../utils/table_where_format.dart';
 import '../utils/table_where_operators.dart';
@@ -54,6 +60,64 @@ class TableSearchToggle extends StatelessComponent {
         }
       },
       [searchIcon()],
+    );
+  }
+}
+
+/// Create-row toggle for the table header (opens the row detail panel in create mode).
+class TableCreateRowToggle extends StatelessComponent {
+  const TableCreateRowToggle({super.key});
+
+  @override
+  Component build(BuildContext context) {
+    final create = context.watch(tableRowCreateProvider);
+    final focus = context.watch(tableFocusProvider);
+    final schema = context.watch(tableSchemaProvider);
+    final shapes = schema?.columns ?? const <ColumnShape>[];
+    final sqliteName = focus?.sqliteName ?? '';
+    if (shapes.isEmpty || sqliteName.isEmpty) {
+      return Component.empty();
+    }
+
+    final allActions = context.watch(tableCollectionActionsProvider);
+    final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
+    if (!canCreateTableRows(
+      allActions: allActions,
+      actions: allActions[sqliteName],
+      sessionCanEdit: sessionCanEdit,
+      sqliteName: sqliteName,
+      columnShapes: shapes,
+    )) {
+      return Component.empty();
+    }
+
+    final columns = [for (final shape in shapes) shape.name];
+    final notifier = context.read(tableRowCreateProvider.notifier);
+    final isOpen = create != null;
+
+    return button(
+      type: .button,
+      classes: [
+        'table-create-toggle',
+        if (isOpen) 'table-create-toggle--open',
+      ].join(' '),
+      attributes: {
+        'aria-label': 'Create row',
+        'aria-expanded': isOpen ? 'true' : 'false',
+      },
+      events: appTooltipEvents(context, text: 'Create row'),
+      onClick: () {
+        if (isOpen) {
+          notifier.requestClose();
+        } else {
+          notifier.open(
+            sqliteName: sqliteName,
+            columns: columns,
+            columnShapes: shapes,
+          );
+        }
+      },
+      [createRowIcon()],
     );
   }
 }
@@ -382,6 +446,24 @@ class _FilterRow extends StatelessComponent {
   }
 }
 
+Component createRowIcon() {
+  return svg(
+    viewBox: '0 0 16 16',
+    width: 16.px,
+    height: 16.px,
+    attributes: {'aria-hidden': 'true', 'fill': 'none'},
+    [
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.5',
+        d: 'M8 3.5v9M3.5 8h9',
+        attributes: const {'stroke-linecap': 'round'},
+        [],
+      ),
+    ],
+  );
+}
+
 Component searchIcon() {
   return svg(
     viewBox: '0 0 16 16',
@@ -474,6 +556,27 @@ List<StyleRule> tableSearchPanelStyles = [
     height: 6.px,
     radius: .all(Radius.circular(3.px)),
     backgroundColor: primaryColor,
+  ),
+  css('.table-create-toggle').styles(
+    width: 36.px,
+    height: 36.px,
+    flex: Flex(grow: 0, shrink: 0),
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    cursor: .pointer,
+    radius: .all(Radius.circular(8.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    backgroundColor: surfaceColor,
+    color: mutedColor,
+    padding: .zero,
+    position: Position.relative(),
+    raw: const {'font': 'inherit', 'line-height': '1'},
+  ),
+  css('.table-create-toggle:hover').styles(backgroundColor: hoverColor, color: fgColor),
+  css('.table-create-toggle--open').styles(
+    border: .all(color: primaryColor, width: 1.px, style: .solid),
+    color: primaryColor,
   ),
   css('.table-search-combine').styles(
     display: .flex,

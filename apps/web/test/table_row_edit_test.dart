@@ -148,4 +148,79 @@ void main() {
       );
     });
   });
+
+  group('canCreateTableRows', () {
+    test('returns false when create is denied by rules', () {
+      expect(
+        canCreateTableRows(
+          allActions: const {
+            '_jwt': TableCollectionActions(
+              table: '_jwt',
+              canCreate: false,
+              canUpdate: false,
+              canDelete: true,
+            ),
+          },
+          actions: const TableCollectionActions(
+            table: '_jwt',
+            canCreate: false,
+            canUpdate: false,
+            canDelete: true,
+          ),
+          sessionCanEdit: true,
+          sqliteName: '_jwt',
+          columnShapes: const [_pkShape, _editableShape],
+        ),
+        isFalse,
+      );
+    });
+
+    test('falls back to sessionCanEdit when rules were not resolved', () {
+      expect(
+        canCreateTableRows(
+          allActions: const {},
+          actions: null,
+          sessionCanEdit: true,
+          sqliteName: 'items',
+          columnShapes: const [_pkShape, _editableShape],
+        ),
+        isTrue,
+      );
+    });
+
+    test('falls back blocks system tables when rules were not resolved', () {
+      expect(
+        canCreateTableRows(
+          allActions: const {},
+          actions: null,
+          sessionCanEdit: true,
+          sqliteName: '_jwt',
+          columnShapes: const [_pkShape, _editableShape],
+        ),
+        isFalse,
+      );
+    });
+
+    test('returns false when no editable columns', () {
+      const readOnlyShape = ColumnShape(
+        name: 'created_at',
+        kind: ColumnShapeKind.createdAt,
+        isNullable: false,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'INTEGER',
+      );
+
+      expect(
+        canCreateTableRows(
+          allActions: _resolvedActions,
+          actions: _allowedActions,
+          sessionCanEdit: true,
+          sqliteName: 'items',
+          columnShapes: const [_pkShape, readOnlyShape],
+        ),
+        isFalse,
+      );
+    });
+  });
 }

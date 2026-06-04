@@ -11,6 +11,7 @@ import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/table_focus_provider.dart';
+import '../providers/table_row_create_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../providers/table_row_keyboard_focus_provider.dart';
 import '../providers/table_row_selection_provider.dart';
@@ -168,6 +169,13 @@ class HomeScreen extends StatelessComponent {
         alignItems: .end,
         justifyContent: .spaceBetween,
         gap: Gap.all(ZonaiSpacing.s6),
+      ),
+      css('.table-detail-header-actions').styles(
+        flex: Flex(grow: 0, shrink: 0),
+        display: .flex,
+        flexDirection: FlexDirection.row,
+        alignItems: .center,
+        gap: Gap.all(ZonaiSpacing.s3),
       ),
       css('.table-detail-header-text').styles(
         flex: Flex(grow: 1, shrink: 1),
@@ -580,6 +588,9 @@ class _TableMain extends StatelessComponent {
 
     final schema = context.watch(tableSchemaProvider);
     final appliedWhere = context.watch(tableAppliedWhereProvider);
+    final allActions = context.watch(tableCollectionActionsProvider);
+    final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
+    final schemaColumns = schema?.columns ?? const <ColumnShape>[];
     final title = focused!.displayName;
     final subtitleParts = <String>[];
     if (schema != null) {
@@ -593,6 +604,15 @@ class _TableMain extends StatelessComponent {
               AsyncData(:final value) when value != null && value.columnShapes.isNotEmpty => true,
               _ => false,
             });
+    final showCreateToggle = context.binding.isClient &&
+        schemaColumns.isNotEmpty &&
+        canCreateTableRows(
+          allActions: allActions,
+          actions: allActions[focused!.sqliteName],
+          sessionCanEdit: sessionCanEdit,
+          sqliteName: focused!.sqliteName,
+          columnShapes: schemaColumns,
+        );
 
     switch (rowsAsync) {
       case AsyncError(:final error):
@@ -658,7 +678,11 @@ class _TableMain extends StatelessComponent {
           h1(classes: 'table-detail-title', [.text(title)]),
           if (subtitleParts.isNotEmpty) p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
         ]),
-        if (showSearchToggle) const TableSearchToggle(),
+        if (showCreateToggle || showSearchToggle)
+          div(classes: 'table-detail-header-actions', [
+            if (showCreateToggle) const TableCreateRowToggle(),
+            if (showSearchToggle) const TableSearchToggle(),
+          ]),
       ]),
       div(classes: 'table-detail-body', bodyChildren),
     ]);
@@ -1397,6 +1421,7 @@ void _blurBodyRowSelectCheckboxIfFocused() {
 
 bool _shouldIgnoreHomeKeyboard(web.KeyboardEvent event) {
   if (event.metaKey || event.ctrlKey || event.altKey) return true;
+  if (shouldDeferKeyboardToDatetimePicker(event)) return true;
   final target = event.target;
   if (target is! web.HTMLElement) return false;
   final tag = target.tagName.toLowerCase();
@@ -1537,6 +1562,7 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
 
     final detail = context.read(tableRowDetailProvider);
     if (detail?.viewMode == TableRowDetailViewMode.edit) return;
+    if (context.read(tableRowCreateProvider) != null) return;
 
     final focusNotifier = context.read(tableRowKeyboardFocusProvider.notifier);
     final keyboardFocus = context.read(tableRowKeyboardFocusProvider);

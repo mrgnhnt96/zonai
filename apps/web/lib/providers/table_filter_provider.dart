@@ -4,6 +4,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../utils/table_where_build.dart';
 import 'table_focus_provider.dart';
 import 'table_row_detail_provider.dart';
+import 'table_row_create_provider.dart';
 import 'table_row_selection_provider.dart';
 import 'table_rows_provider.dart';
 import 'table_schema_provider.dart';
@@ -74,6 +75,7 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
 
   void openPanel() {
     ref.read(tableRowDetailProvider.notifier).close();
+    ref.read(tableRowCreateProvider.notifier).close();
     state = state.copyWith(
       panelOpen: true,
       draftRows: _seedDraftRows(state.draftRows),

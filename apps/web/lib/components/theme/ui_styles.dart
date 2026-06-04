@@ -217,6 +217,9 @@ List<StyleRule> get zonaiUiStyles => [
     backgroundColor: hoverColor,
     color: fgColor,
   ),
+  css('.z-btn--ghost:focus-visible').styles(
+    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
+  ),
   css('.z-btn:disabled').styles(
     opacity: 0.55,
     cursor: .notAllowed,

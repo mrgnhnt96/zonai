@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:universal_web/js_interop.dart';
@@ -76,6 +78,9 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
       _draft = '';
       _endPointerDrag();
       _clearDragState();
+      final oldLen = parseCommaSeparatedList(oldComponent.valueText).length;
+      final newLen = parseCommaSeparatedList(component.valueText).length;
+      if (newLen > oldLen) _scheduleAddInputFocus();
     }
   }
 
@@ -165,6 +170,18 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
     if (!chips.contains(trimmed)) chips.add(trimmed);
     _setChips(chips);
     setState(() => _draft = '');
+    _scheduleAddInputFocus();
+  }
+
+  void _scheduleAddInputFocus() {
+    if (!context.binding.isClient) return;
+    scheduleMicrotask(_focusAddInput);
+  }
+
+  void _focusAddInput() {
+    if (!mounted) return;
+    final el = web.document.getElementById('${component.id}-add');
+    if (el is web.HTMLInputElement) el.focus();
   }
 
   void _removeChip(String chip) {

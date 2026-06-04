@@ -13,6 +13,8 @@
 - [ ] Send test email
 - [ ] Run cron job manually
 - [ ] Create new row
+- [ ] Start reset password flow
+- [ ] Support uploading files/images for edit & create
 
 #### Edit
 
