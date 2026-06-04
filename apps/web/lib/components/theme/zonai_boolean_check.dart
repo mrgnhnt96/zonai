@@ -71,6 +71,6 @@ List<StyleRule> get zonaiBooleanCheckStyles => [
     alignItems: .center,
     color: primaryColor,
   ),
-  css('.z-boolean-check--false').styles(color: mutedColor),
+  css('.z-boolean-check--false').styles(color: errorColor),
   css('.z-boolean-check__icon').styles(display: .block),
 ];
