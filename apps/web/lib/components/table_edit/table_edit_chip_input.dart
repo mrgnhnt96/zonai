@@ -69,21 +69,10 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
       if (chips.isNotEmpty)
         div(classes: 'table-edit-chip-input__chips', [
           for (final chip in chips)
-            span(classes: 'table-edit-chip-input__chip', [
-              ZonaiTag(label: chip),
-              button(
-                type: .button,
-                classes: 'table-edit-chip-input__chip-remove',
-                attributes: {'aria-label': 'Remove $chip'},
-                events: {
-                  'click': (event) {
-                    event.stopPropagation();
-                    _removeChip(chip);
-                  },
-                },
-                [_chipRemoveIcon()],
-              ),
-            ]),
+            ZonaiTag(
+              label: chip,
+              onRemove: component.disabled ? null : () => _removeChip(chip),
+            ),
         ]),
       div(classes: 'table-edit-chip-input__add-row', [
         input<String>(
@@ -123,22 +112,4 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
       ]),
     ]);
   }
-}
-
-Component _chipRemoveIcon() {
-  return svg(
-    viewBox: '0 0 12 12',
-    width: 10.px,
-    height: 10.px,
-    attributes: {'aria-hidden': 'true', 'fill': 'none'},
-    [
-      path(
-        stroke: const Color('currentColor'),
-        strokeWidth: '1.5',
-        d: 'M3 3l6 6M9 3 3 9',
-        attributes: const {'stroke-linecap': 'round'},
-        [],
-      ),
-    ],
-  );
 }
