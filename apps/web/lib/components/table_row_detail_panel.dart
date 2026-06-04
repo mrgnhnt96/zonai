@@ -1573,7 +1573,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     raw: const {'box-shadow': 'inset 0 1px 0 rgb(148 163 184 / 0.08)'},
   ),
   css('.table-row-detail-json-card-toolbar').styles(
-    position: Position.absolute(top: 8.px, right: 8.px),
+    position: Position.absolute(top: ZonaiSpacing.s6, right: ZonaiSpacing.s8),
     display: .flex,
     alignItems: .center,
     justifyContent: .end,
@@ -1589,20 +1589,19 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-json-card .table-row-detail-copy--copied').styles(color: const Color('#7dd3fc')),
   css('.table-row-detail-json-card-pre').styles(
     margin: .zero,
-    padding: .only(top: ZonaiSpacing.s14, left: ZonaiSpacing.s6, right: ZonaiSpacing.s6, bottom: ZonaiSpacing.s6),
-    overflow: Overflow.auto,
+    padding: .only(top: ZonaiSpacing.s11, left: ZonaiSpacing.s4, right: ZonaiSpacing.s4, bottom: ZonaiSpacing.s4),
+    overflow: Overflow.visible,
     whiteSpace: WhiteSpace.preWrap,
     fontSize: 0.75.rem,
     raw: const {
       'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
       'line-height': '1.5',
       'tab-size': '2',
-      'max-height': 'min(24rem, 70vh)',
       'overflow-wrap': 'anywhere',
     },
   ),
   css('.table-row-detail-json-card-pre--compact').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s6),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s4),
   ),
   css(
     '.table-row-detail-field',
