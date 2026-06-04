@@ -742,7 +742,7 @@ List<StyleRule> tableSearchSidePanelStyles = [
     raw: const {
       'z-index': '160',
       'min-width': '320px',
-      'max-width': '25vw',
+      'max-width': '75vw',
       'box-shadow': '-8px 0 24px rgb(15 23 42 / 0.12)',
       'outline': 'none',
     },

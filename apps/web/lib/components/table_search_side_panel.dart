@@ -19,7 +19,7 @@ import 'table_search_panel.dart';
 const _slideDuration = Duration(milliseconds: 250);
 const _panelMinWidthPx = 320.0;
 const _panelDefaultWidthFraction = 0.25;
-const _panelMaxWidthFraction = 0.25;
+const _panelMaxWidthFraction = 3 / 4;
 const _mobileBreakpointPx = 640.0;
 class TableSearchSidePanel extends StatefulComponent {
   const TableSearchSidePanel({super.key});
