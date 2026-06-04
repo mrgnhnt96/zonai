@@ -149,6 +149,42 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     return encodeTableRowsAsJson(columns: data.columns, rows: rows);
   }
 
+  /// Updates one row and reloads the table. Returns the updated record map.
+  Future<Map<String, Object?>> updateRow({
+    required String sqliteName,
+    required List<Object?> row,
+    required List<String> columns,
+    required List<ColumnShape> columnShapes,
+    required Map<String, Object?> changedFields,
+  }) async {
+    if (changedFields.isEmpty) {
+      throw StateError('No fields to update');
+    }
+
+    final where = tableRowWhere(
+      row: row,
+      columns: columns,
+      columnShapes: columnShapes,
+    );
+    if (where == null) {
+      throw StateError('Cannot update row: incomplete primary key.');
+    }
+
+    try {
+      final updated = await revaliServer.db.update(
+        body: UpdateOneBody(
+          table: sqliteName,
+          where: where,
+          updates: [ObjectUpdate(changedFields)],
+        ),
+      );
+      ref.invalidateSelf();
+      return updated;
+    } catch (e) {
+      throw StateError('Failed to update row: $e');
+    }
+  }
+
   /// Deletes the current selection, then reloads the table.
   Future<void> deleteSelected(TableRowSelectionState selection) async {
     final data = state.value;

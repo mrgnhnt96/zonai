@@ -13,6 +13,10 @@ const errorColor = Color.variable('--zonai-error');
 const errorBgColor = Color.variable('--zonai-error-bg');
 const errorBorderColor = Color.variable('--zonai-error-border');
 const errorFgColor = Color.variable('--zonai-error-fg');
+const successColor = Color.variable('--zonai-success');
+const successBgColor = Color.variable('--zonai-success-bg');
+const successBorderColor = Color.variable('--zonai-success-border');
+const successFgColor = Color.variable('--zonai-success-fg');
 const tableHeaderBgColor = Color.variable('--zonai-table-header-bg');
 const onPrimaryColor = Color.variable('--zonai-on-primary');
 
@@ -31,6 +35,10 @@ const _lightTokens = {
   '--zonai-error-bg': '#fef2f2',
   '--zonai-error-border': '#fecaca',
   '--zonai-error-fg': '#991b1b',
+  '--zonai-success': '#15803d',
+  '--zonai-success-bg': '#f0fdf4',
+  '--zonai-success-border': '#bbf7d0',
+  '--zonai-success-fg': '#166534',
   '--zonai-table-header-bg': '#f8fafc',
   '--zonai-shadow': '0 20px 50px -12px rgb(15 23 42 / 0.12)',
   '--zonai-shadow-sm': '0 1px 3px rgb(15 23 42 / 0.06)',
@@ -54,6 +62,10 @@ const _darkTokens = {
   '--zonai-error-bg': '#450a0a',
   '--zonai-error-border': '#7f1d1d',
   '--zonai-error-fg': '#fecaca',
+  '--zonai-success': '#86efac',
+  '--zonai-success-bg': '#052e16',
+  '--zonai-success-border': '#166534',
+  '--zonai-success-fg': '#bbf7d0',
   '--zonai-table-header-bg': '#243044',
   '--zonai-shadow': '0 20px 50px -12px rgb(0 0 0 / 0.5)',
   '--zonai-shadow-sm': '0 1px 3px rgb(0 0 0 / 0.35)',

@@ -37,6 +37,30 @@ void main() {
       expect(user?.label, 'admin@example.com');
       expect(user?.initial, 'A');
       expect(user?.isAdmin, isTrue);
+      expect(user?.canEdit, isFalse);
+    });
+
+    test('extracts canEdit when present', () {
+      final user = sessionUserFromToken(
+        _fakeJwt({
+          'userId': 'u1',
+          'admin': {'isAdmin': true, 'canEdit': true},
+        }),
+      );
+
+      expect(user?.isAdmin, isTrue);
+      expect(user?.canEdit, isTrue);
+    });
+
+    test('canEdit is false when absent or explicitly false', () {
+      expect(
+        sessionUserFromToken(_fakeJwt({'userId': 'u1', 'admin': {'isAdmin': true}}))?.canEdit,
+        isFalse,
+      );
+      expect(
+        sessionUserFromToken(_fakeJwt({'userId': 'u1', 'admin': {'canEdit': false}}))?.canEdit,
+        isFalse,
+      );
     });
 
     test('falls back to userId when email is missing', () {

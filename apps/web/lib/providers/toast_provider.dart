@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
-enum ToastVariant { error }
+enum ToastVariant { error, success }
 
 final class ToastMessage {
   const ToastMessage({
@@ -28,9 +28,13 @@ class ToastNotifier extends Notifier<ToastMessage?> {
     return null;
   }
 
-  void showError(String text) {
+  void showError(String text) => _show(ToastVariant.error, text);
+
+  void showSuccess(String text) => _show(ToastVariant.success, text);
+
+  void _show(ToastVariant variant, String text) {
     _dismissTimer?.cancel();
-    final message = ToastMessage(id: ++_nextId, text: text);
+    final message = ToastMessage(id: ++_nextId, text: text, variant: variant);
     state = message;
     _dismissTimer = Timer(const Duration(seconds: 5), () {
       if (state?.id == message.id) {

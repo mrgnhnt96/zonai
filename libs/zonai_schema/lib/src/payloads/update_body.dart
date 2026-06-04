@@ -27,7 +27,12 @@ class UpdateBody {
   }
 
   Map<String, dynamic> toJson() {
-    return {'table': table, 'where': where.toJson(), 'limit': ?limit};
+    return {
+      'table': table,
+      'where': where.toJson(),
+      'limit': ?limit,
+      'updates': [for (final update in updates) update.toJson()],
+    };
   }
 }
 

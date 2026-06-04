@@ -3,6 +3,7 @@
 ## 6.1.26
 
 - [ ] When we have more credits, we need to verify the release process, everything passes except for windows atm
+- [ ] When creating a new record that uses a foreign key, if the foreign key is an object, we should create the object first and then use the id to create the original record
 
 ### UI
 

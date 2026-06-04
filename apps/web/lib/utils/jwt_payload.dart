@@ -6,11 +6,13 @@ final class SessionUser {
     required this.label,
     this.email,
     this.isAdmin = false,
+    this.canEdit = false,
   });
 
   final String label;
   final String? email;
   final bool isAdmin;
+  final bool canEdit;
 
   String get initial {
     final source = email ?? label;
@@ -54,12 +56,18 @@ SessionUser? sessionUserFromToken(String token) {
   final label = email ?? (userId is String && userId.isNotEmpty ? userId : 'Signed in');
 
   var isAdmin = false;
+  var canEdit = false;
   final admin = payload['admin'];
-  if (admin is Map && admin['isAdmin'] == true) {
-    isAdmin = true;
+  if (admin is Map) {
+    if (admin['isAdmin'] == true) {
+      isAdmin = true;
+    }
+    if (admin['canEdit'] == true) {
+      canEdit = true;
+    }
   }
 
-  return SessionUser(label: label, email: email, isAdmin: isAdmin);
+  return SessionUser(label: label, email: email, isAdmin: isAdmin, canEdit: canEdit);
 }
 
 List<int> _decodeBase64Url(String segment) {

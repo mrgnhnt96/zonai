@@ -861,6 +861,7 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
                 row: displayRows[r],
                 rowKey: displayKeys[r],
                 pageKeys: displayKeys,
+                sqliteName: data.sqliteName,
                 columns: data.columns,
                 columnShapes: data.columnShapes,
                 selected: selection.isSelected(displayKeys[r]),
@@ -893,6 +894,7 @@ class _SelectableRow extends StatelessComponent {
     required this.row,
     required this.rowKey,
     required this.pageKeys,
+    required this.sqliteName,
     required this.columns,
     required this.columnShapes,
     required this.selected,
@@ -905,6 +907,7 @@ class _SelectableRow extends StatelessComponent {
   final List<Object?> row;
   final String rowKey;
   final List<String> pageKeys;
+  final String sqliteName;
   final List<String> columns;
   final List<ColumnShape> columnShapes;
   final bool selected;
@@ -926,6 +929,7 @@ class _SelectableRow extends StatelessComponent {
         'click': (_) => detailNotifier.toggle(
           rowKey: rowKey,
           row: row,
+          sqliteName: sqliteName,
           columns: columns,
           columnShapes: columnShapes,
         ),

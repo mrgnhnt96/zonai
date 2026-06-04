@@ -17,10 +17,14 @@ class ToastOverlay extends StatelessComponent {
     }
 
     void dismiss() => context.read(toastProvider.notifier).dismiss();
+    final variantClass = switch (toast.variant) {
+      ToastVariant.error => 'zonai-toast--error',
+      ToastVariant.success => 'zonai-toast--success',
+    };
 
     return div(classes: 'zonai-toast-host', [
       div(
-        classes: 'zonai-toast zonai-toast--error',
+        classes: 'zonai-toast $variantClass',
         attributes: {'role': 'alert'},
         [
           span(classes: 'zonai-toast__text', [.text(toast.text)]),
@@ -55,26 +59,35 @@ class ToastOverlay extends StatelessComponent {
       width: 100.percent,
       padding: .symmetric(horizontal: 16.px, vertical: 12.px),
       radius: .all(Radius.circular(12.px)),
-      border: .all(color: errorBorderColor, width: 1.px, style: .solid),
-      backgroundColor: errorBgColor,
       pointerEvents: .auto,
       raw: const {
         'box-shadow': 'var(--zonai-shadow)',
         'animation': 'zonai-toast-in 0.2s ease-out',
       },
     ),
+    css('.zonai-toast--error').styles(
+      border: .all(color: errorBorderColor, width: 1.px, style: .solid),
+      backgroundColor: errorBgColor,
+    ),
+    css('.zonai-toast--success').styles(
+      border: .all(color: successBorderColor, width: 1.px, style: .solid),
+      backgroundColor: successBgColor,
+    ),
+    css('.zonai-toast--error .zonai-toast__text').styles(color: errorFgColor),
+    css('.zonai-toast--success .zonai-toast__text').styles(color: successFgColor),
     css('.zonai-toast__text').styles(
       flex: Flex(grow: 1, shrink: 1),
       minWidth: .zero,
       margin: .zero,
       fontSize: 0.875.rem,
       fontWeight: .w500,
-      color: errorFgColor,
       raw: const {
         'line-height': '1.45',
         'overflow-wrap': 'anywhere',
       },
     ),
+    css('.zonai-toast--error .zonai-toast__dismiss').styles(color: errorColor),
+    css('.zonai-toast--success .zonai-toast__dismiss').styles(color: successColor),
     css('.zonai-toast__dismiss').styles(
       flex: Flex(grow: 0, shrink: 0),
       width: 28.px,
@@ -87,12 +100,12 @@ class ToastOverlay extends StatelessComponent {
       border: Border.none,
       radius: .all(Radius.circular(6.px)),
       backgroundColor: Colors.transparent,
-      color: errorColor,
       cursor: .pointer,
       fontSize: 1.125.rem,
       raw: const {'font': 'inherit', 'line-height': '1'},
     ),
-    css('.zonai-toast__dismiss:hover').styles(backgroundColor: errorBorderColor),
+    css('.zonai-toast--error .zonai-toast__dismiss:hover').styles(backgroundColor: errorBorderColor),
+    css('.zonai-toast--success .zonai-toast__dismiss:hover').styles(backgroundColor: successBorderColor),
     css('@keyframes zonai-toast-in').styles(
       raw: const {
         'from': '{ opacity: 0; transform: translateY(8px); }',

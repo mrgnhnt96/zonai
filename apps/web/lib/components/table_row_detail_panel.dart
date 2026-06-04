@@ -11,8 +11,14 @@ import 'package:zonai_schema/payloads.dart';
 
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
+import '../providers/session_user_provider.dart';
 import '../providers/table_row_detail_provider.dart';
+import '../providers/table_rows_provider.dart';
+import '../providers/toast_provider.dart';
 import '../utils/dom_event_values.dart';
+import '../utils/sqlite_table_utils.dart';
+import '../utils/table_cell_edit.dart';
+import '../utils/table_row_key.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
 
@@ -48,6 +54,10 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _resizeListenersActive = false;
   var _showRawJson = false;
   String? _rawJsonRowKey;
+  var _editing = false;
+  var _saving = false;
+  List<Object?>? _draft;
+  Map<int, String> _textInputs = {};
 
   @override
   void initState() {
@@ -297,6 +307,10 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       _resizing = false;
       _showRawJson = false;
       _rawJsonRowKey = null;
+      _editing = false;
+      _saving = false;
+      _draft = null;
+      _textInputs = {};
     });
     _unmountTimer?.cancel();
     _unmountTimer = Timer(_slideDuration, () {
@@ -311,6 +325,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   void _syncDetail(TableRowDetailState? detail) {
     final hasDetail = detail != null;
     if (hasDetail) {
+      if (_cachedDetail?.rowKey != detail.rowKey) {
+        _editing = false;
+        _saving = false;
+        _draft = null;
+        _textInputs = {};
+      }
       _cachedDetail = detail;
     }
 
@@ -334,6 +354,164 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _lastHadDetail = hasDetail;
   }
 
+  bool _canEditRow(TableRowDetailState detail) {
+    if (isSystemSqliteTable(detail.sqliteName)) return false;
+    if (tableRowWhere(
+          row: detail.row,
+          columns: detail.columns,
+          columnShapes: detail.columnShapes,
+        ) ==
+        null) {
+      return false;
+    }
+    return hasEditableColumns(detail.columnShapes);
+  }
+
+  void _startEditing(TableRowDetailState detail) {
+    setState(() {
+      _editing = true;
+      _draft = List<Object?>.from(detail.row);
+      _textInputs = {
+        for (var i = 0; i < detail.row.length; i++)
+          if (_usesTextInput(detail.columnShapes.elementAtOrNull(i)))
+            i: cellToEditString(detail.row[i], detail.columnShapes.elementAtOrNull(i)),
+      };
+      _showRawJson = false;
+      _rawJsonRowKey = null;
+    });
+  }
+
+  void _cancelEditing() {
+    setState(() {
+      _editing = false;
+      _draft = null;
+      _textInputs = {};
+    });
+  }
+
+  bool _usesTextInput(ColumnShape? shape) {
+    if (shape == null || !isColumnEditable(shape)) return false;
+    return switch (shape.kind) {
+      ColumnShapeKind.boolean || ColumnShapeKind.isVerified => false,
+      _ => true,
+    };
+  }
+
+  List<Object?> _parsedDraft(TableRowDetailState detail) {
+    final draft = _draft;
+    if (draft == null) return detail.row;
+
+    final parsed = List<Object?>.from(draft);
+    for (var i = 0; i < detail.row.length; i++) {
+      final shape = detail.columnShapes.elementAtOrNull(i);
+      if (shape == null || !isColumnEditable(shape)) {
+        parsed[i] = detail.row[i];
+        continue;
+      }
+      if (shape.kind == ColumnShapeKind.boolean || shape.kind == ColumnShapeKind.isVerified) {
+        continue;
+      }
+      final text = _textInputs[i];
+      if (text == null) continue;
+      parsed[i] = parseEditValue(
+        draftValue: detail.row[i],
+        textInput: text,
+        shape: shape,
+      );
+    }
+    return parsed;
+  }
+
+  Component _buildDetailField(BuildContext context, TableRowDetailState detail, int index) {
+    final shape =
+        detail.columnShapes.elementAtOrNull(index) ??
+        ColumnShape(
+          name: detail.columns.elementAtOrNull(index) ?? 'column_$index',
+          kind: ColumnShapeKind.text,
+          isNullable: true,
+          isPrimaryKey: false,
+          autoIncrement: false,
+          sqlType: 'TEXT',
+        );
+    final label = columnShapeHeaderLabel(shape);
+
+    if (_editing && isColumnEditable(shape)) {
+      return _EditDetailField(
+        fieldLabel: label,
+        shape: shape,
+        value: _draft?[index],
+        textValue: _textInputs[index] ?? '',
+        disabled: _saving,
+        onBoolChanged: (value) {
+          setState(() {
+            _draft ??= List<Object?>.from(detail.row);
+            _draft![index] = value;
+          });
+        },
+        onTextChanged: (value) {
+          setState(() => _textInputs = {..._textInputs, index: value});
+        },
+      );
+    }
+
+    return _DetailField(
+      label: label,
+      value: formatReadOnlyCell(detail.row[index], shape),
+      shape: shape,
+      readOnlyHint: _editing && !isColumnEditable(shape),
+    );
+  }
+
+  Future<void> _saveRow(TableRowDetailState detail) async {
+    if (_saving) return;
+
+    List<Object?> parsedDraft;
+    try {
+      parsedDraft = _parsedDraft(detail);
+    } on FormatException catch (e) {
+      context.read(toastProvider.notifier).showError(e.message);
+      return;
+    }
+
+    final updates = diffRowUpdates(
+      original: detail.row,
+      draft: parsedDraft,
+      columns: detail.columns,
+      columnShapes: detail.columnShapes,
+    );
+
+    if (updates.isEmpty) {
+      _cancelEditing();
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final record = await context.read(tableRowsProvider.notifier).updateRow(
+        sqliteName: detail.sqliteName,
+        row: detail.row,
+        columns: detail.columns,
+        columnShapes: detail.columnShapes,
+        changedFields: updates,
+      );
+      if (!mounted) return;
+
+      final newRow = rowFromRecord(record, detail.columns);
+      context.read(tableRowDetailProvider.notifier).replaceRow(newRow);
+      context.read(toastProvider.notifier).showSuccess('Row updated');
+      setState(() {
+        _editing = false;
+        _saving = false;
+        _draft = null;
+        _textInputs = {};
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      context.read(toastProvider.notifier).showError('$e');
+    }
+  }
+
   @override
   Component build(BuildContext context) {
     if (!context.binding.isClient) {
@@ -348,10 +526,14 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     final cached = _cachedDetail!;
+    final sessionUser = context.watch(sessionUserProvider);
+    final canEditRows = sessionUser?.canEdit == true;
+    final rowEditable = canEditRows && _canEditRow(cached);
     void close() => context.read(tableRowDetailProvider.notifier).close();
     final subtitle = _detailSubtitle(cached);
-    final showRawJson = _showRawJson && _rawJsonRowKey == cached.rowKey;
+    final showRawJson = !_editing && _showRawJson && _rawJsonRowKey == cached.rowKey;
     final openClass = _open ? ' table-row-detail--open' : '';
+    final editingClass = _editing ? ' table-row-detail--editing' : '';
     final resizeClass = _resizing ? ' table-row-detail--resizing' : '';
     final maxWidth = _panelMaxWidthPx.round();
     final panelStyle =
@@ -365,7 +547,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         [],
       ),
       aside(
-        classes: 'table-row-detail-panel$openClass$resizeClass',
+        classes: 'table-row-detail-panel$openClass$resizeClass$editingClass',
         attributes: {'aria-label': 'Row details', 'tabindex': '-1', 'style': panelStyle},
         events: {'click': (event) => event.stopPropagation()},
         [
@@ -392,26 +574,27 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                 if (subtitle.isNotEmpty) p(classes: 'table-row-detail-subtitle', [.text(subtitle)]),
               ]),
               div(classes: 'table-row-detail-header-actions', [
-                button(
-                  classes: 'table-row-detail-view-toggle',
-                  type: .button,
-                  attributes: {
-                    'aria-label': showRawJson ? 'Show field details' : 'Show raw JSON',
-                  },
-                  onClick: () {
-                    context.read(appTooltipProvider.notifier).hide();
-                    setState(() {
-                      if (showRawJson) {
-                        _showRawJson = false;
-                        _rawJsonRowKey = null;
-                      } else {
-                        _showRawJson = true;
-                        _rawJsonRowKey = cached.rowKey;
-                      }
-                    });
-                  },
-                  [.text(showRawJson ? 'Fields' : 'JSON')],
-                ),
+                if (!_editing)
+                  button(
+                    classes: 'table-row-detail-view-toggle',
+                    type: .button,
+                    attributes: {
+                      'aria-label': showRawJson ? 'Show field details' : 'Show raw JSON',
+                    },
+                    onClick: () {
+                      context.read(appTooltipProvider.notifier).hide();
+                      setState(() {
+                        if (showRawJson) {
+                          _showRawJson = false;
+                          _rawJsonRowKey = null;
+                        } else {
+                          _showRawJson = true;
+                          _rawJsonRowKey = cached.rowKey;
+                        }
+                      });
+                    },
+                    [.text(showRawJson ? 'Fields' : 'JSON')],
+                  ),
                 button(
                   classes: 'table-row-detail-close',
                   type: .button,
@@ -422,24 +605,46 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
               ]),
             ]),
             div(classes: 'table-row-detail-body', [
-              if (showRawJson) _RawJsonCard(json: _detailRawJson(cached)) else
+              if (showRawJson)
+                _RawJsonCard(json: _detailRawJson(cached))
+              else
                 for (var i = 0; i < cached.row.length; i++)
-                  _DetailField(
-                    label: columnShapeHeaderLabel(
-                      cached.columnShapes.elementAtOrNull(i) ??
-                          ColumnShape(
-                            name: cached.columns.elementAtOrNull(i) ?? 'column_$i',
-                            kind: ColumnShapeKind.text,
-                            isNullable: true,
-                            isPrimaryKey: false,
-                            autoIncrement: false,
-                            sqlType: 'TEXT',
-                          ),
-                    ),
-                    value: formatSchemaCell(cached.row[i], cached.columnShapes.elementAtOrNull(i), truncate: false),
-                    shape: cached.columnShapes.elementAtOrNull(i),
-                  ),
+                  _buildDetailField(context, cached, i),
             ]),
+            if (rowEditable && !showRawJson)
+              div(classes: 'table-row-detail-footer', [
+                if (_editing)
+                  div(classes: 'table-row-detail-footer-actions', [
+                    button(
+                      classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
+                      type: .button,
+                      attributes: {
+                        'aria-label': 'Save row',
+                        if (_saving) 'disabled': 'true',
+                      },
+                      onClick: _saving ? null : () => _saveRow(cached),
+                      [.text(_saving ? 'Saving…' : 'Save')],
+                    ),
+                    button(
+                      classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
+                      type: .button,
+                      attributes: {
+                        'aria-label': 'Cancel editing',
+                        if (_saving) 'disabled': 'true',
+                      },
+                      onClick: _saving ? null : _cancelEditing,
+                      [.text('Cancel')],
+                    ),
+                  ])
+                else
+                  button(
+                    classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
+                    type: .button,
+                    attributes: {'aria-label': 'Edit row'},
+                    onClick: () => _startEditing(cached),
+                    [.text('Edit row')],
+                  ),
+              ]),
           ]),
         ],
       ),
@@ -610,20 +815,106 @@ String _detailSubtitle(TableRowDetailState detail) {
 }
 
 class _DetailField extends StatelessComponent {
-  const _DetailField({required this.label, required this.value, required this.shape});
+  const _DetailField({
+    required this.label,
+    required this.value,
+    required this.shape,
+    this.readOnlyHint = false,
+  });
 
   final String label;
   final String value;
   final ColumnShape? shape;
+  final bool readOnlyHint;
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'table-row-detail-field', [
-      div(classes: 'table-row-detail-label-row', [
-        span(classes: 'table-row-detail-label', [.text(label)]),
-        _CopyFieldValueButton(label: label, text: value),
-      ]),
-      _DetailFieldValue(value: value, shape: shape),
+    const readOnlyTooltip = 'Read-only';
+    final fieldClass = readOnlyHint
+        ? 'table-row-detail-field table-row-detail-field--readonly-in-edit'
+        : 'table-row-detail-field';
+
+    return div(
+      classes: fieldClass,
+      events: readOnlyHint ? appTooltipEvents(context, text: readOnlyTooltip) : const {},
+      [
+        div(classes: 'table-row-detail-label-row', [
+            span(classes: 'table-row-detail-label table-row-detail-label--stacked', [.text(label)]),
+            if (!readOnlyHint) _CopyFieldValueButton(label: label, text: value),
+          ],
+        ),
+        _DetailFieldValue(value: value, shape: shape),
+      ],
+    );
+  }
+}
+
+class _EditDetailField extends StatelessComponent {
+  const _EditDetailField({
+    required this.fieldLabel,
+    required this.shape,
+    required this.value,
+    required this.textValue,
+    required this.disabled,
+    required this.onBoolChanged,
+    required this.onTextChanged,
+  });
+
+  final String fieldLabel;
+  final ColumnShape shape;
+  final Object? value;
+  final String textValue;
+  final bool disabled;
+  final void Function(bool value) onBoolChanged;
+  final void Function(String value) onTextChanged;
+
+  @override
+  Component build(BuildContext context) {
+    final fieldId = 'table-row-edit-${shape.name}';
+
+    final enumHint = shape.kind == ColumnShapeKind.enum_ && shape.enumValues.isNotEmpty
+        ? shape.enumValues.join(', ')
+        : null;
+
+    return div(classes: 'table-row-detail-field table-row-detail-field--edit', [
+      label(
+        htmlFor: fieldId,
+        classes: 'table-row-detail-label table-row-detail-label--stacked',
+        [.text(fieldLabel)],
+      ),
+      switch (shape.kind) {
+        ColumnShapeKind.boolean || ColumnShapeKind.isVerified => input<bool>(
+          id: fieldId,
+          type: InputType.checkbox,
+          classes: 'table-row-detail-edit-checkbox',
+          checked: cellEditValueAsBool(value),
+          disabled: disabled,
+          onChange: onBoolChanged,
+        ),
+        ColumnShapeKind.enum_ => input<String>(
+          id: fieldId,
+          type: InputType.text,
+          classes: 'table-row-detail-edit-input',
+          value: textValue,
+          disabled: disabled,
+          attributes: {
+            if (enumHint != null) 'placeholder': enumHint,
+            if (shape.isNullable) 'aria-description': 'Leave empty for null',
+          },
+          onInput: onTextChanged,
+        ),
+        _ => input<String>(
+          id: fieldId,
+          type: InputType.text,
+          classes: 'table-row-detail-edit-input',
+          value: textValue,
+          disabled: disabled,
+          attributes: {
+            if (shape.isNullable) 'placeholder': 'Leave empty for null',
+          },
+          onInput: onTextChanged,
+        ),
+      },
     ]);
   }
 }
@@ -975,6 +1266,52 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     raw: const {'font': 'inherit', 'line-height': '1'},
   ),
   css('.table-row-detail-close:hover').styles(backgroundColor: hoverColor, color: fgColor),
+  css('.table-row-detail-footer').styles(
+    flex: Flex(grow: 0, shrink: 0),
+    padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+    border: .only(
+      top: BorderSide.solid(color: borderColor, width: 1.px),
+    ),
+    backgroundColor: surfaceColor,
+  ),
+  css('.table-row-detail-footer-actions').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    gap: Gap.all(8.px),
+  ),
+  css('.table-row-detail-footer-actions .table-row-detail-footer-btn--primary').styles(
+    flex: Flex(grow: 3, shrink: 1),
+    width: .auto,
+  ),
+  css('.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel').styles(
+    flex: Flex(grow: 1, shrink: 1),
+    width: .auto,
+  ),
+  css('.table-row-detail-footer-btn').styles(
+    display: .block,
+    width: 100.percent,
+    padding: .symmetric(horizontal: 16.px, vertical: 10.px),
+    border: Border.all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(8.px)),
+    backgroundColor: surfaceColor,
+    color: fgColor,
+    cursor: .pointer,
+    fontSize: 0.875.rem,
+    fontWeight: .w600,
+    textAlign: TextAlign.center,
+    raw: const {'font': 'inherit', 'line-height': '1.3', 'box-sizing': 'border-box'},
+  ),
+  css('.table-row-detail-footer-btn:hover').styles(backgroundColor: hoverColor),
+  css('.table-row-detail-footer-btn--primary').styles(
+    backgroundColor: primaryColor,
+    color: onPrimaryColor,
+    border: Border.all(color: primaryColor, width: 1.px, style: .solid),
+  ),
+  css('.table-row-detail-footer-btn--primary:hover').styles(backgroundColor: primaryHoverColor),
+  css('.table-row-detail-footer-btn:disabled').styles(
+    opacity: 0.55,
+    cursor: .notAllowed,
+  ),
   css('.table-row-detail-body').styles(
     flex: Flex(grow: 1, shrink: 1),
     overflow: Overflow.auto,
@@ -1097,6 +1434,27 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'to': '{ transform: scale(1); opacity: 1; }',
     },
   ),
+  css('.table-row-detail-field--edit').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(6.px),
+  ),
+  css('.table-row-detail-edit-input').styles(
+    width: 100.percent,
+    padding: .symmetric(horizontal: 10.px, vertical: 8.px),
+    border: Border.all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(6.px)),
+    backgroundColor: bgColor,
+    color: fgColor,
+    fontSize: 0.875.rem,
+    raw: const {'font': 'inherit', 'line-height': '1.4'},
+  ),
+  css('.table-row-detail-edit-input:disabled').styles(opacity: 0.6),
+  css('.table-row-detail-edit-checkbox').styles(
+    width: 16.px,
+    height: 16.px,
+    cursor: .pointer,
+  ),
   css('.table-row-detail-label').styles(
     fontSize: 0.6875.rem,
     fontWeight: .w600,
@@ -1110,6 +1468,16 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'letter-spacing': '0.04em',
       'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
     },
+  ),
+  css('.table-row-detail-label--stacked').styles(
+    display: .block,
+    width: 100.percent,
+    alignSelf: .start,
+    textAlign: TextAlign.left,
+    margin: .zero,
+  ),
+  css('.table-row-detail-field--readonly-in-edit').styles(
+    cursor: .help,
   ),
   css('.table-row-detail-value').styles(
     margin: .zero,

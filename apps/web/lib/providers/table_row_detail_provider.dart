@@ -9,12 +9,14 @@ final class TableRowDetailState {
     required this.row,
     required this.columns,
     required this.columnShapes,
+    required this.sqliteName,
   });
 
   final String rowKey;
   final List<Object?> row;
   final List<String> columns;
   final List<ColumnShape> columnShapes;
+  final String sqliteName;
 }
 
 final tableRowDetailProvider = NotifierProvider<TableRowDetailNotifier, TableRowDetailState?>(
@@ -31,14 +33,28 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
   void open({
     required String rowKey,
     required List<Object?> row,
+    required String sqliteName,
     required List<String> columns,
     required List<ColumnShape> columnShapes,
   }) {
     state = TableRowDetailState(
       rowKey: rowKey,
       row: List<Object?>.from(row),
+      sqliteName: sqliteName,
       columns: columns,
       columnShapes: columnShapes,
+    );
+  }
+
+  void replaceRow(List<Object?> row) {
+    final current = state;
+    if (current == null) return;
+    state = TableRowDetailState(
+      rowKey: current.rowKey,
+      row: List<Object?>.from(row),
+      sqliteName: current.sqliteName,
+      columns: current.columns,
+      columnShapes: current.columnShapes,
     );
   }
 
@@ -50,6 +66,7 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
   void toggle({
     required String rowKey,
     required List<Object?> row,
+    required String sqliteName,
     required List<String> columns,
     required List<ColumnShape> columnShapes,
   }) {
@@ -60,6 +77,7 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
     open(
       rowKey: rowKey,
       row: row,
+      sqliteName: sqliteName,
       columns: columns,
       columnShapes: columnShapes,
     );
