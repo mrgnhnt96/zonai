@@ -3,18 +3,33 @@ import 'dart:typed_data';
 
 import 'table_cell_edit.dart';
 
-/// JSON-safe representation of a cell value for export and display.
-Object? jsonEncodableCellValue(Object? value) {
+/// Column map safe for DB create/update HTTP bodies ([CreateBody], [ObjectUpdate]).
+Map<String, dynamic> apiWireObject(Map<String, Object?> fields) {
+  final encoded = jsonEncode({
+    for (final entry in fields.entries)
+      entry.key: mutationValueToJsonEncodable(entry.value),
+  });
+  return (jsonDecode(encoded) as Map).cast<String, dynamic>();
+}
+
+/// JSON-safe cell values for create/update payloads (stricter than [jsonEncodableCellValue]).
+Object? mutationValueToJsonEncodable(Object? value) {
   return switch (value) {
+    BigInt b => b.toString(),
     DateTime d => d.millisecondsSinceEpoch,
     Uint8List bytes => base64Encode(bytes),
     final Map m => {
       for (final entry in m.entries)
-        entry.key.toString(): jsonEncodableCellValue(entry.value),
+        entry.key.toString(): mutationValueToJsonEncodable(entry.value),
     },
-    final List l => [for (final e in l) jsonEncodableCellValue(e)],
+    final List l => [for (final e in l) mutationValueToJsonEncodable(e)],
     _ => value,
   };
+}
+
+/// JSON-safe representation of a cell value for export and display.
+Object? jsonEncodableCellValue(Object? value) {
+  return mutationValueToJsonEncodable(value);
 }
 
 Map<String, Object?> tableRowToJsonMap({

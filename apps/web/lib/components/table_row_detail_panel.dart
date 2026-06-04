@@ -226,7 +226,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       }
       if (!_editing) return;
       final detail = _cachedDetail;
-      if (detail == null || !_hasUnsavedChanges(detail)) return;
+      if (detail == null || !_canSubmitEdit(detail)) return;
       event.preventDefault();
       _saveRow(detail);
     }
@@ -982,6 +982,17 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     ).isEmpty;
   }
 
+  bool _canSubmitEdit(TableRowDetailState detail) {
+    if (_saving || !_editing || !_hasUnsavedChanges(detail)) return false;
+    final draft = _draft;
+    if (draft == null) return false;
+    return remainingCreateRequiredFieldLabels(
+      draft: draft,
+      textInputs: _textInputs,
+      columnShapes: detail.columnShapes,
+    ).isEmpty;
+  }
+
   Component _buildCreatePanel(BuildContext context, TableRowCreateState create) {
     final canSubmit = _canSubmitCreate(create);
     final draft = _draft ?? initialCreateDraft(create.columnShapes);
@@ -1100,7 +1111,14 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final allActions = context.watch(tableCollectionActionsProvider);
     final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
     final rowEditable = _canEditRow(cached, allActions, sessionCanEdit);
-    final hasUnsavedChanges = _hasUnsavedChanges(cached);
+    final canSave = _canSubmitEdit(cached);
+    final requiredFields = _editing && _draft != null
+        ? remainingCreateRequiredFieldLabels(
+            draft: _draft!,
+            textInputs: _textInputs,
+            columnShapes: cached.columnShapes,
+          )
+        : const <String>[];
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     final subtitle = _detailSubtitle(cached);
     final showRawJson = !_editing && _showRawJson && _rawJsonRowKey == cached.rowKey;
@@ -1182,17 +1200,26 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                   _buildDetailField(context, cached, i),
             ]),
             if (rowEditable && !showRawJson)
-              div(classes: 'table-row-detail-footer', [
-                if (_editing)
+              div(
+                classes: [
+                  'table-row-detail-footer',
+                  if (_editing) 'table-row-detail-footer--create',
+                ].join(' '),
+                [
+                if (_editing) ...[
+                  if (requiredFields.isNotEmpty)
+                    p(classes: 'table-row-create-required-hint', [
+                      .text('Required: ${requiredFields.join(', ')}'),
+                    ]),
                   div(classes: 'table-row-detail-footer-actions', [
                     button(
                       classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
                       type: .button,
                       attributes: {
                         'aria-label': 'Save row',
-                        if (_saving || !hasUnsavedChanges) 'disabled': 'true',
+                        if (_saving || !canSave) 'disabled': 'true',
                       },
-                      onClick: (_saving || !hasUnsavedChanges) ? null : () => _saveRow(cached),
+                      onClick: canSave ? () => _saveRow(cached) : null,
                       [.text(_saving ? 'Saving…' : 'Save')],
                     ),
                     button(
@@ -1205,8 +1232,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                       onClick: _saving ? null : () => _requestDismiss(cached, _PendingDismiss.cancelEditing),
                       [.text('Cancel')],
                     ),
-                  ])
-                else
+                  ]),
+                ] else
                   button(
                     classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
                     type: .button,

@@ -172,7 +172,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       final created = await revaliServer.db.create(
         body: CreateBody(
           table: sqliteName,
-          object: Map<String, dynamic>.from(object),
+          object: apiWireObject(object),
         ),
       );
       ref.invalidateSelf();
@@ -208,7 +208,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
         body: UpdateOneBody(
           table: sqliteName,
           where: where,
-          updates: [ObjectUpdate(changedFields)],
+          updates: [ObjectUpdate(apiWireObject(changedFields))],
         ),
       );
       ref.invalidateSelf();
