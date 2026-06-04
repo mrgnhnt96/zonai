@@ -286,9 +286,30 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
 
     if (key != 'Enter' || !inside) return;
 
-    _setOpen(false);
+    if (target?.classList.contains('table-edit-datetime__footer-btn') == true) {
+      return;
+    }
+
     event.stopPropagation();
     event.preventDefault();
+    _commitEnterAndClose(target);
+  }
+
+  void _commitEnterAndClose(web.HTMLElement? target) {
+    final day = _dayFromDayButton(target);
+    if (day != null) {
+      _selectDay(day);
+    } else if (_shouldSpaceSelectFocusedDay(target)) {
+      _selectKeyboardFocusedDay();
+    }
+    _setOpen(false);
+  }
+
+  int? _dayFromDayButton(web.HTMLElement? target) {
+    if (target == null) return null;
+    if (!target.classList.contains('table-edit-datetime__day')) return null;
+    if (target.classList.contains('table-edit-datetime__day--empty')) return null;
+    return int.tryParse(target.textContent?.trim() ?? '');
   }
 
   static bool _isArrowKey(String key) {

@@ -76,6 +76,10 @@ class TableValueEditor extends StatelessComponent {
       );
     }
 
+    if (isPasswordColumn(shape)) {
+      return _passwordEditor(onText);
+    }
+
     return switch (editKind) {
       ColumnShapeKind.boolean || ColumnShapeKind.isVerified => TableEditBooleanField(
         id: id,
@@ -193,6 +197,22 @@ class TableValueEditor extends StatelessComponent {
       return cellEditValueAsBool(draftValue);
     }
     return filterBool;
+  }
+
+  Component _passwordEditor(void Function(String text) onText) {
+    return input<String>(
+      id: id,
+      type: .password,
+      classes: inputClass ?? ZonaiClasses.input,
+      attributes: {
+        if (labelId != null) 'aria-labelledby': labelId!,
+        'placeholder': shape.isNullable ? 'Leave empty to keep unchanged' : 'Enter value',
+        'autocomplete': 'new-password',
+      },
+      value: textValue,
+      disabled: disabled,
+      onInput: onText,
+    );
   }
 
   Component _plainTextEditor(ColumnShape shape, void Function(String text) onText) {

@@ -28,6 +28,8 @@ class TableEditBigIntField extends StatelessComponent {
   final bool disabled;
   final String? inputClass;
 
+  void _emitText(String text) => onInput(filterBigIntDecimalInput(text));
+
   @override
   Component build(BuildContext context) {
     return input<String>(
@@ -43,7 +45,8 @@ class TableEditBigIntField extends StatelessComponent {
       },
       value: value,
       disabled: disabled,
-      onInput: (text) => onInput(filterBigIntDecimalInput(text)),
+      onInput: _emitText,
+      onChange: _emitText,
     );
   }
 }

@@ -423,6 +423,20 @@ void main() {
   });
 
   group('isColumnEditable', () {
+    test('password columns are editable', () {
+      const passwordShape = ColumnShape(
+        name: 'secret_note',
+        kind: ColumnShapeKind.password,
+        isNullable: false,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'TEXT',
+        isSecret: true,
+      );
+
+      expect(isColumnEditable(passwordShape), isTrue);
+    });
+
     test('list and enumList are editable', () {
       const listShape = ColumnShape(
         name: 'keywords',
@@ -466,6 +480,46 @@ void main() {
 
       expect(isColumnEditable(mapShape), isTrue);
       expect(isColumnEditable(blobShape), isTrue);
+    });
+  });
+
+  group('password columns', () {
+    const passwordShape = ColumnShape(
+      name: 'secret_note',
+      kind: ColumnShapeKind.password,
+      isNullable: false,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+      isSecret: true,
+    );
+
+    test('cellToEditString does not expose stored value', () {
+      expect(cellToEditString('hash-value', passwordShape), '');
+    });
+
+    test('diff omits blank password on update', () {
+      expect(
+        diffRowUpdates(
+          original: [null],
+          draft: [null],
+          columns: ['secret_note'],
+          columnShapes: [passwordShape],
+        ),
+        isEmpty,
+      );
+    });
+
+    test('diff includes new password text', () {
+      expect(
+        diffRowUpdates(
+          original: [null],
+          draft: ['new-secret'],
+          columns: ['secret_note'],
+          columnShapes: [passwordShape],
+        ),
+        {'secret_note': 'new-secret'},
+      );
     });
   });
 
@@ -686,6 +740,32 @@ void main() {
           columnShapes: const [pkShape, titleShape, createdAtShape],
         ),
         isEmpty,
+      );
+    });
+
+    test('includes big_count when parsed from text wire', () {
+      const bigCountShape = ColumnShape(
+        name: 'big_count',
+        kind: ColumnShapeKind.bigInt,
+        isNullable: false,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'BLOB',
+      );
+      final draft = initialCreateDraft(const [bigCountShape]);
+      draft[0] = parseEditValue(
+        draftValue: draft[0],
+        textInput: '123',
+        shape: bigCountShape,
+      );
+
+      expect(
+        buildCreateObject(
+          draft: draft,
+          columns: const ['big_count'],
+          columnShapes: const [bigCountShape],
+        ),
+        {'big_count': BigInt.parse('123')},
       );
     });
   });

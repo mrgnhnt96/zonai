@@ -671,6 +671,19 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         parsed[i] = parseDraftCellValue(draftValue: _draft![i], shape: shape);
         continue;
       }
+      if (isPasswordColumn(shape)) {
+        final text = _textInputs[i];
+        if (isPasswordUpdateUnchanged(text)) {
+          parsed[i] = detail.row[i];
+          continue;
+        }
+        parsed[i] = parseEditValue(
+          draftValue: _draft![i],
+          textInput: text!,
+          shape: shape,
+        );
+        continue;
+      }
       final text = _textInputs[i];
       if (text == null) continue;
       parsed[i] = parseEditValue(
@@ -724,9 +737,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 
   List<Object?> _parsedCreateDraft(TableRowCreateState create) {
-    final draft = _draft;
-    if (draft == null) return initialCreateDraft(create.columnShapes);
-
+    final draft = _draft ?? initialCreateDraft(create.columnShapes);
     final parsed = List<Object?>.from(draft);
     for (var i = 0; i < create.columns.length; i++) {
       final shape = create.columnShapes.elementAtOrNull(i);
@@ -735,11 +746,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         parsed[i] = parseDraftCellValue(draftValue: draft[i], shape: shape);
         continue;
       }
-      final text = _textInputs[i];
-      if (text == null) continue;
       parsed[i] = parseEditValue(
         draftValue: draft[i],
-        textInput: text,
+        textInput: _textInputs[i] ?? '',
         shape: shape,
       );
     }
@@ -755,15 +764,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 
   bool _hasUnsavedCreateChanges(TableRowCreateState create) {
-    if (_draft == null) return false;
     final initial = initialCreateDraft(create.columnShapes);
+    final draft = _draft ?? initial;
 
     for (var i = 0; i < create.columnShapes.length; i++) {
       final shape = create.columnShapes[i];
       if (!isColumnEditable(shape)) continue;
 
       if (usesDraftValueColumn(shape)) {
-        if (!cellValuesEqual(initial[i], _draft![i], shape)) return true;
+        if (!cellValuesEqual(initial[i], draft[i], shape)) return true;
         continue;
       }
 

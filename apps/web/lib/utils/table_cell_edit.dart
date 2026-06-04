@@ -6,14 +6,17 @@ import 'package:zonai_schema/payloads.dart';
 
 const _deepCollectionEquality = DeepCollectionEquality();
 
+/// Password or other secret columns (redacted in list responses).
+bool isPasswordColumn(ColumnShape shape) =>
+    shape.isSecret || shape.kind == ColumnShapeKind.password;
+
 /// Whether the admin UI should offer editing for this column.
 bool isColumnEditable(ColumnShape shape) {
-  if (shape.isPrimaryKey || shape.autoIncrement || shape.isReadOnly || shape.isSecret) {
+  if (shape.isPrimaryKey || shape.autoIncrement || shape.isReadOnly) {
     return false;
   }
 
   return switch (shape.kind) {
-    ColumnShapeKind.password ||
     ColumnShapeKind.createdAt ||
     ColumnShapeKind.updatedAt ||
     ColumnShapeKind.photo ||
@@ -104,6 +107,7 @@ List<String> remainingCreateRequiredFieldLabels({
 /// String shown in text inputs before editing (not used for checkbox fields).
 String cellToEditString(Object? value, ColumnShape? shape) {
   if (value == null) return '';
+  if (shape != null && isPasswordColumn(shape)) return '';
 
   return switch (shape?.kind) {
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => '',
@@ -200,6 +204,10 @@ Object? parseEditValue({required Object? draftValue, required String textInput, 
     throw FormatException('${shape.name} is required');
   }
 
+  if (isPasswordColumn(shape)) {
+    return _parsePasswordEditValue(trimmed, shape: shape);
+  }
+
   final editKind = effectiveColumnEditKind(shape, draftValue);
 
   return switch (editKind) {
@@ -280,6 +288,23 @@ String parseEnumListEditValue(Object? draftValue, List<String> enumValues) {
   return joinCommaSeparatedList(items);
 }
 
+Object? _parsePasswordEditValue(String text, {required ColumnShape shape}) {
+  if (text.isEmpty) {
+    if (shape.isNullable) return null;
+    throw FormatException('${shape.name} is required');
+  }
+  return text;
+}
+
+/// True when a password field was left blank (keep existing value on update).
+bool isPasswordUpdateUnchanged(String? textInput) => textInput == null || textInput.trim().isEmpty;
+
+bool _passwordValuesEqual(Object? a, Object? b) {
+  bool unchanged(Object? value) => value == null || (value is String && value.trim().isEmpty);
+  if (unchanged(a) && unchanged(b)) return true;
+  return a == b;
+}
+
 bool _parseBool(String text) {
   return switch (text.toLowerCase()) {
     'yes' || 'true' || '1' => true,
@@ -311,6 +336,10 @@ DateTime _parseDateTime(String text) {
 bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
   if (a == b) return true;
   if (a == null || b == null) return false;
+
+  if (shape != null && isPasswordColumn(shape)) {
+    return _passwordValuesEqual(a, b);
+  }
 
   if (shape?.kind == ColumnShapeKind.boolean || shape?.kind == ColumnShapeKind.isVerified) {
     return cellEditValueAsBool(a) == cellEditValueAsBool(b);
@@ -743,6 +772,7 @@ Map<String, Object?> diffRowUpdates({
   for (var i = 0; i < columns.length; i++) {
     final shape = columnShapes.elementAtOrNull(i);
     if (shape == null || !isColumnEditable(shape)) continue;
+    if (isPasswordColumn(shape) && draft[i] == original[i]) continue;
     if (cellValuesEqual(original[i], draft[i], shape)) continue;
     updates[columns[i]] = draft[i];
   }
@@ -811,6 +841,10 @@ bool isDateTimeColumnKind(ColumnShapeKind kind) =>
 
 /// HTML input attributes for native typed inputs (filter + edit).
 Map<String, String> validationAttributesForShape(ColumnShape shape) {
+  if (isPasswordColumn(shape)) {
+    return const {'type': 'password', 'autocomplete': 'new-password'};
+  }
+
   return switch (shape.kind) {
     ColumnShapeKind.integer || ColumnShapeKind.bigInt => const {
       'inputmode': 'numeric',

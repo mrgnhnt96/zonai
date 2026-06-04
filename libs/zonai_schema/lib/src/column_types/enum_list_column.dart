@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:raindrop/raindrop.dart';
 
 /// Dart [Enum] stored as TEXT (enum [.name] on the wire by default).
@@ -46,17 +48,17 @@ class EnumListTransformer<E extends Enum>
 
   @override
   String encode(List<E> input) {
-    if (!values.contains(input)) {
-      throw ArgumentError.value(
-        input,
-        'input',
-        'Invalid value for enum $values',
-      );
-    }
-    return input.map(toWire).join(',');
+    final items = _enumItems(input);
+    return items.map(toWire).join(',');
   }
 
-  E _decodeSingle(String input) {
+  List<E> _enumItems(List<E> input) {
+    if (input.isEmpty) return input;
+    if (input.every(values.contains)) return input;
+    return decode(input);
+  }
+
+  E _decodeSingle(Object input) {
     return switch (input) {
       final E value when values.contains(value) => value,
       final String wire =>
@@ -67,19 +69,57 @@ class EnumListTransformer<E extends Enum>
               'wire',
               'Invalid value for enum $values',
             )),
+      _ => throw ArgumentError.value(
+        input,
+        'input',
+        'Invalid value for enum $values',
+      ),
     };
   }
 
   @override
   List<E> decode(Object input) {
-    return switch (input) {
-      final List<E> values => values,
-      final String input => input.split(',').map(_decodeSingle).toList(),
-      _ => throw ArgumentError.value(
-        input,
-        'input',
-        'Expected List<E> or String, got ${input.runtimeType}',
-      ),
-    };
+    if (input is String) {
+      if (input.isEmpty) {
+        return [];
+      }
+      final trimmed = input.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is List) {
+            return decode(decoded);
+          }
+        } on FormatException {
+          // fall through to comma split
+        }
+      }
+      return input.split(',').map(_decodeSingle).toList();
+    }
+
+    if (input is List) {
+      final items = _flattenList(input);
+      if (items.isNotEmpty && items.every((e) => e is E && values.contains(e))) {
+        return List<E>.from(items.cast<E>());
+      }
+      return [
+        for (final item in items)
+          if (item != null) _decodeSingle(item),
+      ];
+    }
+
+    throw ArgumentError.value(
+      input,
+      'input',
+      'Expected List<E> or String, got ${input.runtimeType}',
+    );
+  }
+
+  /// Unwraps a single nested list (e.g. `[["a","b"]]` from JSON) to `["a","b"]`.
+  List<Object?> _flattenList(List input) {
+    if (input.length == 1 && input.first is List) {
+      return List<Object?>.from(input.first as List);
+    }
+    return List<Object?>.from(input);
   }
 }
