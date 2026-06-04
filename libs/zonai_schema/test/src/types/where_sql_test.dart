@@ -47,5 +47,12 @@ void main() {
       final after = Where.fromJson(Lt('timestamp', at).toJson()).sql('_log');
       expect(after, before);
     });
+
+    test('In JSON round-trip produces IN with each value', () {
+      const before = In('level', <Object>['request', 'trace', 'verbose']);
+      final after = Where.fromJson(before.toJson()) as In;
+      expect(after.values, ['request', 'trace', 'verbose']);
+      expect(after.sql('_log'), '"_log"."level" IN (\'request\', \'trace\', \'verbose\')');
+    });
   });
 }

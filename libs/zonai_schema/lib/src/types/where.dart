@@ -167,7 +167,8 @@ final class In extends Where {
   const In(this.column, this.values);
 
   factory In.fromJson(Map json) {
-    return In(json['column'] as String, [
+    return In(
+      json['column'] as String,
       switch (json['values']) {
         final String s => [serializeWhereValue(jsonDecode(s) as Object)],
         final List list => [
@@ -179,7 +180,7 @@ final class In extends Where {
           'Expected a string or list',
         ),
       },
-    ]);
+    );
   }
 
   final String column;
@@ -198,7 +199,8 @@ final class NotIn extends Where {
   const NotIn(this.column, this.values);
 
   factory NotIn.fromJson(Map json) {
-    return NotIn(json['column'] as String, [
+    return NotIn(
+      json['column'] as String,
       switch (json['values']) {
         final String s => [serializeWhereValue(jsonDecode(s) as Object)],
         final List list => [
@@ -210,7 +212,7 @@ final class NotIn extends Where {
           'Expected a string or list',
         ),
       },
-    ]);
+    );
   }
 
   final String column;
