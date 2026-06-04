@@ -369,11 +369,6 @@ class HomeScreen extends StatelessComponent {
       ),
       css('.rows-row').styles(cursor: .pointer),
       css('.rows-row--selected td').styles(backgroundColor: selectedBgColor),
-      css('.rows-row--detail-active td').styles(
-        backgroundColor: selectedBgColor,
-        raw: const {'box-shadow': 'inset 3px 0 0 var(--zonai-primary)'},
-      ),
-      css('.rows-row--detail-active.rows-row--selected td').styles(backgroundColor: selectedBgColor),
       css('.table-rows-selection-float').styles(
         display: .flex,
         justifyContent: .center,
@@ -630,11 +625,7 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     if (event is! web.KeyboardEvent || event.key != 'Escape') return;
     if (!mounted) return;
 
-    final active = web.document.activeElement;
-    final detailPanel = web.document.querySelector('.table-row-detail-panel');
-    if (detailPanel is web.Element &&
-        active is web.Element &&
-        detailPanel.contains(active)) {
+    if (context.read(tableRowDetailProvider) != null) {
       return;
     }
 
@@ -902,8 +893,7 @@ class _SelectableRow extends StatelessComponent {
 
   String? get _rowClass {
     final parts = <String>['rows-row'];
-    if (selected) parts.add('rows-row--selected');
-    if (detailActive) parts.add('rows-row--detail-active');
+    if (selected || detailActive) parts.add('rows-row--selected');
     return parts.join(' ');
   }
 
