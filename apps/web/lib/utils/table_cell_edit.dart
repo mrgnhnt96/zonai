@@ -686,7 +686,11 @@ Map<String, Object?> diffRowUpdates({
 }
 
 String formatReadOnlyCell(Object? value, ColumnShape? shape) {
-  return formatSchemaCell(value, shape, truncate: false);
+  return switch (shape?.kind) {
+    ColumnShapeKind.boolean || ColumnShapeKind.isVerified when value != null =>
+      cellEditValueAsBool(value) ? 'true' : 'false',
+    _ => formatSchemaCell(value, shape, truncate: false),
+  };
 }
 
 bool isForeignKeyColumn(ColumnShape shape) => shape.foreignKey != null;
