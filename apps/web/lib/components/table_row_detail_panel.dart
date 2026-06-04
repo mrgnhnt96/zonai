@@ -8,6 +8,7 @@ import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
+import '../constants/layout.dart';
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/resolved_collection_provider.dart';
@@ -99,9 +100,22 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     return 1200;
   }
 
+  bool _isMobilePanelViewport([double? viewportWidth]) {
+    final vw = viewportWidth ?? _viewportWidthPx();
+    return vw <= ZonaiLayout.mobilePanelBreakpointPx;
+  }
+
   double get _panelMaxWidthPx {
     final vw = _viewportWidthPx();
+    if (_isMobilePanelViewport(vw)) return vw;
     return math.max(_panelMinWidthPx, vw * _panelMaxWidthFraction);
+  }
+
+  void _syncPanelWidthToViewport() {
+    final vw = _viewportWidthPx();
+    if (!_isMobilePanelViewport(vw)) return;
+    _panelWidthPx = vw;
+    _applyPanelWidthPx(vw);
   }
 
   double _panelRightEdgePx() {
@@ -180,8 +194,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 
   void _applyPanelWidthPx(double widthPx) {
+    final vw = _viewportWidthPx();
     final maxWidth = _panelMaxWidthPx;
-    final width = widthPx.clamp(_panelMinWidthPx, maxWidth);
+    final width = _isMobilePanelViewport(vw) ? vw : widthPx.clamp(_panelMinWidthPx, maxWidth);
     _panelWidthPx = width;
     final panel = _resizeBoundPanel;
     if (panel case web.HTMLElement(:final style)) {
@@ -296,6 +311,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final panel = web.document.querySelector('.table-row-detail-panel.table-row-detail--open');
     if (panel is! web.HTMLElement) return false;
     _resizeBoundPanel = panel;
+    _syncPanelWidthToViewport();
     _applyPanelWidthPx(_panelWidthPx);
 
     final handle = panel.querySelector('.table-row-detail-resize-handle');
@@ -706,9 +722,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final openClass = _open ? ' table-row-detail--open' : '';
     final editingClass = _editing ? ' table-row-detail--editing' : '';
     final resizeClass = _resizing ? ' table-row-detail--resizing' : '';
+    final vw = _viewportWidthPx();
+    final isMobile = _isMobilePanelViewport(vw);
     final maxWidth = _panelMaxWidthPx.round();
-    final panelStyle =
-        'width: ${_panelWidthPx.round()}px; min-width: ${_panelMinWidthPx.round()}px; max-width: ${maxWidth}px;';
+    final panelStyle = isMobile
+        ? 'width: ${vw.round()}px; min-width: 100%; max-width: 100%;'
+        : 'width: ${_panelWidthPx.round()}px; min-width: ${_panelMinWidthPx.round()}px; max-width: ${maxWidth}px;';
 
     return Component.fragment([
       div(
@@ -1349,6 +1368,13 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'z-index': '10',
     },
   ),
+  css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
+    css('.table-row-detail-panel').styles(
+      width: 100.percent,
+      raw: const {'max-width': '100%', 'min-width': '100%', 'left': '0', 'right': '0'},
+    ),
+    css('.table-row-detail-resize-handle').styles(display: .none),
+  ]),
   css('.table-row-detail-main').styles(
     flex: Flex(grow: 1, shrink: 1),
     display: .flex,

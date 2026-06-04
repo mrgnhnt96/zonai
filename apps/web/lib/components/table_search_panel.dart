@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../constants/layout.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/table_filter_provider.dart';
@@ -803,4 +804,11 @@ List<StyleRule> tableSearchSidePanelStyles = [
     raw: const {'font': 'inherit', 'line-height': '1'},
   ),
   css('.table-search-side-close:hover').styles(backgroundColor: hoverColor),
+  css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
+    css('.table-search-side-panel').styles(
+      width: 100.percent,
+      raw: const {'max-width': '100%', 'min-width': '100%', 'left': '0', 'right': '0'},
+    ),
+    css('.table-search-resize-handle').styles(display: .none),
+  ]),
 ];

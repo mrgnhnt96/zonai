@@ -8,6 +8,7 @@ import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
+import '../constants/layout.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../utils/dom_event_values.dart';
 import '../providers/table_filter_provider.dart';
@@ -20,7 +21,6 @@ const _slideDuration = Duration(milliseconds: 250);
 const _panelMinWidthPx = 320.0;
 const _panelDefaultWidthFraction = 0.25;
 const _panelMaxWidthFraction = 3 / 4;
-const _mobileBreakpointPx = 640.0;
 class TableSearchSidePanel extends StatefulComponent {
   const TableSearchSidePanel({super.key});
 
@@ -115,11 +115,20 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     return 1200;
   }
 
-  double get _panelMaxWidthPx => math.max(_panelMinWidthPx, _viewportWidthPx() * _panelMaxWidthFraction);
+  bool _isMobilePanelViewport([double? viewportWidth]) {
+    final vw = viewportWidth ?? _viewportWidthPx();
+    return vw <= ZonaiLayout.mobilePanelBreakpointPx;
+  }
+
+  double get _panelMaxWidthPx {
+    final vw = _viewportWidthPx();
+    if (_isMobilePanelViewport(vw)) return vw;
+    return math.max(_panelMinWidthPx, vw * _panelMaxWidthFraction);
+  }
 
   double _defaultPanelWidthPx() {
     final viewport = _viewportWidthPx();
-    if (viewport <= _mobileBreakpointPx) return _panelMinWidthPx;
+    if (_isMobilePanelViewport(viewport)) return viewport;
     return (viewport * _panelDefaultWidthFraction).clamp(_panelMinWidthPx, _panelMaxWidthPx);
   }
 
@@ -139,7 +148,8 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
   }
 
   void _applyPanelWidthPx(double widthPx) {
-    final width = widthPx.clamp(_panelMinWidthPx, _panelMaxWidthPx);
+    final vw = _viewportWidthPx();
+    final width = _isMobilePanelViewport(vw) ? vw : widthPx.clamp(_panelMinWidthPx, _panelMaxWidthPx);
     _panelWidthPx = width;
     if (_resizeBoundPanel case web.HTMLElement(:final style)) {
       style.setProperty('width', '${width.round()}px');
@@ -300,8 +310,11 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     final summary = tableFilterPanelSummary(filter, shapes);
     final openClass = _open ? ' table-search--open' : '';
     final resizeClass = _resizing ? ' table-search--resizing' : '';
-    final panelStyle =
-        'width: ${_panelWidthPx.round()}px; min-width: ${_panelMinWidthPx.round()}px; max-width: ${_panelMaxWidthPx.round()}px;';
+    final vw = _viewportWidthPx();
+    final isMobile = _isMobilePanelViewport(vw);
+    final panelStyle = isMobile
+        ? 'width: ${vw.round()}px; min-width: 100%; max-width: 100%;'
+        : 'width: ${_panelWidthPx.round()}px; min-width: ${_panelMinWidthPx.round()}px; max-width: ${_panelMaxWidthPx.round()}px;';
     final close = () => context.read(tableFilterProvider.notifier).closePanel();
 
     return Component.fragment([
