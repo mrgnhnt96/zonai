@@ -4,6 +4,8 @@ import 'package:universal_web/web.dart' as web;
 import 'package:zonai_web/utils/navigable_sidebar_tables.dart';
 import 'package:zonai_web/utils/sqlite_table_utils.dart';
 
+import '../components/app_tooltip_overlay.dart';
+import 'app_tooltip_provider.dart';
 import 'home_ui_provider.dart';
 import 'sqlite_tables_provider.dart';
 import 'table_focus_provider.dart';
@@ -41,6 +43,11 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
   TableRowKeyboardFocusState build() {
     ref.watch(tableFocusProvider);
     ref.watch(tableSortProvider);
+    ref.listen(homeUiProvider, (_, __) {
+      if (_zone == HomeKeyboardFocusZone.sidebar) {
+        Future.microtask(_syncCollapsedSidebarRailTooltip);
+      }
+    });
     return TableRowKeyboardFocusState(
       zone: _zone,
       sidebarTableSqliteName: _sidebarTableSqliteName,
@@ -67,14 +74,57 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
     );
   }
 
-  void _scrollSidebarTableIntoView(String sqliteName) {
-    if (!ref.binding.isClient) return;
+  web.Element? _visibleSidebarTableItem(String sqliteName) {
+    if (!ref.binding.isClient) return null;
     final ui = ref.read(homeUiProvider);
     final regionClass = ui.sidebarVisuallyCollapsed ? 'home-sidebar-rail' : 'home-sidebar-body';
-    final scrollEl = web.document.querySelector('.$regionClass');
-    final item = web.document.getElementById(sidebarTableItemId(sqliteName));
-    if (scrollEl == null || item == null) return;
+    final region = web.document.querySelector('.$regionClass');
+    return region?.querySelector('#${sidebarTableItemId(sqliteName)}');
+  }
+
+  void _scrollSidebarTableIntoView(String sqliteName) {
+    final item = _visibleSidebarTableItem(sqliteName);
+    if (item == null) return;
     item.scrollIntoView(web.ScrollIntoViewOptions(block: 'nearest'));
+  }
+
+  void _syncCollapsedSidebarRailTooltip() {
+    if (!ref.binding.isClient) return;
+    final ui = ref.read(homeUiProvider);
+    final notifier = ref.read(appTooltipProvider.notifier);
+    if (!ui.sidebarVisuallyCollapsed || _zone != HomeKeyboardFocusZone.sidebar) {
+      notifier.hide();
+      return;
+    }
+    final sqlite = _sidebarTableSqliteName;
+    if (sqlite == null) {
+      notifier.hide();
+      return;
+    }
+    final item = _visibleSidebarTableItem(sqlite);
+    final button = item?.querySelector('.home-sidebar-item-button--rail') ??
+        item?.querySelector('.home-sidebar-item-button');
+    if (button == null) {
+      notifier.hide();
+      return;
+    }
+    String? displayName;
+    for (final t in ref.read(sqliteTablesProvider).tables) {
+      if (t.sqliteName == sqlite) {
+        displayName = t.displayName;
+        break;
+      }
+    }
+    if (displayName == null) {
+      notifier.hide();
+      return;
+    }
+    showAppTooltipForElement(
+      notifier,
+      anchor: button,
+      text: displayName,
+      placement: AppTooltipPlacement.rightCenter,
+    );
   }
 
   void rememberRowForTable(String tableSqliteName, String? rowKey) {
@@ -90,6 +140,7 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
     if (state.rowKey == rowKey && _zone == HomeKeyboardFocusZone.tableRows) return;
     _zone = HomeKeyboardFocusZone.tableRows;
     _publish(rowKey: rowKey);
+    ref.read(appTooltipProvider.notifier).hide();
   }
 
   void focusIndex(int index, List<String> pageKeys, {required String tableSqliteName}) {
@@ -120,6 +171,7 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
     if (state.rowKey == null && _zone == HomeKeyboardFocusZone.tableRows) return;
     _zone = HomeKeyboardFocusZone.tableRows;
     _publish(rowKey: null);
+    ref.read(appTooltipProvider.notifier).hide();
   }
 
   void enterSidebar({required String tableSqliteName, String? currentRowKey}) {
@@ -128,6 +180,7 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
     _zone = HomeKeyboardFocusZone.sidebar;
     _publish(rowKey: state.rowKey);
     _scrollSidebarTableIntoView(tableSqliteName);
+    Future.microtask(_syncCollapsedSidebarRailTooltip);
   }
 
   void exitToTableRows({required String tableSqliteName, required List<String> pageKeys}) {
@@ -140,6 +193,7 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
     }
     _zone = HomeKeyboardFocusZone.tableRows;
     _publish(rowKey: rowKey);
+    ref.read(appTooltipProvider.notifier).hide();
   }
 
   void moveSidebarTableBy(int delta) {
@@ -160,6 +214,7 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
     _sidebarTableSqliteName = table.sqliteName;
     _publish(rowKey: state.rowKey);
     _scrollSidebarTableIntoView(table.sqliteName);
+    Future.microtask(_syncCollapsedSidebarRailTooltip);
   }
 
   void selectSidebarTable(BuildContext context) {
