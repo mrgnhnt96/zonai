@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:jaspr/dom.dart';
@@ -23,8 +22,10 @@ import '../utils/table_row_edit.dart';
 import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
+import 'query_preview_card.dart';
 import 'syntax_highlighted_code.dart';
 import 'table_edit/foreign_key_picker_dialog.dart';
+import 'theme/theme_components.dart';
 import 'table_edit/table_cell_edit_field.dart';
 import 'table_edit/table_edit_styles.dart';
 import '../constants/spacing.dart';
@@ -622,7 +623,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 
     return _DetailField(
       label: label,
-      value: formatReadOnlyCell(detail.row[index], shape),
+      rawValue: detail.row[index],
       shape: shape,
       readOnlyHint: _editing && !isColumnEditable(shape),
     );
@@ -883,11 +884,10 @@ class _DiscardChangesDialog extends StatelessComponent {
 
 String _detailRawJson(TableRowDetailState detail) {
   final map = tableRowToJsonMap(columns: detail.columns, row: detail.row);
-  const encoder = JsonEncoder.withIndent('  ');
   try {
-    return encoder.convert(map);
+    return formatDisplayJson(map);
   } on Object {
-    return encoder.convert({
+    return formatDisplayJson({
       for (final entry in map.entries) entry.key: entry.value?.toString(),
     });
   }
@@ -900,18 +900,11 @@ class _RawJsonCard extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return div(classes: 'table-row-detail-json-card', [
-      div(classes: 'table-row-detail-json-card-toolbar', [
-        _CopyFieldValueButton(label: 'JSON', text: json),
-      ]),
-      pre(classes: 'table-row-detail-json-card-pre', [
-        SyntaxHighlightedCode(
-          source: json,
-          language: SyntaxHighlightLanguage.json,
-          extraClasses: 'table-row-detail-json-highlight',
-        ),
-      ]),
-    ]);
+    return QueryPreviewCard(
+      label: 'JSON',
+      text: json,
+      highlightLanguage: SyntaxHighlightLanguage.json,
+    );
   }
 }
 
@@ -931,15 +924,17 @@ String _detailSubtitle(TableRowDetailState detail) {
 class _DetailField extends StatelessComponent {
   const _DetailField({
     required this.label,
-    required this.value,
+    required this.rawValue,
     required this.shape,
     this.readOnlyHint = false,
   });
 
   final String label;
-  final String value;
-  final ColumnShape? shape;
+  final Object? rawValue;
+  final ColumnShape shape;
   final bool readOnlyHint;
+
+  String get _copyText => formatReadOnlyCell(rawValue, shape);
 
   @override
   Component build(BuildContext context) {
@@ -959,11 +954,12 @@ class _DetailField extends StatelessComponent {
           : const {},
       [
         div(classes: 'table-row-detail-label-row', [
-            span(classes: 'table-row-detail-label table-row-detail-label--stacked', [.text(label)]),
-            if (!readOnlyHint) _CopyFieldValueButton(label: label, text: value),
-          ],
-        ),
-        _DetailFieldValue(value: value, shape: shape),
+          div(classes: 'table-row-detail-label-group', [
+            span(classes: 'table-row-detail-label', [.text(label)]),
+            if (!readOnlyHint) _CopyFieldValueButton(label: label, text: _copyText),
+          ]),
+        ]),
+        _DetailFieldValue(rawValue: rawValue, shape: shape),
       ],
     );
   }
@@ -1167,31 +1163,101 @@ Component _checkIconSvg() {
 }
 
 class _DetailFieldValue extends StatelessComponent {
-  const _DetailFieldValue({required this.value, required this.shape});
+  const _DetailFieldValue({required this.rawValue, required this.shape});
+
+  final Object? rawValue;
+  final ColumnShape shape;
+
+  @override
+  Component build(BuildContext context) {
+    if (rawValue == null || shape.isSecret || shape.kind == ColumnShapeKind.password) {
+      return _DetailPlainText(value: formatReadOnlyCell(rawValue, shape));
+    }
+
+    return switch (shape.kind) {
+      ColumnShapeKind.blob when _usesJsonCodeCard(shape, rawValue) => _DetailJsonCodeValue(
+        rawValue: rawValue,
+        shape: shape,
+      ),
+      ColumnShapeKind.map => _DetailJsonCodeValue(rawValue: rawValue, shape: shape),
+      ColumnShapeKind.list => _detailListValue(rawValue),
+      ColumnShapeKind.enum_ => _detailEnumValue(rawValue, shape.enumValues),
+      ColumnShapeKind.enumList => _detailEnumListValue(rawValue, shape.enumValues),
+      ColumnShapeKind.boolean || ColumnShapeKind.isVerified => ZonaiBooleanCheck(
+        checked: cellEditValueAsBool(rawValue),
+      ),
+      _ => _DetailPlainText(value: formatReadOnlyCell(rawValue, shape)),
+    };
+  }
+
+  Component _detailListValue(Object? value) {
+    final items = cellValueAsStringList(value);
+    if (items.isEmpty) return _DetailPlainText(value: '—');
+    return ZonaiTagList(tags: items);
+  }
+
+  Component _detailEnumValue(Object? value, List<String> enumValues) {
+    final items = cellValueAsStringList(value, enumValues);
+    if (items.isEmpty) return _DetailPlainText(value: '—');
+    return ZonaiEnumChipRow(values: items);
+  }
+
+  Component _detailEnumListValue(Object? value, List<String> enumValues) {
+    final items = cellValueAsStringList(value, enumValues);
+    if (items.isEmpty) return _DetailPlainText(value: '—');
+    return ZonaiEnumChipRow(values: items);
+  }
+}
+
+bool _usesJsonCodeCard(ColumnShape shape, Object? rawValue) {
+  return switch (shape.kind) {
+    ColumnShapeKind.map => true,
+    ColumnShapeKind.blob => effectiveColumnEditKind(shape, rawValue) == ColumnShapeKind.blob,
+    _ => false,
+  };
+}
+
+class _DetailJsonCodeValue extends StatelessComponent {
+  const _DetailJsonCodeValue({required this.rawValue, required this.shape});
+
+  final Object? rawValue;
+  final ColumnShape shape;
+
+  @override
+  Component build(BuildContext context) {
+    final text = cellToEditString(rawValue, shape);
+    if (text.isEmpty) return _DetailPlainText(value: '—');
+
+    return div(classes: 'table-row-detail-value-card', [
+      QueryPreviewCard(
+        label: shape.name,
+        text: text,
+        highlightLanguage: SyntaxHighlightLanguage.json,
+        showToolbar: false,
+      ),
+    ]);
+  }
+}
+
+class _DetailPlainText extends StatelessComponent {
+  const _DetailPlainText({required this.value});
 
   final String value;
-  final ColumnShape? shape;
 
-  bool get _isStructured =>
-      shape?.kind == ColumnShapeKind.map || shape?.kind == ColumnShapeKind.list || shape?.kind == ColumnShapeKind.blob;
+  bool get _isMono => value.startsWith('{') || value.startsWith('[');
 
   bool get _collapsible {
     if (value == '—' || value == '••••••••') return false;
-    final kind = shape?.kind;
-    if (kind == ColumnShapeKind.text || kind == ColumnShapeKind.email) {
-      return value.length > _collapsibleMinLength;
-    }
-    if (_isStructured) return value.length > _collapsibleMinLength;
-    return false;
+    return value.length > _collapsibleMinLength;
   }
 
   @override
   Component build(BuildContext context) {
     if (_collapsible) {
-      return _DetailCollapsibleValue(value: value, monospace: _isStructured);
+      return _DetailCollapsibleValue(value: value, monospace: _isMono);
     }
 
-    final valueClass = _isStructured ? 'table-row-detail-value table-row-detail-value--mono' : 'table-row-detail-value';
+    final valueClass = _isMono ? 'table-row-detail-value table-row-detail-value--mono' : 'table-row-detail-value';
 
     return pre(classes: valueClass, [.text(value)]);
   }
@@ -1486,6 +1552,14 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     gap: Gap.all(ZonaiSpacing.s7),
     minHeight: .zero,
   ),
+  css('.table-row-detail-value-card').styles(
+    width: 100.percent,
+    alignSelf: .stretch,
+  ),
+  css('.table-row-detail-value-card .table-row-detail-json-card').styles(
+    width: 100.percent,
+    maxWidth: 100.percent,
+  ),
   css('.table-row-detail-json-card').styles(
     position: Position.relative(),
     display: .flex,
@@ -1527,6 +1601,9 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'overflow-wrap': 'anywhere',
     },
   ),
+  css('.table-row-detail-json-card-pre--compact').styles(
+    padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s6),
+  ),
   css(
     '.table-row-detail-field',
   ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), minWidth: .zero),
@@ -1534,16 +1611,24 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(ZonaiSpacing.s3),
+    minWidth: .zero,
+  ),
+  css('.table-row-detail-label-group').styles(
+    display: .inlineFlex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(ZonaiSpacing.s2),
+    maxWidth: 100.percent,
     minWidth: .zero,
   ),
   css('.table-row-detail-copy-wrap').styles(
-    display: .flex,
+    display: .inlineFlex,
     alignItems: .center,
     justifyContent: .center,
-    alignSelf: .center,
     flex: Flex(grow: 0, shrink: 0),
     cursor: .pointer,
+  ),
+  css('.table-row-detail-label-group .table-row-detail-copy-wrap').styles(
     padding: .only(bottom: ZonaiSpacing.s1),
   ),
   css('.table-row-detail-copy').styles(

@@ -13,7 +13,11 @@
 - [ ] Send test email
 - [ ] Run cron job manually
 - [ ] Create new row
+
+#### Edit
+
 - [ ] Choose reference row from table (using search)
+- [ ] View reference row details (click to view)
 
 #### Dashboard
 

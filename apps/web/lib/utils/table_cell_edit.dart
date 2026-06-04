@@ -327,11 +327,89 @@ Object? _decodeJsonEditValue(Object value) {
   }
 }
 
+/// Pretty-printed JSON for map/blob editors and row detail; BigInt byte arrays stay on one line.
+String formatDisplayJson(Object? value) {
+  final buffer = StringBuffer();
+  _writeDisplayJson(value, buffer, depth: 0);
+  return buffer.toString();
+}
+
+const _displayJsonIndent = '  ';
+
+void _writeDisplayJson(Object? value, StringBuffer out, {required int depth}) {
+  final pad = _displayJsonIndent * depth;
+  final padInner = _displayJsonIndent * (depth + 1);
+
+  if (value == null) {
+    out.write('null');
+    return;
+  }
+  if (value is num || value is bool || value is String) {
+    out.write(jsonEncode(value));
+    return;
+  }
+  if (value is Uint8List) {
+    _writeDisplayJson(value.toList(), out, depth: depth);
+    return;
+  }
+  if (value is List) {
+    if (_isIntByteList(value)) {
+      out.write(jsonEncode(_intListWire(value)));
+      return;
+    }
+    if (value.isEmpty) {
+      out.write('[]');
+      return;
+    }
+    out.writeln('[');
+    for (var i = 0; i < value.length; i++) {
+      out.write(padInner);
+      _writeDisplayJson(value[i], out, depth: depth + 1);
+      if (i < value.length - 1) out.write(',');
+      out.writeln();
+    }
+    out.write('$pad]');
+    return;
+  }
+  if (value is Map) {
+    if (value.isEmpty) {
+      out.write('{}');
+      return;
+    }
+    out.writeln('{');
+    final entries = value.entries.toList();
+    for (var i = 0; i < entries.length; i++) {
+      final entry = entries[i];
+      out.write(padInner);
+      out.write(jsonEncode(entry.key.toString()));
+      out.write(': ');
+      _writeDisplayJson(entry.value, out, depth: depth + 1);
+      if (i < entries.length - 1) out.write(',');
+      out.writeln();
+    }
+    out.write('$pad}');
+    return;
+  }
+  out.write(jsonEncode('$value'));
+}
+
+List<int> _intListWire(List list) {
+  return [for (final item in list) if (item is int) item else int.parse('$item')];
+}
+
+/// Byte arrays and BigInt binary-digit wire: keep `[…]` on one line (e.g. after `"payload":`).
+bool _isIntByteList(List list) {
+  if (list.isEmpty) return true;
+  for (final item in list) {
+    if (item is! int) return false;
+  }
+  return true;
+}
+
 String _formatStructuredJson(Object value) {
   final decoded = _decodeJsonEditValue(value) ?? value;
-  const encoder = JsonEncoder.withIndent('  ');
   try {
-    return encoder.convert(decoded);
+    return formatDisplayJson(decoded);
   } on Object {
     return '$decoded';
   }
@@ -400,7 +478,7 @@ String _formatMapForEdit(Object value) => _formatStructuredJson(value);
 String _formatBlobForEdit(Object value) {
   final bytes = _blobBytesForEquality(value);
   if (bytes != null) {
-    return const JsonEncoder.withIndent('  ').convert(bytes);
+    return formatDisplayJson(bytes);
   }
   return _formatStructuredJson(value);
 }

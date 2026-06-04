@@ -21,11 +21,6 @@ List<StyleRule> get tableEditSharedStyles => [
     display: .inlineFlex,
     alignItems: .center,
     gap: Gap.all(ZonaiSpacing.s2),
-    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
-    radius: .all(Radius.circular(6.px)),
-    backgroundColor: selectedBgColor,
-    border: .all(color: borderColor, width: 1.px, style: .solid),
-    fontSize: 0.8125.rem,
   ),
   css('.table-edit-chip-input__chip-remove').styles(
     width: 18.px,
@@ -110,14 +105,6 @@ List<StyleRule> get tableEditSharedStyles => [
     flexWrap: FlexWrap.wrap,
     alignItems: .center,
     gap: Gap.all(ZonaiSpacing.s4),
-  ),
-  css('.table-edit-fk-value__chip').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
-    radius: .all(Radius.circular(6.px)),
-    backgroundColor: selectedBgColor,
-    border: .all(color: borderColor, width: 1.px, style: .solid),
-    fontSize: 0.8125.rem,
-    raw: const {'font-family': 'ui-monospace, monospace'},
   ),
   css('.table-edit-fk-value__input').styles(
     flex: Flex(grow: 1, shrink: 1),

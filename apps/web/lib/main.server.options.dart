@@ -14,6 +14,11 @@ import 'package:zonai_web/components/table_edit/table_edit_enum_multi_select.dar
 import 'package:zonai_web/components/table_edit/table_edit_styles.dart'
     as _table_edit_styles;
 import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
+import 'package:zonai_web/components/theme/zonai_boolean_check.dart'
+    as _zonai_boolean_check;
+import 'package:zonai_web/components/theme/zonai_enum_chip.dart'
+    as _zonai_enum_chip;
+import 'package:zonai_web/components/theme/zonai_tag.dart' as _zonai_tag;
 import 'package:zonai_web/components/app_tooltip_overlay.dart'
     as _app_tooltip_overlay;
 import 'package:zonai_web/components/auth_app_shell.dart' as _auth_app_shell;
@@ -73,6 +78,9 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._table_edit_enum_multi_select.tableEditEnumMultiSelectStyles,
     ..._table_edit_styles.tableEditSharedStyles,
     ..._ui_styles.zonaiUiStyles,
+    ..._zonai_boolean_check.zonaiBooleanCheckStyles,
+    ..._zonai_enum_chip.zonaiEnumChipStyles,
+    ..._zonai_tag.zonaiTagStyles,
     ..._theme.styles,
     ..._app.App.styles,
     ..._app_tooltip_overlay.AppTooltipOverlay.styles,

@@ -4,6 +4,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import '../theme/ui_styles.dart';
 import '../theme/zonai_button.dart';
+import '../theme/zonai_tag.dart';
 
 /// Shared foreign-key value row: optional chip, id input, and Browse button.
 class TableForeignKeyValueField extends StatelessComponent {
@@ -38,8 +39,7 @@ class TableForeignKeyValueField extends StatelessComponent {
     };
 
     return div(classes: layoutClass, [
-      if (textValue.isNotEmpty)
-        span(classes: 'table-edit-fk-value__chip', [.text(textValue)]),
+      if (textValue.isNotEmpty) ZonaiTag(label: textValue, monospace: true),
       input<String>(
         id: id,
         type: .text,

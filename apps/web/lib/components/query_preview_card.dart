@@ -31,7 +31,12 @@ class QueryPreviewCard extends StatelessComponent {
         div(classes: 'table-row-detail-json-card-toolbar', [
           CopyPreviewTextButton(label: label, text: text),
         ]),
-      pre(classes: 'table-row-detail-json-card-pre', [
+      pre(
+        classes: [
+          'table-row-detail-json-card-pre',
+          if (!showToolbar) 'table-row-detail-json-card-pre--compact',
+        ].join(' '),
+        [
         if (highlightLanguage case final language?)
           SyntaxHighlightedCode(
             source: text,

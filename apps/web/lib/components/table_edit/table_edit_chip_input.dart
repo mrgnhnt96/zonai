@@ -5,6 +5,7 @@ import 'package:universal_web/web.dart' as web;
 import '../../utils/table_cell_edit.dart';
 import '../theme/ui_styles.dart';
 import '../theme/zonai_button.dart';
+import '../theme/zonai_tag.dart';
 
 /// Chip list editor for comma-separated filter values (in / not in) on non-enum columns.
 class TableEditChipInput extends StatefulComponent {
@@ -69,7 +70,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
         div(classes: 'table-edit-chip-input__chips', [
           for (final chip in chips)
             span(classes: 'table-edit-chip-input__chip', [
-              span(classes: 'table-edit-chip-input__chip-label', [.text(chip)]),
+              ZonaiTag(label: chip),
               button(
                 type: .button,
                 classes: 'table-edit-chip-input__chip-remove',

@@ -2,6 +2,9 @@ import 'package:jaspr/dom.dart';
 
 import '../../constants/theme.dart';
 import '../../constants/spacing.dart';
+import 'zonai_boolean_check.dart';
+import 'zonai_enum_chip.dart';
+import 'zonai_tag.dart';
 
 /// Shared UI class names used by theme components.
 abstract final class ZonaiClasses {
@@ -412,4 +415,7 @@ List<StyleRule> get zonaiUiStyles => [
     fontWeight: .w600,
     raw: const {'letter-spacing': '-0.02em'},
   ),
+  ...zonaiTagStyles,
+  ...zonaiEnumChipStyles,
+  ...zonaiBooleanCheckStyles,
 ];

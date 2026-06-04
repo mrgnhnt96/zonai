@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'table_cell_edit.dart';
+
 /// JSON-safe representation of a cell value for export and display.
 Object? jsonEncodableCellValue(Object? value) {
   return switch (value) {
@@ -32,11 +34,10 @@ String encodeTableRowsAsJson({
   final maps = [
     for (final row in rows) tableRowToJsonMap(columns: columns, row: row),
   ];
-  const encoder = JsonEncoder.withIndent('  ');
   try {
-    return encoder.convert(maps);
+    return formatDisplayJson(maps);
   } on Object {
-    return encoder.convert([
+    return formatDisplayJson([
       for (final map in maps)
         {for (final entry in map.entries) entry.key: entry.value?.toString()},
     ]);

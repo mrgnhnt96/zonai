@@ -490,7 +490,12 @@ void main() {
       );
 
       expect(cellToEditString({'a': 1}, mapShape), '{\n  "a": 1\n}');
-      expect(cellToEditString(Uint8List.fromList([72, 101, 108]), blobShape), '[\n  72,\n  101,\n  108\n]');
+      expect(cellToEditString(Uint8List.fromList([72, 101, 108]), blobShape), '[72,101,108]');
+      expect(
+        cellToEditString({'bits': [1, 0, 1, 0, 1, 0]}, mapShape),
+        '{\n  "bits": [1,0,1,0,1,0]\n}',
+      );
+      expect(formatDisplayJson([1, 0, 1, 0, 1, 0]), '[1,0,1,0,1,0]');
     });
 
     test('blob-shaped bigInt wire formats as decimal for edit', () {
