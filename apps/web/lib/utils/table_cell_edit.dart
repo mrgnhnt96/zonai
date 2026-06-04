@@ -192,3 +192,109 @@ Map<String, Object?> diffRowUpdates({
 String formatReadOnlyCell(Object? value, ColumnShape? shape) {
   return formatSchemaCell(value, shape, truncate: false);
 }
+
+bool isForeignKeyColumn(ColumnShape shape) => shape.foreignKey != null;
+
+bool isDateTimeColumnKind(ColumnShapeKind kind) =>
+    kind == ColumnShapeKind.dateTime ||
+    kind == ColumnShapeKind.createdAt ||
+    kind == ColumnShapeKind.updatedAt;
+
+/// HTML input attributes for native typed inputs (filter + edit).
+Map<String, String> validationAttributesForShape(ColumnShape shape) {
+  return switch (shape.kind) {
+    ColumnShapeKind.integer || ColumnShapeKind.bigInt => const {
+      'inputmode': 'numeric',
+      'step': '1',
+    },
+    ColumnShapeKind.real => const {'inputmode': 'decimal', 'step': 'any'},
+    ColumnShapeKind.email => const {'inputmode': 'email', 'type': 'email'},
+    _ => const {},
+  };
+}
+
+/// `datetime-local` value from filter/edit text or empty.
+String dateTimeTextToLocalInputValue(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return '';
+
+  try {
+    final dt = _parseDateTime(trimmed);
+    final local = dt.toLocal();
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    final h = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$y-$m-${d}T$h:$min';
+  } catch (_) {
+    return '';
+  }
+}
+
+/// Stores UTC ms in wire format used by filters (numeric string).
+String localDateTimeInputToFilterText(String localValue) {
+  final trimmed = localValue.trim();
+  if (trimmed.isEmpty) return '';
+  final parsed = DateTime.tryParse(trimmed);
+  if (parsed == null) return trimmed;
+  final utc = parsed.isUtc ? parsed : parsed.toUtc();
+  return '${utc.millisecondsSinceEpoch}';
+}
+
+/// Filter/edit datetime as local wall time, or null when empty or invalid.
+DateTime? filterDateTimeTextToLocal(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return null;
+  try {
+    return _parseDateTime(trimmed).toLocal();
+  } catch (_) {
+    return null;
+  }
+}
+
+/// UTC ms wire format from a local [DateTime] (date + time in local zone).
+String localWallDateTimeToFilterText(DateTime local) {
+  final y = local.year.toString().padLeft(4, '0');
+  final m = local.month.toString().padLeft(2, '0');
+  final d = local.day.toString().padLeft(2, '0');
+  final h = local.hour.toString().padLeft(2, '0');
+  final min = local.minute.toString().padLeft(2, '0');
+  return localDateTimeInputToFilterText('$y-$m-${d}T$h:$min');
+}
+
+const _monthAbbrev = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/// Display label for datetime picker triggers (local time).
+String formatFilterDateTimeDisplay(DateTime local) {
+  final month = _monthAbbrev[local.month - 1];
+  final day = local.day;
+  final year = local.year;
+  final h = local.hour.toString().padLeft(2, '0');
+  final min = local.minute.toString().padLeft(2, '0');
+  return '$day $month $year, $h:$min';
+}
+
+/// Days in [month] (1–12) for [year], for calendar grids.
+int daysInMonth(int year, int month) => DateTime(year, month + 1, 0).day;
+
+/// Sunday-start column (0–6) for the first day of [month] (1–12).
+int firstWeekdaySundayStart(int year, int month) => DateTime(year, month, 1).weekday % 7;
+
+List<String> parseCommaSeparatedList(String text) =>
+    text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+String joinCommaSeparatedList(List<String> values) => values.join(', ');

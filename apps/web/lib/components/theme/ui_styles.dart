@@ -11,6 +11,8 @@ abstract final class ZonaiClasses {
   static const field = 'z-field';
   static const label = 'z-label';
   static const input = 'z-input';
+  static const selectWrap = 'z-select';
+  static const selectNative = 'z-select__native';
   static const btn = 'z-btn';
   static const btnPrimary = 'z-btn z-btn--primary';
   static const btnSecondary = 'z-btn z-btn--secondary';
@@ -112,6 +114,52 @@ List<StyleRule> get zonaiUiStyles => [
     cursor: .notAllowed,
     backgroundColor: hoverColor,
   ),
+  css('.z-select').styles(
+    position: Position.relative(),
+    display: .block,
+    width: 100.percent,
+    minWidth: .zero,
+  ),
+  css('.z-select__native').styles(
+    display: .block,
+    width: 100.percent,
+    padding: .only(right: 36.px, left: 14.px, top: 11.px, bottom: 11.px),
+    radius: .all(Radius.circular(10.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    backgroundColor: bgColor,
+    color: fgColor,
+    fontSize: 0.9375.rem,
+    outline: Outline(style: OutlineStyle.none),
+    cursor: .pointer,
+    raw: const {
+      'font': 'inherit',
+      'line-height': '1.4',
+      'appearance': 'none',
+      '-webkit-appearance': 'none',
+      'transition': 'border-color 0.15s ease, box-shadow 0.15s ease',
+    },
+  ),
+  css('.z-select__native:hover:not(:disabled)').styles(
+    border: .all(color: mutedColor, width: 1.px, style: .solid),
+  ),
+  css('.z-select__native:focus-visible').styles(
+    border: .all(color: primaryColor, width: 1.px, style: .solid),
+    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
+  ),
+  css('.z-select__native:disabled').styles(
+    opacity: 0.6,
+    cursor: .notAllowed,
+    backgroundColor: hoverColor,
+  ),
+  css('.z-select__chevron').styles(
+    position: Position.absolute(top: 0.px, right: 12.px, bottom: 0.px),
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    color: mutedColor,
+    pointerEvents: PointerEvents.none,
+  ),
+  css('.z-select:focus-within .z-select__chevron').styles(color: fgColor),
   css('.z-btn').styles(
     display: .inlineFlex,
     alignItems: .center,

@@ -11,6 +11,7 @@ import 'table_row_selection_provider.dart';
 import 'table_schema_provider.dart';
 import 'resolved_collection_provider.dart';
 import 'session_user_provider.dart';
+import 'table_filter_provider.dart';
 import 'toast_provider.dart';
 
 /// Page size for table row list / infinite scroll requests.
@@ -52,11 +53,13 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     if (!ref.binding.isClient) return null;
 
     final schema = ref.watch(tableSchemaProvider);
+    final where = ref.watch(tableAppliedWhereProvider);
 
     try {
       return await _loadTableRows(
         sqliteName: focus.sqliteName,
         schema: schema,
+        where: where,
         limit: tableRowsPageSize,
         offset: 0,
       );
@@ -85,9 +88,11 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     );
 
     try {
+      final where = ref.read(tableFilterProvider).appliedWhere;
       final page = await _loadTableRows(
         sqliteName: current.sqliteName,
         schema: current.schema,
+        where: where,
         limit: tableRowsPageSize,
         offset: current.rows.length,
       );
@@ -125,10 +130,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       final all = <List<Object?>>[];
       const pageSize = 500;
       while (true) {
+        final where = ref.read(tableFilterProvider).appliedWhere;
         final page = await _fetchRowPage(
           sqliteName: data.sqliteName,
           columns: data.columns,
           columnShapes: data.columnShapes,
+          where: where,
           offset: all.length,
           limit: pageSize,
         );
@@ -223,10 +230,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
   Future<void> _deleteEntireTable(TableRowsData data) async {
     const pageSize = 500;
     while (true) {
+      final where = ref.read(tableFilterProvider).appliedWhere;
       final page = await _fetchRowPage(
         sqliteName: data.sqliteName,
         columns: data.columns,
         columnShapes: data.columnShapes,
+        where: where,
         offset: 0,
         limit: pageSize,
       );
@@ -244,11 +253,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     required String sqliteName,
     required List<String> columns,
     required List<ColumnShape> columnShapes,
+    Where? where,
     required int offset,
     required int limit,
   }) async {
     final data = await revaliServer.db.list(
-      body: ListBody(table: sqliteName, offset: offset, limit: limit),
+      body: ListBody(table: sqliteName, where: where, offset: offset, limit: limit),
     );
     final items = _parseListItems(data);
     return [
@@ -310,11 +320,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
 Future<TableRowsData> _loadTableRows({
   required String sqliteName,
   required TableSchemaShape? schema,
+  Where? where,
   int? limit,
   int? offset,
 }) async {
   final data = await revaliServer.db.list(
-    body: ListBody(table: sqliteName, limit: limit, offset: offset),
+    body: ListBody(table: sqliteName, where: where, limit: limit, offset: offset),
   );
 
   final items = _parseListItems(data);

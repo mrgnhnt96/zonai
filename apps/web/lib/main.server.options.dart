@@ -5,6 +5,8 @@
 // Generated with jaspr_builder
 
 import 'package:jaspr/server.dart';
+import 'package:zonai_web/components/table_edit/table_edit_enum_multi_select.dart'
+    as _table_edit_enum_multi_select;
 import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
 import 'package:zonai_web/components/app_tooltip_overlay.dart'
     as _app_tooltip_overlay;
@@ -16,6 +18,8 @@ import 'package:zonai_web/components/home_settings_overlay.dart'
 import 'package:zonai_web/components/home_sidebar.dart' as _home_sidebar;
 import 'package:zonai_web/components/table_row_detail_panel.dart'
     as _table_row_detail_panel;
+import 'package:zonai_web/components/table_search_panel.dart'
+    as _table_search_panel;
 import 'package:zonai_web/components/toast_overlay.dart' as _toast_overlay;
 import 'package:zonai_web/constants/theme.dart' as _theme;
 import 'package:zonai_web/app.dart' as _app;
@@ -50,6 +54,9 @@ ServerOptions get defaultServerOptions => ServerOptions(
   },
   styles: () => [
     ..._table_row_detail_panel.tableRowDetailPanelStyles,
+    ..._table_search_panel.tableSearchPanelStyles,
+    ..._table_search_panel.tableSearchSidePanelStyles,
+    ..._table_edit_enum_multi_select.tableEditEnumMultiSelectStyles,
     ..._ui_styles.zonaiUiStyles,
     ..._theme.styles,
     ..._app.App.styles,

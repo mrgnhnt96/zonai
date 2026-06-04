@@ -19,6 +19,7 @@ import '../providers/session_user_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/table_schema_provider.dart';
 import '../providers/table_sort_provider.dart';
+import '../providers/table_filter_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import '../providers/toast_provider.dart';
 import '../utils/download_text_file.dart';
@@ -30,6 +31,10 @@ import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'app_tooltip_overlay.dart';
 import 'table_row_detail_panel.dart';
+import 'table_edit/table_edit_datetime_field.dart';
+import 'table_edit/table_edit_enum_multi_select.dart';
+import 'table_search_panel.dart';
+import 'table_search_side_panel.dart';
 import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
 
@@ -66,6 +71,7 @@ class HomeScreen extends StatelessComponent {
       const HomeSettingsOverlay(),
       if (context.binding.isClient) const HomeKeyboardShortcuts(),
       if (context.binding.isClient) const TableRowDetailPanel(),
+      if (context.binding.isClient) const TableSearchSidePanel(),
       if (context.binding.isClient) const ToastOverlay(),
     ]);
   }
@@ -76,6 +82,10 @@ class HomeScreen extends StatelessComponent {
     ...HomeSettingsOverlay.styles,
     ...tableRowDetailPanelStyles,
     ...ToastOverlay.styles,
+    ...tableSearchPanelStyles,
+    ...tableSearchSidePanelStyles,
+    ...tableEditEnumMultiSelectStyles,
+    ...tableEditDatetimeStyles,
     css('.home', [
       css('&').styles(
         flex: Flex(grow: 1, shrink: 1),
@@ -521,6 +531,7 @@ class _TableMain extends StatelessComponent {
     }
 
     final schema = context.watch(tableSchemaProvider);
+    final appliedWhere = context.watch(tableAppliedWhereProvider);
     final title = focused!.displayName;
     final subtitleParts = <String>[];
     if (schema != null) {
@@ -528,6 +539,12 @@ class _TableMain extends StatelessComponent {
     }
 
     final bodyChildren = <Component>[];
+    final showSearchToggle = context.binding.isClient &&
+        ((schema?.columns.isNotEmpty ?? false) ||
+            switch (rowsAsync) {
+              AsyncData(:final value) when value != null && value.columnShapes.isNotEmpty => true,
+              _ => false,
+            });
 
     switch (rowsAsync) {
       case AsyncError(:final error):
@@ -560,23 +577,39 @@ class _TableMain extends StatelessComponent {
             ]),
           );
         } else if (data.rows.isEmpty) {
-          final s = data.total == 1 ? '' : 's';
-          subtitleParts.add('${data.total} row$s');
+          final filterLine = tableFilterSubtitle(appliedWhere, data, data.columnShapes);
+          if (filterLine != null) {
+            subtitleParts.add(filterLine);
+          } else {
+            final s = data.total == 1 ? '' : 's';
+            subtitleParts.add('${data.total} row$s');
+          }
+          final emptyMsg = appliedWhere != null
+              ? 'No rows match this filter.'
+              : 'This table has no rows.';
           bodyChildren.add(
             div(classes: 'table-detail-empty', [
-              p(classes: 'table-detail-empty-msg', [.text('This table has no rows.')]),
+              p(classes: 'table-detail-empty-msg', [.text(emptyMsg)]),
             ]),
           );
         } else {
-          final s = data.total == 1 ? '' : 's';
-          subtitleParts.add('${data.total} row$s');
+          final filterLine = tableFilterSubtitle(appliedWhere, data, data.columnShapes);
+          if (filterLine != null) {
+            subtitleParts.add(filterLine);
+          } else {
+            final s = data.total == 1 ? '' : 's';
+            subtitleParts.add('${data.total} row$s');
+          }
           bodyChildren.add(_TableRowsBlock(data: data, sort: context.watch(tableSortProvider)));
         }
     }
 
     return div(classes: ZonaiClasses.panel, [
       div(classes: 'table-detail-header', [
-        h1(classes: 'table-detail-title', [.text(title)]),
+        div(classes: 'table-detail-header-top', [
+          h1(classes: 'table-detail-title', [.text(title)]),
+          if (showSearchToggle) const TableSearchToggle(),
+        ]),
         if (subtitleParts.isNotEmpty) p(classes: 'table-detail-subtitle', [.text(subtitleParts.join(' · '))]),
       ]),
       div(classes: 'table-detail-body', bodyChildren),

@@ -13,6 +13,7 @@ import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/resolved_collection_provider.dart';
 import '../providers/session_user_provider.dart';
+import '../providers/table_filter_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/toast_provider.dart';
@@ -390,6 +391,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     if (hasDetail) {
+      if (_lastHadDetail != true) {
+        context.read(tableFilterProvider.notifier).closePanel();
+      }
       if (!_render) {
         scheduleMicrotask(_onOpen);
       } else if (!_open) {
@@ -1388,7 +1392,6 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'z-index': '10',
     },
   ),
-  css('.table-row-detail-resize-handle:hover').styles(backgroundColor: hoverColor),
   css('.table-row-detail-main').styles(
     flex: Flex(grow: 1, shrink: 1),
     display: .flex,
