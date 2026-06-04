@@ -53,14 +53,14 @@ class ToastOverlay extends StatelessComponent {
     css('.zonai-toast').styles(
       display: .flex,
       flexDirection: FlexDirection.row,
-      alignItems: .start,
+      alignItems: .center,
       gap: Gap.all(12.px),
       maxWidth: 32.rem,
-      width: 100.percent,
       padding: .symmetric(horizontal: 16.px, vertical: 12.px),
       radius: .all(Radius.circular(12.px)),
       pointerEvents: .auto,
       raw: const {
+        'width': 'fit-content',
         'box-shadow': 'var(--zonai-shadow)',
         'animation': 'zonai-toast-in 0.2s ease-out',
       },
@@ -81,6 +81,7 @@ class ToastOverlay extends StatelessComponent {
       margin: .zero,
       fontSize: 0.875.rem,
       fontWeight: .w500,
+      textAlign: .left,
       raw: const {
         'line-height': '1.45',
         'overflow-wrap': 'anywhere',
