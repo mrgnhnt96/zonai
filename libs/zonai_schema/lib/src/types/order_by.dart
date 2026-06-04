@@ -6,7 +6,11 @@ enum SortDirection {
     return switch (value) {
       'asc' => SortDirection.asc,
       'desc' => SortDirection.desc,
-      _ => throw ArgumentError.value(value, 'direction', 'Invalid sort direction'),
+      _ => throw ArgumentError.value(
+        value,
+        'direction',
+        'Invalid sort direction',
+      ),
     };
   }
 
@@ -19,7 +23,7 @@ class OrderByTerm {
   final String column;
   final SortDirection direction;
 
-  factory OrderByTerm.fromJson(Map<String, dynamic> json) {
+  factory OrderByTerm.fromJson(Map json) {
     return OrderByTerm(
       column: json['column'] as String,
       direction: json['direction'] != null
@@ -35,4 +39,3 @@ class OrderByTerm {
     };
   }
 }
-

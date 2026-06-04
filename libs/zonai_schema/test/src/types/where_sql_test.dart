@@ -11,7 +11,7 @@ void main() {
           'type': 'and',
           'conditions': <dynamic>[
             <String, dynamic>{'type': 'eq', 'column': 'kind', 'value': 'book'},
-            <String, dynamic>{'type': 'null', 'column': 'deleted_at'},
+            <String, dynamic>{'type': 'is_null', 'column': 'deleted_at'},
           ],
         },
       });

@@ -14,7 +14,7 @@ class GetBody {
   factory GetBody.fromJson(Map<String, dynamic> json) {
     return GetBody(
       table: json['table'] as String,
-      where: Where.fromJson(json['where'] as Map<String, dynamic>),
+      where: Where.fromJson(json['where'] as Map),
       expand: [
         if (json['expand'] case final List list)
           for (final item in list) item as String,
@@ -23,10 +23,6 @@ class GetBody {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'table': table,
-      'where': where.toJson(),
-      'expand': expand,
-    };
+    return {'table': table, 'where': where.toJson(), 'expand': expand};
   }
 }

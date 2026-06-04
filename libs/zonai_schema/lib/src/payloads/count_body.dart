@@ -6,7 +6,15 @@ class CountBody {
   factory CountBody.fromJson(Map<String, dynamic> json) {
     return CountBody(
       table: json['table'] as String,
-      where: json['where'] != null ? Where.fromJson(json['where']) : null,
+      where: switch (json['where']) {
+        null => null,
+        final Map m => Where.fromJson(m),
+        final value => throw ArgumentError.value(
+          value,
+          'where',
+          'Expected a where object',
+        ),
+      },
     );
   }
 

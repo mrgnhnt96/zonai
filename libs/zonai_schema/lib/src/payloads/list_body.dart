@@ -21,14 +21,17 @@ class ListBody {
   factory ListBody.fromJson(Map json) {
     return ListBody(
       table: json['table'] as String,
-      where: json['where'] != null ? Where.fromJson(json['where']) : null,
+      where: switch (json['where']) {
+        null => null,
+        final Map m => Where.fromJson(m),
+        final value => throw ArgumentError.value(value, 'where', 'Expected a where object'),
+      },
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,
       orderBy: switch (json['order_by']) {
         null => null,
         final List list => [
-          for (final item in list)
-            OrderByTerm.fromJson(Map<String, dynamic>.from(item as Map)),
+          for (final item in list) OrderByTerm.fromJson(Map.from(item as Map)),
         ],
         final value => throw ArgumentError.value(
           value,

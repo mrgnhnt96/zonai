@@ -17,3 +17,7 @@ dependencies:
   raindrop_sqlite:
   scoped_deps:
     path: ../scoped_deps
+
+dev_dependencies:
+  revali_router:
+  test: ^1.26.2

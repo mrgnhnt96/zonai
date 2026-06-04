@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'where_value.dart';
 
 sealed class Where {
   const Where();
 
-  factory Where.fromJson(Map<String, dynamic> json) {
+  factory Where.fromJson(Map json) {
     return switch (json['type']) {
       Eq._type => Eq.fromJson(json),
       Null._type => Null.fromJson(json),
@@ -34,7 +36,7 @@ sealed class Where {
 final class Eq extends Where {
   const Eq(this.column, this.value);
 
-  factory Eq.fromJson(Map<String, dynamic> json) {
+  factory Eq.fromJson(Map json) {
     return Eq(json['column'] as String, json['value'] as Object);
   }
 
@@ -54,13 +56,13 @@ final class Eq extends Where {
 final class Null extends Where {
   const Null(this.column);
 
-  factory Null.fromJson(Map<String, dynamic> json) {
+  factory Null.fromJson(Map json) {
     return Null(json['column'] as String);
   }
 
   final String column;
 
-  static const _type = 'null';
+  static const _type = 'is_null';
 
   @override
   Map<String, Object?> toJson() => {'type': _type, 'column': column};
@@ -69,7 +71,7 @@ final class Null extends Where {
 final class NotNull extends Where {
   const NotNull(this.column);
 
-  factory NotNull.fromJson(Map<String, dynamic> json) {
+  factory NotNull.fromJson(Map json) {
     return NotNull(json['column'] as String);
   }
 
@@ -84,7 +86,7 @@ final class NotNull extends Where {
 final class Gt extends Where {
   const Gt(this.column, this.value);
 
-  factory Gt.fromJson(Map<String, dynamic> json) {
+  factory Gt.fromJson(Map json) {
     return Gt(json['column'] as String, json['value'] as Object);
   }
 
@@ -104,7 +106,7 @@ final class Gt extends Where {
 final class Gte extends Where {
   const Gte(this.column, this.value);
 
-  factory Gte.fromJson(Map<String, dynamic> json) {
+  factory Gte.fromJson(Map json) {
     return Gte(json['column'] as String, json['value'] as Object);
   }
 
@@ -124,7 +126,7 @@ final class Gte extends Where {
 final class Lt extends Where {
   const Lt(this.column, this.value);
 
-  factory Lt.fromJson(Map<String, dynamic> json) {
+  factory Lt.fromJson(Map json) {
     return Lt(json['column'] as String, json['value'] as Object);
   }
 
@@ -144,7 +146,7 @@ final class Lt extends Where {
 final class Lte extends Where {
   const Lte(this.column, this.value);
 
-  factory Lte.fromJson(Map<String, dynamic> json) {
+  factory Lte.fromJson(Map json) {
     return Lte(json['column'] as String, json['value'] as Object);
   }
 
@@ -164,10 +166,19 @@ final class Lte extends Where {
 final class In extends Where {
   const In(this.column, this.values);
 
-  factory In.fromJson(Map<String, dynamic> json) {
+  factory In.fromJson(Map json) {
     return In(json['column'] as String, [
-      for (final value in json['values'] as List<dynamic>)
-        serializeWhereValue(value),
+      switch (json['values']) {
+        final String s => [serializeWhereValue(jsonDecode(s) as Object)],
+        final List list => [
+          for (final value in list) serializeWhereValue(value),
+        ],
+        _ => throw ArgumentError.value(
+          json['values'],
+          'values',
+          'Expected a string or list',
+        ),
+      },
     ]);
   }
 
@@ -186,10 +197,19 @@ final class In extends Where {
 final class NotIn extends Where {
   const NotIn(this.column, this.values);
 
-  factory NotIn.fromJson(Map<String, dynamic> json) {
+  factory NotIn.fromJson(Map json) {
     return NotIn(json['column'] as String, [
-      for (final value in json['values'] as List<dynamic>)
-        serializeWhereValue(value),
+      switch (json['values']) {
+        final String s => [serializeWhereValue(jsonDecode(s) as Object)],
+        final List list => [
+          for (final value in list) serializeWhereValue(value),
+        ],
+        _ => throw ArgumentError.value(
+          json['values'],
+          'values',
+          'Expected a string or list',
+        ),
+      },
     ]);
   }
 
@@ -209,10 +229,10 @@ final class NotIn extends Where {
 final class And extends Where {
   const And(this.conditions);
 
-  factory And.fromJson(Map<String, dynamic> json) {
+  factory And.fromJson(Map json) {
     return And([
       for (final condition in json['conditions'] as List<dynamic>)
-        Where.fromJson(condition as Map<String, dynamic>),
+        Where.fromJson(condition as Map),
     ]);
   }
 
@@ -230,10 +250,10 @@ final class And extends Where {
 final class Or extends Where {
   const Or(this.conditions);
 
-  factory Or.fromJson(Map<String, dynamic> json) {
+  factory Or.fromJson(Map json) {
     return Or([
       for (final condition in json['conditions'] as List<dynamic>)
-        Where.fromJson(condition as Map<String, dynamic>),
+        Where.fromJson(condition as Map),
     ]);
   }
 
@@ -251,7 +271,7 @@ final class Or extends Where {
 final class Contains extends Where {
   const Contains(this.column, this.value);
 
-  factory Contains.fromJson(Map<String, dynamic> json) {
+  factory Contains.fromJson(Map json) {
     return Contains(json['column'] as String, json['value'] as Object);
   }
 
@@ -271,7 +291,7 @@ final class Contains extends Where {
 final class StartsWith extends Where {
   const StartsWith(this.column, this.value);
 
-  factory StartsWith.fromJson(Map<String, dynamic> json) {
+  factory StartsWith.fromJson(Map json) {
     return StartsWith(json['column'] as String, json['value'] as Object);
   }
 
@@ -291,7 +311,7 @@ final class StartsWith extends Where {
 final class EndsWith extends Where {
   const EndsWith(this.column, this.value);
 
-  factory EndsWith.fromJson(Map<String, dynamic> json) {
+  factory EndsWith.fromJson(Map json) {
     return EndsWith(json['column'] as String, json['value'] as Object);
   }
 
@@ -311,7 +331,7 @@ final class EndsWith extends Where {
 final class NotContains extends Where {
   const NotContains(this.column, this.value);
 
-  factory NotContains.fromJson(Map<String, dynamic> json) {
+  factory NotContains.fromJson(Map json) {
     return NotContains(json['column'] as String, json['value'] as Object);
   }
 
