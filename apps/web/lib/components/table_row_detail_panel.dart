@@ -803,11 +803,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 
   void _requestCreateDismiss(_PendingDismiss action) {
     if (_saving) return;
-    if (_cachedCreate == null) {
+    final create = _cachedCreate;
+    if (create == null) {
       context.read(tableRowCreateProvider.notifier).close();
       return;
     }
-    setState(() => _pendingDismiss = action);
+    if (_hasUnsavedCreateChanges(create)) {
+      setState(() => _pendingDismiss = action);
+      return;
+    }
+    _executeDismiss(action);
   }
 
   _DiscardDialogMode _discardDialogMode(_PendingDismiss action) {
@@ -1313,7 +1318,7 @@ enum _PendingDismiss { closePanel, cancelEditing, closeCreate }
 
 enum _DiscardDialogMode { edit, create }
 
-class _DiscardChangesDialog extends StatelessComponent {
+class _DiscardChangesDialog extends StatefulComponent {
   const _DiscardChangesDialog({
     required this.mode,
     required this.hasUnsavedChanges,
@@ -1327,7 +1332,28 @@ class _DiscardChangesDialog extends StatelessComponent {
   final VoidCallback onDiscard;
 
   @override
+  State<_DiscardChangesDialog> createState() => _DiscardChangesDialogState();
+}
+
+class _DiscardChangesDialogState extends State<_DiscardChangesDialog> {
+  @override
+  void initState() {
+    super.initState();
+    scheduleMicrotask(_focusKeepButton);
+  }
+
+  void _focusKeepButton() {
+    if (!mounted || !context.binding.isClient) return;
+    final el = web.document.querySelector('.table-row-detail-discard-btn--keep');
+    if (el is web.HTMLElement) el.focus();
+  }
+
+  @override
   Component build(BuildContext context) {
+    final mode = component.mode;
+    final hasUnsavedChanges = component.hasUnsavedChanges;
+    final onKeepEditing = component.onKeepEditing;
+    final onDiscard = component.onDiscard;
     final title = switch (mode) {
       _DiscardDialogMode.create => 'Stop creating row?',
       _DiscardDialogMode.edit => 'Discard changes?',
@@ -1367,7 +1393,8 @@ class _DiscardChangesDialog extends StatelessComponent {
             ]),
             div(classes: 'table-row-detail-discard-actions', [
               button(
-                classes: 'table-row-detail-discard-btn table-row-detail-discard-btn--secondary',
+                classes:
+                    'table-row-detail-discard-btn table-row-detail-discard-btn--secondary table-row-detail-discard-btn--keep',
                 type: .button,
                 onClick: onKeepEditing,
                 [.text(keepLabel)],
