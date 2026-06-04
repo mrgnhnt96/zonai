@@ -16,6 +16,7 @@ class TableEditDatetimeField extends StatefulComponent {
     this.labelId,
     this.placeholder = 'Choose date and time',
     this.compact = false,
+    this.useUtc = false,
   });
 
   final String id;
@@ -25,6 +26,9 @@ class TableEditDatetimeField extends StatefulComponent {
   final String placeholder;
   /// Narrow trigger (e.g. filter panel with preset buttons above).
   final bool compact;
+
+  /// When true, calendar and time controls edit UTC wall time (filter panel).
+  final bool useUtc;
 
   @override
   State<TableEditDatetimeField> createState() => _TableEditDatetimeFieldState();
@@ -60,15 +64,17 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   @override
   void didUpdateComponent(covariant TableEditDatetimeField oldComponent) {
     super.didUpdateComponent(oldComponent);
-    if (oldComponent.valueText != component.valueText) {
+    if (oldComponent.valueText != component.valueText || oldComponent.useUtc != component.useUtc) {
       _syncViewToValue();
     }
   }
 
-  DateTime? get _selectedLocal => filterDateTimeTextToLocal(component.valueText);
+  DateTime? get _selectedWall => filterDateTimeTextToWall(component.valueText, useUtc: component.useUtc);
+
+  DateTime get _nowWall => component.useUtc ? DateTime.now().toUtc() : DateTime.now();
 
   void _syncViewToValue() {
-    final selected = _selectedLocal ?? DateTime.now();
+    final selected = _selectedWall ?? _nowWall;
     _viewYear = selected.year;
     _viewMonth = selected.month;
   }
@@ -134,14 +140,23 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     }
   }
 
-  void _commitLocal(DateTime? local) {
+  void _commitWall(DateTime? wall) {
     component.onValueTextChanged(
-      local == null ? '' : localWallDateTimeToFilterText(local),
+      wall == null ? '' : wallDateTimeToFilterText(wall, useUtc: component.useUtc),
     );
   }
 
   DateTime _mergeSelected({int? year, int? month, int? day, int? hour, int? minute}) {
-    final base = _selectedLocal ?? DateTime.now();
+    final base = _selectedWall ?? _nowWall;
+    if (component.useUtc) {
+      return DateTime.utc(
+        year ?? base.year,
+        month ?? base.month,
+        day ?? base.day,
+        hour ?? base.hour,
+        minute ?? base.minute,
+      );
+    }
     return DateTime(
       year ?? base.year,
       month ?? base.month,
@@ -153,7 +168,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
 
   void _selectDay(int day) {
     final next = _mergeSelected(year: _viewYear, month: _viewMonth, day: day);
-    _commitLocal(next);
+    _commitWall(next);
     setState(() {
       _viewYear = next.year;
       _viewMonth = next.month;
@@ -161,7 +176,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   }
 
   void _setTime({required int hour, required int minute}) {
-    _commitLocal(_mergeSelected(hour: hour, minute: minute));
+    _commitWall(_mergeSelected(hour: hour, minute: minute));
   }
 
   void _shiftMonth(int delta) {
@@ -182,8 +197,8 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   }
 
   void _selectToday() {
-    final now = DateTime.now();
-    _commitLocal(now);
+    final now = _nowWall;
+    _commitWall(now);
     setState(() {
       _viewYear = now.year;
       _viewMonth = now.month;
@@ -192,12 +207,14 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
 
   @override
   Component build(BuildContext context) {
-    final selected = _selectedLocal;
-    final display = selected == null ? null : formatFilterDateTimeDisplay(selected);
+    final selected = _selectedWall;
+    final display = selected == null
+        ? null
+        : formatFilterDateTimeDisplay(selected, useUtc: component.useUtc);
     final hour24 = selected?.hour ?? 0;
     final minute = selected?.minute ?? 0;
     final (hour12, isPm) = hour24To12Parts(hour24);
-    final today = DateTime.now();
+    final today = _nowWall;
     final days = daysInMonth(_viewYear, _viewMonth);
     final leading = firstWeekdaySundayStart(_viewYear, _viewMonth);
     final cells = <_CalendarDay>[
@@ -364,7 +381,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                     events: {
                       'click': (event) {
                         event.stopPropagation();
-                        _commitLocal(null);
+                        _commitWall(null);
                         _setOpen(false);
                       },
                     },

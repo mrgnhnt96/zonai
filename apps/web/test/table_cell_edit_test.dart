@@ -41,6 +41,43 @@ void main() {
     });
   });
 
+  group('filter datetime wall time', () {
+    test('local midnight and UTC midnight produce different instants', () {
+      final localMidnight = DateTime(2026, 6, 11);
+      final utcMidnight = DateTime.utc(2026, 6, 11);
+
+      final localMs = wallDateTimeToFilterText(localMidnight, useUtc: false);
+      final utcMs = wallDateTimeToFilterText(utcMidnight, useUtc: true);
+
+      expect(localMs, isNot(utcMs));
+    });
+
+    test('filterDateTimeTextToWall round-trips local wall time', () {
+      final local = DateTime(2026, 6, 11, 15, 30);
+      final text = wallDateTimeToFilterText(local, useUtc: false);
+      final roundTrip = filterDateTimeTextToWall(text, useUtc: false);
+
+      expect(roundTrip?.year, 2026);
+      expect(roundTrip?.month, 6);
+      expect(roundTrip?.day, 11);
+      expect(roundTrip?.hour, 15);
+      expect(roundTrip?.minute, 30);
+    });
+
+    test('filterDateTimeTextToWall round-trips UTC wall time', () {
+      final utc = DateTime.utc(2026, 6, 11, 7, 0);
+      final text = wallDateTimeToFilterText(utc, useUtc: true);
+      final roundTrip = filterDateTimeTextToWall(text, useUtc: true);
+
+      expect(roundTrip?.year, 2026);
+      expect(roundTrip?.month, 6);
+      expect(roundTrip?.day, 11);
+      expect(roundTrip?.hour, 7);
+      expect(roundTrip?.minute, 0);
+      expect(roundTrip?.isUtc, isTrue);
+    });
+  });
+
   group('cellValuesEqual', () {
     test('id columns compare as strings', () {
       const shape = ColumnShape(

@@ -243,14 +243,38 @@ String localDateTimeInputToFilterText(String localValue) {
 }
 
 /// Filter/edit datetime as local wall time, or null when empty or invalid.
-DateTime? filterDateTimeTextToLocal(String text) {
+DateTime? filterDateTimeTextToLocal(String text) => filterDateTimeTextToWall(text, useUtc: false);
+
+/// Filter datetime as wall time in [useUtc] zone (local or UTC), or null when empty.
+DateTime? filterDateTimeTextToWall(String text, {required bool useUtc}) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return null;
   try {
-    return _parseDateTime(trimmed).toLocal();
+    final instant = _parseDateTime(trimmed);
+    return useUtc ? instant : instant.toLocal();
   } catch (_) {
     return null;
   }
+}
+
+/// UTC ms wire format from wall [DateTime] (local or UTC per [useUtc]).
+String wallDateTimeToFilterText(DateTime wall, {required bool useUtc}) {
+  if (useUtc) {
+    final utc = wall.isUtc
+        ? wall
+        : DateTime.utc(
+            wall.year,
+            wall.month,
+            wall.day,
+            wall.hour,
+            wall.minute,
+            wall.second,
+            wall.millisecond,
+          );
+    return '${utc.millisecondsSinceEpoch}';
+  }
+  final local = wall.isUtc ? wall.toLocal() : wall;
+  return localWallDateTimeToFilterText(local);
 }
 
 /// UTC ms wire format from a local [DateTime] (date + time in local zone).
@@ -299,12 +323,13 @@ String formatTime12(DateTime local) {
   return '$hour12:$min ${isPm ? 'PM' : 'AM'}';
 }
 
-/// Display label for datetime picker triggers (local time).
-String formatFilterDateTimeDisplay(DateTime local) {
-  final month = _monthAbbrev[local.month - 1];
-  final day = local.day;
-  final year = local.year;
-  return '$day $month $year, ${formatTime12(local)}';
+/// Display label for datetime picker triggers (wall time in local or UTC).
+String formatFilterDateTimeDisplay(DateTime wall, {bool useUtc = false}) {
+  final month = _monthAbbrev[wall.month - 1];
+  final day = wall.day;
+  final year = wall.year;
+  final suffix = useUtc ? ' UTC' : '';
+  return '$day $month $year, ${formatTime12(wall)}$suffix';
 }
 
 /// Days in [month] (1–12) for [year], for calendar grids.

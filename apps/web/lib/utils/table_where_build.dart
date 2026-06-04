@@ -12,6 +12,7 @@ final class FilterConditionDraft {
     this.operator,
     this.valueText = '',
     this.boolValue = true,
+    this.dateTimeUseUtc = false,
   });
 
   final String columnName;
@@ -19,11 +20,15 @@ final class FilterConditionDraft {
   final String valueText;
   final bool boolValue;
 
+  /// When true, filter datetime presets and picker use UTC wall time (not local).
+  final bool dateTimeUseUtc;
+
   FilterConditionDraft copyWith({
     String? columnName,
     TableWhereOperator? operator,
     String? valueText,
     bool? boolValue,
+    bool? dateTimeUseUtc,
     bool clearOperator = false,
   }) {
     return FilterConditionDraft(
@@ -31,6 +36,7 @@ final class FilterConditionDraft {
       operator: clearOperator ? null : (operator ?? this.operator),
       valueText: valueText ?? this.valueText,
       boolValue: boolValue ?? this.boolValue,
+      dateTimeUseUtc: dateTimeUseUtc ?? this.dateTimeUseUtc,
     );
   }
 }
@@ -218,15 +224,29 @@ String describeAppliedWhere(Where where, List<ColumnShape> shapes) {
   };
 }
 
+String _describeWhereValue(Object value, String column, List<ColumnShape> shapes) {
+  if (value is! DateTime) return '$value';
+  final shape = _shapeForColumn(column, shapes);
+  if (shape == null || !isDateTimeColumnKind(shape.kind)) return '$value';
+  return cellToEditString(value, shape);
+}
+
+ColumnShape? _shapeForColumn(String column, List<ColumnShape> shapes) {
+  for (final shape in shapes) {
+    if (shape.name == column) return shape;
+  }
+  return null;
+}
+
 String _describeCondition(Where where, List<ColumnShape> shapes) {
   return switch (where) {
-    Eq(:final column, :final value) => '$column = $value',
+    Eq(:final column, :final value) => '$column = ${_describeWhereValue(value, column, shapes)}',
     Null(:final column) => '$column is empty',
     NotNull(:final column) => '$column is not empty',
-    Gt(:final column, :final value) => '$column > $value',
-    Gte(:final column, :final value) => '$column ≥ $value',
-    Lt(:final column, :final value) => '$column < $value',
-    Lte(:final column, :final value) => '$column ≤ $value',
+    Gt(:final column, :final value) => '$column > ${_describeWhereValue(value, column, shapes)}',
+    Gte(:final column, :final value) => '$column ≥ ${_describeWhereValue(value, column, shapes)}',
+    Lt(:final column, :final value) => '$column < ${_describeWhereValue(value, column, shapes)}',
+    Lte(:final column, :final value) => '$column ≤ ${_describeWhereValue(value, column, shapes)}',
     In(:final column, :final values) => '$column in (${values.join(', ')})',
     NotIn(:final column, :final values) => '$column not in (${values.join(', ')})',
     Contains(:final column, :final value) => '$column contains $value',

@@ -22,6 +22,8 @@ class TableFilterValueField extends StatelessComponent {
     required this.boolValue,
     required this.onValueTextChanged,
     required this.onBoolValueChanged,
+    this.dateTimeUseUtc = false,
+    this.onDateTimeUseUtcChanged,
     this.labelId,
   });
 
@@ -32,6 +34,8 @@ class TableFilterValueField extends StatelessComponent {
   final bool boolValue;
   final void Function(String valueText) onValueTextChanged;
   final void Function(bool boolValue) onBoolValueChanged;
+  final bool dateTimeUseUtc;
+  final void Function(bool useUtc)? onDateTimeUseUtcChanged;
   final String? labelId;
 
   @override
@@ -82,6 +86,8 @@ class TableFilterValueField extends StatelessComponent {
         id: id,
         valueText: valueText,
         onValueTextChanged: onValueTextChanged,
+        dateTimeUseUtc: dateTimeUseUtc,
+        onDateTimeUseUtcChanged: onDateTimeUseUtcChanged ?? (_) {},
         labelId: labelId,
       );
     }
