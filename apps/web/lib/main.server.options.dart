@@ -5,6 +5,8 @@
 // Generated with jaspr_builder
 
 import 'package:jaspr/server.dart';
+import 'package:zonai_web/components/table_edit/table_edit_datetime_field.dart'
+    as _table_edit_datetime_field;
 import 'package:zonai_web/components/table_edit/table_edit_enum_multi_select.dart'
     as _table_edit_enum_multi_select;
 import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
@@ -16,6 +18,8 @@ import 'package:zonai_web/components/home_screen.dart' as _home_screen;
 import 'package:zonai_web/components/home_settings_overlay.dart'
     as _home_settings_overlay;
 import 'package:zonai_web/components/home_sidebar.dart' as _home_sidebar;
+import 'package:zonai_web/components/table_filter_datetime_field.dart'
+    as _table_filter_datetime_field;
 import 'package:zonai_web/components/table_row_detail_panel.dart'
     as _table_row_detail_panel;
 import 'package:zonai_web/components/table_search_panel.dart'
@@ -53,9 +57,11 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ),
   },
   styles: () => [
+    ..._table_filter_datetime_field.tableFilterDatetimeStyles,
     ..._table_row_detail_panel.tableRowDetailPanelStyles,
     ..._table_search_panel.tableSearchPanelStyles,
     ..._table_search_panel.tableSearchSidePanelStyles,
+    ..._table_edit_datetime_field.tableEditDatetimeStyles,
     ..._table_edit_enum_multi_select.tableEditEnumMultiSelectStyles,
     ..._ui_styles.zonaiUiStyles,
     ..._theme.styles,

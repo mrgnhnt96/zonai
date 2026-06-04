@@ -6,6 +6,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../constants/theme.dart';
 import '../providers/table_filter_provider.dart';
 import '../providers/table_rows_provider.dart';
+import '../utils/table_cell_edit.dart';
 import '../utils/table_where_build.dart';
 import '../utils/table_where_operators.dart';
 import 'app_tooltip_overlay.dart';
@@ -186,6 +187,8 @@ class _FilterRow extends StatelessComponent {
     final needsValue = op?.needsValue ?? false;
     final enumListValues =
         needsValue && shape?.kind == ColumnShapeKind.enum_ && (op?.needsListValue ?? false);
+    final dateTimeValue =
+        needsValue && shape != null && isDateTimeColumnKind(shape.kind) && !enumListValues;
     final conditionId = 'table-search-condition-$index';
 
     return div(
@@ -226,7 +229,7 @@ class _FilterRow extends StatelessComponent {
                 onChange: (value) => onUpdate(draftForColumn(value, columnShapes)),
               ),
             ]),
-            if (needsValue && !enumListValues && shape != null && op != null)
+            if (needsValue && !enumListValues && !dateTimeValue && shape != null && op != null)
               div(classes: 'table-search-field', [
                 label(
                   htmlFor: 'table-search-val-$index',
@@ -246,13 +249,13 @@ class _FilterRow extends StatelessComponent {
                 ),
               ]),
           ]),
-          if (enumListValues && shape != null && op != null)
+          if ((enumListValues || dateTimeValue) && shape != null && op != null)
             div(classes: 'table-search-field table-search-field--full', [
               label(
                 htmlFor: 'table-search-val-$index',
                 classes: 'table-search-field-label',
                 attributes: {'id': _valLabelId(index)},
-                [.text('Values')],
+                [.text(enumListValues ? 'Values' : 'Value')],
               ),
               TableFilterValueField(
                 id: 'table-search-val-$index',
@@ -421,6 +424,34 @@ List<StyleRule> tableSearchPanelStyles = [
     backgroundColor: selectedBgColor,
     color: primaryColor,
     border: .all(color: primaryColor, width: 1.px, style: .solid),
+  ),
+  css('.table-edit-datetime__time-inputs .table-edit-datetime__ampm').styles(
+    flex: Flex(grow: 0, shrink: 0),
+    gap: Gap.all(4.px),
+    padding: .all(3.px),
+    radius: .all(Radius.circular(8.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    backgroundColor: hoverColor,
+  ),
+  css('.table-edit-datetime__time-inputs .table-search-segment').styles(
+    minWidth: 36.px,
+    padding: .symmetric(horizontal: 8.px, vertical: 6.px),
+    textAlign: TextAlign.center,
+    raw: const {
+      'appearance': 'none',
+      '-webkit-appearance': 'none',
+    },
+  ),
+  css('.table-edit-datetime__time-inputs .table-search-segment--active').styles(
+    backgroundColor: primaryColor,
+    color: onPrimaryColor,
+    border: .all(color: primaryColor, width: 1.px, style: .solid),
+    fontWeight: .w700,
+  ),
+  css('.table-edit-datetime__time-inputs .table-search-segment--active:hover').styles(
+    backgroundColor: primaryHoverColor,
+    border: .all(color: primaryHoverColor, width: 1.px, style: .solid),
+    color: onPrimaryColor,
   ),
   css('.table-search-conditions').styles(
     display: .flex,

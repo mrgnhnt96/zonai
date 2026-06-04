@@ -278,14 +278,33 @@ const _monthAbbrev = [
   'Dec',
 ];
 
+/// 12-hour clock (1–12) and AM/PM from 24-hour [hour] (0–23).
+(int hour12, bool isPm) hour24To12Parts(int hour) {
+  final isPm = hour >= 12;
+  final h = hour % 12;
+  return (h == 0 ? 12 : h, isPm);
+}
+
+/// 24-hour clock (0–23) from 12-hour [hour12] (1–12) and [isPm].
+int hour12To24(int hour12, bool isPm) {
+  final clamped = hour12.clamp(1, 12);
+  if (isPm) return clamped == 12 ? 12 : clamped + 12;
+  return clamped == 12 ? 0 : clamped;
+}
+
+/// Local time as `h:mm AM/PM` (12-hour).
+String formatTime12(DateTime local) {
+  final (hour12, isPm) = hour24To12Parts(local.hour);
+  final min = local.minute.toString().padLeft(2, '0');
+  return '$hour12:$min ${isPm ? 'PM' : 'AM'}';
+}
+
 /// Display label for datetime picker triggers (local time).
 String formatFilterDateTimeDisplay(DateTime local) {
   final month = _monthAbbrev[local.month - 1];
   final day = local.day;
   final year = local.year;
-  final h = local.hour.toString().padLeft(2, '0');
-  final min = local.minute.toString().padLeft(2, '0');
-  return '$day $month $year, $h:$min';
+  return '$day $month $year, ${formatTime12(local)}';
 }
 
 /// Days in [month] (1–12) for [year], for calendar grids.

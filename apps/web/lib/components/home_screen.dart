@@ -33,6 +33,7 @@ import 'app_tooltip_overlay.dart';
 import 'table_row_detail_panel.dart';
 import 'table_edit/table_edit_datetime_field.dart';
 import 'table_edit/table_edit_enum_multi_select.dart';
+import 'table_filter_datetime_field.dart';
 import 'table_search_panel.dart';
 import 'table_search_side_panel.dart';
 import 'toast_overlay.dart';
@@ -86,6 +87,7 @@ class HomeScreen extends StatelessComponent {
     ...tableSearchSidePanelStyles,
     ...tableEditEnumMultiSelectStyles,
     ...tableEditDatetimeStyles,
+    ...tableFilterDatetimeStyles,
     css('.home', [
       css('&').styles(
         flex: Flex(grow: 1, shrink: 1),

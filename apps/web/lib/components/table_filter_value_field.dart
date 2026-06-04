@@ -6,7 +6,7 @@ import '../utils/table_cell_edit.dart';
 import '../utils/table_where_operators.dart';
 import 'table_edit/table_edit_chip_input.dart';
 import 'table_edit/table_edit_enum_multi_select.dart';
-import 'table_edit/table_edit_datetime_field.dart';
+import 'table_filter_datetime_field.dart';
 import 'table_edit/table_edit_number_field.dart';
 import 'table_edit/table_edit_select.dart';
 import 'theme/ui_styles.dart';
@@ -78,7 +78,7 @@ class TableFilterValueField extends StatelessComponent {
     }
 
     if (isDateTimeColumnKind(shape.kind)) {
-      return TableEditDatetimeField(
+      return TableFilterDatetimeField(
         id: id,
         valueText: valueText,
         onValueTextChanged: onValueTextChanged,
