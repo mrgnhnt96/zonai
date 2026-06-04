@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/table_filter_provider.dart';
 import '../providers/table_rows_provider.dart';
@@ -15,8 +16,6 @@ import 'query_preview_card.dart';
 import 'syntax_highlighted_code.dart';
 import 'table_filter_value_field.dart';
 import 'theme/theme_components.dart';
-import 'theme/ui_styles.dart';
-import '../constants/spacing.dart';
 
 enum _SearchPreviewMode { json, dart }
 
@@ -60,12 +59,7 @@ class TableSearchToggle extends StatelessComponent {
 
 /// Filter builder body (rendered inside [TableSearchSidePanel]).
 class TableSearchPanel extends StatelessComponent {
-  const TableSearchPanel({
-    required this.columnShapes,
-    required this.state,
-    required this.tableName,
-    super.key,
-  });
+  const TableSearchPanel({required this.columnShapes, required this.state, required this.tableName, super.key});
 
   final List<ColumnShape> columnShapes;
   final TableFilterState state;
@@ -76,8 +70,7 @@ class TableSearchPanel extends StatelessComponent {
     final notifier = context.read(tableFilterProvider.notifier);
     final showCombine = state.draftRows.length > 1;
     final columnOptions = [
-      for (final shape in columnShapes)
-        ZonaiSelectOption(value: shape.name, label: columnShapeHeaderLabel(shape)),
+      for (final shape in columnShapes) ZonaiSelectOption(value: shape.name, label: columnShapeHeaderLabel(shape)),
     ];
 
     return div(classes: 'table-search-panel-body', [
@@ -101,17 +94,9 @@ class TableSearchPanel extends StatelessComponent {
           onClick: notifier.addRow,
           [.text('+ Add filter')],
         ),
-        _SearchFilterPreview(
-          tableName: tableName,
-          state: state,
-          columnShapes: columnShapes,
-        ),
+        _SearchFilterPreview(tableName: tableName, state: state, columnShapes: columnShapes),
         div(classes: 'table-search-panel-actions-primary', [
-          ZonaiButton(
-            variant: ZonaiButtonVariant.secondary,
-            onClick: notifier.clear,
-            child: const .text('Clear'),
-          ),
+          ZonaiButton(variant: ZonaiButtonVariant.secondary, onClick: notifier.clear, child: const .text('Clear')),
           ZonaiButton(
             onClick: () {
               if (notifier.apply()) {
@@ -127,11 +112,7 @@ class TableSearchPanel extends StatelessComponent {
 }
 
 class _SearchFilterPreview extends StatefulComponent {
-  const _SearchFilterPreview({
-    required this.tableName,
-    required this.state,
-    required this.columnShapes,
-  });
+  const _SearchFilterPreview({required this.tableName, required this.state, required this.columnShapes});
 
   final String tableName;
   final TableFilterState state;
@@ -156,9 +137,10 @@ class _SearchFilterPreviewState extends State<_SearchFilterPreview> {
     final showDart = _mode == _SearchPreviewMode.dart;
     final previewLabel = showDart ? 'Dart' : 'JSON';
     final previewText = switch (result) {
-      TableWhereBuildSuccess(:final where) => showDart
-          ? formatListBodyDart(table: component.tableName, where: where)
-          : formatListBodyJson(table: component.tableName, where: where),
+      TableWhereBuildSuccess(:final where) =>
+        showDart
+            ? formatListBodyDart(table: component.tableName, where: where)
+            : formatListBodyJson(table: component.tableName, where: where),
       TableWhereBuildError() => '',
     };
 
@@ -170,17 +152,14 @@ class _SearchFilterPreviewState extends State<_SearchFilterPreview> {
           attributes: {'aria-expanded': _expanded ? 'true' : 'false'},
           onClick: () => setState(() => _expanded = !_expanded),
           [
-            span(
-              classes:
-                  'home-sidebar-system-chevron${_expanded ? ' home-sidebar-system-chevron--open' : ''}',
-              [.text('›')],
-            ),
+            span(classes: 'home-sidebar-system-chevron${_expanded ? ' home-sidebar-system-chevron--open' : ''}', [
+              .text('›'),
+            ]),
             span(classes: ZonaiClasses.sectionLabel, [.text('Generated query')]),
           ],
         ),
         div(
-          classes:
-              'home-sidebar-system-panel${_expanded ? ' home-sidebar-system-panel--shown' : ''}',
+          classes: 'home-sidebar-system-panel${_expanded ? ' home-sidebar-system-panel--shown' : ''}',
           attributes: {'aria-hidden': _expanded ? 'false' : 'true'},
           [
             div(classes: 'home-sidebar-system-panel-inner', [
@@ -201,15 +180,12 @@ class _SearchFilterPreviewState extends State<_SearchFilterPreview> {
                 ],
               ),
               switch (result) {
-                TableWhereBuildError(:final message) =>
-                  p(classes: 'table-search-preview-hint', [.text(message)]),
+                TableWhereBuildError(:final message) => p(classes: 'table-search-preview-hint', [.text(message)]),
                 TableWhereBuildSuccess() => div(classes: 'table-search-preview-code', [
                   QueryPreviewCard(
                     label: previewLabel,
                     text: previewText,
-                    highlightLanguage: showDart
-                        ? SyntaxHighlightLanguage.dart
-                        : SyntaxHighlightLanguage.json,
+                    highlightLanguage: showDart ? SyntaxHighlightLanguage.dart : SyntaxHighlightLanguage.json,
                   ),
                 ]),
               },
@@ -221,17 +197,10 @@ class _SearchFilterPreviewState extends State<_SearchFilterPreview> {
   }
 }
 
-Component _previewFormatSegment({
-  required String label,
-  required bool selected,
-  required void Function() onSelect,
-}) {
+Component _previewFormatSegment({required String label, required bool selected, required void Function() onSelect}) {
   return button(
     type: .button,
-    classes: [
-      'table-search-segment',
-      if (selected) 'table-search-segment--active',
-    ].join(' '),
+    classes: ['table-search-segment', if (selected) 'table-search-segment--active'].join(' '),
     attributes: {'aria-pressed': selected ? 'true' : 'false'},
     onClick: onSelect,
     [.text(label)],
@@ -311,10 +280,8 @@ class _FilterRow extends StatelessComponent {
     final operators = shape == null ? const <TableWhereOperator>[] : operatorsForColumn(shape);
     final op = row.operator;
     final needsValue = op?.needsValue ?? false;
-    final enumListValues =
-        needsValue && shape?.kind == ColumnShapeKind.enum_ && (op?.needsListValue ?? false);
-    final dateTimeValue =
-        needsValue && shape != null && isDateTimeColumnKind(shape.kind) && !enumListValues;
+    final enumListValues = needsValue && shape?.kind == ColumnShapeKind.enum_ && (op?.needsListValue ?? false);
+    final dateTimeValue = needsValue && shape != null && isDateTimeColumnKind(shape.kind) && !enumListValues;
     final conditionId = 'table-search-condition-$index';
 
     return div(
@@ -322,11 +289,9 @@ class _FilterRow extends StatelessComponent {
       attributes: {'id': conditionId, 'aria-labelledby': 'table-search-condition-badge-$index'},
       [
         div(classes: 'table-search-condition-card-header', [
-          span(
-            id: 'table-search-condition-badge-$index',
-            classes: 'table-search-condition-badge',
-            [.text(_conditionTitle(index))],
-          ),
+          span(id: 'table-search-condition-badge-$index', classes: 'table-search-condition-badge', [
+            .text(_conditionTitle(index)),
+          ]),
           if (canRemove)
             button(
               type: .button,
@@ -403,10 +368,7 @@ class _FilterRow extends StatelessComponent {
               for (final operator in operators)
                 button(
                   type: .button,
-                  classes: [
-                    'table-search-op',
-                    if (op == operator) 'table-search-op--active',
-                  ].join(' '),
+                  classes: ['table-search-op', if (op == operator) 'table-search-op--active'].join(' '),
                   attributes: {'aria-pressed': op == operator ? 'true' : 'false'},
                   events: appTooltipEvents(context, text: operator.tooltip),
                   onClick: () => onUpdate(row.copyWith(operator: operator)),
@@ -552,10 +514,7 @@ List<StyleRule> tableSearchPanelStyles = [
     minWidth: 36.px,
     padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s3),
     textAlign: TextAlign.center,
-    raw: const {
-      'appearance': 'none',
-      '-webkit-appearance': 'none',
-    },
+    raw: const {'appearance': 'none', '-webkit-appearance': 'none'},
   ),
   css('.table-edit-datetime__time-inputs .table-search-segment--active').styles(
     backgroundColor: primaryColor,
@@ -568,11 +527,9 @@ List<StyleRule> tableSearchPanelStyles = [
     border: .all(color: primaryHoverColor, width: 1.px, style: .solid),
     color: onPrimaryColor,
   ),
-  css('.table-search-conditions').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s6),
-  ),
+  css(
+    '.table-search-conditions',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s6)),
   css('.table-search-condition-card').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
@@ -590,18 +547,12 @@ List<StyleRule> tableSearchPanelStyles = [
     justifyContent: .spaceBetween,
     gap: Gap.all(ZonaiSpacing.s4),
   ),
-  css('.table-search-condition-badge').styles(
-    fontSize: 0.75.rem,
-    fontWeight: .w600,
-    color: primaryColor,
-    letterSpacing: 0.02.rem,
-  ),
-  css('.table-search-row-fields').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s4),
-    minWidth: .zero,
-  ),
+  css(
+    '.table-search-condition-badge',
+  ).styles(fontSize: 0.75.rem, fontWeight: .w600, color: primaryColor, letterSpacing: 0.02.rem),
+  css(
+    '.table-search-row-fields',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4), minWidth: .zero),
   css('.table-search-row-inputs').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
@@ -609,28 +560,14 @@ List<StyleRule> tableSearchPanelStyles = [
     gap: Gap.all(ZonaiSpacing.s5),
     minWidth: .zero,
   ),
-  css('.table-search-row-inputs .table-search-field').styles(
-    flex: Flex(grow: 1, shrink: 1),
-    minWidth: .zero,
-  ),
-  css('.table-search-field').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s2),
-  ),
+  css('.table-search-row-inputs .table-search-field').styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero),
+  css('.table-search-field').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
   css('.table-search-field--full').styles(width: 100.percent),
   css('.table-search-field--full + .table-search-operators').styles(margin: .only(top: ZonaiSpacing.s4)),
-  css('.table-search-field-label').styles(
-    fontSize: 0.75.rem,
-    color: mutedColor,
-    fontWeight: .w500,
-  ),
-  css('.table-search-operators').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    flexWrap: FlexWrap.wrap,
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
+  css('.table-search-field-label').styles(fontSize: 0.75.rem, color: mutedColor, fontWeight: .w500),
+  css(
+    '.table-search-operators',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: FlexWrap.wrap, gap: Gap.all(ZonaiSpacing.s3)),
   css('.table-search-op').styles(
     padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
     fontSize: 0.75.rem,
@@ -671,16 +608,10 @@ List<StyleRule> tableSearchPanelStyles = [
     overflow: Overflow.auto,
     padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
   ),
-  css('.table-search-preview').styles(
-    flex: Flex(grow: 0, shrink: 0),
-    width: 100.percent,
-  ),
-  css('.table-search-preview-system').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s2),
-    width: 100.percent,
-  ),
+  css('.table-search-preview').styles(flex: Flex(grow: 0, shrink: 0), width: 100.percent),
+  css(
+    '.table-search-preview-system',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), width: 100.percent),
   css('.table-search-preview-system .home-sidebar-system-toggle').styles(
     cursor: .pointer,
     padding: .symmetric(vertical: ZonaiSpacing.s2),
@@ -693,11 +624,7 @@ List<StyleRule> tableSearchPanelStyles = [
     backgroundColor: Colors.transparent,
     textAlign: .left,
     outline: Outline(style: OutlineStyle.none),
-    raw: const {
-      'font': 'inherit',
-      'appearance': 'none',
-      '-webkit-appearance': 'none',
-    },
+    raw: const {'font': 'inherit', 'appearance': 'none', '-webkit-appearance': 'none'},
   ),
   css('.table-search-preview-system .home-sidebar-system-toggle:hover').styles(
     backgroundColor: Colors.transparent,
@@ -705,14 +632,9 @@ List<StyleRule> tableSearchPanelStyles = [
   ),
   css('.table-search-preview-system .home-sidebar-system-toggle:focus-visible').styles(
     backgroundColor: Colors.transparent,
-    raw: const {
-      'box-shadow': '0 0 0 2px var(--zonai-focus-ring)',
-      'border-radius': '4px',
-    },
+    raw: const {'box-shadow': '0 0 0 2px var(--zonai-focus-ring)', 'border-radius': '4px'},
   ),
-  css('.table-search-preview-system .home-sidebar-system-toggle:active').styles(
-    backgroundColor: Colors.transparent,
-  ),
+  css('.table-search-preview-system .home-sidebar-system-toggle:active').styles(backgroundColor: Colors.transparent),
   css('.table-search-preview-system .home-sidebar-system-chevron').styles(
     display: .inlineFlex,
     alignItems: .center,
@@ -724,19 +646,15 @@ List<StyleRule> tableSearchPanelStyles = [
     flex: Flex(grow: 0, shrink: 0),
     raw: const {'line-height': '1', 'transition': 'transform 0.15s ease'},
   ),
-  css('.table-search-preview-system .home-sidebar-system-chevron--open').styles(
-    raw: const {'transform': 'rotate(90deg)'},
-  ),
-  css('.table-search-preview-system .home-sidebar-system-panel').styles(
-    raw: const {
-      'display': 'grid',
-      'grid-template-rows': '0fr',
-      'transition': 'grid-template-rows 0.2s ease',
-    },
-  ),
-  css('.table-search-preview-system .home-sidebar-system-panel--shown').styles(
-    raw: const {'grid-template-rows': '1fr'},
-  ),
+  css(
+    '.table-search-preview-system .home-sidebar-system-chevron--open',
+  ).styles(raw: const {'transform': 'rotate(90deg)'}),
+  css(
+    '.table-search-preview-system .home-sidebar-system-panel',
+  ).styles(raw: const {'display': 'grid', 'grid-template-rows': '0fr', 'transition': 'grid-template-rows 0.2s ease'}),
+  css(
+    '.table-search-preview-system .home-sidebar-system-panel--shown',
+  ).styles(raw: const {'grid-template-rows': '1fr'}),
   css('.table-search-preview-system .home-sidebar-system-panel-inner').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
@@ -758,21 +676,14 @@ List<StyleRule> tableSearchPanelStyles = [
     textAlign: TextAlign.center,
     border: Border.none,
     radius: .all(Radius.circular(6.px)),
-    raw: const {
-      'appearance': 'none',
-      '-webkit-appearance': 'none',
-    },
+    raw: const {'appearance': 'none', '-webkit-appearance': 'none'},
   ),
-  css('.table-search-preview-format .table-search-segment--active').styles(
-    backgroundColor: primaryColor,
-    color: onPrimaryColor,
-    border: Border.none,
-    fontWeight: .w700,
-  ),
-  css('.table-search-preview-format .table-search-segment--active:hover').styles(
-    backgroundColor: primaryHoverColor,
-    color: onPrimaryColor,
-  ),
+  css(
+    '.table-search-preview-format .table-search-segment--active',
+  ).styles(backgroundColor: primaryColor, color: onPrimaryColor, border: Border.none, fontWeight: .w700),
+  css(
+    '.table-search-preview-format .table-search-segment--active:hover',
+  ).styles(backgroundColor: primaryHoverColor, color: onPrimaryColor),
   css('.table-search-preview-code .table-row-detail-json-card-toolbar').styles(
     position: Position.absolute(top: 6.px, right: 6.px),
   ),
@@ -780,28 +691,24 @@ List<StyleRule> tableSearchPanelStyles = [
     margin: .zero,
     padding: .only(top: ZonaiSpacing.s11_5, left: ZonaiSpacing.s6, right: ZonaiSpacing.s6, bottom: ZonaiSpacing.s6),
   ),
-  css('.table-search-preview-hint').styles(
-    margin: .zero,
-    fontSize: 0.8125.rem,
-    color: mutedColor,
-    raw: const {'line-height': '1.45'},
-  ),
+  css(
+    '.table-search-preview-hint',
+  ).styles(margin: .zero, fontSize: 0.8125.rem, color: mutedColor, raw: const {'line-height': '1.45'}),
   css('.table-search-panel-footer').styles(
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,
     flexDirection: FlexDirection.column,
     gap: Gap.all(ZonaiSpacing.s5),
     padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
-    border: .only(top: BorderSide.solid(color: borderColor, width: 1.px)),
+    border: .only(
+      top: BorderSide.solid(color: borderColor, width: 1.px),
+    ),
     backgroundColor: surfaceColor,
   ),
   css('.table-search-add-btn').styles(margin: .zero, fontSize: 0.8125.rem, alignSelf: .flexStart),
-  css('.table-search-panel-actions-primary').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    gap: Gap.all(ZonaiSpacing.s4),
-    justifyContent: .end,
-  ),
+  css(
+    '.table-search-panel-actions-primary',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, gap: Gap.all(ZonaiSpacing.s4), justifyContent: .end),
   css('.table-search-panel-actions-primary .z-btn + .z-btn').styles(margin: .zero),
   css.media(MediaQuery.all(maxWidth: 640.px), [
     css('.table-search-row-inputs').styles(flexDirection: FlexDirection.column),
@@ -816,16 +723,9 @@ List<StyleRule> tableSearchSidePanelStyles = [
     position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
     opacity: 0,
     transition: Transition('opacity', duration: const Duration(milliseconds: 250), curve: Curve.easeOut),
-    raw: const {
-      'z-index': '160',
-      'background-color': 'rgb(15 23 42 / 0.35)',
-      'pointer-events': 'none',
-    },
+    raw: const {'z-index': '160', 'background-color': 'rgb(15 23 42 / 0.35)', 'pointer-events': 'none'},
   ),
-  css('.table-search-backdrop.table-search--open').styles(
-    opacity: 1,
-    raw: const {'pointer-events': 'auto'},
-  ),
+  css('.table-search-backdrop.table-search--open').styles(opacity: 1, raw: const {'pointer-events': 'auto'}),
   css('.table-search-side-panel').styles(
     position: Position.fixed(top: 0.px, right: 0.px, bottom: 0.px),
     display: .flex,
@@ -833,7 +733,9 @@ List<StyleRule> tableSearchSidePanelStyles = [
     minHeight: .zero,
     height: 100.percent,
     overflow: Overflow.hidden,
-    border: .only(left: BorderSide.solid(color: borderColor, width: 1.px)),
+    border: .only(
+      left: BorderSide.solid(color: borderColor, width: 1.px),
+    ),
     backgroundColor: surfaceColor,
     transform: Transform.translate(x: 100.percent),
     transition: Transition('transform', duration: const Duration(milliseconds: 250), curve: Curve.easeOut),
@@ -846,10 +748,9 @@ List<StyleRule> tableSearchSidePanelStyles = [
     },
   ),
   css('.table-search-side-panel.table-search--open').styles(transform: Transform.none),
-  css('.table-search-side-panel.table-search--resizing').styles(
-    userSelect: .none,
-    raw: const {'transition': 'none', 'cursor': 'ew-resize'},
-  ),
+  css(
+    '.table-search-side-panel.table-search--resizing',
+  ).styles(userSelect: .none, raw: const {'transition': 'none', 'cursor': 'ew-resize'}),
   css('.table-search-resize-handle').styles(
     position: Position.absolute(top: 0.px, left: 0.px, bottom: 0.px),
     width: 20.px,
@@ -872,7 +773,9 @@ List<StyleRule> tableSearchSidePanelStyles = [
     flexDirection: FlexDirection.column,
     gap: Gap.all(ZonaiSpacing.s2),
     padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s8),
-    border: .only(bottom: BorderSide.solid(color: borderColor, width: 1.px)),
+    border: .only(
+      bottom: BorderSide.solid(color: borderColor, width: 1.px),
+    ),
   ),
   css('.table-search-side-header-row').styles(
     display: .flex,
@@ -881,17 +784,10 @@ List<StyleRule> tableSearchSidePanelStyles = [
     justifyContent: .spaceBetween,
     gap: Gap.all(ZonaiSpacing.s6),
   ),
-  css('.table-search-side-title').styles(
-    margin: .zero,
-    fontSize: 1.125.rem,
-    fontWeight: .w600,
-  ),
-  css('.table-search-side-summary').styles(
-    margin: .zero,
-    fontSize: 0.8125.rem,
-    color: mutedColor,
-    raw: const {'line-height': '1.45'},
-  ),
+  css('.table-search-side-title').styles(margin: .zero, fontSize: 1.125.rem, fontWeight: .w600),
+  css(
+    '.table-search-side-summary',
+  ).styles(margin: .zero, fontSize: 0.8125.rem, color: mutedColor, raw: const {'line-height': '1.45'}),
   css('.table-search-side-close').styles(
     width: 32.px,
     height: 32.px,

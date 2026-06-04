@@ -1,6 +1,6 @@
 import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart'
-    show BigIntTransfomer, BooleanTransformer, DateTimeTransfomer;
+    show BigIntTransformer, BooleanTransformer, DateTimeTransformer;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/email_column.dart';
 import 'package:zonai_schema/src/column_types/enum_column.dart';
@@ -139,13 +139,13 @@ _describeColumn(rd.Column column) {
       isSecret: false,
       isReadOnly: false,
     ),
-    DateTimeTransfomer() => (
+    DateTimeTransformer() => (
       kind: .dateTime,
       enumValues: const [],
       isSecret: false,
       isReadOnly: false,
     ),
-    BigIntTransfomer() => (
+    BigIntTransformer() => (
       kind: .bigInt,
       enumValues: const [],
       isSecret: false,

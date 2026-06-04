@@ -120,14 +120,7 @@ final class LastJobRunResponse extends CronResponse {
     required this.time,
     required this.wasSuccessful,
     required super.id,
-  }) : super(
-         path: _path,
-         payload: {
-           'name': name,
-           'lastRun': time,
-           'wasSuccessful': wasSuccessful,
-         },
-       );
+  }) : super(path: _path, payload: const {});
 
   factory LastJobRunResponse.fromJson(Map<String, dynamic> json) {
     return LastJobRunResponse(
