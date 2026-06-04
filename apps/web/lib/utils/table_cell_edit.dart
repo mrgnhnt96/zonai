@@ -93,7 +93,8 @@ Object? parseEditValue({
   }
 
   return switch (shape.kind) {
-    ColumnShapeKind.integer || ColumnShapeKind.id => int.parse(trimmed),
+    ColumnShapeKind.integer => int.parse(trimmed),
+    ColumnShapeKind.id => trimmed,
     ColumnShapeKind.real => double.parse(trimmed),
     ColumnShapeKind.bigInt => int.parse(trimmed),
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => _parseBool(trimmed),
@@ -134,6 +135,12 @@ DateTime _parseDateTime(String text) {
 bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
   if (a == b) return true;
   if (a == null || b == null) return false;
+
+  if (shape?.kind == ColumnShapeKind.id) {
+    final sa = a?.toString() ?? '';
+    final sb = b?.toString() ?? '';
+    return sa == sb;
+  }
 
   if (shape?.kind == ColumnShapeKind.dateTime ||
       shape?.kind == ColumnShapeKind.createdAt ||

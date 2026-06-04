@@ -19,6 +19,7 @@ import '../utils/dom_event_values.dart';
 import '../utils/sqlite_table_utils.dart';
 import '../utils/table_cell_edit.dart';
 import '../utils/table_row_key.dart';
+import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
 
@@ -64,6 +65,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _saving = false;
   List<Object?>? _draft;
   Map<int, String> _textInputs = {};
+  _PendingDismiss? _pendingDismiss;
 
   @override
   void initState() {
@@ -131,6 +133,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (event is! web.KeyboardEvent || event.key != 'Escape') return;
     if (!mounted || !_open) return;
     event.preventDefault();
+    if (_pendingDismiss != null) {
+      setState(() => _pendingDismiss = null);
+      return;
+    }
+    final detail = _cachedDetail;
+    if (detail != null) {
+      _requestDismiss(detail, _PendingDismiss.closePanel);
+      return;
+    }
     context.read(tableRowDetailProvider.notifier).close();
   }
 
@@ -317,6 +328,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       _saving = false;
       _draft = null;
       _textInputs = {};
+      _pendingDismiss = null;
     });
     _unmountTimer?.cancel();
     _unmountTimer = Timer(_slideDuration, () {
@@ -392,7 +404,51 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       _editing = false;
       _draft = null;
       _textInputs = {};
+      _pendingDismiss = null;
     });
+  }
+
+  bool _hasUnsavedChanges(TableRowDetailState detail) {
+    if (!_editing || _draft == null) return false;
+
+    try {
+      return diffRowUpdates(
+        original: detail.row,
+        draft: _parsedDraft(detail),
+        columns: detail.columns,
+        columnShapes: detail.columnShapes,
+      ).isNotEmpty;
+    } on FormatException {
+      for (var i = 0; i < detail.row.length; i++) {
+        final shape = detail.columnShapes.elementAtOrNull(i);
+        if (shape == null || !isColumnEditable(shape)) continue;
+        if (shape.kind == ColumnShapeKind.boolean || shape.kind == ColumnShapeKind.isVerified) {
+          if (!cellValuesEqual(detail.row[i], _draft![i], shape)) return true;
+        } else {
+          final text = _textInputs[i];
+          if (text != null && text != cellToEditString(detail.row[i], shape)) return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  void _requestDismiss(TableRowDetailState detail, _PendingDismiss action) {
+    if (_saving) return;
+    if (_hasUnsavedChanges(detail)) {
+      setState(() => _pendingDismiss = action);
+      return;
+    }
+    _executeDismiss(action);
+  }
+
+  void _executeDismiss(_PendingDismiss action) {
+    switch (action) {
+      case _PendingDismiss.closePanel:
+        context.read(tableRowDetailProvider.notifier).close();
+      case _PendingDismiss.cancelEditing:
+        _cancelEditing();
+    }
   }
 
   bool _usesTextInput(ColumnShape? shape) {
@@ -475,7 +531,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     try {
       parsedDraft = _parsedDraft(detail);
     } on FormatException catch (e) {
-      context.read(toastProvider.notifier).showError(e.message);
+      context.read(toastProvider.notifier).showError(userFacingError(e));
       return;
     }
 
@@ -514,7 +570,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      context.read(toastProvider.notifier).showError('$e');
+      context.read(toastProvider.notifier).showError(userFacingError(e));
     }
   }
 
@@ -535,7 +591,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final sessionUser = context.watch(sessionUserProvider);
     final canEditRows = sessionUser?.canEdit == true;
     final rowEditable = canEditRows && _canEditRow(cached);
-    void close() => context.read(tableRowDetailProvider.notifier).close();
+    final hasUnsavedChanges = _hasUnsavedChanges(cached);
+    void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     final subtitle = _detailSubtitle(cached);
     final showRawJson = !_editing && _showRawJson && _rawJsonRowKey == cached.rowKey;
     final openClass = _open ? ' table-row-detail--open' : '';
@@ -626,9 +683,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                       type: .button,
                       attributes: {
                         'aria-label': 'Save row',
-                        if (_saving) 'disabled': 'true',
+                        if (_saving || !hasUnsavedChanges) 'disabled': 'true',
                       },
-                      onClick: _saving ? null : () => _saveRow(cached),
+                      onClick: (_saving || !hasUnsavedChanges) ? null : () => _saveRow(cached),
                       [.text(_saving ? 'Saving…' : 'Save')],
                     ),
                     button(
@@ -638,7 +695,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                         'aria-label': 'Cancel editing',
                         if (_saving) 'disabled': 'true',
                       },
-                      onClick: _saving ? null : _cancelEditing,
+                      onClick: _saving ? null : () => _requestDismiss(cached, _PendingDismiss.cancelEditing),
                       [.text('Cancel')],
                     ),
                   ])
@@ -654,7 +711,70 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           ]),
         ],
       ),
+      if (_pendingDismiss != null) _DiscardChangesDialog(
+        onKeepEditing: () => setState(() => _pendingDismiss = null),
+        onDiscard: () {
+          final action = _pendingDismiss!;
+          setState(() => _pendingDismiss = null);
+          _executeDismiss(action);
+        },
+      ),
     ]);
+  }
+}
+
+enum _PendingDismiss { closePanel, cancelEditing }
+
+class _DiscardChangesDialog extends StatelessComponent {
+  const _DiscardChangesDialog({
+    required this.onKeepEditing,
+    required this.onDiscard,
+  });
+
+  final VoidCallback onKeepEditing;
+  final VoidCallback onDiscard;
+
+  @override
+  Component build(BuildContext context) {
+    return div(
+      classes: 'table-row-detail-discard-backdrop',
+      events: {'click': (_) => onKeepEditing()},
+      [
+        div(
+          classes: 'table-row-detail-discard-dialog',
+          attributes: {
+            'role': 'dialog',
+            'aria-modal': 'true',
+            'aria-labelledby': 'table-row-detail-discard-title',
+          },
+          events: {'click': (event) => event.stopPropagation()},
+          [
+            h3(
+              id: 'table-row-detail-discard-title',
+              classes: 'table-row-detail-discard-title',
+              [.text('Discard changes?')],
+            ),
+            p(classes: 'table-row-detail-discard-message', [
+              .text('You have unsaved changes. If you leave now, your edits will be lost.'),
+            ]),
+            div(classes: 'table-row-detail-discard-actions', [
+              button(
+                classes: 'table-row-detail-discard-btn table-row-detail-discard-btn--secondary',
+                type: .button,
+                onClick: onKeepEditing,
+                [.text('Keep editing')],
+              ),
+              button(
+                classes: 'table-row-detail-discard-btn table-row-detail-discard-btn--danger',
+                type: .button,
+                onClick: onDiscard,
+                [.text('Discard')],
+              ),
+            ]),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -1334,6 +1454,66 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     opacity: 0.55,
     cursor: .notAllowed,
   ),
+  css('.table-row-detail-footer-btn--primary:disabled:hover').styles(backgroundColor: primaryColor),
+  css('.table-row-detail-discard-backdrop').styles(
+    position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    padding: .symmetric(horizontal: 24.px),
+    raw: const {
+      'z-index': '170',
+      'background-color': 'rgb(15 23 42 / 0.55)',
+    },
+  ),
+  css('.table-row-detail-discard-dialog').styles(
+    width: 100.percent,
+    maxWidth: 400.px,
+    padding: .all(20.px),
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(16.px),
+    backgroundColor: surfaceColor,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(12.px)),
+    raw: const {'box-shadow': 'var(--zonai-shadow)'},
+  ),
+  css('.table-row-detail-discard-title').styles(
+    margin: .zero,
+    fontSize: 1.rem,
+    fontWeight: .w600,
+    color: fgColor,
+  ),
+  css('.table-row-detail-discard-message').styles(
+    margin: .zero,
+    fontSize: 0.875.rem,
+    color: mutedColor,
+    raw: const {'line-height': '1.5'},
+  ),
+  css('.table-row-detail-discard-actions').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    justifyContent: .end,
+    gap: Gap.all(8.px),
+  ),
+  css('.table-row-detail-discard-btn').styles(
+    padding: .symmetric(horizontal: 14.px, vertical: 8.px),
+    border: Border.all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(8.px)),
+    backgroundColor: surfaceColor,
+    color: fgColor,
+    cursor: .pointer,
+    fontSize: 0.875.rem,
+    fontWeight: .w600,
+    raw: const {'font': 'inherit', 'line-height': '1.3'},
+  ),
+  css('.table-row-detail-discard-btn:hover').styles(backgroundColor: hoverColor),
+  css('.table-row-detail-discard-btn--danger').styles(
+    backgroundColor: const Color('#dc2626'),
+    color: Colors.white,
+    border: Border.all(color: const Color('#dc2626'), width: 1.px, style: .solid),
+  ),
+  css('.table-row-detail-discard-btn--danger:hover').styles(backgroundColor: const Color('#b91c1c')),
   css('.table-row-detail-body').styles(
     flex: Flex(grow: 1, shrink: 1),
     overflow: Overflow.auto,
