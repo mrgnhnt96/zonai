@@ -4,6 +4,7 @@ import 'package:zonai_web/api/api_client.dart';
 
 import '../utils/table_row_key.dart';
 import 'table_focus_provider.dart';
+import 'table_row_detail_provider.dart';
 import 'table_row_selection_provider.dart';
 import 'table_schema_provider.dart';
 import 'toast_provider.dart';
@@ -127,6 +128,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     }
 
     ref.read(tableRowSelectionProvider.notifier).clear();
+    ref.read(tableRowDetailProvider.notifier).close();
     ref.invalidateSelf();
   }
 

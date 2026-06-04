@@ -88,5 +88,31 @@ void main() {
         '2 photos',
       );
     });
+
+    test('photo and blob truncation', () {
+      const photoShape = ColumnShape(
+        name: 'avatar',
+        kind: ColumnShapeKind.photo,
+        isNullable: true,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'TEXT',
+      );
+      final longUrl = 'https://example.com/${'x' * 80}/photo.jpg';
+      expect(formatSchemaCell(longUrl, photoShape).endsWith('…'), isTrue);
+      expect(formatSchemaCell(longUrl, photoShape, truncate: false), longUrl);
+
+      const blobShape = ColumnShape(
+        name: 'payload',
+        kind: ColumnShapeKind.blob,
+        isNullable: true,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'TEXT',
+      );
+      final longBlob = 'a' * 100;
+      expect(formatSchemaCell(longBlob, blobShape).length, lessThan(100));
+      expect(formatSchemaCell(longBlob, blobShape, truncate: false), longBlob);
+    });
   });
 }

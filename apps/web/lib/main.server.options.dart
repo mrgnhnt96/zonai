@@ -12,6 +12,8 @@ import 'package:zonai_web/components/home_screen.dart' as _home_screen;
 import 'package:zonai_web/components/home_settings_overlay.dart'
     as _home_settings_overlay;
 import 'package:zonai_web/components/home_sidebar.dart' as _home_sidebar;
+import 'package:zonai_web/components/table_row_detail_panel.dart'
+    as _table_row_detail_panel;
 import 'package:zonai_web/components/toast_overlay.dart' as _toast_overlay;
 import 'package:zonai_web/constants/theme.dart' as _theme;
 import 'package:zonai_web/app.dart' as _app;
@@ -45,6 +47,7 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ),
   },
   styles: () => [
+    ..._table_row_detail_panel.tableRowDetailPanelStyles,
     ..._ui_styles.zonaiUiStyles,
     ..._theme.styles,
     ..._app.App.styles,

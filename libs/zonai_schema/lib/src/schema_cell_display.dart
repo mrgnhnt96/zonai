@@ -7,7 +7,10 @@ import 'package:zonai_schema/src/types/schema_shape.dart';
 String columnShapeHeaderLabel(ColumnShape shape) => shape.name;
 
 /// Formats a raw cell value from `/db/list` using [shape] metadata.
-String formatSchemaCell(Object? value, ColumnShape? shape) {
+///
+/// When [truncate] is false (e.g. row detail panel), photo URLs and blob text
+/// are not shortened.
+String formatSchemaCell(Object? value, ColumnShape? shape, {bool truncate = true}) {
   if (value == null) return '—';
   if (shape?.isSecret == true || shape?.kind == ColumnShapeKind.password) {
     return '••••••••';
@@ -24,10 +27,10 @@ String formatSchemaCell(Object? value, ColumnShape? shape) {
     ColumnShapeKind.updatedAt => _formatDateTime(value),
     ColumnShapeKind.enum_ => _formatEnum(value, shape!.enumValues),
     ColumnShapeKind.enumList => _formatEnumList(value, shape!.enumValues),
-    ColumnShapeKind.photo => _formatPhoto(value),
-    ColumnShapeKind.photos => _formatPhotos(value),
+    ColumnShapeKind.photo => _formatPhoto(value, truncate: truncate),
+    ColumnShapeKind.photos => _formatPhotos(value, truncate: truncate),
     ColumnShapeKind.map || ColumnShapeKind.list => _formatStructured(value),
-    ColumnShapeKind.blob => _formatBlob(value),
+    ColumnShapeKind.blob => _formatBlob(value, truncate: truncate),
     _ => '$value',
   };
 }
@@ -97,24 +100,25 @@ String _formatEnumList(Object value, List<String> enumValues) {
   return labels.join(', ');
 }
 
-String _formatPhoto(Object value) {
+String _formatPhoto(Object value, {required bool truncate}) {
   final text = '$value';
   if (text.startsWith('http://') || text.startsWith('https://')) {
-    return _truncate(text, 64);
+    return truncate ? _truncate(text, 64) : text;
   }
   return text;
 }
 
-String _formatPhotos(Object value) {
+String _formatPhotos(Object value, {required bool truncate}) {
   final list = _asList(value);
   if (list == null) return _formatStructured(value);
   if (list.isEmpty) return '—';
 
   final urls = [
     for (final item in list)
-      if (item != null) _formatPhoto(item),
+      if (item != null) _formatPhoto(item, truncate: truncate),
   ];
   if (urls.length == 1) return urls.single;
+  if (!truncate) return urls.join('\n');
   return '${urls.length} photos';
 }
 
@@ -130,10 +134,10 @@ String _formatStructured(Object value) {
   }
 }
 
-String _formatBlob(Object value) => switch (value) {
+String _formatBlob(Object value, {required bool truncate}) => switch (value) {
   final List<int> bytes => 'BLOB (${bytes.length} bytes)',
   final String s when s.isEmpty => '—',
-  final String s => _truncate(s, 80),
+  final String s => truncate ? _truncate(s, 80) : s,
   _ => '$value',
 };
 

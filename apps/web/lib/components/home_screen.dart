@@ -9,6 +9,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../constants/theme.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/table_focus_provider.dart';
+import '../providers/table_row_detail_provider.dart';
 import '../providers/table_row_selection_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/table_schema_provider.dart';
@@ -20,6 +21,7 @@ import '../utils/table_rows_sort.dart';
 import '../auth/auth_route_provider.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
+import 'table_row_detail_panel.dart';
 import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
 
@@ -65,6 +67,7 @@ class HomeScreen extends StatelessComponent {
           [],
         ),
       const HomeSettingsOverlay(),
+      if (context.binding.isClient) const TableRowDetailPanel(),
       if (context.binding.isClient) const ToastOverlay(),
     ]);
   }
@@ -73,6 +76,7 @@ class HomeScreen extends StatelessComponent {
   static List<StyleRule> get styles => [
     ...HomeSidebar.styles,
     ...HomeSettingsOverlay.styles,
+    ...tableRowDetailPanelStyles,
     ...ToastOverlay.styles,
     css('.home', [
       css('&').styles(
@@ -362,7 +366,13 @@ class HomeScreen extends StatelessComponent {
           'background-size': '0.65rem 0.65rem',
         },
       ),
+      css('.rows-row').styles(cursor: .pointer),
       css('.rows-row--selected td').styles(backgroundColor: selectedBgColor),
+      css('.rows-row--detail-active td').styles(
+        backgroundColor: selectedBgColor,
+        raw: const {'box-shadow': 'inset 3px 0 0 var(--zonai-primary)'},
+      ),
+      css('.rows-row--detail-active.rows-row--selected td').styles(backgroundColor: selectedBgColor),
       css('.table-rows-selection-float').styles(
         display: .flex,
         justifyContent: .center,
@@ -738,6 +748,8 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     final sort = component.sort;
     final selection = context.watch(tableRowSelectionProvider);
     final selectionNotifier = context.read(tableRowSelectionProvider.notifier);
+    final detailKey = context.watch(tableRowDetailProvider)?.rowKey;
+    final detailNotifier = context.read(tableRowDetailProvider.notifier);
     final sortColumnIndex = sort == null ? -1 : data.columns.indexOf(sort.columnName);
     final displayRows = sortColumnIndex < 0
         ? data.rows
@@ -803,9 +815,12 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
                 row: displayRows[r],
                 rowKey: displayKeys[r],
                 pageKeys: displayKeys,
+                columns: data.columns,
                 columnShapes: data.columnShapes,
                 selected: selection.isSelected(displayKeys[r]),
+                detailActive: displayKeys[r] == detailKey,
                 selectionNotifier: selectionNotifier,
+                detailNotifier: detailNotifier,
               ),
           ]),
         ]),
@@ -832,23 +847,51 @@ class _SelectableRow extends StatelessComponent {
     required this.row,
     required this.rowKey,
     required this.pageKeys,
+    required this.columns,
     required this.columnShapes,
     required this.selected,
+    required this.detailActive,
     required this.selectionNotifier,
+    required this.detailNotifier,
   });
 
   final int rowIndex;
   final List<Object?> row;
   final String rowKey;
   final List<String> pageKeys;
+  final List<String> columns;
   final List<ColumnShape> columnShapes;
   final bool selected;
+  final bool detailActive;
   final TableRowSelectionNotifier selectionNotifier;
+  final TableRowDetailNotifier detailNotifier;
+
+  String? get _rowClass {
+    final parts = <String>['rows-row'];
+    if (selected) parts.add('rows-row--selected');
+    if (detailActive) parts.add('rows-row--detail-active');
+    return parts.join(' ');
+  }
 
   @override
   Component build(BuildContext context) {
-    return tr(classes: selected ? 'rows-row--selected' : null, [
-      td(classes: 'rows-select-cell', [
+    return tr(
+      classes: _rowClass,
+      events: {
+        'click': (_) => detailNotifier.toggle(
+          rowKey: rowKey,
+          row: row,
+          columns: columns,
+          columnShapes: columnShapes,
+        ),
+      },
+      [
+      td(
+        classes: 'rows-select-cell',
+        events: {
+          'click': (event) => event.stopPropagation(),
+        },
+        [
         div(classes: 'rows-select-checkbox-wrap', [
           input<bool>(
             type: InputType.checkbox,
