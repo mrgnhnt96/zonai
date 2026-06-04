@@ -16,6 +16,7 @@ import 'syntax_highlighted_code.dart';
 import 'table_filter_value_field.dart';
 import 'theme/theme_components.dart';
 import 'theme/ui_styles.dart';
+import '../constants/spacing.dart';
 
 enum _SearchPreviewMode { json, dart }
 
@@ -515,16 +516,16 @@ List<StyleRule> tableSearchPanelStyles = [
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     flex: Flex(grow: 0, shrink: 0),
   ),
   css('.table-search-combine-label').styles(
     fontSize: 0.8125.rem,
     color: mutedColor,
-    margin: .only(right: 4.px),
+    margin: .only(right: ZonaiSpacing.s2),
   ),
   css('.table-search-segment').styles(
-    padding: .symmetric(horizontal: 10.px, vertical: 4.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s2),
     fontSize: 0.75.rem,
     fontWeight: .w600,
     cursor: .pointer,
@@ -541,15 +542,15 @@ List<StyleRule> tableSearchPanelStyles = [
   ),
   css('.table-edit-datetime__time-inputs .table-edit-datetime__ampm').styles(
     flex: Flex(grow: 0, shrink: 0),
-    gap: Gap.all(4.px),
-    padding: .all(3.px),
+    gap: Gap.all(ZonaiSpacing.s2),
+    padding: .all(ZonaiSpacing.s1_5),
     radius: .all(Radius.circular(8.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: hoverColor,
   ),
   css('.table-edit-datetime__time-inputs .table-search-segment').styles(
     minWidth: 36.px,
-    padding: .symmetric(horizontal: 8.px, vertical: 6.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s3),
     textAlign: TextAlign.center,
     raw: const {
       'appearance': 'none',
@@ -570,13 +571,13 @@ List<StyleRule> tableSearchPanelStyles = [
   css('.table-search-conditions').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(12.px),
+    gap: Gap.all(ZonaiSpacing.s6),
   ),
   css('.table-search-condition-card').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(10.px),
-    padding: .all(12.px),
+    gap: Gap.all(ZonaiSpacing.s5),
+    padding: .all(ZonaiSpacing.s6),
     radius: .all(Radius.circular(10.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: bgColor,
@@ -587,7 +588,7 @@ List<StyleRule> tableSearchPanelStyles = [
     flexDirection: FlexDirection.row,
     alignItems: .center,
     justifyContent: .spaceBetween,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
   ),
   css('.table-search-condition-badge').styles(
     fontSize: 0.75.rem,
@@ -598,14 +599,14 @@ List<StyleRule> tableSearchPanelStyles = [
   css('.table-search-row-fields').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
     minWidth: .zero,
   ),
   css('.table-search-row-inputs').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .start,
-    gap: Gap.all(10.px),
+    gap: Gap.all(ZonaiSpacing.s5),
     minWidth: .zero,
   ),
   css('.table-search-row-inputs .table-search-field').styles(
@@ -615,10 +616,10 @@ List<StyleRule> tableSearchPanelStyles = [
   css('.table-search-field').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(4.px),
+    gap: Gap.all(ZonaiSpacing.s2),
   ),
   css('.table-search-field--full').styles(width: 100.percent),
-  css('.table-search-field--full + .table-search-operators').styles(margin: .only(top: 8.px)),
+  css('.table-search-field--full + .table-search-operators').styles(margin: .only(top: ZonaiSpacing.s4)),
   css('.table-search-field-label').styles(
     fontSize: 0.75.rem,
     color: mutedColor,
@@ -628,10 +629,10 @@ List<StyleRule> tableSearchPanelStyles = [
     display: .flex,
     flexDirection: FlexDirection.row,
     flexWrap: FlexWrap.wrap,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
   ),
   css('.table-search-op').styles(
-    padding: .symmetric(horizontal: 8.px, vertical: 4.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
     fontSize: 0.75.rem,
     cursor: .pointer,
     radius: .all(Radius.circular(6.px)),
@@ -665,10 +666,10 @@ List<StyleRule> tableSearchPanelStyles = [
     flex: Flex(grow: 1, shrink: 1),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(14.px),
+    gap: Gap.all(ZonaiSpacing.s7),
     minHeight: .zero,
     overflow: Overflow.auto,
-    padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
   ),
   css('.table-search-preview').styles(
     flex: Flex(grow: 0, shrink: 0),
@@ -677,16 +678,16 @@ List<StyleRule> tableSearchPanelStyles = [
   css('.table-search-preview-system').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(4.px),
+    gap: Gap.all(ZonaiSpacing.s2),
     width: 100.percent,
   ),
   css('.table-search-preview-system .home-sidebar-system-toggle').styles(
     cursor: .pointer,
-    padding: .symmetric(vertical: 4.px),
+    padding: .symmetric(vertical: ZonaiSpacing.s2),
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     width: 100.percent,
     border: Border.none,
     backgroundColor: Colors.transparent,
@@ -739,21 +740,21 @@ List<StyleRule> tableSearchPanelStyles = [
   css('.table-search-preview-system .home-sidebar-system-panel-inner').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
     overflow: Overflow.hidden,
     minHeight: .zero,
   ),
   css('.table-search-preview-format').styles(
     flex: Flex(grow: 0, shrink: 0),
-    gap: Gap.all(4.px),
-    padding: .all(3.px),
+    gap: Gap.all(ZonaiSpacing.s2),
+    padding: .all(ZonaiSpacing.s1_5),
     radius: .all(Radius.circular(8.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: hoverColor,
   ),
   css('.table-search-preview-format .table-search-segment').styles(
     minWidth: 36.px,
-    padding: .symmetric(horizontal: 8.px, vertical: 6.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s3),
     textAlign: TextAlign.center,
     border: Border.none,
     radius: .all(Radius.circular(6.px)),
@@ -777,7 +778,7 @@ List<StyleRule> tableSearchPanelStyles = [
   ),
   css('.table-search-preview-code .table-row-detail-json-card-pre').styles(
     margin: .zero,
-    padding: .only(top: 26.px, left: 12.px, right: 12.px, bottom: 12.px),
+    padding: .only(top: ZonaiSpacing.s11_5, left: ZonaiSpacing.s6, right: ZonaiSpacing.s6, bottom: ZonaiSpacing.s6),
   ),
   css('.table-search-preview-hint').styles(
     margin: .zero,
@@ -789,8 +790,8 @@ List<StyleRule> tableSearchPanelStyles = [
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(10.px),
-    padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+    gap: Gap.all(ZonaiSpacing.s5),
+    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
     border: .only(top: BorderSide.solid(color: borderColor, width: 1.px)),
     backgroundColor: surfaceColor,
   ),
@@ -798,7 +799,7 @@ List<StyleRule> tableSearchPanelStyles = [
   css('.table-search-panel-actions-primary').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
     justifyContent: .end,
   ),
   css('.table-search-panel-actions-primary .z-btn + .z-btn').styles(margin: .zero),
@@ -862,15 +863,15 @@ List<StyleRule> tableSearchSidePanelStyles = [
     flexDirection: FlexDirection.column,
     minHeight: .zero,
     height: 100.percent,
-    padding: .only(left: 20.px),
+    padding: .only(left: ZonaiSpacing.s10),
     overflow: Overflow.hidden,
   ),
   css('.table-search-side-header').styles(
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(4.px),
-    padding: .symmetric(horizontal: 16.px, vertical: 16.px),
+    gap: Gap.all(ZonaiSpacing.s2),
+    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s8),
     border: .only(bottom: BorderSide.solid(color: borderColor, width: 1.px)),
   ),
   css('.table-search-side-header-row').styles(
@@ -878,7 +879,7 @@ List<StyleRule> tableSearchSidePanelStyles = [
     flexDirection: FlexDirection.row,
     alignItems: .center,
     justifyContent: .spaceBetween,
-    gap: Gap.all(12.px),
+    gap: Gap.all(ZonaiSpacing.s6),
   ),
   css('.table-search-side-title').styles(
     margin: .zero,

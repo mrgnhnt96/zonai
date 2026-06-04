@@ -1,6 +1,7 @@
 import 'package:jaspr/dom.dart';
 
 import '../../constants/theme.dart';
+import '../../constants/spacing.dart';
 
 /// Shared UI class names used by theme components.
 abstract final class ZonaiClasses {
@@ -50,7 +51,7 @@ List<StyleRule> get zonaiUiStyles => [
     width: 100.percent,
     maxWidth: 420.px,
     backgroundColor: surfaceColor,
-    padding: .all(36.px),
+    padding: .all(ZonaiSpacing.s14),
     radius: .all(Radius.circular(20.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     raw: const {
@@ -58,7 +59,7 @@ List<StyleRule> get zonaiUiStyles => [
     },
   ),
   css('.z-page-title').styles(
-    margin: .only(bottom: 8.px),
+    margin: .only(bottom: ZonaiSpacing.s4),
     fontSize: 1.625.rem,
     fontWeight: .w600,
     raw: const {
@@ -67,21 +68,21 @@ List<StyleRule> get zonaiUiStyles => [
     },
   ),
   css('.z-page-subtitle').styles(
-    margin: .only(bottom: 28.px),
+    margin: .only(bottom: ZonaiSpacing.s12),
     fontSize: 0.9375.rem,
     color: mutedColor,
     raw: const {'line-height': '1.5'},
   ),
   css('.z-error').styles(
-    margin: .only(bottom: 16.px),
+    margin: .only(bottom: ZonaiSpacing.s8),
     fontSize: 0.875.rem,
     color: errorColor,
     raw: const {'line-height': '1.45'},
   ),
-  css('.z-field').styles(margin: .only(bottom: 20.px)),
+  css('.z-field').styles(margin: .only(bottom: ZonaiSpacing.s10)),
   css('.z-label').styles(
     display: .block,
-    margin: .only(bottom: 8.px),
+    margin: .only(bottom: ZonaiSpacing.s4),
     fontSize: 0.8125.rem,
     fontWeight: .w600,
     letterSpacing: 0.01.rem,
@@ -90,7 +91,7 @@ List<StyleRule> get zonaiUiStyles => [
   css('.z-input').styles(
     display: .block,
     width: 100.percent,
-    padding: .symmetric(horizontal: 14.px, vertical: 11.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s7, vertical: ZonaiSpacing.s5_5),
     radius: .all(Radius.circular(10.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: bgColor,
@@ -125,7 +126,7 @@ List<StyleRule> get zonaiUiStyles => [
   css('.z-select__native').styles(
     display: .block,
     width: 100.percent,
-    padding: .only(right: 36.px, left: 14.px, top: 11.px, bottom: 11.px),
+    padding: .only(right: ZonaiSpacing.s14, left: ZonaiSpacing.s7, top: ZonaiSpacing.s5_5, bottom: ZonaiSpacing.s5_5),
     radius: .all(Radius.circular(10.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: bgColor,
@@ -166,8 +167,8 @@ List<StyleRule> get zonaiUiStyles => [
     display: .inlineFlex,
     alignItems: .center,
     justifyContent: .center,
-    gap: Gap.all(8.px),
-    padding: .symmetric(horizontal: 18.px, vertical: 11.px),
+    gap: Gap.all(ZonaiSpacing.s4),
+    padding: .symmetric(horizontal: ZonaiSpacing.s9, vertical: ZonaiSpacing.s5_5),
     cursor: .pointer,
     radius: .all(Radius.circular(10.px)),
     border: Border.none,
@@ -206,7 +207,7 @@ List<StyleRule> get zonaiUiStyles => [
     color: mutedColor,
     backgroundColor: surfaceColor,
     border: .all(color: borderColor, width: 1.px, style: .solid),
-    padding: .symmetric(horizontal: 14.px, vertical: 9.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s7, vertical: ZonaiSpacing.s4_5),
     fontSize: 0.8125.rem,
   ),
   css('.z-btn--ghost:hover:not(:disabled)').styles(
@@ -217,13 +218,13 @@ List<StyleRule> get zonaiUiStyles => [
     opacity: 0.55,
     cursor: .notAllowed,
   ),
-  css('.z-btn + .z-btn').styles(margin: .only(top: 10.px)),
+  css('.z-btn + .z-btn').styles(margin: .only(top: ZonaiSpacing.s5)),
   css('.z-auth-page').styles(
     flex: Flex(grow: 1, shrink: 0),
     display: .flex,
     alignItems: .center,
     justifyContent: .center,
-    padding: .all(32.px),
+    padding: .all(ZonaiSpacing.s13),
     position: Position.relative(),
     raw: const {
       'background': 'radial-gradient(ellipse 80% 60% at 50% -20%, var(--zonai-glow), transparent)',
@@ -241,13 +242,13 @@ List<StyleRule> get zonaiUiStyles => [
     display: .flex,
     flexDirection: FlexDirection.column,
     alignItems: .stretch,
-    gap: Gap.all(24.px),
+    gap: Gap.all(ZonaiSpacing.s11),
   ),
   css('.z-auth-brand').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
     alignItems: .center,
-    gap: Gap.all(10.px),
+    gap: Gap.all(ZonaiSpacing.s5),
     textAlign: .center,
   ),
   css('.z-auth-logo').styles(
@@ -279,16 +280,16 @@ List<StyleRule> get zonaiUiStyles => [
   css('.z-auth-methods').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(10.px),
+    gap: Gap.all(ZonaiSpacing.s5),
     width: 100.percent,
   ),
   css('.z-auth-method').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
     alignItems: .start,
-    gap: Gap.all(4.px),
+    gap: Gap.all(ZonaiSpacing.s2),
     width: 100.percent,
-    padding: .all(16.px),
+    padding: .all(ZonaiSpacing.s8),
     cursor: .pointer,
     textAlign: .left,
     radius: .all(Radius.circular(12.px)),
@@ -317,15 +318,15 @@ List<StyleRule> get zonaiUiStyles => [
   css('.z-auth-actions').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(10.px),
-    margin: .only(top: 4.px),
+    gap: Gap.all(ZonaiSpacing.s5),
+    margin: .only(top: ZonaiSpacing.s2),
   ),
   css('.z-auth-footer').styles(
-    margin: .only(top: 4.px),
+    margin: .only(top: ZonaiSpacing.s2),
     textAlign: .center,
   ),
   css('.z-auth-link').styles(
-    padding: .symmetric(vertical: 8.px),
+    padding: .symmetric(vertical: ZonaiSpacing.s4),
     cursor: .pointer,
     border: Border.none,
     backgroundColor: Colors.transparent,
@@ -342,7 +343,7 @@ List<StyleRule> get zonaiUiStyles => [
   css('.z-auth-sent').styles(
     width: 48.px,
     height: 48.px,
-    margin: .only(bottom: 8.px),
+    margin: .only(bottom: ZonaiSpacing.s4),
     display: .flex,
     alignItems: .center,
     justifyContent: .center,
@@ -362,16 +363,16 @@ List<StyleRule> get zonaiUiStyles => [
   css('.z-stack').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(10.px),
+    gap: Gap.all(ZonaiSpacing.s5),
   ),
   css('.z-alert').styles(
-    padding: .all(16.px),
+    padding: .all(ZonaiSpacing.s8),
     radius: .all(Radius.circular(12.px)),
     border: .all(color: errorBorderColor, width: 1.px, style: .solid),
     backgroundColor: errorBgColor,
   ),
   css('.z-alert__title').styles(
-    margin: .only(bottom: 8.px),
+    margin: .only(bottom: ZonaiSpacing.s4),
     fontSize: 0.9375.rem,
     fontWeight: .w600,
     color: errorColor,
@@ -391,10 +392,10 @@ List<StyleRule> get zonaiUiStyles => [
     flex: Flex(grow: 1, shrink: 1),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(12.px),
+    gap: Gap.all(ZonaiSpacing.s6),
     minHeight: .zero,
     overflow: Overflow.hidden,
-    padding: .all(24.px),
+    padding: .all(ZonaiSpacing.s11),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     radius: .all(Radius.circular(16.px)),
     backgroundColor: surfaceColor,
@@ -403,7 +404,7 @@ List<StyleRule> get zonaiUiStyles => [
   css('.z-panel--empty').styles(
     alignItems: .center,
     justifyContent: .center,
-    padding: .all(40.px),
+    padding: .all(ZonaiSpacing.s15),
   ),
   css('.z-panel__title').styles(
     margin: .zero,

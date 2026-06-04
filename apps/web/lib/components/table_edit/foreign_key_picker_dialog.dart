@@ -7,6 +7,7 @@ import '../../constants/theme.dart';
 import '../../providers/foreign_key_rows_provider.dart';
 import '../../providers/table_rows_provider.dart';
 import '../theme/ui_styles.dart';
+import '../../constants/spacing.dart';
 
 /// Modal to pick one row from a foreign-key target table.
 class ForeignKeyPickerDialog extends StatelessComponent {
@@ -188,7 +189,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     display: .flex,
     alignItems: .center,
     justifyContent: .center,
-    padding: .all(24.px),
+    padding: .all(ZonaiSpacing.s11),
     raw: const {'z-index': '1200', 'background': 'rgba(0,0,0,0.4)'},
   ),
   css('.fk-picker-dialog').styles(
@@ -206,7 +207,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     display: .flex,
     alignItems: .center,
     justifyContent: .spaceBetween,
-    padding: .symmetric(horizontal: 20.px, vertical: 16.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s8),
     raw: const {'border-bottom': '1px solid var(--zonai-border)'},
   ),
   css('.fk-picker-title').styles(
@@ -216,17 +217,17 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
   ),
   css('.fk-picker-close').styles(
     display: .flex,
-    padding: .all(6.px),
+    padding: .all(ZonaiSpacing.s3),
     border: Border.none,
     backgroundColor: Colors.transparent,
     cursor: .pointer,
     color: mutedColor,
   ),
-  css('.fk-picker-search-row').styles(padding: .symmetric(horizontal: 20.px, vertical: 12.px)),
+  css('.fk-picker-search-row').styles(padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s6)),
   css('.fk-picker-body').styles(
     flex: Flex(grow: 1, shrink: 1),
     overflow: Overflow.auto,
-    padding: .symmetric(horizontal: 20.px, vertical: 8.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s4),
     minHeight: 120.px,
   ),
   css('.fk-picker-status').styles(color: mutedColor, fontSize: 0.875.rem),
@@ -239,13 +240,13 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
   ),
   css('.fk-picker-table th').styles(
     textAlign: TextAlign.left,
-    padding: .symmetric(horizontal: 10.px, vertical: 8.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s4),
     color: mutedColor,
     fontWeight: .w500,
     raw: const {'border-bottom': '1px solid var(--zonai-border)'},
   ),
   css('.fk-picker-table td').styles(
-    padding: .symmetric(horizontal: 10.px, vertical: 8.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s4),
     raw: const {'border-bottom': '1px solid var(--zonai-border)'},
   ),
   css('.fk-picker-row').styles(cursor: .pointer),
@@ -255,8 +256,8 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     display: .flex,
     flexDirection: FlexDirection.row,
     justifyContent: .end,
-    gap: Gap.all(8.px),
-    padding: .symmetric(horizontal: 20.px, vertical: 14.px),
+    gap: Gap.all(ZonaiSpacing.s4),
+    padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s7),
     raw: const {'border-top': '1px solid var(--zonai-border)'},
   ),
 ];

@@ -5,6 +5,7 @@ import '../constants/theme.dart';
 import '../utils/table_cell_edit.dart';
 import 'app_tooltip_overlay.dart';
 import 'table_edit/table_edit_datetime_field.dart';
+import '../constants/spacing.dart';
 
 /// Relative date preset for datetime filter values.
 typedef _DatetimeFilterPreset = ({
@@ -188,7 +189,7 @@ List<StyleRule> tableFilterDatetimeStyles = [
   css('.table-filter-datetime').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(10.px),
+    gap: Gap.all(ZonaiSpacing.s5),
     alignItems: .start,
     width: 100.percent,
   ),
@@ -196,12 +197,12 @@ List<StyleRule> tableFilterDatetimeStyles = [
   css('.table-filter-datetime__timezone-btn').styles(
     fontSize: 0.8125.rem,
     fontWeight: .w600,
-    padding: .symmetric(horizontal: 12.px, vertical: 5.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s2_5),
   ),
   css('.table-filter-datetime__group').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     width: 100.percent,
   ),
   css('.table-filter-datetime__group-label').styles(
@@ -214,12 +215,12 @@ List<StyleRule> tableFilterDatetimeStyles = [
   css('.table-filter-datetime__presets').styles(margin: .zero),
   css('.table-filter-datetime__preset').styles(
     fontSize: 0.8125.rem,
-    padding: .symmetric(horizontal: 10.px, vertical: 5.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s2_5),
   ),
   css('.table-filter-datetime__picker').styles(
     width: 100.percent,
-    padding: .only(top: 14.px),
-    margin: .only(top: 2.px),
+    padding: .only(top: ZonaiSpacing.s7),
+    margin: .only(top: ZonaiSpacing.s1),
     border: .only(top: BorderSide.solid(color: borderColor, width: 1.px)),
   ),
   css('.table-filter-datetime__picker .table-edit-datetime--compact').styles(

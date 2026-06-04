@@ -4,6 +4,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import '../constants/theme.dart';
 import '../providers/toast_provider.dart';
+import '../constants/spacing.dart';
 
 /// Fixed-position toast stack rendered at the app shell level.
 class ToastOverlay extends StatelessComponent {
@@ -46,7 +47,7 @@ class ToastOverlay extends StatelessComponent {
       position: Position.fixed(left: 0.px, right: 0.px, bottom: 24.px),
       display: .flex,
       justifyContent: .center,
-      padding: .symmetric(horizontal: 16.px),
+      padding: .symmetric(horizontal: ZonaiSpacing.s8),
       pointerEvents: .none,
       raw: const {'z-index': '300'},
     ),
@@ -54,9 +55,9 @@ class ToastOverlay extends StatelessComponent {
       display: .flex,
       flexDirection: FlexDirection.row,
       alignItems: .center,
-      gap: Gap.all(12.px),
+      gap: Gap.all(ZonaiSpacing.s6),
       maxWidth: 32.rem,
-      padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+      padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
       radius: .all(Radius.circular(12.px)),
       pointerEvents: .auto,
       raw: const {

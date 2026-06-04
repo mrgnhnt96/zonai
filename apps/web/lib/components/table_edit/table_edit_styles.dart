@@ -1,6 +1,7 @@
 import 'package:jaspr/dom.dart';
 
 import '../../constants/theme.dart';
+import '../../constants/spacing.dart';
 
 /// Shared styles for chip inputs and FK editors (row detail + filters).
 @css
@@ -8,19 +9,19 @@ List<StyleRule> get tableEditSharedStyles => [
   css('.table-edit-chip-input').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
   ),
   css('.table-edit-chip-input__chips').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
     flexWrap: FlexWrap.wrap,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
   ),
   css('.table-edit-chip-input__chip').styles(
     display: .inlineFlex,
     alignItems: .center,
-    gap: Gap.all(4.px),
-    padding: .symmetric(horizontal: 8.px, vertical: 4.px),
+    gap: Gap.all(ZonaiSpacing.s2),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
     radius: .all(Radius.circular(6.px)),
     backgroundColor: selectedBgColor,
     border: .all(color: borderColor, width: 1.px, style: .solid),
@@ -49,7 +50,7 @@ List<StyleRule> get tableEditSharedStyles => [
     flexDirection: FlexDirection.column,
     alignItems: .start,
     alignSelf: .stretch,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     width: 100.percent,
   ),
   css('.table-edit-chip-input__add-input').styles(
@@ -65,13 +66,13 @@ List<StyleRule> get tableEditSharedStyles => [
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(10.px),
+    gap: Gap.all(ZonaiSpacing.s5),
     flexWrap: FlexWrap.wrap,
   ),
   css('.table-edit-boolean__label').styles(
     display: .inlineFlex,
     alignItems: .center,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
     cursor: .pointer,
     fontSize: 0.9375.rem,
     color: fgColor,
@@ -87,7 +88,7 @@ List<StyleRule> get tableEditSharedStyles => [
   css('.table-edit-json-field').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     width: 100.percent,
   ),
   css('.table-edit-json-field__error').styles(
@@ -108,10 +109,10 @@ List<StyleRule> get tableEditSharedStyles => [
     flexDirection: FlexDirection.row,
     flexWrap: FlexWrap.wrap,
     alignItems: .center,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
   ),
   css('.table-edit-fk-value__chip').styles(
-    padding: .symmetric(horizontal: 8.px, vertical: 4.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
     radius: .all(Radius.circular(6.px)),
     backgroundColor: selectedBgColor,
     border: .all(color: borderColor, width: 1.px, style: .solid),
@@ -125,7 +126,7 @@ List<StyleRule> get tableEditSharedStyles => [
   css('.table-filter-fk-value').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
   ),
   css('.table-edit-enum-values--empty').styles(
     fontSize: 0.8125.rem,

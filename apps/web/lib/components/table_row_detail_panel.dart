@@ -27,6 +27,7 @@ import 'syntax_highlighted_code.dart';
 import 'table_edit/foreign_key_picker_dialog.dart';
 import 'table_edit/table_cell_edit_field.dart';
 import 'table_edit/table_edit_styles.dart';
+import '../constants/spacing.dart';
 
 const _collapsibleMinLength = 320;
 const _slideDuration = Duration(milliseconds: 250);
@@ -1289,7 +1290,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     minWidth: .zero,
     minHeight: .zero,
     height: 100.percent,
-    padding: .only(left: 20.px),
+    padding: .only(left: ZonaiSpacing.s10),
     overflow: Overflow.hidden,
     raw: const {'box-sizing': 'border-box'},
   ),
@@ -1299,8 +1300,8 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     flexDirection: FlexDirection.row,
     alignItems: .start,
     justifyContent: .spaceBetween,
-    gap: Gap.all(12.px),
-    padding: .symmetric(horizontal: 16.px, vertical: 14.px),
+    gap: Gap.all(ZonaiSpacing.s6),
+    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s7),
     border: .only(
       bottom: BorderSide.solid(color: borderColor, width: 1.px),
     ),
@@ -1310,7 +1311,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     flex: Flex(grow: 1, shrink: 1),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(4.px),
+    gap: Gap.all(ZonaiSpacing.s2),
   ),
   css('.table-row-detail-title').styles(margin: .zero, fontSize: 0.9375.rem, fontWeight: .w600),
   css('.table-row-detail-subtitle').styles(
@@ -1327,11 +1328,11 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     flex: Flex(grow: 0, shrink: 0),
   ),
   css('.table-row-detail-view-toggle').styles(
-    padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s3),
     margin: .zero,
     border: .all(color: borderColor, width: 1.px, style: .solid),
     radius: .all(Radius.circular(8.px)),
@@ -1364,7 +1365,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,
     justifyContent: .end,
-    padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
     border: .only(
       top: BorderSide.solid(color: borderColor, width: 1.px),
     ),
@@ -1373,7 +1374,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-footer-actions').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
-    gap: Gap.all(_footerActionsGapPx.px),
+    gap: Gap.all(ZonaiSpacing.s4),
     width: _footerContentMaxWidthPx.px,
     maxWidth: _footerContentMaxWidthPx.px,
   ),
@@ -1394,7 +1395,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-footer-btn').styles(
     display: .block,
     width: 100.percent,
-    padding: .symmetric(horizontal: 16.px, vertical: 10.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s5),
     border: Border.all(color: borderColor, width: 1.px, style: .solid),
     radius: .all(Radius.circular(8.px)),
     backgroundColor: surfaceColor,
@@ -1422,7 +1423,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     display: .flex,
     alignItems: .center,
     justifyContent: .center,
-    padding: .symmetric(horizontal: 24.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s11),
     raw: const {
       'z-index': '170',
       'background-color': 'rgb(15 23 42 / 0.55)',
@@ -1431,10 +1432,10 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-discard-dialog').styles(
     width: 100.percent,
     maxWidth: 400.px,
-    padding: .all(20.px),
+    padding: .all(ZonaiSpacing.s10),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(16.px),
+    gap: Gap.all(ZonaiSpacing.s8),
     backgroundColor: surfaceColor,
     border: .all(color: borderColor, width: 1.px, style: .solid),
     radius: .all(Radius.circular(12.px)),
@@ -1456,10 +1457,10 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     display: .flex,
     flexDirection: FlexDirection.row,
     justifyContent: .end,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
   ),
   css('.table-row-detail-discard-btn').styles(
-    padding: .symmetric(horizontal: 14.px, vertical: 8.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s7, vertical: ZonaiSpacing.s4),
     border: Border.all(color: borderColor, width: 1.px, style: .solid),
     radius: .all(Radius.circular(8.px)),
     backgroundColor: surfaceColor,
@@ -1479,10 +1480,10 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-body').styles(
     flex: Flex(grow: 1, shrink: 1),
     overflow: Overflow.auto,
-    padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(14.px),
+    gap: Gap.all(ZonaiSpacing.s7),
     minHeight: .zero,
   ),
   css('.table-row-detail-json-card').styles(
@@ -1514,7 +1515,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-json-card .table-row-detail-copy--copied').styles(color: const Color('#7dd3fc')),
   css('.table-row-detail-json-card-pre').styles(
     margin: .zero,
-    padding: .only(top: 36.px, left: 12.px, right: 12.px, bottom: 12.px),
+    padding: .only(top: ZonaiSpacing.s14, left: ZonaiSpacing.s6, right: ZonaiSpacing.s6, bottom: ZonaiSpacing.s6),
     overflow: Overflow.auto,
     whiteSpace: WhiteSpace.preWrap,
     fontSize: 0.75.rem,
@@ -1528,12 +1529,12 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   ),
   css(
     '.table-row-detail-field',
-  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px), minWidth: .zero),
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), minWidth: .zero),
   css('.table-row-detail-label-row').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     minWidth: .zero,
   ),
   css('.table-row-detail-copy-wrap').styles(
@@ -1543,7 +1544,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     alignSelf: .center,
     flex: Flex(grow: 0, shrink: 0),
     cursor: .pointer,
-    padding: .only(bottom: 2.px),
+    padding: .only(bottom: ZonaiSpacing.s1),
   ),
   css('.table-row-detail-copy').styles(
     width: 0.6875.rem,
@@ -1581,7 +1582,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-field--edit').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
   ),
   css('.table-row-detail-field--edit .z-input').styles(width: 100.percent),
   css('.table-row-detail-field--edit textarea.z-input').styles(
@@ -1629,7 +1630,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-value--collapsed').styles(overflow: Overflow.hidden, raw: const {'max-height': '9.5em'}),
   css(
     '.table-row-detail-collapsible',
-  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(6.px), minWidth: .zero),
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s3), minWidth: .zero),
   css('.table-row-detail-expand').styles(
     alignSelf: .start,
     padding: .zero,

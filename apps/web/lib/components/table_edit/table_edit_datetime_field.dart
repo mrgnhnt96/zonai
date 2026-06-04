@@ -5,6 +5,7 @@ import 'package:universal_web/web.dart' as web;
 
 import '../../constants/theme.dart';
 import '../../utils/table_cell_edit.dart';
+import '../../constants/spacing.dart';
 
 /// Date + time picker for filter/edit datetime values (stores UTC ms wire text).
 class TableEditDatetimeField extends StatefulComponent {
@@ -581,11 +582,11 @@ List<StyleRule> tableEditDatetimeStyles = [
     flexDirection: FlexDirection.row,
     alignItems: .center,
     justifyContent: .spaceBetween,
-    gap: Gap.all(10.px),
+    gap: Gap.all(ZonaiSpacing.s5),
     width: 100.percent,
     maxWidth: 320.px,
     boxSizing: BoxSizing.borderBox,
-    padding: .symmetric(horizontal: 14.px, vertical: 11.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s7, vertical: ZonaiSpacing.s5_5),
     radius: .all(Radius.circular(10.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: bgColor,
@@ -625,11 +626,11 @@ List<StyleRule> tableEditDatetimeStyles = [
   css('.table-edit-datetime__trigger--open .table-edit-datetime__icon').styles(color: fgColor),
   css('.table-edit-datetime__popover').styles(
     position: Position.absolute(top: 100.percent, left: 0.px, right: 0.px),
-    margin: .only(top: 4.px),
+    margin: .only(top: ZonaiSpacing.s2),
     display: .flex,
     flexDirection: FlexDirection.column,
-    gap: Gap.all(10.px),
-    padding: .all(12.px),
+    gap: Gap.all(ZonaiSpacing.s5),
+    padding: .all(ZonaiSpacing.s6),
     radius: .all(Radius.circular(10.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: surfaceColor,
@@ -652,7 +653,7 @@ List<StyleRule> tableEditDatetimeStyles = [
     flexDirection: FlexDirection.row,
     alignItems: .center,
     justifyContent: .spaceBetween,
-    gap: Gap.all(8.px),
+    gap: Gap.all(ZonaiSpacing.s4),
   ),
   css('.table-edit-datetime__month-label').styles(
     fontSize: 0.875.rem,
@@ -677,19 +678,19 @@ List<StyleRule> tableEditDatetimeStyles = [
   css('.table-edit-datetime__weekdays').styles(
     display: .grid,
     raw: const {'grid-template-columns': 'repeat(7, 1fr)'},
-    gap: Gap.all(2.px),
+    gap: Gap.all(ZonaiSpacing.s1),
   ),
   css('.table-edit-datetime__weekday').styles(
     fontSize: 0.6875.rem,
     fontWeight: .w600,
     color: mutedColor,
     textAlign: TextAlign.center,
-    padding: .symmetric(vertical: 4.px),
+    padding: .symmetric(vertical: ZonaiSpacing.s2),
   ),
   css('.table-edit-datetime__grid').styles(
     display: .grid,
     raw: const {'grid-template-columns': 'repeat(7, 1fr)'},
-    gap: Gap.all(2.px),
+    gap: Gap.all(ZonaiSpacing.s1),
   ),
   css('.table-edit-datetime__day').styles(
     display: .flex,
@@ -723,8 +724,8 @@ List<StyleRule> tableEditDatetimeStyles = [
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(10.px),
-    padding: .only(top: 4.px),
+    gap: Gap.all(ZonaiSpacing.s5),
+    padding: .only(top: ZonaiSpacing.s2),
     border: .only(top: BorderSide.solid(color: borderColor, width: 1.px)),
   ),
   css('.table-edit-datetime__time-label').styles(
@@ -737,7 +738,7 @@ List<StyleRule> tableEditDatetimeStyles = [
     display: .flex,
     flexDirection: FlexDirection.row,
     alignItems: .center,
-    gap: Gap.all(6.px),
+    gap: Gap.all(ZonaiSpacing.s3),
     flex: Flex(grow: 1, shrink: 1),
     minWidth: .zero,
   ),
@@ -756,7 +757,7 @@ List<StyleRule> tableEditDatetimeStyles = [
   css('.table-edit-datetime__time-native').styles(
     display: .block,
     width: 100.percent,
-    padding: .symmetric(horizontal: 10.px, vertical: 8.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s4),
     radius: .all(Radius.circular(8.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: bgColor,
@@ -783,11 +784,11 @@ List<StyleRule> tableEditDatetimeStyles = [
     display: .flex,
     flexDirection: FlexDirection.row,
     justifyContent: .spaceBetween,
-    gap: Gap.all(8.px),
-    padding: .only(top: 2.px),
+    gap: Gap.all(ZonaiSpacing.s4),
+    padding: .only(top: ZonaiSpacing.s1),
   ),
   css('.table-edit-datetime__footer-btn').styles(
-    padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s3),
     fontSize: 0.75.rem,
     fontWeight: .w600,
     cursor: .pointer,

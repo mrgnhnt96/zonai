@@ -5,6 +5,7 @@ import 'package:universal_web/web.dart' as web;
 
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
+import '../constants/spacing.dart';
 
 void showAppTooltipForElement(
   AppTooltipNotifier notifier, {
@@ -99,7 +100,7 @@ class AppTooltipOverlay extends StatelessComponent {
   @css
   static List<StyleRule> get styles => [
     css('.app-tooltip').styles(
-      padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+      padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s3),
       radius: .all(Radius.circular(6.px)),
       backgroundColor: surfaceColor,
       border: .all(color: borderColor, width: 1.px, style: .solid),

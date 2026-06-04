@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 
 import '../../constants/theme.dart';
 import '../../utils/table_cell_edit.dart';
+import '../../constants/spacing.dart';
 
 /// Toggle chips for enum `in` / `not in` filter values.
 class TableEditEnumMultiSelect extends StatelessComponent {
@@ -75,7 +76,7 @@ class TableEditEnumMultiSelect extends StatelessComponent {
 @css
 List<StyleRule> tableEditEnumMultiSelectStyles = [
   css('.table-search-op.table-edit-enum-value').styles(
-    padding: .symmetric(horizontal: 10.px, vertical: 5.px),
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s2_5),
     fontSize: 0.8125.rem,
     radius: .all(Radius.circular(100.px)),
     raw: const {

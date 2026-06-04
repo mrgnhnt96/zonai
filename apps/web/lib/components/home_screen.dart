@@ -39,6 +39,7 @@ import 'table_search_panel.dart';
 import 'table_search_side_panel.dart';
 import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
+import '../constants/spacing.dart';
 
 const _rowsSelectCheckboxCheckSvg =
     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 6l3 3 5-6'/%3E%3C/svg%3E\")";
@@ -107,7 +108,7 @@ class HomeScreen extends StatelessComponent {
         flexDirection: FlexDirection.column,
         minHeight: .zero,
         minWidth: .zero,
-        padding: .all(20.px),
+        padding: .all(ZonaiSpacing.s10),
         overflow: Overflow.hidden,
       ),
       css('.home-mobile-nav-header').styles(
@@ -115,8 +116,8 @@ class HomeScreen extends StatelessComponent {
         flex: Flex(grow: 0, shrink: 0),
         flexDirection: FlexDirection.row,
         alignItems: .center,
-        gap: Gap.all(12.px),
-        margin: .only(bottom: 16.px),
+        gap: Gap.all(ZonaiSpacing.s6),
+        margin: .only(bottom: ZonaiSpacing.s8),
       ),
       css('.home-mobile-nav-btn').styles(
         width: 40.px,
@@ -155,7 +156,7 @@ class HomeScreen extends StatelessComponent {
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
         flexDirection: FlexDirection.column,
-        gap: Gap.all(12.px),
+        gap: Gap.all(ZonaiSpacing.s6),
         minHeight: .zero,
         overflow: Overflow.hidden,
       ),
@@ -165,14 +166,14 @@ class HomeScreen extends StatelessComponent {
         flexDirection: FlexDirection.row,
         alignItems: .end,
         justifyContent: .spaceBetween,
-        gap: Gap.all(12.px),
+        gap: Gap.all(ZonaiSpacing.s6),
       ),
       css('.table-detail-header-text').styles(
         flex: Flex(grow: 1, shrink: 1),
         minWidth: .zero,
         display: .flex,
         flexDirection: FlexDirection.column,
-        gap: Gap.all(4.px),
+        gap: Gap.all(ZonaiSpacing.s2),
       ),
       css('.table-detail-header-text .table-detail-title').styles(
         margin: .zero,
@@ -192,7 +193,7 @@ class HomeScreen extends StatelessComponent {
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
         flexDirection: FlexDirection.column,
-        gap: Gap.all(12.px),
+        gap: Gap.all(ZonaiSpacing.s6),
         minHeight: .zero,
         overflow: Overflow.hidden,
       ),
@@ -201,7 +202,7 @@ class HomeScreen extends StatelessComponent {
         display: .flex,
         alignItems: .center,
         justifyContent: .center,
-        padding: .all(32.px),
+        padding: .all(ZonaiSpacing.s13),
         minHeight: .zero,
       ),
       css('.table-detail-empty-msg').styles(margin: .zero, fontSize: 0.95.rem, color: mutedColor, textAlign: .center),
@@ -209,8 +210,8 @@ class HomeScreen extends StatelessComponent {
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
         flexDirection: FlexDirection.column,
-        gap: Gap.all(12.px),
-        padding: .all(20.px),
+        gap: Gap.all(ZonaiSpacing.s6),
+        padding: .all(ZonaiSpacing.s10),
         border: .all(color: errorBorderColor, width: 1.px, style: .solid),
         radius: .all(Radius.circular(12.px)),
         backgroundColor: errorBgColor,
@@ -245,7 +246,7 @@ class HomeScreen extends StatelessComponent {
         minHeight: .zero,
         raw: const {'transition': 'padding-bottom 0.2s ease-out'},
       ),
-      css('.table-rows-wrap--selection-open').styles(padding: .only(bottom: 72.px)),
+      css('.table-rows-wrap--selection-open').styles(padding: .only(bottom: ZonaiSpacing.selectionBar)),
       css('.rows-table').styles(
         fontSize: 0.8125.rem,
         raw: const {
@@ -258,7 +259,7 @@ class HomeScreen extends StatelessComponent {
       css('.rows-table th').styles(
         backgroundColor: tableHeaderBgColor,
         textAlign: .left,
-        padding: .symmetric(horizontal: 12.px, vertical: 10.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s5),
         fontWeight: .w600,
         overflow: Overflow.hidden,
         raw: const {
@@ -277,7 +278,7 @@ class HomeScreen extends StatelessComponent {
         display: .flex,
         alignItems: .center,
         justifyContent: .spaceBetween,
-        gap: Gap.all(8.px),
+        gap: Gap.all(ZonaiSpacing.s4),
         width: 100.percent,
         minWidth: .zero,
       ),
@@ -306,7 +307,7 @@ class HomeScreen extends StatelessComponent {
       ),
       css('.rows-header-sort-icon--idle').styles(visibility: .hidden, raw: const {'pointer-events': 'none'}),
       css('.rows-table td').styles(
-        padding: .symmetric(horizontal: 12.px, vertical: 8.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s4),
         overflow: Overflow.hidden,
         raw: const {
           'border-bottom': '1px solid var(--zonai-border)',
@@ -333,7 +334,7 @@ class HomeScreen extends StatelessComponent {
         alignItems: .start,
         justifyContent: .center,
         width: 100.percent,
-        padding: .symmetric(horizontal: 12.px, vertical: 10.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s5),
         boxSizing: .borderBox,
       ),
       css('.rows-select-checkbox').styles(
@@ -399,10 +400,10 @@ class HomeScreen extends StatelessComponent {
         flexDirection: FlexDirection.row,
         alignItems: .center,
         justifyContent: .spaceBetween,
-        gap: Gap.all(10.px),
+        gap: Gap.all(ZonaiSpacing.s5),
         width: 100.percent,
         maxWidth: 36.rem,
-        padding: .symmetric(horizontal: 12.px, vertical: 8.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s4),
         radius: .all(Radius.circular(12.px)),
         backgroundColor: tableHeaderBgColor,
         border: .all(color: borderColor, width: 1.px, style: .solid),
@@ -413,7 +414,7 @@ class HomeScreen extends StatelessComponent {
         display: .flex,
         flexWrap: FlexWrap.wrap,
         alignItems: .center,
-        gap: Gap.all(6.px),
+        gap: Gap.all(ZonaiSpacing.s3),
         minWidth: .zero,
         flex: Flex(grow: 1, shrink: 1),
         fontSize: 0.875.rem,
@@ -436,10 +437,10 @@ class HomeScreen extends StatelessComponent {
       css('.table-rows-selection-select-all:hover:not(:disabled)').styles(color: fgColor),
       css(
         '.table-rows-selection-actions',
-      ).styles(display: .flex, alignItems: .center, gap: Gap.all(6.px), flex: Flex(grow: 0, shrink: 0)),
+      ).styles(display: .flex, alignItems: .center, gap: Gap.all(ZonaiSpacing.s3), flex: Flex(grow: 0, shrink: 0)),
       css('.table-rows-selection-actions .z-btn + .z-btn').styles(margin: .zero),
       css('.table-rows-selection-actions .z-btn').styles(
-        padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s3),
         fontSize: 0.8125.rem,
       ),
       css('.rows-selection-icon-btn').styles(
@@ -500,7 +501,7 @@ class HomeScreen extends StatelessComponent {
       css('.table-rows-foot').styles(
         flex: Flex(grow: 0, shrink: 0),
         margin: .zero,
-        padding: .symmetric(horizontal: 12.px, vertical: 6.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s3),
         fontSize: 0.8125.rem,
         color: mutedColor,
         border: .only(

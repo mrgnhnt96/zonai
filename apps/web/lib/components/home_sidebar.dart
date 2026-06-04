@@ -16,6 +16,7 @@ import '../utils/sqlite_table_utils.dart';
 import 'app_tooltip_overlay.dart';
 import '../providers/app_tooltip_provider.dart';
 import 'theme/ui_styles.dart';
+import '../constants/spacing.dart';
 
 String _sidebarTableItemId(String sqliteName) => 'home-sidebar-table-$sqliteName';
 
@@ -214,8 +215,8 @@ class HomeSidebar extends StatelessComponent {
         flexDirection: FlexDirection.row,
         alignItems: .center,
         justifyContent: .spaceBetween,
-        gap: Gap.all(8.px),
-        padding: .symmetric(horizontal: 12.px, vertical: 16.px),
+        gap: Gap.all(ZonaiSpacing.s4),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s8),
         border: Border.only(
           bottom: BorderSide.solid(color: borderColor, width: 1.px),
         ),
@@ -225,14 +226,14 @@ class HomeSidebar extends StatelessComponent {
       ),
       css('&--collapsed .home-sidebar-header').styles(
         justifyContent: .center,
-        padding: .symmetric(horizontal: 8.px, vertical: 16.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s8),
       ),
       css('&--collapsed .home-sidebar-brand').styles(display: .none),
       css('.home-sidebar-brand').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
         alignItems: .center,
-        gap: Gap.all(10.px),
+        gap: Gap.all(ZonaiSpacing.s5),
         minWidth: .zero,
         overflow: Overflow.hidden,
         flex: Flex(grow: 1, shrink: 1),
@@ -301,8 +302,8 @@ class HomeSidebar extends StatelessComponent {
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
         flexDirection: FlexDirection.column,
-        gap: Gap.all(10.px),
-        padding: .symmetric(horizontal: 12.px, vertical: 12.px),
+        gap: Gap.all(ZonaiSpacing.s5),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s6),
         overflow: Overflow.auto,
         minHeight: .zero,
         maxWidth: 100.percent,
@@ -313,15 +314,15 @@ class HomeSidebar extends StatelessComponent {
         display: .flex,
         flexDirection: FlexDirection.column,
         alignItems: .center,
-        gap: Gap.all(4.px),
-        padding: .symmetric(horizontal: 6.px, vertical: 8.px),
+        gap: Gap.all(ZonaiSpacing.s2),
+        padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: ZonaiSpacing.s4),
         overflow: Overflow.auto,
         minHeight: .zero,
         maxWidth: 100.percent,
         raw: const {'overflow-x': 'hidden'},
       ),
       css('.home-sidebar-msg').styles(fontSize: 0.8125.rem, color: mutedColor, margin: .zero),
-      css('.home-sidebar-error').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(8.px)),
+      css('.home-sidebar-error').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4)),
       css('.home-sidebar-err-detail').styles(
         fontSize: 0.75.rem,
         color: errorColor,
@@ -332,14 +333,14 @@ class HomeSidebar extends StatelessComponent {
           'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
         },
       ),
-      css('.home-sidebar-system').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px)),
+      css('.home-sidebar-system').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
       css('.home-sidebar-system-toggle').styles(
         cursor: .pointer,
-        padding: .symmetric(vertical: 4.px),
+        padding: .symmetric(vertical: ZonaiSpacing.s2),
         display: .flex,
         flexDirection: FlexDirection.row,
         alignItems: .center,
-        gap: Gap.all(6.px),
+        gap: Gap.all(ZonaiSpacing.s3),
         width: 100.percent,
         border: Border.none,
         backgroundColor: Colors.transparent,
@@ -396,7 +397,7 @@ class HomeSidebar extends StatelessComponent {
       ),
       css('.home-sidebar-footer').styles(
         margin: .only(top: .auto),
-        padding: .all(12.px),
+        padding: .all(ZonaiSpacing.s6),
         border: Border.only(
           top: BorderSide.solid(color: borderColor, width: 1.px),
         ),
@@ -407,29 +408,29 @@ class HomeSidebar extends StatelessComponent {
       ),
       css(
         '.home-sidebar-footer--collapsed',
-      ).styles(display: .flex, flexDirection: FlexDirection.column, alignItems: .center, gap: Gap.all(8.px)),
+      ).styles(display: .flex, flexDirection: FlexDirection.column, alignItems: .center, gap: Gap.all(ZonaiSpacing.s4)),
       css('&--collapsed .home-sidebar-footer').styles(
         display: .flex,
         flexDirection: FlexDirection.column,
         alignItems: .center,
-        padding: .symmetric(horizontal: 8.px, vertical: 12.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s6),
       ),
       css('&--collapsed .home-sidebar-profile-trigger').styles(
         width: 36.px,
         height: 36.px,
         padding: .zero,
         justifyContent: .center,
-        gap: Gap.all(0.px),
+        gap: Gap.all(ZonaiSpacing.s0),
       ),
       css('&--collapsed .home-sidebar-profile-trigger .home-sidebar-expand-only').styles(display: .none),
       css('.home-sidebar-profile-trigger').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
         alignItems: .center,
-        gap: Gap.all(10.px),
+        gap: Gap.all(ZonaiSpacing.s5),
         width: 100.percent,
         maxWidth: 100.percent,
-        padding: .symmetric(horizontal: 8.px, vertical: 8.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s4),
         cursor: .pointer,
         radius: .all(Radius.circular(8.px)),
         border: Border.none,
@@ -440,7 +441,7 @@ class HomeSidebar extends StatelessComponent {
       css('.home-sidebar-profile-trigger:hover').styles(backgroundColor: hoverColor),
       css(
         '.home-sidebar-profile-trigger--collapsed',
-      ).styles(width: 36.px, height: 36.px, padding: .zero, justifyContent: .center),
+      ).styles(width: ZonaiSpacing.s14, height: ZonaiSpacing.s14, padding: .zero, justifyContent: .center),
       css('.home-sidebar-avatar').styles(
         width: 32.px,
         height: 32.px,
@@ -466,8 +467,8 @@ class HomeSidebar extends StatelessComponent {
       ),
       css('.home-sidebar-badge').styles(
         display: .inlineBlock,
-        margin: .only(top: 2.px),
-        padding: .symmetric(horizontal: 6.px, vertical: 2.px),
+        margin: .only(top: ZonaiSpacing.s1),
+        padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: ZonaiSpacing.s1),
         radius: .all(Radius.circular(4.px)),
         fontSize: 0.625.rem,
         fontWeight: .w600,
@@ -489,11 +490,11 @@ class HomeSidebar extends StatelessComponent {
         display: .flex,
         flexDirection: FlexDirection.column,
         alignItems: .center,
-        gap: Gap.all(4.px),
+        gap: Gap.all(ZonaiSpacing.s2),
         width: 100.percent,
       ),
       css('.home-sidebar-item').styles(
-        margin: .only(bottom: 2.px),
+        margin: .only(bottom: ZonaiSpacing.s1),
         maxWidth: 100.percent,
       ),
       css('.home-sidebar-item-button').styles(
@@ -502,7 +503,7 @@ class HomeSidebar extends StatelessComponent {
         width: 100.percent,
         maxWidth: 100.percent,
         textAlign: .left,
-        padding: .symmetric(horizontal: 10.px, vertical: 8.px),
+        padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s4),
         radius: .all(Radius.circular(8.px)),
         backgroundColor: Colors.transparent,
         border: Border.none,

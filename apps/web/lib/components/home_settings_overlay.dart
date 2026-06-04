@@ -10,6 +10,7 @@ import '../providers/session_user_provider.dart';
 import 'app_tooltip_overlay.dart';
 import 'theme/theme_components.dart';
 import 'theme_toggle.dart';
+import '../constants/spacing.dart';
 
 const _overlayDuration = Duration(milliseconds: 220);
 const _sheetDuration = Duration(milliseconds: 250);
@@ -40,14 +41,14 @@ class HomeSettingsOverlay extends StatefulComponent {
     css('.home-settings-panel').styles(
       backgroundColor: surfaceColor,
       border: .all(color: borderColor, width: 1.px, style: .solid),
-      padding: .all(20.px),
+      padding: .all(ZonaiSpacing.s10),
       display: .flex,
       flexDirection: FlexDirection.column,
-      gap: Gap.all(16.px),
+      gap: Gap.all(ZonaiSpacing.s8),
       width: 280.px,
       radius: .all(Radius.circular(12.px)),
       opacity: 0,
-      transform: Transform.translate(y: 8.px),
+      transform: Transform.translate(y: ZonaiSpacing.s4),
       transition: Transition.combine([
         Transition('opacity', duration: _overlayDuration, curve: Curve.easeOut),
         Transition('transform', duration: _overlayDuration, curve: Curve.easeOut),
@@ -81,7 +82,7 @@ class HomeSettingsOverlay extends StatefulComponent {
       flexDirection: FlexDirection.row,
       alignItems: .center,
       justifyContent: .spaceBetween,
-      gap: Gap.all(12.px),
+      gap: Gap.all(ZonaiSpacing.s6),
     ),
     css('.home-settings-panel-title').styles(
       margin: .zero,
@@ -108,23 +109,23 @@ class HomeSettingsOverlay extends StatefulComponent {
       display: .flex,
       flexDirection: FlexDirection.row,
       alignItems: .center,
-      gap: Gap.all(12.px),
-      padding: .all(12.px),
+      gap: Gap.all(ZonaiSpacing.s6),
+      padding: .all(ZonaiSpacing.s6),
       radius: .all(Radius.circular(12.px)),
       backgroundColor: bgColor,
     ),
     css('.home-settings-actions').styles(
       display: .flex,
       flexDirection: FlexDirection.column,
-      gap: Gap.all(8.px),
+      gap: Gap.all(ZonaiSpacing.s4),
     ),
     css('.home-settings-action-row').styles(
       display: .flex,
       flexDirection: FlexDirection.row,
       alignItems: .center,
       justifyContent: .spaceBetween,
-      gap: Gap.all(12.px),
-      padding: .symmetric(horizontal: 4.px, vertical: 4.px),
+      gap: Gap.all(ZonaiSpacing.s6),
+      padding: .symmetric(horizontal: ZonaiSpacing.s2, vertical: ZonaiSpacing.s2),
     ),
     css('.home-settings-action-label').styles(
       fontSize: 0.875.rem,
@@ -161,8 +162,8 @@ class HomeSettingsOverlay extends StatefulComponent {
     ),
     css('.home-sidebar-badge').styles(
       display: .inlineBlock,
-      margin: .only(top: 2.px),
-      padding: .symmetric(horizontal: 6.px, vertical: 2.px),
+      margin: .only(top: ZonaiSpacing.s1),
+      padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: ZonaiSpacing.s1),
       radius: .all(Radius.circular(4.px)),
       fontSize: 0.625.rem,
       fontWeight: .w600,
@@ -180,7 +181,7 @@ class HomeSettingsOverlay extends StatefulComponent {
             topLeft: Radius.circular(16.px),
             topRight: Radius.circular(16.px),
           ),
-          padding: .symmetric(horizontal: 20.px, vertical: 24.px),
+          padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s11),
           transform: Transform.translate(y: 100.percent),
           transition: Transition.combine([
             Transition('opacity', duration: _sheetDuration, curve: Curve.easeOut),
