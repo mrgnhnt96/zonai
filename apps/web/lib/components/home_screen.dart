@@ -961,12 +961,18 @@ class _SelectableRow extends StatelessComponent {
                 checked: selected,
                 attributes: {'aria-label': 'Select row'},
                 events: {'click': selectionNotifier.noteCheckboxClick},
-                onChange: (selected) => selectionNotifier.handleRowCheckboxChange(
-                  index: rowIndex,
-                  key: rowKey,
-                  selected: selected,
-                  pageKeys: pageKeys,
-                ),
+                onChange: (selected) {
+                  selectionNotifier.handleRowCheckboxChange(
+                    index: rowIndex,
+                    key: rowKey,
+                    selected: selected,
+                    pageKeys: pageKeys,
+                  );
+                  context.read(tableRowKeyboardFocusProvider.notifier).focusRowKey(
+                    rowKey,
+                    tableSqliteName: sqliteName,
+                  );
+                },
               ),
             ]),
           ],
@@ -1374,12 +1380,30 @@ class _SortableHeader extends StatelessComponent {
   }
 }
 
+bool _isBodyRowSelectCheckbox(web.HTMLElement element) {
+  if (element.tagName.toLowerCase() != 'input') return false;
+  final input = element as web.HTMLInputElement;
+  if (input.type != 'checkbox') return false;
+  if (!input.classList.contains('rows-select-checkbox')) return false;
+  return input.closest('tbody') != null;
+}
+
+void _blurBodyRowSelectCheckboxIfFocused() {
+  final active = web.document.activeElement;
+  if (active is web.HTMLElement && _isBodyRowSelectCheckbox(active)) {
+    active.blur();
+  }
+}
+
 bool _shouldIgnoreHomeKeyboard(web.KeyboardEvent event) {
   if (event.metaKey || event.ctrlKey || event.altKey) return true;
   final target = event.target;
   if (target is! web.HTMLElement) return false;
   final tag = target.tagName.toLowerCase();
   if (tag == 'input' || tag == 'textarea' || tag == 'select') {
+    if (tag == 'input' && _isBodyRowSelectCheckbox(target)) {
+      if (event.key == 'ArrowDown' || event.key == 'ArrowUp') return false;
+    }
     if (tag == 'input' && event.key == 'Escape' && target is web.HTMLInputElement && target.type == 'checkbox') {
       return false;
     }
@@ -1580,6 +1604,7 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
       case 'ArrowDown':
         event.preventDefault();
         focusNotifier.moveBy(1, displayKeys, tableSqliteName: tableSqliteName);
+        _blurBodyRowSelectCheckboxIfFocused();
         final nextKey = context.read(tableRowKeyboardFocusProvider).rowKey;
         if (nextKey != null) {
           _scrollFocusedRowIntoView(nextKey);
@@ -1597,6 +1622,7 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
       case 'ArrowUp':
         event.preventDefault();
         focusNotifier.moveBy(-1, displayKeys, tableSqliteName: tableSqliteName);
+        _blurBodyRowSelectCheckboxIfFocused();
         final nextKey = context.read(tableRowKeyboardFocusProvider).rowKey;
         if (nextKey != null) {
           _scrollFocusedRowIntoView(nextKey);
