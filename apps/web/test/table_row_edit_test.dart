@@ -20,12 +20,64 @@ const _pkShape = ColumnShape(
   sqlType: 'TEXT',
 );
 
+const _allowedActions = TableCollectionActions(
+  table: 'items',
+  canCreate: true,
+  canUpdate: true,
+  canDelete: true,
+);
+
+const _resolvedActions = {'items': _allowedActions};
+
 void main() {
-  group('canEditTableRows', () {
-    test('returns false for system tables', () {
+  group('canUpdateTableRows', () {
+    test('returns false when update is denied by rules', () {
       expect(
-        canEditTableRows(
-          sqliteName: '_logs',
+        canUpdateTableRows(
+          allActions: const {
+            '_jwt': TableCollectionActions(
+              table: '_jwt',
+              canCreate: false,
+              canUpdate: false,
+              canDelete: true,
+            ),
+          },
+          actions: const TableCollectionActions(
+            table: '_jwt',
+            canCreate: false,
+            canUpdate: false,
+            canDelete: true,
+          ),
+          sessionCanEdit: true,
+          sqliteName: '_jwt',
+          columns: const ['id', 'title'],
+          columnShapes: const [_pkShape, _editableShape],
+        ),
+        isFalse,
+      );
+    });
+
+    test('falls back to sessionCanEdit when rules were not resolved', () {
+      expect(
+        canUpdateTableRows(
+          allActions: const {},
+          actions: null,
+          sessionCanEdit: true,
+          sqliteName: 'items',
+          columns: const ['id', 'title'],
+          columnShapes: const [_pkShape, _editableShape],
+        ),
+        isTrue,
+      );
+    });
+
+    test('falls back blocks system tables when rules were not resolved', () {
+      expect(
+        canUpdateTableRows(
+          allActions: const {},
+          actions: null,
+          sessionCanEdit: true,
+          sqliteName: '_jwt',
           columns: const ['id', 'title'],
           columnShapes: const [_pkShape, _editableShape],
         ),
@@ -44,7 +96,10 @@ void main() {
       );
 
       expect(
-        canEditTableRows(
+        canUpdateTableRows(
+          allActions: _resolvedActions,
+          actions: _allowedActions,
+          sessionCanEdit: true,
           sqliteName: 'items',
           columns: const ['id', 'created_at'],
           columnShapes: const [_pkShape, readOnlyShape],
@@ -52,48 +107,42 @@ void main() {
         isFalse,
       );
     });
+  });
 
-    test('returns false when table has no primary key', () {
+  group('canDeleteTableRows', () {
+    test('returns true for system table when rules allow delete', () {
       expect(
-        canEditTableRows(
-          sqliteName: 'items',
-          columns: const ['title'],
-          columnShapes: const [_editableShape],
-        ),
-        isFalse,
-      );
-    });
-
-    test('returns true for editable user table with primary key', () {
-      expect(
-        canEditTableRows(
-          sqliteName: 'items',
-          columns: const ['id', 'title'],
+        canDeleteTableRows(
+          allActions: const {
+            '_jwt': TableCollectionActions(
+              table: '_jwt',
+              canCreate: false,
+              canUpdate: false,
+              canDelete: true,
+            ),
+          },
+          actions: const TableCollectionActions(
+            table: '_jwt',
+            canCreate: false,
+            canUpdate: false,
+            canDelete: true,
+          ),
+          sessionCanEdit: true,
+          sqliteName: '_jwt',
           columnShapes: const [_pkShape, _editableShape],
         ),
         isTrue,
       );
     });
 
-    test('returns false for row with incomplete primary key', () {
+    test('falls back to sessionCanEdit for user tables when rules were not resolved', () {
       expect(
-        canEditTableRows(
+        canDeleteTableRows(
+          allActions: const {},
+          actions: null,
+          sessionCanEdit: true,
           sqliteName: 'items',
-          columns: const ['id', 'title'],
           columnShapes: const [_pkShape, _editableShape],
-          row: const [null, 'hello'],
-        ),
-        isFalse,
-      );
-    });
-
-    test('returns true for row with complete primary key', () {
-      expect(
-        canEditTableRows(
-          sqliteName: 'items',
-          columns: const ['id', 'title'],
-          columnShapes: const [_pkShape, _editableShape],
-          row: const ['item-1', 'hello'],
         ),
         isTrue,
       );

@@ -77,6 +77,7 @@ Map<String, Object?> __home_app_shellHomeAppShell(
   'initialDisplayNames': c.initialDisplayNames,
   'tablesLoadError': c.tablesLoadError,
   'initialSchemaShapes': c.initialSchemaShapes,
+  'initialCollectionActions': c.initialCollectionActions,
   'initialPath': c.initialPath,
   'initialAppName': c.initialAppName,
 };

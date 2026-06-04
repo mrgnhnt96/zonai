@@ -30,10 +30,7 @@ String cellToEditString(Object? value, ColumnShape? shape) {
 
   return switch (shape?.kind) {
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => '',
-    ColumnShapeKind.dateTime ||
-    ColumnShapeKind.createdAt ||
-    ColumnShapeKind.updatedAt =>
-      _formatDateTimeForEdit(value),
+    ColumnShapeKind.dateTime || ColumnShapeKind.createdAt || ColumnShapeKind.updatedAt => _formatDateTimeForEdit(value),
     ColumnShapeKind.enum_ => _formatEnumForEdit(value, shape!.enumValues),
     _ => '$value',
   };
@@ -77,11 +74,7 @@ bool cellEditValueAsBool(Object? value) {
 }
 
 /// Parses user input for a column. Throws [FormatException] on invalid input.
-Object? parseEditValue({
-  required Object? draftValue,
-  required String textInput,
-  required ColumnShape shape,
-}) {
+Object? parseEditValue({required Object? draftValue, required String textInput, required ColumnShape shape}) {
   if (shape.kind == ColumnShapeKind.boolean || shape.kind == ColumnShapeKind.isVerified) {
     return cellEditValueAsBool(draftValue);
   }
@@ -137,8 +130,8 @@ bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
   if (a == null || b == null) return false;
 
   if (shape?.kind == ColumnShapeKind.id) {
-    final sa = a?.toString() ?? '';
-    final sb = b?.toString() ?? '';
+    final sa = a.toString();
+    final sb = b.toString();
     return sa == sb;
   }
 

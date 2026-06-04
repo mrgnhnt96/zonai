@@ -18,6 +18,8 @@ sealed class RuleRequest extends Request {
         return AuthTableRulesRequest.fromRequest(request);
       case AuthRowRulesRequest._path:
         return AuthRowRulesRequest.fromRequest(request);
+      case GetAllTableCollectionActionsRequest._path:
+        return GetAllTableCollectionActionsRequest.fromRequest(request);
       default:
         throw ArgumentError('Invalid rule request path: ${request.path}');
     }
@@ -234,6 +236,23 @@ enum TableOperation {
   String toString() {
     return name;
   }
+}
+
+final class GetAllTableCollectionActionsRequest extends RuleRequest {
+  GetAllTableCollectionActionsRequest({super.jwt})
+    : super(path: _path, id: Request.generateId());
+
+  GetAllTableCollectionActionsRequest._({required super.id, super.jwt})
+    : super(path: _path);
+
+  factory GetAllTableCollectionActionsRequest.fromRequest(UnknownRequest request) {
+    return GetAllTableCollectionActionsRequest._(
+      id: request.id,
+      jwt: request.jwt,
+    );
+  }
+
+  static const _path = '${Request.prefix}.table.collection_actions';
 }
 
 enum RowOperation {

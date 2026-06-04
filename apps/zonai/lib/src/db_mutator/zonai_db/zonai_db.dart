@@ -258,6 +258,17 @@ class ZonaiDb {
     });
   }
 
+  Future<Map<String, TableCollectionActions>> collectionActions({
+    Jwt? jwt,
+  }) async {
+    return await _run(() async {
+      final response = await _rules.send<AllTableCollectionActionsResponse>(
+        GetAllTableCollectionActionsRequest(jwt: jwt),
+      );
+      return response.actions;
+    });
+  }
+
   Future<void> logout(String jwt) async {
     return await _run(() => _logout(jwt));
   }
@@ -271,7 +282,7 @@ class ZonaiDb {
   }
 
   Future<Jwt?> parseJwt(String? jwt) async {
-    return await _extractJwt(JwtPayload(jwt: jwt));
+    return await _run(() => _extractJwt(JwtPayload(jwt: jwt)));
   }
 
   Future<_CrudListResult> update(String table, UpdatePayload payload) async {

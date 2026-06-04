@@ -11,6 +11,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
+import '../providers/resolved_collection_provider.dart';
 import '../providers/session_user_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../providers/table_rows_provider.dart';
@@ -404,8 +405,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _lastHadDetail = hasDetail;
   }
 
-  bool _canEditRow(TableRowDetailState detail) {
-    return canEditTableRows(
+  bool _canEditRow(
+    TableRowDetailState detail,
+    Map<String, TableCollectionActions> allActions,
+    bool sessionCanEdit,
+  ) {
+    return canUpdateTableRows(
+      allActions: allActions,
+      actions: allActions[detail.sqliteName],
+      sessionCanEdit: sessionCanEdit,
       sqliteName: detail.sqliteName,
       columns: detail.columns,
       columnShapes: detail.columnShapes,
@@ -450,7 +458,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           _rawJsonRowKey = detail.rowKey;
         });
       case TableRowDetailViewMode.edit:
-        if (!_canEditRow(detail)) {
+        final allActions = context.read(tableCollectionActionsProvider);
+        final sessionCanEdit = context.read(sessionUserProvider)?.canEdit == true;
+        if (!_canEditRow(detail, allActions, sessionCanEdit)) {
           context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.fields);
           return;
         }
@@ -651,9 +661,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     final cached = _cachedDetail!;
-    final sessionUser = context.watch(sessionUserProvider);
-    final canEditRows = sessionUser?.canEdit == true;
-    final rowEditable = canEditRows && _canEditRow(cached);
+    final allActions = context.watch(tableCollectionActionsProvider);
+    final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
+    final rowEditable = _canEditRow(cached, allActions, sessionCanEdit);
     final hasUnsavedChanges = _hasUnsavedChanges(cached);
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     final subtitle = _detailSubtitle(cached);

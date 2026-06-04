@@ -47,6 +47,10 @@ ClientOptions get defaultClientOptions => ClientOptions(
         tablesLoadError: p['tablesLoadError'] as String?,
         initialSchemaShapes: (p['initialSchemaShapes'] as Map<String, Object?>)
             .map((k, v) => MapEntry(k, (v as Map<String, Object?>))),
+        initialCollectionActions:
+            (p['initialCollectionActions'] as Map<String, Object?>).map(
+              (k, v) => MapEntry(k, (v as Map<String, Object?>)),
+            ),
         initialPath: p['initialPath'] as String,
         initialAppName: p['initialAppName'] as String,
       ),

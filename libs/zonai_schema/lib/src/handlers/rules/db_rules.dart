@@ -5,6 +5,7 @@ import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
+import 'package:zonai_schema/src/types/collection_actions.dart';
 
 class _Rules {
   _Rules();
@@ -32,6 +33,8 @@ class DbRules {
             return await _authTableRules(request);
           case final AuthRowRulesRequest request:
             return await _authRowRules(request);
+          case final GetAllTableCollectionActionsRequest request:
+            return await _allTableCollectionActions(request);
         }
       },
     ).listen();
@@ -137,6 +140,28 @@ class DbRules {
       operation: request.operation,
       canAccess: canAccess,
     );
+  }
+
+  Future<AllTableCollectionActionsResponse> _allTableCollectionActions(
+    GetAllTableCollectionActionsRequest request,
+  ) async {
+    final actions = <String, TableCollectionActions>{};
+    for (final table in rulesByTable.keys) {
+      final tableRules = rulesByTable[table]?.tableRules;
+      if (tableRules == null) {
+        actions[table] = TableCollectionActions.denied(table);
+        continue;
+      }
+
+      actions[table] = TableCollectionActions(
+        table: table,
+        canCreate: await tableRules.canCreate(request.jwt),
+        canUpdate: await tableRules.canUpdate(request.jwt),
+        canDelete: await tableRules.canDelete(request.jwt),
+      );
+    }
+
+    return AllTableCollectionActionsResponse(id: request.id, actions: actions);
   }
 
   Never _failAuthTableRules(

@@ -14,6 +14,7 @@ import '../providers/table_focus_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../providers/table_row_keyboard_focus_provider.dart';
 import '../providers/table_row_selection_provider.dart';
+import '../providers/resolved_collection_provider.dart';
 import '../providers/session_user_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/table_schema_provider.dart';
@@ -1116,14 +1117,15 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     final selection = component.selection;
     final selectedCount = selection.displayCount(data.total);
     final label = selectedCount == 1 ? '1 selected' : '$selectedCount selected';
-    final sessionUser = context.watch(sessionUserProvider);
-    final canDeleteRows =
-        sessionUser?.canEdit == true &&
-        canEditTableRows(
-          sqliteName: data.sqliteName,
-          columns: data.columns,
-          columnShapes: data.columnShapes,
-        );
+    final allActions = context.watch(tableCollectionActionsProvider);
+    final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
+    final canDeleteRows = canDeleteTableRows(
+      allActions: allActions,
+      actions: allActions[data.sqliteName],
+      sessionCanEdit: sessionCanEdit,
+      sqliteName: data.sqliteName,
+      columnShapes: data.columnShapes,
+    );
 
     return div(classes: 'table-rows-selection-bar', [
       div(classes: 'table-rows-selection-meta', [
@@ -1280,8 +1282,21 @@ bool _shouldIgnoreHomeKeyboard(web.KeyboardEvent event) {
   final target = event.target;
   if (target is! web.HTMLElement) return false;
   final tag = target.tagName.toLowerCase();
-  if (tag == 'input' || tag == 'textarea' || tag == 'select') return true;
+  if (tag == 'input' || tag == 'textarea' || tag == 'select') {
+    if (tag == 'input' && event.key == 'Escape' && target is web.HTMLInputElement && target.type == 'checkbox') {
+      return false;
+    }
+    return true;
+  }
   return target.isContentEditable;
+}
+
+String? _rowKeyFromSelectCheckboxEvent(web.KeyboardEvent event) {
+  final target = event.target;
+  if (target is! web.HTMLInputElement) return null;
+  if (target.type != 'checkbox' || !target.classList.contains('rows-select-checkbox')) return null;
+  final row = target.closest('[data-row-key]');
+  return row?.getAttribute('data-row-key');
 }
 
 ({List<List<Object?>> rows, List<String> keys}) _displayRowsAndKeys(
@@ -1538,7 +1553,24 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
         final selection = context.read(tableRowSelectionProvider);
         if (selection.isEmpty) return;
         event.preventDefault();
-        context.read(tableRowSelectionProvider.notifier).clear();
+
+        final checkboxRowKey = _rowKeyFromSelectCheckboxEvent(event);
+        final keyToUncheck = checkboxRowKey ?? (selection.isSelected(activeKey ?? '') ? activeKey : null);
+        if (keyToUncheck != null) {
+          final index = displayKeys.indexOf(keyToUncheck);
+          if (index >= 0) {
+            selectionNotifier.setSelected(keyToUncheck, selected: false, pageKeys: displayKeys);
+            return;
+          }
+        }
+
+        if (event.target is web.HTMLInputElement &&
+            (event.target as web.HTMLInputElement).classList.contains('rows-select-checkbox')) {
+          selectionNotifier.setAll(displayKeys, selected: false);
+          return;
+        }
+
+        selectionNotifier.clear();
       default:
         return;
     }

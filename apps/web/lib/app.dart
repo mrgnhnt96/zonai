@@ -15,6 +15,7 @@ class App extends StatelessComponent {
     required this.initialDisplayNames,
     this.tablesLoadError,
     required this.initialSchemaShapes,
+    required this.initialCollectionActions,
     required this.initialSignedIn,
     required this.initialPath,
     required this.initialAuthTypes,
@@ -25,6 +26,7 @@ class App extends StatelessComponent {
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
   final Map<String, Map<String, Object?>> initialSchemaShapes;
+  final Map<String, Map<String, Object?>> initialCollectionActions;
   final bool initialSignedIn;
   final String initialPath;
   final List<AuthType> initialAuthTypes;
@@ -65,6 +67,7 @@ class App extends StatelessComponent {
           initialDisplayNames: initialDisplayNames,
           tablesLoadError: tablesLoadError,
           initialSchemaShapes: initialSchemaShapes,
+          initialCollectionActions: initialCollectionActions,
           initialPath: initialPath,
           initialAppName: appConfig.appName,
         )

@@ -1,5 +1,6 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
+import 'package:zonai_schema/src/types/collection_actions.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
 
 sealed class RuleResponse extends Response {
@@ -23,10 +24,10 @@ sealed class RuleResponse extends Response {
     return switch (path) {
       TableRulesResponse._path => TableRulesResponse.fromJson(json),
       RowRulesResponse._path => RowRulesResponse.fromJson(json),
-      AuthTableRulesResponse._path => AuthTableRulesResponse.fromJson(
-        json,
-      ),
+      AuthTableRulesResponse._path => AuthTableRulesResponse.fromJson(json),
       AuthRowRulesResponse._path => AuthRowRulesResponse.fromJson(json),
+      AllTableCollectionActionsResponse._path =>
+        AllTableCollectionActionsResponse.fromJson(json),
       _ => throw ArgumentError('Invalid rule response path: $path'),
     };
   }
@@ -172,6 +173,49 @@ final class TableRulesResponse extends RuleResponse {
   @override
   String toString() {
     return 'TableRulesResponse(table: $table, operation: $operation, canAccess: $canAccess)';
+  }
+}
+
+final class AllTableCollectionActionsResponse extends RuleResponse {
+  AllTableCollectionActionsResponse({required super.id, required this.actions})
+    : super(
+        path: _path,
+        payload: {
+          'actions': {
+            for (final MapEntry(:key, :value) in actions.entries)
+              key: value.toJson(),
+          },
+        },
+      );
+
+  factory AllTableCollectionActionsResponse.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    final raw = json['actions'] as Map? ?? const {};
+    return AllTableCollectionActionsResponse(
+      id: json['id'] as String,
+      actions: {
+        for (final MapEntry(:key, :value) in raw.entries)
+          key as String: TableCollectionActions.fromJson(
+            Map<String, dynamic>.from(value as Map),
+          ),
+      },
+    );
+  }
+
+  static const _path = '${Response.prefix}.table.collection_actions';
+
+  final Map<String, TableCollectionActions> actions;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'actions': {
+        for (final MapEntry(:key, :value) in actions.entries)
+          key: value.toJson(),
+      },
+    };
   }
 }
 

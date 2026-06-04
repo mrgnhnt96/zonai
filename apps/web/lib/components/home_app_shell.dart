@@ -18,6 +18,7 @@ class HomeAppShell extends StatelessComponent {
     required this.initialDisplayNames,
     this.tablesLoadError,
     required this.initialSchemaShapes,
+    required this.initialCollectionActions,
     required this.initialPath,
     required this.initialAppName,
   }) : assert(initialSqliteNames.length == initialDisplayNames.length, 'SQLite names and display labels must align');
@@ -26,6 +27,7 @@ class HomeAppShell extends StatelessComponent {
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
   final Map<String, Map<String, Object?>> initialSchemaShapes;
+  final Map<String, Map<String, Object?>> initialCollectionActions;
   final String initialPath;
   final String initialAppName;
 
@@ -39,6 +41,10 @@ class HomeAppShell extends StatelessComponent {
       for (final MapEntry(:key, :value) in initialSchemaShapes.entries)
         key: TableSchemaShape.fromJson(Map<String, dynamic>.from(value)),
     };
+    final collectionActions = {
+      for (final MapEntry(:key, :value) in initialCollectionActions.entries)
+        key: TableCollectionActions.fromJson(Map<String, dynamic>.from(value)),
+    };
     return div(classes: 'home-app-shell', [
       ProviderScope(
         overrides: appShellOverrides(
@@ -48,6 +54,7 @@ class HomeAppShell extends StatelessComponent {
           initialAuthTypes: const [],
           tables: SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),
           schemaShapes: schemaShapes,
+          collectionActions: collectionActions,
         ),
         child: Component.fragment([
           const PageTitleHead(),
