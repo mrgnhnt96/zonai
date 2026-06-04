@@ -10,9 +10,11 @@ import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
 import '../constants/theme.dart';
+import '../providers/app_tooltip_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import '../utils/dom_event_values.dart';
 import '../utils/table_rows_json.dart';
+import 'app_tooltip_overlay.dart';
 
 const _collapsibleMinLength = 320;
 const _slideDuration = Duration(milliseconds: 250);
@@ -285,7 +287,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _openTimer?.cancel();
     _resizeBindTimer?.cancel();
     if (context.binding.isClient) {
-      context.read(tableRowDetailCopyTooltipProvider.notifier).hide();
+      context.read(appTooltipProvider.notifier).hide();
     }
     _unbindEscapeKeyListener();
     _unbindResizeHandleDom();
@@ -346,7 +348,6 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     final cached = _cachedDetail!;
-    final copyTooltip = context.watch(tableRowDetailCopyTooltipProvider);
     void close() => context.read(tableRowDetailProvider.notifier).close();
     final subtitle = _detailSubtitle(cached);
     final showRawJson = _showRawJson && _rawJsonRowKey == cached.rowKey;
@@ -372,13 +373,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
             classes: 'table-row-detail-resize-handle',
             attributes: {
               'aria-hidden': 'true',
-              'title': 'Drag to resize',
               'style':
                   'position: absolute; top: 0; left: 0; bottom: 0; height: 100%; '
                   'width: ${_resizeStripWidthPx.round()}px; cursor: ew-resize; touch-action: none; '
                   'background: transparent; z-index: 10;',
             },
-            events: {'mousedown': _onResizeHandleMouseDown, 'pointerdown': _onResizeHandleMouseDown},
+            events: {
+              'mousedown': _onResizeHandleMouseDown,
+              'pointerdown': _onResizeHandleMouseDown,
+              ...appTooltipEvents(context, text: 'Drag to resize'),
+            },
             [],
           ),
           div(classes: 'table-row-detail-main', [
@@ -394,15 +398,18 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                   attributes: {
                     'aria-label': showRawJson ? 'Show field details' : 'Show raw JSON',
                   },
-                  onClick: () => setState(() {
-                    if (showRawJson) {
-                      _showRawJson = false;
-                      _rawJsonRowKey = null;
-                    } else {
-                      _showRawJson = true;
-                      _rawJsonRowKey = cached.rowKey;
-                    }
-                  }),
+                  onClick: () {
+                    context.read(appTooltipProvider.notifier).hide();
+                    setState(() {
+                      if (showRawJson) {
+                        _showRawJson = false;
+                        _rawJsonRowKey = null;
+                      } else {
+                        _showRawJson = true;
+                        _rawJsonRowKey = cached.rowKey;
+                      }
+                    });
+                  },
                   [.text(showRawJson ? 'Fields' : 'JSON')],
                 ),
                 button(
@@ -436,15 +443,6 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           ]),
         ],
       ),
-      if (context.binding.isClient && copyTooltip.text != null)
-        span(
-          classes: 'table-row-detail-copy-tooltip table-row-detail-copy-tooltip--visible',
-          attributes: {
-            'role': 'tooltip',
-            'style': 'top: ${copyTooltip.top}px; left: ${copyTooltip.left}px;',
-          },
-          [.text(copyTooltip.text!)],
-        ),
     ]);
   }
 }
@@ -642,6 +640,7 @@ class _CopyFieldValueButton extends StatefulComponent {
 
 class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
   var _copied = false;
+  AppTooltipPlacement _tooltipPlacement = AppTooltipPlacement.belowCenter;
   double? _tooltipTop;
   double? _tooltipLeft;
   Timer? _resetTimer;
@@ -649,7 +648,6 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
   @override
   void dispose() {
     _resetTimer?.cancel();
-    context.read(tableRowDetailCopyTooltipProvider.notifier).hide();
     super.dispose();
   }
 
@@ -662,15 +660,17 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
     final rect = el.getBoundingClientRect();
     _tooltipTop = rect.bottom + 6;
     _tooltipLeft = rect.left + rect.width / 2;
-    context.read(tableRowDetailCopyTooltipProvider.notifier).show(
+    _tooltipPlacement = AppTooltipPlacement.belowCenter;
+    context.read(appTooltipProvider.notifier).show(
       text: _tooltipText,
       top: _tooltipTop!,
       left: _tooltipLeft!,
+      placement: _tooltipPlacement,
     );
   }
 
   void _hideTooltip(_) {
-    context.read(tableRowDetailCopyTooltipProvider.notifier).hide();
+    context.read(appTooltipProvider.notifier).hide();
   }
 
   void _onKeyDown(web.Event event) {
@@ -688,10 +688,11 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
     final top = _tooltipTop;
     final left = _tooltipLeft;
     if (top != null && left != null) {
-      context.read(tableRowDetailCopyTooltipProvider.notifier).show(
+      context.read(appTooltipProvider.notifier).show(
         text: _tooltipText,
         top: top,
         left: left,
+        placement: _tooltipPlacement,
       );
     }
     _resetTimer = Timer(const Duration(seconds: 1), () {
@@ -1047,27 +1048,6 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css(
     '.table-row-detail-field',
   ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px), minWidth: .zero),
-  css('.table-row-detail-copy-tooltip').styles(
-    padding: .symmetric(horizontal: 10.px, vertical: 6.px),
-    radius: .all(Radius.circular(6.px)),
-    backgroundColor: surfaceColor,
-    border: .all(color: borderColor, width: 1.px, style: .solid),
-    fontSize: 0.8125.rem,
-    fontWeight: .w500,
-    color: fgColor,
-    pointerEvents: .none,
-    raw: const {
-      'position': 'fixed',
-      'white-space': 'nowrap',
-      'z-index': '400',
-      'box-shadow': 'var(--zonai-shadow-sm)',
-      'transform': 'translateX(-50%)',
-      'opacity': '0',
-      'visibility': 'hidden',
-      'transition': 'opacity 0.15s ease, visibility 0.15s ease',
-    },
-  ),
-  css('.table-row-detail-copy-tooltip--visible').styles(raw: const {'opacity': '1', 'visibility': 'visible'}),
   css('.table-row-detail-label-row').styles(
     display: .flex,
     flexDirection: FlexDirection.row,

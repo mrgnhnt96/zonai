@@ -1,5 +1,6 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
+import 'package:universal_web/web.dart' as web;
 
 import 'ui_styles.dart';
 
@@ -15,6 +16,7 @@ class ZonaiButton extends StatelessComponent {
     this.disabled = false,
     this.fullWidth = false,
     this.onClick,
+    this.events,
     this.attributes = const {},
   });
 
@@ -24,6 +26,7 @@ class ZonaiButton extends StatelessComponent {
   final bool disabled;
   final bool fullWidth;
   final void Function()? onClick;
+  final Map<String, void Function(web.Event)>? events;
   final Map<String, String> attributes;
 
   String get _variantClass => switch (variant) {
@@ -45,6 +48,7 @@ class ZonaiButton extends StatelessComponent {
       attributes: attributes,
       disabled: disabled,
       onClick: onClick,
+      events: events,
       [child],
     );
   }

@@ -7,6 +7,7 @@ import '../auth/auth_provider.dart';
 import '../constants/theme.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/session_user_provider.dart';
+import 'app_tooltip_overlay.dart';
 import 'theme/theme_components.dart';
 import 'theme_toggle.dart';
 
@@ -305,7 +306,11 @@ class _HomeSettingsOverlayState extends State<HomeSettingsOverlay> {
           div(classes: 'home-settings-profile', [
             div(classes: 'home-sidebar-avatar', [.text(initial)]),
             div(classes: 'home-sidebar-profile-text', [
-              span(classes: 'home-sidebar-email', attributes: {'title': label}, [.text(label)]),
+              span(
+                classes: 'home-sidebar-email',
+                events: appTooltipEvents(context, text: label),
+                [.text(label)],
+              ),
               if (sessionUser?.isAdmin == true) span(classes: 'home-sidebar-badge', [.text('Admin')]),
             ]),
           ]),

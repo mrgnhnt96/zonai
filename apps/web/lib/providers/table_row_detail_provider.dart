@@ -65,34 +65,3 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
     );
   }
 }
-
-final class TableRowDetailCopyTooltipState {
-  const TableRowDetailCopyTooltipState({this.text, this.top = 0, this.left = 0});
-
-  final String? text;
-  final double top;
-  final double left;
-}
-
-final tableRowDetailCopyTooltipProvider =
-    NotifierProvider<TableRowDetailCopyTooltipNotifier, TableRowDetailCopyTooltipState>(
-  TableRowDetailCopyTooltipNotifier.new,
-);
-
-class TableRowDetailCopyTooltipNotifier extends Notifier<TableRowDetailCopyTooltipState> {
-  @override
-  TableRowDetailCopyTooltipState build() {
-    ref.watch(tableRowDetailProvider);
-    return const TableRowDetailCopyTooltipState();
-  }
-
-  void show({required String text, required double top, required double left}) {
-    state = TableRowDetailCopyTooltipState(text: text, top: top, left: left);
-  }
-
-  void hide() {
-    if (state.text != null) {
-      state = const TableRowDetailCopyTooltipState();
-    }
-  }
-}

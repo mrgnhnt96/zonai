@@ -12,6 +12,8 @@ import '../providers/session_user_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import '../providers/table_focus_provider.dart';
 import '../utils/sqlite_table_utils.dart';
+import 'app_tooltip_overlay.dart';
+import '../providers/app_tooltip_provider.dart';
 import 'theme/ui_styles.dart';
 
 String _sidebarTableItemId(String sqliteName) => 'home-sidebar-table-$sqliteName';
@@ -61,9 +63,12 @@ class HomeSidebar extends StatelessComponent {
             classes: 'home-sidebar-toggle',
             type: .button,
             attributes: {
-              'title': collapsed ? 'Expand sidebar' : 'Collapse sidebar',
               'aria-label': collapsed ? 'Expand sidebar' : 'Collapse sidebar',
             },
+            events: appTooltipEvents(
+              context,
+              text: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+            ),
             onClick: () => context.read(homeUiProvider.notifier).toggleSidebar(),
             [.text(collapsed ? '›' : '‹')],
           ),
@@ -519,27 +524,6 @@ class HomeSidebar extends StatelessComponent {
       css(
         '.home-sidebar-item-focused .home-sidebar-item-button',
       ).styles(backgroundColor: selectedBgColor, color: primaryColor, fontWeight: .w600),
-      css('.home-rail-tooltip').styles(
-        padding: .symmetric(horizontal: 10.px, vertical: 6.px),
-        radius: .all(Radius.circular(6.px)),
-        backgroundColor: surfaceColor,
-        border: .all(color: borderColor, width: 1.px, style: .solid),
-        fontSize: 0.8125.rem,
-        fontWeight: .w500,
-        color: fgColor,
-        pointerEvents: .none,
-        raw: const {
-          'position': 'fixed',
-          'white-space': 'nowrap',
-          'z-index': '300',
-          'box-shadow': 'var(--zonai-shadow-sm)',
-          'transform': 'translateY(-50%)',
-          'opacity': '0',
-          'visibility': 'hidden',
-          'transition': 'opacity 0.15s ease, visibility 0.15s ease',
-        },
-      ),
-      css('.home-rail-tooltip--visible').styles(raw: const {'opacity': '1', 'visibility': 'visible'}),
     ]),
     css.media(MediaQuery.all(maxWidth: 640.px), [
       css('.home-sidebar').styles(
@@ -775,7 +759,7 @@ class _TablesList extends StatelessComponent {
   }
 }
 
-class _RailTableButton extends StatefulComponent {
+class _RailTableButton extends StatelessComponent {
   const _RailTableButton({required this.table, required this.label, required this.focused, required this.onSelect});
 
   final SqliteTableRef table;
@@ -784,54 +768,21 @@ class _RailTableButton extends StatefulComponent {
   final void Function() onSelect;
 
   @override
-  State<_RailTableButton> createState() => _RailTableButtonState();
-}
-
-class _RailTableButtonState extends State<_RailTableButton> {
-  bool _tooltipVisible = false;
-  double _tooltipTop = 0;
-  double _tooltipLeft = 0;
-
-  void _showTooltip(web.Event event) {
-    if (!context.binding.isClient) return;
-    final el = event.currentTarget;
-    if (el is! web.HTMLElement) return;
-    final rect = el.getBoundingClientRect();
-    setState(() {
-      _tooltipVisible = true;
-      _tooltipTop = rect.top + rect.height / 2;
-      _tooltipLeft = rect.right + 8;
-    });
-  }
-
-  void _hideTooltip(_) {
-    if (_tooltipVisible) {
-      setState(() => _tooltipVisible = false);
-    }
-  }
-
-  @override
   Component build(BuildContext context) {
-    final tooltipStyle = _tooltipVisible ? 'top: ${_tooltipTop}px; left: ${_tooltipLeft}px;' : '';
-
-    return Component.fragment([
-      button(
-        [.text(component.label)],
-        type: .button,
-        classes: component.focused
-            ? 'home-sidebar-item-button home-sidebar-item-button--rail'
-            : 'home-sidebar-item-button home-sidebar-item-button--rail',
-        attributes: {'aria-label': component.table.displayName},
-        onClick: component.onSelect,
-        events: {'mouseenter': _showTooltip, 'mouseleave': _hideTooltip, 'focus': _showTooltip, 'blur': _hideTooltip},
+    return button(
+      [.text(label)],
+      type: .button,
+      classes: focused
+          ? 'home-sidebar-item-button home-sidebar-item-button--rail'
+          : 'home-sidebar-item-button home-sidebar-item-button--rail',
+      attributes: {'aria-label': table.displayName},
+      events: appTooltipEvents(
+        context,
+        text: table.displayName,
+        placement: AppTooltipPlacement.rightCenter,
       ),
-      if (context.binding.isClient)
-        span(
-          classes: 'home-rail-tooltip${_tooltipVisible ? ' home-rail-tooltip--visible' : ''}',
-          attributes: {'role': 'tooltip', if (tooltipStyle.isNotEmpty) 'style': tooltipStyle},
-          [.text(component.table.displayName)],
-        ),
-    ]);
+      onClick: onSelect,
+    );
   }
 }
 
@@ -854,16 +805,20 @@ class _SidebarFooter extends StatelessComponent {
             : 'home-sidebar-profile-trigger',
         type: .button,
         attributes: {
-          'title': 'Account and settings',
           'aria-label': 'Account and settings',
           'aria-haspopup': 'dialog',
           'aria-expanded': settingsOpen ? 'true' : 'false',
         },
+        events: appTooltipEvents(context, text: 'Account and settings'),
         onClick: () => context.read(homeUiProvider.notifier).toggleSettings(),
         [
           div(classes: 'home-sidebar-avatar', [.text(initial)]),
           div(classes: 'home-sidebar-profile-text home-sidebar-expand-only', [
-            span(classes: 'home-sidebar-email', attributes: {'title': label}, [.text(label)]),
+            span(
+              classes: 'home-sidebar-email',
+              events: appTooltipEvents(context, text: label),
+              [.text(label)],
+            ),
             if (sessionUser?.isAdmin == true) span(classes: 'home-sidebar-badge', [.text('Admin')]),
           ]),
           span(classes: 'home-sidebar-settings-icon home-sidebar-expand-only', [.text('⚙')]),

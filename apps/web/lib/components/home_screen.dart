@@ -8,6 +8,7 @@ import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
 import '../constants/theme.dart';
+import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/table_focus_provider.dart';
 import '../providers/table_row_detail_provider.dart';
@@ -23,6 +24,7 @@ import '../utils/table_rows_sort.dart';
 import '../auth/auth_route_provider.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
+import 'app_tooltip_overlay.dart';
 import 'table_row_detail_panel.dart';
 import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
@@ -44,23 +46,12 @@ class HomeScreen extends StatelessComponent {
         ? context.watch(tableRowsProvider)
         : const AsyncValue<TableRowsData?>.data(null);
 
-    final sortTooltip = context.watch(tableSortTooltipProvider);
-
     return main_(classes: 'home${mobileNavOpen ? ' home--mobile-nav-open' : ''}', [
       HomeSidebar(focused: focused),
       div(classes: 'home-main', [
         _MobileNavHeader(focused: focused),
         _TableMain(focused: focused, rowsAsync: rowsAsync),
       ]),
-      if (context.binding.isClient && sortTooltip.text != null)
-        span(
-          classes: 'rows-sort-tooltip rows-sort-tooltip--visible',
-          attributes: {
-            'role': 'tooltip',
-            'style': 'top: ${sortTooltip.top}px; left: ${sortTooltip.left}px;',
-          },
-          [.text(sortTooltip.text!)],
-        ),
       if (mobileNavOpen)
         div(
           classes: 'home-mobile-backdrop',
@@ -280,27 +271,6 @@ class HomeScreen extends StatelessComponent {
         visibility: .hidden,
         raw: const {'pointer-events': 'none'},
       ),
-      css('.rows-sort-tooltip').styles(
-        padding: .symmetric(horizontal: 10.px, vertical: 6.px),
-        radius: .all(Radius.circular(6.px)),
-        backgroundColor: surfaceColor,
-        border: .all(color: borderColor, width: 1.px, style: .solid),
-        fontSize: 0.8125.rem,
-        fontWeight: .w500,
-        color: fgColor,
-        pointerEvents: .none,
-        raw: const {
-          'position': 'fixed',
-          'white-space': 'nowrap',
-          'z-index': '300',
-          'box-shadow': 'var(--zonai-shadow-sm)',
-          'transform': 'translateX(-50%)',
-          'opacity': '0',
-          'visibility': 'hidden',
-          'transition': 'opacity 0.15s ease, visibility 0.15s ease',
-        },
-      ),
-      css('.rows-sort-tooltip--visible').styles(raw: const {'opacity': '1', 'visibility': 'visible'}),
       css('.rows-table td').styles(
         padding: .symmetric(horizontal: 12.px, vertical: 8.px),
         overflow: Overflow.hidden,
@@ -396,10 +366,10 @@ class HomeScreen extends StatelessComponent {
         flexDirection: FlexDirection.row,
         alignItems: .center,
         justifyContent: .spaceBetween,
-        gap: Gap.all(12.px),
+        gap: Gap.all(10.px),
         width: 100.percent,
-        maxWidth: 40.rem,
-        padding: .symmetric(horizontal: 16.px, vertical: 12.px),
+        maxWidth: 36.rem,
+        padding: .symmetric(horizontal: 12.px, vertical: 8.px),
         radius: .all(Radius.circular(12.px)),
         backgroundColor: tableHeaderBgColor,
         border: .all(color: borderColor, width: 1.px, style: .solid),
@@ -446,10 +416,43 @@ class HomeScreen extends StatelessComponent {
       css('.table-rows-selection-actions').styles(
         display: .flex,
         alignItems: .center,
-        gap: Gap.all(8.px),
+        gap: Gap.all(6.px),
         flex: Flex(grow: 0, shrink: 0),
       ),
       css('.table-rows-selection-actions .z-btn + .z-btn').styles(margin: .zero),
+      css('.table-rows-selection-actions .z-btn').styles(
+        padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+        fontSize: 0.8125.rem,
+      ),
+      css('.rows-selection-icon-btn').styles(
+        width: 28.px,
+        height: 28.px,
+        display: .inlineFlex,
+        alignItems: .center,
+        justifyContent: .center,
+        padding: .zero,
+        cursor: .pointer,
+        radius: .all(Radius.circular(8.px)),
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        backgroundColor: surfaceColor,
+        color: mutedColor,
+        fontSize: 1.125.rem,
+        flex: Flex(grow: 0, shrink: 0),
+        raw: const {
+          'font': 'inherit',
+          'line-height': '1',
+          'transition': 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
+        },
+      ),
+      css('.rows-selection-icon-btn:hover:not(:disabled)').styles(
+        backgroundColor: hoverColor,
+        color: fgColor,
+        border: .all(color: mutedColor, width: 1.px, style: .solid),
+      ),
+      css('.rows-selection-icon-btn:disabled').styles(
+        opacity: 0.55,
+        cursor: .notAllowed,
+      ),
       css('.rows-selection-delete').styles(
         color: onPrimaryColor,
         backgroundColor: errorColor,
@@ -720,12 +723,11 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     final el = event.currentTarget;
     if (el is! web.HTMLElement) return;
     final icon = el.querySelector('.rows-header-sort-icon');
-    final anchor = icon is web.HTMLElement ? icon : el;
-    final rect = anchor.getBoundingClientRect();
-    context.read(tableSortTooltipProvider.notifier).show(
+    final anchor = icon ?? el;
+    showAppTooltipForElement(
+      context.read(appTooltipProvider.notifier),
+      anchor: anchor,
       text: text,
-      top: rect.bottom + 6,
-      left: rect.left + rect.width / 2,
     );
   }
 
@@ -734,25 +736,23 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
     if (column == null || !context.binding.isClient) return;
     final sort = context.read(tableSortProvider);
     if (sort?.columnName != column) {
-      context.read(tableSortTooltipProvider.notifier).hide();
+      context.read(appTooltipProvider.notifier).hide();
       return;
     }
     final text = sort!.ascending ? 'Sorted ascending' : 'Sorted descending';
     final header = web.document.querySelector('[data-sort-column="$column"]');
-    if (header is! web.HTMLElement) return;
+    if (header == null) return;
     final icon = header.querySelector('.rows-header-sort-icon');
-    final anchor = icon is web.HTMLElement ? icon : header;
-    final rect = anchor.getBoundingClientRect();
-    context.read(tableSortTooltipProvider.notifier).show(
+    showAppTooltipForElement(
+      context.read(appTooltipProvider.notifier),
+      anchor: icon ?? header,
       text: text,
-      top: rect.bottom + 6,
-      left: rect.left + rect.width / 2,
     );
   }
 
   void _hideSortTooltip(_) {
     _hoveredSortColumn = null;
-    context.read(tableSortTooltipProvider.notifier).hide();
+    context.read(appTooltipProvider.notifier).hide();
   }
 
   @override
@@ -1019,7 +1019,7 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     final data = component.data;
     final selection = component.selection;
     final selectedCount = selection.displayCount(data.total);
-    final label = selectedCount == 1 ? '1 row selected' : '$selectedCount rows selected';
+    final label = selectedCount == 1 ? '1 selected' : '$selectedCount selected';
 
     return div(classes: 'table-rows-selection-bar', [
       div(classes: 'table-rows-selection-meta', [
@@ -1030,38 +1030,69 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
             classes: 'table-rows-selection-select-all',
             type: .button,
             disabled: _busy,
+            attributes: {'aria-label': 'Select all ${data.total} rows'},
+            events: appTooltipEvents(context, text: 'Select all ${data.total} rows'),
             onClick: () => context.read(tableRowSelectionProvider.notifier).selectEntireTable(),
-            [.text('Select all ${data.total} rows')],
+            [.text('All ${data.total}')],
           ),
         ],
       ]),
       div(classes: 'table-rows-selection-actions', [
         button(
-          classes: ZonaiClasses.btnSecondary,
+          classes: 'rows-selection-icon-btn',
           type: .button,
           disabled: _busy,
-          attributes: {'aria-label': 'Deselect rows'},
-          onClick: () => context.read(tableRowSelectionProvider.notifier).clear(),
-          [.text('Deselect')],
-        ),
-        button(
-          classes: ZonaiClasses.btnSecondary,
-          type: .button,
-          disabled: _busy,
-          attributes: {'aria-label': 'Export selected rows as JSON'},
+          attributes: {
+            'aria-label': _exporting ? 'Exporting rows' : 'Export selected rows as JSON',
+          },
+          events: appTooltipEvents(context, text: 'Export JSON'),
           onClick: _exportSelectedAsJson,
-          [.text(_exporting ? 'Exporting…' : 'Export JSON')],
+          [_selectionExportIcon()],
         ),
         button(
           classes: '${ZonaiClasses.btn} rows-selection-delete',
           type: .button,
           disabled: _busy,
           onClick: _deleteSelected,
-          [.text(_deleting ? 'Deleting…' : 'Delete selected')],
+          [.text(_deleting ? 'Deleting…' : 'Delete')],
+        ),
+        button(
+          classes: 'rows-selection-icon-btn',
+          type: .button,
+          disabled: _busy,
+          attributes: {'aria-label': 'Deselect rows'},
+          events: appTooltipEvents(context, text: 'Deselect'),
+          onClick: () => context.read(tableRowSelectionProvider.notifier).clear(),
+          [.text('×')],
         ),
       ]),
     ]);
   }
+}
+
+Component _selectionExportIcon() {
+  return svg(
+    viewBox: '0 0 16 16',
+    width: 14.px,
+    height: 14.px,
+    attributes: {'aria-hidden': 'true', 'fill': 'none'},
+    [
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.5',
+        d: 'M8 2.75v6.5M5.75 7.25 8 9.5l2.25-2.25',
+        attributes: const {'stroke-linecap': 'round', 'stroke-linejoin': 'round'},
+        [],
+      ),
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.5',
+        d: 'M3.5 12.75h9',
+        attributes: const {'stroke-linecap': 'round'},
+        [],
+      ),
+    ],
+  );
 }
 
 class _SortableHeader extends StatelessComponent {

@@ -31,33 +31,3 @@ class TableSortNotifier extends Notifier<TableSortState?> {
     }
   }
 }
-
-final class TableSortTooltipState {
-  const TableSortTooltipState({this.text, this.top = 0, this.left = 0});
-
-  final String? text;
-  final double top;
-  final double left;
-}
-
-final tableSortTooltipProvider = NotifierProvider<TableSortTooltipNotifier, TableSortTooltipState>(
-  TableSortTooltipNotifier.new,
-);
-
-class TableSortTooltipNotifier extends Notifier<TableSortTooltipState> {
-  @override
-  TableSortTooltipState build() {
-    ref.watch(tableFocusProvider);
-    return const TableSortTooltipState();
-  }
-
-  void show({required String text, required double top, required double left}) {
-    state = TableSortTooltipState(text: text, top: top, left: left);
-  }
-
-  void hide() {
-    if (state.text != null) {
-      state = const TableSortTooltipState();
-    }
-  }
-}

@@ -1,8 +1,10 @@
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
 import 'app_shell_overrides.dart';
+import 'app_tooltip_overlay.dart';
 import 'page_title_head.dart';
 import '../router/auth_router.dart';
 
@@ -30,7 +32,14 @@ class AuthAppShell extends StatelessComponent {
         initialAppName: initialAppName,
         initialAuthTypes: initialAuthTypes,
       ),
-      child: Component.fragment([const PageTitleHead(), const AuthRouter()]),
+      child: Component.fragment([
+        const PageTitleHead(),
+        const AuthRouter(),
+        const AppTooltipOverlay(),
+      ]),
     );
   }
+
+  @css
+  static List<StyleRule> get styles => AppTooltipOverlay.styles;
 }

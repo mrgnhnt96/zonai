@@ -2,6 +2,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import '../providers/theme_provider.dart';
+import 'app_tooltip_overlay.dart';
 import 'theme/zonai_button.dart';
 
 /// Button that toggles between light and dark appearance.
@@ -17,8 +18,12 @@ class ThemeToggle extends StatelessComponent {
     return ZonaiButton(
       variant: ZonaiButtonVariant.ghost,
       attributes: {
-        'title': isDark ? 'Switch to light mode' : 'Switch to dark mode',
+        'aria-label': isDark ? 'Switch to light mode' : 'Switch to dark mode',
       },
+      events: appTooltipEvents(
+        context,
+        text: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+      ),
       onClick: () => context.read(themeProvider.notifier).toggle(),
       child: .text(isDark ? '☀ Light' : '☾ Dark'),
     );

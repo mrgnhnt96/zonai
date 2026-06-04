@@ -5,6 +5,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import '../providers/sqlite_tables_provider.dart';
 import 'app_shell_overrides.dart';
+import 'app_tooltip_overlay.dart';
 import 'page_title_head.dart';
 import '../router/home_router.dart';
 
@@ -51,6 +52,7 @@ class HomeAppShell extends StatelessComponent {
         child: Component.fragment([
           const PageTitleHead(),
           div(classes: 'home-app-shell-body', [const HomeRouter()]),
+          const AppTooltipOverlay(),
         ]),
       ),
     ]);
@@ -58,6 +60,7 @@ class HomeAppShell extends StatelessComponent {
 
   @css
   static List<StyleRule> get styles => [
+    ...AppTooltipOverlay.styles,
     css('.home-app-shell').styles(
       flex: Flex(grow: 1, shrink: 1),
       display: .flex,

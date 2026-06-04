@@ -6,6 +6,8 @@
 
 import 'package:jaspr/server.dart';
 import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
+import 'package:zonai_web/components/app_tooltip_overlay.dart'
+    as _app_tooltip_overlay;
 import 'package:zonai_web/components/auth_app_shell.dart' as _auth_app_shell;
 import 'package:zonai_web/components/home_app_shell.dart' as _home_app_shell;
 import 'package:zonai_web/components/home_screen.dart' as _home_screen;
@@ -51,6 +53,8 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._ui_styles.zonaiUiStyles,
     ..._theme.styles,
     ..._app.App.styles,
+    ..._app_tooltip_overlay.AppTooltipOverlay.styles,
+    ..._auth_app_shell.AuthAppShell.styles,
     ..._home_app_shell.HomeAppShell.styles,
     ..._home_screen.HomeScreen.styles,
     ..._home_settings_overlay.HomeSettingsOverlay.styles,
