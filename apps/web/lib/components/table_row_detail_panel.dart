@@ -37,6 +37,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   void _onKeyDown(web.Event event) {
     if (event is! web.KeyboardEvent) return;
     if (event.key != 'Escape') return;
+    event.stopPropagation();
     context.read(tableRowDetailProvider.notifier).close();
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:js_interop';
 
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
@@ -614,9 +615,40 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
   var _hadSelection = false;
   var _selectionBarClosing = false;
   Timer? _selectionBarTimer;
+  web.EventListener? _escapeKeyListener;
 
   static const _loadMoreThresholdPx = 200.0;
   static const _selectionBarAnimationMs = 250;
+
+  void _bindEscapeKeyListener() {
+    if (_escapeKeyListener != null || !context.binding.isClient) return;
+    _escapeKeyListener = _onEscapeKeyDown.toJS;
+    web.document.addEventListener('keydown', _escapeKeyListener);
+  }
+
+  void _onEscapeKeyDown(web.Event event) {
+    if (event is! web.KeyboardEvent || event.key != 'Escape') return;
+    if (!mounted) return;
+
+    final active = web.document.activeElement;
+    final detailPanel = web.document.querySelector('.table-row-detail-panel');
+    if (detailPanel is web.Element &&
+        active is web.Element &&
+        detailPanel.contains(active)) {
+      return;
+    }
+
+    final selection = context.read(tableRowSelectionProvider);
+    if (selection.isEmpty) return;
+    context.read(tableRowSelectionProvider.notifier).clear();
+  }
+
+  void _unbindEscapeKeyListener() {
+    final listener = _escapeKeyListener;
+    if (listener == null) return;
+    web.document.removeEventListener('keydown', listener);
+    _escapeKeyListener = null;
+  }
 
   void _onTableScroll(web.Event event) {
     _maybeLoadMore(event.currentTarget);
@@ -650,10 +682,12 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
   void initState() {
     super.initState();
     _scheduleFillViewportCheck();
+    scheduleMicrotask(_bindEscapeKeyListener);
   }
 
   @override
   void dispose() {
+    _unbindEscapeKeyListener();
     _selectionBarTimer?.cancel();
     super.dispose();
   }
