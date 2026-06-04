@@ -33,12 +33,13 @@ import '../constants/spacing.dart';
 const _collapsibleMinLength = 320;
 const _slideDuration = Duration(milliseconds: 250);
 const _panelMinWidthPx = 380.0;
+const _panelDefaultWidthPx = _panelMinWidthPx * 2;
 const _panelMaxWidthFraction = 3 / 4;
 const _resizeStripWidthPx = 20.0;
 const _footerHorizontalPaddingPx = 16.0;
 const _footerActionsGapPx = 8.0;
 const _footerContentMaxWidthPx =
-    _panelMinWidthPx - _resizeStripWidthPx - _footerHorizontalPaddingPx * 2;
+    _panelDefaultWidthPx - _resizeStripWidthPx - _footerHorizontalPaddingPx * 2;
 const _footerSaveBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 3 / 4;
 const _footerCancelBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 1 / 4;
 
@@ -52,7 +53,7 @@ class TableRowDetailPanel extends StatefulComponent {
 class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _render = false;
   var _open = false;
-  var _panelWidthPx = _panelMinWidthPx;
+  var _panelWidthPx = _panelDefaultWidthPx;
   var _resizing = false;
   bool? _lastHadDetail;
   TableRowDetailState? _cachedDetail;
