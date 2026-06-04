@@ -842,3 +842,32 @@ List<String> parseCommaSeparatedList(String text) =>
     text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
 String joinCommaSeparatedList(List<String> values) => values.join(',');
+
+/// Moves the item at [from] to index [to] (used by list chip reorder UI).
+List<String> reorderStringList(List<String> values, int from, int to) {
+  if (from == to || from < 0 || to < 0 || from >= values.length || to >= values.length) {
+    return values;
+  }
+  final next = List<String>.from(values);
+  final item = next.removeAt(from);
+  next.insert(to, item);
+  return next;
+}
+
+/// Moves the item at [from] so it sits before the item currently at [insertIndex].
+///
+/// [insertIndex] may be `values.length` to append. Used by chip drag indicators
+/// (left pipe = [insertIndex], right pipe on chip [i] = [insertIndex] `i + 1`).
+List<String> reorderStringListToInsertIndex(List<String> values, int from, int insertIndex) {
+  if (from < 0 || from >= values.length) return values;
+  if (insertIndex < 0 || insertIndex > values.length) return values;
+
+  var to = insertIndex;
+  if (from < to) to--;
+  if (from == to) return values;
+
+  final next = List<String>.from(values);
+  final item = next.removeAt(from);
+  next.insert(to, item);
+  return next;
+}

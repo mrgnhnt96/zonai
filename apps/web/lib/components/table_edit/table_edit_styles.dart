@@ -16,6 +16,57 @@ List<StyleRule> get tableEditSharedStyles => [
     flexDirection: FlexDirection.row,
     flexWrap: FlexWrap.wrap,
     gap: Gap.all(ZonaiSpacing.s3),
+    raw: const {'--table-edit-chip-gap': '6px'},
+  ),
+  css('.table-edit-chip-input__chips--dragging').styles(
+    raw: const {'user-select': 'none'},
+  ),
+  css('.table-edit-chip-input__chip-item').styles(
+    position: Position.relative(),
+    display: .inlineFlex,
+    alignItems: .center,
+  ),
+  css('.table-edit-chip-input__chip-item--reorderable').styles(
+    cursor: .grab,
+    raw: const {'touch-action': 'none'},
+  ),
+  css('.table-edit-chip-input__chip-item--reorderable:active').styles(
+    cursor: .grabbing,
+  ),
+  css('.table-edit-chip-input__chip-item--reorderable .z-tag__remove').styles(
+    cursor: .pointer,
+  ),
+  css('.table-edit-chip-input__chip-item--dragging .z-tag').styles(
+    opacity: 0.45,
+  ),
+  css('.table-edit-chip-input__drop-pipe').styles(
+    position: Position.absolute(top: 3.px, bottom: 3.px),
+    width: 2.px,
+    radius: .all(Radius.circular(1.px)),
+    backgroundColor: primaryColor,
+    raw: const {'pointer-events': 'none', 'z-index': '1'},
+  ),
+  css('.table-edit-chip-input__drop-pipe--left').styles(
+    raw: const {
+      'left': '0',
+      'transform': 'translate(calc(-0.5 * var(--table-edit-chip-gap) - 50%), 0)',
+    },
+  ),
+  css(
+    '.table-edit-chip-input__chip-item:first-child .table-edit-chip-input__drop-pipe--left',
+  ).styles(
+    raw: const {'transform': 'translate(-50%, 0)'},
+  ),
+  css('.table-edit-chip-input__drop-pipe--right').styles(
+    raw: const {
+      'right': '0',
+      'transform': 'translate(calc(0.5 * var(--table-edit-chip-gap) + 50%), 0)',
+    },
+  ),
+  css(
+    '.table-edit-chip-input__chip-item:last-child .table-edit-chip-input__drop-pipe--right',
+  ).styles(
+    raw: const {'transform': 'translate(50%, 0)'},
   ),
   css('.table-edit-chip-input__add-row').styles(
     display: .flex,

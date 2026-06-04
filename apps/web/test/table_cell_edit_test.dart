@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
@@ -593,6 +592,52 @@ void main() {
 
       expect(parsed, isA<Uint8List>());
       expect(tryParseBigIntCell(parsed), BigInt.parse('9007199254740991'));
+    });
+  });
+
+  group('reorderStringList', () {
+    test('moves an item to a new index', () {
+      expect(
+        reorderStringList(['a', 'b', 'c'], 0, 2),
+        ['b', 'c', 'a'],
+      );
+      expect(
+        reorderStringList(['a', 'b', 'c'], 2, 0),
+        ['c', 'a', 'b'],
+      );
+    });
+
+    test('returns the same list when indices are equal or out of range', () {
+      const values = ['a', 'b'];
+      expect(identical(reorderStringList(values, 0, 0), values), isTrue);
+      expect(identical(reorderStringList(values, -1, 1), values), isTrue);
+      expect(identical(reorderStringList(values, 0, 5), values), isTrue);
+    });
+  });
+
+  group('reorderStringListToInsertIndex', () {
+    test('inserts before the target index (left pipe)', () {
+      expect(
+        reorderStringListToInsertIndex(['a', 'b', 'c'], 2, 0),
+        ['c', 'a', 'b'],
+      );
+    });
+
+    test('inserts after the target index (right pipe)', () {
+      expect(
+        reorderStringListToInsertIndex(['a', 'b', 'c'], 0, 2),
+        ['b', 'a', 'c'],
+      );
+      expect(
+        reorderStringListToInsertIndex(['a', 'b', 'c'], 0, 3),
+        ['b', 'c', 'a'],
+      );
+    });
+
+    test('returns the same list when the insert would not move the item', () {
+      const values = ['a', 'b', 'c'];
+      expect(identical(reorderStringListToInsertIndex(values, 1, 1), values), isTrue);
+      expect(identical(reorderStringListToInsertIndex(values, 1, 2), values), isTrue);
     });
   });
 }
