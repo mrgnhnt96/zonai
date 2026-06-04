@@ -1,16 +1,16 @@
 import 'dart:async';
-import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 import 'dart:math' as math;
 
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
 import '../constants/theme.dart';
 import '../providers/table_row_detail_provider.dart';
+import '../utils/dom_event_values.dart';
 
 const _collapsibleMinLength = 320;
 const _slideDuration = Duration(milliseconds: 250);
@@ -51,23 +51,17 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _handleResizeDownListener = _onResizeHandleMouseDown.toJS;
   }
 
-  double _readJsNum(JSObject object, String property) {
-    final value = object[property]?.dartify();
-    if (value is num) return value.toDouble();
-    return 0;
-  }
-
   double _viewportWidthPx() {
     final visualViewport = web.window.visualViewport;
     if (visualViewport != null) {
-      final width = _readJsNum(visualViewport as JSObject, 'width');
+      final width = jsNumProperty(visualViewport, 'width');
       if (width > 0) return width;
     }
-    final innerWidth = _readJsNum(web.window as JSObject, 'innerWidth');
+    final innerWidth = jsNumProperty(web.window, 'innerWidth');
     if (innerWidth > 0) return innerWidth;
     final doc = web.document.documentElement;
     if (doc != null) {
-      final clientWidth = _readJsNum(doc as JSObject, 'clientWidth');
+      final clientWidth = jsNumProperty(doc, 'clientWidth');
       if (clientWidth > 0) return clientWidth;
     }
     return 1200;
@@ -119,11 +113,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 
   double? _eventClientX(web.Event event) {
-    // Read via JSObject — browser may return fractional doubles but the
+    // Read via JS property — browser may return fractional doubles but the
     // MouseEvent.clientX getter is typed as int and throws on subpixel values.
-    final value = (event as JSObject)['clientX']?.dartify();
-    if (value is num) return value.toDouble();
-    return null;
+    return eventClientX(event);
   }
 
   void _applyPanelWidthPx(double widthPx) {
@@ -288,6 +280,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (!_render) return;
     _openTimer?.cancel();
     _resizeBindTimer?.cancel();
+    if (context.binding.isClient) {
+      context.read(tableRowDetailCopyTooltipProvider.notifier).hide();
+    }
     _unbindEscapeKeyListener();
     _unbindResizeHandleDom();
     _endResizeDrag();
@@ -345,6 +340,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     final cached = _cachedDetail!;
+    final copyTooltip = context.watch(tableRowDetailCopyTooltipProvider);
     void close() => context.read(tableRowDetailProvider.notifier).close();
     final subtitle = _detailSubtitle(cached);
     final openClass = _open ? ' table-row-detail--open' : '';
@@ -413,6 +409,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           ]),
         ],
       ),
+      if (context.binding.isClient && copyTooltip.text != null)
+        span(
+          classes: 'table-row-detail-copy-tooltip table-row-detail-copy-tooltip--visible',
+          attributes: {
+            'role': 'tooltip',
+            'style': 'top: ${copyTooltip.top}px; left: ${copyTooltip.left}px;',
+          },
+          [.text(copyTooltip.text!)],
+        ),
     ]);
   }
 }
@@ -440,10 +445,161 @@ class _DetailField extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     return div(classes: 'table-row-detail-field', [
-      span(classes: 'table-row-detail-label', [.text(label)]),
+      div(classes: 'table-row-detail-label-row', [
+        span(classes: 'table-row-detail-label', [.text(label)]),
+        _CopyFieldValueButton(label: label, text: value),
+      ]),
       _DetailFieldValue(value: value, shape: shape),
     ]);
   }
+}
+
+class _CopyFieldValueButton extends StatefulComponent {
+  const _CopyFieldValueButton({required this.label, required this.text});
+
+  final String label;
+  final String text;
+
+  @override
+  State<_CopyFieldValueButton> createState() => _CopyFieldValueButtonState();
+}
+
+class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
+  var _copied = false;
+  double? _tooltipTop;
+  double? _tooltipLeft;
+  Timer? _resetTimer;
+
+  @override
+  void dispose() {
+    _resetTimer?.cancel();
+    context.read(tableRowDetailCopyTooltipProvider.notifier).hide();
+    super.dispose();
+  }
+
+  String get _tooltipText => _copied ? 'Copied' : 'Copy ${component.label}';
+
+  void _showTooltip(web.Event event) {
+    if (!context.binding.isClient) return;
+    final el = event.currentTarget;
+    if (el is! web.HTMLElement) return;
+    final rect = el.getBoundingClientRect();
+    _tooltipTop = rect.bottom + 6;
+    _tooltipLeft = rect.left + rect.width / 2;
+    context.read(tableRowDetailCopyTooltipProvider.notifier).show(
+      text: _tooltipText,
+      top: _tooltipTop!,
+      left: _tooltipLeft!,
+    );
+  }
+
+  void _hideTooltip(_) {
+    context.read(tableRowDetailCopyTooltipProvider.notifier).hide();
+  }
+
+  void _onKeyDown(web.Event event) {
+    if (event is! web.KeyboardEvent) return;
+    if (event.key != 'Enter' && event.key != ' ') return;
+    event.preventDefault();
+    _onCopy();
+  }
+
+  void _onCopy() {
+    if (!context.binding.isClient) return;
+    web.window.navigator.clipboard.writeText(component.text).toDart.ignore();
+    _resetTimer?.cancel();
+    setState(() => _copied = true);
+    final top = _tooltipTop;
+    final left = _tooltipLeft;
+    if (top != null && left != null) {
+      context.read(tableRowDetailCopyTooltipProvider.notifier).show(
+        text: _tooltipText,
+        top: top,
+        left: left,
+      );
+    }
+    _resetTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Component build(BuildContext context) {
+    return span(
+      classes: 'table-row-detail-copy-wrap',
+      attributes: {
+        'role': 'button',
+        'tabindex': '0',
+        'aria-label': _tooltipText,
+      },
+      events: {
+        'click': (_) => _onCopy(),
+        'keydown': _onKeyDown,
+        'mouseenter': _showTooltip,
+        'mouseleave': _hideTooltip,
+        'focus': _showTooltip,
+        'blur': _hideTooltip,
+      },
+      [
+        span(
+          classes: 'table-row-detail-copy${_copied ? ' table-row-detail-copy--copied' : ''}',
+          [_copied ? _checkIconSvg() : _copyIconSvg()],
+        ),
+      ],
+    );
+  }
+}
+
+Component _copyIconSvg() {
+  return svg(
+    viewBox: '0 0 16 16',
+    width: 11.px,
+    height: 11.px,
+    classes: 'table-row-detail-copy-icon',
+    attributes: {'aria-hidden': 'true', 'fill': 'none'},
+    [
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.25',
+        d: 'M5.5 3.5h6a1 1 0 0 1 1 1v6.5',
+        attributes: const {'stroke-linecap': 'round', 'stroke-linejoin': 'round'},
+        [],
+      ),
+      rect(
+        attributes: const {
+          'x': '3.5',
+          'y': '5.5',
+          'width': '8',
+          'height': '8',
+          'rx': '1',
+          'stroke': 'currentColor',
+          'stroke-width': '1.25',
+          'fill': 'none',
+        },
+        [],
+      ),
+    ],
+  );
+}
+
+Component _checkIconSvg() {
+  return svg(
+    viewBox: '0 0 16 16',
+    width: 11.px,
+    height: 11.px,
+    classes: 'table-row-detail-copy-icon',
+    attributes: {'aria-hidden': 'true', 'fill': 'none'},
+    [
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.5',
+        d: 'M3.5 8.25 6.5 11.25 12.5 4.75',
+        attributes: const {'stroke-linecap': 'round', 'stroke-linejoin': 'round'},
+        [],
+      ),
+    ],
+  );
 }
 
 class _DetailFieldValue extends StatelessComponent {
@@ -634,11 +790,85 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css(
     '.table-row-detail-field',
   ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(4.px), minWidth: .zero),
+  css('.table-row-detail-copy-tooltip').styles(
+    padding: .symmetric(horizontal: 10.px, vertical: 6.px),
+    radius: .all(Radius.circular(6.px)),
+    backgroundColor: surfaceColor,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    fontSize: 0.8125.rem,
+    fontWeight: .w500,
+    color: fgColor,
+    pointerEvents: .none,
+    raw: const {
+      'position': 'fixed',
+      'white-space': 'nowrap',
+      'z-index': '400',
+      'box-shadow': 'var(--zonai-shadow-sm)',
+      'transform': 'translateX(-50%)',
+      'opacity': '0',
+      'visibility': 'hidden',
+      'transition': 'opacity 0.15s ease, visibility 0.15s ease',
+    },
+  ),
+  css('.table-row-detail-copy-tooltip--visible').styles(raw: const {'opacity': '1', 'visibility': 'visible'}),
+  css('.table-row-detail-label-row').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(6.px),
+    minWidth: .zero,
+  ),
+  css('.table-row-detail-copy-wrap').styles(
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    alignSelf: .center,
+    flex: Flex(grow: 0, shrink: 0),
+    cursor: .pointer,
+    padding: .only(bottom: 2.px),
+  ),
+  css('.table-row-detail-copy').styles(
+    width: 0.6875.rem,
+    height: 0.6875.rem,
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    padding: .zero,
+    margin: .zero,
+    color: mutedColor,
+    cursor: .pointer,
+    outline: Outline(style: OutlineStyle.none),
+    raw: const {
+      'background': 'transparent',
+      'border': 'none',
+      'box-shadow': 'none',
+    },
+  ),
+  css('.table-row-detail-copy-wrap:hover .table-row-detail-copy').styles(color: fgColor),
+  css('.table-row-detail-copy-wrap:hover .table-row-detail-copy--copied').styles(color: primaryColor),
+  css('.table-row-detail-copy--copied').styles(color: primaryColor),
+  css('.table-row-detail-copy-icon').styles(
+    display: .block,
+    flex: Flex(grow: 0, shrink: 0),
+    raw: const {
+      'animation': 'table-row-detail-copy-icon-pop 0.2s ease-out',
+    },
+  ),
+  css('@keyframes table-row-detail-copy-icon-pop').styles(
+    raw: const {
+      'from': '{ transform: scale(0.82); opacity: 0.55; }',
+      'to': '{ transform: scale(1); opacity: 1; }',
+    },
+  ),
   css('.table-row-detail-label').styles(
     fontSize: 0.6875.rem,
     fontWeight: .w600,
     color: mutedColor,
+    display: .flex,
+    alignItems: .center,
+    alignSelf: .center,
     raw: const {
+      'line-height': '1',
       'text-transform': 'uppercase',
       'letter-spacing': '0.04em',
       'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
