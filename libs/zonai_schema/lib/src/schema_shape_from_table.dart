@@ -164,11 +164,25 @@ _describeColumn(rd.Column column) {
       isReadOnly: false,
     ),
     _ => (
-      kind: _kindFromSqlType(column.sqlType),
+      kind: _kindFromTransformerRuntimeType(column),
       enumValues: const [],
       isSecret: false,
       isReadOnly: false,
     ),
+  };
+}
+
+/// Fallback when [ColumnShapeKind] pattern matching misses a transformer type
+/// (e.g. duplicate class across Raindrop packages).
+ColumnShapeKind _kindFromTransformerRuntimeType(rd.Column column) {
+  return switch (column.transformer?.runtimeType.toString()) {
+    'BigIntTransfomer' => ColumnShapeKind.bigInt,
+    'BlobTransformer' => ColumnShapeKind.blob,
+    'BooleanTransformer' => ColumnShapeKind.boolean,
+    'DateTimeTransfomer' => ColumnShapeKind.dateTime,
+    'MapTransformer' => ColumnShapeKind.map,
+    'ListTransformer' => ColumnShapeKind.list,
+    _ => _kindFromSqlType(column.sqlType),
   };
 }
 

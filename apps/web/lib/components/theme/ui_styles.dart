@@ -103,7 +103,6 @@ List<StyleRule> get zonaiUiStyles => [
       'transition': 'border-color 0.15s ease, box-shadow 0.15s ease',
     },
   ),
-  css('.z-input::placeholder').styles(color: mutedColor),
   css('.z-input:hover:not(:disabled)').styles(border: .all(color: mutedColor, width: 1.px, style: .solid)),
   css('.z-input:focus-visible').styles(
     border: .all(color: primaryColor, width: 1.px, style: .solid),
@@ -113,6 +112,9 @@ List<StyleRule> get zonaiUiStyles => [
     opacity: 0.6,
     cursor: .notAllowed,
     backgroundColor: hoverColor,
+  ),
+  css('textarea.z-input').styles(
+    raw: const {'resize': 'vertical'},
   ),
   css('.z-select').styles(
     position: Position.relative(),

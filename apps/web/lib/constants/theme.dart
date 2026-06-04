@@ -115,4 +115,15 @@ List<StyleRule> get styles => [
     },
   ),
   css('*', [css('&').styles(boxSizing: .inherit)]),
+  css('input::placeholder, textarea::placeholder').styles(
+    color: mutedColor,
+    raw: const {'opacity': '1'},
+  ),
+  css(
+    'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder',
+  ).styles(color: mutedColor),
+  css('input::-moz-placeholder, textarea::-moz-placeholder').styles(
+    color: mutedColor,
+    raw: const {'opacity': '1'},
+  ),
 ];

@@ -1583,17 +1583,10 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     flexDirection: FlexDirection.column,
     gap: Gap.all(6.px),
   ),
-  css('.table-row-detail-edit-input').styles(
-    width: 100.percent,
-    padding: .symmetric(horizontal: 10.px, vertical: 8.px),
-    border: Border.all(color: borderColor, width: 1.px, style: .solid),
-    radius: .all(Radius.circular(6.px)),
-    backgroundColor: bgColor,
-    color: fgColor,
-    fontSize: 0.875.rem,
-    raw: const {'font': 'inherit', 'line-height': '1.4'},
+  css('.table-row-detail-field--edit .z-input').styles(width: 100.percent),
+  css('.table-row-detail-field--edit textarea.z-input').styles(
+    raw: const {'resize': 'vertical', 'min-height': '5rem'},
   ),
-  css('.table-row-detail-edit-input:disabled').styles(opacity: 0.6),
   css('.table-row-detail-edit-checkbox').styles(
     width: 16.px,
     height: 16.px,

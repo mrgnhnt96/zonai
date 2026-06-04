@@ -8,16 +8,12 @@
 ### UI
 
 - [ ] Add theme color support
-- [ ] Create collection groups:
-  - [ ] Pin collections (if any)
-  - [ ] Normal collections
-  - [ ] System collections
-- [ ] Search collections
-- [ ] Filter records
-  - [ ] Add search history
-- [ ] Sort by column
+- [ ] Pin collections (?)
+- [ ] Add search history
 - [ ] Send test email
 - [ ] Run cron job manually
+- [ ] Create new row
+- [ ] Choose reference row from table (using search)
 
 #### Dashboard
 

@@ -4,6 +4,7 @@ import 'package:universal_web/web.dart' as web;
 
 import '../../utils/table_cell_edit.dart';
 import '../theme/ui_styles.dart';
+import '../theme/zonai_button.dart';
 
 /// Chip list editor for comma-separated filter values (in / not in) on non-enum columns.
 class TableEditChipInput extends StatefulComponent {
@@ -14,6 +15,7 @@ class TableEditChipInput extends StatefulComponent {
     required this.onValueTextChanged,
     this.placeholder = 'Add value…',
     this.labelId,
+    this.disabled = false,
   });
 
   final String id;
@@ -21,6 +23,7 @@ class TableEditChipInput extends StatefulComponent {
   final void Function(String valueText) onValueTextChanged;
   final String placeholder;
   final String? labelId;
+  final bool disabled;
 
   @override
   State<TableEditChipInput> createState() => _TableEditChipInputState();
@@ -85,13 +88,14 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
         input<String>(
           id: inputId,
           type: .text,
-          classes: ZonaiClasses.input,
+          classes: 'table-edit-chip-input__add-input ${ZonaiClasses.input}',
           attributes: {
             if (component.labelId != null) 'aria-labelledby': component.labelId!,
             'placeholder': component.placeholder,
             'autocomplete': 'off',
           },
           value: _draft,
+          disabled: component.disabled,
           onInput: (v) => setState(() => _draft = v),
           events: {
             'keydown': (event) {
@@ -103,9 +107,9 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
             },
           },
         ),
-        button(
-          type: .button,
-          classes: 'table-edit-chip-input__add-btn',
+        ZonaiButton(
+          variant: ZonaiButtonVariant.ghost,
+          disabled: component.disabled,
           events: {
             'click': (event) {
               event.preventDefault();
@@ -113,7 +117,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
               _addChip(_draft);
             },
           },
-          [.text('Add')],
+          child: .text('Add'),
         ),
       ]),
     ]);

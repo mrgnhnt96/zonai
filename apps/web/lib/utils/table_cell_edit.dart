@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:zonai_schema/payloads.dart';
@@ -16,9 +17,7 @@ bool isColumnEditable(ColumnShape shape) {
     ColumnShapeKind.createdAt ||
     ColumnShapeKind.updatedAt ||
     ColumnShapeKind.photo ||
-    ColumnShapeKind.photos ||
-    ColumnShapeKind.blob ||
-    ColumnShapeKind.map => false,
+    ColumnShapeKind.photos => false,
     _ => true,
   };
 }
@@ -48,7 +47,12 @@ String cellToEditString(Object? value, ColumnShape? shape) {
     ColumnShapeKind.enum_ => _formatEnumForEdit(value, shape!.enumValues),
     ColumnShapeKind.list => jsonEncode(cellValueAsStringList(value)),
     ColumnShapeKind.enumList => joinCommaSeparatedList(cellValueAsStringList(value, shape!.enumValues)),
-    ColumnShapeKind.bigInt => tryParseBigIntCell(value)?.toString() ?? '$value',
+    ColumnShapeKind.bigInt => formatBigIntCellString(value),
+    ColumnShapeKind.map => _formatMapForEdit(value),
+    ColumnShapeKind.blob =>
+      effectiveColumnEditKind(shape!, value) == ColumnShapeKind.bigInt
+          ? formatBigIntCellString(value)
+          : _formatBlobForEdit(value),
     _ => '$value',
   };
 }
@@ -74,6 +78,11 @@ Object? normalizeCellValueForEdit(Object? value, ColumnShape shape) {
     ColumnShapeKind.dateTime => _toDateTime(value),
     ColumnShapeKind.enum_ => _formatEnumForEdit(value, shape.enumValues),
     ColumnShapeKind.bigInt => tryParseBigIntCell(value) ?? value,
+    ColumnShapeKind.map => _normalizeMapForEdit(value),
+    ColumnShapeKind.blob =>
+      effectiveColumnEditKind(shape, value) == ColumnShapeKind.bigInt
+          ? (tryParseBigIntCell(value) ?? value)
+          : _normalizeBlobForEdit(value),
     _ => value,
   };
 }
@@ -127,14 +136,18 @@ Object? parseEditValue({required Object? draftValue, required String textInput, 
     throw FormatException('${shape.name} is required');
   }
 
-  return switch (shape.kind) {
+  final editKind = effectiveColumnEditKind(shape, draftValue);
+
+  return switch (editKind) {
     ColumnShapeKind.integer => int.parse(trimmed),
     ColumnShapeKind.id => trimmed,
     ColumnShapeKind.real => double.parse(trimmed),
-    ColumnShapeKind.bigInt => BigInt.parse(trimmed),
+    ColumnShapeKind.bigInt => _parseBigIntEditValue(trimmed, shape: shape),
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => _parseBool(trimmed),
     ColumnShapeKind.enum_ => _parseEnum(trimmed, shape.enumValues),
     ColumnShapeKind.dateTime => _parseDateTime(trimmed),
+    ColumnShapeKind.map => parseMapEditValue(trimmed),
+    ColumnShapeKind.blob => _parseBlobEditValue(trimmed),
     _ => trimmed,
   };
 }
@@ -280,7 +293,255 @@ bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
     if (ba != null && bb != null) return ba == bb;
   }
 
+  if (shape?.kind == ColumnShapeKind.map) {
+    final ma = _normalizeMapForEdit(a);
+    final mb = _normalizeMapForEdit(b);
+    if (ma is Map && mb is Map) {
+      return _deepCollectionEquality.equals(ma, mb);
+    }
+  }
+
+  if (shape?.kind == ColumnShapeKind.blob) {
+    if (isBigIntWireValue(a) || isBigIntWireValue(b)) {
+      final ba = tryParseBigIntCell(a);
+      final bb = tryParseBigIntCell(b);
+      if (ba != null && bb != null) return ba == bb;
+    }
+    final ba = _blobBytesForEquality(a);
+    final bb = _blobBytesForEquality(b);
+    if (ba != null && bb != null) return _listEquality.equals(ba, bb);
+  }
+
   return '$a' == '$b';
+}
+
+const _listEquality = ListEquality<int>();
+
+Object? _decodeJsonEditValue(Object value) {
+  if (value is Map || value is List) return value;
+  if (value is! String || value.isEmpty) return null;
+  try {
+    return jsonDecode(value);
+  } on FormatException {
+    return null;
+  }
+}
+
+String _formatStructuredJson(Object value) {
+  final decoded = _decodeJsonEditValue(value) ?? value;
+  const encoder = JsonEncoder.withIndent('  ');
+  try {
+    return encoder.convert(decoded);
+  } on Object {
+    return '$decoded';
+  }
+}
+
+/// True when [value] is BigInt binary-digit wire (each byte is 0 or 1), not arbitrary blob bytes.
+bool isBigIntWireValue(Object? value) => isBinaryDigitBlobWire(value);
+
+/// Binary-digit blob wire (BigInt transformer), including short bit sequences.
+bool isBinaryDigitBlobWire(Object? value) {
+  final bytes = _blobBytesForEquality(value);
+  if (bytes == null || bytes.isEmpty) return false;
+  if (!bytes.every((b) => b == 0 || b == 1)) return false;
+  return tryParseBigIntCell(value) != null;
+}
+
+/// BLOB columns declared as BigInt in schema (e.g. `big_count`) when wire is not yet loaded.
+bool isLikelyBigIntBlobColumn(ColumnShape shape) {
+  if (shape.kind != ColumnShapeKind.blob) return false;
+  final name = shape.name.toLowerCase();
+  return name.contains('bigint') || name.contains('big_int') || name == 'big_count';
+}
+
+bool _isScalarBigIntValue(Object value) {
+  return switch (value) {
+    BigInt _ => true,
+    int _ => true,
+    String s => BigInt.tryParse(s) != null,
+    _ => false,
+  };
+}
+
+/// UI routing kind; treats misclassified blob columns with BigInt wire as [ColumnShapeKind.bigInt].
+ColumnShapeKind effectiveColumnEditKind(ColumnShape shape, [Object? value]) {
+  if (shape.kind == ColumnShapeKind.bigInt) return ColumnShapeKind.bigInt;
+  if (shape.kind == ColumnShapeKind.blob) {
+    if (isLikelyBigIntBlobColumn(shape)) return ColumnShapeKind.bigInt;
+    if (value != null) {
+      if (isBinaryDigitBlobWire(value) || _isScalarBigIntValue(value)) {
+        return ColumnShapeKind.bigInt;
+      }
+    }
+  }
+  return shape.kind;
+}
+
+/// Keeps only an optional leading minus and decimal digits (for BigInt text inputs).
+String filterBigIntDecimalInput(String text) {
+  if (text.isEmpty) return text;
+  final negative = text.startsWith('-');
+  final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return negative ? '-' : '';
+  return negative ? '-$digits' : digits;
+}
+
+/// Decimal string for [ColumnShapeKind.bigInt] wire values (including binary-digit blobs).
+String formatBigIntCellString(Object? value) {
+  if (value == null) return '';
+  final parsed = tryParseBigIntCell(value);
+  if (parsed != null) return parsed.toString();
+  return '$value';
+}
+
+String _formatMapForEdit(Object value) => _formatStructuredJson(value);
+
+String _formatBlobForEdit(Object value) {
+  final bytes = _blobBytesForEquality(value);
+  if (bytes != null) {
+    return const JsonEncoder.withIndent('  ').convert(bytes);
+  }
+  return _formatStructuredJson(value);
+}
+
+Object? _normalizeMapForEdit(Object value) {
+  final decoded = _decodeJsonEditValue(value);
+  if (decoded is Map) {
+    return Map<String, dynamic>.from(
+      decoded.map((key, v) => MapEntry(key.toString(), v)),
+    );
+  }
+  return value;
+}
+
+Uint8List? _normalizeBlobForEdit(Object value) {
+  final bytes = _blobBytesForEquality(value);
+  if (bytes != null) return Uint8List.fromList(bytes);
+  return value is Uint8List ? value : null;
+}
+
+List<int>? _blobBytesForEquality(Object? value) {
+  if (value == null) return null;
+
+  if (value is Uint8List) return value;
+  if (value is List<int>) return value;
+
+  if (value is List) {
+    final bytes = <int>[];
+    for (final item in value) {
+      if (item is! int) return null;
+      bytes.add(item);
+    }
+    return bytes;
+  }
+
+  if (value is String && value.startsWith('[')) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is! List) return null;
+      final bytes = <int>[];
+      for (final item in decoded) {
+        if (item is! int) return null;
+        bytes.add(item);
+      }
+      return bytes;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/// Returns a user-facing error, or null when [text] is valid map column JSON.
+String? validateMapEditText(String text, {required bool allowEmpty}) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return allowEmpty ? null : 'Enter a JSON object';
+  try {
+    parseMapEditValue(trimmed);
+    return null;
+  } on FormatException catch (e) {
+    return e.message;
+  }
+}
+
+/// Parses map column text into [Map<String, dynamic>]. Throws [FormatException] when invalid.
+Map<String, dynamic> parseMapEditValue(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) {
+    throw const FormatException('Enter a JSON object');
+  }
+
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(trimmed);
+  } on FormatException catch (e) {
+    throw FormatException(_friendlyJsonSyntaxMessage(e.message));
+  }
+
+  if (decoded is! Map) {
+    throw FormatException(_mapTopLevelTypeMessage(decoded));
+  }
+
+  return Map<String, dynamic>.from(
+    decoded.map((key, value) => MapEntry(key.toString(), value)),
+  );
+}
+
+String _friendlyJsonSyntaxMessage(String detail) {
+  final lower = detail.toLowerCase();
+  if (lower.contains('unexpected character') || lower.contains('unexpected end')) {
+    return 'Invalid JSON; check braces, quotes, and commas';
+  }
+  return 'Invalid JSON; expected an object like {"key": "value"}';
+}
+
+String _mapTopLevelTypeMessage(Object? decoded) {
+  return switch (decoded) {
+    List _ => 'Expected a JSON object with keys, not an array',
+    String _ => 'Expected a JSON object with keys, not a string',
+    num _ => 'Expected a JSON object with keys, not a number',
+    bool _ => 'Expected a JSON object with keys, not true or false',
+    null => 'Expected a JSON object with keys, not null',
+    _ => 'Expected a JSON object with keys',
+  };
+}
+
+Object? _parseBigIntEditValue(String text, {required ColumnShape shape}) {
+  if (!RegExp(r'^-?\d+$').hasMatch(text)) {
+    throw const FormatException('Expected a whole number');
+  }
+  final parsed = BigInt.parse(text);
+  if (shape.kind == ColumnShapeKind.blob) {
+    return encodeBigIntWire(parsed);
+  }
+  return parsed;
+}
+
+/// Binary-digit blob wire format used by [BigIntTransfomer].
+Uint8List encodeBigIntWire(BigInt value) => Uint8List.fromList(
+  value.toRadixString(2).split('').map(int.parse).toList(),
+);
+
+Uint8List _parseBlobEditValue(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) {
+    throw const FormatException('Invalid blob value');
+  }
+
+  final decoded = jsonDecode(trimmed);
+  if (decoded is! List) {
+    throw const FormatException('Invalid JSON array; expected byte list like [0,1,1]');
+  }
+  final bytes = <int>[];
+  for (final item in decoded) {
+    if (item is! int) {
+      throw const FormatException('Invalid blob byte; expected integers');
+    }
+    bytes.add(item);
+  }
+  return Uint8List.fromList(bytes);
 }
 
 BigInt? _toBigInt(Object value) => tryParseBigIntCell(value);

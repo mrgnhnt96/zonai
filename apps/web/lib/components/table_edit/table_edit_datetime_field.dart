@@ -560,6 +560,7 @@ List<StyleRule> tableEditDatetimeStyles = [
     display: .block,
     position: Position.relative(),
     width: 100.percent,
+    maxWidth: 320.px,
     minWidth: .zero,
   ),
   css('.table-edit-datetime--compact').styles(
@@ -582,6 +583,8 @@ List<StyleRule> tableEditDatetimeStyles = [
     justifyContent: .spaceBetween,
     gap: Gap.all(10.px),
     width: 100.percent,
+    maxWidth: 320.px,
+    boxSizing: BoxSizing.borderBox,
     padding: .symmetric(horizontal: 14.px, vertical: 11.px),
     radius: .all(Radius.circular(10.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
