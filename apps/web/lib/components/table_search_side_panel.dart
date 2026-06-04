@@ -40,6 +40,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
   web.EventListener? _documentResizeMoveListener;
   web.EventListener? _documentResizeUpListener;
   web.EventListener? _handleResizeDownListener;
+  web.EventListener? _documentKeyListener;
   web.Element? _resizeBoundPanel;
   var _resizeListenersActive = false;
 
@@ -49,14 +50,58 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     _documentResizeMoveListener = _onDocumentResizeMove.toJS;
     _documentResizeUpListener = _onDocumentResizeUp.toJS;
     _handleResizeDownListener = _onResizeHandleMouseDown.toJS;
+    _documentKeyListener = _onDocumentKeyDown.toJS;
   }
 
   @override
   void dispose() {
     _unmountTimer?.cancel();
     _openTimer?.cancel();
+    _unbindDocumentKeyListener();
     _endResizeDrag();
     super.dispose();
+  }
+
+  void _bindDocumentKeyListener() {
+    if (_documentKeyListener == null || !context.binding.isClient) return;
+    web.document.addEventListener('keydown', _documentKeyListener);
+  }
+
+  void _unbindDocumentKeyListener() {
+    final listener = _documentKeyListener;
+    if (listener == null) return;
+    web.document.removeEventListener('keydown', listener);
+  }
+
+  void _onDocumentKeyDown(web.Event event) {
+    if (event is! web.KeyboardEvent) return;
+    if (!mounted || !_open) return;
+
+    if (event.key == 'Enter' && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      _applyFilter();
+      return;
+    }
+
+    if (event.key != 'Escape') return;
+    if (_isDatetimePickerOpenInPanel()) return;
+
+    event.preventDefault();
+    context.read(tableFilterProvider.notifier).closePanel();
+  }
+
+  void _applyFilter() {
+    final notifier = context.read(tableFilterProvider.notifier);
+    if (notifier.apply()) {
+      notifier.closePanel();
+    }
+  }
+
+  bool _isDatetimePickerOpenInPanel() {
+    return web.document.querySelector(
+          '.table-search-side-panel .table-edit-datetime__trigger--open',
+        ) !=
+        null;
   }
 
   double _viewportWidthPx() {
@@ -185,6 +230,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     _openTimer = Timer(const Duration(milliseconds: 20), () {
       if (!mounted) return;
       setState(() => _open = true);
+      _bindDocumentKeyListener();
       scheduleMicrotask(_bindResizeDom);
     });
   }
@@ -195,6 +241,7 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
     if (context.binding.isClient) {
       context.read(appTooltipProvider.notifier).hide();
     }
+    _unbindDocumentKeyListener();
     _endResizeDrag();
     setState(() {
       _open = false;

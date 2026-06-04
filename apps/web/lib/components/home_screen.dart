@@ -1618,6 +1618,7 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
         );
       case 'Escape':
         if (context.read(tableRowDetailProvider) != null) return;
+        if (context.read(tableFilterProvider).panelOpen) return;
         event.preventDefault();
         if (_hasHomeFocus(context)) {
           _clearHomeFocus(context);
