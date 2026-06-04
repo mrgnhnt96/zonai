@@ -27,6 +27,12 @@ const _slideDuration = Duration(milliseconds: 250);
 const _panelMinWidthPx = 380.0;
 const _panelMaxWidthFraction = 3 / 4;
 const _resizeStripWidthPx = 20.0;
+const _footerHorizontalPaddingPx = 16.0;
+const _footerActionsGapPx = 8.0;
+const _footerContentMaxWidthPx =
+    _panelMinWidthPx - _resizeStripWidthPx - _footerHorizontalPaddingPx * 2;
+const _footerSaveBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 3 / 4;
+const _footerCancelBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 1 / 4;
 
 class TableRowDetailPanel extends StatefulComponent {
   const TableRowDetailPanel({super.key});
@@ -836,7 +842,13 @@ class _DetailField extends StatelessComponent {
 
     return div(
       classes: fieldClass,
-      events: readOnlyHint ? appTooltipEvents(context, text: readOnlyTooltip) : const {},
+      events: readOnlyHint
+          ? appTooltipEvents(
+              context,
+              text: readOnlyTooltip,
+              placement: AppTooltipPlacement.belowLeft,
+            )
+          : const {},
       [
         div(classes: 'table-row-detail-label-row', [
             span(classes: 'table-row-detail-label table-row-detail-label--stacked', [.text(label)]),
@@ -1268,6 +1280,8 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-close:hover').styles(backgroundColor: hoverColor, color: fgColor),
   css('.table-row-detail-footer').styles(
     flex: Flex(grow: 0, shrink: 0),
+    display: .flex,
+    justifyContent: .end,
     padding: .symmetric(horizontal: 16.px, vertical: 12.px),
     border: .only(
       top: BorderSide.solid(color: borderColor, width: 1.px),
@@ -1277,15 +1291,23 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-footer-actions').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
-    gap: Gap.all(8.px),
+    gap: Gap.all(_footerActionsGapPx.px),
+    width: _footerContentMaxWidthPx.px,
+    maxWidth: _footerContentMaxWidthPx.px,
   ),
   css('.table-row-detail-footer-actions .table-row-detail-footer-btn--primary').styles(
     flex: Flex(grow: 3, shrink: 1),
     width: .auto,
+    maxWidth: _footerSaveBtnMaxWidthPx.px,
   ),
   css('.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel').styles(
     flex: Flex(grow: 1, shrink: 1),
     width: .auto,
+    maxWidth: _footerCancelBtnMaxWidthPx.px,
+  ),
+  css('.table-row-detail-footer > .table-row-detail-footer-btn').styles(
+    width: _footerContentMaxWidthPx.px,
+    maxWidth: _footerContentMaxWidthPx.px,
   ),
   css('.table-row-detail-footer-btn').styles(
     display: .block,

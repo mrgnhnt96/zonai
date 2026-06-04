@@ -4,6 +4,7 @@ import 'table_focus_provider.dart';
 
 enum AppTooltipPlacement {
   belowCenter,
+  belowLeft,
   rightCenter,
 }
 

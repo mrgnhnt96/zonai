@@ -15,6 +15,7 @@ void showAppTooltipForElement(
   final rect = anchor.getBoundingClientRect();
   final (top, left) = switch (placement) {
     AppTooltipPlacement.belowCenter => (rect.bottom + 6, rect.left + rect.width / 2),
+    AppTooltipPlacement.belowLeft => (rect.bottom + 6, rect.left),
     AppTooltipPlacement.rightCenter => (rect.top + rect.height / 2, rect.right + 8),
   };
   notifier.show(text: text, top: top, left: left, placement: placement);
@@ -76,6 +77,7 @@ class AppTooltipOverlay extends StatelessComponent {
     final visible = tooltip.text != null;
     final transform = switch (tooltip.placement) {
       AppTooltipPlacement.belowCenter => 'translateX(-50%)',
+      AppTooltipPlacement.belowLeft => null,
       AppTooltipPlacement.rightCenter => 'translateY(-50%)',
     };
 
@@ -84,7 +86,11 @@ class AppTooltipOverlay extends StatelessComponent {
       attributes: {
         'role': 'tooltip',
         if (visible)
-          'style': 'top: ${tooltip.top}px; left: ${tooltip.left}px; transform: $transform;',
+          'style': [
+            'top: ${tooltip.top}px',
+            'left: ${tooltip.left}px',
+            if (transform != null) 'transform: $transform',
+          ].join('; '),
       },
       [if (visible) .text(tooltip.text!)],
     );
