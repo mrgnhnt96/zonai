@@ -16,6 +16,7 @@ sealed class Id implements z.Id {
       ItemsId._suffix => ItemsId(json),
       PostsId._suffix => PostsId(json),
       UsersId._suffix => UsersId(json),
+      CellEditFixturesId._suffix => CellEditFixturesId(json),
       _ => throw ArgumentError('Invalid ID format: $json'),
     };
   }
@@ -72,4 +73,12 @@ class UsersId extends Id {
   factory UsersId.generate() => UsersId(z.Id.generate(_suffix));
 
   static const _suffix = 'us';
+}
+
+class CellEditFixturesId extends Id {
+  const CellEditFixturesId(super.value);
+
+  factory CellEditFixturesId.generate() => CellEditFixturesId(z.Id.generate(_suffix));
+
+  static const _suffix = 'cf';
 }

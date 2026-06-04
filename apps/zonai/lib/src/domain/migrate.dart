@@ -10,6 +10,8 @@ import '../deps/fs.dart';
 import '../deps/keyboard_input.dart';
 import '../deps/logger.dart';
 import '../deps/settings.dart';
+import '../deps/zonai_db.dart';
+import '../db_mutator/zonai_db/zonai_db.dart';
 import '../../zonai.dart';
 
 class Migrate {
@@ -52,6 +54,7 @@ class Migrate {
       try {
         logger.info('Running auto migration...');
         await run(name: 'auto');
+        await applyPending();
       } catch (e, stack) {
         logger.error('Auto migration failed: $e', e, stack);
       } finally {
@@ -146,6 +149,24 @@ class Migrate {
     } finally {
       _running?.complete(result);
       _running = null;
+    }
+  }
+
+  /// Applies pending `*.sql` files in [settings.migrationsPath] to the open DB.
+  Future<int> applyPending() async {
+    if (args.release) {
+      logger.warn('Cannot apply migrations in release mode');
+      return 0;
+    }
+
+    try {
+      zonaiDB.dispose();
+      await zonaiDB.open();
+      logger.info('Applied pending SQL migrations');
+      return 0;
+    } catch (e, stack) {
+      logger.error('Failed to apply pending migrations: $e', e, stack);
+      return 1;
     }
   }
 

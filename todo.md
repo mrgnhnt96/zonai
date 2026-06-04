@@ -65,6 +65,7 @@ when running zonai serve, its important that we dont prompt or require input. We
 
 - [ ] Add feature to alert/fail on breaking changes
 - Investigate how to handle base classes for schemas & extending them
+- [ ] Add support for one to many relationships
 
 ## Backlog
 

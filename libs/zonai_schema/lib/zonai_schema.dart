@@ -34,6 +34,7 @@ export 'src/column_types/create_primary_key.dart';
 export 'src/column_types/created_at_column.dart';
 export 'src/column_types/email_column.dart';
 export 'src/column_types/enum_column.dart';
+export 'src/column_types/enum_list_column.dart';
 export 'src/column_types/id_column.dart';
 export 'src/column_types/is_verified_column.dart';
 export 'src/column_types/list_column.dart';
