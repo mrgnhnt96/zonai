@@ -56,7 +56,7 @@ String _normalizeErrorMessage(String message) {
 
   final lower = text.toLowerCase();
   if (lower.contains('foreign key constraint failed') || lower.contains('foreign key')) {
-    return 'That reference does not match an existing row (for example, the company may not exist).';
+    return 'That reference does not match an existing row.';
   }
 
   return text;

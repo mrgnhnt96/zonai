@@ -85,7 +85,7 @@ class _TableFilterValueFieldState extends State<TableFilterValueField> {
           ForeignKeyPickerDialog(
             foreignKey: shape.foreignKey!,
             selectedId: component.valueText.isEmpty ? null : component.valueText,
-            onSelect: (id) {
+            onSelect: (id, {displayLabel}) {
               component.onValueTextChanged(id ?? '');
               setState(() => _fkPickerOpen = false);
             },

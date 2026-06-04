@@ -17,10 +17,8 @@ void main() {
 
     test('maps foreign key failures to a clear message', () {
       expect(
-        userFacingError(
-          StateError('Failed to update row: SqliteException(787): FOREIGN KEY constraint failed'),
-        ),
-        'That reference does not match an existing row (for example, the company may not exist).',
+        userFacingError(StateError('Failed to update row: SqliteException(787): FOREIGN KEY constraint failed')),
+        'That reference does not match an existing row.',
       );
     });
   });

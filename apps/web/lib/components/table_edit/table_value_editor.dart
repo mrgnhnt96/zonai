@@ -36,6 +36,9 @@ class TableValueEditor extends StatelessComponent {
     this.allowNullableEnum = false,
     this.chipPlaceholder,
     this.fkLayout = TableForeignKeyLayout.row,
+    this.fkDisplayLabel,
+    this.fkValidationError,
+    this.fkValidationLoading = false,
   });
 
   final String id;
@@ -56,6 +59,9 @@ class TableValueEditor extends StatelessComponent {
   final bool allowNullableEnum;
   final String? chipPlaceholder;
   final TableForeignKeyLayout fkLayout;
+  final String? fkDisplayLabel;
+  final String? fkValidationError;
+  final bool fkValidationLoading;
 
   @override
   Component build(BuildContext context) {
@@ -186,6 +192,9 @@ class TableValueEditor extends StatelessComponent {
         disabled: disabled,
         layout: fkLayout,
         inputClass: inputClass,
+        displayLabel: fkDisplayLabel,
+        validationError: fkValidationError,
+        validationLoading: fkValidationLoading,
       ),
       _ => _plainTextEditor(shape, onText),
     };

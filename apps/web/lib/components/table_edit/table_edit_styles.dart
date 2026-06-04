@@ -148,6 +148,20 @@ List<StyleRule> get tableEditSharedStyles => [
     flex: Flex(grow: 1, shrink: 1),
     minWidth: 120.px,
   ),
+  css('.table-edit-fk-value__input--invalid').styles(
+    raw: const {'border-color': 'var(--zonai-error)'},
+  ),
+  css('.table-edit-fk-value__error').styles(
+    width: 100.percent,
+    margin: .zero,
+    fontSize: 0.8125.rem,
+    color: errorColor,
+    raw: const {'line-height': '1.45'},
+  ),
+  css('.table-edit-fk-value__hint').styles(
+    fontSize: 0.8125.rem,
+    color: mutedColor,
+  ),
   css('.table-filter-fk-value').styles(
     display: .flex,
     flexDirection: FlexDirection.column,

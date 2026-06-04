@@ -78,6 +78,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _saving = false;
   List<Object?>? _draft;
   Map<int, String> _textInputs = {};
+  final Set<String> _invalidFkFields = {};
   _PendingDismiss? _pendingDismiss;
 
   @override
@@ -188,6 +189,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 
     if (event.key == 'Escape') {
       if (isDatetimePickerPopoverOpen()) return;
+      if (isForeignKeyPickerOpen()) return;
       event.preventDefault();
       if (_pendingDismiss != null) {
         setState(() => _pendingDismiss = null);
@@ -433,6 +435,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _editing = false;
         _draft = null;
         _textInputs = {};
+        _clearFkInvalidFields();
       });
     });
   }
@@ -450,6 +453,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _cachedDetail = null;
         _draft = initialCreateDraft(create.columnShapes);
         _textInputs = {};
+        _clearFkInvalidFields();
         _saving = false;
         _pendingDismiss = null;
         _showRawJson = false;
@@ -466,6 +470,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _saving = false;
         _draft = null;
         _textInputs = {};
+        _clearFkInvalidFields();
         _showRawJson = false;
         _rawJsonRowKey = null;
       }
@@ -554,6 +559,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           _editing = false;
           _draft = null;
           _textInputs = {};
+          _clearFkInvalidFields();
           _pendingDismiss = null;
           _showRawJson = false;
           _rawJsonRowKey = null;
@@ -564,6 +570,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           _editing = false;
           _draft = null;
           _textInputs = {};
+          _clearFkInvalidFields();
           _pendingDismiss = null;
           _showRawJson = true;
           _rawJsonRowKey = detail.rowKey;
@@ -586,6 +593,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       _editing = false;
       _draft = null;
       _textInputs = {};
+      _clearFkInvalidFields();
       _pendingDismiss = null;
     });
   }
@@ -645,6 +653,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         setState(() {
           _draft = null;
           _textInputs = {};
+          _clearFkInvalidFields();
           _pendingDismiss = null;
         });
     }
@@ -716,6 +725,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         textValue: _textInputs[index] ?? '',
         disabled: _saving,
         labelId: 'table-row-edit-label-${shape.name}',
+        onFkInvalidChanged: isForeignKeyColumn(shape)
+            ? (invalid) => _setFkFieldInvalid(shape.name, invalid)
+            : null,
         onDraftChanged: (value) {
           setState(() {
             _draft ??= List<Object?>.from(detail.row);
@@ -826,6 +838,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         textValue: _textInputs[index] ?? '',
         disabled: _saving,
         labelId: 'table-row-create-label-${shape.name}',
+        onFkInvalidChanged: isForeignKeyColumn(shape)
+            ? (invalid) => _setFkFieldInvalid(shape.name, invalid)
+            : null,
         onDraftChanged: (value) {
           setState(() {
             _draft ??= initialCreateDraft(create.columnShapes);
@@ -890,6 +905,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _saving = false;
         _draft = null;
         _textInputs = {};
+        _clearFkInvalidFields();
         _cachedCreate = null;
       });
     } on Object catch (e) {
@@ -943,6 +959,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _saving = false;
         _draft = null;
         _textInputs = {};
+        _clearFkInvalidFields();
       });
     } on Object catch (e) {
       if (!mounted) return;
@@ -981,8 +998,24 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     return _buildDetailPanel(context, cached);
   }
 
+  void _setFkFieldInvalid(String fieldName, bool invalid) {
+    setState(() {
+      if (invalid) {
+        _invalidFkFields.add(fieldName);
+      } else {
+        _invalidFkFields.remove(fieldName);
+      }
+    });
+  }
+
+  void _clearFkInvalidFields() => _invalidFkFields.clear();
+
+  bool _hasInvalidFkReferences() => _invalidFkFields.isNotEmpty;
+
   bool _canSubmitCreate(TableRowCreateState create) {
-    if (_saving || !_hasUnsavedCreateChanges(create)) return false;
+    if (_saving || !_hasUnsavedCreateChanges(create) || _hasInvalidFkReferences()) {
+      return false;
+    }
     final draft = _draft ?? initialCreateDraft(create.columnShapes);
     return remainingCreateRequiredFieldLabels(
       draft: draft,
@@ -992,7 +1025,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 
   bool _canSubmitEdit(TableRowDetailState detail) {
-    if (_saving || !_editing || !_hasUnsavedChanges(detail)) return false;
+    if (_saving || !_editing || !_hasUnsavedChanges(detail) || _hasInvalidFkReferences()) {
+      return false;
+    }
     final draft = _draft;
     if (draft == null) return false;
     return remainingCreateRequiredFieldLabels(
@@ -1444,6 +1479,7 @@ class _EditDetailField extends StatelessComponent {
     required this.labelId,
     required this.onDraftChanged,
     required this.onTextChanged,
+    this.onFkInvalidChanged,
   });
 
   final String fieldLabel;
@@ -1454,6 +1490,7 @@ class _EditDetailField extends StatelessComponent {
   final String labelId;
   final void Function(Object? value) onDraftChanged;
   final void Function(String value) onTextChanged;
+  final void Function(bool invalid)? onFkInvalidChanged;
 
   @override
   Component build(BuildContext context) {
@@ -1475,6 +1512,7 @@ class _EditDetailField extends StatelessComponent {
         labelId: labelId,
         onTextChanged: onTextChanged,
         onDraftChanged: onDraftChanged,
+        onFkInvalidChanged: onFkInvalidChanged,
       ),
     ]);
   }

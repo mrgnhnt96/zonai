@@ -19,6 +19,9 @@ class TableForeignKeyValueField extends StatelessComponent {
     this.disabled = false,
     this.layout = TableForeignKeyLayout.row,
     this.inputClass,
+    this.displayLabel,
+    this.validationError,
+    this.validationLoading = false,
   });
 
   final String id;
@@ -30,6 +33,9 @@ class TableForeignKeyValueField extends StatelessComponent {
   final bool disabled;
   final TableForeignKeyLayout layout;
   final String? inputClass;
+  final String? displayLabel;
+  final String? validationError;
+  final bool validationLoading;
 
   @override
   Component build(BuildContext context) {
@@ -38,17 +44,26 @@ class TableForeignKeyValueField extends StatelessComponent {
       TableForeignKeyLayout.column => 'table-filter-fk-value',
     };
 
+    final chipLabel = displayLabel ?? (textValue.isNotEmpty ? textValue : null);
+    final inputClasses = [
+      inputClass ?? ZonaiClasses.input,
+      if (layout == TableForeignKeyLayout.row) 'table-edit-fk-value__input',
+      if (validationError != null) 'table-edit-fk-value__input--invalid',
+    ].join(' ').trim();
+
+    // TODO(open-referenced-row-tab): When [textValue] is set and validation is valid,
+    // add a ghost icon button that opens the referenced row in a new browser tab.
+
     return div(classes: layoutClass, [
-      if (textValue.isNotEmpty) ZonaiTag(label: textValue, monospace: true),
+      if (chipLabel != null) ZonaiTag(label: chipLabel, monospace: displayLabel == null),
       input<String>(
         id: id,
         type: .text,
-        classes: [
-          inputClass ?? ZonaiClasses.input,
-          if (layout == TableForeignKeyLayout.row) 'table-edit-fk-value__input',
-        ].join(' ').trim(),
+        classes: inputClasses,
         attributes: {
           if (labelId != null) 'aria-labelledby': labelId!,
+          if (validationError != null) 'aria-invalid': 'true',
+          if (validationError != null) 'aria-describedby': '$id-error',
           'placeholder': shape.isNullable ? 'Reference id (optional)' : 'Reference id',
           'autocomplete': 'off',
         },
@@ -62,6 +77,10 @@ class TableForeignKeyValueField extends StatelessComponent {
         onClick: onBrowse,
         child: .text('Browse'),
       ),
+      if (validationLoading)
+        span(classes: 'table-edit-fk-value__hint', [.text('Checking…')]),
+      if (validationError != null)
+        p(id: '$id-error', classes: 'table-edit-fk-value__error', [.text(validationError!)]),
     ]);
   }
 }
