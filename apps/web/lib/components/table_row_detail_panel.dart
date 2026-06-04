@@ -39,8 +39,7 @@ const _panelMaxWidthFraction = 3 / 4;
 const _resizeStripWidthPx = 20.0;
 const _footerHorizontalPaddingPx = 16.0;
 const _footerActionsGapPx = 8.0;
-const _footerContentMaxWidthPx =
-    _panelDefaultWidthPx - _resizeStripWidthPx - _footerHorizontalPaddingPx * 2;
+const _footerContentMaxWidthPx = _panelDefaultWidthPx - _footerHorizontalPaddingPx * 2;
 const _footerSaveBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 3 / 4;
 const _footerCancelBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 1 / 4;
 
@@ -1418,7 +1417,6 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     minWidth: .zero,
     minHeight: .zero,
     height: 100.percent,
-    padding: .only(left: ZonaiSpacing.s10),
     overflow: Overflow.hidden,
     raw: const {'box-sizing': 'border-box'},
   ),

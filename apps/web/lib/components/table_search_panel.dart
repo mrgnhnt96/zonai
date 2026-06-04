@@ -765,7 +765,6 @@ List<StyleRule> tableSearchSidePanelStyles = [
     flexDirection: FlexDirection.column,
     minHeight: .zero,
     height: 100.percent,
-    padding: .only(left: ZonaiSpacing.s10),
     overflow: Overflow.hidden,
   ),
   css('.table-search-side-header').styles(
