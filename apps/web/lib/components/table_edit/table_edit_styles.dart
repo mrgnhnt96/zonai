@@ -39,6 +39,26 @@ List<StyleRule> get tableEditSharedStyles => [
   css('.table-edit-chip-input__chip-item--dragging .z-tag').styles(
     opacity: 0.45,
   ),
+  css('.table-edit-chip-input__chip-item--dragging-pointer .z-tag').styles(
+    visibility: .hidden,
+  ),
+  css('.table-edit-chip-input__drag-ghost.z-tag').styles(
+    position: Position.fixed(),
+    radius: .all(Radius.circular(6.px)),
+    overflow: Overflow.visible,
+    raw: const {
+      'z-index': '10000',
+      'pointer-events': 'none',
+      'margin': '0',
+      'opacity': '0.95',
+      'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.18)',
+      'background-clip': 'padding-box',
+      '-webkit-background-clip': 'padding-box',
+    },
+  ),
+  css('.table-edit-chip-input__drag-ghost .z-tag__remove').styles(
+    display: .none,
+  ),
   css('.table-edit-chip-input__drop-pipe').styles(
     position: Position.absolute(top: 3.px, bottom: 3.px),
     width: 2.px,
@@ -52,21 +72,11 @@ List<StyleRule> get tableEditSharedStyles => [
       'transform': 'translate(calc(-0.5 * var(--table-edit-chip-gap) - 50%), 0)',
     },
   ),
-  css(
-    '.table-edit-chip-input__chip-item:first-child .table-edit-chip-input__drop-pipe--left',
-  ).styles(
-    raw: const {'transform': 'translate(-50%, 0)'},
-  ),
   css('.table-edit-chip-input__drop-pipe--right').styles(
     raw: const {
       'right': '0',
       'transform': 'translate(calc(0.5 * var(--table-edit-chip-gap) + 50%), 0)',
     },
-  ),
-  css(
-    '.table-edit-chip-input__chip-item:last-child .table-edit-chip-input__drop-pipe--right',
-  ).styles(
-    raw: const {'transform': 'translate(50%, 0)'},
   ),
   css('.table-edit-chip-input__add-row').styles(
     display: .flex,

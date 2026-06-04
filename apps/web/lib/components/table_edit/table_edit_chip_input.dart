@@ -1,7 +1,9 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
+import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 
+import '../../utils/dom_event_values.dart';
 import '../../utils/table_cell_edit.dart';
 import '../theme/ui_styles.dart';
 import '../theme/zonai_button.dart';
@@ -42,12 +44,37 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
   int? _dropIndex;
   _ChipDropSide? _dropSide;
   int? _dropInsertIndex;
+  var _pointerDragActive = false;
+  var _pointerDragListenersActive = false;
+  double _ghostOffsetX = 0;
+  double _ghostOffsetY = 0;
+  web.HTMLElement? _dragGhostElement;
+  web.Element? _chipsContainer;
+  web.Element? _pointerCaptureElement;
+  int? _activePointerId;
+  web.EventListener? _documentPointerMoveListener;
+  web.EventListener? _documentPointerUpListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _documentPointerMoveListener = _onDocumentPointerMove.toJS;
+    _documentPointerUpListener = _onDocumentPointerUp.toJS;
+  }
+
+  @override
+  void dispose() {
+    _endPointerDrag();
+    _removeDragGhost();
+    super.dispose();
+  }
 
   @override
   void didUpdateComponent(covariant TableEditChipInput oldComponent) {
     super.didUpdateComponent(oldComponent);
     if (oldComponent.valueText != component.valueText) {
       _draft = '';
+      _endPointerDrag();
       _clearDragState();
     }
   }
@@ -58,10 +85,15 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
       component.reorderable && !component.disabled && _chips.length > 1;
 
   void _clearDragState() {
+    _chipsContainer = null;
+    _pointerCaptureElement = null;
+    _activePointerId = null;
+    _removeDragGhost();
     if (_dragFromIndex == null &&
         _dropIndex == null &&
         _dropSide == null &&
-        _dropInsertIndex == null) {
+        _dropInsertIndex == null &&
+        !_pointerDragActive) {
       return;
     }
     setState(() {
@@ -69,7 +101,57 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
       _dropIndex = null;
       _dropSide = null;
       _dropInsertIndex = null;
+      _pointerDragActive = false;
     });
+  }
+
+  web.Element _ghostMetricElement(web.Element chipItem) {
+    final tag = chipItem.querySelector('.z-tag');
+    if (tag is web.Element) return tag;
+    return chipItem;
+  }
+
+  void _mountDragGhost(web.Element chipItem, double pointerX, double pointerY) {
+    _removeDragGhost();
+    final metric = _ghostMetricElement(chipItem);
+    final rect = metric.getBoundingClientRect();
+    _ghostOffsetX = pointerX - rect.left;
+    _ghostOffsetY = pointerY - rect.top;
+
+    if (metric is! web.HTMLElement) return;
+    final body = web.document.body;
+    if (body == null) return;
+
+    final ghost = metric.cloneNode(true) as web.HTMLElement;
+    ghost.classList.add('table-edit-chip-input__drag-ghost');
+    _positionDragGhostElement(ghost, pointerX, pointerY);
+    body.appendChild(ghost);
+    _dragGhostElement = ghost;
+  }
+
+  void _positionDragGhostElement(web.HTMLElement ghost, double pointerX, double pointerY) {
+    ghost.style.setProperty('position', 'fixed');
+    ghost.style.setProperty('left', '${pointerX - _ghostOffsetX}px');
+    ghost.style.setProperty('top', '${pointerY - _ghostOffsetY}px');
+    ghost.style.setProperty('z-index', '10000');
+    ghost.style.setProperty('pointer-events', 'none');
+    ghost.style.setProperty('margin', '0');
+    ghost.style.setProperty('overflow', 'visible');
+    ghost.style.setProperty('border-radius', '6px');
+    ghost.style.setProperty('background-clip', 'padding-box');
+    ghost.style.setProperty('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.18)');
+    ghost.style.setProperty('filter', 'none');
+  }
+
+  void _updateDragGhostPosition(double pointerX, double pointerY) {
+    final ghost = _dragGhostElement;
+    if (ghost == null) return;
+    _positionDragGhostElement(ghost, pointerX, pointerY);
+  }
+
+  void _removeDragGhost() {
+    _dragGhostElement?.remove();
+    _dragGhostElement = null;
   }
 
   void _setChips(List<String> chips) {
@@ -130,6 +212,10 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
   void _onChipDragStart(web.Event event, int index) {
     if (!_canReorderChips) return;
+    if (_pointerDragActive) {
+      event.preventDefault();
+      return;
+    }
     if (event is! web.DragEvent) return;
     if (_dragStartedOnRemoveButton(event)) {
       event.preventDefault();
@@ -170,13 +256,17 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
     final container = event.currentTarget;
     if (container is! web.Element) return;
+    final x = eventClientX(event);
+    final y = eventClientY(event);
+    if (x == null || y == null) return;
+    _updateDropTargetAtClient(x, y, container);
+  }
 
+  void _updateDropTargetAtClient(double x, double y, web.Element container) {
     final chipElements = _chipItemElements(container);
     final count = chipElements.length;
     if (count == 0) return;
 
-    final x = event.clientX.toDouble();
-    final y = event.clientY.toDouble();
     final firstRect = chipElements.first.getBoundingClientRect();
     final lastRect = chipElements.last.getBoundingClientRect();
 
@@ -204,6 +294,108 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
     final chipIndex = insertIndex == 0 ? 0 : insertIndex - 1;
     final side = insertIndex == 0 ? _ChipDropSide.left : _ChipDropSide.right;
     _setDropTarget(chipIndex: chipIndex, side: side, insertIndex: insertIndex);
+  }
+
+  void _onChipPointerDown(web.Event event, int index) {
+    if (!_canReorderChips || !context.binding.isClient) return;
+    if (_dragStartedOnRemoveButton(event)) return;
+    if (eventPointerType(event) == 'mouse') return;
+    if (event is web.PointerEvent && event.button != 0) return;
+
+    final current = event.currentTarget;
+    if (current is! web.Element) return;
+    final container = current.closest('.table-edit-chip-input__chips');
+    if (container is! web.Element) return;
+
+    final x = eventClientX(event);
+    final y = eventClientY(event);
+    if (x == null || y == null) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (event is web.PointerEvent) {
+      current.setPointerCapture(event.pointerId);
+      _pointerCaptureElement = current;
+      _activePointerId = event.pointerId;
+    }
+
+    _mountDragGhost(current, x, y);
+    _chipsContainer = container;
+    setState(() {
+      _pointerDragActive = true;
+      _dragFromIndex = index;
+      _dropIndex = null;
+      _dropSide = null;
+      _dropInsertIndex = null;
+    });
+    _beginPointerDragListeners();
+  }
+
+  void _beginPointerDragListeners() {
+    if (_pointerDragListenersActive) return;
+    final move = _documentPointerMoveListener;
+    final up = _documentPointerUpListener;
+    if (move == null || up == null) return;
+
+    _pointerDragListenersActive = true;
+    _setDocumentPointerDragStyle(active: true);
+    web.document.addEventListener('pointermove', move);
+    web.document.addEventListener('pointerup', up);
+    web.document.addEventListener('pointercancel', up);
+  }
+
+  void _onDocumentPointerMove(web.Event event) {
+    if (!mounted || !_pointerDragListenersActive || _dragFromIndex == null) return;
+    final container = _chipsContainer;
+    if (container == null) return;
+    final x = eventClientX(event);
+    final y = eventClientY(event);
+    if (x == null || y == null) return;
+    _updateDragGhostPosition(x, y);
+    _updateDropTargetAtClient(x, y, container);
+  }
+
+  void _onDocumentPointerUp(web.Event event) {
+    if (!mounted) return;
+    _releasePointerCapture();
+    _commitReorder();
+    _endPointerDrag();
+    _removeDragGhost();
+    _clearDragState();
+  }
+
+  void _releasePointerCapture() {
+    final element = _pointerCaptureElement;
+    final pointerId = _activePointerId;
+    if (element != null && pointerId != null) {
+      element.releasePointerCapture(pointerId);
+    }
+  }
+
+  void _setDocumentPointerDragStyle({required bool active}) {
+    final body = web.document.body;
+    if (body == null) return;
+    if (active) {
+      body.style.setProperty('user-select', 'none');
+    } else {
+      body.style.removeProperty('user-select');
+    }
+  }
+
+  void _endPointerDrag() {
+    _removeDragGhost();
+    _setDocumentPointerDragStyle(active: false);
+    if (!_pointerDragListenersActive) return;
+    final move = _documentPointerMoveListener;
+    final up = _documentPointerUpListener;
+    if (move != null) {
+      web.document.removeEventListener('pointermove', move);
+    }
+    if (up != null) {
+      web.document.removeEventListener('pointerup', up);
+      web.document.removeEventListener('pointercancel', up);
+    }
+    _pointerDragListenersActive = false;
   }
 
   bool _pointerBeforeChips(double x, double y, web.DOMRect first) {
@@ -324,9 +516,11 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
                 chip: chips[i],
                 canReorder: canReorder,
                 isDragging: _dragFromIndex == i,
+                isPointerDragging: _pointerDragActive && _dragFromIndex == i,
                 showDropPipeLeft: _showsDropPipe(i, _ChipDropSide.left),
                 showDropPipeRight: _showsDropPipe(i, _ChipDropSide.right),
                 onRemove: component.disabled ? null : () => _removeChip(chips[i]),
+                onPointerDown: (event) => _onChipPointerDown(event, i),
                 onDragStart: (event) => _onChipDragStart(event, i),
                 onDragOver: (event) => _onChipDragOver(event, i),
                 onDrop: _onChipDrop,
@@ -380,9 +574,11 @@ class _ChipItem extends StatelessComponent {
     required this.chip,
     required this.canReorder,
     required this.isDragging,
+    required this.isPointerDragging,
     required this.showDropPipeLeft,
     required this.showDropPipeRight,
     required this.onRemove,
+    required this.onPointerDown,
     required this.onDragStart,
     required this.onDragOver,
     required this.onDrop,
@@ -393,9 +589,11 @@ class _ChipItem extends StatelessComponent {
   final String chip;
   final bool canReorder;
   final bool isDragging;
+  final bool isPointerDragging;
   final bool showDropPipeLeft;
   final bool showDropPipeRight;
   final void Function()? onRemove;
+  final void Function(web.Event event) onPointerDown;
   final void Function(web.Event event) onDragStart;
   final void Function(web.Event event) onDragOver;
   final void Function(web.Event event) onDrop;
@@ -408,12 +606,14 @@ class _ChipItem extends StatelessComponent {
         'table-edit-chip-input__chip-item',
         if (canReorder) 'table-edit-chip-input__chip-item--reorderable',
         if (isDragging) 'table-edit-chip-input__chip-item--dragging',
+        if (isPointerDragging) 'table-edit-chip-input__chip-item--dragging-pointer',
       ].join(' '),
       attributes: {
         if (canReorder) 'draggable': 'true',
         if (canReorder) 'aria-label': 'Drag to reorder $chip',
       },
       events: {
+        if (canReorder) 'pointerdown': onPointerDown,
         if (canReorder) 'dragstart': onDragStart,
         if (canReorder) 'dragend': onDragEnd,
         'dragover': onDragOver,
