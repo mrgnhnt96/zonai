@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:zonai_schema/payloads.dart';
 
 /// Whether the admin UI should offer editing for this column.
@@ -13,10 +15,19 @@ bool isColumnEditable(ColumnShape shape) {
     ColumnShapeKind.photo ||
     ColumnShapeKind.photos ||
     ColumnShapeKind.blob ||
-    ColumnShapeKind.map ||
-    ColumnShapeKind.list ||
-    ColumnShapeKind.enumList => false,
+    ColumnShapeKind.map => false,
     _ => true,
+  };
+}
+
+/// Columns whose edit state lives in the row draft list (not [_textInputs]).
+bool usesDraftValueColumn(ColumnShape shape) {
+  return switch (shape.kind) {
+    ColumnShapeKind.boolean ||
+    ColumnShapeKind.isVerified ||
+    ColumnShapeKind.list ||
+    ColumnShapeKind.enumList => true,
+    _ => false,
   };
 }
 
@@ -32,7 +43,35 @@ String cellToEditString(Object? value, ColumnShape? shape) {
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => '',
     ColumnShapeKind.dateTime || ColumnShapeKind.createdAt || ColumnShapeKind.updatedAt => _formatDateTimeForEdit(value),
     ColumnShapeKind.enum_ => _formatEnumForEdit(value, shape!.enumValues),
+    ColumnShapeKind.list => jsonEncode(cellValueAsStringList(value)),
+    ColumnShapeKind.enumList => joinCommaSeparatedList(cellValueAsStringList(value, shape!.enumValues)),
+    ColumnShapeKind.bigInt => tryParseBigIntCell(value)?.toString() ?? '$value',
     _ => '$value',
+  };
+}
+
+/// Wire text for picker-backed columns (UTC ms for datetimes).
+String cellToEditWireText(Object? value, ColumnShape? shape) {
+  if (value == null) return '';
+  if (shape != null && isDateTimeColumnKind(shape.kind)) {
+    final dt = _toDateTime(value);
+    if (dt != null) return '${dt.toUtc().millisecondsSinceEpoch}';
+  }
+  return cellToEditString(value, shape);
+}
+
+/// Normalizes API values into edit-friendly Dart values for [_draft].
+Object? normalizeCellValueForEdit(Object? value, ColumnShape shape) {
+  if (value == null) return null;
+
+  return switch (shape.kind) {
+    ColumnShapeKind.boolean || ColumnShapeKind.isVerified => cellEditValueAsBool(value),
+    ColumnShapeKind.list => cellValueAsStringList(value),
+    ColumnShapeKind.enumList => cellValueAsStringList(value, shape.enumValues),
+    ColumnShapeKind.dateTime => _toDateTime(value),
+    ColumnShapeKind.enum_ => _formatEnumForEdit(value, shape.enumValues),
+    ColumnShapeKind.bigInt => tryParseBigIntCell(value) ?? value,
+    _ => value,
   };
 }
 
@@ -75,8 +114,8 @@ bool cellEditValueAsBool(Object? value) {
 
 /// Parses user input for a column. Throws [FormatException] on invalid input.
 Object? parseEditValue({required Object? draftValue, required String textInput, required ColumnShape shape}) {
-  if (shape.kind == ColumnShapeKind.boolean || shape.kind == ColumnShapeKind.isVerified) {
-    return cellEditValueAsBool(draftValue);
+  if (usesDraftValueColumn(shape)) {
+    return parseDraftCellValue(draftValue: draftValue, shape: shape);
   }
 
   final trimmed = textInput.trim();
@@ -89,12 +128,76 @@ Object? parseEditValue({required Object? draftValue, required String textInput, 
     ColumnShapeKind.integer => int.parse(trimmed),
     ColumnShapeKind.id => trimmed,
     ColumnShapeKind.real => double.parse(trimmed),
-    ColumnShapeKind.bigInt => int.parse(trimmed),
+    ColumnShapeKind.bigInt => BigInt.parse(trimmed),
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => _parseBool(trimmed),
     ColumnShapeKind.enum_ => _parseEnum(trimmed, shape.enumValues),
     ColumnShapeKind.dateTime => _parseDateTime(trimmed),
     _ => trimmed,
   };
+}
+
+/// Parses a draft cell value (from typed editors). Throws [FormatException] on invalid input.
+Object? parseDraftCellValue({required Object? draftValue, required ColumnShape shape}) {
+  if (draftValue == null) {
+    if (shape.isNullable) return null;
+    throw FormatException('${shape.name} is required');
+  }
+
+  return switch (shape.kind) {
+    ColumnShapeKind.boolean || ColumnShapeKind.isVerified => cellEditValueAsBool(draftValue),
+    ColumnShapeKind.list => parseListEditValue(draftValue),
+    ColumnShapeKind.enumList => parseEnumListEditValue(draftValue, shape.enumValues),
+    _ => draftValue,
+  };
+}
+
+List<String> cellValueAsStringList(Object? value, [List<String> enumValues = const []]) {
+  if (value == null) return const [];
+
+  if (value is List) {
+    return [
+      for (final item in value)
+        if (item != null) _formatEnumForEdit(item, enumValues),
+    ];
+  }
+
+  if (value is String) {
+    if (value.isEmpty) return const [];
+    if (value.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is List) {
+          return [
+            for (final item in decoded)
+              if (item != null) _formatEnumForEdit(item, enumValues),
+          ];
+        }
+      } on FormatException {
+        // fall through to comma split
+      }
+    }
+    return parseCommaSeparatedList(value);
+  }
+
+  return ['$value'];
+}
+
+List<String> parseListEditValue(Object? draftValue) {
+  final items = cellValueAsStringList(draftValue);
+  if (items.isEmpty && draftValue != null && '$draftValue'.trim().isNotEmpty) {
+    throw FormatException('Invalid list value');
+  }
+  return items;
+}
+
+String parseEnumListEditValue(Object? draftValue, List<String> enumValues) {
+  final items = parseListEditValue(draftValue);
+  for (final item in items) {
+    if (!enumValues.contains(item)) {
+      throw FormatException('Invalid value; expected one of: ${enumValues.join(', ')}');
+    }
+  }
+  return joinCommaSeparatedList(items);
 }
 
 bool _parseBool(String text) {
@@ -149,8 +252,26 @@ bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
     if (na != null && nb != null) return na == nb;
   }
 
+  if (shape?.kind == ColumnShapeKind.list || shape?.kind == ColumnShapeKind.enumList) {
+    final la = cellValueAsStringList(a, shape?.enumValues ?? const []);
+    final lb = cellValueAsStringList(b, shape?.enumValues ?? const []);
+    if (la.length != lb.length) return false;
+    for (var i = 0; i < la.length; i++) {
+      if (la[i] != lb[i]) return false;
+    }
+    return true;
+  }
+
+  if (shape?.kind == ColumnShapeKind.bigInt) {
+    final ba = _toBigInt(a);
+    final bb = _toBigInt(b);
+    if (ba != null && bb != null) return ba == bb;
+  }
+
   return '$a' == '$b';
 }
+
+BigInt? _toBigInt(Object value) => tryParseBigIntCell(value);
 
 DateTime? _toDateTime(Object value) => switch (value) {
   DateTime d => d,
@@ -341,4 +462,4 @@ int firstWeekdaySundayStart(int year, int month) => DateTime(year, month, 1).wee
 List<String> parseCommaSeparatedList(String text) =>
     text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
-String joinCommaSeparatedList(List<String> values) => values.join(', ');
+String joinCommaSeparatedList(List<String> values) => values.join(',');

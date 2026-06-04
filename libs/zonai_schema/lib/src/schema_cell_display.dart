@@ -1,7 +1,23 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:zonai_schema/src/types/column_shape_kind.dart';
 import 'package:zonai_schema/src/types/schema_shape.dart';
+
+/// Parses a [ColumnShapeKind.bigInt] value from `/db/list` wire forms.
+BigInt? tryParseBigIntCell(Object? value) {
+  if (value == null) return null;
+
+  return switch (value) {
+    BigInt b => b,
+    Uint8List bytes => _bigIntFromBinaryDigitBlob(bytes),
+    List bytes when bytes.isNotEmpty && bytes.every(_isBinaryDigit) => _bigIntFromBinaryDigitBlob(bytes),
+    int i => BigInt.from(i),
+    num n => BigInt.from(n.toInt()),
+    String s => BigInt.tryParse(s),
+    _ => null,
+  };
+}
 
 /// Human-readable table header for a [ColumnShape].
 String columnShapeHeaderLabel(ColumnShape shape) => shape.name;
@@ -21,7 +37,7 @@ String formatSchemaCell(Object? value, ColumnShape? shape, {bool truncate = true
     ColumnShapeKind.isVerified => _formatBoolean(value),
     ColumnShapeKind.integer || ColumnShapeKind.id => _formatInteger(value),
     ColumnShapeKind.real => _formatReal(value),
-    ColumnShapeKind.bigInt => '$value',
+    ColumnShapeKind.bigInt => _formatBigInt(value),
     ColumnShapeKind.dateTime ||
     ColumnShapeKind.createdAt ||
     ColumnShapeKind.updatedAt => _formatDateTime(value),
@@ -58,6 +74,13 @@ String _formatReal(Object value) {
     _ => '$value',
   };
 }
+
+String _formatBigInt(Object value) => tryParseBigIntCell(value)?.toString() ?? '$value';
+
+bool _isBinaryDigit(Object? digit) => digit == 0 || digit == 1 || digit == '0' || digit == '1';
+
+BigInt _bigIntFromBinaryDigitBlob(Iterable<Object?> bytes) =>
+    BigInt.parse(bytes.map((b) => b.toString()).join(), radix: 2);
 
 String _formatDateTime(Object value) {
   final DateTime? parsed = switch (value) {
@@ -134,12 +157,19 @@ String _formatStructured(Object value) {
   }
 }
 
-String _formatBlob(Object value, {required bool truncate}) => switch (value) {
-  final List<int> bytes => 'BLOB (${bytes.length} bytes)',
-  final String s when s.isEmpty => '—',
-  final String s => truncate ? _truncate(s, 80) : s,
-  _ => '$value',
-};
+String _formatBlob(Object value, {required bool truncate}) {
+  // BigInt columns are stored as BLOB; misclassified shapes still arrive as 0/1 digit lists.
+  if (value is List && value.isNotEmpty && value.every(_isBinaryDigit)) {
+    return _formatBigInt(value);
+  }
+
+  return switch (value) {
+    final List<int> bytes => 'BLOB (${bytes.length} bytes)',
+    final String s when s.isEmpty => '—',
+    final String s => truncate ? _truncate(s, 80) : s,
+    _ => '$value',
+  };
+}
 
 Object? _decodeJsonValue(Object value) {
   if (value is Map || value is List) return value;

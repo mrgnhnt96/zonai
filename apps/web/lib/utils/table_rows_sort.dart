@@ -57,12 +57,7 @@ int _compareBigInt(Object a, Object b) {
   return ai.compareTo(bi);
 }
 
-BigInt? _asBigInt(Object value) => switch (value) {
-  BigInt i => i,
-  int i => BigInt.from(i),
-  String s => BigInt.tryParse(s),
-  _ => null,
-};
+BigInt? _asBigInt(Object value) => tryParseBigIntCell(value);
 
 int _compareBool(Object a, Object b) {
   final ai = _asBool(a);

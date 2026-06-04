@@ -1,4 +1,5 @@
 import 'package:raindrop/raindrop.dart' as rd show Table;
+import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/tables/table.dart' as zs;
 import 'package:zonai_schema/zonai_schema.dart' hide table;
@@ -20,6 +21,15 @@ void main() {
       expect(shape.columnNamed('password')?.isSecret, isTrue);
       expect(shape.columnNamed('status')?.enumValues, ['draft', 'published']);
       expect(shape.columnNamed('created_at')?.isReadOnly, isTrue);
+    });
+
+    test('maps BigIntTransfomer columns to bigInt kind', () {
+      final shape = tableSchemaShapeFromTable(
+        rd.Table.getFor(_BigIntDemoTable.schemaTable),
+      );
+
+      expect(shape.columnNamed('big_count')?.kind, ColumnShapeKind.bigInt);
+      expect(shape.columnNamed('payload')?.kind, ColumnShapeKind.blob);
     });
 
     test('round-trips through json', () {
@@ -84,4 +94,37 @@ final class _DemoTable extends Table<_DemoRow> {
   final PasswordColumn password;
   final EnumColumn<_Status> status;
   final DateTimeColumn createdAt;
+}
+
+final class _BigIntRow {
+  _BigIntRow({required this.id, required this.bigCount, this.payload});
+
+  final UnknownId id;
+  final BigInt bigCount;
+  final List<int>? payload;
+}
+
+final class _BigIntDemoTable extends Table<_BigIntRow> {
+  _BigIntDemoTable(super.$)
+    : id = $.id(
+        'id',
+        (s) => s.id,
+        fromString: UnknownId.new,
+        generate: () => UnknownId(Id.generate()),
+      ),
+      bigCount = $.bigInt('big_count', (s) => s.bigCount),
+      payload = $.blob('payload', (s) => s.payload);
+
+  static final schemaTable = zs.table('bigint_demo', _BigIntDemoTable.new);
+
+  @override
+  _BigIntRow fromRow(RowReader read) => _BigIntRow(
+    id: read(id),
+    bigCount: read(bigCount),
+    payload: read(payload),
+  );
+
+  final IdColumn<UnknownId> id;
+  final BigIntColumn bigCount;
+  final BlobColumn? payload;
 }

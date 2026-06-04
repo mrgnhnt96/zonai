@@ -89,6 +89,35 @@ void main() {
       );
     });
 
+    test('bigInt from binary-digit blob and decimal string', () {
+      const shape = ColumnShape(
+        name: 'big_count',
+        kind: ColumnShapeKind.bigInt,
+        isNullable: false,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'BLOB',
+      );
+      const expected = '9007199254740991';
+      final blob = BigInt.parse(expected).toRadixString(2).split('').map(int.parse).toList();
+      expect(formatSchemaCell(blob, shape), expected);
+      expect(formatSchemaCell(expected, shape), expected);
+      expect(formatSchemaCell(9007199254740991, shape), expected);
+    });
+
+    test('misclassified blob shape still formats binary-digit bigInt blobs', () {
+      const blobShape = ColumnShape(
+        name: 'big_count',
+        kind: ColumnShapeKind.blob,
+        isNullable: false,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'BLOB',
+      );
+      final blob = BigInt.parse('9007199254740991').toRadixString(2).split('').map(int.parse).toList();
+      expect(formatSchemaCell(blob, blobShape), '9007199254740991');
+    });
+
     test('photo and blob truncation', () {
       const photoShape = ColumnShape(
         name: 'avatar',
