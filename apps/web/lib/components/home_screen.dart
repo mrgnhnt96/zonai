@@ -1291,12 +1291,43 @@ bool _shouldIgnoreHomeKeyboard(web.KeyboardEvent event) {
   return target.isContentEditable;
 }
 
-String? _rowKeyFromSelectCheckboxEvent(web.KeyboardEvent event) {
-  final target = event.target;
-  if (target is! web.HTMLInputElement) return null;
-  if (target.type != 'checkbox' || !target.classList.contains('rows-select-checkbox')) return null;
-  final row = target.closest('[data-row-key]');
-  return row?.getAttribute('data-row-key');
+bool _isFocusedDomElement(web.Element? element) {
+  if (element == null) return false;
+  if (element == web.document.body || element == web.document.documentElement) return false;
+  return element is web.HTMLElement;
+}
+
+bool _hasHomeFocus(BuildContext context) {
+  final ui = context.read(homeUiProvider);
+  if (ui.settingsOpen || ui.mobileNavOpen) return true;
+
+  if (_isFocusedDomElement(web.document.activeElement)) return true;
+
+  final keyboardFocus = context.read(tableRowKeyboardFocusProvider);
+  return keyboardFocus.zone == HomeKeyboardFocusZone.sidebar || keyboardFocus.rowKey != null;
+}
+
+void _clearHomeFocus(BuildContext context) {
+  final ui = context.read(homeUiProvider);
+  final uiNotifier = context.read(homeUiProvider.notifier);
+  if (ui.settingsOpen) {
+    uiNotifier.closeSettings();
+    return;
+  }
+  if (ui.mobileNavOpen) {
+    uiNotifier.closeMobileNav();
+    return;
+  }
+
+  final active = web.document.activeElement;
+  if (active is web.HTMLElement && _isFocusedDomElement(active)) {
+    active.blur();
+  }
+
+  final keyboardFocus = context.read(tableRowKeyboardFocusProvider);
+  if (keyboardFocus.zone == HomeKeyboardFocusZone.sidebar || keyboardFocus.rowKey != null) {
+    context.read(tableRowKeyboardFocusProvider.notifier).clear();
+  }
 }
 
 ({List<List<Object?>> rows, List<String> keys}) _displayRowsAndKeys(
@@ -1550,26 +1581,12 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
         );
       case 'Escape':
         if (context.read(tableRowDetailProvider) != null) return;
-        final selection = context.read(tableRowSelectionProvider);
-        if (selection.isEmpty) return;
         event.preventDefault();
-
-        final checkboxRowKey = _rowKeyFromSelectCheckboxEvent(event);
-        final keyToUncheck = checkboxRowKey ?? (selection.isSelected(activeKey ?? '') ? activeKey : null);
-        if (keyToUncheck != null) {
-          final index = displayKeys.indexOf(keyToUncheck);
-          if (index >= 0) {
-            selectionNotifier.setSelected(keyToUncheck, selected: false, pageKeys: displayKeys);
-            return;
-          }
-        }
-
-        if (event.target is web.HTMLInputElement &&
-            (event.target as web.HTMLInputElement).classList.contains('rows-select-checkbox')) {
-          selectionNotifier.setAll(displayKeys, selected: false);
+        if (_hasHomeFocus(context)) {
+          _clearHomeFocus(context);
           return;
         }
-
+        if (context.read(tableRowSelectionProvider).isEmpty) return;
         selectionNotifier.clear();
       default:
         return;
