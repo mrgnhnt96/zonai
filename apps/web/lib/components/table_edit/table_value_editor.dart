@@ -12,6 +12,7 @@ import 'table_edit_datetime_field.dart';
 import 'table_edit_enum_multi_select.dart';
 import 'table_edit_enum_single_select.dart';
 import 'table_edit_json_field.dart';
+import 'table_edit_password_field.dart';
 import 'table_edit_photo_field.dart';
 import 'table_edit_number_field.dart';
 import 'table_foreign_key_value_field.dart';
@@ -220,18 +221,14 @@ class TableValueEditor extends StatelessComponent {
   }
 
   Component _passwordEditor(void Function(String text) onText) {
-    return input<String>(
+    return TableEditPasswordField(
       id: id,
-      type: .text,
-      classes: inputClass ?? ZonaiClasses.input,
-      attributes: {
-        if (labelId != null) 'aria-labelledby': labelId!,
-        'placeholder': shape.isNullable ? 'Leave empty to keep unchanged' : 'Enter value',
-        'autocomplete': 'off',
-      },
       value: textValue,
+      onChanged: onText,
+      labelId: labelId,
+      placeholder: shape.isNullable ? 'Leave empty to keep unchanged' : 'Enter value',
       disabled: disabled,
-      onInput: onText,
+      inputClass: inputClass,
     );
   }
 

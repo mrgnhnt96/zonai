@@ -172,6 +172,21 @@ List<StyleRule> get tableEditSharedStyles => [
     color: mutedColor,
     raw: const {'line-height': '1.4'},
   ),
+  css('.table-edit-password-field').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(ZonaiSpacing.s4),
+  ),
+  css('.table-edit-password-field input').styles(
+    flex: Flex(grow: 1, shrink: 1),
+    minWidth: 120.px,
+  ),
+  css('.table-edit-password-field__icon').styles(
+    width: 1.em,
+    height: 1.em,
+    display: .block,
+  ),
   css('.table-edit-photo-field').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
