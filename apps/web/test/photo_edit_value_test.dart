@@ -20,6 +20,10 @@ void main() {
     test('returns null for empty', () {
       expect(parsePhotoIdFromCell(''), isNull);
     });
+
+    test('returns null for image URL without photo id suffix', () {
+      expect(parsePhotoIdFromCell('http://localhost:8080/img/\$id.png'), isNull);
+    });
   });
 
   group('photoEditValuesEqual', () {
@@ -59,6 +63,16 @@ void main() {
         shape: shape,
       );
       expect(removed, {id});
+    });
+
+    test('resolved wire id is not treated as removed when replacing image', () {
+      const id = '0123456789abcde_ph';
+      final before = photoIdsFromCell(
+        'http://localhost:8080/img/$id.png',
+        shape,
+      ).toSet();
+      final after = photoIdsFromCell(id, shape).toSet();
+      expect(before.difference(after), isEmpty);
     });
 
     test('detects removed photo from multi list', () {

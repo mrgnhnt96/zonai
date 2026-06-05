@@ -36,7 +36,7 @@ bool _isApiPath(String path) {
     return true;
   }
 
-  const apiPrefixes = ['/auth', '/db', '/email'];
+  const apiPrefixes = ['/auth', '/db', '/email', '/img'];
   for (final prefix in apiPrefixes) {
     if (path == prefix || path.startsWith('$prefix/')) {
       return true;

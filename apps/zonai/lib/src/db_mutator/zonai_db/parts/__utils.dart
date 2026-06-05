@@ -313,7 +313,8 @@ extension UtilsX on ZonaiDb {
               objects: effect.objects,
             );
           case _CreateSideEffect():
-            final raw = operationResults[effect]?.rows.single.toMap();
+            final rows = operationResults[effect]?.rows ?? const [];
+            final raw = rows.isEmpty ? null : rows.first.toMap();
             if (raw != null) {
               final created = await _sanitizeRow(effect.request.table, raw, jwt: effect.request.jwt);
               await _postCreate(

@@ -21,24 +21,48 @@ class Operations {
   DirectoryWatcher get _watcher =>
       __watcher ??= DirectoryWatcher(settings.operationsPath);
 
+  DirectoryWatcher? __schemasWatcher;
+  DirectoryWatcher? get _schemasWatcher {
+    final dir = fs.directory(settings.schemasPath);
+    if (!dir.existsSync()) return null;
+    return __schemasWatcher ??= DirectoryWatcher(settings.schemasPath);
+  }
+
   StreamSubscription<WatchEvent>? __subscription;
+  StreamSubscription<WatchEvent>? __schemaSubscription;
 
   void watch() {
     if (args.release) return;
-    if (__subscription != null) return;
 
-    __subscription = _watcher.events.listen((event) {
-      logger.debug('Operations changed: ${event.path}');
-      logger.info('Detected changes in operations, recompiling...');
-      compile();
-    });
+    if (__subscription == null) {
+      __subscription = _watcher.events.listen((event) {
+        logger.debug('Operations changed: ${event.path}');
+        logger.info('Detected changes in operations, recompiling...');
+        compile();
+      });
+    }
 
-    cleanUp.add(stop);
+    if (__schemaSubscription == null) {
+      final schemasWatcher = _schemasWatcher;
+      if (schemasWatcher != null) {
+        __schemaSubscription = schemasWatcher.events.listen((event) {
+          logger.debug('Schema changed: ${event.path}');
+          logger.info('Detected changes in schemas, recompiling operations...');
+          compile();
+        });
+      }
+    }
+
+    if (__subscription != null || __schemaSubscription != null) {
+      cleanUp.add(stop);
+    }
   }
 
   void stop() {
     __subscription?.cancel();
     __subscription = null;
+    __schemaSubscription?.cancel();
+    __schemaSubscription = null;
   }
 
   Future<void> compile({BuildSettings? buildSettings}) async {

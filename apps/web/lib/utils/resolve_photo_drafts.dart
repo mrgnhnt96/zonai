@@ -62,6 +62,8 @@ Future<String?> _resolveItem({
 }
 
 /// Best-effort delete for photo ids removed from a row during edit.
+///
+/// Call after [resolvePhotoDrafts] so [resolvedDraft] holds wire-ready ids.
 Future<void> deleteRemovedPhotos({
   required List<Object?> originalRow,
   required List<Object?> resolvedDraft,
@@ -71,14 +73,10 @@ Future<void> deleteRemovedPhotos({
     final shape = columnShapes.elementAtOrNull(i);
     if (shape == null || !isPhotoColumnKind(shape.kind)) continue;
 
-    final draftValue = asPhotoEditValue(resolvedDraft.elementAtOrNull(i));
-    final removed = removedPhotoIds(
-      originalCell: originalRow.elementAtOrNull(i),
-      draft: draftValue,
-      shape: shape,
-    );
+    final before = photoIdsFromCell(originalRow.elementAtOrNull(i), shape).toSet();
+    final after = photoIdsFromCell(resolvedDraft.elementAtOrNull(i), shape).toSet();
 
-    for (final id in removed) {
+    for (final id in before.difference(after)) {
       await deletePhotoBestEffort(id);
     }
   }

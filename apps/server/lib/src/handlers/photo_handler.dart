@@ -4,11 +4,12 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 /// HTTP API for the internal `_photos` table (view, create, update, delete only).
 class PhotoHandler {
-  Stream<List<int>> view(String? authorization, String id) {
-    return zonaiDB.getPhoto(
+  Future<Stream<List<int>>> view(String? authorization, String id) async {
+    final file = await zonaiDB.getPhoto(
       id,
       token: _parseBearerAuthorization(authorization),
     );
+    return file.openRead();
   }
 
   Future<Map<String, Object?>> create(

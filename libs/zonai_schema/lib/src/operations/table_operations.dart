@@ -40,6 +40,18 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
 
   rd.Table<S, R> get table => rd.Table.getFor(schema);
 
+  rd.Column<dynamic, dynamic> _requireColumn(String name) {
+    for (final column in table.columns) {
+      if (column.name == name) return column;
+    }
+    throw ArgumentError.value(
+      name,
+      'column',
+      'Unknown column on table "${table.name}". '
+      'Known columns: ${table.columns.map((c) => c.name).join(', ')}',
+    );
+  }
+
   static rd.Raindrop? __db;
   static rd.Raindrop get _db => __db ??= rd.Raindrop(FalseDelegate());
 
@@ -96,7 +108,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
             if (inferredColumns.contains(base)) {
               continue updateLoop;
             }
-            final col = table[base];
+            final col = _requireColumn(base);
             if (col.transformer is! MapTransformer) {
               throw ArgumentError(
                 'Dotted column "$column" is only supported on JSON map columns '
@@ -126,7 +138,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
                 updateables.add(converted);
               }
             } else {
-              final col = table[key];
+              final col = _requireColumn(key);
               if (col.transformer is MapTransformer && value is Map) {
                 updateables.add(
                   UpdateableColumn(
@@ -167,7 +179,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     if (inferredColumns.contains(columnName)) {
       return null;
     }
-    final col = table[columnName];
+    final col = _requireColumn(columnName);
     switch (value) {
       case Literal(:final value):
         return UpdateableColumn(col, _decodeUpdateWireValue(col, value));

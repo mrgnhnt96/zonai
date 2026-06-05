@@ -120,18 +120,16 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Photo file exists: ${imageFile.path}');
 
   logger.info('VIEW PHOTO');
-  final bytes = await zonaiDB.getPhoto(photoId, token: jwt).toList();
+  final bytes = await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
 
-  if (!_sameBytes(bytes.expand((e) => e).toList(), testImageBytes)) {
+  if (!_sameBytes(bytes, testImageBytes)) {
     logger.error(
-      'Photo view bytes mismatch: expected ${testImageBytes.length} bytes, got ${bytes.expand((e) => e).toList().length} bytes',
+      'Photo view bytes mismatch: expected ${testImageBytes.length} bytes, got ${bytes.length} bytes',
     );
     return 1;
   }
 
-  logger.info(
-    'Viewed photo bytes (${bytes.expand((e) => e).toList().length} bytes)',
-  );
+  logger.info('Viewed photo bytes (${bytes.length} bytes)');
 
   logger.info('UPDATE PHOTO');
   await zonaiDB.updatePhoto(
@@ -143,10 +141,11 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Updated photo: $photoId');
 
   logger.info('VERIFY UPDATED PHOTO BYTES');
-  final updatedBytes = await zonaiDB.getPhoto(photoId, token: jwt).toList();
-  if (!_sameBytes(updatedBytes.expand((e) => e).toList(), updatedImageBytes)) {
+  final updatedBytes =
+      await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+  if (!_sameBytes(updatedBytes, updatedImageBytes)) {
     logger.error(
-      'Updated photo bytes mismatch: expected ${updatedImageBytes.length} bytes, got ${updatedBytes.expand((e) => e).toList().length} bytes',
+      'Updated photo bytes mismatch: expected ${updatedImageBytes.length} bytes, got ${updatedBytes.length} bytes',
     );
     return 1;
   }
@@ -172,13 +171,9 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
       logger.info('Oversized update rejected: $error');
     }
 
-    final bytesAfterRejectedUpdate = await zonaiDB
-        .getPhoto(photoId, token: jwt)
-        .toList();
-    if (!_sameBytes(
-      bytesAfterRejectedUpdate.expand((e) => e).toList(),
-      updatedImageBytes,
-    )) {
+    final bytesAfterRejectedUpdate =
+        await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+    if (!_sameBytes(bytesAfterRejectedUpdate, updatedImageBytes)) {
       logger.error('Photo bytes changed after rejected oversized update');
       return 1;
     }
@@ -219,8 +214,9 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
     return 1;
   }
 
-  final pngViewBytes = await zonaiDB.getPhoto(photoId, token: jwt).toList();
-  if (!_sameBytes(pngViewBytes.expand((e) => e).toList(), pngBytes)) {
+  final pngViewBytes =
+      await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+  if (!_sameBytes(pngViewBytes, pngBytes)) {
     logger.error('PNG photo view bytes mismatch');
     return 1;
   }
@@ -292,7 +288,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
 
   logger.info('VERIFY PHOTO DELETED');
   try {
-    await zonaiDB.getPhoto(photoId, token: jwt).toList();
+    await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
     logger.error('Expected deleted photo to be gone');
     return 1;
   } catch (_) {

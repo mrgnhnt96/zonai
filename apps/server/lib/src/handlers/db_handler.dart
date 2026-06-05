@@ -56,7 +56,10 @@ class DbHandler {
       ),
     );
 
-    return result.single;
+    if (result.isEmpty) {
+      throw StateError('Update did not return a row');
+    }
+    return result.first;
   }
 
   Future<List<Map<String, Object?>>> updateMany(

@@ -160,8 +160,7 @@ String? parsePhotoIdFromCell(String value) {
     final segment = path.split('/').first;
     final dot = segment.lastIndexOf('.');
     final id = dot > 0 ? segment.substring(0, dot) : segment;
-    if (id.isNotEmpty && id.endsWith(_photoIdSuffix)) return id;
-    if (id.isNotEmpty) return id;
+    if (id.endsWith(_photoIdSuffix)) return id;
     return null;
   }
 

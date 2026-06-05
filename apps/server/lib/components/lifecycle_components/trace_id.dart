@@ -6,6 +6,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/internal/tables/logs_table.dart';
+import 'photo_view_headers.dart';
 
 class TraceId {
   TraceId(this.value);
@@ -52,6 +53,7 @@ class Trace implements LifecycleComponent {
         final stopwatch = Stopwatch()..start();
         try {
           final result = await next();
+          applyPhotoViewHeaders(context, result);
           stopwatch.stop();
           logger.request(
             '[${result.statusCode}] ${stopwatch.elapsedMilliseconds}ms: '

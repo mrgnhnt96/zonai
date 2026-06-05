@@ -463,12 +463,7 @@ List<Map<String, Object?>> _parseListItems(Map<String, Object?> data) {
 
 List<String> _columnOrder(TableSchemaShape? schema, List<Map<String, Object?>> items) {
   if (schema != null && schema.columns.isNotEmpty) {
-    final names = schema.columns.map((c) => c.name).toList();
-    final extra = <String>{};
-    for (final row in items) {
-      extra.addAll(row.keys.where((key) => !names.contains(key)));
-    }
-    return [...names, ...extra.toList()..sort()];
+    return schema.columns.map((c) => c.name).toList();
   }
 
   final columns = <String>{};

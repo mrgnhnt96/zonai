@@ -209,8 +209,8 @@ class ZonaiDb {
     );
   }
 
-  Stream<List<int>> getPhoto(String id, {required String? token}) {
-    return _runStream(() => _getPhoto(id, token: token));
+  Future<File> getPhoto(String id, {required String? token}) {
+    return _run(() => _getPhoto(id, token: token));
   }
 
   Future<Map<String, Object?>> createPhoto({

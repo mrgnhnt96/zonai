@@ -704,7 +704,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         continue;
       }
       if (usesDraftValueColumn(shape)) {
-        parsed[i] = parseDraftCellValue(draftValue: _draft![i], shape: shape);
+        parsed[i] = parseDraftCellValue(draftValue: draft[i], shape: shape);
         continue;
       }
       if (isPasswordColumn(shape)) {
@@ -718,7 +718,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           continue;
         }
         parsed[i] = parseEditValue(
-          draftValue: _draft![i],
+          draftValue: draft[i],
           textInput: text!,
           shape: shape,
         );
@@ -727,7 +727,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       final text = _textInputs[i];
       if (text == null) continue;
       parsed[i] = parseEditValue(
-        draftValue: _draft![i],
+        draftValue: draft[i],
         textInput: text,
         shape: shape,
       );
@@ -968,6 +968,18 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
   }
 
+  /// True when [rawDraft] had photo uploads that [resolvePhotoDrafts] applied.
+  bool _photoDraftsWereResolved(List<Object?> rawDraft, TableRowDetailState detail) {
+    for (var i = 0; i < detail.columnShapes.length; i++) {
+      final shape = detail.columnShapes.elementAtOrNull(i);
+      if (shape == null || !isPhotoColumnKind(shape.kind)) continue;
+      if (asPhotoEditValue(rawDraft.elementAtOrNull(i))?.hasPending == true) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<void> _saveRow(TableRowDetailState detail) async {
     if (_saving) return;
 
@@ -979,16 +991,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     List<Object?> parsedDraft;
     try {
       final photosConfig = context.read(photosConfigProvider);
-      await deleteRemovedPhotos(
-        originalRow: detail.row,
-        resolvedDraft: rawDraft,
-        columnShapes: detail.columnShapes,
-      );
       final resolvedDraft = await resolvePhotoDrafts(
         sqliteName: detail.sqliteName,
         draft: rawDraft,
         columnShapes: detail.columnShapes,
         photosConfig: photosConfig,
+      );
+      await deleteRemovedPhotos(
+        originalRow: detail.row,
+        resolvedDraft: resolvedDraft,
+        columnShapes: detail.columnShapes,
       );
       parsedDraft = _parsedDraft(detail, resolvedDraft);
     } on FormatException catch (e) {
@@ -1011,6 +1023,20 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     );
 
     if (updates.isEmpty) {
+      if (_photoDraftsWereResolved(rawDraft, detail)) {
+        if (!mounted) return;
+        final detailNotifier = context.read(tableRowDetailProvider.notifier);
+        detailNotifier.setViewMode(TableRowDetailViewMode.fields);
+        context.read(toastProvider.notifier).showSuccess('Row updated');
+        setState(() {
+          _editing = false;
+          _saving = false;
+          _draft = null;
+          _textInputs = {};
+          _clearFkInvalidFields();
+        });
+        return;
+      }
       setState(() => _saving = false);
       _cancelEditing();
       return;

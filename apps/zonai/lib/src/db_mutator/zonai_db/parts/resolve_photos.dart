@@ -73,7 +73,7 @@ extension _ResolvePhotosX on ZonaiDb {
       final rows = await db
           .select()
           .from(photos)
-          .where(photos.id.inList(photoIds.map(PhotoId.new).toList()))
+          .where(photos.id.equals(PhotoId(id)))
           .limit(1);
 
       if (rows.isEmpty) {

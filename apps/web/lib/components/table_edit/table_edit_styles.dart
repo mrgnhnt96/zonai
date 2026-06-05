@@ -184,6 +184,10 @@ List<StyleRule> get tableEditSharedStyles => [
     flexWrap: FlexWrap.wrap,
     gap: Gap.all(ZonaiSpacing.s3),
   ),
+  css('.table-edit-photo-field__thumbs--active .table-edit-photo-field__thumb').styles(
+    border: Border.all(color: primaryColor, width: 1.px),
+    backgroundColor: selectedBgColor,
+  ),
   css('.table-edit-photo-field__thumb').styles(
     position: Position.relative(),
     width: 72.px,

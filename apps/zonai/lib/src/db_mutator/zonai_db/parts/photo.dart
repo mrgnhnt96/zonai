@@ -1,7 +1,7 @@
 part of zonai_db;
 
 extension _PhotoX on ZonaiDb {
-  Stream<List<int>> _getPhoto(String id, {required String? token}) async* {
+  Future<File> _getPhoto(String id, {required String? token}) async {
     final jwt = await zonaiDB.parseJwt(token);
 
     final table = Table.get(photos);
@@ -13,6 +13,9 @@ extension _PhotoX on ZonaiDb {
 
     // drop the extension if provided
     final idOnly = id.split('.').first;
+    if (!idOnly.endsWith('ph')) {
+      throw StateError('Invalid photo id: $idOnly');
+    }
     final db = await open();
     final rows = await db
         .select()
@@ -34,7 +37,7 @@ extension _PhotoX on ZonaiDb {
       throw StateError('Photo file not found');
     }
 
-    yield* file.openRead();
+    return file;
   }
 
   Future<Map<String, Object?>> _createPhoto({
@@ -94,11 +97,14 @@ extension _PhotoX on ZonaiDb {
 
     try {
       final db = await open();
-      final [result] = await db.insert(into: photos).values([
+      final results = await db.insert(into: photos).values([
         entry,
       ]).returning();
 
-      insertedRow = result;
+      insertedRow = results.firstOrNull;
+      if (insertedRow == null) {
+        throw StateError('Photo insert did not return a row');
+      }
 
       await file.parent.create(recursive: true);
       await file.openWrite().addStream(
@@ -146,11 +152,12 @@ extension _PhotoX on ZonaiDb {
     }
     await _requireTableAccess(table.name, .update, jwt);
 
+    final idOnly = id.split('.').first;
     final db = await open();
     final rows = await db
         .select()
         .from(photos)
-        .where(photos.id.equals(PhotoId(id)))
+        .where(photos.id.equals(PhotoId(idOnly)))
         .limit(1);
 
     if (rows.isEmpty) {
@@ -288,11 +295,12 @@ extension _PhotoX on ZonaiDb {
     }
     await _requireTableAccess(table.name, .delete, jwt);
 
+    final idOnly = id.split('.').first;
     final db = await open();
     final rows = await db
         .select()
         .from(photos)
-        .where(photos.id.equals(PhotoId(id)))
+        .where(photos.id.equals(PhotoId(idOnly)))
         .limit(1);
 
     if (rows.isEmpty) {
