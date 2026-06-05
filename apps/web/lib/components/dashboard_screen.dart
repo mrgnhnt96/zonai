@@ -29,6 +29,7 @@ class DashboardScreen extends StatelessComponent {
     final stats = context.watch(dashboardStatsProvider);
     final buckets = context.watch(requestBucketsProvider);
     final topErrors = context.watch(topErrorsProvider);
+    final expandedError = context.watch(expandedErrorProvider);
     final cronJobs = context.watch(cronJobsProvider);
     final tableCounts = context.watch(tableCountsProvider);
 
@@ -109,13 +110,27 @@ class DashboardScreen extends StatelessComponent {
               else
                 div(classes: 'dashboard-error-list', [
                   for (final err in topErrorsData)
-                    div(classes: 'dashboard-error-item', [
-                      span(classes: 'dashboard-error-msg', [.text(err.message)]),
-                      div(classes: 'dashboard-error-footer', [
-                        span(classes: 'dashboard-error-count', [.text('${err.count}×')]),
-                        span(classes: 'dashboard-error-time', [.text(_timeAgo(err.lastSeen))]),
-                      ]),
-                    ]),
+                    div(
+                      classes: 'dashboard-error-item${expandedError == err.message ? ' dashboard-error-item--expanded' : ''}',
+                      events: {
+                        'click': (_) => context
+                            .read(expandedErrorProvider.notifier)
+                            .toggle(err.message),
+                      },
+                      [
+                        div(classes: 'dashboard-error-header', [
+                          span(classes: 'dashboard-error-msg', [.text(err.message)]),
+                          div(classes: 'dashboard-error-footer', [
+                            span(classes: 'dashboard-error-count', [.text('${err.count}×')]),
+                            span(classes: 'dashboard-error-time', [.text(_timeAgo(err.lastSeen))]),
+                          ]),
+                        ]),
+                        if (expandedError == err.message)
+                          pre(classes: 'dashboard-error-detail', [
+                            .text(err.detail ?? err.message),
+                          ]),
+                      ],
+                    ),
                 ]),
             ]),
           ]),
@@ -390,6 +405,39 @@ class DashboardScreen extends StatelessComponent {
         radius: .all(Radius.circular(6.px)),
         backgroundColor: bgColor,
         border: .all(color: borderColor, width: 1.px, style: .solid),
+        cursor: .pointer,
+        raw: const {'transition': 'border-color 0.15s ease'},
+      ),
+      css('.dashboard-error-item:hover').styles(
+        border: .all(color: mutedColor, width: 1.px, style: .solid),
+      ),
+      css('.dashboard-error-item--expanded').styles(
+        border: .all(color: errorColor, width: 1.px, style: .solid),
+      ),
+      css('.dashboard-error-item--expanded:hover').styles(
+        border: .all(color: errorColor, width: 1.px, style: .solid),
+      ),
+      css('.dashboard-error-header').styles(
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s2),
+      ),
+      css('.dashboard-error-detail').styles(
+        margin: .zero,
+        padding: .all(ZonaiSpacing.s4),
+        fontSize: 0.6875.rem,
+        color: errorFgColor,
+        backgroundColor: errorBgColor,
+        radius: .all(Radius.circular(4.px)),
+        raw: const {
+          'font-family':
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          'white-space': 'pre-wrap',
+          'overflow-wrap': 'anywhere',
+          'line-height': '1.5',
+          'max-height': '200px',
+          'overflow-y': 'auto',
+        },
       ),
       css('.dashboard-error-msg').styles(
         fontSize: 0.75.rem,

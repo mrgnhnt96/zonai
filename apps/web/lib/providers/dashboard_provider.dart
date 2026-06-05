@@ -35,10 +35,13 @@ final class TopError {
     required this.message,
     required this.count,
     required this.lastSeen,
+    this.detail,
   });
   final String message;
   final int count;
   final DateTime lastSeen;
+  // The `error` column from the most recent occurrence (stack trace / details).
+  final String? detail;
 }
 
 final class CronJobSummary {
@@ -80,6 +83,11 @@ final requestBucketsProvider =
 final topErrorsProvider =
     AsyncNotifierProvider<_TopErrorsNotifier, List<TopError>>(
   _TopErrorsNotifier.new,
+);
+
+// Tracks which error message is currently expanded (null = none).
+final expandedErrorProvider = NotifierProvider<_ExpandedErrorNotifier, String?>(
+  _ExpandedErrorNotifier.new,
 );
 
 final cronJobsProvider =
@@ -219,7 +227,8 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
       ),
     );
 
-    final groups = <String, ({int count, DateTime lastSeen})>{};
+    // Group by message; items are DESC by timestamp so first occurrence = most recent.
+    final groups = <String, ({int count, DateTime lastSeen, String? detail})>{};
 
     for (final item in _parseItems(data)) {
       final message = item['message'];
@@ -227,11 +236,17 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
       final ts = _parseTimestamp(item['timestamp']) ?? DateTime.now();
       final existing = groups[message];
       if (existing == null) {
-        groups[message] = (count: 1, lastSeen: ts);
+        groups[message] = (
+          count: 1,
+          lastSeen: ts,
+          detail: item['error'] as String?,
+        );
       } else {
+        final isNewer = ts.isAfter(existing.lastSeen);
         groups[message] = (
           count: existing.count + 1,
-          lastSeen: ts.isAfter(existing.lastSeen) ? ts : existing.lastSeen,
+          lastSeen: isNewer ? ts : existing.lastSeen,
+          detail: isNewer ? (item['error'] as String?) : existing.detail,
         );
       }
     }
@@ -243,9 +258,17 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
               message: e.key,
               count: e.value.count,
               lastSeen: e.value.lastSeen,
+              detail: e.value.detail,
             ))
         .toList();
   }
+}
+
+class _ExpandedErrorNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void toggle(String message) => state = state == message ? null : message;
 }
 
 class _CronJobsNotifier extends AsyncNotifier<List<CronJobSummary>> {
