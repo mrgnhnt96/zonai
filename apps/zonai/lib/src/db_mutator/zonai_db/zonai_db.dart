@@ -290,6 +290,10 @@ class ZonaiDb {
     return await _run(() => _extractJwt(JwtPayload(jwt: jwt)));
   }
 
+  Future<Jwt?> parseJwtClaimsOnly(String? jwt) async {
+    return await _run(() => _extractJwtClaimsOnly(jwt));
+  }
+
   Future<_CrudListResult> update(String table, UpdatePayload payload) async {
     return await _run(() => _update(table, payload));
   }

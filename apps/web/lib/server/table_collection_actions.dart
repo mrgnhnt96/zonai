@@ -12,7 +12,7 @@ Future<Map<String, TableCollectionActions>> loadTableCollectionActions({String? 
           return const {};
         }
 
-        final jwt = await zonaiDB.parseJwt(authToken);
+        final jwt = await zonaiDB.parseJwtClaimsOnly(authToken);
 
         return await zonaiDB.collectionActions(jwt: jwt);
       } on ExecutableUnavailableException {

@@ -16,6 +16,13 @@ final class AbuserRowRules extends InternalRowRules<AbusersTable, AbuserEntry> {
       };
 
   @override
+  Future<bool> canUpdate(Jwt? jwt, AbuserEntry row) async =>
+      switch (jwt?.admin.canEdit) {
+        true => true,
+        _ => false,
+      };
+
+  @override
   Future<bool> canDelete(Jwt? jwt, AbuserEntry row) async =>
       switch (jwt?.admin.canEdit) {
         true => true,

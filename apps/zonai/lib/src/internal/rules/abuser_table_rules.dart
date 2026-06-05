@@ -16,6 +16,12 @@ final class AbuserTableRules
   };
 
   @override
+  Future<bool> canUpdate(Jwt? jwt) async => switch (jwt?.admin.canEdit) {
+    true => true,
+    _ => false,
+  };
+
+  @override
   Future<bool> canDelete(Jwt? jwt) async => switch (jwt?.admin.canEdit) {
     true => true,
     _ => false,

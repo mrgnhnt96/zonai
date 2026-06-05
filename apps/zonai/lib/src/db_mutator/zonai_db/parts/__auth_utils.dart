@@ -154,6 +154,25 @@ extension _AuthUtilsX on ZonaiDb {
     );
   }
 
+  /// Verifies the JWT signature and decodes claims without checking the
+  /// revocation record in the database. Use only for read-only UI display
+  /// (e.g. determining which buttons to show); always use [_extractJwt] for
+  /// actual data access.
+  Future<Jwt?> _extractJwtClaimsOnly(String? jwt) async {
+    if (jwt == null) return null;
+
+    final decoded = await _jwt.verify(jwt);
+    if (decoded == null) throw StateError('Invalid JWT');
+
+    if (Jwt.isCronWorkerPayload(decoded)) throw StateError('Invalid JWT');
+
+    try {
+      return Jwt.fromJson(decoded);
+    } on Object {
+      throw StateError('Invalid JWT');
+    }
+  }
+
   Future<Jwt?> _extractJwt(JwtPayload payload) async {
     final jwt = payload.jwt;
 
