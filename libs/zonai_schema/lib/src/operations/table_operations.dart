@@ -75,6 +75,8 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     final updateables = <Updateable<dynamic>>[];
 
     final inferredColumns = <String>{};
+    final watchedUpdateColumns =
+        <(rd.Column<dynamic, dynamic>, UpdatedWhenTransformer)>[];
     for (final column in table.columns) {
       switch (column.transformer) {
         case CreatedAtTransformer():
@@ -82,7 +84,27 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         case UpdatedAtTransformer():
           inferredColumns.add(column.name);
           updateables.add(UpdateableColumn(column, DateTime.now()));
+        case final UpdatedWhenTransformer t:
+          inferredColumns.add(column.name);
+          watchedUpdateColumns.add((column, t));
         case _:
+      }
+    }
+
+    if (watchedUpdateColumns.isNotEmpty) {
+      final updatingColumns = <String>{};
+      for (final update in updates) {
+        switch (update) {
+          case ColumnUpdate(:final column):
+            updatingColumns.add(column.split('.').first);
+          case ObjectUpdate(:final object):
+            updatingColumns.addAll(object.keys);
+        }
+      }
+      for (final (column, transformer) in watchedUpdateColumns) {
+        if (updatingColumns.contains(transformer.watchedColumn)) {
+          updateables.add(UpdateableColumn(column, DateTime.now()));
+        }
       }
     }
 
