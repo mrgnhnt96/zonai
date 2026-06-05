@@ -172,43 +172,38 @@ class _RequestBucketsNotifier extends AsyncNotifier<List<RequestBucket>> {
     if (!ref.binding.isClient) return const [];
 
     final now = DateTime.now();
-    final since = now.subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
-
-    final data = await revaliServer.db.list(
-      body: ListBody(
-        table: '_log',
-        where: And([Eq('level', 'request'), Gt('timestamp', since)]),
-        limit: 5000,
-        orderBy: [
-          const OrderByTerm(column: 'timestamp', direction: SortDirection.asc),
-        ],
-      ),
-    );
-
-    // 24 hourly buckets, oldest first.
-    // Bucket i covers the hour starting at (nowHourMs - (23-i)*3600000).
+    const hourMs = Duration(hours: 1);
     final nowHourMs = now.millisecondsSinceEpoch -
-        (now.millisecondsSinceEpoch % const Duration(hours: 1).inMilliseconds);
+        (now.millisecondsSinceEpoch % hourMs.inMilliseconds);
 
-    final buckets = List.generate(24, (i) {
-      final hour = DateTime.fromMillisecondsSinceEpoch(
-        nowHourMs - (23 - i) * const Duration(hours: 1).inMilliseconds,
-      );
-      return RequestBucket(hour: hour, count: 0);
-    });
+    // 24 hourly buckets using parallel count() calls — avoids the 500-row list cap.
+    final counts = await Future.wait([
+      for (var i = 0; i < 24; i++)
+        () {
+          final start = nowHourMs - (23 - i) * hourMs.inMilliseconds;
+          final end = start + hourMs.inMilliseconds;
+          return revaliServer.db.count(
+            body: CountBody(
+              table: '_log',
+              where: And([
+                Eq('level', 'request'),
+                Gte('timestamp', start),
+                Lt('timestamp', end),
+              ]),
+            ),
+          );
+        }(),
+    ]);
 
-    for (final item in _parseItems(data)) {
-      final tsRaw = item['timestamp'];
-      if (tsRaw is! num) continue;
-      final tsMs = tsRaw.toInt();
-      // Map ms timestamp to bucket index using arithmetic (no DateTime comparison).
-      final hoursAgo = (nowHourMs - tsMs) ~/ const Duration(hours: 1).inMilliseconds;
-      if (hoursAgo < 0 || hoursAgo > 23) continue;
-      final idx = 23 - hoursAgo;
-      buckets[idx] = RequestBucket(hour: buckets[idx].hour, count: buckets[idx].count + 1);
-    }
-
-    return buckets;
+    return [
+      for (var i = 0; i < 24; i++)
+        RequestBucket(
+          hour: DateTime.fromMillisecondsSinceEpoch(
+            nowHourMs - (23 - i) * hourMs.inMilliseconds,
+          ),
+          count: counts[i],
+        ),
+    ];
   }
 }
 
