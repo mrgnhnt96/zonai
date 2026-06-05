@@ -46,7 +46,7 @@ extension _UpdateX on ZonaiDb {
 
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
 
-    final sanitizedUpdated = await _sanitizeRows(table, updatedObjects);
+    final sanitizedUpdated = await _sanitizeRows(table, updatedObjects, jwt: jwt);
 
     await _postUpdate(
       table,
@@ -114,7 +114,7 @@ extension _UpdateX on ZonaiDb {
       await _requireRowAccess(table, .update, row, jwt);
     }
 
-    final sanitizedBefore = await _sanitizeRows(table, objects);
+    final sanitizedBefore = await _sanitizeRows(table, objects, jwt: jwt);
 
     await _requirePhotoReferencesFromUpdates(table, payload.updates);
 

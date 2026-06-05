@@ -26,9 +26,14 @@ String columnShapeHeaderLabel(ColumnShape shape) => shape.name;
 ///
 /// When [truncate] is false (e.g. row detail panel), photo URLs and blob text
 /// are not shortened.
-String formatSchemaCell(Object? value, ColumnShape? shape, {bool truncate = true}) {
+String formatSchemaCell(
+  Object? value,
+  ColumnShape? shape, {
+  bool truncate = true,
+  bool revealSecrets = false,
+}) {
   if (value == null) return '—';
-  if (shape?.isSecret == true || shape?.kind == ColumnShapeKind.password) {
+  if (!revealSecrets && (shape?.isSecret == true || shape?.kind == ColumnShapeKind.password)) {
     return '••••••••';
   }
 

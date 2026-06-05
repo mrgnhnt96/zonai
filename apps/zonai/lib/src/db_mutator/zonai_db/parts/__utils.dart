@@ -131,24 +131,33 @@ extension UtilsX on ZonaiDb {
     return await _operations.send<PerformOperationResponse>(request);
   }
 
+  bool _preserveSecretsForJwt(Jwt? jwt) =>
+      jwt?.admin.isAdmin == true || jwt?.admin.canEdit == true;
+
   Future<Map<String, Object?>> _sanitizeRow(
     String table,
-    Map<String, Object?> row,
-  ) async {
-    final rows = await _sanitizeRows(table, [row]);
+    Map<String, Object?> row, {
+    Jwt? jwt,
+  }) async {
+    final rows = await _sanitizeRows(table, [row], jwt: jwt);
     return rows.single;
   }
 
   Future<List<Map<String, Object?>>> _sanitizeRows(
     String table,
-    List<Map<String, Object?>> rows,
-  ) async {
+    List<Map<String, Object?>> rows, {
+    Jwt? jwt,
+  }) async {
     if (rows.isEmpty) {
       return const [];
     }
 
     final response = await _operations.send<SanitizeOperationResponse>(
-      SanitizeOperationRequest(table: table, objects: rows),
+      SanitizeOperationRequest(
+        table: table,
+        objects: rows,
+        preserveSecrets: _preserveSecretsForJwt(jwt),
+      ),
     );
 
     return _resolvePhotoFields(response.objects, response.photoColumns);
@@ -306,7 +315,7 @@ extension UtilsX on ZonaiDb {
           case _CreateSideEffect():
             final raw = operationResults[effect]?.rows.single.toMap();
             if (raw != null) {
-              final created = await _sanitizeRow(effect.request.table, raw);
+              final created = await _sanitizeRow(effect.request.table, raw, jwt: effect.request.jwt);
               await _postCreate(
                 effect.request.table,
                 effect.request.jwt,
@@ -330,6 +339,7 @@ extension UtilsX on ZonaiDb {
               final after = await _sanitizeRows(
                 effect.request.table,
                 afterRows,
+                jwt: effect.request.jwt,
               );
 
               await _postUpdate(

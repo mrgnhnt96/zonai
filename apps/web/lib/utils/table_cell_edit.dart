@@ -58,6 +58,25 @@ List<String> createRequiredFieldLabels(List<ColumnShape> columnShapes) {
   ];
 }
 
+/// Whether a required field has valid user input when updating a row.
+///
+/// Blank password/secret inputs mean "keep existing value" and count as satisfied.
+bool isEditFieldSatisfied({
+  required ColumnShape shape,
+  required Object? draftValue,
+  String? textInput,
+}) {
+  if (!isCreateFieldRequired(shape)) return true;
+  if (isPasswordColumn(shape) && isPasswordUpdateUnchanged(textInput)) {
+    return true;
+  }
+  return isCreateFieldSatisfied(
+    shape: shape,
+    draftValue: draftValue,
+    textInput: textInput,
+  );
+}
+
 /// Whether a required create field has valid user input.
 bool isCreateFieldSatisfied({
   required ColumnShape shape,
@@ -96,6 +115,24 @@ List<String> remainingCreateRequiredFieldLabels({
     for (var i = 0; i < columnShapes.length; i++)
       if (isCreateFieldRequired(columnShapes[i]) &&
           !isCreateFieldSatisfied(
+            shape: columnShapes[i],
+            draftValue: draft.elementAtOrNull(i),
+            textInput: textInputs[i],
+          ))
+        columnShapeHeaderLabel(columnShapes[i]),
+  ];
+}
+
+/// Required field labels still blocking save while editing an existing row.
+List<String> remainingEditRequiredFieldLabels({
+  required List<Object?> draft,
+  required Map<int, String> textInputs,
+  required List<ColumnShape> columnShapes,
+}) {
+  return [
+    for (var i = 0; i < columnShapes.length; i++)
+      if (isCreateFieldRequired(columnShapes[i]) &&
+          !isEditFieldSatisfied(
             shape: columnShapes[i],
             draftValue: draft.elementAtOrNull(i),
             textInput: textInputs[i],
@@ -824,11 +861,11 @@ bool createDraftHasChanges({
   return false;
 }
 
-String formatReadOnlyCell(Object? value, ColumnShape? shape) {
+String formatReadOnlyCell(Object? value, ColumnShape? shape, {bool revealSecrets = false}) {
   return switch (shape?.kind) {
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified when value != null =>
       cellEditValueAsBool(value) ? 'true' : 'false',
-    _ => formatSchemaCell(value, shape, truncate: false),
+    _ => formatSchemaCell(value, shape, truncate: false, revealSecrets: revealSecrets),
   };
 }
 
@@ -842,7 +879,7 @@ bool isDateTimeColumnKind(ColumnShapeKind kind) =>
 /// HTML input attributes for native typed inputs (filter + edit).
 Map<String, String> validationAttributesForShape(ColumnShape shape) {
   if (isPasswordColumn(shape)) {
-    return const {'type': 'password', 'autocomplete': 'new-password'};
+    return const {'autocomplete': 'off'};
   }
 
   return switch (shape.kind) {

@@ -15,6 +15,9 @@
 - [ ] Create new row
 - [ ] Start reset password flow
 - [ ] Support uploading files/images for edit & create
+- [ ] Preview reference when viewing/editing/creating row
+- [ ] Preview reference from row when clicked
+- [ ] Create button sizes and enforce them everywhere
 
 #### Edit
 

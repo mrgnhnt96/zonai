@@ -695,6 +695,7 @@ final class SanitizeOperationRequest extends OperationRequest {
   SanitizeOperationRequest({
     required this.table,
     required List<Map<String, dynamic>> objects,
+    this.preserveSecrets = false,
   }) : objects = List.unmodifiable(objects),
        super(path: _path, id: Request.generateId(), jwt: null);
 
@@ -702,6 +703,7 @@ final class SanitizeOperationRequest extends OperationRequest {
     required super.id,
     required this.table,
     required List<Map<String, dynamic>> objects,
+    required this.preserveSecrets,
   }) : objects = List.unmodifiable(objects),
        super(path: _path, jwt: null);
 
@@ -713,6 +715,7 @@ final class SanitizeOperationRequest extends OperationRequest {
         for (final e in request.payload['objects'] as List<dynamic>)
           Map<String, dynamic>.from(e),
       ],
+      preserveSecrets: request.payload['preserveSecrets'] as bool? ?? false,
     );
   }
 
@@ -721,9 +724,17 @@ final class SanitizeOperationRequest extends OperationRequest {
   final String table;
   final List<Map<String, dynamic>> objects;
 
+  /// When true, [SecretTransformer] columns are kept in each object (admin edit UI).
+  final bool preserveSecrets;
+
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'table': table, 'objects': objects};
+    return {
+      ...super.toJson(),
+      'table': table,
+      'objects': objects,
+      if (preserveSecrets) 'preserveSecrets': preserveSecrets,
+    };
   }
 }
 

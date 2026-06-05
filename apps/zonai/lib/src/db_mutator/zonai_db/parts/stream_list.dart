@@ -38,6 +38,7 @@ extension _StreamListX on ZonaiDb {
         await _sanitizeRows(
           table,
           result.rows.map((e) => e.toMap()).toList(),
+          jwt: jwt,
         ),
         payload.expand,
         jwt,

@@ -138,7 +138,9 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
                   ),
                 );
               } else {
-                updateables.add(UpdateableColumn(col, value));
+                updateables.add(
+                  UpdateableColumn(col, _decodeUpdateWireValue(col, value)),
+                );
               }
             }
           }
@@ -149,6 +151,12 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         .update(schema)
         .setAll(updateables)
         .where(RawSqlFilter(where.sql(table.name)));
+  }
+
+  /// Decodes API/wire values (e.g. [String] ids) before [Column.encode].
+  Object? _decodeUpdateWireValue(rd.Column<dynamic, dynamic> col, Object? value) {
+    if (value == null) return null;
+    return col.decode(value);
   }
 
   UpdateableColumn? _convertUpdateValue(
@@ -162,7 +170,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     final col = table[columnName];
     switch (value) {
       case Literal(:final value):
-        return UpdateableColumn(col, value);
+        return UpdateableColumn(col, _decodeUpdateWireValue(col, value));
       case Increment():
         if (col.transformer is MapTransformer) {
           throw ArgumentError(

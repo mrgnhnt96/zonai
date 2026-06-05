@@ -15,6 +15,7 @@ void main() {
         isSecret: true,
       );
       expect(formatSchemaCell('hash', secret), '••••••••');
+      expect(formatSchemaCell('hash', secret, revealSecrets: true), 'hash');
     });
 
     test('booleans and verified flags', () {

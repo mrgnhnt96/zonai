@@ -136,7 +136,7 @@ extension _ExpandX on ZonaiDb {
     final object = result.rows.first.toMap();
     await _requireRowAccess(table, .view, object, jwt);
 
-    return await _sanitizeRow(table, object);
+    return await _sanitizeRow(table, object, jwt: jwt);
   }
 }
 

@@ -46,7 +46,7 @@ extension _ListX on ZonaiDb {
       await _requireRowAccess(table, .view, object, jwt);
     }
 
-    final sanitized = await _sanitizeRows(table, objects);
+    final sanitized = await _sanitizeRows(table, objects, jwt: jwt);
 
     return Paginated(
       items: await _expandRows(table, sanitized, payload.expand, jwt),

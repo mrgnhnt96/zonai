@@ -147,6 +147,53 @@ final class _Operations extends TableOperations<_TestTable, _Row> {
   _Operations() : super(widgets);
 }
 
+class _OwnerId implements Id {
+  const _OwnerId(this.value);
+
+  @override
+  final String value;
+}
+
+class _OwnedRow {
+  const _OwnedRow({this.id, required this.title, this.ownerId});
+
+  final _OwnerId? id;
+  final String title;
+  final _OwnerId? ownerId;
+}
+
+class _OwnedTable extends Table<_OwnedRow> {
+  _OwnedTable(super.$)
+    : id = $.id(
+        'id',
+        (s) => s.id,
+        fromString: _OwnerId.new,
+        generate: () => _OwnerId('own_${DateTime.now().microsecondsSinceEpoch}'),
+      ),
+      title = $.text('title', (s) => s.title),
+      ownerId = $.id(
+        'owner_id',
+        (s) => s.ownerId,
+        fromString: _OwnerId.new,
+        generate: () => _OwnerId('own_${DateTime.now().microsecondsSinceEpoch}'),
+        isPrimaryKey: false,
+      );
+
+  @override
+  _OwnedRow fromRow(RowReader read) =>
+      _OwnedRow(id: read(id), title: read(title)!, ownerId: read(ownerId));
+
+  final IdColumn<_OwnerId> id;
+  final TextColumn title;
+  final IdColumn<_OwnerId>? ownerId;
+}
+
+final ownedWidgets = sqliteTable('owned_widgets', _OwnedTable.new);
+
+final class _OwnedOperations extends TableOperations<_OwnedTable, _OwnedRow> {
+  _OwnedOperations() : super(ownedWidgets);
+}
+
 void main() {
   final ops = _Operations();
   const dialect = SQLiteDialect();
@@ -185,6 +232,24 @@ void main() {
       expect(sql.toUpperCase(), contains('SET'));
       expect(sql, contains('WHERE'));
       expect(sql, contains('"widgets"."id" = 1'));
+    });
+
+    test('update decodes string wire values for Id columns', () {
+      final ownedOps = _OwnedOperations();
+      final query = ownedOps.update([
+        Update.column('owner_id', const Literal('owner_abc')),
+      ], where: const Eq('title', 'x')).toQuery();
+      final (_, values) = dialect.translate(query);
+      expect(values, contains('owner_abc'));
+    });
+
+    test('ObjectUpdate decodes string wire values for Id columns', () {
+      final ownedOps = _OwnedOperations();
+      final query = ownedOps.update([
+        Update.object({'owner_id': 'owner_xyz'}),
+      ], where: const Eq('title', 'x')).toQuery();
+      final (_, values) = dialect.translate(query);
+      expect(values, contains('owner_xyz'));
     });
 
     test('update applies increment expression for Increment value', () {

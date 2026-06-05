@@ -1035,7 +1035,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
     final draft = _draft;
     if (draft == null) return false;
-    return remainingCreateRequiredFieldLabels(
+    return remainingEditRequiredFieldLabels(
       draft: draft,
       textInputs: _textInputs,
       columnShapes: detail.columnShapes,
@@ -1162,7 +1162,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final rowEditable = _canEditRow(cached, allActions, sessionCanEdit);
     final canSave = _canSubmitEdit(cached);
     final requiredFields = _editing && _draft != null
-        ? remainingCreateRequiredFieldLabels(
+        ? remainingEditRequiredFieldLabels(
             draft: _draft!,
             textInputs: _textInputs,
             columnShapes: cached.columnShapes,
@@ -1465,7 +1465,7 @@ class _DetailField extends StatelessComponent {
   final ColumnShape shape;
   final bool readOnlyHint;
 
-  String get _copyText => formatReadOnlyCell(rawValue, shape);
+  String get _copyText => formatReadOnlyCell(rawValue, shape, revealSecrets: true);
 
   @override
   Component build(BuildContext context) {
@@ -1704,8 +1704,14 @@ class _DetailFieldValue extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    if (rawValue == null || shape.isSecret || shape.kind == ColumnShapeKind.password) {
+    if (rawValue == null) {
       return _DetailPlainText(value: formatReadOnlyCell(rawValue, shape));
+    }
+
+    if (shape.isSecret || shape.kind == ColumnShapeKind.password) {
+      return _DetailPlainText(
+        value: formatReadOnlyCell(rawValue, shape, revealSecrets: true),
+      );
     }
 
     return switch (shape.kind) {

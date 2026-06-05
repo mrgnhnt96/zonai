@@ -36,6 +36,7 @@ extension _StreamOneX on ZonaiDb {
       final sanitized = await _sanitizeRow(
         table,
         result.rows.single.toMap(),
+        jwt: jwt,
       );
       yield await _expandRow(table, sanitized, payload.expand, jwt);
     }

@@ -323,9 +323,11 @@ class DbOperations {
     final sanitized = <Map<String, dynamic>>[];
     for (final raw in request.objects) {
       final mutable = {...raw};
-      for (final column in columns) {
-        if (column.transformer is SecretTransformer) {
-          mutable.remove(column.name);
+      if (!request.preserveSecrets) {
+        for (final column in columns) {
+          if (column.transformer is SecretTransformer) {
+            mutable.remove(column.name);
+          }
         }
       }
       sanitized.add(mutable);

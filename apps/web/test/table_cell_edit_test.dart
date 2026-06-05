@@ -521,6 +521,28 @@ void main() {
         {'secret_note': 'new-secret'},
       );
     });
+
+    test('remainingEditRequiredFieldLabels allows blank password on update', () {
+      expect(
+        remainingEditRequiredFieldLabels(
+          draft: const ['stored-hash'],
+          textInputs: const {},
+          columnShapes: const [passwordShape],
+        ),
+        isEmpty,
+      );
+    });
+
+    test('remainingCreateRequiredFieldLabels still requires password on create', () {
+      expect(
+        remainingCreateRequiredFieldLabels(
+          draft: const [null],
+          textInputs: const {},
+          columnShapes: const [passwordShape],
+        ),
+        ['secret_note'],
+      );
+    });
   });
 
   group('cellToEditString', () {

@@ -211,12 +211,12 @@ class TableValueEditor extends StatelessComponent {
   Component _passwordEditor(void Function(String text) onText) {
     return input<String>(
       id: id,
-      type: .password,
+      type: .text,
       classes: inputClass ?? ZonaiClasses.input,
       attributes: {
         if (labelId != null) 'aria-labelledby': labelId!,
         'placeholder': shape.isNullable ? 'Leave empty to keep unchanged' : 'Enter value',
-        'autocomplete': 'new-password',
+        'autocomplete': 'off',
       },
       value: textValue,
       disabled: disabled,
