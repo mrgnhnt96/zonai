@@ -48,7 +48,8 @@ class DashboardScreen extends StatelessComponent {
     return main_(classes: 'home${mobileNavOpen ? ' home--mobile-nav-open' : ''}', [
       HomeSidebar(focused: null),
       div(classes: 'home-main', [
-        div(classes: 'dashboard', [
+        div(classes: 'dashboard-scroller', [
+          div(classes: 'dashboard', [
           div(classes: 'dashboard-header', [
             h1(classes: 'dashboard-title', [.text('Dashboard')]),
           ]),
@@ -192,6 +193,7 @@ class DashboardScreen extends StatelessComponent {
                   ),
               ]),
             ]),
+          ]),
         ]),
       ]),
       if (mobileNavOpen)
@@ -211,35 +213,15 @@ class DashboardScreen extends StatelessComponent {
     ...HomeSidebar.styles,
     ...HomeSettingsOverlay.styles,
     ...ToastOverlay.styles,
-    css('.home', [
-      css('&').styles(
-        flex: Flex(grow: 1, shrink: 1),
-        display: .flex,
-        flexDirection: FlexDirection.row,
-        alignItems: .stretch,
-        width: 100.percent,
-        minHeight: .zero,
-        overflow: Overflow.hidden,
-        raw: const {'position': 'relative'},
-      ),
-      css('.home-main').styles(
-        flex: Flex(grow: 1, shrink: 1),
-        display: .flex,
-        flexDirection: FlexDirection.column,
-        minHeight: .zero,
-        minWidth: .zero,
-        padding: .all(ZonaiSpacing.s10),
-        overflow: Overflow.auto,
-      ),
-      css('.home-mobile-backdrop').styles(
-        display: .block,
-        position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
-        raw: const {'z-index': '140', 'background-color': 'rgb(15 23 42 / 0.45)'},
-      ),
-      css.media(MediaQuery.all(maxWidth: 640.px), [
-        css('&').styles(overflow: Overflow.visible),
-      ]),
-    ]),
+    css('.dashboard-scroller').styles(
+      flex: Flex(grow: 1, shrink: 1),
+      display: .flex,
+      flexDirection: FlexDirection.column,
+      alignItems: .center,
+      minHeight: .zero,
+      overflow: Overflow.auto,
+      raw: const {'-webkit-overflow-scrolling': 'touch'},
+    ),
     css('.dashboard', [
       css('&').styles(
         display: .flex,
@@ -247,6 +229,7 @@ class DashboardScreen extends StatelessComponent {
         gap: Gap.all(ZonaiSpacing.s10),
         width: 100.percent,
         maxWidth: 1200.px,
+        margin: .symmetric(horizontal: .auto),
       ),
       css('.dashboard-header').styles(
         display: .flex,
@@ -593,6 +576,9 @@ class DashboardScreen extends StatelessComponent {
         fontSize: 0.75.rem,
         color: mutedColor,
       ),
+      css.media(MediaQuery.all(maxWidth: 1024.px), [
+        css('.dashboard-tables').styles(justifyContent: .center),
+      ]),
     ]),
   ];
 }
