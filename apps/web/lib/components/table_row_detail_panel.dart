@@ -26,6 +26,7 @@ import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
 import 'query_preview_card.dart';
+import 'schema_table_foreign_key_cell.dart';
 import 'syntax_highlighted_code.dart';
 import 'table_edit/foreign_key_picker_dialog.dart';
 import 'theme/theme_components.dart';
@@ -211,6 +212,10 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         } else {
           _requestDismiss(detail, _PendingDismiss.cancelEditing);
         }
+        return;
+      }
+      if (detail.canNavigateBack) {
+        context.read(tableRowDetailProvider.notifier).pop();
         return;
       }
       _requestDismiss(detail, _PendingDismiss.closePanel);
@@ -648,12 +653,24 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _executeDismiss(action);
   }
 
+  void _requestNavigateBack(TableRowDetailState detail) {
+    if (_saving) return;
+    if (!_editing) {
+      context.read(tableRowDetailProvider.notifier).pop();
+      return;
+    }
+    _requestDismiss(detail, _PendingDismiss.navigateBack);
+  }
+
   void _executeDismiss(_PendingDismiss action) {
     switch (action) {
       case _PendingDismiss.closePanel:
         context.read(tableRowDetailProvider.notifier).close();
       case _PendingDismiss.cancelEditing:
         _cancelEditing();
+      case _PendingDismiss.navigateBack:
+        if (_editing) _cancelEditing();
+        context.read(tableRowDetailProvider.notifier).pop();
       case _PendingDismiss.closeCreate:
         context.read(tableRowCreateProvider.notifier).close();
         setState(() {
@@ -1179,7 +1196,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           )
         : const <String>[];
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
+    void goBack() => _requestNavigateBack(cached);
     final subtitle = _detailSubtitle(cached);
+    final canNavigateBack = cached.canNavigateBack;
     final showRawJson = !_editing && _showRawJson && _rawJsonRowKey == cached.rowKey;
     final openClass = _open ? ' table-row-detail--open' : '';
     final editingClass = _editing ? ' table-row-detail--editing' : '';
@@ -1222,8 +1241,21 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           div(classes: 'table-row-detail-main', [
             div(classes: 'table-row-detail-header', [
               div(classes: 'table-row-detail-header-text', [
-                h2(classes: 'table-row-detail-title', [.text('Row details')]),
-                if (subtitle.isNotEmpty) p(classes: 'table-row-detail-subtitle', [.text(subtitle)]),
+                div(classes: 'table-row-detail-header-title-row', [
+                  if (canNavigateBack)
+                    button(
+                      classes: 'table-row-detail-back',
+                      type: .button,
+                      attributes: {'aria-label': 'Back to previous row'},
+                      onClick: goBack,
+                      [_tableRowDetailBackArrowIcon(), .text('Back')],
+                    ),
+                  div(classes: 'table-row-detail-header-heading', [
+                    h2(classes: 'table-row-detail-title', [.text('Row details')]),
+                    if (subtitle.isNotEmpty)
+                      p(classes: 'table-row-detail-subtitle', [.text(subtitle)]),
+                  ]),
+                ]),
               ]),
               div(classes: 'table-row-detail-header-actions', [
                 if (!_editing)
@@ -1324,7 +1356,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   }
 }
 
-enum _PendingDismiss { closePanel, cancelEditing, closeCreate }
+enum _PendingDismiss { closePanel, cancelEditing, navigateBack, closeCreate }
 
 enum _DiscardDialogMode { edit, create }
 
@@ -1655,6 +1687,25 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
   }
 }
 
+Component _tableRowDetailBackArrowIcon() {
+  return svg(
+    viewBox: '0 0 16 16',
+    width: 14.px,
+    height: 14.px,
+    classes: 'table-row-detail-back-icon',
+    attributes: {'aria-hidden': 'true', 'fill': 'none'},
+    [
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.5',
+        d: 'M10 4l-4 4 4 4',
+        attributes: const {'stroke-linecap': 'round', 'stroke-linejoin': 'round'},
+        [],
+      ),
+    ],
+  );
+}
+
 Component _copyIconSvg() {
   return svg(
     viewBox: '0 0 16 16',
@@ -1716,6 +1767,22 @@ class _DetailFieldValue extends StatelessComponent {
   Component build(BuildContext context) {
     if (rawValue == null) {
       return _DetailPlainText(value: formatReadOnlyCell(rawValue, shape));
+    }
+
+    if (isForeignKeyColumn(shape) && shape.foreignKey != null) {
+      return SchemaTableForeignKeyCell(
+        rawValue: rawValue,
+        shape: shape,
+        onOpenReferencedRow: (context, referenced) {
+          context.read(tableRowDetailProvider.notifier).pushReferencedRow(
+            rowKey: referenced.rowKey,
+            row: referenced.row,
+            sqliteName: referenced.sqliteName,
+            columns: referenced.columns,
+            columnShapes: referenced.columnShapes,
+          );
+        },
+      );
     }
 
     if (shape.isSecret || shape.kind == ColumnShapeKind.password) {
@@ -1934,6 +2001,49 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     display: .flex,
     flexDirection: FlexDirection.column,
     gap: Gap.all(ZonaiSpacing.s2),
+  ),
+  css('.table-row-detail-header-title-row').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .start,
+    gap: Gap.all(ZonaiSpacing.s4),
+    minWidth: .zero,
+  ),
+  css('.table-row-detail-header-heading').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(ZonaiSpacing.s2),
+    minWidth: .zero,
+    flex: Flex(grow: 1, shrink: 1),
+  ),
+  css('.table-row-detail-back').styles(
+    display: .inlineFlex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(ZonaiSpacing.s2),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
+    margin: .zero,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(8.px)),
+    backgroundColor: Colors.transparent,
+    color: mutedColor,
+    cursor: .pointer,
+    fontSize: 0.75.rem,
+    fontWeight: .w600,
+    flex: Flex(grow: 0, shrink: 0),
+    raw: const {'font': 'inherit', 'line-height': '1.2'},
+  ),
+  css('.table-row-detail-back-icon').styles(
+    display: .block,
+    flex: Flex(grow: 0, shrink: 0),
+    raw: const {'line-height': '0'},
+  ),
+  css('.table-row-detail-back:hover:not(:disabled)').styles(
+    backgroundColor: hoverColor,
+    color: fgColor,
+  ),
+  css('.table-row-detail-back:focus-visible').styles(
+    raw: const {'outline': '2px solid var(--zonai-primary)', 'outline-offset': '1px'},
   ),
   css('.table-row-detail-title').styles(margin: .zero, fontSize: 0.9375.rem, fontWeight: .w600),
   css('.table-row-detail-subtitle').styles(

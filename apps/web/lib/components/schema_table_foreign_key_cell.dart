@@ -11,16 +11,23 @@ import '../providers/table_row_detail_provider.dart';
 import 'app_tooltip_overlay.dart';
 import 'theme/zonai_tag.dart';
 
+typedef OpenReferencedRowCallback = void Function(
+  BuildContext context,
+  ForeignKeyReferencedRow referenced,
+);
+
 /// FK table cell: resolved label tag and a button to open referenced row details.
 class SchemaTableForeignKeyCell extends StatelessComponent {
   const SchemaTableForeignKeyCell({
     required this.rawValue,
     required this.shape,
+    this.onOpenReferencedRow,
     super.key,
   });
 
   final Object? rawValue;
   final ColumnShape shape;
+  final OpenReferencedRowCallback? onOpenReferencedRow;
 
   @override
   Component build(BuildContext context) {
@@ -57,6 +64,11 @@ class SchemaTableForeignKeyCell extends StatelessComponent {
   }
 
   void _openReferencedRow(BuildContext context, ForeignKeyReferencedRow referenced) {
+    final onOpen = onOpenReferencedRow;
+    if (onOpen != null) {
+      onOpen(context, referenced);
+      return;
+    }
     context.read(tableRowDetailProvider.notifier).open(
       rowKey: referenced.rowKey,
       row: referenced.row,

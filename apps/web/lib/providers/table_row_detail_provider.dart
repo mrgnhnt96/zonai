@@ -6,6 +6,27 @@ import 'table_row_create_provider.dart';
 
 enum TableRowDetailViewMode { fields, json, edit }
 
+/// Previous row state restored by [TableRowDetailNotifier.pop].
+final class TableRowDetailSnapshot {
+  const TableRowDetailSnapshot({
+    required this.rowKey,
+    required this.row,
+    required this.columns,
+    required this.columnShapes,
+    required this.sqliteName,
+    required this.viewMode,
+    required this.openedViaEditShortcut,
+  });
+
+  final String rowKey;
+  final List<Object?> row;
+  final List<String> columns;
+  final List<ColumnShape> columnShapes;
+  final String sqliteName;
+  final TableRowDetailViewMode viewMode;
+  final bool openedViaEditShortcut;
+}
+
 final class TableRowDetailState {
   const TableRowDetailState({
     required this.rowKey,
@@ -15,6 +36,7 @@ final class TableRowDetailState {
     required this.sqliteName,
     this.viewMode = TableRowDetailViewMode.fields,
     this.openedViaEditShortcut = false,
+    this.backStack = const [],
   });
 
   final String rowKey;
@@ -27,10 +49,16 @@ final class TableRowDetailState {
   /// True when the panel was opened straight into edit via the `e` shortcut.
   final bool openedViaEditShortcut;
 
+  /// Rows navigated from via FK "view reference" in the detail panel.
+  final List<TableRowDetailSnapshot> backStack;
+
+  bool get canNavigateBack => backStack.isNotEmpty;
+
   TableRowDetailState copyWith({
     List<Object?>? row,
     TableRowDetailViewMode? viewMode,
     bool? openedViaEditShortcut,
+    List<TableRowDetailSnapshot>? backStack,
   }) {
     return TableRowDetailState(
       rowKey: rowKey,
@@ -40,6 +68,7 @@ final class TableRowDetailState {
       columnShapes: columnShapes,
       viewMode: viewMode ?? this.viewMode,
       openedViaEditShortcut: openedViaEditShortcut ?? this.openedViaEditShortcut,
+      backStack: backStack ?? this.backStack,
     );
   }
 }
@@ -53,6 +82,34 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
   TableRowDetailState? build() {
     ref.watch(tableFocusProvider);
     return null;
+  }
+
+  TableRowDetailSnapshot _snapshot(TableRowDetailState current) {
+    return TableRowDetailSnapshot(
+      rowKey: current.rowKey,
+      row: List<Object?>.from(current.row),
+      sqliteName: current.sqliteName,
+      columns: current.columns,
+      columnShapes: current.columnShapes,
+      viewMode: current.viewMode,
+      openedViaEditShortcut: current.openedViaEditShortcut,
+    );
+  }
+
+  TableRowDetailState _stateFromSnapshot(
+    TableRowDetailSnapshot snapshot, {
+    required List<TableRowDetailSnapshot> backStack,
+  }) {
+    return TableRowDetailState(
+      rowKey: snapshot.rowKey,
+      row: List<Object?>.from(snapshot.row),
+      sqliteName: snapshot.sqliteName,
+      columns: snapshot.columns,
+      columnShapes: snapshot.columnShapes,
+      viewMode: snapshot.viewMode,
+      openedViaEditShortcut: snapshot.openedViaEditShortcut,
+      backStack: backStack,
+    );
   }
 
   void open({
@@ -74,6 +131,42 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
       viewMode: viewMode,
       openedViaEditShortcut: viaEditShortcut && viewMode == TableRowDetailViewMode.edit,
     );
+  }
+
+  void pushReferencedRow({
+    required String rowKey,
+    required List<Object?> row,
+    required String sqliteName,
+    required List<String> columns,
+    required List<ColumnShape> columnShapes,
+  }) {
+    final current = state;
+    if (current == null) {
+      open(
+        rowKey: rowKey,
+        row: row,
+        sqliteName: sqliteName,
+        columns: columns,
+        columnShapes: columnShapes,
+      );
+      return;
+    }
+    state = TableRowDetailState(
+      rowKey: rowKey,
+      row: List<Object?>.from(row),
+      sqliteName: sqliteName,
+      columns: columns,
+      columnShapes: columnShapes,
+      backStack: [...current.backStack, _snapshot(current)],
+    );
+  }
+
+  void pop() {
+    final current = state;
+    if (current == null || current.backStack.isEmpty) return;
+    final stack = current.backStack;
+    final previous = stack.last;
+    state = _stateFromSnapshot(previous, backStack: stack.sublist(0, stack.length - 1));
   }
 
   void setViewMode(TableRowDetailViewMode viewMode) {
