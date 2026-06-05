@@ -24,6 +24,8 @@ class RateLimit {
       UpdateBody(:final table) => table,
       DeleteOneBody(:final table) => table,
       DeleteBody(:final table) => table,
+      CountBody(:final table) => table,
+      StreamCountBody(:final table) => table,
       StreamBody(:final table) => table,
       StreamListBody(:final table) => table,
       SendResetPasswordAuthBody(:final table) => table,

@@ -119,7 +119,7 @@ class _DashboardStatsNotifier extends AsyncNotifier<DashboardStats> {
     // _jwt.expires_at is stored in Unix seconds, not milliseconds
     final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    final (requestData, errorData, sessionData) = await (
+    final (requestData, errorCount, sessionCount) = await (
       revaliServer.db.list(
         body: ListBody(
           table: '_log',
@@ -130,18 +130,16 @@ class _DashboardStatsNotifier extends AsyncNotifier<DashboardStats> {
           ],
         ),
       ),
-      revaliServer.db.list(
-        body: ListBody(
+      revaliServer.db.count(
+        body: CountBody(
           table: '_log',
           where: And([Eq('level', 'error'), Gt('timestamp', since)]),
-          limit: 1,
         ),
       ),
-      revaliServer.db.list(
-        body: ListBody(
+      revaliServer.db.count(
+        body: CountBody(
           table: '_jwt',
           where: Gt('expires_at', nowSeconds),
-          limit: 1,
         ),
       ),
     ).wait;
@@ -150,8 +148,8 @@ class _DashboardStatsNotifier extends AsyncNotifier<DashboardStats> {
 
     return DashboardStats(
       requestCount24h: _parseTotal(requestData),
-      errorCount24h: _parseTotal(errorData),
-      activeSessions: _parseTotal(sessionData),
+      errorCount24h: errorCount,
+      activeSessions: sessionCount,
       p95ResponseMs: _computeP95(requestItems),
     );
   }
@@ -321,14 +319,14 @@ class _TableCountsNotifier extends AsyncNotifier<Map<String, int>> {
     ];
     if (userTables.isEmpty) return const {};
 
-    final responses = await Future.wait([
+    final counts = await Future.wait([
       for (final t in userTables)
-        revaliServer.db.list(body: ListBody(table: t.sqliteName, limit: 1)),
+        revaliServer.db.count(body: CountBody(table: t.sqliteName)),
     ]);
 
     return {
       for (var i = 0; i < userTables.length; i++)
-        userTables[i].sqliteName: _parseTotal(responses[i]),
+        userTables[i].sqliteName: counts[i],
     };
   }
 }
