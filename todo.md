@@ -31,9 +31,7 @@ The dashboard will be the first page on website load. It should show a quick ove
 
 ### API
 
-- [ ] Export records as JSON
 - [ ] Create references to photo from other collections when using the `photo` or `photos` column
-- [ ] Clean up photos that are not referenced in any table
 
 ## CLI
 

@@ -5,6 +5,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/web.dart' as web;
 
+import '../auth/auth_routes.dart';
 import '../constants/theme.dart';
 import '../providers/app_name_provider.dart';
 import '../providers/home_ui_provider.dart';
@@ -59,7 +60,7 @@ class HomeSidebar extends StatelessComponent {
           'home-sidebar${collapsed ? ' home-sidebar--collapsed' : ''}${ui.mobileNavOpen ? ' home-sidebar--mobile-open' : ''}',
       [
         div(classes: 'home-sidebar-header', [
-          div(classes: 'home-sidebar-brand', [
+          a(href: AuthRoutes.home, classes: 'home-sidebar-brand', [
             div(classes: 'home-sidebar-logo', [.text(initial)]),
             span(classes: 'home-sidebar-app-name', [.text(appName)]),
           ]),
@@ -240,6 +241,7 @@ class HomeSidebar extends StatelessComponent {
         minWidth: .zero,
         overflow: Overflow.hidden,
         flex: Flex(grow: 1, shrink: 1),
+        raw: const {'text-decoration': 'none', 'color': 'inherit'},
       ),
       css('.home-sidebar-logo').styles(
         width: 32.px,

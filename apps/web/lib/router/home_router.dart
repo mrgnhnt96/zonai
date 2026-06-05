@@ -2,7 +2,8 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_router/jaspr_router.dart';
 
 import '../auth/auth_routes.dart';
-import '../components/home_screen.dart' deferred as home_screen;
+import '../components/dashboard_screen.dart';
+import '../components/home_screen.dart';
 import 'route_path_sync.dart';
 import 'router_redirects.dart';
 
@@ -37,16 +38,19 @@ class HomeRouter extends StatelessComponent {
 }
 
 final List<RouteBase> homeRoutes = [
-  Route.lazy(
+  Route(
+    path: AuthRoutes.home,
+    name: 'dashboard',
+    builder: (_, _) => const DashboardScreen(),
+  ),
+  Route(
     path: '/tables/:sqliteName',
     name: 'table',
-    builder: (_, _) => home_screen.HomeScreen(),
-    load: home_screen.loadLibrary,
+    builder: (_, _) => const HomeScreen(),
   ),
-  Route.lazy(
-    path: AuthRoutes.home,
-    name: 'home',
-    builder: (_, _) => home_screen.HomeScreen(),
-    load: home_screen.loadLibrary,
+  Route(
+    path: AuthRoutes.tables,
+    name: 'tables',
+    builder: (_, _) => const HomeScreen(),
   ),
 ];
