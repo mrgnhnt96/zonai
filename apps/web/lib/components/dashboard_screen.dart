@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import '../auth/auth_routes.dart';
+import '../constants/button_sizes.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/dashboard_provider.dart';
@@ -12,6 +13,7 @@ import '../utils/sqlite_table_utils.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'theme/ui_styles.dart';
+import 'theme/zonai_icon_button.dart';
 import 'toast_overlay.dart';
 
 class DashboardScreen extends StatelessComponent {
@@ -48,6 +50,18 @@ class DashboardScreen extends StatelessComponent {
     return main_(classes: 'home${mobileNavOpen ? ' home--mobile-nav-open' : ''}', [
       HomeSidebar(focused: null),
       div(classes: 'home-main', [
+        div(classes: 'home-mobile-nav-header', [
+          ZonaiIconButton(
+            size: ZonaiIconButtonSize.lg,
+            attributes: {
+              'aria-label': 'Open navigation',
+              'aria-expanded': mobileNavOpen ? 'true' : 'false',
+            },
+            onClick: () => context.read(homeUiProvider.notifier).toggleMobileNav(),
+            child: .text('☰'),
+          ),
+          h1(classes: 'home-mobile-nav-title', [.text('Dashboard')]),
+        ]),
         div(classes: 'dashboard-scroller', [
           div(classes: 'dashboard', [
           div(classes: 'dashboard-header', [
@@ -578,6 +592,9 @@ class DashboardScreen extends StatelessComponent {
       ),
       css.media(MediaQuery.all(maxWidth: 1024.px), [
         css('.dashboard-tables').styles(justifyContent: .center),
+      ]),
+      css.media(MediaQuery.all(maxWidth: 640.px), [
+        css('.dashboard-header').styles(display: .none),
       ]),
     ]),
   ];
