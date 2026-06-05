@@ -24,6 +24,10 @@ class DbCrons {
             throw Exception(
               '$LastJobRunRequest should not be called from main thread',
             );
+          case CleanupUnreferencedPhotosRequest():
+            throw Exception(
+              '$CleanupUnreferencedPhotosRequest should not be called from main thread',
+            );
         }
       },
     );

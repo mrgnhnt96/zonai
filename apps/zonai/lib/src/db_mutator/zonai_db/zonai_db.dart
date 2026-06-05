@@ -40,6 +40,7 @@ import '../operation_result.dart';
 import '../payloads/payloads.dart';
 import '../sqlite_internal_table_sync.dart';
 
+part 'parts/cleanup_photos.dart';
 part 'parts/__auth_utils.dart';
 part 'parts/__utils.dart';
 part 'parts/admin/create_admin.dart';
@@ -239,6 +240,10 @@ class ZonaiDb {
 
   Future<void> deletePhoto({required String? token, required String id}) async {
     return await _run(() => _deletePhoto(token: token, id: id));
+  }
+
+  Future<int> cleanupUnreferencedPhotos() async {
+    return await _run(_cleanupUnreferencedPhotos);
   }
 
   Future<void> sendEmail(Email email) async {

@@ -312,22 +312,9 @@ extension _PhotoX on ZonaiDb {
     await _requireRowAccess(table.name, .delete, table.mapOut(photo), jwt);
 
     try {
-      await _extensions.send<NoActionExtensionResponse>(
-        DeleteExtensionRequest.before(
-          table: table.name,
-          objects: [table.mapOut(photo)],
-          jwt: jwt,
-        ),
-      );
-
-      final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
-      if (file.existsSync()) {
-        await file.delete();
-      }
-
-      await _postDelete(table.name, jwt, objects: [table.mapOut(photo)]);
+      await _deletePhotoEntry(photo, jwt: jwt);
     } catch (e, stack) {
-      logger.error('$e', 'Failed to update photo', stack);
+      logger.error('$e', 'Failed to delete photo', stack);
       await _extensions.send<NoActionExtensionResponse>(
         ErrorExtensionRequest.delete(
           table: table.name,

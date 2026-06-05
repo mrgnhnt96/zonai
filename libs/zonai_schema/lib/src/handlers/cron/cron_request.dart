@@ -12,6 +12,8 @@ sealed class CronRequest extends Request {
       StopCronsRequest._path => StopCronsRequest.fromJson(json),
       LastJobRunRequest._path => LastJobRunRequest.fromJson(json),
       RunCronJobRequest._path => RunCronJobRequest.fromJson(json),
+      CleanupUnreferencedPhotosRequest._path =>
+        CleanupUnreferencedPhotosRequest.fromJson(json),
       _ => throw ArgumentError('Invalid cron request path: ${json['path']}'),
     };
   }
@@ -22,6 +24,8 @@ sealed class CronRequest extends Request {
       StopCronsRequest._path => StopCronsRequest.fromRequest(request),
       LastJobRunRequest._path => LastJobRunRequest.fromRequest(request),
       RunCronJobRequest._path => RunCronJobRequest.fromRequest(request),
+      CleanupUnreferencedPhotosRequest._path =>
+        CleanupUnreferencedPhotosRequest.fromRequest(request),
       _ => throw ArgumentError('Invalid cron request path: ${request.path}'),
     };
   }
@@ -109,4 +113,20 @@ final class RunCronJobRequest extends CronRequest {
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'name': name};
   }
+}
+
+final class CleanupUnreferencedPhotosRequest extends CronRequest {
+  CleanupUnreferencedPhotosRequest()
+    : super(path: _path, id: Request.generateId());
+  CleanupUnreferencedPhotosRequest._({required super.id}) : super(path: _path);
+
+  factory CleanupUnreferencedPhotosRequest.fromJson(Map<String, dynamic> json) {
+    return CleanupUnreferencedPhotosRequest._(id: json['id']);
+  }
+
+  factory CleanupUnreferencedPhotosRequest.fromRequest(UnknownRequest request) {
+    return CleanupUnreferencedPhotosRequest._(id: request.id);
+  }
+
+  static const _path = '${CronRequest.prefix}.cleanup_unreferenced_photos';
 }

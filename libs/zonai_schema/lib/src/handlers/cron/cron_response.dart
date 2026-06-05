@@ -17,6 +17,8 @@ sealed class CronResponse extends Response {
       JobCompleted._path => JobCompleted.fromJson(json),
       JobFailed._path => JobFailed.fromJson(json),
       LastJobRunResponse._path => LastJobRunResponse.fromJson(json),
+      CleanupUnreferencedPhotosResponse._path =>
+        CleanupUnreferencedPhotosResponse.fromJson(json),
       final path => throw ArgumentError('Invalid cron response path: $path'),
     };
   }
@@ -149,5 +151,28 @@ final class LastJobRunResponse extends CronResponse {
       'lastRun': time?.toIso8601String(),
       'wasSuccessful': wasSuccessful,
     };
+  }
+}
+
+final class CleanupUnreferencedPhotosResponse extends CronResponse {
+  CleanupUnreferencedPhotosResponse({
+    required super.id,
+    required this.deletedCount,
+  }) : super(path: _path, payload: const {});
+
+  factory CleanupUnreferencedPhotosResponse.fromJson(Map<String, dynamic> json) {
+    return CleanupUnreferencedPhotosResponse(
+      id: json['id'],
+      deletedCount: json['deletedCount'] as int,
+    );
+  }
+
+  static const _path = '${CronResponse.prefix}.cleanup_unreferenced_photos';
+
+  final int deletedCount;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'deletedCount': deletedCount};
   }
 }
