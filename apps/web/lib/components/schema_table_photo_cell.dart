@@ -65,7 +65,9 @@ List<StyleRule> get schemaTablePhotoCellStyles => [
     gap: Gap.all(ZonaiSpacing.s2),
   ),
   css('.schema-table-photo-cell__link').styles(
-    display: .block,
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
     flex: Flex(grow: 0, shrink: 0),
     overflow: Overflow.hidden,
     radius: .all(Radius.circular(4.px)),
@@ -78,13 +80,11 @@ List<StyleRule> get schemaTablePhotoCellStyles => [
   ),
   css('.schema-table-photo-cell__link img').styles(
     display: .block,
-    raw: const {'object-fit': 'cover'},
+    width: 100.percent,
+    height: 100.percent,
+    raw: const {'object-fit': 'contain', 'object-position': 'center'},
   ),
   css('.schema-table-photo-cell--compact .schema-table-photo-cell__link').styles(
-    width: 28.px,
-    height: 28.px,
-  ),
-  css('.schema-table-photo-cell--compact .schema-table-photo-cell__link img').styles(
     width: 28.px,
     height: 28.px,
   ),
@@ -95,9 +95,5 @@ List<StyleRule> get schemaTablePhotoCellStyles => [
     width: 72.px,
     height: 72.px,
     radius: .all(Radius.circular(6.px)),
-  ),
-  css('.schema-table-photo-cell--detail .schema-table-photo-cell__link img').styles(
-    width: 72.px,
-    height: 72.px,
   ),
 ];
