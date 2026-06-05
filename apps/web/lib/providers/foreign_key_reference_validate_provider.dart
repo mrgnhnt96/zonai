@@ -1,11 +1,8 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_web/api/api_client.dart';
 
-import '../utils/foreign_key_search_where.dart';
 import '../utils/table_cell_edit.dart';
 import 'foreign_key_rows_provider.dart';
-import 'table_rows_provider.dart';
 import 'table_schema_provider.dart';
 
 /// Result of checking whether a typed FK value exists in the referenced table.
@@ -73,47 +70,18 @@ final foreignKeyReferenceValidateProvider =
   }
 
   final schema = ref.watch(tableSchemasProvider)[query.foreignKey.table];
-  final data = await revaliServer.db.list(
-    body: ListBody(
-      table: query.foreignKey.table,
-      where: eqForeignKeyReferenceWhere(foreignKey: query.foreignKey, parsedValue: parsed),
-      limit: 1,
-    ),
+  final referenced = await loadForeignKeyReferencedRow(
+    foreignKey: query.foreignKey,
+    parsedValue: parsed,
+    schema: schema,
   );
-
-  final items = parseFkListItemsFromResponse(data);
-  if (items.isEmpty) {
+  if (referenced == null) {
     return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.invalid);
   }
 
-  final columnOrder = fkColumnOrderFromSchemaOrItems(schema, items);
-  final columnShapes = [
-    for (final name in columnOrder)
-      schema?.columnNamed(name) ??
-          ColumnShape(
-            name: name,
-            kind: ColumnShapeKind.text,
-            isNullable: true,
-            isPrimaryKey: false,
-            autoIncrement: false,
-            sqlType: 'TEXT',
-          ),
-  ];
-  final row = [for (final col in columnOrder) items.first[col]];
-  final tableData = TableRowsData(
-    sqliteName: query.foreignKey.table,
-    columns: columnOrder,
-    columnShapes: columnShapes,
-    rows: [row],
-    total: 1,
-    truncated: false,
-    schema: schema,
-  );
-  final label = foreignKeyRowLabel(tableData, row);
-
   return ForeignKeyReferenceValidationResult(
     state: ForeignKeyReferenceValidation.valid,
-    displayLabel: label.isEmpty ? null : label,
+    displayLabel: referenced.displayLabel,
   );
 });
 

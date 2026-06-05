@@ -3,6 +3,7 @@ import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
 import '../utils/foreign_key_search_where.dart';
+import '../utils/table_row_key.dart';
 import 'table_rows_provider.dart';
 import 'table_schema_provider.dart';
 
@@ -147,6 +148,95 @@ String? foreignKeyValueFromRow(TableRowsData data, ForeignKeyShape foreignKey, L
   final value = row[index];
   if (value == null) return null;
   return '$value';
+}
+
+/// Resolved referenced row for FK preview and row-detail navigation.
+final class ForeignKeyReferencedRow {
+  const ForeignKeyReferencedRow({
+    required this.sqliteName,
+    required this.columns,
+    required this.columnShapes,
+    required this.row,
+    this.displayLabel,
+  });
+
+  final String sqliteName;
+  final List<String> columns;
+  final List<ColumnShape> columnShapes;
+  final List<Object?> row;
+  final String? displayLabel;
+
+  String get rowKey => tableRowKey(row, columnShapes);
+}
+
+/// Loads a single referenced row by FK value, or null when it does not exist.
+Future<ForeignKeyReferencedRow?> loadForeignKeyReferencedRow({
+  required ForeignKeyShape foreignKey,
+  required Object parsedValue,
+  required TableSchemaShape? schema,
+}) async {
+  final data = await revaliServer.db.list(
+    body: ListBody(
+      table: foreignKey.table,
+      where: eqForeignKeyReferenceWhere(foreignKey: foreignKey, parsedValue: parsedValue),
+      limit: 1,
+    ),
+  );
+
+  final items = parseFkListItemsFromResponse(data);
+  if (items.isEmpty) return null;
+
+  final tableData = tableRowsDataFromFkListResponse(
+    sqliteName: foreignKey.table,
+    schema: schema,
+    items: items,
+    total: 1,
+  );
+  final row = tableData.rows.single;
+  final label = foreignKeyRowLabel(tableData, row);
+
+  return ForeignKeyReferencedRow(
+    sqliteName: foreignKey.table,
+    columns: tableData.columns,
+    columnShapes: tableData.columnShapes,
+    row: row,
+    displayLabel: label.isEmpty ? null : label,
+  );
+}
+
+/// Builds [TableRowsData] from a `/db/list` response for FK pickers and lookups.
+TableRowsData tableRowsDataFromFkListResponse({
+  required String sqliteName,
+  required TableSchemaShape? schema,
+  required List<Map<String, Object?>> items,
+  required int total,
+}) {
+  final columnOrder = fkColumnOrderFromSchemaOrItems(schema, items);
+  final columnShapes = [
+    for (final name in columnOrder)
+      schema?.columnNamed(name) ??
+          ColumnShape(
+            name: name,
+            kind: ColumnShapeKind.text,
+            isNullable: true,
+            isPrimaryKey: false,
+            autoIncrement: false,
+            sqlType: 'TEXT',
+          ),
+  ];
+  final rows = [
+    for (final item in items) [for (final col in columnOrder) item[col]],
+  ];
+
+  return TableRowsData(
+    sqliteName: sqliteName,
+    columns: columnOrder,
+    columnShapes: columnShapes,
+    rows: rows,
+    total: total,
+    truncated: total > items.length,
+    schema: schema,
+  );
 }
 
 /// Human-readable label for a FK table row (first text-like column after PK).

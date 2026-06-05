@@ -2,6 +2,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:zonai_schema/payloads.dart';
 
 import '../utils/table_cell_edit.dart';
+import 'schema_table_foreign_key_cell.dart';
 import 'theme/theme_components.dart';
 
 /// Renders a table body cell with rich widgets for enums, lists, and booleans.
@@ -13,6 +14,7 @@ class SchemaTableCell extends StatelessComponent {
 
   static bool usesRichLayout(ColumnShape? shape) {
     if (shape == null) return false;
+    if (isForeignKeyColumn(shape)) return true;
     return switch (shape.kind) {
       ColumnShapeKind.list ||
       ColumnShapeKind.enum_ ||
@@ -27,6 +29,10 @@ class SchemaTableCell extends StatelessComponent {
   Component build(BuildContext context) {
     if (rawValue == null || shape?.isSecret == true || shape?.kind == ColumnShapeKind.password) {
       return .text(formatSchemaCell(rawValue, shape));
+    }
+
+    if (shape != null && isForeignKeyColumn(shape!)) {
+      return SchemaTableForeignKeyCell(rawValue: rawValue, shape: shape!);
     }
 
     return switch (shape?.kind) {

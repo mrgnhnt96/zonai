@@ -33,6 +33,7 @@ import 'home_sidebar.dart';
 import 'app_tooltip_overlay.dart';
 import 'syntax_highlighted_code.dart';
 import 'schema_table_cell.dart';
+import 'schema_table_foreign_key_cell.dart';
 import 'table_row_detail_panel.dart';
 import 'table_edit/table_edit_datetime_field.dart';
 import 'table_edit/table_edit_enum_multi_select.dart';
@@ -93,6 +94,7 @@ class HomeScreen extends StatelessComponent {
     ...tableEditEnumMultiSelectStyles,
     ...tableEditDatetimeStyles,
     ...tableFilterDatetimeStyles,
+    ...schemaTableForeignKeyCellStyles,
     css('.home', [
       css('&').styles(
         flex: Flex(grow: 1, shrink: 1),

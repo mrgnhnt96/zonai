@@ -2,9 +2,11 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
+import '../utils/table_cell_edit.dart';
 import '../utils/table_row_edit.dart';
 import '../utils/table_row_key.dart';
 import '../utils/table_rows_json.dart';
+import 'foreign_key_reference_lookup_provider.dart';
 import 'table_focus_provider.dart';
 import 'table_row_detail_provider.dart';
 import 'table_row_selection_provider.dart';
@@ -175,7 +177,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
           object: apiWireObject(object),
         ),
       );
-      ref.invalidateSelf();
+      _invalidateTableAndForeignKeyLookups();
       return created;
     } catch (e) {
       throw StateError('Failed to create row: $e');
@@ -211,7 +213,14 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
           updates: [ObjectUpdate(apiWireObject(changedFields))],
         ),
       );
-      ref.invalidateSelf();
+      _patchLocalRowIfPresent(
+        originalRow: row,
+        record: updated,
+        columns: columns,
+        columnShapes: columnShapes,
+        sqliteName: sqliteName,
+      );
+      _invalidateTableAndForeignKeyLookups();
       return updated;
     } catch (e) {
       throw StateError('Failed to update row: $e');
@@ -247,7 +256,45 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
 
     ref.read(tableRowSelectionProvider.notifier).clear();
     ref.read(tableRowDetailProvider.notifier).close();
+    _invalidateTableAndForeignKeyLookups();
+  }
+
+  void _invalidateTableAndForeignKeyLookups() {
+    ref.invalidate(foreignKeyReferenceLookupProvider);
     ref.invalidateSelf();
+  }
+
+  /// Updates a visible row in memory so the home table reflects saves immediately.
+  void _patchLocalRowIfPresent({
+    required List<Object?> originalRow,
+    required Map<String, Object?> record,
+    required List<String> columns,
+    required List<ColumnShape> columnShapes,
+    required String sqliteName,
+  }) {
+    final current = state.value;
+    if (current == null || current.sqliteName != sqliteName) return;
+
+    final oldKey = tableRowKey(originalRow, columnShapes);
+    final newRow = rowFromRecord(record, columns);
+    final rows = [...current.rows];
+    for (var i = 0; i < rows.length; i++) {
+      if (tableRowKey(rows[i], columnShapes) != oldKey) continue;
+      rows[i] = newRow;
+      state = AsyncData(
+        TableRowsData(
+          columns: current.columns,
+          columnShapes: current.columnShapes,
+          rows: rows,
+          total: current.total,
+          truncated: current.truncated,
+          sqliteName: current.sqliteName,
+          schema: current.schema,
+          isLoadingMore: current.isLoadingMore,
+        ),
+      );
+      return;
+    }
   }
 
   Future<void> _deleteEntireTable(TableRowsData data) async {

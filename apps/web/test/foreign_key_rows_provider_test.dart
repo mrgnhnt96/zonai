@@ -39,4 +39,51 @@ void main() {
       expect(foreignKeyValueFromRow(data, fk, data.rows.first), 'acme');
     });
   });
+
+  group('tableRowsDataFromFkListResponse', () {
+    test('builds row data and display label from list items', () {
+      const schema = TableSchemaShape(
+        table: 'companies',
+        columns: [
+          ColumnShape(
+            name: 'slug',
+            kind: ColumnShapeKind.text,
+            isNullable: false,
+            isPrimaryKey: true,
+            autoIncrement: false,
+            sqlType: 'TEXT',
+          ),
+          ColumnShape(
+            name: 'name',
+            kind: ColumnShapeKind.text,
+            isNullable: false,
+            isPrimaryKey: false,
+            autoIncrement: false,
+            sqlType: 'TEXT',
+          ),
+        ],
+      );
+
+      final data = tableRowsDataFromFkListResponse(
+        sqliteName: 'companies',
+        schema: schema,
+        items: [
+          {'slug': 'acme', 'name': 'Acme Inc'},
+        ],
+        total: 1,
+      );
+
+      expect(data.columns, ['slug', 'name']);
+      expect(foreignKeyRowLabel(data, data.rows.single), 'Acme Inc');
+
+      final referenced = ForeignKeyReferencedRow(
+        sqliteName: data.sqliteName,
+        columns: data.columns,
+        columnShapes: data.columnShapes,
+        row: data.rows.single,
+        displayLabel: foreignKeyRowLabel(data, data.rows.single),
+      );
+      expect(referenced.rowKey, 'slug=acme');
+    });
+  });
 }

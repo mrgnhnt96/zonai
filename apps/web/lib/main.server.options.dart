@@ -27,6 +27,8 @@ import 'package:zonai_web/components/home_screen.dart' as _home_screen;
 import 'package:zonai_web/components/home_settings_overlay.dart'
     as _home_settings_overlay;
 import 'package:zonai_web/components/home_sidebar.dart' as _home_sidebar;
+import 'package:zonai_web/components/schema_table_foreign_key_cell.dart'
+    as _schema_table_foreign_key_cell;
 import 'package:zonai_web/components/syntax_highlighted_code.dart'
     as _syntax_highlighted_code;
 import 'package:zonai_web/components/table_filter_datetime_field.dart'
@@ -68,6 +70,7 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ),
   },
   styles: () => [
+    ..._schema_table_foreign_key_cell.schemaTableForeignKeyCellStyles,
     ..._syntax_highlighted_code.syntaxHighlightedCodeStyles,
     ..._table_filter_datetime_field.tableFilterDatetimeStyles,
     ..._table_row_detail_panel.tableRowDetailPanelStyles,
