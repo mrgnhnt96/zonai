@@ -20,10 +20,6 @@ void applyPhotoViewHeaders(Context context, Response response) {
 
   response.headers.set(HttpHeaders.contentDisposition, 'inline');
 
-  if (response.headers.mimeType != null) {
-    return;
-  }
-
   final segment = path.split('/').where((part) => part.isNotEmpty).lastOrNull;
   if (segment == null || !segment.contains('.')) {
     return;
