@@ -123,8 +123,17 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
     bool viaEditShortcut = false,
   }) {
     final current = state;
-    if (current?.rowKey == rowKey) {
-      setViewMode(viewMode);
+    if (current != null && current.rowKey == rowKey) {
+      if (current.viewMode == viewMode &&
+          !(viaEditShortcut && viewMode == TableRowDetailViewMode.edit)) {
+        return;
+      }
+      state = current.copyWith(
+        viewMode: viewMode,
+        openedViaEditShortcut: viaEditShortcut && viewMode == TableRowDetailViewMode.edit
+            ? true
+            : current.openedViaEditShortcut,
+      );
       return;
     }
     open(

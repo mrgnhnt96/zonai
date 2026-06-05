@@ -1522,6 +1522,45 @@ void _openDetailForRowKey({
   );
 }
 
+/// Opens or switches the row detail panel to [viewMode].
+///
+/// When a detail panel is already open (e.g. a FK-referenced row from another
+/// table), uses that state directly instead of looking up [activeKey] in the
+/// current table page.
+void _openDetailViewMode({
+  required BuildContext context,
+  required TableRowDetailState? detail,
+  required String? activeKey,
+  required List<List<Object?>> displayRows,
+  required List<String> displayKeys,
+  required TableRowsData data,
+  required TableRowDetailViewMode viewMode,
+  bool viaEditShortcut = false,
+}) {
+  if (detail != null) {
+    context.read(tableRowDetailProvider.notifier).openFocusedRow(
+      rowKey: detail.rowKey,
+      row: detail.row,
+      sqliteName: detail.sqliteName,
+      columns: detail.columns,
+      columnShapes: detail.columnShapes,
+      viewMode: viewMode,
+      viaEditShortcut: viaEditShortcut,
+    );
+    return;
+  }
+  if (activeKey == null) return;
+  _openDetailForRowKey(
+    context: context,
+    rowKey: activeKey,
+    displayRows: displayRows,
+    displayKeys: displayKeys,
+    data: data,
+    viewMode: viewMode,
+    viaEditShortcut: viaEditShortcut,
+  );
+}
+
 class HomeKeyboardShortcuts extends StatefulComponent {
   const HomeKeyboardShortcuts({super.key});
 
@@ -1624,7 +1663,6 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
     final displayKeys = displayed.keys;
     final focusKey = keyboardFocus.rowKey;
     final selectionNotifier = context.read(tableRowSelectionProvider.notifier);
-    final detailNotifier = context.read(tableRowDetailProvider.notifier);
     final activeKey = focusKey ?? detail?.rowKey;
     final tableSqliteName = data.sqliteName;
 
@@ -1679,11 +1717,12 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
           shiftKey: event.shiftKey,
         );
       case 'Enter':
-        if (activeKey == null) return;
+        if (detail == null && activeKey == null) return;
         event.preventDefault();
-        _openDetailForRowKey(
+        _openDetailViewMode(
           context: context,
-          rowKey: activeKey,
+          detail: detail,
+          activeKey: activeKey,
           displayRows: displayRows,
           displayKeys: displayKeys,
           data: data,
@@ -1691,11 +1730,12 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
         );
       case 'j':
       case 'J':
-        if (activeKey == null) return;
+        if (detail == null && activeKey == null) return;
         event.preventDefault();
-        _openDetailForRowKey(
+        _openDetailViewMode(
           context: context,
-          rowKey: activeKey,
+          detail: detail,
+          activeKey: activeKey,
           displayRows: displayRows,
           displayKeys: displayKeys,
           data: data,
@@ -1703,27 +1743,25 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
         );
       case 'f':
       case 'F':
-        if (activeKey == null) return;
+        if (detail == null && activeKey == null) return;
         event.preventDefault();
-        if (detail?.rowKey == activeKey) {
-          detailNotifier.setViewMode(TableRowDetailViewMode.fields);
-        } else {
-          _openDetailForRowKey(
-            context: context,
-            rowKey: activeKey,
-            displayRows: displayRows,
-            displayKeys: displayKeys,
-            data: data,
-            viewMode: TableRowDetailViewMode.fields,
-          );
-        }
+        _openDetailViewMode(
+          context: context,
+          detail: detail,
+          activeKey: activeKey,
+          displayRows: displayRows,
+          displayKeys: displayKeys,
+          data: data,
+          viewMode: TableRowDetailViewMode.fields,
+        );
       case 'e':
       case 'E':
-        if (activeKey == null) return;
+        if (detail == null && activeKey == null) return;
         event.preventDefault();
-        _openDetailForRowKey(
+        _openDetailViewMode(
           context: context,
-          rowKey: activeKey,
+          detail: detail,
+          activeKey: activeKey,
           displayRows: displayRows,
           displayKeys: displayKeys,
           data: data,
