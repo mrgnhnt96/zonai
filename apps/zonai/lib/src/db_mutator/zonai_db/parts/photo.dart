@@ -54,26 +54,11 @@ extension _PhotoX on ZonaiDb {
     final config = await configResolver.resolve();
     final photosConfig = config.photos;
 
-    final ImageMimeType imageType;
-    final Stream<List<int>> imageStream;
-
-    if (photosConfig.requiredMimeType) {
-      final declared = ImageMimeType.fromContentType(contentType);
-      if (declared == null) {
-        throw StateError('Invalid content type: $contentType');
-      }
-
-      imageStream = await PhotoStreamUtils.verifyExpectedType(image, declared);
-      imageType = declared;
-    } else {
-      final (detected, stream) = await PhotoStreamUtils.detectMimeType(image);
-      if (detected == null) {
-        throw StateError('Could not detect image type from stream');
-      }
-
-      imageStream = stream;
-      imageType = detected;
-    }
+    final (imageType, imageStream) = await PhotoStreamUtils.resolveUploadStream(
+      source: image,
+      contentType: contentType,
+      requiredMimeType: photosConfig.requiredMimeType,
+    );
 
     if (photosConfig.allowedMimeTypes case final allowed?) {
       if (!allowed.contains(imageType)) {

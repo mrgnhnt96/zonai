@@ -53,6 +53,7 @@ ClientOptions get defaultClientOptions => ClientOptions(
             ),
         initialPath: p['initialPath'] as String,
         initialAppName: p['initialAppName'] as String,
+        initialPhotosConfig: (p['initialPhotosConfig'] as Map<String, Object?>),
       ),
       loader: _home_app_shell.loadLibrary,
     ),

@@ -71,6 +71,30 @@ void main() {
     });
   });
 
+  group('PhotoStreamUtils.resolveUploadStream', () {
+    test('detects jpeg when content type is application/octet-stream', () async {
+      final (type, stream) = await PhotoStreamUtils.resolveUploadStream(
+        source: Stream.value([0xFF, 0xD8, 0xFF, 0xD9]),
+        contentType: 'application/octet-stream',
+        requiredMimeType: true,
+      );
+
+      expect(type, ImageMimeType.jpeg);
+      expect(await stream.expand((c) => c).toList(), [0xFF, 0xD8, 0xFF, 0xD9]);
+    });
+
+    test('verifies declared image/jpeg against bytes', () async {
+      final (type, stream) = await PhotoStreamUtils.resolveUploadStream(
+        source: Stream.value([0xFF, 0xD8, 0xFF, 0xD9]),
+        contentType: 'image/jpeg',
+        requiredMimeType: true,
+      );
+
+      expect(type, ImageMimeType.jpeg);
+      expect(await stream.expand((c) => c).toList(), [0xFF, 0xD8, 0xFF, 0xD9]);
+    });
+  });
+
   group('PhotoStreamUtils.verifyExpectedType', () {
     test('returns replay stream when bytes match', () async {
       final chunks = [

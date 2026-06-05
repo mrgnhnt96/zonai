@@ -1,0 +1,53 @@
+---
+description: Jaspr web app — browser vs server compile targets (imports, js_interop)
+globs: apps/web/**
+alwaysApply: false
+---
+
+# apps/web: browser-safe Dart
+
+`apps/web` compiles **two targets**: SSR/server (`main.server.dart`) and browser client (`main.client.dart`). Code under `lib/` is often shared by both. Violating these rules breaks the server build or produces a broken client bundle (browser then refuses `main.client.dart.js` with MIME type `text/plain`).
+
+## 1. Never import `package:zonai_schema/zonai_schema.dart` in web `lib/`
+
+Use **`package:zonai_schema/payloads.dart`** only. The main library pulls Raindrop/SQLite and is not dart2js-safe.
+
+```dart
+// ❌ BAD — in apps/web/lib (including components used from client islands)
+import 'package:zonai_schema/zonai_schema.dart';
+
+// ✅ GOOD
+import 'package:zonai_schema/payloads.dart';
+```
+
+If a type is missing from `payloads.dart`, **add an export there** (e.g. `PhotosConfig`, `ImageMimeType`) — do not import `zonai_schema.dart` from web code.
+
+Server-only web code (`lib/server/`) may use heavier packages when needed, but still prefer `payloads.dart` for schema types.
+
+## 2. Never import `dart:js_interop` in shared `lib/` files
+
+`dart:js_interop` and `package:universal_web/js_interop.dart` are **browser-only**. SSR will fail with: `Dart library 'dart:js_interop' is not available on this platform`.
+
+Use a **conditional import facade** (same pattern as `dom_event_values.dart`):
+
+```
+read_web_file_bytes.dart          # export / delegate
+read_web_file_bytes_web.dart      # if (dart.library.js_interop) — real impl
+read_web_file_bytes_stub.dart     # else — UnsupportedError or no-op
+```
+
+```dart
+// ✅ Facade (shared)
+import 'foo_stub.dart' if (dart.library.js_interop) 'foo_web.dart' as impl;
+
+Future<Uint8List> readWebFileBytes(web.Blob blob) => impl.readWebFileBytes(blob);
+```
+
+Before adding `dart:js_interop` to any new file under `apps/web/lib/`, check whether server imports that file (directly or via `table_row_detail_panel`, `table_value_editor`, etc.). If yes, use the facade pattern.
+
+## 3. Quick checklist before finishing web work
+
+- [ ] No `zonai_schema/zonai_schema.dart` imports under `apps/web/lib/`
+- [ ] No top-level `dart:js_interop` in shared utilities
+- [ ] Run / verify server build after touching imports used by edit UI
+- [ ] Rebuild client if scripts fail to load: `dart run build_runner build` in `apps/web`

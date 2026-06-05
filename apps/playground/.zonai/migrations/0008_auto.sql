@@ -1,0 +1,1 @@
+ALTER TABLE "posts" ADD COLUMN "photo" TEXT REFERENCES "_photos"("id");

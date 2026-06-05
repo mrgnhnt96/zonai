@@ -1,11 +1,6 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:jaspr_riverpod/misc.dart' show Override;
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_web/api/api_client.dart';
-import 'package:zonai_web/utils/zonai_cookie.dart';
 
 import 'sqlite_tables_provider.dart';
 import 'session_user_provider.dart';
@@ -17,7 +12,7 @@ final _tableCollectionActionsSourceProvider =
       TableCollectionActionsNotifier.new,
     );
 
-/// Hydrated from SSR and refreshed on the client after sign-in.
+/// Hydrated from SSR on each request (including after client sign-in reload).
 final tableCollectionActionsProvider = Provider<Map<String, TableCollectionActions>>(
   (ref) => ref.watch(_tableCollectionActionsSourceProvider),
 );
@@ -28,38 +23,7 @@ class TableCollectionActionsNotifier extends Notifier<Map<String, TableCollectio
   final Map<String, TableCollectionActions> _initial;
 
   @override
-  Map<String, TableCollectionActions> build() {
-    if (ref.binding.isClient) {
-      scheduleMicrotask(refresh);
-    }
-    return _initial;
-  }
-
-  Future<void> refresh() async {
-    final token = ZonaiCookie.authToken.read();
-    if (token == null || token.isEmpty) {
-      state = const {};
-      return;
-    }
-
-    try {
-      final response = await revaliServer.client.request(
-        method: 'GET',
-        path: '/db/collection-actions',
-        headers: {'authorization': 'Bearer $token'},
-      );
-      final body = await response.transform(utf8.decoder).join();
-      final decoded = jsonDecode(body);
-      if (decoded is! Map) return;
-
-      state = {
-        for (final MapEntry(:key, :value) in decoded.entries)
-          if (value is Map) key as String: TableCollectionActions.fromJson(Map<String, dynamic>.from(value)),
-      };
-    } on Object {
-      // Keep SSR-hydrated or fallback permissions when refresh fails.
-    }
-  }
+  Map<String, TableCollectionActions> build() => _initial;
 }
 
 /// Override for [ProviderScope] during SSR hydration.

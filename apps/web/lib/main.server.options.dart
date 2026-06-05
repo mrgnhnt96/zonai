@@ -113,4 +113,5 @@ Map<String, Object?> __home_app_shellHomeAppShell(
   'initialCollectionActions': c.initialCollectionActions,
   'initialPath': c.initialPath,
   'initialAppName': c.initialAppName,
+  'initialPhotosConfig': c.initialPhotosConfig,
 };

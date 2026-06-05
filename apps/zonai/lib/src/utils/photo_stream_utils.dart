@@ -56,6 +56,41 @@ abstract final class PhotoStreamUtils {
     return (prefix: prefix, stream: replay());
   }
 
+  /// True when [contentType] names a specific image format (not a generic blob).
+  static bool declaresImageMimeType(String? contentType) {
+    return ImageMimeType.fromContentType(contentType) != null;
+  }
+
+  /// Resolves upload bytes to an [ImageMimeType] and replayable stream.
+  ///
+  /// When [requiredMimeType] is true and [contentType] is a specific `image/*`
+  /// type, magic bytes must match that type. Generic types such as
+  /// `application/octet-stream` (per [PhotoCreateMeta] docs) fall back to
+  /// detection from file content.
+  static Future<(ImageMimeType type, Stream<List<int>> stream)> resolveUploadStream({
+    required Stream<List<int>> source,
+    required String? contentType,
+    required bool requiredMimeType,
+  }) async {
+    final declared = ImageMimeType.fromContentType(contentType);
+
+    if (requiredMimeType && declared != null) {
+      final stream = await verifyExpectedType(source, declared);
+      return (declared, stream);
+    }
+
+    final (detected, stream) = await detectMimeType(source);
+    if (detected == null) {
+      throw StateError(
+        requiredMimeType && !declaresImageMimeType(contentType)
+            ? 'Invalid content type: $contentType'
+            : 'Could not detect image type from stream',
+      );
+    }
+
+    return (detected, stream);
+  }
+
   /// Detects the image format from magic bytes at the start of [source].
   ///
   /// Returns a replay stream that includes the peeked prefix.

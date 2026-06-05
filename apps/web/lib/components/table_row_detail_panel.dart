@@ -16,8 +16,12 @@ import '../providers/session_user_provider.dart';
 import '../providers/table_filter_provider.dart';
 import '../providers/table_row_create_provider.dart';
 import '../providers/table_row_detail_provider.dart';
+import '../providers/photos_config_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/toast_provider.dart';
+import '../api/api_client.dart';
+import '../utils/photo_edit_value.dart';
+import '../utils/resolve_photo_drafts.dart';
 import '../utils/dom_event_values.dart';
 import '../utils/table_cell_edit.dart';
 import '../utils/table_row_edit.dart';
@@ -688,8 +692,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     return true;
   }
 
-  List<Object?> _parsedDraft(TableRowDetailState detail) {
-    final draft = _draft;
+  List<Object?> _parsedDraft(TableRowDetailState detail, [List<Object?>? draftSource]) {
+    final draft = draftSource ?? _draft;
     if (draft == null) return detail.row;
 
     final parsed = List<Object?>.from(draft);
@@ -775,8 +779,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     );
   }
 
-  List<Object?> _parsedCreateDraft(TableRowCreateState create) {
-    final draft = _draft ?? initialCreateDraft(create.columnShapes);
+  List<Object?> _parsedCreateDraft(TableRowCreateState create, [List<Object?>? draftSource]) {
+    final draft = draftSource ?? _draft ?? initialCreateDraft(create.columnShapes);
     final parsed = List<Object?>.from(draft);
     for (var i = 0; i < create.columns.length; i++) {
       final shape = create.columnShapes.elementAtOrNull(i);
@@ -896,10 +900,27 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   Future<void> _saveCreate(TableRowCreateState create) async {
     if (_saving) return;
 
+    final rawDraft = _draft ?? initialCreateDraft(create.columnShapes);
+    setState(() => _saving = true);
+
     List<Object?> parsedDraft;
     try {
-      parsedDraft = _parsedCreateDraft(create);
+      final photosConfig = context.read(photosConfigProvider);
+      final resolvedDraft = await resolvePhotoDrafts(
+        sqliteName: create.sqliteName,
+        draft: rawDraft,
+        columnShapes: create.columnShapes,
+        photosConfig: photosConfig,
+      );
+      parsedDraft = _parsedCreateDraft(create, resolvedDraft);
     } on FormatException catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      context.read(toastProvider.notifier).showError(userFacingError(e));
+      return;
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
       context.read(toastProvider.notifier).showError(userFacingError(e));
       return;
     }
@@ -911,11 +932,11 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     );
 
     if (object.isEmpty) {
+      setState(() => _saving = false);
       context.read(toastProvider.notifier).showError('Enter at least one field to create a row.');
       return;
     }
 
-    setState(() => _saving = true);
     try {
       final record = await context.read(tableRowsProvider.notifier).createRow(
         sqliteName: create.sqliteName,
@@ -950,10 +971,34 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   Future<void> _saveRow(TableRowDetailState detail) async {
     if (_saving) return;
 
+    final rawDraft = _draft;
+    if (rawDraft == null) return;
+
+    setState(() => _saving = true);
+
     List<Object?> parsedDraft;
     try {
-      parsedDraft = _parsedDraft(detail);
+      final photosConfig = context.read(photosConfigProvider);
+      await deleteRemovedPhotos(
+        originalRow: detail.row,
+        resolvedDraft: rawDraft,
+        columnShapes: detail.columnShapes,
+      );
+      final resolvedDraft = await resolvePhotoDrafts(
+        sqliteName: detail.sqliteName,
+        draft: rawDraft,
+        columnShapes: detail.columnShapes,
+        photosConfig: photosConfig,
+      );
+      parsedDraft = _parsedDraft(detail, resolvedDraft);
     } on FormatException catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      context.read(toastProvider.notifier).showError(userFacingError(e));
+      return;
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
       context.read(toastProvider.notifier).showError(userFacingError(e));
       return;
     }
@@ -966,11 +1011,11 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     );
 
     if (updates.isEmpty) {
+      setState(() => _saving = false);
       _cancelEditing();
       return;
     }
 
-    setState(() => _saving = true);
     try {
       final record = await context.read(tableRowsProvider.notifier).updateRow(
         sqliteName: detail.sqliteName,
@@ -1803,8 +1848,42 @@ class _DetailFieldValue extends StatelessComponent {
       ColumnShapeKind.boolean || ColumnShapeKind.isVerified => ZonaiBooleanCheck(
         checked: cellEditValueAsBool(rawValue),
       ),
+      ColumnShapeKind.photo || ColumnShapeKind.photos => _detailPhotoValue(rawValue, shape),
       _ => _DetailPlainText(value: formatReadOnlyCell(rawValue, shape)),
     };
+  }
+
+  Component _detailPhotoValue(Object? value, ColumnShape shape) {
+    final urls = <String>[];
+    void addUrl(Object? item) {
+      if (item == null) return;
+      final text = '$item';
+      if (text.startsWith('http://') || text.startsWith('https://')) {
+        urls.add(text);
+        return;
+      }
+      final id = parsePhotoIdFromCell(text);
+      if (id != null) urls.add('$revaliBaseUrl/img/$id');
+    }
+
+    if (shape.kind == ColumnShapeKind.photo) {
+      addUrl(value);
+    } else {
+      if (value is List) {
+        for (final item in value) {
+          addUrl(item);
+        }
+      } else {
+        addUrl(value);
+      }
+    }
+
+    if (urls.isEmpty) return _DetailPlainText(value: '—');
+
+    return div(classes: 'table-row-detail-photo-grid', [
+      for (final url in urls)
+        img(src: url, attributes: {'alt': shape.name, 'loading': 'lazy'}),
+    ]);
   }
 
   Component _detailListValue(Object? value) {
@@ -2412,6 +2491,19 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     raw: const {'font': 'inherit'},
   ),
   css('.table-row-detail-expand:hover').styles(color: primaryHoverColor),
+  css('.table-row-detail-photo-grid').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    flexWrap: FlexWrap.wrap,
+    gap: Gap.all(ZonaiSpacing.s3),
+  ),
+  css('.table-row-detail-photo-grid img').styles(
+    width: 72.px,
+    height: 72.px,
+    radius: .all(Radius.circular(6.px)),
+    border: Border.all(color: borderColor, width: 1.px),
+    raw: const {'object-fit': 'cover', 'display': 'block'},
+  ),
   ...tableEditSharedStyles,
   ...foreignKeyPickerDialogStyles,
 ];

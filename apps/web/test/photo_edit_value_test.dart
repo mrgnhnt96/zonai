@@ -1,0 +1,87 @@
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_web/utils/photo_edit_value.dart';
+
+void main() {
+  group('parsePhotoIdFromCell', () {
+    test('parses id from image URL', () {
+      expect(
+        parsePhotoIdFromCell('http://localhost:8080/img/0123456789abcde_ph.png'),
+        '0123456789abcde_ph',
+      );
+    });
+
+    test('accepts raw photo id', () {
+      expect(parsePhotoIdFromCell('0123456789abcde_ph'), '0123456789abcde_ph');
+    });
+
+    test('returns null for empty', () {
+      expect(parsePhotoIdFromCell(''), isNull);
+    });
+  });
+
+  group('photoEditValuesEqual', () {
+    test('detects pending bytes change', () {
+      final a = PhotoEditValue.single(
+        PhotoEditItem.pending(bytes: Uint8List.fromList([1, 2]), mimeType: 'image/png'),
+      );
+      final b = PhotoEditValue.single(
+        PhotoEditItem.pending(bytes: Uint8List.fromList([3, 4]), mimeType: 'image/png'),
+      );
+      expect(photoEditValuesEqual(a, b), isFalse);
+    });
+
+    test('treats same existing ids as equal', () {
+      const id = '0123456789abcde_ph';
+      final a = PhotoEditValue.single(PhotoEditItem.existing(id: id));
+      final b = PhotoEditValue.single(PhotoEditItem.existing(id: id));
+      expect(photoEditValuesEqual(a, b), isTrue);
+    });
+  });
+
+  group('removedPhotoIds', () {
+    final shape = ColumnShape(
+      name: 'image',
+      kind: ColumnShapeKind.photo,
+      isNullable: true,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+
+    test('detects removed single photo', () {
+      const id = '0123456789abcde_ph';
+      final removed = removedPhotoIds(
+        originalCell: 'http://localhost:8080/img/$id.png',
+        draft: const PhotoEditValue.single(null),
+        shape: shape,
+      );
+      expect(removed, {id});
+    });
+
+    test('detects removed photo from multi list', () {
+      const idA = '0123456789abcde_ph';
+      const idB = '0123456789abcdf_ph';
+      final removed = removedPhotoIds(
+        originalCell: [
+          'http://localhost:8080/img/$idA.png',
+          'http://localhost:8080/img/$idB.png',
+        ],
+        draft: PhotoEditValue.multi([
+          PhotoEditItem.existing(id: idA),
+        ]),
+        shape: ColumnShape(
+          name: 'images',
+          kind: ColumnShapeKind.photos,
+          isNullable: true,
+          isPrimaryKey: false,
+          autoIncrement: false,
+          sqlType: 'TEXT',
+        ),
+      );
+      expect(removed, {idB});
+    });
+  });
+}

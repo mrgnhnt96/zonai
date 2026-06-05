@@ -4,6 +4,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import 'components/auth_app_shell.dart';
 import 'components/home_app_shell.dart';
+import 'providers/photos_config_provider.dart';
 import 'utils/page_title.dart';
 
 /// Root widget mounted into `<body>` by [runApp].
@@ -70,6 +71,7 @@ class App extends StatelessComponent {
           initialCollectionActions: initialCollectionActions,
           initialPath: initialPath,
           initialAppName: appConfig.appName,
+          initialPhotosConfig: photosConfigToJson(appConfig.photos),
         )
       else
         AuthAppShell(

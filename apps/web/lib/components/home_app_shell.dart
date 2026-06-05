@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../providers/photos_config_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import 'app_shell_overrides.dart';
 import 'app_tooltip_overlay.dart';
@@ -21,6 +22,7 @@ class HomeAppShell extends StatelessComponent {
     required this.initialCollectionActions,
     required this.initialPath,
     required this.initialAppName,
+    required this.initialPhotosConfig,
   }) : assert(initialSqliteNames.length == initialDisplayNames.length, 'SQLite names and display labels must align');
 
   final List<String> initialSqliteNames;
@@ -30,6 +32,7 @@ class HomeAppShell extends StatelessComponent {
   final Map<String, Map<String, Object?>> initialCollectionActions;
   final String initialPath;
   final String initialAppName;
+  final Map<String, Object?> initialPhotosConfig;
 
   @override
   Component build(BuildContext context) {
@@ -51,6 +54,9 @@ class HomeAppShell extends StatelessComponent {
           initialSignedIn: true,
           initialPath: initialPath,
           initialAppName: initialAppName,
+          initialPhotosConfig: photosConfigFromJson(
+            Map<String, dynamic>.from(initialPhotosConfig),
+          ),
           initialAuthTypes: const [],
           tables: SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),
           schemaShapes: schemaShapes,

@@ -2,6 +2,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../../utils/photo_edit_value.dart';
 import '../../utils/table_cell_edit.dart';
 import '../theme/ui_styles.dart';
 import 'table_edit_big_int_field.dart';
@@ -11,6 +12,7 @@ import 'table_edit_datetime_field.dart';
 import 'table_edit_enum_multi_select.dart';
 import 'table_edit_enum_single_select.dart';
 import 'table_edit_json_field.dart';
+import 'table_edit_photo_field.dart';
 import 'table_edit_number_field.dart';
 import 'table_foreign_key_value_field.dart';
 
@@ -172,6 +174,15 @@ class TableValueEditor extends StatelessComponent {
         inputClass: inputClass,
         validateAsMap: true,
         allowEmpty: shape.isNullable,
+      ),
+      ColumnShapeKind.photo || ColumnShapeKind.photos => TableEditPhotoField(
+        id: id,
+        shape: shape,
+        value: asPhotoEditValue(value) ??
+            (value == null ? emptyPhotoEditValue(shape) : photoEditValueFromCell(value, shape)),
+        onChanged: (v) => onDraft(v),
+        labelId: labelId,
+        disabled: disabled,
       ),
       ColumnShapeKind.blob => TableEditJsonField(
         id: id,

@@ -12,6 +12,7 @@ final class Post {
     required this.createdAt,
     this.body,
     this.updatedAt,
+    this.photo,
   });
 
   final PostsId id;
@@ -20,6 +21,7 @@ final class Post {
   final String? body;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final PhotoId? photo;
 }
 
 final class PostTable extends Table<Post> {
@@ -30,16 +32,20 @@ final class PostTable extends Table<Post> {
         fromString: PostsId.new,
         generate: PostsId.generate,
       ),
-      authorId = $.id(
-        'author_id',
-        (s) => s.authorId,
-        fromString: AuthorsId.new,
-        generate: AuthorsId.generate,
-        isPrimaryKey: false,
-      ).references(() => authors.id, onDelete: ReferentialAction.cascade),
+      photo = $.photo('photo', (s) => s.photo),
+      authorId = $
+          .id(
+            'author_id',
+            (s) => s.authorId,
+            fromString: AuthorsId.new,
+            generate: AuthorsId.generate,
+            isPrimaryKey: false,
+          )
+          .references(() => authors.id, onDelete: ReferentialAction.cascade),
       title = $.text('title', (s) => s.title),
       body = $.text('body', (s) => s.body),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
+
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
 
   @override
@@ -51,6 +57,7 @@ final class PostTable extends Table<Post> {
       body: read(body),
       createdAt: read(createdAt),
       updatedAt: read(updatedAt),
+      photo: read(photo),
     );
   }
 
@@ -60,6 +67,7 @@ final class PostTable extends Table<Post> {
   final TextColumn? body;
   final DateTimeColumn createdAt;
   final DateTimeColumn? updatedAt;
+  final PhotoColumn? photo;
 }
 
 final posts = table('posts', PostTable.new);

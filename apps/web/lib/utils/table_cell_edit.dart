@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import 'photo_edit_value.dart';
+
 const _deepCollectionEquality = DeepCollectionEquality();
 
 /// Password or other secret columns (redacted in list responses).
@@ -17,10 +19,7 @@ bool isColumnEditable(ColumnShape shape) {
   }
 
   return switch (shape.kind) {
-    ColumnShapeKind.createdAt ||
-    ColumnShapeKind.updatedAt ||
-    ColumnShapeKind.photo ||
-    ColumnShapeKind.photos => false,
+    ColumnShapeKind.createdAt || ColumnShapeKind.updatedAt => false,
     _ => true,
   };
 }
@@ -31,7 +30,9 @@ bool usesDraftValueColumn(ColumnShape shape) {
     ColumnShapeKind.boolean ||
     ColumnShapeKind.isVerified ||
     ColumnShapeKind.list ||
-    ColumnShapeKind.enumList => true,
+    ColumnShapeKind.enumList ||
+    ColumnShapeKind.photo ||
+    ColumnShapeKind.photos => true,
     _ => false,
   };
 }
@@ -90,6 +91,9 @@ bool isCreateFieldSatisfied({
       parseDraftCellValue(draftValue: draftValue, shape: shape);
       if (shape.kind == ColumnShapeKind.list || shape.kind == ColumnShapeKind.enumList) {
         if (cellValueAsStringList(draftValue, shape.enumValues).isEmpty) return false;
+      }
+      if (isPhotoColumnKind(shape.kind) && (asPhotoEditValue(draftValue)?.isEmpty ?? true)) {
+        return false;
       }
       return true;
     }
@@ -191,6 +195,7 @@ Object? normalizeCellValueForEdit(Object? value, ColumnShape shape) {
       effectiveColumnEditKind(shape, value) == ColumnShapeKind.bigInt
           ? (tryParseBigIntCell(value) ?? value)
           : _normalizeBlobForEdit(value),
+    ColumnShapeKind.photo || ColumnShapeKind.photos => photoEditValueFromCell(value, shape),
     _ => value,
   };
 }
@@ -275,6 +280,16 @@ Object? parseDraftCellValue({required Object? draftValue, required ColumnShape s
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => cellEditValueAsBool(draftValue),
     ColumnShapeKind.list => parseListEditValue(draftValue),
     ColumnShapeKind.enumList => parseEnumListEditValue(draftValue, shape.enumValues),
+    ColumnShapeKind.photo || ColumnShapeKind.photos => () {
+      if (draftValue is String || draftValue is List) return draftValue;
+      validatePhotoDraftValue(draftValue: draftValue, shape: shape);
+      final value = asPhotoEditValue(draftValue);
+      if (value == null) return photoEditValueToWire(photoEditValueFromCell(draftValue, shape));
+      if (value.hasPending) {
+        throw FormatException('${shape.name} has images still uploading');
+      }
+      return photoEditValueToWire(value);
+    }(),
     _ => draftValue,
   };
 }
@@ -453,6 +468,15 @@ bool cellValuesEqual(Object? a, Object? b, ColumnShape? shape) {
     final ba = _blobBytesForEquality(a);
     final bb = _blobBytesForEquality(b);
     if (ba != null && bb != null) return _listEquality.equals(ba, bb);
+  }
+
+  if (shape != null && isPhotoColumnKind(shape.kind)) {
+    if (asPhotoEditValue(a) != null || asPhotoEditValue(b) != null) {
+      return photoEditValuesEqual(a, b);
+    }
+    final la = photoIdsFromCell(a, shape);
+    final lb = photoIdsFromCell(b, shape);
+    return _deepCollectionEquality.equals(la, lb);
   }
 
   return '$a' == '$b';
@@ -853,6 +877,7 @@ List<Object?> initialCreateDraft(List<ColumnShape> columnShapes) {
       switch (shape.kind) {
         ColumnShapeKind.boolean || ColumnShapeKind.isVerified => false,
         ColumnShapeKind.list || ColumnShapeKind.enumList => <String>[],
+        ColumnShapeKind.photo || ColumnShapeKind.photos => emptyPhotoEditValue(shape),
         _ => null,
       },
   ];

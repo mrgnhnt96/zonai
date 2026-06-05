@@ -2,9 +2,13 @@
 ///
 /// Prefer this over `package:zonai_schema/zonai_schema.dart` in client code: the main library
 /// also exports Raindrop column builders that pull in native SQLite (see `raindrop_sqlite`).
+///
+/// **apps/web:** only import this library in `lib/` (see `.cursor/rules/apps-web-browser-safe.mdc`).
 library;
 
 export 'src/config/app_config.dart';
+export 'src/config/photos_config.dart';
+export 'src/types/image_mime_type.dart';
 export 'src/payloads/auth_password_body.dart';
 export 'src/payloads/count_body.dart';
 export 'src/payloads/create_body.dart';

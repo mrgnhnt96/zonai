@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_web/utils/photo_edit_value.dart';
 import 'package:zonai_web/utils/table_cell_edit.dart';
 
 void main() {
@@ -907,6 +908,51 @@ void main() {
         ),
         isEmpty,
       );
+    });
+  });
+
+  group('photo columns', () {
+    const photoShape = ColumnShape(
+      name: 'image',
+      kind: ColumnShapeKind.photo,
+      isNullable: true,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+
+    const photosShape = ColumnShape(
+      name: 'gallery',
+      kind: ColumnShapeKind.photos,
+      isNullable: true,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+
+    test('photo columns are editable draft columns', () {
+      expect(isColumnEditable(photoShape), isTrue);
+      expect(isColumnEditable(photosShape), isTrue);
+      expect(usesDraftValueColumn(photoShape), isTrue);
+      expect(usesDraftValueColumn(photosShape), isTrue);
+    });
+
+    test('initial create draft uses empty photo edit values', () {
+      final draft = initialCreateDraft(const [photoShape, photosShape]);
+      expect(draft[0], const PhotoEditValue.single(null));
+      expect(draft[1], const PhotoEditValue.multi([]));
+    });
+
+    test('normalizeCellValueForEdit maps URL to existing item', () {
+      const id = '0123456789abcde_ph';
+      final value = normalizeCellValueForEdit(
+        'http://localhost:8080/img/$id.png',
+        photoShape,
+      );
+      expect(value, isA<PhotoEditSingleValue>());
+      final item = (value as PhotoEditSingleValue).item;
+      expect(item, isA<PhotoEditExistingItem>());
+      expect((item as PhotoEditExistingItem).id, id);
     });
   });
 }
