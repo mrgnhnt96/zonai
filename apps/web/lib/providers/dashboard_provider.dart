@@ -185,21 +185,27 @@ class _RequestBucketsNotifier extends AsyncNotifier<List<RequestBucket>> {
       ),
     );
 
-    // 24 hourly buckets, oldest first
+    // 24 hourly buckets, oldest first.
+    // Bucket i covers the hour starting at (nowHourMs - (23-i)*3600000).
+    final nowHourMs = now.millisecondsSinceEpoch -
+        (now.millisecondsSinceEpoch % const Duration(hours: 1).inMilliseconds);
+
     final buckets = List.generate(24, (i) {
-      final hour = DateTime(now.year, now.month, now.day, now.hour)
-          .subtract(Duration(hours: 23 - i));
+      final hour = DateTime.fromMillisecondsSinceEpoch(
+        nowHourMs - (23 - i) * const Duration(hours: 1).inMilliseconds,
+      );
       return RequestBucket(hour: hour, count: 0);
     });
 
     for (final item in _parseItems(data)) {
-      final ts = _parseTimestamp(item['timestamp']);
-      if (ts == null) continue;
-      final bucketHour = DateTime(ts.year, ts.month, ts.day, ts.hour);
-      final idx = buckets.indexWhere((b) => b.hour == bucketHour);
-      if (idx >= 0) {
-        buckets[idx] = RequestBucket(hour: buckets[idx].hour, count: buckets[idx].count + 1);
-      }
+      final tsRaw = item['timestamp'];
+      if (tsRaw is! num) continue;
+      final tsMs = tsRaw.toInt();
+      // Map ms timestamp to bucket index using arithmetic (no DateTime comparison).
+      final hoursAgo = (nowHourMs - tsMs) ~/ const Duration(hours: 1).inMilliseconds;
+      if (hoursAgo < 0 || hoursAgo > 23) continue;
+      final idx = 23 - hoursAgo;
+      buckets[idx] = RequestBucket(hour: buckets[idx].hour, count: buckets[idx].count + 1);
     }
 
     return buckets;

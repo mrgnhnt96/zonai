@@ -94,6 +94,9 @@ class DashboardScreen extends StatelessComponent {
                       span(classes: 'dashboard-chart-label', [
                         .text(_fmtHour(bucketsData[i].hour)),
                       ]),
+                    span(classes: 'dashboard-chart-label', [
+                      .text(_fmtHour(bucketsData.last.hour)),
+                    ]),
                   ]),
                 ]),
             ]),
