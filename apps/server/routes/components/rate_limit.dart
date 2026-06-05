@@ -11,7 +11,7 @@ class RateLimit {
     RateLimitOperation operation,
   ) async {
     // TODO:  get table from AdminAuthBody
-    if (body is AdminAuthBody) {
+    if (body is AdminAuthBody || body is AdminSendResetPasswordAuthBody) {
       return const .pass();
     }
 

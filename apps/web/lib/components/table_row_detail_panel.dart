@@ -8,6 +8,7 @@ import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
+import '../auth/auth_provider.dart';
 import '../constants/button_sizes.dart';
 import '../constants/layout.dart';
 import '../constants/theme.dart';
@@ -83,6 +84,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   String? _rawJsonRowKey;
   var _editing = false;
   var _saving = false;
+  var _sendingPasswordReset = false;
   List<Object?>? _draft;
   Map<int, String> _textInputs = {};
   final Set<String> _invalidFkFields = {};
@@ -528,6 +530,35 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       columnShapes: detail.columnShapes,
       row: detail.row,
     );
+  }
+
+  bool _isPasswordAuthTable(TableRowDetailState cached) {
+    return cached.columnShapes.any((c) => c.kind == ColumnShapeKind.password);
+  }
+
+  String? _emailForPasswordReset(TableRowDetailState cached) {
+    final emailIndex = cached.columnShapes.indexWhere((c) => c.kind == ColumnShapeKind.email);
+    if (emailIndex == -1 || emailIndex >= cached.row.length) return null;
+    final value = cached.row[emailIndex];
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
+  Future<void> _triggerPasswordReset(BuildContext context, TableRowDetailState cached) async {
+    final email = _emailForPasswordReset(cached);
+    if (email == null) return;
+    setState(() => _sendingPasswordReset = true);
+    try {
+      await context.read(authProvider.notifier).sendResetPassword(email: email);
+      if (mounted) {
+        context.read(toastProvider.notifier).showSuccess('Password reset email sent to $email');
+      }
+    } catch (e) {
+      if (mounted) {
+        context.read(toastProvider.notifier).showError(userFacingError(e));
+      }
+    } finally {
+      if (mounted) setState(() => _sendingPasswordReset = false);
+    }
   }
 
   void _startEditing(TableRowDetailState detail) {
@@ -1264,6 +1295,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
             columnShapes: cached.columnShapes,
           )
         : const <String>[];
+    final canResetPassword = !_editing && sessionCanEdit && _isPasswordAuthTable(cached) && _emailForPasswordReset(cached) != null;
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     void goBack() => _requestNavigateBack(cached);
     final subtitle = _detailSubtitle(cached);
@@ -1359,7 +1391,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                 for (var i = 0; i < cached.row.length; i++)
                   _buildDetailField(context, cached, i),
             ]),
-            if (rowEditable && !showRawJson)
+            if ((rowEditable || canResetPassword) && !showRawJson)
               div(
                 classes: [
                   'table-row-detail-footer',
@@ -1394,15 +1426,29 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                     ),
                   ]),
                 ] else
-                  button(
-                    classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
-                    type: .button,
-                    attributes: {'aria-label': 'Edit row'},
-                    onClick: () => context.read(tableRowDetailProvider.notifier).setViewMode(
-                      TableRowDetailViewMode.edit,
-                    ),
-                    [.text('Edit row')],
-                  ),
+                  div(classes: 'table-row-detail-footer-actions', [
+                    if (rowEditable)
+                      button(
+                        classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
+                        type: .button,
+                        attributes: {'aria-label': 'Edit row'},
+                        onClick: () => context.read(tableRowDetailProvider.notifier).setViewMode(
+                          TableRowDetailViewMode.edit,
+                        ),
+                        [.text('Edit row')],
+                      ),
+                    if (canResetPassword)
+                      button(
+                        classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
+                        type: .button,
+                        attributes: {
+                          'aria-label': 'Send password reset email',
+                          if (_sendingPasswordReset) 'disabled': 'true',
+                        },
+                        onClick: _sendingPasswordReset ? null : () => _triggerPasswordReset(context, cached),
+                        [.text(_sendingPasswordReset ? 'Sending…' : 'Reset password')],
+                      ),
+                  ]),
               ]),
           ]),
         ],
