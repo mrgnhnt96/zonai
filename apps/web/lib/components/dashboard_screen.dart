@@ -26,12 +26,14 @@ class DashboardScreen extends StatelessComponent {
         if (!isSystemSqliteTable(t.sqliteName)) t,
     ];
 
-    final stats = context.watch(dashboardStatsProvider);
-    final buckets = context.watch(requestBucketsProvider);
-    final topErrors = context.watch(topErrorsProvider);
+    // Async providers must not notify after SSR completes (no frames on the server).
+    final isClient = context.binding.isClient;
+    final stats = isClient ? context.watch(dashboardStatsProvider) : const AsyncValue<DashboardStats>.loading();
+    final buckets = isClient ? context.watch(requestBucketsProvider) : const AsyncValue<List<RequestBucket>>.loading();
+    final topErrors = isClient ? context.watch(topErrorsProvider) : const AsyncValue<List<TopError>>.loading();
     final expandedError = context.watch(expandedErrorProvider);
-    final cronJobs = context.watch(cronJobsProvider);
-    final tableCounts = context.watch(tableCountsProvider);
+    final cronJobs = isClient ? context.watch(cronJobsProvider) : const AsyncValue<List<CronJobSummary>>.loading();
+    final tableCounts = isClient ? context.watch(tableCountsProvider) : const AsyncValue<Map<String, int>>.loading();
 
     final statsData = stats.value;
     final bucketsData = buckets.value ?? [];

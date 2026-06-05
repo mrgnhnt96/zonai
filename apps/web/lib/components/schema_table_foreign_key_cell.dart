@@ -43,7 +43,10 @@ class SchemaTableForeignKeyCell extends StatelessComponent {
 
     final fallbackLabel = formatSchemaCell(value, shape);
     final query = ForeignKeyReferenceLookupQuery(foreignKey: foreignKey, rawValue: value);
-    final asyncReferenced = context.watch(foreignKeyReferenceLookupProvider(query));
+    // Async providers must not notify after SSR completes (no frames on the server).
+    final asyncReferenced = context.binding.isClient
+        ? context.watch(foreignKeyReferenceLookupProvider(query))
+        : const AsyncValue<ForeignKeyReferencedRow?>.data(null);
 
     return switch (asyncReferenced) {
       AsyncLoading() => _ForeignKeyCellContent(
