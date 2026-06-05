@@ -57,7 +57,7 @@ class HomeSidebar extends StatelessComponent {
 
     return aside(
       classes:
-          'home-sidebar${collapsed ? ' home-sidebar--collapsed' : ''}${ui.mobileNavOpen ? ' home-sidebar--mobile-open' : ''}',
+          'home-sidebar${collapsed ? ' home-sidebar--collapsed' : ''}${ui.sidebarToggling ? ' home-sidebar--toggling' : ''}${ui.mobileNavOpen ? ' home-sidebar--mobile-open' : ''}${ui.mobileNavClosing ? ' home-sidebar--mobile-closing' : ''}',
       [
         div(classes: 'home-sidebar-header', [
           a(href: AuthRoutes.home, classes: 'home-sidebar-brand', [
@@ -165,9 +165,9 @@ class HomeSidebar extends StatelessComponent {
         raw: const {
           'box-shadow': 'var(--zonai-shadow-sm)',
           'overflow-x': 'hidden',
-          'transition': 'width 0.2s ease',
         },
       ),
+      css('&--toggling').styles(raw: const {'transition': 'width 0.2s ease'}),
       css('&--collapsed').styles(width: 52.px),
       css('.home-sidebar-panels').styles(
         flex: Flex(grow: 1, shrink: 1),
@@ -520,10 +520,15 @@ class HomeSidebar extends StatelessComponent {
       css('.home-sidebar').styles(
         position: Position.fixed(top: 0.px, left: 0.px, bottom: 0.px),
         width: 260.px,
-        raw: const {'z-index': '150', 'transform': 'translateX(-100%)', 'transition': 'transform 0.2s ease'},
+        raw: const {'z-index': '150', 'transform': 'translateX(-100%)', 'transition': 'none'},
       ),
       css('.home-sidebar--collapsed').styles(width: 260.px),
-      css('.home-sidebar--mobile-open').styles(raw: const {'transform': 'translateX(0)'}),
+      css('.home-sidebar--mobile-open').styles(
+        raw: const {'transform': 'translateX(0)', 'transition': 'transform 0.2s ease'},
+      ),
+      css('.home-sidebar--mobile-closing').styles(
+        raw: const {'transition': 'transform 0.2s ease'},
+      ),
       css('.home-sidebar-toggle').styles(display: .none),
       css('.home-sidebar-panel--rail').styles(display: .none),
       css('.home-sidebar-panel--expanded').styles(

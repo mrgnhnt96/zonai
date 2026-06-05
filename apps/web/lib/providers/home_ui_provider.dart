@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/web.dart' as web;
 
@@ -6,15 +8,21 @@ final homeUiProvider = NotifierProvider<HomeUiNotifier, HomeUiState>(HomeUiNotif
 final class HomeUiState {
   const HomeUiState({
     this.sidebarCollapsed = false,
+    this.sidebarToggling = false,
     this.settingsOpen = false,
     this.systemTablesExpanded = false,
     this.mobileNavOpen = false,
+    this.mobileNavClosing = false,
   });
 
   final bool sidebarCollapsed;
+  /// True during the 0.2s collapse/expand animation so the width transition stays active.
+  final bool sidebarToggling;
   final bool settingsOpen;
   final bool systemTablesExpanded;
   final bool mobileNavOpen;
+  /// True during the 0.2s close animation so the sidebar CSS transition stays active.
+  final bool mobileNavClosing;
 
   /// Rail/minimal sidebar layout; suppressed while the mobile drawer is open.
   bool get sidebarVisuallyCollapsed => sidebarCollapsed && !mobileNavOpen;
@@ -23,6 +31,9 @@ final class HomeUiState {
 class HomeUiNotifier extends Notifier<HomeUiState> {
   static const _collapsedKey = 'zonai_sidebar_collapsed';
   static const _systemOpenKey = 'zonai_sidebar_system_open';
+
+  Timer? _mobileNavCloseTimer;
+  Timer? _sidebarToggleTimer;
 
   double bodyScrollTop = 0;
   double railScrollTop = 0;
@@ -68,12 +79,27 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
 
   void setSidebarCollapsed(bool collapsed) {
     captureSidebarScrollFromDom();
+    _mobileNavCloseTimer?.cancel();
+    _mobileNavCloseTimer = null;
+    _sidebarToggleTimer?.cancel();
     state = HomeUiState(
       sidebarCollapsed: collapsed,
+      sidebarToggling: true,
       settingsOpen: collapsed ? false : state.settingsOpen,
       systemTablesExpanded: state.systemTablesExpanded,
       mobileNavOpen: false,
+      mobileNavClosing: false,
     );
+    _sidebarToggleTimer = Timer(const Duration(milliseconds: 220), () {
+      state = HomeUiState(
+        sidebarCollapsed: state.sidebarCollapsed,
+        sidebarToggling: false,
+        settingsOpen: state.settingsOpen,
+        systemTablesExpanded: state.systemTablesExpanded,
+        mobileNavOpen: state.mobileNavOpen,
+        mobileNavClosing: state.mobileNavClosing,
+      );
+    });
     _writeCollapsed(collapsed);
   }
 
@@ -84,31 +110,50 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
   void setSystemTablesExpanded(bool expanded) {
     state = HomeUiState(
       sidebarCollapsed: state.sidebarCollapsed,
+      sidebarToggling: state.sidebarToggling,
       settingsOpen: state.settingsOpen,
       systemTablesExpanded: expanded,
       mobileNavOpen: state.mobileNavOpen,
+      mobileNavClosing: state.mobileNavClosing,
     );
     _writeSystemOpen(expanded);
   }
 
   void openMobileNav() {
+    _mobileNavCloseTimer?.cancel();
+    _mobileNavCloseTimer = null;
     state = HomeUiState(
       sidebarCollapsed: state.sidebarCollapsed,
+      sidebarToggling: state.sidebarToggling,
       settingsOpen: state.settingsOpen,
       systemTablesExpanded: state.systemTablesExpanded,
       mobileNavOpen: true,
+      mobileNavClosing: false,
     );
   }
 
   void closeMobileNav() {
     if (!state.mobileNavOpen) return;
     captureSidebarScrollFromDom();
+    _mobileNavCloseTimer?.cancel();
     state = HomeUiState(
       sidebarCollapsed: state.sidebarCollapsed,
+      sidebarToggling: state.sidebarToggling,
       settingsOpen: state.settingsOpen,
       systemTablesExpanded: state.systemTablesExpanded,
       mobileNavOpen: false,
+      mobileNavClosing: true,
     );
+    _mobileNavCloseTimer = Timer(const Duration(milliseconds: 220), () {
+      state = HomeUiState(
+        sidebarCollapsed: state.sidebarCollapsed,
+        sidebarToggling: state.sidebarToggling,
+        settingsOpen: state.settingsOpen,
+        systemTablesExpanded: state.systemTablesExpanded,
+        mobileNavOpen: false,
+        mobileNavClosing: false,
+      );
+    });
   }
 
   void toggleMobileNav() {
@@ -122,18 +167,22 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
   void openSettings() {
     state = HomeUiState(
       sidebarCollapsed: state.sidebarCollapsed,
+      sidebarToggling: state.sidebarToggling,
       settingsOpen: true,
       systemTablesExpanded: state.systemTablesExpanded,
       mobileNavOpen: state.mobileNavOpen,
+      mobileNavClosing: state.mobileNavClosing,
     );
   }
 
   void closeSettings() {
     state = HomeUiState(
       sidebarCollapsed: state.sidebarCollapsed,
+      sidebarToggling: state.sidebarToggling,
       settingsOpen: false,
       systemTablesExpanded: state.systemTablesExpanded,
       mobileNavOpen: state.mobileNavOpen,
+      mobileNavClosing: state.mobileNavClosing,
     );
   }
 
