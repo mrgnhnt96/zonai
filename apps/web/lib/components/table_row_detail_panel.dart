@@ -544,7 +544,11 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       _textInputs = {
         for (var i = 0; i < detail.row.length; i++)
           if (_usesTextInput(detail.columnShapes.elementAtOrNull(i)))
-            i: cellToEditWireText(detail.row[i], detail.columnShapes.elementAtOrNull(i)),
+            i: cellToEditWireText(
+              detail.row[i],
+              detail.columnShapes.elementAtOrNull(i),
+              revealSecrets: true,
+            ),
       };
       _showRawJson = false;
       _rawJsonRowKey = null;
@@ -625,7 +629,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
             );
             if (!cellValuesEqual(detail.row[i], parsed, shape)) return true;
           } on FormatException {
-            if (text != cellToEditWireText(detail.row[i], shape)) return true;
+            if (text != cellToEditWireText(detail.row[i], shape, revealSecrets: true)) {
+              return true;
+            }
           }
         }
       }
@@ -682,7 +688,11 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       }
       if (isPasswordColumn(shape)) {
         final text = _textInputs[i];
-        if (isPasswordUpdateUnchanged(text)) {
+        if (isPasswordUpdateUnchanged(
+          text,
+          originalValue: detail.row[i],
+          shape: shape,
+        )) {
           parsed[i] = detail.row[i];
           continue;
         }

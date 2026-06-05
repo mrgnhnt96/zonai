@@ -142,9 +142,12 @@ List<String> remainingEditRequiredFieldLabels({
 }
 
 /// String shown in text inputs before editing (not used for checkbox fields).
-String cellToEditString(Object? value, ColumnShape? shape) {
+///
+/// Secret/password values are hidden by default (e.g. filters). Pass
+/// [revealSecrets] when the caller already has the stored value (row detail edit).
+String cellToEditString(Object? value, ColumnShape? shape, {bool revealSecrets = false}) {
   if (value == null) return '';
-  if (shape != null && isPasswordColumn(shape)) return '';
+  if (!revealSecrets && shape != null && isPasswordColumn(shape)) return '';
 
   return switch (shape?.kind) {
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => '',
@@ -163,13 +166,13 @@ String cellToEditString(Object? value, ColumnShape? shape) {
 }
 
 /// Wire text for picker-backed columns (UTC ms for datetimes).
-String cellToEditWireText(Object? value, ColumnShape? shape) {
+String cellToEditWireText(Object? value, ColumnShape? shape, {bool revealSecrets = false}) {
   if (value == null) return '';
   if (shape != null && isDateTimeColumnKind(shape.kind)) {
     final dt = _toDateTime(value);
     if (dt != null) return '${dt.toUtc().millisecondsSinceEpoch}';
   }
-  return cellToEditString(value, shape);
+  return cellToEditString(value, shape, revealSecrets: revealSecrets);
 }
 
 /// Normalizes API values into edit-friendly Dart values for [_draft].
@@ -333,8 +336,18 @@ Object? _parsePasswordEditValue(String text, {required ColumnShape shape}) {
   return text;
 }
 
-/// True when a password field was left blank (keep existing value on update).
-bool isPasswordUpdateUnchanged(String? textInput) => textInput == null || textInput.trim().isEmpty;
+/// True when a password field was left blank or still matches [originalValue].
+bool isPasswordUpdateUnchanged(
+  String? textInput, {
+  Object? originalValue,
+  ColumnShape? shape,
+}) {
+  if (textInput == null || textInput.trim().isEmpty) return true;
+  if (originalValue != null && shape != null && isPasswordColumn(shape)) {
+    return textInput == cellToEditString(originalValue, shape, revealSecrets: true);
+  }
+  return false;
+}
 
 bool _passwordValuesEqual(Object? a, Object? b) {
   bool unchanged(Object? value) => value == null || (value is String && value.trim().isEmpty);

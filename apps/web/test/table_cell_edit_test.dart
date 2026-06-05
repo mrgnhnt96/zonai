@@ -494,8 +494,26 @@ void main() {
       isSecret: true,
     );
 
-    test('cellToEditString does not expose stored value', () {
+    test('cellToEditString does not expose stored value by default', () {
       expect(cellToEditString('hash-value', passwordShape), '');
+    });
+
+    test('cellToEditString exposes stored value when revealSecrets is true', () {
+      expect(
+        cellToEditString('hash-value', passwordShape, revealSecrets: true),
+        'hash-value',
+      );
+    });
+
+    test('isPasswordUpdateUnchanged when text matches original', () {
+      expect(
+        isPasswordUpdateUnchanged(
+          'hash-value',
+          originalValue: 'hash-value',
+          shape: passwordShape,
+        ),
+        isTrue,
+      );
     });
 
     test('diff omits blank password on update', () {
