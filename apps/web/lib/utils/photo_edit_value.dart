@@ -112,6 +112,8 @@ ColumnShape? photoShapeForCell({
   required Object? rawValue,
 }) {
   if (shape != null && isPhotoColumnKind(shape.kind)) return shape;
+  // Id columns (e.g. `_photos.id`) must stay plain text even when values end with `_ph`.
+  if (shape?.kind == ColumnShapeKind.id) return null;
   if (!cellLooksLikePhoto(rawValue)) return null;
 
   final base =

@@ -5,6 +5,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import '../providers/photos_config_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
+import '../utils/web_photos_schema.dart';
 import 'app_shell_overrides.dart';
 import 'app_tooltip_overlay.dart';
 import 'page_title_head.dart';
@@ -40,10 +41,10 @@ class HomeAppShell extends StatelessComponent {
       for (var i = 0; i < initialSqliteNames.length; i++)
         SqliteTableRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
     ];
-    final schemaShapes = {
+    final schemaShapes = augmentWebSchemaShapes({
       for (final MapEntry(:key, :value) in initialSchemaShapes.entries)
         key: TableSchemaShape.fromJson(Map<String, dynamic>.from(value)),
-    };
+    });
     final collectionActions = {
       for (final MapEntry(:key, :value) in initialCollectionActions.entries)
         key: TableCollectionActions.fromJson(Map<String, dynamic>.from(value)),

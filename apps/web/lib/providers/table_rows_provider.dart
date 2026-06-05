@@ -6,6 +6,7 @@ import '../utils/table_cell_edit.dart';
 import '../utils/table_row_edit.dart';
 import '../utils/table_row_key.dart';
 import '../utils/table_rows_json.dart';
+import '../utils/web_photos_schema.dart';
 import 'foreign_key_reference_lookup_provider.dart';
 import 'table_focus_provider.dart';
 import 'table_row_detail_provider.dart';
@@ -398,7 +399,11 @@ Future<TableRowsData> _loadTableRows({
     body: ListBody(table: sqliteName, where: where, limit: limit, offset: offset),
   );
 
-  final items = _parseListItems(data);
+  final items = augmentPhotosRowItems(
+    sqliteName: sqliteName,
+    items: _parseListItems(data),
+    imageBaseUrl: revaliBaseUrl,
+  );
   final total = switch (data['total']) {
     final int t => t,
     final num t => t.toInt(),

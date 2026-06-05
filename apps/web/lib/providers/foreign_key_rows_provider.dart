@@ -4,6 +4,7 @@ import 'package:zonai_web/api/api_client.dart';
 
 import '../utils/foreign_key_search_where.dart';
 import '../utils/table_row_key.dart';
+import '../utils/web_photos_schema.dart';
 import 'table_rows_provider.dart';
 import 'table_schema_provider.dart';
 
@@ -211,7 +212,12 @@ TableRowsData tableRowsDataFromFkListResponse({
   required List<Map<String, Object?>> items,
   required int total,
 }) {
-  final columnOrder = fkColumnOrderFromSchemaOrItems(schema, items);
+  final augmentedItems = augmentPhotosRowItems(
+    sqliteName: sqliteName,
+    items: items,
+    imageBaseUrl: revaliBaseUrl,
+  );
+  final columnOrder = fkColumnOrderFromSchemaOrItems(schema, augmentedItems);
   final columnShapes = [
     for (final name in columnOrder)
       schema?.columnNamed(name) ??
@@ -225,7 +231,7 @@ TableRowsData tableRowsDataFromFkListResponse({
           ),
   ];
   final rows = [
-    for (final item in items) [for (final col in columnOrder) item[col]],
+    for (final item in augmentedItems) [for (final col in columnOrder) item[col]],
   ];
 
   return TableRowsData(

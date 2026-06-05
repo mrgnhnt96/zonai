@@ -79,6 +79,21 @@ void main() {
       );
       expect(shape?.kind, ColumnShapeKind.photo);
     });
+
+    test('does not upgrade id columns with photo id values', () {
+      const idShape = ColumnShape(
+        name: 'id',
+        kind: ColumnShapeKind.id,
+        isNullable: false,
+        isPrimaryKey: true,
+        autoIncrement: false,
+        sqlType: 'TEXT',
+      );
+      expect(
+        photoShapeForCell(shape: idShape, rawValue: '0123456789abcde_ph'),
+        isNull,
+      );
+    });
   });
 
   group('photoUrlsFromCell', () {
