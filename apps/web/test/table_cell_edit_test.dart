@@ -954,5 +954,19 @@ void main() {
       expect(item, isA<PhotoEditExistingItem>());
       expect((item as PhotoEditExistingItem).id, id);
     });
+
+    test('photo columns with photo table FK are not foreign key columns', () {
+      final shape = ColumnShape(
+        name: 'photo',
+        kind: ColumnShapeKind.photo,
+        isNullable: true,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'TEXT',
+        foreignKey: const ForeignKeyShape(table: '_photos', column: 'id'),
+      );
+
+      expect(isForeignKeyColumn(shape), isFalse);
+    });
   });
 }

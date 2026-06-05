@@ -1,8 +1,10 @@
 import 'package:jaspr/jaspr.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../utils/photo_edit_value.dart';
 import '../utils/table_cell_edit.dart';
 import 'schema_table_foreign_key_cell.dart';
+import 'schema_table_photo_cell.dart';
 import 'theme/theme_components.dart';
 
 /// Renders a table body cell with rich widgets for enums, lists, and booleans.
@@ -12,9 +14,10 @@ class SchemaTableCell extends StatelessComponent {
   final Object? rawValue;
   final ColumnShape? shape;
 
-  static bool usesRichLayout(ColumnShape? shape) {
-    if (shape == null) return false;
+  static bool usesRichLayout(ColumnShape? shape, [Object? rawValue]) {
+    if (shape == null) return rawValue != null && cellLooksLikePhoto(rawValue);
     if (isForeignKeyColumn(shape)) return true;
+    if (isPhotoColumnKind(shape.kind) || cellLooksLikePhoto(rawValue)) return true;
     return switch (shape.kind) {
       ColumnShapeKind.list ||
       ColumnShapeKind.enum_ ||
@@ -33,6 +36,11 @@ class SchemaTableCell extends StatelessComponent {
 
     if (shape != null && isForeignKeyColumn(shape!)) {
       return SchemaTableForeignKeyCell(rawValue: rawValue, shape: shape!);
+    }
+
+    final photoShape = photoShapeForCell(shape: shape, rawValue: rawValue);
+    if (photoShape != null) {
+      return SchemaTablePhotoCell(rawValue: rawValue, shape: photoShape);
     }
 
     return switch (shape?.kind) {

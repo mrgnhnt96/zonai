@@ -23,6 +23,14 @@ void main() {
       expect(shape.columnNamed('created_at')?.isReadOnly, isTrue);
     });
 
+    test('maps photo transformer runtime type to photo kind', () {
+      final shape = tableSchemaShapeFromTable(
+        rd.Table.getFor(_PhotoDemoTable.schemaTable),
+      );
+
+      expect(shape.columnNamed('image')?.kind, ColumnShapeKind.photo);
+    });
+
     test('maps BigIntTransfomer columns to bigInt kind', () {
       final shape = tableSchemaShapeFromTable(
         rd.Table.getFor(_BigIntDemoTable.schemaTable),
@@ -94,6 +102,35 @@ final class _DemoTable extends Table<_DemoRow> {
   final PasswordColumn password;
   final EnumColumn<_Status> status;
   final DateTimeColumn createdAt;
+}
+
+final class _PhotoRow {
+  _PhotoRow({required this.id, this.image});
+
+  final UnknownId id;
+  final PhotoId? image;
+}
+
+final class _PhotoDemoTable extends Table<_PhotoRow> {
+  _PhotoDemoTable(super.$)
+    : id = $.id(
+        'id',
+        (s) => s.id,
+        fromString: UnknownId.new,
+        generate: () => UnknownId(Id.generate()),
+      ),
+      image = $.photo('image', (s) => s.image);
+
+  static final schemaTable = zs.table('photo_demo', _PhotoDemoTable.new);
+
+  @override
+  _PhotoRow fromRow(RowReader read) => _PhotoRow(
+    id: read(id),
+    image: read(image),
+  );
+
+  final IdColumn<UnknownId> id;
+  final PhotoColumn? image;
 }
 
 final class _BigIntRow {

@@ -182,6 +182,8 @@ ColumnShapeKind _kindFromTransformerRuntimeType(rd.Column column) {
     'DateTimeTransfomer' => ColumnShapeKind.dateTime,
     'MapTransformer' => ColumnShapeKind.map,
     'ListTransformer' => ColumnShapeKind.list,
+    'PhotoTransformer' => ColumnShapeKind.photo,
+    'PhotosTransformer' => ColumnShapeKind.photos,
     _ => _kindFromSqlType(column.sqlType),
   };
 }

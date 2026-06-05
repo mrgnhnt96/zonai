@@ -45,6 +45,96 @@ void main() {
     });
   });
 
+  group('cellLooksLikePhoto', () {
+    test('detects resolved image URL', () {
+      expect(
+        cellLooksLikePhoto('http://localhost:8080/img/0123456789abcde_ph.png'),
+        isTrue,
+      );
+    });
+
+    test('detects raw photo id', () {
+      expect(cellLooksLikePhoto('0123456789abcde_ph'), isTrue);
+    });
+
+    test('rejects plain text', () {
+      expect(cellLooksLikePhoto('hello'), isFalse);
+    });
+  });
+
+  group('photoShapeForCell', () {
+    const textShape = ColumnShape(
+      name: 'photo',
+      kind: ColumnShapeKind.text,
+      isNullable: true,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+
+    test('upgrades text shape when value is a photo URL', () {
+      final shape = photoShapeForCell(
+        shape: textShape,
+        rawValue: 'http://localhost:8080/img/0123456789abcde_ph.png',
+      );
+      expect(shape?.kind, ColumnShapeKind.photo);
+    });
+  });
+
+  group('photoUrlsFromCell', () {
+    const baseUrl = 'http://localhost:8080';
+
+    final photoShape = ColumnShape(
+      name: 'image',
+      kind: ColumnShapeKind.photo,
+      isNullable: true,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+
+    final photosShape = ColumnShape(
+      name: 'images',
+      kind: ColumnShapeKind.photos,
+      isNullable: true,
+      isPrimaryKey: false,
+      autoIncrement: false,
+      sqlType: 'TEXT',
+    );
+
+    test('resolves id to image URL', () {
+      expect(
+        photoUrlsFromCell('0123456789abcde_ph', photoShape, imageBaseUrl: baseUrl),
+        ['$baseUrl/img/0123456789abcde_ph'],
+      );
+    });
+
+    test('keeps full image URL', () {
+      const url = 'http://localhost:8080/img/0123456789abcde_ph.png';
+      expect(
+        photoUrlsFromCell(url, photoShape, imageBaseUrl: baseUrl),
+        [url],
+      );
+    });
+
+    test('resolves multiple photos', () {
+      expect(
+        photoUrlsFromCell(
+          [
+            '0123456789abcde_ph',
+            'http://localhost:8080/img/0123456789abcdf_ph.png',
+          ],
+          photosShape,
+          imageBaseUrl: baseUrl,
+        ),
+        [
+          '$baseUrl/img/0123456789abcde_ph',
+          'http://localhost:8080/img/0123456789abcdf_ph.png',
+        ],
+      );
+    });
+  });
+
   group('removedPhotoIds', () {
     final shape = ColumnShape(
       name: 'image',

@@ -907,7 +907,8 @@ String formatReadOnlyCell(Object? value, ColumnShape? shape, {bool revealSecrets
   };
 }
 
-bool isForeignKeyColumn(ColumnShape shape) => shape.foreignKey != null;
+bool isForeignKeyColumn(ColumnShape shape) =>
+    shape.foreignKey != null && !isPhotoColumnKind(shape.kind);
 
 bool isDateTimeColumnKind(ColumnShapeKind kind) =>
     kind == ColumnShapeKind.dateTime ||

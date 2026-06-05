@@ -31,6 +31,7 @@ import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
 import 'query_preview_card.dart';
 import 'schema_table_foreign_key_cell.dart';
+import 'schema_table_photo_cell.dart';
 import 'syntax_highlighted_code.dart';
 import 'table_edit/foreign_key_picker_dialog.dart';
 import 'theme/theme_components.dart';
@@ -211,11 +212,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         return;
       }
       if (_editing) {
-        if (detail.openedViaEditShortcut) {
-          _requestDismiss(detail, _PendingDismiss.closePanel);
-        } else {
-          _requestDismiss(detail, _PendingDismiss.cancelEditing);
-        }
+        _requestDismiss(detail, _PendingDismiss.cancelEditing);
         return;
       }
       if (detail.canNavigateBack) {
@@ -1578,7 +1575,15 @@ class _DetailField extends StatelessComponent {
   final ColumnShape shape;
   final bool readOnlyHint;
 
-  String get _copyText => formatReadOnlyCell(rawValue, shape, revealSecrets: true);
+  String get _copyText {
+    final photoShape = photoShapeForCell(shape: shape, rawValue: rawValue);
+    if (photoShape != null) {
+      final urls = photoUrlsFromCell(rawValue, photoShape, imageBaseUrl: revaliBaseUrl);
+      if (urls.isEmpty) return '—';
+      return urls.join('\n');
+    }
+    return formatReadOnlyCell(rawValue, shape, revealSecrets: true);
+  }
 
   @override
   Component build(BuildContext context) {
@@ -1862,6 +1867,15 @@ class _DetailFieldValue extends StatelessComponent {
       );
     }
 
+    final photoShape = photoShapeForCell(shape: shape, rawValue: rawValue);
+    if (photoShape != null) {
+      return SchemaTablePhotoCell(
+        rawValue: rawValue,
+        shape: photoShape,
+        size: SchemaTablePhotoSize.detail,
+      );
+    }
+
     return switch (shape.kind) {
       ColumnShapeKind.blob when _usesJsonCodeCard(shape, rawValue) => _DetailJsonCodeValue(
         rawValue: rawValue,
@@ -1874,42 +1888,8 @@ class _DetailFieldValue extends StatelessComponent {
       ColumnShapeKind.boolean || ColumnShapeKind.isVerified => ZonaiBooleanCheck(
         checked: cellEditValueAsBool(rawValue),
       ),
-      ColumnShapeKind.photo || ColumnShapeKind.photos => _detailPhotoValue(rawValue, shape),
       _ => _DetailPlainText(value: formatReadOnlyCell(rawValue, shape)),
     };
-  }
-
-  Component _detailPhotoValue(Object? value, ColumnShape shape) {
-    final urls = <String>[];
-    void addUrl(Object? item) {
-      if (item == null) return;
-      final text = '$item';
-      if (text.startsWith('http://') || text.startsWith('https://')) {
-        urls.add(text);
-        return;
-      }
-      final id = parsePhotoIdFromCell(text);
-      if (id != null) urls.add('$revaliBaseUrl/img/$id');
-    }
-
-    if (shape.kind == ColumnShapeKind.photo) {
-      addUrl(value);
-    } else {
-      if (value is List) {
-        for (final item in value) {
-          addUrl(item);
-        }
-      } else {
-        addUrl(value);
-      }
-    }
-
-    if (urls.isEmpty) return _DetailPlainText(value: '—');
-
-    return div(classes: 'table-row-detail-photo-grid', [
-      for (final url in urls)
-        img(src: url, attributes: {'alt': shape.name, 'loading': 'lazy'}),
-    ]);
   }
 
   Component _detailListValue(Object? value) {
@@ -2517,19 +2497,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     raw: const {'font': 'inherit'},
   ),
   css('.table-row-detail-expand:hover').styles(color: primaryHoverColor),
-  css('.table-row-detail-photo-grid').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    flexWrap: FlexWrap.wrap,
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
-  css('.table-row-detail-photo-grid img').styles(
-    width: 72.px,
-    height: 72.px,
-    radius: .all(Radius.circular(6.px)),
-    border: Border.all(color: borderColor, width: 1.px),
-    raw: const {'object-fit': 'cover', 'display': 'block'},
-  ),
+  ...schemaTablePhotoCellStyles,
   ...tableEditSharedStyles,
   ...foreignKeyPickerDialogStyles,
 ];

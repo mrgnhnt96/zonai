@@ -33,6 +33,7 @@ import 'home_sidebar.dart';
 import 'app_tooltip_overlay.dart';
 import 'syntax_highlighted_code.dart';
 import 'schema_table_cell.dart';
+import 'schema_table_photo_cell.dart';
 import 'schema_table_foreign_key_cell.dart';
 import 'table_row_detail_panel.dart';
 import 'table_edit/table_edit_datetime_field.dart';
@@ -95,6 +96,7 @@ class HomeScreen extends StatelessComponent {
     ...tableEditDatetimeStyles,
     ...tableFilterDatetimeStyles,
     ...schemaTableForeignKeyCellStyles,
+    ...schemaTablePhotoCellStyles,
     css('.home', [
       css('&').styles(
         flex: Flex(grow: 1, shrink: 1),
@@ -949,9 +951,9 @@ class _SelectableRow extends StatelessComponent {
     return parts.join(' ');
   }
 
-  String _cellClasses(ColumnShape? shape) {
+  String _cellClasses(ColumnShape? shape, Object? rawValue) {
     final parts = <String>['rows-cell'];
-    if (SchemaTableCell.usesRichLayout(shape)) parts.add('rows-cell--rich');
+    if (SchemaTableCell.usesRichLayout(shape, rawValue)) parts.add('rows-cell--rich');
     return parts.join(' ');
   }
 
@@ -1005,7 +1007,7 @@ class _SelectableRow extends StatelessComponent {
         ),
         for (var i = 0; i < row.length; i++)
           td(
-            classes: _cellClasses(columnShapes.elementAtOrNull(i)),
+            classes: _cellClasses(columnShapes.elementAtOrNull(i), row[i]),
             [
               div(classes: 'rows-cell-inner', [
                 SchemaTableCell(

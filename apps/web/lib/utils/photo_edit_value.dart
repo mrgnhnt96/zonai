@@ -90,6 +90,58 @@ final class PhotoEditMultiValue extends PhotoEditValue {
 bool isPhotoColumnKind(ColumnShapeKind kind) =>
     kind == ColumnShapeKind.photo || kind == ColumnShapeKind.photos;
 
+/// True when [raw] is a photo id, image URL, or list of those.
+bool cellLooksLikePhoto(Object? raw) {
+  if (raw == null) return false;
+  if (raw is List) {
+    if (raw.isEmpty) return false;
+    return raw.any(cellLooksLikePhoto);
+  }
+  return parsePhotoIdFromCell('$raw') != null;
+}
+
+ColumnShapeKind _inferredPhotoKind(Object? raw) =>
+    raw is List ? ColumnShapeKind.photos : ColumnShapeKind.photo;
+
+/// Shape to use when rendering or copying a photo cell.
+///
+/// Returns [shape] when it is already a photo column, otherwise upgrades a
+/// text-like shape when [rawValue] looks like a resolved photo field.
+ColumnShape? photoShapeForCell({
+  required ColumnShape? shape,
+  required Object? rawValue,
+}) {
+  if (shape != null && isPhotoColumnKind(shape.kind)) return shape;
+  if (!cellLooksLikePhoto(rawValue)) return null;
+
+  final base =
+      shape ??
+      ColumnShape(
+        name: 'photo',
+        kind: _inferredPhotoKind(rawValue),
+        isNullable: true,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'TEXT',
+      );
+
+  if (isPhotoColumnKind(base.kind)) return base;
+
+  return ColumnShape(
+    name: base.name,
+    kind: _inferredPhotoKind(rawValue),
+    isNullable: base.isNullable,
+    isPrimaryKey: base.isPrimaryKey,
+    autoIncrement: base.autoIncrement,
+    sqlType: base.sqlType,
+    defaultValue: base.defaultValue,
+    foreignKey: base.foreignKey,
+    enumValues: base.enumValues,
+    isSecret: base.isSecret,
+    isReadOnly: base.isReadOnly,
+  );
+}
+
 /// Empty draft for a photo column shape.
 PhotoEditValue emptyPhotoEditValue(ColumnShape shape) {
   return switch (shape.kind) {
@@ -182,6 +234,38 @@ List<String> photoEditValueIds(PhotoEditValue? value) {
         if (item case PhotoEditExistingItem(:final id)) id,
     ],
   };
+}
+
+/// Image URLs from a stored row cell (full URLs or ids resolved via [imageBaseUrl]).
+List<String> photoUrlsFromCell(
+  Object? raw,
+  ColumnShape shape, {
+  required String imageBaseUrl,
+}) {
+  final urls = <String>[];
+
+  void addUrl(Object? item) {
+    if (item == null) return;
+    final text = '$item';
+    if (text.startsWith('http://') || text.startsWith('https://')) {
+      urls.add(text);
+      return;
+    }
+    final id = parsePhotoIdFromCell(text);
+    if (id != null) urls.add('$imageBaseUrl/img/$id');
+  }
+
+  if (shape.kind == ColumnShapeKind.photo) {
+    addUrl(raw);
+  } else if (raw is List) {
+    for (final item in raw) {
+      addUrl(item);
+    }
+  } else {
+    addUrl(raw);
+  }
+
+  return urls;
 }
 
 /// Photo ids from a stored row cell (URLs or raw ids).
