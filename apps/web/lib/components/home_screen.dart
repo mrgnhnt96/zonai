@@ -7,6 +7,7 @@ import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
+import '../constants/button_sizes.dart';
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
@@ -43,6 +44,7 @@ import 'table_search_panel.dart';
 import 'table_search_side_panel.dart';
 import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
+import 'theme/zonai_icon_button.dart';
 import '../constants/spacing.dart';
 
 const _rowsSelectCheckboxCheckSvg =
@@ -125,23 +127,6 @@ class HomeScreen extends StatelessComponent {
         gap: Gap.all(ZonaiSpacing.s6),
         margin: .only(bottom: ZonaiSpacing.s8),
       ),
-      css('.home-mobile-nav-btn').styles(
-        width: 40.px,
-        height: 40.px,
-        display: .flex,
-        alignItems: .center,
-        justifyContent: .center,
-        cursor: .pointer,
-        radius: .all(Radius.circular(8.px)),
-        border: .all(color: borderColor, width: 1.px, style: .solid),
-        backgroundColor: surfaceColor,
-        color: fgColor,
-        fontSize: 1.25.rem,
-        padding: .zero,
-        flex: Flex(grow: 0, shrink: 0),
-        raw: const {'font': 'inherit', 'line-height': '1'},
-      ),
-      css('.home-mobile-nav-btn:hover').styles(backgroundColor: hoverColor),
       css('.home-mobile-nav-title').styles(
         margin: .zero,
         fontSize: 1.rem,
@@ -477,36 +462,6 @@ class HomeScreen extends StatelessComponent {
         '.table-rows-selection-actions',
       ).styles(display: .flex, alignItems: .center, gap: Gap.all(ZonaiSpacing.s3), flex: Flex(grow: 0, shrink: 0)),
       css('.table-rows-selection-actions .z-btn + .z-btn').styles(margin: .zero),
-      css('.table-rows-selection-actions .z-btn').styles(
-        padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s3),
-        fontSize: 0.8125.rem,
-      ),
-      css('.rows-selection-icon-btn').styles(
-        width: 28.px,
-        height: 28.px,
-        display: .inlineFlex,
-        alignItems: .center,
-        justifyContent: .center,
-        padding: .zero,
-        cursor: .pointer,
-        radius: .all(Radius.circular(8.px)),
-        border: .all(color: borderColor, width: 1.px, style: .solid),
-        backgroundColor: surfaceColor,
-        color: mutedColor,
-        fontSize: 1.125.rem,
-        flex: Flex(grow: 0, shrink: 0),
-        raw: const {
-          'font': 'inherit',
-          'line-height': '1',
-          'transition': 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
-        },
-      ),
-      css('.rows-selection-icon-btn:hover:not(:disabled)').styles(
-        backgroundColor: hoverColor,
-        color: fgColor,
-        border: .all(color: mutedColor, width: 1.px, style: .solid),
-      ),
-      css('.rows-selection-icon-btn:disabled').styles(opacity: 0.55, cursor: .notAllowed),
       css('.rows-selection-delete').styles(
         color: onPrimaryColor,
         backgroundColor: errorColor,
@@ -561,15 +516,14 @@ class _MobileNavHeader extends StatelessComponent {
     final title = focused?.displayName ?? 'Tables';
 
     return div(classes: 'home-mobile-nav-header', [
-      button(
-        classes: 'home-mobile-nav-btn',
-        type: .button,
+      ZonaiIconButton(
+        size: ZonaiIconButtonSize.lg,
         attributes: {
           'aria-label': 'Open navigation',
           'aria-expanded': context.watch(homeUiProvider).mobileNavOpen ? 'true' : 'false',
         },
         onClick: () => context.read(homeUiProvider.notifier).toggleMobileNav(),
-        [.text('☰')],
+        child: .text('☰'),
       ),
       h1(classes: 'home-mobile-nav-title', [.text(title)]),
     ]);
@@ -1275,19 +1229,19 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
         ],
       ]),
       div(classes: 'table-rows-selection-actions', [
-        button(
-          classes: 'rows-selection-icon-btn',
-          type: .button,
+        ZonaiIconButton(
+          size: ZonaiIconButtonSize.xs,
           disabled: _busy,
           attributes: {'aria-label': _exporting ? 'Exporting rows' : 'Export selected rows as JSON'},
           events: appTooltipEvents(context, text: 'Export JSON'),
           onClick: _exportSelectedAsJson,
-          [_selectionExportIcon()],
+          child: _selectionExportIcon(),
         ),
         if (canDeleteRows)
           button(
             classes: [
-              ZonaiClasses.btn,
+              ZonaiButtonSizes.textBtn,
+              ZonaiButtonSizes.textSizeClass(ZonaiButtonSize.sm),
               'rows-selection-delete',
               if (_deleteHoldPhase == _DeleteHoldPhase.holding) 'rows-selection-delete--holding',
               if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete--resetting',
@@ -1320,14 +1274,13 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
               span(classes: 'rows-selection-delete__label', [.text('Delete')]),
             ],
           ),
-        button(
-          classes: 'rows-selection-icon-btn',
-          type: .button,
+        ZonaiIconButton(
+          size: ZonaiIconButtonSize.xs,
           disabled: _busy,
           attributes: {'aria-label': 'Deselect rows'},
           events: appTooltipEvents(context, text: 'Deselect'),
           onClick: () => context.read(tableRowSelectionProvider.notifier).clear(),
-          [.text('×')],
+          child: .text('×'),
         ),
       ]),
     ]);

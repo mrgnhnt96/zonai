@@ -8,6 +8,7 @@ import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
+import '../constants/button_sizes.dart';
 import '../constants/layout.dart';
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
@@ -1190,12 +1191,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                 h2(classes: 'table-row-detail-title', [.text('New row')]),
               ]),
               div(classes: 'table-row-detail-header-actions', [
-                button(
-                  classes: 'table-row-detail-close',
-                  type: .button,
+                ZonaiIconButton(
+                  size: ZonaiIconButtonSize.sm,
+                  variant: ZonaiIconButtonVariant.ghost,
                   attributes: {'aria-label': 'Close new row panel'},
                   onClick: close,
-                  [.text('×')],
+                  child: .text('×'),
                 ),
               ]),
             ]),
@@ -1342,12 +1343,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                     },
                     [.text(showRawJson ? 'Fields' : 'JSON')],
                   ),
-                button(
-                  classes: 'table-row-detail-close',
-                  type: .button,
+                ZonaiIconButton(
+                  size: ZonaiIconButtonSize.sm,
+                  variant: ZonaiIconButtonVariant.ghost,
                   attributes: {'aria-label': 'Close row details'},
                   onClick: close,
-                  [.text('×')],
+                  child: .text('×'),
                 ),
               ]),
             ]),
@@ -2149,35 +2150,18 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     flex: Flex(grow: 0, shrink: 0),
   ),
   css('.table-row-detail-view-toggle').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s3),
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.xs),
     margin: .zero,
     border: .all(color: borderColor, width: 1.px, style: .solid),
-    radius: .all(Radius.circular(8.px)),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.xs))),
     backgroundColor: Colors.transparent,
     color: mutedColor,
     cursor: .pointer,
-    fontSize: 0.75.rem,
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.xs),
     fontWeight: .w600,
     raw: const {'font': 'inherit', 'line-height': '1.2'},
   ),
   css('.table-row-detail-view-toggle:hover').styles(backgroundColor: hoverColor, color: fgColor),
-  css('.table-row-detail-close').styles(
-    width: 32.px,
-    height: 32.px,
-    display: .flex,
-    alignItems: .center,
-    justifyContent: .center,
-    cursor: .pointer,
-    radius: .all(Radius.circular(8.px)),
-    border: Border.none,
-    backgroundColor: Colors.transparent,
-    color: mutedColor,
-    fontSize: 1.25.rem,
-    padding: .zero,
-    flex: Flex(grow: 0, shrink: 0),
-    raw: const {'font': 'inherit', 'line-height': '1'},
-  ),
-  css('.table-row-detail-close:hover').styles(backgroundColor: hoverColor, color: fgColor),
   css('.table-row-detail-footer').styles(
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,
@@ -2230,13 +2214,13 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-footer-btn').styles(
     display: .block,
     width: 100.percent,
-    padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s5),
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.sm),
     border: Border.all(color: borderColor, width: 1.px, style: .solid),
-    radius: .all(Radius.circular(8.px)),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.sm))),
     backgroundColor: surfaceColor,
     color: fgColor,
     cursor: .pointer,
-    fontSize: 0.875.rem,
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.sm),
     fontWeight: .w600,
     textAlign: TextAlign.center,
     raw: const {'font': 'inherit', 'line-height': '1.3', 'box-sizing': 'border-box'},
@@ -2295,13 +2279,13 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     gap: Gap.all(ZonaiSpacing.s4),
   ),
   css('.table-row-detail-discard-btn').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s7, vertical: ZonaiSpacing.s4),
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.sm),
     border: Border.all(color: borderColor, width: 1.px, style: .solid),
-    radius: .all(Radius.circular(8.px)),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.sm))),
     backgroundColor: surfaceColor,
     color: fgColor,
     cursor: .pointer,
-    fontSize: 0.875.rem,
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.sm),
     fontWeight: .w600,
     raw: const {'font': 'inherit', 'line-height': '1.3'},
   ),

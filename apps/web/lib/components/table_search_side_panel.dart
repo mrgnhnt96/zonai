@@ -18,6 +18,8 @@ import 'app_tooltip_overlay.dart';
 import 'table_edit/table_edit_datetime_field.dart';
 import 'table_edit/foreign_key_picker_dialog.dart';
 import 'table_search_panel.dart';
+import 'theme/zonai_icon_button.dart';
+import '../constants/button_sizes.dart';
 
 const _slideDuration = Duration(milliseconds: 250);
 const _panelMinWidthPx = 320.0;
@@ -381,12 +383,11 @@ class _TableSearchSidePanelState extends State<TableSearchSidePanel> {
             div(classes: 'table-search-side-header', [
               div(classes: 'table-search-side-header-row', [
                 h2(classes: 'table-search-side-title', [.text('Search')]),
-                button(
-                  type: .button,
-                  classes: 'table-search-side-close',
+                ZonaiIconButton(
+                  size: ZonaiIconButtonSize.sm,
                   attributes: {'aria-label': 'Close search panel'},
                   onClick: close,
-                  [removeConditionIcon()],
+                  child: removeConditionIcon(),
                 ),
               ]),
               if (summary != null) p(classes: 'table-search-side-summary', [.text(summary)]),

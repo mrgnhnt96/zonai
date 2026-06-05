@@ -1,6 +1,7 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
+import '../../constants/button_sizes.dart';
 import '../../constants/theme.dart';
 import '../../utils/table_cell_edit.dart';
 import '../../constants/spacing.dart';
@@ -76,8 +77,11 @@ class TableEditEnumMultiSelect extends StatelessComponent {
 @css
 List<StyleRule> tableEditEnumMultiSelectStyles = [
   css('.table-search-op.table-edit-enum-value').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s2_5),
-    fontSize: 0.8125.rem,
+    padding: .symmetric(
+      horizontal: ZonaiButtonSizes.textPaddingHorizontal(ZonaiButtonSize.sm),
+      vertical: ZonaiSpacing.s2_5,
+    ),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.sm),
     radius: .all(Radius.circular(100.px)),
     raw: const {
       'line-height': '1.3',

@@ -1,11 +1,12 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 
+import '../constants/button_sizes.dart';
+import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../utils/table_cell_edit.dart';
 import 'app_tooltip_overlay.dart';
 import 'table_edit/table_edit_datetime_field.dart';
-import '../constants/spacing.dart';
 
 /// Relative date preset for datetime filter values.
 typedef _DatetimeFilterPreset = ({
@@ -195,9 +196,9 @@ List<StyleRule> tableFilterDatetimeStyles = [
   ),
   css('.table-filter-datetime__timezone').styles(margin: .zero),
   css('.table-filter-datetime__timezone-btn').styles(
-    fontSize: 0.8125.rem,
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.sm),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.sm),
     fontWeight: .w600,
-    padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s2_5),
   ),
   css('.table-filter-datetime__group').styles(
     display: .flex,
@@ -214,8 +215,8 @@ List<StyleRule> tableFilterDatetimeStyles = [
   ),
   css('.table-filter-datetime__presets').styles(margin: .zero),
   css('.table-filter-datetime__preset').styles(
-    fontSize: 0.8125.rem,
-    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s2_5),
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.sm),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.sm),
   ),
   css('.table-filter-datetime__picker').styles(
     width: 100.percent,

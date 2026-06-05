@@ -9,7 +9,9 @@ import '../providers/foreign_key_reference_lookup_provider.dart';
 import '../providers/foreign_key_rows_provider.dart';
 import '../providers/table_row_detail_provider.dart';
 import 'app_tooltip_overlay.dart';
+import 'theme/zonai_icon_button.dart';
 import 'theme/zonai_tag.dart';
+import '../constants/button_sizes.dart';
 
 typedef OpenReferencedRowCallback = void Function(
   BuildContext context,
@@ -97,9 +99,10 @@ class _ForeignKeyCellContent extends StatelessComponent {
     return div(classes: 'rows-fk-cell', [
       ZonaiTag(label: label, monospace: monospace),
       if (canOpenDetails)
-        button(
+        ZonaiIconButton(
+          size: ZonaiIconButtonSize.xxs,
+          variant: ZonaiIconButtonVariant.ghost,
           classes: 'rows-fk-cell__details-btn',
-          type: .button,
           attributes: {'aria-label': 'View referenced row details'},
           events: {
             'click': (event) {
@@ -109,7 +112,7 @@ class _ForeignKeyCellContent extends StatelessComponent {
             },
             ...appTooltipEvents(context, text: 'View referenced row'),
           },
-          [_referencedRowDetailsIcon()],
+          child: _referencedRowDetailsIcon(),
         ),
     ]);
   }
@@ -151,18 +154,7 @@ List<StyleRule> get schemaTableForeignKeyCellStyles => [
     minWidth: .zero,
   ),
   css('.rows-fk-cell__details-btn').styles(
-    display: .inlineFlex,
-    alignItems: .center,
-    justifyContent: .center,
-    width: 1.5.rem,
-    height: 1.5.rem,
-    padding: .zero,
     margin: .zero,
-    border: .unset,
-    radius: .all(Radius.circular(5.px)),
-    backgroundColor: Colors.transparent,
-    color: mutedColor,
-    cursor: .pointer,
     flex: Flex(grow: 0, shrink: 0),
     raw: const {'line-height': '0'},
   ),

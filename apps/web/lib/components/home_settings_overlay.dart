@@ -4,6 +4,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import '../auth/auth_provider.dart';
+import '../constants/button_sizes.dart';
 import '../constants/theme.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/session_user_provider.dart';
@@ -89,22 +90,6 @@ class HomeSettingsOverlay extends StatefulComponent {
       fontSize: 1.rem,
       fontWeight: .w600,
     ),
-    css('.home-settings-panel-close').styles(
-      width: 32.px,
-      height: 32.px,
-      display: .flex,
-      alignItems: .center,
-      justifyContent: .center,
-      cursor: .pointer,
-      radius: .all(Radius.circular(8.px)),
-      border: Border.none,
-      backgroundColor: Colors.transparent,
-      color: mutedColor,
-      fontSize: 1.25.rem,
-      padding: .zero,
-      raw: const {'font': 'inherit', 'line-height': '1'},
-    ),
-    css('.home-settings-panel-close:hover').styles(backgroundColor: hoverColor, color: fgColor),
     css('.home-settings-profile').styles(
       display: .flex,
       flexDirection: FlexDirection.row,
@@ -296,12 +281,12 @@ class _HomeSettingsOverlayState extends State<HomeSettingsOverlay> {
         [
           div(classes: 'home-settings-panel-header', [
             h2(classes: 'home-settings-panel-title', [.text('Settings')]),
-            button(
-              classes: 'home-settings-panel-close',
-              type: .button,
+            ZonaiIconButton(
+              size: ZonaiIconButtonSize.sm,
+              variant: ZonaiIconButtonVariant.ghost,
               attributes: {'aria-label': 'Close settings'},
               onClick: close,
-              [.text('×')],
+              child: .text('×'),
             ),
           ]),
           div(classes: 'home-settings-profile', [

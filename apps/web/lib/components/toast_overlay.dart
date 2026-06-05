@@ -2,9 +2,11 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
+import '../constants/button_sizes.dart';
+import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/toast_provider.dart';
-import '../constants/spacing.dart';
+import 'theme/zonai_icon_button.dart';
 
 /// Fixed-position toast stack rendered at the app shell level.
 class ToastOverlay extends StatelessComponent {
@@ -29,12 +31,13 @@ class ToastOverlay extends StatelessComponent {
         attributes: {'role': 'alert'},
         [
           span(classes: 'zonai-toast__text', [.text(toast.text)]),
-          button(
+          ZonaiIconButton(
+            size: ZonaiIconButtonSize.xs,
+            variant: ZonaiIconButtonVariant.ghost,
             classes: 'zonai-toast__dismiss',
-            type: .button,
             attributes: {'aria-label': 'Dismiss'},
             onClick: dismiss,
-            [.text('×')],
+            child: .text('×'),
           ),
         ],
       ),
@@ -90,22 +93,7 @@ class ToastOverlay extends StatelessComponent {
     ),
     css('.zonai-toast--error .zonai-toast__dismiss').styles(color: errorColor),
     css('.zonai-toast--success .zonai-toast__dismiss').styles(color: successColor),
-    css('.zonai-toast__dismiss').styles(
-      flex: Flex(grow: 0, shrink: 0),
-      width: 28.px,
-      height: 28.px,
-      display: .flex,
-      alignItems: .center,
-      justifyContent: .center,
-      margin: .zero,
-      padding: .zero,
-      border: Border.none,
-      radius: .all(Radius.circular(6.px)),
-      backgroundColor: Colors.transparent,
-      cursor: .pointer,
-      fontSize: 1.125.rem,
-      raw: const {'font': 'inherit', 'line-height': '1'},
-    ),
+    css('.zonai-toast__dismiss').styles(flex: Flex(grow: 0, shrink: 0), margin: .zero),
     css('.zonai-toast--error .zonai-toast__dismiss:hover').styles(backgroundColor: errorBorderColor),
     css('.zonai-toast--success .zonai-toast__dismiss:hover').styles(backgroundColor: successBorderColor),
     css('@keyframes zonai-toast-in').styles(

@@ -7,6 +7,7 @@ import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
+import '../../constants/button_sizes.dart';
 import '../../constants/theme.dart';
 import '../../providers/foreign_key_rows_provider.dart';
 import '../../providers/table_rows_provider.dart';
@@ -213,6 +214,7 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
                 if (component.selectedId != null)
                   ZonaiButton(
                     variant: ZonaiButtonVariant.ghost,
+                    size: ZonaiButtonSize.md,
                     onClick: () {
                       component.onSelect(null);
                       component.onClose();
@@ -323,7 +325,12 @@ class _FkPickerDetailView extends StatelessComponent {
         _FkPickerDetailFields(data: data, row: row),
       ]),
       div(classes: 'fk-picker-detail-footer', [
-        ZonaiButton(variant: ZonaiButtonVariant.ghost, onClick: onBack, child: .text('Back')),
+        ZonaiButton(
+          variant: ZonaiButtonVariant.ghost,
+          size: ZonaiButtonSize.md,
+          onClick: onBack,
+          child: .text('Back'),
+        ),
         ZonaiButton(variant: ZonaiButtonVariant.primary, onClick: onSelect, child: .text('Select')),
       ]),
     ]);
@@ -460,8 +467,6 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     raw: const {'border-top': '1px solid var(--zonai-border)'},
   ),
   css('.fk-picker-footer .z-btn--ghost').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s9, vertical: ZonaiSpacing.s5_5),
-    fontSize: 0.9375.rem,
     fontWeight: .w500,
     backgroundColor: Colors.transparent,
     border: Border.none,
@@ -471,9 +476,6 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     backgroundColor: hoverColor,
     color: fgColor,
     border: Border.none,
-  ),
-  css('.fk-picker-footer .z-btn--ghost:focus-visible').styles(
-    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
   ),
   css('.fk-picker-footer .z-btn + .z-btn').styles(margin: .zero),
   css('.fk-picker-detail-view').styles(
@@ -520,8 +522,6 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     raw: const {'border-top': '1px solid var(--zonai-border)'},
   ),
   css('.fk-picker-detail-footer .z-btn--ghost').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s9, vertical: ZonaiSpacing.s5_5),
-    fontSize: 0.9375.rem,
     fontWeight: .w500,
     backgroundColor: Colors.transparent,
     border: Border.none,

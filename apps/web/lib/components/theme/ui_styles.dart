@@ -1,5 +1,6 @@
 import 'package:jaspr/dom.dart';
 
+import '../../constants/button_sizes.dart';
 import '../../constants/theme.dart';
 import '../../constants/spacing.dart';
 import 'zonai_boolean_check.dart';
@@ -18,9 +19,9 @@ abstract final class ZonaiClasses {
   static const selectWrap = 'z-select';
   static const selectNative = 'z-select__native';
   static const btn = 'z-btn';
-  static const btnPrimary = 'z-btn z-btn--primary';
-  static const btnSecondary = 'z-btn z-btn--secondary';
-  static const btnGhost = 'z-btn z-btn--ghost';
+  static const btnPrimary = 'z-btn z-btn--md z-btn--primary';
+  static const btnSecondary = 'z-btn z-btn--md z-btn--secondary';
+  static const btnGhost = 'z-btn z-btn--sm z-btn--ghost';
   static const btnFullWidth = 'z-btn--full';
   static const authPage = 'z-auth-page';
   static const authPageTheme = 'z-auth-page__theme';
@@ -171,18 +172,35 @@ List<StyleRule> get zonaiUiStyles => [
     alignItems: .center,
     justifyContent: .center,
     gap: Gap.all(ZonaiSpacing.s4),
-    padding: .symmetric(horizontal: ZonaiSpacing.s9, vertical: ZonaiSpacing.s5_5),
     cursor: .pointer,
-    radius: .all(Radius.circular(10.px)),
     border: Border.none,
     fontWeight: .w600,
-    fontSize: 0.9375.rem,
     outline: Outline(style: OutlineStyle.none),
     raw: const {
       'font': 'inherit',
       'line-height': '1.2',
       'transition': 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease',
     },
+  ),
+  css('.z-btn--md').styles(
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.md),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.md),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.md))),
+  ),
+  css('.z-btn--sm').styles(
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.sm),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.sm),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.sm))),
+  ),
+  css('.z-btn--xs').styles(
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.xs),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.xs),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.xs))),
+  ),
+  css('.z-btn--xxs').styles(
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.xxs),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.xxs),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.xxs))),
   ),
   css('.z-btn--full').styles(width: 100.percent),
   css('.z-btn--primary').styles(
@@ -210,8 +228,6 @@ List<StyleRule> get zonaiUiStyles => [
     color: mutedColor,
     backgroundColor: surfaceColor,
     border: .all(color: borderColor, width: 1.px, style: .solid),
-    padding: .symmetric(horizontal: ZonaiSpacing.s7, vertical: ZonaiSpacing.s4_5),
-    fontSize: 0.8125.rem,
   ),
   css('.z-btn--ghost:hover:not(:disabled)').styles(
     backgroundColor: hoverColor,
@@ -225,6 +241,73 @@ List<StyleRule> get zonaiUiStyles => [
     cursor: .notAllowed,
   ),
   css('.z-btn + .z-btn').styles(margin: .only(top: ZonaiSpacing.s5)),
+  css('.z-icon-btn').styles(
+    display: .inlineFlex,
+    alignItems: .center,
+    justifyContent: .center,
+    padding: .zero,
+    cursor: .pointer,
+    border: Border.none,
+    outline: Outline(style: OutlineStyle.none),
+    flex: Flex(grow: 0, shrink: 0),
+    raw: const {
+      'font': 'inherit',
+      'line-height': '1',
+      'transition': 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
+    },
+  ),
+  css('.z-icon-btn--lg').styles(
+    width: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.lg),
+    height: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.lg),
+    fontSize: ZonaiButtonSizes.iconFontSize(ZonaiIconButtonSize.lg),
+    radius: .all(Radius.circular(ZonaiButtonSizes.iconRadius(ZonaiIconButtonSize.lg))),
+  ),
+  css('.z-icon-btn--md').styles(
+    width: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.md),
+    height: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.md),
+    fontSize: ZonaiButtonSizes.iconFontSize(ZonaiIconButtonSize.md),
+    radius: .all(Radius.circular(ZonaiButtonSizes.iconRadius(ZonaiIconButtonSize.md))),
+  ),
+  css('.z-icon-btn--sm').styles(
+    width: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.sm),
+    height: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.sm),
+    fontSize: ZonaiButtonSizes.iconFontSize(ZonaiIconButtonSize.sm),
+    radius: .all(Radius.circular(ZonaiButtonSizes.iconRadius(ZonaiIconButtonSize.sm))),
+  ),
+  css('.z-icon-btn--xs').styles(
+    width: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.xs),
+    height: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.xs),
+    fontSize: ZonaiButtonSizes.iconFontSize(ZonaiIconButtonSize.xs),
+    radius: .all(Radius.circular(ZonaiButtonSizes.iconRadius(ZonaiIconButtonSize.xs))),
+  ),
+  css('.z-icon-btn--xxs').styles(
+    width: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.xxs),
+    height: ZonaiButtonSizes.iconDimension(ZonaiIconButtonSize.xxs),
+    fontSize: ZonaiButtonSizes.iconFontSize(ZonaiIconButtonSize.xxs),
+    radius: .all(Radius.circular(ZonaiButtonSizes.iconRadius(ZonaiIconButtonSize.xxs))),
+  ),
+  css('.z-icon-btn--bordered').styles(
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    backgroundColor: surfaceColor,
+    color: mutedColor,
+  ),
+  css('.z-icon-btn--bordered:hover:not(:disabled)').styles(
+    backgroundColor: hoverColor,
+    color: fgColor,
+    border: .all(color: mutedColor, width: 1.px, style: .solid),
+  ),
+  css('.z-icon-btn--ghost').styles(
+    backgroundColor: Colors.transparent,
+    color: mutedColor,
+  ),
+  css('.z-icon-btn--ghost:hover:not(:disabled)').styles(
+    backgroundColor: hoverColor,
+    color: fgColor,
+  ),
+  css('.z-icon-btn:disabled').styles(opacity: 0.55, cursor: .notAllowed),
+  css('.z-icon-btn:focus-visible').styles(
+    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
+  ),
   css('.z-auth-page').styles(
     flex: Flex(grow: 1, shrink: 0),
     display: .flex,

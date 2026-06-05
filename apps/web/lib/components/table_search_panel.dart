@@ -3,6 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../constants/button_sizes.dart';
 import '../constants/layout.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
@@ -35,8 +36,8 @@ class TableSearchToggle extends StatelessComponent {
     final filter = context.watch(tableFilterProvider);
     final notifier = context.read(tableFilterProvider.notifier);
 
-    return button(
-      type: .button,
+    return ZonaiIconButton(
+      size: ZonaiIconButtonSize.md,
       classes: [
         'table-search-toggle',
         if (filter.panelOpen) 'table-search-toggle--open',
@@ -59,7 +60,7 @@ class TableSearchToggle extends StatelessComponent {
           notifier.openPanel();
         }
       },
-      [searchIcon()],
+      child: searchIcon(),
     );
   }
 }
@@ -95,8 +96,8 @@ class TableCreateRowToggle extends StatelessComponent {
     final notifier = context.read(tableRowCreateProvider.notifier);
     final isOpen = create != null;
 
-    return button(
-      type: .button,
+    return ZonaiIconButton(
+      size: ZonaiIconButtonSize.md,
       classes: [
         'table-create-toggle',
         if (isOpen) 'table-create-toggle--open',
@@ -117,7 +118,7 @@ class TableCreateRowToggle extends StatelessComponent {
           );
         }
       },
-      [createRowIcon()],
+      child: createRowIcon(),
     );
   }
 }
@@ -153,11 +154,12 @@ class TableSearchPanel extends StatelessComponent {
           ),
       ]),
       div(classes: 'table-search-panel-footer', [
-        button(
-          type: .button,
-          classes: '${ZonaiClasses.btn} ${ZonaiClasses.btnGhost} table-search-add-btn',
+        ZonaiButton(
+          variant: ZonaiButtonVariant.ghost,
+          size: ZonaiButtonSize.sm,
+          classes: 'table-search-add-btn',
           onClick: notifier.addRow,
-          [.text('+ Add filter')],
+          child: .text('+ Add filter'),
         ),
         _SearchFilterPreview(tableName: tableName, state: state, columnShapes: columnShapes),
         div(classes: 'table-search-panel-actions-primary', [
@@ -358,13 +360,13 @@ class _FilterRow extends StatelessComponent {
             .text(_conditionTitle(index)),
           ]),
           if (canRemove)
-            button(
-              type: .button,
+            ZonaiIconButton(
+              size: ZonaiIconButtonSize.sm,
               classes: 'table-search-row-remove',
               attributes: {'aria-label': 'Remove ${_conditionTitle(index)}'},
               events: appTooltipEvents(context, text: 'Remove condition'),
               onClick: onRemove,
-              [removeConditionIcon()],
+              child: removeConditionIcon(),
             ),
         ]),
         div(classes: 'table-search-row-fields', [
@@ -527,23 +529,7 @@ String? tableFilterPanelSummary(TableFilterState filter, List<ColumnShape> shape
 
 @css
 List<StyleRule> tableSearchPanelStyles = [
-  css('.table-search-toggle').styles(
-    width: 36.px,
-    height: 36.px,
-    flex: Flex(grow: 0, shrink: 0),
-    display: .flex,
-    alignItems: .center,
-    justifyContent: .center,
-    cursor: .pointer,
-    radius: .all(Radius.circular(8.px)),
-    border: .all(color: borderColor, width: 1.px, style: .solid),
-    backgroundColor: surfaceColor,
-    color: mutedColor,
-    padding: .zero,
-    position: Position.relative(),
-    raw: const {'font': 'inherit', 'line-height': '1'},
-  ),
-  css('.table-search-toggle:hover').styles(backgroundColor: hoverColor, color: fgColor),
+  css('.table-search-toggle').styles(position: Position.relative()),
   css('.table-search-toggle--open').styles(
     border: .all(color: primaryColor, width: 1.px, style: .solid),
     color: primaryColor,
@@ -557,23 +543,7 @@ List<StyleRule> tableSearchPanelStyles = [
     radius: .all(Radius.circular(3.px)),
     backgroundColor: primaryColor,
   ),
-  css('.table-create-toggle').styles(
-    width: 36.px,
-    height: 36.px,
-    flex: Flex(grow: 0, shrink: 0),
-    display: .flex,
-    alignItems: .center,
-    justifyContent: .center,
-    cursor: .pointer,
-    radius: .all(Radius.circular(8.px)),
-    border: .all(color: borderColor, width: 1.px, style: .solid),
-    backgroundColor: surfaceColor,
-    color: mutedColor,
-    padding: .zero,
-    position: Position.relative(),
-    raw: const {'font': 'inherit', 'line-height': '1'},
-  ),
-  css('.table-create-toggle:hover').styles(backgroundColor: hoverColor, color: fgColor),
+  css('.table-create-toggle').styles(position: Position.relative()),
   css('.table-create-toggle--open').styles(
     border: .all(color: primaryColor, width: 1.px, style: .solid),
     color: primaryColor,
@@ -591,11 +561,11 @@ List<StyleRule> tableSearchPanelStyles = [
     margin: .only(right: ZonaiSpacing.s2),
   ),
   css('.table-search-segment').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s2),
-    fontSize: 0.75.rem,
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.xxs),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.xxs),
     fontWeight: .w600,
     cursor: .pointer,
-    radius: .all(Radius.circular(6.px)),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.xxs))),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: bgColor,
     color: mutedColor,
@@ -673,10 +643,10 @@ List<StyleRule> tableSearchPanelStyles = [
     '.table-search-operators',
   ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: FlexWrap.wrap, gap: Gap.all(ZonaiSpacing.s3)),
   css('.table-search-op').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s2),
-    fontSize: 0.75.rem,
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.xxs),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.xxs),
     cursor: .pointer,
-    radius: .all(Radius.circular(6.px)),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.xxs))),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: surfaceColor,
     color: fgColor,
@@ -687,22 +657,8 @@ List<StyleRule> tableSearchPanelStyles = [
     border: .all(color: primaryColor, width: 1.px, style: .solid),
     color: primaryColor,
   ),
-  css('.table-search-row-remove').styles(
-    width: 32.px,
-    height: 32.px,
-    flex: Flex(grow: 0, shrink: 0),
-    display: .flex,
-    alignItems: .center,
-    justifyContent: .center,
-    cursor: .pointer,
-    radius: .all(Radius.circular(8.px)),
-    border: .all(color: borderColor, width: 1.px, style: .solid),
-    backgroundColor: surfaceColor,
-    color: fgColor,
-    padding: .zero,
-    raw: const {'font': 'inherit', 'line-height': '1'},
-  ),
-  css('.table-search-row-remove:hover').styles(backgroundColor: hoverColor, color: errorColor),
+  css('.table-search-row-remove').styles(flex: Flex(grow: 0, shrink: 0)),
+  css('.table-search-row-remove:hover').styles(color: errorColor),
   css('.table-search-panel-body').styles(
     flex: Flex(grow: 1, shrink: 1),
     display: .flex,
@@ -809,7 +765,7 @@ List<StyleRule> tableSearchPanelStyles = [
     ),
     backgroundColor: surfaceColor,
   ),
-  css('.table-search-add-btn').styles(margin: .zero, fontSize: 0.8125.rem, alignSelf: .flexStart),
+  css('.table-search-add-btn').styles(margin: .zero, alignSelf: .flexStart),
   css(
     '.table-search-panel-actions-primary',
   ).styles(display: .flex, flexDirection: FlexDirection.row, gap: Gap.all(ZonaiSpacing.s4), justifyContent: .end),
@@ -891,21 +847,6 @@ List<StyleRule> tableSearchSidePanelStyles = [
   css(
     '.table-search-side-summary',
   ).styles(margin: .zero, fontSize: 0.8125.rem, color: mutedColor, raw: const {'line-height': '1.45'}),
-  css('.table-search-side-close').styles(
-    width: 32.px,
-    height: 32.px,
-    display: .flex,
-    alignItems: .center,
-    justifyContent: .center,
-    cursor: .pointer,
-    radius: .all(Radius.circular(8.px)),
-    border: .all(color: borderColor, width: 1.px, style: .solid),
-    backgroundColor: surfaceColor,
-    color: fgColor,
-    padding: .zero,
-    raw: const {'font': 'inherit', 'line-height': '1'},
-  ),
-  css('.table-search-side-close:hover').styles(backgroundColor: hoverColor),
   css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
     css('.table-search-side-panel').styles(
       width: 100.percent,

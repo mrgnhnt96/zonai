@@ -5,9 +5,11 @@ import 'package:jaspr/jaspr.dart';
 import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 
+import '../../constants/button_sizes.dart';
+import '../../constants/spacing.dart';
 import '../../constants/theme.dart';
 import '../../utils/table_cell_edit.dart';
-import '../../constants/spacing.dart';
+import '../theme/zonai_icon_button.dart';
 
 /// True when any [TableEditDatetimeField] popover is open.
 bool isDatetimePickerPopoverOpen() {
@@ -571,8 +573,9 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
               attributes: {'role': 'dialog', 'aria-label': 'Date and time'},
               [
                 div(classes: 'table-edit-datetime__header', [
-                  button(
-                    type: .button,
+                  ZonaiIconButton(
+                    size: ZonaiIconButtonSize.sm,
+                    variant: ZonaiIconButtonVariant.ghost,
                     classes: 'table-edit-datetime__nav',
                     attributes: {'aria-label': 'Previous month'},
                     events: {
@@ -581,13 +584,14 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                         _shiftMonth(-1);
                       },
                     },
-                    [_chevronLeftIcon()],
+                    child: _chevronLeftIcon(),
                   ),
                   span(classes: 'table-edit-datetime__month-label', [
                     .text('${_monthAbbrev[_viewMonth - 1]} $_viewYear'),
                   ]),
-                  button(
-                    type: .button,
+                  ZonaiIconButton(
+                    size: ZonaiIconButtonSize.sm,
+                    variant: ZonaiIconButtonVariant.ghost,
                     classes: 'table-edit-datetime__nav',
                     attributes: {'aria-label': 'Next month'},
                     events: {
@@ -596,7 +600,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                         _shiftMonth(1);
                       },
                     },
-                    [_chevronRightIcon()],
+                    child: _chevronRightIcon(),
                   ),
                 ]),
                 div(classes: 'table-edit-datetime__weekdays', [
@@ -982,21 +986,6 @@ List<StyleRule> tableEditDatetimeStyles = [
     fontWeight: .w600,
     color: fgColor,
   ),
-  css('.table-edit-datetime__nav').styles(
-    width: 32.px,
-    height: 32.px,
-    display: .flex,
-    alignItems: .center,
-    justifyContent: .center,
-    padding: .zero,
-    border: Border.none,
-    backgroundColor: Colors.transparent,
-    color: mutedColor,
-    cursor: .pointer,
-    radius: .all(Radius.circular(8.px)),
-    raw: const {'font': 'inherit', 'line-height': '1'},
-  ),
-  css('.table-edit-datetime__nav:hover').styles(backgroundColor: hoverColor, color: fgColor),
   css('.table-edit-datetime__weekdays').styles(
     display: .grid,
     raw: const {'grid-template-columns': 'repeat(7, 1fr)'},
@@ -1116,11 +1105,11 @@ List<StyleRule> tableEditDatetimeStyles = [
     padding: .only(top: ZonaiSpacing.s1),
   ),
   css('.table-edit-datetime__footer-btn').styles(
-    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s3),
-    fontSize: 0.75.rem,
+    padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.xs),
+    fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.xs),
     fontWeight: .w600,
     cursor: .pointer,
-    radius: .all(Radius.circular(6.px)),
+    radius: .all(Radius.circular(ZonaiButtonSizes.textRadius(ZonaiButtonSize.xs))),
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: bgColor,
     color: fgColor,

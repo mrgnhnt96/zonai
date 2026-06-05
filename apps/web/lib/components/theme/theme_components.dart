@@ -4,6 +4,7 @@ export 'ui_styles.dart';
 export 'zonai_alert.dart';
 export 'zonai_boolean_check.dart';
 export 'zonai_button.dart';
+export 'zonai_icon_button.dart';
 export 'zonai_card.dart';
 export 'zonai_enum_chip.dart';
 export 'zonai_tag.dart';

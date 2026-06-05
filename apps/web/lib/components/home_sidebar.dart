@@ -15,8 +15,10 @@ import '../providers/table_row_keyboard_focus_provider.dart';
 import '../utils/sqlite_table_utils.dart';
 import 'app_tooltip_overlay.dart';
 import '../providers/app_tooltip_provider.dart';
-import 'theme/ui_styles.dart';
+import '../constants/button_sizes.dart';
 import '../constants/spacing.dart';
+import 'theme/ui_styles.dart';
+import 'theme/zonai_icon_button.dart';
 
 String _sidebarTableItemId(String sqliteName) => 'home-sidebar-table-$sqliteName';
 
@@ -61,9 +63,10 @@ class HomeSidebar extends StatelessComponent {
             div(classes: 'home-sidebar-logo', [.text(initial)]),
             span(classes: 'home-sidebar-app-name', [.text(appName)]),
           ]),
-          button(
+          ZonaiIconButton(
+            size: ZonaiIconButtonSize.xs,
+            variant: ZonaiIconButtonVariant.ghost,
             classes: 'home-sidebar-toggle',
-            type: .button,
             attributes: {
               'aria-label': collapsed ? 'Expand sidebar' : 'Collapse sidebar',
             },
@@ -72,7 +75,7 @@ class HomeSidebar extends StatelessComponent {
               text: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
             ),
             onClick: () => context.read(homeUiProvider.notifier).toggleSidebar(),
-            [.text(collapsed ? '›' : '‹')],
+            child: .text(collapsed ? '›' : '‹'),
           ),
         ]),
         div(classes: 'home-sidebar-panels', [
@@ -280,24 +283,7 @@ class HomeSidebar extends StatelessComponent {
       css('&--collapsed .home-sidebar-expand-only').styles(
         raw: const {'max-width': '0', 'opacity': '0', 'pointer-events': 'none'},
       ),
-      css('.home-sidebar-toggle').styles(
-        flex: Flex(grow: 0, shrink: 0),
-        width: 28.px,
-        height: 28.px,
-        display: .flex,
-        alignItems: .center,
-        justifyContent: .center,
-        cursor: .pointer,
-        radius: .all(Radius.circular(6.px)),
-        border: Border.none,
-        backgroundColor: Colors.transparent,
-        color: mutedColor,
-        fontSize: 1.125.rem,
-        fontWeight: .w600,
-        padding: .zero,
-        raw: const {'font': 'inherit', 'line-height': '1'},
-      ),
-      css('.home-sidebar-toggle:hover').styles(backgroundColor: hoverColor, color: fgColor),
+      css('.home-sidebar-toggle').styles(flex: Flex(grow: 0, shrink: 0), fontWeight: .w600),
       css('.home-sidebar-body').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
@@ -513,12 +499,7 @@ class HomeSidebar extends StatelessComponent {
         raw: const {'font': 'inherit', 'box-sizing': 'border-box'},
       ),
       css('.home-sidebar-item-button--rail').styles(
-        width: 36.px,
-        height: 36.px,
-        padding: .zero,
         display: .flex,
-        alignItems: .center,
-        justifyContent: .center,
         fontSize: 0.75.rem,
         fontWeight: .w700,
       ),
@@ -791,9 +772,9 @@ class _RailTableButton extends StatelessComponent {
   Component build(BuildContext context) {
     final parts = <String>['home-sidebar-item-button', 'home-sidebar-item-button--rail'];
     if (keyboardFocused) parts.add('home-sidebar-item-button--keyboard-focus');
-    return button(
-      [.text(label)],
-      type: .button,
+    return ZonaiIconButton(
+      size: ZonaiIconButtonSize.md,
+      variant: ZonaiIconButtonVariant.ghost,
       classes: parts.join(' '),
       attributes: {'aria-label': table.displayName},
       events: appTooltipEvents(
@@ -802,6 +783,7 @@ class _RailTableButton extends StatelessComponent {
         placement: AppTooltipPlacement.rightCenter,
       ),
       onClick: onSelect,
+      child: .text(label),
     );
   }
 }
