@@ -122,7 +122,7 @@ class DbRules {
       );
     }
 
-    if (op == .create && tableRules is AuthTableRules) {
+    if (op == .create && tableRules is AuthTableRules && request.jwt?.admin.isAdmin != true) {
       throw StateError('Cannot create auth records, use the auth API instead');
     }
 
@@ -307,7 +307,7 @@ class DbRules {
       );
     }
 
-    if (rowRules case AuthRowRules() when op == .create) {
+    if (rowRules case AuthRowRules() when op == .create && request.jwt?.admin.isAdmin != true) {
       throw StateError('Cannot create auth rows, use the auth API instead');
     }
 
