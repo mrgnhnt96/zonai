@@ -27,9 +27,7 @@ int _compareCellValues(Object? a, Object? b, ColumnShape? shape) {
     ColumnShapeKind.real => _compareNum(_asNum(a), _asNum(b)),
     ColumnShapeKind.bigInt => _compareBigInt(a, b),
     ColumnShapeKind.boolean || ColumnShapeKind.isVerified => _compareBool(a, b),
-    ColumnShapeKind.dateTime ||
-    ColumnShapeKind.createdAt ||
-    ColumnShapeKind.updatedAt => _compareDateTime(a, b),
+    ColumnShapeKind.dateTime || ColumnShapeKind.createdAt || ColumnShapeKind.updatedAt => _compareDateTime(a, b),
     ColumnShapeKind.blob || ColumnShapeKind.map || ColumnShapeKind.list => _compareJson(a, b),
     _ => '$a'.compareTo('$b'),
   };

@@ -28,12 +28,11 @@ void main() {
   });
 
   test('ListBody is-null where survives Revali-style query coercion', () {
-    final original = ListBody(
-      table: 'tasks',
-      where: Null('deleted_at'),
-    );
+    final original = ListBody(table: 'tasks', where: Null('deleted_at'));
 
-    final parsed = ListBody.fromJson(coerce(jsonEncode(original.toJson())) as Map);
+    final parsed = ListBody.fromJson(
+      coerce(jsonEncode(original.toJson())) as Map,
+    );
     expect(parsed.where, isA<Null>());
     expect((parsed.where as Null).column, 'deleted_at');
   });

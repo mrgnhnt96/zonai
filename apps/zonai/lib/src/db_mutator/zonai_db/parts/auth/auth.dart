@@ -41,11 +41,7 @@ extension _AuthX on ZonaiDb {
   }) async {
     switch (payload) {
       case PasswordAuthPayload():
-        return await _authenticatePassword(
-          table,
-          payload,
-          isAdmin: isAdmin,
-        );
+        return await _authenticatePassword(table, payload, isAdmin: isAdmin);
 
       case SendOtpAuthPayload():
         await _sendOtp(table, payload, isAdmin: isAdmin);

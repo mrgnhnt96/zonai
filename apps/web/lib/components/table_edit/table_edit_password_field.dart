@@ -7,16 +7,12 @@ import '../../constants/button_sizes.dart';
 import '../theme/ui_styles.dart';
 import '../theme/zonai_icon_button.dart';
 
-const _passwordChars =
-    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*';
+const _passwordChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*';
 const _passwordLength = 15;
 
 String _generatePassword() {
   final random = Random.secure();
-  return List.generate(
-    _passwordLength,
-    (_) => _passwordChars[random.nextInt(_passwordChars.length)],
-  ).join();
+  return List.generate(_passwordLength, (_) => _passwordChars[random.nextInt(_passwordChars.length)]).join();
 }
 
 class TableEditPasswordField extends StatelessComponent {

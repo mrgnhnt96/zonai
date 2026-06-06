@@ -29,16 +29,9 @@ class HomeSettingsOverlay extends StatefulComponent {
       position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
       opacity: 0,
       transition: Transition('opacity', duration: _overlayDuration, curve: Curve.easeOut),
-      raw: const {
-        'z-index': '200',
-        'background-color': 'rgb(15 23 42 / 0.45)',
-        'pointer-events': 'none',
-      },
+      raw: const {'z-index': '200', 'background-color': 'rgb(15 23 42 / 0.45)', 'pointer-events': 'none'},
     ),
-    css('.home-settings-backdrop.home-settings--open').styles(
-      opacity: 1,
-      raw: const {'pointer-events': 'auto'},
-    ),
+    css('.home-settings-backdrop.home-settings--open').styles(opacity: 1, raw: const {'pointer-events': 'auto'}),
     css('.home-settings-panel').styles(
       backgroundColor: surfaceColor,
       border: .all(color: borderColor, width: 1.px, style: .solid),
@@ -54,16 +47,9 @@ class HomeSettingsOverlay extends StatefulComponent {
         Transition('opacity', duration: _overlayDuration, curve: Curve.easeOut),
         Transition('transform', duration: _overlayDuration, curve: Curve.easeOut),
       ]),
-      raw: const {
-        'position': 'fixed',
-        'z-index': '201',
-        'box-shadow': 'var(--zonai-shadow)',
-      },
+      raw: const {'position': 'fixed', 'z-index': '201', 'box-shadow': 'var(--zonai-shadow)'},
     ),
-    css('.home-settings-panel.home-settings--open').styles(
-      opacity: 1,
-      transform: Transform.none,
-    ),
+    css('.home-settings-panel.home-settings--open').styles(opacity: 1, transform: Transform.none),
     css('.home-settings-panel--expanded-sidebar').styles(
       raw: const {
         'left': 'calc(260px + 12px)',
@@ -85,11 +71,7 @@ class HomeSettingsOverlay extends StatefulComponent {
       justifyContent: .spaceBetween,
       gap: Gap.all(ZonaiSpacing.s6),
     ),
-    css('.home-settings-panel-title').styles(
-      margin: .zero,
-      fontSize: 1.rem,
-      fontWeight: .w600,
-    ),
+    css('.home-settings-panel-title').styles(margin: .zero, fontSize: 1.rem, fontWeight: .w600),
     css('.home-settings-profile').styles(
       display: .flex,
       flexDirection: FlexDirection.row,
@@ -99,11 +81,9 @@ class HomeSettingsOverlay extends StatefulComponent {
       radius: .all(Radius.circular(12.px)),
       backgroundColor: bgColor,
     ),
-    css('.home-settings-actions').styles(
-      display: .flex,
-      flexDirection: FlexDirection.column,
-      gap: Gap.all(ZonaiSpacing.s4),
-    ),
+    css(
+      '.home-settings-actions',
+    ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4)),
     css('.home-settings-action-row').styles(
       display: .flex,
       flexDirection: FlexDirection.row,
@@ -112,11 +92,7 @@ class HomeSettingsOverlay extends StatefulComponent {
       gap: Gap.all(ZonaiSpacing.s6),
       padding: .symmetric(horizontal: ZonaiSpacing.s2, vertical: ZonaiSpacing.s2),
     ),
-    css('.home-settings-action-label').styles(
-      fontSize: 0.875.rem,
-      fontWeight: .w500,
-      color: fgColor,
-    ),
+    css('.home-settings-action-label').styles(fontSize: 0.875.rem, fontWeight: .w500, color: fgColor),
     css('.home-sidebar-avatar').styles(
       width: 32.px,
       height: 32.px,
@@ -130,20 +106,15 @@ class HomeSettingsOverlay extends StatefulComponent {
       fontSize: 0.875.rem,
       fontWeight: .w700,
     ),
-    css('.home-sidebar-profile-text').styles(
-      minWidth: .zero,
-      overflow: Overflow.hidden,
-      flex: Flex(grow: 1, shrink: 1),
-    ),
+    css(
+      '.home-sidebar-profile-text',
+    ).styles(minWidth: .zero, overflow: Overflow.hidden, flex: Flex(grow: 1, shrink: 1)),
     css('.home-sidebar-email').styles(
       display: .block,
       fontSize: 0.8125.rem,
       fontWeight: .w600,
       overflow: Overflow.hidden,
-      raw: const {
-        'text-overflow': 'ellipsis',
-        'white-space': 'nowrap',
-      },
+      raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'},
     ),
     css('.home-sidebar-badge').styles(
       display: .inlineBlock,
@@ -157,34 +128,20 @@ class HomeSettingsOverlay extends StatefulComponent {
       backgroundColor: selectedBgColor,
       color: primaryColor,
     ),
-    css.media(
-      MediaQuery.all(maxWidth: 640.px),
-      [
-        css('.home-settings-panel').styles(
-          width: .unset,
-          radius: BorderRadius.only(
-            topLeft: Radius.circular(16.px),
-            topRight: Radius.circular(16.px),
-          ),
-          padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s11),
-          transform: Transform.translate(y: 100.percent),
-          transition: Transition.combine([
-            Transition('opacity', duration: _sheetDuration, curve: Curve.easeOut),
-            Transition('transform', duration: _sheetDuration, curve: Curve.easeOut),
-          ]),
-          raw: const {
-            'left': '12px',
-            'right': '12px',
-            'bottom': '12px',
-            'max-height': '85vh',
-            'overflow-y': 'auto',
-          },
-        ),
-        css('.home-settings-panel.home-settings--open').styles(
-          transform: Transform.none,
-        ),
-      ],
-    ),
+    css.media(MediaQuery.all(maxWidth: 640.px), [
+      css('.home-settings-panel').styles(
+        width: .unset,
+        radius: BorderRadius.only(topLeft: Radius.circular(16.px), topRight: Radius.circular(16.px)),
+        padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s11),
+        transform: Transform.translate(y: 100.percent),
+        transition: Transition.combine([
+          Transition('opacity', duration: _sheetDuration, curve: Curve.easeOut),
+          Transition('transform', duration: _sheetDuration, curve: Curve.easeOut),
+        ]),
+        raw: const {'left': '12px', 'right': '12px', 'bottom': '12px', 'max-height': '85vh', 'overflow-y': 'auto'},
+      ),
+      css('.home-settings-panel.home-settings--open').styles(transform: Transform.none),
+    ]),
   ];
 }
 
@@ -264,20 +221,13 @@ class _HomeSettingsOverlayState extends State<HomeSettingsOverlay> {
       div(
         classes: 'home-settings-backdrop$openClass',
         attributes: {'aria-hidden': 'true'},
-        events: {
-          'click': (_) => close(),
-        },
+        events: {'click': (_) => close()},
         [],
       ),
       div(
         classes: panelClass,
-        attributes: {
-          'role': 'dialog',
-          'aria-label': 'Account and settings',
-        },
-        events: {
-          'click': (event) => event.stopPropagation(),
-        },
+        attributes: {'role': 'dialog', 'aria-label': 'Account and settings'},
+        events: {'click': (event) => event.stopPropagation()},
         [
           div(classes: 'home-settings-panel-header', [
             h2(classes: 'home-settings-panel-title', [.text('Settings')]),
@@ -292,11 +242,7 @@ class _HomeSettingsOverlayState extends State<HomeSettingsOverlay> {
           div(classes: 'home-settings-profile', [
             div(classes: 'home-sidebar-avatar', [.text(initial)]),
             div(classes: 'home-sidebar-profile-text', [
-              span(
-                classes: 'home-sidebar-email',
-                events: appTooltipEvents(context, text: label),
-                [.text(label)],
-              ),
+              span(classes: 'home-sidebar-email', events: appTooltipEvents(context, text: label), [.text(label)]),
               if (sessionUser?.isAdmin == true) span(classes: 'home-sidebar-badge', [.text('Admin')]),
             ]),
           ]),

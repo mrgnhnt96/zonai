@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../../deps/args.dart';
 import '../../../deps/logger.dart';
 import '../../../deps/zonai_db.dart';
+import '../../../utils/admin_create_shape.dart';
 
 const _usage = '''
 Usage: zonai db admin add [options]
@@ -50,10 +51,17 @@ Future<int> addAdmin() async {
   final verified = args.getOrNull<bool>('no-verify') != true;
 
   try {
+    final tableShape = await resolveAdminTableShape(zonaiDB);
+    final extraFields = adminExtraCreateFields(tableShape.columns);
+    final resolvedObject = resolveAdminCreateObject(
+      extraFields: extraFields,
+      data: object,
+    );
+
     final user = await zonaiDB.createAdmin(
       email: email,
       password: password,
-      object: object,
+      object: resolvedObject.isEmpty ? null : resolvedObject,
       verified: verified,
     );
 
@@ -61,7 +69,9 @@ Future<int> addAdmin() async {
     logger.info('  id: ${user['id']}');
     logger.info('  email: ${user['email'] ?? email}');
     for (final entry in user.entries) {
-      if (entry.key == 'id' || entry.key == 'email' || entry.key == 'password') {
+      if (entry.key == 'id' ||
+          entry.key == 'email' ||
+          entry.key == 'password') {
         continue;
       }
       logger.info('  ${entry.key}: ${entry.value}');

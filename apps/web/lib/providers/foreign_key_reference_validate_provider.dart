@@ -6,12 +6,7 @@ import 'foreign_key_rows_provider.dart';
 import 'table_schema_provider.dart';
 
 /// Result of checking whether a typed FK value exists in the referenced table.
-enum ForeignKeyReferenceValidation {
-  idle,
-  loading,
-  valid,
-  invalid,
-}
+enum ForeignKeyReferenceValidation { idle, loading, valid, invalid }
 
 /// Parameters for [foreignKeyReferenceValidateProvider].
 final class ForeignKeyReferenceValidateQuery {
@@ -39,57 +34,45 @@ final class ForeignKeyReferenceValidateQuery {
 
 /// Validates that [valueText] references an existing row (debounced by the caller).
 final foreignKeyReferenceValidateProvider =
-    FutureProvider.family<ForeignKeyReferenceValidationResult, ForeignKeyReferenceValidateQuery>((
-  ref,
-  query,
-) async {
-  if (!ref.binding.isClient) {
-    return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.idle);
-  }
+    FutureProvider.family<ForeignKeyReferenceValidationResult, ForeignKeyReferenceValidateQuery>((ref, query) async {
+      if (!ref.binding.isClient) {
+        return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.idle);
+      }
 
-  final trimmed = query.valueText.trim();
-  if (trimmed.isEmpty) {
-    return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.valid);
-  }
+      final trimmed = query.valueText.trim();
+      if (trimmed.isEmpty) {
+        return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.valid);
+      }
 
-  Object? parsed;
-  try {
-    parsed = parseEditValue(
-      draftValue: null,
-      textInput: trimmed,
-      shape: query.columnShape,
-    );
-  } on FormatException {
-    return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.invalid);
-  }
+      Object? parsed;
+      try {
+        parsed = parseEditValue(draftValue: null, textInput: trimmed, shape: query.columnShape);
+      } on FormatException {
+        return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.invalid);
+      }
 
-  if (parsed == null) {
-    return const ForeignKeyReferenceValidationResult(
-      state: ForeignKeyReferenceValidation.valid,
-    );
-  }
+      if (parsed == null) {
+        return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.valid);
+      }
 
-  final schema = ref.watch(tableSchemasProvider)[query.foreignKey.table];
-  final referenced = await loadForeignKeyReferencedRow(
-    foreignKey: query.foreignKey,
-    parsedValue: parsed,
-    schema: schema,
-  );
-  if (referenced == null) {
-    return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.invalid);
-  }
+      final schema = ref.watch(tableSchemasProvider)[query.foreignKey.table];
+      final referenced = await loadForeignKeyReferencedRow(
+        foreignKey: query.foreignKey,
+        parsedValue: parsed,
+        schema: schema,
+      );
+      if (referenced == null) {
+        return const ForeignKeyReferenceValidationResult(state: ForeignKeyReferenceValidation.invalid);
+      }
 
-  return ForeignKeyReferenceValidationResult(
-    state: ForeignKeyReferenceValidation.valid,
-    displayLabel: referenced.displayLabel,
-  );
-});
+      return ForeignKeyReferenceValidationResult(
+        state: ForeignKeyReferenceValidation.valid,
+        displayLabel: referenced.displayLabel,
+      );
+    });
 
 final class ForeignKeyReferenceValidationResult {
-  const ForeignKeyReferenceValidationResult({
-    required this.state,
-    this.displayLabel,
-  });
+  const ForeignKeyReferenceValidationResult({required this.state, this.displayLabel});
 
   final ForeignKeyReferenceValidation state;
   final String? displayLabel;

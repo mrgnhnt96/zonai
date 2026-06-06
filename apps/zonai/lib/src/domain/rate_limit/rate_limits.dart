@@ -58,10 +58,6 @@ final class RateLimitsCompiler {
               .toList()
         : <File>[];
 
-    if (files.isEmpty) {
-      logger.warn('Nothing in rate limits, creating an empty worker');
-    }
-
     final target = switch (buildSettings) {
       != null => settings.buildRateLimitPath,
       _ => settings.compiledRateLimitPath,

@@ -27,9 +27,7 @@ Future<String> _extractCompiledLibrary() async {
     libDir.createSync(recursive: true);
   }
 
-  final dest = fs.file(
-    fs.path.join(libDir.path, defaultLibraryFileName),
-  );
+  final dest = fs.file(fs.path.join(libDir.path, defaultLibraryFileName));
   await _writeLibraryBytes(dest, resqliteNativeLibraryBytes);
 
   return dest.absolute.path;

@@ -13,10 +13,7 @@ class MagicLinkSignInScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const SignInScreen(
-      tagline: 'Passwordless sign-in',
-      child: MagicLinkSignInForm(),
-    );
+    return const SignInScreen(tagline: 'Passwordless sign-in', child: MagicLinkSignInForm());
   }
 }
 
@@ -93,11 +90,7 @@ class MagicLinkSignInFormState extends State<MagicLinkSignInForm> {
             ),
             AuthActions(
               children: [
-                AuthSubmitButton(
-                  label: 'Send sign-in link',
-                  loadingLabel: 'Sending link…',
-                  loading: _loading,
-                ),
+                AuthSubmitButton(label: 'Send sign-in link', loadingLabel: 'Sending link…', loading: _loading),
               ],
             ),
           ],

@@ -37,16 +37,8 @@ class SchemaTablePhotoCell extends StatelessComponent {
         a(
           href: url,
           classes: 'schema-table-photo-cell__link',
-          attributes: {
-            'target': '_blank',
-            'rel': 'noopener noreferrer',
-            'aria-label': 'Open image in new tab',
-          },
-          events: size == SchemaTablePhotoSize.compact
-              ? {
-                  'click': (event) => event.stopPropagation(),
-                }
-              : const {},
+          attributes: {'target': '_blank', 'rel': 'noopener noreferrer', 'aria-label': 'Open image in new tab'},
+          events: size == SchemaTablePhotoSize.compact ? {'click': (event) => event.stopPropagation()} : const {},
           [
             img(src: url, attributes: {'alt': shape.name, 'loading': 'lazy'}),
           ],
@@ -84,16 +76,9 @@ List<StyleRule> get schemaTablePhotoCellStyles => [
     height: 100.percent,
     raw: const {'object-fit': 'contain', 'object-position': 'center'},
   ),
-  css('.schema-table-photo-cell--compact .schema-table-photo-cell__link').styles(
-    width: 28.px,
-    height: 28.px,
-  ),
-  css('.schema-table-photo-cell--detail').styles(
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
-  css('.schema-table-photo-cell--detail .schema-table-photo-cell__link').styles(
-    width: 72.px,
-    height: 72.px,
-    radius: .all(Radius.circular(6.px)),
-  ),
+  css('.schema-table-photo-cell--compact .schema-table-photo-cell__link').styles(width: 28.px, height: 28.px),
+  css('.schema-table-photo-cell--detail').styles(gap: Gap.all(ZonaiSpacing.s3)),
+  css(
+    '.schema-table-photo-cell--detail .schema-table-photo-cell__link',
+  ).styles(width: 72.px, height: 72.px, radius: .all(Radius.circular(6.px))),
 ];

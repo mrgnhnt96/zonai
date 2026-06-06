@@ -1,7 +1,6 @@
 part of 'rate_limits.dart';
 
-base class TableRateLimits<S extends Table<R>, R>
-    implements RateLimits<S, R> {
+base class TableRateLimits<S extends Table<R>, R> implements RateLimits<S, R> {
   const TableRateLimits(this.schema);
 
   @override

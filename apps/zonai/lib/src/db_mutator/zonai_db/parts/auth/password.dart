@@ -6,10 +6,7 @@ extension _PasswordX on ZonaiDb {
     PasswordAuthPayload payload, {
     bool isAdmin = false,
   }) async {
-    final hasAuthRecord = await _hasAuthRecord(
-      table: table,
-      payload: payload,
-    );
+    final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
 
     if (!hasAuthRecord) {
       if (isAdmin) {
@@ -50,11 +47,7 @@ extension _PasswordX on ZonaiDb {
     final (jwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
-      AuthExtensionRequest.onSignIn(
-        table: table,
-        object: user,
-        jwt: jwt,
-      ),
+      AuthExtensionRequest.onSignIn(table: table, object: user, jwt: jwt),
     );
 
     await _executeEffects();
@@ -101,11 +94,7 @@ extension _PasswordX on ZonaiDb {
     final (newJwt, token) = await _createJwt(table, user);
 
     await _extensions.send<NoActionExtensionResponse>(
-      AuthExtensionRequest.onSignUp(
-        table: table,
-        object: user,
-        jwt: newJwt,
-      ),
+      AuthExtensionRequest.onSignUp(table: table, object: user, jwt: newJwt),
     );
 
     return (user: user, jwt: token);

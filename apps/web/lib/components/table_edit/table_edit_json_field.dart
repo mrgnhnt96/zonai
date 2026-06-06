@@ -52,11 +52,7 @@ class TableEditJsonField extends StatelessComponent {
         onInput: onInput,
       ),
       if (validationError != null)
-        p(
-          id: '$id-error',
-          classes: 'table-edit-json-field__error',
-          [.text(validationError)],
-        ),
+        p(id: '$id-error', classes: 'table-edit-json-field__error', [.text(validationError)]),
     ]);
   }
 }

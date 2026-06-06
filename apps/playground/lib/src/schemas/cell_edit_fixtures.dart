@@ -73,13 +73,15 @@ final class CellEditFixtureTable extends Table<CellEditFixture> {
           _ => '$e',
         },
       ),
-      companyId = $.id(
-        'company_id',
-        (s) => s.companyId,
-        fromString: CompaniesId.new,
-        generate: CompaniesId.generate,
-        isPrimaryKey: false,
-      ).references(() => companies.id, onDelete: ReferentialAction.setNull),
+      companyId = $
+          .id(
+            'company_id',
+            (s) => s.companyId,
+            fromString: CompaniesId.new,
+            generate: CompaniesId.generate,
+            isPrimaryKey: false,
+          )
+          .references(() => companies.id, onDelete: ReferentialAction.setNull),
       secretNote = $.password('secret_note', (s) => s.secretNote),
       meta = $.map('meta', (s) => s.meta),
       payload = $.blob('payload', (s) => s.payload),

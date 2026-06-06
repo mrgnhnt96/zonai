@@ -6,10 +6,7 @@ import 'table_schema_provider.dart';
 
 /// Parameters for [foreignKeyReferenceLookupProvider].
 final class ForeignKeyReferenceLookupQuery {
-  const ForeignKeyReferenceLookupQuery({
-    required this.foreignKey,
-    required this.rawValue,
-  });
+  const ForeignKeyReferenceLookupQuery({required this.foreignKey, required this.rawValue});
 
   final ForeignKeyShape foreignKey;
   final Object rawValue;
@@ -17,9 +14,7 @@ final class ForeignKeyReferenceLookupQuery {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ForeignKeyReferenceLookupQuery &&
-          foreignKey == other.foreignKey &&
-          rawValue == other.rawValue;
+      other is ForeignKeyReferenceLookupQuery && foreignKey == other.foreignKey && rawValue == other.rawValue;
 
   @override
   int get hashCode => Object.hash(foreignKey, rawValue);
@@ -27,16 +22,9 @@ final class ForeignKeyReferenceLookupQuery {
 
 /// Loads the referenced row and display label for a FK cell in the home table.
 final foreignKeyReferenceLookupProvider =
-    FutureProvider.family<ForeignKeyReferencedRow?, ForeignKeyReferenceLookupQuery>((
-  ref,
-  query,
-) async {
-  if (!ref.binding.isClient) return null;
+    FutureProvider.family<ForeignKeyReferencedRow?, ForeignKeyReferenceLookupQuery>((ref, query) async {
+      if (!ref.binding.isClient) return null;
 
-  final schema = ref.watch(tableSchemasProvider)[query.foreignKey.table];
-  return loadForeignKeyReferencedRow(
-    foreignKey: query.foreignKey,
-    parsedValue: query.rawValue,
-    schema: schema,
-  );
-});
+      final schema = ref.watch(tableSchemasProvider)[query.foreignKey.table];
+      return loadForeignKeyReferencedRow(foreignKey: query.foreignKey, parsedValue: query.rawValue, schema: schema);
+    });

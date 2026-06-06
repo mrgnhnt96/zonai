@@ -31,9 +31,7 @@ class TableEditEnumMultiSelect extends StatelessComponent {
       return div(
         id: id,
         classes: 'table-edit-enum-values table-edit-enum-values--empty',
-        attributes: {
-          if (labelId != null) 'aria-labelledby': labelId!,
-        },
+        attributes: {if (labelId != null) 'aria-labelledby': labelId!},
         [.text('No values defined for this column')],
       );
     }
@@ -41,10 +39,7 @@ class TableEditEnumMultiSelect extends StatelessComponent {
     return div(
       id: id,
       classes: 'table-search-operators table-edit-enum-values',
-      attributes: {
-        'role': 'group',
-        if (labelId != null) 'aria-labelledby': labelId!,
-      },
+      attributes: {'role': 'group', if (labelId != null) 'aria-labelledby': labelId!},
       [
         for (final value in enumValues)
           button(

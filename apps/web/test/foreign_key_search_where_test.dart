@@ -5,22 +5,11 @@ import 'package:zonai_web/utils/foreign_key_search_where.dart';
 void main() {
   group('buildForeignKeySearchWhere', () {
     test('returns null for empty query', () {
-      expect(
-        buildForeignKeySearchWhere(
-          query: '  ',
-          schema: _authorsSchema,
-          referencedColumnName: 'id',
-        ),
-        isNull,
-      );
+      expect(buildForeignKeySearchWhere(query: '  ', schema: _authorsSchema, referencedColumnName: 'id'), isNull);
     });
 
     test('builds Or across searchable schema columns', () {
-      final where = buildForeignKeySearchWhere(
-        query: 'alice',
-        schema: _authorsSchema,
-        referencedColumnName: 'id',
-      );
+      final where = buildForeignKeySearchWhere(query: 'alice', schema: _authorsSchema, referencedColumnName: 'id');
       expect(where, isA<Or>());
       final or = where! as Or;
       expect(or.conditions.length, greaterThanOrEqualTo(2));

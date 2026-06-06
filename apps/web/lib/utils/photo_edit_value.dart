@@ -5,22 +5,17 @@ import 'package:collection/collection.dart';
 import 'package:zonai_schema/payloads.dart';
 
 const _photoIdSuffix = 'ph';
+
 /// One image in a photo column draft (existing id or not-yet-uploaded bytes).
 sealed class PhotoEditItem {
   const PhotoEditItem();
 
   /// Resolved photo id (from list URL or raw id).
-  const factory PhotoEditItem.existing({
-    required String id,
-    String? previewUrl,
-  }) = PhotoEditExistingItem;
+  const factory PhotoEditItem.existing({required String id, String? previewUrl}) = PhotoEditExistingItem;
 
   /// Local file selected but not uploaded yet.
-  const factory PhotoEditItem.pending({
-    required Uint8List bytes,
-    required String mimeType,
-    String? replaceId,
-  }) = PhotoEditPendingItem;
+  const factory PhotoEditItem.pending({required Uint8List bytes, required String mimeType, String? replaceId}) =
+      PhotoEditPendingItem;
 
   bool get isPending => this is PhotoEditPendingItem;
   bool get isExisting => this is PhotoEditExistingItem;
@@ -45,11 +40,7 @@ final class PhotoEditExistingItem extends PhotoEditItem {
 }
 
 final class PhotoEditPendingItem extends PhotoEditItem {
-  const PhotoEditPendingItem({
-    required this.bytes,
-    required this.mimeType,
-    this.replaceId,
-  });
+  const PhotoEditPendingItem({required this.bytes, required this.mimeType, this.replaceId});
 
   final Uint8List bytes;
   final String mimeType;
@@ -87,8 +78,7 @@ final class PhotoEditMultiValue extends PhotoEditValue {
   final List<PhotoEditItem> items;
 }
 
-bool isPhotoColumnKind(ColumnShapeKind kind) =>
-    kind == ColumnShapeKind.photo || kind == ColumnShapeKind.photos;
+bool isPhotoColumnKind(ColumnShapeKind kind) => kind == ColumnShapeKind.photo || kind == ColumnShapeKind.photos;
 
 /// True when [raw] is a photo id, image URL, or list of those.
 bool cellLooksLikePhoto(Object? raw) {
@@ -100,17 +90,13 @@ bool cellLooksLikePhoto(Object? raw) {
   return parsePhotoIdFromCell('$raw') != null;
 }
 
-ColumnShapeKind _inferredPhotoKind(Object? raw) =>
-    raw is List ? ColumnShapeKind.photos : ColumnShapeKind.photo;
+ColumnShapeKind _inferredPhotoKind(Object? raw) => raw is List ? ColumnShapeKind.photos : ColumnShapeKind.photo;
 
 /// Shape to use when rendering or copying a photo cell.
 ///
 /// Returns [shape] when it is already a photo column, otherwise upgrades a
 /// text-like shape when [rawValue] looks like a resolved photo field.
-ColumnShape? photoShapeForCell({
-  required ColumnShape? shape,
-  required Object? rawValue,
-}) {
+ColumnShape? photoShapeForCell({required ColumnShape? shape, required Object? rawValue}) {
   if (shape != null && isPhotoColumnKind(shape.kind)) return shape;
   // Id columns (e.g. `_photos.id`) must stay plain text even when values end with `_ph`.
   if (shape?.kind == ColumnShapeKind.id) return null;
@@ -239,11 +225,7 @@ List<String> photoEditValueIds(PhotoEditValue? value) {
 }
 
 /// Image URLs from a stored row cell (full URLs or ids resolved via [imageBaseUrl]).
-List<String> photoUrlsFromCell(
-  Object? raw,
-  ColumnShape shape, {
-  required String imageBaseUrl,
-}) {
+List<String> photoUrlsFromCell(Object? raw, ColumnShape shape, {required String imageBaseUrl}) {
   final urls = <String>[];
 
   void addUrl(Object? item) {
@@ -273,9 +255,7 @@ List<String> photoUrlsFromCell(
 /// Photo ids from a stored row cell (URLs or raw ids).
 List<String> photoIdsFromCell(Object? raw, ColumnShape shape) {
   return switch (shape.kind) {
-    ColumnShapeKind.photo => [
-      if (_itemFromCell(raw) case PhotoEditExistingItem(:final id)) id,
-    ],
+    ColumnShapeKind.photo => [if (_itemFromCell(raw) case PhotoEditExistingItem(:final id)) id],
     ColumnShapeKind.photos => [
       for (final item in _itemsFromCell(raw))
         if (item case PhotoEditExistingItem(:final id)) id,
@@ -333,9 +313,7 @@ bool _itemEqual(PhotoEditItem a, PhotoEditItem b) {
       PhotoEditPendingItem(bytes: final bytesA, mimeType: final mimeA, replaceId: final replaceA),
       PhotoEditPendingItem(bytes: final bytesB, mimeType: final mimeB, replaceId: final replaceB),
     ) =>
-      mimeA == mimeB &&
-          replaceA == replaceB &&
-          const ListEquality<int>().equals(bytesA, bytesB),
+      mimeA == mimeB && replaceA == replaceB && const ListEquality<int>().equals(bytesA, bytesB),
     _ => false,
   };
 }

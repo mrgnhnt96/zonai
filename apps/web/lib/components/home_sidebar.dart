@@ -46,8 +46,7 @@ class HomeSidebar extends StatelessComponent {
       for (final t in tables.tables)
         if (isSystemSqliteTable(t.sqliteName)) t,
     ];
-    final peekFocusedSystem =
-        !systemExpanded && focused != null && isSystemSqliteTable(focused!.sqliteName);
+    final peekFocusedSystem = !systemExpanded && focused != null && isSystemSqliteTable(focused!.sqliteName);
     final panelShown = systemExpanded || peekFocusedSystem;
 
     final railTables = <SqliteTableRef>[
@@ -68,13 +67,8 @@ class HomeSidebar extends StatelessComponent {
             size: ZonaiIconButtonSize.xs,
             variant: ZonaiIconButtonVariant.ghost,
             classes: 'home-sidebar-toggle',
-            attributes: {
-              'aria-label': collapsed ? 'Expand sidebar' : 'Collapse sidebar',
-            },
-            events: appTooltipEvents(
-              context,
-              text: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
-            ),
+            attributes: {'aria-label': collapsed ? 'Expand sidebar' : 'Collapse sidebar'},
+            events: appTooltipEvents(context, text: collapsed ? 'Expand sidebar' : 'Collapse sidebar'),
             onClick: () => context.read(homeUiProvider.notifier).toggleSidebar(),
             child: .text(collapsed ? '›' : '‹'),
           ),
@@ -138,9 +132,7 @@ class HomeSidebar extends StatelessComponent {
               focused: focused,
               collapsed: true,
               mobileNavOpen: ui.mobileNavOpen,
-              children: [
-                _TablesList(tables: railTables, focused: focused, collapsed: true),
-              ],
+              children: [_TablesList(tables: railTables, focused: focused, collapsed: true)],
             ),
         ]),
         const _SidebarFooter(),
@@ -162,10 +154,7 @@ class HomeSidebar extends StatelessComponent {
         flexDirection: FlexDirection.column,
         minHeight: .zero,
         overflow: Overflow.hidden,
-        raw: const {
-          'box-shadow': 'var(--zonai-shadow-sm)',
-          'overflow-x': 'hidden',
-        },
+        raw: const {'box-shadow': 'var(--zonai-shadow-sm)', 'overflow-x': 'hidden'},
       ),
       css('&--toggling').styles(raw: const {'transition': 'width 0.2s ease'}),
       css('&--collapsed').styles(width: 52.px),
@@ -177,14 +166,10 @@ class HomeSidebar extends StatelessComponent {
         position: Position.relative(),
         overflow: Overflow.hidden,
       ),
-      css('.home-sidebar-panel').styles(
-        raw: const {'transition': 'opacity 0.2s ease, visibility 0.2s ease'},
-      ),
-      css('.home-sidebar-panel--expanded').styles(
-        flex: Flex(grow: 1, shrink: 1),
-        minHeight: .zero,
-        raw: const {'opacity': '1', 'visibility': 'visible'},
-      ),
+      css('.home-sidebar-panel').styles(raw: const {'transition': 'opacity 0.2s ease, visibility 0.2s ease'}),
+      css(
+        '.home-sidebar-panel--expanded',
+      ).styles(flex: Flex(grow: 1, shrink: 1), minHeight: .zero, raw: const {'opacity': '1', 'visibility': 'visible'}),
       css('.home-sidebar-panel--rail').styles(
         raw: const {
           'opacity': '0',
@@ -207,12 +192,7 @@ class HomeSidebar extends StatelessComponent {
       css('&--collapsed .home-sidebar-panel--rail').styles(
         flex: Flex(grow: 1, shrink: 1),
         minHeight: .zero,
-        raw: const {
-          'opacity': '1',
-          'visibility': 'visible',
-          'pointer-events': 'auto',
-          'position': 'relative',
-        },
+        raw: const {'opacity': '1', 'visibility': 'visible', 'pointer-events': 'auto', 'position': 'relative'},
       ),
       css('.home-sidebar-header').styles(
         display: .flex,
@@ -270,21 +250,16 @@ class HomeSidebar extends StatelessComponent {
           'opacity': '1',
         },
       ),
-      css('&--collapsed .home-sidebar-app-name').styles(
-        flex: Flex(grow: 0, shrink: 0),
-        raw: const {'max-width': '0', 'opacity': '0'},
-      ),
+      css(
+        '&--collapsed .home-sidebar-app-name',
+      ).styles(flex: Flex(grow: 0, shrink: 0), raw: const {'max-width': '0', 'opacity': '0'}),
       css('.home-sidebar-expand-only').styles(
         overflow: Overflow.hidden,
-        raw: const {
-          'transition': 'opacity 0.2s ease, max-width 0.2s ease',
-          'max-width': '200px',
-          'opacity': '1',
-        },
+        raw: const {'transition': 'opacity 0.2s ease, max-width 0.2s ease', 'max-width': '200px', 'opacity': '1'},
       ),
-      css('&--collapsed .home-sidebar-expand-only').styles(
-        raw: const {'max-width': '0', 'opacity': '0', 'pointer-events': 'none'},
-      ),
+      css(
+        '&--collapsed .home-sidebar-expand-only',
+      ).styles(raw: const {'max-width': '0', 'opacity': '0', 'pointer-events': 'none'}),
       css('.home-sidebar-toggle').styles(flex: Flex(grow: 0, shrink: 0), fontWeight: .w600),
       css('.home-sidebar-body').styles(
         flex: Flex(grow: 1, shrink: 1),
@@ -310,7 +285,9 @@ class HomeSidebar extends StatelessComponent {
         raw: const {'overflow-x': 'hidden'},
       ),
       css('.home-sidebar-msg').styles(fontSize: 0.8125.rem, color: mutedColor, margin: .zero),
-      css('.home-sidebar-error').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4)),
+      css(
+        '.home-sidebar-error',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4)),
       css('.home-sidebar-err-detail').styles(
         fontSize: 0.75.rem,
         color: errorColor,
@@ -321,7 +298,9 @@ class HomeSidebar extends StatelessComponent {
           'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
         },
       ),
-      css('.home-sidebar-system').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
+      css(
+        '.home-sidebar-system',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
       css('.home-sidebar-system-toggle').styles(
         cursor: .pointer,
         padding: .symmetric(vertical: ZonaiSpacing.s2),
@@ -351,22 +330,11 @@ class HomeSidebar extends StatelessComponent {
       ),
       css('.home-sidebar-system-chevron--open').styles(raw: const {'transform': 'rotate(90deg)'}),
       css('.home-sidebar-system-panel').styles(
-        raw: const {
-          'display': 'grid',
-          'grid-template-rows': '0fr',
-          'transition': 'grid-template-rows 0.2s ease',
-        },
+        raw: const {'display': 'grid', 'grid-template-rows': '0fr', 'transition': 'grid-template-rows 0.2s ease'},
       ),
-      css('.home-sidebar-system-panel--shown').styles(
-        raw: const {'grid-template-rows': '1fr'},
-      ),
-      css('.home-sidebar-system-panel-inner').styles(
-        overflow: Overflow.hidden,
-        minHeight: .zero,
-      ),
-      css(
-        '.home-sidebar-system-panel .home-sidebar-item:not(.home-sidebar-item-focused)',
-      ).styles(
+      css('.home-sidebar-system-panel--shown').styles(raw: const {'grid-template-rows': '1fr'}),
+      css('.home-sidebar-system-panel-inner').styles(overflow: Overflow.hidden, minHeight: .zero),
+      css('.home-sidebar-system-panel .home-sidebar-item:not(.home-sidebar-item-focused)').styles(
         overflow: Overflow.hidden,
         raw: const {
           'max-height': '2.75rem',
@@ -375,14 +343,7 @@ class HomeSidebar extends StatelessComponent {
       ),
       css(
         '.home-sidebar-system-panel--peek .home-sidebar-item:not(.home-sidebar-item-focused)',
-      ).styles(
-        margin: .zero,
-        raw: const {
-          'max-height': '0',
-          'opacity': '0',
-          'pointer-events': 'none',
-        },
-      ),
+      ).styles(margin: .zero, raw: const {'max-height': '0', 'opacity': '0', 'pointer-events': 'none'}),
       css('.home-sidebar-footer').styles(
         margin: .only(top: .auto),
         padding: .all(ZonaiSpacing.s6),
@@ -403,13 +364,9 @@ class HomeSidebar extends StatelessComponent {
         alignItems: .center,
         padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s6),
       ),
-      css('&--collapsed .home-sidebar-profile-trigger').styles(
-        width: 36.px,
-        height: 36.px,
-        padding: .zero,
-        justifyContent: .center,
-        gap: Gap.all(ZonaiSpacing.s0),
-      ),
+      css(
+        '&--collapsed .home-sidebar-profile-trigger',
+      ).styles(width: 36.px, height: 36.px, padding: .zero, justifyContent: .center, gap: Gap.all(ZonaiSpacing.s0)),
       css('&--collapsed .home-sidebar-profile-trigger .home-sidebar-expand-only').styles(display: .none),
       css('.home-sidebar-profile-trigger').styles(
         display: .flex,
@@ -500,21 +457,17 @@ class HomeSidebar extends StatelessComponent {
         color: fgColor,
         raw: const {'font': 'inherit', 'box-sizing': 'border-box'},
       ),
-      css('.home-sidebar-item-button--rail').styles(
-        display: .flex,
-        fontSize: 0.75.rem,
-        fontWeight: .w700,
-      ),
+      css('.home-sidebar-item-button--rail').styles(display: .flex, fontSize: 0.75.rem, fontWeight: .w700),
       css('.home-sidebar-item:hover .home-sidebar-item-button').styles(backgroundColor: hoverColor),
       css(
         '.home-sidebar-item-focused .home-sidebar-item-button',
       ).styles(backgroundColor: selectedBgColor, color: primaryColor, fontWeight: .w600),
-      css('.home-sidebar-item--keyboard-focus .home-sidebar-item-button').styles(
-        raw: const {'box-shadow': 'inset 0 0 0 2px var(--zonai-focus-ring)'},
-      ),
-      css('.home-sidebar-item-button--rail.home-sidebar-item-button--keyboard-focus').styles(
-        raw: const {'box-shadow': '0 0 0 2px var(--zonai-focus-ring)'},
-      ),
+      css(
+        '.home-sidebar-item--keyboard-focus .home-sidebar-item-button',
+      ).styles(raw: const {'box-shadow': 'inset 0 0 0 2px var(--zonai-focus-ring)'}),
+      css(
+        '.home-sidebar-item-button--rail.home-sidebar-item-button--keyboard-focus',
+      ).styles(raw: const {'box-shadow': '0 0 0 2px var(--zonai-focus-ring)'}),
     ]),
     css.media(MediaQuery.all(maxWidth: 640.px), [
       css('.home-sidebar').styles(
@@ -523,12 +476,10 @@ class HomeSidebar extends StatelessComponent {
         raw: const {'z-index': '150', 'transform': 'translateX(-100%)', 'transition': 'none'},
       ),
       css('.home-sidebar--collapsed').styles(width: 260.px),
-      css('.home-sidebar--mobile-open').styles(
-        raw: const {'transform': 'translateX(0)', 'transition': 'transform 0.2s ease'},
-      ),
-      css('.home-sidebar--mobile-closing').styles(
-        raw: const {'transition': 'transform 0.2s ease'},
-      ),
+      css(
+        '.home-sidebar--mobile-open',
+      ).styles(raw: const {'transform': 'translateX(0)', 'transition': 'transform 0.2s ease'}),
+      css('.home-sidebar--mobile-closing').styles(raw: const {'transition': 'transform 0.2s ease'}),
       css('.home-sidebar-toggle').styles(display: .none),
       css('.home-sidebar-panel--rail').styles(display: .none),
       css('.home-sidebar-panel--expanded').styles(
@@ -558,8 +509,7 @@ const _sidebarScrollBottomMarginPx = 8.0;
 bool _sidebarRowFullyVisible(web.Element item, web.Element port) {
   final itemRect = item.getBoundingClientRect();
   final portRect = port.getBoundingClientRect();
-  return itemRect.top >= portRect.top &&
-      itemRect.bottom <= portRect.bottom - _sidebarScrollBottomMarginPx;
+  return itemRect.top >= portRect.top && itemRect.bottom <= portRect.bottom - _sidebarScrollBottomMarginPx;
 }
 
 void _sidebarScrollToRevealRow(web.Element scrollEl, web.Element item) {
@@ -626,10 +576,7 @@ class _SidebarListAreaState extends State<_SidebarListArea> {
           if (!context.binding.isClient) return;
           final el = event.currentTarget;
           if (el is! web.Element) return;
-          context.read(homeUiProvider.notifier).saveSidebarScrollTop(
-            body: _isBody,
-            scrollTop: el.scrollTop.toDouble(),
-          );
+          context.read(homeUiProvider.notifier).saveSidebarScrollTop(body: _isBody, scrollTop: el.scrollTop.toDouble());
         },
       },
       component.children,
@@ -682,8 +629,7 @@ class _SidebarListAreaState extends State<_SidebarListArea> {
     final focused = component.focused;
     if (focused == null) return;
 
-    if (isSystemSqliteTable(focused.sqliteName) &&
-        !context.read(homeUiProvider).systemTablesExpanded) {
+    if (isSystemSqliteTable(focused.sqliteName) && !context.read(homeUiProvider).systemTablesExpanded) {
       context.read(homeUiProvider.notifier).setSystemTablesExpanded(true);
       await Future<void>.delayed(Duration.zero);
       if (!mounted) return;
@@ -698,10 +644,9 @@ class _SidebarListAreaState extends State<_SidebarListArea> {
 
     if (!_sidebarRowFullyVisible(item, scrollEl)) {
       _sidebarScrollToRevealRow(scrollEl, item);
-      context.read(homeUiProvider.notifier).saveSidebarScrollTop(
-        body: _isBody,
-        scrollTop: scrollEl.scrollTop.toDouble(),
-      );
+      context
+          .read(homeUiProvider.notifier)
+          .saveSidebarScrollTop(body: _isBody, scrollTop: scrollEl.scrollTop.toDouble());
     }
   }
 }
@@ -723,7 +668,8 @@ class _TablesList extends StatelessComponent {
     return ul(classes: collapsed ? 'home-sidebar-tables home-sidebar-tables--rail' : 'home-sidebar-tables', [
       for (final table in tables)
         li(
-          classes: 'home-sidebar-item'
+          classes:
+              'home-sidebar-item'
               '${focused == table ? ' home-sidebar-item-focused' : ''}'
               '${keyboardSidebarSqlite == table.sqliteName ? ' home-sidebar-item--keyboard-focus' : ''}',
           attributes: {'id': _sidebarTableItemId(table.sqliteName)},
@@ -784,11 +730,7 @@ class _RailTableButton extends StatelessComponent {
       variant: ZonaiIconButtonVariant.ghost,
       classes: parts.join(' '),
       attributes: {'aria-label': table.displayName},
-      events: appTooltipEvents(
-        context,
-        text: table.displayName,
-        placement: AppTooltipPlacement.rightCenter,
-      ),
+      events: appTooltipEvents(context, text: table.displayName, placement: AppTooltipPlacement.rightCenter),
       onClick: onSelect,
       child: .text(label),
     );

@@ -174,13 +174,11 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
 
     final pending = toAdd.first;
     if (pending is PhotoEditPendingItem && replaceId != null) {
-      _emit(PhotoEditValue.single(
-        PhotoEditItem.pending(
-          bytes: pending.bytes,
-          mimeType: pending.mimeType,
-          replaceId: replaceId,
+      _emit(
+        PhotoEditValue.single(
+          PhotoEditItem.pending(bytes: pending.bytes, mimeType: pending.mimeType, replaceId: replaceId),
         ),
-      ));
+      );
       return;
     }
 
@@ -241,8 +239,7 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
     final items = _items(_currentValue());
     final inputId = '${component.id}-file';
     final showDropZone = _allowMultiple || items.isEmpty;
-    final dropTargetEvents =
-        component.disabled ? null : _dropEvents;
+    final dropTargetEvents = component.disabled ? null : _dropEvents;
     final zoneClass = [
       'table-edit-photo-field__zone',
       if (_dragOver) 'table-edit-photo-field__zone--active',
@@ -255,53 +252,45 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
 
     return div(classes: 'table-edit-photo-field', [
       if (items.isNotEmpty)
-        div(
-          classes: thumbsClass,
-          events: showDropZone ? null : dropTargetEvents,
-          [
-            for (var i = 0; i < items.length; i++)
-              _PhotoThumb(
-                src: _previewSrc(items[i]),
-                label: switch (items[i]) {
-                  PhotoEditExistingItem(:final id) => id,
-                  PhotoEditPendingItem() => 'New image',
-                },
-                onRemove: component.disabled ? null : () => _removeAt(i),
-              ),
-          ],
-        ),
+        div(classes: thumbsClass, events: showDropZone ? null : dropTargetEvents, [
+          for (var i = 0; i < items.length; i++)
+            _PhotoThumb(
+              src: _previewSrc(items[i]),
+              label: switch (items[i]) {
+                PhotoEditExistingItem(:final id) => id,
+                PhotoEditPendingItem() => 'New image',
+              },
+              onRemove: component.disabled ? null : () => _removeAt(i),
+            ),
+        ]),
       if (showDropZone)
-        div(
-          classes: zoneClass,
-          events: dropTargetEvents,
-          [
-            p(classes: 'table-edit-photo-field__hint', [
-              text(_allowMultiple ? 'Drag images here or browse' : 'Drag an image here or browse'),
-            ]),
-            ZonaiButton(
-              variant: ZonaiButtonVariant.ghost,
-              disabled: component.disabled,
-              events: {
-                'click': (event) {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  _onBrowseClick();
-                },
+        div(classes: zoneClass, events: dropTargetEvents, [
+          p(classes: 'table-edit-photo-field__hint', [
+            text(_allowMultiple ? 'Drag images here or browse' : 'Drag an image here or browse'),
+          ]),
+          ZonaiButton(
+            variant: ZonaiButtonVariant.ghost,
+            disabled: component.disabled,
+            events: {
+              'click': (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                _onBrowseClick();
               },
-              child: text('Browse…'),
-            ),
-            input(
-              id: inputId,
-              type: .file,
-              attributes: {
-                'accept': 'image/*',
-                if (_allowMultiple) 'multiple': 'multiple',
-                if (component.labelId != null) 'aria-labelledby': component.labelId!,
-                'hidden': 'hidden',
-              },
-            ),
-          ],
-        ),
+            },
+            child: text('Browse…'),
+          ),
+          input(
+            id: inputId,
+            type: .file,
+            attributes: {
+              'accept': 'image/*',
+              if (_allowMultiple) 'multiple': 'multiple',
+              if (component.labelId != null) 'aria-labelledby': component.labelId!,
+              'hidden': 'hidden',
+            },
+          ),
+        ]),
       if (_error != null) p(classes: 'table-edit-photo-field__error', [text(_error!)]),
     ]);
   }

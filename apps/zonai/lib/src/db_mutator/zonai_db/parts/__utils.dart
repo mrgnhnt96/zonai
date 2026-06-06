@@ -8,8 +8,10 @@ extension UtilsX on ZonaiDb {
       return db;
     }
 
-    await ensureResqliteNativeInstalled();
+    return _opening ??= _openOnce().whenComplete(() => _opening = null);
+  }
 
+  Future<Raindrop> _openOnce() async {
     final dir = fs.directory(settings.dataPath);
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
@@ -24,26 +26,36 @@ extension UtilsX on ZonaiDb {
     }
 
     logger.debug('Opening database: ${_dbFile.path}', prefix: _prefix);
+    await ensureResqliteNativeInstalled();
     final db = this.db = Raindrop(await ResqliteDelegate.open(_dbFile.path));
 
-    logger.verbose(
-      'Applying (${InternalDbMigrate.migrations.length}) internal table migrations',
-      prefix: _prefix,
-    );
-    await InternalDbMigrate.apply(db);
-    await _createInternalCollections(db);
+    try {
+      logger.verbose(
+        'Applying (${InternalDbMigrate.migrations.length}) internal table migrations',
+        prefix: _prefix,
+      );
+      await InternalDbMigrate.apply(db);
+      await _createInternalCollections(db);
 
-    logger.verbose('Retrieving migrations', prefix: _prefix);
-    if (await migrate.migrations() case final migrations
-        when migrations.isNotEmpty) {
-      logger.verbose('Found ${migrations.length} migrations', prefix: _prefix);
+      logger.verbose('Retrieving migrations', prefix: _prefix);
+      if (await migrate.migrations() case final migrations
+          when migrations.isNotEmpty) {
+        logger.verbose(
+          'Found ${migrations.length} migrations',
+          prefix: _prefix,
+        );
 
-      logger.debug('Migrating database', prefix: _prefix);
-      await raindrop.migrate(db, migrations);
+        logger.debug('Migrating database', prefix: _prefix);
+        await raindrop.migrate(db, migrations);
+      }
+
+      logger.verbose('Ensuring database is open', prefix: _prefix);
+      await db.ensureOpen();
+    } catch (_) {
+      this.db = null;
+      db.close();
+      rethrow;
     }
-
-    logger.verbose('Ensuring database is open', prefix: _prefix);
-    await db.ensureOpen();
 
     return db;
   }
@@ -316,7 +328,11 @@ extension UtilsX on ZonaiDb {
             final rows = operationResults[effect]?.rows ?? const [];
             final raw = rows.isEmpty ? null : rows.first.toMap();
             if (raw != null) {
-              final created = await _sanitizeRow(effect.request.table, raw, jwt: effect.request.jwt);
+              final created = await _sanitizeRow(
+                effect.request.table,
+                raw,
+                jwt: effect.request.jwt,
+              );
               await _postCreate(
                 effect.request.table,
                 effect.request.jwt,

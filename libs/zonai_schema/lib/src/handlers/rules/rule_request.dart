@@ -245,7 +245,9 @@ final class GetAllTableCollectionActionsRequest extends RuleRequest {
   GetAllTableCollectionActionsRequest._({required super.id, super.jwt})
     : super(path: _path);
 
-  factory GetAllTableCollectionActionsRequest.fromRequest(UnknownRequest request) {
+  factory GetAllTableCollectionActionsRequest.fromRequest(
+    UnknownRequest request,
+  ) {
     return GetAllTableCollectionActionsRequest._(
       id: request.id,
       jwt: request.jwt,

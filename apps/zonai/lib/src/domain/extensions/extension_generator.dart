@@ -110,11 +110,11 @@ class ExtensionGenerator {
     b.writeln('  try {');
     b.writeln('    value = load();');
     b.writeln('  } catch (e, st) {');
+    b.writeln('    Error.throwWithStackTrace(StateError(');
     b.writeln(
-      '    Error.throwWithStackTrace(StateError(',
-    );
-    b.writeln(
-      "      'Failed to load extensions from ' + sourcePath + ': " r'$e' "',",
+      "      'Failed to load extensions from ' + sourcePath + ': "
+      r'$e'
+      "',",
     );
     b.writeln('    ), st);');
     b.writeln('  }');
@@ -126,7 +126,11 @@ class ExtensionGenerator {
     b.writeln(
       "      'Extension file at ' + sourcePath + ' must return a non-null Extension from main(); '",
     );
-    b.writeln("      'got " r'$got' ".',");
+    b.writeln(
+      "      'got "
+      r'$got'
+      ".',",
+    );
     b.writeln('    );');
     b.writeln('  }');
     b.writeln('  return value;');

@@ -3,7 +3,8 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 CellEditFixtureTableRules main() => CellEditFixtureTableRules();
 
-final class CellEditFixtureTableRules extends TableRules<CellEditFixtureTable, CellEditFixture> {
+final class CellEditFixtureTableRules
+    extends TableRules<CellEditFixtureTable, CellEditFixture> {
   CellEditFixtureTableRules() : super(cellEditFixtures);
 
   @override

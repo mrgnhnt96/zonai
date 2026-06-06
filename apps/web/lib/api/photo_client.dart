@@ -18,9 +18,7 @@ ImageMimeType resolveUploadMimeType({
 
   final declared = ImageMimeType.fromContentType(mimeType);
   final detected = ImageMimeType.detect(bytes);
-  final resolved = (config.requiredMimeType && declared != null)
-      ? declared
-      : (detected ?? declared);
+  final resolved = (config.requiredMimeType && declared != null) ? declared : (detected ?? declared);
 
   if (resolved == null) {
     throw FormatException('Could not detect image type');
@@ -38,11 +36,7 @@ ImageMimeType resolveUploadMimeType({
 }
 
 /// Validates image bytes against [config] before upload.
-void validatePhotoBytes({
-  required Uint8List bytes,
-  required String mimeType,
-  required PhotosConfig config,
-}) {
+void validatePhotoBytes({required Uint8List bytes, required String mimeType, required PhotosConfig config}) {
   resolveUploadMimeType(bytes: bytes, mimeType: mimeType, config: config);
 }
 
@@ -101,12 +95,7 @@ Future<void> patchPhoto({
     if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
   };
 
-  final response = await revaliServer.client.request(
-    method: 'PATCH',
-    path: '/img/$id',
-    headers: headers,
-    body: bytes,
-  );
+  final response = await revaliServer.client.request(method: 'PATCH', path: '/img/$id', headers: headers, body: bytes);
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
     final body = await response.transform(utf8.decoder).join();
@@ -122,15 +111,9 @@ Future<void> patchPhoto({
 Future<void> deletePhotoBestEffort(String id) async {
   try {
     final token = ZonaiCookie.authToken.read();
-    final headers = <String, String>{
-      if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
-    };
+    final headers = <String, String>{if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token'};
 
-    final response = await revaliServer.client.request(
-      method: 'DELETE',
-      path: '/img/$id',
-      headers: headers,
-    );
+    final response = await revaliServer.client.request(method: 'DELETE', path: '/img/$id', headers: headers);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       // ignore

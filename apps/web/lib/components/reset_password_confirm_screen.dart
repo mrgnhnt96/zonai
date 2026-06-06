@@ -17,10 +17,7 @@ class ResetPasswordConfirmScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const SignInScreen(
-      tagline: 'Choose a new password',
-      child: ResetPasswordConfirmForm(),
-    );
+    return const SignInScreen(tagline: 'Choose a new password', child: ResetPasswordConfirmForm());
   }
 }
 
@@ -108,13 +105,7 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
             subtitle: 'Your password has been reset. You can sign in with your new password.',
           ),
           AuthActions(
-            children: [
-              ZonaiButton(
-                fullWidth: true,
-                onClick: _returnToSignIn,
-                child: .text('Sign in'),
-              ),
-            ],
+            children: [ZonaiButton(fullWidth: true, onClick: _returnToSignIn, child: .text('Sign in'))],
           ),
         ],
       );
@@ -126,13 +117,7 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
           const ZonaiPageTitle('Reset password'),
           ZonaiErrorText(linkError),
           AuthActions(
-            children: [
-              ZonaiButton(
-                fullWidth: true,
-                onClick: _returnToSignIn,
-                child: .text('Back to sign in'),
-              ),
-            ],
+            children: [ZonaiButton(fullWidth: true, onClick: _returnToSignIn, child: .text('Back to sign in'))],
           ),
         ],
       );
@@ -140,10 +125,7 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
 
     if (!_tokenChecked || _token == null) {
       return AuthFormCard(
-        children: [
-          const ZonaiPageTitle('Choose a new password'),
-          const ZonaiPageSubtitle('Loading reset link…'),
-        ],
+        children: [const ZonaiPageTitle('Choose a new password'), const ZonaiPageSubtitle('Loading reset link…')],
       );
     }
 
@@ -177,13 +159,7 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
               }),
             ),
             AuthActions(
-              children: [
-                AuthSubmitButton(
-                  label: 'Update password',
-                  loadingLabel: 'Updating…',
-                  loading: _loading,
-                ),
-              ],
+              children: [AuthSubmitButton(label: 'Update password', loadingLabel: 'Updating…', loading: _loading)],
             ),
           ],
         ),

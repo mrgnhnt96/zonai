@@ -26,21 +26,15 @@ class ZonaiEnumChipRow extends StatelessComponent {
   Component build(BuildContext context) {
     if (values.isEmpty) return Component.empty();
 
-    return div(
-      classes: 'z-enum-chip-row',
-      [for (final value in values) ZonaiEnumChip(label: value)],
-    );
+    return div(classes: 'z-enum-chip-row', [for (final value in values) ZonaiEnumChip(label: value)]);
   }
 }
 
 @css
 List<StyleRule> get zonaiEnumChipStyles => [
-  css('.z-enum-chip-row').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    flexWrap: FlexWrap.wrap,
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
+  css(
+    '.z-enum-chip-row',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: FlexWrap.wrap, gap: Gap.all(ZonaiSpacing.s3)),
   css('.z-enum-chip').styles(
     display: .inlineFlex,
     alignItems: .center,

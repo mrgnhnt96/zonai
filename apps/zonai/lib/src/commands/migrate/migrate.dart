@@ -14,6 +14,7 @@ Options:
 
 Subcommands:
   generate        Generate SQL migrations from schema changes (optional when --name is set)
+  apply           Apply pending SQL migrations to the database
 ''';
 
 /// Routes `zonai migrate` subcommands (e.g. [generate]) using [Settings] paths.
@@ -30,6 +31,8 @@ Future<int> migrate(List<String> path) async {
   switch (path) {
     case ['generate' || 'g' || 'gen']:
       return await _generate();
+    case ['apply' || 'up']:
+      return await deps.migrate.applyPending();
     default:
       print(_usage);
       return 1;

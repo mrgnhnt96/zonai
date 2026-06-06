@@ -28,9 +28,7 @@ class TableEditEnumSingleSelect extends StatelessComponent {
       return div(
         id: id,
         classes: 'table-edit-enum-values table-edit-enum-values--empty',
-        attributes: {
-          if (labelId != null) 'aria-labelledby': labelId!,
-        },
+        attributes: {if (labelId != null) 'aria-labelledby': labelId!},
         [.text('No values defined for this column')],
       );
     }
@@ -38,10 +36,7 @@ class TableEditEnumSingleSelect extends StatelessComponent {
     return div(
       id: id,
       classes: 'table-search-operators table-edit-enum-values',
-      attributes: {
-        'role': 'radiogroup',
-        if (labelId != null) 'aria-labelledby': labelId!,
-      },
+      attributes: {'role': 'radiogroup', if (labelId != null) 'aria-labelledby': labelId!},
       [
         if (allowNullable)
           button(

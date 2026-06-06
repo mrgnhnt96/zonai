@@ -22,9 +22,7 @@ List<Override> appShellOverrides({
 }) {
   final initialActions = collectionActions ?? const {};
   return [
-    sqliteTablesProvider.overrideWithValue(
-      tables ?? const SqliteTablesSnapshot(tables: []),
-    ),
+    sqliteTablesProvider.overrideWithValue(tables ?? const SqliteTablesSnapshot(tables: [])),
     tableSchemasProvider.overrideWithValue(schemaShapes ?? const {}),
     tableCollectionActionsOverride(initialActions),
     authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),

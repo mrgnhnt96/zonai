@@ -2,10 +2,7 @@ import 'package:zonai_schema/src/types/column_shape_kind.dart';
 
 /// Foreign-key target for a column.
 final class ForeignKeyShape {
-  const ForeignKeyShape({
-    required this.table,
-    required this.column,
-  });
+  const ForeignKeyShape({required this.table, required this.column});
 
   final String table;
   final String column;
@@ -17,10 +14,7 @@ final class ForeignKeyShape {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'table': table,
-    'column': column,
-  };
+  Map<String, dynamic> toJson() => {'table': table, 'column': column};
 
   @override
   bool operator ==(Object other) =>
@@ -133,10 +127,7 @@ final class ColumnShape {
 
 /// Full schema metadata for a collection table.
 final class TableSchemaShape {
-  const TableSchemaShape({
-    required this.table,
-    required this.columns,
-  });
+  const TableSchemaShape({required this.table, required this.columns});
 
   final String table;
   final List<ColumnShape> columns;

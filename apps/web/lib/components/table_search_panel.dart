@@ -98,24 +98,14 @@ class TableCreateRowToggle extends StatelessComponent {
 
     return ZonaiIconButton(
       size: ZonaiIconButtonSize.md,
-      classes: [
-        'table-create-toggle',
-        if (isOpen) 'table-create-toggle--open',
-      ].join(' '),
-      attributes: {
-        'aria-label': 'Create row',
-        'aria-expanded': isOpen ? 'true' : 'false',
-      },
+      classes: ['table-create-toggle', if (isOpen) 'table-create-toggle--open'].join(' '),
+      attributes: {'aria-label': 'Create row', 'aria-expanded': isOpen ? 'true' : 'false'},
       events: appTooltipEvents(context, text: 'Create row'),
       onClick: () {
         if (isOpen) {
           notifier.requestClose();
         } else {
-          notifier.open(
-            sqliteName: sqliteName,
-            columns: columns,
-            columnShapes: shapes,
-          );
+          notifier.open(sqliteName: sqliteName, columns: columns, columnShapes: shapes);
         }
       },
       child: createRowIcon(),
@@ -848,10 +838,7 @@ List<StyleRule> tableSearchSidePanelStyles = [
     '.table-search-side-summary',
   ).styles(margin: .zero, fontSize: 0.8125.rem, color: mutedColor, raw: const {'line-height': '1.45'}),
   css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
-    css('.table-search-side-panel').styles(
-      width: 100.percent,
-      raw: const {'max-width': '100%', 'min-width': '100%'},
-    ),
+    css('.table-search-side-panel').styles(width: 100.percent, raw: const {'max-width': '100%', 'min-width': '100%'}),
     css('.table-search-resize-handle').styles(display: .none),
   ]),
 ];

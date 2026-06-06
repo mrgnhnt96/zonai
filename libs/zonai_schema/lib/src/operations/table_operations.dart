@@ -48,7 +48,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
       name,
       'column',
       'Unknown column on table "${table.name}". '
-      'Known columns: ${table.columns.map((c) => c.name).join(', ')}',
+          'Known columns: ${table.columns.map((c) => c.name).join(', ')}',
     );
   }
 
@@ -188,7 +188,10 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
   }
 
   /// Decodes API/wire values (e.g. [String] ids) before [Column.encode].
-  Object? _decodeUpdateWireValue(rd.Column<dynamic, dynamic> col, Object? value) {
+  Object? _decodeUpdateWireValue(
+    rd.Column<dynamic, dynamic> col,
+    Object? value,
+  ) {
     if (value == null) return null;
     return col.decode(value);
   }

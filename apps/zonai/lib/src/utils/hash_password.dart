@@ -78,8 +78,9 @@ final class HashPassword {
       ];
     }
     final config = await configResolver.resolve();
-    return _cachedPasswordSecretsForVerify =
-        List<String>.unmodifiable(config.passwordSecretsForVerify);
+    return _cachedPasswordSecretsForVerify = List<String>.unmodifiable(
+      config.passwordSecretsForVerify,
+    );
   }
 
   Future<String> get passwordSecret async =>

@@ -21,6 +21,8 @@ void main() {
     );
     const actions = TableCollectionActions(
       table: '_jwt',
+      canList: false,
+      canView: false,
       canCreate: false,
       canUpdate: false,
       canDelete: true,
@@ -39,11 +41,7 @@ void main() {
     });
 
     test('defaults to denied actions when missing from map', () {
-      final resolved = resolveCollection(
-        focus: table,
-        schemas: const {'_jwt': schema},
-        actions: const {},
-      );
+      final resolved = resolveCollection(focus: table, schemas: const {'_jwt': schema}, actions: const {});
 
       expect(resolved?.actions.canDelete, isFalse);
     });
@@ -53,15 +51,14 @@ void main() {
     test('round-trips through json', () {
       const actions = TableCollectionActions(
         table: '_jwt',
+        canList: false,
+        canView: false,
         canCreate: false,
         canUpdate: false,
         canDelete: true,
       );
 
-      expect(
-        TableCollectionActions.fromJson(actions.toJson()),
-        actions,
-      );
+      expect(TableCollectionActions.fromJson(actions.toJson()), actions);
     });
   });
 }

@@ -43,11 +43,7 @@ extension _VerifyEmailX on ZonaiDb {
       }
     }
 
-    await _expireOldChallenges(
-      table: table,
-      email: email,
-      type: .verifyEmail,
-    );
+    await _expireOldChallenges(table: table, email: email, type: .verifyEmail);
 
     final verifyEmail = (await _operations.send<VerifyEmailConfigResponse>(
       GetVerifyEmailConfigOperationRequest(table: table),
@@ -133,10 +129,7 @@ extension _VerifyEmailX on ZonaiDb {
     await _consumeChallenge(challenge);
 
     final isVerifiedColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(
-        table: challenge.table,
-        columnName: .isVerified,
-      ),
+      GetColumnNameRequest(table: challenge.table, columnName: .isVerified),
     );
     final idColumn = await _operations.send<ColumnNameResponse>(
       GetColumnNameRequest(table: challenge.table, columnName: .id),

@@ -20,20 +20,14 @@ List<SqliteTableRef> navigableSidebarTables({
   if (sidebarVisuallyCollapsed) {
     return [
       ...userTables,
-      if (routeFocused != null &&
-          isSystemSqliteTable(routeFocused.sqliteName) &&
-          !userTables.contains(routeFocused))
+      if (routeFocused != null && isSystemSqliteTable(routeFocused.sqliteName) && !userTables.contains(routeFocused))
         routeFocused,
     ];
   }
 
-  final peekFocusedSystem = !systemTablesExpanded &&
-      routeFocused != null &&
-      isSystemSqliteTable(routeFocused.sqliteName);
+  final peekFocusedSystem =
+      !systemTablesExpanded && routeFocused != null && isSystemSqliteTable(routeFocused.sqliteName);
   final includeSystem = systemTablesExpanded || peekFocusedSystem;
 
-  return [
-    ...userTables,
-    if (includeSystem) ...systemTables,
-  ];
+  return [...userTables, if (includeSystem) ...systemTables];
 }

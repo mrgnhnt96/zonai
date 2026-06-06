@@ -10,11 +10,7 @@ extension _ReadX on ZonaiDb {
     await _requireTableAccess(table, .view, jwt);
 
     final operation = await _getOperation(
-      ReadOperationRequest(
-        table: table,
-        where: payload.where,
-        jwt: jwt,
-      ),
+      ReadOperationRequest(table: table, where: payload.where, jwt: jwt),
     );
 
     final (error, result) = await _execute((operation.query, operation.values));

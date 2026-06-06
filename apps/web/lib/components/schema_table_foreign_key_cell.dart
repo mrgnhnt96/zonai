@@ -13,19 +13,11 @@ import 'theme/zonai_icon_button.dart';
 import 'theme/zonai_tag.dart';
 import '../constants/button_sizes.dart';
 
-typedef OpenReferencedRowCallback = void Function(
-  BuildContext context,
-  ForeignKeyReferencedRow referenced,
-);
+typedef OpenReferencedRowCallback = void Function(BuildContext context, ForeignKeyReferencedRow referenced);
 
 /// FK table cell: resolved label tag and a button to open referenced row details.
 class SchemaTableForeignKeyCell extends StatelessComponent {
-  const SchemaTableForeignKeyCell({
-    required this.rawValue,
-    required this.shape,
-    this.onOpenReferencedRow,
-    super.key,
-  });
+  const SchemaTableForeignKeyCell({required this.rawValue, required this.shape, this.onOpenReferencedRow, super.key});
 
   final Object? rawValue;
   final ColumnShape shape;
@@ -49,22 +41,14 @@ class SchemaTableForeignKeyCell extends StatelessComponent {
         : const AsyncValue<ForeignKeyReferencedRow?>.data(null);
 
     return switch (asyncReferenced) {
-      AsyncLoading() => _ForeignKeyCellContent(
-        label: fallbackLabel,
-        monospace: true,
-        canOpenDetails: false,
-      ),
+      AsyncLoading() => _ForeignKeyCellContent(label: fallbackLabel, monospace: true, canOpenDetails: false),
       AsyncData(:final value) => _ForeignKeyCellContent(
         label: value?.displayLabel ?? fallbackLabel,
         monospace: value?.displayLabel == null,
         canOpenDetails: value != null,
         onOpenDetails: value == null ? null : () => _openReferencedRow(context, value),
       ),
-      AsyncError() => _ForeignKeyCellContent(
-        label: fallbackLabel,
-        monospace: true,
-        canOpenDetails: false,
-      ),
+      AsyncError() => _ForeignKeyCellContent(label: fallbackLabel, monospace: true, canOpenDetails: false),
     };
   }
 
@@ -74,13 +58,15 @@ class SchemaTableForeignKeyCell extends StatelessComponent {
       onOpen(context, referenced);
       return;
     }
-    context.read(tableRowDetailProvider.notifier).open(
-      rowKey: referenced.rowKey,
-      row: referenced.row,
-      sqliteName: referenced.sqliteName,
-      columns: referenced.columns,
-      columnShapes: referenced.columnShapes,
-    );
+    context
+        .read(tableRowDetailProvider.notifier)
+        .open(
+          rowKey: referenced.rowKey,
+          row: referenced.row,
+          sqliteName: referenced.sqliteName,
+          columns: referenced.columns,
+          columnShapes: referenced.columnShapes,
+        );
   }
 }
 
@@ -156,16 +142,11 @@ List<StyleRule> get schemaTableForeignKeyCellStyles => [
     flexWrap: FlexWrap.wrap,
     minWidth: .zero,
   ),
-  css('.rows-fk-cell__details-btn').styles(
-    margin: .zero,
-    flex: Flex(grow: 0, shrink: 0),
-    raw: const {'line-height': '0'},
-  ),
-  css('.rows-fk-cell__details-btn:hover:not(:disabled)').styles(
-    backgroundColor: hoverColor,
-    color: fgColor,
-  ),
-  css('.rows-fk-cell__details-btn:focus-visible').styles(
-    raw: const {'outline': '2px solid var(--zonai-primary)', 'outline-offset': '1px'},
-  ),
+  css(
+    '.rows-fk-cell__details-btn',
+  ).styles(margin: .zero, flex: Flex(grow: 0, shrink: 0), raw: const {'line-height': '0'}),
+  css('.rows-fk-cell__details-btn:hover:not(:disabled)').styles(backgroundColor: hoverColor, color: fgColor),
+  css(
+    '.rows-fk-cell__details-btn:focus-visible',
+  ).styles(raw: const {'outline': '2px solid var(--zonai-primary)', 'outline-offset': '1px'}),
 ];

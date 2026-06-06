@@ -9,11 +9,7 @@ import 'app_tooltip_overlay.dart';
 import 'table_edit/table_edit_datetime_field.dart';
 
 /// Relative date preset for datetime filter values.
-typedef _DatetimeFilterPreset = ({
-  String label,
-  String tooltip,
-  DateTime Function({required bool useUtc}) toWall,
-});
+typedef _DatetimeFilterPreset = ({String label, String tooltip, DateTime Function({required bool useUtc}) toWall});
 
 typedef _DatetimeFilterPresetGroup = ({String label, List<_DatetimeFilterPreset> presets});
 
@@ -22,18 +18,46 @@ final _presetGroups = <_DatetimeFilterPresetGroup>[
     label: 'Past',
     presets: [
       (label: 'Today', tooltip: 'Start of today', toWall: _startOfToday),
-      (label: '7 days ago', tooltip: 'Start of day, 7 days ago', toWall: ({required useUtc}) => _daysAgoStart(7, useUtc: useUtc)),
-      (label: '30 days ago', tooltip: 'Start of day, 30 days ago', toWall: ({required useUtc}) => _daysAgoStart(30, useUtc: useUtc)),
-      (label: '90 days ago', tooltip: 'Start of day, 90 days ago', toWall: ({required useUtc}) => _daysAgoStart(90, useUtc: useUtc)),
+      (
+        label: '7 days ago',
+        tooltip: 'Start of day, 7 days ago',
+        toWall: ({required useUtc}) => _daysAgoStart(7, useUtc: useUtc),
+      ),
+      (
+        label: '30 days ago',
+        tooltip: 'Start of day, 30 days ago',
+        toWall: ({required useUtc}) => _daysAgoStart(30, useUtc: useUtc),
+      ),
+      (
+        label: '90 days ago',
+        tooltip: 'Start of day, 90 days ago',
+        toWall: ({required useUtc}) => _daysAgoStart(90, useUtc: useUtc),
+      ),
     ],
   ),
   (
     label: 'Future',
     presets: [
-      (label: 'Now', tooltip: 'Current date and time', toWall: ({required useUtc}) => useUtc ? DateTime.now().toUtc() : DateTime.now()),
-      (label: 'in 7 days', tooltip: 'Start of day, 7 days from today', toWall: ({required useUtc}) => _daysAheadStart(7, useUtc: useUtc)),
-      (label: 'in 30 days', tooltip: 'Start of day, 30 days from today', toWall: ({required useUtc}) => _daysAheadStart(30, useUtc: useUtc)),
-      (label: 'in 90 days', tooltip: 'Start of day, 90 days from today', toWall: ({required useUtc}) => _daysAheadStart(90, useUtc: useUtc)),
+      (
+        label: 'Now',
+        tooltip: 'Current date and time',
+        toWall: ({required useUtc}) => useUtc ? DateTime.now().toUtc() : DateTime.now(),
+      ),
+      (
+        label: 'in 7 days',
+        tooltip: 'Start of day, 7 days from today',
+        toWall: ({required useUtc}) => _daysAheadStart(7, useUtc: useUtc),
+      ),
+      (
+        label: 'in 30 days',
+        tooltip: 'Start of day, 30 days from today',
+        toWall: ({required useUtc}) => _daysAheadStart(30, useUtc: useUtc),
+      ),
+      (
+        label: 'in 90 days',
+        tooltip: 'Start of day, 90 days from today',
+        toWall: ({required useUtc}) => _daysAheadStart(90, useUtc: useUtc),
+      ),
     ],
   ),
 ];
@@ -47,15 +71,15 @@ DateTime _startOfToday({required bool useUtc}) {
   return DateTime(now.year, now.month, now.day);
 }
 
-DateTime _daysAgoStart(int days, {required bool useUtc}) => _startOfToday(useUtc: useUtc).subtract(Duration(days: days));
+DateTime _daysAgoStart(int days, {required bool useUtc}) =>
+    _startOfToday(useUtc: useUtc).subtract(Duration(days: days));
 
 DateTime _daysAheadStart(int days, {required bool useUtc}) => _startOfToday(useUtc: useUtc).add(Duration(days: days));
 
 bool _presetMatches(String valueText, DateTime presetWall, {required bool useUtc}) {
   final selected = filterDateTimeTextToWall(valueText, useUtc: useUtc);
   if (selected == null) return false;
-  return wallDateTimeToFilterText(selected, useUtc: useUtc) ==
-      wallDateTimeToFilterText(presetWall, useUtc: useUtc);
+  return wallDateTimeToFilterText(selected, useUtc: useUtc) == wallDateTimeToFilterText(presetWall, useUtc: useUtc);
 }
 
 /// Datetime filter value: timezone, grouped quick presets, and a compact custom picker.
@@ -83,9 +107,7 @@ class TableFilterDatetimeField extends StatelessComponent {
     return div(
       id: id,
       classes: 'table-filter-datetime',
-      attributes: {
-        if (labelId != null) 'aria-labelledby': labelId!,
-      },
+      attributes: {if (labelId != null) 'aria-labelledby': labelId!},
       [
         div(
           classes: 'table-search-operators table-filter-datetime__timezone',
@@ -120,9 +142,8 @@ class TableFilterDatetimeField extends StatelessComponent {
                     preset: preset,
                     useUtc: useUtc,
                     selected: _presetMatches(valueText, preset.toWall(useUtc: useUtc), useUtc: useUtc),
-                    onSelect: () => onValueTextChanged(
-                      wallDateTimeToFilterText(preset.toWall(useUtc: useUtc), useUtc: useUtc),
-                    ),
+                    onSelect: () =>
+                        onValueTextChanged(wallDateTimeToFilterText(preset.toWall(useUtc: useUtc), useUtc: useUtc)),
                   ),
               ],
             ),
@@ -171,11 +192,7 @@ class TableFilterDatetimeField extends StatelessComponent {
   }) {
     return button(
       type: .button,
-      classes: [
-        'table-search-op',
-        'table-filter-datetime__preset',
-        if (selected) 'table-search-op--active',
-      ].join(' '),
+      classes: ['table-search-op', 'table-filter-datetime__preset', if (selected) 'table-search-op--active'].join(' '),
       attributes: {'aria-pressed': selected ? 'true' : 'false'},
       events: appTooltipEvents(context, text: preset.tooltip),
       onClick: onSelect,
@@ -200,12 +217,9 @@ List<StyleRule> tableFilterDatetimeStyles = [
     fontSize: ZonaiButtonSizes.textFontSize(ZonaiButtonSize.sm),
     fontWeight: .w600,
   ),
-  css('.table-filter-datetime__group').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s3),
-    width: 100.percent,
-  ),
+  css(
+    '.table-filter-datetime__group',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s3), width: 100.percent),
   css('.table-filter-datetime__group-label').styles(
     fontSize: 0.6875.rem,
     fontWeight: .w600,
@@ -222,10 +236,9 @@ List<StyleRule> tableFilterDatetimeStyles = [
     width: 100.percent,
     padding: .only(top: ZonaiSpacing.s7),
     margin: .only(top: ZonaiSpacing.s1),
-    border: .only(top: BorderSide.solid(color: borderColor, width: 1.px)),
+    border: .only(
+      top: BorderSide.solid(color: borderColor, width: 1.px),
+    ),
   ),
-  css('.table-filter-datetime__picker .table-edit-datetime--compact').styles(
-    width: .auto,
-    maxWidth: 280.px,
-  ),
+  css('.table-filter-datetime__picker .table-edit-datetime--compact').styles(width: .auto, maxWidth: 280.px),
 ];

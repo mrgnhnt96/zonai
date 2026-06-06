@@ -20,8 +20,7 @@ class JwtTable extends Table<JwtEntry> {
         'user_id',
         (s) => s.userId,
         fromString: UnknownId.new,
-        generate: () =>
-            throw Exception('User ID is required for JWT table'),
+        generate: () => throw Exception('User ID is required for JWT table'),
         isPrimaryKey: false,
         synthetic: const UnknownId('__zonai_schema_registration__'),
         // TODO: It would be nice to add a `references` to the table here

@@ -247,12 +247,7 @@ class HomeScreen extends StatelessComponent {
       css('.table-rows-wrap--selection-open').styles(padding: .only(bottom: ZonaiSpacing.selectionBar)),
       css('.rows-table').styles(
         fontSize: 0.8125.rem,
-        raw: const {
-          'border-collapse': 'separate',
-          'border-spacing': '0',
-          'width': 'max-content',
-          'min-width': '100%',
-        },
+        raw: const {'border-collapse': 'separate', 'border-spacing': '0', 'width': 'max-content', 'min-width': '100%'},
       ),
       css('.rows-table th').styles(
         backgroundColor: tableHeaderBgColor,
@@ -314,30 +309,19 @@ class HomeScreen extends StatelessComponent {
           'box-sizing': 'border-box',
         },
       ),
-      css('.rows-table .rows-row td.rows-cell').styles(
-        maxWidth: 14.rem,
-        raw: const {
-          'text-overflow': 'ellipsis',
-          'white-space': 'nowrap',
-        },
-      ),
-      css('.rows-table .rows-row td.rows-cell--rich').styles(
-        whiteSpace: WhiteSpace.normal,
-        raw: const {'text-overflow': 'clip'},
-      ),
-      css('.rows-cell-inner').styles(
-        display: .flex,
-        alignItems: .center,
-        maxWidth: 100.percent,
-        minHeight: 100.percent,
-      ),
+      css(
+        '.rows-table .rows-row td.rows-cell',
+      ).styles(maxWidth: 14.rem, raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'}),
+      css(
+        '.rows-table .rows-row td.rows-cell--rich',
+      ).styles(whiteSpace: WhiteSpace.normal, raw: const {'text-overflow': 'clip'}),
+      css(
+        '.rows-cell-inner',
+      ).styles(display: .flex, alignItems: .center, maxWidth: 100.percent, minHeight: 100.percent),
       css('.rows-cell:not(.rows-cell--rich) .rows-cell-inner').styles(
         display: .block,
         overflow: Overflow.hidden,
-        raw: const {
-          'text-overflow': 'ellipsis',
-          'white-space': 'nowrap',
-        },
+        raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'},
       ),
       css('.rows-table th.rows-select-header, .rows-table td.rows-select-cell').styles(
         width: 3.rem,
@@ -394,12 +378,9 @@ class HomeScreen extends StatelessComponent {
       ),
       css('.rows-row').styles(cursor: .pointer),
       css('.rows-row--selected td').styles(backgroundColor: selectedBgColor),
-      css('.rows-row--keyboard-focus').styles(
-        raw: const {
-          'outline': '2px solid var(--zonai-focus-ring)',
-          'outline-offset': '-2px',
-        },
-      ),
+      css(
+        '.rows-row--keyboard-focus',
+      ).styles(raw: const {'outline': '2px solid var(--zonai-focus-ring)', 'outline-offset': '-2px'}),
       css('.table-rows-selection-float').styles(
         display: .flex,
         justifyContent: .center,
@@ -556,13 +537,15 @@ class _TableMain extends StatelessComponent {
     }
 
     final bodyChildren = <Component>[];
-    final showSearchToggle = context.binding.isClient &&
+    final showSearchToggle =
+        context.binding.isClient &&
         ((schema?.columns.isNotEmpty ?? false) ||
             switch (rowsAsync) {
               AsyncData(:final value) when value != null && value.columnShapes.isNotEmpty => true,
               _ => false,
             });
-    final showCreateToggle = context.binding.isClient &&
+    final showCreateToggle =
+        context.binding.isClient &&
         schemaColumns.isNotEmpty &&
         canCreateTableRows(
           allActions: allActions,
@@ -610,9 +593,7 @@ class _TableMain extends StatelessComponent {
             final s = data.total == 1 ? '' : 's';
             subtitleParts.add('${data.total} row$s');
           }
-          final emptyMsg = appliedWhere != null
-              ? 'No rows match this filter.'
-              : 'This table has no rows.';
+          final emptyMsg = appliedWhere != null ? 'No rows match this filter.' : 'This table has no rows.';
           bodyChildren.add(
             div(classes: 'table-detail-empty', [
               p(classes: 'table-detail-empty-msg', [.text(emptyMsg)]),
@@ -918,16 +899,13 @@ class _SelectableRow extends StatelessComponent {
       attributes: {'data-row-key': rowKey},
       events: {
         'click': (_) {
-          context.read(tableRowKeyboardFocusProvider.notifier).focusRowKey(
-            rowKey,
-            tableSqliteName: sqliteName,
-          );
+          context.read(tableRowKeyboardFocusProvider.notifier).focusRowKey(rowKey, tableSqliteName: sqliteName);
           detailNotifier.toggle(
-          rowKey: rowKey,
-          row: row,
-          sqliteName: sqliteName,
-          columns: columns,
-          columnShapes: columnShapes,
+            rowKey: rowKey,
+            row: row,
+            sqliteName: sqliteName,
+            columns: columns,
+            columnShapes: columnShapes,
           );
         },
       },
@@ -950,27 +928,18 @@ class _SelectableRow extends StatelessComponent {
                     selected: selected,
                     pageKeys: pageKeys,
                   );
-                  context.read(tableRowKeyboardFocusProvider.notifier).focusRowKey(
-                    rowKey,
-                    tableSqliteName: sqliteName,
-                  );
+                  context.read(tableRowKeyboardFocusProvider.notifier).focusRowKey(rowKey, tableSqliteName: sqliteName);
                 },
               ),
             ]),
           ],
         ),
         for (var i = 0; i < row.length; i++)
-          td(
-            classes: _cellClasses(columnShapes.elementAtOrNull(i), row[i]),
-            [
-              div(classes: 'rows-cell-inner', [
-                SchemaTableCell(
-                  rawValue: row[i],
-                  shape: columnShapes.elementAtOrNull(i),
-                ),
-              ]),
-            ],
-          ),
+          td(classes: _cellClasses(columnShapes.elementAtOrNull(i), row[i]), [
+            div(classes: 'rows-cell-inner', [
+              SchemaTableCell(rawValue: row[i], shape: columnShapes.elementAtOrNull(i)),
+            ]),
+          ]),
       ],
     );
   }
@@ -1433,10 +1402,7 @@ void _clearHomeFocus(BuildContext context) {
   }
 }
 
-({List<List<Object?>> rows, List<String> keys}) _displayRowsAndKeys(
-  TableRowsData data,
-  TableSortState? sort,
-) {
+({List<List<Object?>> rows, List<String> keys}) _displayRowsAndKeys(TableRowsData data, TableSortState? sort) {
   final sortColumnIndex = sort == null ? -1 : data.columns.indexOf(sort.columnName);
   final displayRows = sortColumnIndex < 0
       ? data.rows
@@ -1466,15 +1432,17 @@ void _openDetailForRowKey({
 }) {
   final index = displayKeys.indexOf(rowKey);
   if (index < 0) return;
-  context.read(tableRowDetailProvider.notifier).openFocusedRow(
-    rowKey: rowKey,
-    row: displayRows[index],
-    sqliteName: data.sqliteName,
-    columns: data.columns,
-    columnShapes: data.columnShapes,
-    viewMode: viewMode,
-    viaEditShortcut: viaEditShortcut,
-  );
+  context
+      .read(tableRowDetailProvider.notifier)
+      .openFocusedRow(
+        rowKey: rowKey,
+        row: displayRows[index],
+        sqliteName: data.sqliteName,
+        columns: data.columns,
+        columnShapes: data.columnShapes,
+        viewMode: viewMode,
+        viaEditShortcut: viaEditShortcut,
+      );
 }
 
 /// Opens or switches the row detail panel to [viewMode].
@@ -1493,15 +1461,17 @@ void _openDetailViewMode({
   bool viaEditShortcut = false,
 }) {
   if (detail != null) {
-    context.read(tableRowDetailProvider.notifier).openFocusedRow(
-      rowKey: detail.rowKey,
-      row: detail.row,
-      sqliteName: detail.sqliteName,
-      columns: detail.columns,
-      columnShapes: detail.columnShapes,
-      viewMode: viewMode,
-      viaEditShortcut: viaEditShortcut,
-    );
+    context
+        .read(tableRowDetailProvider.notifier)
+        .openFocusedRow(
+          rowKey: detail.rowKey,
+          row: detail.row,
+          sqliteName: detail.sqliteName,
+          columns: detail.columns,
+          columnShapes: detail.columnShapes,
+          viewMode: viewMode,
+          viaEditShortcut: viaEditShortcut,
+        );
     return;
   }
   if (activeKey == null) return;
@@ -1571,19 +1541,13 @@ class _HomeKeyboardShortcutsState extends State<HomeKeyboardShortcuts> {
       case 'ArrowLeft':
         if (zone != HomeKeyboardFocusZone.tableRows || tableFocus == null) return;
         event.preventDefault();
-        focusNotifier.enterSidebar(
-          tableSqliteName: tableFocus.sqliteName,
-          currentRowKey: keyboardFocus.rowKey,
-        );
+        focusNotifier.enterSidebar(tableSqliteName: tableFocus.sqliteName, currentRowKey: keyboardFocus.rowKey);
         return;
       case 'ArrowRight':
         if (zone != HomeKeyboardFocusZone.sidebar || tableFocus == null) return;
         event.preventDefault();
         final pageKeys = data == null ? <String>[] : _displayRowsAndKeys(data, sort).keys;
-        focusNotifier.exitToTableRows(
-          tableSqliteName: tableFocus.sqliteName,
-          pageKeys: pageKeys,
-        );
+        focusNotifier.exitToTableRows(tableSqliteName: tableFocus.sqliteName, pageKeys: pageKeys);
         final rowKey = context.read(tableRowKeyboardFocusProvider).rowKey;
         if (rowKey != null) _scrollFocusedRowIntoView(rowKey);
         return;

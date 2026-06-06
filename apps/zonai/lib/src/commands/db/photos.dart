@@ -43,10 +43,7 @@ Future<int> photos() async {
 /// Returns a stream one byte over [maxBytes] for limit enforcement checks.
 Stream<List<int>> oversizedImage(int maxBytes) => Stream.value([
   ...ImageMimeType.jpeg.magicBytes,
-  ...List.filled(
-    maxBytes - ImageMimeType.jpeg.magicBytes.length + 1,
-    0,
-  ),
+  ...List.filled(maxBytes - ImageMimeType.jpeg.magicBytes.length + 1, 0),
 ]);
 
 /// Exercises create, view, update, and delete for photo uploads.
@@ -80,16 +77,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
       token: jwt,
       meta: createMeta,
       contentType: ImageMimeType.jpeg.mimeType,
-      image: Stream.value([
-        0x89,
-        0x50,
-        0x4E,
-        0x47,
-        0x0D,
-        0x0A,
-        0x1A,
-        0x0A,
-      ]),
+      image: Stream.value([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
     );
     logger.error('Expected mismatched create to be rejected');
     return 1;
@@ -120,7 +108,10 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Photo file exists: ${imageFile.path}');
 
   logger.info('VIEW PHOTO');
-  final bytes = await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+  final bytes = await (await zonaiDB.getPhoto(
+    photoId,
+    token: jwt,
+  )).readAsBytes();
 
   if (!_sameBytes(bytes, testImageBytes)) {
     logger.error(
@@ -141,8 +132,10 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   logger.info('Updated photo: $photoId');
 
   logger.info('VERIFY UPDATED PHOTO BYTES');
-  final updatedBytes =
-      await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+  final updatedBytes = await (await zonaiDB.getPhoto(
+    photoId,
+    token: jwt,
+  )).readAsBytes();
   if (!_sameBytes(updatedBytes, updatedImageBytes)) {
     logger.error(
       'Updated photo bytes mismatch: expected ${updatedImageBytes.length} bytes, got ${updatedBytes.length} bytes',
@@ -171,8 +164,10 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
       logger.info('Oversized update rejected: $error');
     }
 
-    final bytesAfterRejectedUpdate =
-        await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+    final bytesAfterRejectedUpdate = await (await zonaiDB.getPhoto(
+      photoId,
+      token: jwt,
+    )).readAsBytes();
     if (!_sameBytes(bytesAfterRejectedUpdate, updatedImageBytes)) {
       logger.error('Photo bytes changed after rejected oversized update');
       return 1;
@@ -182,17 +177,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
   }
 
   logger.info('VERIFY UPDATE CAN CHANGE IMAGE TYPE');
-  const pngBytes = [
-    0x89,
-    0x50,
-    0x4E,
-    0x47,
-    0x0D,
-    0x0A,
-    0x1A,
-    0x0A,
-    0x00,
-  ];
+  const pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
   await zonaiDB.updatePhoto(
     token: jwt,
     id: photoId,
@@ -214,8 +199,10 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
     return 1;
   }
 
-  final pngViewBytes =
-      await (await zonaiDB.getPhoto(photoId, token: jwt)).readAsBytes();
+  final pngViewBytes = await (await zonaiDB.getPhoto(
+    photoId,
+    token: jwt,
+  )).readAsBytes();
   if (!_sameBytes(pngViewBytes, pngBytes)) {
     logger.error('PNG photo view bytes mismatch');
     return 1;
@@ -248,11 +235,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
     'items',
     CreatePayload(
       jwt: jwt,
-      object: {
-        'id': itemId,
-        'body': 'Photo item',
-        'image': photoId,
-      },
+      object: {'id': itemId, 'body': 'Photo item', 'image': photoId},
     ),
   );
 
@@ -267,9 +250,7 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
       : config.baseUrl;
   final expectedImageUrl = '$baseUrl/img/$photoId.png';
   if (item['image'] != expectedImageUrl) {
-    logger.error(
-      'Expected image URL $expectedImageUrl, got ${item['image']}',
-    );
+    logger.error('Expected image URL $expectedImageUrl, got ${item['image']}');
     return 1;
   }
 

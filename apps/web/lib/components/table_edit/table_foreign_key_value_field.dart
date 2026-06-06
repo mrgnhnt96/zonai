@@ -71,16 +71,9 @@ class TableForeignKeyValueField extends StatelessComponent {
         disabled: disabled,
         onInput: onTextChanged,
       ),
-      ZonaiButton(
-        variant: ZonaiButtonVariant.ghost,
-        disabled: disabled,
-        onClick: onBrowse,
-        child: .text('Browse'),
-      ),
-      if (validationLoading)
-        span(classes: 'table-edit-fk-value__hint', [.text('Checking…')]),
-      if (validationError != null)
-        p(id: '$id-error', classes: 'table-edit-fk-value__error', [.text(validationError!)]),
+      ZonaiButton(variant: ZonaiButtonVariant.ghost, disabled: disabled, onClick: onBrowse, child: .text('Browse')),
+      if (validationLoading) span(classes: 'table-edit-fk-value__hint', [.text('Checking…')]),
+      if (validationError != null) p(id: '$id-error', classes: 'table-edit-fk-value__error', [.text(validationError!)]),
     ]);
   }
 }

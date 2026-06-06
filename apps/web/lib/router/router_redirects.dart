@@ -15,9 +15,7 @@ abstract final class AppRouterRedirects {
   }
 
   static String _rawPath(String location) {
-    final uri = location.contains('://')
-        ? Uri.parse(location)
-        : Uri.parse('http://localhost$location');
+    final uri = location.contains('://') ? Uri.parse(location) : Uri.parse('http://localhost$location');
     var path = uri.path;
     if (path.length > 1 && path.endsWith('/')) {
       path = path.substring(0, path.length - 1);

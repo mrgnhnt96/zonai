@@ -38,19 +38,7 @@ class HomeRouter extends StatelessComponent {
 }
 
 final List<RouteBase> homeRoutes = [
-  Route(
-    path: AuthRoutes.home,
-    name: 'dashboard',
-    builder: (_, _) => const DashboardScreen(),
-  ),
-  Route(
-    path: '/tables/:sqliteName',
-    name: 'table',
-    builder: (_, _) => const HomeScreen(),
-  ),
-  Route(
-    path: AuthRoutes.tables,
-    name: 'tables',
-    builder: (_, _) => const HomeScreen(),
-  ),
+  Route(path: AuthRoutes.home, name: 'dashboard', builder: (_, _) => const DashboardScreen()),
+  Route(path: '/tables/:sqliteName', name: 'table', builder: (_, _) => const HomeScreen()),
+  Route(path: AuthRoutes.tables, name: 'tables', builder: (_, _) => const HomeScreen()),
 ];

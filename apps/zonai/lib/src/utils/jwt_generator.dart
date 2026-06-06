@@ -6,11 +6,9 @@ import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
 final class JwtGenerator {
-  JwtGenerator({
-    String? jwtSecret,
-    List<String> previousJwtSecrets = const [],
-  }) : _explicitJwtSecret = jwtSecret,
-       _explicitPreviousJwtSecrets = previousJwtSecrets;
+  JwtGenerator({String? jwtSecret, List<String> previousJwtSecrets = const []})
+    : _explicitJwtSecret = jwtSecret,
+      _explicitPreviousJwtSecrets = previousJwtSecrets;
 
   final String? _explicitJwtSecret;
   final List<String> _explicitPreviousJwtSecrets;
@@ -33,8 +31,9 @@ final class JwtGenerator {
       ];
     }
     final config = await configResolver.resolve();
-    return _cachedJwtSecretsForVerify =
-        List<String>.unmodifiable(config.jwtSecretsForVerify);
+    return _cachedJwtSecretsForVerify = List<String>.unmodifiable(
+      config.jwtSecretsForVerify,
+    );
   }
 
   Future<String> get jwtSecret async => (await _jwtSecretsForVerify()).first;
@@ -132,5 +131,43 @@ final class JwtGenerator {
       diff |= expected[i] ^ actual[i];
     }
     return diff == 0;
+  }
+}
+
+/// Strips optional `Bearer ` prefix from pasted authorization headers.
+String normalizeJwtToken(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.toLowerCase().startsWith('bearer ')) {
+    return trimmed.substring(7).trim();
+  }
+  return trimmed;
+}
+
+/// Verifies signature and decodes claims without checking the revocation record.
+///
+/// Returns `null` when [token] is absent. Throws [StateError] when the token is
+/// present but invalid, expired, or a cron worker JWT.
+Future<Jwt?> parseJwtTokenClaimsOnly(
+  String? token, {
+  JwtGenerator? generator,
+}) async {
+  if (token == null) return null;
+
+  final normalized = normalizeJwtToken(token);
+  if (normalized.isEmpty) return null;
+
+  final decoded = await (generator ?? JwtGenerator()).verify(normalized);
+  if (decoded == null) {
+    throw StateError('Invalid or expired JWT');
+  }
+
+  if (Jwt.isCronWorkerPayload(decoded)) {
+    throw StateError('Invalid JWT');
+  }
+
+  try {
+    return Jwt.fromJson(decoded);
+  } on Object {
+    throw StateError('Invalid JWT');
   }
 }

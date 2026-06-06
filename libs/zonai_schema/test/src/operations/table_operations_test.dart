@@ -75,8 +75,7 @@ class _JsonTable extends Table<_JsonRow> {
 
 final jsonWidgets = sqliteTable('json_widgets', _JsonTable.new);
 
-final class _JsonOperations
-    extends TableOperations<_JsonTable, _JsonRow> {
+final class _JsonOperations extends TableOperations<_JsonTable, _JsonRow> {
   _JsonOperations() : super(jsonWidgets);
 }
 
@@ -131,10 +130,7 @@ class _TypedJsonTable extends Table<_TypedJsonRow> {
   final TypedMapColumn<_Profile> profile;
 }
 
-final typedJsonWidgets = sqliteTable(
-  'typed_json_widgets',
-  _TypedJsonTable.new,
-);
+final typedJsonWidgets = sqliteTable('typed_json_widgets', _TypedJsonTable.new);
 
 final class _TypedJsonOperations
     extends TableOperations<_TypedJsonTable, _TypedJsonRow> {
@@ -168,14 +164,16 @@ class _OwnedTable extends Table<_OwnedRow> {
         'id',
         (s) => s.id,
         fromString: _OwnerId.new,
-        generate: () => _OwnerId('own_${DateTime.now().microsecondsSinceEpoch}'),
+        generate: () =>
+            _OwnerId('own_${DateTime.now().microsecondsSinceEpoch}'),
       ),
       title = $.text('title', (s) => s.title),
       ownerId = $.id(
         'owner_id',
         (s) => s.ownerId,
         fromString: _OwnerId.new,
-        generate: () => _OwnerId('own_${DateTime.now().microsecondsSinceEpoch}'),
+        generate: () =>
+            _OwnerId('own_${DateTime.now().microsecondsSinceEpoch}'),
         isPrimaryKey: false,
       );
 

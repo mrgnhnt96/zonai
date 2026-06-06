@@ -47,7 +47,9 @@ void main(List<String> args) {
 
   generatedFile.writeAsStringSync(output);
   stdout.writeln('Wrote ${generatedFile.path}');
-  stdout.writeln('  ${libraryFile.lengthSync()} bytes from ${libraryFile.path}');
+  stdout.writeln(
+    '  ${libraryFile.lengthSync()} bytes from ${libraryFile.path}',
+  );
 }
 
 String _formatDart(List<int> bytes) {

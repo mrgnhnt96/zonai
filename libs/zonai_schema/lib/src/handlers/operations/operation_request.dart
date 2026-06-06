@@ -88,19 +88,13 @@ final class GetColumnNameRequest extends OperationRequest {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'columnName': columnName.name,
-    };
+    return {...super.toJson(), 'table': table, 'columnName': columnName.name};
   }
 }
 
 final class GetColumnReferenceRequest extends OperationRequest {
-  GetColumnReferenceRequest({
-    required this.table,
-    required this.columnName,
-  }) : super(path: _path, id: Request.generateId(), jwt: null);
+  GetColumnReferenceRequest({required this.table, required this.columnName})
+    : super(path: _path, id: Request.generateId(), jwt: null);
 
   GetColumnReferenceRequest._({
     required super.id,
@@ -123,11 +117,7 @@ final class GetColumnReferenceRequest extends OperationRequest {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'columnName': columnName,
-    };
+    return {...super.toJson(), 'table': table, 'columnName': columnName};
   }
 }
 
@@ -135,13 +125,15 @@ final class GetAllTableSchemaShapesRequest extends OperationRequest {
   GetAllTableSchemaShapesRequest()
     : super(path: _path, id: Request.generateId(), jwt: null);
 
-  GetAllTableSchemaShapesRequest._({required super.id}) : super(path: _path, jwt: null);
+  GetAllTableSchemaShapesRequest._({required super.id})
+    : super(path: _path, jwt: null);
 
   factory GetAllTableSchemaShapesRequest.fromRequest(UnknownRequest request) {
     return GetAllTableSchemaShapesRequest._(id: request.id);
   }
 
-  static const _path = '${Request.prefix}.operation.get_all_table_schema_shapes';
+  static const _path =
+      '${Request.prefix}.operation.get_all_table_schema_shapes';
 }
 
 final class PerformOperationRequest extends OperationRequest {
@@ -184,16 +176,11 @@ final class PerformOperationRequest extends OperationRequest {
   final String table;
   final String operation;
 
-  TableOperation? get classicOperation =>
-      TableOperation.fromString(operation);
+  TableOperation? get classicOperation => TableOperation.fromString(operation);
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'operation': operation,
-    };
+    return {...super.toJson(), 'table': table, 'operation': operation};
   }
 }
 
@@ -324,9 +311,7 @@ final class GetAdminTablesOperationRequest extends OperationRequest {
 
   static const _path = '${Request.prefix}.auth.get_admin_tables';
 
-  factory GetAdminTablesOperationRequest.fromRequest(
-    UnknownRequest request,
-  ) {
+  factory GetAdminTablesOperationRequest.fromRequest(UnknownRequest request) {
     return GetAdminTablesOperationRequest._(id: request.id);
   }
 }
@@ -363,11 +348,7 @@ final class ViewAuthOperationRequest extends OperationRequest {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'payload': payload.toJson(),
-    };
+    return {...super.toJson(), 'table': table, 'payload': payload.toJson()};
   }
 }
 
@@ -403,11 +384,7 @@ final class CreateAuthOperationRequest extends OperationRequest {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'payload': payload.toJson(),
-    };
+    return {...super.toJson(), 'table': table, 'payload': payload.toJson()};
   }
 }
 
@@ -520,11 +497,8 @@ final class DeleteOperationRequest extends PerformOperationRequest {
 }
 
 final class ReadOperationRequest extends PerformOperationRequest {
-  ReadOperationRequest({
-    required super.table,
-    required this.where,
-    super.jwt,
-  }) : super(operation: TableOperation.view.name);
+  ReadOperationRequest({required super.table, required this.where, super.jwt})
+    : super(operation: TableOperation.view.name);
 
   ReadOperationRequest._({
     required super.id,
@@ -739,11 +713,8 @@ final class SanitizeOperationRequest extends OperationRequest {
 }
 
 final class CountOperationRequest extends PerformOperationRequest {
-  CountOperationRequest({
-    required super.table,
-    required this.where,
-    super.jwt,
-  }) : super(operation: TableOperation.list.name);
+  CountOperationRequest({required super.table, required this.where, super.jwt})
+    : super(operation: TableOperation.list.name);
 
   CountOperationRequest._({
     required super.id,
@@ -776,10 +747,8 @@ final class GetMagicLinkConfigOperationRequest extends OperationRequest {
   GetMagicLinkConfigOperationRequest({required this.table})
     : super(path: _path, id: Request.generateId(), jwt: null);
 
-  GetMagicLinkConfigOperationRequest._({
-    required super.id,
-    required this.table,
-  }) : super(path: _path, jwt: null);
+  GetMagicLinkConfigOperationRequest._({required super.id, required this.table})
+    : super(path: _path, jwt: null);
 
   factory GetMagicLinkConfigOperationRequest.fromRequest(
     UnknownRequest request,

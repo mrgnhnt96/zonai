@@ -77,6 +77,7 @@ class TableEditDatetimeField extends StatefulComponent {
   final void Function(String valueText) onValueTextChanged;
   final String? labelId;
   final String placeholder;
+
   /// Narrow trigger (e.g. filter panel with preset buttons above).
   final bool compact;
 
@@ -315,10 +316,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   }
 
   static bool _isArrowKey(String key) {
-    return key == 'ArrowUp' ||
-        key == 'ArrowDown' ||
-        key == 'ArrowLeft' ||
-        key == 'ArrowRight';
+    return key == 'ArrowUp' || key == 'ArrowDown' || key == 'ArrowLeft' || key == 'ArrowRight';
   }
 
   void _handleArrowKey(String key, web.HTMLElement? target) {
@@ -347,10 +345,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
       if (selectPm || selectAm) {
         final selected = _selectedWall ?? _nowWall;
         final (hour12, _) = hour24To12Parts(selected.hour);
-        _setTime(
-          hour: hour12To24(hour12, selectPm),
-          minute: selected.minute,
-        );
+        _setTime(hour: hour12To24(hour12, selectPm), minute: selected.minute);
       }
       return;
     }
@@ -391,8 +386,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     scheduleMicrotask(_focusKeyboardFocusDayButton);
   }
 
-  bool get _hasKeyboardFocus =>
-      _keyboardFocusYear != null && _keyboardFocusMonth != null && _keyboardFocusDay != null;
+  bool get _hasKeyboardFocus => _keyboardFocusYear != null && _keyboardFocusMonth != null && _keyboardFocusDay != null;
 
   void _nudgeHour(int delta) {
     final base = _selectedWall ?? _nowWall;
@@ -430,9 +424,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
     final root = web.document.getElementById(component.id);
     if (root == null) return;
     final dayLabel = '$day';
-    final dayButtons = root.querySelectorAll(
-      '.table-edit-datetime__day:not(.table-edit-datetime__day--empty)',
-    );
+    final dayButtons = root.querySelectorAll('.table-edit-datetime__day:not(.table-edit-datetime__day--empty)');
     for (var i = 0; i < dayButtons.length; i++) {
       final node = dayButtons.item(i);
       if (node is! web.Element) continue;
@@ -444,9 +436,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   }
 
   void _commitWall(DateTime? wall) {
-    component.onValueTextChanged(
-      wall == null ? '' : wallDateTimeToFilterText(wall, useUtc: component.useUtc),
-    );
+    component.onValueTextChanged(wall == null ? '' : wallDateTimeToFilterText(wall, useUtc: component.useUtc));
   }
 
   DateTime _mergeSelected({int? year, int? month, int? day, int? hour, int? minute}) {
@@ -460,13 +450,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
         minute ?? base.minute,
       );
     }
-    return DateTime(
-      year ?? base.year,
-      month ?? base.month,
-      day ?? base.day,
-      hour ?? base.hour,
-      minute ?? base.minute,
-    );
+    return DateTime(year ?? base.year, month ?? base.month, day ?? base.day, hour ?? base.hour, minute ?? base.minute);
   }
 
   void _selectDay(int day) {
@@ -513,38 +497,27 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   @override
   Component build(BuildContext context) {
     final selected = _selectedWall;
-    final display = selected == null
-        ? null
-        : formatFilterDateTimeDisplay(selected, useUtc: component.useUtc);
+    final display = selected == null ? null : formatFilterDateTimeDisplay(selected, useUtc: component.useUtc);
     final hour24 = selected?.hour ?? 0;
     final minute = selected?.minute ?? 0;
     final (hour12, isPm) = hour24To12Parts(hour24);
     final today = _nowWall;
     final days = daysInMonth(_viewYear, _viewMonth);
     final leading = firstWeekdaySundayStart(_viewYear, _viewMonth);
-    final cells = <_CalendarDay>[
-      for (var i = 0; i < leading; i++) null,
-      for (var d = 1; d <= days; d++) d,
-    ];
+    final cells = <_CalendarDay>[for (var i = 0; i < leading; i++) null, for (var d = 1; d <= days; d++) d];
     while (cells.length % 7 != 0) {
       cells.add(null);
     }
 
     return div(
       id: component.id,
-      classes: [
-        'table-edit-datetime',
-        if (component.compact) 'table-edit-datetime--compact',
-      ].join(' '),
+      classes: ['table-edit-datetime', if (component.compact) 'table-edit-datetime--compact'].join(' '),
       events: {'click': (event) => event.stopPropagation()},
       [
         div(classes: 'table-edit-datetime__combobox', [
           button(
             type: .button,
-            classes: [
-              'table-edit-datetime__trigger',
-              if (_open) 'table-edit-datetime__trigger--open',
-            ].join(' '),
+            classes: ['table-edit-datetime__trigger', if (_open) 'table-edit-datetime__trigger--open'].join(' '),
             attributes: {
               if (component.labelId != null) 'aria-labelledby': component.labelId!,
               'aria-haspopup': 'dialog',
@@ -604,8 +577,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                   ),
                 ]),
                 div(classes: 'table-edit-datetime__weekdays', [
-                  for (final label in _weekdayLabels)
-                    span(classes: 'table-edit-datetime__weekday', [.text(label)]),
+                  for (final label in _weekdayLabels) span(classes: 'table-edit-datetime__weekday', [.text(label)]),
                 ]),
                 div(classes: 'table-edit-datetime__grid', [
                   for (final day in cells)
@@ -621,17 +593,12 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                               selected.month == _viewMonth &&
                               selected.day == day)
                             'table-edit-datetime__day--selected',
-                          if (today.year == _viewYear &&
-                              today.month == _viewMonth &&
-                              today.day == day)
+                          if (today.year == _viewYear && today.month == _viewMonth && today.day == day)
                             'table-edit-datetime__day--today',
-                          if (_isKeyboardFocusedDay(day))
-                            'table-edit-datetime__day--focused',
+                          if (_isKeyboardFocusedDay(day)) 'table-edit-datetime__day--focused',
                         ].join(' '),
                         attributes: {
-                          if (today.year == _viewYear &&
-                              today.month == _viewMonth &&
-                              today.day == day)
+                          if (today.year == _viewYear && today.month == _viewMonth && today.day == day)
                             'aria-current': 'date',
                         },
                         events: {
@@ -643,11 +610,13 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                             if (event is! web.KeyboardEvent || event.key != ' ') return;
                             event.stopPropagation();
                             event.preventDefault();
-                            setState(() => _syncKeyboardFocusToWall(
-                              component.useUtc
-                                  ? DateTime.utc(_viewYear, _viewMonth, day)
-                                  : DateTime(_viewYear, _viewMonth, day),
-                            ));
+                            setState(
+                              () => _syncKeyboardFocusToWall(
+                                component.useUtc
+                                    ? DateTime.utc(_viewYear, _viewMonth, day)
+                                    : DateTime(_viewYear, _viewMonth, day),
+                              ),
+                            );
                             _selectDay(day);
                           },
                         },
@@ -663,10 +632,7 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                       value: '$hour12',
                       min: 1,
                       max: 12,
-                      onChange: (h) => _setTime(
-                        hour: hour12To24(h, isPm),
-                        minute: minute,
-                      ),
+                      onChange: (h) => _setTime(hour: hour12To24(h, isPm), minute: minute),
                     ),
                     span(classes: 'table-edit-datetime__time-sep', [.text(':')]),
                     _timeNumberInput(
@@ -684,18 +650,12 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
                         _ampmSegment(
                           label: 'AM',
                           selected: !isPm,
-                          onSelect: () => _setTime(
-                            hour: hour12To24(hour12, false),
-                            minute: minute,
-                          ),
+                          onSelect: () => _setTime(hour: hour12To24(hour12, false), minute: minute),
                         ),
                         _ampmSegment(
                           label: 'PM',
                           selected: isPm,
-                          onSelect: () => _setTime(
-                            hour: hour12To24(hour12, true),
-                            minute: minute,
-                          ),
+                          onSelect: () => _setTime(hour: hour12To24(hour12, true), minute: minute),
                         ),
                       ],
                     ),
@@ -734,36 +694,16 @@ class _TableEditDatetimeFieldState extends State<TableEditDatetimeField> {
   }
 }
 
-const _monthAbbrev = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
+const _monthAbbrev = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const _weekdayLabels = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 typedef _CalendarDay = int?;
 
-Component _ampmSegment({
-  required String label,
-  required bool selected,
-  required void Function() onSelect,
-}) {
+Component _ampmSegment({required String label, required bool selected, required void Function() onSelect}) {
   return button(
     type: .button,
-    classes: [
-      'table-search-segment',
-      if (selected) 'table-search-segment--active',
-    ].join(' '),
+    classes: ['table-search-segment', if (selected) 'table-search-segment--active'].join(' '),
     attributes: {'aria-pressed': selected ? 'true' : 'false'},
     events: {
       'click': (event) {
@@ -788,16 +728,9 @@ Component _timeNumberInput({
       id: id,
       type: .text,
       classes: 'table-edit-datetime__time-native',
-      attributes: {
-        'aria-label': label,
-        'inputmode': 'numeric',
-        'autocomplete': 'off',
-      },
+      attributes: {'aria-label': label, 'inputmode': 'numeric', 'autocomplete': 'off'},
       value: value,
-      events: {
-        'focus': _selectTimeInputContents,
-        'click': _selectTimeInputContents,
-      },
+      events: {'focus': _selectTimeInputContents, 'click': _selectTimeInputContents},
       onInput: (raw) {
         final trimmed = raw.trim();
         if (trimmed.isEmpty) return;
@@ -883,26 +816,12 @@ Component _chevronRightIcon() {
 /// Styles for [TableEditDatetimeField].
 @css
 List<StyleRule> tableEditDatetimeStyles = [
-  css('.table-edit-datetime').styles(
-    display: .block,
-    position: Position.relative(),
-    width: 100.percent,
-    maxWidth: 320.px,
-    minWidth: .zero,
-  ),
-  css('.table-edit-datetime--compact').styles(
-    width: .auto,
-    alignSelf: .start,
-    maxWidth: 100.percent,
-  ),
-  css('.table-edit-datetime__combobox').styles(
-    position: Position.relative(),
-    display: .block,
-    width: 100.percent,
-  ),
-  css('.table-edit-datetime--compact .table-edit-datetime__combobox').styles(
-    width: .auto,
-  ),
+  css(
+    '.table-edit-datetime',
+  ).styles(display: .block, position: Position.relative(), width: 100.percent, maxWidth: 320.px, minWidth: .zero),
+  css('.table-edit-datetime--compact').styles(width: .auto, alignSelf: .start, maxWidth: 100.percent),
+  css('.table-edit-datetime__combobox').styles(position: Position.relative(), display: .block, width: 100.percent),
+  css('.table-edit-datetime--compact .table-edit-datetime__combobox').styles(width: .auto),
   css('.table-edit-datetime__trigger').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
@@ -926,10 +845,7 @@ List<StyleRule> tableEditDatetimeStyles = [
       'transition': 'border-color 0.15s ease, box-shadow 0.15s ease',
     },
   ),
-  css('.table-edit-datetime--compact .table-edit-datetime__trigger').styles(
-    width: 100.percent,
-    maxWidth: 280.px,
-  ),
+  css('.table-edit-datetime--compact .table-edit-datetime__trigger').styles(width: 100.percent, maxWidth: 280.px),
   css('.table-edit-datetime__trigger:hover').styles(
     border: .all(color: mutedColor, width: 1.px, style: .solid),
   ),
@@ -944,11 +860,7 @@ List<StyleRule> tableEditDatetimeStyles = [
     overflow: Overflow.hidden,
     raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'},
   ),
-  css('.table-edit-datetime__icon').styles(
-    flex: Flex(grow: 0, shrink: 0),
-    display: .flex,
-    color: mutedColor,
-  ),
+  css('.table-edit-datetime__icon').styles(flex: Flex(grow: 0, shrink: 0), display: .flex, color: mutedColor),
   css('.table-edit-datetime__trigger--open .table-edit-datetime__icon').styles(color: fgColor),
   css('.table-edit-datetime__popover').styles(
     position: Position.absolute(top: 100.percent, left: 0.px, right: 0.px),
@@ -961,10 +873,7 @@ List<StyleRule> tableEditDatetimeStyles = [
     border: .all(color: borderColor, width: 1.px, style: .solid),
     backgroundColor: surfaceColor,
     minWidth: 280.px,
-    raw: const {
-      'z-index': '30',
-      'box-shadow': '0 8px 20px rgb(15 23 42 / 0.12)',
-    },
+    raw: const {'z-index': '30', 'box-shadow': '0 8px 20px rgb(15 23 42 / 0.12)'},
   ),
   css('.table-edit-datetime--compact .table-edit-datetime__popover').styles(
     position: Position.absolute(top: 100.percent, left: 0.px),
@@ -981,16 +890,10 @@ List<StyleRule> tableEditDatetimeStyles = [
     justifyContent: .spaceBetween,
     gap: Gap.all(ZonaiSpacing.s4),
   ),
-  css('.table-edit-datetime__month-label').styles(
-    fontSize: 0.875.rem,
-    fontWeight: .w600,
-    color: fgColor,
-  ),
-  css('.table-edit-datetime__weekdays').styles(
-    display: .grid,
-    raw: const {'grid-template-columns': 'repeat(7, 1fr)'},
-    gap: Gap.all(ZonaiSpacing.s1),
-  ),
+  css('.table-edit-datetime__month-label').styles(fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
+  css(
+    '.table-edit-datetime__weekdays',
+  ).styles(display: .grid, raw: const {'grid-template-columns': 'repeat(7, 1fr)'}, gap: Gap.all(ZonaiSpacing.s1)),
   css('.table-edit-datetime__weekday').styles(
     fontSize: 0.6875.rem,
     fontWeight: .w600,
@@ -998,11 +901,9 @@ List<StyleRule> tableEditDatetimeStyles = [
     textAlign: TextAlign.center,
     padding: .symmetric(vertical: ZonaiSpacing.s2),
   ),
-  css('.table-edit-datetime__grid').styles(
-    display: .grid,
-    raw: const {'grid-template-columns': 'repeat(7, 1fr)'},
-    gap: Gap.all(ZonaiSpacing.s1),
-  ),
+  css(
+    '.table-edit-datetime__grid',
+  ).styles(display: .grid, raw: const {'grid-template-columns': 'repeat(7, 1fr)'}, gap: Gap.all(ZonaiSpacing.s1)),
   css('.table-edit-datetime__day').styles(
     display: .flex,
     alignItems: .center,
@@ -1018,24 +919,17 @@ List<StyleRule> tableEditDatetimeStyles = [
     raw: const {'font': 'inherit'},
   ),
   css('.table-edit-datetime__day--empty').styles(raw: const {'cursor': 'default'}),
-  css('.table-edit-datetime__day:not(.table-edit-datetime__day--empty):hover').styles(
-    backgroundColor: hoverColor,
-  ),
-  css('.table-edit-datetime__day--today').styles(
-    fontWeight: .w600,
-    raw: const {'box-shadow': 'inset 0 0 0 1px var(--zonai-border)'},
-  ),
-  css('.table-edit-datetime__day--focused').styles(
-    raw: const {'box-shadow': '0 0 0 2px var(--zonai-focus-ring)'},
-  ),
-  css('.table-edit-datetime__day--focused.table-edit-datetime__day--today').styles(
-    raw: const {'box-shadow': 'inset 0 0 0 1px var(--zonai-border), 0 0 0 2px var(--zonai-focus-ring)'},
-  ),
-  css('.table-edit-datetime__day--selected').styles(
-    backgroundColor: primaryColor,
-    color: onPrimaryColor,
-    fontWeight: .w600,
-  ),
+  css('.table-edit-datetime__day:not(.table-edit-datetime__day--empty):hover').styles(backgroundColor: hoverColor),
+  css(
+    '.table-edit-datetime__day--today',
+  ).styles(fontWeight: .w600, raw: const {'box-shadow': 'inset 0 0 0 1px var(--zonai-border)'}),
+  css('.table-edit-datetime__day--focused').styles(raw: const {'box-shadow': '0 0 0 2px var(--zonai-focus-ring)'}),
+  css(
+    '.table-edit-datetime__day--focused.table-edit-datetime__day--today',
+  ).styles(raw: const {'box-shadow': 'inset 0 0 0 1px var(--zonai-border), 0 0 0 2px var(--zonai-focus-ring)'}),
+  css(
+    '.table-edit-datetime__day--selected',
+  ).styles(backgroundColor: primaryColor, color: onPrimaryColor, fontWeight: .w600),
   css('.table-edit-datetime__day--selected:hover').styles(backgroundColor: primaryHoverColor),
   css('.table-edit-datetime__time').styles(
     display: .flex,
@@ -1043,14 +937,13 @@ List<StyleRule> tableEditDatetimeStyles = [
     alignItems: .center,
     gap: Gap.all(ZonaiSpacing.s5),
     padding: .only(top: ZonaiSpacing.s2),
-    border: .only(top: BorderSide.solid(color: borderColor, width: 1.px)),
+    border: .only(
+      top: BorderSide.solid(color: borderColor, width: 1.px),
+    ),
   ),
-  css('.table-edit-datetime__time-label').styles(
-    fontSize: 0.75.rem,
-    fontWeight: .w600,
-    color: mutedColor,
-    flex: Flex(grow: 0, shrink: 0),
-  ),
+  css(
+    '.table-edit-datetime__time-label',
+  ).styles(fontSize: 0.75.rem, fontWeight: .w600, color: mutedColor, flex: Flex(grow: 0, shrink: 0)),
   css('.table-edit-datetime__time-inputs').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
@@ -1059,18 +952,12 @@ List<StyleRule> tableEditDatetimeStyles = [
     flex: Flex(grow: 1, shrink: 1),
     minWidth: .zero,
   ),
-  css('.table-edit-datetime__time-sep').styles(
-    fontSize: 0.875.rem,
-    fontWeight: .w600,
-    color: mutedColor,
-    flex: Flex(grow: 0, shrink: 0),
-  ),
-  css('.table-edit-datetime__time-field').styles(
-    position: Position.relative(),
-    flex: Flex(grow: 1, shrink: 1),
-    minWidth: .zero,
-    maxWidth: 52.px,
-  ),
+  css(
+    '.table-edit-datetime__time-sep',
+  ).styles(fontSize: 0.875.rem, fontWeight: .w600, color: mutedColor, flex: Flex(grow: 0, shrink: 0)),
+  css(
+    '.table-edit-datetime__time-field',
+  ).styles(position: Position.relative(), flex: Flex(grow: 1, shrink: 1), minWidth: .zero, maxWidth: 52.px),
   css('.table-edit-datetime__time-native').styles(
     display: .block,
     width: 100.percent,

@@ -5,12 +5,13 @@
 // Regenerate SQL: dart run tool/generate_internal_db_artifacts.dart --migrate -n <name>
 // Resync this file: dart run tool/generate_internal_db_artifacts.dart --sync-migrations-dart
 
-
 import 'package:raindrop/raindrop.dart';
 
 /// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).
 final internalDbMigrations = [
-  const Migration('0000_internal_initial', '''
+  const Migration(
+    '0000_internal_initial',
+    '''
 CREATE TABLE IF NOT EXISTS "_auth_challenges" (
   "can_consume" INTEGER NOT NULL,
   "consumed_at" INTEGER,
@@ -69,7 +70,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "log_id_unique" ON "_log" ("id");
 
 CREATE INDEX IF NOT EXISTS "log_level_timestamp_index" ON "_log" ("level", "timestamp");
 
-CREATE UNIQUE INDEX IF NOT EXISTS "rate_limit_bucket_unique" ON "_rate_limit" ("client_ip", "table", "operation");'''),
+CREATE UNIQUE INDEX IF NOT EXISTS "rate_limit_bucket_unique" ON "_rate_limit" ("client_ip", "table", "operation");''',
+  ),
   const Migration('0001_internal_update', '''
 CREATE TABLE IF NOT EXISTS "_cron_jobs" (
   "completed" INTEGER,
@@ -84,8 +86,11 @@ CREATE TABLE IF NOT EXISTS "_cron_jobs" (
 CREATE INDEX IF NOT EXISTS "cron_incomplete_index" ON "_cron_jobs" ("name", "completed", "failed");
 
 CREATE INDEX IF NOT EXISTS "cron_name_index" ON "_cron_jobs" ("name");'''),
-  const Migration('0002_internal_update', '''
-ALTER TABLE "_auth_challenges" ADD COLUMN "allowed_attempts" INTEGER NOT NULL DEFAULT 0;'''),
+  const Migration(
+    '0002_internal_update',
+    '''
+ALTER TABLE "_auth_challenges" ADD COLUMN "allowed_attempts" INTEGER NOT NULL DEFAULT 0;''',
+  ),
   const Migration('0003__zonai_v0_1_0_', '''
 CREATE TABLE IF NOT EXISTS "_abusers" (
   "black_listed" INTEGER NOT NULL,
@@ -97,4 +102,3 @@ CREATE TABLE IF NOT EXISTS "_abusers" (
   "updated_at" INTEGER
 );'''),
 ];
-

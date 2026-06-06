@@ -1,13 +1,13 @@
 import 'dart:convert';
 
 import 'package:zonai/src/deps/config_resolver.dart';
-import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/settings.dart';
-import 'package:mustache_template/mustache_template.dart';
 import 'package:mailer/mailer.dart' as mailer;
 import 'package:mailer/mailer.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 import 'package:mailer/smtp_server.dart';
+
+import '../utils/email_template_render.dart';
 
 class Courier {
   Courier({String? emailTemplatesPath})
@@ -111,22 +111,10 @@ class _EmailContent {
   final Email email;
   final AppConfig config;
 
-  String html() {
-    final file = fs.file(
-      fs.path.join(settings.emailTemplatesPath, '${email.template}.html'),
-    );
-
-    if (!file.existsSync()) {
-      throw Exception(
-        'Email template file not found: ${file.path} (Current Directory: ${fs.currentDirectory.path})',
-      );
-    }
-
-    final source = file.readAsStringSync();
-    return Template(
-      source,
-      name: email.template,
-      lenient: true,
-    ).renderString({...email.variables, 'appName': config.appName});
-  }
+  String html() => renderEmailTemplate(
+    templateName: email.template,
+    variables: email.variables,
+    appName: config.appName,
+    emailTemplatesPath: settings.emailTemplatesPath,
+  );
 }

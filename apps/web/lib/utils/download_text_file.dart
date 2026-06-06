@@ -9,10 +9,7 @@ void downloadTextFile({
   required String content,
   String mimeType = 'text/plain;charset=utf-8',
 }) {
-  final blob = web.Blob(
-    [utf8.encode(content).toJS].toJS,
-    web.BlobPropertyBag(type: mimeType),
-  );
+  final blob = web.Blob([utf8.encode(content).toJS].toJS, web.BlobPropertyBag(type: mimeType));
   final url = web.URL.createObjectURL(blob);
   final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
   anchor.href = url;

@@ -31,9 +31,7 @@ class TableEditSelect extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     final options = _buildOptions();
-    final effectivePlaceholder = allowNullable
-        ? (placeholder ?? '—')
-        : (placeholder ?? 'Choose value');
+    final effectivePlaceholder = allowNullable ? (placeholder ?? '—') : (placeholder ?? 'Choose value');
     return ZonaiSelect(
       id: id,
       value: value,
@@ -48,21 +46,13 @@ class TableEditSelect extends StatelessComponent {
   List<ZonaiSelectOption> _buildOptions() {
     if (shape.kind == ColumnShapeKind.boolean || shape.kind == ColumnShapeKind.isVerified) {
       if (boolAsYesNo) {
-        return const [
-          ZonaiSelectOption(value: 'true', label: 'Yes'),
-          ZonaiSelectOption(value: 'false', label: 'No'),
-        ];
+        return const [ZonaiSelectOption(value: 'true', label: 'Yes'), ZonaiSelectOption(value: 'false', label: 'No')];
       }
-      return const [
-        ZonaiSelectOption(value: 'true', label: 'true'),
-        ZonaiSelectOption(value: 'false', label: 'false'),
-      ];
+      return const [ZonaiSelectOption(value: 'true', label: 'true'), ZonaiSelectOption(value: 'false', label: 'false')];
     }
 
     if (shape.kind == ColumnShapeKind.enum_) {
-      return [
-        for (final v in shape.enumValues) ZonaiSelectOption(value: v, label: v),
-      ];
+      return [for (final v in shape.enumValues) ZonaiSelectOption(value: v, label: v)];
     }
 
     return const [];

@@ -212,11 +212,7 @@ TableRowsData tableRowsDataFromFkListResponse({
   required List<Map<String, Object?>> items,
   required int total,
 }) {
-  final augmentedItems = augmentPhotosRowItems(
-    sqliteName: sqliteName,
-    items: items,
-    imageBaseUrl: revaliBaseUrl,
-  );
+  final augmentedItems = augmentPhotosRowItems(sqliteName: sqliteName, items: items, imageBaseUrl: revaliBaseUrl);
   final columnOrder = fkColumnOrderFromSchemaOrItems(schema, augmentedItems);
   final columnShapes = [
     for (final name in columnOrder)

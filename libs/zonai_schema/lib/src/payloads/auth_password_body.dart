@@ -362,10 +362,8 @@ sealed class ResetPasswordAuthBody {
 }
 
 class SendResetPasswordAuthBody extends ResetPasswordAuthBody {
-  const SendResetPasswordAuthBody({
-    required super.email,
-    required this.table,
-  }) : super(type: _type);
+  const SendResetPasswordAuthBody({required super.email, required this.table})
+    : super(type: _type);
 
   factory SendResetPasswordAuthBody.fromJson(Map<String, dynamic> json) {
     return SendResetPasswordAuthBody(
@@ -378,10 +376,7 @@ class SendResetPasswordAuthBody extends ResetPasswordAuthBody {
 
   final String table;
 
-  Map<String, dynamic> toJson() => {
-    ...super.toJson(),
-    'table': table,
-  };
+  Map<String, dynamic> toJson() => {...super.toJson(), 'table': table};
 }
 
 class AdminSendResetPasswordAuthBody extends ResetPasswordAuthBody {

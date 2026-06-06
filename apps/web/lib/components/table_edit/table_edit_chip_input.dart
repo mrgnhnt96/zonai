@@ -86,8 +86,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
   List<String> get _chips => parseCommaSeparatedList(component.valueText);
 
-  bool get _canReorderChips =>
-      component.reorderable && !component.disabled && _chips.length > 1;
+  bool get _canReorderChips => component.reorderable && !component.disabled && _chips.length > 1;
 
   void _clearDragState() {
     _chipsContainer = null;
@@ -207,11 +206,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
     return _insertWouldChangeOrder(from, insertIndex);
   }
 
-  void _setDropTarget({
-    required int chipIndex,
-    required _ChipDropSide side,
-    required int insertIndex,
-  }) {
+  void _setDropTarget({required int chipIndex, required _ChipDropSide side, required int insertIndex}) {
     if (_dropIndex == chipIndex && _dropSide == side && _dropInsertIndex == insertIndex) return;
     setState(() {
       _dropIndex = chipIndex;
@@ -427,9 +422,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
 
   List<web.Element> _chipItemElements(web.Element container) {
     final nodes = container.querySelectorAll('.table-edit-chip-input__chip-item');
-    return [
-      for (var i = 0; i < nodes.length; i++) nodes.item(i)! as web.Element,
-    ];
+    return [for (var i = 0; i < nodes.length; i++) nodes.item(i)! as web.Element];
   }
 
   int _insertIndexInGap(double x, double y, List<web.Element> chipElements) {
@@ -455,12 +448,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
         final beforeRect = before.getBoundingClientRect();
         final afterRect = after.getBoundingClientRect();
         slotX = (beforeRect.right + afterRect.left) / 2;
-        slotY =
-            (beforeRect.top +
-                beforeRect.height / 2 +
-                afterRect.top +
-                afterRect.height / 2) /
-            2;
+        slotY = (beforeRect.top + beforeRect.height / 2 + afterRect.top + afterRect.height / 2) / 2;
       } else {
         continue;
       }
@@ -520,12 +508,7 @@ class _TableEditChipInputState extends State<TableEditChipInput> {
             'table-edit-chip-input__chips',
             if (_dragFromIndex != null) 'table-edit-chip-input__chips--dragging',
           ].join(' '),
-          events: canReorder
-              ? {
-                  'dragover': _onChipsContainerDragOver,
-                  'drop': _onChipDrop,
-                }
-              : const {},
+          events: canReorder ? {'dragover': _onChipsContainerDragOver, 'drop': _onChipDrop} : const {},
           [
             for (var i = 0; i < chips.length; i++)
               _ChipItem(
@@ -625,10 +608,7 @@ class _ChipItem extends StatelessComponent {
         if (isDragging) 'table-edit-chip-input__chip-item--dragging',
         if (isPointerDragging) 'table-edit-chip-input__chip-item--dragging-pointer',
       ].join(' '),
-      attributes: {
-        if (canReorder) 'draggable': 'true',
-        if (canReorder) 'aria-label': 'Drag to reorder $chip',
-      },
+      attributes: {if (canReorder) 'draggable': 'true', if (canReorder) 'aria-label': 'Drag to reorder $chip'},
       events: {
         if (canReorder) 'pointerdown': onPointerDown,
         if (canReorder) 'dragstart': onDragStart,

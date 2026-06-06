@@ -24,9 +24,6 @@ final class RateLimitResponse extends Response {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      if (policy != null) 'policy': policy!.toJson(),
-    };
+    return {...super.toJson(), if (policy != null) 'policy': policy!.toJson()};
   }
 }

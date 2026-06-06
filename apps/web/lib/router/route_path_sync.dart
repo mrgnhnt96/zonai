@@ -29,10 +29,7 @@ class _RoutePathSyncState extends State<RoutePathSync> {
         _lastPath = path;
         scheduleMicrotask(() {
           if (!mounted) return;
-          context.read(authRouteProvider.notifier).notifyPathChanged(
-            path,
-            previous: previous,
-          );
+          context.read(authRouteProvider.notifier).notifyPathChanged(path, previous: previous);
         });
       }
     }

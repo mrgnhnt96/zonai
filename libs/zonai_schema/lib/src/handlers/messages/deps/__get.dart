@@ -23,9 +23,16 @@ _Get get get => read(_getRecordRequestProvider);
 
 class _Get {
   _Get._() {
-    many = ({required String tableName, required where, limit, offset, jwt}) async =>
+    many =
+        ({
+          required String tableName,
+          required where,
+          limit,
+          offset,
+          jwt,
+        }) async => null;
+    one = ({required String tableName, required where, offset, jwt}) async =>
         null;
-    one = ({required String tableName, required where, offset, jwt}) async => null;
   }
 
   _Get(this.many) {

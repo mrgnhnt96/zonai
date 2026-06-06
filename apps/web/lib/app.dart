@@ -84,15 +84,9 @@ class App extends StatelessComponent {
 
   @css
   static List<StyleRule> get styles => [
-    css('.app-root').styles(
-      height: 100.vh,
-      display: .flex,
-      flexDirection: FlexDirection.column,
-      overflow: Overflow.hidden,
-    ),
-    css('.app-root > .home-app-shell').styles(
-      flex: Flex(grow: 1, shrink: 1),
-      minHeight: .zero,
-    ),
+    css(
+      '.app-root',
+    ).styles(height: 100.vh, display: .flex, flexDirection: FlexDirection.column, overflow: Overflow.hidden),
+    css('.app-root > .home-app-shell').styles(flex: Flex(grow: 1, shrink: 1), minHeight: .zero),
   ];
 }

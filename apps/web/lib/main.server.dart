@@ -40,12 +40,8 @@ void main() {
             initialSqliteNames: tables.sqliteNames,
             initialDisplayNames: tables.displayNames,
             tablesLoadError: tables.error,
-            initialSchemaShapes: {
-              for (final e in schemaShapes.entries) e.key: e.value.toJson(),
-            },
-            initialCollectionActions: {
-              for (final e in collectionActions.entries) e.key: e.value.toJson(),
-            },
+            initialSchemaShapes: {for (final e in schemaShapes.entries) e.key: e.value.toJson()},
+            initialCollectionActions: {for (final e in collectionActions.entries) e.key: e.value.toJson()},
             initialSignedIn: signedIn,
             initialPath: initialPath,
             initialAuthTypes: authTypes,

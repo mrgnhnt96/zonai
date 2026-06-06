@@ -33,10 +33,7 @@ void main() {
       final at = DateTime.utc(2024, 6, 1, 12, 30);
       final ms = at.millisecondsSinceEpoch;
 
-      expect(
-        Lt('timestamp', at).sql('_log'),
-        '"_log"."timestamp" < $ms',
-      );
+      expect(Lt('timestamp', at).sql('_log'), '"_log"."timestamp" < $ms');
       expect(const Eq('id', 42).sql('items'), '"items"."id" = 42');
       expect(const Eq('title', 't').sql('items'), '"items"."title" = \'t\'');
     });
@@ -52,7 +49,10 @@ void main() {
       const before = In('level', <Object>['request', 'trace', 'verbose']);
       final after = Where.fromJson(before.toJson()) as In;
       expect(after.values, ['request', 'trace', 'verbose']);
-      expect(after.sql('_log'), '"_log"."level" IN (\'request\', \'trace\', \'verbose\')');
+      expect(
+        after.sql('_log'),
+        '"_log"."level" IN (\'request\', \'trace\', \'verbose\')',
+      );
     });
   });
 }

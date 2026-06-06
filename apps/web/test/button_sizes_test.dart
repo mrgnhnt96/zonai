@@ -20,23 +20,14 @@ void main() {
 
     test('text button classes include size and variant', () {
       expect(
-        ZonaiButtonSizes.textButtonClasses(
-          size: ZonaiButtonSize.sm,
-          variantClass: 'z-btn--ghost',
-        ),
+        ZonaiButtonSizes.textButtonClasses(size: ZonaiButtonSize.sm, variantClass: 'z-btn--ghost'),
         'z-btn z-btn--sm z-btn--ghost',
       );
     });
 
     test('ghost defaults to sm size', () {
-      expect(
-        ZonaiButtonSizes.defaultTextSizeForVariant('z-btn--ghost'),
-        ZonaiButtonSize.sm,
-      );
-      expect(
-        ZonaiButtonSizes.defaultTextSizeForVariant('z-btn--primary'),
-        ZonaiButtonSize.md,
-      );
+      expect(ZonaiButtonSizes.defaultTextSizeForVariant('z-btn--ghost'), ZonaiButtonSize.sm);
+      expect(ZonaiButtonSizes.defaultTextSizeForVariant('z-btn--primary'), ZonaiButtonSize.md);
     });
   });
 }

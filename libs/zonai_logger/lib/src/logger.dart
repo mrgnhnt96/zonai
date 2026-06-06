@@ -123,8 +123,14 @@ class Logger {
   }
 
   void _writeLine(io.IOSink sink, String text, String Function(String)? style) {
-    final line = style != null ? style(text) : text;
+    final line = style != null && _supportsAnsi(sink) ? style(text) : text;
     sink.writeln(line);
+  }
+
+  bool _supportsAnsi(io.IOSink sink) {
+    if (identical(sink, io.stdout)) return io.stdout.hasTerminal;
+    if (identical(sink, io.stderr)) return io.stderr.hasTerminal;
+    return false;
   }
 
   void addCallback(void Function(LogDetails) callback) {

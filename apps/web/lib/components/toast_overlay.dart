@@ -86,10 +86,7 @@ class ToastOverlay extends StatelessComponent {
       fontSize: 0.875.rem,
       fontWeight: .w500,
       textAlign: .left,
-      raw: const {
-        'line-height': '1.45',
-        'overflow-wrap': 'anywhere',
-      },
+      raw: const {'line-height': '1.45', 'overflow-wrap': 'anywhere'},
     ),
     css('.zonai-toast--error .zonai-toast__dismiss').styles(color: errorColor),
     css('.zonai-toast--success .zonai-toast__dismiss').styles(color: successColor),

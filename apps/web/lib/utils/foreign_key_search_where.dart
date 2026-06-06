@@ -55,9 +55,6 @@ bool _isSearchableKind(ColumnShapeKind kind) {
 }
 
 /// [Where] used to verify a manually entered FK value exists.
-Where eqForeignKeyReferenceWhere({
-  required ForeignKeyShape foreignKey,
-  required Object parsedValue,
-}) {
+Where eqForeignKeyReferenceWhere({required ForeignKeyShape foreignKey, required Object parsedValue}) {
   return Eq(foreignKey.column, parsedValue);
 }

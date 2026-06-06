@@ -45,11 +45,7 @@ class ZonaiButton extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     final classList = [
-      ZonaiButtonSizes.textButtonClasses(
-        size: _resolvedSize,
-        variantClass: _variantClass,
-        fullWidth: fullWidth,
-      ),
+      ZonaiButtonSizes.textButtonClasses(size: _resolvedSize, variantClass: _variantClass, fullWidth: fullWidth),
       if (classes.isNotEmpty) classes,
     ].join(' ');
 

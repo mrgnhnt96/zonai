@@ -7,10 +7,7 @@ import 'package:zonai_web/utils/photo_edit_value.dart';
 void main() {
   group('parsePhotoIdFromCell', () {
     test('parses id from image URL', () {
-      expect(
-        parsePhotoIdFromCell('http://localhost:8080/img/0123456789abcde_ph.png'),
-        '0123456789abcde_ph',
-      );
+      expect(parsePhotoIdFromCell('http://localhost:8080/img/0123456789abcde_ph.png'), '0123456789abcde_ph');
     });
 
     test('accepts raw photo id', () {
@@ -28,12 +25,8 @@ void main() {
 
   group('photoEditValuesEqual', () {
     test('detects pending bytes change', () {
-      final a = PhotoEditValue.single(
-        PhotoEditItem.pending(bytes: Uint8List.fromList([1, 2]), mimeType: 'image/png'),
-      );
-      final b = PhotoEditValue.single(
-        PhotoEditItem.pending(bytes: Uint8List.fromList([3, 4]), mimeType: 'image/png'),
-      );
+      final a = PhotoEditValue.single(PhotoEditItem.pending(bytes: Uint8List.fromList([1, 2]), mimeType: 'image/png'));
+      final b = PhotoEditValue.single(PhotoEditItem.pending(bytes: Uint8List.fromList([3, 4]), mimeType: 'image/png'));
       expect(photoEditValuesEqual(a, b), isFalse);
     });
 
@@ -47,10 +40,7 @@ void main() {
 
   group('cellLooksLikePhoto', () {
     test('detects resolved image URL', () {
-      expect(
-        cellLooksLikePhoto('http://localhost:8080/img/0123456789abcde_ph.png'),
-        isTrue,
-      );
+      expect(cellLooksLikePhoto('http://localhost:8080/img/0123456789abcde_ph.png'), isTrue);
     });
 
     test('detects raw photo id', () {
@@ -73,10 +63,7 @@ void main() {
     );
 
     test('upgrades text shape when value is a photo URL', () {
-      final shape = photoShapeForCell(
-        shape: textShape,
-        rawValue: 'http://localhost:8080/img/0123456789abcde_ph.png',
-      );
+      final shape = photoShapeForCell(shape: textShape, rawValue: 'http://localhost:8080/img/0123456789abcde_ph.png');
       expect(shape?.kind, ColumnShapeKind.photo);
     });
 
@@ -89,10 +76,7 @@ void main() {
         autoIncrement: false,
         sqlType: 'TEXT',
       );
-      expect(
-        photoShapeForCell(shape: idShape, rawValue: '0123456789abcde_ph'),
-        isNull,
-      );
+      expect(photoShapeForCell(shape: idShape, rawValue: '0123456789abcde_ph'), isNull);
     });
   });
 
@@ -118,34 +102,24 @@ void main() {
     );
 
     test('resolves id to image URL', () {
-      expect(
-        photoUrlsFromCell('0123456789abcde_ph', photoShape, imageBaseUrl: baseUrl),
-        ['$baseUrl/img/0123456789abcde_ph'],
-      );
+      expect(photoUrlsFromCell('0123456789abcde_ph', photoShape, imageBaseUrl: baseUrl), [
+        '$baseUrl/img/0123456789abcde_ph',
+      ]);
     });
 
     test('keeps full image URL', () {
       const url = 'http://localhost:8080/img/0123456789abcde_ph.png';
-      expect(
-        photoUrlsFromCell(url, photoShape, imageBaseUrl: baseUrl),
-        [url],
-      );
+      expect(photoUrlsFromCell(url, photoShape, imageBaseUrl: baseUrl), [url]);
     });
 
     test('resolves multiple photos', () {
       expect(
         photoUrlsFromCell(
-          [
-            '0123456789abcde_ph',
-            'http://localhost:8080/img/0123456789abcdf_ph.png',
-          ],
+          ['0123456789abcde_ph', 'http://localhost:8080/img/0123456789abcdf_ph.png'],
           photosShape,
           imageBaseUrl: baseUrl,
         ),
-        [
-          '$baseUrl/img/0123456789abcde_ph',
-          'http://localhost:8080/img/0123456789abcdf_ph.png',
-        ],
+        ['$baseUrl/img/0123456789abcde_ph', 'http://localhost:8080/img/0123456789abcdf_ph.png'],
       );
     });
   });
@@ -172,10 +146,7 @@ void main() {
 
     test('resolved wire id is not treated as removed when replacing image', () {
       const id = '0123456789abcde_ph';
-      final before = photoIdsFromCell(
-        'http://localhost:8080/img/$id.png',
-        shape,
-      ).toSet();
+      final before = photoIdsFromCell('http://localhost:8080/img/$id.png', shape).toSet();
       final after = photoIdsFromCell(id, shape).toSet();
       expect(before.difference(after), isEmpty);
     });
@@ -184,13 +155,8 @@ void main() {
       const idA = '0123456789abcde_ph';
       const idB = '0123456789abcdf_ph';
       final removed = removedPhotoIds(
-        originalCell: [
-          'http://localhost:8080/img/$idA.png',
-          'http://localhost:8080/img/$idB.png',
-        ],
-        draft: PhotoEditValue.multi([
-          PhotoEditItem.existing(id: idA),
-        ]),
+        originalCell: ['http://localhost:8080/img/$idA.png', 'http://localhost:8080/img/$idB.png'],
+        draft: PhotoEditValue.multi([PhotoEditItem.existing(id: idA)]),
         shape: ColumnShape(
           name: 'images',
           kind: ColumnShapeKind.photos,

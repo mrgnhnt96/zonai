@@ -27,31 +27,26 @@ class TableEditBooleanField extends StatelessComponent {
     final checked = value == true;
 
     return div(classes: 'table-edit-boolean', [
-      label(
-        classes: 'table-edit-boolean__label',
-        [
-          input<bool>(
-            id: id,
-            type: .checkbox,
-            classes: 'table-edit-boolean__checkbox',
-            attributes: {
-              if (labelId != null) 'aria-labelledby': labelId!,
-            },
-            checked: checked,
-            disabled: disabled,
-            onChange: (v) {
-              if (v) {
-                onChanged(true);
-              } else if (allowNullable) {
-                onChanged(null);
-              } else {
-                onChanged(false);
-              }
-            },
-          ),
-          span(classes: 'table-edit-boolean__hint', [.text('True when checked')]),
-        ],
-      ),
+      label(classes: 'table-edit-boolean__label', [
+        input<bool>(
+          id: id,
+          type: .checkbox,
+          classes: 'table-edit-boolean__checkbox',
+          attributes: {if (labelId != null) 'aria-labelledby': labelId!},
+          checked: checked,
+          disabled: disabled,
+          onChange: (v) {
+            if (v) {
+              onChanged(true);
+            } else if (allowNullable) {
+              onChanged(null);
+            } else {
+              onChanged(false);
+            }
+          },
+        ),
+        span(classes: 'table-edit-boolean__hint', [.text('True when checked')]),
+      ]),
       if (allowNullable && value != null)
         ZonaiButton(
           variant: ZonaiButtonVariant.ghost,

@@ -4,8 +4,7 @@ import 'package:zonai_schema/src/types/jwt.dart';
 
 LogTableRules main() => LogTableRules();
 
-final class LogTableRules
-    extends InternalTableRules<LogsTable, LogEntry> {
+final class LogTableRules extends InternalTableRules<LogsTable, LogEntry> {
   LogTableRules() : super(logs);
 
   @override

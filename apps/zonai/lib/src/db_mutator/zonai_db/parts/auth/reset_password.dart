@@ -6,10 +6,7 @@ extension _ResetPasswordX on ZonaiDb {
     ResetPasswordAuthPayload payload, {
     bool isAdmin = false,
   }) async {
-    final hasAuthRecord = await _hasAuthRecord(
-      table: table,
-      payload: payload,
-    );
+    final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
 
     if (!hasAuthRecord) {
       // silently fail (does not expose if the email exists or not)
@@ -130,11 +127,7 @@ extension _ResetPasswordX on ZonaiDb {
     }
 
     await _requireAuthTableAccess(challenge.table, payload);
-    await _requireAuthRecordAccess(
-      challenge.table,
-      .passwordReset,
-      payload,
-    );
+    await _requireAuthRecordAccess(challenge.table, .passwordReset, payload);
 
     final secretMatches = await _hashPassword.verify(
       rawPassword: secret,
@@ -147,10 +140,7 @@ extension _ResetPasswordX on ZonaiDb {
     await _consumeChallenge(challenge);
 
     final passwordColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(
-        table: challenge.table,
-        columnName: .password,
-      ),
+      GetColumnNameRequest(table: challenge.table, columnName: .password),
     );
     final idColumn = await _operations.send<ColumnNameResponse>(
       GetColumnNameRequest(table: challenge.table, columnName: .id),

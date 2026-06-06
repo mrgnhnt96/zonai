@@ -28,7 +28,8 @@ sealed class OperationResponse extends Response {
       PerformOperationResponse._path => PerformOperationResponse.fromJson(json),
       ColumnNameResponse._path => ColumnNameResponse.fromJson(json),
       ColumnReferenceResponse._path => ColumnReferenceResponse.fromJson(json),
-      AllTableSchemaShapesResponse._path => AllTableSchemaShapesResponse.fromJson(json),
+      AllTableSchemaShapesResponse._path =>
+        AllTableSchemaShapesResponse.fromJson(json),
       JwtConfigResponse._path => JwtConfigResponse.fromJson(json),
       SanitizeOperationResponse._path => SanitizeOperationResponse.fromJson(
         json,
@@ -107,10 +108,8 @@ final class ColumnReferenceResponse extends OperationResponse {
 }
 
 final class AllTableSchemaShapesResponse extends OperationResponse {
-  const AllTableSchemaShapesResponse({
-    required super.id,
-    required this.shapes,
-  }) : super(path: _path, payload: const {});
+  const AllTableSchemaShapesResponse({required super.id, required this.shapes})
+    : super(path: _path, payload: const {});
 
   factory AllTableSchemaShapesResponse.fromJson(Map<String, dynamic> json) {
     final raw = json['shapes'] as Map;
@@ -125,7 +124,8 @@ final class AllTableSchemaShapesResponse extends OperationResponse {
     );
   }
 
-  static const _path = '${Response.prefix}.operation.get_all_table_schema_shapes';
+  static const _path =
+      '${Response.prefix}.operation.get_all_table_schema_shapes';
 
   final Map<String, TableSchemaShape> shapes;
 

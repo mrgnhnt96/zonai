@@ -4,9 +4,7 @@ import 'auth_routes.dart';
 
 export '../router/app_navigation.dart' show AppNavigation, appPathFromContext;
 
-final authRouteProvider = NotifierProvider<AuthRouteNotifier, String>(
-  AuthRouteNotifier.new,
-);
+final authRouteProvider = NotifierProvider<AuthRouteNotifier, String>(AuthRouteNotifier.new);
 
 /// Tracks the normalized app path for guards, titles, and table focus.
 ///

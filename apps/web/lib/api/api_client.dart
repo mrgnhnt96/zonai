@@ -18,9 +18,7 @@ void registerUnauthorizedHandler(UnauthorizedHandler? handler) {
 /// Shared Revali client for the web app.
 final revaliServer = Server(
   baseUrl: Uri.parse(revaliBaseUrl),
-  client: HttpPackageClient(
-    interceptors: [_AuthorizationInterceptor(), _UnauthorizedInterceptor()],
-  ),
+  client: HttpPackageClient(interceptors: [_AuthorizationInterceptor(), _UnauthorizedInterceptor()]),
 );
 
 final class _AuthorizationInterceptor implements HttpInterceptor {

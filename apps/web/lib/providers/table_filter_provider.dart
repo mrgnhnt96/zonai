@@ -41,9 +41,7 @@ final class TableFilterState {
   }
 }
 
-final tableFilterProvider = NotifierProvider<TableFilterNotifier, TableFilterState>(
-  TableFilterNotifier.new,
-);
+final tableFilterProvider = NotifierProvider<TableFilterNotifier, TableFilterState>(TableFilterNotifier.new);
 
 /// Applied server filter only — draft edits in the search panel do not notify this.
 final tableAppliedWhereProvider = Provider<Where?>((ref) {
@@ -76,10 +74,7 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
   void openPanel() {
     ref.read(tableRowDetailProvider.notifier).close();
     ref.read(tableRowCreateProvider.notifier).close();
-    state = state.copyWith(
-      panelOpen: true,
-      draftRows: _seedDraftRows(state.draftRows),
-    );
+    state = state.copyWith(panelOpen: true, draftRows: _seedDraftRows(state.draftRows));
   }
 
   void closePanel() {
@@ -100,9 +95,7 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
 
   void addRow() {
     final shapes = _columnShapes();
-    state = state.copyWith(
-      draftRows: [...state.draftRows, defaultFilterConditionDraft(shapes)],
-    );
+    state = state.copyWith(draftRows: [...state.draftRows, defaultFilterConditionDraft(shapes)]);
   }
 
   void removeRow(int index) {
@@ -125,11 +118,7 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
       return false;
     }
 
-    final result = buildWhereFromDraft(
-      rows: state.draftRows,
-      combine: state.combine,
-      columnShapes: shapes,
-    );
+    final result = buildWhereFromDraft(rows: state.draftRows, combine: state.combine, columnShapes: shapes);
 
     switch (result) {
       case TableWhereBuildError(:final message):
@@ -162,11 +151,7 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
     }
 
     ref.read(tableRowDetailProvider.notifier).close();
-    state = state.copyWith(
-      panelOpen: true,
-      draftRows: draftsFromWhere(applied),
-      combine: combineFromWhere(applied),
-    );
+    state = state.copyWith(panelOpen: true, draftRows: draftsFromWhere(applied), combine: combineFromWhere(applied));
   }
 
   void _clearRowUiState() {

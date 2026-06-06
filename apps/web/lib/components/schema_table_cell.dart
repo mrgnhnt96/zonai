@@ -47,9 +47,8 @@ class SchemaTableCell extends StatelessComponent {
       ColumnShapeKind.list => _listValue(rawValue),
       ColumnShapeKind.enum_ => _enumValue(rawValue, shape!.enumValues),
       ColumnShapeKind.enumList => _enumListValue(rawValue, shape!.enumValues),
-      ColumnShapeKind.boolean || ColumnShapeKind.isVerified => ZonaiBooleanCheck(
-        checked: cellEditValueAsBool(rawValue),
-      ),
+      ColumnShapeKind.boolean ||
+      ColumnShapeKind.isVerified => ZonaiBooleanCheck(checked: cellEditValueAsBool(rawValue)),
       _ => .text(formatSchemaCell(rawValue, shape)),
     };
   }

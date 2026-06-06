@@ -55,10 +55,12 @@ void main() {
       );
 
       expect(detected, ImageMimeType.jpeg);
-      expect(
-        await stream.expand((chunk) => chunk).toList(),
-        [0xFF, 0xD8, 0xFF, 0xD9],
-      );
+      expect(await stream.expand((chunk) => chunk).toList(), [
+        0xFF,
+        0xD8,
+        0xFF,
+        0xD9,
+      ]);
     });
 
     test('returns null for empty stream', () async {
@@ -72,16 +74,24 @@ void main() {
   });
 
   group('PhotoStreamUtils.resolveUploadStream', () {
-    test('detects jpeg when content type is application/octet-stream', () async {
-      final (type, stream) = await PhotoStreamUtils.resolveUploadStream(
-        source: Stream.value([0xFF, 0xD8, 0xFF, 0xD9]),
-        contentType: 'application/octet-stream',
-        requiredMimeType: true,
-      );
+    test(
+      'detects jpeg when content type is application/octet-stream',
+      () async {
+        final (type, stream) = await PhotoStreamUtils.resolveUploadStream(
+          source: Stream.value([0xFF, 0xD8, 0xFF, 0xD9]),
+          contentType: 'application/octet-stream',
+          requiredMimeType: true,
+        );
 
-      expect(type, ImageMimeType.jpeg);
-      expect(await stream.expand((c) => c).toList(), [0xFF, 0xD8, 0xFF, 0xD9]);
-    });
+        expect(type, ImageMimeType.jpeg);
+        expect(await stream.expand((c) => c).toList(), [
+          0xFF,
+          0xD8,
+          0xFF,
+          0xD9,
+        ]);
+      },
+    );
 
     test('verifies declared image/jpeg against bytes', () async {
       final (type, stream) = await PhotoStreamUtils.resolveUploadStream(
@@ -113,16 +123,7 @@ void main() {
     test('throws when bytes do not match expected type', () async {
       expect(
         PhotoStreamUtils.verifyExpectedType(
-          Stream.value([
-            0x89,
-            0x50,
-            0x4E,
-            0x47,
-            0x0D,
-            0x0A,
-            0x1A,
-            0x0A,
-          ]),
+          Stream.value([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
           ImageMimeType.jpeg,
         ),
         throwsStateError,
@@ -157,16 +158,7 @@ void main() {
 
     test('throws when declared type does not match bytes', () async {
       final stream = PhotoStreamUtils.verifyMimeType(
-        Stream.value([
-          0x89,
-          0x50,
-          0x4E,
-          0x47,
-          0x0D,
-          0x0A,
-          0x1A,
-          0x0A,
-        ]),
+        Stream.value([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
         ImageMimeType.jpeg,
       );
 

@@ -119,14 +119,14 @@ Future<int> test() async {
 
   logger.info('--------------------------------');
   logger.info('CREATING RECORD');
-  if (await _create(jwt) case final int exitCode) {
-    return exitCode;
+  final (createExitCode, id) = await _create(jwt);
+  if (createExitCode != null || id == null) {
+    return createExitCode ?? 1;
   }
   logger.info('--------------------------------');
 
   logger.info('LISTING RECORDS');
-  final (exitCode, id) = await _list(jwt: jwt);
-  if (exitCode != null) {
+  if (await _list(jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('ID: $id');
@@ -149,7 +149,7 @@ Future<int> test() async {
   logger.info('--------------------------------');
 
   logger.info('STREAM LIST');
-  if (await _streamList(id: id!, jwt: jwt) case final int exitCode) {
+  if (await _streamList(id: id, jwt: jwt) case final int exitCode) {
     return exitCode;
   }
   logger.info('--------------------------------');
@@ -289,22 +289,24 @@ Future<int?> _createUser() async {
     logger.info('Should not be able to create user: ${result}');
     return 1;
   } catch (e) {
+    logger.info('SUCCESS, should not be able to creat user');
     // expected
     return null;
   }
 }
 
-Future<int?> _create(String jwt) async {
+Future<(int?, String?)> _create(String jwt) async {
+  final id = _generateId();
   final result = await zonaiDB.create(
     'items',
-    .new(jwt: jwt, object: {'body': 'Test body', 'id': _generateId()}),
+    .new(jwt: jwt, object: {'body': 'Test body', 'id': id}),
   );
 
   logger.info('Created record: ${result}');
-  return null;
+  return (null, id);
 }
 
-Future<(int?, String?)> _list({required String jwt}) async {
+Future<int?> _list({required String jwt}) async {
   final result = await zonaiDB.list(
     'items',
     .new(
@@ -319,7 +321,7 @@ Future<(int?, String?)> _list({required String jwt}) async {
   for (final record in result.items) {
     logger.info('Record: ${record}');
   }
-  return (null, result.items.last['id'] as String?);
+  return null;
 }
 
 Future<(int?, int?)> _count({required String jwt}) async {

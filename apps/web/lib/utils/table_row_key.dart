@@ -11,9 +11,7 @@ String tableRowKey(List<Object?> row, List<ColumnShape> columnShapes) {
     return row.map((v) => v?.toString() ?? '').join('\x1e');
   }
 
-  return [
-    for (final i in pkIndices) '${columnShapes[i].name}=${row[i]}',
-  ].join('|');
+  return [for (final i in pkIndices) '${columnShapes[i].name}=${row[i]}'].join('|');
 }
 
 /// [Where] clause that matches a single row, or null if the row cannot be targeted.

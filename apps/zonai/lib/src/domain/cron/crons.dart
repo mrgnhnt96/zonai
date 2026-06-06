@@ -56,10 +56,6 @@ final class CronsCompiler {
               .toList()
         : <File>[];
 
-    if (files.isEmpty) {
-      logger.warn('Nothing in crons, creating an empty worker');
-    }
-
     final target = switch (buildSettings) {
       != null => settings.buildCronsPath,
       _ => settings.compiledCronsPath,

@@ -20,8 +20,7 @@ final class DashboardStats {
   final int activeSessions;
   final int? p95ResponseMs;
 
-  double get errorRate =>
-      requestCount24h == 0 ? 0 : errorCount24h / requestCount24h * 100;
+  double get errorRate => requestCount24h == 0 ? 0 : errorCount24h / requestCount24h * 100;
 }
 
 final class RequestBucket {
@@ -31,12 +30,7 @@ final class RequestBucket {
 }
 
 final class TopError {
-  const TopError({
-    required this.message,
-    required this.count,
-    required this.lastSeen,
-    this.detail,
-  });
+  const TopError({required this.message, required this.count, required this.lastSeen, this.detail});
   final String message;
   final int count;
   final DateTime lastSeen;
@@ -70,35 +64,22 @@ final class CronJobSummary {
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
-final dashboardStatsProvider =
-    AsyncNotifierProvider<_DashboardStatsNotifier, DashboardStats>(
+final dashboardStatsProvider = AsyncNotifierProvider<_DashboardStatsNotifier, DashboardStats>(
   _DashboardStatsNotifier.new,
 );
 
-final requestBucketsProvider =
-    AsyncNotifierProvider<_RequestBucketsNotifier, List<RequestBucket>>(
+final requestBucketsProvider = AsyncNotifierProvider<_RequestBucketsNotifier, List<RequestBucket>>(
   _RequestBucketsNotifier.new,
 );
 
-final topErrorsProvider =
-    AsyncNotifierProvider<_TopErrorsNotifier, List<TopError>>(
-  _TopErrorsNotifier.new,
-);
+final topErrorsProvider = AsyncNotifierProvider<_TopErrorsNotifier, List<TopError>>(_TopErrorsNotifier.new);
 
 // Tracks which error message is currently expanded (null = none).
-final expandedErrorProvider = NotifierProvider<_ExpandedErrorNotifier, String?>(
-  _ExpandedErrorNotifier.new,
-);
+final expandedErrorProvider = NotifierProvider<_ExpandedErrorNotifier, String?>(_ExpandedErrorNotifier.new);
 
-final cronJobsProvider =
-    AsyncNotifierProvider<_CronJobsNotifier, List<CronJobSummary>>(
-  _CronJobsNotifier.new,
-);
+final cronJobsProvider = AsyncNotifierProvider<_CronJobsNotifier, List<CronJobSummary>>(_CronJobsNotifier.new);
 
-final tableCountsProvider =
-    AsyncNotifierProvider<_TableCountsNotifier, Map<String, int>>(
-  _TableCountsNotifier.new,
-);
+final tableCountsProvider = AsyncNotifierProvider<_TableCountsNotifier, Map<String, int>>(_TableCountsNotifier.new);
 
 // ── Implementations ────────────────────────────────────────────────────────────
 
@@ -106,16 +87,10 @@ class _DashboardStatsNotifier extends AsyncNotifier<DashboardStats> {
   @override
   Future<DashboardStats> build() async {
     if (!ref.binding.isClient) {
-      return const DashboardStats(
-        requestCount24h: 0,
-        errorCount24h: 0,
-        activeSessions: 0,
-        p95ResponseMs: null,
-      );
+      return const DashboardStats(requestCount24h: 0, errorCount24h: 0, activeSessions: 0, p95ResponseMs: null);
     }
 
-    final since =
-        DateTime.now().subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
+    final since = DateTime.now().subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
     // _jwt.expires_at is stored in Unix seconds, not milliseconds
     final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
@@ -125,22 +100,14 @@ class _DashboardStatsNotifier extends AsyncNotifier<DashboardStats> {
           table: '_log',
           where: And([Eq('level', 'request'), Gt('timestamp', since)]),
           limit: 5000,
-          orderBy: [
-            const OrderByTerm(column: 'timestamp', direction: SortDirection.desc),
-          ],
+          orderBy: [const OrderByTerm(column: 'timestamp', direction: SortDirection.desc)],
         ),
       ),
       revaliServer.db.count(
-        body: CountBody(
-          table: '_log',
-          where: And([Eq('level', 'error'), Gt('timestamp', since)]),
-        ),
+        body: CountBody(table: '_log', where: And([Eq('level', 'error'), Gt('timestamp', since)])),
       ),
       revaliServer.db.count(
-        body: CountBody(
-          table: '_jwt',
-          where: Gt('expires_at', nowSeconds),
-        ),
+        body: CountBody(table: '_jwt', where: Gt('expires_at', nowSeconds)),
       ),
     ).wait;
 
@@ -173,8 +140,7 @@ class _RequestBucketsNotifier extends AsyncNotifier<List<RequestBucket>> {
 
     final now = DateTime.now();
     const hourMs = Duration(hours: 1);
-    final nowHourMs = now.millisecondsSinceEpoch -
-        (now.millisecondsSinceEpoch % hourMs.inMilliseconds);
+    final nowHourMs = now.millisecondsSinceEpoch - (now.millisecondsSinceEpoch % hourMs.inMilliseconds);
 
     // 24 hourly buckets using parallel count() calls — avoids the 500-row list cap.
     final counts = await Future.wait([
@@ -185,11 +151,7 @@ class _RequestBucketsNotifier extends AsyncNotifier<List<RequestBucket>> {
           return revaliServer.db.count(
             body: CountBody(
               table: '_log',
-              where: And([
-                Eq('level', 'request'),
-                Gte('timestamp', start),
-                Lt('timestamp', end),
-              ]),
+              where: And([Eq('level', 'request'), Gte('timestamp', start), Lt('timestamp', end)]),
             ),
           );
         }(),
@@ -198,9 +160,7 @@ class _RequestBucketsNotifier extends AsyncNotifier<List<RequestBucket>> {
     return [
       for (var i = 0; i < 24; i++)
         RequestBucket(
-          hour: DateTime.fromMillisecondsSinceEpoch(
-            nowHourMs - (23 - i) * hourMs.inMilliseconds,
-          ),
+          hour: DateTime.fromMillisecondsSinceEpoch(nowHourMs - (23 - i) * hourMs.inMilliseconds),
           count: counts[i],
         ),
     ];
@@ -212,17 +172,14 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
   Future<List<TopError>> build() async {
     if (!ref.binding.isClient) return const [];
 
-    final since =
-        DateTime.now().subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
+    final since = DateTime.now().subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
 
     final data = await revaliServer.db.list(
       body: ListBody(
         table: '_log',
         where: And([Eq('level', 'error'), Gt('timestamp', since)]),
         limit: 500,
-        orderBy: [
-          const OrderByTerm(column: 'timestamp', direction: SortDirection.desc),
-        ],
+        orderBy: [const OrderByTerm(column: 'timestamp', direction: SortDirection.desc)],
       ),
     );
 
@@ -235,11 +192,7 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
       final ts = _parseTimestamp(item['timestamp']) ?? DateTime.now();
       final existing = groups[message];
       if (existing == null) {
-        groups[message] = (
-          count: 1,
-          lastSeen: ts,
-          detail: item['error'] as String?,
-        );
+        groups[message] = (count: 1, lastSeen: ts, detail: item['error'] as String?);
       } else {
         final isNewer = ts.isAfter(existing.lastSeen);
         groups[message] = (
@@ -250,15 +203,9 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
       }
     }
 
-    return (groups.entries.toList()
-          ..sort((a, b) => b.value.count.compareTo(a.value.count)))
+    return (groups.entries.toList()..sort((a, b) => b.value.count.compareTo(a.value.count)))
         .take(10)
-        .map((e) => TopError(
-              message: e.key,
-              count: e.value.count,
-              lastSeen: e.value.lastSeen,
-              detail: e.value.detail,
-            ))
+        .map((e) => TopError(message: e.key, count: e.value.count, lastSeen: e.value.lastSeen, detail: e.value.detail))
         .toList();
   }
 }
@@ -294,13 +241,15 @@ class _CronJobsNotifier extends AsyncNotifier<List<CronJobSummary>> {
       final started = _parseTimestamp(item['started']);
       if (started == null) continue;
 
-      jobs.add(CronJobSummary(
-        name: name,
-        lastStarted: started,
-        lastCompleted: _parseTimestamp(item['completed']),
-        lastFailed: _parseTimestamp(item['failed']),
-        lastError: item['error'] as String?,
-      ));
+      jobs.add(
+        CronJobSummary(
+          name: name,
+          lastStarted: started,
+          lastCompleted: _parseTimestamp(item['completed']),
+          lastFailed: _parseTimestamp(item['failed']),
+          lastError: item['error'] as String?,
+        ),
+      );
     }
 
     jobs.sort((a, b) => a.name.compareTo(b.name));
@@ -321,43 +270,35 @@ class _TableCountsNotifier extends AsyncNotifier<Map<String, int>> {
     if (userTables.isEmpty) return const {};
 
     final counts = await Future.wait([
-      for (final t in userTables)
-        revaliServer.db.count(body: CountBody(table: t.sqliteName)),
+      for (final t in userTables) revaliServer.db.count(body: CountBody(table: t.sqliteName)),
     ]);
 
-    return {
-      for (var i = 0; i < userTables.length; i++)
-        userTables[i].sqliteName: counts[i],
-    };
+    return {for (var i = 0; i < userTables.length; i++) userTables[i].sqliteName: counts[i]};
   }
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
 int _parseTotal(Map<String, Object?> data) => switch (data['total']) {
-      final int t => t,
-      final num t => t.toInt(),
-      _ => 0,
-    };
+  final int t => t,
+  final num t => t.toInt(),
+  _ => 0,
+};
 
 List<Map<String, Object?>> _parseItems(Map<String, Object?> data) {
   final raw = data['items'];
   if (raw is! List) return const [];
   return [
     for (final e in raw)
-      if (e is Map)
-        {
-          for (final MapEntry(:key, :value) in e.entries)
-            key.toString(): value as Object?,
-        },
+      if (e is Map) {for (final MapEntry(:key, :value) in e.entries) key.toString(): value as Object?},
   ];
 }
 
 DateTime? _parseTimestamp(Object? raw) => switch (raw) {
-      final int ms => DateTime.fromMillisecondsSinceEpoch(ms),
-      final num ms => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
-      _ => null,
-    };
+  final int ms => DateTime.fromMillisecondsSinceEpoch(ms),
+  final num ms => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
+  _ => null,
+};
 
 int? _parseDurationMs(Object? message) {
   if (message is! String) return null;

@@ -9,11 +9,11 @@ import '../deps/stdin.dart';
 
 class KeyboardInput {
   KeyboardInput() : _listeners = [] {
-    lockInput();
     cleanUp.add(unlockInput);
   }
 
   StreamSubscription<KeyboardEvent>? __subscription;
+  var _cursorHidden = false;
 
   final List<void Function(KeyboardEvent)> _listeners;
 
@@ -41,6 +41,8 @@ class KeyboardInput {
     if (args.release) return;
 
     if (__subscription != null) return;
+
+    lockInput();
 
     __subscription = stdin.stream
         .map((event) {
@@ -78,8 +80,10 @@ class KeyboardInput {
   void lockInput() {
     if (args.release) return;
 
-    // hide cursor
-    stdout.write('\x1B[?25l');
+    if (stdout.hasTerminal) {
+      stdout.write('\x1B[?25l');
+      _cursorHidden = true;
+    }
 
     if (!stdin.hasTerminal) return;
 
@@ -89,8 +93,21 @@ class KeyboardInput {
 
   void unlockInput() {
     if (args.release) return;
-    // show cursor
-    stdout.write('\x1B[?25h');
+
+    if (_cursorHidden && stdout.hasTerminal) {
+      stdout.write('\x1B[?25h');
+      _cursorHidden = false;
+    }
+
+    if (!stdin.hasTerminal) return;
+
+    stdin.echoMode = true;
+    stdin.lineMode = true;
+  }
+
+  /// Restores stdin without writing to stdout so nocterm can take over the terminal.
+  void releaseForAlternateApp() {
+    if (args.release) return;
 
     if (!stdin.hasTerminal) return;
 

@@ -97,10 +97,7 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
     });
   }
 
-  ForeignKeyPickerQuery get _query => ForeignKeyPickerQuery(
-    foreignKey: component.foreignKey,
-    search: _appliedSearch,
-  );
+  ForeignKeyPickerQuery get _query => ForeignKeyPickerQuery(foreignKey: component.foreignKey, search: _appliedSearch);
 
   void _openDetail(List<Object?> row) {
     setState(() {
@@ -118,10 +115,7 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
   void _confirmSelect(TableRowsData data, List<Object?> row) {
     final value = foreignKeyValueFromRow(data, component.foreignKey, row);
     final label = foreignKeyRowLabel(data, row);
-    component.onSelect(
-      value,
-      displayLabel: label.isEmpty ? null : label,
-    );
+    component.onSelect(value, displayLabel: label.isEmpty ? null : label);
     component.onClose();
   }
 
@@ -167,9 +161,7 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
               )
             else ...[
               div(classes: 'fk-picker-header', [
-                h3(id: 'fk-picker-title', classes: 'fk-picker-title', [
-                  .text('Select ${component.foreignKey.table}'),
-                ]),
+                h3(id: 'fk-picker-title', classes: 'fk-picker-title', [.text('Select ${component.foreignKey.table}')]),
                 button(
                   type: .button,
                   classes: 'fk-picker-close',
@@ -183,10 +175,7 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
                   id: 'fk-picker-search',
                   type: .text,
                   classes: ZonaiClasses.input,
-                  attributes: {
-                    'placeholder': 'Search rows…',
-                    'autocomplete': 'off',
-                  },
+                  attributes: {'placeholder': 'Search rows…', 'autocomplete': 'off'},
                   value: _searchText,
                   onInput: _onSearchInput,
                 ),
@@ -197,10 +186,9 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
                   AsyncError(:final error) => p(classes: 'fk-picker-status fk-picker-status--error', [
                     .text('Failed to load: $error'),
                   ]),
-                  AsyncData(:final value) when value == null || value.rows.isEmpty => p(
-                    classes: 'fk-picker-status',
-                    [.text(_appliedSearch.isEmpty ? 'No rows found.' : 'No matches.')],
-                  ),
+                  AsyncData(:final value) when value == null || value.rows.isEmpty => p(classes: 'fk-picker-status', [
+                    .text(_appliedSearch.isEmpty ? 'No rows found.' : 'No matches.'),
+                  ]),
                   AsyncData(:final value) => _FkPickerRowList(
                     data: value!,
                     foreignKey: component.foreignKey,
@@ -221,11 +209,7 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
                     },
                     child: .text('Clear'),
                   ),
-                ZonaiButton(
-                  variant: ZonaiButtonVariant.secondary,
-                  onClick: component.onClose,
-                  child: .text('Cancel'),
-                ),
+                ZonaiButton(variant: ZonaiButtonVariant.secondary, onClick: component.onClose, child: .text('Cancel')),
               ]),
             ],
           ],
@@ -267,23 +251,16 @@ class _FkPickerRowList extends StatelessComponent {
       table(classes: 'fk-picker-table', [
         thead([
           tr([
-            for (final i in displayColumns)
-              th([.text(data.columns[i])]),
+            for (final i in displayColumns) th([.text(data.columns[i])]),
           ]),
         ]),
         tbody([
           for (final row in data.rows)
             tr(
-              classes: [
-                'fk-picker-row',
-                if (isRowSelected(data, row)) 'fk-picker-row--selected',
-              ].join(' '),
-              events: {
-                'click': (_) => onRowClick(row),
-              },
+              classes: ['fk-picker-row', if (isRowSelected(data, row)) 'fk-picker-row--selected'].join(' '),
+              events: {'click': (_) => onRowClick(row)},
               [
-                for (final i in displayColumns)
-                  td([.text(row[i] == null ? '—' : '${row[i]}')]),
+                for (final i in displayColumns) td([.text(row[i] == null ? '—' : '${row[i]}')]),
               ],
             ),
         ]),
@@ -321,16 +298,9 @@ class _FkPickerDetailView extends StatelessComponent {
           [_closeIcon()],
         ),
       ]),
-      div(classes: 'fk-picker-detail-body', [
-        _FkPickerDetailFields(data: data, row: row),
-      ]),
+      div(classes: 'fk-picker-detail-body', [_FkPickerDetailFields(data: data, row: row)]),
       div(classes: 'fk-picker-detail-footer', [
-        ZonaiButton(
-          variant: ZonaiButtonVariant.ghost,
-          size: ZonaiButtonSize.md,
-          onClick: onBack,
-          child: .text('Back'),
-        ),
+        ZonaiButton(variant: ZonaiButtonVariant.ghost, size: ZonaiButtonSize.md, onClick: onBack, child: .text('Back')),
         ZonaiButton(variant: ZonaiButtonVariant.primary, onClick: onSelect, child: .text('Select')),
       ]),
     ]);
@@ -345,21 +315,14 @@ class _FkPickerDetailFields extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return div(
-      classes: 'fk-picker-detail-fields',
-      [
-        for (var i = 0; i < data.columns.length; i++)
-          if (!data.columnShapes[i].isSecret)
-            div(classes: 'fk-picker-detail-field', [
-              span(classes: 'fk-picker-detail-label', [
-                .text(columnShapeHeaderLabel(data.columnShapes[i])),
-              ]),
-              span(classes: 'fk-picker-detail-value', [
-                .text(formatReadOnlyCell(row[i], data.columnShapes[i])),
-              ]),
-            ]),
-      ],
-    );
+    return div(classes: 'fk-picker-detail-fields', [
+      for (var i = 0; i < data.columns.length; i++)
+        if (!data.columnShapes[i].isSecret)
+          div(classes: 'fk-picker-detail-field', [
+            span(classes: 'fk-picker-detail-label', [.text(columnShapeHeaderLabel(data.columnShapes[i]))]),
+            span(classes: 'fk-picker-detail-value', [.text(formatReadOnlyCell(row[i], data.columnShapes[i]))]),
+          ]),
+    ]);
   }
 }
 
@@ -411,11 +374,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s8),
     raw: const {'border-bottom': '1px solid var(--zonai-border)'},
   ),
-  css('.fk-picker-title').styles(
-    margin: .zero,
-    fontSize: 1.125.rem,
-    fontWeight: .w600,
-  ),
+  css('.fk-picker-title').styles(margin: .zero, fontSize: 1.125.rem, fontWeight: .w600),
   css('.fk-picker-close').styles(
     display: .flex,
     padding: .all(ZonaiSpacing.s3),
@@ -437,11 +396,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
   css('.fk-picker-status').styles(color: mutedColor, fontSize: 0.875.rem),
   css('.fk-picker-status--error').styles(color: errorColor),
   css('.fk-picker-table-wrap').styles(overflow: Overflow.auto, width: 100.percent),
-  css('.fk-picker-table').styles(
-    width: 100.percent,
-    fontSize: 0.875.rem,
-    raw: const {'border-collapse': 'collapse'},
-  ),
+  css('.fk-picker-table').styles(width: 100.percent, fontSize: 0.875.rem, raw: const {'border-collapse': 'collapse'}),
   css('.fk-picker-table th').styles(
     textAlign: TextAlign.left,
     padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s4),
@@ -466,17 +421,12 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s7),
     raw: const {'border-top': '1px solid var(--zonai-border)'},
   ),
-  css('.fk-picker-footer .z-btn--ghost').styles(
-    fontWeight: .w500,
-    backgroundColor: Colors.transparent,
-    border: Border.none,
-    color: mutedColor,
-  ),
-  css('.fk-picker-footer .z-btn--ghost:hover:not(:disabled)').styles(
-    backgroundColor: hoverColor,
-    color: fgColor,
-    border: Border.none,
-  ),
+  css(
+    '.fk-picker-footer .z-btn--ghost',
+  ).styles(fontWeight: .w500, backgroundColor: Colors.transparent, border: Border.none, color: mutedColor),
+  css(
+    '.fk-picker-footer .z-btn--ghost:hover:not(:disabled)',
+  ).styles(backgroundColor: hoverColor, color: fgColor, border: Border.none),
   css('.fk-picker-footer .z-btn + .z-btn').styles(margin: .zero),
   css('.fk-picker-detail-view').styles(
     display: .flex,
@@ -490,16 +440,12 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     overflow: Overflow.auto,
     padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s6),
   ),
-  css('.fk-picker-detail-fields').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s6),
-  ),
-  css('.fk-picker-detail-field').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s2),
-  ),
+  css(
+    '.fk-picker-detail-fields',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s6)),
+  css(
+    '.fk-picker-detail-field',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
   css('.fk-picker-detail-label').styles(
     fontSize: 0.75.rem,
     fontWeight: .w500,
@@ -507,10 +453,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     textTransform: .upperCase,
     letterSpacing: 0.03.rem,
   ),
-  css('.fk-picker-detail-value').styles(
-    fontSize: 0.875.rem,
-    raw: const {'word-break': 'break-word'},
-  ),
+  css('.fk-picker-detail-value').styles(fontSize: 0.875.rem, raw: const {'word-break': 'break-word'}),
   css('.fk-picker-detail-footer').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
@@ -521,36 +464,22 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
     padding: .symmetric(horizontal: ZonaiSpacing.s10, vertical: ZonaiSpacing.s7),
     raw: const {'border-top': '1px solid var(--zonai-border)'},
   ),
-  css('.fk-picker-detail-footer .z-btn--ghost').styles(
-    fontWeight: .w500,
-    backgroundColor: Colors.transparent,
-    border: Border.none,
-    color: mutedColor,
-  ),
-  css('.fk-picker-detail-footer .z-btn--ghost:hover:not(:disabled)').styles(
-    backgroundColor: hoverColor,
-    color: fgColor,
-    border: Border.none,
-  ),
+  css(
+    '.fk-picker-detail-footer .z-btn--ghost',
+  ).styles(fontWeight: .w500, backgroundColor: Colors.transparent, border: Border.none, color: mutedColor),
+  css(
+    '.fk-picker-detail-footer .z-btn--ghost:hover:not(:disabled)',
+  ).styles(backgroundColor: hoverColor, color: fgColor, border: Border.none),
   css('.fk-picker-detail-footer .z-btn + .z-btn').styles(margin: .zero),
-  css.media(
-    MediaQuery.all(maxWidth: 640.px),
-    [
-      css('.fk-picker-backdrop').styles(
-        alignItems: .end,
-        padding: .zero,
-      ),
-      css('.fk-picker-dialog').styles(
-        width: .unset,
-        maxWidth: .unset,
-        maxHeight: 85.vh,
-        margin: .symmetric(horizontal: 12.px, vertical: 12.px),
-        radius: BorderRadius.only(
-          topLeft: Radius.circular(16.px),
-          topRight: Radius.circular(16.px),
-        ),
-        transform: Transform.none,
-      ),
-    ],
-  ),
+  css.media(MediaQuery.all(maxWidth: 640.px), [
+    css('.fk-picker-backdrop').styles(alignItems: .end, padding: .zero),
+    css('.fk-picker-dialog').styles(
+      width: .unset,
+      maxWidth: .unset,
+      maxHeight: 85.vh,
+      margin: .symmetric(horizontal: 12.px, vertical: 12.px),
+      radius: BorderRadius.only(topLeft: Radius.circular(16.px), topRight: Radius.circular(16.px)),
+      transform: Transform.none,
+    ),
+  ]),
 ];

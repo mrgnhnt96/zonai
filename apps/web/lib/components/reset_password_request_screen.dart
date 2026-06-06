@@ -15,10 +15,7 @@ class ResetPasswordRequestScreen extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return const SignInScreen(
-      tagline: 'Reset your password',
-      child: ResetPasswordRequestForm(),
-    );
+    return const SignInScreen(tagline: 'Reset your password', child: ResetPasswordRequestForm());
   }
 }
 
@@ -91,13 +88,7 @@ class ResetPasswordRequestFormState extends State<ResetPasswordRequestForm> {
               onInput: (v) => setState(() => _email = v),
             ),
             AuthActions(
-              children: [
-                AuthSubmitButton(
-                  label: 'Send reset link',
-                  loadingLabel: 'Sending link…',
-                  loading: _loading,
-                ),
-              ],
+              children: [AuthSubmitButton(label: 'Send reset link', loadingLabel: 'Sending link…', loading: _loading)],
             ),
           ],
         ),

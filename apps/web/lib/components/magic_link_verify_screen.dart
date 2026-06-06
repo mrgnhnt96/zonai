@@ -71,13 +71,7 @@ class MagicLinkVerifyScreenState extends State<MagicLinkVerifyScreen> {
             const ZonaiPageTitle('Sign-in link'),
             ZonaiErrorText(error),
             AuthActions(
-              children: [
-                ZonaiButton(
-                  fullWidth: true,
-                  onClick: _returnToSignIn,
-                  child: .text('Back to sign in'),
-                ),
-              ],
+              children: [ZonaiButton(fullWidth: true, onClick: _returnToSignIn, child: .text('Back to sign in'))],
             ),
           ],
         ],

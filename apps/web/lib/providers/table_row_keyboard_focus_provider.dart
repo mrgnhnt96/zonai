@@ -29,8 +29,7 @@ final class TableRowKeyboardFocusState {
   final String? sidebarTableSqliteName;
 }
 
-final tableRowKeyboardFocusProvider =
-    NotifierProvider<TableRowKeyboardFocusNotifier, TableRowKeyboardFocusState>(
+final tableRowKeyboardFocusProvider = NotifierProvider<TableRowKeyboardFocusNotifier, TableRowKeyboardFocusState>(
   TableRowKeyboardFocusNotifier.new,
 );
 
@@ -48,18 +47,11 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
         Future.microtask(_syncCollapsedSidebarRailTooltip);
       }
     });
-    return TableRowKeyboardFocusState(
-      zone: _zone,
-      sidebarTableSqliteName: _sidebarTableSqliteName,
-    );
+    return TableRowKeyboardFocusState(zone: _zone, sidebarTableSqliteName: _sidebarTableSqliteName);
   }
 
   void _publish({String? rowKey}) {
-    state = TableRowKeyboardFocusState(
-      rowKey: rowKey,
-      zone: _zone,
-      sidebarTableSqliteName: _sidebarTableSqliteName,
-    );
+    state = TableRowKeyboardFocusState(rowKey: rowKey, zone: _zone, sidebarTableSqliteName: _sidebarTableSqliteName);
   }
 
   List<SqliteTableRef> _navigableTables() {
@@ -102,8 +94,8 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
       return;
     }
     final item = _visibleSidebarTableItem(sqlite);
-    final button = item?.querySelector('.home-sidebar-item-button--rail') ??
-        item?.querySelector('.home-sidebar-item-button');
+    final button =
+        item?.querySelector('.home-sidebar-item-button--rail') ?? item?.querySelector('.home-sidebar-item-button');
     if (button == null) {
       notifier.hide();
       return;
@@ -119,12 +111,7 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
       notifier.hide();
       return;
     }
-    showAppTooltipForElement(
-      notifier,
-      anchor: button,
-      text: displayName,
-      placement: AppTooltipPlacement.rightCenter,
-    );
+    showAppTooltipForElement(notifier, anchor: button, text: displayName, placement: AppTooltipPlacement.rightCenter);
   }
 
   void rememberRowForTable(String tableSqliteName, String? rowKey) {
@@ -200,9 +187,7 @@ class TableRowKeyboardFocusNotifier extends Notifier<TableRowKeyboardFocusState>
     final tables = _navigableTables();
     if (tables.isEmpty) return;
 
-    var index = _sidebarTableSqliteName == null
-        ? 0
-        : tables.indexWhere((t) => t.sqliteName == _sidebarTableSqliteName);
+    var index = _sidebarTableSqliteName == null ? 0 : tables.indexWhere((t) => t.sqliteName == _sidebarTableSqliteName);
     if (index < 0) index = 0;
     final nextIndex = (index + delta).clamp(0, tables.length - 1);
     if (nextIndex == index) return;

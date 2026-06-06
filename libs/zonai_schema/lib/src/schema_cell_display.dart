@@ -11,7 +11,8 @@ BigInt? tryParseBigIntCell(Object? value) {
   return switch (value) {
     BigInt b => b,
     Uint8List bytes => _bigIntFromBinaryDigitBlob(bytes),
-    List bytes when bytes.isNotEmpty && bytes.every(_isBinaryDigit) => _bigIntFromBinaryDigitBlob(bytes),
+    List bytes when bytes.isNotEmpty && bytes.every(_isBinaryDigit) =>
+      _bigIntFromBinaryDigitBlob(bytes),
     int i => BigInt.from(i),
     num n => BigInt.from(n.toInt()),
     String s => BigInt.tryParse(s),
@@ -33,7 +34,8 @@ String formatSchemaCell(
   bool revealSecrets = false,
 }) {
   if (value == null) return '—';
-  if (!revealSecrets && (shape?.isSecret == true || shape?.kind == ColumnShapeKind.password)) {
+  if (!revealSecrets &&
+      (shape?.isSecret == true || shape?.kind == ColumnShapeKind.password)) {
     return '••••••••';
   }
 
@@ -80,9 +82,11 @@ String _formatReal(Object value) {
   };
 }
 
-String _formatBigInt(Object value) => tryParseBigIntCell(value)?.toString() ?? '$value';
+String _formatBigInt(Object value) =>
+    tryParseBigIntCell(value)?.toString() ?? '$value';
 
-bool _isBinaryDigit(Object? digit) => digit == 0 || digit == 1 || digit == '0' || digit == '1';
+bool _isBinaryDigit(Object? digit) =>
+    digit == 0 || digit == 1 || digit == '0' || digit == '1';
 
 BigInt _bigIntFromBinaryDigitBlob(Iterable<Object?> bytes) =>
     BigInt.parse(bytes.map((b) => b.toString()).join(), radix: 2);

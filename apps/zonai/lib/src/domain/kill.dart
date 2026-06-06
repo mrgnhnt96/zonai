@@ -67,5 +67,11 @@ class Kill {
     keyboardInput.onKey('q', force);
   }
 
+  /// Cancels signal handlers so an alternate TUI (e.g. nocterm) can own SIGINT/SIGTERM.
+  void suspendSignals() {
+    __killSubscription?.cancel();
+    __killSubscription = null;
+  }
+
   Future<void> wait() async => await _lifeline.future;
 }

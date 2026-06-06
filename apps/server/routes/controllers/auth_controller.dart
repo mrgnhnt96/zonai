@@ -4,8 +4,10 @@ import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
 
+@BlackList()
 @Controller('auth')
 class AuthController {
   const AuthController({required this.authHandler});

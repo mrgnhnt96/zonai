@@ -140,6 +140,9 @@ playground:
   serve: |
     cd apps/playground || exit 1
     dart run zonai serve --log verbose
+  dev: |
+    cd apps/playground || exit 1
+    dart run zonai dev --log verbose
 
   clear-logs: |
     cd apps/playground || exit 1

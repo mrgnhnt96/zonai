@@ -20,10 +20,6 @@ class StreamBody {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'table': table,
-      'where': where.toJson(),
-      'expand': expand,
-    };
+    return {'table': table, 'where': where.toJson(), 'expand': expand};
   }
 }

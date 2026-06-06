@@ -2,10 +2,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/web.dart' as web;
 
 /// Explicit light/dark choice. `null` follows the OS color scheme.
-enum ThemePreference {
-  light,
-  dark,
-}
+enum ThemePreference { light, dark }
 
 final themeProvider = NotifierProvider<ThemeNotifier, ThemePreference?>(ThemeNotifier.new);
 

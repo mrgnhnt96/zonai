@@ -5,11 +5,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 enum ToastVariant { error, success }
 
 final class ToastMessage {
-  const ToastMessage({
-    required this.id,
-    required this.text,
-    this.variant = ToastVariant.error,
-  });
+  const ToastMessage({required this.id, required this.text, this.variant = ToastVariant.error});
 
   final int id;
   final String text;

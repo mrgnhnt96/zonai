@@ -4,8 +4,7 @@ import 'package:zonai_schema/src/rate_limit/rate_limit_policy.dart';
 
 UserRateLimits main() => UserRateLimits();
 
-final class UserRateLimits
-    extends AuthTableRateLimits<UserTable, User> {
+final class UserRateLimits extends AuthTableRateLimits<UserTable, User> {
   UserRateLimits() : super(users);
 
   @override

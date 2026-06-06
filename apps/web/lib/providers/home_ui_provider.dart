@@ -16,11 +16,13 @@ final class HomeUiState {
   });
 
   final bool sidebarCollapsed;
+
   /// True during the 0.2s collapse/expand animation so the width transition stays active.
   final bool sidebarToggling;
   final bool settingsOpen;
   final bool systemTablesExpanded;
   final bool mobileNavOpen;
+
   /// True during the 0.2s close animation so the sidebar CSS transition stays active.
   final bool mobileNavClosing;
 
@@ -67,10 +69,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
     if (!ref.binding.isClient) {
       return const HomeUiState();
     }
-    return HomeUiState(
-      sidebarCollapsed: _readCollapsed(),
-      systemTablesExpanded: _readSystemOpen(),
-    );
+    return HomeUiState(sidebarCollapsed: _readCollapsed(), systemTablesExpanded: _readSystemOpen());
   }
 
   void toggleSidebar() {

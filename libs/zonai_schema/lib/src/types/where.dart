@@ -167,20 +167,15 @@ final class In extends Where {
   const In(this.column, this.values);
 
   factory In.fromJson(Map json) {
-    return In(
-      json['column'] as String,
-      switch (json['values']) {
-        final String s => [serializeWhereValue(jsonDecode(s) as Object)],
-        final List list => [
-          for (final value in list) serializeWhereValue(value),
-        ],
-        _ => throw ArgumentError.value(
-          json['values'],
-          'values',
-          'Expected a string or list',
-        ),
-      },
-    );
+    return In(json['column'] as String, switch (json['values']) {
+      final String s => [serializeWhereValue(jsonDecode(s) as Object)],
+      final List list => [for (final value in list) serializeWhereValue(value)],
+      _ => throw ArgumentError.value(
+        json['values'],
+        'values',
+        'Expected a string or list',
+      ),
+    });
   }
 
   final String column;
@@ -199,20 +194,15 @@ final class NotIn extends Where {
   const NotIn(this.column, this.values);
 
   factory NotIn.fromJson(Map json) {
-    return NotIn(
-      json['column'] as String,
-      switch (json['values']) {
-        final String s => [serializeWhereValue(jsonDecode(s) as Object)],
-        final List list => [
-          for (final value in list) serializeWhereValue(value),
-        ],
-        _ => throw ArgumentError.value(
-          json['values'],
-          'values',
-          'Expected a string or list',
-        ),
-      },
-    );
+    return NotIn(json['column'] as String, switch (json['values']) {
+      final String s => [serializeWhereValue(jsonDecode(s) as Object)],
+      final List list => [for (final value in list) serializeWhereValue(value)],
+      _ => throw ArgumentError.value(
+        json['values'],
+        'values',
+        'Expected a string or list',
+      ),
+    });
   }
 
   final String column;

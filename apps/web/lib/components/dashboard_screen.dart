@@ -43,9 +43,7 @@ class DashboardScreen extends StatelessComponent {
     final cronJobsData = cronJobs.value ?? [];
     final tableCountsData = tableCounts.value ?? {};
 
-    final maxBucket = bucketsData.isEmpty
-        ? 0
-        : bucketsData.map((bkt) => bkt.count).reduce((x, y) => x > y ? x : y);
+    final maxBucket = bucketsData.isEmpty ? 0 : bucketsData.map((bkt) => bkt.count).reduce((x, y) => x > y ? x : y);
 
     return main_(classes: 'home${mobileNavOpen ? ' home--mobile-nav-open' : ''}', [
       HomeSidebar(focused: null),
@@ -53,10 +51,7 @@ class DashboardScreen extends StatelessComponent {
         div(classes: 'home-mobile-nav-header', [
           ZonaiIconButton(
             size: ZonaiIconButtonSize.lg,
-            attributes: {
-              'aria-label': 'Open navigation',
-              'aria-expanded': mobileNavOpen ? 'true' : 'false',
-            },
+            attributes: {'aria-label': 'Open navigation', 'aria-expanded': mobileNavOpen ? 'true' : 'false'},
             onClick: () => context.read(homeUiProvider.notifier).toggleMobileNav(),
             child: .text('☰'),
           ),
@@ -64,149 +59,128 @@ class DashboardScreen extends StatelessComponent {
         ]),
         div(classes: 'dashboard-scroller', [
           div(classes: 'dashboard', [
-          div(classes: 'dashboard-header', [
-            h1(classes: 'dashboard-title', [.text('Dashboard')]),
-          ]),
-          // Stat cards
-          div(classes: 'dashboard-stats', [
-            _StatCard(
-              label: 'Requests (24h)',
-              value: statsData != null ? _fmtNum(statsData.requestCount24h) : '—',
-            ),
-            _StatCard(
-              label: 'Error Rate',
-              value: statsData != null ? _fmtPercent(statsData.errorRate) : '—',
-            ),
-            _StatCard(
-              label: 'p95 Response',
-              value: statsData != null ? _fmtMs(statsData.p95ResponseMs) : '—',
-            ),
-            _StatCard(
-              label: 'Active Sessions',
-              value: statsData != null ? _fmtNum(statsData.activeSessions) : '—',
-            ),
-          ]),
-          // Requests graph + Top errors
-          div(classes: 'dashboard-row', [
-            div(classes: 'dashboard-panel dashboard-panel--wide', [
-              p(classes: 'dashboard-panel-title', [.text('Requests over time')]),
-              if (bucketsData.isEmpty)
-                div(classes: 'dashboard-panel-placeholder', [.text('Loading...')])
-              else
-                div(classes: 'dashboard-chart-wrap', [
-                  div(classes: 'dashboard-chart', [
-                    for (final bucket in bucketsData)
+            div(classes: 'dashboard-header', [
+              h1(classes: 'dashboard-title', [.text('Dashboard')]),
+            ]),
+            // Stat cards
+            div(classes: 'dashboard-stats', [
+              _StatCard(label: 'Requests (24h)', value: statsData != null ? _fmtNum(statsData.requestCount24h) : '—'),
+              _StatCard(label: 'Error Rate', value: statsData != null ? _fmtPercent(statsData.errorRate) : '—'),
+              _StatCard(label: 'p95 Response', value: statsData != null ? _fmtMs(statsData.p95ResponseMs) : '—'),
+              _StatCard(label: 'Active Sessions', value: statsData != null ? _fmtNum(statsData.activeSessions) : '—'),
+            ]),
+            // Requests graph + Top errors
+            div(classes: 'dashboard-row', [
+              div(classes: 'dashboard-panel dashboard-panel--wide', [
+                p(classes: 'dashboard-panel-title', [.text('Requests over time')]),
+                if (bucketsData.isEmpty)
+                  div(classes: 'dashboard-panel-placeholder', [.text('Loading...')])
+                else
+                  div(classes: 'dashboard-chart-wrap', [
+                    div(classes: 'dashboard-chart', [
+                      for (final bucket in bucketsData)
+                        div(
+                          classes: 'dashboard-chart-bar${bucket.count == 0 ? ' dashboard-chart-bar--empty' : ''}',
+                          attributes: {
+                            'style':
+                                'height: ${maxBucket == 0 ? 2 : (bucket.count / maxBucket * 100).round().clamp(2, 100)}%',
+                            'data-tip': '${_fmtHour(bucket.hour)}: ${bucket.count}',
+                          },
+                          [],
+                        ),
+                    ]),
+                    div(classes: 'dashboard-chart-labels', [
+                      for (var i = 0; i < bucketsData.length; i += 6)
+                        span(classes: 'dashboard-chart-label', [.text(_fmtHour(bucketsData[i].hour))]),
+                      span(classes: 'dashboard-chart-label', [.text(_fmtHour(bucketsData.last.hour))]),
+                    ]),
+                  ]),
+              ]),
+              div(classes: 'dashboard-panel', [
+                p(classes: 'dashboard-panel-title', [.text('Top Errors (24h)')]),
+                if (topErrors.isLoading)
+                  div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
+                else if (topErrorsData.isEmpty)
+                  div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
+                    .text('No errors in the last 24h'),
+                  ])
+                else
+                  div(classes: 'dashboard-error-list', [
+                    for (final err in topErrorsData)
                       div(
-                        classes: 'dashboard-chart-bar${bucket.count == 0 ? ' dashboard-chart-bar--empty' : ''}',
-                        attributes: {
-                          'style':
-                              'height: ${maxBucket == 0 ? 2 : (bucket.count / maxBucket * 100).round().clamp(2, 100)}%',
-                          'data-tip': '${_fmtHour(bucket.hour)}: ${bucket.count}',
-                        },
-                        [],
+                        classes:
+                            'dashboard-error-item${expandedError == err.message ? ' dashboard-error-item--expanded' : ''}',
+                        events: {'click': (_) => context.read(expandedErrorProvider.notifier).toggle(err.message)},
+                        [
+                          div(classes: 'dashboard-error-header', [
+                            span(classes: 'dashboard-error-msg', [.text(err.message)]),
+                            div(classes: 'dashboard-error-footer', [
+                              span(classes: 'dashboard-error-count', [.text('${err.count}×')]),
+                              span(classes: 'dashboard-error-time', [.text(_timeAgo(err.lastSeen))]),
+                            ]),
+                          ]),
+                          if (expandedError == err.message)
+                            pre(classes: 'dashboard-error-detail', [.text(err.detail ?? err.message)]),
+                        ],
                       ),
                   ]),
-                  div(classes: 'dashboard-chart-labels', [
-                    for (var i = 0; i < bucketsData.length; i += 6)
-                      span(classes: 'dashboard-chart-label', [
-                        .text(_fmtHour(bucketsData[i].hour)),
-                      ]),
-                    span(classes: 'dashboard-chart-label', [
-                      .text(_fmtHour(bucketsData.last.hour)),
-                    ]),
-                  ]),
-                ]),
+              ]),
             ]),
+            // Cron jobs
             div(classes: 'dashboard-panel', [
-              p(classes: 'dashboard-panel-title', [.text('Top Errors (24h)')]),
-              if (topErrors.isLoading)
+              p(classes: 'dashboard-panel-title', [.text('Cron Jobs')]),
+              if (cronJobs.isLoading)
+                div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
+              else if (cronJobsData.isEmpty)
                 div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
-                  .text('Loading...'),
-                ])
-              else if (topErrorsData.isEmpty)
-                div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
-                  .text('No errors in the last 24h'),
+                  .text('No cron jobs found'),
                 ])
               else
-                div(classes: 'dashboard-error-list', [
-                  for (final err in topErrorsData)
-                    div(
-                      classes: 'dashboard-error-item${expandedError == err.message ? ' dashboard-error-item--expanded' : ''}',
-                      events: {
-                        'click': (_) => context
-                            .read(expandedErrorProvider.notifier)
-                            .toggle(err.message),
-                      },
-                      [
-                        div(classes: 'dashboard-error-header', [
-                          span(classes: 'dashboard-error-msg', [.text(err.message)]),
-                          div(classes: 'dashboard-error-footer', [
-                            span(classes: 'dashboard-error-count', [.text('${err.count}×')]),
-                            span(classes: 'dashboard-error-time', [.text(_timeAgo(err.lastSeen))]),
-                          ]),
-                        ]),
-                        if (expandedError == err.message)
-                          pre(classes: 'dashboard-error-detail', [
-                            .text(err.detail ?? err.message),
-                          ]),
-                      ],
-                    ),
+                div(classes: 'dashboard-cron-list', [
+                  for (final job in cronJobsData)
+                    div(classes: 'dashboard-cron-item', [
+                      div(classes: 'dashboard-cron-left', [
+                        span(classes: 'dashboard-cron-name', [.text(job.name)]),
+                        span(classes: 'dashboard-cron-meta', [.text(_timeAgo(job.lastStarted))]),
+                      ]),
+                      div(classes: 'dashboard-cron-right', [
+                        if (job.duration != null)
+                          span(classes: 'dashboard-cron-duration', [.text(_fmtDuration(job.duration))]),
+                        span(
+                          classes:
+                              'dashboard-cron-status dashboard-cron-status--${job.failed
+                                  ? 'failed'
+                                  : job.succeeded
+                                  ? 'ok'
+                                  : 'running'}',
+                          [
+                            .text(
+                              job.failed
+                                  ? 'Failed'
+                                  : job.succeeded
+                                  ? 'OK'
+                                  : 'Running',
+                            ),
+                          ],
+                        ),
+                      ]),
+                    ]),
                 ]),
             ]),
-          ]),
-          // Cron jobs
-          div(classes: 'dashboard-panel', [
-            p(classes: 'dashboard-panel-title', [.text('Cron Jobs')]),
-            if (cronJobs.isLoading)
-              div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
-                .text('Loading...'),
-              ])
-            else if (cronJobsData.isEmpty)
-              div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
-                .text('No cron jobs found'),
-              ])
-            else
-              div(classes: 'dashboard-cron-list', [
-                for (final job in cronJobsData)
-                  div(classes: 'dashboard-cron-item', [
-                    div(classes: 'dashboard-cron-left', [
-                      span(classes: 'dashboard-cron-name', [.text(job.name)]),
-                      span(classes: 'dashboard-cron-meta', [.text(_timeAgo(job.lastStarted))]),
-                    ]),
-                    div(classes: 'dashboard-cron-right', [
-                      if (job.duration != null)
-                        span(classes: 'dashboard-cron-duration', [
-                          .text(_fmtDuration(job.duration)),
-                        ]),
-                      span(
-                        classes:
-                            'dashboard-cron-status dashboard-cron-status--${job.failed ? 'failed' : job.succeeded ? 'ok' : 'running'}',
-                        [.text(job.failed ? 'Failed' : job.succeeded ? 'OK' : 'Running')],
-                      ),
-                    ]),
-                  ]),
-              ]),
-          ]),
-          // Collections
-          if (userTables.isNotEmpty)
-            div(classes: 'dashboard-section', [
-              div(classes: 'dashboard-section-header', [
-                p(classes: ZonaiClasses.sectionLabel, [.text('Collections')]),
-              ]),
-              div(classes: 'dashboard-tables', [
-                for (final table in userTables)
-                  a(
-                    href: AuthRoutes.forTable(table.sqliteName),
-                    classes: 'dashboard-table-card',
-                    [
+            // Collections
+            if (userTables.isNotEmpty)
+              div(classes: 'dashboard-section', [
+                div(classes: 'dashboard-section-header', [
+                  p(classes: ZonaiClasses.sectionLabel, [.text('Collections')]),
+                ]),
+                div(classes: 'dashboard-tables', [
+                  for (final table in userTables)
+                    a(href: AuthRoutes.forTable(table.sqliteName), classes: 'dashboard-table-card', [
                       span(classes: 'dashboard-table-name', [.text(table.displayName)]),
-                      span(classes: 'dashboard-table-meta', [
-                        .text(_fmtTableMeta(tableCountsData[table.sqliteName])),
-                      ]),
-                    ],
-                  ),
+                      span(classes: 'dashboard-table-meta', [.text(_fmtTableMeta(tableCountsData[table.sqliteName]))]),
+                    ]),
+                ]),
               ]),
-            ]),
           ]),
         ]),
       ]),
@@ -245,25 +219,16 @@ class DashboardScreen extends StatelessComponent {
         maxWidth: 1200.px,
         margin: .symmetric(horizontal: .auto),
       ),
-      css('.dashboard-header').styles(
-        display: .flex,
-        flexDirection: FlexDirection.row,
-        alignItems: .center,
-        justifyContent: .spaceBetween,
-      ),
-      css('.dashboard-title').styles(
-        margin: .zero,
-        fontSize: 1.375.rem,
-        fontWeight: .w600,
-        raw: const {'letter-spacing': '-0.02em'},
-      ),
+      css(
+        '.dashboard-header',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, justifyContent: .spaceBetween),
+      css(
+        '.dashboard-title',
+      ).styles(margin: .zero, fontSize: 1.375.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),
       // Stat cards
-      css('.dashboard-stats').styles(
-        display: .flex,
-        flexDirection: FlexDirection.row,
-        flexWrap: .wrap,
-        gap: Gap.all(ZonaiSpacing.s5),
-      ),
+      css(
+        '.dashboard-stats',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s5)),
       css('.dashboard-stat-card').styles(
         flex: Flex(grow: 1, shrink: 0),
         minWidth: 140.px,
@@ -283,19 +248,13 @@ class DashboardScreen extends StatelessComponent {
         textTransform: .upperCase,
         color: mutedColor,
       ),
-      css('.dashboard-stat-value').styles(
-        fontSize: 1.5.rem,
-        fontWeight: .w600,
-        color: fgColor,
-        raw: const {'letter-spacing': '-0.02em'},
-      ),
+      css(
+        '.dashboard-stat-value',
+      ).styles(fontSize: 1.5.rem, fontWeight: .w600, color: fgColor, raw: const {'letter-spacing': '-0.02em'}),
       // Panels
-      css('.dashboard-row').styles(
-        display: .flex,
-        flexDirection: FlexDirection.row,
-        flexWrap: .wrap,
-        gap: Gap.all(ZonaiSpacing.s5),
-      ),
+      css(
+        '.dashboard-row',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s5)),
       css('.dashboard-panel').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
@@ -308,12 +267,7 @@ class DashboardScreen extends StatelessComponent {
         raw: const {'box-shadow': 'var(--zonai-shadow-sm)'},
       ),
       css('.dashboard-panel--wide').styles(flex: Flex(grow: 2, shrink: 1), minWidth: 320.px),
-      css('.dashboard-panel-title').styles(
-        margin: .zero,
-        fontSize: 0.875.rem,
-        fontWeight: .w600,
-        color: fgColor,
-      ),
+      css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
         flex: Flex(grow: 1, shrink: 0),
         minHeight: 140.px,
@@ -377,20 +331,14 @@ class DashboardScreen extends StatelessComponent {
       ),
       css('.dashboard-chart-bar:hover').styles(raw: const {'opacity': '1'}),
       css('.dashboard-chart-bar:hover::after').styles(raw: const {'opacity': '1'}),
-      css('.dashboard-chart-bar--empty').styles(
-        backgroundColor: borderColor,
-        raw: const {'opacity': '1'},
-      ),
+      css('.dashboard-chart-bar--empty').styles(backgroundColor: borderColor, raw: const {'opacity': '1'}),
       css('.dashboard-chart-labels').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
         justifyContent: .spaceBetween,
         padding: .symmetric(horizontal: ZonaiSpacing.s2),
       ),
-      css('.dashboard-chart-label').styles(
-        fontSize: 0.6875.rem,
-        color: mutedColor,
-      ),
+      css('.dashboard-chart-label').styles(fontSize: 0.6875.rem, color: mutedColor),
       // Error list
       css('.dashboard-error-list').styles(
         display: .flex,
@@ -419,11 +367,9 @@ class DashboardScreen extends StatelessComponent {
       css('.dashboard-error-item--expanded:hover').styles(
         border: .all(color: errorColor, width: 1.px, style: .solid),
       ),
-      css('.dashboard-error-header').styles(
-        display: .flex,
-        flexDirection: FlexDirection.column,
-        gap: Gap.all(ZonaiSpacing.s2),
-      ),
+      css(
+        '.dashboard-error-header',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
       css('.dashboard-error-detail').styles(
         margin: .zero,
         padding: .all(ZonaiSpacing.s4),
@@ -432,8 +378,7 @@ class DashboardScreen extends StatelessComponent {
         backgroundColor: errorBgColor,
         radius: .all(Radius.circular(4.px)),
         raw: const {
-          'font-family':
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           'white-space': 'pre-wrap',
           'overflow-wrap': 'anywhere',
           'line-height': '1.5',
@@ -445,34 +390,21 @@ class DashboardScreen extends StatelessComponent {
         fontSize: 0.75.rem,
         color: fgColor,
         raw: const {
-          'font-family':
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           'white-space': 'nowrap',
           'overflow': 'hidden',
           'text-overflow': 'ellipsis',
         },
       ),
-      css('.dashboard-error-footer').styles(
-        display: .flex,
-        flexDirection: FlexDirection.row,
-        alignItems: .center,
-        gap: Gap.all(ZonaiSpacing.s4),
-      ),
-      css('.dashboard-error-count').styles(
-        fontSize: 0.6875.rem,
-        fontWeight: .w600,
-        color: errorColor,
-      ),
-      css('.dashboard-error-time').styles(
-        fontSize: 0.6875.rem,
-        color: mutedColor,
-      ),
+      css(
+        '.dashboard-error-footer',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, gap: Gap.all(ZonaiSpacing.s4)),
+      css('.dashboard-error-count').styles(fontSize: 0.6875.rem, fontWeight: .w600, color: errorColor),
+      css('.dashboard-error-time').styles(fontSize: 0.6875.rem, color: mutedColor),
       // Cron list
-      css('.dashboard-cron-list').styles(
-        display: .flex,
-        flexDirection: FlexDirection.column,
-        gap: Gap.all(ZonaiSpacing.s2),
-      ),
+      css(
+        '.dashboard-cron-list',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
       css('.dashboard-cron-item').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -496,17 +428,13 @@ class DashboardScreen extends StatelessComponent {
         fontWeight: .w500,
         color: fgColor,
         raw: const {
-          'font-family':
-              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           'overflow': 'hidden',
           'text-overflow': 'ellipsis',
           'white-space': 'nowrap',
         },
       ),
-      css('.dashboard-cron-meta').styles(
-        fontSize: 0.6875.rem,
-        color: mutedColor,
-      ),
+      css('.dashboard-cron-meta').styles(fontSize: 0.6875.rem, color: mutedColor),
       css('.dashboard-cron-right').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -514,53 +442,30 @@ class DashboardScreen extends StatelessComponent {
         gap: Gap.all(ZonaiSpacing.s4),
         flex: Flex(grow: 0, shrink: 0),
       ),
-      css('.dashboard-cron-duration').styles(
-        fontSize: 0.6875.rem,
-        color: mutedColor,
-      ),
+      css('.dashboard-cron-duration').styles(fontSize: 0.6875.rem, color: mutedColor),
       css('.dashboard-cron-status').styles(
         fontSize: 0.6875.rem,
         fontWeight: .w600,
         padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: 3.px),
         radius: .all(Radius.circular(4.px)),
       ),
-      css('.dashboard-cron-status--ok').styles(
-        color: successColor,
-        backgroundColor: successBgColor,
-      ),
-      css('.dashboard-cron-status--failed').styles(
-        color: errorColor,
-        backgroundColor: errorBgColor,
-      ),
-      css('.dashboard-cron-status--running').styles(
-        color: mutedColor,
-        backgroundColor: hoverColor,
-      ),
+      css('.dashboard-cron-status--ok').styles(color: successColor, backgroundColor: successBgColor),
+      css('.dashboard-cron-status--failed').styles(color: errorColor, backgroundColor: errorBgColor),
+      css('.dashboard-cron-status--running').styles(color: mutedColor, backgroundColor: hoverColor),
       // Collections
-      css('.dashboard-section').styles(
-        display: .flex,
-        flexDirection: FlexDirection.column,
-        gap: Gap.all(ZonaiSpacing.s5),
-      ),
-      css('.dashboard-section-header').styles(
-        display: .flex,
-        flexDirection: FlexDirection.row,
-        alignItems: .center,
-        justifyContent: .spaceBetween,
-      ),
-      css('.dashboard-section-link').styles(
-        fontSize: 0.8125.rem,
-        fontWeight: .w600,
-        color: primaryColor,
-        raw: const {'text-decoration': 'none'},
-      ),
+      css(
+        '.dashboard-section',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s5)),
+      css(
+        '.dashboard-section-header',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, justifyContent: .spaceBetween),
+      css(
+        '.dashboard-section-link',
+      ).styles(fontSize: 0.8125.rem, fontWeight: .w600, color: primaryColor, raw: const {'text-decoration': 'none'}),
       css('.dashboard-section-link:hover').styles(color: primaryHoverColor),
-      css('.dashboard-tables').styles(
-        display: .flex,
-        flexDirection: FlexDirection.row,
-        flexWrap: .wrap,
-        gap: Gap.all(ZonaiSpacing.s4),
-      ),
+      css(
+        '.dashboard-tables',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s4)),
       css('.dashboard-table-card').styles(
         display: .flex,
         flexDirection: FlexDirection.column,
@@ -573,29 +478,17 @@ class DashboardScreen extends StatelessComponent {
         raw: const {
           'text-decoration': 'none',
           'box-shadow': 'var(--zonai-shadow-sm)',
-          'transition':
-              'border-color 0.15s ease, background-color 0.15s ease',
+          'transition': 'border-color 0.15s ease, background-color 0.15s ease',
         },
       ),
       css('.dashboard-table-card:hover').styles(
         backgroundColor: hoverColor,
         border: .all(color: mutedColor, width: 1.px, style: .solid),
       ),
-      css('.dashboard-table-name').styles(
-        fontSize: 0.875.rem,
-        fontWeight: .w600,
-        color: fgColor,
-      ),
-      css('.dashboard-table-meta').styles(
-        fontSize: 0.75.rem,
-        color: mutedColor,
-      ),
-      css.media(MediaQuery.all(maxWidth: 1024.px), [
-        css('.dashboard-tables').styles(justifyContent: .center),
-      ]),
-      css.media(MediaQuery.all(maxWidth: 640.px), [
-        css('.dashboard-header').styles(display: .none),
-      ]),
+      css('.dashboard-table-name').styles(fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
+      css('.dashboard-table-meta').styles(fontSize: 0.75.rem, color: mutedColor),
+      css.media(MediaQuery.all(maxWidth: 1024.px), [css('.dashboard-tables').styles(justifyContent: .center)]),
+      css.media(MediaQuery.all(maxWidth: 640.px), [css('.dashboard-header').styles(display: .none)]),
     ]),
   ];
 }

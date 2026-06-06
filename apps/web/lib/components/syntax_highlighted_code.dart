@@ -10,12 +10,7 @@ enum SyntaxHighlightLanguage { json, dart }
 
 /// Renders [source] as a `<code>` block with [opal]-based syntax highlighting.
 class SyntaxHighlightedCode extends StatelessComponent {
-  const SyntaxHighlightedCode({
-    required this.source,
-    required this.language,
-    this.extraClasses,
-    super.key,
-  });
+  const SyntaxHighlightedCode({required this.source, required this.language, this.extraClasses, super.key});
 
   final String source;
   final SyntaxHighlightLanguage language;
@@ -25,10 +20,7 @@ class SyntaxHighlightedCode extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final classes = [
-      'syntax-highlighted-code',
-      if (extraClasses != null) extraClasses!,
-    ].join(' ');
+    final classes = ['syntax-highlighted-code', if (extraClasses != null) extraClasses!].join(' ');
 
     return code(classes: classes, highlightedSpans(source, language));
   }
@@ -94,12 +86,7 @@ List<StyleRule> get syntaxHighlightedCodeStyles => [
     padding: .zero,
     color: const Color('#e2e8f0'),
     whiteSpace: WhiteSpace.preWrap,
-    raw: const {
-      'font-family': 'inherit',
-      'font-size': 'inherit',
-      'line-height': 'inherit',
-      'tab-size': 'inherit',
-    },
+    raw: const {'font-family': 'inherit', 'font-size': 'inherit', 'line-height': 'inherit', 'tab-size': 'inherit'},
   ),
   css('.syntax-highlighted-code .syntax-hl-key').styles(color: const Color('#7dd3fc')),
   css('.syntax-highlighted-code .syntax-hl-string').styles(color: const Color('#86efac')),

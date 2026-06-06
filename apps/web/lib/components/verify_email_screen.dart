@@ -72,11 +72,7 @@ class VerifyEmailScreenState extends State<VerifyEmailScreen> {
       child: AuthFormCard(
         children: [
           if (_success) ...[
-            AuthSentHeader(
-              icon: '✓',
-              title: 'Email verified',
-              subtitle: 'Your email address has been verified.',
-            ),
+            AuthSentHeader(icon: '✓', title: 'Email verified', subtitle: 'Your email address has been verified.'),
             AuthActions(
               children: [
                 ZonaiButton(

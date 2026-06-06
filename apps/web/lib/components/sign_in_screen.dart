@@ -12,11 +12,7 @@ import 'theme/theme_components.dart';
 
 /// Shared layout for sign-in screens (centered auth page with branding).
 class SignInScreen extends StatelessComponent {
-  const SignInScreen({
-    super.key,
-    required this.child,
-    this.tagline = 'Sign in to your workspace',
-  });
+  const SignInScreen({super.key, required this.child, this.tagline = 'Sign in to your workspace'});
 
   final Component child;
   final String tagline;
@@ -105,10 +101,7 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
     });
 
     try {
-      await context.read(authProvider.notifier).signInWithPassword(
-        email: _email,
-        password: _password,
-      );
+      await context.read(authProvider.notifier).signInWithPassword(email: _email, password: _password);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -145,13 +138,7 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
               onInput: (v) => setState(() => _password = v),
             ),
             AuthActions(
-              children: [
-                AuthSubmitButton(
-                  label: 'Sign in',
-                  loadingLabel: 'Signing in…',
-                  loading: _loading,
-                ),
-              ],
+              children: [AuthSubmitButton(label: 'Sign in', loadingLabel: 'Signing in…', loading: _loading)],
             ),
             AuthTextLink(
               label: 'Forgot password?',

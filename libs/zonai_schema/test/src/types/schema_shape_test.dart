@@ -124,10 +124,8 @@ final class _PhotoDemoTable extends Table<_PhotoRow> {
   static final schemaTable = zs.table('photo_demo', _PhotoDemoTable.new);
 
   @override
-  _PhotoRow fromRow(RowReader read) => _PhotoRow(
-    id: read(id),
-    image: read(image),
-  );
+  _PhotoRow fromRow(RowReader read) =>
+      _PhotoRow(id: read(id), image: read(image));
 
   final IdColumn<UnknownId> id;
   final PhotoColumn? image;

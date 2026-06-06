@@ -5,11 +5,7 @@ import 'ui_styles.dart';
 
 /// Inline error panel for data-loading failures.
 class ZonaiErrorAlert extends StatelessComponent {
-  const ZonaiErrorAlert({
-    super.key,
-    required this.title,
-    required this.body,
-  });
+  const ZonaiErrorAlert({super.key, required this.title, required this.body});
 
   final String title;
   final String body;

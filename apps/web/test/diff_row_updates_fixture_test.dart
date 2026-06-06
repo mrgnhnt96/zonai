@@ -102,9 +102,7 @@ void main() {
 
     final now = DateTime.utc(2024, 1, 1);
     final bigCount = BigInt.parse('9007199254740991');
-    final bigCountBlob = Uint8List.fromList(
-      bigCount.toRadixString(2).split('').map(int.parse).toList(),
-    );
+    final bigCountBlob = Uint8List.fromList(bigCount.toRadixString(2).split('').map(int.parse).toList());
 
     final original = <Object?>[
       'Sample fixture',
@@ -120,10 +118,7 @@ void main() {
       null,
     ];
 
-    final draft = [
-      for (var i = 0; i < original.length; i++)
-        normalizeCellValueForEdit(original[i], shapes[i]),
-    ];
+    final draft = [for (var i = 0; i < original.length; i++) normalizeCellValueForEdit(original[i], shapes[i])];
 
     final parsed = List<Object?>.from(draft);
     for (var i = 0; i < shapes.length; i++) {
@@ -140,12 +135,7 @@ void main() {
     }
 
     final columns = shapes.map((s) => s.name).toList();
-    final updates = diffRowUpdates(
-      original: original,
-      draft: parsed,
-      columns: columns,
-      columnShapes: shapes,
-    );
+    final updates = diffRowUpdates(original: original, draft: parsed, columns: columns, columnShapes: shapes);
 
     for (var i = 0; i < shapes.length; i++) {
       expect(
@@ -170,20 +160,10 @@ void main() {
 
     const original = 3.14;
     final draft = normalizeCellValueForEdit(original, shape);
-    final parsed = parseEditValue(
-      draftValue: draft,
-      textInput: '4.5',
-      shape: shape,
-    );
+    final parsed = parseEditValue(draftValue: draft, textInput: '4.5', shape: shape);
 
-    expect(
-      diffRowUpdates(
-        original: [original],
-        draft: [parsed],
-        columns: ['amount'],
-        columnShapes: [shape],
-      ),
-      {'amount': 4.5},
-    );
+    expect(diffRowUpdates(original: [original], draft: [parsed], columns: ['amount'], columnShapes: [shape]), {
+      'amount': 4.5,
+    });
   });
 }

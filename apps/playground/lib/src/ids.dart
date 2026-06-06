@@ -78,7 +78,8 @@ class UsersId extends Id {
 class CellEditFixturesId extends Id {
   const CellEditFixturesId(super.value);
 
-  factory CellEditFixturesId.generate() => CellEditFixturesId(z.Id.generate(_suffix));
+  factory CellEditFixturesId.generate() =>
+      CellEditFixturesId(z.Id.generate(_suffix));
 
   static const _suffix = 'cf';
 }

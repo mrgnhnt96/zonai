@@ -65,12 +65,7 @@ abstract final class ZonaiButtonSizes {
     required String variantClass,
     bool fullWidth = false,
   }) {
-    return [
-      textBtn,
-      textSizeClass(size),
-      variantClass,
-      if (fullWidth) 'z-btn--full',
-    ].join(' ');
+    return [textBtn, textSizeClass(size), variantClass, if (fullWidth) 'z-btn--full'].join(' ');
   }
 
   static String iconButtonClasses({
@@ -90,10 +85,8 @@ abstract final class ZonaiButtonSizes {
     return variantClass.contains('ghost') ? ZonaiButtonSize.sm : ZonaiButtonSize.md;
   }
 
-  static Padding textPadding(ZonaiButtonSize size) => .symmetric(
-    horizontal: textPaddingHorizontal(size),
-    vertical: textPaddingVertical(size),
-  );
+  static Padding textPadding(ZonaiButtonSize size) =>
+      .symmetric(horizontal: textPaddingHorizontal(size), vertical: textPaddingVertical(size));
 
   static textPaddingHorizontal(ZonaiButtonSize size) => switch (size) {
     ZonaiButtonSize.md => ZonaiSpacing.s9,

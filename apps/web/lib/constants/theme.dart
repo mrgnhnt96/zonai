@@ -89,15 +89,10 @@ const themeBootstrapScript = '''
 @css
 List<StyleRule> get styles => [
   css.import('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'),
-  css(':root').styles(
-    raw: _lightTokens,
-  ),
-  css.media(
-    MediaQuery.all(prefersColorScheme: ColorScheme.dark),
-    [
-      css(':root:not([data-theme="light"])').styles(raw: _darkTokens),
-    ],
-  ),
+  css(':root').styles(raw: _lightTokens),
+  css.media(MediaQuery.all(prefersColorScheme: ColorScheme.dark), [
+    css(':root:not([data-theme="light"])').styles(raw: _darkTokens),
+  ]),
   css(':root[data-theme="dark"]').styles(raw: _darkTokens),
   css(':root[data-theme="light"]').styles(raw: _lightTokens),
   css('html, body').styles(
@@ -109,21 +104,10 @@ List<StyleRule> get styles => [
     fontFamily: const .list([FontFamily('Inter'), FontFamilies.sansSerif]),
     backgroundColor: bgColor,
     color: fgColor,
-    raw: const {
-      '-webkit-font-smoothing': 'antialiased',
-      '-moz-osx-font-smoothing': 'grayscale',
-    },
+    raw: const {'-webkit-font-smoothing': 'antialiased', '-moz-osx-font-smoothing': 'grayscale'},
   ),
   css('*', [css('&').styles(boxSizing: .inherit)]),
-  css('input::placeholder, textarea::placeholder').styles(
-    color: mutedColor,
-    raw: const {'opacity': '1'},
-  ),
-  css(
-    'input::-webkit-input-placeholder, textarea::-webkit-input-placeholder',
-  ).styles(color: mutedColor),
-  css('input::-moz-placeholder, textarea::-moz-placeholder').styles(
-    color: mutedColor,
-    raw: const {'opacity': '1'},
-  ),
+  css('input::placeholder, textarea::placeholder').styles(color: mutedColor, raw: const {'opacity': '1'}),
+  css('input::-webkit-input-placeholder, textarea::-webkit-input-placeholder').styles(color: mutedColor),
+  css('input::-moz-placeholder, textarea::-moz-placeholder').styles(color: mutedColor, raw: const {'opacity': '1'}),
 ];

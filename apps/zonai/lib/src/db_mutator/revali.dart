@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io' as io;
 
-import 'package:http/http.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import '../../deps.dart';
 import '../../gen/server/.revali/server/server.dart' as server;
 import '../domain/constants.dart';
+import '../utils/server_health.dart';
 
 class Revali {
   Revali();
@@ -146,13 +146,5 @@ class Revali {
     }
   }
 
-  Future<bool> health() async {
-    try {
-      final result = await get(Uri.parse('http://localhost:8080/health'));
-
-      return result.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
+  Future<bool> health() async => checkZonaiServerHealth();
 }

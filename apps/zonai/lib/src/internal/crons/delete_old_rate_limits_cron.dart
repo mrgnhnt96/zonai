@@ -20,7 +20,9 @@ final class DeleteOldRateLimitsCron extends CronJob {
       where: Lt('window_start', cutoff),
     );
 
-    logger.info('Queued deletion of rate limits with window_start before $cutoff');
+    logger.info(
+      'Queued deletion of rate limits with window_start before $cutoff',
+    );
   }
 }
 

@@ -31,9 +31,15 @@ import 'package:zonai/src/deps/env.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai/src/deps/versions.dart';
 import 'package:zonai/src/utils/args.dart';
+import 'package:zonai/src/utils/zonai_entrypoint.dart';
 import 'package:zonai/src/zonai_runner.dart';
 
 void main(List<String> arguments) async {
+  final reexecCode = await reexecFromSourceIfNeeded(arguments);
+  if (reexecCode >= 0) {
+    exit(reexecCode);
+  }
+
   await _run(arguments);
 }
 

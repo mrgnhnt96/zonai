@@ -33,11 +33,7 @@ class ZonaiIconButton extends StatelessComponent {
   Component build(BuildContext context) {
     return button(
       type: type,
-      classes: ZonaiButtonSizes.iconButtonClasses(
-        size: size,
-        variant: variant,
-        extra: classes,
-      ),
+      classes: ZonaiButtonSizes.iconButtonClasses(size: size, variant: variant, extra: classes),
       attributes: attributes,
       disabled: disabled,
       onClick: onClick,

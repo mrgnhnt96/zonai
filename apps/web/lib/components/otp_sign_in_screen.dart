@@ -67,10 +67,7 @@ class OtpSignInFormState extends State<OtpSignInForm> {
     });
 
     try {
-      await context.read(authProvider.notifier).verifyOtp(
-        email: _email,
-        code: _code,
-      );
+      await context.read(authProvider.notifier).verifyOtp(email: _email, code: _code);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -114,13 +111,7 @@ class OtpSignInFormState extends State<OtpSignInForm> {
               onInput: (v) => setState(() => _email = v),
             ),
             AuthActions(
-              children: [
-                AuthSubmitButton(
-                  label: 'Send code',
-                  loadingLabel: 'Sending code…',
-                  loading: _loading,
-                ),
-              ],
+              children: [AuthSubmitButton(label: 'Send code', loadingLabel: 'Sending code…', loading: _loading)],
             ),
           ],
         ),
@@ -141,10 +132,7 @@ class OtpSignInFormState extends State<OtpSignInForm> {
       [
         AuthFormCard(
           children: [
-            AuthSentHeader(
-              title: 'Check your email',
-              subtitle: 'Enter the 6-digit code we sent to $_email.',
-            ),
+            AuthSentHeader(title: 'Check your email', subtitle: 'Enter the 6-digit code we sent to $_email.'),
             if (_error case final error?) ZonaiErrorText(error),
             ZonaiTextField(
               id: 'sign-in-code',
@@ -152,20 +140,13 @@ class OtpSignInFormState extends State<OtpSignInForm> {
               type: .text,
               autocomplete: 'one-time-code',
               placeholder: '000000',
-              attributes: const {
-                'inputmode': 'numeric',
-                'maxlength': '6',
-              },
+              attributes: const {'inputmode': 'numeric', 'maxlength': '6'},
               value: _code,
               onInput: (v) => setState(() => _code = v.trim()),
             ),
             AuthActions(
               children: [
-                AuthSubmitButton(
-                  label: 'Verify and sign in',
-                  loadingLabel: 'Verifying…',
-                  loading: _loading,
-                ),
+                AuthSubmitButton(label: 'Verify and sign in', loadingLabel: 'Verifying…', loading: _loading),
                 ZonaiButton(
                   variant: ZonaiButtonVariant.secondary,
                   fullWidth: true,

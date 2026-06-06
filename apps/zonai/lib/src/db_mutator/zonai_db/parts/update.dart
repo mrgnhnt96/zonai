@@ -46,7 +46,11 @@ extension _UpdateX on ZonaiDb {
 
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
 
-    final sanitizedUpdated = await _sanitizeRows(table, updatedObjects, jwt: jwt);
+    final sanitizedUpdated = await _sanitizeRows(
+      table,
+      updatedObjects,
+      jwt: jwt,
+    );
 
     await _postUpdate(
       table,

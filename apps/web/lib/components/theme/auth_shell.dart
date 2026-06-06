@@ -32,21 +32,14 @@ class AuthBrand extends StatelessComponent {
 
 /// Centered auth column: brand header + card content.
 class AuthShell extends StatelessComponent {
-  const AuthShell({
-    super.key,
-    required this.children,
-    this.tagline = 'Sign in to your workspace',
-  });
+  const AuthShell({super.key, required this.children, this.tagline = 'Sign in to your workspace'});
 
   final List<Component> children;
   final String tagline;
 
   @override
   Component build(BuildContext context) {
-    return div(classes: ZonaiClasses.authLayout, [
-      AuthBrand(tagline: tagline),
-      ...children,
-    ]);
+    return div(classes: ZonaiClasses.authLayout, [AuthBrand(tagline: tagline), ...children]);
   }
 }
 
@@ -58,11 +51,7 @@ class AuthBackButton extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return ZonaiButton(
-      variant: ZonaiButtonVariant.ghost,
-      onClick: () => context.goApp(to),
-      child: .text('← Back'),
-    );
+    return ZonaiButton(variant: ZonaiButtonVariant.ghost, onClick: () => context.goApp(to), child: .text('← Back'));
   }
 }
 
@@ -96,12 +85,7 @@ class AuthFormCard extends StatelessComponent {
 
 /// Tappable row for choosing a sign-in method.
 class AuthMethodTile extends StatelessComponent {
-  const AuthMethodTile({
-    super.key,
-    required this.title,
-    required this.description,
-    required this.onSelect,
-  });
+  const AuthMethodTile({super.key, required this.title, required this.description, required this.onSelect});
 
   final String title;
   final String description;
@@ -109,15 +93,10 @@ class AuthMethodTile extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return button(
-      type: .button,
-      classes: ZonaiClasses.authMethod,
-      onClick: onSelect,
-      [
-        span(classes: ZonaiClasses.authMethodTitle, [.text(title)]),
-        span(classes: ZonaiClasses.authMethodDesc, [.text(description)]),
-      ],
-    );
+    return button(type: .button, classes: ZonaiClasses.authMethod, onClick: onSelect, [
+      span(classes: ZonaiClasses.authMethodTitle, [.text(title)]),
+      span(classes: ZonaiClasses.authMethodDesc, [.text(description)]),
+    ]);
   }
 }
 
@@ -135,11 +114,7 @@ class AuthActions extends StatelessComponent {
 
 /// Centered text link for secondary navigation (e.g. forgot password).
 class AuthTextLink extends StatelessComponent {
-  const AuthTextLink({
-    super.key,
-    required this.label,
-    required this.onClick,
-  });
+  const AuthTextLink({super.key, required this.label, required this.onClick});
 
   final String label;
   final void Function() onClick;
@@ -147,24 +122,14 @@ class AuthTextLink extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     return div(classes: ZonaiClasses.authFooter, [
-      button(
-        type: .button,
-        classes: ZonaiClasses.authLink,
-        onClick: onClick,
-        [.text(label)],
-      ),
+      button(type: .button, classes: ZonaiClasses.authLink, onClick: onClick, [.text(label)]),
     ]);
   }
 }
 
 /// Icon + title block for post-submit “check your email” states.
 class AuthSentHeader extends StatelessComponent {
-  const AuthSentHeader({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    this.icon = '✉',
-  });
+  const AuthSentHeader({super.key, required this.title, required this.subtitle, this.icon = '✉'});
 
   final String title;
   final String subtitle;

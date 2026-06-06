@@ -24,7 +24,11 @@ class ListBody {
       where: switch (json['where']) {
         null => null,
         final Map m => Where.fromJson(m),
-        final value => throw ArgumentError.value(value, 'where', 'Expected a where object'),
+        final value => throw ArgumentError.value(
+          value,
+          'where',
+          'Expected a where object',
+        ),
       },
       limit: json['limit'] as int?,
       offset: json['offset'] as int?,

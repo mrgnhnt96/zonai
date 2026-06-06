@@ -42,9 +42,7 @@ final class TableRowsData {
   final bool isLoadingMore;
 }
 
-final tableRowsProvider = AsyncNotifierProvider<TableRowsNotifier, TableRowsData?>(
-  TableRowsNotifier.new,
-);
+final tableRowsProvider = AsyncNotifierProvider<TableRowsNotifier, TableRowsData?>(TableRowsNotifier.new);
 
 class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
   var _loadingMore = false;
@@ -113,12 +111,10 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       );
     } catch (e) {
       state = AsyncData(current);
-      ref.read(toastProvider.notifier).showError(
-        switch (e) {
-          StateError(:final message) => message,
-          _ => 'Failed to load more rows: $e',
-        },
-      );
+      ref.read(toastProvider.notifier).showError(switch (e) {
+        StateError(:final message) => message,
+        _ => 'Failed to load more rows: $e',
+      });
     } finally {
       _loadingMore = false;
     }
@@ -163,20 +159,14 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
   }
 
   /// Creates one row and reloads the table. Returns the created record map.
-  Future<Map<String, Object?>> createRow({
-    required String sqliteName,
-    required Map<String, Object?> object,
-  }) async {
+  Future<Map<String, Object?>> createRow({required String sqliteName, required Map<String, Object?> object}) async {
     if (object.isEmpty) {
       throw StateError('No fields to create');
     }
 
     try {
       final created = await revaliServer.db.create(
-        body: CreateBody(
-          table: sqliteName,
-          object: apiWireObject(object),
-        ),
+        body: CreateBody(table: sqliteName, object: apiWireObject(object)),
       );
       _invalidateTableAndForeignKeyLookups();
       return created;
@@ -197,22 +187,14 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       throw StateError('No fields to update');
     }
 
-    final where = tableRowWhere(
-      row: row,
-      columns: columns,
-      columnShapes: columnShapes,
-    );
+    final where = tableRowWhere(row: row, columns: columns, columnShapes: columnShapes);
     if (where == null) {
       throw StateError('Cannot update row: incomplete primary key.');
     }
 
     try {
       final updated = await revaliServer.db.update(
-        body: UpdateOneBody(
-          table: sqliteName,
-          where: where,
-          updates: [ObjectUpdate(apiWireObject(changedFields))],
-        ),
+        body: UpdateOneBody(table: sqliteName, where: where, updates: [ObjectUpdate(apiWireObject(changedFields))]),
       );
       _patchLocalRowIfPresent(
         originalRow: row,
@@ -312,9 +294,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       );
       if (page.isEmpty) return;
 
-      final keys = {
-        for (final row in page) tableRowKey(row, data.columnShapes),
-      };
+      final keys = {for (final row in page) tableRowKey(row, data.columnShapes)};
       await _deleteRowKeys(data, keys, rows: page);
       if (page.length < pageSize) return;
     }
@@ -337,11 +317,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     ];
   }
 
-  Future<void> _deleteRowKeys(
-    TableRowsData data,
-    Set<String> keys, {
-    required List<List<Object?>> rows,
-  }) async {
+  Future<void> _deleteRowKeys(TableRowsData data, Set<String> keys, {required List<List<Object?>> rows}) async {
     if (keys.isEmpty) return;
 
     final pkShapes = data.columnShapes.where((s) => s.isPrimaryKey).toList();
@@ -362,10 +338,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       if (values.isEmpty) return;
 
       await revaliServer.db.deleteMany(
-        body: DeleteBody(
-          table: data.sqliteName,
-          where: In(pkName, values),
-        ),
+        body: DeleteBody(table: data.sqliteName, where: In(pkName, values)),
       );
       return;
     }
@@ -373,11 +346,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     for (final row in rows) {
       final key = tableRowKey(row, data.columnShapes);
       if (!keys.contains(key)) continue;
-      final where = tableRowWhere(
-        row: row,
-        columns: data.columns,
-        columnShapes: data.columnShapes,
-      );
+      final where = tableRowWhere(row: row, columns: data.columns, columnShapes: data.columnShapes);
       if (where == null) {
         throw StateError('Cannot delete row: incomplete primary key.');
       }

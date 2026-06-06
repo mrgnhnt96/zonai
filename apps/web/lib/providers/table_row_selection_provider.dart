@@ -4,10 +4,7 @@ import 'package:universal_web/web.dart' as web;
 import 'table_focus_provider.dart';
 
 final class TableRowSelectionState {
-  const TableRowSelectionState({
-    this.keys = const {},
-    this.coversEntireTable = false,
-  });
+  const TableRowSelectionState({this.keys = const {}, this.coversEntireTable = false});
 
   final Set<String> keys;
   final bool coversEntireTable;
@@ -49,12 +46,7 @@ class TableRowSelectionNotifier extends Notifier<TableRowSelectionState> {
   }) {
     final shiftSelect = shiftKey || _shiftClick;
     if (shiftSelect && _anchorIndex != null) {
-      setSelectedRange(
-        fromIndex: _anchorIndex!,
-        toIndex: index,
-        selected: selected,
-        pageKeys: pageKeys,
-      );
+      setSelectedRange(fromIndex: _anchorIndex!, toIndex: index, selected: selected, pageKeys: pageKeys);
     } else {
       setSelected(key, selected: selected, pageKeys: pageKeys);
     }
@@ -73,9 +65,7 @@ class TableRowSelectionNotifier extends Notifier<TableRowSelectionState> {
     final rangeKeys = pageKeys.sublist(start, end + 1);
 
     if (!selected && state.coversEntireTable) {
-      state = TableRowSelectionState(
-        keys: pageKeys.toSet().difference(rangeKeys.toSet()),
-      );
+      state = TableRowSelectionState(keys: pageKeys.toSet().difference(rangeKeys.toSet()));
       return;
     }
 
@@ -98,9 +88,7 @@ class TableRowSelectionNotifier extends Notifier<TableRowSelectionState> {
 
   void setSelected(String key, {required bool selected, Iterable<String>? pageKeys}) {
     if (!selected && state.coversEntireTable && pageKeys != null) {
-      state = TableRowSelectionState(
-        keys: pageKeys.where((k) => k != key).toSet(),
-      );
+      state = TableRowSelectionState(keys: pageKeys.where((k) => k != key).toSet());
       return;
     }
 
@@ -128,10 +116,7 @@ class TableRowSelectionNotifier extends Notifier<TableRowSelectionState> {
 
   void selectEntireTable() {
     if (state.coversEntireTable) return;
-    state = TableRowSelectionState(
-      keys: state.keys,
-      coversEntireTable: true,
-    );
+    state = TableRowSelectionState(keys: state.keys, coversEntireTable: true);
   }
 
   void clear() {

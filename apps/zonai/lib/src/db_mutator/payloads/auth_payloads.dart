@@ -52,10 +52,7 @@ class SendOtpAuthPayload extends AuthPayload {
 }
 
 class SendVerifyEmailAuthPayload {
-  const SendVerifyEmailAuthPayload({
-    required this.email,
-    required this.table,
-  });
+  const SendVerifyEmailAuthPayload({required this.email, required this.table});
 
   final String email;
   final String table;

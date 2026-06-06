@@ -17,9 +17,7 @@ final class CleanupUnreferencedPhotosCron extends CronJob {
       CleanupUnreferencedPhotosRequest(),
     );
 
-    logger.info(
-      'Deleted ${response.deletedCount} unreferenced photo(s)',
-    );
+    logger.info('Deleted ${response.deletedCount} unreferenced photo(s)');
   }
 }
 

@@ -41,8 +41,7 @@ final class SqliteInternalTableSync {
 
   ColumnInfo _columnInfoFromRaindropColumn(Column<dynamic, dynamic> c) {
     final sqlType =
-        c.sqlType ??
-        (throw StateError('Column "${c.name}" has no sqlType'));
+        c.sqlType ?? (throw StateError('Column "${c.name}" has no sqlType'));
     final fkRef = c.foreignKeyReference;
     return ColumnInfo(
       name: c.name,

@@ -4,10 +4,12 @@ import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
 import '../components/query_rate_limit.dart';
 
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
+@BlackList()
 @Controller('db')
 class DbController {
   const DbController({required this.dbHandler});

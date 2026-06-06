@@ -1,6 +1,8 @@
 import 'package:zonai/src/domain/constants.dart';
 
 import 'admin.dart';
+import 'clear.dart';
+import 'email.dart';
 import 'logs.dart';
 import 'photos.dart';
 import 'test.dart';
@@ -18,6 +20,8 @@ Subcommands:
   migrate         Manage SQL migrations
   admin           Manage admin accounts
   logs            Manage internal log records
+  email           Send test emails
+  clear           Delete the local database file
 
 Commands:
   help            Show help information
@@ -44,6 +48,12 @@ Future<int> db(List<String> path) async {
 
     case ['logs' || 'log', ...final path]:
       return await logs(path);
+
+    case ['email', ...final path]:
+      return await email(path);
+
+    case ['clear' || 'reset']:
+      return await clearDatabase();
 
     default:
       logger.info(_usage);

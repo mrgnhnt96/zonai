@@ -18,11 +18,7 @@ Future<List<Object?>> resolvePhotoDrafts({
     final value = asPhotoEditValue(resolved[i]);
     if (value == null) continue;
 
-    resolved[i] = await _resolvePhotoEditValue(
-      sqliteName: sqliteName,
-      value: value,
-      config: photosConfig,
-    );
+    resolved[i] = await _resolvePhotoEditValue(sqliteName: sqliteName, value: value, config: photosConfig);
   }
 
   return resolved;

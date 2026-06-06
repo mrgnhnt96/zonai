@@ -16,7 +16,16 @@ const _manifestName = '.build.manifest';
 const _skipManifestEntries = {'.dart_tool/package_config.json'};
 
 /// Matches [render_web_app.dart] static asset suffixes.
-const _serveableSuffixes = {'css', 'ico', 'js', 'json', 'map', 'png', 'svg', 'wasm'};
+const _serveableSuffixes = {
+  'css',
+  'ico',
+  'js',
+  'json',
+  'map',
+  'png',
+  'svg',
+  'wasm',
+};
 
 /// Stale raw build output from earlier experiments; must not live under lib/.
 const _orphanOutputDir = 'lib/gen/web_assets';
@@ -59,12 +68,15 @@ void main(List<String> args) {
     exit(1);
   }
 
-  final allManifestPaths = manifestFile
-      .readAsLinesSync()
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty && !_skipManifestEntries.contains(line))
-      .toList()
-    ..sort();
+  final allManifestPaths =
+      manifestFile
+          .readAsLinesSync()
+          .map((line) => line.trim())
+          .where(
+            (line) => line.isNotEmpty && !_skipManifestEntries.contains(line),
+          )
+          .toList()
+        ..sort();
 
   final manifestPaths = allManifestPaths.where(_shouldEmbedAsset).toList();
   if (manifestPaths.isEmpty) {
@@ -107,7 +119,8 @@ void main(List<String> args) {
 
 /// Only embed browser-served Jaspr client assets, not the full build manifest.
 bool _shouldEmbedAsset(String relativePath) {
-  if (relativePath.startsWith('main.client.dart.js') && relativePath.endsWith('.js')) {
+  if (relativePath.startsWith('main.client.dart.js') &&
+      relativePath.endsWith('.js')) {
     return true;
   }
 
@@ -245,7 +258,8 @@ _Generated _generate(Directory sourceDir, List<String> manifestPaths) {
 
     final identifier = _pathToIdentifier(relativePath);
     final extension = relativePath.split('.').last.toLowerCase();
-    final isBinary = _binaryExtensions.contains(extension) ||
+    final isBinary =
+        _binaryExtensions.contains(extension) ||
         (!_textExtensions.contains(extension) && !_looksLikeText(sourceFile));
 
     specs.add(
@@ -286,7 +300,9 @@ bool _looksLikeText(File file) {
 
 String _pathToIdentifier(String path) {
   final normalized = path.replaceAll(r'$', 'dollar');
-  final parts = normalized.split(RegExp(r'[/._\-]+')).where((part) => part.isNotEmpty);
+  final parts = normalized
+      .split(RegExp(r'[/._\-]+'))
+      .where((part) => part.isNotEmpty);
 
   final buffer = StringBuffer();
   for (final part in parts) {

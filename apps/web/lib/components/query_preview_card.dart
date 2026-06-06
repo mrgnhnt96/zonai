@@ -28,24 +28,19 @@ class QueryPreviewCard extends StatelessComponent {
   Component build(BuildContext context) {
     return div(classes: 'table-row-detail-json-card', [
       if (showToolbar)
-        div(classes: 'table-row-detail-json-card-toolbar', [
-          CopyPreviewTextButton(label: label, text: text),
-        ]),
+        div(classes: 'table-row-detail-json-card-toolbar', [CopyPreviewTextButton(label: label, text: text)]),
       pre(
         classes: [
           'table-row-detail-json-card-pre',
           if (!showToolbar) 'table-row-detail-json-card-pre--compact',
         ].join(' '),
         [
-        if (highlightLanguage case final language?)
-          SyntaxHighlightedCode(
-            source: text,
-            language: language,
-            extraClasses: 'table-row-detail-json-highlight',
-          )
-        else
-          code(classes: 'table-row-detail-json-highlight', [.text(text)]),
-      ]),
+          if (highlightLanguage case final language?)
+            SyntaxHighlightedCode(source: text, language: language, extraClasses: 'table-row-detail-json-highlight')
+          else
+            code(classes: 'table-row-detail-json-highlight', [.text(text)]),
+        ],
+      ),
     ]);
   }
 }
@@ -83,12 +78,9 @@ class _CopyPreviewTextButtonState extends State<CopyPreviewTextButton> {
     _tooltipTop = rect.bottom + 6;
     _tooltipLeft = rect.left + rect.width / 2;
     _tooltipPlacement = AppTooltipPlacement.belowCenter;
-    context.read(appTooltipProvider.notifier).show(
-      text: _tooltipText,
-      top: _tooltipTop!,
-      left: _tooltipLeft!,
-      placement: _tooltipPlacement,
-    );
+    context
+        .read(appTooltipProvider.notifier)
+        .show(text: _tooltipText, top: _tooltipTop!, left: _tooltipLeft!, placement: _tooltipPlacement);
   }
 
   void _hideTooltip(_) {
@@ -110,12 +102,9 @@ class _CopyPreviewTextButtonState extends State<CopyPreviewTextButton> {
     final top = _tooltipTop;
     final left = _tooltipLeft;
     if (top != null && left != null) {
-      context.read(appTooltipProvider.notifier).show(
-        text: _tooltipText,
-        top: top,
-        left: left,
-        placement: _tooltipPlacement,
-      );
+      context
+          .read(appTooltipProvider.notifier)
+          .show(text: _tooltipText, top: top, left: left, placement: _tooltipPlacement);
     }
     _resetTimer = Timer(const Duration(seconds: 1), () {
       if (!mounted) return;
@@ -127,11 +116,7 @@ class _CopyPreviewTextButtonState extends State<CopyPreviewTextButton> {
   Component build(BuildContext context) {
     return span(
       classes: 'table-row-detail-copy-wrap',
-      attributes: {
-        'role': 'button',
-        'tabindex': '0',
-        'aria-label': _tooltipText,
-      },
+      attributes: {'role': 'button', 'tabindex': '0', 'aria-label': _tooltipText},
       events: {
         'click': (_) => _onCopy(),
         'keydown': _onKeyDown,
@@ -141,10 +126,9 @@ class _CopyPreviewTextButtonState extends State<CopyPreviewTextButton> {
         'blur': _hideTooltip,
       },
       [
-        span(
-          classes: 'table-row-detail-copy${_copied ? ' table-row-detail-copy--copied' : ''}',
-          [_copied ? _checkIconSvg() : _copyIconSvg()],
-        ),
+        span(classes: 'table-row-detail-copy${_copied ? ' table-row-detail-copy--copied' : ''}', [
+          _copied ? _checkIconSvg() : _copyIconSvg(),
+        ]),
       ],
     );
   }

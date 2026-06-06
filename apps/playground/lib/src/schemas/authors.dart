@@ -29,13 +29,15 @@ final class AuthorTable extends Table<Author> {
         generate: AuthorsId.generate,
       ),
       name = $.text('name', (s) => s.name),
-      companyId = $.id(
-        'company_id',
-        (s) => s.companyId,
-        fromString: CompaniesId.new,
-        generate: CompaniesId.generate,
-        isPrimaryKey: false,
-      ).references(() => companies.id, onDelete: ReferentialAction.setNull),
+      companyId = $
+          .id(
+            'company_id',
+            (s) => s.companyId,
+            fromString: CompaniesId.new,
+            generate: CompaniesId.generate,
+            isPrimaryKey: false,
+          )
+          .references(() => companies.id, onDelete: ReferentialAction.setNull),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
 

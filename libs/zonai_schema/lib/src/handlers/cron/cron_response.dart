@@ -160,7 +160,9 @@ final class CleanupUnreferencedPhotosResponse extends CronResponse {
     required this.deletedCount,
   }) : super(path: _path, payload: const {});
 
-  factory CleanupUnreferencedPhotosResponse.fromJson(Map<String, dynamic> json) {
+  factory CleanupUnreferencedPhotosResponse.fromJson(
+    Map<String, dynamic> json,
+  ) {
     return CleanupUnreferencedPhotosResponse(
       id: json['id'],
       deletedCount: json['deletedCount'] as int,

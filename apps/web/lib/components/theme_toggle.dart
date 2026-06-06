@@ -17,13 +17,8 @@ class ThemeToggle extends StatelessComponent {
     final isDark = context.read(themeProvider.notifier).isDarkEffective;
     return ZonaiButton(
       variant: ZonaiButtonVariant.ghost,
-      attributes: {
-        'aria-label': isDark ? 'Switch to light mode' : 'Switch to dark mode',
-      },
-      events: appTooltipEvents(
-        context,
-        text: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-      ),
+      attributes: {'aria-label': isDark ? 'Switch to light mode' : 'Switch to dark mode'},
+      events: appTooltipEvents(context, text: isDark ? 'Switch to light mode' : 'Switch to dark mode'),
       onClick: () => context.read(themeProvider.notifier).toggle(),
       child: .text(isDark ? '☀ Light' : '☾ Dark'),
     );

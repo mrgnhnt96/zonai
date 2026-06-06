@@ -6,11 +6,9 @@ import '../../constants/spacing.dart';
 /// Shared styles for chip inputs and FK editors (row detail + filters).
 @css
 List<StyleRule> get tableEditSharedStyles => [
-  css('.table-edit-chip-input').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s4),
-  ),
+  css(
+    '.table-edit-chip-input',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4)),
   css('.table-edit-chip-input__chips').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
@@ -18,30 +16,15 @@ List<StyleRule> get tableEditSharedStyles => [
     gap: Gap.all(ZonaiSpacing.s3),
     raw: const {'--table-edit-chip-gap': '6px'},
   ),
-  css('.table-edit-chip-input__chips--dragging').styles(
-    raw: const {'user-select': 'none'},
-  ),
-  css('.table-edit-chip-input__chip-item').styles(
-    position: Position.relative(),
-    display: .inlineFlex,
-    alignItems: .center,
-  ),
-  css('.table-edit-chip-input__chip-item--reorderable').styles(
-    cursor: .grab,
-    raw: const {'touch-action': 'none'},
-  ),
-  css('.table-edit-chip-input__chip-item--reorderable:active').styles(
-    cursor: .grabbing,
-  ),
-  css('.table-edit-chip-input__chip-item--reorderable .z-tag__remove').styles(
-    cursor: .pointer,
-  ),
-  css('.table-edit-chip-input__chip-item--dragging .z-tag').styles(
-    opacity: 0.45,
-  ),
-  css('.table-edit-chip-input__chip-item--dragging-pointer .z-tag').styles(
-    visibility: .hidden,
-  ),
+  css('.table-edit-chip-input__chips--dragging').styles(raw: const {'user-select': 'none'}),
+  css(
+    '.table-edit-chip-input__chip-item',
+  ).styles(position: Position.relative(), display: .inlineFlex, alignItems: .center),
+  css('.table-edit-chip-input__chip-item--reorderable').styles(cursor: .grab, raw: const {'touch-action': 'none'}),
+  css('.table-edit-chip-input__chip-item--reorderable:active').styles(cursor: .grabbing),
+  css('.table-edit-chip-input__chip-item--reorderable .z-tag__remove').styles(cursor: .pointer),
+  css('.table-edit-chip-input__chip-item--dragging .z-tag').styles(opacity: 0.45),
+  css('.table-edit-chip-input__chip-item--dragging-pointer .z-tag').styles(visibility: .hidden),
   css('.table-edit-chip-input__drag-ghost.z-tag').styles(
     position: Position.fixed(),
     radius: .all(Radius.circular(6.px)),
@@ -56,9 +39,7 @@ List<StyleRule> get tableEditSharedStyles => [
       '-webkit-background-clip': 'padding-box',
     },
   ),
-  css('.table-edit-chip-input__drag-ghost .z-tag__remove').styles(
-    display: .none,
-  ),
+  css('.table-edit-chip-input__drag-ghost .z-tag__remove').styles(display: .none),
   css('.table-edit-chip-input__drop-pipe').styles(
     position: Position.absolute(top: 3.px, bottom: 3.px),
     width: 2.px,
@@ -66,18 +47,12 @@ List<StyleRule> get tableEditSharedStyles => [
     backgroundColor: primaryColor,
     raw: const {'pointer-events': 'none', 'z-index': '1'},
   ),
-  css('.table-edit-chip-input__drop-pipe--left').styles(
-    raw: const {
-      'left': '0',
-      'transform': 'translate(calc(-0.5 * var(--table-edit-chip-gap) - 50%), 0)',
-    },
-  ),
-  css('.table-edit-chip-input__drop-pipe--right').styles(
-    raw: const {
-      'right': '0',
-      'transform': 'translate(calc(0.5 * var(--table-edit-chip-gap) + 50%), 0)',
-    },
-  ),
+  css(
+    '.table-edit-chip-input__drop-pipe--left',
+  ).styles(raw: const {'left': '0', 'transform': 'translate(calc(-0.5 * var(--table-edit-chip-gap) - 50%), 0)'}),
+  css(
+    '.table-edit-chip-input__drop-pipe--right',
+  ).styles(raw: const {'right': '0', 'transform': 'translate(calc(0.5 * var(--table-edit-chip-gap) + 50%), 0)'}),
   css('.table-edit-chip-input__add-row').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
@@ -86,15 +61,8 @@ List<StyleRule> get tableEditSharedStyles => [
     gap: Gap.all(ZonaiSpacing.s3),
     width: 100.percent,
   ),
-  css('.table-edit-chip-input__add-input').styles(
-    display: .block,
-    width: 100.percent,
-    alignSelf: .stretch,
-  ),
-  css('.table-edit-chip-input__add-row .z-btn').styles(
-    alignSelf: .start,
-    margin: .zero,
-  ),
+  css('.table-edit-chip-input__add-input').styles(display: .block, width: 100.percent, alignSelf: .stretch),
+  css('.table-edit-chip-input__add-row .z-btn').styles(alignSelf: .start, margin: .zero),
   css('.table-edit-boolean').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
@@ -118,18 +86,12 @@ List<StyleRule> get tableEditSharedStyles => [
     cursor: .pointer,
     raw: const {'accent-color': 'var(--zonai-primary)'},
   ),
-  css('.table-edit-json-field').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s3),
-    width: 100.percent,
-  ),
-  css('.table-edit-json-field__error').styles(
-    margin: .zero,
-    fontSize: 0.8125.rem,
-    color: errorColor,
-    raw: const {'line-height': '1.45'},
-  ),
+  css(
+    '.table-edit-json-field',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s3), width: 100.percent),
+  css(
+    '.table-edit-json-field__error',
+  ).styles(margin: .zero, fontSize: 0.8125.rem, color: errorColor, raw: const {'line-height': '1.45'}),
   css('.table-edit-boolean__hint').styles(
     fontSize: 0.8125.rem,
     fontWeight: .w400,
@@ -144,13 +106,8 @@ List<StyleRule> get tableEditSharedStyles => [
     alignItems: .center,
     gap: Gap.all(ZonaiSpacing.s4),
   ),
-  css('.table-edit-fk-value__input').styles(
-    flex: Flex(grow: 1, shrink: 1),
-    minWidth: 120.px,
-  ),
-  css('.table-edit-fk-value__input--invalid').styles(
-    raw: const {'border-color': 'var(--zonai-error)'},
-  ),
+  css('.table-edit-fk-value__input').styles(flex: Flex(grow: 1, shrink: 1), minWidth: 120.px),
+  css('.table-edit-fk-value__input--invalid').styles(raw: const {'border-color': 'var(--zonai-error)'}),
   css('.table-edit-fk-value__error').styles(
     width: 100.percent,
     margin: .zero,
@@ -158,47 +115,24 @@ List<StyleRule> get tableEditSharedStyles => [
     color: errorColor,
     raw: const {'line-height': '1.45'},
   ),
-  css('.table-edit-fk-value__hint').styles(
-    fontSize: 0.8125.rem,
-    color: mutedColor,
-  ),
-  css('.table-filter-fk-value').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s4),
-  ),
-  css('.table-edit-enum-values--empty').styles(
-    fontSize: 0.8125.rem,
-    color: mutedColor,
-    raw: const {'line-height': '1.4'},
-  ),
-  css('.table-edit-password-field').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    alignItems: .center,
-    gap: Gap.all(ZonaiSpacing.s4),
-  ),
-  css('.table-edit-password-field input').styles(
-    flex: Flex(grow: 1, shrink: 1),
-    minWidth: 120.px,
-  ),
-  css('.table-edit-password-field__icon').styles(
-    width: 1.em,
-    height: 1.em,
-    display: .block,
-  ),
-  css('.table-edit-photo-field').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s4),
-    width: 100.percent,
-  ),
-  css('.table-edit-photo-field__thumbs').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    flexWrap: FlexWrap.wrap,
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
+  css('.table-edit-fk-value__hint').styles(fontSize: 0.8125.rem, color: mutedColor),
+  css(
+    '.table-filter-fk-value',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4)),
+  css(
+    '.table-edit-enum-values--empty',
+  ).styles(fontSize: 0.8125.rem, color: mutedColor, raw: const {'line-height': '1.4'}),
+  css(
+    '.table-edit-password-field',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, gap: Gap.all(ZonaiSpacing.s4)),
+  css('.table-edit-password-field input').styles(flex: Flex(grow: 1, shrink: 1), minWidth: 120.px),
+  css('.table-edit-password-field__icon').styles(width: 1.em, height: 1.em, display: .block),
+  css(
+    '.table-edit-photo-field',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4), width: 100.percent),
+  css(
+    '.table-edit-photo-field__thumbs',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: FlexWrap.wrap, gap: Gap.all(ZonaiSpacing.s3)),
   css('.table-edit-photo-field__thumbs--active .table-edit-photo-field__thumb').styles(
     border: Border.all(color: primaryColor, width: 1.px),
     backgroundColor: selectedBgColor,
@@ -211,11 +145,9 @@ List<StyleRule> get tableEditSharedStyles => [
     overflow: Overflow.hidden,
     border: Border.all(color: borderColor, width: 1.px),
   ),
-  css('.table-edit-photo-field__thumb img').styles(
-    width: 100.percent,
-    height: 100.percent,
-    raw: const {'object-fit': 'cover', 'display': 'block'},
-  ),
+  css(
+    '.table-edit-photo-field__thumb img',
+  ).styles(width: 100.percent, height: 100.percent, raw: const {'object-fit': 'cover', 'display': 'block'}),
   css('.table-edit-photo-field__thumb-placeholder').styles(
     display: .flex,
     alignItems: .center,
@@ -254,19 +186,9 @@ List<StyleRule> get tableEditSharedStyles => [
     border: Border.all(color: primaryColor, width: 1.px, style: BorderStyle.dashed),
     backgroundColor: selectedBgColor,
   ),
-  css('.table-edit-photo-field__zone--disabled').styles(
-    opacity: 0.6,
-    pointerEvents: .none,
-  ),
-  css('.table-edit-photo-field__hint').styles(
-    margin: .zero,
-    fontSize: 0.8125.rem,
-    color: mutedColor,
-    textAlign: TextAlign.center,
-  ),
-  css('.table-edit-photo-field__error').styles(
-    margin: .zero,
-    fontSize: 0.8125.rem,
-    color: errorColor,
-  ),
+  css('.table-edit-photo-field__zone--disabled').styles(opacity: 0.6, pointerEvents: .none),
+  css(
+    '.table-edit-photo-field__hint',
+  ).styles(margin: .zero, fontSize: 0.8125.rem, color: mutedColor, textAlign: TextAlign.center),
+  css('.table-edit-photo-field__error').styles(margin: .zero, fontSize: 0.8125.rem, color: errorColor),
 ];

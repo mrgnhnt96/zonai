@@ -6,10 +6,7 @@ import 'package:zonai_web/utils/table_where_format.dart';
 void main() {
   group('highlightedSourceText', () {
     test('preserves JSON line breaks and indentation', () {
-      final source = formatListBodyJson(
-        table: 'items',
-        where: And([const Eq('a', 1), const Null('b')]),
-      );
+      final source = formatListBodyJson(table: 'items', where: And([const Eq('a', 1), const Null('b')]));
       expect(source, contains('\n'));
 
       final highlighted = highlightedSourceText(source, SyntaxHighlightLanguage.json);
@@ -17,10 +14,7 @@ void main() {
     });
 
     test('preserves Dart line breaks and indentation', () {
-      final source = formatListBodyDart(
-        table: 'users',
-        where: And([const Eq('a', 1), const Null('b')]),
-      );
+      final source = formatListBodyDart(table: 'users', where: And([const Eq('a', 1), const Null('b')]));
       expect(source, contains('\n'));
 
       final highlighted = highlightedSourceText(source, SyntaxHighlightLanguage.dart);

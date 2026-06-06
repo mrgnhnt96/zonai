@@ -22,6 +22,8 @@ const _pkShape = ColumnShape(
 
 const _allowedActions = TableCollectionActions(
   table: 'items',
+  canList: true,
+  canView: true,
   canCreate: true,
   canUpdate: true,
   canDelete: true,
@@ -37,6 +39,8 @@ void main() {
           allActions: const {
             '_jwt': TableCollectionActions(
               table: '_jwt',
+              canList: false,
+              canView: false,
               canCreate: false,
               canUpdate: false,
               canDelete: true,
@@ -44,6 +48,8 @@ void main() {
           },
           actions: const TableCollectionActions(
             table: '_jwt',
+            canList: false,
+            canView: false,
             canCreate: false,
             canUpdate: false,
             canDelete: true,
@@ -116,6 +122,8 @@ void main() {
           allActions: const {
             '_jwt': TableCollectionActions(
               table: '_jwt',
+              canList: false,
+              canView: false,
               canCreate: false,
               canUpdate: false,
               canDelete: true,
@@ -123,6 +131,8 @@ void main() {
           },
           actions: const TableCollectionActions(
             table: '_jwt',
+            canList: false,
+            canView: false,
             canCreate: false,
             canUpdate: false,
             canDelete: true,
@@ -156,6 +166,8 @@ void main() {
           allActions: const {
             '_jwt': TableCollectionActions(
               table: '_jwt',
+              canList: false,
+              canView: false,
               canCreate: false,
               canUpdate: false,
               canDelete: true,
@@ -163,6 +175,8 @@ void main() {
           },
           actions: const TableCollectionActions(
             table: '_jwt',
+            canList: false,
+            canView: false,
             canCreate: false,
             canUpdate: false,
             canDelete: true,

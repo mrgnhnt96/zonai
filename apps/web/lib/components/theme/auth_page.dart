@@ -7,11 +7,7 @@ import 'ui_styles.dart';
 
 /// Centered auth layout with theme toggle in the corner.
 class AuthPage extends StatelessComponent {
-  const AuthPage({
-    super.key,
-    required this.child,
-    this.tagline = 'Sign in to your workspace',
-  });
+  const AuthPage({super.key, required this.child, this.tagline = 'Sign in to your workspace'});
 
   final Component child;
   final String tagline;

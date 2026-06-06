@@ -10,32 +10,17 @@
 - [ ] Add theme color support
 - [ ] Pin collections (?)
 - [ ] Add search history
-- [ ] Send test email
-- [ ] Run cron job manually
-- [ ] Create new row
-- [ ] Start reset password flow
-- [ ] Support uploading files/images for edit & create
-- [ ] Create button sizes and enforce them everywhere
-
-#### Edit
-
-- [ ] Choose reference row from table (using search)
-- [ ] View reference row details (click to view)
-
-#### Dashboard
-
-The dashboard will be the first page on website load. It should show a quick overview of the project and a snapshot of the database.
-
-- [ ] Show requests per minute
-- [ ] Show latest errors in 24 hours
 
 ### API
 
 - [ ] Create references to photo from other collections when using the `photo` or `photos` column
+- [ ] Add prefix & suffix positional optional params to Id.generate
 
 ## CLI
 
-### `init` command
+### `dev` command
+
+The first run is determined whether there is a `zonai.yaml` file existing. If there isn't then we should prompt user if they would like to init
 
 - [ ] Create built-in email templates
 - [ ] Set up initial admin schema
@@ -46,23 +31,23 @@ The dashboard will be the first page on website load. It should show a quick ove
 - [ ] Compile all workers if `zonai.yaml` does not exist (unless in release mode)
   - [ ] Create `zonai.yaml` with default values
 
-- [ ] When there are no admins, act as if the project hasn't been setup up and treat as a new project (provide docs)
-- [ ] When serve (`dev`)is first run, if no .zonai dir exists, treat as new project
-- [ ] When serving (`dev`) the app, use nocterm to provide a good experience
-- [ ] Create a command for `./zonai dev` that is interactive and `./zonai serve` that prints logs only
-  - [ ] should prompt for new admin (text fields). If class isn't created (can create admin class if one doesnt exist)
+#### Actions
 
-### `serve` command
-
-when running zonai serve, its important that we dont prompt or require input. We dont want to block a fresh deployment to a server
-
-- [ ] Update all zonai table id suffixes to include `-z` (for zonai) (?)
-- [ ] Add prefix & suffix positional optional params to Id.generate
-- [ ] Add column for `DateTime` when a column is updated
-
-### `create` command
-
-- [ ] Create schema (auto create all classes)
+- [ ] Create new admin (similar to how web works now, but without requiring authentication)
+- [ ] Run cron jobs manually
+- [ ] Send test emails
+- [ ] Create new email templates
+- [ ] start/stop server
+- [ ] Trail server logs
+- [ ] ping executables
+- [ ] retrieve data from executables
+  - [ ] rules (table + row)
+- [ ] Create new schemas
+  - [ ] Optionally run migrations post-create
+- [ ] Run migrations
+- [ ] Create new executable part (e.g. new rate limit for table)
+- [ ] Clear database (delete file)
+  - [ ] Have a confirmation step
 
 ## Raindrop
 

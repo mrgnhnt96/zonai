@@ -2,12 +2,7 @@ import 'dart:convert';
 
 /// Display info extracted from a signed-in user's JWT payload.
 final class SessionUser {
-  const SessionUser({
-    required this.label,
-    this.email,
-    this.isAdmin = false,
-    this.canEdit = false,
-  });
+  const SessionUser({required this.label, this.email, this.isAdmin = false, this.canEdit = false});
 
   final String label;
   final String? email;

@@ -12,10 +12,7 @@ void main() {
 
   group('EnumListTransformer.encode', () {
     test('joins enum names for a multi-value list', () {
-      expect(
-        transformer.encode([_Tag.alpha, _Tag.beta]),
-        'alpha,beta',
-      );
+      expect(transformer.encode([_Tag.alpha, _Tag.beta]), 'alpha,beta');
     });
 
     test('encodes an empty list', () {
@@ -28,7 +25,11 @@ void main() {
         'alpha,beta',
       );
       expect(
-        transformer.encode(transformer.decode([['alpha', 'beta']])),
+        transformer.encode(
+          transformer.decode([
+            ['alpha', 'beta'],
+          ]),
+        ),
         'alpha,beta',
       );
     });
@@ -36,17 +37,11 @@ void main() {
 
   group('EnumListTransformer.decode', () {
     test('decodes comma-separated wire text', () {
-      expect(
-        transformer.decode('alpha,beta'),
-        [_Tag.alpha, _Tag.beta],
-      );
+      expect(transformer.decode('alpha,beta'), [_Tag.alpha, _Tag.beta]);
     });
 
     test('decodes JSON-style string lists', () {
-      expect(
-        transformer.decode(['alpha', 'gamma']),
-        [_Tag.alpha, _Tag.gamma],
-      );
+      expect(transformer.decode(['alpha', 'gamma']), [_Tag.alpha, _Tag.gamma]);
     });
 
     test('decodes empty string as empty list', () {
@@ -54,15 +49,14 @@ void main() {
     });
 
     test('decodes JSON array wire text', () {
-      expect(
-        transformer.decode('["alpha","gamma"]'),
-        [_Tag.alpha, _Tag.gamma],
-      );
+      expect(transformer.decode('["alpha","gamma"]'), [_Tag.alpha, _Tag.gamma]);
     });
 
     test('decodes a single nested list', () {
       expect(
-        transformer.decode([['alpha', 'beta']]),
+        transformer.decode([
+          ['alpha', 'beta'],
+        ]),
         [_Tag.alpha, _Tag.beta],
       );
     });

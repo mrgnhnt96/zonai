@@ -76,9 +76,7 @@ abstract final class AuthRoutes {
       return authTypes.length > 1 ? signIn : null;
     }
 
-    if (isResetPasswordCallbackPath(path) ||
-        isMagicLinkCallbackPath(path) ||
-        isVerifyEmailCallbackPath(path)) {
+    if (isResetPasswordCallbackPath(path) || isMagicLinkCallbackPath(path) || isVerifyEmailCallbackPath(path)) {
       if (authTypes.length > 1) {
         return signIn;
       }
@@ -106,9 +104,7 @@ abstract final class AuthRoutes {
       return null;
     }
 
-    return AuthType.values
-        .where((type) => type.name == segment)
-        .firstOrNull;
+    return AuthType.values.where((type) => type.name == segment).firstOrNull;
   }
 
   static String normalizePath(String path) => _normalizePath(path);

@@ -9,8 +9,7 @@ import 'photo_edit_value.dart';
 const _deepCollectionEquality = DeepCollectionEquality();
 
 /// Password or other secret columns (redacted in list responses).
-bool isPasswordColumn(ColumnShape shape) =>
-    shape.isSecret || shape.kind == ColumnShapeKind.password;
+bool isPasswordColumn(ColumnShape shape) => shape.isSecret || shape.kind == ColumnShapeKind.password;
 
 /// Whether the admin UI should offer editing for this column.
 bool isColumnEditable(ColumnShape shape) {
@@ -62,28 +61,16 @@ List<String> createRequiredFieldLabels(List<ColumnShape> columnShapes) {
 /// Whether a required field has valid user input when updating a row.
 ///
 /// Blank password/secret inputs mean "keep existing value" and count as satisfied.
-bool isEditFieldSatisfied({
-  required ColumnShape shape,
-  required Object? draftValue,
-  String? textInput,
-}) {
+bool isEditFieldSatisfied({required ColumnShape shape, required Object? draftValue, String? textInput}) {
   if (!isCreateFieldRequired(shape)) return true;
   if (isPasswordColumn(shape) && isPasswordUpdateUnchanged(textInput)) {
     return true;
   }
-  return isCreateFieldSatisfied(
-    shape: shape,
-    draftValue: draftValue,
-    textInput: textInput,
-  );
+  return isCreateFieldSatisfied(shape: shape, draftValue: draftValue, textInput: textInput);
 }
 
 /// Whether a required create field has valid user input.
-bool isCreateFieldSatisfied({
-  required ColumnShape shape,
-  required Object? draftValue,
-  String? textInput,
-}) {
+bool isCreateFieldSatisfied({required ColumnShape shape, required Object? draftValue, String? textInput}) {
   if (!isCreateFieldRequired(shape)) return true;
 
   try {
@@ -98,11 +85,7 @@ bool isCreateFieldSatisfied({
       return true;
     }
 
-    parseEditValue(
-      draftValue: draftValue,
-      textInput: textInput ?? '',
-      shape: shape,
-    );
+    parseEditValue(draftValue: draftValue, textInput: textInput ?? '', shape: shape);
     return true;
   } on FormatException {
     return false;
@@ -136,11 +119,7 @@ List<String> remainingEditRequiredFieldLabels({
   return [
     for (var i = 0; i < columnShapes.length; i++)
       if (isCreateFieldRequired(columnShapes[i]) &&
-          !isEditFieldSatisfied(
-            shape: columnShapes[i],
-            draftValue: draft.elementAtOrNull(i),
-            textInput: textInputs[i],
-          ))
+          !isEditFieldSatisfied(shape: columnShapes[i], draftValue: draft.elementAtOrNull(i), textInput: textInputs[i]))
         columnShapeHeaderLabel(columnShapes[i]),
   ];
 }
@@ -352,11 +331,7 @@ Object? _parsePasswordEditValue(String text, {required ColumnShape shape}) {
 }
 
 /// True when a password field was left blank or still matches [originalValue].
-bool isPasswordUpdateUnchanged(
-  String? textInput, {
-  Object? originalValue,
-  ColumnShape? shape,
-}) {
+bool isPasswordUpdateUnchanged(String? textInput, {Object? originalValue, ColumnShape? shape}) {
   if (textInput == null || textInput.trim().isEmpty) return true;
   if (originalValue != null && shape != null && isPasswordColumn(shape)) {
     return textInput == cellToEditString(originalValue, shape, revealSecrets: true);
@@ -561,7 +536,10 @@ void _writeDisplayJson(Object? value, StringBuffer out, {required int depth}) {
 }
 
 List<int> _intListWire(List list) {
-  return [for (final item in list) if (item is int) item else int.parse('$item')];
+  return [
+    for (final item in list)
+      if (item is int) item else int.parse('$item'),
+  ];
 }
 
 /// Byte arrays and BigInt binary-digit wire: keep `[…]` on one line (e.g. after `"payload":`).
@@ -653,9 +631,7 @@ String _formatBlobForEdit(Object value) {
 Object? _normalizeMapForEdit(Object value) {
   final decoded = _decodeJsonEditValue(value);
   if (decoded is Map) {
-    return Map<String, dynamic>.from(
-      decoded.map((key, v) => MapEntry(key.toString(), v)),
-    );
+    return Map<String, dynamic>.from(decoded.map((key, v) => MapEntry(key.toString(), v)));
   }
   return value;
 }
@@ -729,9 +705,7 @@ Map<String, dynamic> parseMapEditValue(String text) {
     throw FormatException(_mapTopLevelTypeMessage(decoded));
   }
 
-  return Map<String, dynamic>.from(
-    decoded.map((key, value) => MapEntry(key.toString(), value)),
-  );
+  return Map<String, dynamic>.from(decoded.map((key, value) => MapEntry(key.toString(), value)));
 }
 
 String _friendlyJsonSyntaxMessage(String detail) {
@@ -765,9 +739,8 @@ Object? _parseBigIntEditValue(String text, {required ColumnShape shape}) {
 }
 
 /// Binary-digit blob wire format used by [BigIntTransfomer].
-Uint8List encodeBigIntWire(BigInt value) => Uint8List.fromList(
-  value.toRadixString(2).split('').map(int.parse).toList(),
-);
+Uint8List encodeBigIntWire(BigInt value) =>
+    Uint8List.fromList(value.toRadixString(2).split('').map(int.parse).toList());
 
 Uint8List _parseBlobEditValue(String text) {
   final trimmed = text.trim();
@@ -809,11 +782,7 @@ bool _dateTimesEqualForEdit(Object? a, Object? b) {
 
   final au = da.toUtc();
   final bu = db.toUtc();
-  return au.year == bu.year &&
-      au.month == bu.month &&
-      au.day == bu.day &&
-      au.hour == bu.hour &&
-      au.minute == bu.minute;
+  return au.year == bu.year && au.month == bu.month && au.day == bu.day && au.hour == bu.hour && au.minute == bu.minute;
 }
 
 double? _toDouble(Object value) => switch (value) {
@@ -884,10 +853,7 @@ List<Object?> initialCreateDraft(List<ColumnShape> columnShapes) {
 }
 
 /// Whether the create draft differs from its initial empty state.
-bool createDraftHasChanges({
-  required List<Object?> draft,
-  required List<ColumnShape> columnShapes,
-}) {
+bool createDraftHasChanges({required List<Object?> draft, required List<ColumnShape> columnShapes}) {
   final initial = initialCreateDraft(columnShapes);
   for (var i = 0; i < columnShapes.length; i++) {
     final shape = columnShapes[i];
@@ -901,19 +867,16 @@ bool createDraftHasChanges({
 
 String formatReadOnlyCell(Object? value, ColumnShape? shape, {bool revealSecrets = false}) {
   return switch (shape?.kind) {
-    ColumnShapeKind.boolean || ColumnShapeKind.isVerified when value != null =>
-      cellEditValueAsBool(value) ? 'true' : 'false',
+    ColumnShapeKind.boolean ||
+    ColumnShapeKind.isVerified when value != null => cellEditValueAsBool(value) ? 'true' : 'false',
     _ => formatSchemaCell(value, shape, truncate: false, revealSecrets: revealSecrets),
   };
 }
 
-bool isForeignKeyColumn(ColumnShape shape) =>
-    shape.foreignKey != null && !isPhotoColumnKind(shape.kind);
+bool isForeignKeyColumn(ColumnShape shape) => shape.foreignKey != null && !isPhotoColumnKind(shape.kind);
 
 bool isDateTimeColumnKind(ColumnShapeKind kind) =>
-    kind == ColumnShapeKind.dateTime ||
-    kind == ColumnShapeKind.createdAt ||
-    kind == ColumnShapeKind.updatedAt;
+    kind == ColumnShapeKind.dateTime || kind == ColumnShapeKind.createdAt || kind == ColumnShapeKind.updatedAt;
 
 /// HTML input attributes for native typed inputs (filter + edit).
 Map<String, String> validationAttributesForShape(ColumnShape shape) {
@@ -922,10 +885,7 @@ Map<String, String> validationAttributesForShape(ColumnShape shape) {
   }
 
   return switch (shape.kind) {
-    ColumnShapeKind.integer || ColumnShapeKind.bigInt => const {
-      'inputmode': 'numeric',
-      'step': '1',
-    },
+    ColumnShapeKind.integer || ColumnShapeKind.bigInt => const {'inputmode': 'numeric', 'step': '1'},
     ColumnShapeKind.real => const {'inputmode': 'decimal', 'step': 'any'},
     ColumnShapeKind.email => const {'inputmode': 'email', 'type': 'email'},
     _ => const {},
@@ -981,15 +941,7 @@ String wallDateTimeToFilterText(DateTime wall, {required bool useUtc}) {
   if (useUtc) {
     final utc = wall.isUtc
         ? wall
-        : DateTime.utc(
-            wall.year,
-            wall.month,
-            wall.day,
-            wall.hour,
-            wall.minute,
-            wall.second,
-            wall.millisecond,
-          );
+        : DateTime.utc(wall.year, wall.month, wall.day, wall.hour, wall.minute, wall.second, wall.millisecond);
     return '${utc.millisecondsSinceEpoch}';
   }
   final local = wall.isUtc ? wall.toLocal() : wall;
@@ -1006,20 +958,7 @@ String localWallDateTimeToFilterText(DateTime local) {
   return localDateTimeInputToFilterText('$y-$m-${d}T$h:$min');
 }
 
-const _monthAbbrev = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
+const _monthAbbrev = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /// 12-hour clock (1–12) and AM/PM from 24-hour [hour] (0–23).
 (int hour12, bool isPm) hour24To12Parts(int hour) {

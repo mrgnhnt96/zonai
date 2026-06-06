@@ -174,9 +174,7 @@ class AuthNotifier extends Notifier<bool> {
     }
 
     try {
-      final session = await revaliServer.auth.refreshToken(
-        authorization: 'Bearer $token',
-      );
+      final session = await revaliServer.auth.refreshToken(authorization: 'Bearer $token');
 
       final accessToken = session?['accessToken'];
       if (accessToken is! String || accessToken.isEmpty) {

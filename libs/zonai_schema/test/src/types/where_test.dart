@@ -43,7 +43,8 @@ void main() {
         In('id', <Object>[1, 2, 3]),
         NotIn('status', <Object>['open', 'pending']),
       ]) {
-        final decoded = jsonDecode(jsonEncode(where.toJson())) as Map<String, dynamic>;
+        final decoded =
+            jsonDecode(jsonEncode(where.toJson())) as Map<String, dynamic>;
         expect(Where.fromJson(decoded).toJson(), where.toJson());
       }
     });

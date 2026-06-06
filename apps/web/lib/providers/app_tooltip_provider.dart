@@ -2,19 +2,10 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import 'table_focus_provider.dart';
 
-enum AppTooltipPlacement {
-  belowCenter,
-  belowLeft,
-  rightCenter,
-}
+enum AppTooltipPlacement { belowCenter, belowLeft, rightCenter }
 
 final class AppTooltipState {
-  const AppTooltipState({
-    this.text,
-    this.top = 0,
-    this.left = 0,
-    this.placement = AppTooltipPlacement.belowCenter,
-  });
+  const AppTooltipState({this.text, this.top = 0, this.left = 0, this.placement = AppTooltipPlacement.belowCenter});
 
   final String? text;
   final double top;
@@ -22,9 +13,7 @@ final class AppTooltipState {
   final AppTooltipPlacement placement;
 }
 
-final appTooltipProvider = NotifierProvider<AppTooltipNotifier, AppTooltipState>(
-  AppTooltipNotifier.new,
-);
+final appTooltipProvider = NotifierProvider<AppTooltipNotifier, AppTooltipState>(AppTooltipNotifier.new);
 
 class AppTooltipNotifier extends Notifier<AppTooltipState> {
   @override

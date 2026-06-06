@@ -25,6 +25,7 @@ const _slideDuration = Duration(milliseconds: 250);
 const _panelMinWidthPx = 320.0;
 const _panelDefaultWidthFraction = 0.25;
 const _panelMaxWidthFraction = 3 / 4;
+
 class TableSearchSidePanel extends StatefulComponent {
   const TableSearchSidePanel({super.key});
 

@@ -4,8 +4,7 @@ import 'package:zonai_schema/src/types/jwt.dart';
 
 JwtTableRules main() => JwtTableRules();
 
-final class JwtTableRules
-    extends InternalTableRules<JwtTable, JwtEntry> {
+final class JwtTableRules extends InternalTableRules<JwtTable, JwtEntry> {
   JwtTableRules() : super(jwts);
 
   @override

@@ -142,13 +142,7 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
   }) {
     final current = state;
     if (current == null) {
-      open(
-        rowKey: rowKey,
-        row: row,
-        sqliteName: sqliteName,
-        columns: columns,
-        columnShapes: columnShapes,
-      );
+      open(rowKey: rowKey, row: row, sqliteName: sqliteName, columns: columns, columnShapes: columnShapes);
       return;
     }
     state = TableRowDetailState(
@@ -197,13 +191,7 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
       close();
       return;
     }
-    open(
-      rowKey: rowKey,
-      row: row,
-      sqliteName: sqliteName,
-      columns: columns,
-      columnShapes: columnShapes,
-    );
+    open(rowKey: rowKey, row: row, sqliteName: sqliteName, columns: columns, columnShapes: columnShapes);
   }
 
   void openFocusedRow({
@@ -217,8 +205,7 @@ class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
   }) {
     final current = state;
     if (current != null && current.rowKey == rowKey) {
-      if (current.viewMode == viewMode &&
-          !(viaEditShortcut && viewMode == TableRowDetailViewMode.edit)) {
+      if (current.viewMode == viewMode && !(viaEditShortcut && viewMode == TableRowDetailViewMode.edit)) {
         return;
       }
       state = current.copyWith(

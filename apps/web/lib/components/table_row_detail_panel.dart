@@ -516,11 +516,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     _lastHadPanel = hasPanel;
   }
 
-  bool _canEditRow(
-    TableRowDetailState detail,
-    Map<String, TableCollectionActions> allActions,
-    bool sessionCanEdit,
-  ) {
+  bool _canEditRow(TableRowDetailState detail, Map<String, TableCollectionActions> allActions, bool sessionCanEdit) {
     return canUpdateTableRows(
       allActions: allActions,
       actions: allActions[detail.sqliteName],
@@ -582,11 +578,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       _textInputs = {
         for (var i = 0; i < detail.row.length; i++)
           if (_usesTextInput(detail.columnShapes.elementAtOrNull(i)))
-            i: cellToEditWireText(
-              detail.row[i],
-              detail.columnShapes.elementAtOrNull(i),
-              revealSecrets: true,
-            ),
+            i: cellToEditWireText(detail.row[i], detail.columnShapes.elementAtOrNull(i), revealSecrets: true),
       };
       _showRawJson = false;
       _rawJsonRowKey = null;
@@ -660,11 +652,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           final text = _textInputs[i];
           if (text == null) continue;
           try {
-            final parsed = parseEditValue(
-              draftValue: _draft![i],
-              textInput: text,
-              shape: shape,
-            );
+            final parsed = parseEditValue(draftValue: _draft![i], textInput: text, shape: shape);
             if (!cellValuesEqual(detail.row[i], parsed, shape)) return true;
           } on FormatException {
             if (text != cellToEditWireText(detail.row[i], shape, revealSecrets: true)) {
@@ -738,28 +726,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       }
       if (isPasswordColumn(shape)) {
         final text = _textInputs[i];
-        if (isPasswordUpdateUnchanged(
-          text,
-          originalValue: detail.row[i],
-          shape: shape,
-        )) {
+        if (isPasswordUpdateUnchanged(text, originalValue: detail.row[i], shape: shape)) {
           parsed[i] = detail.row[i];
           continue;
         }
-        parsed[i] = parseEditValue(
-          draftValue: draft[i],
-          textInput: text!,
-          shape: shape,
-        );
+        parsed[i] = parseEditValue(draftValue: draft[i], textInput: text!, shape: shape);
         continue;
       }
       final text = _textInputs[i];
       if (text == null) continue;
-      parsed[i] = parseEditValue(
-        draftValue: draft[i],
-        textInput: text,
-        shape: shape,
-      );
+      parsed[i] = parseEditValue(draftValue: draft[i], textInput: text, shape: shape);
     }
     return parsed;
   }
@@ -785,9 +761,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         textValue: _textInputs[index] ?? '',
         disabled: _saving,
         labelId: 'table-row-edit-label-${shape.name}',
-        onFkInvalidChanged: isForeignKeyColumn(shape)
-            ? (invalid) => _setFkFieldInvalid(shape.name, invalid)
-            : null,
+        onFkInvalidChanged: isForeignKeyColumn(shape) ? (invalid) => _setFkFieldInvalid(shape.name, invalid) : null,
         onDraftChanged: (value) {
           setState(() {
             _draft ??= List<Object?>.from(detail.row);
@@ -818,11 +792,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         parsed[i] = parseDraftCellValue(draftValue: draft[i], shape: shape);
         continue;
       }
-      parsed[i] = parseEditValue(
-        draftValue: draft[i],
-        textInput: _textInputs[i] ?? '',
-        shape: shape,
-      );
+      parsed[i] = parseEditValue(draftValue: draft[i], textInput: _textInputs[i] ?? '', shape: shape);
     }
     return parsed;
   }
@@ -903,9 +873,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         textValue: _textInputs[index] ?? '',
         disabled: _saving,
         labelId: 'table-row-create-label-${shape.name}',
-        onFkInvalidChanged: isForeignKeyColumn(shape)
-            ? (invalid) => _setFkFieldInvalid(shape.name, invalid)
-            : null,
+        onFkInvalidChanged: isForeignKeyColumn(shape) ? (invalid) => _setFkFieldInvalid(shape.name, invalid) : null,
         onDraftChanged: (value) {
           setState(() {
             _draft ??= initialCreateDraft(create.columnShapes);
@@ -918,12 +886,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       );
     }
 
-    return _DetailField(
-      label: label,
-      rawValue: null,
-      shape: shape,
-      readOnlyHint: true,
-    );
+    return _DetailField(label: label, rawValue: null, shape: shape, readOnlyHint: true);
   }
 
   Future<void> _saveCreate(TableRowCreateState create) async {
@@ -954,11 +917,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       return;
     }
 
-    final object = buildCreateObject(
-      draft: parsedDraft,
-      columns: create.columns,
-      columnShapes: create.columnShapes,
-    );
+    final object = buildCreateObject(draft: parsedDraft, columns: create.columns, columnShapes: create.columnShapes);
 
     if (object.isEmpty) {
       setState(() => _saving = false);
@@ -967,21 +926,22 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     try {
-      final record = await context.read(tableRowsProvider.notifier).createRow(
-        sqliteName: create.sqliteName,
-        object: object,
-      );
+      final record = await context
+          .read(tableRowsProvider.notifier)
+          .createRow(sqliteName: create.sqliteName, object: object);
       if (!mounted) return;
 
       final newRow = rowFromRecord(record, create.columns);
       final rowKey = tableRowKey(newRow, create.columnShapes);
-      context.read(tableRowDetailProvider.notifier).open(
-        rowKey: rowKey,
-        row: newRow,
-        sqliteName: create.sqliteName,
-        columns: create.columns,
-        columnShapes: create.columnShapes,
-      );
+      context
+          .read(tableRowDetailProvider.notifier)
+          .open(
+            rowKey: rowKey,
+            row: newRow,
+            sqliteName: create.sqliteName,
+            columns: create.columns,
+            columnShapes: create.columnShapes,
+          );
       context.read(toastProvider.notifier).showSuccess('Row created');
       setState(() {
         _saving = false;
@@ -1072,13 +1032,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     }
 
     try {
-      final record = await context.read(tableRowsProvider.notifier).updateRow(
-        sqliteName: detail.sqliteName,
-        row: detail.row,
-        columns: detail.columns,
-        columnShapes: detail.columnShapes,
-        changedFields: updates,
-      );
+      final record = await context
+          .read(tableRowsProvider.notifier)
+          .updateRow(
+            sqliteName: detail.sqliteName,
+            row: detail.row,
+            columns: detail.columns,
+            columnShapes: detail.columnShapes,
+            changedFields: updates,
+          );
       if (!mounted) return;
 
       final newRow = rowFromRecord(record, detail.columns);
@@ -1232,32 +1194,23 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
               ]),
             ]),
             div(classes: 'table-row-detail-body', [
-              for (var i = 0; i < create.columns.length; i++)
-                _buildCreateField(context, create, i),
+              for (var i = 0; i < create.columns.length; i++) _buildCreateField(context, create, i),
             ]),
             div(classes: 'table-row-detail-footer table-row-detail-footer--create', [
               if (requiredFields.isNotEmpty)
-                p(classes: 'table-row-create-required-hint', [
-                  .text('Required: ${requiredFields.join(', ')}'),
-                ]),
+                p(classes: 'table-row-create-required-hint', [.text('Required: ${requiredFields.join(', ')}')]),
               div(classes: 'table-row-detail-footer-actions', [
                 button(
                   classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
                   type: .button,
-                  attributes: {
-                    'aria-label': 'Create row',
-                    if (!canSubmit) 'disabled': 'true',
-                  },
+                  attributes: {'aria-label': 'Create row', if (!canSubmit) 'disabled': 'true'},
                   onClick: canSubmit ? () => _saveCreate(create) : null,
                   [.text(_saving ? 'Creating…' : 'Create')],
                 ),
                 button(
                   classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
                   type: .button,
-                  attributes: {
-                    'aria-label': 'Cancel creating row',
-                    if (_saving) 'disabled': 'true',
-                  },
+                  attributes: {'aria-label': 'Cancel creating row', if (_saving) 'disabled': 'true'},
                   onClick: _saving ? null : () => _requestCreateDismiss(_PendingDismiss.closeCreate),
                   [.text('Cancel')],
                 ),
@@ -1289,13 +1242,10 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final rowEditable = _canEditRow(cached, allActions, sessionCanEdit);
     final canSave = _canSubmitEdit(cached);
     final requiredFields = _editing && _draft != null
-        ? remainingEditRequiredFieldLabels(
-            draft: _draft!,
-            textInputs: _textInputs,
-            columnShapes: cached.columnShapes,
-          )
+        ? remainingEditRequiredFieldLabels(draft: _draft!, textInputs: _textInputs, columnShapes: cached.columnShapes)
         : const <String>[];
-    final canResetPassword = !_editing && sessionCanEdit && _isPasswordAuthTable(cached) && _emailForPasswordReset(cached) != null;
+    final canResetPassword =
+        !_editing && sessionCanEdit && _isPasswordAuthTable(cached) && _emailForPasswordReset(cached) != null;
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     void goBack() => _requestNavigateBack(cached);
     final subtitle = _detailSubtitle(cached);
@@ -1353,8 +1303,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                     ),
                   div(classes: 'table-row-detail-header-heading', [
                     h2(classes: 'table-row-detail-title', [.text('Row details')]),
-                    if (subtitle.isNotEmpty)
-                      p(classes: 'table-row-detail-subtitle', [.text(subtitle)]),
+                    if (subtitle.isNotEmpty) p(classes: 'table-row-detail-subtitle', [.text(subtitle)]),
                   ]),
                 ]),
               ]),
@@ -1363,15 +1312,11 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                   button(
                     classes: 'table-row-detail-view-toggle',
                     type: .button,
-                    attributes: {
-                      'aria-label': showRawJson ? 'Show field details' : 'Show raw JSON',
-                    },
+                    attributes: {'aria-label': showRawJson ? 'Show field details' : 'Show raw JSON'},
                     onClick: () {
                       context.read(appTooltipProvider.notifier).hide();
                       final notifier = context.read(tableRowDetailProvider.notifier);
-                      notifier.setViewMode(
-                        showRawJson ? TableRowDetailViewMode.fields : TableRowDetailViewMode.json,
-                      );
+                      notifier.setViewMode(showRawJson ? TableRowDetailViewMode.fields : TableRowDetailViewMode.json);
                     },
                     [.text(showRawJson ? 'Fields' : 'JSON')],
                   ),
@@ -1388,39 +1333,25 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
               if (showRawJson)
                 _RawJsonCard(json: _detailRawJson(cached))
               else
-                for (var i = 0; i < cached.row.length; i++)
-                  _buildDetailField(context, cached, i),
+                for (var i = 0; i < cached.row.length; i++) _buildDetailField(context, cached, i),
             ]),
             if ((rowEditable || canResetPassword) && !showRawJson)
-              div(
-                classes: [
-                  'table-row-detail-footer',
-                  if (_editing) 'table-row-detail-footer--create',
-                ].join(' '),
-                [
+              div(classes: ['table-row-detail-footer', if (_editing) 'table-row-detail-footer--create'].join(' '), [
                 if (_editing) ...[
                   if (requiredFields.isNotEmpty)
-                    p(classes: 'table-row-create-required-hint', [
-                      .text('Required: ${requiredFields.join(', ')}'),
-                    ]),
+                    p(classes: 'table-row-create-required-hint', [.text('Required: ${requiredFields.join(', ')}')]),
                   div(classes: 'table-row-detail-footer-actions', [
                     button(
                       classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
                       type: .button,
-                      attributes: {
-                        'aria-label': 'Save row',
-                        if (_saving || !canSave) 'disabled': 'true',
-                      },
+                      attributes: {'aria-label': 'Save row', if (_saving || !canSave) 'disabled': 'true'},
                       onClick: canSave ? () => _saveRow(cached) : null,
                       [.text(_saving ? 'Saving…' : 'Save')],
                     ),
                     button(
                       classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
                       type: .button,
-                      attributes: {
-                        'aria-label': 'Cancel editing',
-                        if (_saving) 'disabled': 'true',
-                      },
+                      attributes: {'aria-label': 'Cancel editing', if (_saving) 'disabled': 'true'},
                       onClick: _saving ? null : () => _requestDismiss(cached, _PendingDismiss.cancelEditing),
                       [.text('Cancel')],
                     ),
@@ -1432,9 +1363,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                         classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
                         type: .button,
                         attributes: {'aria-label': 'Edit row'},
-                        onClick: () => context.read(tableRowDetailProvider.notifier).setViewMode(
-                          TableRowDetailViewMode.edit,
-                        ),
+                        onClick: () =>
+                            context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.edit),
                         [.text('Edit row')],
                       ),
                     if (canResetPassword)
@@ -1516,8 +1446,7 @@ class _DiscardChangesDialogState extends State<_DiscardChangesDialog> {
       _DiscardDialogMode.edit => 'Discard changes?',
     };
     final message = switch ((mode, hasUnsavedChanges)) {
-      (_DiscardDialogMode.create, true) =>
-        'You have unsaved changes. If you leave now, this row will not be created.',
+      (_DiscardDialogMode.create, true) => 'You have unsaved changes. If you leave now, this row will not be created.',
       (_DiscardDialogMode.create, false) => 'If you leave now, this row will not be created.',
       (_, true) => 'You have unsaved changes. If you leave now, your edits will be lost.',
       (_, false) => 'If you leave now, your edits will be lost.',
@@ -1533,21 +1462,11 @@ class _DiscardChangesDialogState extends State<_DiscardChangesDialog> {
       [
         div(
           classes: 'table-row-detail-discard-dialog',
-          attributes: {
-            'role': 'dialog',
-            'aria-modal': 'true',
-            'aria-labelledby': 'table-row-detail-discard-title',
-          },
+          attributes: {'role': 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'table-row-detail-discard-title'},
           events: {'click': (event) => event.stopPropagation()},
           [
-            h3(
-              id: 'table-row-detail-discard-title',
-              classes: 'table-row-detail-discard-title',
-              [.text(title)],
-            ),
-            p(classes: 'table-row-detail-discard-message', [
-              .text(message),
-            ]),
+            h3(id: 'table-row-detail-discard-title', classes: 'table-row-detail-discard-title', [.text(title)]),
+            p(classes: 'table-row-detail-discard-message', [.text(message)]),
             div(classes: 'table-row-detail-discard-actions', [
               button(
                 classes:
@@ -1575,9 +1494,7 @@ String _detailRawJson(TableRowDetailState detail) {
   try {
     return formatDisplayJson(map);
   } on Object {
-    return formatDisplayJson({
-      for (final entry in map.entries) entry.key: entry.value?.toString(),
-    });
+    return formatDisplayJson({for (final entry in map.entries) entry.key: entry.value?.toString()});
   }
 }
 
@@ -1588,11 +1505,7 @@ class _RawJsonCard extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return QueryPreviewCard(
-      label: 'JSON',
-      text: json,
-      highlightLanguage: SyntaxHighlightLanguage.json,
-    );
+    return QueryPreviewCard(label: 'JSON', text: json, highlightLanguage: SyntaxHighlightLanguage.json);
   }
 }
 
@@ -1610,12 +1523,7 @@ String _detailSubtitle(TableRowDetailState detail) {
 }
 
 class _DetailField extends StatelessComponent {
-  const _DetailField({
-    required this.label,
-    required this.rawValue,
-    required this.shape,
-    this.readOnlyHint = false,
-  });
+  const _DetailField({required this.label, required this.rawValue, required this.shape, this.readOnlyHint = false});
 
   final String label;
   final Object? rawValue;
@@ -1642,11 +1550,7 @@ class _DetailField extends StatelessComponent {
     return div(
       classes: fieldClass,
       events: readOnlyHint
-          ? appTooltipEvents(
-              context,
-              text: readOnlyTooltip,
-              placement: AppTooltipPlacement.belowLeft,
-            )
+          ? appTooltipEvents(context, text: readOnlyTooltip, placement: AppTooltipPlacement.belowLeft)
           : const {},
       [
         div(classes: 'table-row-detail-label-row', [
@@ -1689,12 +1593,9 @@ class _EditDetailField extends StatelessComponent {
     final fieldId = 'table-row-edit-${shape.name}';
 
     return div(classes: 'table-row-detail-field table-row-detail-field--edit', [
-      label(
-        id: labelId,
-        htmlFor: fieldId,
-        classes: 'table-row-detail-label table-row-detail-label--stacked',
-        [.text(fieldLabel)],
-      ),
+      label(id: labelId, htmlFor: fieldId, classes: 'table-row-detail-label table-row-detail-label--stacked', [
+        .text(fieldLabel),
+      ]),
       TableCellEditField(
         id: fieldId,
         shape: shape,
@@ -1743,12 +1644,9 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
     _tooltipTop = rect.bottom + 6;
     _tooltipLeft = rect.left + rect.width / 2;
     _tooltipPlacement = AppTooltipPlacement.belowCenter;
-    context.read(appTooltipProvider.notifier).show(
-      text: _tooltipText,
-      top: _tooltipTop!,
-      left: _tooltipLeft!,
-      placement: _tooltipPlacement,
-    );
+    context
+        .read(appTooltipProvider.notifier)
+        .show(text: _tooltipText, top: _tooltipTop!, left: _tooltipLeft!, placement: _tooltipPlacement);
   }
 
   void _hideTooltip(_) {
@@ -1770,12 +1668,9 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
     final top = _tooltipTop;
     final left = _tooltipLeft;
     if (top != null && left != null) {
-      context.read(appTooltipProvider.notifier).show(
-        text: _tooltipText,
-        top: top,
-        left: left,
-        placement: _tooltipPlacement,
-      );
+      context
+          .read(appTooltipProvider.notifier)
+          .show(text: _tooltipText, top: top, left: left, placement: _tooltipPlacement);
     }
     _resetTimer = Timer(const Duration(seconds: 1), () {
       if (!mounted) return;
@@ -1787,11 +1682,7 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
   Component build(BuildContext context) {
     return span(
       classes: 'table-row-detail-copy-wrap',
-      attributes: {
-        'role': 'button',
-        'tabindex': '0',
-        'aria-label': _tooltipText,
-      },
+      attributes: {'role': 'button', 'tabindex': '0', 'aria-label': _tooltipText},
       events: {
         'click': (_) => _onCopy(),
         'keydown': _onKeyDown,
@@ -1801,10 +1692,9 @@ class _CopyFieldValueButtonState extends State<_CopyFieldValueButton> {
         'blur': _hideTooltip,
       },
       [
-        span(
-          classes: 'table-row-detail-copy${_copied ? ' table-row-detail-copy--copied' : ''}',
-          [_copied ? _checkIconSvg() : _copyIconSvg()],
-        ),
+        span(classes: 'table-row-detail-copy${_copied ? ' table-row-detail-copy--copied' : ''}', [
+          _copied ? _checkIconSvg() : _copyIconSvg(),
+        ]),
       ],
     );
   }
@@ -1897,30 +1787,26 @@ class _DetailFieldValue extends StatelessComponent {
         rawValue: rawValue,
         shape: shape,
         onOpenReferencedRow: (context, referenced) {
-          context.read(tableRowDetailProvider.notifier).pushReferencedRow(
-            rowKey: referenced.rowKey,
-            row: referenced.row,
-            sqliteName: referenced.sqliteName,
-            columns: referenced.columns,
-            columnShapes: referenced.columnShapes,
-          );
+          context
+              .read(tableRowDetailProvider.notifier)
+              .pushReferencedRow(
+                rowKey: referenced.rowKey,
+                row: referenced.row,
+                sqliteName: referenced.sqliteName,
+                columns: referenced.columns,
+                columnShapes: referenced.columnShapes,
+              );
         },
       );
     }
 
     if (shape.isSecret || shape.kind == ColumnShapeKind.password) {
-      return _DetailPlainText(
-        value: formatReadOnlyCell(rawValue, shape, revealSecrets: true),
-      );
+      return _DetailPlainText(value: formatReadOnlyCell(rawValue, shape, revealSecrets: true));
     }
 
     final photoShape = photoShapeForCell(shape: shape, rawValue: rawValue);
     if (photoShape != null) {
-      return SchemaTablePhotoCell(
-        rawValue: rawValue,
-        shape: photoShape,
-        size: SchemaTablePhotoSize.detail,
-      );
+      return SchemaTablePhotoCell(rawValue: rawValue, shape: photoShape, size: SchemaTablePhotoSize.detail);
     }
 
     return switch (shape.kind) {
@@ -1932,9 +1818,8 @@ class _DetailFieldValue extends StatelessComponent {
       ColumnShapeKind.list => _detailListValue(rawValue),
       ColumnShapeKind.enum_ => _detailEnumValue(rawValue, shape.enumValues),
       ColumnShapeKind.enumList => _detailEnumListValue(rawValue, shape.enumValues),
-      ColumnShapeKind.boolean || ColumnShapeKind.isVerified => ZonaiBooleanCheck(
-        checked: cellEditValueAsBool(rawValue),
-      ),
+      ColumnShapeKind.boolean ||
+      ColumnShapeKind.isVerified => ZonaiBooleanCheck(checked: cellEditValueAsBool(rawValue)),
       _ => _DetailPlainText(value: formatReadOnlyCell(rawValue, shape)),
     };
   }
@@ -2090,18 +1975,10 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     margin: .zero,
     border: .none,
     backgroundColor: Colors.transparent,
-    raw: const {
-      'cursor': 'ew-resize',
-      'touch-action': 'none',
-      'box-sizing': 'border-box',
-      'z-index': '10',
-    },
+    raw: const {'cursor': 'ew-resize', 'touch-action': 'none', 'box-sizing': 'border-box', 'z-index': '10'},
   ),
   css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
-    css('.table-row-detail-panel').styles(
-      width: 100.percent,
-      raw: const {'max-width': '100%', 'min-width': '100%'},
-    ),
+    css('.table-row-detail-panel').styles(width: 100.percent, raw: const {'max-width': '100%', 'min-width': '100%'}),
     css('.table-row-detail-resize-handle').styles(display: .none),
   ]),
   css('.table-row-detail-main').styles(
@@ -2165,18 +2042,13 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     flex: Flex(grow: 0, shrink: 0),
     raw: const {'font': 'inherit', 'line-height': '1.2'},
   ),
-  css('.table-row-detail-back-icon').styles(
-    display: .block,
-    flex: Flex(grow: 0, shrink: 0),
-    raw: const {'line-height': '0'},
-  ),
-  css('.table-row-detail-back:hover:not(:disabled)').styles(
-    backgroundColor: hoverColor,
-    color: fgColor,
-  ),
-  css('.table-row-detail-back:focus-visible').styles(
-    raw: const {'outline': '2px solid var(--zonai-primary)', 'outline-offset': '1px'},
-  ),
+  css(
+    '.table-row-detail-back-icon',
+  ).styles(display: .block, flex: Flex(grow: 0, shrink: 0), raw: const {'line-height': '0'}),
+  css('.table-row-detail-back:hover:not(:disabled)').styles(backgroundColor: hoverColor, color: fgColor),
+  css(
+    '.table-row-detail-back:focus-visible',
+  ).styles(raw: const {'outline': '2px solid var(--zonai-primary)', 'outline-offset': '1px'}),
   css('.table-row-detail-title').styles(margin: .zero, fontSize: 0.9375.rem, fontWeight: .w600),
   css('.table-row-detail-subtitle').styles(
     margin: .zero,
@@ -2218,11 +2090,9 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     ),
     backgroundColor: surfaceColor,
   ),
-  css('.table-row-detail-footer--create').styles(
-    flexDirection: FlexDirection.column,
-    alignItems: .stretch,
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
+  css(
+    '.table-row-detail-footer--create',
+  ).styles(flexDirection: FlexDirection.column, alignItems: .stretch, gap: Gap.all(ZonaiSpacing.s3)),
   css('.table-row-create-required-hint').styles(
     margin: .zero,
     fontSize: 0.75.rem,
@@ -2233,9 +2103,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'line-height': '1.4',
     },
   ),
-  css('.table-row-detail-footer--create .table-row-detail-footer-actions').styles(
-    alignSelf: .end,
-  ),
+  css('.table-row-detail-footer--create .table-row-detail-footer-actions').styles(alignSelf: .end),
   css('.table-row-detail-footer-actions').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
@@ -2243,20 +2111,15 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     width: _footerContentMaxWidthPx.px,
     maxWidth: _footerContentMaxWidthPx.px,
   ),
-  css('.table-row-detail-footer-actions .table-row-detail-footer-btn--primary').styles(
-    flex: Flex(grow: 3, shrink: 1),
-    width: .auto,
-    maxWidth: _footerSaveBtnMaxWidthPx.px,
-  ),
-  css('.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel').styles(
-    flex: Flex(grow: 1, shrink: 1),
-    width: .auto,
-    maxWidth: _footerCancelBtnMaxWidthPx.px,
-  ),
-  css('.table-row-detail-footer > .table-row-detail-footer-btn').styles(
-    width: _footerContentMaxWidthPx.px,
-    maxWidth: _footerContentMaxWidthPx.px,
-  ),
+  css(
+    '.table-row-detail-footer-actions .table-row-detail-footer-btn--primary',
+  ).styles(flex: Flex(grow: 3, shrink: 1), width: .auto, maxWidth: _footerSaveBtnMaxWidthPx.px),
+  css(
+    '.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel',
+  ).styles(flex: Flex(grow: 1, shrink: 1), width: .auto, maxWidth: _footerCancelBtnMaxWidthPx.px),
+  css(
+    '.table-row-detail-footer > .table-row-detail-footer-btn',
+  ).styles(width: _footerContentMaxWidthPx.px, maxWidth: _footerContentMaxWidthPx.px),
   css('.table-row-detail-footer-btn').styles(
     display: .block,
     width: 100.percent,
@@ -2278,10 +2141,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     border: Border.all(color: primaryColor, width: 1.px, style: .solid),
   ),
   css('.table-row-detail-footer-btn--primary:hover').styles(backgroundColor: primaryHoverColor),
-  css('.table-row-detail-footer-btn:disabled').styles(
-    opacity: 0.55,
-    cursor: .notAllowed,
-  ),
+  css('.table-row-detail-footer-btn:disabled').styles(opacity: 0.55, cursor: .notAllowed),
   css('.table-row-detail-footer-btn--primary:disabled:hover').styles(backgroundColor: primaryColor),
   css('.table-row-detail-discard-backdrop').styles(
     position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
@@ -2289,10 +2149,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     alignItems: .center,
     justifyContent: .center,
     padding: .symmetric(horizontal: ZonaiSpacing.s11),
-    raw: const {
-      'z-index': '170',
-      'background-color': 'rgb(15 23 42 / 0.55)',
-    },
+    raw: const {'z-index': '170', 'background-color': 'rgb(15 23 42 / 0.55)'},
   ),
   css('.table-row-detail-discard-dialog').styles(
     width: 100.percent,
@@ -2306,24 +2163,13 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     radius: .all(Radius.circular(12.px)),
     raw: const {'box-shadow': 'var(--zonai-shadow)'},
   ),
-  css('.table-row-detail-discard-title').styles(
-    margin: .zero,
-    fontSize: 1.rem,
-    fontWeight: .w600,
-    color: fgColor,
-  ),
-  css('.table-row-detail-discard-message').styles(
-    margin: .zero,
-    fontSize: 0.875.rem,
-    color: mutedColor,
-    raw: const {'line-height': '1.5'},
-  ),
-  css('.table-row-detail-discard-actions').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    justifyContent: .end,
-    gap: Gap.all(ZonaiSpacing.s4),
-  ),
+  css('.table-row-detail-discard-title').styles(margin: .zero, fontSize: 1.rem, fontWeight: .w600, color: fgColor),
+  css(
+    '.table-row-detail-discard-message',
+  ).styles(margin: .zero, fontSize: 0.875.rem, color: mutedColor, raw: const {'line-height': '1.5'}),
+  css(
+    '.table-row-detail-discard-actions',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, justifyContent: .end, gap: Gap.all(ZonaiSpacing.s4)),
   css('.table-row-detail-discard-btn').styles(
     padding: ZonaiButtonSizes.textPadding(ZonaiButtonSize.sm),
     border: Border.all(color: borderColor, width: 1.px, style: .solid),
@@ -2351,14 +2197,8 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     gap: Gap.all(ZonaiSpacing.s7),
     minHeight: .zero,
   ),
-  css('.table-row-detail-value-card').styles(
-    width: 100.percent,
-    alignSelf: .stretch,
-  ),
-  css('.table-row-detail-value-card .table-row-detail-json-card').styles(
-    width: 100.percent,
-    maxWidth: 100.percent,
-  ),
+  css('.table-row-detail-value-card').styles(width: 100.percent, alignSelf: .stretch),
+  css('.table-row-detail-value-card .table-row-detail-json-card').styles(width: 100.percent, maxWidth: 100.percent),
   css('.table-row-detail-json-card').styles(
     position: Position.relative(),
     display: .flex,
@@ -2405,12 +2245,9 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css(
     '.table-row-detail-field',
   ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), minWidth: .zero),
-  css('.table-row-detail-label-row').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    alignItems: .center,
-    minWidth: .zero,
-  ),
+  css(
+    '.table-row-detail-label-row',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, minWidth: .zero),
   css('.table-row-detail-label-group').styles(
     display: .inlineFlex,
     flexDirection: FlexDirection.row,
@@ -2426,9 +2263,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     flex: Flex(grow: 0, shrink: 0),
     cursor: .pointer,
   ),
-  css('.table-row-detail-label-group .table-row-detail-copy-wrap').styles(
-    padding: .only(bottom: ZonaiSpacing.s1),
-  ),
+  css('.table-row-detail-label-group .table-row-detail-copy-wrap').styles(padding: .only(bottom: ZonaiSpacing.s1)),
   css('.table-row-detail-copy').styles(
     width: 0.6875.rem,
     height: 0.6875.rem,
@@ -2440,11 +2275,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     color: mutedColor,
     cursor: .pointer,
     outline: Outline(style: OutlineStyle.none),
-    raw: const {
-      'background': 'transparent',
-      'border': 'none',
-      'box-shadow': 'none',
-    },
+    raw: const {'background': 'transparent', 'border': 'none', 'box-shadow': 'none'},
   ),
   css('.table-row-detail-copy-wrap:hover .table-row-detail-copy').styles(color: fgColor),
   css('.table-row-detail-copy-wrap:hover .table-row-detail-copy--copied').styles(color: primaryColor),
@@ -2452,30 +2283,17 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-copy-icon').styles(
     display: .block,
     flex: Flex(grow: 0, shrink: 0),
-    raw: const {
-      'animation': 'table-row-detail-copy-icon-pop 0.2s ease-out',
-    },
+    raw: const {'animation': 'table-row-detail-copy-icon-pop 0.2s ease-out'},
   ),
   css('@keyframes table-row-detail-copy-icon-pop').styles(
-    raw: const {
-      'from': '{ transform: scale(0.82); opacity: 0.55; }',
-      'to': '{ transform: scale(1); opacity: 1; }',
-    },
+    raw: const {'from': '{ transform: scale(0.82); opacity: 0.55; }', 'to': '{ transform: scale(1); opacity: 1; }'},
   ),
-  css('.table-row-detail-field--edit').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
+  css(
+    '.table-row-detail-field--edit',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s3)),
   css('.table-row-detail-field--edit .z-input').styles(width: 100.percent),
-  css('.table-row-detail-field--edit textarea.z-input').styles(
-    raw: const {'resize': 'vertical', 'min-height': '5rem'},
-  ),
-  css('.table-row-detail-edit-checkbox').styles(
-    width: 16.px,
-    height: 16.px,
-    cursor: .pointer,
-  ),
+  css('.table-row-detail-field--edit textarea.z-input').styles(raw: const {'resize': 'vertical', 'min-height': '5rem'}),
+  css('.table-row-detail-edit-checkbox').styles(width: 16.px, height: 16.px, cursor: .pointer),
   css('.table-row-detail-label').styles(
     fontSize: 0.6875.rem,
     fontWeight: .w600,
@@ -2490,16 +2308,10 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
     },
   ),
-  css('.table-row-detail-label--stacked').styles(
-    display: .block,
-    width: 100.percent,
-    alignSelf: .start,
-    textAlign: TextAlign.left,
-    margin: .zero,
-  ),
-  css('.table-row-detail-field--readonly-in-edit').styles(
-    cursor: .help,
-  ),
+  css(
+    '.table-row-detail-label--stacked',
+  ).styles(display: .block, width: 100.percent, alignSelf: .start, textAlign: TextAlign.left, margin: .zero),
+  css('.table-row-detail-field--readonly-in-edit').styles(cursor: .help),
   css('.table-row-detail-value').styles(
     margin: .zero,
     fontSize: 0.8125.rem,

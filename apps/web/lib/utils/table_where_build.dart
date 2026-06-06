@@ -54,10 +54,7 @@ FilterConditionDraft draftForColumn(String columnName, List<ColumnShape> columnS
     return FilterConditionDraft(columnName: columnName.trim());
   }
   final operators = operatorsForColumn(shape);
-  return FilterConditionDraft(
-    columnName: shape.name,
-    operator: operators.isEmpty ? null : operators.first,
-  );
+  return FilterConditionDraft(columnName: shape.name, operator: operators.isEmpty ? null : operators.first);
 }
 
 /// Fills missing column/operator on an in-progress draft row.
@@ -126,12 +123,10 @@ TableWhereBuildResult buildWhereFromDraft({
     return TableWhereBuildSuccess(conditions.single);
   }
 
-  return TableWhereBuildSuccess(
-    switch (combine) {
-      FilterCombine.and => And(conditions),
-      FilterCombine.or => Or(conditions),
-    },
-  );
+  return TableWhereBuildSuccess(switch (combine) {
+    FilterCombine.and => And(conditions),
+    FilterCombine.or => Or(conditions),
+  });
 }
 
 Where _buildCondition({
@@ -261,9 +256,7 @@ String _describeCondition(Where where, List<ColumnShape> shapes) {
 /// Reconstructs draft rows from an applied [Where] (for panel re-open).
 List<FilterConditionDraft> draftsFromWhere(Where where) {
   return switch (where) {
-    And(:final conditions) || Or(:final conditions) => [
-      for (final c in conditions) ...draftsFromWhere(c),
-    ],
+    And(:final conditions) || Or(:final conditions) => [for (final c in conditions) ...draftsFromWhere(c)],
     _ => [_draftFromSingleWhere(where)],
   };
 }
@@ -284,14 +277,8 @@ FilterConditionDraft _draftFromSingleWhere(Where where) {
       valueText: '$value',
       boolValue: value == true,
     ),
-    Null(:final column) => FilterConditionDraft(
-      columnName: column,
-      operator: TableWhereOperator.null_,
-    ),
-    NotNull(:final column) => FilterConditionDraft(
-      columnName: column,
-      operator: TableWhereOperator.notNull,
-    ),
+    Null(:final column) => FilterConditionDraft(columnName: column, operator: TableWhereOperator.null_),
+    NotNull(:final column) => FilterConditionDraft(columnName: column, operator: TableWhereOperator.notNull),
     Gt(:final column, :final value) => FilterConditionDraft(
       columnName: column,
       operator: TableWhereOperator.gt,

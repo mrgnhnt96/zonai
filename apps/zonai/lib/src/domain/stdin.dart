@@ -6,9 +6,7 @@ import '../deps/clean_up.dart';
 class Stdin {
   Stdin()
     : _stream = io.stdin,
-      _controller = StreamController<List<int>>.broadcast() {
-    _subscribe();
-  }
+      _controller = StreamController<List<int>>.broadcast();
 
   final Stream<List<int>> _stream;
   StreamController<List<int>> _controller;
@@ -22,7 +20,10 @@ class Stdin {
     cleanUp.add(_dispose);
   }
 
-  Stream<List<int>> get stream => _controller.stream;
+  Stream<List<int>> get stream {
+    _subscribe();
+    return _controller.stream;
+  }
 
   bool get hasTerminal => io.stdin.hasTerminal;
 
@@ -48,6 +49,13 @@ class Stdin {
     } on io.StdinException {
       return null;
     }
+  }
+
+  /// Releases the underlying stdin subscription so another runtime (e.g. nocterm)
+  /// can listen to [io.stdin], which only supports a single listener.
+  Future<void> releaseForAlternateApp() async {
+    await _subscription?.cancel();
+    _subscription = null;
   }
 
   void _dispose() {

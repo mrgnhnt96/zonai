@@ -1,20 +1,12 @@
 part of zonai_db;
 
 extension _CountX on ZonaiDb {
-  Future<int> _count(
-    String table,
-    CountPayload payload, {
-    Jwt? userJwt,
-  }) async {
+  Future<int> _count(String table, CountPayload payload, {Jwt? userJwt}) async {
     final jwt = userJwt ?? await _extractJwt(payload);
     await _requireTableAccess(table, .list, jwt);
 
     final operation = await _getOperation(
-      CountOperationRequest(
-        table: table,
-        where: payload.where,
-        jwt: jwt,
-      ),
+      CountOperationRequest(table: table, where: payload.where, jwt: jwt),
     );
 
     final (error, result) = await _execute((operation.query, operation.values));
@@ -30,11 +22,7 @@ extension _CountX on ZonaiDb {
     await _requireTableAccess(table, .list, jwt);
 
     final operation = await _getOperation(
-      CountOperationRequest(
-        table: table,
-        where: payload.where,
-        jwt: jwt,
-      ),
+      CountOperationRequest(table: table, where: payload.where, jwt: jwt),
     );
 
     final (error, result) = await _execute((operation.query, operation.values));

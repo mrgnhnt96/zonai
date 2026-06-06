@@ -9,9 +9,7 @@ final class TableSortState {
   final bool ascending;
 }
 
-final tableSortProvider = NotifierProvider<TableSortNotifier, TableSortState?>(
-  TableSortNotifier.new,
-);
+final tableSortProvider = NotifierProvider<TableSortNotifier, TableSortState?>(TableSortNotifier.new);
 
 class TableSortNotifier extends Notifier<TableSortState?> {
   @override
@@ -23,9 +21,7 @@ class TableSortNotifier extends Notifier<TableSortState?> {
   void toggleColumn(String columnName) {
     final current = state;
     if (current?.columnName == columnName) {
-      state = current!.ascending
-          ? TableSortState(columnName: columnName, ascending: false)
-          : null;
+      state = current!.ascending ? TableSortState(columnName: columnName, ascending: false) : null;
     } else {
       state = TableSortState(columnName: columnName, ascending: true);
     }

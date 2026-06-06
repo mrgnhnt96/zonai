@@ -99,7 +99,8 @@ class EnumListTransformer<E extends Enum>
 
     if (input is List) {
       final items = _flattenList(input);
-      if (items.isNotEmpty && items.every((e) => e is E && values.contains(e))) {
+      if (items.isNotEmpty &&
+          items.every((e) => e is E && values.contains(e))) {
         return List<E>.from(items.cast<E>());
       }
       return [

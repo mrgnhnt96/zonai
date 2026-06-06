@@ -17,7 +17,12 @@ void main() {
     });
 
     test('decodes payload segment', () {
-      final payload = decodeJwtPayload(_fakeJwt({'userId': 'u1', 'user': {'email': 'a@b.com'}}));
+      final payload = decodeJwtPayload(
+        _fakeJwt({
+          'userId': 'u1',
+          'user': {'email': 'a@b.com'},
+        }),
+      );
       expect(payload?['userId'], 'u1');
       expect((payload?['user'] as Map)['email'], 'a@b.com');
     });
@@ -54,11 +59,21 @@ void main() {
 
     test('canEdit is false when absent or explicitly false', () {
       expect(
-        sessionUserFromToken(_fakeJwt({'userId': 'u1', 'admin': {'isAdmin': true}}))?.canEdit,
+        sessionUserFromToken(
+          _fakeJwt({
+            'userId': 'u1',
+            'admin': {'isAdmin': true},
+          }),
+        )?.canEdit,
         isFalse,
       );
       expect(
-        sessionUserFromToken(_fakeJwt({'userId': 'u1', 'admin': {'canEdit': false}}))?.canEdit,
+        sessionUserFromToken(
+          _fakeJwt({
+            'userId': 'u1',
+            'admin': {'canEdit': false},
+          }),
+        )?.canEdit,
         isFalse,
       );
     });

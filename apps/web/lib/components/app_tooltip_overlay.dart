@@ -47,21 +47,11 @@ Map<String, void Function(web.Event)> appTooltipEvents(
 }) {
   final notifier = context.read(appTooltipProvider.notifier);
   return {
-    'mouseenter': (event) => showAppTooltipFromEvent(
-      event,
-      notifier,
-      text: text,
-      placement: placement,
-      anchorSelector: anchorSelector,
-    ),
+    'mouseenter': (event) =>
+        showAppTooltipFromEvent(event, notifier, text: text, placement: placement, anchorSelector: anchorSelector),
     'mouseleave': (_) => notifier.hide(),
-    'focus': (event) => showAppTooltipFromEvent(
-      event,
-      notifier,
-      text: text,
-      placement: placement,
-      anchorSelector: anchorSelector,
-    ),
+    'focus': (event) =>
+        showAppTooltipFromEvent(event, notifier, text: text, placement: placement, anchorSelector: anchorSelector),
     'blur': (_) => notifier.hide(),
   };
 }

@@ -1,6 +1,5 @@
 import 'package:zonai/src/internal/tables/abusers_table.dart';
-import 'package:zonai_schema/src/internal/abusers_table.dart'
-    show AbuserEntry;
+import 'package:zonai_schema/src/internal/abusers_table.dart' show AbuserEntry;
 import 'package:zonai_schema/src/operations/table_operations.dart';
 
 final class AbuserOperations

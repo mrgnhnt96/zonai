@@ -59,11 +59,7 @@ void main() {
       final where = expectSuccess(
         buildWhereFromDraft(
           rows: const [
-            FilterConditionDraft(
-              columnName: 'name',
-              operator: TableWhereOperator.contains,
-              valueText: 'foo',
-            ),
+            FilterConditionDraft(columnName: 'name', operator: TableWhereOperator.contains, valueText: 'foo'),
           ],
           combine: FilterCombine.and,
           columnShapes: shapes,
@@ -77,12 +73,7 @@ void main() {
 
     test('Null operator needs no value', () {
       final result = buildWhereFromDraft(
-        rows: const [
-          FilterConditionDraft(
-            columnName: 'name',
-            operator: TableWhereOperator.null_,
-          ),
-        ],
+        rows: const [FilterConditionDraft(columnName: 'name', operator: TableWhereOperator.null_)],
         combine: FilterCombine.and,
         columnShapes: shapes,
       );
@@ -95,16 +86,8 @@ void main() {
       final where = expectSuccess(
         buildWhereFromDraft(
           rows: const [
-            FilterConditionDraft(
-              columnName: 'name',
-              operator: TableWhereOperator.eq,
-              valueText: 'a',
-            ),
-            FilterConditionDraft(
-              columnName: 'count',
-              operator: TableWhereOperator.gt,
-              valueText: '10',
-            ),
+            FilterConditionDraft(columnName: 'name', operator: TableWhereOperator.eq, valueText: 'a'),
+            FilterConditionDraft(columnName: 'count', operator: TableWhereOperator.gt, valueText: '10'),
           ],
           combine: FilterCombine.and,
           columnShapes: shapes,
@@ -119,16 +102,8 @@ void main() {
       final where = expectSuccess(
         buildWhereFromDraft(
           rows: const [
-            FilterConditionDraft(
-              columnName: 'name',
-              operator: TableWhereOperator.contains,
-              valueText: 'x',
-            ),
-            FilterConditionDraft(
-              columnName: 'name',
-              operator: TableWhereOperator.contains,
-              valueText: 'y',
-            ),
+            FilterConditionDraft(columnName: 'name', operator: TableWhereOperator.contains, valueText: 'x'),
+            FilterConditionDraft(columnName: 'name', operator: TableWhereOperator.contains, valueText: 'y'),
           ],
           combine: FilterCombine.or,
           columnShapes: shapes,
@@ -142,11 +117,7 @@ void main() {
       final where = expectSuccess(
         buildWhereFromDraft(
           rows: const [
-            FilterConditionDraft(
-              columnName: 'status',
-              operator: TableWhereOperator.in_,
-              valueText: 'active, inactive',
-            ),
+            FilterConditionDraft(columnName: 'status', operator: TableWhereOperator.in_, valueText: 'active, inactive'),
           ],
           combine: FilterCombine.and,
           columnShapes: shapes,
@@ -159,13 +130,7 @@ void main() {
 
     test('invalid column returns error', () {
       final result = buildWhereFromDraft(
-        rows: const [
-          FilterConditionDraft(
-            columnName: 'missing',
-            operator: TableWhereOperator.eq,
-            valueText: 'x',
-          ),
-        ],
+        rows: const [FilterConditionDraft(columnName: 'missing', operator: TableWhereOperator.eq, valueText: 'x')],
         combine: FilterCombine.and,
         columnShapes: shapes,
       );
@@ -175,13 +140,7 @@ void main() {
 
     test('empty value returns error', () {
       final result = buildWhereFromDraft(
-        rows: const [
-          FilterConditionDraft(
-            columnName: 'name',
-            operator: TableWhereOperator.eq,
-            valueText: '',
-          ),
-        ],
+        rows: const [FilterConditionDraft(columnName: 'name', operator: TableWhereOperator.eq, valueText: '')],
         combine: FilterCombine.and,
         columnShapes: shapes,
       );

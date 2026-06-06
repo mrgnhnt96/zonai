@@ -4,7 +4,10 @@ import 'package:revali_router/revali_router.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_server/src/handlers/photo_handler.dart';
 
+import '../components/black_list.dart';
+
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
+@BlackList()
 @Controller('img')
 class PhotosController {
   const PhotosController({required this.photoHandler});

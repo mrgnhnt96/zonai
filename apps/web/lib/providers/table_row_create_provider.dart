@@ -41,18 +41,10 @@ class TableRowCreateNotifier extends Notifier<TableRowCreateState?> {
     return null;
   }
 
-  void open({
-    required String sqliteName,
-    required List<String> columns,
-    required List<ColumnShape> columnShapes,
-  }) {
+  void open({required String sqliteName, required List<String> columns, required List<ColumnShape> columnShapes}) {
     ref.read(tableRowDetailProvider.notifier).close();
     ref.read(tableFilterProvider.notifier).closePanel();
-    state = TableRowCreateState(
-      sqliteName: sqliteName,
-      columns: columns,
-      columnShapes: columnShapes,
-    );
+    state = TableRowCreateState(sqliteName: sqliteName, columns: columns, columnShapes: columnShapes);
   }
 
   void close() {
@@ -73,19 +65,11 @@ class TableRowCreateNotifier extends Notifier<TableRowCreateState?> {
     state = current.copyWith(closeRequested: false);
   }
 
-  void toggle({
-    required String sqliteName,
-    required List<String> columns,
-    required List<ColumnShape> columnShapes,
-  }) {
+  void toggle({required String sqliteName, required List<String> columns, required List<ColumnShape> columnShapes}) {
     if (state != null) {
       requestClose();
       return;
     }
-    open(
-      sqliteName: sqliteName,
-      columns: columns,
-      columnShapes: columnShapes,
-    );
+    open(sqliteName: sqliteName, columns: columns, columnShapes: columnShapes);
   }
 }

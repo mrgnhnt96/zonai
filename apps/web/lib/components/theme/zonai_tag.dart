@@ -8,12 +8,7 @@ import '../../constants/theme.dart';
 ///
 /// When [onRemove] is set, a dismiss control is rendered inside the tag chrome.
 class ZonaiTag extends StatelessComponent {
-  const ZonaiTag({
-    required this.label,
-    this.monospace = false,
-    this.onRemove,
-    super.key,
-  });
+  const ZonaiTag({required this.label, this.monospace = false, this.onRemove, super.key});
 
   final String label;
   final bool monospace;
@@ -21,11 +16,7 @@ class ZonaiTag extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final classes = [
-      'z-tag',
-      if (monospace) 'z-tag--mono',
-      if (onRemove != null) 'z-tag--removable',
-    ].join(' ');
+    final classes = ['z-tag', if (monospace) 'z-tag--mono', if (onRemove != null) 'z-tag--removable'].join(' ');
 
     return span(classes: classes, [
       .text(label),
@@ -75,23 +66,15 @@ class ZonaiTagList extends StatelessComponent {
   Component build(BuildContext context) {
     if (tags.isEmpty) return Component.empty();
 
-    return div(
-      classes: 'z-tag-list',
-      [
-        for (final tag in tags) ZonaiTag(label: tag, monospace: monospace),
-      ],
-    );
+    return div(classes: 'z-tag-list', [for (final tag in tags) ZonaiTag(label: tag, monospace: monospace)]);
   }
 }
 
 @css
 List<StyleRule> get zonaiTagStyles => [
-  css('.z-tag-list').styles(
-    display: .flex,
-    flexDirection: FlexDirection.row,
-    flexWrap: FlexWrap.wrap,
-    gap: Gap.all(ZonaiSpacing.s3),
-  ),
+  css(
+    '.z-tag-list',
+  ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: FlexWrap.wrap, gap: Gap.all(ZonaiSpacing.s3)),
   css('.z-tag').styles(
     display: .inlineFlex,
     alignItems: .center,
@@ -102,17 +85,10 @@ List<StyleRule> get zonaiTagStyles => [
     fontSize: 0.8125.rem,
     raw: const {'line-height': '1.35'},
   ),
-  css('.z-tag--mono').styles(
-    raw: const {'font-family': 'ui-monospace, monospace'},
-  ),
+  css('.z-tag--mono').styles(raw: const {'font-family': 'ui-monospace, monospace'}),
   css('.z-tag--removable').styles(
     gap: Gap.all(ZonaiSpacing.s2),
-    padding: .only(
-      left: ZonaiSpacing.s4,
-      right: ZonaiSpacing.s2,
-      top: ZonaiSpacing.s2,
-      bottom: ZonaiSpacing.s2,
-    ),
+    padding: .only(left: ZonaiSpacing.s4, right: ZonaiSpacing.s2, top: ZonaiSpacing.s2, bottom: ZonaiSpacing.s2),
   ),
   css('.z-tag__remove').styles(
     width: 18.px,
@@ -129,8 +105,5 @@ List<StyleRule> get zonaiTagStyles => [
     flex: Flex(grow: 0, shrink: 0),
     raw: const {'font': 'inherit', 'line-height': '1'},
   ),
-  css('.z-tag__remove:hover').styles(
-    color: fgColor,
-    backgroundColor: hoverColor,
-  ),
+  css('.z-tag__remove:hover').styles(color: fgColor, backgroundColor: hoverColor),
 ];

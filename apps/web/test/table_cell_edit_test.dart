@@ -18,11 +18,7 @@ void main() {
       );
 
       expect(
-        parseEditValue(
-          draftValue: null,
-          textInput: 'test-1779400790199_co',
-          shape: shape,
-        ),
+        parseEditValue(draftValue: null, textInput: 'test-1779400790199_co', shape: shape),
         'test-1779400790199_co',
       );
     });
@@ -37,10 +33,7 @@ void main() {
         sqlType: 'INTEGER',
       );
 
-      expect(
-        parseEditValue(draftValue: 0, textInput: '42', shape: shape),
-        42,
-      );
+      expect(parseEditValue(draftValue: 0, textInput: '42', shape: shape), 42);
     });
 
     test('map column parses JSON object', () {
@@ -53,14 +46,7 @@ void main() {
         sqlType: 'TEXT',
       );
 
-      expect(
-        parseEditValue(
-          draftValue: null,
-          textInput: '{"a":1,"b":"x"}',
-          shape: shape,
-        ),
-        {'a': 1, 'b': 'x'},
-      );
+      expect(parseEditValue(draftValue: null, textInput: '{"a":1,"b":"x"}', shape: shape), {'a': 1, 'b': 'x'});
     });
 
     test('map column rejects invalid JSON', () {
@@ -73,14 +59,8 @@ void main() {
         sqlType: 'TEXT',
       );
 
-      expect(
-        () => parseEditValue(draftValue: null, textInput: '{"a":}', shape: shape),
-        throwsFormatException,
-      );
-      expect(
-        validateMapEditText('{"a":}', allowEmpty: false),
-        'Invalid JSON; check braces, quotes, and commas',
-      );
+      expect(() => parseEditValue(draftValue: null, textInput: '{"a":}', shape: shape), throwsFormatException);
+      expect(validateMapEditText('{"a":}', allowEmpty: false), 'Invalid JSON; check braces, quotes, and commas');
     });
 
     test('map column rejects non-object JSON', () {
@@ -96,11 +76,7 @@ void main() {
       expect(
         () => parseEditValue(draftValue: null, textInput: '[1, 2]', shape: shape),
         throwsA(
-          isA<FormatException>().having(
-            (e) => e.message,
-            'message',
-            'Expected a JSON object with keys, not an array',
-          ),
+          isA<FormatException>().having((e) => e.message, 'message', 'Expected a JSON object with keys, not an array'),
         ),
       );
       expect(validateMapEditText('"hello"', allowEmpty: false), isNotNull);
@@ -122,14 +98,7 @@ void main() {
         sqlType: 'BLOB',
       );
 
-      expect(
-        parseEditValue(
-          draftValue: null,
-          textInput: '[1,0,1]',
-          shape: shape,
-        ),
-        Uint8List.fromList([1, 0, 1]),
-      );
+      expect(parseEditValue(draftValue: null, textInput: '[1,0,1]', shape: shape), Uint8List.fromList([1, 0, 1]));
     });
 
     test('bigInt column parses decimal string', () {
@@ -143,11 +112,7 @@ void main() {
       );
 
       expect(
-        parseEditValue(
-          draftValue: null,
-          textInput: '9007199254740991',
-          shape: shape,
-        ),
+        parseEditValue(draftValue: null, textInput: '9007199254740991', shape: shape),
         BigInt.parse('9007199254740991'),
       );
     });
@@ -162,11 +127,7 @@ void main() {
         sqlType: 'INTEGER',
       );
 
-      final result = parseEditValue(
-        draftValue: null,
-        textInput: '1704067200000',
-        shape: shape,
-      );
+      final result = parseEditValue(draftValue: null, textInput: '1704067200000', shape: shape);
       expect(result, isA<DateTime>());
       expect((result as DateTime).millisecondsSinceEpoch, 1704067200000);
     });
@@ -183,14 +144,8 @@ void main() {
         sqlType: 'TEXT',
       );
 
-      expect(
-        parseDraftCellValue(draftValue: ['a', 'b'], shape: shape),
-        ['a', 'b'],
-      );
-      expect(
-        parseDraftCellValue(draftValue: '["x","y"]', shape: shape),
-        ['x', 'y'],
-      );
+      expect(parseDraftCellValue(draftValue: ['a', 'b'], shape: shape), ['a', 'b']);
+      expect(parseDraftCellValue(draftValue: '["x","y"]', shape: shape), ['x', 'y']);
     });
 
     test('enumList column returns comma-separated wire', () {
@@ -204,10 +159,7 @@ void main() {
         enumValues: ['alpha', 'beta', 'gamma'],
       );
 
-      expect(
-        parseDraftCellValue(draftValue: ['alpha', 'beta'], shape: shape),
-        'alpha,beta',
-      );
+      expect(parseDraftCellValue(draftValue: ['alpha', 'beta'], shape: shape), 'alpha,beta');
     });
 
     test('enumList rejects invalid values', () {
@@ -221,10 +173,7 @@ void main() {
         enumValues: ['alpha', 'beta'],
       );
 
-      expect(
-        () => parseDraftCellValue(draftValue: ['nope'], shape: shape),
-        throwsFormatException,
-      );
+      expect(() => parseDraftCellValue(draftValue: ['nope'], shape: shape), throwsFormatException);
     });
   });
 
@@ -269,10 +218,7 @@ void main() {
         sqlType: 'TEXT',
       );
 
-      expect(
-        cellValuesEqual('test-1779400790199_co', 'test-1779400790199_co', shape),
-        isTrue,
-      );
+      expect(cellValuesEqual('test-1779400790199_co', 'test-1779400790199_co', shape), isTrue);
     });
 
     test('datetime columns compare at minute precision', () {
@@ -289,14 +235,7 @@ void main() {
       final truncated = DateTime.utc(2024, 6, 4, 12, 30).millisecondsSinceEpoch;
 
       expect(cellValuesEqual(withSeconds, truncated, shape), isTrue);
-      expect(
-        cellValuesEqual(
-          withSeconds,
-          DateTime.utc(2024, 6, 4, 12, 31).millisecondsSinceEpoch,
-          shape,
-        ),
-        isFalse,
-      );
+      expect(cellValuesEqual(withSeconds, DateTime.utc(2024, 6, 4, 12, 31).millisecondsSinceEpoch, shape), isFalse);
     });
 
     test('datetime round-trip through edit picker matches original', () {
@@ -323,12 +262,7 @@ void main() {
 
       expect(cellValuesEqual(original, parsed, shape), isTrue);
       expect(
-        diffRowUpdates(
-          original: [original],
-          draft: [parsed],
-          columns: ['happened_at'],
-          columnShapes: [shape],
-        ),
+        diffRowUpdates(original: [original], draft: [parsed], columns: ['happened_at'], columnShapes: [shape]),
         isEmpty,
       );
     });
@@ -343,10 +277,7 @@ void main() {
         sqlType: 'TEXT',
       );
 
-      expect(
-        cellValuesEqual(['a', 'b'], '["a","b"]', shape),
-        isTrue,
-      );
+      expect(cellValuesEqual(['a', 'b'], '["a","b"]', shape), isTrue);
     });
 
     test('map columns compare decoded JSON', () {
@@ -359,10 +290,7 @@ void main() {
         sqlType: 'TEXT',
       );
 
-      expect(
-        cellValuesEqual({'a': 1}, '{"a":1}', shape),
-        isTrue,
-      );
+      expect(cellValuesEqual({'a': 1}, '{"a":1}', shape), isTrue);
     });
 
     test('blob columns compare byte lists', () {
@@ -375,10 +303,7 @@ void main() {
         sqlType: 'BLOB',
       );
 
-      expect(
-        cellValuesEqual(Uint8List.fromList([1, 0, 1]), '[1,0,1]', shape),
-        isTrue,
-      );
+      expect(cellValuesEqual(Uint8List.fromList([1, 0, 1]), '[1,0,1]', shape), isTrue);
     });
 
     test('bigInt columns compare normalized values', () {
@@ -408,18 +333,9 @@ void main() {
         enumValues: ['alpha', 'beta', 'gamma'],
       );
 
-      expect(
-        cellValuesEqual('alpha,beta', ['alpha', 'beta'], shape),
-        isTrue,
-      );
-      expect(
-        cellValuesEqual(['alpha', 'beta'], ['alpha', 'beta'], shape),
-        isTrue,
-      );
-      expect(
-        cellValuesEqual('alpha,beta', ['alpha', 'gamma'], shape),
-        isFalse,
-      );
+      expect(cellValuesEqual('alpha,beta', ['alpha', 'beta'], shape), isTrue);
+      expect(cellValuesEqual(['alpha', 'beta'], ['alpha', 'beta'], shape), isTrue);
+      expect(cellValuesEqual('alpha,beta', ['alpha', 'gamma'], shape), isFalse);
     });
   });
 
@@ -500,31 +416,16 @@ void main() {
     });
 
     test('cellToEditString exposes stored value when revealSecrets is true', () {
-      expect(
-        cellToEditString('hash-value', passwordShape, revealSecrets: true),
-        'hash-value',
-      );
+      expect(cellToEditString('hash-value', passwordShape, revealSecrets: true), 'hash-value');
     });
 
     test('isPasswordUpdateUnchanged when text matches original', () {
-      expect(
-        isPasswordUpdateUnchanged(
-          'hash-value',
-          originalValue: 'hash-value',
-          shape: passwordShape,
-        ),
-        isTrue,
-      );
+      expect(isPasswordUpdateUnchanged('hash-value', originalValue: 'hash-value', shape: passwordShape), isTrue);
     });
 
     test('diff omits blank password on update', () {
       expect(
-        diffRowUpdates(
-          original: [null],
-          draft: [null],
-          columns: ['secret_note'],
-          columnShapes: [passwordShape],
-        ),
+        diffRowUpdates(original: [null], draft: [null], columns: ['secret_note'], columnShapes: [passwordShape]),
         isEmpty,
       );
     });
@@ -586,7 +487,9 @@ void main() {
       expect(cellToEditString({'a': 1}, mapShape), '{\n  "a": 1\n}');
       expect(cellToEditString(Uint8List.fromList([72, 101, 108]), blobShape), '[72,101,108]');
       expect(
-        cellToEditString({'bits': [1, 0, 1, 0, 1, 0]}, mapShape),
+        cellToEditString({
+          'bits': [1, 0, 1, 0, 1, 0],
+        }, mapShape),
         '{\n  "bits": [1,0,1,0,1,0]\n}',
       );
       expect(formatDisplayJson([1, 0, 1, 0, 1, 0]), '[1,0,1,0,1,0]');
@@ -679,11 +582,7 @@ void main() {
         BigInt.parse('9007199254740991').toRadixString(2).split('').map(int.parse).toList(),
       );
 
-      final parsed = parseEditValue(
-        draftValue: wire,
-        textInput: '9007199254740991',
-        shape: shape,
-      );
+      final parsed = parseEditValue(draftValue: wire, textInput: '9007199254740991', shape: shape);
 
       expect(parsed, isA<Uint8List>());
       expect(tryParseBigIntCell(parsed), BigInt.parse('9007199254740991'));
@@ -692,14 +591,8 @@ void main() {
 
   group('reorderStringList', () {
     test('moves an item to a new index', () {
-      expect(
-        reorderStringList(['a', 'b', 'c'], 0, 2),
-        ['b', 'c', 'a'],
-      );
-      expect(
-        reorderStringList(['a', 'b', 'c'], 2, 0),
-        ['c', 'a', 'b'],
-      );
+      expect(reorderStringList(['a', 'b', 'c'], 0, 2), ['b', 'c', 'a']);
+      expect(reorderStringList(['a', 'b', 'c'], 2, 0), ['c', 'a', 'b']);
     });
 
     test('returns the same list when indices are equal or out of range', () {
@@ -712,21 +605,12 @@ void main() {
 
   group('reorderStringListToInsertIndex', () {
     test('inserts before the target index (left pipe)', () {
-      expect(
-        reorderStringListToInsertIndex(['a', 'b', 'c'], 2, 0),
-        ['c', 'a', 'b'],
-      );
+      expect(reorderStringListToInsertIndex(['a', 'b', 'c'], 2, 0), ['c', 'a', 'b']);
     });
 
     test('inserts after the target index (right pipe)', () {
-      expect(
-        reorderStringListToInsertIndex(['a', 'b', 'c'], 0, 2),
-        ['b', 'a', 'c'],
-      );
-      expect(
-        reorderStringListToInsertIndex(['a', 'b', 'c'], 0, 3),
-        ['b', 'c', 'a'],
-      );
+      expect(reorderStringListToInsertIndex(['a', 'b', 'c'], 0, 2), ['b', 'a', 'c']);
+      expect(reorderStringListToInsertIndex(['a', 'b', 'c'], 0, 3), ['b', 'c', 'a']);
     });
 
     test('returns the same list when the insert would not move the item', () {
@@ -794,20 +678,11 @@ void main() {
         sqlType: 'BLOB',
       );
       final draft = initialCreateDraft(const [bigCountShape]);
-      draft[0] = parseEditValue(
-        draftValue: draft[0],
-        textInput: '123',
-        shape: bigCountShape,
-      );
+      draft[0] = parseEditValue(draftValue: draft[0], textInput: '123', shape: bigCountShape);
 
-      expect(
-        buildCreateObject(
-          draft: draft,
-          columns: const ['big_count'],
-          columnShapes: const [bigCountShape],
-        ),
-        {'big_count': BigInt.parse('123')},
-      );
+      expect(buildCreateObject(draft: draft, columns: const ['big_count'], columnShapes: const [bigCountShape]), {
+        'big_count': BigInt.parse('123'),
+      });
     });
   });
 
@@ -823,22 +698,13 @@ void main() {
 
     test('returns false for initial draft', () {
       expect(
-        createDraftHasChanges(
-          draft: initialCreateDraft(const [titleShape]),
-          columnShapes: const [titleShape],
-        ),
+        createDraftHasChanges(draft: initialCreateDraft(const [titleShape]), columnShapes: const [titleShape]),
         isFalse,
       );
     });
 
     test('returns true when an editable field changed', () {
-      expect(
-        createDraftHasChanges(
-          draft: ['Hello'],
-          columnShapes: const [titleShape],
-        ),
-        isTrue,
-      );
+      expect(createDraftHasChanges(draft: ['Hello'], columnShapes: const [titleShape]), isTrue);
     });
   });
 
@@ -877,10 +743,7 @@ void main() {
     );
 
     test('lists editable non-nullable fields and skips automated columns', () {
-      expect(
-        createRequiredFieldLabels(const [titleShape, bioShape, createdAtShape, activeShape]),
-        ['title'],
-      );
+      expect(createRequiredFieldLabels(const [titleShape, bioShape, createdAtShape, activeShape]), ['title']);
     });
 
     test('remainingCreateRequiredFieldLabels drops fields with valid input', () {
@@ -945,10 +808,7 @@ void main() {
 
     test('normalizeCellValueForEdit maps URL to existing item', () {
       const id = '0123456789abcde_ph';
-      final value = normalizeCellValueForEdit(
-        'http://localhost:8080/img/$id.png',
-        photoShape,
-      );
+      final value = normalizeCellValueForEdit('http://localhost:8080/img/$id.png', photoShape);
       expect(value, isA<PhotoEditSingleValue>());
       final item = (value as PhotoEditSingleValue).item;
       expect(item, isA<PhotoEditExistingItem>());

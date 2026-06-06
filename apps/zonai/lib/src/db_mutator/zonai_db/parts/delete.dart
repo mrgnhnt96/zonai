@@ -89,11 +89,7 @@ extension _DeleteX on ZonaiDb {
     final sanitized = await _sanitizeRows(table, rows, jwt: jwt);
 
     await _extensions.send<NoActionExtensionResponse>(
-      DeleteExtensionRequest.before(
-        table: table,
-        objects: sanitized,
-        jwt: jwt,
-      ),
+      DeleteExtensionRequest.before(table: table, objects: sanitized, jwt: jwt),
     );
 
     final deleteOperation = await _getOperation(

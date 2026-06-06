@@ -39,10 +39,6 @@ final class RateLimitRequest extends Request {
 
   @override
   Map<String, dynamic> toJson() {
-    return {
-      ...super.toJson(),
-      'table': table,
-      'operation': operation.name,
-    };
+    return {...super.toJson(), 'table': table, 'operation': operation.name};
   }
 }

@@ -37,22 +37,13 @@ class ZonaiSelect extends StatelessComponent {
       select(
         id: id,
         classes: ZonaiClasses.selectNative,
-        attributes: {
-          if (labelId != null) 'aria-labelledby': labelId!,
-          'autocomplete': 'off',
-        },
+        attributes: {if (labelId != null) 'aria-labelledby': labelId!, 'autocomplete': 'off'},
         value: value,
         disabled: disabled,
         onChange: (values) => onChange(values.isEmpty ? '' : values.last),
         [
-          if (placeholder != null)
-            option(
-              value: '',
-              attributes: {'disabled': '', 'hidden': ''},
-              [.text(placeholder!)],
-            ),
-          for (final opt in options)
-            option(value: opt.value, [.text(opt.label)]),
+          if (placeholder != null) option(value: '', attributes: {'disabled': '', 'hidden': ''}, [.text(placeholder!)]),
+          for (final opt in options) option(value: opt.value, [.text(opt.label)]),
         ],
       ),
       _chevronIcon(),

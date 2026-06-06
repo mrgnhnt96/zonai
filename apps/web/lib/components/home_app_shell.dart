@@ -55,9 +55,7 @@ class HomeAppShell extends StatelessComponent {
           initialSignedIn: true,
           initialPath: initialPath,
           initialAppName: initialAppName,
-          initialPhotosConfig: photosConfigFromJson(
-            Map<String, dynamic>.from(initialPhotosConfig),
-          ),
+          initialPhotosConfig: photosConfigFromJson(Map<String, dynamic>.from(initialPhotosConfig)),
           initialAuthTypes: const [],
           tables: SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),
           schemaShapes: schemaShapes,

@@ -66,11 +66,7 @@ Component _xIconSvg() {
 
 @css
 List<StyleRule> get zonaiBooleanCheckStyles => [
-  css('.z-boolean-check').styles(
-    display: .inlineFlex,
-    alignItems: .center,
-    color: primaryColor,
-  ),
+  css('.z-boolean-check').styles(display: .inlineFlex, alignItems: .center, color: primaryColor),
   css('.z-boolean-check--false').styles(color: errorColor),
   css('.z-boolean-check__icon').styles(display: .block),
 ];

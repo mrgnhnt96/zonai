@@ -106,19 +106,10 @@ final List<RouteBase> authRoutes = [
   Route(
     path: AuthRoutes.signIn,
     name: 'sign-in',
-    redirect: (context, state) => AuthRouter._redirectSingleAuthType(
-      context,
-      AuthRoutes.normalizePath(state.location),
-    ),
-    builder: (context, state) => _SignInRootScreen(
-      path: AuthRoutes.normalizePath(state.location),
-    ),
+    redirect: (context, state) => AuthRouter._redirectSingleAuthType(context, AuthRoutes.normalizePath(state.location)),
+    builder: (context, state) => _SignInRootScreen(path: AuthRoutes.normalizePath(state.location)),
     routes: [
-      Route(
-        path: 'password',
-        name: 'sign-in-password',
-        builder: (_, _) => const PasswordSignInScreen(),
-      ),
+      Route(path: 'password', name: 'sign-in-password', builder: (_, _) => const PasswordSignInScreen()),
       Route.lazy(
         path: 'otp',
         name: 'sign-in-otp',
@@ -169,12 +160,7 @@ class _SignInLoading extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     return const SignInScreen(
-      child: AuthFormCard(
-        children: [
-          ZonaiPageTitle('Sign in'),
-          ZonaiPageSubtitle('Loading sign-in options…'),
-        ],
-      ),
+      child: AuthFormCard(children: [ZonaiPageTitle('Sign in'), ZonaiPageSubtitle('Loading sign-in options…')]),
     );
   }
 }
@@ -186,13 +172,6 @@ class _SignInMessage extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return SignInScreen(
-      child: AuthFormCard(
-        children: [
-          const ZonaiPageTitle('Sign in'),
-          ZonaiPageSubtitle(message),
-        ],
-      ),
-    );
+    return SignInScreen(child: AuthFormCard(children: [const ZonaiPageTitle('Sign in'), ZonaiPageSubtitle(message)]));
   }
 }

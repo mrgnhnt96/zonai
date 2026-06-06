@@ -31,12 +31,7 @@ extension _ExpandX on ZonaiDb {
     final results = <Map<String, Object?>>[];
     for (final row in rows) {
       results.add(
-        await _expandRecord(
-          table,
-          Map<String, Object?>.from(row),
-          tree,
-          jwt,
-        ),
+        await _expandRecord(table, Map<String, Object?>.from(row), tree, jwt),
       );
     }
 
@@ -96,9 +91,7 @@ extension _ExpandX on ZonaiDb {
     final referencedTable = response.referencedTable;
     final referencedColumn = response.referencedColumn;
     if (referencedTable == null || referencedColumn == null) {
-      throw StateError(
-        'Column "$columnName" on "$table" cannot be expanded',
-      );
+      throw StateError('Column "$columnName" on "$table" cannot be expanded');
     }
 
     return _ColumnReference(

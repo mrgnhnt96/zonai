@@ -60,11 +60,7 @@ extension _CreateX on ZonaiDb {
     );
 
     return await _getOperation(
-      CreateOperationRequest(
-        table: table,
-        object: payload.object,
-        jwt: jwt,
-      ),
+      CreateOperationRequest(table: table, object: payload.object, jwt: jwt),
     );
   }
 }

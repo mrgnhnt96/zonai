@@ -97,9 +97,7 @@ extension _PhotoX on ZonaiDb {
 
     try {
       final db = await open();
-      final results = await db.insert(into: photos).values([
-        entry,
-      ]).returning();
+      final results = await db.insert(into: photos).values([entry]).returning();
 
       insertedRow = results.firstOrNull;
       if (insertedRow == null) {

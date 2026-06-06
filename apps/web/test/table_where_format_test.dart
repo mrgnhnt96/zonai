@@ -15,52 +15,30 @@ void main() {
     });
 
     test('And with multiple conditions', () {
-      final dart = formatWhereDart(
-        And([
-          const Eq('a', 1),
-          const Null('b'),
-        ]),
-      );
-      expect(
-        dart,
-        '''
+      final dart = formatWhereDart(And([const Eq('a', 1), const Null('b')]));
+      expect(dart, '''
 And([
   Eq('a', 1),
   Null('b'),
-])''',
-      );
+])''');
     });
 
     test('In list values', () {
-      expect(
-        formatWhereDart(In('status', <Object>['open', 'pending'])),
-        "In('status', ['open', 'pending'])",
-      );
+      expect(formatWhereDart(In('status', <Object>['open', 'pending'])), "In('status', ['open', 'pending'])");
     });
   });
 
   group('formatListBodyDart', () {
     test('includes table and where', () {
-      final dart = formatListBodyDart(
-        table: 'users',
-        where: const Eq('id', 1),
-      );
+      final dart = formatListBodyDart(table: 'users', where: const Eq('id', 1));
       expect(dart, contains("table: 'users'"));
       expect(dart, contains("Eq('id', 1)"));
       expect(dart, contains('ListBody('));
     });
 
     test('indents And conditions under where', () {
-      final dart = formatListBodyDart(
-        table: '_log',
-        where: And([
-          const Eq('id', 'asfd'),
-          const Eq('id', 'fffff'),
-        ]),
-      );
-      expect(
-        dart,
-        '''
+      final dart = formatListBodyDart(table: '_log', where: And([const Eq('id', 'asfd'), const Eq('id', 'fffff')]));
+      expect(dart, '''
 // import 'package:zonai_schema/zonai_schema.dart';
 
 ListBody(
@@ -69,8 +47,7 @@ ListBody(
     Eq('id', 'asfd'),
     Eq('id', 'fffff'),
   ]),
-)''',
-      );
+)''');
     });
   });
 
@@ -78,9 +55,7 @@ ListBody(
     test('round-trips through ListBody.fromJson', () {
       final where = And([const Eq('a', 1), const Null('b')]);
       final json = formatListBodyJson(table: 'items', where: where);
-      final decoded = ListBody.fromJson(
-        (jsonDecode(json) as Map).cast<String, dynamic>(),
-      );
+      final decoded = ListBody.fromJson((jsonDecode(json) as Map).cast<String, dynamic>());
       expect(decoded.table, 'items');
       expect(decoded.where?.toJson(), where.toJson());
     });

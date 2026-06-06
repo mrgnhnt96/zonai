@@ -4,7 +4,11 @@ import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/versions.dart';
 
 import 'commands/compile.dart';
+import 'commands/cron.dart';
 import 'commands/db/db.dart';
+import 'commands/dev/dev.dart';
+import 'commands/ping.dart';
+import 'commands/rules.dart';
 import 'commands/serve.dart';
 import 'deps/args.dart';
 
@@ -16,8 +20,12 @@ Commands:
   version     Show version information
   build       Build the application for deployment
   db          Manage database
+  dev         Interactive development TUI
   serve       Serve the application
   compile     Compile all workers
+  ping        Ping worker executables
+  cron        Run cron jobs manually
+  rules       Inspect compiled rules
 ''';
 
 Future<int> run() async {
@@ -44,10 +52,18 @@ Future<int> run() async {
       return await build();
     case ['db', ...final path]:
       return await db(path);
+    case ['dev']:
+      return await dev();
     case ['serve']:
       return await serve();
     case ['compile']:
       return await compile();
+    case ['ping']:
+      return await ping();
+    case ['cron', ...final path]:
+      return await cron(path);
+    case ['rules', ...final path]:
+      return await rules(path);
     default:
       logger.info(_usage);
   }

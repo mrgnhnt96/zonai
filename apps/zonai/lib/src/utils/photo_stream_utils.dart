@@ -67,7 +67,8 @@ abstract final class PhotoStreamUtils {
   /// type, magic bytes must match that type. Generic types such as
   /// `application/octet-stream` (per [PhotoCreateMeta] docs) fall back to
   /// detection from file content.
-  static Future<(ImageMimeType type, Stream<List<int>> stream)> resolveUploadStream({
+  static Future<(ImageMimeType type, Stream<List<int>> stream)>
+  resolveUploadStream({
     required Stream<List<int>> source,
     required String? contentType,
     required bool requiredMimeType,

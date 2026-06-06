@@ -3,8 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 CompanyTableRules main() => CompanyTableRules();
 
-final class CompanyTableRules
-    extends TableRules<CompanyTable, Company> {
+final class CompanyTableRules extends TableRules<CompanyTable, Company> {
   CompanyTableRules() : super(companies);
 
   @override

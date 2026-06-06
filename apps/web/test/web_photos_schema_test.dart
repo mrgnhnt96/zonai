@@ -8,17 +8,11 @@ void main() {
 
   group('photoImageUrlFromId', () {
     test('builds domain image URL with png suffix by default', () {
-      expect(
-        photoImageUrlFromId(id, imageBaseUrl: baseUrl, extension: null),
-        '$baseUrl/img/$id.png',
-      );
+      expect(photoImageUrlFromId(id, imageBaseUrl: baseUrl, extension: null), '$baseUrl/img/$id.png');
     });
 
     test('uses row extension when provided', () {
-      expect(
-        photoImageUrlFromId(id, imageBaseUrl: baseUrl, extension: 'webp'),
-        '$baseUrl/img/$id.webp',
-      );
+      expect(photoImageUrlFromId(id, imageBaseUrl: baseUrl, extension: 'webp'), '$baseUrl/img/$id.webp');
     });
 
     test('returns null for empty id', () {
@@ -102,14 +96,7 @@ void main() {
       const items = [
         {'id': id, 'path': 'foo.png'},
       ];
-      expect(
-        augmentPhotosRowItems(
-          sqliteName: 'authors',
-          items: items,
-          imageBaseUrl: baseUrl,
-        ),
-        items,
-      );
+      expect(augmentPhotosRowItems(sqliteName: 'authors', items: items, imageBaseUrl: baseUrl), items);
     });
   });
 }

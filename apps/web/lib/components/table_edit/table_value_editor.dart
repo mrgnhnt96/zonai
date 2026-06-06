@@ -142,12 +142,8 @@ class TableValueEditor extends StatelessComponent {
       ),
       ColumnShapeKind.list => TableEditChipInput(
         id: id,
-        valueText: onDraftChanged != null
-            ? joinCommaSeparatedList(cellValueAsStringList(value))
-            : textValue,
-        onValueTextChanged: onDraftChanged != null
-            ? (text) => onDraft(parseCommaSeparatedList(text))
-            : onText,
+        valueText: onDraftChanged != null ? joinCommaSeparatedList(cellValueAsStringList(value)) : textValue,
+        onValueTextChanged: onDraftChanged != null ? (text) => onDraft(parseCommaSeparatedList(text)) : onText,
         placeholder: chipPlaceholder ?? 'Add value…',
         labelId: labelId,
         disabled: disabled,
@@ -158,9 +154,7 @@ class TableValueEditor extends StatelessComponent {
         valueText: onDraftChanged != null
             ? joinCommaSeparatedList(cellValueAsStringList(value, shape.enumValues))
             : textValue,
-        onValueTextChanged: onDraftChanged != null
-            ? (text) => onDraft(parseCommaSeparatedList(text))
-            : onText,
+        onValueTextChanged: onDraftChanged != null ? (text) => onDraft(parseCommaSeparatedList(text)) : onText,
         labelId: labelId,
       ),
       ColumnShapeKind.map => TableEditJsonField(
@@ -168,9 +162,7 @@ class TableValueEditor extends StatelessComponent {
         value: textValue,
         onInput: onText,
         labelId: labelId,
-        placeholder: shape.isNullable
-            ? 'Leave empty for null, or {"key": "value"}'
-            : '{"key": "value"}',
+        placeholder: shape.isNullable ? 'Leave empty for null, or {"key": "value"}' : '{"key": "value"}',
         disabled: disabled,
         inputClass: inputClass,
         validateAsMap: true,
@@ -179,7 +171,8 @@ class TableValueEditor extends StatelessComponent {
       ColumnShapeKind.photo || ColumnShapeKind.photos => TableEditPhotoField(
         id: id,
         shape: shape,
-        value: asPhotoEditValue(value) ??
+        value:
+            asPhotoEditValue(value) ??
             (value == null ? emptyPhotoEditValue(shape) : photoEditValueFromCell(value, shape)),
         onChanged: (v) => onDraft(v),
         labelId: labelId,

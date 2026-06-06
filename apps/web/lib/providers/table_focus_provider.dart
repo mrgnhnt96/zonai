@@ -20,9 +20,7 @@ SqliteTableRef? resolveTableFocus(String path, SqliteTablesSnapshot tables) {
   return null;
 }
 
-final tableFocusProvider = NotifierProvider<TableFocusNotifier, SqliteTableRef?>(
-  TableFocusNotifier.new,
-);
+final tableFocusProvider = NotifierProvider<TableFocusNotifier, SqliteTableRef?>(TableFocusNotifier.new);
 
 class TableFocusNotifier extends Notifier<SqliteTableRef?> {
   @override

@@ -79,10 +79,6 @@ class Operations {
               .toList()
         : <File>[];
 
-    if (files.isEmpty) {
-      logger.warn('Nothing in operations, creating an empty worker');
-    }
-
     final target = switch (buildSettings) {
       != null => settings.buildOperationsPath,
       _ => settings.compiledOperationsPath,

@@ -108,10 +108,7 @@ extension _CleanupPhotosX on ZonaiDb {
   }
 }
 
-Set<String> _photoIdsFromColumnValue(
-  Object? value, {
-  required bool isArray,
-}) {
+Set<String> _photoIdsFromColumnValue(Object? value, {required bool isArray}) {
   if (value == null) {
     return const {};
   }

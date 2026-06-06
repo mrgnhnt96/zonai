@@ -81,6 +81,11 @@ class ZonaiDb {
       _hashPassword = HashPassword();
 
   Raindrop? db;
+
+  /// Serializes concurrent [open] calls. resqlite segfaults if the same file
+  /// is opened twice in parallel.
+  Future<Raindrop>? _opening;
+
   final ExtensionsMailman _extensions;
   final RulesMailman _rules;
   final OperationsMailman _operations;
@@ -93,6 +98,7 @@ class ZonaiDb {
   void dispose() {
     db?.close();
     db = null;
+    _opening = null;
     __dbFile = null;
     _extensions.dispose();
     _rules.dispose();
@@ -192,6 +198,10 @@ class ZonaiDb {
 
   Future<_AuthResult?> authenticateAdmin(AuthPayload payload) async {
     return await _run(() => _authenticateAdmin(payload));
+  }
+
+  Future<String> adminPasswordTable() async {
+    return await _run(() => _adminCollectionFor(.password));
   }
 
   Future<Map<String, Object?>> createAdmin({

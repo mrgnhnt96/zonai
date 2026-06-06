@@ -4,8 +4,7 @@ import 'package:zonai_schema/zonai_schema.dart' hide photos, PhotosTable;
 
 PhotoRowRules main() => PhotoRowRules();
 
-final class PhotoRowRules
-    extends InternalRowRules<PhotosTable, PhotoEntry> {
+final class PhotoRowRules extends InternalRowRules<PhotosTable, PhotoEntry> {
   PhotoRowRules() : super(photos, canBeOverridden: true);
 
   @override

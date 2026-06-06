@@ -58,18 +58,13 @@ List<StyleRule> get zonaiUiStyles => [
     padding: .all(ZonaiSpacing.s14),
     radius: .all(Radius.circular(20.px)),
     border: .all(color: borderColor, width: 1.px, style: .solid),
-    raw: const {
-      'box-shadow': 'var(--zonai-shadow)',
-    },
+    raw: const {'box-shadow': 'var(--zonai-shadow)'},
   ),
   css('.z-page-title').styles(
     margin: .only(bottom: ZonaiSpacing.s4),
     fontSize: 1.625.rem,
     fontWeight: .w600,
-    raw: const {
-      'letter-spacing': '-0.02em',
-      'line-height': '1.25',
-    },
+    raw: const {'letter-spacing': '-0.02em', 'line-height': '1.25'},
   ),
   css('.z-page-subtitle').styles(
     margin: .only(bottom: ZonaiSpacing.s12),
@@ -108,25 +103,16 @@ List<StyleRule> get zonaiUiStyles => [
       'transition': 'border-color 0.15s ease, box-shadow 0.15s ease',
     },
   ),
-  css('.z-input:hover:not(:disabled)').styles(border: .all(color: mutedColor, width: 1.px, style: .solid)),
+  css('.z-input:hover:not(:disabled)').styles(
+    border: .all(color: mutedColor, width: 1.px, style: .solid),
+  ),
   css('.z-input:focus-visible').styles(
     border: .all(color: primaryColor, width: 1.px, style: .solid),
     raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
   ),
-  css('.z-input:disabled').styles(
-    opacity: 0.6,
-    cursor: .notAllowed,
-    backgroundColor: hoverColor,
-  ),
-  css('textarea.z-input').styles(
-    raw: const {'resize': 'vertical'},
-  ),
-  css('.z-select').styles(
-    position: Position.relative(),
-    display: .block,
-    width: 100.percent,
-    minWidth: .zero,
-  ),
+  css('.z-input:disabled').styles(opacity: 0.6, cursor: .notAllowed, backgroundColor: hoverColor),
+  css('textarea.z-input').styles(raw: const {'resize': 'vertical'}),
+  css('.z-select').styles(position: Position.relative(), display: .block, width: 100.percent, minWidth: .zero),
   css('.z-select__native').styles(
     display: .block,
     width: 100.percent,
@@ -153,11 +139,7 @@ List<StyleRule> get zonaiUiStyles => [
     border: .all(color: primaryColor, width: 1.px, style: .solid),
     raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
   ),
-  css('.z-select__native:disabled').styles(
-    opacity: 0.6,
-    cursor: .notAllowed,
-    backgroundColor: hoverColor,
-  ),
+  css('.z-select__native:disabled').styles(opacity: 0.6, cursor: .notAllowed, backgroundColor: hoverColor),
   css('.z-select__chevron').styles(
     position: Position.absolute(top: 0.px, right: 12.px, bottom: 0.px),
     display: .flex,
@@ -179,7 +161,8 @@ List<StyleRule> get zonaiUiStyles => [
     raw: const {
       'font': 'inherit',
       'line-height': '1.2',
-      'transition': 'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease',
+      'transition':
+          'background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease',
     },
   ),
   css('.z-btn--md').styles(
@@ -209,9 +192,9 @@ List<StyleRule> get zonaiUiStyles => [
     raw: const {'box-shadow': '0 1px 2px rgb(0 0 0 / 0.06)'},
   ),
   css('.z-btn--primary:hover:not(:disabled)').styles(backgroundColor: primaryHoverColor),
-  css('.z-btn--primary:focus-visible').styles(
-    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring), 0 1px 2px rgb(0 0 0 / 0.06)'},
-  ),
+  css(
+    '.z-btn--primary:focus-visible',
+  ).styles(raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring), 0 1px 2px rgb(0 0 0 / 0.06)'}),
   css('.z-btn--secondary').styles(
     color: fgColor,
     backgroundColor: surfaceColor,
@@ -221,25 +204,15 @@ List<StyleRule> get zonaiUiStyles => [
     backgroundColor: hoverColor,
     border: .all(color: mutedColor, width: 1.px, style: .solid),
   ),
-  css('.z-btn--secondary:focus-visible').styles(
-    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
-  ),
+  css('.z-btn--secondary:focus-visible').styles(raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'}),
   css('.z-btn--ghost').styles(
     color: mutedColor,
     backgroundColor: surfaceColor,
     border: .all(color: borderColor, width: 1.px, style: .solid),
   ),
-  css('.z-btn--ghost:hover:not(:disabled)').styles(
-    backgroundColor: hoverColor,
-    color: fgColor,
-  ),
-  css('.z-btn--ghost:focus-visible').styles(
-    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
-  ),
-  css('.z-btn:disabled').styles(
-    opacity: 0.55,
-    cursor: .notAllowed,
-  ),
+  css('.z-btn--ghost:hover:not(:disabled)').styles(backgroundColor: hoverColor, color: fgColor),
+  css('.z-btn--ghost:focus-visible').styles(raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'}),
+  css('.z-btn:disabled').styles(opacity: 0.55, cursor: .notAllowed),
   css('.z-btn + .z-btn').styles(margin: .only(top: ZonaiSpacing.s5)),
   css('.z-icon-btn').styles(
     display: .inlineFlex,
@@ -296,18 +269,10 @@ List<StyleRule> get zonaiUiStyles => [
     color: fgColor,
     border: .all(color: mutedColor, width: 1.px, style: .solid),
   ),
-  css('.z-icon-btn--ghost').styles(
-    backgroundColor: Colors.transparent,
-    color: mutedColor,
-  ),
-  css('.z-icon-btn--ghost:hover:not(:disabled)').styles(
-    backgroundColor: hoverColor,
-    color: fgColor,
-  ),
+  css('.z-icon-btn--ghost').styles(backgroundColor: Colors.transparent, color: mutedColor),
+  css('.z-icon-btn--ghost:hover:not(:disabled)').styles(backgroundColor: hoverColor, color: fgColor),
   css('.z-icon-btn:disabled').styles(opacity: 0.55, cursor: .notAllowed),
-  css('.z-icon-btn:focus-visible').styles(
-    raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
-  ),
+  css('.z-icon-btn:focus-visible').styles(raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'}),
   css('.z-auth-page').styles(
     flex: Flex(grow: 1, shrink: 0),
     display: .flex,
@@ -315,9 +280,7 @@ List<StyleRule> get zonaiUiStyles => [
     justifyContent: .center,
     padding: .all(ZonaiSpacing.s13),
     position: Position.relative(),
-    raw: const {
-      'background': 'radial-gradient(ellipse 80% 60% at 50% -20%, var(--zonai-glow), transparent)',
-    },
+    raw: const {'background': 'radial-gradient(ellipse 80% 60% at 50% -20%, var(--zonai-glow), transparent)'},
   ),
   css('.z-auth-page__theme').styles(
     position: Position.absolute(top: 24.px, right: 24.px),
@@ -351,27 +314,15 @@ List<StyleRule> get zonaiUiStyles => [
     color: onPrimaryColor,
     fontSize: 1.375.rem,
     fontWeight: .w700,
-    raw: const {
-      'box-shadow': '0 8px 24px -6px var(--zonai-focus-ring)',
-    },
+    raw: const {'box-shadow': '0 8px 24px -6px var(--zonai-focus-ring)'},
   ),
-  css('.z-auth-app-name').styles(
-    margin: .zero,
-    fontSize: 1.25.rem,
-    fontWeight: .w600,
-    raw: const {'letter-spacing': '-0.02em'},
-  ),
-  css('.z-auth-tagline').styles(
-    margin: .zero,
-    fontSize: 0.875.rem,
-    color: mutedColor,
-  ),
-  css('.z-auth-methods').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s5),
-    width: 100.percent,
-  ),
+  css(
+    '.z-auth-app-name',
+  ).styles(margin: .zero, fontSize: 1.25.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),
+  css('.z-auth-tagline').styles(margin: .zero, fontSize: 0.875.rem, color: mutedColor),
+  css(
+    '.z-auth-methods',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s5), width: 100.percent),
   css('.z-auth-method').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
@@ -394,16 +345,8 @@ List<StyleRule> get zonaiUiStyles => [
     border: .all(color: primaryColor, width: 1.px, style: .solid),
     raw: const {'box-shadow': '0 0 0 3px var(--zonai-focus-ring)'},
   ),
-  css('.z-auth-method__title').styles(
-    fontSize: 0.9375.rem,
-    fontWeight: .w600,
-    color: fgColor,
-  ),
-  css('.z-auth-method__desc').styles(
-    fontSize: 0.8125.rem,
-    color: mutedColor,
-    raw: const {'line-height': '1.4'},
-  ),
+  css('.z-auth-method__title').styles(fontSize: 0.9375.rem, fontWeight: .w600, color: fgColor),
+  css('.z-auth-method__desc').styles(fontSize: 0.8125.rem, color: mutedColor, raw: const {'line-height': '1.4'}),
   css('.z-auth-actions').styles(
     display: .flex,
     flexDirection: FlexDirection.column,
@@ -422,11 +365,7 @@ List<StyleRule> get zonaiUiStyles => [
     color: primaryColor,
     fontSize: 0.875.rem,
     fontWeight: .w600,
-    raw: const {
-      'font': 'inherit',
-      'text-decoration': 'underline',
-      'text-underline-offset': '3px',
-    },
+    raw: const {'font': 'inherit', 'text-decoration': 'underline', 'text-underline-offset': '3px'},
   ),
   css('.z-auth-link:hover').styles(color: primaryHoverColor),
   css('.z-auth-sent').styles(
@@ -449,11 +388,7 @@ List<StyleRule> get zonaiUiStyles => [
     color: mutedColor,
     textTransform: .upperCase,
   ),
-  css('.z-stack').styles(
-    display: .flex,
-    flexDirection: FlexDirection.column,
-    gap: Gap.all(ZonaiSpacing.s5),
-  ),
+  css('.z-stack').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s5)),
   css('.z-alert').styles(
     padding: .all(ZonaiSpacing.s8),
     radius: .all(Radius.circular(12.px)),
@@ -490,17 +425,10 @@ List<StyleRule> get zonaiUiStyles => [
     backgroundColor: surfaceColor,
     raw: const {'box-shadow': 'var(--zonai-shadow-sm)'},
   ),
-  css('.z-panel--empty').styles(
-    alignItems: .center,
-    justifyContent: .center,
-    padding: .all(ZonaiSpacing.s15),
-  ),
-  css('.z-panel__title').styles(
-    margin: .zero,
-    fontSize: 1.375.rem,
-    fontWeight: .w600,
-    raw: const {'letter-spacing': '-0.02em'},
-  ),
+  css('.z-panel--empty').styles(alignItems: .center, justifyContent: .center, padding: .all(ZonaiSpacing.s15)),
+  css(
+    '.z-panel__title',
+  ).styles(margin: .zero, fontSize: 1.375.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),
   ...zonaiTagStyles,
   ...zonaiEnumChipStyles,
   ...zonaiBooleanCheckStyles,

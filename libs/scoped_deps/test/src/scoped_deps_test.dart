@@ -74,29 +74,28 @@ void main() {
 
       test('merge semantics match runMergedScoped for override', () async {
         final ref = create(() => 1);
-        await runMergedScopedFuture(
-          () async {
-            await Future<void>.delayed(Duration.zero);
-            expect(read(ref), equals(2));
-          },
-          override: {ref.overrideWith(() => 2)},
-        );
+        await runMergedScopedFuture(() async {
+          await Future<void>.delayed(Duration.zero);
+          expect(read(ref), equals(2));
+        }, override: {ref.overrideWith(() => 2)});
       });
 
-      test('survives await with parent Zone.fork between CLI scope and merge',
-          () async {
-        final ref = create(() => 'cli');
-        await runScoped(() async {
-          await Zone.current
-              .fork(zoneValues: const {})
-              .run<Future<void>>(() async {
-            await runMergedScopedFuture(() async {
-              await Future<void>.delayed(Duration.zero);
-              expect(read(ref), equals('crud'));
-            }, override: {ref.overrideWith(() => 'crud')});
-          });
-        }, values: {ref.overrideWith(() => 'cli')});
-      });
+      test(
+        'survives await with parent Zone.fork between CLI scope and merge',
+        () async {
+          final ref = create(() => 'cli');
+          await runScoped(() async {
+            await Zone.current.fork(zoneValues: const {}).run<Future<void>>(
+              () async {
+                await runMergedScopedFuture(() async {
+                  await Future<void>.delayed(Duration.zero);
+                  expect(read(ref), equals('crud'));
+                }, override: {ref.overrideWith(() => 'crud')});
+              },
+            );
+          }, values: {ref.overrideWith(() => 'cli')});
+        },
+      );
     });
 
     group('runMergedScoped', () {

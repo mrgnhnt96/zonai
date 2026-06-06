@@ -28,7 +28,10 @@ void main() {
       expect(restored.table, body.table);
       expect(restored.updates, hasLength(1));
       expect(restored.updates.single, isA<ObjectUpdate>());
-      expect((restored.updates.single as ObjectUpdate).object['title'], 'Updated');
+      expect(
+        (restored.updates.single as ObjectUpdate).object['title'],
+        'Updated',
+      );
     });
   });
 }
