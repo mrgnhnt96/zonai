@@ -88,13 +88,13 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
   Future<void> onUnexpectedDelivery(CronResponse response) async {
     switch (response) {
       case JobStarted(:final name):
-        logger.info('Cron Job started: ${response.name}');
+        logger.info('[CRON] started: ${response.name}');
 
         final db = await zonaiDB.open();
 
         await db.insert(into: crons).values([CronEntry.create(name: name)]);
       case JobCompleted(:final name):
-        logger.info('Cron Job completed: ${response.name}');
+        logger.info('[CRON] completed: ${response.name}');
 
         final db = await zonaiDB.open();
 
@@ -107,7 +107,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
                   crons.failed.isNull(),
             );
       case JobFailed(:final name, :final error, :final stackTrace):
-        logger.warn('Cron Job failed: ${response.name}');
+        logger.warn('[CRON] failed: ${response.name}');
 
         final db = await zonaiDB.open();
 
