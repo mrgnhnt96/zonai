@@ -23,7 +23,7 @@ extension _StreamOneX on ZonaiDb {
       operation.values,
     ));
     if (readError != null || readResult == null) {
-      throw StateError('Failed to read record: $readError');
+      throw RecordReadFailedException(table: table, cause: readError);
     }
 
     final object = readResult.rows.single.toMap();
@@ -31,7 +31,7 @@ extension _StreamOneX on ZonaiDb {
 
     await for (final result in _stream(operation.query, operation.values)) {
       if (result.rows.isEmpty) {
-        throw StateError('No record found or record was deleted');
+        throw RecordDeletedWhileStreamingException(table: table);
       }
       final sanitized = await _sanitizeRow(
         table,

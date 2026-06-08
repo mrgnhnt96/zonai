@@ -36,7 +36,7 @@ extension _ListX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      throw error ?? StateError('Failed to list records');
+      throw error ?? RecordListFailedException(table: table);
     }
 
     final objects = result.rows.map((e) => e.toMap()).toList();

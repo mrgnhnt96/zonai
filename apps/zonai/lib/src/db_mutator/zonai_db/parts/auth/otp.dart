@@ -19,9 +19,7 @@ extension _OtpX on ZonaiDb {
 
     if (isAdmin) {
       if (!hasAuthRecord) {
-        throw StateError(
-          'Cannot create an Admin account without an existing account',
-        );
+        throw UserNotFoundAuthException(table: table);
       }
     }
 
@@ -43,7 +41,7 @@ extension _OtpX on ZonaiDb {
       if (challenge.createdAt.isAfter(
         clock.now().subtract(const Duration(minutes: 1)),
       )) {
-        throw StateError('Must wait 1 minute before sending a new OTP');
+        throw const AuthRateLimitException(waitDuration: Duration(minutes: 1));
       }
     }
 
@@ -91,11 +89,11 @@ extension _OtpX on ZonaiDb {
     );
 
     if (challenge == null) {
-      throw StateError('Invalid or expired code');
+      throw const InvalidOrExpiredCodeException(codeType: 'OTP');
     }
 
     if (challenge.expiresAt.isBefore(clock.now())) {
-      throw StateError('Code expired');
+      throw const CodeExpiredException(codeType: 'OTP');
     }
 
     final hasAuthRecord = await _hasAuthRecord(
@@ -105,9 +103,7 @@ extension _OtpX on ZonaiDb {
 
     if (isAdmin) {
       if (!hasAuthRecord) {
-        throw StateError(
-          'Cannot create an Admin account without an existing account',
-        );
+        throw UserNotFoundAuthException(table: challenge.table);
       }
     }
 
@@ -125,7 +121,7 @@ extension _OtpX on ZonaiDb {
     );
     if (!codeMatches) {
       await _challengeFailed(challenge);
-      throw StateError('Invalid or expired code');
+      throw const InvalidOrExpiredCodeException(codeType: 'OTP');
     }
 
     await _consumeChallenge(challenge);
@@ -180,7 +176,7 @@ extension _OtpX on ZonaiDb {
     final (error, result) = await _execute((operation.query, operation.values));
 
     if (error != null || result == null) {
-      throw error ?? StateError('Failed to create user');
+      throw error ?? AuthFailedException(cause: 'Failed to create user');
     }
 
     final user = await _sanitizeRow(table, result.rows.single.toMap());

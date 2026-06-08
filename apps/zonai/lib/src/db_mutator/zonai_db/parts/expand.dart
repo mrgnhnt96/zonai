@@ -91,7 +91,7 @@ extension _ExpandX on ZonaiDb {
     final referencedTable = response.referencedTable;
     final referencedColumn = response.referencedColumn;
     if (referencedTable == null || referencedColumn == null) {
-      throw StateError('Column "$columnName" on "$table" cannot be expanded');
+      throw ColumnNotExpandableException(table: table, columnName: columnName);
     }
 
     return _ColumnReference(
@@ -119,7 +119,7 @@ extension _ExpandX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      throw error ?? StateError('Failed to read expanded record');
+      throw error ?? const ExpandedRecordReadFailedException();
     }
 
     if (result.rows.isEmpty) {
@@ -148,8 +148,9 @@ final class _ExpandPathTree {
         continue;
       }
       if (segments.length > _maxExpandDepth) {
-        throw StateError(
-          'Expand path "$path" exceeds maximum depth of $_maxExpandDepth',
+        throw ColumnNotExpandableException(
+          table: segments.first,
+          columnName: path,
         );
       }
       tree._addPath(segments);

@@ -16,7 +16,7 @@ extension _CreateX on ZonaiDb {
         ),
       );
 
-      throw error ?? StateError('Failed to create record');
+      throw error ?? RecordCreateFailedException(table: table);
     }
 
     final created = await _sanitizeRow(table, result.rows.single.toMap());

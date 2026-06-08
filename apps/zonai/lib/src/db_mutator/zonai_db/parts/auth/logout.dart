@@ -4,7 +4,7 @@ extension _LogoutX on ZonaiDb {
   Future<void> _logout(String jwt) async {
     final appJwt = await _extractJwt(JwtPayload(jwt: jwt));
     if (appJwt == null) {
-      throw StateError('Invalid JWT');
+      throw const InvalidJwtException();
     }
 
     final db = await open();
@@ -35,7 +35,7 @@ extension _LogoutX on ZonaiDb {
   Future<void> _logoutAll(String jwt) async {
     final appJwt = await _extractJwt(JwtPayload(jwt: jwt));
     if (appJwt == null) {
-      throw StateError('Invalid JWT');
+      throw const InvalidJwtException();
     }
 
     final db = await open();

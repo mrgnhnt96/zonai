@@ -23,9 +23,7 @@ extension _MagicLinkX on ZonaiDb {
 
     if (isAdmin) {
       if (!hasAuthRecord) {
-        throw StateError(
-          'Cannot create an Admin account without an existing account',
-        );
+        throw UserNotFoundAuthException(table: table);
       }
     }
 
@@ -46,7 +44,7 @@ extension _MagicLinkX on ZonaiDb {
       if (challenge.createdAt.isAfter(
         clock.now().subtract(const Duration(minutes: 1)),
       )) {
-        throw StateError('Must wait 1 minute before sending a new OTP');
+        throw const AuthRateLimitException(waitDuration: Duration(minutes: 1));
       }
     }
 
@@ -117,11 +115,11 @@ extension _MagicLinkX on ZonaiDb {
     );
 
     if (challenge == null) {
-      throw StateError('Invalid or expired code');
+      throw const InvalidOrExpiredCodeException(codeType: 'magic link');
     }
 
     if (challenge.expiresAt.isBefore(clock.now())) {
-      throw StateError('Code expired');
+      throw const CodeExpiredException(codeType: 'magic link');
     }
 
     final hasAuthRecord = await _hasAuthRecord(
@@ -135,9 +133,7 @@ extension _MagicLinkX on ZonaiDb {
 
     if (isAdmin) {
       if (!hasAuthRecord) {
-        throw StateError(
-          'Cannot create an Admin account without an existing account',
-        );
+        throw UserNotFoundAuthException(table: challenge.table);
       }
     }
 
@@ -155,7 +151,7 @@ extension _MagicLinkX on ZonaiDb {
     );
     if (!secretMatches) {
       await _challengeFailed(challenge);
-      throw StateError('Invalid or expired magic link');
+      throw const InvalidOrExpiredCodeException(codeType: 'magic link');
     }
 
     await _consumeChallenge(challenge);
@@ -210,7 +206,7 @@ extension _MagicLinkX on ZonaiDb {
     final (error, result) = await _execute((operation.query, operation.values));
 
     if (error != null || result == null) {
-      throw error ?? StateError('Failed to create user');
+      throw error ?? AuthFailedException(cause: 'Failed to create user');
     }
 
     final user = await _sanitizeRow(table, result.rows.single.toMap());

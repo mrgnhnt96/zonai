@@ -19,7 +19,7 @@ extension _UpdateX on ZonaiDb {
     }
 
     if (updateResult == null) {
-      throw StateError('Failed to update record(s)');
+      throw RecordUpdateFailedException(table: table);
     }
 
     logger.trace(
@@ -41,7 +41,7 @@ extension _UpdateX on ZonaiDb {
         ),
       );
 
-      throw updatedError ?? StateError('Failed to update record');
+      throw updatedError ?? RecordUpdateFailedException(table: table);
     }
 
     final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
@@ -109,7 +109,7 @@ extension _UpdateX on ZonaiDb {
     }
 
     if (readResult == null) {
-      throw StateError('Failed to read record(s)');
+      throw RecordReadFailedException(table: table);
     }
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();

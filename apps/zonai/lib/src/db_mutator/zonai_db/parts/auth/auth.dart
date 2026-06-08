@@ -6,7 +6,7 @@ extension _AuthX on ZonaiDb {
   Future<_AuthResult?> _refreshToken(String token) async {
     final oldJwt = await _extractJwt(JwtPayload(jwt: token));
     if (oldJwt == null) {
-      throw StateError('Invalid JWT');
+      throw const InvalidJwtException();
     }
 
     final emailColumn = await _operations.send<ColumnNameResponse>(
@@ -15,7 +15,7 @@ extension _AuthX on ZonaiDb {
 
     final email = switch (oldJwt.user[emailColumn.name]) {
       final String email => email,
-      _ => throw StateError('Email not found'),
+      _ => throw EmailNotFoundAuthException(table: oldJwt.table),
     };
 
     final result = await _signIntoCollection(
@@ -100,12 +100,12 @@ extension _AuthX on ZonaiDb {
     required AuthExtensionStep extensionStep,
   }) async {
     if (jwt != null) {
-      throw StateError('User already authenticated');
+      throw const AlreadyAuthenticatedException();
     }
 
     final user = await _authRecord(table: table, email: email);
     if (user == null) {
-      throw StateError('User not found, cannot sign in');
+      throw UserNotFoundAuthException(table: table);
     }
 
     final (newJwt, token) = await _createJwt(table, user);
@@ -156,7 +156,7 @@ extension _AuthX on ZonaiDb {
 
     final userId = switch (user[userIdColumn.name]) {
       final String userId => userId,
-      _ => throw StateError('User ID not found'),
+      _ => throw UserNotFoundAuthException(table: table),
     };
 
     final appConfig = await getConfig();

@@ -80,9 +80,7 @@ extension UtilsX on ZonaiDb {
     final tableRules = await _tableRules(table, operation, jwt);
 
     if (!tableRules.canAccess) {
-      throw StateError(
-        'User permissions are restricted. Action: "${operation.name}" on table: "$table"',
-      );
+      throw TableAccessDeniedException(table: table, operation: operation.name);
     }
   }
 
@@ -131,8 +129,9 @@ extension UtilsX on ZonaiDb {
   ) async {
     final result = await _rowRules(table, operation, data, jwt);
     if (result.canPerform case false) {
-      throw StateError(
-        'User permissions are restricted. Action: "$operation" on table: "$table"',
+      throw RowAccessDeniedException(
+        table: table,
+        operation: operation.toString(),
       );
     }
   }
@@ -255,7 +254,7 @@ extension UtilsX on ZonaiDb {
 
     final db = this.db;
     if (db == null) {
-      throw StateError('Database is not open');
+      throw const DatabaseNotOpenException();
     }
 
     final effects = <_SideEffect>[];
@@ -288,7 +287,7 @@ extension UtilsX on ZonaiDb {
   Future<void> _executeEffects() async {
     final db = this.db;
     if (db == null) {
-      throw StateError('Database is not open');
+      throw const DatabaseNotOpenException();
     }
 
     const maxIterations = 10;
@@ -381,7 +380,7 @@ extension UtilsX on ZonaiDb {
 
     final db = this.db;
     if (db == null) {
-      throw StateError('Database is not open');
+      throw const DatabaseNotOpenException();
     }
 
     try {

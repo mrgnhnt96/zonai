@@ -1,0 +1,142 @@
+sealed class AuthException implements Exception {
+  const AuthException();
+}
+
+final class InvalidJwtException extends AuthException {
+  const InvalidJwtException();
+
+  @override
+  String toString() => 'Invalid JWT';
+}
+
+final class JwtRecordNotFoundException extends AuthException {
+  const JwtRecordNotFoundException();
+
+  @override
+  String toString() => 'JWT record not found';
+}
+
+final class UserNotFoundAuthException extends AuthException {
+  const UserNotFoundAuthException({required this.table});
+
+  final String table;
+
+  @override
+  String toString() => 'User not found for table: $table';
+}
+
+final class EmailNotFoundAuthException extends AuthException {
+  const EmailNotFoundAuthException({required this.table});
+
+  final String table;
+
+  @override
+  String toString() => 'Email not found for table: $table';
+}
+
+final class InvalidPasswordOrEmailException extends AuthException {
+  const InvalidPasswordOrEmailException();
+
+  @override
+  String toString() => 'Invalid password or email';
+}
+
+final class AlreadyAuthenticatedException extends AuthException {
+  const AlreadyAuthenticatedException();
+
+  @override
+  String toString() => 'User already authenticated';
+}
+
+final class InvalidOrExpiredCodeException extends AuthException {
+  const InvalidOrExpiredCodeException({required this.codeType});
+
+  final String codeType;
+
+  @override
+  String toString() => 'Invalid or expired $codeType code';
+}
+
+final class CodeExpiredException extends AuthException {
+  const CodeExpiredException({required this.codeType});
+
+  final String codeType;
+
+  @override
+  String toString() => '$codeType code expired';
+}
+
+final class AuthRateLimitException extends AuthException {
+  const AuthRateLimitException({required this.waitDuration});
+
+  final Duration waitDuration;
+
+  @override
+  String toString() =>
+      'Must wait ${waitDuration.inSeconds} seconds before sending a new code';
+}
+
+final class InvalidOrExpiredResetPasswordLinkException extends AuthException {
+  const InvalidOrExpiredResetPasswordLinkException();
+
+  @override
+  String toString() => 'Invalid or expired reset password link';
+}
+
+final class ResetPasswordLinkExpiredException extends AuthException {
+  const ResetPasswordLinkExpiredException();
+
+  @override
+  String toString() => 'Reset password link expired';
+}
+
+final class PasswordReuseException extends AuthException {
+  const PasswordReuseException();
+
+  @override
+  String toString() => 'New password cannot be the same as the old password';
+}
+
+final class InvalidOrExpiredVerifyEmailLinkException extends AuthException {
+  const InvalidOrExpiredVerifyEmailLinkException();
+
+  @override
+  String toString() => 'Invalid or expired verify email link';
+}
+
+final class VerifyEmailLinkExpiredException extends AuthException {
+  const VerifyEmailLinkExpiredException();
+
+  @override
+  String toString() => 'Verify email link expired';
+}
+
+final class AuthTableNotFoundException extends AuthException {
+  const AuthTableNotFoundException({required this.table});
+
+  final String table;
+
+  @override
+  String toString() => 'Cannot authenticate for table: $table';
+}
+
+final class AuthEmailForbiddenException extends AuthException {
+  const AuthEmailForbiddenException({required this.reason});
+
+  final String reason;
+
+  @override
+  String toString() => reason;
+}
+
+final class AuthFailedException extends AuthException {
+  const AuthFailedException({this.cause});
+
+  final Object? cause;
+
+  @override
+  String toString() {
+    if (cause != null) return 'Failed to authenticate: $cause';
+    return 'Failed to authenticate';
+  }
+}

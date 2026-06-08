@@ -1,4 +1,6 @@
 export 'src/db_mutator/executable_unavailable_exception.dart';
+export 'src/db_mutator/worker_process_failed_exception.dart';
+export 'src/exceptions/exceptions.dart';
 export 'src/deps/args.dart';
 export 'src/deps/env.dart';
 export 'src/deps/courier.dart';

@@ -15,11 +15,11 @@ extension _ReadX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      throw error ?? StateError('Failed to read record');
+      throw error ?? RecordReadFailedException(table: table);
     }
 
     if (result.rows.isEmpty) {
-      throw StateError('Record not found');
+      throw RecordNotFoundException(table: table);
     }
 
     final object = result.rows.first.toMap();

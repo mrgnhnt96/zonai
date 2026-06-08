@@ -77,14 +77,12 @@ extension _ResolvePhotosX on ZonaiDb {
           .limit(1);
 
       if (rows.isEmpty) {
-        throw StateError('Photo not found: $id');
+        throw PhotoNotFoundException(id: id);
       }
 
       final row = rows.first;
       if (row.table != table) {
-        throw StateError(
-          'Photo ${row.id.value} belongs to ${row.table}, not $table',
-        );
+        throw PhotoNotFoundException(id: id);
       }
     }
   }

@@ -21,7 +21,7 @@ extension _AuthUtilsX on ZonaiDb {
     final (error, result) = await _execute((response.query, response.values));
 
     if (error != null) {
-      throw StateError('Failed to authenticate: $error');
+      throw AuthFailedException(cause: error);
     }
 
     final user = result?.rows.singleOrNull?.toMap();
@@ -45,7 +45,7 @@ extension _AuthUtilsX on ZonaiDb {
     );
 
     if (!passwordsMatch) {
-      throw StateError('Invalid password or email');
+      throw const InvalidPasswordOrEmailException();
     }
 
     return await _sanitizeRow(table, user);
@@ -69,7 +69,7 @@ extension _AuthUtilsX on ZonaiDb {
     final (error, result) = await _execute((response.query, response.values));
 
     if (error != null) {
-      throw StateError('Failed to authenticate: $error');
+      throw AuthFailedException(cause: error);
     }
 
     final user = result?.rows.singleOrNull?.toMap();
@@ -122,7 +122,7 @@ extension _AuthUtilsX on ZonaiDb {
     final (error, result) = await _execute((response.query, response.values));
 
     if (error != null) {
-      throw StateError('Failed to authenticate: $error');
+      throw AuthFailedException(cause: error);
     }
 
     final user = result?.rows.singleOrNull?.toMap();
@@ -149,9 +149,7 @@ extension _AuthUtilsX on ZonaiDb {
       return;
     }
 
-    throw StateError(
-      'User permissions are restricted. Action: "${operation.name}" on table: "$table"',
-    );
+    throw TableAccessDeniedException(table: table, operation: operation.name);
   }
 
   /// Verifies the JWT signature and decodes claims without checking the
@@ -162,14 +160,14 @@ extension _AuthUtilsX on ZonaiDb {
     if (jwt == null) return null;
 
     final decoded = await _jwt.verify(jwt);
-    if (decoded == null) throw StateError('Invalid JWT');
+    if (decoded == null) throw const InvalidJwtException();
 
-    if (Jwt.isCronWorkerPayload(decoded)) throw StateError('Invalid JWT');
+    if (Jwt.isCronWorkerPayload(decoded)) throw const InvalidJwtException();
 
     try {
       return Jwt.fromJson(decoded);
     } on Object {
-      throw StateError('Invalid JWT');
+      throw const InvalidJwtException();
     }
   }
 
@@ -182,7 +180,7 @@ extension _AuthUtilsX on ZonaiDb {
 
     final decoded = await _jwt.verify(jwt);
     if (decoded == null) {
-      throw StateError('Invalid JWT');
+      throw const InvalidJwtException();
     }
 
     /// Do not allow cron JWT to be a user JWT.
@@ -191,7 +189,7 @@ extension _AuthUtilsX on ZonaiDb {
         'Attempt to use cron JWT as a user JWT, this is absolutely not expected and should be considered a security threat'
         'Rotate the JWT secret and deploy a new version of the application immediately',
       );
-      throw StateError('Invalid JWT');
+      throw const InvalidJwtException();
     }
 
     Jwt appJwt;
@@ -199,7 +197,7 @@ extension _AuthUtilsX on ZonaiDb {
     try {
       appJwt = Jwt.fromJson(decoded);
     } on Object {
-      throw StateError('Invalid JWT');
+      throw const InvalidJwtException();
     }
 
     return await _validateJwt(appJwt);
@@ -213,7 +211,7 @@ extension _AuthUtilsX on ZonaiDb {
     await open();
     final db = this.db;
     if (db == null) {
-      throw StateError('Database is not open');
+      throw const DatabaseNotOpenException();
     }
 
     final jwtRecord = await db
@@ -222,7 +220,7 @@ extension _AuthUtilsX on ZonaiDb {
         .where(jwts.id.equals(jwt.jwtId));
 
     if (jwtRecord.isEmpty) {
-      throw StateError('JWT record not found');
+      throw const JwtRecordNotFoundException();
     }
 
     return jwt;
@@ -253,7 +251,7 @@ extension _AuthUtilsX on ZonaiDb {
       return;
     }
 
-    throw StateError('Cannot authenticate for table: $table');
+    throw AuthTableNotFoundException(table: table);
   }
 
   Future<String?> _emailFromJwt({
@@ -284,7 +282,9 @@ extension _AuthUtilsX on ZonaiDb {
       if (allowUnauthenticated) {
         return;
       }
-      throw StateError('Authentication is required to send this email');
+      throw const AuthEmailForbiddenException(
+        reason: 'Authentication is required to send this email',
+      );
     }
 
     final validated = await _validateJwt(jwt);
@@ -298,6 +298,8 @@ extension _AuthUtilsX on ZonaiDb {
       return;
     }
 
-    throw StateError('Cannot send email to another user\'s email address');
+    throw const AuthEmailForbiddenException(
+      reason: "Cannot send email to another user's email address",
+    );
   }
 }

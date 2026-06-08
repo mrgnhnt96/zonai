@@ -37,9 +37,7 @@ extension _VerifyEmailX on ZonaiDb {
       if (challenge.createdAt.isAfter(
         clock.now().subtract(const Duration(minutes: 1)),
       )) {
-        throw StateError(
-          'Must wait 1 minute before sending a new verify email',
-        );
+        throw const AuthRateLimitException(waitDuration: Duration(minutes: 1));
       }
     }
 
@@ -101,11 +99,11 @@ extension _VerifyEmailX on ZonaiDb {
     );
 
     if (challenge == null) {
-      throw StateError('Invalid or expired verify email link');
+      throw const InvalidOrExpiredVerifyEmailLinkException();
     }
 
     if (challenge.expiresAt.isBefore(clock.now())) {
-      throw StateError('Verify email link expired');
+      throw const VerifyEmailLinkExpiredException();
     }
 
     final authRecord = await _authRecord(
@@ -115,7 +113,7 @@ extension _VerifyEmailX on ZonaiDb {
     );
 
     if (authRecord == null) {
-      throw StateError('Invalid or expired verify email link');
+      throw const InvalidOrExpiredVerifyEmailLinkException();
     }
 
     final secretMatches = await _hashPassword.verify(
@@ -123,7 +121,7 @@ extension _VerifyEmailX on ZonaiDb {
       passwordHash: challenge.secretHash,
     );
     if (!secretMatches) {
-      throw StateError('Invalid or expired verify email link');
+      throw const InvalidOrExpiredVerifyEmailLinkException();
     }
 
     await _consumeChallenge(challenge);
@@ -137,7 +135,7 @@ extension _VerifyEmailX on ZonaiDb {
 
     final authRecordId = authRecord[idColumn.name];
     if (authRecordId is! String) {
-      throw StateError('Auth record id not found');
+      throw AuthFailedException(cause: 'Auth record id not found');
     }
 
     if (authRecord[isVerifiedColumn.name] == true) {
@@ -157,11 +155,11 @@ extension _VerifyEmailX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null) {
-      throw StateError('Failed to verify email: $error');
+      throw AuthFailedException(cause: error);
     }
 
     if (result == null) {
-      throw StateError('Failed to verify email');
+      throw const AuthFailedException();
     }
   }
 }

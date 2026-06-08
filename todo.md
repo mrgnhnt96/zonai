@@ -11,10 +11,22 @@
 - [ ] Pin collections (?)
 - [ ] Add search history
 
+#### FIX
+
+- [ ] Requests over time graph is showing all logs, which is inaccurate to "requests"
+- [ ] Add delete photo file when the \_photos table deletes an image (extension)
+- [ ] Save button on edit row is not mobile responsive
+- [ ] The dashboard didn't load when tapping on the app logo
+- [ ] The edit button should be full width (when password reset button is not visible)
+  - [ ] Should password reset button be a dialog that shows the auth actions?
+
 ### API
 
 - [ ] Create references to photo from other collections when using the `photo` or `photos` column
 - [ ] Add prefix & suffix positional optional params to Id.generate
+- [ ] Throw proper errors, catch them in http, return expected status code etc
+- [ ] When logging 400+ response codes use warning color
+- [ ] When logging 500+ response codes, use error color
 
 ## CLI
 

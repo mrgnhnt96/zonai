@@ -22,7 +22,7 @@ extension _DeleteX on ZonaiDb {
         ),
       );
 
-      throw deleteError ?? StateError('Failed to delete record(s)');
+      throw deleteError ?? RecordDeleteFailedException(table: table);
     }
 
     logger.trace(
@@ -74,11 +74,11 @@ extension _DeleteX on ZonaiDb {
       readOperation.values,
     ));
     if (readError != null || readResult == null) {
-      throw readError ?? StateError('Failed to read record');
+      throw readError ?? RecordReadFailedException(table: table);
     }
 
     if (readResult.rows.isEmpty) {
-      throw StateError('Record not found');
+      throw RecordNotFoundException(table: table);
     }
 
     final rows = readResult.rows.map((e) => e.toMap()).toList();

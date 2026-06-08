@@ -10,9 +10,7 @@ extension _PasswordX on ZonaiDb {
 
     if (!hasAuthRecord) {
       if (isAdmin) {
-        throw StateError(
-          'Cannot create an Admin account without an existing account',
-        );
+        throw UserNotFoundAuthException(table: table);
       }
 
       return await _signUpWithPassword(table, payload);
@@ -26,7 +24,7 @@ extension _PasswordX on ZonaiDb {
     PasswordAuthPayload payload,
   ) async {
     if (payload.jwt != null) {
-      throw StateError('User already authenticated');
+      throw const AlreadyAuthenticatedException();
     }
 
     await _requireAuthTableAccess(table, payload);
@@ -41,7 +39,7 @@ extension _PasswordX on ZonaiDb {
     );
 
     if (user == null) {
-      throw StateError('User not found, cannot sign in');
+      throw UserNotFoundAuthException(table: table);
     }
 
     final (jwt, token) = await _createJwt(table, user);
@@ -84,7 +82,7 @@ extension _PasswordX on ZonaiDb {
     final (error, result) = await _execute((operation.query, operation.values));
 
     if (error != null || result == null) {
-      throw error ?? StateError('Failed to create user');
+      throw error ?? AuthFailedException(cause: 'Failed to create user');
     }
 
     final user = await _sanitizeRow(table, result.rows.single.toMap());

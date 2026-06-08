@@ -6,7 +6,7 @@ extension _PhotoX on ZonaiDb {
 
     final table = Table.get(photos);
     if (table == null) {
-      throw StateError('Photos table not found');
+      throw const PhotosTableNotFoundException();
     }
 
     await _requireTableAccess(table.name, .view, jwt);
@@ -14,7 +14,7 @@ extension _PhotoX on ZonaiDb {
     // drop the extension if provided
     final idOnly = id.split('.').first;
     if (!idOnly.endsWith('ph')) {
-      throw StateError('Invalid photo id: $idOnly');
+      throw InvalidPhotoIdException(id: idOnly);
     }
     final db = await open();
     final rows = await db
@@ -24,7 +24,7 @@ extension _PhotoX on ZonaiDb {
         .limit(1);
 
     if (rows.isEmpty) {
-      throw StateError('Photo not found');
+      throw const PhotoNotFoundException();
     }
 
     final photo = rows.first;
@@ -34,7 +34,7 @@ extension _PhotoX on ZonaiDb {
     final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
 
     if (!file.existsSync()) {
-      throw StateError('Photo file not found');
+      throw const PhotoFileNotFoundException();
     }
 
     return file;
@@ -49,7 +49,7 @@ extension _PhotoX on ZonaiDb {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
     final table = Table.get(photos);
     if (table == null) {
-      throw StateError('Photos table not found');
+      throw const PhotosTableNotFoundException();
     }
     await _requireTableAccess(table.name, .create, jwt);
     await _requireRegisteredTable(meta.table);
@@ -65,7 +65,7 @@ extension _PhotoX on ZonaiDb {
 
     if (photosConfig.allowedMimeTypes case final allowed?) {
       if (!allowed.contains(imageType)) {
-        throw StateError('Content type not allowed: ${imageType.mimeType}');
+        throw PhotoContentTypeNotAllowedException(mimeType: imageType.mimeType);
       }
     }
 
@@ -75,10 +75,10 @@ extension _PhotoX on ZonaiDb {
     );
     final file = fs.file(fs.path.join(settings.imagesPath, relativePath));
     if (fs.path.isWithin(settings.imagesPath, relativePath)) {
-      throw StateError('Invalid photo path: $relativePath');
+      throw InvalidPhotoPathException(path: relativePath);
     }
     if (file.existsSync()) {
-      throw StateError('Photo file already exists');
+      throw PhotoFileAlreadyExistsException(path: file.path);
     }
 
     final entry = PhotoEntry(
@@ -101,7 +101,7 @@ extension _PhotoX on ZonaiDb {
 
       insertedRow = results.firstOrNull;
       if (insertedRow == null) {
-        throw StateError('Photo insert did not return a row');
+        throw const PhotoInsertFailedException();
       }
 
       await file.parent.create(recursive: true);
@@ -146,7 +146,7 @@ extension _PhotoX on ZonaiDb {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
     final table = Table.get(photos);
     if (table == null) {
-      throw StateError('Photos table not found');
+      throw const PhotosTableNotFoundException();
     }
     await _requireTableAccess(table.name, .update, jwt);
 
@@ -159,7 +159,7 @@ extension _PhotoX on ZonaiDb {
         .limit(1);
 
     if (rows.isEmpty) {
-      throw StateError('Photo not found');
+      throw const PhotoNotFoundException();
     }
 
     final photo = rows.first;
@@ -173,19 +173,19 @@ extension _PhotoX on ZonaiDb {
       image,
     );
     if (detected == null) {
-      throw StateError('Could not detect image type from stream');
+      throw const PhotoImageTypeUndetectableException();
     }
     final imageType = detected;
 
     if (photosConfig.allowedMimeTypes case final allowed?) {
       if (!allowed.contains(imageType)) {
-        throw StateError('Content type not allowed: ${imageType.mimeType}');
+        throw PhotoContentTypeNotAllowedException(mimeType: imageType.mimeType);
       }
     }
 
     final oldFile = fs.file(fs.path.join(settings.imagesPath, photo.path));
     if (!oldFile.existsSync()) {
-      throw StateError('Photo file not found');
+      throw const PhotoFileNotFoundException();
     }
 
     final newRelativePath = fs.path.normalize(
@@ -195,7 +195,7 @@ extension _PhotoX on ZonaiDb {
     final extensionChanged = imageType.fileExtension != photo.extension;
 
     if (extensionChanged && newFile.existsSync()) {
-      throw StateError('Photo file already exists');
+      throw PhotoFileAlreadyExistsException(path: newFile.path);
     }
 
     final targetFile = extensionChanged ? newFile : oldFile;
@@ -289,7 +289,7 @@ extension _PhotoX on ZonaiDb {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
     final table = Table.get(photos);
     if (table == null) {
-      throw StateError('Photos table not found');
+      throw const PhotosTableNotFoundException();
     }
     await _requireTableAccess(table.name, .delete, jwt);
 
@@ -302,7 +302,7 @@ extension _PhotoX on ZonaiDb {
         .limit(1);
 
     if (rows.isEmpty) {
-      throw StateError('Photo not found');
+      throw const PhotoNotFoundException();
     }
 
     final photo = rows.first;

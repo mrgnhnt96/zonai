@@ -12,7 +12,6 @@ import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
-import 'package:zonai/src/db_mutator/worker_process_failed_exception.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
 import 'package:zonai/src/internal/internal_db_artifacts.dart';
@@ -359,6 +358,16 @@ class ZonaiDb {
       rethrow;
     } on WorkerProcessFailedException {
       rethrow;
+    } on AuthException {
+      rethrow;
+    } on CrudException {
+      rethrow;
+    } on PhotoException {
+      rethrow;
+    } on SchemaException {
+      rethrow;
+    } on PermissionException {
+      rethrow;
     } catch (e, stack) {
       Error.throwWithStackTrace(
         StateError('Failed to run database operation: $e'),
@@ -368,16 +377,37 @@ class ZonaiDb {
   }
 
   Stream<T> _runStream<T>(Stream<T> Function() body) async* {
-    final m = Mutations();
-    yield* await runMergedScopedFuture(
-      () async => body(),
-      includeIfAbsent: {cleanUpProvider, executableStopProvider},
-      override: {
-        mutationsProvider.overrideWith(() => m),
-        configResolverProvider.overrideWith(
-          () => ConfigResolver(mailman: _config),
-        ),
-      },
-    );
+    try {
+      final m = Mutations();
+      yield* await runMergedScopedFuture(
+        () async => body(),
+        includeIfAbsent: {cleanUpProvider, executableStopProvider},
+        override: {
+          mutationsProvider.overrideWith(() => m),
+          configResolverProvider.overrideWith(
+            () => ConfigResolver(mailman: _config),
+          ),
+        },
+      );
+    } on ExecutableUnavailableException {
+      rethrow;
+    } on WorkerProcessFailedException {
+      rethrow;
+    } on AuthException {
+      rethrow;
+    } on CrudException {
+      rethrow;
+    } on PhotoException {
+      rethrow;
+    } on SchemaException {
+      rethrow;
+    } on PermissionException {
+      rethrow;
+    } catch (e, stack) {
+      Error.throwWithStackTrace(
+        StateError('Failed to run database stream: $e'),
+        stack,
+      );
+    }
   }
 }

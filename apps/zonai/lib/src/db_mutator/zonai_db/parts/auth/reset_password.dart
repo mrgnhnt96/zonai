@@ -26,9 +26,7 @@ extension _ResetPasswordX on ZonaiDb {
       if (challenge.createdAt.isAfter(
         clock.now().subtract(const Duration(minutes: 1)),
       )) {
-        throw StateError(
-          'Must wait 1 minute before sending a new reset password link',
-        );
+        throw const AuthRateLimitException(waitDuration: Duration(minutes: 1));
       }
     }
 
@@ -109,11 +107,11 @@ extension _ResetPasswordX on ZonaiDb {
     );
 
     if (challenge == null) {
-      throw StateError('Invalid or expired reset password link');
+      throw const InvalidOrExpiredResetPasswordLinkException();
     }
 
     if (challenge.expiresAt.isBefore(clock.now())) {
-      throw StateError('Reset password link expired');
+      throw const ResetPasswordLinkExpiredException();
     }
 
     final authRecord = await _authRecord(
@@ -123,7 +121,7 @@ extension _ResetPasswordX on ZonaiDb {
     );
 
     if (authRecord == null) {
-      throw StateError('Invalid or expired reset password link');
+      throw const InvalidOrExpiredResetPasswordLinkException();
     }
 
     await _requireAuthTableAccess(challenge.table, payload);
@@ -134,7 +132,7 @@ extension _ResetPasswordX on ZonaiDb {
       passwordHash: challenge.secretHash,
     );
     if (!secretMatches) {
-      throw StateError('Invalid or expired reset password link');
+      throw const InvalidOrExpiredResetPasswordLinkException();
     }
 
     await _consumeChallenge(challenge);
@@ -148,19 +146,19 @@ extension _ResetPasswordX on ZonaiDb {
 
     final authRecordId = authRecord[idColumn.name];
     if (authRecordId is! String) {
-      throw StateError('Auth record id not found');
+      throw AuthFailedException(cause: 'Auth record id not found');
     }
 
     final passwordHash = authRecord.remove(passwordColumn.name);
     if (passwordHash is! String) {
-      throw StateError('Password hash not found');
+      throw AuthFailedException(cause: 'Password hash not found');
     }
 
     final newPasswordHash = await _hashPassword.hash(
       password: payload.newPassword,
     );
     if (newPasswordHash == passwordHash) {
-      throw StateError('New password cannot be the same as the old password');
+      throw const PasswordReuseException();
     }
 
     final operation = await _operations.send<PerformOperationResponse>(
@@ -174,11 +172,11 @@ extension _ResetPasswordX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null) {
-      throw StateError('Failed to update auth record: $error');
+      throw AuthFailedException(cause: error);
     }
 
     if (result == null) {
-      throw StateError('Failed to update auth record');
+      throw const AuthFailedException();
     }
   }
 }
