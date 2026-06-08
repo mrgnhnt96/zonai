@@ -66,6 +66,7 @@ class Mailman<S extends Request, R extends Response> {
   final String executablePath;
 
   io.Process? _process;
+  Future<io.Process?>? _starting;
   final StringBuffer _stderrBuffer = StringBuffer();
   final StreamController<Request> _request;
   late final StreamSubscription<Request> _requestSubscription;
@@ -78,6 +79,10 @@ class Mailman<S extends Request, R extends Response> {
   final Map<String, List<MutationRequest>> _pendingMutations = {};
 
   Future<void>? _restartFuture;
+
+  /// Serializes [stdin] writes so concurrent [_send] calls cannot interleave
+  /// JSON lines on the worker subprocess.
+  Future<void> _sendChain = Future.value();
 
   Future<void> dispose() async {
     kill();
@@ -338,6 +343,18 @@ class Mailman<S extends Request, R extends Response> {
       return null;
     }
 
+    return _starting ??= _startOnce().whenComplete(() => _starting = null);
+  }
+
+  Future<io.Process?> _startOnce() async {
+    if (_process case final process?) {
+      return process;
+    }
+
+    if (!hasExecutable) {
+      return null;
+    }
+
     logger.debug('Starting | $executablePath', prefix: _prefix);
 
     _stderrBuffer.clear();
@@ -559,7 +576,13 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
-  Future<Response?> _send(Request request) async {
+  Future<Response?> _send(Request request) {
+    final result = _sendChain.then((_) => _sendOnce(request));
+    _sendChain = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
+  Future<Response?> _sendOnce(Request request) async {
     await _ensureRestartedIfRequested();
 
     final process = await _start();
@@ -632,6 +655,11 @@ class Mailman<S extends Request, R extends Response> {
   /// Should only be called during development,
   /// and should never be called in production
   Future<void> kill({bool failPending = true}) async {
+    if (_starting case final starting?) {
+      await starting.catchError((_) => null);
+      _starting = null;
+    }
+
     if (_process case final process?) {
       logger.debug('Killing', prefix: _prefix);
       process.kill();

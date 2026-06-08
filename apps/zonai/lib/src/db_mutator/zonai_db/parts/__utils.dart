@@ -27,7 +27,7 @@ extension UtilsX on ZonaiDb {
 
     logger.debug('Opening database: ${_dbFile.path}', prefix: _prefix);
     await ensureResqliteNativeInstalled();
-    final db = this.db = Raindrop(await ResqliteDelegate.open(_dbFile.path));
+    final db = Raindrop(await ResqliteDelegate.open(_dbFile.path));
 
     try {
       logger.verbose(
@@ -52,12 +52,11 @@ extension UtilsX on ZonaiDb {
       logger.verbose('Ensuring database is open', prefix: _prefix);
       await db.ensureOpen();
     } catch (_) {
-      this.db = null;
       db.close();
       rethrow;
     }
 
-    return db;
+    return this.db = db;
   }
 
   Future<void> _createInternalCollections(Raindrop db) async {

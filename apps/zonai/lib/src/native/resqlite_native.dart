@@ -11,13 +11,12 @@ import '../domain/settings.dart';
 Future<void> ensureResqliteNativeInstalled() async {
   if (isInstalled) return;
 
-  final path = switch (kIsCompiled) {
+  final installPath = switch (kIsCompiled) {
     true => await _extractCompiledLibrary(),
-    false => _developmentLibraryPath(),
+    false => await _syncNativeAssetLibrary(_developmentLibraryPath()),
   };
 
-  await _syncNativeAssetLibrary(path);
-  install(path);
+  install(installPath);
 }
 
 Future<String> _extractCompiledLibrary() async {
@@ -36,7 +35,7 @@ Future<String> _extractCompiledLibrary() async {
   return dest.absolute.path;
 }
 
-Future<void> _syncNativeAssetLibrary(String sourcePath) async {
+Future<String> _syncNativeAssetLibrary(String sourcePath) async {
   final source = fs.file(sourcePath);
   final dest = fs.file(
     fs.path.join(
@@ -54,10 +53,11 @@ Future<void> _syncNativeAssetLibrary(String sourcePath) async {
   if (dest.existsSync() &&
       dest.lengthSync() == source.lengthSync() &&
       !source.lastModifiedSync().isAfter(dest.lastModifiedSync())) {
-    return;
+    return dest.absolute.path;
   }
 
   await _writeLibraryBytes(dest, await source.readAsBytes());
+  return dest.absolute.path;
 }
 
 Future<void> _writeLibraryBytes(File dest, List<int> bytes) async {
