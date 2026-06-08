@@ -229,9 +229,10 @@ class AuthNotifier extends Notifier<bool> {
     }
 
     final path = ref.read(authRouteProvider);
-    if (!AuthRoutes.isPublicAuthPath(path)) {
-      web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.signIn));
+    if (path == AuthRoutes.home || AuthRoutes.isPublicAuthPath(path)) {
+      return;
     }
+    web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.signIn));
   }
 
   static bool _hasAuthToken() {

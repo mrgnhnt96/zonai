@@ -59,7 +59,7 @@ class HomeSidebar extends StatelessComponent {
           'home-sidebar${collapsed ? ' home-sidebar--collapsed' : ''}${ui.sidebarToggling ? ' home-sidebar--toggling' : ''}${ui.mobileNavOpen ? ' home-sidebar--mobile-open' : ''}${ui.mobileNavClosing ? ' home-sidebar--mobile-closing' : ''}',
       [
         div(classes: 'home-sidebar-header', [
-          a(href: AuthRoutes.home, classes: 'home-sidebar-brand', [
+          a(href: AuthRoutes.toUrlPath(AuthRoutes.home), classes: 'home-sidebar-brand', [
             div(classes: 'home-sidebar-logo', [.text(initial)]),
             span(classes: 'home-sidebar-app-name', [.text(appName)]),
           ]),

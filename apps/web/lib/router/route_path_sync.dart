@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_router/jaspr_router.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/web.dart' as web;
 
 import '../auth/auth_route_provider.dart';
+import '../auth/auth_routes.dart';
 
 /// Keeps [authRouteProvider] aligned with [RouteState] for auth guards and titles.
 class RoutePathSync extends StatefulComponent {
@@ -30,10 +32,19 @@ class _RoutePathSyncState extends State<RoutePathSync> {
         scheduleMicrotask(() {
           if (!mounted) return;
           context.read(authRouteProvider.notifier).notifyPathChanged(path, previous: previous);
+          _syncMountedBrowserUrl(path);
         });
       }
     }
 
     return component.child;
+  }
+
+  /// jaspr_router history uses mount-less paths; keep the address bar under [AuthRoutes.mountPath].
+  void _syncMountedBrowserUrl(String appPath) {
+    final expected = AuthRoutes.toUrlPath(appPath);
+    if (web.window.location.pathname != expected) {
+      web.window.history.replaceState(null, '', '$expected${web.window.location.search}');
+    }
   }
 }

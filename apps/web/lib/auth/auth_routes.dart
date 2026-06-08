@@ -13,6 +13,14 @@ abstract final class AuthRoutes {
   /// Base path for the web app and Jaspr asset URL stripping.
   static const mountPath = '/_';
 
+  /// True when [path] is the mount itself or a page under it (e.g. `/_`, `/_/sign-in`).
+  static bool isMountedWebPath(String path) {
+    if (mountPath == '/' || mountPath.isEmpty) {
+      return true;
+    }
+    return path == mountPath || path.startsWith('$mountPath/');
+  }
+
   static String forType(AuthType type) => '$signIn/${type.name}';
 
   static String forTable(String sqliteName) => '$tables/${Uri.encodeComponent(sqliteName)}';
@@ -121,6 +129,18 @@ abstract final class AuthRoutes {
       return mountPath;
     }
     return '$mountPath$normalized';
+  }
+
+  /// Rewrites a jaspr_router location (often mount-less) to the public browser URL.
+  static String toMountedBrowserLocation(String location) {
+    final uri = location.contains('://')
+        ? Uri.parse(location)
+        : Uri.parse('http://localhost${location.startsWith('/') ? location : '/$location'}');
+    final path = toUrlPath(normalizePath(uri.path));
+    if (!uri.hasQuery) {
+      return path;
+    }
+    return '$path?${uri.query}';
   }
 
   static String _normalizePath(String path) {

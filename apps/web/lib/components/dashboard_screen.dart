@@ -175,7 +175,10 @@ class DashboardScreen extends StatelessComponent {
                 ]),
                 div(classes: 'dashboard-tables', [
                   for (final table in userTables)
-                    a(href: AuthRoutes.forTable(table.sqliteName), classes: 'dashboard-table-card', [
+                    a(
+                      href: AuthRoutes.toUrlPath(AuthRoutes.forTable(table.sqliteName)),
+                      classes: 'dashboard-table-card',
+                      [
                       span(classes: 'dashboard-table-name', [.text(table.displayName)]),
                       span(classes: 'dashboard-table-meta', [.text(_fmtTableMeta(tableCountsData[table.sqliteName]))]),
                     ]),

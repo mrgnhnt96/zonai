@@ -3,6 +3,7 @@ import 'package:jaspr_router/jaspr_router.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../auth/auth_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
 import '../components/magic_link_sign_in_screen.dart' deferred as magic_link_sign_in;
@@ -40,6 +41,9 @@ class AuthRouter extends StatelessComponent {
 
     final path = AuthRoutes.normalizePath(state.location);
     if (path == AuthRoutes.home) {
+      if (_isSignedIn(context)) {
+        return null;
+      }
       return AuthRoutes.signIn;
     }
 
@@ -76,6 +80,13 @@ class AuthRouter extends StatelessComponent {
 
 List<AuthType> authTypesOrEmpty(BuildContext context) {
   return ProviderScope.containerOf(context).read(supportedAuthTypesProvider);
+}
+
+bool _isSignedIn(BuildContext context) {
+  if (!context.binding.isClient) {
+    return false;
+  }
+  return ProviderScope.containerOf(context).read(authProvider);
 }
 
 final List<RouteBase> authRoutes = [

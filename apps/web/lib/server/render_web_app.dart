@@ -72,11 +72,18 @@ Request toShelfRequest(Context context) {
 
   final requestUri = context.request.uri;
   final host = headers['host'] ?? 'localhost:8080';
-  final absoluteUri = requestUri.hasScheme
+  var absoluteUri = requestUri.hasScheme
       ? requestUri
       : Uri.parse(
           'http://$host${requestUri.path.isEmpty ? '/' : requestUri.path}',
         ).replace(queryParameters: requestUri.queryParameters.isEmpty ? null : requestUri.queryParameters);
+
+  // jaspr_router matches mount-less app paths (`/sign-in`); normalize SSR input
+  // from `/_/sign-in` so we render instead of 302-looping back to the same URL.
+  final appPath = AuthRoutes.normalizePath(absoluteUri.path);
+  if (appPath != absoluteUri.path) {
+    absoluteUri = absoluteUri.replace(path: appPath);
+  }
 
   return Request(context.request.method, absoluteUri, headers: headers);
 }
@@ -143,7 +150,16 @@ Future<ResponseLike> renderWebApp(Request request) async {
 /// Applies a Jaspr [ResponseLike] to a Revali [context].
 void applyJasprResponse(Context context, ResponseLike rendered) {
   context.response.statusCode = rendered.statusCode;
+  final requestPath = context.request.uri.path;
   for (final entry in rendered.headers.entries) {
+    if (entry.key.toLowerCase() == 'location') {
+      final location = AuthRoutes.toMountedBrowserLocation(entry.value.join(','));
+      if (location.split('?').first == requestPath) {
+        continue;
+      }
+      context.response.headers.add('Location', location);
+      continue;
+    }
     context.response.headers.add(entry.key, entry.value.join(','));
   }
   context.response.headers.mimeType = 'text/html; charset=utf-8';
