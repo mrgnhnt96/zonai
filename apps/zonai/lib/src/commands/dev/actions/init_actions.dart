@@ -40,7 +40,7 @@ cronsPath: lib/src/crons
 }
 
 void _updateGitignore() {
-  const entries = ['*.stop', 'zonai.sqlite*'];
+  const entries = ['*.stop', 'zonai.sqlite*', '.serve.lock'];
 
   final file = fs.file('.gitignore');
   final existing = file.existsSync() ? file.readAsStringSync() : '';
