@@ -14,7 +14,7 @@ extension _CountX on ZonaiDb {
       throw error ?? RecordCountFailedException(table: table);
     }
 
-    return result.rows.length;
+    return _countFromResult(result);
   }
 
   Stream<int> _streamCount(String table, CountPayload payload) async* {
@@ -33,7 +33,20 @@ extension _CountX on ZonaiDb {
     final stream = _stream(operation.query, operation.values);
     // only yield counts when the count changes
     await for (final result in stream.distinct()) {
-      yield result.rows.length;
+      yield _countFromResult(result);
     }
   }
+}
+
+int _countFromResult(OperationResult result) {
+  if (result.rows.isEmpty) return 0;
+  final values = result.rows.first.values;
+  if (values.isEmpty) return 0;
+  final value = values.first;
+  return switch (value) {
+    final int v => v,
+    final BigInt v => v.toInt(),
+    final double v => v.toInt(),
+    _ => 0,
+  };
 }

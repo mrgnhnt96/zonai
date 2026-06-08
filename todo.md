@@ -10,15 +10,18 @@
 - [ ] Add theme color support
 - [ ] Pin collections (?)
 - [ ] Add search history
+- [ ] Support user defined favicon
 
 #### FIX
 
+- [ ] The delete animation isn't showing up
 - [ ] Requests over time graph is showing all logs, which is inaccurate to "requests"
 - [ ] Add delete photo file when the \_photos table deletes an image (extension)
 - [ ] Save button on edit row is not mobile responsive
-- [ ] The dashboard didn't load when tapping on the app logo
+- [ ] Updating the password in "edit row" mode is going to break the auth flow, we are going to need to encode the password
+  - [ ] Don't allow password update (or copy), just replace password (click to enable replacing password)
+- [ ] The dashboard doesn't load when tapping on the app logo (only works on refresh)
 - [ ] The edit button should be full width (when password reset button is not visible)
-  - [ ] Should password reset button be a dialog that shows the auth actions?
 
 ### API
 
