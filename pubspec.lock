@@ -684,11 +684,9 @@ packages:
   nocterm:
     dependency: "direct overridden"
     description:
-      path: "."
-      ref: "fix/selection-area-edge-scroll"
-      resolved-ref: "8ad4616060c60eb06032a48406e34a7161173e18"
-      url: "https://github.com/mrgnhnt96/nocterm"
-    source: git
+      path: "../nocterm"
+      relative: true
+    source: path
     version: "0.7.0"
   node_preamble:
     dependency: transitive

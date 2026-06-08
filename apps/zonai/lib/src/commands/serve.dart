@@ -86,8 +86,6 @@ Future<int> _startServing() async {
     return 1;
   }
 
-  logger.info('serving');
-
   final extensionMailman = ExtensionsMailman();
   final rulesMailman = RulesMailman();
   final operationMailman = OperationsMailman();
