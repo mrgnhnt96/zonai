@@ -95,7 +95,7 @@ class DashboardScreen extends StatelessComponent {
                     ]),
                   ]),
               ]),
-              div(classes: 'dashboard-panel', [
+              div(classes: 'dashboard-panel dashboard-panel--errors', [
                 p(classes: 'dashboard-panel-title', [.text('Top Errors (24h)')]),
                 if (topErrors.isLoading)
                   div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
@@ -269,6 +269,11 @@ class DashboardScreen extends StatelessComponent {
         raw: const {'box-shadow': 'var(--zonai-shadow-sm)'},
       ),
       css('.dashboard-panel--wide').styles(flex: Flex(grow: 2, shrink: 1), minWidth: 320.px),
+      css('.dashboard-panel--errors').styles(
+        flex: Flex(grow: 0, shrink: 1),
+        maxWidth: 400.px,
+        minWidth: 240.px,
+      ),
       css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
         flex: Flex(grow: 1, shrink: 0),
@@ -358,6 +363,7 @@ class DashboardScreen extends StatelessComponent {
         backgroundColor: bgColor,
         border: .all(color: borderColor, width: 1.px, style: .solid),
         cursor: .pointer,
+        minWidth: .zero,
         raw: const {'transition': 'border-color 0.15s ease'},
       ),
       css('.dashboard-error-item:hover').styles(
@@ -371,7 +377,12 @@ class DashboardScreen extends StatelessComponent {
       ),
       css(
         '.dashboard-error-header',
-      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
+      ).styles(
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s2),
+        minWidth: .zero,
+      ),
       css('.dashboard-error-detail').styles(
         margin: .zero,
         padding: .all(ZonaiSpacing.s4),
@@ -393,9 +404,9 @@ class DashboardScreen extends StatelessComponent {
         color: fgColor,
         raw: const {
           'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          'white-space': 'nowrap',
-          'overflow': 'hidden',
-          'text-overflow': 'ellipsis',
+          'white-space': 'normal',
+          'overflow-wrap': 'anywhere',
+          'line-height': '1.4',
         },
       ),
       css(

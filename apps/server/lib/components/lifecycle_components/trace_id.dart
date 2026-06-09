@@ -8,6 +8,24 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/internal/tables/logs_table.dart';
 import 'photo_view_headers.dart';
 
+const _errorSummaryMaxLength = 120;
+
+/// A short, human-readable label for grouping errors in logs and dashboards.
+String _errorSummary(Object error) => _errorSummaryFromText(error.toString(), fallback: error.runtimeType.toString());
+
+String _errorSummaryFromText(String text, {required String fallback}) {
+  final line = text.split('\n').first.trim();
+  if (line.isEmpty) return fallback;
+
+  final colon = line.indexOf(':');
+  final summary = (colon >= 0 ? line.substring(0, colon) : line).trim();
+  final label = summary.isEmpty ? line : summary;
+
+  return label.length <= _errorSummaryMaxLength
+      ? label
+      : '${label.substring(0, _errorSummaryMaxLength - 1)}…';
+}
+
 class TraceId {
   TraceId(this.value);
   static TraceId generate() => TraceId(Id.generate());
@@ -62,7 +80,7 @@ class Trace implements LifecycleComponent {
           result.headers.add('x-trace-id', _trace.value);
           return result;
         } catch (e, stackTrace) {
-          logger.error('Uncaught error', e, stackTrace);
+          logger.error(_errorSummary(e), e, stackTrace);
           rethrow;
         }
       },

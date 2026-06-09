@@ -131,19 +131,19 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
       ),
     );
 
-    // Group by message; items are DESC by timestamp so first occurrence = most recent.
+    // Group by a concise error label; items are DESC by timestamp so first occurrence = most recent.
     final groups = <String, ({int count, DateTime lastSeen, String? detail})>{};
 
     for (final item in _parseItems(data)) {
-      final message = item['message'];
-      if (message is! String || message.isEmpty) continue;
+      final key = _errorGroupKey(item);
+      if (key == null) continue;
       final ts = _parseTimestamp(item['timestamp']) ?? DateTime.now();
-      final existing = groups[message];
+      final existing = groups[key];
       if (existing == null) {
-        groups[message] = (count: 1, lastSeen: ts, detail: item['error'] as String?);
+        groups[key] = (count: 1, lastSeen: ts, detail: item['error'] as String?);
       } else {
         final isNewer = ts.isAfter(existing.lastSeen);
-        groups[message] = (
+        groups[key] = (
           count: existing.count + 1,
           lastSeen: isNewer ? ts : existing.lastSeen,
           detail: isNewer ? (item['error'] as String?) : existing.detail,
@@ -229,6 +229,34 @@ class _TableCountsNotifier extends AsyncNotifier<Map<String, int>> {
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
 const _requestLogHourMs = 3600000;
+const _errorSummaryMaxLength = 120;
+
+/// Picks a short label for grouping log errors. Falls back to the `error` column
+/// for legacy rows logged with the generic "Uncaught error" message.
+String? _errorGroupKey(Map<String, Object?> item) {
+  final message = item['message'];
+  final error = item['error'];
+
+  if (message == 'Uncaught error' && error is String && error.isNotEmpty) {
+    return _errorSummaryFromText(error);
+  }
+  if (message is String && message.isNotEmpty) return _errorSummaryFromText(message);
+  if (error is String && error.isNotEmpty) return _errorSummaryFromText(error);
+  return null;
+}
+
+String _errorSummaryFromText(String text) {
+  final line = text.split('\n').first.trim();
+  if (line.isEmpty) return text.trim();
+
+  final colon = line.indexOf(':');
+  final summary = (colon >= 0 ? line.substring(0, colon) : line).trim();
+  final label = summary.isEmpty ? line : summary;
+
+  return label.length <= _errorSummaryMaxLength
+      ? label
+      : '${label.substring(0, _errorSummaryMaxLength - 1)}…';
+}
 
 /// Start of the 24-hour request window (hour-aligned), shared by stats + graph.
 int _requestLogSinceMs() {
