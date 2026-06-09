@@ -48,11 +48,6 @@ const _panelMinWidthPx = 380.0;
 const _panelDefaultWidthPx = _panelMinWidthPx * 2;
 const _panelMaxWidthFraction = 3 / 4;
 const _resizeStripWidthPx = 20.0;
-const _footerHorizontalPaddingPx = 16.0;
-const _footerActionsGapPx = 8.0;
-const _footerContentMaxWidthPx = _panelDefaultWidthPx - _footerHorizontalPaddingPx * 2;
-const _footerSaveBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 3 / 4;
-const _footerCancelBtnMaxWidthPx = (_footerContentMaxWidthPx - _footerActionsGapPx) * 1 / 4;
 
 class TableRowDetailPanel extends StatefulComponent {
   const TableRowDetailPanel({super.key});
@@ -1980,6 +1975,15 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css.media(MediaQuery.all(maxWidth: ZonaiLayout.mobilePanelBreakpointPx.px), [
     css('.table-row-detail-panel').styles(width: 100.percent, raw: const {'max-width': '100%', 'min-width': '100%'}),
     css('.table-row-detail-resize-handle').styles(display: .none),
+    css('.table-row-detail-footer-actions').styles(flexDirection: FlexDirection.column, alignItems: .stretch),
+    css('.table-row-detail-footer-actions .table-row-detail-footer-btn--primary').styles(
+      flex: Flex(grow: 0, shrink: 0),
+      width: 100.percent,
+    ),
+    css('.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel').styles(
+      flex: Flex(grow: 0, shrink: 0),
+      width: 100.percent,
+    ),
   ]),
   css('.table-row-detail-main').styles(
     flex: Flex(grow: 1, shrink: 1),
@@ -2083,12 +2087,14 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-footer').styles(
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,
-    justifyContent: .end,
+    justifyContent: .stretch,
+    minWidth: .zero,
     padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
     border: .only(
       top: BorderSide.solid(color: borderColor, width: 1.px),
     ),
     backgroundColor: surfaceColor,
+    raw: const {'box-sizing': 'border-box'},
   ),
   css(
     '.table-row-detail-footer--create',
@@ -2103,23 +2109,24 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'line-height': '1.4',
     },
   ),
-  css('.table-row-detail-footer--create .table-row-detail-footer-actions').styles(alignSelf: .end),
+  css('.table-row-detail-footer--create .table-row-detail-footer-actions').styles(alignSelf: .stretch),
   css('.table-row-detail-footer-actions').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
     gap: Gap.all(ZonaiSpacing.s4),
-    width: _footerContentMaxWidthPx.px,
-    maxWidth: _footerContentMaxWidthPx.px,
+    width: 100.percent,
+    maxWidth: 100.percent,
+    minWidth: .zero,
   ),
   css(
     '.table-row-detail-footer-actions .table-row-detail-footer-btn--primary',
-  ).styles(flex: Flex(grow: 3, shrink: 1), width: .auto, maxWidth: _footerSaveBtnMaxWidthPx.px),
+  ).styles(flex: Flex(grow: 3, shrink: 1), minWidth: .zero),
   css(
     '.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel',
-  ).styles(flex: Flex(grow: 1, shrink: 1), width: .auto, maxWidth: _footerCancelBtnMaxWidthPx.px),
+  ).styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero),
   css(
     '.table-row-detail-footer > .table-row-detail-footer-btn',
-  ).styles(width: _footerContentMaxWidthPx.px, maxWidth: _footerContentMaxWidthPx.px),
+  ).styles(width: 100.percent, maxWidth: 100.percent),
   css('.table-row-detail-footer-btn').styles(
     display: .block,
     width: 100.percent,
