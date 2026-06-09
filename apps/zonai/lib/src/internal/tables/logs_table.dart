@@ -8,6 +8,7 @@ class LogEntry {
     required this.level,
     required this.message,
     this.error,
+    this.isAdmin = false,
     Map<String, dynamic>? props,
   }) : id = LogId.generate(),
        timestamp = .now(),
@@ -21,6 +22,7 @@ class LogEntry {
     required this.message,
     required this.error,
     required this.props,
+    required this.isAdmin,
   });
 
   final LogId id;
@@ -30,6 +32,7 @@ class LogEntry {
   final String message;
   final String? error;
   final String? props;
+  final bool isAdmin;
 }
 
 class LogId implements Id {
@@ -82,7 +85,8 @@ class LogsTable extends Table<LogEntry> {
       level = $.enumerator('level', Level.values, (s) => s.level),
       message = $.text('message', (s) => s.message),
       error = $.text('error', (s) => s.error),
-      props = $.text('props', (s) => s.props);
+      props = $.text('props', (s) => s.props),
+      isAdmin = $.boolean('is_admin', (s) => s.isAdmin, defaultValue: '0');
 
   @override
   LogEntry fromRow(RowReader read) {
@@ -94,6 +98,7 @@ class LogsTable extends Table<LogEntry> {
       message: read(message),
       error: read(error),
       props: read(props),
+      isAdmin: read(isAdmin),
     );
   }
 
@@ -104,6 +109,7 @@ class LogsTable extends Table<LogEntry> {
   final TextColumn message;
   final TextColumn? error;
   final TextColumn? props;
+  final BooleanColumn isAdmin;
 }
 
 final logs = table('_log', LogsTable.new, (table) {

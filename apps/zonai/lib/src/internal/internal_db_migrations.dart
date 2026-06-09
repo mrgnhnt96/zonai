@@ -103,4 +103,6 @@ CREATE TABLE IF NOT EXISTS "_abusers" (
 );'''),
   const Migration('0004_internal_add_log_props', '''
 ALTER TABLE "_log" ADD COLUMN "props" TEXT;'''),
+  const Migration('0005_internal_add_log_is_admin', '''
+ALTER TABLE "_log" ADD COLUMN "is_admin" INTEGER NOT NULL DEFAULT 0;'''),
 ];

@@ -8,6 +8,7 @@ extension _DashboardMetricsX on ZonaiDb {
   Future<DashboardMetrics> _dashboardMetrics({
     required Jwt jwt,
     int? since,
+    bool excludeAdmin = false,
   }) async {
     if (!jwt.admin.isAdmin) {
       throw const TableAccessDeniedException(
@@ -19,6 +20,7 @@ extension _DashboardMetricsX on ZonaiDb {
     final windowSince = since ?? _dashboardRequestLogSinceMs();
     final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final db = await open();
+    final adminFilter = excludeAdmin ? ' AND is_admin = 0' : '';
 
     final (
       bucketResult,
@@ -31,7 +33,7 @@ extension _DashboardMetricsX on ZonaiDb {
         '''
             SELECT ((timestamp - ?) / ?) AS bucket_index, COUNT(*) AS count
             FROM "_log"
-            WHERE level = 'request' AND timestamp >= ?
+            WHERE level = 'request' AND timestamp >= ?$adminFilter
             GROUP BY bucket_index
             HAVING bucket_index >= 0 AND bucket_index < 24
             ''',
@@ -41,7 +43,7 @@ extension _DashboardMetricsX on ZonaiDb {
         '''
             SELECT COUNT(*) AS count
             FROM "_log"
-            WHERE level = 'request' AND timestamp >= ?
+            WHERE level = 'request' AND timestamp >= ?$adminFilter
             ''',
         [windowSince],
       ),
@@ -49,7 +51,7 @@ extension _DashboardMetricsX on ZonaiDb {
         '''
             SELECT COUNT(*) AS count
             FROM "_log"
-            WHERE level = 'error' AND timestamp >= ?
+            WHERE level = 'error' AND timestamp >= ?$adminFilter
             ''',
         [windowSince],
       ),
@@ -65,7 +67,7 @@ extension _DashboardMetricsX on ZonaiDb {
         '''
             SELECT message
             FROM "_log"
-            WHERE level = 'request' AND timestamp >= ?
+            WHERE level = 'request' AND timestamp >= ?$adminFilter
             ''',
         [windowSince],
       ),

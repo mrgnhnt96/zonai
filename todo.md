@@ -11,7 +11,6 @@
 - [ ] Pin collections (?)
 - [ ] Add search history
 - [ ] Support user defined favicon
-- [ ] Filter out requests made by admins
 - [ ] When clicking on an error in the dashboard, open the trace in the logs table
 
 ### API
@@ -20,9 +19,6 @@
 - [ ] Add prefix & suffix positional optional params to Id.generate
 - [ ] When logging 400+ response codes use warning color
 - [ ] When logging 500+ response codes, use error color
-- [ ] Add traces for all worker calls
-- [ ] Attach to the log if the log is made by an admin
-  - probably use a zone for this
 
 ## CLI
 

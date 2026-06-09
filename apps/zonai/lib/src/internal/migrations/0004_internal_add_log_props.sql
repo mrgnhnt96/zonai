@@ -1,0 +1,1 @@
+ALTER TABLE "_log" ADD COLUMN "props" TEXT;

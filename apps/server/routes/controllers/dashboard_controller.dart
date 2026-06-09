@@ -14,7 +14,8 @@ class DashboardController {
   Future<DashboardMetrics> metrics({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Query('since') int? since,
+    @Query('exclude_admin') bool? excludeAdmin,
   }) {
-    return dashboardHandler.metrics(authorization, since: since);
+    return dashboardHandler.metrics(authorization, since: since, excludeAdmin: excludeAdmin);
   }
 }

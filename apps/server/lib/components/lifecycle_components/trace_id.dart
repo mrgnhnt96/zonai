@@ -11,7 +11,29 @@ import 'photo_view_headers.dart';
 const _errorSummaryMaxLength = 120;
 
 /// A short, human-readable label for grouping errors in logs and dashboards.
-String _errorSummary(Object error) => _errorSummaryFromText(error.toString(), fallback: error.runtimeType.toString());
+String _errorSummary(Object error) => _errorSummaryFromText(
+  error.toString(),
+  fallback: error.runtimeType.toString(),
+);
+
+/// Returns true if the request was made by a human admin (not a cron worker).
+Future<bool> _isAdminRequest(Context context) async {
+  final authorization = context.request.headers.get('authorization');
+  if (authorization == null) return false;
+  const prefix = 'Bearer ';
+  final token =
+      authorization.trim().length >= prefix.length &&
+          authorization.trim().toLowerCase().startsWith(prefix.toLowerCase())
+      ? authorization.trim().substring(prefix.length).trim()
+      : null;
+  if (token == null || token.isEmpty) return false;
+  try {
+    final jwt = await zonaiDB.parseJwtClaimsOnly(token);
+    return jwt?.admin.isAdmin == true;
+  } on Object {
+    return false;
+  }
+}
 
 String _errorSummaryFromText(String text, {required String fallback}) {
   final line = text.split('\n').first.trim();
@@ -37,15 +59,20 @@ class TraceId {
 class Trace implements LifecycleComponent {
   const Trace();
 
-  WrapperResult wrap(Context context, NextResponse next) {
+  Future<Response> wrap(Context context, NextResponse next) async {
     final _logger = logger;
     final _trace = switch (context.request.headers.get('x-trace-id')) {
       null => TraceId.generate(),
       final String s => TraceId(s),
     };
 
+    final isAdminRequest = await _isAdminRequest(context);
+
     final callback = (LogDetails details) async {
-      if (details.level != .request && details.level != .trace && details.level < .info) return;
+      if (details.level != .request &&
+          details.level != .trace &&
+          details.level < .info)
+        return;
       final db = await zonaiDB.open();
 
       await db.insert(into: logs).values([
@@ -63,6 +90,7 @@ class Trace implements LifecycleComponent {
           message: details.message,
           error: details.error?.toString(),
           props: details.props,
+          isAdmin: isAdminRequest,
         ),
       ]);
     };

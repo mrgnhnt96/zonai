@@ -29,6 +29,20 @@
       "when": 1780411619756,
       "tag": "0003__zonai_v0_1_0_",
       "snapshotId": "f421adc4-a7fc-46dd-812c-d4a74f1bdcd3"
+    },
+    {
+      "idx": 4,
+      "version": "1",
+      "when": 1749340800000,
+      "tag": "0004_internal_add_log_props",
+      "snapshotId": "b1c2d3e4-f5a6-7890-abcd-ef1234567890"
+    },
+    {
+      "idx": 5,
+      "version": "1",
+      "when": 1749340800001,
+      "tag": "0005_internal_add_log_is_admin",
+      "snapshotId": "c2d3e4f5-a6b7-8901-bcde-f12345678901"
     }
   ]
 }

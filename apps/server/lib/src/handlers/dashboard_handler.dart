@@ -4,7 +4,11 @@ import 'package:zonai_schema/src/payloads/dashboard_metrics.dart';
 class DashboardHandler {
   const DashboardHandler();
 
-  Future<DashboardMetrics> metrics(String? authorization, {int? since}) async {
+  Future<DashboardMetrics> metrics(
+    String? authorization, {
+    int? since,
+    bool? excludeAdmin,
+  }) async {
     final jwt = await zonaiDB.parseJwt(
       _parseBearerAuthorization(authorization),
     );
@@ -15,7 +19,11 @@ class DashboardHandler {
       );
     }
 
-    return zonaiDB.dashboardMetrics(jwt: jwt, since: since);
+    return zonaiDB.dashboardMetrics(
+      jwt: jwt,
+      since: since,
+      excludeAdmin: excludeAdmin ?? false,
+    );
   }
 
   String? _parseBearerAuthorization(String? authorizationHeader) {

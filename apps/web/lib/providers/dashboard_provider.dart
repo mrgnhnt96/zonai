@@ -72,6 +72,8 @@ final class DashboardMetrics {
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
+final excludeAdminProvider = NotifierProvider<_ExcludeAdminNotifier, bool>(_ExcludeAdminNotifier.new);
+
 final dashboardMetricsProvider = AsyncNotifierProvider<_DashboardMetricsNotifier, DashboardMetrics>(
   _DashboardMetricsNotifier.new,
 );
@@ -87,6 +89,13 @@ final tableCountsProvider = AsyncNotifierProvider<_TableCountsNotifier, Map<Stri
 
 // ── Implementations ────────────────────────────────────────────────────────────
 
+class _ExcludeAdminNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void toggle() => state = !state;
+}
+
 class _DashboardMetricsNotifier extends AsyncNotifier<DashboardMetrics> {
   @override
   Future<DashboardMetrics> build() async {
@@ -97,8 +106,9 @@ class _DashboardMetricsNotifier extends AsyncNotifier<DashboardMetrics> {
       );
     }
 
+    final excludeAdmin = ref.watch(excludeAdminProvider);
     final since = _requestLogSinceMs();
-    final data = await fetchDashboardMetrics(since: since);
+    final data = await fetchDashboardMetrics(since: since, excludeAdmin: excludeAdmin);
 
     return DashboardMetrics(
       stats: DashboardStats(
@@ -120,12 +130,17 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
   Future<List<TopError>> build() async {
     if (!ref.binding.isClient) return const [];
 
+    final excludeAdmin = ref.watch(excludeAdminProvider);
     final since = DateTime.now().subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
+
+    final where = excludeAdmin
+        ? And([Eq('level', 'error'), Gt('timestamp', since), Eq('is_admin', false)])
+        : And([Eq('level', 'error'), Gt('timestamp', since)]);
 
     final data = await revaliServer.db.list(
       body: ListBody(
         table: '_log',
-        where: And([Eq('level', 'error'), Gt('timestamp', since)]),
+        where: where,
         limit: 500,
         orderBy: [const OrderByTerm(column: 'timestamp', direction: SortDirection.desc)],
       ),
@@ -253,9 +268,7 @@ String _errorSummaryFromText(String text) {
   final summary = (colon >= 0 ? line.substring(0, colon) : line).trim();
   final label = summary.isEmpty ? line : summary;
 
-  return label.length <= _errorSummaryMaxLength
-      ? label
-      : '${label.substring(0, _errorSummaryMaxLength - 1)}…';
+  return label.length <= _errorSummaryMaxLength ? label : '${label.substring(0, _errorSummaryMaxLength - 1)}…';
 }
 
 /// Start of the 24-hour request window (hour-aligned), shared by stats + graph.

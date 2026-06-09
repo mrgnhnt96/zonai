@@ -28,6 +28,8 @@ class DashboardScreen extends StatelessComponent {
         if (!isSystemSqliteTable(t.sqliteName)) t,
     ];
 
+    final excludeAdmin = context.watch(excludeAdminProvider);
+
     // Async providers must not notify after SSR completes (no frames on the server).
     final isClient = context.binding.isClient;
     final metrics = isClient ? context.watch(dashboardMetricsProvider) : const AsyncValue<DashboardMetrics>.loading();
@@ -60,6 +62,15 @@ class DashboardScreen extends StatelessComponent {
           div(classes: 'dashboard', [
             div(classes: 'dashboard-header', [
               h1(classes: 'dashboard-title', [.text('Dashboard')]),
+              label(classes: 'dashboard-filter-label', [
+                input<bool>(
+                  type: InputType.checkbox,
+                  classes: 'dashboard-filter-checkbox',
+                  checked: excludeAdmin,
+                  onChange: (_) => context.read(excludeAdminProvider.notifier).toggle(),
+                ),
+                .text('Exclude admin'),
+              ]),
             ]),
             // Stat cards
             div(classes: 'dashboard-stats', [
@@ -227,6 +238,20 @@ class DashboardScreen extends StatelessComponent {
       css(
         '.dashboard-title',
       ).styles(margin: .zero, fontSize: 1.375.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),
+      css('.dashboard-filter-label').styles(
+        display: .flex,
+        flexDirection: FlexDirection.row,
+        alignItems: .center,
+        gap: Gap.all(ZonaiSpacing.s2),
+        fontSize: 0.8125.rem,
+        fontWeight: .w500,
+        color: mutedColor,
+        cursor: .pointer,
+        raw: const {'user-select': 'none'},
+      ),
+      css('.dashboard-filter-checkbox').styles(
+        raw: const {'accent-color': 'var(--zonai-primary)', 'cursor': 'pointer'},
+      ),
       // Stat cards
       css(
         '.dashboard-stats',

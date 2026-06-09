@@ -259,8 +259,9 @@ class ZonaiDb {
   Future<DashboardMetrics> dashboardMetrics({
     required Jwt jwt,
     int? since,
+    bool excludeAdmin = false,
   }) async {
-    return await _run(() => _dashboardMetrics(jwt: jwt, since: since));
+    return await _run(() => _dashboardMetrics(jwt: jwt, since: since, excludeAdmin: excludeAdmin));
   }
 
   Future<void> sendEmail(Email email) async {
