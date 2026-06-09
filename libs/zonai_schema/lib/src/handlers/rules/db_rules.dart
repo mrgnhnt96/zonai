@@ -134,6 +134,7 @@ class DbRules {
       .delete => tableRules.canDelete(request.jwt),
       .view => tableRules.canView(request.jwt),
       .list => tableRules.canList(request.jwt),
+      .count => tableRules.canList(request.jwt),
     };
 
     return TableRulesResponse(

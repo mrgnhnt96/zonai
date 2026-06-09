@@ -203,7 +203,8 @@ enum TableOperation {
   update,
   delete,
   view,
-  list;
+  list,
+  count;
 
   const TableOperation();
 
@@ -222,6 +223,7 @@ enum TableOperation {
     .delete => .delete,
     .view => .view,
     .list => .view,
+    .count => .view,
   };
 
   bool get requireObject => switch (this) {
@@ -230,6 +232,7 @@ enum TableOperation {
     .delete => true,
     .view => false,
     .list => false,
+    .count => false,
   };
 
   @override

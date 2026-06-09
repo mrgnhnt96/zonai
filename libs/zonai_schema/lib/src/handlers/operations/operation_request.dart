@@ -166,6 +166,8 @@ final class PerformOperationRequest extends OperationRequest {
         return ReadOperationRequest.fromRequest(request);
       case .list:
         return ListOperationRequest.fromRequest(request);
+      case .count:
+        return CountOperationRequest.fromRequest(request);
       case null:
         return CustomOperationRequest.fromRequest(request);
     }
@@ -714,14 +716,14 @@ final class SanitizeOperationRequest extends OperationRequest {
 
 final class CountOperationRequest extends PerformOperationRequest {
   CountOperationRequest({required super.table, required this.where, super.jwt})
-    : super(operation: TableOperation.list.name);
+    : super(operation: TableOperation.count.name);
 
   CountOperationRequest._({
     required super.id,
     required super.table,
     required this.where,
     required super.jwt,
-  }) : super._(operation: TableOperation.list.name);
+  }) : super._(operation: TableOperation.count.name);
 
   factory CountOperationRequest.fromRequest(UnknownRequest request) {
     return CountOperationRequest._(
