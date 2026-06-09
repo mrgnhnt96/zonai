@@ -30,15 +30,14 @@ class DashboardScreen extends StatelessComponent {
 
     // Async providers must not notify after SSR completes (no frames on the server).
     final isClient = context.binding.isClient;
-    final stats = isClient ? context.watch(dashboardStatsProvider) : const AsyncValue<DashboardStats>.loading();
-    final buckets = isClient ? context.watch(requestBucketsProvider) : const AsyncValue<List<RequestBucket>>.loading();
+    final metrics = isClient ? context.watch(dashboardMetricsProvider) : const AsyncValue<DashboardMetrics>.loading();
     final topErrors = isClient ? context.watch(topErrorsProvider) : const AsyncValue<List<TopError>>.loading();
     final expandedError = context.watch(expandedErrorProvider);
     final cronJobs = isClient ? context.watch(cronJobsProvider) : const AsyncValue<List<CronJobSummary>>.loading();
     final tableCounts = isClient ? context.watch(tableCountsProvider) : const AsyncValue<Map<String, int>>.loading();
 
-    final statsData = stats.value;
-    final bucketsData = buckets.value ?? [];
+    final statsData = metrics.value?.stats;
+    final bucketsData = metrics.value?.buckets ?? [];
     final topErrorsData = topErrors.value ?? [];
     final cronJobsData = cronJobs.value ?? [];
     final tableCountsData = tableCounts.value ?? {};
@@ -519,7 +518,10 @@ String _fmtNum(int n) {
   return n.toString();
 }
 
-String _fmtPercent(double p) => '${p.toStringAsFixed(1)}%';
+String _fmtPercent(double? p) {
+  if (p == null) return '—';
+  return '${p.toStringAsFixed(1)}%';
+}
 
 String _fmtMs(int? ms) {
   if (ms == null) return '—';

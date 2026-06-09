@@ -52,6 +52,7 @@ part 'parts/auth/password.dart';
 part 'parts/auth/reset_password.dart';
 part 'parts/auth/verify_email.dart';
 part 'parts/count.dart';
+part 'parts/dashboard_metrics.dart';
 part 'parts/create.dart';
 part 'parts/delete.dart';
 part 'parts/effects.dart';
@@ -253,6 +254,13 @@ class ZonaiDb {
 
   Future<int> cleanupUnreferencedPhotos() async {
     return await _run(_cleanupUnreferencedPhotos);
+  }
+
+  Future<DashboardMetrics> dashboardMetrics({
+    required Jwt jwt,
+    int? since,
+  }) async {
+    return await _run(() => _dashboardMetrics(jwt: jwt, since: since));
   }
 
   Future<void> sendEmail(Email email) async {

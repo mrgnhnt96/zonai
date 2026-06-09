@@ -11,11 +11,13 @@
 - [ ] Pin collections (?)
 - [ ] Add search history
 - [ ] Support user defined favicon
+- [ ] Filter out requests made by admins
+  - [ ] This would mean that we would need to attach to the log if the log is made by an admin
+    - probably use a zone for this
 
 #### FIX
 
 - [ ] The delete animation isn't showing up
-- [ ] Requests over time graph is showing all logs, which is inaccurate to "requests"
 - [ ] Add delete photo file when the \_photos table deletes an image (extension)
 - [ ] Save button on edit row is not mobile responsive
 - [ ] Updating the password in "edit row" mode is going to break the auth flow, we are going to need to encode the password

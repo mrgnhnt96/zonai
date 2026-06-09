@@ -2,6 +2,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
+import '../api/dashboard_client.dart';
 import '../utils/sqlite_table_utils.dart';
 import 'sqlite_tables_provider.dart';
 
@@ -20,7 +21,7 @@ final class DashboardStats {
   final int activeSessions;
   final int? p95ResponseMs;
 
-  double get errorRate => requestCount24h == 0 ? 0 : errorCount24h / requestCount24h * 100;
+  double? get errorRate => requestCount24h == 0 ? null : errorCount24h / requestCount24h * 100;
 }
 
 final class RequestBucket {
@@ -62,14 +63,17 @@ final class CronJobSummary {
   }
 }
 
+final class DashboardMetrics {
+  const DashboardMetrics({required this.stats, required this.buckets});
+
+  final DashboardStats stats;
+  final List<RequestBucket> buckets;
+}
+
 // ── Providers ─────────────────────────────────────────────────────────────────
 
-final dashboardStatsProvider = AsyncNotifierProvider<_DashboardStatsNotifier, DashboardStats>(
-  _DashboardStatsNotifier.new,
-);
-
-final requestBucketsProvider = AsyncNotifierProvider<_RequestBucketsNotifier, List<RequestBucket>>(
-  _RequestBucketsNotifier.new,
+final dashboardMetricsProvider = AsyncNotifierProvider<_DashboardMetricsNotifier, DashboardMetrics>(
+  _DashboardMetricsNotifier.new,
 );
 
 final topErrorsProvider = AsyncNotifierProvider<_TopErrorsNotifier, List<TopError>>(_TopErrorsNotifier.new);
@@ -83,87 +87,31 @@ final tableCountsProvider = AsyncNotifierProvider<_TableCountsNotifier, Map<Stri
 
 // ── Implementations ────────────────────────────────────────────────────────────
 
-class _DashboardStatsNotifier extends AsyncNotifier<DashboardStats> {
+class _DashboardMetricsNotifier extends AsyncNotifier<DashboardMetrics> {
   @override
-  Future<DashboardStats> build() async {
+  Future<DashboardMetrics> build() async {
     if (!ref.binding.isClient) {
-      return const DashboardStats(requestCount24h: 0, errorCount24h: 0, activeSessions: 0, p95ResponseMs: null);
+      return DashboardMetrics(
+        stats: const DashboardStats(requestCount24h: 0, errorCount24h: 0, activeSessions: 0, p95ResponseMs: null),
+        buckets: const [],
+      );
     }
 
-    final since = DateTime.now().subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
-    // _jwt.expires_at is stored in Unix seconds, not milliseconds
-    final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final since = _requestLogSinceMs();
+    final data = await fetchDashboardMetrics(since: since);
 
-    final (requestData, errorCount, sessionCount) = await (
-      revaliServer.db.list(
-        body: ListBody(
-          table: '_log',
-          where: And([Eq('level', 'request'), Gt('timestamp', since)]),
-          limit: 5000,
-          orderBy: [const OrderByTerm(column: 'timestamp', direction: SortDirection.desc)],
-        ),
+    return DashboardMetrics(
+      stats: DashboardStats(
+        requestCount24h: data.requestCount24h,
+        errorCount24h: data.errorCount24h,
+        activeSessions: data.activeSessions,
+        p95ResponseMs: data.p95ResponseMs,
       ),
-      revaliServer.db.count(
-        body: CountBody(table: '_log', where: And([Eq('level', 'error'), Gt('timestamp', since)])),
-      ),
-      revaliServer.db.count(
-        body: CountBody(table: '_jwt', where: Gt('expires_at', nowSeconds)),
-      ),
-    ).wait;
-
-    final requestItems = _parseItems(requestData);
-
-    return DashboardStats(
-      requestCount24h: _parseTotal(requestData),
-      errorCount24h: errorCount,
-      activeSessions: sessionCount,
-      p95ResponseMs: _computeP95(requestItems),
+      buckets: [
+        for (final bucket in data.requestBuckets)
+          RequestBucket(hour: DateTime.fromMillisecondsSinceEpoch(bucket.hour), count: bucket.count),
+      ],
     );
-  }
-
-  static int? _computeP95(List<Map<String, Object?>> items) {
-    final durations = <int>[];
-    for (final item in items) {
-      final d = _parseDurationMs(item['message']);
-      if (d != null) durations.add(d);
-    }
-    if (durations.isEmpty) return null;
-    durations.sort();
-    return durations[((durations.length - 1) * 0.95).round()];
-  }
-}
-
-class _RequestBucketsNotifier extends AsyncNotifier<List<RequestBucket>> {
-  @override
-  Future<List<RequestBucket>> build() async {
-    if (!ref.binding.isClient) return const [];
-
-    final now = DateTime.now();
-    const hourMs = Duration(hours: 1);
-    final nowHourMs = now.millisecondsSinceEpoch - (now.millisecondsSinceEpoch % hourMs.inMilliseconds);
-
-    // 24 hourly buckets using parallel count() calls — avoids the 500-row list cap.
-    final counts = await Future.wait([
-      for (var i = 0; i < 24; i++)
-        () {
-          final start = nowHourMs - (23 - i) * hourMs.inMilliseconds;
-          final end = start + hourMs.inMilliseconds;
-          return revaliServer.db.count(
-            body: CountBody(
-              table: '_log',
-              where: And([Eq('level', 'request'), Gte('timestamp', start), Lt('timestamp', end)]),
-            ),
-          );
-        }(),
-    ]);
-
-    return [
-      for (var i = 0; i < 24; i++)
-        RequestBucket(
-          hour: DateTime.fromMillisecondsSinceEpoch(nowHourMs - (23 - i) * hourMs.inMilliseconds),
-          count: counts[i],
-        ),
-    ];
   }
 }
 
@@ -269,9 +217,10 @@ class _TableCountsNotifier extends AsyncNotifier<Map<String, int>> {
     ];
     if (userTables.isEmpty) return const {};
 
-    final counts = await Future.wait([
-      for (final t in userTables) revaliServer.db.count(body: CountBody(table: t.sqliteName)),
-    ]);
+    final counts = <int>[];
+    for (final t in userTables) {
+      counts.add(await revaliServer.db.count(body: CountBody(table: t.sqliteName)));
+    }
 
     return {for (var i = 0; i < userTables.length; i++) userTables[i].sqliteName: counts[i]};
   }
@@ -279,11 +228,14 @@ class _TableCountsNotifier extends AsyncNotifier<Map<String, int>> {
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
-int _parseTotal(Map<String, Object?> data) => switch (data['total']) {
-  final int t => t,
-  final num t => t.toInt(),
-  _ => 0,
-};
+const _requestLogHourMs = 3600000;
+
+/// Start of the 24-hour request window (hour-aligned), shared by stats + graph.
+int _requestLogSinceMs() {
+  final now = DateTime.now();
+  final nowHourMs = now.millisecondsSinceEpoch - (now.millisecondsSinceEpoch % _requestLogHourMs);
+  return nowHourMs - 23 * _requestLogHourMs;
+}
 
 List<Map<String, Object?>> _parseItems(Map<String, Object?> data) {
   final raw = data['items'];
@@ -299,9 +251,3 @@ DateTime? _parseTimestamp(Object? raw) => switch (raw) {
   final num ms => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
   _ => null,
 };
-
-int? _parseDurationMs(Object? message) {
-  if (message is! String) return null;
-  final match = RegExp(r'^\[\d+\] (\d+)ms:').firstMatch(message);
-  return match != null ? int.tryParse(match.group(1)!) : null;
-}

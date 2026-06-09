@@ -8,6 +8,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_server/components/lifecycle_components/trace_id.dart';
 import 'package:zonai_server/config/server_binding.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
+import 'package:zonai_server/src/handlers/dashboard_handler.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_server/src/handlers/email_handler.dart';
 import 'package:zonai_server/src/handlers/photo_handler.dart';
@@ -31,6 +32,7 @@ final class DevApp extends AppConfig {
   Future<void> configureDependencies(DI di) async {
     di.registerFactory(DbHandler.new);
     di.registerFactory(AuthHandler.new);
+    di.registerFactory(DashboardHandler.new);
     di.registerFactory(EmailHandler.new);
     di.registerFactory(PhotoHandler.new);
   }
