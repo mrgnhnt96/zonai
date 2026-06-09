@@ -1976,14 +1976,12 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     css('.table-row-detail-panel').styles(width: 100.percent, raw: const {'max-width': '100%', 'min-width': '100%'}),
     css('.table-row-detail-resize-handle').styles(display: .none),
     css('.table-row-detail-footer-actions').styles(flexDirection: FlexDirection.column, alignItems: .stretch),
-    css('.table-row-detail-footer-actions .table-row-detail-footer-btn--primary').styles(
-      flex: Flex(grow: 0, shrink: 0),
-      width: 100.percent,
-    ),
-    css('.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel').styles(
-      flex: Flex(grow: 0, shrink: 0),
-      width: 100.percent,
-    ),
+    css(
+      '.table-row-detail-footer-actions .table-row-detail-footer-btn--primary',
+    ).styles(flex: Flex(grow: 0, shrink: 0), width: 100.percent),
+    css(
+      '.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel',
+    ).styles(flex: Flex(grow: 0, shrink: 0), width: 100.percent),
   ]),
   css('.table-row-detail-main').styles(
     flex: Flex(grow: 1, shrink: 1),
@@ -2087,7 +2085,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-footer').styles(
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,
-    justifyContent: .stretch,
+    justifyContent: .center,
     minWidth: .zero,
     padding: .symmetric(horizontal: ZonaiSpacing.s8, vertical: ZonaiSpacing.s6),
     border: .only(
@@ -2098,7 +2096,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   ),
   css(
     '.table-row-detail-footer--create',
-  ).styles(flexDirection: FlexDirection.column, alignItems: .stretch, gap: Gap.all(ZonaiSpacing.s3)),
+  ).styles(flexDirection: FlexDirection.column, alignItems: .center, gap: Gap.all(ZonaiSpacing.s3)),
   css('.table-row-create-required-hint').styles(
     margin: .zero,
     fontSize: 0.75.rem,
@@ -2109,14 +2107,14 @@ List<StyleRule> get tableRowDetailPanelStyles => [
       'line-height': '1.4',
     },
   ),
-  css('.table-row-detail-footer--create .table-row-detail-footer-actions').styles(alignSelf: .stretch),
   css('.table-row-detail-footer-actions').styles(
     display: .flex,
     flexDirection: FlexDirection.row,
     gap: Gap.all(ZonaiSpacing.s4),
     width: 100.percent,
-    maxWidth: 100.percent,
+    maxWidth: 500.px,
     minWidth: .zero,
+    margin: .symmetric(horizontal: .auto),
   ),
   css(
     '.table-row-detail-footer-actions .table-row-detail-footer-btn--primary',
@@ -2124,9 +2122,7 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css(
     '.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel',
   ).styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero),
-  css(
-    '.table-row-detail-footer > .table-row-detail-footer-btn',
-  ).styles(width: 100.percent, maxWidth: 100.percent),
+  css('.table-row-detail-footer > .table-row-detail-footer-btn').styles(width: 100.percent, maxWidth: 100.percent),
   css('.table-row-detail-footer-btn').styles(
     display: .block,
     width: 100.percent,
