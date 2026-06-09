@@ -14,9 +14,9 @@ import 'table_schema_shapes.dart';
 /// Shared document tree for SSR rendering in compiled Revali builds.
 Component buildWebAppDocument() {
   return Document(
-    base: AuthRoutes.mountPath,
     head: [
       script(content: themeBootstrapScript),
+      script(src: '${AuthRoutes.mountPath}/main.client.dart.js', defer: true),
       meta(name: 'viewport', content: 'width=device-width, initial-scale=1'),
     ],
     body: AsyncBuilder(

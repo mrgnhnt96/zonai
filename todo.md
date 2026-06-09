@@ -12,6 +12,9 @@
 - [ ] Add search history
 - [ ] Support user defined favicon
 - [ ] When clicking on an error in the dashboard, open the trace in the logs table
+- [ ] Update URL when querying tables
+  - [ ] copy & paste the url to share the filter
+- [ ] Add icon for "filter" in the row details panel next to each field. Will auto apply "column=..." filter
 
 ### API
 

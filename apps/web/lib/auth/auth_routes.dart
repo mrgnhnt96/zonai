@@ -119,6 +119,21 @@ abstract final class AuthRoutes {
 
   static String fromUrlPath(String url) => normalizePath(url);
 
+  /// Redirects legacy mount-less browser URLs to [mountPath].
+  static String? routerRedirectToMountedLocation(String location) {
+    final uri = location.contains('://')
+        ? Uri.parse(location)
+        : Uri.parse('http://localhost${location.startsWith('/') ? location : '/$location'}');
+    final mounted = toUrlPath(normalizePath(location));
+    if (uri.path == mounted) {
+      return null;
+    }
+    if (uri.hasQuery) {
+      return '$mounted?${uri.query}';
+    }
+    return mounted;
+  }
+
   /// Maps an app route (e.g. `/sign-in`) to its URL under [mountPath].
   static String toUrlPath(String path) {
     final normalized = normalizePath(path);

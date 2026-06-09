@@ -63,7 +63,7 @@ class HomeAppShell extends StatelessComponent {
         ),
         child: Component.fragment([
           const PageTitleHead(),
-          div(classes: 'home-app-shell-body', [const HomeRouter()]),
+          div(classes: 'home-app-shell-body', [HomeRouter(initialPath: initialPath)]),
           const AppTooltipOverlay(),
         ]),
       ),

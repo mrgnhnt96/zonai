@@ -15,15 +15,19 @@ import '../components/sign_in_screen.dart';
 import '../components/theme/theme_components.dart';
 import '../components/verify_email_screen.dart' deferred as verify_email;
 import 'route_path_sync.dart';
-import 'router_redirects.dart';
+import 'router_error.dart';
 
 /// Router for unauthenticated flows inside [AuthAppShell].
 class AuthRouter extends StatelessComponent {
-  const AuthRouter({super.key});
+  const AuthRouter({required this.initialPath, super.key});
+
+  /// Normalized app path from SSR (see [AuthAppShell.initialPath]).
+  final String initialPath;
 
   @override
   Component build(BuildContext context) {
     return Router(
+      errorBuilder: routerErrorBuilder(initialPath),
       redirect: _redirect,
       routes: [
         ShellRoute(
@@ -35,8 +39,8 @@ class AuthRouter extends StatelessComponent {
   }
 
   static String? _redirect(BuildContext context, RouteState state) {
-    if (AppRouterRedirects.normalizeMountPath(state) case final target?) {
-      return target;
+    if (AuthRoutes.routerRedirectToMountedLocation(state.location) case final mountedRedirect?) {
+      return mountedRedirect;
     }
 
     final path = AuthRoutes.normalizePath(state.location);
@@ -44,7 +48,7 @@ class AuthRouter extends StatelessComponent {
       if (_isSignedIn(context)) {
         return null;
       }
-      return AuthRoutes.signIn;
+      return AuthRoutes.toUrlPath(AuthRoutes.signIn);
     }
 
     final singleAuth = _redirectSingleAuthType(context, path);
@@ -53,7 +57,7 @@ class AuthRouter extends StatelessComponent {
     }
 
     if (!AuthRoutes.isPublicAuthPath(path) && authTypesOrEmpty(context).isNotEmpty) {
-      return AuthRoutes.forType(authTypesOrEmpty(context).first);
+      return AuthRoutes.toUrlPath(AuthRoutes.forType(authTypesOrEmpty(context).first));
     }
 
     return null;
@@ -74,7 +78,7 @@ class AuthRouter extends StatelessComponent {
       return null;
     }
 
-    return AuthRoutes.forType(authTypes.single);
+    return AuthRoutes.toUrlPath(AuthRoutes.forType(authTypes.single));
   }
 }
 
@@ -91,31 +95,31 @@ bool _isSignedIn(BuildContext context) {
 
 final List<RouteBase> authRoutes = [
   Route.lazy(
-    path: AuthRoutes.verifyEmailCallback,
+    path: '${AuthRoutes.mountPath}${AuthRoutes.verifyEmailCallback}',
     name: 'verify-email',
     builder: (_, _) => verify_email.VerifyEmailScreen(),
     load: verify_email.loadLibrary,
   ),
   Route.lazy(
-    path: AuthRoutes.magicLinkCallback,
+    path: '${AuthRoutes.mountPath}${AuthRoutes.magicLinkCallback}',
     name: 'magic-link-callback',
     builder: (_, _) => magic_link_verify.MagicLinkVerifyScreen(),
     load: magic_link_verify.loadLibrary,
   ),
   Route.lazy(
-    path: AuthRoutes.resetPasswordCallback,
+    path: '${AuthRoutes.mountPath}${AuthRoutes.resetPasswordCallback}',
     name: 'reset-password-callback',
     builder: (_, _) => reset_password_confirm.ResetPasswordConfirmScreen(),
     load: reset_password_confirm.loadLibrary,
   ),
   Route.lazy(
-    path: AuthRoutes.resetPasswordRequest,
+    path: '${AuthRoutes.mountPath}${AuthRoutes.resetPasswordRequest}',
     name: 'reset-password-request',
     builder: (_, _) => reset_password_request.ResetPasswordRequestScreen(),
     load: reset_password_request.loadLibrary,
   ),
   Route(
-    path: AuthRoutes.signIn,
+    path: '${AuthRoutes.mountPath}${AuthRoutes.signIn}',
     name: 'sign-in',
     redirect: (context, state) => AuthRouter._redirectSingleAuthType(context, AuthRoutes.normalizePath(state.location)),
     builder: (context, state) => _SignInRootScreen(path: AuthRoutes.normalizePath(state.location)),

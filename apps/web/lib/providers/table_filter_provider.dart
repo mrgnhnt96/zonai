@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
 import '../utils/table_where_build.dart';
+import 'sqlite_tables_provider.dart';
 import 'table_focus_provider.dart';
 import 'table_row_detail_provider.dart';
 import 'table_row_create_provider.dart';
@@ -48,11 +52,71 @@ final tableAppliedWhereProvider = Provider<Where?>((ref) {
   return ref.watch(tableFilterProvider.select((state) => state.appliedWhere));
 });
 
+const _filterQueryParam = 'filter';
+
+/// Set once in main() before Jaspr/router initialization so router redirects can't lose it.
+String _initialSearch = '';
+
+void captureInitialFilterSearch(String search) {
+  _initialSearch = search;
+}
+
+Where? _whereFromUrl() {
+  // Prefer the initial captured search (set before router redirects), fall back to current.
+  final search = _initialSearch.isNotEmpty ? _initialSearch : web.window.location.search;
+  try {
+    if (search.isEmpty) return null;
+    final params = Uri.splitQueryString(search.startsWith('?') ? search.substring(1) : search);
+    final encoded = params[_filterQueryParam];
+    if (encoded == null || encoded.isEmpty) return null;
+    final json = jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(encoded)))) as Map;
+    return Where.fromJson(json);
+  } catch (_) {
+    return null;
+  }
+}
+
+void _pushFilterUrl(Where? where) {
+  final uri = Uri.parse(web.window.location.href);
+  final params = Map<String, String>.from(uri.queryParameters);
+  if (where == null) {
+    params.remove(_filterQueryParam);
+  } else {
+    params[_filterQueryParam] = base64Url.encode(utf8.encode(jsonEncode(where.toJson())));
+  }
+  final updated = params.isEmpty
+      ? '${uri.scheme}://${uri.authority}${uri.path}'
+      : '${uri.scheme}://${uri.authority}${uri.path}?${Uri(queryParameters: params).query}';
+  web.window.history.replaceState(null, '', updated);
+}
+
 class TableFilterNotifier extends Notifier<TableFilterState> {
+  SqliteTableRef? _lastTable;
+
   @override
   TableFilterState build() {
-    ref.watch(tableFocusProvider);
-    return const TableFilterState();
+    final table = ref.watch(tableFocusProvider);
+    if (!ref.binding.isClient) return const TableFilterState();
+
+    // Clear filter URL when navigating to a different table.
+    if (_lastTable != null && _lastTable?.sqliteName != table?.sqliteName) {
+      _initialSearch = ''; // discard old table's initial search
+      _pushFilterUrl(null);
+      _lastTable = table;
+      return const TableFilterState();
+    }
+    _lastTable = table;
+
+    // _whereFromUrl prefers _initialSearch (captured before router redirect) over
+    // window.location.search. _initialSearch stays set until apply/clear/table-change
+    // so repeated build() calls (tableFocusProvider emitting same table) are stable.
+    final where = _whereFromUrl();
+    if (where == null) return const TableFilterState();
+    return TableFilterState(
+      appliedWhere: where,
+      draftRows: draftsFromWhere(where),
+      combine: combineFromWhere(where),
+    );
   }
 
   void togglePanel() {
@@ -126,7 +190,9 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
         return false;
       case TableWhereBuildSuccess(:final where):
         _clearRowUiState();
+        _initialSearch = ''; // user took over; stop using the captured initial search
         state = state.copyWith(appliedWhere: where);
+        if (ref.binding.isClient) _pushFilterUrl(where);
         ref.invalidate(tableRowsProvider);
         return true;
     }
@@ -138,7 +204,9 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
       return;
     }
     _clearRowUiState();
+    _initialSearch = ''; // user took over; stop using the captured initial search
     state = const TableFilterState();
+    if (ref.binding.isClient) _pushFilterUrl(null);
     ref.invalidate(tableRowsProvider);
   }
 

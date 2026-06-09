@@ -12,16 +12,16 @@ String appPathFromContext(BuildContext context) {
   return AuthRoutes.normalizePath(context.url);
 }
 
-/// Client-side navigation that respects the Jaspr document [base] mount path.
+/// Client-side navigation under [AuthRoutes.mountPath].
 extension AppNavigation on BuildContext {
   String get appPath => appPathFromContext(this);
 
   Future<void> goApp(String path, {bool replace = false}) {
-    final normalized = AuthRoutes.normalizePath(path);
+    final mounted = AuthRoutes.toUrlPath(AuthRoutes.normalizePath(path));
     final router = Router.of(this);
     if (replace) {
-      return router.replace(normalized);
+      return router.replace(mounted);
     }
-    return router.push(normalized);
+    return router.push(mounted);
   }
 }

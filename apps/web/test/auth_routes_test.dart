@@ -28,5 +28,14 @@ void main() {
       expect(AuthRoutes.normalizePath('/_/sign-in'), '/sign-in');
       expect(AuthRoutes.normalizePath('/_/tables/foo'), '/tables/foo');
     });
+
+    test('routerRedirectToMountedLocation rewrites legacy mount-less URLs', () {
+      expect(AuthRoutes.routerRedirectToMountedLocation('/_/tables/authors'), isNull);
+      expect(AuthRoutes.routerRedirectToMountedLocation('/tables/authors'), '/_/tables/authors');
+      expect(
+        AuthRoutes.routerRedirectToMountedLocation('/tables/authors?filter=abc'),
+        '/_/tables/authors?filter=abc',
+      );
+    });
   });
 }
