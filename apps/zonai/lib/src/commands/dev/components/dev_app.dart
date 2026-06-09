@@ -362,7 +362,22 @@ class _DevAppState extends State<DevApp> {
     _runMenuAction(devMenuItems[index].key);
   }
 
+  bool _handleQuitKey() {
+    if (_hasOutputSelection) {
+      _clearOutputSelection();
+      return true;
+    }
+    TerminalPointer.reset();
+    TerminalBinding.instance.shutdown();
+    return true;
+  }
+
   bool _handleKey(KeyboardEvent event) {
+    if (event.isControlPressed &&
+        event.logicalKey == LogicalKey.keyC) {
+      return _handleQuitKey();
+    }
+
     if (event.isControlPressed &&
         event.logicalKey == LogicalKey.keyL &&
         _inputMode == DevInputMode.none) {
@@ -385,13 +400,7 @@ class _DevAppState extends State<DevApp> {
 
     switch (event.logicalKey) {
       case LogicalKey.keyQ:
-        if (_hasOutputSelection) {
-          _clearOutputSelection();
-          return true;
-        }
-        TerminalPointer.reset();
-        TerminalBinding.instance.shutdown();
-        return true;
+        return _handleQuitKey();
       case LogicalKey.arrowUp:
         _highlightMenuItem((_menuIndex - 1).clamp(0, devMenuItems.length - 1));
         return true;
@@ -429,7 +438,9 @@ class _DevAppState extends State<DevApp> {
         if (!_actionTracker.isBusy) _setInputMode(DevInputMode.emailTemplate);
         return true;
       case LogicalKey.keyC:
-        if (!_actionTracker.isBusy) _compileWorkers();
+        if (!event.isControlPressed && !_actionTracker.isBusy) {
+          _compileWorkers();
+        }
         return true;
       case LogicalKey.keyP:
         _pingExecutables();
