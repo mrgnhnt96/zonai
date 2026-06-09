@@ -210,6 +210,53 @@ Future<int?> verifyPhotoUploads({required String jwt}) async {
 
   logger.info('Photo type changed to PNG: ${imageFile.path}');
 
+  logger.info('UPLOAD PHOTO FOR GENERIC DELETE TEST');
+  final genericDeleteResponse = await zonaiDB.createPhoto(
+    token: jwt,
+    meta: createMeta,
+    contentType: ImageMimeType.jpeg.mimeType,
+    image: Stream.value(testImageBytes),
+  );
+  final genericDeletePhotoId = genericDeleteResponse['id'] as String;
+  final genericDeleteImageFile = fs.file(
+    fs.path.join(settings.imagesPath, 'items', '$genericDeletePhotoId.jpg'),
+  );
+  if (!genericDeleteImageFile.existsSync()) {
+    logger.error(
+      'Expected photo file to exist for generic delete test: '
+      '${genericDeleteImageFile.path}',
+    );
+    return 1;
+  }
+
+  logger.info('DELETE _PHOTOS ROW VIA DB DELETE');
+  await zonaiDB.delete(
+    '_photos',
+    DeletePayload(jwt: jwt, where: Eq('id', genericDeletePhotoId)),
+  );
+
+  logger.info('VERIFY GENERIC DELETE REMOVES PHOTO FILE');
+  try {
+    await (await zonaiDB.getPhoto(
+      genericDeletePhotoId,
+      token: jwt,
+    )).readAsBytes();
+    logger.error('Expected photo deleted via DB delete to be gone');
+    return 1;
+  } catch (_) {
+    logger.info('Photo record removed via DB delete');
+  }
+
+  if (genericDeleteImageFile.existsSync()) {
+    logger.error(
+      'Expected photo file to be deleted via DB delete: '
+      '${genericDeleteImageFile.path}',
+    );
+    return 1;
+  }
+
+  logger.info('Photo file removed via DB delete');
+
   logger.info('VERIFY PHOTO MUST EXIST WHEN SAVING TO OBJECT');
   try {
     await zonaiDB.create(

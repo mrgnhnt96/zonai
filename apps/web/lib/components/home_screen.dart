@@ -456,20 +456,20 @@ class HomeScreen extends StatelessComponent {
           'touch-action': 'manipulation',
           'user-select': 'none',
           '-webkit-user-select': 'none',
+          '-webkit-touch-callout': 'none',
         },
       ),
       css('.rows-selection-delete__progress').styles(
+        display: .block,
         position: Position.absolute(left: 0.px, top: 0.px, bottom: 0.px),
-        width: 100.percent,
+        width: 0.percent,
         raw: const {
-          'transform': 'scaleX(0)',
-          'transform-origin': 'left center',
-          'background-color': 'color-mix(in srgb, var(--zonai-error) 55%, black)',
+          'background-color': 'rgba(0, 0, 0, 0.28)',
           'pointer-events': 'none',
           'z-index': '0',
         },
       ),
-      css('.rows-selection-delete__progress--resetting').styles(raw: const {'transition': 'transform 75ms ease'}),
+      css('.rows-selection-delete__progress--resetting').styles(raw: const {'transition': 'width 75ms ease'}),
       css('.rows-selection-delete__label').styles(position: Position.relative(), raw: const {'z-index': '1'}),
       css('.rows-selection-delete:disabled').styles(opacity: 0.65, cursor: .notAllowed),
       css('.table-rows-foot').styles(
@@ -966,6 +966,9 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
   var _exporting = false;
   var _deleteHoldPhase = _DeleteHoldPhase.idle;
   var _holdProgress = 0.0;
+  var _holdCommitted = false;
+  var _suppressDeleteClick = false;
+  web.HTMLElement? _holdProgressEl;
 
   Timer? _holdProgressTimer;
   Timer? _deleteHoldResetTimer;
@@ -975,7 +978,8 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
 
   bool get _busy => _deleting || _exporting;
 
-  bool get _requiresDeleteHold {
+  /// True when every row in the table is selected — hold must finish before delete.
+  bool get _mustCompleteHold {
     final data = component.data;
     if (data.total <= 0) return false;
     return component.selection.displayCount(data.total) == data.total;
@@ -1002,6 +1006,14 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
 
   static double _holdEase(double t) => t * t * (3 - 2 * t);
 
+  void _applyHoldProgressVisual(double progress) {
+    _holdProgressEl?.style.setProperty('width', '${(progress * 100).toStringAsFixed(1)}%');
+  }
+
+  void _clearHoldProgressEl() {
+    _holdProgressEl = null;
+  }
+
   void _onDeleteHoldEnd(web.Event _) => _cancelDeleteHold();
 
   void _bindDeleteHoldEndListener() {
@@ -1012,6 +1024,8 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     web.document.addEventListener('pointerup', listener);
     web.document.addEventListener('pointercancel', listener);
     web.document.addEventListener('mouseup', listener);
+    web.document.addEventListener('touchend', listener);
+    web.document.addEventListener('touchcancel', listener);
   }
 
   void _unbindDeleteHoldEndListener() {
@@ -1021,6 +1035,8 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     web.document.removeEventListener('pointerup', listener);
     web.document.removeEventListener('pointercancel', listener);
     web.document.removeEventListener('mouseup', listener);
+    web.document.removeEventListener('touchend', listener);
+    web.document.removeEventListener('touchcancel', listener);
     _deleteHoldEndListenersActive = false;
   }
 
@@ -1037,14 +1053,25 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     final progress = _holdEase(linear);
     if (linear >= 1.0) {
       _stopHoldProgressAnimation();
+      _applyHoldProgressVisual(1);
       _completeDeleteHold();
       return;
     }
+    _applyHoldProgressVisual(progress);
     setState(() => _holdProgress = progress);
   }
 
+  void _onDeleteTouchStart(web.Event event) {
+    event.preventDefault();
+    _startDeleteHold(event);
+  }
+
+  void _blockDeleteContextMenu(web.Event event) {
+    event.preventDefault();
+  }
+
   void _startDeleteHold(web.Event event) {
-    if (_busy || !_requiresDeleteHold || _deleteHoldPhase != _DeleteHoldPhase.idle) return;
+    if (_busy || _deleteHoldPhase != _DeleteHoldPhase.idle) return;
     if (event is web.MouseEvent && event.button != 0) return;
     if (event is web.PointerEvent && event.button != 0) return;
     event.preventDefault();
@@ -1052,7 +1079,13 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     _hideTooltip();
     _stopHoldProgressAnimation();
     _holdStartedAt = DateTime.now();
+    final target = event.currentTarget;
+    final progressEl = target is web.HTMLElement ? target.querySelector('.rows-selection-delete__progress') : null;
+    _holdProgressEl = progressEl is web.HTMLElement ? progressEl : null;
+    _applyHoldProgressVisual(0);
     setState(() {
+      _holdCommitted = false;
+      _suppressDeleteClick = false;
       _deleteHoldPhase = _DeleteHoldPhase.holding;
       _holdProgress = 0;
     });
@@ -1061,18 +1094,18 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
   }
 
   void _blockDeleteClick(web.Event event) {
-    if (!_requiresDeleteHold) return;
+    if (_suppressDeleteClick) _suppressDeleteClick = false;
     event.preventDefault();
     event.stopPropagation();
   }
 
   void _onDeleteButtonClick() {
-    if (_requiresDeleteHold) return;
-    _hideTooltip();
-    _deleteSelected();
+    if (_suppressDeleteClick) _suppressDeleteClick = false;
   }
 
   void _cancelDeleteHold({bool resetVisual = true}) {
+    if (_holdCommitted) return;
+
     _stopHoldProgressAnimation();
     _holdStartedAt = null;
     _unbindDeleteHoldEndListener();
@@ -1080,6 +1113,8 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     if (_deleteHoldPhase != _DeleteHoldPhase.holding) return;
 
     if (!resetVisual) {
+      _applyHoldProgressVisual(0);
+      _clearHoldProgressEl();
       setState(() {
         _deleteHoldPhase = _DeleteHoldPhase.idle;
         _holdProgress = 0;
@@ -1087,6 +1122,7 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
       return;
     }
 
+    _applyHoldProgressVisual(0);
     setState(() {
       _deleteHoldPhase = _DeleteHoldPhase.resetting;
       _holdProgress = 0;
@@ -1094,16 +1130,21 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     _deleteHoldResetTimer?.cancel();
     _deleteHoldResetTimer = Timer(_deleteHoldResetDuration, () {
       if (!mounted) return;
+      _clearHoldProgressEl();
       setState(() => _deleteHoldPhase = _DeleteHoldPhase.idle);
     });
   }
 
   void _completeDeleteHold() {
-    if (_deleteHoldPhase != _DeleteHoldPhase.holding) return;
+    if (_holdCommitted || _deleteHoldPhase != _DeleteHoldPhase.holding) return;
+    _holdCommitted = true;
+    _suppressDeleteClick = true;
     _stopHoldProgressAnimation();
     _holdStartedAt = null;
     _unbindDeleteHoldEndListener();
     _hideTooltip();
+    _applyHoldProgressVisual(1);
+    _clearHoldProgressEl();
     setState(() {
       _deleteHoldPhase = _DeleteHoldPhase.idle;
       _holdProgress = 1.0;
@@ -1132,14 +1173,6 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
         setState(() => _exporting = false);
       }
     }
-  }
-
-  Future<void> _deleteSelected({bool holdConfirmed = false}) async {
-    if (_busy) return;
-    if (_requiresDeleteHold && !holdConfirmed) return;
-    _hideTooltip();
-    setState(() => _deleting = true);
-    await _runDeleteSelected();
   }
 
   Future<void> _runDeleteSelected() async {
@@ -1218,28 +1251,35 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
             type: .button,
             disabled: _busy,
             attributes: {
-              if (_requiresDeleteHold) 'aria-label': 'Hold for 2.5 seconds to delete all rows',
+              'aria-label': _mustCompleteHold
+                  ? 'Hold for 2.5 seconds to delete all rows'
+                  : 'Hold for 2.5 seconds to delete selected rows',
               if (_deleting) 'aria-busy': 'true',
             },
-            events: _requiresDeleteHold
-                ? {
-                    'pointerdown': _startDeleteHold,
-                    'mousedown': _startDeleteHold,
-                    'click': _blockDeleteClick,
-                    ...appTooltipEvents(context, text: 'Hold to delete all rows'),
-                  }
-                : null,
+            events: {
+              'pointerdown': _startDeleteHold,
+              'mousedown': _startDeleteHold,
+              'touchstart': _onDeleteTouchStart,
+              'contextmenu': _blockDeleteContextMenu,
+              'click': _blockDeleteClick,
+              ...appTooltipEvents(
+                context,
+                text: _mustCompleteHold
+                    ? 'Hold for 2.5 seconds to delete all rows'
+                    : 'Hold for 2.5 seconds to delete selected rows',
+              ),
+            },
             onClick: _onDeleteButtonClick,
             [
-              if (_requiresDeleteHold)
-                div(
-                  classes: [
-                    'rows-selection-delete__progress',
-                    if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete__progress--resetting',
-                  ].join(' '),
-                  attributes: {'aria-hidden': 'true', 'style': 'transform: scaleX($_holdProgress);'},
-                  [],
-                ),
+              span(
+                classes: [
+                  'rows-selection-delete__progress',
+                  if (_deleteHoldPhase == _DeleteHoldPhase.resetting) 'rows-selection-delete__progress--resetting',
+                ].join(' '),
+                styles: Styles(width: (_holdProgress * 100).percent),
+                attributes: {'aria-hidden': 'true'},
+                [],
+              ),
               span(classes: 'rows-selection-delete__label', [.text('Delete')]),
             ],
           ),

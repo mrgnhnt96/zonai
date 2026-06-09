@@ -92,6 +92,14 @@ extension _DeleteX on ZonaiDb {
       DeleteExtensionRequest.before(table: table, objects: sanitized, jwt: jwt),
     );
 
+    if (table == '_photos') {
+      for (final object in sanitized) {
+        if (object case {'path': final String path}) {
+          await _deletePhotoFile(path);
+        }
+      }
+    }
+
     final deleteOperation = await _getOperation(
       DeleteOperationRequest(
         table: table,
