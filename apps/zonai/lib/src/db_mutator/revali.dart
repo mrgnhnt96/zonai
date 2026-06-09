@@ -5,12 +5,16 @@ import 'package:scoped_deps/scoped_deps.dart';
 import '../../deps.dart';
 import '../../gen/server/.revali/server/server.dart' as server;
 import '../domain/constants.dart';
+import '../utils/serve_lock.dart';
 import '../utils/server_health.dart';
 
 class Revali {
   Revali();
 
   io.Process? _process;
+  io.HttpServer? _httpServer;
+  ServeLock? _serveLock;
+
   bool get isRunning =>
       _isRunning ??
       switch (kIsCompiled) {
@@ -21,7 +25,7 @@ class Revali {
   /// Whether the server is running in compiled mode
   bool? _isRunning = false;
 
-  Future<bool> start() async {
+  Future<bool> start({bool isDev = false, void Function()? onStopped}) async {
     if (isRunning) {
       logger.debug('Revali is already running');
       return true;
@@ -37,38 +41,69 @@ class Revali {
     logger.debug('Starting Revali server');
 
     if (kIsCompiled) {
-      return await _startCompiled();
+      return await _startCompiled(isDev: isDev, onStopped: onStopped);
     }
 
     return await _startDebug();
   }
 
-  Future<bool> _startCompiled() async {
+  Future<void> stop() async {
+    _isRunning = false;
+
+    final httpServer = _httpServer;
+    _httpServer = null;
+    if (httpServer != null) {
+      await httpServer.close(force: true);
+    }
+
+    final proc = _process;
+    _process = null;
+    if (proc != null) {
+      proc.kill();
+    }
+
+    _releaseServeLock();
+  }
+
+  Future<bool> _startCompiled({
+    required bool isDev,
+    void Function()? onStopped,
+  }) async {
+    _serveLock = ServeLock.tryAcquire();
+    if (_serveLock == null) {
+      return false;
+    }
+
     final cliLogger = logger;
 
-    () async {
-      await runMergedScopedFuture(
-        () => server.createServer(null, []),
-        zoneSpecification: .new(
-          print: (self, parent, zone, message) {
-            cliLogger.info(message);
-          },
-        ),
-      );
-    }().catchError((e, stack) {
-      _isRunning = false;
-      logger.error('Server exited unexpectedly', e, stack);
-      logger.debug('Killing process');
-      kill.force();
-
-      return null;
-    });
+    unawaited(() async {
+      try {
+        _httpServer = await runMergedScopedFuture(
+          () => server.createServer(null, []),
+          zoneSpecification: .new(
+            print: (self, parent, zone, message) {
+              cliLogger.info(message);
+            },
+          ),
+        );
+      } catch (e, stack) {
+        _isRunning = false;
+        logger.error('Server exited unexpectedly', e, stack);
+        if (!isDev) {
+          logger.debug('Killing process');
+          kill.force();
+        }
+        onStopped?.call();
+        await stop();
+      }
+    }());
 
     if (await _checkHealth()) {
       _isRunning = true;
       return true;
     }
 
+    await stop();
     return false;
   }
 
@@ -147,4 +182,9 @@ class Revali {
   }
 
   Future<bool> health() async => checkZonaiServerHealth();
+
+  void _releaseServeLock() {
+    _serveLock?.release();
+    _serveLock = null;
+  }
 }

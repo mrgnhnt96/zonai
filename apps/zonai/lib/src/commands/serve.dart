@@ -21,7 +21,6 @@ import '../deps/crons.dart';
 import '../deps/revali.dart';
 import '../deps/rules.dart';
 import '../native/resqlite_native.dart';
-import '../utils/serve_lock.dart';
 
 Future<int> serve() async {
   var exitCode = 0;
@@ -53,17 +52,6 @@ void _compileWorkers() {
 
 Future<int> _startServing() async {
   await ensureResqliteNativeInstalled();
-
-  // Another `zonai serve` may already own the HTTP server and SQLite database.
-  // Opening the DB twice segfaults in resqlite's reader isolate.
-  if (await revali.health()) {
-    logger.info('Server is already running');
-    return 0;
-  }
-
-  if (ServeLock.tryAcquire() == null) {
-    return 0;
-  }
 
   keyboardInput.watch();
 
