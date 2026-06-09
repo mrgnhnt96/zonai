@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:nocterm/nocterm.dart';
+import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/payloads.dart';
 
@@ -87,7 +88,11 @@ class _DevAppState extends State<DevApp> {
     _logCallback = _onLog;
     logger.addCallback(_logCallback);
     _workerWatch.start();
-    _server.probe();
+    if (kIsCompiled) {
+      _server.start();
+    } else {
+      _server.probe();
+    }
   }
 
   @override

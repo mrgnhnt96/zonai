@@ -25,26 +25,44 @@ class Revali {
   /// Whether the server is running in compiled mode
   bool? _isRunning = false;
 
-  Future<bool> start({bool isDev = false, void Function()? onStopped}) async {
+  Future<bool> start({void Function()? onStopped}) async {
+    final isDev = args['dev'] == true;
+    void devLog(String message) {
+      if (isDev) logger.debug(message);
+    }
+
     if (isRunning) {
       logger.debug('Revali is already running');
       return true;
     }
 
     // during development, the server could already be running, so we can just return true
-    if (await _checkHealth(quick: true)) {
-      logger.debug('Revali server is already running');
-      _isRunning = true;
-      return true;
+    if (!(isDev && kIsCompiled)) {
+      devLog('Quick health check...');
+      final quickHealth = Stopwatch()..start();
+      if (await _checkHealth(quick: true)) {
+        logger.debug('Revali server is already running');
+        devLog(
+          'Quick health check passed (${quickHealth.elapsedMilliseconds}ms)',
+        );
+        _isRunning = true;
+        return true;
+      }
+      devLog(
+        'Quick health check failed (${quickHealth.elapsedMilliseconds}ms)',
+      );
+    } else {
+      devLog('Skipping quick health check (starting compiled server)');
     }
 
     logger.debug('Starting Revali server');
+    devLog('Launching revali server process...');
 
     if (kIsCompiled) {
-      return await _startCompiled(isDev: isDev, onStopped: onStopped);
+      return await _startCompiled(onStopped: onStopped);
     }
 
-    return await _startDebug();
+    return await _startDebug(isDev: isDev);
   }
 
   Future<void> stop() async {
@@ -65,17 +83,25 @@ class Revali {
     _releaseServeLock();
   }
 
-  Future<bool> _startCompiled({
-    required bool isDev,
-    void Function()? onStopped,
-  }) async {
+  Future<bool> _startCompiled({void Function()? onStopped}) async {
+    final isDev = args['dev'] == true;
+    void devLog(String message) {
+      if (isDev) logger.debug(message);
+    }
+
+    devLog('Acquiring serve lock...');
+    final lockWatch = Stopwatch()..start();
     _serveLock = ServeLock.tryAcquire();
     if (_serveLock == null) {
+      devLog('Serve lock unavailable (${lockWatch.elapsedMilliseconds}ms)');
       return false;
     }
+    devLog('Serve lock acquired (${lockWatch.elapsedMilliseconds}ms)');
 
     final cliLogger = logger;
 
+    devLog('Creating HTTP server...');
+    final createServerWatch = Stopwatch()..start();
     unawaited(() async {
       try {
         _httpServer = await runMergedScopedFuture(
@@ -86,9 +112,15 @@ class Revali {
             },
           ),
         );
+        devLog(
+          'HTTP server created (${createServerWatch.elapsedMilliseconds}ms)',
+        );
       } catch (e, stack) {
         _isRunning = false;
         logger.error('Server exited unexpectedly', e, stack);
+        devLog(
+          'HTTP server creation failed (${createServerWatch.elapsedMilliseconds}ms)',
+        );
         if (!isDev) {
           logger.debug('Killing process');
           kill.force();
@@ -98,32 +130,47 @@ class Revali {
       }
     }());
 
-    if (await _checkHealth()) {
+    devLog('Waiting for server health...');
+    final healthWatch = Stopwatch()..start();
+    if (await _checkHealth(devLog: isDev)) {
+      devLog('Server healthy (${healthWatch.elapsedMilliseconds}ms)');
       _isRunning = true;
       return true;
     }
 
+    devLog('Server health check failed (${healthWatch.elapsedMilliseconds}ms)');
     await stop();
     return false;
   }
 
-  Future<bool> _startDebug() async {
+  Future<bool> _startDebug({required bool isDev}) async {
+    void devLog(String message) {
+      if (isDev) logger.debug(message);
+    }
+
     logger.debug('Current dir: ${fs.currentDirectory.path}');
     final revaliProjectPath = fs.path.normalize(
       fs.path.join(fs.currentDirectory.path, '..', 'server'),
     );
     logger.debug('revaliProjectPath: $revaliProjectPath');
+    devLog('Revali project path: $revaliProjectPath');
 
     if (!fs.directory(revaliProjectPath).existsSync()) {
       logger.error('Revali project path does not exist: $revaliProjectPath');
+      devLog('Revali project path does not exist');
       return false;
     }
 
+    devLog('Spawning revali dev subprocess...');
+    final spawnWatch = Stopwatch()..start();
     final result = await process.start(
       'dart',
       ['run', 'revali', 'dev', '--loud'],
       workingDirectory: revaliProjectPath,
       mode: .detachedWithStdio,
+    );
+    devLog(
+      'Subprocess spawned (pid=${result.pid}, ${spawnWatch.elapsedMilliseconds}ms)',
     );
     final pid = result.pid;
     cleanUp.add(() {
@@ -141,15 +188,19 @@ class Revali {
       }
     });
 
-    if (await _checkHealth()) {
+    devLog('Waiting for server health...');
+    final healthWatch = Stopwatch()..start();
+    if (await _checkHealth(devLog: isDev)) {
+      devLog('Server healthy (${healthWatch.elapsedMilliseconds}ms)');
       _process = result;
       return true;
     }
 
+    devLog('Server health check failed (${healthWatch.elapsedMilliseconds}ms)');
     return false;
   }
 
-  Future<bool> _checkHealth({bool quick = false}) async {
+  Future<bool> _checkHealth({bool quick = false, bool devLog = false}) async {
     if (quick) {
       return await health();
     }
@@ -159,6 +210,9 @@ class Revali {
     const maxAttempts = 200;
     while (!isReady && attempts < maxAttempts) {
       logger.debug('Checking health of Revali (server) - Attempt $attempts');
+      if (devLog && (attempts == 0 || attempts % 10 == 0)) {
+        logger.debug('Health check attempt $attempts...');
+      }
       isReady = await health();
       attempts++;
 
@@ -167,10 +221,16 @@ class Revali {
 
     if (!isReady) {
       logger.error('Unexpectedly failed to make connection to Revali (server)');
+      if (devLog) {
+        logger.debug('Health check gave up after $attempts attempts');
+      }
       return false;
     }
 
     logger.debug('Revali (server) is ready!');
+    if (devLog) {
+      logger.debug('Health check passed after $attempts attempts');
+    }
 
     try {
       return true;
