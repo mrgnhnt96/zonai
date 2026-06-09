@@ -60,6 +60,14 @@ final class Exceptions implements LifecycleComponent {
     return switch (exception) {
       RecordNotFoundException() || RecordDeletedWhileStreamingException() =>
         .handled(statusCode: 404, body: {'error': '$exception'}),
+      PasswordUpdateForbiddenException() => .handled(
+        statusCode: 403,
+        body: {'error': '$exception'},
+      ),
+      InvalidPasswordUpdateException() => .handled(
+        statusCode: 422,
+        body: {'error': '$exception'},
+      ),
       RecordCreateFailedException() ||
       RecordReadFailedException() ||
       RecordUpdateFailedException() ||

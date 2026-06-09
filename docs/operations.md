@@ -171,6 +171,38 @@ Columns with **`UpdatedAtTransformer`** are set to `DateTime.now()` automaticall
 
 Plain `ObjectUpdate` maps on **JSON map columns** use SQLite `json_patch` (RFC 7396 merge patch).
 
+### Password columns
+
+Password columns on auth collections receive special treatment during updates.
+
+**Automatic hashing.** When an update targets the password column — whether via `Update.column` or inside an `Update.object` map — Zonai automatically hashes the plain-text value with Argon2id before writing it to SQLite. The stored value is always `<saltBase64>.<digestBase64>`; the plain-text password never touches the database.
+
+**Admin-only.** Updating a password column requires an admin JWT with `canEdit: true`. Any attempt by a non-admin (or an unauthenticated request) throws `PasswordUpdateForbiddenException` → **403**.
+
+**Literal values only.** The password update value must be a plain string literal (`UpdateValue.literal`). Arithmetic or list operations (`increment`, `decrement`, `add`, `remove`, etc.) on a password column throw `InvalidPasswordUpdateException` → **422**.
+
+Example — updating a user's password as an admin:
+
+```dart
+await zonaiDB.update(
+  'users',
+  UpdatePayload(
+    jwt: adminJwt,                        // must be admin with canEdit
+    where: Eq('id', userId),
+    updates: [
+      ColumnUpdate('password', Literal('new-plain-text-password')),
+    ],
+  ),
+);
+```
+
+The value `'new-plain-text-password'` is hashed before the SQL `UPDATE` runs. After the call, sign-in with the new password succeeds and the old password is rejected.
+
+| Condition | Exception | HTTP status |
+| --------- | --------- | ----------- |
+| Caller is not an admin or `canEdit` is false | `PasswordUpdateForbiddenException` | 403 |
+| Update value is not a plain string literal | `InvalidPasswordUpdateException` | 422 |
+
 ## Custom operations
 
 Override **`custom`** to handle operation names that are not `create`, `update`, `delete`, `view`, or `list`:

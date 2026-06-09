@@ -99,3 +99,19 @@ final class RecordCountFailedException extends CrudException {
     return 'Failed to count records in $table';
   }
 }
+
+final class PasswordUpdateForbiddenException extends CrudException {
+  const PasswordUpdateForbiddenException({required super.table});
+
+  @override
+  String toString() =>
+      'Only admins with edit access can update the password column on table "$table"';
+}
+
+final class InvalidPasswordUpdateException extends CrudException {
+  const InvalidPasswordUpdateException({required super.table});
+
+  @override
+  String toString() =>
+      'Password column on table "$table" can only be updated with a plain string value';
+}

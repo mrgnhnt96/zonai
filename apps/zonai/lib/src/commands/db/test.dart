@@ -102,6 +102,8 @@ Future<int> test() async {
     }
   }
 
+  String adminJwt;
+
   {
     logger.info('--------------------------------');
     logger.info('ADMIN SIGN IN');
@@ -109,6 +111,29 @@ Future<int> test() async {
     if (exitCode != null || signedInJwt == null) {
       return exitCode ?? 1;
     }
+    adminJwt = signedInJwt;
+  }
+
+  {
+    logger.info('--------------------------------');
+    logger.info('ADMIN UPDATE PASSWORD');
+    const newPassword = 'new-password-456';
+    if (await _adminUpdatePassword(email: email, newPassword: newPassword, adminJwt: adminJwt) case final int exitCode) {
+      return exitCode;
+    }
+
+    logger.info('VERIFY OLD PASSWORD REJECTED');
+    if (await _verifyPasswordRejected(email: email, password: 'test') case final int exitCode) {
+      return exitCode;
+    }
+
+    logger.info('VERIFY NEW PASSWORD ACCEPTED');
+    final (exitCode, newJwt, _) = await _signIn(email, newPassword);
+    if (exitCode != null || newJwt == null) {
+      return exitCode ?? 1;
+    }
+    jwt = newJwt;
+    logger.info('Signed in with new password: $newJwt');
   }
 
   logger.info('--------------------------------');
@@ -221,15 +246,55 @@ Future<(int?, String?)> _signUp() async {
   return (null, email);
 }
 
-Future<(int?, String?, String?)> _signIn(String email) async {
+Future<(int?, String?, String?)> _signIn(String email, [String password = 'test']) async {
   final result = await zonaiDB.authenticate(
     'users',
-    SignInPasswordAuthPayload(email: email, password: 'test'),
+    SignInPasswordAuthPayload(email: email, password: password),
   );
 
   logger.info('Signed in user: ${result!.user['id']}');
 
   return (null, result.jwt, result.user['id'] as String?);
+}
+
+Future<int?> _adminUpdatePassword({
+  required String email,
+  required String newPassword,
+  required String adminJwt,
+}) async {
+  final users = await zonaiDB.list('users', ListPayload(jwt: adminJwt, where: Eq('email', email), limit: 1));
+  final user = users.items.firstOrNull;
+  if (user == null) {
+    logger.error('User not found for email: $email');
+    return 1;
+  }
+
+  final userId = user['id'] as Object;
+  await zonaiDB.update(
+    'users',
+    UpdatePayload(
+      jwt: adminJwt,
+      where: Eq('id', userId),
+      updates: [ColumnUpdate('password', Literal(newPassword))],
+    ),
+  );
+
+  logger.info('Admin updated password for $email');
+  return null;
+}
+
+Future<int?> _verifyPasswordRejected({required String email, required String password}) async {
+  try {
+    await zonaiDB.authenticate(
+      'users',
+      SignInPasswordAuthPayload(email: email, password: password),
+    );
+    logger.error('Expected sign-in with old password to fail');
+    return 1;
+  } catch (_) {
+    logger.info('Old password correctly rejected');
+    return null;
+  }
 }
 
 Future<(int?, String?)> _refreshToken(String jwt) async {

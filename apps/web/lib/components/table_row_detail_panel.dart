@@ -83,6 +83,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   List<Object?>? _draft;
   Map<int, String> _textInputs = {};
   final Set<String> _invalidFkFields = {};
+  Set<int> _passwordReplaceColumns = {};
   _PendingDismiss? _pendingDismiss;
 
   @override
@@ -440,6 +441,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _draft = null;
         _textInputs = {};
         _clearFkInvalidFields();
+        _passwordReplaceColumns = {};
       });
     });
   }
@@ -477,6 +479,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _clearFkInvalidFields();
         _showRawJson = false;
         _rawJsonRowKey = null;
+        _passwordReplaceColumns = {};
       }
       _cachedDetail = detail;
       if (rowChanged || viewChanged) {
@@ -572,7 +575,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       ];
       _textInputs = {
         for (var i = 0; i < detail.row.length; i++)
-          if (_usesTextInput(detail.columnShapes.elementAtOrNull(i)))
+          if (_usesTextInput(detail.columnShapes.elementAtOrNull(i)) &&
+              !isPasswordColumn(detail.columnShapes.elementAtOrNull(i)!))
             i: cellToEditWireText(detail.row[i], detail.columnShapes.elementAtOrNull(i), revealSecrets: true),
       };
       _showRawJson = false;
@@ -592,6 +596,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           _pendingDismiss = null;
           _showRawJson = false;
           _rawJsonRowKey = null;
+          _passwordReplaceColumns = {};
         });
       case TableRowDetailViewMode.json:
         if (_showRawJson && _rawJsonRowKey == detail.rowKey && !_editing) return;
@@ -603,6 +608,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           _pendingDismiss = null;
           _showRawJson = true;
           _rawJsonRowKey = detail.rowKey;
+          _passwordReplaceColumns = {};
         });
       case TableRowDetailViewMode.edit:
         final allActions = context.read(tableCollectionActionsProvider);
@@ -624,6 +630,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       _textInputs = {};
       _clearFkInvalidFields();
       _pendingDismiss = null;
+      _passwordReplaceColumns = {};
     });
   }
 
@@ -720,6 +727,10 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         continue;
       }
       if (isPasswordColumn(shape)) {
+        if (!_passwordReplaceColumns.contains(i)) {
+          parsed[i] = detail.row[i];
+          continue;
+        }
         final text = _textInputs[i];
         if (isPasswordUpdateUnchanged(text, originalValue: detail.row[i], shape: shape)) {
           parsed[i] = detail.row[i];
@@ -749,6 +760,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final label = columnShapeHeaderLabel(shape);
 
     if (_editing && isColumnEditable(shape)) {
+      final isPasswordReplace = isPasswordColumn(shape) ? _passwordReplaceColumns.contains(index) : null;
       return _EditDetailField(
         fieldLabel: label,
         shape: shape,
@@ -757,6 +769,10 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         disabled: _saving,
         labelId: 'table-row-edit-label-${shape.name}',
         onFkInvalidChanged: isForeignKeyColumn(shape) ? (invalid) => _setFkFieldInvalid(shape.name, invalid) : null,
+        isPasswordReplaceMode: isPasswordReplace,
+        onEnablePasswordReplace: isPasswordReplace == false
+            ? () => setState(() => _passwordReplaceColumns = {..._passwordReplaceColumns, index})
+            : null,
         onDraftChanged: (value) {
           setState(() {
             _draft ??= List<Object?>.from(detail.row);
@@ -1018,6 +1034,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
           _draft = null;
           _textInputs = {};
           _clearFkInvalidFields();
+          _passwordReplaceColumns = {};
         });
         return;
       }
@@ -1049,6 +1066,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _draft = null;
         _textInputs = {};
         _clearFkInvalidFields();
+        _passwordReplaceColumns = {};
       });
     } on Object catch (e) {
       if (!mounted) return;
@@ -1551,7 +1569,7 @@ class _DetailField extends StatelessComponent {
         div(classes: 'table-row-detail-label-row', [
           div(classes: 'table-row-detail-label-group', [
             span(classes: 'table-row-detail-label', [.text(label)]),
-            if (!readOnlyHint) _CopyFieldValueButton(label: label, text: _copyText),
+            if (!readOnlyHint && !isPasswordColumn(shape)) _CopyFieldValueButton(label: label, text: _copyText),
           ]),
         ]),
         _DetailFieldValue(rawValue: rawValue, shape: shape),
@@ -1571,6 +1589,8 @@ class _EditDetailField extends StatelessComponent {
     required this.onDraftChanged,
     required this.onTextChanged,
     this.onFkInvalidChanged,
+    this.isPasswordReplaceMode,
+    this.onEnablePasswordReplace,
   });
 
   final String fieldLabel;
@@ -1582,6 +1602,8 @@ class _EditDetailField extends StatelessComponent {
   final void Function(Object? value) onDraftChanged;
   final void Function(String value) onTextChanged;
   final void Function(bool invalid)? onFkInvalidChanged;
+  final bool? isPasswordReplaceMode;
+  final VoidCallback? onEnablePasswordReplace;
 
   @override
   Component build(BuildContext context) {
@@ -1601,6 +1623,8 @@ class _EditDetailField extends StatelessComponent {
         onTextChanged: onTextChanged,
         onDraftChanged: onDraftChanged,
         onFkInvalidChanged: onFkInvalidChanged,
+        isPasswordReplaceMode: isPasswordReplaceMode,
+        onEnablePasswordReplace: onEnablePasswordReplace,
       ),
     ]);
   }
@@ -1796,7 +1820,7 @@ class _DetailFieldValue extends StatelessComponent {
     }
 
     if (shape.isSecret || shape.kind == ColumnShapeKind.password) {
-      return _DetailPlainText(value: formatReadOnlyCell(rawValue, shape, revealSecrets: true));
+      return _DetailPlainText(value: '••••••••');
     }
 
     final photoShape = photoShapeForCell(shape: shape, rawValue: rawValue);

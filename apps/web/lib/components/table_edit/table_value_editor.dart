@@ -42,6 +42,8 @@ class TableValueEditor extends StatelessComponent {
     this.fkDisplayLabel,
     this.fkValidationError,
     this.fkValidationLoading = false,
+    this.isPasswordReplaceMode,
+    this.onEnablePasswordReplace,
   });
 
   final String id;
@@ -65,6 +67,10 @@ class TableValueEditor extends StatelessComponent {
   final String? fkDisplayLabel;
   final String? fkValidationError;
   final bool fkValidationLoading;
+
+  /// See [TableEditPasswordField.isReplaceMode].
+  final bool? isPasswordReplaceMode;
+  final VoidCallback? onEnablePasswordReplace;
 
   @override
   Component build(BuildContext context) {
@@ -222,6 +228,8 @@ class TableValueEditor extends StatelessComponent {
       placeholder: shape.isNullable ? 'Leave empty to keep unchanged' : 'Enter value',
       disabled: disabled,
       inputClass: inputClass,
+      isReplaceMode: isPasswordReplaceMode,
+      onEnableReplace: onEnablePasswordReplace,
     );
   }
 

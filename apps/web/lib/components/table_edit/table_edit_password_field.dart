@@ -2,8 +2,8 @@ import 'dart:math';
 
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
-
 import '../../constants/button_sizes.dart';
+import '../app_tooltip_overlay.dart';
 import '../theme/ui_styles.dart';
 import '../theme/zonai_icon_button.dart';
 
@@ -25,6 +25,8 @@ class TableEditPasswordField extends StatelessComponent {
     this.placeholder,
     this.disabled = false,
     this.inputClass,
+    this.isReplaceMode,
+    this.onEnableReplace,
   });
 
   final String id;
@@ -35,8 +37,41 @@ class TableEditPasswordField extends StatelessComponent {
   final bool disabled;
   final String? inputClass;
 
+  /// When non-null, the field is in edit-row mode.
+  /// [false] shows a locked placeholder; [true] shows the text input.
+  /// [null] (create mode) always shows the text input.
+  final bool? isReplaceMode;
+  final VoidCallback? onEnableReplace;
+
   @override
   Component build(BuildContext context) {
+    if (isReplaceMode == false) {
+      return div(classes: 'table-edit-password-field', [
+        input<String>(
+          id: id,
+          type: .text,
+          classes: inputClass ?? ZonaiClasses.input,
+          attributes: {
+            if (labelId != null) 'aria-labelledby': labelId!,
+            'placeholder': '••••••••',
+            'autocomplete': 'off',
+          },
+          value: '',
+          disabled: true,
+          onInput: (_) {},
+        ),
+        ZonaiIconButton(
+          size: ZonaiIconButtonSize.sm,
+          variant: ZonaiIconButtonVariant.ghost,
+          disabled: disabled,
+          attributes: {'aria-label': 'Replace password'},
+          events: disabled ? null : appTooltipEvents(context, text: 'Replace password'),
+          onClick: disabled ? null : onEnableReplace,
+          child: _refreshIcon(),
+        ),
+      ]);
+    }
+
     return div(classes: 'table-edit-password-field', [
       input<String>(
         id: id,
@@ -55,12 +90,34 @@ class TableEditPasswordField extends StatelessComponent {
         size: ZonaiIconButtonSize.sm,
         variant: ZonaiIconButtonVariant.ghost,
         disabled: disabled,
-        attributes: {'title': 'Generate password', 'aria-label': 'Generate password'},
+        attributes: {'aria-label': 'Generate password'},
+        events: disabled ? null : appTooltipEvents(context, text: 'Generate password'),
         onClick: () => onChanged(_generatePassword()),
         child: _wandIcon(),
       ),
     ]);
   }
+}
+
+Component _refreshIcon() {
+  return svg(
+    viewBox: '0 0 24 24',
+    attributes: {
+      'aria-hidden': 'true',
+      'fill': 'none',
+      'stroke': 'currentColor',
+      'stroke-width': '2',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    },
+    classes: 'table-edit-password-field__icon',
+    [
+      path(d: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', []),
+      path(d: 'M21 3v5h-5', []),
+      path(d: 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', []),
+      path(d: 'M8 16H3v5', []),
+    ],
+  );
 }
 
 Component _wandIcon() {

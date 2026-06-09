@@ -60,6 +60,41 @@ Store the latest `accessToken` after every sign-in and refresh. When a token is 
 
 If refresh fails (revoked token, expired token, or user deleted), treat the session as ended and send the user through sign-in again.
 
+## Password management
+
+### How passwords are stored
+
+Passwords are hashed with **Argon2id** (OWASP single-server parameters: 19 MiB memory, 3 iterations, parallelism 1) using a random 16-byte salt per credential. The stored value is `<saltBase64>.<digestBase64>`. The plain-text password is never persisted.
+
+### Changing a user's password (admin UI)
+
+In the admin row-detail panel, the password column is always displayed as `••••••••` — the hash is never shown. Copying the value is disabled.
+
+To set a new password while editing a row, click the **Replace password** icon next to the field. This reveals an empty text input and a generate button. Leaving the field blank (or not clicking the icon at all) leaves the existing password unchanged.
+
+### Changing a user's password (API)
+
+Only an **admin JWT with `canEdit: true`** can update a password column via the update API. Pass the new plain-text password as a string literal — Zonai hashes it automatically before writing to SQLite:
+
+```dart
+await zonaiDB.update(
+  'users',
+  UpdatePayload(
+    jwt: adminJwt,
+    where: Eq('id', userId),
+    updates: [ColumnUpdate('password', Literal('new-plain-text-password'))],
+  ),
+);
+```
+
+See [operations.md — Password columns](operations.md#password-columns) for the full rules, error codes, and constraints.
+
+### Reset password flow
+
+To let users change their own password, use the **reset-password email flow** rather than a direct update. The flow sends a time-limited link; when the user follows it, Zonai hashes and stores the new password automatically.
+
+See `resetPasswordConfig` in [operations.md](operations.md#auth-collections) and the `reset_password` email template in [email.md](email.md).
+
 ## Related configuration
 
 | Topic | Doc |
@@ -71,6 +106,7 @@ If refresh fails (revoked token, expired token, or user deleted), treat the sess
 | Per-IP refresh limits | [rate-limiting.md](rate-limiting.md#auth-operations-authcollectionratelimits) |
 | SMTP, templates, and sending email | [email.md](email.md) |
 | Public base URL in auth emails | [server-binding.md](server-binding.md) |
+| Admin password update rules and error codes | [operations.md](operations.md#password-columns) |
 
 ## See also
 

@@ -26,6 +26,8 @@ class TableCellEditField extends StatefulComponent {
     required this.onDraftChanged,
     this.labelId,
     this.onFkInvalidChanged,
+    this.isPasswordReplaceMode,
+    this.onEnablePasswordReplace,
   });
 
   final String id;
@@ -37,6 +39,8 @@ class TableCellEditField extends StatefulComponent {
   final void Function(Object? value) onDraftChanged;
   final String? labelId;
   final void Function(bool invalid)? onFkInvalidChanged;
+  final bool? isPasswordReplaceMode;
+  final VoidCallback? onEnablePasswordReplace;
 
   @override
   State<TableCellEditField> createState() => _TableCellEditFieldState();
@@ -156,6 +160,8 @@ class _TableCellEditFieldState extends State<TableCellEditField> {
       fkDisplayLabel: fkDisplayLabel,
       fkValidationError: fkValidationError,
       fkValidationLoading: fkValidationLoading,
+      isPasswordReplaceMode: component.isPasswordReplaceMode,
+      onEnablePasswordReplace: component.onEnablePasswordReplace,
     );
 
     if (!_fkPickerOpen || shape.foreignKey == null) {

@@ -64,6 +64,53 @@ extension _UpdateX on ZonaiDb {
     return sanitizedUpdated;
   }
 
+  Future<(List<Update>, bool)> _hashPasswordUpdates(
+    String table,
+    List<Update> updates,
+  ) async {
+    String? passwordColumnName;
+    try {
+      final response = await _operations.send<ColumnNameResponse>(
+        GetColumnNameRequest(table: table, columnName: .password),
+      );
+      passwordColumnName = response.name;
+    } on StateError {
+      return (updates, false);
+    }
+
+    var changed = false;
+    final result = <Update>[];
+    for (final update in updates) {
+      switch (update) {
+        case ColumnUpdate(:final column) when column == passwordColumnName:
+          if (update.value case Literal(:final String value)) {
+            final hashed = await _hashPassword.hash(password: value);
+            result.add(ColumnUpdate(column, Literal(hashed)));
+            changed = true;
+          } else {
+            throw InvalidPasswordUpdateException(table: table);
+          }
+        case ObjectUpdate(:final object):
+          if (object.containsKey(passwordColumnName)) {
+            if (object[passwordColumnName] case final String value) {
+              final hashed = await _hashPassword.hash(password: value);
+              object[passwordColumnName] = hashed;
+              changed = true;
+              continue;
+            }
+
+            throw InvalidPasswordUpdateException(table: table);
+          }
+
+          result.add(update);
+        case ColumnUpdate():
+          result.add(update);
+      }
+    }
+
+    return (result, changed);
+  }
+
   Future<void> _postUpdate(
     String table,
     Jwt? jwt, {
@@ -130,11 +177,21 @@ extension _UpdateX on ZonaiDb {
       ),
     );
 
+    final (updates, changed) = await _hashPasswordUpdates(
+      table,
+      payload.updates,
+    );
+    if (changed) {
+      if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
+        throw PasswordUpdateForbiddenException(table: table);
+      }
+    }
+
     final operation = await _getOperation(
       UpdateOperationRequest(
         table: table,
         where: payload.where,
-        updates: payload.updates,
+        updates: updates,
         jwt: jwt,
       ),
     );
