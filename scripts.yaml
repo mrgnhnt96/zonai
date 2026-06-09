@@ -115,11 +115,11 @@ playground:
 
   zonai: |
     cd apps/playground || exit 1
-    dart run zonai serve --log verbose
+    dart run --enable-asserts ../zonai/bin/zonai.dart serve --log verbose
 
   compile: |
     cd apps/playground || exit 1
-    dart run --enable-asserts zonai compile --log verbose
+    dart run --enable-asserts ../zonai/bin/zonai.dart compile --log verbose
 
   test:
     (command): |
