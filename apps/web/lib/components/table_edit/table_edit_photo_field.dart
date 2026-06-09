@@ -3,11 +3,12 @@ import 'dart:typed_data';
 
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
+import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/js_interop.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
-import '../../api/api_client.dart';
+import '../../providers/app_base_url_provider.dart';
 import '../../utils/photo_edit_value.dart';
 import '../../utils/read_web_file_bytes.dart';
 import '../theme/ui_styles.dart';
@@ -93,12 +94,12 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
     ];
   }
 
-  String? _previewSrc(PhotoEditItem item) {
+  String? _previewSrc(PhotoEditItem item, String imageBaseUrl) {
     return switch (item) {
       PhotoEditExistingItem(previewUrl: final previewUrl, id: final id)
           when previewUrl != null && previewUrl.isNotEmpty =>
         previewUrl,
-      PhotoEditExistingItem(id: final id) => '$revaliBaseUrl/img/$id',
+      PhotoEditExistingItem(id: final id) => '$imageBaseUrl/img/$id',
       PhotoEditPendingItem pending => _objectUrls[pending],
     };
   }
@@ -236,6 +237,7 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
 
   @override
   Component build(BuildContext context) {
+    final imageBaseUrl = context.watch(appBaseUrlProvider);
     final items = _items(_currentValue());
     final inputId = '${component.id}-file';
     final showDropZone = _allowMultiple || items.isEmpty;
@@ -255,7 +257,7 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
         div(classes: thumbsClass, events: showDropZone ? null : dropTargetEvents, [
           for (var i = 0; i < items.length; i++)
             _PhotoThumb(
-              src: _previewSrc(items[i]),
+              src: _previewSrc(items[i], imageBaseUrl),
               label: switch (items[i]) {
                 PhotoEditExistingItem(:final id) => id,
                 PhotoEditPendingItem() => 'New image',

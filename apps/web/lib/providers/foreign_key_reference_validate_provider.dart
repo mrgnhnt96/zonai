@@ -1,7 +1,9 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_web/api/api_client.dart';
 
 import '../utils/table_cell_edit.dart';
+import 'app_base_url_provider.dart';
 import 'foreign_key_rows_provider.dart';
 import 'table_schema_provider.dart';
 
@@ -57,6 +59,8 @@ final foreignKeyReferenceValidateProvider =
 
       final schema = ref.watch(tableSchemasProvider)[query.foreignKey.table];
       final referenced = await loadForeignKeyReferencedRow(
+        server: ref.read(revaliServerProvider),
+        imageBaseUrl: ref.read(appBaseUrlProvider),
         foreignKey: query.foreignKey,
         parsedValue: parsed,
         schema: schema,

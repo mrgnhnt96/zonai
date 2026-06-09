@@ -2,20 +2,17 @@ import 'dart:convert';
 
 import 'package:revali_client/revali_client.dart';
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_web/api/api_client.dart';
+import 'package:zonai_web/gen/client/client.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
 
-Future<DashboardMetrics> fetchDashboardMetrics({int? since, bool excludeAdmin = false}) async {
+Future<DashboardMetrics> fetchDashboardMetrics({required Server server, int? since, bool excludeAdmin = false}) async {
   final token = ZonaiCookie.authToken.read();
   final headers = <String, String>{if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token'};
 
-  final response = await revaliServer.client.request(
+  final response = await server.client.request(
     method: 'GET',
     path: '/dashboard/metrics',
-    query: {
-      if (since != null) 'since': since,
-      if (excludeAdmin) 'exclude_admin': true,
-    },
+    query: {if (since != null) 'since': since, if (excludeAdmin) 'exclude_admin': true},
     headers: headers,
   );
 

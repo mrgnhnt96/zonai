@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:revali_client/revali_client.dart';
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_web/api/api_client.dart';
+import 'package:zonai_web/gen/client/client.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
 
 /// Resolves the Content-Type to send for an upload (may differ from [mimeType]).
@@ -42,6 +42,7 @@ void validatePhotoBytes({required Uint8List bytes, required String mimeType, req
 
 /// Creates a photo for [table] and returns the new photo id.
 Future<String> createPhoto({
+  required Server server,
   required String table,
   required Uint8List bytes,
   required String mimeType,
@@ -55,7 +56,7 @@ Future<String> createPhoto({
     if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
   };
 
-  final response = await revaliServer.client.request(
+  final response = await server.client.request(
     method: 'POST',
     path: '/img',
     query: {'meta': PhotoCreateMeta(table: table)},
@@ -82,6 +83,7 @@ Future<String> createPhoto({
 
 /// Replaces image bytes for an existing photo.
 Future<void> patchPhoto({
+  required Server server,
   required String id,
   required Uint8List bytes,
   required String mimeType,
@@ -95,7 +97,7 @@ Future<void> patchPhoto({
     if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
   };
 
-  final response = await revaliServer.client.request(method: 'PATCH', path: '/img/$id', headers: headers, body: bytes);
+  final response = await server.client.request(method: 'PATCH', path: '/img/$id', headers: headers, body: bytes);
 
   if (response.statusCode < 200 || response.statusCode >= 300) {
     final body = await response.transform(utf8.decoder).join();
@@ -108,12 +110,12 @@ Future<void> patchPhoto({
 }
 
 /// Deletes a photo. Failures are ignored (best-effort orphan cleanup).
-Future<void> deletePhotoBestEffort(String id) async {
+Future<void> deletePhotoBestEffort({required Server server, required String id}) async {
   try {
     final token = ZonaiCookie.authToken.read();
     final headers = <String, String>{if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token'};
 
-    final response = await revaliServer.client.request(method: 'DELETE', path: '/img/$id', headers: headers);
+    final response = await server.client.request(method: 'DELETE', path: '/img/$id', headers: headers);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       // ignore

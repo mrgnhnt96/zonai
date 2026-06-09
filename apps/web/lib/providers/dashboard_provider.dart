@@ -108,7 +108,11 @@ class _DashboardMetricsNotifier extends AsyncNotifier<DashboardMetrics> {
 
     final excludeAdmin = ref.watch(excludeAdminProvider);
     final since = _requestLogSinceMs();
-    final data = await fetchDashboardMetrics(since: since, excludeAdmin: excludeAdmin);
+    final data = await fetchDashboardMetrics(
+      server: ref.read(revaliServerProvider),
+      since: since,
+      excludeAdmin: excludeAdmin,
+    );
 
     return DashboardMetrics(
       stats: DashboardStats(
@@ -137,7 +141,7 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
         ? And([Eq('level', 'error'), Gt('timestamp', since), Eq('is_admin', false)])
         : And([Eq('level', 'error'), Gt('timestamp', since)]);
 
-    final data = await revaliServer.db.list(
+    final data = await ref.read(revaliServerProvider).db.list(
       body: ListBody(
         table: '_log',
         where: where,
@@ -185,7 +189,7 @@ class _CronJobsNotifier extends AsyncNotifier<List<CronJobSummary>> {
   Future<List<CronJobSummary>> build() async {
     if (!ref.binding.isClient) return const [];
 
-    final data = await revaliServer.db.list(
+    final data = await ref.read(revaliServerProvider).db.list(
       body: const ListBody(
         table: '_cron_jobs',
         limit: 200,
@@ -234,7 +238,7 @@ class _TableCountsNotifier extends AsyncNotifier<Map<String, int>> {
 
     final counts = <int>[];
     for (final t in userTables) {
-      counts.add(await revaliServer.db.count(body: CountBody(table: t.sqliteName)));
+      counts.add(await ref.read(revaliServerProvider).db.count(body: CountBody(table: t.sqliteName)));
     }
 
     return {for (var i = 0; i < userTables.length; i++) userTables[i].sqliteName: counts[i]};

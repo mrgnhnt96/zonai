@@ -107,6 +107,7 @@ Map<String, Object?> __auth_app_shellAuthAppShell(
 ) => {
   'initialPath': c.initialPath,
   'initialAppName': c.initialAppName,
+  'initialBaseUrl': c.initialBaseUrl,
   'initialAuthTypeNames': c.initialAuthTypeNames,
 };
 Map<String, Object?> __home_app_shellHomeAppShell(
@@ -119,5 +120,6 @@ Map<String, Object?> __home_app_shellHomeAppShell(
   'initialCollectionActions': c.initialCollectionActions,
   'initialPath': c.initialPath,
   'initialAppName': c.initialAppName,
+  'initialBaseUrl': c.initialBaseUrl,
   'initialPhotosConfig': c.initialPhotosConfig,
 };

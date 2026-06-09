@@ -16,6 +16,8 @@ class AuthNotifier extends Notifier<bool> {
   /// Seed from the incoming request cookie during SSR (see [AppShell] override).
   final bool initialSignedIn;
 
+  get _revaliServer => ref.read(revaliServerProvider);
+
   @override
   bool build() {
     final binding = ref.binding;
@@ -55,7 +57,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> sendOtp({required String email}) async {
     try {
-      await revaliServer.auth.authenticate(body: AdminSendOtpAuthBody(email: email));
+      await _revaliServer.auth.authenticate(body: AdminSendOtpAuthBody(email: email));
     } catch (e) {
       print(e);
       rethrow;
@@ -64,7 +66,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> verifyOtp({required String email, required String code}) async {
     try {
-      final response = await revaliServer.auth.confirm(
+      final response = await _revaliServer.auth.confirm(
         body: AdminVerifyOtpAuthBody(email: email, code: code),
       );
 
@@ -77,7 +79,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> sendMagicLink({required String email}) async {
     try {
-      await revaliServer.auth.authenticate(body: AdminSendMagicLinkAuthBody(email: email));
+      await _revaliServer.auth.authenticate(body: AdminSendMagicLinkAuthBody(email: email));
     } catch (e) {
       print(e);
       rethrow;
@@ -86,7 +88,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> verifyMagicLink({required String secret}) async {
     try {
-      final response = await revaliServer.auth.confirm(body: AdminVerifyMagicLinkAuthBody(secret: secret));
+      final response = await _revaliServer.auth.confirm(body: AdminVerifyMagicLinkAuthBody(secret: secret));
 
       signIn(response!['accessToken'] as String);
     } catch (e) {
@@ -97,7 +99,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> sendResetPassword({required String email}) async {
     try {
-      await revaliServer.auth.sendResetPassword(body: AdminSendResetPasswordAuthBody(email: email));
+      await _revaliServer.auth.sendResetPassword(body: AdminSendResetPasswordAuthBody(email: email));
     } catch (e) {
       print(e);
       rethrow;
@@ -106,7 +108,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> confirmResetPassword({required String token, required String newPassword}) async {
     try {
-      await revaliServer.auth.confirm(
+      await _revaliServer.auth.confirm(
         body: ConfirmResetPasswordAuthBody(token: token, newPassword: newPassword),
       );
       await _clearSession(notifyRoute: false);
@@ -118,7 +120,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> verifyEmail({required String token}) async {
     try {
-      await revaliServer.auth.confirm(body: ConfirmVerifyEmailAuthBody(token: token));
+      await _revaliServer.auth.confirm(body: ConfirmVerifyEmailAuthBody(token: token));
     } catch (e) {
       print(e);
       rethrow;
@@ -132,7 +134,7 @@ class AuthNotifier extends Notifier<bool> {
     }
 
     try {
-      await revaliServer.auth.sendVerifyEmail(authorization: 'Bearer $token');
+      await _revaliServer.auth.sendVerifyEmail(authorization: 'Bearer $token');
     } catch (e) {
       print(e);
       rethrow;
@@ -141,7 +143,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> signInWithPassword({required String email, required String password}) async {
     try {
-      final session = await revaliServer.auth.adminAuthenticate(
+      final session = await _revaliServer.auth.adminAuthenticate(
         body: AdminSignInAuthBody(email: email, password: password),
       );
 
@@ -174,7 +176,7 @@ class AuthNotifier extends Notifier<bool> {
     }
 
     try {
-      final session = await revaliServer.auth.refreshToken(authorization: 'Bearer $token');
+      final session = await _revaliServer.auth.refreshToken(authorization: 'Bearer $token');
 
       final accessToken = session?['accessToken'];
       if (accessToken is! String || accessToken.isEmpty) {
@@ -198,7 +200,7 @@ class AuthNotifier extends Notifier<bool> {
       final token = ZonaiCookie.authToken.read();
       if (token != null) {
         try {
-          await revaliServer.auth.logout(authorization: 'Bearer $token');
+          await _revaliServer.auth.logout(authorization: 'Bearer $token');
         } catch (_) {}
       }
     }

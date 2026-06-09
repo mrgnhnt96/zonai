@@ -1,10 +1,11 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
+import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
-import '../api/api_client.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
+import '../providers/app_base_url_provider.dart';
 import '../utils/photo_edit_value.dart';
 
 enum SchemaTablePhotoSize { compact, detail }
@@ -24,7 +25,8 @@ class SchemaTablePhotoCell extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final urls = photoUrlsFromCell(rawValue, shape, imageBaseUrl: revaliBaseUrl);
+    final imageBaseUrl = context.watch(appBaseUrlProvider);
+    final urls = photoUrlsFromCell(rawValue, shape, imageBaseUrl: imageBaseUrl);
     if (urls.isEmpty) return .text('—');
 
     final sizeClass = switch (size) {

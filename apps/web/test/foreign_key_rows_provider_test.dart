@@ -71,6 +71,7 @@ void main() {
           {'slug': 'acme', 'name': 'Acme Inc'},
         ],
         total: 1,
+        imageBaseUrl: 'http://localhost:8080',
       );
 
       expect(data.columns, ['slug', 'name']);

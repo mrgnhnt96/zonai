@@ -33,6 +33,7 @@ ClientOptions get defaultClientOptions => ClientOptions(
       (p) => _auth_app_shell.AuthAppShell(
         initialPath: p['initialPath'] as String,
         initialAppName: p['initialAppName'] as String,
+        initialBaseUrl: p['initialBaseUrl'] as String,
         initialAuthTypeNames: (p['initialAuthTypeNames'] as List<Object?>)
             .cast<String>(),
       ),
@@ -53,6 +54,7 @@ ClientOptions get defaultClientOptions => ClientOptions(
             ),
         initialPath: p['initialPath'] as String,
         initialAppName: p['initialAppName'] as String,
+        initialBaseUrl: p['initialBaseUrl'] as String,
         initialPhotosConfig: (p['initialPhotosConfig'] as Map<String, Object?>),
       ),
       loader: _home_app_shell.loadLibrary,

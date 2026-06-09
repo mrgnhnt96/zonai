@@ -1,10 +1,10 @@
 import 'dart:async';
 
+import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_web/gen/client/client.dart';
 import 'package:revali_client/revali_client.dart';
+import 'package:zonai_web/providers/app_base_url_provider.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
-
-const revaliBaseUrl = String.fromEnvironment('REVALI_BASE_URL', defaultValue: 'http://localhost:8080');
 
 typedef UnauthorizedHandler = void Function();
 
@@ -15,11 +15,16 @@ void registerUnauthorizedHandler(UnauthorizedHandler? handler) {
   _unauthorizedHandler = handler;
 }
 
-/// Shared Revali client for the web app.
-final revaliServer = Server(
-  baseUrl: Uri.parse(revaliBaseUrl),
+Server _createRevaliServer(String baseUrl) => Server(
+  baseUrl: Uri.parse(baseUrl),
   client: HttpPackageClient(interceptors: [_AuthorizationInterceptor(), _UnauthorizedInterceptor()]),
 );
+
+/// Shared Revali client for the web app, using [appBaseUrlProvider] from config.
+final revaliServerProvider = Provider<Server>((ref) {
+  final baseUrl = ref.watch(appBaseUrlProvider);
+  return _createRevaliServer(baseUrl);
+});
 
 final class _AuthorizationInterceptor implements HttpInterceptor {
   @override

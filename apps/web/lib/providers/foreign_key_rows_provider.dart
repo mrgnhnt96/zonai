@@ -1,5 +1,6 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_web/gen/client/client.dart';
 import 'package:zonai_web/api/api_client.dart';
 
 import '../utils/foreign_key_search_where.dart';
@@ -30,6 +31,7 @@ final foreignKeyRowsProvider = FutureProvider.family<TableRowsData?, ForeignKeyP
 
   final schema = ref.watch(tableSchemasProvider)[query.foreignKey.table];
   return _loadForeignKeyTableRows(
+    server: ref.read(revaliServerProvider),
     sqliteName: query.foreignKey.table,
     schema: schema,
     foreignKey: query.foreignKey,
@@ -38,6 +40,7 @@ final foreignKeyRowsProvider = FutureProvider.family<TableRowsData?, ForeignKeyP
 });
 
 Future<TableRowsData?> _loadForeignKeyTableRows({
+  required Server server,
   required String sqliteName,
   required TableSchemaShape? schema,
   required ForeignKeyShape foreignKey,
@@ -51,7 +54,7 @@ Future<TableRowsData?> _loadForeignKeyTableRows({
     columnNamesFallback: fallbackColumns,
   );
 
-  final data = await revaliServer.db.list(
+  final data = await server.db.list(
     body: ListBody(table: sqliteName, limit: tableRowsPageSize, offset: 0, where: where),
   );
 
@@ -172,11 +175,13 @@ final class ForeignKeyReferencedRow {
 
 /// Loads a single referenced row by FK value, or null when it does not exist.
 Future<ForeignKeyReferencedRow?> loadForeignKeyReferencedRow({
+  required Server server,
+  required String imageBaseUrl,
   required ForeignKeyShape foreignKey,
   required Object parsedValue,
   required TableSchemaShape? schema,
 }) async {
-  final data = await revaliServer.db.list(
+  final data = await server.db.list(
     body: ListBody(
       table: foreignKey.table,
       where: eqForeignKeyReferenceWhere(foreignKey: foreignKey, parsedValue: parsedValue),
@@ -192,6 +197,7 @@ Future<ForeignKeyReferencedRow?> loadForeignKeyReferencedRow({
     schema: schema,
     items: items,
     total: 1,
+    imageBaseUrl: imageBaseUrl,
   );
   final row = tableData.rows.single;
   final label = foreignKeyRowLabel(tableData, row);
@@ -211,8 +217,9 @@ TableRowsData tableRowsDataFromFkListResponse({
   required TableSchemaShape? schema,
   required List<Map<String, Object?>> items,
   required int total,
+  required String imageBaseUrl,
 }) {
-  final augmentedItems = augmentPhotosRowItems(sqliteName: sqliteName, items: items, imageBaseUrl: revaliBaseUrl);
+  final augmentedItems = augmentPhotosRowItems(sqliteName: sqliteName, items: items, imageBaseUrl: imageBaseUrl);
   final columnOrder = fkColumnOrderFromSchemaOrItems(schema, augmentedItems);
   final columnShapes = [
     for (final name in columnOrder)

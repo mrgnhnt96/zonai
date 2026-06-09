@@ -1,5 +1,6 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_web/gen/client/client.dart';
 import 'package:zonai_web/api/api_client.dart';
 
 import '../utils/table_cell_edit.dart';
@@ -7,6 +8,7 @@ import '../utils/table_row_edit.dart';
 import '../utils/table_row_key.dart';
 import '../utils/table_rows_json.dart';
 import '../utils/web_photos_schema.dart';
+import 'app_base_url_provider.dart';
 import 'foreign_key_reference_lookup_provider.dart';
 import 'table_focus_provider.dart';
 import 'table_row_detail_provider.dart';
@@ -58,6 +60,8 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
 
     try {
       return await _loadTableRows(
+        server: ref.read(revaliServerProvider),
+        imageBaseUrl: ref.read(appBaseUrlProvider),
         sqliteName: focus.sqliteName,
         schema: schema,
         where: where,
@@ -91,6 +95,8 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     try {
       final where = ref.read(tableFilterProvider).appliedWhere;
       final page = await _loadTableRows(
+        server: ref.read(revaliServerProvider),
+        imageBaseUrl: ref.read(appBaseUrlProvider),
         sqliteName: current.sqliteName,
         schema: current.schema,
         where: where,
@@ -131,6 +137,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       while (true) {
         final where = ref.read(tableFilterProvider).appliedWhere;
         final page = await _fetchRowPage(
+          server: ref.read(revaliServerProvider),
           sqliteName: data.sqliteName,
           columns: data.columns,
           columnShapes: data.columnShapes,
@@ -165,7 +172,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     }
 
     try {
-      final created = await revaliServer.db.create(
+      final created = await ref.read(revaliServerProvider).db.create(
         body: CreateBody(table: sqliteName, object: apiWireObject(object)),
       );
       _invalidateTableAndForeignKeyLookups();
@@ -193,7 +200,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     }
 
     try {
-      final updated = await revaliServer.db.update(
+      final updated = await ref.read(revaliServerProvider).db.update(
         body: UpdateOneBody(table: sqliteName, where: where, updates: [ObjectUpdate(apiWireObject(changedFields))]),
       );
       _patchLocalRowIfPresent(
@@ -285,6 +292,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     while (true) {
       final where = ref.read(tableFilterProvider).appliedWhere;
       final page = await _fetchRowPage(
+        server: ref.read(revaliServerProvider),
         sqliteName: data.sqliteName,
         columns: data.columns,
         columnShapes: data.columnShapes,
@@ -301,6 +309,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
   }
 
   Future<List<List<Object?>>> _fetchRowPage({
+    required Server server,
     required String sqliteName,
     required List<String> columns,
     required List<ColumnShape> columnShapes,
@@ -308,7 +317,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     required int offset,
     required int limit,
   }) async {
-    final data = await revaliServer.db.list(
+    final data = await server.db.list(
       body: ListBody(table: sqliteName, where: where, offset: offset, limit: limit),
     );
     final items = _parseListItems(data);
@@ -337,7 +346,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       ];
       if (values.isEmpty) return;
 
-      await revaliServer.db.deleteMany(
+      await ref.read(revaliServerProvider).db.deleteMany(
         body: DeleteBody(table: data.sqliteName, where: In(pkName, values)),
       );
       return;
@@ -350,7 +359,7 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       if (where == null) {
         throw StateError('Cannot delete row: incomplete primary key.');
       }
-      await revaliServer.db.delete(
+      await ref.read(revaliServerProvider).db.delete(
         body: DeleteOneBody(table: data.sqliteName, where: where),
       );
     }
@@ -358,20 +367,22 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
 }
 
 Future<TableRowsData> _loadTableRows({
+  required Server server,
+  required String imageBaseUrl,
   required String sqliteName,
   required TableSchemaShape? schema,
   Where? where,
   int? limit,
   int? offset,
 }) async {
-  final data = await revaliServer.db.list(
+  final data = await server.db.list(
     body: ListBody(table: sqliteName, where: where, limit: limit, offset: offset),
   );
 
   final items = augmentPhotosRowItems(
     sqliteName: sqliteName,
     items: _parseListItems(data),
-    imageBaseUrl: revaliBaseUrl,
+    imageBaseUrl: imageBaseUrl,
   );
   final total = switch (data['total']) {
     final int t => t,

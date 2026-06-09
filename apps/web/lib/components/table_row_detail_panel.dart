@@ -18,6 +18,7 @@ import '../providers/session_user_provider.dart';
 import '../providers/table_filter_provider.dart';
 import '../providers/table_row_create_provider.dart';
 import '../providers/table_row_detail_provider.dart';
+import '../providers/app_base_url_provider.dart';
 import '../providers/photos_config_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/toast_provider.dart';
@@ -909,7 +910,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     List<Object?> parsedDraft;
     try {
       final photosConfig = context.read(photosConfigProvider);
+      final server = context.read(revaliServerProvider);
       final resolvedDraft = await resolvePhotoDrafts(
+        server: server,
         sqliteName: create.sqliteName,
         draft: rawDraft,
         columnShapes: create.columnShapes,
@@ -991,13 +994,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     List<Object?> parsedDraft;
     try {
       final photosConfig = context.read(photosConfigProvider);
+      final server = context.read(revaliServerProvider);
       final resolvedDraft = await resolvePhotoDrafts(
+        server: server,
         sqliteName: detail.sqliteName,
         draft: rawDraft,
         columnShapes: detail.columnShapes,
         photosConfig: photosConfig,
       );
       await deleteRemovedPhotos(
+        server: server,
         originalRow: detail.row,
         resolvedDraft: resolvedDraft,
         columnShapes: detail.columnShapes,
@@ -1543,10 +1549,10 @@ class _DetailField extends StatelessComponent {
   final ColumnShape shape;
   final bool readOnlyHint;
 
-  String get _copyText {
+  String _copyText(String imageBaseUrl) {
     final photoShape = photoShapeForCell(shape: shape, rawValue: rawValue);
     if (photoShape != null) {
-      final urls = photoUrlsFromCell(rawValue, photoShape, imageBaseUrl: revaliBaseUrl);
+      final urls = photoUrlsFromCell(rawValue, photoShape, imageBaseUrl: imageBaseUrl);
       if (urls.isEmpty) return '—';
       return urls.join('\n');
     }
@@ -1555,6 +1561,7 @@ class _DetailField extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
+    final imageBaseUrl = context.watch(appBaseUrlProvider);
     const readOnlyTooltip = 'Read-only';
     final fieldClass = readOnlyHint
         ? 'table-row-detail-field table-row-detail-field--readonly-in-edit'
@@ -1569,7 +1576,7 @@ class _DetailField extends StatelessComponent {
         div(classes: 'table-row-detail-label-row', [
           div(classes: 'table-row-detail-label-group', [
             span(classes: 'table-row-detail-label', [.text(label)]),
-            if (!readOnlyHint && !isPasswordColumn(shape)) _CopyFieldValueButton(label: label, text: _copyText),
+            if (!readOnlyHint && !isPasswordColumn(shape)) _CopyFieldValueButton(label: label, text: _copyText(imageBaseUrl)),
           ]),
         ]),
         _DetailFieldValue(rawValue: rawValue, shape: shape),

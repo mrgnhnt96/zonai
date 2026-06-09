@@ -71,12 +71,14 @@ class App extends StatelessComponent {
           initialCollectionActions: initialCollectionActions,
           initialPath: initialPath,
           initialAppName: appConfig.appName,
+          initialBaseUrl: appConfig.baseUrl,
           initialPhotosConfig: photosConfigToJson(appConfig.photos),
         )
       else
         AuthAppShell(
           initialPath: initialPath,
           initialAppName: appConfig.appName,
+          initialBaseUrl: appConfig.baseUrl,
           initialAuthTypeNames: [for (final type in initialAuthTypes) type.name],
         ),
     ]);
