@@ -6,51 +6,79 @@ extension _ListX on ZonaiDb {
     ListPayload payload, {
     Jwt? userJwt,
   }) async {
-    final jwt =
-        userJwt ??
-        switch (payload) {
-          ListWithJwtPayload(:final userJwt) => switch (userJwt) {
-            null => null,
-            final jwt => await _validateJwt(jwt),
-          },
-          final ListPayload payload => await _extractJwt(payload),
-        };
-    await _requireTableAccess(table, .list, jwt);
+    logger.setTraceProps({'op': 'list', 'table': table});
+    var step = 'start';
+    logger.trace('start');
+    try {
+      step = 'jwt_extract';
+      final jwt =
+          userJwt ??
+          switch (payload) {
+            ListWithJwtPayload(:final userJwt) => switch (userJwt) {
+              null => null,
+              final jwt => await _validateJwt(jwt),
+            },
+            final ListPayload payload => await _extractJwt(payload),
+          };
+      logger.trace('jwt_extract');
 
-    final count = await _count(
-      table,
-      CountPayload(where: payload.where),
-      userJwt: jwt,
-    );
+      step = 'table_access';
+      await _requireTableAccess(table, .list, jwt);
+      logger.trace('table_access');
 
-    final operation = await _getOperation(
-      ListOperationRequest(
-        table: table,
-        where: payload.where,
-        limit: payload.limit,
-        offset: payload.offset,
-        orderBy: payload.orderBy,
-        jwt: jwt,
-      ),
-    );
+      step = 'count_query';
+      final count = await _count(
+        table,
+        CountPayload(where: payload.where),
+        userJwt: jwt,
+        trace: false,
+      );
+      logger.trace('count_query', extra: {'count': count});
 
-    final (error, result) = await _execute((operation.query, operation.values));
-    if (error != null || result == null) {
-      throw error ?? RecordListFailedException(table: table);
+      step = 'sql_build';
+      final operation = await _getOperation(
+        ListOperationRequest(
+          table: table,
+          where: payload.where,
+          limit: payload.limit,
+          offset: payload.offset,
+          orderBy: payload.orderBy,
+          jwt: jwt,
+        ),
+      );
+      logger.trace('sql_build');
+
+      step = 'sql_execute';
+      final (error, result) = await _execute((operation.query, operation.values));
+      logger.trace('sql_execute');
+      if (error != null || result == null) {
+        throw error ?? RecordListFailedException(table: table);
+      }
+
+      final objects = result.rows.map((e) => e.toMap()).toList();
+      logger.verbose('Found ${objects.length} objects', prefix: _prefix);
+
+      step = 'row_access';
+      for (final object in objects) {
+        await _requireRowAccess(table, .view, object, jwt);
+      }
+      logger.trace('row_access', extra: {'rows': objects.length});
+
+      step = 'sanitize';
+      final sanitized = await _sanitizeRows(table, objects, jwt: jwt);
+      logger.trace('sanitize');
+
+      step = 'expand';
+      final expanded = await _expandRows(table, sanitized, payload.expand, jwt);
+      if (payload.expand.isNotEmpty) {
+        logger.trace('expand', extra: {'fields': payload.expand.length});
+      }
+      logger.trace('done');
+
+      return Paginated(items: expanded, total: count);
+    } catch (e) {
+      logger.trace('FAILED at $step: ${e.runtimeType}');
+      rethrow;
     }
-
-    final objects = result.rows.map((e) => e.toMap()).toList();
-    logger.verbose('Found ${objects.length} objects', prefix: _prefix);
-
-    for (final object in objects) {
-      await _requireRowAccess(table, .view, object, jwt);
-    }
-
-    final sanitized = await _sanitizeRows(table, objects, jwt: jwt);
-
-    return Paginated(
-      items: await _expandRows(table, sanitized, payload.expand, jwt),
-      total: count,
-    );
   }
 }

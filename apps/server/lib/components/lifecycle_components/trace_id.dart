@@ -45,7 +45,7 @@ class Trace implements LifecycleComponent {
     };
 
     final callback = (LogDetails details) async {
-      if (details.level != .request && details.level < .info) return;
+      if (details.level != .request && details.level != .trace && details.level < .info) return;
       final db = await zonaiDB.open();
 
       await db.insert(into: logs).values([
@@ -62,6 +62,7 @@ class Trace implements LifecycleComponent {
           },
           message: details.message,
           error: details.error?.toString(),
+          props: details.props,
         ),
       ]);
     };

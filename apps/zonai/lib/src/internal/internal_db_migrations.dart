@@ -101,4 +101,6 @@ CREATE TABLE IF NOT EXISTS "_abusers" (
   "report" TEXT NOT NULL,
   "updated_at" INTEGER
 );'''),
+  const Migration('0004_internal_add_log_props', '''
+ALTER TABLE "_log" ADD COLUMN "props" TEXT;'''),
 ];

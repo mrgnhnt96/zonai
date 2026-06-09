@@ -10,12 +10,14 @@ class LogDetails {
     required this.level,
     this.error,
     this.stackTrace,
+    this.props,
   });
 
   final String message;
   final Level level;
   final Object? error;
   final StackTrace? stackTrace;
+  final Map<String, dynamic>? props;
 }
 
 /// Console-oriented logger with optional ANSI styling.
@@ -23,10 +25,14 @@ class LogDetails {
 class Logger {
   Logger({this.level = Level.info, io.IOSink? stdout, io.IOSink? stderr})
     : _stdout = stdout ?? io.stdout,
-      _stderr = stderr ?? io.stderr;
+      _stderr = stderr ?? io.stderr {
+    _stopwatch.start();
+  }
   Logger.print({this.level = Level.info})
     : _stdout = PrintSink(),
-      _stderr = PrintSink();
+      _stderr = PrintSink() {
+    _stopwatch.start();
+  }
 
   /// Minimum level to print. Messages at this level or higher are shown.
   final Level level;
@@ -35,13 +41,30 @@ class Logger {
   final io.IOSink _stderr;
 
   final List<void Function(LogDetails)> _callbacks = [];
+  final Stopwatch _stopwatch = Stopwatch();
+  final Map<String, String> _traceProps = {};
+
+  /// Sets context props included in every [trace] call (e.g. op, table).
+  void setTraceProps(Map<String, String> props) {
+    _traceProps
+      ..clear()
+      ..addAll(props);
+  }
 
   bool _emit(Level messageLevel) => messageLevel >= level;
 
   void verbose(String message, {String? prefix}) =>
       _log(Level.verbose, message, _stdout, _dim, prefix: prefix);
-  void trace(String message, {String? prefix}) =>
-      _log(Level.trace, message, _stdout, _dim, prefix: prefix);
+
+  void trace(String message, {Map<String, dynamic>? extra, String? prefix}) {
+    final props = <String, dynamic>{
+      'elapsed_ms': _stopwatch.elapsedMilliseconds,
+      ..._traceProps,
+      if (extra != null) ...extra,
+    };
+    _log(Level.trace, message, _stdout, _dim, prefix: prefix, props: props);
+  }
+
   void request(String message, {String? prefix}) =>
       _log(Level.request, message, _stdout, _dim, prefix: prefix);
   void debug(String message, {String? prefix}) =>
@@ -50,12 +73,18 @@ class Logger {
   void warn(String message, {String? prefix}) =>
       _log(Level.warning, message, _stderr, _yellow, prefix: prefix);
 
-  void _err(String message, [Object? error, StackTrace? stackTrace]) {
+  void _err(
+    String message, [
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? props,
+  ]) {
     final details = LogDetails(
       message: message,
       level: Level.error,
       error: error,
       stackTrace: stackTrace,
+      props: props,
     );
 
     for (final callback in _callbacks) {
@@ -93,6 +122,7 @@ class Logger {
     io.IOSink sink,
     String Function(String)? style, {
     String? prefix,
+    Map<String, dynamic>? props,
   }) {
     final details = LogDetails(
       message: switch (prefix) {
@@ -100,6 +130,7 @@ class Logger {
         final p => '$p: $message',
       },
       level: messageLevel,
+      props: props,
     );
     for (final callback in _callbacks) {
       try {

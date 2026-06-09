@@ -57,6 +57,5 @@ class CallbackSink implements io.IOSink {
   @override
   void writeln([Object? object = ""]) {
     write(object);
-    write('\n');
   }
 }

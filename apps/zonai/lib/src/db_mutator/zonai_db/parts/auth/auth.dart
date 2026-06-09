@@ -4,31 +4,45 @@ typedef _AuthResult = ({Map<String, Object?> user, String jwt});
 
 extension _AuthX on ZonaiDb {
   Future<_AuthResult?> _refreshToken(String token) async {
-    final oldJwt = await _extractJwt(JwtPayload(jwt: token));
-    if (oldJwt == null) {
-      throw const InvalidJwtException();
+    logger.setTraceProps({'op': 'auth', 'table': 'refresh'});
+    var step = 'start';
+    logger.trace('start');
+    try {
+      step = 'jwt_extract';
+      final oldJwt = await _extractJwt(JwtPayload(jwt: token));
+      logger.trace('jwt_extract');
+      if (oldJwt == null) {
+        throw const InvalidJwtException();
+      }
+
+      final emailColumn = await _operations.send<ColumnNameResponse>(
+        GetColumnNameRequest(table: oldJwt.table, columnName: .email),
+      );
+
+      final email = switch (oldJwt.user[emailColumn.name]) {
+        final String email => email,
+        _ => throw EmailNotFoundAuthException(table: oldJwt.table),
+      };
+
+      step = 'sign_in';
+      final result = await _signIntoCollection(
+        table: oldJwt.table,
+        email: email,
+        jwt: null,
+        extensionStep: .onRefresh,
+      );
+      logger.trace('sign_in');
+
+      step = 'jwt_db_delete_old';
+      final db = await open();
+      await db.delete(from: jwts).where(jwts.id.equals(oldJwt.jwtId));
+      logger.trace('done');
+
+      return result;
+    } catch (e) {
+      logger.trace('FAILED at $step: ${e.runtimeType}');
+      rethrow;
     }
-
-    final emailColumn = await _operations.send<ColumnNameResponse>(
-      GetColumnNameRequest(table: oldJwt.table, columnName: .email),
-    );
-
-    final email = switch (oldJwt.user[emailColumn.name]) {
-      final String email => email,
-      _ => throw EmailNotFoundAuthException(table: oldJwt.table),
-    };
-
-    final result = await _signIntoCollection(
-      table: oldJwt.table,
-      email: email,
-      jwt: null,
-      extensionStep: .onRefresh,
-    );
-
-    final db = await open();
-    await db.delete(from: jwts).where(jwts.id.equals(oldJwt.jwtId));
-
-    return result;
   }
 
   /// Signs in a user if the credentials are valid
@@ -104,11 +118,13 @@ extension _AuthX on ZonaiDb {
     }
 
     final user = await _authRecord(table: table, email: email);
+    logger.trace('auth_record_lookup', extra: {'found': user != null});
     if (user == null) {
       throw UserNotFoundAuthException(table: table);
     }
 
     final (newJwt, token) = await _createJwt(table, user);
+    logger.trace('jwt_create');
 
     await _extensions.send<NoActionExtensionResponse>(switch (extensionStep) {
       .onSignIn => AuthExtensionRequest.onSignIn(
@@ -125,8 +141,10 @@ extension _AuthX on ZonaiDb {
         'Unsupported auth extension step: $extensionStep',
       ),
     });
+    logger.trace('ext_hook');
 
     await _executeEffects();
+    logger.trace('done');
 
     return (user: user, jwt: token);
   }

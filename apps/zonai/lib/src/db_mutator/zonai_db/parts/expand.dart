@@ -123,13 +123,16 @@ extension _ExpandX on ZonaiDb {
     }
 
     if (result.rows.isEmpty) {
+      logger.trace('fetch_ref', extra: {'found': false, 'ref': table});
       return const {};
     }
 
     final object = result.rows.first.toMap();
     await _requireRowAccess(table, .view, object, jwt);
 
-    return await _sanitizeRow(table, object, jwt: jwt);
+    final sanitized = await _sanitizeRow(table, object, jwt: jwt);
+    logger.trace('fetch_ref', extra: {'found': true, 'ref': table});
+    return sanitized;
   }
 }
 

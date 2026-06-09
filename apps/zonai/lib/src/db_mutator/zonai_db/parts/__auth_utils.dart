@@ -218,6 +218,7 @@ extension _AuthUtilsX on ZonaiDb {
         .select()
         .from(jwts)
         .where(jwts.id.equals(jwt.jwtId));
+    logger.trace('jwt_db_lookup', extra: {'found': jwtRecord.isNotEmpty});
 
     if (jwtRecord.isEmpty) {
       throw const JwtRecordNotFoundException();

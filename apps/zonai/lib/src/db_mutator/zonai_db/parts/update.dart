@@ -6,62 +6,85 @@ extension _UpdateX on ZonaiDb {
     UpdatePayload payload, {
     Jwt? userJwt,
   }) async {
-    final jwt = userJwt ?? await _extractJwt(payload);
-    final (beforeObjects, :readOperation, :updateOperation) =
-        await _updateOperation(table, payload, jwt);
+    logger.setTraceProps({'op': 'update', 'table': table});
+    var step = 'start';
+    logger.trace('start');
+    try {
+      step = 'jwt_extract';
+      final jwt = userJwt ?? await _extractJwt(payload);
+      logger.trace('jwt_extract');
 
-    final (updateError, updateResult) = await _execute((
-      updateOperation.query,
-      updateOperation.values,
-    ));
-    if (updateError != null) {
-      throw updateError;
-    }
+      step = 'update_operation';
+      final (beforeObjects, :readOperation, :updateOperation) =
+          await _updateOperation(table, payload, jwt);
+      logger.trace('sql_build');
 
-    if (updateResult == null) {
-      throw RecordUpdateFailedException(table: table);
-    }
+      step = 'sql_execute_update';
+      final (updateError, updateResult) = await _execute((
+        updateOperation.query,
+        updateOperation.values,
+      ));
+      logger.trace('sql_execute_update');
+      if (updateError != null) {
+        throw updateError;
+      }
 
-    logger.trace(
-      'Updated ${updateResult.rowsAffected} records',
-      prefix: _prefix,
-    );
+      if (updateResult == null) {
+        throw RecordUpdateFailedException(table: table);
+      }
 
-    // `updateResult.rows` always returns empty, need to refetch the records
-    final (updatedError, updatedResult) = await _execute((
-      readOperation.query,
-      readOperation.values,
-    ));
-    if (updatedError != null || updatedResult == null) {
-      await _extensions.send<NoActionExtensionResponse>(
-        ErrorExtensionRequest.update(
-          table: table,
-          error: updatedError?.toString() ?? 'Unknown error',
-          jwt: jwt,
-        ),
+      logger.verbose(
+        'Updated ${updateResult.rowsAffected} records',
+        prefix: _prefix,
       );
 
-      throw updatedError ?? RecordUpdateFailedException(table: table);
+      // `updateResult.rows` always returns empty, need to refetch the records
+      step = 'sql_execute_refetch';
+      final (updatedError, updatedResult) = await _execute((
+        readOperation.query,
+        readOperation.values,
+      ));
+      logger.trace('sql_execute_refetch', extra: {'rows': updatedResult?.rows.length ?? 0});
+      if (updatedError != null || updatedResult == null) {
+        await _extensions.send<NoActionExtensionResponse>(
+          ErrorExtensionRequest.update(
+            table: table,
+            error: updatedError?.toString() ?? 'Unknown error',
+            jwt: jwt,
+          ),
+        );
+
+        throw updatedError ?? RecordUpdateFailedException(table: table);
+      }
+
+      final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
+
+      step = 'sanitize';
+      final sanitizedUpdated = await _sanitizeRows(
+        table,
+        updatedObjects,
+        jwt: jwt,
+      );
+      logger.trace('sanitize');
+
+      step = 'ext_after';
+      await _postUpdate(
+        table,
+        jwt,
+        before: beforeObjects,
+        after: sanitizedUpdated,
+      );
+      logger.trace('ext_after');
+
+      step = 'effects';
+      await _executeEffects();
+      logger.trace('done', extra: {'rows': updateResult.rowsAffected});
+
+      return sanitizedUpdated;
+    } catch (e) {
+      logger.trace('FAILED at $step: ${e.runtimeType}');
+      rethrow;
     }
-
-    final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
-
-    final sanitizedUpdated = await _sanitizeRows(
-      table,
-      updatedObjects,
-      jwt: jwt,
-    );
-
-    await _postUpdate(
-      table,
-      jwt,
-      before: beforeObjects,
-      after: sanitizedUpdated,
-    );
-
-    await _executeEffects();
-
-    return sanitizedUpdated;
   }
 
   Future<(List<Update>, bool)> _hashPasswordUpdates(
@@ -136,6 +159,7 @@ extension _UpdateX on ZonaiDb {
   >
   _updateOperation(String table, UpdatePayload payload, Jwt? jwt) async {
     await _requireTableAccess(table, .update, jwt);
+    logger.trace('table_access');
 
     final readOperation = await _getOperation(
       ListOperationRequest(
@@ -151,6 +175,7 @@ extension _UpdateX on ZonaiDb {
       readOperation.query,
       readOperation.values,
     ));
+    logger.trace('sql_execute_read', extra: {'rows': readResult?.rows.length ?? 0});
     if (readError != null) {
       throw readError;
     }
@@ -164,6 +189,7 @@ extension _UpdateX on ZonaiDb {
     for (final row in objects) {
       await _requireRowAccess(table, .update, row, jwt);
     }
+    logger.trace('row_access');
 
     final sanitizedBefore = await _sanitizeRows(table, objects, jwt: jwt);
 
@@ -176,12 +202,14 @@ extension _UpdateX on ZonaiDb {
         jwt: jwt,
       ),
     );
+    logger.trace('ext_before');
 
     final (updates, changed) = await _hashPasswordUpdates(
       table,
       payload.updates,
     );
     if (changed) {
+      logger.trace('password_hash');
       if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
         throw PasswordUpdateForbiddenException(table: table);
       }

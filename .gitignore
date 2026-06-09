@@ -4,7 +4,7 @@
 pubspec_overrides.yaml
 
 # Backend
-.revali
+.revali*
 apps/zonai/lib/gen/
 apps/web/lib/gen/
 

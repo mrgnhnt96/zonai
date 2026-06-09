@@ -1,7 +1,17 @@
 part of zonai_db;
 
 extension _CountX on ZonaiDb {
-  Future<int> _count(String table, CountPayload payload, {Jwt? userJwt}) async {
+  Future<int> _count(
+    String table,
+    CountPayload payload, {
+    Jwt? userJwt,
+    bool trace = true,
+  }) async {
+    if (trace) {
+      logger.setTraceProps({'op': 'count', 'table': table});
+      logger.trace('start');
+    }
+
     final jwt = userJwt ?? await _extractJwt(payload);
     await _requireTableAccess(table, .list, jwt);
 
@@ -14,7 +24,9 @@ extension _CountX on ZonaiDb {
       throw error ?? RecordCountFailedException(table: table);
     }
 
-    return _countFromResult(result);
+    final count = _countFromResult(result);
+    if (trace) logger.trace('done', extra: {'count': count});
+    return count;
   }
 
   Stream<int> _streamCount(String table, CountPayload payload) async* {

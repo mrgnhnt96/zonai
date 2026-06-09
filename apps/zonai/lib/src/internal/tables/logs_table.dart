@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:zonai_schema/zonai_schema.dart';
 
 class LogEntry {
@@ -6,8 +8,10 @@ class LogEntry {
     required this.level,
     required this.message,
     this.error,
+    Map<String, dynamic>? props,
   }) : id = LogId.generate(),
-       timestamp = .now();
+       timestamp = .now(),
+       props = props != null ? jsonEncode(props) : null;
 
   LogEntry._({
     required this.id,
@@ -16,6 +20,7 @@ class LogEntry {
     required this.level,
     required this.message,
     required this.error,
+    required this.props,
   });
 
   final LogId id;
@@ -24,6 +29,7 @@ class LogEntry {
   final Level level;
   final String message;
   final String? error;
+  final String? props;
 }
 
 class LogId implements Id {
@@ -75,7 +81,8 @@ class LogsTable extends Table<LogEntry> {
       timestamp = $.createdAt('timestamp', (s) => s.timestamp),
       level = $.enumerator('level', Level.values, (s) => s.level),
       message = $.text('message', (s) => s.message),
-      error = $.text('error', (s) => s.error);
+      error = $.text('error', (s) => s.error),
+      props = $.text('props', (s) => s.props);
 
   @override
   LogEntry fromRow(RowReader read) {
@@ -86,6 +93,7 @@ class LogsTable extends Table<LogEntry> {
       level: read(level),
       message: read(message),
       error: read(error),
+      props: read(props),
     );
   }
 
@@ -95,6 +103,7 @@ class LogsTable extends Table<LogEntry> {
   final EnumColumn<Level> level;
   final TextColumn message;
   final TextColumn? error;
+  final TextColumn? props;
 }
 
 final logs = table('_log', LogsTable.new, (table) {

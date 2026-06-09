@@ -2,42 +2,62 @@ part of zonai_db;
 
 extension _PhotoX on ZonaiDb {
   Future<File> _getPhoto(String id, {required String? token}) async {
-    final jwt = await zonaiDB.parseJwt(token);
+    logger.setTraceProps({'op': 'photo_get'});
+    var step = 'start';
+    logger.trace('start');
+    try {
+      step = 'jwt_extract';
+      final jwt = await zonaiDB.parseJwt(token);
+      logger.trace('jwt_extract');
 
-    final table = Table.get(photos);
-    if (table == null) {
-      throw const PhotosTableNotFoundException();
+      final table = Table.get(photos);
+      if (table == null) {
+        throw const PhotosTableNotFoundException();
+      }
+
+      step = 'table_access';
+      await _requireTableAccess(table.name, .view, jwt);
+      logger.trace('table_access');
+
+      // drop the extension if provided
+      final idOnly = id.split('.').first;
+      if (!idOnly.endsWith('ph')) {
+        throw InvalidPhotoIdException(id: idOnly);
+      }
+
+      step = 'db_lookup';
+      final db = await open();
+      final rows = await db
+          .select()
+          .from(photos)
+          .where(photos.id.equals(PhotoId(idOnly)))
+          .limit(1);
+      logger.trace('db_lookup', extra: {'found': rows.isNotEmpty});
+
+      if (rows.isEmpty) {
+        throw const PhotoNotFoundException();
+      }
+
+      final photo = rows.first;
+
+      step = 'row_access';
+      await _requireRowAccess(table.name, .view, table.mapOut(photo), jwt);
+      logger.trace('row_access');
+
+      step = 'file_check';
+      final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
+      logger.trace('file_check', extra: {'exists': file.existsSync()});
+
+      if (!file.existsSync()) {
+        throw const PhotoFileNotFoundException();
+      }
+
+      logger.trace('done');
+      return file;
+    } catch (e) {
+      logger.trace('FAILED at $step: ${e.runtimeType}');
+      rethrow;
     }
-
-    await _requireTableAccess(table.name, .view, jwt);
-
-    // drop the extension if provided
-    final idOnly = id.split('.').first;
-    if (!idOnly.endsWith('ph')) {
-      throw InvalidPhotoIdException(id: idOnly);
-    }
-    final db = await open();
-    final rows = await db
-        .select()
-        .from(photos)
-        .where(photos.id.equals(PhotoId(idOnly)))
-        .limit(1);
-
-    if (rows.isEmpty) {
-      throw const PhotoNotFoundException();
-    }
-
-    final photo = rows.first;
-
-    await _requireRowAccess(table.name, .view, table.mapOut(photo), jwt);
-
-    final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
-
-    if (!file.existsSync()) {
-      throw const PhotoFileNotFoundException();
-    }
-
-    return file;
   }
 
   Future<Map<String, Object?>> _createPhoto({
@@ -46,12 +66,20 @@ extension _PhotoX on ZonaiDb {
     required String? contentType,
     required Stream<List<int>> image,
   }) async {
+    logger.setTraceProps({'op': 'photo_create'});
+    logger.trace('start');
+
     final jwt = await _extractJwt(JwtPayload(jwt: token));
+    logger.trace('jwt_extract');
+
     final table = Table.get(photos);
     if (table == null) {
       throw const PhotosTableNotFoundException();
     }
+
     await _requireTableAccess(table.name, .create, jwt);
+    logger.trace('table_access');
+
     await _requireRegisteredTable(meta.table);
 
     final config = await configResolver.resolve();
@@ -62,6 +90,7 @@ extension _PhotoX on ZonaiDb {
       contentType: contentType,
       requiredMimeType: photosConfig.requiredMimeType,
     );
+    logger.trace('stream_resolve', extra: {'type': imageType.mimeType});
 
     if (photosConfig.allowedMimeTypes case final allowed?) {
       if (!allowed.contains(imageType)) {
@@ -92,12 +121,14 @@ extension _PhotoX on ZonaiDb {
     );
 
     await _requireRowAccess(table.name, .create, table.mapOut(entry), jwt);
+    logger.trace('row_access');
 
     PhotoEntry? insertedRow;
 
     try {
       final db = await open();
       final results = await db.insert(into: photos).values([entry]).returning();
+      logger.trace('db_insert');
 
       insertedRow = results.firstOrNull;
       if (insertedRow == null) {
@@ -111,6 +142,7 @@ extension _PhotoX on ZonaiDb {
           maxBytes: photosConfig.maxBytes,
         ),
       );
+      logger.trace('file_write');
 
       await _postCreate(table.name, jwt, object: table.mapOut(insertedRow));
     } catch (e) {
@@ -134,6 +166,7 @@ extension _PhotoX on ZonaiDb {
     }
 
     await _executeEffects();
+    logger.trace('done');
 
     return {'id': insertedRow.id.value};
   }
