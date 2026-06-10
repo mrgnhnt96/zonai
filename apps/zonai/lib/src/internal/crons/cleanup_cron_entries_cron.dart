@@ -15,7 +15,6 @@ final class CleanupCronEntriesCron extends CronJob {
 
     mutate.delete.many(
       tableName: '_cron_jobs',
-      updates: [],
       where: And([
         Lt('started', cutoff),
         Or([const NotNull('completed'), const NotNull('failed')]),

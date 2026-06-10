@@ -16,7 +16,6 @@ final class DeleteOldRateLimitsCron extends CronJob {
 
     mutate.delete.many(
       tableName: '_rate_limit',
-      updates: [],
       where: Lt('window_start', cutoff),
     );
 

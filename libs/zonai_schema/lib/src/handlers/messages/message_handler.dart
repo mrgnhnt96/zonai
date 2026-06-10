@@ -258,7 +258,7 @@ class MessageHandler<R extends Request> {
                 expectResponse: false,
               );
             },
-            delete: ({required tableName, required updates, required where, limit}) async {
+            delete: ({required tableName, required where, limit}) async {
               await sendRequest(
                 DeleteRecordRequest(
                   table: tableName,

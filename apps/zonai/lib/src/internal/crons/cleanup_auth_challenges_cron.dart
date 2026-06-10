@@ -13,7 +13,6 @@ final class CleanupAuthChallengesCron extends CronJob {
 
     mutate.delete.many(
       tableName: '_auth_challenges',
-      updates: [],
       where: Lt('expires_at', now),
     );
 
