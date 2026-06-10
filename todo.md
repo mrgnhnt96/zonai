@@ -26,6 +26,7 @@
 ### `dev` command
 
 - [ ] toasts should show everywhere (there was an issue with creating an email template (it already existed, but didn't know the error because the toast was on the logs page))
+- [ ] Make the init (within `dev`) command more interactive
 
 ## Raindrop
 

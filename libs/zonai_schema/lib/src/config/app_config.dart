@@ -81,6 +81,16 @@ final class AppConfig {
   List<String> get jwtSecretsForVerify =>
       List<String>.unmodifiable([jwtSecret, ...previousJwtSecrets]);
 
+  void validate() {
+    final errors = <String>[];
+    if (appName.isEmpty) errors.add('appName is empty');
+    if (jwtSecret.isEmpty) errors.add('jwtSecret is empty — set the JWT_SECRET environment variable');
+    if (passwordSecret.isEmpty) errors.add('passwordSecret is empty — set the PASSWORD_SECRET environment variable');
+    if (errors.isNotEmpty) {
+      throw StateError('AppConfig has missing required fields:\n${errors.map((e) => '  - $e').join('\n')}');
+    }
+  }
+
   Map<String, dynamic> toJson() => {
     'appName': appName,
     'passwordSecret': passwordSecret,

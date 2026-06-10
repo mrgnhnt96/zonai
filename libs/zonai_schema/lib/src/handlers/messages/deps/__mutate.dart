@@ -17,9 +17,7 @@ class _Mutate {
     update = _Update(
       ({required String tableName, required updates, required where, limit}) {},
     );
-    delete = _Delete(
-      ({required String tableName, required updates, required where, limit}) {},
-    );
+    delete = _Delete(({required String tableName, required where, limit}) {});
     create = _Create(({required String tableName, required objects}) {});
   }
 
@@ -62,7 +60,6 @@ class _Update {
 typedef _DeleteMany =
     void Function({
       required String tableName,
-      required List<Update> updates,
       required Where where,
       int? limit,
     });
@@ -72,21 +69,12 @@ class _Delete {
 
   final _DeleteMany _delete;
 
-  void many({
-    required String tableName,
-    required List<Update> updates,
-    required Where where,
-    int? limit,
-  }) {
-    _delete(tableName: tableName, updates: updates, where: where, limit: limit);
+  void many({required String tableName, required Where where, int? limit}) {
+    _delete(tableName: tableName, where: where, limit: limit);
   }
 
-  void one({
-    required String tableName,
-    required List<Update> updates,
-    required Where where,
-  }) {
-    many(tableName: tableName, updates: updates, where: where, limit: 1);
+  void one({required String tableName, required Where where}) {
+    many(tableName: tableName, where: where, limit: 1);
   }
 }
 

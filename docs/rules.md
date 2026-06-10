@@ -17,14 +17,14 @@ While `serve` is running, changes under `rulesPath` trigger a recompile so autho
 
 Every user-facing collection typically needs **two** rule files:
 
-| Level      | Class                                     | Question answered                                                |
-| ---------- | ----------------------------------------- | ---------------------------------------------------------------- |
+| Level | Class                           | Question answered                                                |
+| ----- | ------------------------------- | ---------------------------------------------------------------- |
 | Table | `TableRules` / `AuthTableRules` | Can this caller perform this operation on the collection at all? |
-| Row        | `RowRules` / `AuthRowRules`         | Can this caller perform this operation on **this row**?          |
+| Row   | `RowRules` / `AuthRowRules`     | Can this caller perform this operation on **this row**?          |
 
 The server checks **collection rules first**, then **row rules** when a specific row is involved.
 
-| API flow                       | Table check          | Row check                        |
+| API flow                       | Table check               | Row check                           |
 | ------------------------------ | ------------------------- | ----------------------------------- |
 | `create`                       | `canCreate`               | `canCreate` (with the payload row)  |
 | `update` / `delete`            | `canUpdate` / `canDelete` | `canUpdate` / `canDelete` (per row) |
@@ -86,8 +86,8 @@ Define **one rules file per class per collection** — one collection-rules file
 
 ## Base classes
 
-| Table type    | Table rules            | Row rules            |
-| ------------------ | --------------------------- | ----------------------- |
+| Table type         | Table rules            | Row rules            |
+| ------------------ | ---------------------- | -------------------- |
 | Regular collection | `TableRules<S, R>`     | `RowRules<S, R>`     |
 | Auth collection    | `AuthTableRules<S, R>` | `AuthRowRules<S, R>` |
 
@@ -148,12 +148,12 @@ Future<bool> canUpdate(Jwt? jwt, Item row) async {
 Override the methods that correspond to operations your API uses. Each returns `Future<bool>`.
 
 | Method      | `TableOperation` | Typical HTTP use                   |
-| ----------- | --------------------- | ---------------------------------- |
-| `canCreate` | `create`              | `POST /db`                         |
-| `canUpdate` | `update`              | `PATCH /db`, `PATCH /db/many`      |
-| `canDelete` | `delete`              | `DELETE /db`, `DELETE /db/many`    |
-| `canView`   | `view`                | `GET /db`, stream-one              |
-| `canList`   | `list`                | `GET /db/list`, stream-list, count |
+| ----------- | ---------------- | ---------------------------------- |
+| `canCreate` | `create`         | `POST /db`                         |
+| `canUpdate` | `update`         | `PATCH /db`, `PATCH /db/many`      |
+| `canDelete` | `delete`         | `DELETE /db`, `DELETE /db/many`    |
+| `canView`   | `view`           | `GET /db`, stream-one              |
+| `canList`   | `list`           | `GET /db/list`, stream-list, count |
 
 Table rules currently evaluate only these standard operation names. Custom operation strings (handled by `TableOperations.custom`) are denied at the collection-rules layer until custom-operation rule support is added.
 
@@ -224,25 +224,25 @@ The `_photos` table stores metadata for uploaded images (file path, owner, targe
 
 Each photo request runs the same rule pipeline as other operations: **collection rules first**, then **row rules** when a row is involved.
 
-| Photo API operation           | Table check | Row check                                  |
-| ----------------------------- | ---------------- | --------------------------------------------- |
-| Create (`POST /photos`)       | `canCreate`      | `canCreate` (payload row built before insert) |
-| View (`GET /photos/:id`)      | `canView`        | `canView`                                     |
-| Update (`PATCH /photos/:id`)  | `canUpdate`      | `canUpdate`                                   |
-| Delete (`DELETE /photos/:id`) | `canDelete`      | `canDelete`                                   |
+| Photo API operation           | Table check | Row check                                     |
+| ----------------------------- | ----------- | --------------------------------------------- |
+| Create (`POST /photos`)       | `canCreate` | `canCreate` (payload row built before insert) |
+| View (`GET /photos/:id`)      | `canView`   | `canView`                                     |
+| Update (`PATCH /photos/:id`)  | `canUpdate` | `canUpdate`                                   |
+| Delete (`DELETE /photos/:id`) | `canDelete` | `canDelete`                                   |
 
 ### Row shape
 
 Rule methods receive a typed **`PhotoEntry`** from `package:zonai_schema/zonai_schema.dart`. Useful fields for authorization:
 
-| Field                    | Purpose                                                                               |
-| ------------------------ | ------------------------------------------------------------------------------------- |
-| `row.id`              | Photo ID (`PhotoId`)                                                                  |
-| `row.ownerId`         | Authenticated user at upload time (`jwt.userId` when a token was sent)                |
+| Field            | Purpose                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `row.id`         | Photo ID (`PhotoId`)                                                                  |
+| `row.ownerId`    | Authenticated user at upload time (`jwt.userId` when a token was sent)                |
 | `row.ownerTable` | Auth collection name from the JWT                                                     |
-| `row.collection`      | App collection the photo is attached to (from `PhotoCreateMeta.collection` on create) |
-| `row.path`            | Relative path under the configured images directory                                   |
-| `row.extension`       | Normalized file extension (`jpg`, `png`, etc.)                                        |
+| `row.collection` | App collection the photo is attached to (from `PhotoCreateMeta.collection` on create) |
+| `row.path`       | Relative path under the configured images directory                                   |
+| `row.extension`  | Normalized file extension (`jpg`, `png`, etc.)                                        |
 
 Pass the schema getter **`photos`** to your rule class constructors (same pattern as `items`, `users`, etc.).
 
@@ -254,12 +254,12 @@ If you do not add override files, Zonai uses the built-in photo rules:
 
 **Row rules**:
 
-| Method      | Default                                         |
-| ----------- | ----------------------------------------------- |
-| `canView`   | Allowed for everyone                            |
-| `canCreate` | Requires a JWT (`jwt != null`)                  |
+| Method      | Default                                      |
+| ----------- | -------------------------------------------- |
+| `canView`   | Allowed for everyone                         |
+| `canCreate` | Requires a JWT (`jwt != null`)               |
 | `canUpdate` | Owner (`jwt.userId == row.ownerId`) or admin |
-| `canDelete` | Owner or admin                                  |
+| `canDelete` | Owner or admin                               |
 
 ### Overriding photo rules
 

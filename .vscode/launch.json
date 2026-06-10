@@ -18,6 +18,13 @@
             "args": []
         },
         {
+            "name": "docs",
+            "cwd": "apps/docs",
+            "request": "launch",
+            "type": "jaspr",
+            "args": []
+        },
+        {
             "name": "web (release mode)",
             "cwd": "apps/web",
             "request": "launch",

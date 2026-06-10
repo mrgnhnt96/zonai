@@ -141,10 +141,10 @@ packages:
     dependency: transitive
     description:
       name: build_web_compilers
-      sha256: "8da0c6e1e2edaa13601846c0b4782e133a14dc4861932f561e3919f4aba460d1"
+      sha256: c8be4b48f09289d145c7eaa3240f1e7776c529ea1cecddf483218edd3129de3f
       url: "https://pub.dev"
     source: hosted
-    version: "4.6.0"
+    version: "4.8.0"
   built_collection:
     dependency: transitive
     description:
@@ -385,6 +385,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
+  fbh_front_matter:
+    dependency: transitive
+    description:
+      name: fbh_front_matter
+      sha256: "18b2f355326ff2b7ebd64eb1d969c091895ffa755ab55ede5de68f59cf115024"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.1"
   ffi:
     dependency: transitive
     description:
@@ -417,6 +425,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
+  gato:
+    dependency: transitive
+    description:
+      name: gato
+      sha256: "03fa3a33d50f71a912e30827ddf47c89e06e9acfd2b6b178aff0e1aa2f1e8b90"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.5+1"
   glob:
     dependency: transitive
     description:
@@ -465,6 +481,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.15.6"
+  html_unescape:
+    dependency: transitive
+    description:
+      name: html_unescape
+      sha256: "15362d7a18f19d7b742ef8dcb811f5fd2a2df98db9f80ea393c075189e0b61e3"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
   http:
     dependency: transitive
     description:
@@ -537,6 +561,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.23.1"
+  jaspr_content:
+    dependency: transitive
+    description:
+      name: jaspr_content
+      sha256: "28bacdb5669a7f4b066b9e3cd2a591cbf21eda972ce6f33dcc6047868a4aa1ac"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.2"
   jaspr_riverpod:
     dependency: transitive
     description:
@@ -593,6 +625,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.1.1"
+  liquify:
+    dependency: transitive
+    description:
+      name: liquify
+      sha256: "23aaa728dd2adc15dcc863772dec64425e8bc35bfa3f81323e0726fb83e1e28f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.1"
   logging:
     dependency: transitive
     description:
@@ -1070,6 +1110,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  syntax_highlight_lite:
+    dependency: transitive
+    description:
+      name: syntax_highlight_lite
+      sha256: ff54f69159263e26b843c64a2dc556ac7bbbc66690eb6d500aefb341cf4957a0
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.1"
   term_glyph:
     dependency: transitive
     description:
@@ -1102,6 +1150,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.18"
+  timezone:
+    dependency: transitive
+    description:
+      name: timezone
+      sha256: "784a5e34d2eb62e1326f24d6f600aaaee452eb8ca8ef2f384a59244e292d158b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.11.0"
   typed_data:
     dependency: transitive
     description:

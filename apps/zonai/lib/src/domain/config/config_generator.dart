@@ -159,6 +159,7 @@ class ConfigGenerator {
     );
     b.writeln('    );');
     b.writeln('  }');
+    b.writeln('  value.validate();');
     b.writeln('  return value;');
     b.writeln('}');
     return b.toString();
