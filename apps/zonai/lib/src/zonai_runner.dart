@@ -3,6 +3,7 @@ import 'package:zonai/src/commands/version.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/versions.dart';
 
+import 'commands/ai/ai.dart';
 import 'commands/compile.dart';
 import 'commands/cron.dart';
 import 'commands/db/db.dart';
@@ -26,6 +27,7 @@ Commands:
   ping        Ping worker executables
   cron        Run cron jobs manually
   rules       Inspect compiled rules
+  ai          Install AI coding assistant reference files
 ''';
 
 Future<int> run() async {
@@ -64,6 +66,8 @@ Future<int> run() async {
       return await cron(path);
     case ['rules', ...final path]:
       return await rules(path);
+    case ['ai', ...final path]:
+      return await ai(path);
     default:
       logger.info(_usage);
   }
