@@ -3,6 +3,30 @@ import 'package:zonai/src/commands/dev/actions/schema_scaffold.dart';
 import 'package:zonai/src/utils/schema_names.dart';
 
 void main() {
+  group('appendUnionIdCase', () {
+    test('inserts a switch case with consistent indentation', () {
+      final names = SchemaNames.fromEntityClass('Product', usedIdSuffixes: {'it'});
+      const content = '''
+    return switch (parts[1]) {
+      ItemsId._suffix => ItemsId(json),
+      _ => throw ArgumentError('Invalid ID format: \$json'),
+    };
+''';
+
+      final updated = appendUnionIdCase(content, names);
+
+      expect(
+        updated,
+        contains(
+          '      ItemsId._suffix => ItemsId(json),\n'
+          '      ProductsId._suffix => ProductsId(json),\n'
+          '      _ => throw ArgumentError',
+        ),
+      );
+      expect(updated, isNot(contains('            ProductsId')));
+    });
+  });
+
   group('scaffoldSchemaSource auth tables', () {
     final names = SchemaNames.fromEntityClass('User', usedIdSuffixes: {});
 

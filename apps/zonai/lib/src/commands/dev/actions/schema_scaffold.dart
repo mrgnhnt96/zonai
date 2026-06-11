@@ -78,14 +78,18 @@ ${scaffoldStandaloneIdClass(names).trim()}
 
 String appendUnionIdCase(String content, SchemaNames names) {
   const fallbackCase = "_ => throw ArgumentError('Invalid ID format: \$json'),";
-  if (!content.contains(fallbackCase)) {
+  const indentedFallback = '      $fallbackCase';
+  if (!content.contains(indentedFallback)) {
     throw StateError('ids.dart is missing the union ID fallback case');
   }
 
   final caseLine = '      ${names.idClass}._suffix => ${names.idClass}(json),';
   if (content.contains(caseLine)) return content;
 
-  return content.replaceFirst(fallbackCase, '$caseLine\n      $fallbackCase');
+  return content.replaceFirst(
+    indentedFallback,
+    '$caseLine\n$indentedFallback',
+  );
 }
 
 String _scaffoldRegularTable(SchemaNames names) {

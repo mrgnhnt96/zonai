@@ -107,6 +107,14 @@ class ItemsId extends Id {
           final ids = memoryFs.file('lib/src/ids.dart').readAsStringSync();
           expect(ids, contains('ProductsId._suffix => ProductsId(json),'));
           expect(ids, contains('class ProductsId extends Id'));
+          expect(
+            ids,
+            contains(
+              '      ItemsId._suffix => ItemsId(json),\n'
+              '      ProductsId._suffix => ProductsId(json),\n'
+              '      _ => throw ArgumentError',
+            ),
+          );
         },
         values: {
           fsProvider.overrideWith(() => memoryFs),
