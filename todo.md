@@ -14,6 +14,11 @@
 - [ ] When clicking on an error in the dashboard, open the trace in the logs table
 - [ ] Add icon for "filter" in the row details panel next to each field. Will auto apply "column=..." filter
 
+- [ ] Improve the "references" experience
+  - [ ] List all references in tables & rows
+  - [ ] Delete all references from rows (delete rows?)
+  - [ ] What happens when you try to delete a row that is referenced by another row?
+
 ### API
 
 - [ ] Create references to photo from other collections when using the `photo` or `photos` column
@@ -25,7 +30,6 @@
 
 ### `dev` command
 
-- [ ] toasts should show everywhere (there was an issue with creating an email template (it already existed, but didn't know the error because the toast was on the logs page))
 - [ ] Make the init (within `dev`) command more interactive
 
 ## Raindrop
