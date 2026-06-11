@@ -72,6 +72,7 @@ final _testSettings = Settings(
   emailTemplatesPath: 'lib/src/email_templates',
   rateLimitPath: 'lib/src/rate_limit',
   cronsPath: 'lib/src/crons',
+  imagesPath: '.zonai/data/images',
   buildSettings: BuildSettings.current(),
   version: kVersion,
 );

@@ -29,6 +29,7 @@ All paths are optional. Zonai uses sensible defaults so you only need to set a p
 | `emailTemplatesPath` | `lib/src/email_templates` | HTML email templates |
 | `migrationsPath` | `.zonai/migrations` | Generated SQL migration files |
 | `dataPath` | `.zonai/data` | SQLite database directory |
+| `imagesPath` | `<dataPath>/images` | Uploaded photo files |
 
 ## Server Fields
 
@@ -72,6 +73,7 @@ emailTemplatesPath: lib/src/email_templates
 # Generated paths
 migrationsPath: .zonai/migrations
 dataPath: .zonai/data
+imagesPath: .zonai/data/images
 
 # Cross-compilation (omit to build for current platform)
 buildSettings:

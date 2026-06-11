@@ -24,7 +24,7 @@ my_app/
 ├── .zonai/
 │   ├── migrations/             # Generated SQL migration files (commit these)
 │   ├── executables/            # Compiled worker binaries (gitignored)
-│   └── data/                   # SQLite database file (gitignored)
+│   └── data/                   # SQLite database and uploaded photos (gitignored)
 └── build/                      # Production bundle — only after `zonai build`
 ```
 
@@ -56,7 +56,7 @@ Zonai manages these. Don't edit their contents by hand.
 
 **`.zonai/executables/`** — compiled worker binaries. Gitignore this directory. Rebuilt by `zonai serve` (auto) and `zonai compile` (manual).
 
-**`.zonai/data/`** — the SQLite database file. Gitignore this. Never commit database files.
+**`.zonai/data/`** — the SQLite database file and uploaded photo files. Gitignore this. Never commit database files or user uploads.
 
 ## The `build/` Directory
 

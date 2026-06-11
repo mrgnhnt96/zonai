@@ -23,6 +23,7 @@ class Settings {
     required this.version,
     required this.buildSettings,
     required this.cronsPath,
+    required this.imagesPath,
     required this.path,
     this.host,
     this.port,
@@ -60,6 +61,7 @@ class Settings {
       emailTemplatesPath: normalize(['lib', 'src', 'email_templates']),
       rateLimitPath: normalize(['lib', 'src', 'rate_limit']),
       cronsPath: normalize(['lib', 'src', 'crons']),
+      imagesPath: normalize([defaultZonaiDirectory, 'data', 'images']),
       buildSettings: BuildSettings.current(),
       version: kVersion,
     );
@@ -71,16 +73,18 @@ class Settings {
     final yaml = loadYaml(settings.readAsStringSync());
     final map = jsonDecode(jsonEncode(yaml));
 
+    final dataPath = switch (map['dataPath']) {
+      final String value => normalize([value]),
+      _ => defaultSettings.dataPath,
+    };
+
     return Settings(
       path: settings.path,
       migrationsPath: switch (map['migrationsPath']) {
         final String value => normalize([value]),
         _ => defaultSettings.migrationsPath,
       },
-      dataPath: switch (map['dataPath']) {
-        final String value => normalize([value]),
-        _ => defaultSettings.dataPath,
-      },
+      dataPath: dataPath,
       schemasPath: switch (map['schemasPath']) {
         final String value => normalize([value]),
         _ => defaultSettings.schemasPath,
@@ -117,6 +121,10 @@ class Settings {
         final String value => normalize([value]),
         _ => defaultSettings.cronsPath,
       },
+      imagesPath: switch (map['imagesPath']) {
+        final String value => normalize([value]),
+        _ => fs.path.normalize(fs.path.join(dataPath, 'images')),
+      },
       buildSettings: switch (map['buildSettings']) {
         final Map<String, dynamic> value => BuildSettings.fromJson(value),
         _ => defaultSettings.buildSettings,
@@ -140,6 +148,7 @@ class Settings {
   final String rulesPath;
   final String rateLimitPath;
   final String cronsPath;
+  final String imagesPath;
   final String operationsPath;
   final String configPath;
   final String? basePath;
@@ -197,8 +206,6 @@ class Settings {
       _normalize([compiledExecutableDirectory, 'db_rate_limit.exe']);
   String get compiledCronsPath =>
       _normalize([compiledExecutableDirectory, 'db_crons.exe']);
-
-  String get imagesPath => _normalize(['images']);
 
   String get zonaiSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai.sqlite'));

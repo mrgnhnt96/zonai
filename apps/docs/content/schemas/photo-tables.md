@@ -73,13 +73,13 @@ If you want/need to clean up the image during a row update, you can delete the `
 
 ## Storage
 
-Photos are written to disk. Files live under the `images/` directory in the Zonai data folder, organized by the `table` field from the upload metadata:
+Photos are written to disk under the configured images directory (default: `.zonai/data/images/`), organized by the `table` field from the upload metadata:
 
 ```
-images/<table>/<id>.<ext>
+.zonai/data/images/<table>/<id>.<ext>
 ```
 
-For example, a JPEG uploaded for the `users` table might be stored at `images/users/ph_abc123.jpeg`.
+For example, a JPEG uploaded for the `users` table might be stored at `.zonai/data/images/users/ph_abc123.jpeg`.
 
 **Deleting a photo row also deletes the file.** When you call `DELETE /img/:id`, Zonai removes both the `_photos` database record and the file from disk in the same operation.
 
