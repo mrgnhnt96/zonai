@@ -181,7 +181,7 @@ class DashboardScreen extends StatelessComponent {
             if (userTables.isNotEmpty)
               div(classes: 'dashboard-section', [
                 div(classes: 'dashboard-section-header', [
-                  p(classes: ZonaiClasses.sectionLabel, [.text('Collections')]),
+                  p(classes: ZonaiClasses.sectionLabel, [.text('Tables')]),
                 ]),
                 div(classes: 'dashboard-tables', [
                   for (final table in userTables)
@@ -189,9 +189,12 @@ class DashboardScreen extends StatelessComponent {
                       href: AuthRoutes.toUrlPath(AuthRoutes.forTable(table.sqliteName)),
                       classes: 'dashboard-table-card',
                       [
-                      span(classes: 'dashboard-table-name', [.text(table.displayName)]),
-                      span(classes: 'dashboard-table-meta', [.text(_fmtTableMeta(tableCountsData[table.sqliteName]))]),
-                    ]),
+                        span(classes: 'dashboard-table-name', [.text(table.displayName)]),
+                        span(classes: 'dashboard-table-meta', [
+                          .text(_fmtTableMeta(tableCountsData[table.sqliteName])),
+                        ]),
+                      ],
+                    ),
                 ]),
               ]),
           ]),
@@ -249,9 +252,9 @@ class DashboardScreen extends StatelessComponent {
         cursor: .pointer,
         raw: const {'user-select': 'none'},
       ),
-      css('.dashboard-filter-checkbox').styles(
-        raw: const {'accent-color': 'var(--zonai-primary)', 'cursor': 'pointer'},
-      ),
+      css(
+        '.dashboard-filter-checkbox',
+      ).styles(raw: const {'accent-color': 'var(--zonai-primary)', 'cursor': 'pointer'}),
       // Stat cards
       css(
         '.dashboard-stats',
@@ -294,11 +297,7 @@ class DashboardScreen extends StatelessComponent {
         raw: const {'box-shadow': 'var(--zonai-shadow-sm)'},
       ),
       css('.dashboard-panel--wide').styles(flex: Flex(grow: 2, shrink: 1), minWidth: 320.px),
-      css('.dashboard-panel--errors').styles(
-        flex: Flex(grow: 0, shrink: 1),
-        maxWidth: 400.px,
-        minWidth: 240.px,
-      ),
+      css('.dashboard-panel--errors').styles(flex: Flex(grow: 0, shrink: 1), maxWidth: 400.px, minWidth: 240.px),
       css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
         flex: Flex(grow: 1, shrink: 0),
@@ -402,12 +401,7 @@ class DashboardScreen extends StatelessComponent {
       ),
       css(
         '.dashboard-error-header',
-      ).styles(
-        display: .flex,
-        flexDirection: FlexDirection.column,
-        gap: Gap.all(ZonaiSpacing.s2),
-        minWidth: .zero,
-      ),
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), minWidth: .zero),
       css('.dashboard-error-detail').styles(
         margin: .zero,
         padding: .all(ZonaiSpacing.s4),

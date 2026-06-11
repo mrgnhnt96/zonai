@@ -1,6 +1,5 @@
 import 'package:test/test.dart';
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_schema/src/update/update.dart';
 
 void main() {
   group('UpdateBody.toJson', () {

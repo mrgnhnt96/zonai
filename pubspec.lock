@@ -269,10 +269,10 @@ packages:
     dependency: transitive
     description:
       name: coverage
-      sha256: "5da775aa218eaf2151c721b16c01c7676fbfdd99cebba2bf64e8b807a28ff94d"
+      sha256: "956a3de0725ca232ad353565a8290d3357592bf4250f6f298a185e2d949c5d3d"
       url: "https://pub.dev"
     source: hosted
-    version: "1.15.0"
+    version: "1.15.1"
   cron:
     dependency: transitive
     description:
@@ -685,10 +685,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: df0c643f44ad098eb37988027a8e2b2b5a031fd3977f06bbfd3a76637e8df739
+      sha256: c82594181e3312f3d0695fc95aaaf7758d75b8d4ae2bbecf223b9fd5109a059d
       url: "https://pub.dev"
     source: hosted
-    version: "1.18.2"
+    version: "1.18.3"
   mime:
     dependency: transitive
     description:
@@ -709,10 +709,10 @@ packages:
     dependency: transitive
     description:
       name: mustache_template
-      sha256: "544ff0b837836f5ad6b351e7a676ff7c2cad4fa412c465908aeb9358caddb6fc"
+      sha256: c689b4d59176f8c7a2860aab765d205916aa5b06cfafff7613bfcc42fa996143
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.4"
+    version: "2.0.5"
   native_toolchain_c:
     dependency: transitive
     description:
@@ -813,10 +813,10 @@ packages:
     dependency: transitive
     description:
       name: postgres
-      sha256: fe4a19a69fad564efa8ced72d58b14e86d12a548f5f0a511b377089bf3b592ed
+      sha256: "123de5cbadc56a7e8d9fa485c780b6b56940b4081f4c74f3a5578682757c299b"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.11"
+    version: "3.5.12"
   process:
     dependency: transitive
     description:
@@ -886,7 +886,7 @@ packages:
     description:
       path: "packages/revali"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.1.1"
@@ -903,7 +903,7 @@ packages:
     description:
       path: "constructs/revali_client/revali_client"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.0.4"
@@ -912,7 +912,7 @@ packages:
     description:
       path: "constructs/revali_client/revali_client_gen"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.1.0"
@@ -921,7 +921,7 @@ packages:
     description:
       path: "packages/revali_construct"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.1.0"
@@ -930,7 +930,7 @@ packages:
     description:
       path: "packages/revali_core"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "1.5.0"
@@ -939,7 +939,7 @@ packages:
     description:
       path: "revali_router/revali_router"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "3.3.0"
@@ -948,7 +948,7 @@ packages:
     description:
       path: "revali_router/revali_router_annotations"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.1.0"
@@ -957,7 +957,7 @@ packages:
     description:
       path: "revali_router/revali_router_core"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.2.0"
@@ -966,7 +966,7 @@ packages:
     description:
       path: "constructs/revali_server"
       ref: "feat/wrap-request"
-      resolved-ref: "13e6e391502286fa0eb8683c57050a66c6722370"
+      resolved-ref: cc9fd49ce6e6097cef3e5969fc73557c922086de
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.3.0"

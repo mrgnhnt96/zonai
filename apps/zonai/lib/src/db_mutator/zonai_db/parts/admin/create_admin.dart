@@ -65,12 +65,22 @@ extension _CreateAdminX on ZonaiDb {
       throw StateError('Admin record id not found');
     }
 
+    final isVerifiedColumnName = isVerifiedColumn.name;
+    final idColumnName = idColumn.name;
+
+    if (isVerifiedColumnName == null || idColumnName == null) {
+      logger.warn(
+        'Missing column name for admin verification | id: $idColumnName, isVerified: $isVerifiedColumnName',
+      );
+      return user;
+    }
+
     final operation = await _operations.send<PerformOperationResponse>(
       UpdateOperationRequest(
         table: table,
         jwt: null,
-        where: Eq(idColumn.name, userId),
-        updates: [ColumnUpdate(isVerifiedColumn.name, Literal(true))],
+        where: Eq(idColumnName, userId),
+        updates: [ColumnUpdate(isVerifiedColumnName, Literal(true))],
       ),
     );
 
@@ -79,6 +89,6 @@ extension _CreateAdminX on ZonaiDb {
       throw error ?? StateError('Failed to mark admin account as verified');
     }
 
-    return {...user, isVerifiedColumn.name: true};
+    return {...user, isVerifiedColumnName: true};
   }
 }

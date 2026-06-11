@@ -57,14 +57,14 @@ final class ColumnNameResponse extends OperationResponse {
   factory ColumnNameResponse.fromJson(Map<String, dynamic> json) {
     return ColumnNameResponse(
       id: json['id'] as String,
-      name: json['name'] as String,
+      name: json['name'] as String?,
       column: ColumnName.values.byName(json['column'] as String),
     );
   }
 
   static const _path = '${Response.prefix}.operation.get_column_name';
 
-  final String name;
+  final String? name;
   final ColumnName column;
 
   @override

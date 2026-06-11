@@ -44,7 +44,10 @@ extension _UpdateX on ZonaiDb {
         readOperation.query,
         readOperation.values,
       ));
-      logger.trace('sql_execute_refetch', extra: {'rows': updatedResult?.rows.length ?? 0});
+      logger.trace(
+        'sql_execute_refetch',
+        extra: {'rows': updatedResult?.rows.length ?? 0},
+      );
       if (updatedError != null || updatedResult == null) {
         await _extensions.send<NoActionExtensionResponse>(
           ErrorExtensionRequest.update(
@@ -97,6 +100,11 @@ extension _UpdateX on ZonaiDb {
         GetColumnNameRequest(table: table, columnName: .password),
       );
       passwordColumnName = response.name;
+    } on MessageHandlerFailedException catch (error) {
+      if (error.cause?.contains('No password column on table') case true) {
+        return (updates, false);
+      }
+      rethrow;
     } on StateError {
       return (updates, false);
     }
@@ -114,6 +122,11 @@ extension _UpdateX on ZonaiDb {
             throw InvalidPasswordUpdateException(table: table);
           }
         case ObjectUpdate(:final object):
+          if (passwordColumnName == null) {
+            result.add(update);
+            continue;
+          }
+
           if (object.containsKey(passwordColumnName)) {
             if (object[passwordColumnName] case final String value) {
               final hashed = await _hashPassword.hash(password: value);
@@ -175,7 +188,10 @@ extension _UpdateX on ZonaiDb {
       readOperation.query,
       readOperation.values,
     ));
-    logger.trace('sql_execute_read', extra: {'rows': readResult?.rows.length ?? 0});
+    logger.trace(
+      'sql_execute_read',
+      extra: {'rows': readResult?.rows.length ?? 0},
+    );
     if (readError != null) {
       throw readError;
     }

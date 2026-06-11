@@ -144,12 +144,18 @@ extension _VerifyEmailX on ZonaiDb {
 
     final jwt = await _extractJwt(payload);
 
+    final isVerifiedColumnName = isVerifiedColumn.name;
+    final idColumnName = idColumn.name;
+    if (isVerifiedColumnName == null || idColumnName == null) {
+      throw StateError('Missing column(s) for email verification');
+    }
+
     final operation = await _operations.send<PerformOperationResponse>(
       UpdateOperationRequest(
         table: challenge.table,
         jwt: jwt,
-        where: Eq(idColumn.name, authRecordId),
-        updates: [ColumnUpdate(isVerifiedColumn.name, Literal(true))],
+        where: Eq(idColumnName, authRecordId),
+        updates: [ColumnUpdate(isVerifiedColumnName, Literal(true))],
       ),
     );
 

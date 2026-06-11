@@ -119,11 +119,19 @@ class DbOperations {
     }
 
     final column = switch (request.columnName) {
-      .password => _passwordColumn(ops.table),
-      .isVerified => _isVerifiedColumn(ops.table),
-      .email => _emailColumn(ops.table),
-      .id => _idColumn(ops.table),
+      .password => _passwordColumn(ops.table, tableName: request.table),
+      .isVerified => _isVerifiedColumn(ops.table, tableName: request.table),
+      .email => _emailColumn(ops.table, tableName: request.table),
+      .id => _idColumn(ops.table, tableName: request.table),
     };
+
+    if (column == null) {
+      return ColumnNameResponse(
+        id: request.id,
+        name: null,
+        column: request.columnName,
+      );
+    }
 
     return ColumnNameResponse(
       id: request.id,
@@ -176,7 +184,7 @@ class DbOperations {
       _failMissingTable(request.table);
     }
 
-    final emailColumn = _emailColumn(ops.table);
+    final emailColumn = _emailColumn(ops.table, tableName: request.table);
 
     final email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
@@ -192,12 +200,16 @@ class DbOperations {
 
     rd.Column? passwordColumn;
     if (ops.schema is PasswordAuth) {
-      passwordColumn = _passwordColumn(ops.table);
+      passwordColumn = _passwordColumn(ops.table, tableName: request.table);
     }
 
     rd.Column? isVerifiedColumn;
     if (ops.schema is HasEmail) {
-      isVerifiedColumn = _isVerifiedColumn(ops.table);
+      isVerifiedColumn = _isVerifiedColumn(ops.table, tableName: request.table);
+    }
+
+    if (emailColumn == null) {
+      throw StateError('No email column on table "${request.table}"');
     }
 
     final object = switch (request.payload) {
@@ -255,7 +267,11 @@ class DbOperations {
 
     final table = ops.table;
 
-    final emailColumn = _emailColumn(table);
+    final emailColumn = _emailColumn(table, tableName: request.table);
+
+    if (emailColumn == null) {
+      throw StateError('No email column on table "${request.table}"');
+    }
 
     final email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
@@ -415,27 +431,45 @@ class DbOperations {
     return VerifyEmailConfigResponse(id: request.id, config: config);
   }
 
-  rd.Column _emailColumn(rd.Table table) {
-    return table.columns.firstWhere(
+  rd.Column? _tryFindColumn(
+    rd.Table table,
+    bool Function(rd.Column<dynamic, dynamic> column) test,
+  ) {
+    for (final column in table.columns) {
+      if (test(column)) {
+        return column;
+      }
+    }
+    return null;
+  }
+
+  rd.Column? _emailColumn(rd.Table table, {required String tableName}) {
+    return _tryFindColumn(
+      table,
       (column) => column.transformer is EmailTransformer,
     );
   }
 
-  rd.Column _isVerifiedColumn(rd.Table table) {
-    return table.columns.firstWhere(
+  rd.Column? _isVerifiedColumn(rd.Table table, {required String tableName}) {
+    return _tryFindColumn(
+      table,
       (column) => column.transformer is IsVerifiedTransformer,
     );
   }
 
-  rd.Column _passwordColumn(rd.Table table) {
-    return table.columns.firstWhere(
+  rd.Column? _passwordColumn(rd.Table table, {required String tableName}) {
+    return _tryFindColumn(
+      table,
       (column) => column.transformer is PasswordTransformer,
     );
   }
 
-  rd.Column _idColumn(rd.Table table) {
-    return table.columns.firstWhere(
-      (column) => column.transformer is IdTransformer && column.isPrimaryKey,
-    );
+  rd.Column _idColumn(rd.Table table, {required String tableName}) {
+    return _tryFindColumn(
+          table,
+          (column) =>
+              column.transformer is IdTransformer && column.isPrimaryKey,
+        ) ??
+        (throw StateError('No id column on table "$tableName"'));
   }
 }

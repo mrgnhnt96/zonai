@@ -161,12 +161,18 @@ extension _ResetPasswordX on ZonaiDb {
       throw const PasswordReuseException();
     }
 
+    final passwordColumnName = passwordColumn.name;
+    final idColumnName = idColumn.name;
+    if (passwordColumnName == null || idColumnName == null) {
+      throw StateError('Missing column(s) for password reset');
+    }
+
     final operation = await _operations.send<PerformOperationResponse>(
       UpdateOperationRequest(
         table: challenge.table,
         jwt: null,
-        where: Eq(idColumn.name, authRecordId),
-        updates: [ColumnUpdate(passwordColumn.name, Literal(newPasswordHash))],
+        where: Eq(idColumnName, authRecordId),
+        updates: [ColumnUpdate(passwordColumnName, Literal(newPasswordHash))],
       ),
     );
 

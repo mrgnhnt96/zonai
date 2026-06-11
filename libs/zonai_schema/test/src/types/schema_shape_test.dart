@@ -1,5 +1,4 @@
 import 'package:raindrop/raindrop.dart' as rd show Table;
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/tables/table.dart' as zs;
 import 'package:zonai_schema/zonai_schema.dart' hide table;
