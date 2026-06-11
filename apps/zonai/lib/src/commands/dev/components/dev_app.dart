@@ -245,31 +245,51 @@ class _DevAppState extends State<DevApp> {
   Component _buildShell() {
     return Container(
       decoration: BoxDecoration(color: DevTheme.bg),
-      child: Column(
+      child: Stack(
         children: [
-          DevHeader(
-            runningActions: _actionTracker.actions,
-            serverRunning: _serverRunning,
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                DevMenuPanel(
-                  selectedIndex: _menuIndex,
-                  serverRunning: _serverRunning,
-                  onItemTap: _onMenuItemTap,
+          Column(
+            children: [
+              DevHeader(
+                runningActions: _actionTracker.actions,
+                serverRunning: _serverRunning,
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    DevMenuPanel(
+                      selectedIndex: _menuIndex,
+                      serverRunning: _serverRunning,
+                      onItemTap: _onMenuItemTap,
+                    ),
+                    Expanded(child: _buildContentColumn()),
+                  ],
                 ),
-                Expanded(child: _buildContentColumn()),
-              ],
-            ),
+              ),
+              DevHintBar(
+                hints: devHintsFor(
+                  _inputMode,
+                  menuKey: devMenuItems[_menuIndex].key,
+                ),
+              ),
+            ],
           ),
-          DevHintBar(
-            hints: devHintsFor(
-              _inputMode,
-              menuKey: devMenuItems[_menuIndex].key,
-            ),
-          ),
+          _buildToastOverlay(),
         ],
+      ),
+    );
+  }
+
+  Component _buildToastOverlay() {
+    final message = _toastMessage;
+    if (message == null) return const SizedBox.shrink();
+
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 2,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [DevToast(message: message, isError: _toastIsError)],
       ),
     );
   }
@@ -316,47 +336,32 @@ class _DevAppState extends State<DevApp> {
       );
     }
 
-    final message = _toastMessage;
     final item = devMenuItems[_menuIndex];
-    return Stack(
+    return Column(
       children: [
-        Column(
-          children: [
-            DevContentHeader(
-              title: item.hasContent ? 'OUTPUT' : 'LOGS',
-              subtitle: item.hasContent ? item.description : null,
-              trailing: DevFormButton(
-                label: 'Copy all',
-                focused: false,
-                enabled: _outputLines.isNotEmpty,
-                onTap: _copyAllOutput,
-              ),
-            ),
-            Expanded(
-              child: SelectionArea(
-                key: ValueKey(_selectionAreaKey),
-                selectionColor: _selectionColor,
-                onSelectionChanged: _onOutputSelectionChanged,
-                onSelectionCompleted: _onSelectionCompleted,
-                child: DevOutputPanel(
-                  outputLines: _outputLines,
-                  scrollController: _scrollController,
-                  showEmptyState: item.hasContent,
-                ),
-              ),
-            ),
-          ],
+        DevContentHeader(
+          title: item.hasContent ? 'OUTPUT' : 'LOGS',
+          subtitle: item.hasContent ? item.description : null,
+          trailing: DevFormButton(
+            label: 'Copy all',
+            focused: false,
+            enabled: _outputLines.isNotEmpty,
+            onTap: _copyAllOutput,
+          ),
         ),
-        if (message != null)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 1,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [DevToast(message: message, isError: _toastIsError)],
+        Expanded(
+          child: SelectionArea(
+            key: ValueKey(_selectionAreaKey),
+            selectionColor: _selectionColor,
+            onSelectionChanged: _onOutputSelectionChanged,
+            onSelectionCompleted: _onSelectionCompleted,
+            child: DevOutputPanel(
+              outputLines: _outputLines,
+              scrollController: _scrollController,
+              showEmptyState: item.hasContent,
             ),
           ),
+        ),
       ],
     );
   }
