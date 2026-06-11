@@ -7,9 +7,11 @@ import '../constants/button_sizes.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
 import '../utils/sqlite_table_utils.dart';
+import 'app_tooltip_overlay.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'theme/ui_styles.dart';
@@ -62,15 +64,23 @@ class DashboardScreen extends StatelessComponent {
           div(classes: 'dashboard', [
             div(classes: 'dashboard-header', [
               h1(classes: 'dashboard-title', [.text('Dashboard')]),
-              label(classes: 'dashboard-filter-label', [
-                input<bool>(
-                  type: InputType.checkbox,
-                  classes: 'dashboard-filter-checkbox',
-                  checked: excludeAdmin,
-                  onChange: (_) => context.read(excludeAdminProvider.notifier).toggle(),
+              label(
+                classes: 'dashboard-filter-label',
+                events: appTooltipEvents(
+                  context,
+                  text: 'Excludes admin requests and errors\nfrom stats, charts, and top errors',
+                  placement: AppTooltipPlacement.belowLeft,
                 ),
-                .text('Exclude admin'),
-              ]),
+                [
+                  input<bool>(
+                    type: InputType.checkbox,
+                    classes: 'dashboard-filter-checkbox',
+                    checked: excludeAdmin,
+                    onChange: (_) => context.read(excludeAdminProvider.notifier).toggle(),
+                  ),
+                  .text('Exclude admin'),
+                ],
+              ),
             ]),
             // Stat cards
             div(classes: 'dashboard-stats', [
