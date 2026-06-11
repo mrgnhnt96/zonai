@@ -1,9 +1,10 @@
 import 'package:jaspr/jaspr.dart';
+import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../providers/foreign_key_picker_provider.dart';
 import '../utils/table_cell_edit.dart';
 import '../utils/table_where_operators.dart';
-import 'table_edit/foreign_key_picker_dialog.dart';
 import 'table_edit/table_foreign_key_value_field.dart';
 import 'table_edit/table_value_editor.dart';
 import 'table_filter_datetime_field.dart';
@@ -40,7 +41,13 @@ class TableFilterValueField extends StatefulComponent {
 }
 
 class _TableFilterValueFieldState extends State<TableFilterValueField> {
-  var _fkPickerOpen = false;
+  void _openFkPicker(ForeignKeyShape foreignKey) {
+    context.read(foreignKeyPickerProvider.notifier).open(
+      foreignKey: foreignKey,
+      selectedId: component.valueText.isEmpty ? null : component.valueText,
+      onSelect: (id, {displayLabel}) => component.onValueTextChanged(id ?? ''),
+    );
+  }
 
   @override
   Component build(BuildContext context) {
@@ -71,27 +78,15 @@ class _TableFilterValueFieldState extends State<TableFilterValueField> {
     }
 
     if (isForeignKeyColumn(shape) && shape.foreignKey != null) {
-      return Component.fragment([
-        TableValueEditor(
-          id: component.id,
-          shape: shape,
-          textValue: component.valueText,
-          labelId: component.labelId,
-          onTextChanged: component.onValueTextChanged,
-          onBrowse: () => setState(() => _fkPickerOpen = true),
-          fkLayout: TableForeignKeyLayout.column,
-        ),
-        if (_fkPickerOpen)
-          ForeignKeyPickerDialog(
-            foreignKey: shape.foreignKey!,
-            selectedId: component.valueText.isEmpty ? null : component.valueText,
-            onSelect: (id, {displayLabel}) {
-              component.onValueTextChanged(id ?? '');
-              setState(() => _fkPickerOpen = false);
-            },
-            onClose: () => setState(() => _fkPickerOpen = false),
-          ),
-      ]);
+      return TableValueEditor(
+        id: component.id,
+        shape: shape,
+        textValue: component.valueText,
+        labelId: component.labelId,
+        onTextChanged: component.onValueTextChanged,
+        onBrowse: () => _openFkPicker(shape.foreignKey!),
+        fkLayout: TableForeignKeyLayout.column,
+      );
     }
 
     return TableValueEditor(

@@ -24,6 +24,8 @@ import 'package:zonai_web/components/app_tooltip_overlay.dart'
 import 'package:zonai_web/components/auth_app_shell.dart' as _auth_app_shell;
 import 'package:zonai_web/components/dashboard_screen.dart'
     as _dashboard_screen;
+import 'package:zonai_web/components/foreign_key_picker_overlay.dart'
+    as _foreign_key_picker_overlay;
 import 'package:zonai_web/components/home_app_shell.dart' as _home_app_shell;
 import 'package:zonai_web/components/home_screen.dart' as _home_screen;
 import 'package:zonai_web/components/home_settings_overlay.dart'
@@ -94,6 +96,7 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._app_tooltip_overlay.AppTooltipOverlay.styles,
     ..._auth_app_shell.AuthAppShell.styles,
     ..._dashboard_screen.DashboardScreen.styles,
+    ..._foreign_key_picker_overlay.ForeignKeyPickerOverlay.styles,
     ..._home_app_shell.HomeAppShell.styles,
     ..._home_screen.HomeScreen.styles,
     ..._home_settings_overlay.HomeSettingsOverlay.styles,

@@ -2375,5 +2375,4 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css('.table-row-detail-expand:hover').styles(color: primaryHoverColor),
   ...schemaTablePhotoCellStyles,
   ...tableEditSharedStyles,
-  ...foreignKeyPickerDialogStyles,
 ];

@@ -42,6 +42,7 @@ import 'table_edit/table_edit_enum_multi_select.dart';
 import 'table_filter_datetime_field.dart';
 import 'table_search_panel.dart';
 import 'table_search_side_panel.dart';
+import 'foreign_key_picker_overlay.dart';
 import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
 import 'theme/zonai_icon_button.dart';
@@ -81,6 +82,7 @@ class HomeScreen extends StatelessComponent {
       if (context.binding.isClient) const HomeKeyboardShortcuts(),
       if (context.binding.isClient) const TableRowDetailPanel(),
       if (context.binding.isClient) const TableSearchSidePanel(),
+      if (context.binding.isClient) const ForeignKeyPickerOverlay(),
       if (context.binding.isClient) const ToastOverlay(),
     ]);
   }
@@ -89,6 +91,7 @@ class HomeScreen extends StatelessComponent {
   static List<StyleRule> get styles => [
     ...HomeSidebar.styles,
     ...HomeSettingsOverlay.styles,
+    ...ForeignKeyPickerOverlay.styles,
     ...syntaxHighlightedCodeStyles,
     ...tableRowDetailPanelStyles,
     ...ToastOverlay.styles,

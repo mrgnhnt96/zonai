@@ -4,11 +4,11 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import '../../providers/foreign_key_picker_provider.dart';
 import '../../providers/foreign_key_reference_validate_provider.dart';
 import '../../providers/foreign_key_rows_provider.dart';
 import '../../utils/table_cell_edit.dart';
 import '../theme/ui_styles.dart';
-import 'foreign_key_picker_dialog.dart';
 import 'table_value_editor.dart';
 
 const _validateDebounceDuration = Duration(milliseconds: 300);
@@ -47,7 +47,6 @@ class TableCellEditField extends StatefulComponent {
 }
 
 class _TableCellEditFieldState extends State<TableCellEditField> {
-  var _fkPickerOpen = false;
   String? _pickerDisplayLabel;
   var _fkSkipValidation = false;
   var _debouncedValidateText = '';
@@ -70,10 +69,19 @@ class _TableCellEditFieldState extends State<TableCellEditField> {
 
   void _openFkPicker() {
     if (component.disabled || component.shape.foreignKey == null) return;
-    setState(() => _fkPickerOpen = true);
+    context.read(foreignKeyPickerProvider.notifier).open(
+      foreignKey: component.shape.foreignKey!,
+      selectedId: component.textValue.isEmpty ? null : component.textValue,
+      onSelect: (id, {displayLabel}) {
+        _fkSkipValidation = true;
+        _pickerDisplayLabel = displayLabel;
+        _debouncedValidateText = id ?? '';
+        _reportFkInvalid(false);
+        component.onTextChanged(id ?? '');
+        setState(() {});
+      },
+    );
   }
-
-  void _closeFkPicker() => setState(() => _fkPickerOpen = false);
 
   void _onFkTextChanged(String text) {
     _fkSkipValidation = false;
@@ -164,25 +172,6 @@ class _TableCellEditFieldState extends State<TableCellEditField> {
       onEnablePasswordReplace: component.onEnablePasswordReplace,
     );
 
-    if (!_fkPickerOpen || shape.foreignKey == null) {
-      return editor;
-    }
-
-    return Component.fragment([
-      editor,
-      ForeignKeyPickerDialog(
-        foreignKey: shape.foreignKey!,
-        selectedId: component.textValue.isEmpty ? null : component.textValue,
-        onSelect: (id, {displayLabel}) {
-          _fkSkipValidation = true;
-          _pickerDisplayLabel = displayLabel;
-          _debouncedValidateText = id ?? '';
-          _reportFkInvalid(false);
-          component.onTextChanged(id ?? '');
-          _closeFkPicker();
-        },
-        onClose: _closeFkPicker,
-      ),
-    ]);
+    return editor;
   }
 }
