@@ -290,6 +290,59 @@ class DevFormField extends StatelessComponent {
   }
 }
 
+enum DevFormAction { cancel, submit }
+
+class DevFormActionBar extends StatelessComponent {
+  const DevFormActionBar({
+    required this.submitLabel,
+    required this.onSubmit,
+    required this.onCancel,
+    this.cancelLabel = 'Cancel',
+    this.focusedAction,
+    this.onFocusSubmit,
+    this.onFocusCancel,
+    this.submitEnabled = true,
+    super.key,
+  });
+
+  final String submitLabel;
+  final String cancelLabel;
+  final VoidCallback onSubmit;
+  final VoidCallback onCancel;
+  final DevFormAction? focusedAction;
+  final VoidCallback? onFocusSubmit;
+  final VoidCallback? onFocusCancel;
+  final bool submitEnabled;
+
+  @override
+  Component build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        DevFormButton(
+          label: cancelLabel,
+          focused: focusedAction == DevFormAction.cancel,
+          onTap: () {
+            onFocusCancel?.call();
+            onCancel();
+          },
+        ),
+        SizedBox(width: 1),
+        DevFormButton(
+          label: submitLabel,
+          primary: true,
+          enabled: submitEnabled,
+          focused: focusedAction == DevFormAction.submit,
+          onTap: () {
+            onFocusSubmit?.call();
+            if (submitEnabled) onSubmit();
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class DevFormCard extends StatefulComponent {
   const DevFormCard({
     required this.title,

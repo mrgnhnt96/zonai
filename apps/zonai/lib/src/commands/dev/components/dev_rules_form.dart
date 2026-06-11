@@ -19,6 +19,7 @@ class DevRulesForm extends StatefulComponent {
 class _DevRulesFormState extends State<DevRulesForm> {
   final _controller = TextEditingController();
   var _inputFocused = true;
+  DevFormAction _focusedAction = DevFormAction.submit;
 
   @override
   void dispose() {
@@ -42,6 +43,22 @@ class _DevRulesFormState extends State<DevRulesForm> {
     setState(() => _inputFocused = false);
   }
 
+  void _focusActions() {
+    setState(() {
+      _inputFocused = false;
+      _focusedAction = DevFormAction.submit;
+    });
+  }
+
+  void _activateAction() {
+    switch (_focusedAction) {
+      case DevFormAction.cancel:
+        _cancel();
+      case DevFormAction.submit:
+        _submit();
+    }
+  }
+
   @override
   Component build(BuildContext context) {
     return Focusable(
@@ -52,7 +69,31 @@ class _DevRulesFormState extends State<DevRulesForm> {
           return true;
         }
         if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
-          setState(() => _inputFocused = true);
+          if (_inputFocused) {
+            _focusActions();
+          } else {
+            setState(() {
+              _focusedAction = _focusedAction == DevFormAction.cancel
+                  ? DevFormAction.submit
+                  : DevFormAction.cancel;
+            });
+          }
+          return true;
+        }
+        if (event.logicalKey == LogicalKey.tab && event.isShiftPressed) {
+          if (!_inputFocused) {
+            setState(() => _inputFocused = true);
+          } else {
+            setState(() {
+              _focusedAction = _focusedAction == DevFormAction.submit
+                  ? DevFormAction.cancel
+                  : DevFormAction.submit;
+            });
+          }
+          return true;
+        }
+        if (!_inputFocused && event.logicalKey == LogicalKey.enter) {
+          _activateAction();
           return true;
         }
         return false;
@@ -73,9 +114,19 @@ class _DevRulesFormState extends State<DevRulesForm> {
             ),
           ),
         ],
-        footer: Text(
-          'Leave empty to evaluate rules with no caller. Press enter to list permissions.',
-          style: TextStyle(color: DevTheme.textMuted),
+        footer: DevFormActionBar(
+          submitLabel: 'List',
+          focusedAction: _inputFocused ? null : _focusedAction,
+          onFocusSubmit: () => setState(() {
+            _inputFocused = false;
+            _focusedAction = DevFormAction.submit;
+          }),
+          onFocusCancel: () => setState(() {
+            _inputFocused = false;
+            _focusedAction = DevFormAction.cancel;
+          }),
+          onSubmit: _submit,
+          onCancel: _cancel,
         ),
       ),
     );

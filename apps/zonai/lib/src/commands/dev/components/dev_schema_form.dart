@@ -12,6 +12,7 @@ enum _SchemaFormField {
   isAdmin,
   canEdit,
   runMigration,
+  actions,
 }
 
 class DevSchemaForm extends StatefulComponent {
@@ -46,6 +47,7 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
   var _runMigration = false;
   int _focusedAuthChip = 0;
   _SchemaFormField _field = _SchemaFormField.entityName;
+  DevFormAction _focusedAction = DevFormAction.submit;
 
   SchemaTableKind get _tableKind => _tableKinds[_tableKindIndex];
 
@@ -98,6 +100,7 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
     _focusedAuthChip = 0;
     _tableKindIndex = 0;
     _field = _SchemaFormField.entityName;
+    _focusedAction = DevFormAction.submit;
   }
 
   void _cancel() {
@@ -117,6 +120,15 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
   }
 
   void _nextField() {
+    if (_field == _SchemaFormField.actions) {
+      setState(() {
+        _focusedAction = _focusedAction == DevFormAction.cancel
+            ? DevFormAction.submit
+            : DevFormAction.cancel;
+      });
+      return;
+    }
+
     if (_field == _SchemaFormField.authTypes &&
         _focusedAuthChip < _authTypeLabels.length - 1) {
       setState(() => _focusedAuthChip++);
@@ -132,15 +144,29 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
     final index = fields.indexOf(_field);
     setState(() {
       _field = index < 0 || index + 1 >= fields.length
-          ? _SchemaFormField.none
+          ? _SchemaFormField.actions
           : fields[index + 1];
       if (_field == _SchemaFormField.authTypes) {
         _focusedAuthChip = 0;
+      }
+      if (_field == _SchemaFormField.actions) {
+        _focusedAction = DevFormAction.cancel;
       }
     });
   }
 
   void _previousField() {
+    if (_field == _SchemaFormField.actions) {
+      setState(() {
+        if (_focusedAction == DevFormAction.submit) {
+          _focusedAction = DevFormAction.cancel;
+        } else {
+          _field = _visibleFields.last;
+        }
+      });
+      return;
+    }
+
     if (_field == _SchemaFormField.authTypes && _focusedAuthChip > 0) {
       setState(() => _focusedAuthChip--);
       return;
@@ -154,11 +180,30 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
 
     final index = fields.indexOf(_field);
     setState(() {
-      _field = index <= 0 ? _SchemaFormField.none : fields[index - 1];
+      _field = index <= 0 ? _SchemaFormField.actions : fields[index - 1];
       if (_field == _SchemaFormField.authTypes) {
         _focusedAuthChip = _authTypeLabels.length - 1;
       }
+      if (_field == _SchemaFormField.actions) {
+        _focusedAction = DevFormAction.submit;
+      }
     });
+  }
+
+  void _activateAction() {
+    switch (_focusedAction) {
+      case DevFormAction.cancel:
+        _cancel();
+      case DevFormAction.submit:
+        _submit();
+    }
+  }
+
+  bool get _canSubmit {
+    final entityName = _entityNameController.text.trim();
+    if (entityName.isEmpty) return false;
+    if (_isAuthTable && !_authConfig.hasAnyAuth) return false;
+    return true;
   }
 
   void _toggleBool({
@@ -366,6 +411,12 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
           return true;
         }
 
+        if (_field == _SchemaFormField.actions &&
+            event.logicalKey == LogicalKey.enter) {
+          _activateAction();
+          return true;
+        }
+
         if (_field == _SchemaFormField.entityName &&
             event.logicalKey == LogicalKey.enter) {
           _submit();
@@ -381,6 +432,21 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
         focusedFieldIndex: _focusedFieldIndex,
         onBackgroundTap: _blurField,
         fields: _buildFields(),
+        footer: DevFormActionBar(
+          submitLabel: 'Create',
+          focusedAction: _field == _SchemaFormField.actions ? _focusedAction : null,
+          onFocusSubmit: () => setState(() {
+            _field = _SchemaFormField.actions;
+            _focusedAction = DevFormAction.submit;
+          }),
+          onFocusCancel: () => setState(() {
+            _field = _SchemaFormField.actions;
+            _focusedAction = DevFormAction.cancel;
+          }),
+          onSubmit: _submit,
+          onCancel: _cancel,
+          submitEnabled: _canSubmit,
+        ),
       ),
     );
   }

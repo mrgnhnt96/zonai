@@ -19,6 +19,7 @@ class DevMigrateForm extends StatefulComponent {
 class _DevMigrateFormState extends State<DevMigrateForm> {
   final _controller = TextEditingController();
   var _inputFocused = true;
+  DevFormAction _focusedAction = DevFormAction.submit;
 
   @override
   void dispose() {
@@ -31,18 +32,71 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
     setState(() => _inputFocused = false);
   }
 
+  void _focusActions() {
+    setState(() {
+      _inputFocused = false;
+      _focusedAction = DevFormAction.submit;
+    });
+  }
+
+  void _submit() {
+    final trimmed = _controller.text.trim();
+    if (trimmed.isEmpty) return;
+    component.onSubmit(trimmed);
+    _controller.clear();
+  }
+
+  void _cancel() {
+    _controller.clear();
+    component.onCancel();
+  }
+
+  void _activateAction() {
+    switch (_focusedAction) {
+      case DevFormAction.cancel:
+        _cancel();
+      case DevFormAction.submit:
+        _submit();
+    }
+  }
+
+  bool get _canSubmit => _controller.text.trim().isNotEmpty;
+
   @override
   Component build(BuildContext context) {
     return Focusable(
       focused: true,
       onKeyEvent: (event) {
         if (event.logicalKey == LogicalKey.escape) {
-          _controller.clear();
-          component.onCancel();
+          _cancel();
           return true;
         }
         if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
-          setState(() => _inputFocused = true);
+          if (_inputFocused) {
+            _focusActions();
+          } else {
+            setState(() {
+              _focusedAction = _focusedAction == DevFormAction.cancel
+                  ? DevFormAction.submit
+                  : DevFormAction.cancel;
+            });
+          }
+          return true;
+        }
+        if (event.logicalKey == LogicalKey.tab && event.isShiftPressed) {
+          if (!_inputFocused) {
+            setState(() => _inputFocused = true);
+          } else {
+            setState(() {
+              _focusedAction = _focusedAction == DevFormAction.submit
+                  ? DevFormAction.cancel
+                  : DevFormAction.submit;
+            });
+          }
+          return true;
+        }
+        if (!_inputFocused && event.logicalKey == LogicalKey.enter) {
+          _activateAction();
           return true;
         }
         return false;
@@ -60,15 +114,25 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
               focused: _inputFocused,
               onFocus: () => setState(() => _inputFocused = true),
               placeholder: 'add_users_table',
-              onSubmitted: (name) {
-                final trimmed = name.trim();
-                if (trimmed.isEmpty) return;
-                component.onSubmit(trimmed);
-                _controller.clear();
-              },
+              onSubmitted: (_) => _submit(),
             ),
           ),
         ],
+        footer: DevFormActionBar(
+          submitLabel: 'Generate',
+          focusedAction: _inputFocused ? null : _focusedAction,
+          onFocusSubmit: () => setState(() {
+            _inputFocused = false;
+            _focusedAction = DevFormAction.submit;
+          }),
+          onFocusCancel: () => setState(() {
+            _inputFocused = false;
+            _focusedAction = DevFormAction.cancel;
+          }),
+          onSubmit: _submit,
+          onCancel: _cancel,
+          submitEnabled: _canSubmit,
+        ),
       ),
     );
   }

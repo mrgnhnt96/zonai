@@ -3,7 +3,7 @@ import 'package:nocterm/nocterm.dart';
 import 'dev_select_field.dart';
 import 'dev_theme.dart';
 
-enum _EmailTestField { none, to, template }
+enum _EmailTestField { none, to, template, actions }
 
 class DevEmailTestForm extends StatefulComponent {
   const DevEmailTestForm({
@@ -25,6 +25,7 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
   final _toController = TextEditingController();
   int _templateIndex = 0;
   _EmailTestField _field = _EmailTestField.to;
+  DevFormAction _focusedAction = DevFormAction.submit;
 
   List<String> get _templates => component.emailTemplates;
 
@@ -32,6 +33,7 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
     _EmailTestField.none => 0,
     _EmailTestField.to => 0,
     _EmailTestField.template => 1,
+    _EmailTestField.actions => 1,
   };
 
   void _blurField() {
@@ -64,23 +66,65 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
   }
 
   void _nextField() {
+    if (_field == _EmailTestField.actions) {
+      setState(() {
+        _focusedAction = _focusedAction == DevFormAction.cancel
+            ? DevFormAction.submit
+            : DevFormAction.cancel;
+      });
+      return;
+    }
+
     setState(() {
       _field = switch (_field) {
         _EmailTestField.none => _EmailTestField.to,
         _EmailTestField.to => _EmailTestField.template,
-        _EmailTestField.template => _EmailTestField.none,
+        _EmailTestField.template => _EmailTestField.actions,
+        _EmailTestField.actions => _EmailTestField.none,
       };
+      if (_field == _EmailTestField.actions) {
+        _focusedAction = DevFormAction.cancel;
+      }
     });
   }
 
   void _previousField() {
+    if (_field == _EmailTestField.actions) {
+      setState(() {
+        if (_focusedAction == DevFormAction.submit) {
+          _focusedAction = DevFormAction.cancel;
+        } else {
+          _field = _EmailTestField.template;
+        }
+      });
+      return;
+    }
+
     setState(() {
       _field = switch (_field) {
-        _EmailTestField.none => _EmailTestField.template,
+        _EmailTestField.none => _EmailTestField.actions,
         _EmailTestField.to => _EmailTestField.none,
         _EmailTestField.template => _EmailTestField.to,
+        _EmailTestField.actions => _EmailTestField.template,
       };
+      if (_field == _EmailTestField.actions) {
+        _focusedAction = DevFormAction.submit;
+      }
     });
+  }
+
+  void _activateAction() {
+    switch (_focusedAction) {
+      case DevFormAction.cancel:
+        _cancel();
+      case DevFormAction.submit:
+        _submit();
+    }
+  }
+
+  bool get _canSubmit {
+    final to = _toController.text.trim();
+    return to.isNotEmpty && _templates.isNotEmpty;
   }
 
   void _submit() {
@@ -126,6 +170,11 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
             return true;
           }
         }
+        if (_field == _EmailTestField.actions &&
+            event.logicalKey == LogicalKey.enter) {
+          _activateAction();
+          return true;
+        }
         return false;
       },
       child: DevFormCard(
@@ -155,6 +204,21 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
             onTap: () => setState(() => _field = _EmailTestField.template),
           ),
         ],
+        footer: DevFormActionBar(
+          submitLabel: 'Send',
+          focusedAction: _field == _EmailTestField.actions ? _focusedAction : null,
+          onFocusSubmit: () => setState(() {
+            _field = _EmailTestField.actions;
+            _focusedAction = DevFormAction.submit;
+          }),
+          onFocusCancel: () => setState(() {
+            _field = _EmailTestField.actions;
+            _focusedAction = DevFormAction.cancel;
+          }),
+          onSubmit: _submit,
+          onCancel: _cancel,
+          submitEnabled: _canSubmit,
+        ),
       ),
     );
   }

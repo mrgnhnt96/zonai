@@ -5,7 +5,7 @@ import '../actions/part_scaffold.dart';
 import 'dev_select_field.dart';
 import 'dev_theme.dart';
 
-enum _PartFormField { none, partType, table, className }
+enum _PartFormField { none, partType, table, className, actions }
 
 class DevPartForm extends StatefulComponent {
   const DevPartForm({
@@ -35,6 +35,7 @@ class _DevPartFormState extends State<DevPartForm> {
   int _partTypeIndex = 0;
   int _tableIndex = 0;
   _PartFormField _field = _PartFormField.partType;
+  DevFormAction _focusedAction = DevFormAction.submit;
 
   WorkerPartType get _partType => _partTypes[_partTypeIndex];
 
@@ -49,6 +50,7 @@ class _DevPartFormState extends State<DevPartForm> {
     _PartFormField.partType => 0,
     _PartFormField.table => 1,
     _PartFormField.className => _partType.requiresTable ? 2 : 1,
+    _PartFormField.actions => _partType.requiresTable ? 2 : 1,
   };
 
   void _blurField() {
@@ -116,6 +118,15 @@ class _DevPartFormState extends State<DevPartForm> {
   }
 
   void _nextField() {
+    if (_field == _PartFormField.actions) {
+      setState(() {
+        _focusedAction = _focusedAction == DevFormAction.cancel
+            ? DevFormAction.submit
+            : DevFormAction.cancel;
+      });
+      return;
+    }
+
     setState(() {
       _field = switch (_field) {
         _PartFormField.none => _PartFormField.partType,
@@ -124,23 +135,58 @@ class _DevPartFormState extends State<DevPartForm> {
               ? _PartFormField.table
               : _PartFormField.className,
         _PartFormField.table => _PartFormField.className,
-        _PartFormField.className => _PartFormField.none,
+        _PartFormField.className => _PartFormField.actions,
+        _PartFormField.actions => _PartFormField.none,
       };
+      if (_field == _PartFormField.actions) {
+        _focusedAction = DevFormAction.cancel;
+      }
     });
   }
 
   void _previousField() {
+    if (_field == _PartFormField.actions) {
+      setState(() {
+        if (_focusedAction == DevFormAction.submit) {
+          _focusedAction = DevFormAction.cancel;
+        } else {
+          _field = _PartFormField.className;
+        }
+      });
+      return;
+    }
+
     setState(() {
       _field = switch (_field) {
-        _PartFormField.none => _PartFormField.className,
+        _PartFormField.none => _PartFormField.actions,
         _PartFormField.partType => _PartFormField.none,
         _PartFormField.table => _PartFormField.partType,
         _PartFormField.className =>
           _partType.requiresTable
               ? _PartFormField.table
               : _PartFormField.partType,
+        _PartFormField.actions => _PartFormField.className,
       };
+      if (_field == _PartFormField.actions) {
+        _focusedAction = DevFormAction.submit;
+      }
     });
+  }
+
+  void _activateAction() {
+    switch (_focusedAction) {
+      case DevFormAction.cancel:
+        _cancel();
+      case DevFormAction.submit:
+        _submit();
+    }
+  }
+
+  bool get _canSubmit {
+    final className = _classNameController.text.trim();
+    if (className.isEmpty) return false;
+    if (_partType.requiresTable && _selectedTable == null) return false;
+    return true;
   }
 
   void _submit() {
@@ -252,6 +298,12 @@ class _DevPartFormState extends State<DevPartForm> {
           return true;
         }
 
+        if (_field == _PartFormField.actions &&
+            event.logicalKey == LogicalKey.enter) {
+          _activateAction();
+          return true;
+        }
+
         return false;
       },
       child: DevFormCard(
@@ -261,6 +313,21 @@ class _DevPartFormState extends State<DevPartForm> {
         focusedFieldIndex: _focusedFieldIndex,
         onBackgroundTap: _blurField,
         fields: fields,
+        footer: DevFormActionBar(
+          submitLabel: 'Create',
+          focusedAction: _field == _PartFormField.actions ? _focusedAction : null,
+          onFocusSubmit: () => setState(() {
+            _field = _PartFormField.actions;
+            _focusedAction = DevFormAction.submit;
+          }),
+          onFocusCancel: () => setState(() {
+            _field = _PartFormField.actions;
+            _focusedAction = DevFormAction.cancel;
+          }),
+          onSubmit: _submit,
+          onCancel: _cancel,
+          submitEnabled: _canSubmit,
+        ),
       ),
     );
   }

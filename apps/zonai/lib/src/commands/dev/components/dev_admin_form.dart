@@ -33,18 +33,57 @@ class _DevAdminFormState extends State<DevAdminForm> {
   final _extraControllers = <String, TextEditingController>{};
 
   int _fieldIndex = 0;
+  DevFormAction _focusedAction = DevFormAction.submit;
+  var _actionsFocused = false;
 
   List<ColumnShape> get _extraFields => component.extraFields;
 
   int get _fieldCount => 2 + _extraFields.length;
 
-  bool get _textFieldFocused => _fieldIndex >= 0;
+  bool get _textFieldFocused => _fieldIndex >= 0 && !_actionsFocused;
 
   int get _focusedFieldIndex => _textFieldFocused ? _fieldIndex : 0;
 
   void _blurField() {
-    if (!_textFieldFocused) return;
-    setState(() => _fieldIndex = -1);
+    if (!_textFieldFocused && !_actionsFocused) return;
+    setState(() {
+      _fieldIndex = -1;
+      _actionsFocused = false;
+    });
+  }
+
+  void _focusActions() {
+    setState(() {
+      _fieldIndex = -1;
+      _actionsFocused = true;
+      _focusedAction = DevFormAction.submit;
+    });
+  }
+
+  void _activateAction() {
+    switch (_focusedAction) {
+      case DevFormAction.cancel:
+        _cancel();
+      case DevFormAction.submit:
+        _submit();
+    }
+  }
+
+  bool get _canSubmit {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) return false;
+
+    final extraValues = <String, String>{
+      for (final shape in _extraFields)
+        shape.name: _extraControllers[shape.name]?.text.trim() ?? '',
+    };
+
+    final missing = missingAdminExtraFieldLabels(
+      extraFields: _extraFields,
+      values: extraValues,
+    );
+    return missing.isEmpty;
   }
 
   @override
@@ -76,13 +115,36 @@ class _DevAdminFormState extends State<DevAdminForm> {
   }
 
   void _nextField() {
+    if (_actionsFocused) {
+      setState(() {
+        _focusedAction = _focusedAction == DevFormAction.cancel
+            ? DevFormAction.submit
+            : DevFormAction.cancel;
+      });
+      return;
+    }
     if (_fieldCount <= 1) return;
     setState(() {
-      _fieldIndex = _fieldIndex < 0 ? 0 : (_fieldIndex + 1) % _fieldCount;
+      if (_fieldIndex >= _fieldCount - 1) {
+        _focusActions();
+      } else {
+        _fieldIndex = _fieldIndex < 0 ? 0 : (_fieldIndex + 1) % _fieldCount;
+      }
     });
   }
 
   void _previousField() {
+    if (_actionsFocused) {
+      setState(() {
+        if (_focusedAction == DevFormAction.submit) {
+          _focusedAction = DevFormAction.cancel;
+        } else {
+          _actionsFocused = false;
+          _fieldIndex = _fieldCount - 1;
+        }
+      });
+      return;
+    }
     if (_fieldCount <= 1) return;
     setState(() {
       _fieldIndex = _fieldIndex < 0
@@ -206,6 +268,10 @@ class _DevAdminFormState extends State<DevAdminForm> {
           _previousField();
           return true;
         }
+        if (_actionsFocused && event.logicalKey == LogicalKey.enter) {
+          _activateAction();
+          return true;
+        }
         return false;
       },
       child: DevFormCard(
@@ -215,6 +281,21 @@ class _DevAdminFormState extends State<DevAdminForm> {
         focusedFieldIndex: _focusedFieldIndex,
         onBackgroundTap: _blurField,
         fields: _buildFields(),
+        footer: DevFormActionBar(
+          submitLabel: 'Create',
+          focusedAction: _actionsFocused ? _focusedAction : null,
+          onFocusSubmit: () => setState(() {
+            _actionsFocused = true;
+            _focusedAction = DevFormAction.submit;
+          }),
+          onFocusCancel: () => setState(() {
+            _actionsFocused = true;
+            _focusedAction = DevFormAction.cancel;
+          }),
+          onSubmit: _submit,
+          onCancel: _cancel,
+          submitEnabled: _canSubmit,
+        ),
       ),
     );
   }

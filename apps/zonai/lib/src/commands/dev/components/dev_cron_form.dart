@@ -21,6 +21,8 @@ class DevCronForm extends StatefulComponent {
 
 class _DevCronFormState extends State<DevCronForm> {
   int _jobIndex = 0;
+  DevFormAction _focusedAction = DevFormAction.submit;
+  var _actionsFocused = false;
 
   List<String> get _jobs => component.cronJobNames;
 
@@ -41,8 +43,22 @@ class _DevCronFormState extends State<DevCronForm> {
   void _submit() {
     if (_jobs.isEmpty) return;
     component.onSubmit(_jobs[_jobIndex]);
-    setState(() => _jobIndex = 0);
+    setState(() {
+      _jobIndex = 0;
+      _actionsFocused = false;
+    });
   }
+
+  void _activateAction() {
+    switch (_focusedAction) {
+      case DevFormAction.cancel:
+        _cancel();
+      case DevFormAction.submit:
+        _submit();
+    }
+  }
+
+  bool get _canSubmit => _jobs.isNotEmpty;
 
   @override
   Component build(BuildContext context) {
@@ -62,7 +78,26 @@ class _DevCronFormState extends State<DevCronForm> {
           _cycleJob(forward: false);
           return true;
         }
-        if (event.logicalKey == LogicalKey.enter) {
+        if (_actionsFocused) {
+          if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
+            setState(() {
+              _focusedAction = _focusedAction == DevFormAction.cancel
+                  ? DevFormAction.submit
+                  : DevFormAction.cancel;
+            });
+            return true;
+          }
+          if (event.logicalKey == LogicalKey.enter) {
+            _activateAction();
+            return true;
+          }
+        } else if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
+          setState(() {
+            _actionsFocused = true;
+            _focusedAction = DevFormAction.submit;
+          });
+          return true;
+        } else if (event.logicalKey == LogicalKey.enter) {
           _submit();
           return true;
         }
@@ -77,9 +112,24 @@ class _DevCronFormState extends State<DevCronForm> {
             label: 'Job',
             options: _jobs,
             selectedIndex: _jobIndex,
-            focused: true,
+            focused: !_actionsFocused,
           ),
         ],
+        footer: DevFormActionBar(
+          submitLabel: 'Run',
+          focusedAction: _actionsFocused ? _focusedAction : null,
+          onFocusSubmit: () => setState(() {
+            _actionsFocused = true;
+            _focusedAction = DevFormAction.submit;
+          }),
+          onFocusCancel: () => setState(() {
+            _actionsFocused = true;
+            _focusedAction = DevFormAction.cancel;
+          }),
+          onSubmit: _submit,
+          onCancel: _cancel,
+          submitEnabled: _canSubmit,
+        ),
       ),
     );
   }
