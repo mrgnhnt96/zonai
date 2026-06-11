@@ -38,6 +38,12 @@ final class DevApp extends AppConfig {
   }
 
   @override
+  void onServerStarted(HttpServer server) {
+    super.onServerStarted(server);
+    print('Access the UI at http://${server.address.host}:${server.port}/_');
+  }
+
+  @override
   Future<HttpServer> runStartup(Future<HttpServer> Function() startup) async {
     final parentLogger = read(
       loggerProvider,
