@@ -268,7 +268,7 @@ class _DevAdminFormState extends State<DevAdminForm> {
           _previousField();
           return true;
         }
-        if (_actionsFocused && event.logicalKey == LogicalKey.enter) {
+        if (_actionsFocused && devFormActivateKey(event)) {
           _activateAction();
           return true;
         }

@@ -246,7 +246,7 @@ class _DevEmailPreviewFormState extends State<DevEmailPreviewForm> {
             return true;
           }
         }
-        if (event.logicalKey == LogicalKey.enter) {
+        if (devFormActivateKey(event)) {
           _activateFocusedField();
           return true;
         }

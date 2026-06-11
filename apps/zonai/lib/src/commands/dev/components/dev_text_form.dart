@@ -105,7 +105,7 @@ class _DevTextFormState extends State<DevTextForm> {
           }
           return true;
         }
-        if (!_inputFocused && event.logicalKey == LogicalKey.enter) {
+        if (!_inputFocused && devFormActivateKey(event)) {
           _activateAction();
           return true;
         }

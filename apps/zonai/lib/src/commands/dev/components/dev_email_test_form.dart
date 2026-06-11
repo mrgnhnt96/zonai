@@ -170,8 +170,7 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
             return true;
           }
         }
-        if (_field == _EmailTestField.actions &&
-            event.logicalKey == LogicalKey.enter) {
+        if (_field == _EmailTestField.actions && devFormActivateKey(event)) {
           _activateAction();
           return true;
         }

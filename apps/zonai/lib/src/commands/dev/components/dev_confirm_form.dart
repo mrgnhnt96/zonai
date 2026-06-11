@@ -176,6 +176,7 @@ class _DevConfirmFormState extends State<DevConfirmForm> {
             _toggleChoice();
             return true;
           case LogicalKey.enter:
+          case LogicalKey.space:
             _submitFocused();
             return true;
           default:

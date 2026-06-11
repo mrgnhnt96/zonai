@@ -92,7 +92,7 @@ class _DevRulesFormState extends State<DevRulesForm> {
           }
           return true;
         }
-        if (!_inputFocused && event.logicalKey == LogicalKey.enter) {
+        if (!_inputFocused && devFormActivateKey(event)) {
           _activateAction();
           return true;
         }

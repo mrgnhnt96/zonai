@@ -292,6 +292,12 @@ class DevFormField extends StatelessComponent {
 
 enum DevFormAction { cancel, submit }
 
+/// Enter or Space — activates a focused [DevFormActionBar] button.
+bool devFormActivateKey(KeyboardEvent event) {
+  return event.logicalKey == LogicalKey.enter ||
+      event.logicalKey == LogicalKey.space;
+}
+
 class DevFormActionBar extends StatelessComponent {
   const DevFormActionBar({
     required this.submitLabel,

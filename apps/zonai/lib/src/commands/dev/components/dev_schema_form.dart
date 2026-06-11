@@ -411,8 +411,7 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
           return true;
         }
 
-        if (_field == _SchemaFormField.actions &&
-            event.logicalKey == LogicalKey.enter) {
+        if (_field == _SchemaFormField.actions && devFormActivateKey(event)) {
           _activateAction();
           return true;
         }

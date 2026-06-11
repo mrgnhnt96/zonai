@@ -298,8 +298,7 @@ class _DevPartFormState extends State<DevPartForm> {
           return true;
         }
 
-        if (_field == _PartFormField.actions &&
-            event.logicalKey == LogicalKey.enter) {
+        if (_field == _PartFormField.actions && devFormActivateKey(event)) {
           _activateAction();
           return true;
         }

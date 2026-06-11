@@ -95,7 +95,7 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
           }
           return true;
         }
-        if (!_inputFocused && event.logicalKey == LogicalKey.enter) {
+        if (!_inputFocused && devFormActivateKey(event)) {
           _activateAction();
           return true;
         }

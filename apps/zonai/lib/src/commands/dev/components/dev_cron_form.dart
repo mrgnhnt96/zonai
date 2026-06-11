@@ -78,26 +78,26 @@ class _DevCronFormState extends State<DevCronForm> {
           _cycleJob(forward: false);
           return true;
         }
-        if (_actionsFocused) {
-          if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
+        if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
+          if (_actionsFocused) {
             setState(() {
               _focusedAction = _focusedAction == DevFormAction.cancel
                   ? DevFormAction.submit
                   : DevFormAction.cancel;
             });
-            return true;
+          } else {
+            setState(() {
+              _actionsFocused = true;
+              _focusedAction = DevFormAction.submit;
+            });
           }
-          if (event.logicalKey == LogicalKey.enter) {
-            _activateAction();
-            return true;
-          }
-        } else if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
-          setState(() {
-            _actionsFocused = true;
-            _focusedAction = DevFormAction.submit;
-          });
           return true;
-        } else if (event.logicalKey == LogicalKey.enter) {
+        }
+        if (_actionsFocused && devFormActivateKey(event)) {
+          _activateAction();
+          return true;
+        }
+        if (devFormActivateKey(event)) {
           _submit();
           return true;
         }
