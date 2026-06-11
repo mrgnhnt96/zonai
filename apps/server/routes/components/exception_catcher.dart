@@ -1,5 +1,6 @@
 import 'package:revali_router/revali_router.dart';
 import 'package:zonai/deps.dart';
+import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 
 final class Exceptions implements LifecycleComponent {
   const Exceptions();
