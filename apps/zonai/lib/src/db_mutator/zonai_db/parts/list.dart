@@ -52,7 +52,11 @@ extension _ListX on ZonaiDb {
       final (error, result) = await _execute((operation.query, operation.values));
       logger.trace('sql_execute');
       if (error != null || result == null) {
-        throw error ?? RecordListFailedException(table: table);
+        _throwDatabaseError(
+          error,
+          table: table,
+          failure: ([cause]) => RecordListFailedException(table: table, cause: cause),
+        );
       }
 
       final objects = result.rows.map((e) => e.toMap()).toList();

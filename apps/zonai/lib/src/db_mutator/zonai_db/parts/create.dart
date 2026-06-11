@@ -30,7 +30,11 @@ extension _CreateX on ZonaiDb {
           ),
         );
 
-        throw error ?? RecordCreateFailedException(table: table);
+        _throwDatabaseError(
+          error,
+          table: table,
+          failure: ([cause]) => RecordCreateFailedException(table: table, cause: cause),
+        );
       }
 
       step = 'sanitize';

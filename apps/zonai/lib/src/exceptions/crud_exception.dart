@@ -115,3 +115,27 @@ final class InvalidPasswordUpdateException extends CrudException {
   String toString() =>
       'Password column on table "$table" can only be updated with a plain string value';
 }
+
+final class ForeignKeyConstraintException extends CrudException {
+  const ForeignKeyConstraintException({required super.table});
+
+  @override
+  String toString() => 'That reference does not match an existing row.';
+}
+
+final class UniqueConstraintException extends CrudException {
+  const UniqueConstraintException({required super.table});
+
+  @override
+  String toString() => 'A record with that value already exists.';
+}
+
+final class InvalidColumnValueException extends CrudException {
+  const InvalidColumnValueException({required super.table, this.cause});
+
+  final Object? cause;
+
+  @override
+  String toString() =>
+      'An ID field has an invalid format. Use the full text ID (for example test-1234567890_co).';
+}

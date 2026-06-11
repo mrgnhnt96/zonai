@@ -119,7 +119,11 @@ extension _ExpandX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      throw error ?? const ExpandedRecordReadFailedException();
+      throw mapDatabaseError(
+        error ?? const ExpandedRecordReadFailedException(),
+        table: table,
+        orElse: (_) => ExpandedRecordReadFailedException(cause: error),
+      );
     }
 
     if (result.rows.isEmpty) {

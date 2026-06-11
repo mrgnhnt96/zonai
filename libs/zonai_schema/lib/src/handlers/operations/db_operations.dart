@@ -91,23 +91,12 @@ class DbOperations {
 
   Never _failMissingTable(String tableName) {
     final registered = operationsByTable.keys.toList()..sort();
-    final buf = StringBuffer(
-      'Operations request for "$tableName" could not be handled.\n',
+    logger.error(
+      'Operations request for "$tableName" could not be handled. '
+      'Registered table names: '
+      '${registered.isEmpty ? '(none)' : registered.join(', ')}.',
     );
-    buf
-      ..writeln(
-        'No operations are registered for table name "$tableName". '
-        'The operations list may be missing this table (e.g. loadOperation '
-        'failed, or main() did not return TableOperations).',
-      )
-      ..writeln(
-        'Registered table names: '
-        '${registered.isEmpty ? '(none)' : registered.join(', ')}.',
-      );
-
-    final message = buf.toString().trim();
-    logger.error(message);
-    throw StateError(message);
+    throw TableNotRegisteredException(table: tableName);
   }
 
   Future<ColumnNameResponse> _getColumnName(
@@ -159,12 +148,19 @@ class DbOperations {
       _failMissingTable(request.table);
     }
 
-    final column = ops.table.columns.firstWhere(
-      (c) => c.name == request.columnName,
-      orElse: () => throw StateError(
-        'Column "${request.columnName}" not found on "${request.table}"',
-      ),
-    );
+    rd.Column<dynamic, dynamic>? column;
+    for (final candidate in ops.table.columns) {
+      if (candidate.name == request.columnName) {
+        column = candidate;
+        break;
+      }
+    }
+    if (column == null) {
+      throw ColumnNotFoundException(
+        table: request.table,
+        columnName: request.columnName,
+      );
+    }
 
     final fkRef = column.foreignKeyReference;
 

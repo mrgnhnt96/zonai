@@ -141,6 +141,22 @@ extension UtilsX on ZonaiDb {
     return await _operations.send<PerformOperationResponse>(request);
   }
 
+  Never _throwDatabaseError(
+    Object? error, {
+    required String table,
+    required CrudException Function([Object? cause]) failure,
+  }) {
+    if (error == null) {
+      throw failure(null);
+    }
+
+    throw mapDatabaseError(
+      error,
+      table: table,
+      orElse: (cause) => failure(cause),
+    );
+  }
+
   bool _preserveSecretsForJwt(Jwt? jwt) =>
       jwt?.admin.isAdmin == true || jwt?.admin.canEdit == true;
 

@@ -33,7 +33,11 @@ extension _DeleteX on ZonaiDb {
           ),
         );
 
-        throw deleteError ?? RecordDeleteFailedException(table: table);
+        _throwDatabaseError(
+          deleteError,
+          table: table,
+          failure: ([cause]) => RecordDeleteFailedException(table: table, cause: cause),
+        );
       }
 
       logger.verbose(
@@ -95,7 +99,11 @@ extension _DeleteX on ZonaiDb {
     ));
     logger.trace('sql_execute_read', extra: {'rows': readResult?.rows.length ?? 0});
     if (readError != null || readResult == null) {
-      throw readError ?? RecordReadFailedException(table: table);
+      _throwDatabaseError(
+        readError,
+        table: table,
+        failure: ([cause]) => RecordReadFailedException(table: table, cause: cause),
+      );
     }
 
     if (readResult.rows.isEmpty) {

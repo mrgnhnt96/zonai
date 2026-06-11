@@ -68,6 +68,18 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 422,
         body: {'error': '$exception'},
       ),
+      ForeignKeyConstraintException() => .handled(
+        statusCode: 422,
+        body: {'error': '$exception'},
+      ),
+      UniqueConstraintException() => .handled(
+        statusCode: 409,
+        body: {'error': '$exception'},
+      ),
+      InvalidColumnValueException() => .handled(
+        statusCode: 422,
+        body: {'error': '$exception'},
+      ),
       RecordCreateFailedException() ||
       RecordReadFailedException() ||
       RecordUpdateFailedException() ||
@@ -109,6 +121,14 @@ final class Exceptions implements LifecycleComponent {
     return switch (exception) {
       ColumnNotExpandableException() => .handled(
         statusCode: 400,
+        body: {'error': '$exception'},
+      ),
+      ColumnNotFoundException() => .handled(
+        statusCode: 400,
+        body: {'error': '$exception'},
+      ),
+      TableNotRegisteredException() => .handled(
+        statusCode: 404,
         body: {'error': '$exception'},
       ),
       DatabaseNotOpenException() => .handled(

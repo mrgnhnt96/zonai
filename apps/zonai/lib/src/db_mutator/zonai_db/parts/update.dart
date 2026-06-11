@@ -26,7 +26,11 @@ extension _UpdateX on ZonaiDb {
       ));
       logger.trace('sql_execute_update');
       if (updateError != null) {
-        throw updateError;
+        _throwDatabaseError(
+          updateError,
+          table: table,
+          failure: ([cause]) => RecordUpdateFailedException(table: table, cause: cause),
+        );
       }
 
       if (updateResult == null) {
@@ -57,7 +61,11 @@ extension _UpdateX on ZonaiDb {
           ),
         );
 
-        throw updatedError ?? RecordUpdateFailedException(table: table);
+        _throwDatabaseError(
+          updatedError,
+          table: table,
+          failure: ([cause]) => RecordUpdateFailedException(table: table, cause: cause),
+        );
       }
 
       final updatedObjects = updatedResult.rows.map((e) => e.toMap()).toList();
@@ -193,7 +201,11 @@ extension _UpdateX on ZonaiDb {
       extra: {'rows': readResult?.rows.length ?? 0},
     );
     if (readError != null) {
-      throw readError;
+      _throwDatabaseError(
+        readError,
+        table: table,
+        failure: ([cause]) => RecordReadFailedException(table: table, cause: cause),
+      );
     }
 
     if (readResult == null) {

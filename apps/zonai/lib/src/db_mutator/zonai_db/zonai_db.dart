@@ -378,10 +378,12 @@ class ZonaiDb {
     } on PermissionException {
       rethrow;
     } catch (e, stack) {
-      Error.throwWithStackTrace(
-        StateError('Failed to run database operation: $e'),
-        stack,
+      final mapped = mapDatabaseError(
+        e,
+        table: 'unknown',
+        orElse: (cause) => StateError('Failed to run database operation: $cause'),
       );
+      Error.throwWithStackTrace(mapped, stack);
     }
   }
 
@@ -413,10 +415,12 @@ class ZonaiDb {
     } on PermissionException {
       rethrow;
     } catch (e, stack) {
-      Error.throwWithStackTrace(
-        StateError('Failed to run database stream: $e'),
-        stack,
+      final mapped = mapDatabaseError(
+        e,
+        table: 'unknown',
+        orElse: (cause) => StateError('Failed to run database stream: $cause'),
       );
+      Error.throwWithStackTrace(mapped, stack);
     }
   }
 }

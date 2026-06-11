@@ -44,12 +44,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     for (final column in table.columns) {
       if (column.name == name) return column;
     }
-    throw ArgumentError.value(
-      name,
-      'column',
-      'Unknown column on table "${table.name}". '
-          'Known columns: ${table.columns.map((c) => c.name).join(', ')}',
-    );
+    throw ColumnNotFoundException(table: table.name, columnName: name);
   }
 
   static rd.Raindrop? __db;

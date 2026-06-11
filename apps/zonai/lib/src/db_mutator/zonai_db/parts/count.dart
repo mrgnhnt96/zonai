@@ -21,7 +21,11 @@ extension _CountX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      throw error ?? RecordCountFailedException(table: table);
+      _throwDatabaseError(
+        error,
+        table: table,
+        failure: ([cause]) => RecordCountFailedException(table: table, cause: cause),
+      );
     }
 
     final count = _countFromResult(result);
@@ -39,7 +43,11 @@ extension _CountX on ZonaiDb {
 
     final (error, result) = await _execute((operation.query, operation.values));
     if (error != null || result == null) {
-      throw error ?? RecordCountFailedException(table: table);
+      _throwDatabaseError(
+        error,
+        table: table,
+        failure: ([cause]) => RecordCountFailedException(table: table, cause: cause),
+      );
     }
 
     final stream = _stream(operation.query, operation.values);
