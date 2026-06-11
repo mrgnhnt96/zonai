@@ -174,6 +174,7 @@ void main() {
                   SidebarLink(text: 'zonai db', href: '/cli/db'),
                   SidebarLink(text: 'zonai rules', href: '/cli/rules'),
                   SidebarLink(text: 'zonai cron', href: '/cli/cron'),
+                  SidebarLink(text: 'zonai ai', href: '/cli/ai'),
                   SidebarLink(text: 'zonai version', href: '/cli/version'),
                   SidebarLink(text: 'Global Flags', href: '/cli/global-flags'),
                 ],
