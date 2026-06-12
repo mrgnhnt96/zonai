@@ -52,6 +52,14 @@ raindrop:
       git branch -D main
       git fetch upstream main:main
 
+zonai_client:
+  (aliases): [client]
+  gen: cd libs/zonai_client && dart run tool/sync_revali_client.dart
+  stub: cd libs/zonai_client && dart run tool/sync_revali_client.dart --stub
+
+swagger:
+  gen: cd apps/server && dart run tool/generate_swagger_assets.dart
+
 web:
   gen:
     (bail):
@@ -94,6 +102,7 @@ server:
       - rm -rf apps/web/lib/gen/client
       - mkdir -p apps/web/lib/gen/client
       - cp -r apps/server/.revali/revali_client/lib/. apps/web/lib/gen/client/
+      - cd libs/zonai_client && dart run tool/sync_revali_client.dart
   copy-to-cli:
     (aliases): [cli, copy, c]
     (bail):
