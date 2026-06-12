@@ -47,7 +47,7 @@ final class DevApp extends AppConfig {
   Future<HttpServer> runStartup(Future<HttpServer> Function() startup) async {
     final parentLogger = read(
       loggerProvider,
-      orElse: () => Logger.print(level: .verbose),
+      orElse: () => Logger.print(level: .info),
     );
 
     return await runMergedScoped(
