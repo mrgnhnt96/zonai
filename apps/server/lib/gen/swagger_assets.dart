@@ -37,19 +37,6 @@ const kSwaggerJson = r'''{
         }
       }
     },
-    "/_/*path": {
-      "get": {
-        "operationId": "web_get",
-        "tags": [
-          "web"
-        ],
-        "responses": {
-          "200": {
-            "description": "No content"
-          }
-        }
-      }
-    },
     "/health": {
       "get": {
         "operationId": "root_health",
@@ -59,6 +46,46 @@ const kSwaggerJson = r'''{
         "responses": {
           "200": {
             "description": "No content"
+          }
+        }
+      }
+    },
+    "/swagger.json": {
+      "get": {
+        "operationId": "root_swaggerJson",
+        "tags": [
+          "root"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger.yaml": {
+      "get": {
+        "operationId": "root_swaggerYaml",
+        "tags": [
+          "root"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -130,6 +157,27 @@ const kSwaggerJson = r'''{
             "description": "No content"
           }
         }
+      },
+      "delete": {
+        "operationId": "photos_delete",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
       }
     },
     "/img": {
@@ -170,58 +218,6 @@ const kSwaggerJson = r'''{
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "photos_delete",
-        "tags": [
-          "photos"
-        ],
-        "responses": {
-          "200": {
-            "description": "No content"
-          }
-        }
-      }
-    },
-    "/dashboard/metrics": {
-      "get": {
-        "operationId": "dashboard_metrics",
-        "tags": [
-          "dashboard"
-        ],
-        "parameters": [
-          {
-            "name": "since",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
-            }
-          },
-          {
-            "name": "exclude_admin",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "nullable": true
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DashboardMetrics"
                 }
               }
             }
@@ -870,57 +866,6 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "table"
-        ]
-      },
-      "DashboardMetrics": {
-        "type": "object",
-        "properties": {
-          "requestCount24h": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "errorCount24h": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "activeSessions": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "p95ResponseMs": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "requestBuckets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DashboardRequestBucket"
-            }
-          }
-        },
-        "required": [
-          "requestCount24h",
-          "errorCount24h",
-          "activeSessions",
-          "requestBuckets"
-        ]
-      },
-      "DashboardRequestBucket": {
-        "type": "object",
-        "properties": {
-          "hour": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "count": {
-            "type": "integer",
-            "format": "int64"
-          }
-        },
-        "required": [
-          "hour",
-          "count"
         ]
       },
       "GetBody": {
@@ -1879,14 +1824,6 @@ paths:
       responses:
         '200':
           description: No content
-  '/_/*path':
-    get:
-      operationId: web_get
-      tags:
-        - web
-      responses:
-        '200':
-          description: No content
   '/health':
     get:
       operationId: root_health
@@ -1895,6 +1832,30 @@ paths:
       responses:
         '200':
           description: No content
+  '/swagger.json':
+    get:
+      operationId: root_swaggerJson
+      tags:
+        - root
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: string
+  '/swagger.yaml':
+    get:
+      operationId: root_swaggerYaml
+      tags:
+        - root
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: string
   '/img/{id}':
     get:
       operationId: photos_view
@@ -1938,6 +1899,19 @@ paths:
       responses:
         '200':
           description: No content
+    delete:
+      operationId: photos_delete
+      tags:
+        - photos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: No content
   '/img':
     post:
       operationId: photos_create
@@ -1966,39 +1940,6 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-    delete:
-      operationId: photos_delete
-      tags:
-        - photos
-      responses:
-        '200':
-          description: No content
-  '/dashboard/metrics':
-    get:
-      operationId: dashboard_metrics
-      tags:
-        - dashboard
-      parameters:
-        - name: since
-          in: query
-          required: false
-          schema:
-            type: integer
-            format: int64
-            nullable: true
-        - name: exclude_admin
-          in: query
-          required: false
-          schema:
-            type: boolean
-            nullable: true
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DashboardMetrics'
   '/db':
     get:
       operationId: db_get
@@ -2398,43 +2339,6 @@ components:
           type: string
       required:
         - table
-    DashboardMetrics:
-      type: object
-      properties:
-        requestCount24h:
-          type: integer
-          format: int64
-        errorCount24h:
-          type: integer
-          format: int64
-        activeSessions:
-          type: integer
-          format: int64
-        p95ResponseMs:
-          type: integer
-          format: int64
-          nullable: true
-        requestBuckets:
-          type: array
-          items:
-            $ref: '#/components/schemas/DashboardRequestBucket'
-      required:
-        - requestCount24h
-        - errorCount24h
-        - activeSessions
-        - requestBuckets
-    DashboardRequestBucket:
-      type: object
-      properties:
-        hour:
-          type: integer
-          format: int64
-        count:
-          type: integer
-          format: int64
-      required:
-        - hour
-        - count
     GetBody:
       type: object
       properties:

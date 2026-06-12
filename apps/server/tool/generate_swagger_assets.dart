@@ -7,8 +7,11 @@
 // Pass --stub to write placeholder constants before swagger files exist.
 
 import 'dart:io';
+import 'package:file/local.dart';
 
-const _sourceDir = 'public';
+const fs = LocalFileSystem();
+
+final _sourceDir = fs.path.join('.revali', 'revali_swagger');
 const _outputPath = 'lib/gen/swagger_assets.dart';
 
 const _sources = {
@@ -44,7 +47,8 @@ void main(List<String> args) {
 
   final outputFile = File('${packageRoot.path}/$_outputPath');
   if (checkOnly) {
-    if (!outputFile.existsSync() || outputFile.readAsStringSync() != generated) {
+    if (!outputFile.existsSync() ||
+        outputFile.readAsStringSync() != generated) {
       stderr.writeln(
         '${outputFile.path} is out of date. '
         'Run: dart run tool/generate_swagger_assets.dart',
