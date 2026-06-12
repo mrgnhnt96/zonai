@@ -14,6 +14,7 @@ dependencies:
   jaspr_riverpod: ^0.4.5
   path: ^1.9.1
   revali_router:
+  riverpod: 3.2.1
   universal_web: ^1.1.1
   scoped_deps:
     path: ../../libs/scoped_deps
