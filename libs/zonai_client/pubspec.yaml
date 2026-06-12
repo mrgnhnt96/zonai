@@ -1,0 +1,14 @@
+name: zonai_client
+description: Generated HTTP client for the Zonai Revali server.
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  http: ^1.6.0
+  revali_client: ^2.0.4
+  zonai_schema:
+    path: ../zonai_schema

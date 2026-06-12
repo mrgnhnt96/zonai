@@ -43,11 +43,11 @@ class PhotosController {
     return await photoHandler.update(authorization, image, id);
   }
 
-  @Delete()
+  @Delete(':id')
   Future<void> delete({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Param() required String id,
   }) async {
-    await photoHandler.delete(authorization, id);
+    await photoHandler.delete(authorization: authorization, id: id);
   }
 }

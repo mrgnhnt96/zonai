@@ -51,7 +51,10 @@ class PhotoHandler {
     );
   }
 
-  Future<void> delete(String? authorization, String id) async {
+  Future<void> delete({
+    required String? authorization,
+    required String id,
+  }) async {
     await zonaiDB.deletePhoto(
       token: _parseBearerAuthorization(authorization),
       id: id,
