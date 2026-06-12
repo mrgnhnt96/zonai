@@ -970,6 +970,20 @@ packages:
       url: "https://github.com/mrgnhnt96/revali.git"
     source: git
     version: "2.3.0"
+  revali_swagger:
+    dependency: "direct overridden"
+    description:
+      path: "../../revali/constructs/revali_swagger/revali_swagger"
+      relative: true
+    source: path
+    version: "1.0.0"
+  revali_swagger_annotations:
+    dependency: transitive
+    description:
+      path: "../../revali/constructs/revali_swagger/revali_swagger_annotations"
+      relative: true
+    source: path
+    version: "1.0.0"
   riverpod:
     dependency: transitive
     description:

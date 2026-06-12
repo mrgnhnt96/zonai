@@ -24,6 +24,8 @@ build/
 
 **Not included:** source code, the SQLite database, `.env` files (secrets are baked in at compile time).
 
+The OpenAPI spec is embedded in the server binary, so `/swagger.json` and `/swagger.yaml` work in production without shipping a separate `public/` directory. See [OpenAPI Specification](/api/openapi-spec).
+
 ## Pre-Build Checklist
 
 Before running `zonai build`:

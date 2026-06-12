@@ -25,6 +25,8 @@
 - [ ] Add prefix & suffix positional optional params to Id.generate
 - [ ] When logging 400+ response codes use warning color
 - [ ] When logging 500+ response codes, use error color
+- [ ] Add endpoint to insert many
+- [ ] Add a `groupBy` field to the `list` endpoint
 
 ## CLI
 

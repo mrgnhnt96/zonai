@@ -180,6 +180,12 @@ void main() {
                 ],
               ),
               SidebarGroup(
+                title: 'API',
+                links: [
+                  SidebarLink(text: 'OpenAPI Specification', href: '/api/openapi-spec'),
+                ],
+              ),
+              SidebarGroup(
                 title: 'Deployment',
                 links: [
                   SidebarLink(text: 'Building for Production', href: '/deployment/building-for-production'),

@@ -62,3 +62,7 @@ Send `SIGTERM` (or `SIGINT` / Ctrl+C) to shut down gracefully. In-flight request
 ## Health Checks
 
 Zonai exposes a built-in health endpoint at `GET /health`. Use it to verify the server is up and accepting requests.
+
+## OpenAPI Spec
+
+The full API surface is described at `GET /swagger.json` and `GET /swagger.yaml`. Import either URL into Swagger UI, Postman, or an OpenAPI code generator. See [OpenAPI Specification](/api/openapi-spec).
