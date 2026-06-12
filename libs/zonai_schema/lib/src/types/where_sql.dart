@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 import 'where_value.dart';
 
 extension WhereX on Where {
-  String sql(String tableName) {
+  (String, List<Object?>) sql(String tableName) {
     return WhereSql(tableName, this).toSql();
   }
 }
@@ -21,77 +21,77 @@ class WhereSql {
   final String table;
   final Where data;
 
-  String toSql([Where? data]) {
-    final where = data ?? this.data;
+  (String, List<Object?>) toSql([Where? data]) {
+    final params = <Object?>[];
+    final sql = _build(data ?? this.data, params);
+    return (sql, params);
+  }
 
+  String _col(String column) => '"${_esc(table)}"."${_esc(column)}"';
+
+  String _build(Where where, List<Object?> params) {
     switch (where) {
       case Eq(:final column, :final value):
-        return '"${table}"."${column}" = ${whereValueSqlLiteral(value)}';
+        params.add(whereValueToParam(value));
+        return '${_col(column)} = ?';
 
       case Null(:final column):
-        return '"${table}"."${column}" IS NULL';
+        return '${_col(column)} IS NULL';
 
       case NotNull(:final column):
-        return '"${table}"."${column}" IS NOT NULL';
+        return '${_col(column)} IS NOT NULL';
 
       case Gt(:final column, :final value):
-        return '"${table}"."${column}" > ${whereValueSqlLiteral(value)}';
+        params.add(whereValueToParam(value));
+        return '${_col(column)} > ?';
 
       case Lt(:final column, :final value):
-        return '"${table}"."${column}" < ${whereValueSqlLiteral(value)}';
+        params.add(whereValueToParam(value));
+        return '${_col(column)} < ?';
 
       case Gte(:final column, :final value):
-        return '"${table}"."${column}" >= ${whereValueSqlLiteral(value)}';
+        params.add(whereValueToParam(value));
+        return '${_col(column)} >= ?';
 
       case Lte(:final column, :final value):
-        return '"${table}"."${column}" <= ${whereValueSqlLiteral(value)}';
+        params.add(whereValueToParam(value));
+        return '${_col(column)} <= ?';
 
       case In(:final column, :final values):
-        final placeholders = values.map(whereValueSqlLiteral).join(', ');
-        return '"${table}"."${column}" IN ($placeholders)';
+        if (values.isEmpty) return '1 = 0';
+        params.addAll(values.map(whereValueToParam));
+        return '${_col(column)} IN (${List.filled(values.length, '?').join(', ')})';
 
       case NotIn(:final column, :final values):
-        if (values.isEmpty) {
-          return '"${table}"."${column}" IS NULL';
-        }
-        final placeholders = values.map(whereValueSqlLiteral).join(', ');
-        return '"${table}"."${column}" NOT IN ($placeholders)';
+        if (values.isEmpty) return '${_col(column)} IS NULL';
+        params.addAll(values.map(whereValueToParam));
+        return '${_col(column)} NOT IN (${List.filled(values.length, '?').join(', ')})';
 
       case Contains(:final column, :final value):
-        return '"${table}"."${column}" LIKE \'%${escapeSqlString(value)}%\'';
+        params.add('%$value%');
+        return '${_col(column)} LIKE ?';
 
       case StartsWith(:final column, :final value):
-        return '"${table}"."${column}" LIKE \'${escapeSqlString(value)}%\'';
+        params.add('$value%');
+        return '${_col(column)} LIKE ?';
 
       case EndsWith(:final column, :final value):
-        return '"${table}"."${column}" LIKE \'%${escapeSqlString(value)}\'';
+        params.add('%$value');
+        return '${_col(column)} LIKE ?';
 
       case NotContains(:final column, :final value):
-        return '"${table}"."${column}" NOT LIKE \'%${escapeSqlString(value)}%\'';
+        params.add('%$value%');
+        return '${_col(column)} NOT LIKE ?';
 
       case And(:final conditions):
-        if (conditions.isEmpty) {
-          return '1 = 1';
-        }
-
-        final statements = [
-          for (final condition in conditions)
-            WhereSql(table, condition).toSql(),
-        ];
-
-        return '(${statements.join(' AND ')})';
+        if (conditions.isEmpty) return '1 = 1';
+        return '(${[for (final c in conditions) _build(c, params)].join(' AND ')})';
 
       case Or(:final conditions):
-        if (conditions.isEmpty) {
-          return '1 = 1';
-        }
-
-        final statements = [
-          for (final condition in conditions)
-            WhereSql(table, condition).toSql(),
-        ];
-
-        return '(${statements.join(' OR ')})';
+        if (conditions.isEmpty) return '1 = 1';
+        return '(${[for (final c in conditions) _build(c, params)].join(' OR ')})';
     }
   }
 }
+
+String _esc(String id) => id.replaceAll('"', '""');

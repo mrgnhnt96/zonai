@@ -58,7 +58,9 @@ void main() {
 
       final restored = Where.fromJson(Lt('timestamp', at).toJson()) as Lt;
       expect(restored.value, ms);
-      expect(restored.sql('_log'), contains('< $ms'));
+      final (whereSql, whereParams) = restored.sql('_log');
+      expect(whereSql, contains('<'));
+      expect(whereParams, [ms]);
     });
 
     test('And round-trips nested conditions', () {

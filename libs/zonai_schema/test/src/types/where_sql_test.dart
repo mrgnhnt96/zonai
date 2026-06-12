@@ -29,30 +29,40 @@ void main() {
       expect((and.conditions[1] as Null).column, 'deleted_at');
     });
 
-    test('DateTime and numeric values use unquoted SQL literals', () {
+    test('DateTime values are bound as milliseconds, strings as parameters', () {
       final at = DateTime.utc(2024, 6, 1, 12, 30);
       final ms = at.millisecondsSinceEpoch;
 
-      expect(Lt('timestamp', at).sql('_log'), '"_log"."timestamp" < $ms');
-      expect(const Eq('id', 42).sql('items'), '"items"."id" = 42');
-      expect(const Eq('title', 't').sql('items'), '"items"."title" = \'t\'');
+      final (ltSql, ltParams) = Lt('timestamp', at).sql('_log');
+      expect(ltSql, '"_log"."timestamp" < ?');
+      expect(ltParams, [ms]);
+
+      final (eqIntSql, eqIntParams) = const Eq('id', 42).sql('items');
+      expect(eqIntSql, '"items"."id" = ?');
+      expect(eqIntParams, [42]);
+
+      final (eqStrSql, eqStrParams) = const Eq('title', 't').sql('items');
+      expect(eqStrSql, '"items"."title" = ?');
+      expect(eqStrParams, ['t']);
     });
 
     test('JSON round-trip preserves SQL for DateTime columns', () {
       final at = DateTime.utc(2024, 6, 1, 12, 30);
-      final before = Lt('timestamp', at).sql('_log');
-      final after = Where.fromJson(Lt('timestamp', at).toJson()).sql('_log');
-      expect(after, before);
+      final (beforeSql, beforeParams) = Lt('timestamp', at).sql('_log');
+      final (afterSql, afterParams) =
+          Where.fromJson(Lt('timestamp', at).toJson()).sql('_log');
+      expect(afterSql, beforeSql);
+      expect(afterParams, beforeParams);
     });
 
-    test('In JSON round-trip produces IN with each value', () {
+    test('In JSON round-trip produces IN with placeholders and values', () {
       const before = In('level', <Object>['request', 'trace', 'verbose']);
       final after = Where.fromJson(before.toJson()) as In;
       expect(after.values, ['request', 'trace', 'verbose']);
-      expect(
-        after.sql('_log'),
-        '"_log"."level" IN (\'request\', \'trace\', \'verbose\')',
-      );
+
+      final (sql, params) = after.sql('_log');
+      expect(sql, '"_log"."level" IN (?, ?, ?)');
+      expect(params, ['request', 'trace', 'verbose']);
     });
   });
 }

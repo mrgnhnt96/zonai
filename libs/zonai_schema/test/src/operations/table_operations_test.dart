@@ -225,11 +225,12 @@ void main() {
       final query = ops.update([
         Update.column('title', const Literal('renamed')),
       ], where: const Eq('id', 1)).toQuery();
-      final (sql, _) = dialect.translate(query);
+      final (sql, values) = dialect.translate(query);
       expect(sql, contains('UPDATE "widgets"'));
       expect(sql.toUpperCase(), contains('SET'));
       expect(sql, contains('WHERE'));
-      expect(sql, contains('"widgets"."id" = 1'));
+      expect(sql, contains('"widgets"."id"'));
+      expect(values, contains(1));
     });
 
     test('update decodes string wire values for Id columns', () {
@@ -398,10 +399,11 @@ void main() {
 
     test('count withWhere adds WHERE clause', () {
       final query = ops.count(where: const Eq('title', 't')).toQuery();
-      final (sql, _) = dialect.translate(query);
+      final (sql, values) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('COUNT'));
       expect(sql, contains('WHERE'));
-      expect(sql, contains('"widgets"."title" = \'t\''));
+      expect(sql, contains('"widgets"."title"'));
+      expect(values, contains('t'));
     });
 
     test('list builds translatable SELECT with limit and offset', () {

@@ -179,7 +179,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     return db
         .update(schema)
         .setAll(updateables)
-        .where(RawSqlFilter(where.sql(table.name)));
+        .where(_whereFilter(where, table.name));
   }
 
   /// Decodes API/wire values (e.g. [String] ids) before [Column.encode].
@@ -425,7 +425,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     var builder = db.select(counting).from(schema);
 
     if (where != null) {
-      builder = builder.where(RawSqlFilter(where.sql(table.name)));
+      builder = builder.where(_whereFilter(where, table.name));
     }
 
     return builder;
@@ -474,7 +474,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     var builder = db.select().from(schema);
 
     if (where != null) {
-      builder = builder.where(RawSqlFilter(where.sql(table.name)));
+      builder = builder.where(_whereFilter(where, table.name));
     }
 
     final resolvedOrderBy = orderBy ?? _defaultListOrderBy();
@@ -508,7 +508,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
   }) {
     final builder = db
         .delete(from: schema)
-        .where(RawSqlFilter(where.sql(table.name)));
+        .where(_whereFilter(where, table.name));
 
     if (limit != null) {
       return builder.limit(limit);
@@ -741,6 +741,24 @@ class JwtConfig {
       'expiresIn': ?expiresIn?.inSeconds,
     };
   }
+}
+
+/// Builds a parameterized [SQL] filter from a [Where] condition.
+///
+/// Values are bound as parameters (not inlined), so the DB driver handles
+/// escaping. Column and table identifiers are double-quote escaped.
+SQL _whereFilter(Where where, String tableName) {
+  final (sql, params) = where.sql(tableName);
+  final parts = sql.split('?');
+  final chunks = <Object?>[];
+  for (var i = 0; i < parts.length; i++) {
+    // trimRight: raindrop adds a separator space between chunks, so trailing
+    // spaces in RawSQL parts would produce double-spaces before parameters.
+    final part = parts[i].trimRight();
+    if (part.isNotEmpty) chunks.add(RawSQL(part));
+    if (i < params.length) chunks.add(params[i]);
+  }
+  return SQL(chunks);
 }
 
 class Claims {

@@ -22,18 +22,11 @@ List<Object> serializeWhereValues(List<Object> values) {
       .cast<Object>();
 }
 
-/// SQL literal for a [Where] comparison value (matches [whereValueToJsonEncodable]).
-String whereValueSqlLiteral(Object value) {
+/// Converts a [Where] comparison value to its bound-parameter form for the DB driver.
+Object? whereValueToParam(Object value) {
   return switch (value) {
-    DateTime d => '${d.millisecondsSinceEpoch}',
-    num n => n.toString(),
-    bool b => b ? '1' : '0',
-    String s => "'${escapeSqlString(s)}'",
-    _ => "'${escapeSqlString(value.toString())}'",
+    DateTime d => d.millisecondsSinceEpoch,
+    bool b => b ? 1 : 0,
+    _ => value,
   };
 }
-
-String escapeSqlString(Object s) => switch (s) {
-  final String s => s,
-  _ => s.toString(),
-}.replaceAll("'", "''");
