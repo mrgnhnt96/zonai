@@ -27,6 +27,7 @@
 - [ ] When logging 500+ response codes, use error color
 - [ ] Add endpoint to insert many
 - [ ] Add a `groupBy` field to the `list` endpoint
+- [ ] Tighten up type system for API responses
 
 ## CLI
 

@@ -76,6 +76,19 @@ class Jwt {
     }
   }
 
+  static Jwt? parse(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) {
+      return null;
+    }
+
+    final [_, payload, _] = parts;
+
+    final payloadJson = jsonDecode(utf8.decode(base64Url.decode(payload)));
+
+    return Jwt.fromJson(payloadJson);
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'userId': userId.value,

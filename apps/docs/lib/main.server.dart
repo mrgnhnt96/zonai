@@ -180,6 +180,17 @@ void main() {
                 ],
               ),
               SidebarGroup(
+                title: 'Dart Client',
+                links: [
+                  SidebarLink(text: 'Overview', href: '/dart-client/overview'),
+                  SidebarLink(text: 'Authentication', href: '/dart-client/authentication'),
+                  SidebarLink(text: 'Storage', href: '/dart-client/storage'),
+                  SidebarLink(text: 'Database', href: '/dart-client/database'),
+                  SidebarLink(text: 'Photos', href: '/dart-client/photos'),
+                  SidebarLink(text: 'Email', href: '/dart-client/email'),
+                ],
+              ),
+              SidebarGroup(
                 title: 'API',
                 links: [
                   SidebarLink(text: 'OpenAPI Specification', href: '/api/openapi-spec'),

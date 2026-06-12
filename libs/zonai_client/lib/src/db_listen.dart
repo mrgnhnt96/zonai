@@ -6,17 +6,24 @@ class DbListen {
 
   final DbDataSource _db;
 
-  Stream<Map<String, Object?>> one({required StreamBody body}) async* {
-    yield* await _db.streamOne(body: body);
+  Stream<Map<String, Object?>> one({
+    required StreamBody body,
+    String? authorization,
+  }) async* {
+    yield* await _db.streamOne(body: body, authorization: authorization);
   }
 
   Stream<List<Map<String, Object?>>> list({
     required StreamListBody body,
+    String? authorization,
   }) async* {
-    yield* await _db.streamList(body: body);
+    yield* await _db.streamList(body: body, authorization: authorization);
   }
 
-  Stream<int> count({required StreamCountBody body}) async* {
-    yield* await _db.streamCount(body: body);
+  Stream<int> count({
+    required StreamCountBody body,
+    String? authorization,
+  }) async* {
+    yield* await _db.streamCount(body: body, authorization: authorization);
   }
 }

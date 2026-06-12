@@ -8,15 +8,22 @@ class AdminAuth {
 
   Future<Map<String, Object?>?> signIn({
     required AdminSignInAuthBody body,
+    String? authorization,
   }) async {
-    return await _auth.authenticate(body: body);
+    return await _auth.authenticate(body: body, authorization: authorization);
   }
 
-  Future<void> sendOtp({required AdminSendOtpAuthBody body}) async {
-    await _auth.authenticate(body: body);
+  Future<void> sendOtp({
+    required AdminSendOtpAuthBody body,
+    String? authorization,
+  }) async {
+    await _auth.authenticate(body: body, authorization: authorization);
   }
 
-  Future<void> sendMagicLink({required AdminSendMagicLinkAuthBody body}) async {
-    await _auth.authenticate(body: body);
+  Future<void> sendMagicLink({
+    required AdminSendMagicLinkAuthBody body,
+    String? authorization,
+  }) async {
+    await _auth.authenticate(body: body, authorization: authorization);
   }
 }

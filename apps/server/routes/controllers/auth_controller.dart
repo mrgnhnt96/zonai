@@ -1,3 +1,5 @@
+// ! All `authorization` headers MUST have the same parameter name "authorization" so
+// that we can properly inject the token into the request on the client side
 import 'dart:io' show HttpHeaders;
 
 import 'package:revali_router/revali_router.dart';
@@ -6,6 +8,9 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
+
+// TODO: Tighten up the return types so that we don't need to dynamically access
+// the `accessToken` key
 
 @BlackList()
 @Controller('auth')
@@ -19,16 +24,29 @@ class AuthController {
   Future<Map<String, Object?>?> authenticate({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Body() required AuthBody body,
+    required ResponseHeaders headers,
   }) async {
-    return await authHandler.authenticate(body, authorization: authorization);
+    final result = await authHandler.authenticate(
+      body,
+      authorization: authorization,
+    );
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
   }
 
   @BodyRateLimit<AuthBody>(.refreshToken)
   @Post('refresh')
   Future<Map<String, Object?>?> refreshToken({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
+    required ResponseHeaders headers,
   }) async {
-    return await authHandler.refreshToken(authorization);
+    final result = await authHandler.refreshToken(authorization);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
   }
 
   @BodyRateLimit<ResetPasswordAuthBody>(.sendResetPassword)
@@ -55,23 +73,38 @@ class AuthController {
   @Post('confirm')
   Future<Map<String, Object?>?> confirm({
     @Body() required VerifyAuthBody body,
+    required ResponseHeaders headers,
   }) async {
-    return await authHandler.verifyAuth(body);
+    final result = await authHandler.verifyAuth(body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
   }
 
   @Post('admin')
   Future<Map<String, Object?>?> adminAuthenticate({
     @Body() required AdminAuthBody body,
+    required ResponseHeaders headers,
   }) async {
-    return await authHandler.adminAuthenticate(body);
+    final result = await authHandler.adminAuthenticate(body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
   }
 
   @BodyRateLimit<SignInAuthBody>(.signIn)
   @Post('sign-in')
   Future<Map<String, Object?>> signIn({
     @Body() required SignInAuthBody body,
+    required ResponseHeaders headers,
   }) async {
-    return await authHandler.signIn(body);
+    final result = await authHandler.signIn(body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
   }
 
   @BodyRateLimit<SignUpAuthBody>(.signUp)
@@ -79,8 +112,13 @@ class AuthController {
   Future<Map<String, Object?>> signUp({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Body() required SignUpAuthBody body,
+    required ResponseHeaders headers,
   }) async {
-    return await authHandler.signUp(authorization, body);
+    final result = await authHandler.signUp(authorization, body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
   }
 
   @Delete()

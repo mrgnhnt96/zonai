@@ -8,39 +8,61 @@ class Db {
   final DbDataSource _db;
   final DbListen listen;
 
-  Future<Map<String, Object?>> get({required GetBody body}) async {
-    return await _db.get(body: body);
+  Future<Map<String, Object?>> get({
+    required GetBody body,
+    String? authorization,
+  }) async {
+    return await _db.get(body: body, authorization: authorization);
   }
 
-  Future<Paginated<Map<String, Object?>>> list({required ListBody body}) async {
-    final data = await _db.list(body: body);
+  Future<Paginated<Map<String, Object?>>> list({
+    required ListBody body,
+    String? authorization,
+  }) async {
+    final data = await _db.list(body: body, authorization: authorization);
 
     return Paginated.fromJson(data, (json) => json);
   }
 
-  Future<int> count({required CountBody body}) async {
-    return await _db.count(body: body);
+  Future<int> count({
+    required CountBody body,
+    String? authorization,
+  }) async {
+    return await _db.count(body: body, authorization: authorization);
   }
 
-  Future<Map<String, Object?>> create({required CreateBody body}) async {
-    return await _db.create(body: body);
+  Future<Map<String, Object?>> create({
+    required CreateBody body,
+    String? authorization,
+  }) async {
+    return await _db.create(body: body, authorization: authorization);
   }
 
-  Future<Map<String, Object?>> update({required UpdateOneBody body}) async {
-    return await _db.update(body: body);
+  Future<Map<String, Object?>> update({
+    required UpdateOneBody body,
+    String? authorization,
+  }) async {
+    return await _db.update(body: body, authorization: authorization);
   }
 
   Future<List<Map<String, Object?>>> updateMany({
     required UpdateBody body,
+    String? authorization,
   }) async {
-    return await _db.updateMany(body: body);
+    return await _db.updateMany(body: body, authorization: authorization);
   }
 
-  Future<void> delete({required DeleteOneBody body}) async {
-    await _db.delete(body: body);
+  Future<void> delete({
+    required DeleteOneBody body,
+    String? authorization,
+  }) async {
+    await _db.delete(body: body, authorization: authorization);
   }
 
-  Future<void> deleteMany({required DeleteBody body}) async {
-    await _db.deleteMany(body: body);
+  Future<void> deleteMany({
+    required DeleteBody body,
+    String? authorization,
+  }) async {
+    await _db.deleteMany(body: body, authorization: authorization);
   }
 }
