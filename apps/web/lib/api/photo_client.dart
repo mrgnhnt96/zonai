@@ -1,10 +1,7 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:revali_client/revali_client.dart';
+import 'package:zonai_client/zonai_client.dart';
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_web/gen/client/client.dart';
-import 'package:zonai_web/utils/zonai_cookie.dart';
 
 /// Resolves the Content-Type to send for an upload (may differ from [mimeType]).
 ImageMimeType resolveUploadMimeType({
@@ -42,7 +39,7 @@ void validatePhotoBytes({required Uint8List bytes, required String mimeType, req
 
 /// Creates a photo for [table] and returns the new photo id.
 Future<String> createPhoto({
-  required Server server,
+  required ZonaiClient client,
   required String table,
   required Uint8List bytes,
   required String mimeType,
@@ -50,40 +47,21 @@ Future<String> createPhoto({
 }) async {
   final resolved = resolveUploadMimeType(bytes: bytes, mimeType: mimeType, config: config);
 
-  final token = ZonaiCookie.authToken.read();
-  final headers = <String, String>{
-    'content-type': resolved.mimeType,
-    if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
-  };
-
-  final response = await server.client.request(
-    method: 'POST',
-    path: '/img',
-    query: {'meta': PhotoCreateMeta(table: table)},
-    headers: headers,
-    body: bytes,
+  final result = await client.photos.create(
+    image: Stream.value(bytes),
+    meta: PhotoCreateMeta(table: table),
+    contentType: resolved.mimeType,
   );
 
-  final body = await response.transform(utf8.decoder).join();
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    throw ServerException(
-      message: 'Photo upload failed (${response.statusCode})',
-      statusCode: response.statusCode,
-      body: body,
-    );
-  }
-
-  final decoded = jsonDecode(body);
-  final data = decoded is Map ? decoded['data'] ?? decoded : null;
-  if (data is! Map || data['id'] is! String) {
+  if (result['id'] is! String) {
     throw StateError('Photo upload returned an unexpected response');
   }
-  return data['id'] as String;
+  return result['id'] as String;
 }
 
 /// Replaces image bytes for an existing photo.
 Future<void> patchPhoto({
-  required Server server,
+  required ZonaiClient client,
   required String id,
   required Uint8List bytes,
   required String mimeType,
@@ -91,35 +69,17 @@ Future<void> patchPhoto({
 }) async {
   final resolved = resolveUploadMimeType(bytes: bytes, mimeType: mimeType, config: config);
 
-  final token = ZonaiCookie.authToken.read();
-  final headers = <String, String>{
-    'content-type': resolved.mimeType,
-    if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
-  };
-
-  final response = await server.client.request(method: 'PATCH', path: '/img/$id', headers: headers, body: bytes);
-
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    final body = await response.transform(utf8.decoder).join();
-    throw ServerException(
-      message: 'Photo update failed (${response.statusCode})',
-      statusCode: response.statusCode,
-      body: body,
-    );
-  }
+  await client.photos.update(
+    image: Stream.value(bytes),
+    id: id,
+    contentType: resolved.mimeType,
+  );
 }
 
 /// Deletes a photo. Failures are ignored (best-effort orphan cleanup).
-Future<void> deletePhotoBestEffort({required Server server, required String id}) async {
+Future<void> deletePhotoBestEffort({required ZonaiClient client, required String id}) async {
   try {
-    final token = ZonaiCookie.authToken.read();
-    final headers = <String, String>{if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token'};
-
-    final response = await server.client.request(method: 'DELETE', path: '/img/$id', headers: headers);
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      // ignore
-    }
+    await client.photos.delete(id: id);
   } on Object {
     // ignore
   }

@@ -73,9 +73,12 @@ final client = ZonaiClient.server(server: server);
 ## Unauthenticated Requests
 
 If no token is stored and a request reaches the interceptor without an
-`Authorization` header already present, the client throws a `StateError`. For
-endpoints that are intentionally unauthenticated (e.g., a public health check),
-use `ZonaiStorage.none()` so the interceptor skips token injection:
+`Authorization` header already present, the interceptor skips token injection
+and sends the request without authentication. This allows the same client
+instance to call both public endpoints (send OTP, health check) and authenticated
+endpoints after sign-in.
+
+To disable token storage entirely (e.g. for tests), use `ZonaiStorage.none()`:
 
 ```dart
 final server = Server(storage: ZonaiStorage.none());

@@ -910,9 +910,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     List<Object?> parsedDraft;
     try {
       final photosConfig = context.read(photosConfigProvider);
-      final server = context.read(revaliServerProvider);
+      final client = context.read(zonaiClientProvider);
       final resolvedDraft = await resolvePhotoDrafts(
-        server: server,
+        client: client,
         sqliteName: create.sqliteName,
         draft: rawDraft,
         columnShapes: create.columnShapes,
@@ -994,16 +994,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     List<Object?> parsedDraft;
     try {
       final photosConfig = context.read(photosConfigProvider);
-      final server = context.read(revaliServerProvider);
+      final client = context.read(zonaiClientProvider);
       final resolvedDraft = await resolvePhotoDrafts(
-        server: server,
+        client: client,
         sqliteName: detail.sqliteName,
         draft: rawDraft,
         columnShapes: detail.columnShapes,
         photosConfig: photosConfig,
       );
       await deleteRemovedPhotos(
-        server: server,
+        client: client,
         originalRow: detail.row,
         resolvedDraft: resolvedDraft,
         columnShapes: detail.columnShapes,

@@ -1,6 +1,7 @@
 import 'package:zonai_client/gen/interfaces.dart';
 import 'package:zonai_client/src/db_listen.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_schema/src/types/paginated.dart';
 
 class Db {
   Db({required this._db}) : listen = DbListen(db: _db);

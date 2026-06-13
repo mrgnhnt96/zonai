@@ -7,8 +7,8 @@ import 'package:zonai_client/src/auth.dart';
 ///
 /// **Outgoing requests ([onRequest]):** If the request does not already carry an
 /// `Authorization` header, the stored access token is read from [Auth] and
-/// injected as `Authorization: Bearer <token>`. Throws [StateError] if no token
-/// is available and the header is absent.
+/// injected as `Authorization: Bearer <token>`. When no token is stored the
+/// header is left unset so public endpoints can be called on the same client.
 ///
 /// **Incoming responses ([onResponse]):** If the response includes an `X-Auth`
 /// header, its value is treated as an updated access token and persisted via
@@ -16,24 +16,19 @@ import 'package:zonai_client/src/auth.dart';
 /// operation (sign-in, sign-up, OTP confirmation, token refresh, etc.) without
 /// the client needing to parse response bodies.
 class Interceptor implements HttpInterceptor {
-  Interceptor({required this._auth});
+  Interceptor({required Auth auth}) : _auth = auth;
 
   final Auth _auth;
 
   @override
   FutureOr<void> onRequest(HttpRequest request) async {
-    final authorization = request.headers['authorization'];
-    if (request.headers.containsKey('authorization')) {
-      return;
-    }
-
-    if (authorization?.length case final length? when length > 0) {
+    if (request.headers['authorization'] case final authorization? when authorization.isNotEmpty) {
       return;
     }
 
     final token = await _auth.token;
-    if (token == null) {
-      throw StateError('No token found');
+    if (token == null || token.isEmpty) {
+      return;
     }
     request.headers['authorization'] = 'Bearer $token';
   }

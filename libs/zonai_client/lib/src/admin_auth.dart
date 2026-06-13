@@ -1,5 +1,5 @@
 import 'package:zonai_client/gen/interfaces.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/payloads.dart';
 
 class AdminAuth {
   const AdminAuth({required this._auth});

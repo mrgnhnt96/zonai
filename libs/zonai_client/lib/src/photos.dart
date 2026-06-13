@@ -1,5 +1,5 @@
 import 'package:zonai_client/gen/interfaces.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/payloads.dart';
 
 class Photos {
   const Photos({required this._photos});
@@ -27,21 +27,17 @@ class Photos {
     );
   }
 
-  Future<PhotoId> update({
+  Future<void> update({
     required Stream<List<int>> image,
     required String id,
     String? authorization,
+    String? contentType,
   }) async {
-    final result = await _photos.update(
+    await _photos.update(
       image: image,
       id: id,
       authorization: authorization,
     );
-    if (result case {'id': final String id}) {
-      return PhotoId(id);
-    }
-
-    throw Exception('Photo update failed');
   }
 
   Future<void> delete({

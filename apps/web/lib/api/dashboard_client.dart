@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:revali_client/revali_client.dart';
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_web/gen/client/client.dart';
+import 'package:zonai_client/server.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
 
 Future<DashboardMetrics> fetchDashboardMetrics({required Server server, int? since, bool excludeAdmin = false}) async {

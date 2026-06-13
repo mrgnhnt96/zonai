@@ -1,10 +1,13 @@
 import 'package:zonai_client/gen/interfaces.dart';
 import 'package:zonai_client/src/admin_auth.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_schema/src/types/jwt.dart';
 
 class Auth {
-  Auth({required this._auth, required this._storage})
-    : admin = AdminAuth(auth: _auth);
+  Auth({required AuthDataSource auth, required Storage storage})
+    : _auth = auth,
+      _storage = storage,
+      admin = AdminAuth(auth: auth);
 
   final AuthDataSource _auth;
   final Storage _storage;
@@ -97,7 +100,7 @@ class Auth {
     VerifyEmailAuthBody? body,
     String? authorization,
   }) async {
-    await _auth.sendVerifyEmail(body: body, authorization: authorization);
+    await _auth.sendVerifyEmail(body: body, authorization: authorization ?? '');
   }
 
   Future<Map<String, Object?>?> confirm({required VerifyAuthBody body}) async {
@@ -105,14 +108,14 @@ class Auth {
   }
 
   Future<Map<String, Object?>?> refreshToken({String? authorization}) async {
-    return await _auth.refreshToken(authorization: authorization);
+    return await _auth.refreshToken(authorization: authorization ?? '');
   }
 
   Future<void> logout({String? authorization}) async {
-    await _auth.logout(authorization: authorization);
+    await _auth.logout(authorization: authorization ?? '');
   }
 
   Future<void> logoutAll({String? authorization}) async {
-    await _auth.logoutAll(authorization: authorization);
+    await _auth.logoutAll(authorization: authorization ?? '');
   }
 }

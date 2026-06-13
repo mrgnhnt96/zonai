@@ -74,7 +74,7 @@ web:
     (bail):
     (command):
       - ${{ server.sync-to-cli }}
-      - cd apps/web && dart pub get && dart run jaspr_cli:jaspr serve
+      - cd apps/web && dart pub get && dart run jaspr_cli:jaspr serve --no-managed-build-options
 
 server:
   sync-to-cli:
@@ -99,9 +99,6 @@ server:
         find . -name '*.dart' -exec perl -pi -e 's|package:zonai_server|../../lib|g' {} +
 
       - test -f apps/server/.revali/revali_client/lib/client.dart || (echo "Revali client generation failed; run server gen first" && exit 1)
-      - rm -rf apps/web/lib/gen/client
-      - mkdir -p apps/web/lib/gen/client
-      - cp -r apps/server/.revali/revali_client/lib/. apps/web/lib/gen/client/
       - cd libs/zonai_client && dart run tool/sync_revali_client.dart
   copy-to-cli:
     (aliases): [cli, copy, c]

@@ -16,7 +16,7 @@ class AuthNotifier extends Notifier<bool> {
   /// Seed from the incoming request cookie during SSR (see [AppShell] override).
   final bool initialSignedIn;
 
-  get _revaliServer => ref.read(revaliServerProvider);
+  get _client => ref.read(zonaiClientProvider);
 
   @override
   bool build() {
@@ -56,111 +56,52 @@ class AuthNotifier extends Notifier<bool> {
   }
 
   Future<void> sendOtp({required String email}) async {
-    try {
-      await _revaliServer.auth.authenticate(body: AdminSendOtpAuthBody(email: email));
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.admin.sendOtp(body: AdminSendOtpAuthBody(email: email));
   }
 
   Future<void> verifyOtp({required String email, required String code}) async {
-    try {
-      final response = await _revaliServer.auth.confirm(
-        body: AdminVerifyOtpAuthBody(email: email, code: code),
-      );
-
-      signIn(response!['accessToken'] as String);
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.confirm(body: AdminVerifyOtpAuthBody(email: email, code: code));
+    signIn();
   }
 
   Future<void> sendMagicLink({required String email}) async {
-    try {
-      await _revaliServer.auth.authenticate(body: AdminSendMagicLinkAuthBody(email: email));
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.admin.sendMagicLink(body: AdminSendMagicLinkAuthBody(email: email));
   }
 
   Future<void> verifyMagicLink({required String secret}) async {
-    try {
-      final response = await _revaliServer.auth.confirm(body: AdminVerifyMagicLinkAuthBody(secret: secret));
-
-      signIn(response!['accessToken'] as String);
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.confirm(body: AdminVerifyMagicLinkAuthBody(secret: secret));
+    signIn();
   }
 
   Future<void> sendResetPassword({required String email}) async {
-    try {
-      await _revaliServer.auth.sendResetPassword(body: AdminSendResetPasswordAuthBody(email: email));
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.sendResetPassword(body: AdminSendResetPasswordAuthBody(email: email));
   }
 
   Future<void> confirmResetPassword({required String token, required String newPassword}) async {
-    try {
-      await _revaliServer.auth.confirm(
-        body: ConfirmResetPasswordAuthBody(token: token, newPassword: newPassword),
-      );
-      await _clearSession(notifyRoute: false);
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.confirm(
+      body: ConfirmResetPasswordAuthBody(token: token, newPassword: newPassword),
+    );
+    await _clearSession(notifyRoute: false);
   }
 
   Future<void> verifyEmail({required String token}) async {
-    try {
-      await _revaliServer.auth.confirm(body: ConfirmVerifyEmailAuthBody(token: token));
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.confirm(body: ConfirmVerifyEmailAuthBody(token: token));
   }
 
   Future<void> sendVerifyEmail() async {
-    final token = ZonaiCookie.authToken.read();
-    if (token == null || token.isEmpty) {
+    if (!_hasAuthToken()) {
       throw StateError('Sign in to send a verification email');
     }
 
-    try {
-      await _revaliServer.auth.sendVerifyEmail(authorization: 'Bearer $token');
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.sendVerifyEmail();
   }
 
   Future<void> signInWithPassword({required String email, required String password}) async {
-    try {
-      final session = await _revaliServer.auth.adminAuthenticate(
-        body: AdminSignInAuthBody(email: email, password: password),
-      );
-
-      final accessToken = session!['accessToken'];
-      if (accessToken is! String || accessToken.isEmpty) {
-        throw StateError('Sign-in succeeded but no access token was returned');
-      }
-
-      signIn(accessToken);
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.admin.signIn(body: AdminSignInAuthBody(email: email, password: password));
+    signIn();
   }
 
-  void signIn(String accessToken) {
-    ZonaiCookie.authToken.write(accessToken);
+  void signIn() {
     if (ref.binding.isClient) {
       web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
       return;
@@ -170,25 +111,12 @@ class AuthNotifier extends Notifier<bool> {
   }
 
   Future<void> refreshSession() async {
-    final token = ZonaiCookie.authToken.read();
-    if (token == null || token.isEmpty) {
+    if (!_hasAuthToken()) {
       throw StateError('No session to refresh');
     }
 
-    try {
-      final session = await _revaliServer.auth.refreshToken(authorization: 'Bearer $token');
-
-      final accessToken = session?['accessToken'];
-      if (accessToken is! String || accessToken.isEmpty) {
-        throw StateError('Refresh succeeded but no access token was returned');
-      }
-
-      ZonaiCookie.authToken.write(accessToken);
-      state = true;
-    } catch (e) {
-      print(e);
-      rethrow;
-    }
+    await _client.auth.refreshToken();
+    state = true;
   }
 
   Future<void> signOut({bool callServer = true}) async {
@@ -196,15 +124,12 @@ class AuthNotifier extends Notifier<bool> {
   }
 
   Future<void> _clearSession({bool notifyRoute = true, bool callServer = true}) async {
-    if (callServer) {
-      final token = ZonaiCookie.authToken.read();
-      if (token != null) {
-        try {
-          await _revaliServer.auth.logout(authorization: 'Bearer $token');
-        } catch (_) {}
-      }
+    if (callServer && _hasAuthToken()) {
+      try {
+        await _client.auth.logout();
+      } catch (_) {}
     }
-    ZonaiCookie.authToken.remove();
+    await _client.auth.clearJwt();
     if (ref.binding.isClient && notifyRoute) {
       web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.signIn));
       return;

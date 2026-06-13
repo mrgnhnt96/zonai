@@ -1,7 +1,31 @@
 # Keep Jaspr web build output limited to browser-relevant artifacts.
+#
+# apps/web depends on zonai/sqlite3 for SSR (lib/server/). Those VM packages
+# cannot compile under dartdevc (DDC). Use dart2js for dev and release, and
+# disable DDC builders so jaspr serve does not try to compile ffi/sqlite3.
+#
+# Pair with `compilers.dart2js` below so Jaspr's default `compiler=dartdevc`
+# dev define is ignored (no `--no-managed-build-options` required).
 targets:
   $default:
     builders:
+      build_web_compilers:ddc:
+        enabled: false
+      build_web_compilers:ddc_modules:
+        enabled: false
+      build_web_compilers:dart2js_modules:
+        enabled: true
+      build_web_compilers:entrypoint:
+        options:
+          # `compilers` takes precedence over Jaspr's managed `compiler=dartdevc`
+          # define, so dev serve uses dart2js without --no-managed-build-options.
+          compilers:
+            dart2js:
+              args:
+                - --enable-asserts
+          unsafe-allow-unsupported-modules: true
+      build_web_compilers:sdk_js:
+        enabled: false
       build_web_compilers|dart2js_archive_extractor:
         release_options:
           filter_outputs: true

@@ -1,10 +1,14 @@
 /// Generated HTTP client for the Zonai Revali server.
 ///
-/// Import this library to access [ZonaiClient], [ZonaiStorage], and all
-/// request/response body types re-exported from `zonai_schema`.
+/// Import this library to access [ZonaiClient] and all request/response body
+/// types re-exported from `zonai_schema`.
+///
+/// For file-backed [Storage] on VM targets, import `package:zonai_client/storage.dart`
+/// or pass `storage: ZonaiFileStorage(directory: '...')` to [ZonaiClient].
 library;
 
-export 'package:zonai_schema/zonai_schema.dart'
+export 'src/auth.dart' show Auth;
+export 'package:zonai_schema/payloads.dart'
     show
         AdminSendMagicLinkAuthBody,
         AdminSendOtpAuthBody,
@@ -37,4 +41,3 @@ export 'package:zonai_schema/zonai_schema.dart'
         VerifyAuthBody;
 
 export 'src/zonai_client.dart';
-export 'src/utils/zonai_storage.dart';
