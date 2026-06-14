@@ -43,6 +43,7 @@ extension _ListX on ZonaiDb {
           limit: payload.limit,
           offset: payload.offset,
           orderBy: payload.orderBy,
+          groupBy: payload.groupBy,
           jwt: jwt,
         ),
       );

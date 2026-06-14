@@ -8,6 +8,7 @@ class StreamListBody {
     this.limit,
     this.offset,
     this.orderBy,
+    this.groupBy,
     this.expand = const [],
   });
 
@@ -16,6 +17,7 @@ class StreamListBody {
   final int? limit;
   final int? offset;
   final List<OrderByTerm>? orderBy;
+  final String? groupBy;
   final List<String> expand;
 
   factory StreamListBody.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,7 @@ class StreamListBody {
         ),
       },
       expand: json['expand'] as List<String>? ?? [],
+      groupBy: json['group_by'] as String?,
     );
   }
 
@@ -62,6 +65,7 @@ class StreamListBody {
         _ => null,
       },
       'expand': expand,
+      'group_by': ?groupBy,
     };
   }
 }

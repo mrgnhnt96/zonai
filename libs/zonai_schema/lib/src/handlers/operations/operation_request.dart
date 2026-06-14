@@ -533,6 +533,7 @@ final class ListOperationRequest extends PerformOperationRequest {
     required this.limit,
     required this.offset,
     this.orderBy,
+    this.groupBy,
     required super.jwt,
   }) : super(operation: TableOperation.list.name);
 
@@ -543,6 +544,7 @@ final class ListOperationRequest extends PerformOperationRequest {
     required this.limit,
     required this.offset,
     this.orderBy,
+    this.groupBy,
     required super.jwt,
   }) : super._(operation: TableOperation.list.name);
 
@@ -568,6 +570,7 @@ final class ListOperationRequest extends PerformOperationRequest {
           'Expected a list of order terms',
         ),
       },
+      groupBy: request.payload['group_by'] as String?,
       jwt: request.jwt,
     );
   }
@@ -576,6 +579,7 @@ final class ListOperationRequest extends PerformOperationRequest {
   final int? offset;
   final Where? where;
   final List<OrderByTerm>? orderBy;
+  final String? groupBy;
 
   @override
   Map<String, dynamic> toJson() {
@@ -591,6 +595,7 @@ final class ListOperationRequest extends PerformOperationRequest {
         ],
         _ => null,
       },
+      'group_by': groupBy,
     };
   }
 }

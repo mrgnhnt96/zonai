@@ -8,6 +8,7 @@ class ListBody {
     this.limit,
     this.offset,
     this.orderBy,
+    this.groupBy,
     this.expand = const [],
   });
 
@@ -17,6 +18,7 @@ class ListBody {
   final int? limit;
   final int? offset;
   final List<OrderByTerm>? orderBy;
+  final String? groupBy;
 
   factory ListBody.fromJson(Map json) {
     return ListBody(
@@ -47,6 +49,7 @@ class ListBody {
         if (json['expand'] case final List list)
           for (final item in list) item as String,
       ],
+      groupBy: json['group_by'] as String?,
     );
   }
 
@@ -64,6 +67,7 @@ class ListBody {
         _ => null,
       },
       'expand': expand,
+      'group_by': ?groupBy,
     };
   }
 }

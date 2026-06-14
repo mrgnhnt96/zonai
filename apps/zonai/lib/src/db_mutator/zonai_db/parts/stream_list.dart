@@ -15,6 +15,7 @@ extension _StreamListX on ZonaiDb {
         limit: payload.limit,
         offset: payload.offset,
         orderBy: payload.orderBy,
+        groupBy: payload.groupBy,
         jwt: jwt,
       ),
     );

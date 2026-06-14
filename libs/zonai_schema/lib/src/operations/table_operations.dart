@@ -561,12 +561,14 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         :final limit,
         :final offset,
         :final orderBy,
+        :final groupBy,
       ) =>
         list(
           where: where,
           limit: limit,
           offset: offset,
           orderBy: orderBy,
+          groupBy: groupBy != null ? table[groupBy] : null,
         ).compiled(),
       CustomOperationRequest(:final where, :final operation, :final values) =>
         custom(operation, where: where, values: values).compiled(),
