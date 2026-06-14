@@ -57,10 +57,10 @@ class CronsTable extends Table<CronEntry> {
   final IdColumn<CronsId> id;
   final TextColumn name;
   final DateTimeColumn started;
-  final DateTimeColumn? failed;
-  final DateTimeColumn? completed;
-  final TextColumn? error;
-  final TextColumn? stackTrace;
+  final ColumnType<DateTime?> failed;
+  final ColumnType<DateTime?> completed;
+  final ColumnType<String?> error;
+  final ColumnType<String?> stackTrace;
 
   @override
   CronEntry fromRow(RowReader read) {

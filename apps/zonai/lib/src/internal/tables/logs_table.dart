@@ -107,8 +107,8 @@ class LogsTable extends Table<LogEntry> {
   final DateTimeColumn timestamp;
   final EnumColumn<Level> level;
   final TextColumn message;
-  final TextColumn? error;
-  final TextColumn? props;
+  final ColumnType<String?> error;
+  final ColumnType<String?> props;
   final BooleanColumn isAdmin;
 }
 

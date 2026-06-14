@@ -3,7 +3,7 @@ import 'package:zonai_schema/src/types/id.dart';
 import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 
 extension IdColumnDefinition<S> on SchemaBuilder<S> {
-  T id<I extends Id, T extends IdColumn<I>?, V extends Object?>(
+  ColumnType<V> id<I extends Id, V extends I?>(
     String name,
     V Function(S) field, {
     required I Function(String) fromString,
@@ -11,30 +11,26 @@ extension IdColumnDefinition<S> on SchemaBuilder<S> {
     bool isPrimaryKey = true,
     I? synthetic,
   }) {
-    final c =
-        custom<IdColumn<I>, I, Object, V>(
-              IdColumn<I>.new,
-              name,
-              field,
-              transformer: IdTransformer<I>(
-                fromString: fromString,
-                generate: generate,
-                synthetic: synthetic,
-              ),
-              sqlType: 'TEXT',
-            )
-            as T;
+    var column = custom<I, Object, V>(
+      name,
+      field,
+      transformer: IdTransformer<I>(
+        fromString: fromString,
+        generate: generate,
+        synthetic: synthetic,
+      ),
+      sqlType: 'TEXT',
+    );
 
     if (isPrimaryKey) {
-      return c.primaryKey() as T;
+      column = column.primaryKey();
     }
 
-    return c;
+    return column;
   }
 }
 
-extension type IdColumn<T extends Id>(Column<dynamic, T> _)
-    implements ColumnType<T> {}
+typedef IdColumn<T extends Id> = ColumnType<T>;
 
 /// Wire type [Object] so [decode] accepts SQL strings and in-memory [Id]
 /// values (e.g. some drivers / RETURNING rows surface bound Dart values).

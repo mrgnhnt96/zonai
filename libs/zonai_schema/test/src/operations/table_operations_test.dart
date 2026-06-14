@@ -1,5 +1,6 @@
-import 'package:raindrop/raindrop.dart' hide Table, Update;
+import 'package:raindrop/raindrop.dart' hide Table;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
@@ -39,7 +40,7 @@ class _TestTable extends Table<_Row> {
     tags: read(tags)!,
   );
 
-  final IntColumn id;
+  final ColumnType<int?> id;
 
   final TextColumn title;
 
@@ -66,7 +67,7 @@ class _JsonTable extends Table<_JsonRow> {
   _JsonRow fromRow(RowReader read) =>
       _JsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
 
-  final IntColumn id;
+  final ColumnType<int?> id;
 
   final TextColumn title;
 
@@ -123,7 +124,7 @@ class _TypedJsonTable extends Table<_TypedJsonRow> {
   _TypedJsonRow fromRow(RowReader read) =>
       _TypedJsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
 
-  final IntColumn id;
+  final ColumnType<int?> id;
 
   final TextColumn title;
 
@@ -151,9 +152,9 @@ class _OwnerId implements Id {
 }
 
 class _OwnedRow {
-  const _OwnedRow({this.id, required this.title, this.ownerId});
+  const _OwnedRow({required this.id, required this.title, this.ownerId});
 
-  final _OwnerId? id;
+  final _OwnerId id;
   final String title;
   final _OwnerId? ownerId;
 }
@@ -168,7 +169,7 @@ class _OwnedTable extends Table<_OwnedRow> {
             _OwnerId('own_${DateTime.now().microsecondsSinceEpoch}'),
       ),
       title = $.text('title', (s) => s.title),
-      ownerId = $.id(
+      ownerId = $.id<_OwnerId, _OwnerId?>(
         'owner_id',
         (s) => s.ownerId,
         fromString: _OwnerId.new,
@@ -183,7 +184,7 @@ class _OwnedTable extends Table<_OwnedRow> {
 
   final IdColumn<_OwnerId> id;
   final TextColumn title;
-  final IdColumn<_OwnerId>? ownerId;
+  final ColumnType<_OwnerId?> ownerId;
 }
 
 final ownedWidgets = sqliteTable('owned_widgets', _OwnedTable.new);
@@ -202,7 +203,7 @@ void main() {
         'title': 'hello',
         'qty': 100,
         'tags': '[]',
-      }).toQuery();
+      }).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('INSERT INTO "widgets"'));
       expect(sql.toUpperCase(), contains('RETURNING'));
@@ -215,7 +216,7 @@ void main() {
       final query = ops.insertMany([
         const _Row(title: 'a'),
         const _Row(title: 'b'),
-      ]).toQuery();
+      ]).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('INSERT INTO "widgets"'));
       expect(sql.toUpperCase(), contains('RETURNING'));
@@ -224,7 +225,7 @@ void main() {
     test('update builds translatable UPDATE with WHERE from Where', () {
       final query = ops.update([
         Update.column('title', const Literal('renamed')),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, values) = dialect.translate(query);
       expect(sql, contains('UPDATE "widgets"'));
       expect(sql.toUpperCase(), contains('SET'));
@@ -237,7 +238,7 @@ void main() {
       final ownedOps = _OwnedOperations();
       final query = ownedOps.update([
         Update.column('owner_id', const Literal('owner_abc')),
-      ], where: const Eq('title', 'x')).toQuery();
+      ], where: const Eq('title', 'x')).compiled();
       final (_, values) = dialect.translate(query);
       expect(values, contains('owner_abc'));
     });
@@ -246,7 +247,7 @@ void main() {
       final ownedOps = _OwnedOperations();
       final query = ownedOps.update([
         Update.object({'owner_id': 'owner_xyz'}),
-      ], where: const Eq('title', 'x')).toQuery();
+      ], where: const Eq('title', 'x')).compiled();
       final (_, values) = dialect.translate(query);
       expect(values, contains('owner_xyz'));
     });
@@ -254,7 +255,7 @@ void main() {
     test('update applies increment expression for Increment value', () {
       final query = ops.update([
         Update.column('id', const Increment()),
-      ], where: const Eq('title', 'x')).toQuery();
+      ], where: const Eq('title', 'x')).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('UPDATE "widgets"'));
       expect(sql, contains('"id"'));
@@ -264,7 +265,7 @@ void main() {
     test('update applies decrement expression for Decrement value', () {
       final query = ops.update([
         Update.column('qty', const Decrement()),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('UPDATE "widgets"'));
       expect(sql, contains('"qty"'));
@@ -274,7 +275,7 @@ void main() {
     test('update applies add expression for Add value', () {
       final query = ops.update([
         Update.column('qty', const Add(5)),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('UPDATE "widgets"'));
       expect(sql, contains('"qty"'));
@@ -284,7 +285,7 @@ void main() {
     test('update applies remove expression for Remove value', () {
       final query = ops.update([
         Update.column('qty', const Remove(3)),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('UPDATE "widgets"'));
       expect(sql, contains('"qty"'));
@@ -294,7 +295,7 @@ void main() {
     test('update Add on json list column uses json_insert', () {
       final query = ops.update([
         Update.column('tags', const Add('x')),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('json_insert'));
       expect(sql, contains('"tags"'));
@@ -303,7 +304,7 @@ void main() {
     test('update Remove on json list column filters with json_each', () {
       final query = ops.update([
         Update.column('tags', const Remove('x')),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('json_each'));
       expect(sql, contains('json_group_array'));
@@ -312,7 +313,7 @@ void main() {
     test('update AddAll on list column merges arrays', () {
       final query = ops.update([
         Update.column('tags', const AddAll(['x', 'y'])),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('UNION ALL'));
       expect(sql, contains('json_each'));
@@ -322,7 +323,7 @@ void main() {
     test('update RemoveAll on list column uses NOT IN json_each', () {
       final query = ops.update([
         Update.column('tags', const RemoveAll(['x', 'z'])),
-      ], where: const Eq('id', 1)).toQuery();
+      ], where: const Eq('id', 1)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('NOT IN'));
       expect(sql, contains('json_each'));
@@ -336,7 +337,7 @@ void main() {
       test('nested ColumnUpdate path uses json_set on jsonMap column', () {
         final query = jsonOps.update([
           Update.column('profile.displayName', const Literal('Pat')),
-        ], where: const Eq('id', 1)).toQuery();
+        ], where: const Eq('id', 1)).compiled();
         final (sql, _) = dialect.translate(query);
         expect(sql, contains('json_set'));
         expect(sql, contains('"profile"'));
@@ -345,7 +346,7 @@ void main() {
       test('nested ColumnUpdate path uses json_set on mapAs column', () {
         final query = typedOps.update([
           Update.column('profile.displayName', const Literal('Pat')),
-        ], where: const Eq('id', 1)).toQuery();
+        ], where: const Eq('id', 1)).compiled();
         final (sql, _) = dialect.translate(query);
         expect(sql, contains('json_set'));
         expect(sql, contains('"profile"'));
@@ -356,7 +357,7 @@ void main() {
           Update.object({
             'profile': {'displayName': 'Pat', 'age': 30},
           }),
-        ], where: const Eq('id', 1)).toQuery();
+        ], where: const Eq('id', 1)).compiled();
         final (sql, _) = dialect.translate(query);
         expect(sql, contains('json_patch'));
         expect(sql, contains('"profile"'));
@@ -366,7 +367,7 @@ void main() {
         expect(
           () => ops.update([
             Update.column('title.suffix', const Literal('x')),
-          ], where: const Eq('id', 1)).toQuery(),
+          ], where: const Eq('id', 1)).compiled(),
           throwsArgumentError,
         );
       });
@@ -376,7 +377,7 @@ void main() {
       expect(
         () => ops.update([
           Update.column('qty', const AddAll([1, 2])),
-        ], where: const Eq('id', 1)).toQuery(),
+        ], where: const Eq('id', 1)).compiled(),
         throwsArgumentError,
       );
     });
@@ -385,20 +386,20 @@ void main() {
       expect(
         () => ops.update([
           Update.column('qty', const RemoveAll([1])),
-        ], where: const Eq('id', 1)).toQuery(),
+        ], where: const Eq('id', 1)).compiled(),
         throwsArgumentError,
       );
     });
 
     test('count builds translatable SELECT COUNT … query', () {
-      final query = ops.count().toQuery();
+      final query = ops.count().compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('COUNT'));
       expect(sql, contains('FROM "widgets"'));
     });
 
     test('count withWhere adds WHERE clause', () {
-      final query = ops.count(where: const Eq('title', 't')).toQuery();
+      final query = ops.count(where: const Eq('title', 't')).compiled();
       final (sql, values) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('COUNT'));
       expect(sql, contains('WHERE'));
@@ -409,7 +410,7 @@ void main() {
     test('list builds translatable SELECT with limit and offset', () {
       final query = ops
           .list(where: const Gt('id', 0), limit: 10, offset: 5)
-          .toQuery();
+          .compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('FROM "widgets"'));
       expect(sql.toUpperCase(), contains('LIMIT'));
@@ -417,7 +418,7 @@ void main() {
     });
 
     test('list orders by primary key descending when orderBy is omitted', () {
-      final query = ops.list().toQuery();
+      final query = ops.list().compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('ORDER BY'));
       expect(sql, contains('"id"'));
@@ -425,21 +426,21 @@ void main() {
     });
 
     test('list with groupBy builds translatable SELECT', () {
-      final query = ops.list(groupBy: widgets.title).toQuery();
+      final query = ops.list(groupBy: widgets.title).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql.toUpperCase(), contains('GROUP BY'));
       expect(sql, contains('"title"'));
     });
 
     test('delete builds translatable DELETE with WHERE', () {
-      final query = ops.delete(const Eq('id', 2)).toQuery();
+      final query = ops.delete(const Eq('id', 2)).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('DELETE FROM "widgets"'));
       expect(sql, contains('WHERE'));
     });
 
     test('delete with limit applies LIMIT', () {
-      final query = ops.delete(const Eq('title', 'z'), limit: 3).toQuery();
+      final query = ops.delete(const Eq('title', 'z'), limit: 3).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('DELETE FROM "widgets"'));
       expect(sql.toUpperCase(), contains('LIMIT'));
@@ -447,7 +448,7 @@ void main() {
 
     test('custom throws UnimplementedError', () {
       expect(
-        () => ops.custom('unknown_op').toQuery(),
+        () => ops.custom('unknown_op').compiled(),
         throwsA(
           isA<UnimplementedError>().having(
             (e) => e.message,
@@ -464,10 +465,9 @@ void main() {
     late _Operations execOps;
 
     setUp(() async {
-      memoryDb = Raindrop(SQLiteDelegate.memory());
+      memoryDb = Raindrop(SQLiteDelegate(sqlite3.openInMemory()));
       execOps = _Operations();
       execOps.db = memoryDb;
-      await memoryDb.ensureOpen();
       await memoryDb.execute(
         'CREATE TABLE "widgets" ('
         '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
@@ -480,7 +480,7 @@ void main() {
     });
 
     tearDown(() async {
-      await memoryDb.close();
+      (memoryDb.delegate as SQLiteDelegate).dispose();
     });
 
     test('insert with returning rows', () async {
@@ -689,10 +689,9 @@ void main() {
       late _JsonOperations execJsonOps;
 
       setUp(() async {
-        memoryDb = Raindrop(SQLiteDelegate.memory());
+        memoryDb = Raindrop(SQLiteDelegate(sqlite3.openInMemory()));
         execJsonOps = _JsonOperations();
         execJsonOps.db = memoryDb;
-        await memoryDb.ensureOpen();
         await memoryDb.execute(
           'CREATE TABLE "json_widgets" ('
           '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
@@ -704,7 +703,7 @@ void main() {
       });
 
       tearDown(() async {
-        await memoryDb.close();
+        (memoryDb.delegate as SQLiteDelegate).dispose();
       });
 
       test('ColumnUpdate dotted path sets nested key only', () async {
@@ -759,10 +758,9 @@ void main() {
       late _TypedJsonOperations execTypedOps;
 
       setUp(() async {
-        memoryDb = Raindrop(SQLiteDelegate.memory());
+        memoryDb = Raindrop(SQLiteDelegate(sqlite3.openInMemory()));
         execTypedOps = _TypedJsonOperations();
         execTypedOps.db = memoryDb;
-        await memoryDb.ensureOpen();
         await memoryDb.execute(
           'CREATE TABLE "typed_json_widgets" ('
           '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
@@ -774,7 +772,7 @@ void main() {
       });
 
       tearDown(() async {
-        await memoryDb.close();
+        (memoryDb.delegate as SQLiteDelegate).dispose();
       });
 
       test(

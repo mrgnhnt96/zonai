@@ -1,5 +1,5 @@
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
-import 'package:zonai_schema/src/column_types/enum_column.dart';
+import 'package:raindrop/raindrop.dart' show ColumnType;
+import 'package:zonai_schema/src/column_types/column_type_aliases.dart';
 import 'package:zonai_schema/src/column_types/id_column.dart';
 import 'package:zonai_schema/src/schemas/table.dart';
 import 'package:zonai_schema/src/types/id.dart';
@@ -53,6 +53,6 @@ abstract class AbusersTable extends Table<AbuserEntry> {
   EnumColumn<AbuseReport> get report;
   TextColumn get ip;
   BooleanColumn get blackListed;
-  DateTimeColumn? get updatedAt;
-  DateTimeColumn? get blockedUntil;
+  ColumnType<DateTime?> get updatedAt;
+  ColumnType<DateTime?> get blockedUntil;
 }

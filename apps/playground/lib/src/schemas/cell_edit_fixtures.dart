@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:raindrop/raindrop.dart' show ReferentialAction;
 import 'package:zonai_playground/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
@@ -43,7 +45,7 @@ final class CellEditFixture {
   final CompaniesId? companyId;
   final String secretNote;
   final Map<String, dynamic> meta;
-  final List<int>? payload;
+  final Uint8List? payload;
   final DateTime createdAt;
   final DateTime? updatedAt;
 }
@@ -122,12 +124,12 @@ final class CellEditFixtureTable extends Table<CellEditFixture> {
   final EnumColumn<FixtureStatus> status;
   final EnumListColumn<FixtureTag> tags;
   final ListColumn<String> keywords;
-  final IdColumn<CompaniesId>? companyId;
+  final ColumnType<CompaniesId?> companyId;
   final PasswordColumn secretNote;
   final MapColumn meta;
-  final BlobColumn? payload;
+  final ColumnType<Uint8List?> payload;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final cellEditFixtures = table('cell_edit_fixtures', CellEditFixtureTable.new);

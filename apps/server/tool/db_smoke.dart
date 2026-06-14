@@ -7,7 +7,7 @@ Future<void> main() async {
     () async {
       final config = await zonaiDB.getConfig();
       print('Config OK: ${config.baseUrl}');
-      zonaiDB.dispose();
+      await zonaiDB.dispose();
     },
     includeIfAbsent: {
       argsProvider,

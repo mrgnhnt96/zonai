@@ -64,10 +64,10 @@ final class PostTable extends Table<Post> {
   final IdColumn<PostsId> id;
   final IdColumn<AuthorsId> authorId;
   final TextColumn title;
-  final TextColumn? body;
+  final ColumnType<String?> body;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
-  final PhotoColumn? photo;
+  final ColumnType<DateTime?> updatedAt;
+  final ColumnType<PhotoId?> photo;
 }
 
 final posts = table('posts', PostTable.new);

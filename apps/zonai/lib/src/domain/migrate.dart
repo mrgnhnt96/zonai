@@ -160,7 +160,7 @@ class Migrate {
     }
 
     try {
-      zonaiDB.dispose();
+      await zonaiDB.dispose();
       await zonaiDB.open();
       logger.info('Applied pending SQL migrations');
       return 0;

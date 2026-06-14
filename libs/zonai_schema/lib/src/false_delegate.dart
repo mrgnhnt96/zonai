@@ -10,24 +10,9 @@ class FalseDelegate extends RaindropDelegate {
   }
 
   @override
-  Future<void> onClose() {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> onOpen() {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<T> transaction<T>(
     Future<T> Function(TransactionDelegate delegate) transaction,
   ) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Stream<DatabaseResult> streamQuery(String query, List<Object?> values) {
     throw UnimplementedError();
   }
 }

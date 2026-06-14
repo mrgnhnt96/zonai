@@ -56,7 +56,7 @@ final class UserTable extends AuthTable<User>
   final TextColumn name;
   final IsVerifiedColumn isVerified;
   final PasswordColumn passwordHash;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final users = authTable('users', UserTable.new);

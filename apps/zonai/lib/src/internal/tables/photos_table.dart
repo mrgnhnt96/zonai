@@ -10,9 +10,9 @@ class PhotosTable extends schema.PhotosTable {
         fromString: PhotoId.new,
         generate: PhotoId.generate,
       ),
-      ownerId = $.id(
+      ownerId = $.id<UnknownId, UnknownId>(
         'owner_id',
-        (s) => s.ownerId,
+        (s) => UnknownId(s.ownerId.value),
         fromString: UnknownId.new,
         synthetic: const UnknownId('__PHOTO_OWNER__'),
         generate: () => throw Exception('Owner ID is required for photos'),

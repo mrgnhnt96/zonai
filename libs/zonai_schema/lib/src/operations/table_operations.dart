@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:meta/meta.dart';
+import 'package:raindrop/dialect.dart';
 import 'package:raindrop/raindrop.dart' as rd;
-import 'package:raindrop/raindrop.dart' hide Update, OrderByTerm;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/where_sql.dart';
@@ -20,7 +20,7 @@ abstract interface class _DbTable {
   const _DbTable();
 
   (String, List<Object?>) _translate(
-    BaseSqlDialect dialect,
+    SqlDialect dialect,
     PerformOperationRequest request,
   );
 }
@@ -63,7 +63,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     return db.insert(into: schema).values(entities).returning();
   }
 
-  rd.UpdateWhereBuilder<rd.Schema<R>, R, List<Object?>, void> update(
+  rd.UpdateWhereBuilder<rd.Schema<R>, R, void> update(
     List<Update> updates, {
     required Where where,
   }) {
@@ -422,7 +422,9 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     final pkColumn = table.columns.firstWhere((c) => c.isPrimaryKey);
     final counting = _CountColumn(pkColumn);
 
-    var builder = db.select(counting).from(schema);
+    rd.SelectFromBuilder<rd.Schema<R>, R, int> builder = db
+        .select(counting)
+        .from(schema);
 
     if (where != null) {
       builder = builder.where(_whereFilter(where, table.name));
@@ -478,13 +480,13 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     }
 
     final resolvedOrderBy = orderBy ?? _defaultListOrderBy();
-    if (resolvedOrderBy != null) {
-      for (final term in resolvedOrderBy) {
-        builder = builder.orderBy(
-          table[term.column],
-          ascending: term.direction == SortDirection.asc,
-        );
-      }
+    if (resolvedOrderBy != null && resolvedOrderBy.isNotEmpty) {
+      builder = builder.orderBy({
+        for (final term in resolvedOrderBy)
+          table[term.column]: term.direction == SortDirection.asc
+              ? Order.asc
+              : Order.desc,
+      });
     }
 
     if (limit != null) {
@@ -529,7 +531,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
 
   @override
   (String, List<Object?>) _translate(
-    BaseSqlDialect dialect,
+    SqlDialect dialect,
     PerformOperationRequest request,
   ) {
     final query = _query(request);
@@ -537,23 +539,23 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
   }
 
   /// Builds the [Query] for [request] so callers (e.g. [DbOperations]) can run
-  /// [BaseSqlDialect.translate] with the concrete schema row types for [S]/[R].
-  rd.Query<dynamic, dynamic> _query(PerformOperationRequest request) {
+  /// [SqlDialect.translate] with the concrete schema row types for [S]/[R].
+  Query<dynamic> _query(PerformOperationRequest request) {
     return switch (request) {
-      CountOperationRequest(:final where) => count(where: where).toQuery(),
-      CreateOperationRequest(:final object) => insert(object).toQuery(),
+      CountOperationRequest(:final where) => count(where: where).compiled(),
+      CreateOperationRequest(:final object) => insert(object).compiled(),
       UpdateOperationRequest(:final where, :final updates) => update(
         updates,
         where: where,
-      ).toQuery(),
+      ).compiled(),
       DeleteOperationRequest(:final where, :final limit) => delete(
         where,
         limit: limit,
-      ).toQuery(),
+      ).compiled(),
       ReadOperationRequest(:final where) => list(
         limit: 1,
         where: where,
-      ).toQuery(),
+      ).compiled(),
       ListOperationRequest(
         :final where,
         :final limit,
@@ -565,9 +567,9 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
           limit: limit,
           offset: offset,
           orderBy: orderBy,
-        ).toQuery(),
+        ).compiled(),
       CustomOperationRequest(:final where, :final operation, :final values) =>
-        custom(operation, where: where, values: values).toQuery(),
+        custom(operation, where: where, values: values).compiled(),
       PerformOperationRequest(:final operation) => throw StateError(
         'Invalid operation: $operation',
       ),

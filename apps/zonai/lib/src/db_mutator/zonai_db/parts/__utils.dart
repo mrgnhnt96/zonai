@@ -27,7 +27,8 @@ extension UtilsX on ZonaiDb {
 
     logger.debug('Opening database: ${_dbFile.path}', prefix: _prefix);
     await ensureResqliteNativeInstalled();
-    final db = Raindrop(await ResqliteDelegate.open(_dbFile.path));
+    final delegate = await ResqliteDelegate.open(_dbFile.path);
+    final db = Raindrop(delegate);
 
     try {
       logger.verbose(
@@ -48,15 +49,25 @@ extension UtilsX on ZonaiDb {
         logger.debug('Migrating database', prefix: _prefix);
         await raindrop.migrate(db, migrations);
       }
-
-      logger.verbose('Ensuring database is open', prefix: _prefix);
-      await db.ensureOpen();
     } catch (_) {
-      db.close();
+      await delegate.close();
       rethrow;
     }
 
     return this.db = db;
+  }
+
+  ResqliteDelegate get _resqlite {
+    final db = this.db;
+    if (db == null) {
+      throw const DatabaseNotOpenException();
+    }
+    if (db.delegate case final ResqliteDelegate delegate) {
+      return delegate;
+    }
+    throw StateError(
+      'Expected ResqliteDelegate, got ${db.delegate.runtimeType}',
+    );
   }
 
   Future<void> _createInternalCollections(Raindrop db) async {
@@ -400,7 +411,7 @@ extension UtilsX on ZonaiDb {
 
     try {
       logger.verbose('Streaming query: $query', prefix: _prefix);
-      final stream = db.streamQuery(query, values);
+      final stream = _resqlite.streamQuery(query, values);
       await for (final result in stream) {
         yield OperationResult(result);
       }

@@ -7,7 +7,7 @@ import 'dart:math';
 import 'package:clock/clock.dart';
 import 'package:file/file.dart';
 import 'package:raindrop/raindrop.dart' as raindrop show migrate;
-import 'package:raindrop/raindrop.dart' hide migrate, Update;
+import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
@@ -39,7 +39,6 @@ import '../operation_result.dart';
 import '../payloads/payloads.dart';
 import '../sqlite_internal_table_sync.dart';
 
-part 'parts/cleanup_photos.dart';
 part 'parts/__auth_utils.dart';
 part 'parts/__utils.dart';
 part 'parts/admin/create_admin.dart';
@@ -51,9 +50,10 @@ part 'parts/auth/otp.dart';
 part 'parts/auth/password.dart';
 part 'parts/auth/reset_password.dart';
 part 'parts/auth/verify_email.dart';
+part 'parts/cleanup_photos.dart';
 part 'parts/count.dart';
-part 'parts/dashboard_metrics.dart';
 part 'parts/create.dart';
+part 'parts/dashboard_metrics.dart';
 part 'parts/delete.dart';
 part 'parts/effects.dart';
 part 'parts/expand.dart';
@@ -95,10 +95,18 @@ class ZonaiDb {
 
   File? __dbFile;
 
-  void dispose() {
-    db?.close();
-    db = null;
+  /// Closes the underlying [ResqliteDelegate] and clears the open [db].
+  Future<void> close() async {
+    final db = this.db;
+    this.db = null;
     _opening = null;
+    if (db?.delegate case ResqliteDelegate delegate) {
+      await delegate.close();
+    }
+  }
+
+  Future<void> dispose() async {
+    await close();
     __dbFile = null;
     _extensions.dispose();
     _rules.dispose();
@@ -261,7 +269,10 @@ class ZonaiDb {
     int? since,
     bool excludeAdmin = false,
   }) async {
-    return await _run(() => _dashboardMetrics(jwt: jwt, since: since, excludeAdmin: excludeAdmin));
+    return await _run(
+      () =>
+          _dashboardMetrics(jwt: jwt, since: since, excludeAdmin: excludeAdmin),
+    );
   }
 
   Future<void> sendEmail(Email email) async {
@@ -381,7 +392,8 @@ class ZonaiDb {
       final mapped = mapDatabaseError(
         e,
         table: 'unknown',
-        orElse: (cause) => StateError('Failed to run database operation: $cause'),
+        orElse: (cause) =>
+            StateError('Failed to run database operation: $cause'),
       );
       Error.throwWithStackTrace(mapped, stack);
     }

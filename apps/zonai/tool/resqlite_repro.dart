@@ -16,7 +16,8 @@ Future<void> main() async {
   final dir = await Directory.systemTemp.createTemp('resqlite_repro_');
   final path = '${dir.path}/test.sqlite';
 
-  final db = Raindrop(await ResqliteDelegate.open(path));
+  final delegate = await ResqliteDelegate.open(path);
+  final db = Raindrop(delegate);
 
   try {
     await db.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');
@@ -25,7 +26,7 @@ Future<void> main() async {
     final rows = await db.execute('SELECT name FROM t WHERE name = ?', ['a']);
     stdout.writeln('read OK: ${rows.rows}');
 
-    final stream = db.streamQuery('SELECT name FROM t ORDER BY id', const []);
+    final stream = delegate.streamQuery('SELECT name FROM t ORDER BY id', const []);
     final emissions = <List<List<Object?>>>[];
     final done = Completer<void>();
     late final StreamSubscription<dynamic> sub;
@@ -45,7 +46,7 @@ Future<void> main() async {
 
     stdout.writeln('ALL PASSED');
   } finally {
-    await db.close();
+    await delegate.close();
     dir.deleteSync(recursive: true);
   }
 }

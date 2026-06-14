@@ -40,7 +40,7 @@ final class CompanyTable extends Table<Company> {
   final IdColumn<CompaniesId> id;
   final TextColumn name;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final companies = table('companies', CompanyTable.new);

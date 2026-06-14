@@ -1,27 +1,21 @@
 import 'package:raindrop/raindrop.dart';
 
 extension IsVerifiedColumnDefinition<S> on SchemaBuilder<S> {
-  T isVerified<T extends IsVerifiedColumn?, W extends bool?>(
+  ColumnType<W> isVerified<W extends bool?>(
     String name,
-    W Function(S) field,
-  ) {
-    return custom<IsVerifiedColumn, bool, Object, W>(
-          IsVerifiedColumn.new,
-          name,
-          field,
-          transformer: const IsVerifiedTransformer(),
-          sqlType: 'INTEGER',
-          defaultValue: '0',
-        )
-        as T;
+    Field<S, W> field, {
+    String? defaultValue,
+  }) {
+    return custom<bool, Object, W>(
+      name,
+      field,
+      transformer: const IsVerifiedTransformer(),
+      sqlType: 'INTEGER',
+      defaultValue: defaultValue,
+    );
   }
 }
 
-extension type IsVerifiedColumn(Column<dynamic, bool> _)
-    implements ColumnType<bool> {}
-
-/// Wire type [Object] so [decode] accepts SQL integers and in-memory [bool]
-/// values (e.g. some drivers / RETURNING rows surface bound Dart values).
 class IsVerifiedTransformer extends ColumnTransformer<bool, Object> {
   const IsVerifiedTransformer();
 

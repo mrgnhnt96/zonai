@@ -36,8 +36,8 @@ class AbusersTable extends schema.AbusersTable {
   final EnumColumn<AbuseReport> report;
   final TextColumn ip;
   final BooleanColumn blackListed;
-  final DateTimeColumn? updatedAt;
-  final DateTimeColumn? blockedUntil;
+  final ColumnType<DateTime?> updatedAt;
+  final ColumnType<DateTime?> blockedUntil;
 }
 
 final abusers = () {

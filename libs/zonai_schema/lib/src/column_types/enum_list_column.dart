@@ -2,30 +2,24 @@ import 'dart:convert';
 
 import 'package:raindrop/raindrop.dart';
 
-/// Dart [Enum] stored as TEXT (enum [.name] on the wire by default).
-extension type EnumListColumn<E extends Enum>(Column<dynamic, List<E>> _)
-    implements ColumnType<List<E>> {}
-
 extension EnumListColumnDefinition<S> on SchemaBuilder<S> {
-  T enumList<E extends Enum, T extends EnumListColumn<E>?, W extends Object?>(
+  ColumnType<W> enumList<E extends Enum, W extends List<E>?>(
     String name,
     List<E> values,
-    W Function(S) field, {
+    Field<S, W> field, {
     String Function(E value)? toWire,
     E Function(String wire)? fromWire,
   }) {
-    return custom<EnumListColumn<E>, List<E>, Object, W>(
-          EnumListColumn<E>.new,
-          name,
-          field,
-          sqlType: 'TEXT',
-          transformer: EnumListTransformer<E>(
-            values: values,
-            toWire: toWire,
-            fromWire: fromWire,
-          ),
-        )
-        as T;
+    return custom<List<E>, Object, W>(
+      name,
+      field,
+      sqlType: 'TEXT',
+      transformer: EnumListTransformer<E>(
+        values: values,
+        toWire: toWire,
+        fromWire: fromWire,
+      ),
+    );
   }
 }
 

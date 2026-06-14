@@ -43,7 +43,7 @@ Future<int> clearDatabase() async {
     }
   }
 
-  zonaiDB.dispose();
+  await zonaiDB.dispose();
 
   for (final file in targets) {
     file.deleteSync();

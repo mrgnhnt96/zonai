@@ -9,9 +9,9 @@ final class IntrospectionPhotosTable extends PhotosTable {
         fromString: PhotoId.new,
         generate: PhotoId.generate,
       ),
-      ownerId = $.id(
+      ownerId = $.id<UnknownId, UnknownId>(
         'owner_id',
-        (s) => s.ownerId,
+        (s) => UnknownId(s.ownerId.value),
         fromString: UnknownId.new,
         synthetic: const UnknownId('__photo_owner__'),
         generate: () => const UnknownId('__photo_owner__'),

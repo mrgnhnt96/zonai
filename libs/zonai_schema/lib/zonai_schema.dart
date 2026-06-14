@@ -1,10 +1,12 @@
 /// Shared table definitions and database types for Zonai.
 library;
 
+export 'package:raindrop/dialect.dart' show SqlDialect;
 export 'package:raindrop/raindrop.dart'
     show
         SchemaBuilder,
         ColumnType,
+        Order,
         uniqueIndex,
         index,
         IndexBuilderOn,
@@ -13,19 +15,15 @@ export 'package:raindrop/raindrop.dart'
 export 'package:raindrop_sqlite/raindrop_sqlite.dart'
     show
         BooleanColumnDefinition,
-        BooleanColumn,
-        BigIntColumn,
         BigIntColumnDefinition,
-        IntColumn,
         IntColumnDefinition,
-        TextColumn,
         TextColumnDefinition,
-        DateTimeColumn,
         DateTimeColumnDefinition,
-        RealColumn,
         RealColumnDefinition,
-        BlobColumn,
         BlobColumnDefinition;
+
+export 'src/raindrop_query_compile.dart';
+export 'src/column_types/column_type_aliases.dart';
 
 export 'package:cron/cron.dart' show Schedule;
 

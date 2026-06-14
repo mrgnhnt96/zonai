@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/src/deps/keyboard_input.dart';
 import 'package:zonai/src/deps/logger.dart';
@@ -12,8 +14,9 @@ final zonaiDbProvider = create<ZonaiDb Function()>(
       if (isRegistered(keyboardInputProvider)) {
         keyboardInput.onKey('r', () {
           logger.info('Restarting Zonai DB');
-          _db?.dispose();
+          final db = _db;
           _db = null;
+          unawaited(db?.dispose());
         });
       }
     }

@@ -136,7 +136,7 @@ final class ${names.tableClass} extends Table<${names.entityClass}> {
   final IdColumn<${names.idClass}> id;
   final TextColumn name;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final ${names.getter} = table('${names.tableName}', ${names.tableClass}.new);
@@ -220,7 +220,7 @@ final class ${names.tableClass} extends AuthTable<${names.entityClass}>$mixins {
   final DateTimeColumn createdAt;
   final EmailColumn email;
   final IsVerifiedColumn isVerified;$passwordTableMember
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final ${names.getter} = authTable('${names.tableName}', ${names.tableClass}.new);

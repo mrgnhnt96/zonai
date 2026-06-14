@@ -7,23 +7,18 @@ import 'package:raindrop/raindrop.dart';
 /// On columns using [ListTransformer], `TableOperations.update` maps
 /// add / remove update operations to JSON array append and remove-by-value
 /// (not numeric `+` / `-`).
-extension type ListColumn<T>(Column<dynamic, List<T>> _)
-    implements ColumnType<List<T>> {}
-
 extension ListColumnDefinition<S> on SchemaBuilder<S> {
-  T list<E, T extends ListColumn<E>?, W extends Object?>(
+  ColumnType<W> list<E, W extends List<E>?>(
     String name,
-    W Function(S) field, {
+    Field<S, W> field, {
     required E Function(dynamic) fromJson,
   }) {
-    return custom<ListColumn<E>, List<E>, Object, W>(
-          ListColumn<E>.new,
-          name,
-          field,
-          sqlType: 'TEXT',
-          transformer: ListTransformer<E>(fromJson: fromJson),
-        )
-        as T;
+    return custom<List<E>, Object, W>(
+      name,
+      field,
+      sqlType: 'TEXT',
+      transformer: ListTransformer<E>(fromJson: fromJson),
+    );
   }
 }
 

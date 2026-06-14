@@ -2,49 +2,37 @@ import 'dart:convert';
 
 import 'package:raindrop/raindrop.dart';
 
-/// JSON object as [Map<String, dynamic>], stored in TEXT
-extension type MapColumn(Column<dynamic, Map<String, dynamic>> _)
-    implements ColumnType<Map<String, dynamic>> {}
-
-/// JSON object as [T], stored in TEXT
-extension type TypedMapColumn<T extends Object>(Column<dynamic, T> _)
-    implements ColumnType<T> {}
-
 extension MapColumnDefinition<S> on SchemaBuilder<S> {
   /// JSON object as [Map<String, dynamic>], stored in TEXT
-  T map<T extends MapColumn?, W extends Object?>(
+  ColumnType<W> map<W extends Map<String, dynamic>?>(
     String name,
-    W Function(S) field, {
+    Field<S, W> field, {
     Map<String, dynamic> Function(dynamic) fromJson = _mapFromDynamic,
   }) {
-    return custom<MapColumn, Map<String, dynamic>, Object, W>(
-          MapColumn.new,
-          name,
-          field,
-          sqlType: 'TEXT',
-          transformer: MapTransformer<Map<String, dynamic>>(fromJson: fromJson),
-        )
-        as T;
+    return custom<Map<String, dynamic>, Object, W>(
+      name,
+      field,
+      sqlType: 'TEXT',
+      transformer: MapTransformer<Map<String, dynamic>>(fromJson: fromJson),
+    );
   }
 
   static Map<String, dynamic> _mapFromDynamic(dynamic d) =>
       Map<String, dynamic>.from(d as Map);
 
   /// JSON object as [V], stored in TEXT
-  T mapAs<V extends Object, T extends TypedMapColumn<V>?, W extends Object?>(
+  ColumnType<W> mapAs<V extends Object, W extends V?>(
     String name,
-    W Function(S) field, {
+    Field<S, W> field, {
     required V Function(dynamic) fromJson,
     required V synthetic,
   }) {
-    return custom<TypedMapColumn<V>, V, Object, W>(
-          TypedMapColumn<V>.new,
-          name,
-          field,
-          sqlType: 'TEXT',
-          transformer: MapTransformer<V>(fromJson: fromJson),
-        )
-        as T;
+    return custom<V, Object, W>(
+      name,
+      field,
+      sqlType: 'TEXT',
+      transformer: MapTransformer<V>(fromJson: fromJson),
+    );
   }
 }
 

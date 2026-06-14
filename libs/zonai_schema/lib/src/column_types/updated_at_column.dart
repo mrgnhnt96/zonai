@@ -1,19 +1,16 @@
 import 'package:raindrop/raindrop.dart';
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 
 extension UpdatedAtColumnDefinition<S> on SchemaBuilder<S> {
-  T updatedAt<T extends DateTimeColumn?, W extends DateTime?>(
+  ColumnType<W> updatedAt<W extends DateTime?>(
     String name,
-    W Function(S) field,
+    Field<S, W> field,
   ) {
-    return custom<DateTimeColumn, DateTime, int, W>(
-          DateTimeColumn.new,
-          name,
-          field,
-          transformer: const UpdatedAtTransformer(),
-          sqlType: 'INTEGER',
-        )
-        as T;
+    return custom<DateTime, int, W>(
+      name,
+      field,
+      transformer: const UpdatedAtTransformer(),
+      sqlType: 'INTEGER',
+    );
   }
 }
 

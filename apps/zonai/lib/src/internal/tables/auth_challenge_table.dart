@@ -130,9 +130,9 @@ class AuthChallengeTable extends Table<AuthChallenge> {
         fromString: AuthChallengeId.new,
         generate: AuthChallengeId.generate,
       ),
-      userId = $.id(
+      userId = $.id<UnknownId, UnknownId?>(
         'user_id',
-        (s) => s.userId,
+        (s) => s.userId == null ? null : UnknownId(s.userId!.value),
         fromString: UnknownId.new,
         generate: () => throw Exception(
           'User ID should not be generated for auth challenges',
@@ -152,15 +152,15 @@ class AuthChallengeTable extends Table<AuthChallenge> {
       allowedAttempts = $.integer('allowed_attempts', (s) => s.allowedAttempts);
 
   final IdColumn<AuthChallengeId> id;
-  final IdColumn<UnknownId>? userId;
+  final ColumnType<UnknownId?> userId;
   final DateTimeColumn expiresAt;
-  final MapColumn? metadata;
+  final ColumnType<Map<String, dynamic>?> metadata;
   final TextColumn secretHash;
   final TextColumn target;
   final TextColumn table;
   final EnumColumn<AuthChallengeType> type;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? consumedAt;
+  final ColumnType<DateTime?> consumedAt;
   final BooleanColumn canConsume;
   final IntColumn allowedAttempts;
 

@@ -54,11 +54,11 @@ final class ItemTable extends Table<Item> {
 
   final IdColumn<ItemsId> id;
   final TextColumn body;
-  final TextColumn? description;
-  final PhotoColumn? image;
-  final IntColumn? status;
+  final ColumnType<String?> description;
+  final ColumnType<PhotoId?> image;
+  final ColumnType<int?> status;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final items = table('items', ItemTable.new);

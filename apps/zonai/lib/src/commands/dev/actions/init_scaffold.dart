@@ -77,7 +77,7 @@ final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
   final EmailColumn email;
   final IsVerifiedColumn isVerified;
   final PasswordColumn passwordHash;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final admins = authTable('admins', AdminTable.new);

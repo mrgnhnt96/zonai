@@ -61,7 +61,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
             .select()
             .from(crons)
             .where(crons.name.equals(request.name))
-            .orderBy(crons.started, ascending: false)
+            .orderBy({crons.started: Order.desc})
             .limit(1);
 
         if (rows.isEmpty) {
@@ -100,7 +100,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
 
         await db
             .update(crons)
-            .set(crons.completed.to(.now()))
+            .set(crons.completed.to(DateTime.now()))
             .where(
               crons.name.equals(name) &
                   crons.completed.isNull() &
@@ -114,7 +114,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
         await db
             .update(crons)
             .set(
-              crons.failed.to(.now()),
+              crons.failed.to(DateTime.now()),
               crons.error.to(error),
               crons.stackTrace.to(stackTrace),
             )

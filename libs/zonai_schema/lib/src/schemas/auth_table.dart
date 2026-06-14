@@ -2,9 +2,7 @@ library auth_table;
 
 import 'package:meta/meta.dart';
 import 'package:raindrop/raindrop.dart' hide Table;
-import 'package:zonai_schema/src/column_types/email_column.dart';
-import 'package:zonai_schema/src/column_types/is_verified_column.dart';
-import 'package:zonai_schema/src/column_types/password_column.dart';
+import 'package:zonai_schema/src/column_types/column_type_aliases.dart';
 import 'package:zonai_schema/src/types/id.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
 

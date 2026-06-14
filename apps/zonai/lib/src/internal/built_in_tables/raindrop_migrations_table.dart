@@ -23,7 +23,7 @@ class RaindropMigrationsTable extends Table<RaindropMigrationEntry> {
       appliedAt = $.dateTime('applied_at', (s) => s.appliedAt),
       checksum = $.text('checksum', (s) => s.checksum);
 
-  final IntColumn id;
+  final ColumnType<int?> id;
   final TextColumn name;
   final DateTimeColumn appliedAt;
   final TextColumn checksum;

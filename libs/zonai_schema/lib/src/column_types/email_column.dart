@@ -1,23 +1,18 @@
 import 'package:raindrop/raindrop.dart';
 
 extension EmailColumnDefinition<S> on SchemaBuilder<S> {
-  T email<T extends EmailColumn?, W extends String?>(
+  ColumnType<W> email<W extends String?>(
     String name,
-    W Function(S) field,
+    Field<S, W> field,
   ) {
-    return custom<EmailColumn, String, String, W>(
-          EmailColumn.new,
-          name,
-          field,
-          sqlType: 'TEXT',
-          transformer: const EmailTransformer(),
-        )
-        as T;
+    return custom<String, String, W>(
+      name,
+      field,
+      sqlType: 'TEXT',
+      transformer: const EmailTransformer(),
+    );
   }
 }
-
-extension type EmailColumn(Column<dynamic, String> _)
-    implements ColumnType<String> {}
 
 class EmailTransformer extends ColumnTransformer<String, String> {
   const EmailTransformer();

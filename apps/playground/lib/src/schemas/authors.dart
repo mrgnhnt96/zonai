@@ -54,9 +54,9 @@ final class AuthorTable extends Table<Author> {
 
   final IdColumn<AuthorsId> id;
   final TextColumn name;
-  final IdColumn<CompaniesId>? companyId;
+  final ColumnType<CompaniesId?> companyId;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final authors = table('authors', AuthorTable.new);

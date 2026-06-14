@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:raindrop/raindrop.dart' as rd show Table;
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/tables/table.dart' as zs;
@@ -127,7 +129,7 @@ final class _PhotoDemoTable extends Table<_PhotoRow> {
       _PhotoRow(id: read(id), image: read(image));
 
   final IdColumn<UnknownId> id;
-  final PhotoColumn? image;
+  final ColumnType<PhotoId?> image;
 }
 
 final class _BigIntRow {
@@ -135,7 +137,7 @@ final class _BigIntRow {
 
   final UnknownId id;
   final BigInt bigCount;
-  final List<int>? payload;
+  final Uint8List? payload;
 }
 
 final class _BigIntDemoTable extends Table<_BigIntRow> {
@@ -160,5 +162,5 @@ final class _BigIntDemoTable extends Table<_BigIntRow> {
 
   final IdColumn<UnknownId> id;
   final BigIntColumn bigCount;
-  final BlobColumn? payload;
+  final ColumnType<Uint8List?> payload;
 }

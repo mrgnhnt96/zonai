@@ -17,6 +17,7 @@ void main() {
   group('InternalDbMigrate', () {
     late Directory tempDir;
     late File dbFile;
+    late ResqliteDelegate delegate;
     late Raindrop db;
 
     setUp(() async {
@@ -24,11 +25,12 @@ void main() {
         'zonai_internal_migrate_',
       );
       dbFile = File('${tempDir.path}/test.sqlite');
-      db = Raindrop(await ResqliteDelegate.open(dbFile.path));
+      delegate = await ResqliteDelegate.open(dbFile.path);
+      db = Raindrop(delegate);
     });
 
     tearDown(() async {
-      await db.close();
+      await delegate.close();
       if (tempDir.existsSync()) {
         tempDir.deleteSync(recursive: true);
       }

@@ -14,7 +14,7 @@ class DbOperations {
 
   final List<TableOperations> operations;
   final List<rd.Schema> tables;
-  final rd.BaseSqlDialect dialect;
+  final SqlDialect dialect;
 
   Map<String, TableOperations>? _operationsByTable;
   Map<String, TableOperations> get operationsByTable {

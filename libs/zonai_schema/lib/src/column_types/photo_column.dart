@@ -4,27 +4,21 @@ import 'package:zonai_schema/src/internal/tables.dart'
     show ensureInternalTablesForIntrospection, photos;
 
 extension PhotoColumnDefinition<S> on SchemaBuilder<S> {
-  T photo<T extends PhotoColumn?, W extends PhotoId?>(
+  ColumnType<W> photo<W extends PhotoId?>(
     String name,
-    W Function(S) field,
+    Field<S, W> field,
   ) {
-    final c =
-        custom<PhotoColumn, PhotoId, String, W>(
-              PhotoColumn.new,
-              name,
-              field,
-              sqlType: 'TEXT',
-              transformer: const PhotoTransformer(),
-            )
-            as PhotoColumn?;
+    final column = custom<PhotoId, String, W>(
+      name,
+      field,
+      sqlType: 'TEXT',
+      transformer: const PhotoTransformer(),
+    );
 
     ensureInternalTablesForIntrospection();
-    return c?.references(() => photos.id) as T;
+    return column.references(() => photos.id);
   }
 }
-
-extension type PhotoColumn(Column<dynamic, PhotoId> _)
-    implements ColumnType<PhotoId> {}
 
 class PhotoTransformer extends ColumnTransformer<PhotoId, String> {
   const PhotoTransformer();

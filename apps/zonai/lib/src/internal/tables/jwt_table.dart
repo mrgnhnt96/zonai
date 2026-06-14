@@ -16,9 +16,9 @@ class JwtTable extends Table<JwtEntry> {
         fromString: JwtId.new,
         generate: JwtId.generate,
       ),
-      userId = $.id(
+      userId = $.id<UnknownId, UnknownId>(
         'user_id',
-        (s) => s.userId,
+        (s) => UnknownId(s.userId.value),
         fromString: UnknownId.new,
         generate: () => throw Exception('User ID is required for JWT table'),
         isPrimaryKey: false,
