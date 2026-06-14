@@ -494,6 +494,38 @@ const kSwaggerJson = r'''{
       }
     },
     "/db/many": {
+      "post": {
+        "operationId": "db_createMany",
+        "tags": [
+          "db"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateManyBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "operationId": "db_updateMany",
         "tags": [
@@ -1174,6 +1206,10 @@ const kSwaggerJson = r'''{
               "$ref": "#/components/schemas/OrderByTerm"
             },
             "nullable": true
+          },
+          "groupBy": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -1275,6 +1311,10 @@ const kSwaggerJson = r'''{
             },
             "nullable": true
           },
+          "groupBy": {
+            "type": "string",
+            "nullable": true
+          },
           "expand": {
             "type": "array",
             "items": {
@@ -1316,6 +1356,25 @@ const kSwaggerJson = r'''{
         "required": [
           "table",
           "object"
+        ]
+      },
+      "CreateManyBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "table",
+          "objects"
         ]
       },
       "UpdateOneBody": {
@@ -2106,6 +2165,26 @@ paths:
                 type: integer
                 format: int64
   '/db/many':
+    post:
+      operationId: db_createMany
+      tags:
+        - db
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManyBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
     patch:
       operationId: db_updateMany
       tags:
@@ -2532,6 +2611,9 @@ components:
           items:
             $ref: '#/components/schemas/OrderByTerm'
           nullable: true
+        groupBy:
+          type: string
+          nullable: true
       required:
         - table
         - expand
@@ -2598,6 +2680,9 @@ components:
           items:
             $ref: '#/components/schemas/OrderByTerm'
           nullable: true
+        groupBy:
+          type: string
+          nullable: true
         expand:
           type: array
           items:
@@ -2626,6 +2711,19 @@ components:
       required:
         - table
         - object
+    CreateManyBody:
+      type: object
+      properties:
+        table:
+          type: string
+        objects:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required:
+        - table
+        - objects
     UpdateOneBody:
       type: object
       properties:

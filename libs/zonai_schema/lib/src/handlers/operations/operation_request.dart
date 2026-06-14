@@ -421,6 +421,40 @@ final class CreateOperationRequest extends PerformOperationRequest {
   }
 }
 
+final class CreateManyOperationRequest extends PerformOperationRequest {
+  CreateManyOperationRequest({
+    required super.table,
+    required this.objects,
+    required super.jwt,
+  }) : super(operation: TableOperation.create.name);
+
+  CreateManyOperationRequest._({
+    required super.id,
+    required this.objects,
+    required super.table,
+    required super.jwt,
+  }) : super._(operation: TableOperation.create.name);
+
+  factory CreateManyOperationRequest.fromRequest(UnknownRequest request) {
+    return CreateManyOperationRequest._(
+      id: request.id,
+      objects: [
+        for (final object in request.payload['objects'] as List<dynamic>)
+          object as Map<String, dynamic>,
+      ],
+      table: request.payload['table'] as String,
+      jwt: request.jwt,
+    );
+  }
+
+  final List<Map<String, dynamic>> objects;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'objects': objects};
+  }
+}
+
 final class UpdateOperationRequest extends PerformOperationRequest {
   UpdateOperationRequest({
     required super.table,

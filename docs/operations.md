@@ -137,7 +137,7 @@ These map to `TableOperation` names in rules and rate limiting:
 
 | Operation | Operations helper | Typical HTTP use                |
 | --------- | ----------------- | ------------------------------- |
-| `create`  | `insert`          | `POST /db`                      |
+| `create`  | `insert`          | `POST /db`, `POST /db/many`       |
 | `update`  | `update`          | `PATCH /db`, `PATCH /db/many`   |
 | `delete`  | `delete`          | `DELETE /db`, `DELETE /db/many` |
 | `view`    | `list` (limit 1)  | `GET /db`, stream-one           |

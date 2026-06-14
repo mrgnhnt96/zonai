@@ -113,7 +113,7 @@ client.db.listen.list(body: StreamListBody(...)).listen((records) {
 });
 ```
 
-Available methods: `get`, `list`, `count`, `create`, `update`, `updateMany`,
+Available methods: `get`, `list`, `count`, `create`, `createMany`, `update`, `updateMany`,
 `delete`, `deleteMany`, and streaming variants via `client.db.listen`.
 
 ### `client.photos` — Photos

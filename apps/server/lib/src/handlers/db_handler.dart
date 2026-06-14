@@ -43,6 +43,19 @@ class DbHandler {
     );
   }
 
+  Future<List<Map<String, Object?>>> createMany(
+    String? authorization,
+    CreateManyBody body,
+  ) async {
+    return await zonaiDB.createMany(
+      body.table,
+      .new(
+        objects: body.objects,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
+    );
+  }
+
   Future<Map<String, Object?>> update(
     String? authorization,
     UpdateOneBody body,

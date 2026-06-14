@@ -13,6 +13,7 @@ Every table registered with `table()` or `authTable()` automatically gets these 
 | `list`        | `GET`    | `/db/list`  | `?body=<JSON>` |
 | `count`       | `GET`    | `/db/count` | `?body=<JSON>` |
 | `create`      | `POST`   | `/db`       | JSON body      |
+| `create many` | `POST`   | `/db/many`  | JSON body      |
 | `update`      | `PATCH`  | `/db`       | JSON body      |
 | `update many` | `PATCH`  | `/db/many`  | JSON body      |
 | `delete`      | `DELETE` | `/db`       | JSON body      |
@@ -68,6 +69,25 @@ Response:
 
 // Response
 { "data": { "id": "tk_abc123", "title": "Buy groceries", "isComplete": false, "createdAt": "...", "updatedAt": "..." } }
+```
+
+### create many — `POST /db/many`
+
+```json
+// Request body
+{
+  "table": "tasks",
+  "objects": [
+    { "title": "Buy groceries", "isComplete": false },
+    { "title": "Walk the dog", "isComplete": false }
+  ]
+}
+
+// Response
+{ "data": [
+  { "id": "tk_abc123", "title": "Buy groceries", "isComplete": false, "createdAt": "...", "updatedAt": "..." },
+  { "id": "tk_def456", "title": "Walk the dog", "isComplete": false, "createdAt": "...", "updatedAt": "..." }
+] }
 ```
 
 ### update — `PATCH /db`

@@ -315,6 +315,13 @@ class ZonaiDb {
     return await _run(() => _create(table, payload));
   }
 
+  Future<_CrudListResult> createMany(
+    String table,
+    CreateManyPayload payload,
+  ) async {
+    return await _run(() => _createMany(table, payload));
+  }
+
   Future<Jwt?> parseJwt(String? jwt) async {
     return await _run(() => _extractJwt(JwtPayload(jwt: jwt)));
   }

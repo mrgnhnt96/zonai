@@ -18,6 +18,7 @@ export 'package:zonai_schema/payloads.dart'
         AuthBody,
         CountBody,
         CreateBody,
+        CreateManyBody,
         DeleteBody,
         DeleteOneBody,
         Email,

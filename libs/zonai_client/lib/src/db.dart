@@ -39,6 +39,13 @@ class Db {
     return await _db.create(body: body, authorization: authorization);
   }
 
+  Future<List<Map<String, Object?>>> createMany({
+    required CreateManyBody body,
+    String? authorization,
+  }) async {
+    return await _db.createMany(body: body, authorization: authorization);
+  }
+
   Future<Map<String, Object?>> update({
     required UpdateOneBody body,
     String? authorization,

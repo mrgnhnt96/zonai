@@ -99,7 +99,7 @@ Override the methods that correspond to the operations you want to customize. Ea
 | `get`     | `getPolicy()`    | `GET /db`, stream-one           |
 | `list`    | `limitPolicy()`  | `GET /db/list`, stream-list     |
 | `count`   | `countPolicy()`  | `GET /db/count`                 |
-| `create`  | `createPolicy()` | `POST /db`                      |
+| `create`  | `createPolicy()` | `POST /db`, `POST /db/many`     |
 | `update`  | `updatePolicy()` | `PATCH /db`, `PATCH /db/many`   |
 | `delete`  | `deletePolicy()` | `DELETE /db`, `DELETE /db/many` |
 

@@ -18,6 +18,12 @@ class CreatePayload extends JwtPayload {
   final Map<String, dynamic> object;
 }
 
+class CreateManyPayload extends JwtPayload {
+  const CreateManyPayload({required this.objects, super.jwt});
+
+  final List<Map<String, dynamic>> objects;
+}
+
 class UpdatePayload extends JwtPayload {
   const UpdatePayload({
     required this.where,

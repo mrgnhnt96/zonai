@@ -20,6 +20,7 @@ class RateLimit {
       ListBody(:final table) => table,
       AuthBody(:final table) => table,
       CreateBody(:final table) => table,
+      CreateManyBody(:final table) => table,
       UpdateOneBody(:final table) => table,
       UpdateBody(:final table) => table,
       DeleteOneBody(:final table) => table,

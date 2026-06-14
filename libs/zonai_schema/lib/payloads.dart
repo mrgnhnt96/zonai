@@ -13,6 +13,7 @@ export 'src/payloads/auth_password_body.dart';
 export 'src/payloads/count_body.dart';
 export 'src/payloads/dashboard_metrics.dart';
 export 'src/payloads/create_body.dart';
+export 'src/payloads/create_many_body.dart';
 export 'src/payloads/delete_body.dart';
 export 'src/payloads/get_body.dart';
 export 'src/payloads/photo_bodies.dart';

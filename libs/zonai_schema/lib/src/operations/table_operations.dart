@@ -544,6 +544,9 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     return switch (request) {
       CountOperationRequest(:final where) => count(where: where).compiled(),
       CreateOperationRequest(:final object) => insert(object).compiled(),
+      CreateManyOperationRequest(:final objects) => insertMany([
+        for (final object in objects) table.safeCreate(object),
+      ]).compiled(),
       UpdateOperationRequest(:final where, :final updates) => update(
         updates,
         where: where,

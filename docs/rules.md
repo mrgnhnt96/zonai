@@ -149,7 +149,7 @@ Override the methods that correspond to operations your API uses. Each returns `
 
 | Method      | `TableOperation` | Typical HTTP use                   |
 | ----------- | ---------------- | ---------------------------------- |
-| `canCreate` | `create`         | `POST /db`                         |
+| `canCreate` | `create`         | `POST /db`, `POST /db/many`        |
 | `canUpdate` | `update`         | `PATCH /db`, `PATCH /db/many`      |
 | `canDelete` | `delete`         | `DELETE /db`, `DELETE /db/many`    |
 | `canView`   | `view`           | `GET /db`, stream-one              |

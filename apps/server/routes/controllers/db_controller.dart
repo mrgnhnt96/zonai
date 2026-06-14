@@ -43,6 +43,15 @@ class DbController {
     return await dbHandler.create(authorization, body);
   }
 
+  @BodyRateLimit<CreateManyBody>(.create)
+  @Post('many')
+  Future<List<Map<String, Object?>>> createMany({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Body() required CreateManyBody body,
+  }) async {
+    return await dbHandler.createMany(authorization, body);
+  }
+
   @BodyRateLimit<UpdateOneBody>(.update)
   @Patch()
   Future<Map<String, Object?>> update({
