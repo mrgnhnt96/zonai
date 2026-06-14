@@ -9,20 +9,26 @@ class Db {
   final DbDataSource _db;
   final DbListen listen;
 
-  Future<Map<String, Object?>> get({
+  Future<T> get<T>({
     required GetBody body,
+    required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
-    return await _db.get(body: body, authorization: authorization);
+    final data = await _db.get(body: body, authorization: authorization);
+    return fromJson(data);
   }
 
-  Future<Paginated<Map<String, Object?>>> list({
+  Future<Paginated<T>> list<T>({
     required ListBody body,
+    required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
     final data = await _db.list(body: body, authorization: authorization);
 
-    return Paginated.fromJson(data, (json) => json);
+    return Paginated.fromJson(
+      Map<String, dynamic>.from(data),
+      (json) => fromJson(json.cast<String, Object?>()),
+    );
   }
 
   Future<int> count({
@@ -32,32 +38,40 @@ class Db {
     return await _db.count(body: body, authorization: authorization);
   }
 
-  Future<Map<String, Object?>> create({
+  Future<T> create<T>({
     required CreateBody body,
+    required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
-    return await _db.create(body: body, authorization: authorization);
+    final data = await _db.create(body: body, authorization: authorization);
+    return fromJson(data);
   }
 
-  Future<List<Map<String, Object?>>> createMany({
+  Future<List<T>> createMany<T>({
     required CreateManyBody body,
+    required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
-    return await _db.createMany(body: body, authorization: authorization);
+    final data = await _db.createMany(body: body, authorization: authorization);
+    return data.map(fromJson).toList();
   }
 
-  Future<Map<String, Object?>> update({
+  Future<T> update<T>({
     required UpdateOneBody body,
+    required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
-    return await _db.update(body: body, authorization: authorization);
+    final data = await _db.update(body: body, authorization: authorization);
+    return fromJson(data);
   }
 
-  Future<List<Map<String, Object?>>> updateMany({
+  Future<List<T>> updateMany<T>({
     required UpdateBody body,
+    required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async {
-    return await _db.updateMany(body: body, authorization: authorization);
+    final data = await _db.updateMany(body: body, authorization: authorization);
+    return data.map(fromJson).toList();
   }
 
   Future<void> delete({

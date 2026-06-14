@@ -16,6 +16,7 @@ export 'package:zonai_schema/payloads.dart'
         AdminVerifyMagicLinkAuthBody,
         AdminVerifyOtpAuthBody,
         AuthBody,
+        AuthSession,
         CountBody,
         CreateBody,
         CreateManyBody,
@@ -40,5 +41,7 @@ export 'package:zonai_schema/payloads.dart'
         UpdateBody,
         UpdateOneBody,
         VerifyAuthBody;
+
+export 'package:zonai_schema/src/types/paginated.dart' show Paginated;
 
 export 'src/zonai_client.dart';

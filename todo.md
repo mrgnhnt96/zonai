@@ -25,8 +25,6 @@
 - [ ] Add prefix & suffix positional optional params to Id.generate
 - [ ] When logging 400+ response codes use warning color
 - [ ] When logging 500+ response codes, use error color
-- [x] Add endpoint to insert many
-- [ ] Tighten up type system for API responses
 
 ## CLI
 

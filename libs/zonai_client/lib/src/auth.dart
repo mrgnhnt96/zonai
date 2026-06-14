@@ -52,27 +52,39 @@ class Auth {
     await _storage.remove('token');
   }
 
-  Future<Map<String, Object?>?> authenticate({
+  Future<AuthSession?> authenticate({
     required AuthBody body,
     String? authorization,
   }) async {
-    return await _auth.authenticate(body: body, authorization: authorization);
+    final raw = await _auth.authenticate(
+      body: body,
+      authorization: authorization,
+    );
+    return raw == null ? null : AuthSession.fromJson(raw);
   }
 
   /// Sign in with email and password.
-  Future<Map<String, Object?>?> signIn({
+  Future<AuthSession?> signIn({
     required SignInAuthBody body,
     String? authorization,
   }) async {
-    return await _auth.authenticate(body: body, authorization: authorization);
+    final raw = await _auth.authenticate(
+      body: body,
+      authorization: authorization,
+    );
+    return raw == null ? null : AuthSession.fromJson(raw);
   }
 
   /// Sign up with email and password.
-  Future<Map<String, Object?>?> signUp({
+  Future<AuthSession?> signUp({
     required SignUpAuthBody body,
     String? authorization,
   }) async {
-    return await _auth.authenticate(body: body, authorization: authorization);
+    final raw = await _auth.authenticate(
+      body: body,
+      authorization: authorization,
+    );
+    return raw == null ? null : AuthSession.fromJson(raw);
   }
 
   Future<void> sentOtp({
@@ -103,12 +115,14 @@ class Auth {
     await _auth.sendVerifyEmail(body: body, authorization: authorization ?? '');
   }
 
-  Future<Map<String, Object?>?> confirm({required VerifyAuthBody body}) async {
-    return await _auth.confirm(body: body);
+  Future<AuthSession?> confirm({required VerifyAuthBody body}) async {
+    final raw = await _auth.confirm(body: body);
+    return raw == null ? null : AuthSession.fromJson(raw);
   }
 
-  Future<Map<String, Object?>?> refreshToken({String? authorization}) async {
-    return await _auth.refreshToken(authorization: authorization ?? '');
+  Future<AuthSession?> refreshToken({String? authorization}) async {
+    final raw = await _auth.refreshToken(authorization: authorization ?? '');
+    return raw == null ? null : AuthSession.fromJson(raw);
   }
 
   Future<void> logout({String? authorization}) async {

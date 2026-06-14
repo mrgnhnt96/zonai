@@ -63,6 +63,7 @@ export 'src/schemas/auth_table.dart' hide Auth;
 export 'src/schemas/table.dart';
 export 'src/tables/auth_table.dart';
 export 'src/tables/table.dart';
+export 'src/types/auth_session.dart';
 export 'src/types/built_in_emails.dart';
 export 'src/types/email.dart';
 export 'src/types/email_address.dart';

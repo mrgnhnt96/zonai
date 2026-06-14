@@ -6,11 +6,15 @@ class AdminAuth {
 
   final AuthDataSource _auth;
 
-  Future<Map<String, Object?>?> signIn({
+  Future<AuthSession?> signIn({
     required AdminSignInAuthBody body,
     String? authorization,
   }) async {
-    return await _auth.authenticate(body: body, authorization: authorization);
+    final raw = await _auth.authenticate(
+      body: body,
+      authorization: authorization,
+    );
+    return raw == null ? null : AuthSession.fromJson(raw);
   }
 
   Future<void> sendOtp({
