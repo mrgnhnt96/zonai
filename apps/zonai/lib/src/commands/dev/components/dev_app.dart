@@ -7,6 +7,9 @@ import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/payloads.dart';
 
 import '../../../deps/config_resolver.dart';
+import '../../../messengers/cron_mailman.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
 import '../../../utils/admin_create_shape.dart';
 import '../../../utils/email_template_render.dart';
 import '../../../utils/terminal_pointer.dart';
@@ -637,7 +640,27 @@ class _DevAppState extends State<DevApp> {
     _clearInputMode();
     _addOutput('--- Run cron job ---');
     () async {
-      await _runCommand(['cron', 'run', name], label: 'Run cron job');
+      try {
+        await _actionTracker.run('Run cron job', () async {
+          final mailman = CronMailman();
+          try {
+            final response = await mailman.send<CronJobRunResponse>(
+              RunCronJobRequest(name: name),
+            );
+            if (!response.accepted) {
+              throw StateError(response.error ?? 'Cron job was not accepted');
+            }
+            _addOutput('Cron job started: $name');
+          } finally {
+            await mailman.kill(failPending: false);
+          }
+        });
+        if (!mounted) return;
+      } catch (error) {
+        if (!mounted) return;
+        _addOutput('Error: $error');
+        _showToast('Run cron job failed', isError: true);
+      }
     }();
   }
 

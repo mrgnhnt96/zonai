@@ -19,6 +19,7 @@ sealed class CronResponse extends Response {
       LastJobRunResponse._path => LastJobRunResponse.fromJson(json),
       CleanupUnreferencedPhotosResponse._path =>
         CleanupUnreferencedPhotosResponse.fromJson(json),
+      CronJobRunResponse._path => CronJobRunResponse.fromJson(json),
       final path => throw ArgumentError('Invalid cron response path: $path'),
     };
   }
@@ -150,6 +151,42 @@ final class LastJobRunResponse extends CronResponse {
       'name': name,
       'lastRun': time?.toIso8601String(),
       'wasSuccessful': wasSuccessful,
+    };
+  }
+}
+
+final class CronJobRunResponse extends CronResponse {
+  CronJobRunResponse({
+    required super.id,
+    required this.name,
+    required this.accepted,
+    this.error,
+  }) : super(path: _path, payload: const {});
+
+  factory CronJobRunResponse.fromJson(Map<String, dynamic> json) {
+    return CronJobRunResponse(
+      id: json['id'],
+      name: json['name'] as String,
+      accepted: json['accepted'] as bool,
+      error: json['error'] as String?,
+    );
+  }
+
+  static const _path = '${CronResponse.prefix}.job.run';
+
+  final String name;
+
+  /// Whether the job was dispatched. When false, [error] explains why.
+  final bool accepted;
+  final String? error;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'name': name,
+      'accepted': accepted,
+      if (error != null) 'error': error,
     };
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cron/cron.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
@@ -12,8 +14,7 @@ class DbCrons {
       onMessage: (request) async {
         switch (request) {
           case RunCronJobRequest():
-            await _manuallyRunJob(request);
-            return null;
+            return await _manuallyRunJob(request);
           case StartCronsRequest():
             _startCrons();
             return CronsStarted(id: request.id);
@@ -43,24 +44,37 @@ class DbCrons {
     handler.listen();
   }
 
-  Future<void> _manuallyRunJob(RunCronJobRequest request) async {
+  Future<CronJobRunResponse> _manuallyRunJob(RunCronJobRequest request) async {
     for (final job in jobs) {
       if (job.name == request.name) {
-        await _runJob(job, request);
-        return;
+        _runJob(job, request).ignore();
+        return CronJobRunResponse(
+          id: request.id,
+          name: job.name,
+          accepted: true,
+        );
       }
     }
 
-    throw Exception('Job not found: ${request.name}');
+    return CronJobRunResponse(
+      id: request.id,
+      name: request.name,
+      accepted: false,
+      error: 'Job not found: ${request.name}',
+    );
   }
 
-  Future<void> _runJob(CronJob job, [RunCronJobRequest? r]) async {
+  Future<({bool succeeded, String? error})> _runJob(
+    CronJob job, [
+    RunCronJobRequest? r,
+  ]) async {
     final request = r ?? RunCronJobRequest(name: job.name);
 
     try {
       msg.notify(JobStarted(id: request.id, name: job.name));
       await handler.runWithParent(request, job.run);
       msg.notify(JobCompleted(id: request.id, name: job.name));
+      return (succeeded: true, error: null);
     } catch (e, stack) {
       msg.notify(
         JobFailed(
@@ -70,6 +84,7 @@ class DbCrons {
           stackTrace: stack.toString(),
         ),
       );
+      return (succeeded: false, error: e.toString());
     }
   }
 

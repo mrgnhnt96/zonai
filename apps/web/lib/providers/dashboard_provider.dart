@@ -3,8 +3,11 @@ import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
 import '../api/dashboard_client.dart';
+import '../api/cron_client.dart';
 import '../utils/sqlite_table_utils.dart';
+import '../utils/user_facing_error.dart';
 import 'sqlite_tables_provider.dart';
+import 'toast_provider.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
@@ -84,6 +87,8 @@ final topErrorsProvider = AsyncNotifierProvider<_TopErrorsNotifier, List<TopErro
 final expandedErrorProvider = NotifierProvider<_ExpandedErrorNotifier, String?>(_ExpandedErrorNotifier.new);
 
 final cronJobsProvider = AsyncNotifierProvider<_CronJobsNotifier, List<CronJobSummary>>(_CronJobsNotifier.new);
+
+final runningCronJobsProvider = NotifierProvider<RunningCronJobsNotifier, Set<String>>(RunningCronJobsNotifier.new);
 
 final tableCountsProvider = AsyncNotifierProvider<_TableCountsNotifier, Map<String, int>>(_TableCountsNotifier.new);
 
@@ -221,6 +226,57 @@ class _CronJobsNotifier extends AsyncNotifier<List<CronJobSummary>> {
 
     jobs.sort((a, b) => a.name.compareTo(b.name));
     return jobs;
+  }
+}
+
+class RunningCronJobsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  static const _pollInterval = Duration(seconds: 1);
+  static const _waitTimeout = Duration(hours: 1);
+
+  Future<void> run(String name) async {
+    if (state.contains(name)) return;
+
+    state = {...state, name};
+    final startedAfter = DateTime.now();
+
+    try {
+      await runCronJob(server: ref.read(revaliServerProvider), name: name);
+      await _waitForCompletion(name, startedAfter);
+    } catch (error) {
+      ref.read(toastProvider.notifier).showError(userFacingError(error));
+    } finally {
+      ref.invalidate(cronJobsProvider);
+      final next = {...state}..remove(name);
+      state = next;
+    }
+  }
+
+  Future<void> _waitForCompletion(String name, DateTime startedAfter) async {
+    final deadline = DateTime.now().add(_waitTimeout);
+
+    while (DateTime.now().isBefore(deadline)) {
+      await Future.delayed(_pollInterval);
+      ref.invalidate(cronJobsProvider);
+
+      final jobs = await ref.read(cronJobsProvider.future);
+      final job = jobs.where((entry) => entry.name == name).firstOrNull;
+      if (job == null) continue;
+      if (job.lastStarted.isBefore(startedAfter.subtract(const Duration(seconds: 1)))) {
+        continue;
+      }
+      if (job.failed) {
+        throw StateError(job.lastError ?? 'Cron job failed');
+      }
+      if (job.succeeded) {
+        ref.read(toastProvider.notifier).showSuccess('Cron job "$name" finished');
+        return;
+      }
+    }
+
+    throw StateError('Timed out waiting for cron job to finish');
   }
 }
 

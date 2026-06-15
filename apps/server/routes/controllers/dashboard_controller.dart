@@ -1,15 +1,9 @@
 import 'dart:io';
 
-import 'package:revali_client/revali_client.dart';
 import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/dashboard_handler.dart';
 import 'package:zonai_schema/src/payloads/dashboard_metrics.dart';
 
-import 'package:revali_swagger_annotations/revali_swagger_annotations.dart'
-    as swagger;
-
-@ExcludeFromClient()
-@swagger.ApiHidden()
 @Controller('dashboard')
 class DashboardController {
   const DashboardController({required this.dashboardHandler});

@@ -87,6 +87,8 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
   @override
   Future<void> onUnexpectedDelivery(CronResponse response) async {
     switch (response) {
+      case CronJobRunResponse():
+        break;
       case JobStarted(:final name):
         logger.info('[CRON] started: ${response.name}');
 

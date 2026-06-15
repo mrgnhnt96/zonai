@@ -14,7 +14,7 @@ import '../utils/sqlite_table_utils.dart';
 import 'app_tooltip_overlay.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
-import 'theme/ui_styles.dart';
+import 'theme/zonai_button.dart';
 import 'theme/zonai_icon_button.dart';
 import 'toast_overlay.dart';
 
@@ -38,6 +38,7 @@ class DashboardScreen extends StatelessComponent {
     final topErrors = isClient ? context.watch(topErrorsProvider) : const AsyncValue<List<TopError>>.loading();
     final expandedError = context.watch(expandedErrorProvider);
     final cronJobs = isClient ? context.watch(cronJobsProvider) : const AsyncValue<List<CronJobSummary>>.loading();
+    final runningCronJobs = isClient ? context.watch(runningCronJobsProvider) : const <String>{};
     final tableCounts = isClient ? context.watch(tableCountsProvider) : const AsyncValue<Map<String, int>>.loading();
 
     final statsData = metrics.value?.stats;
@@ -146,67 +147,46 @@ class DashboardScreen extends StatelessComponent {
                   ]),
               ]),
             ]),
-            // Cron jobs
-            div(classes: 'dashboard-panel', [
-              p(classes: 'dashboard-panel-title', [.text('Cron Jobs')]),
-              if (cronJobs.isLoading)
-                div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
-              else if (cronJobsData.isEmpty)
-                div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
-                  .text('No cron jobs found'),
-                ])
-              else
-                div(classes: 'dashboard-cron-list', [
-                  for (final job in cronJobsData)
-                    div(classes: 'dashboard-cron-item', [
-                      div(classes: 'dashboard-cron-left', [
-                        span(classes: 'dashboard-cron-name', [.text(job.name)]),
-                        span(classes: 'dashboard-cron-meta', [.text(_timeAgo(job.lastStarted))]),
-                      ]),
-                      div(classes: 'dashboard-cron-right', [
-                        if (job.duration != null)
-                          span(classes: 'dashboard-cron-duration', [.text(_fmtDuration(job.duration))]),
-                        span(
-                          classes:
-                              'dashboard-cron-status dashboard-cron-status--${job.failed
-                                  ? 'failed'
-                                  : job.succeeded
-                                  ? 'ok'
-                                  : 'running'}',
-                          [
-                            .text(
-                              job.failed
-                                  ? 'Failed'
-                                  : job.succeeded
-                                  ? 'OK'
-                                  : 'Running',
-                            ),
-                          ],
-                        ),
-                      ]),
-                    ]),
+            div(classes: 'dashboard-row dashboard-row--split', [
+              div(classes: 'dashboard-panel dashboard-panel--crons', [
+                p(classes: 'dashboard-panel-title', [
+                  .text(cronJobsData.isEmpty ? 'Cron Jobs' : 'Cron Jobs (${cronJobsData.length})'),
+                ]),
+                if (cronJobs.isLoading)
+                  div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
+                else if (cronJobsData.isEmpty)
+                  div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
+                    .text('No cron jobs found'),
+                  ])
+                else
+                  div(classes: 'dashboard-cron-list', [
+                    for (final job in cronJobsData)
+                      _CronJobRow(
+                        job: job,
+                        isRunning: runningCronJobs.contains(job.name),
+                        showRun: isClient,
+                        onRun: () => context.read(runningCronJobsProvider.notifier).run(job.name),
+                      ),
+                  ]),
+              ]),
+              if (userTables.isNotEmpty)
+                div(classes: 'dashboard-panel dashboard-panel--tables', [
+                  p(classes: 'dashboard-panel-title', [.text('Tables')]),
+                  div(classes: 'dashboard-tables', [
+                    for (final table in userTables)
+                      a(
+                        href: AuthRoutes.toUrlPath(AuthRoutes.forTable(table.sqliteName)),
+                        classes: 'dashboard-table-card',
+                        [
+                          span(classes: 'dashboard-table-name', [.text(table.displayName)]),
+                          span(classes: 'dashboard-table-meta', [
+                            .text(_fmtTableMeta(tableCountsData[table.sqliteName])),
+                          ]),
+                        ],
+                      ),
+                  ]),
                 ]),
             ]),
-            // Collections
-            if (userTables.isNotEmpty)
-              div(classes: 'dashboard-section', [
-                div(classes: 'dashboard-section-header', [
-                  p(classes: ZonaiClasses.sectionLabel, [.text('Tables')]),
-                ]),
-                div(classes: 'dashboard-tables', [
-                  for (final table in userTables)
-                    a(
-                      href: AuthRoutes.toUrlPath(AuthRoutes.forTable(table.sqliteName)),
-                      classes: 'dashboard-table-card',
-                      [
-                        span(classes: 'dashboard-table-name', [.text(table.displayName)]),
-                        span(classes: 'dashboard-table-meta', [
-                          .text(_fmtTableMeta(tableCountsData[table.sqliteName])),
-                        ]),
-                      ],
-                    ),
-                ]),
-              ]),
           ]),
         ]),
       ]),
@@ -295,6 +275,7 @@ class DashboardScreen extends StatelessComponent {
       css(
         '.dashboard-row',
       ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s5)),
+      css('.dashboard-row--split').styles(alignItems: .stretch, flexWrap: .nowrap, width: 100.percent),
       css('.dashboard-panel').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
@@ -308,6 +289,10 @@ class DashboardScreen extends StatelessComponent {
       ),
       css('.dashboard-panel--wide').styles(flex: Flex(grow: 2, shrink: 1), minWidth: 320.px),
       css('.dashboard-panel--errors').styles(flex: Flex(grow: 0, shrink: 1), maxWidth: 400.px, minWidth: 240.px),
+      css(
+        '.dashboard-panel--crons',
+      ).styles(flex: Flex(grow: 0, shrink: 0), width: 420.px, minWidth: .zero, minHeight: .zero),
+      css('.dashboard-panel--tables').styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero, minHeight: .zero),
       css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
         flex: Flex(grow: 1, shrink: 0),
@@ -444,21 +429,31 @@ class DashboardScreen extends StatelessComponent {
       css('.dashboard-error-count').styles(fontSize: 0.6875.rem, fontWeight: .w600, color: errorColor),
       css('.dashboard-error-time').styles(fontSize: 0.6875.rem, color: mutedColor),
       // Cron list
-      css(
-        '.dashboard-cron-list',
-      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
+      css('.dashboard-cron-list').styles(
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s2),
+        flex: Flex(grow: 1, shrink: 1),
+        minHeight: .zero,
+        maxHeight: 280.px,
+        overflow: Overflow.auto,
+      ),
       css('.dashboard-cron-item').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
         alignItems: .center,
         justifyContent: .spaceBetween,
-        gap: Gap.all(ZonaiSpacing.s4),
-        padding: .symmetric(vertical: ZonaiSpacing.s4, horizontal: ZonaiSpacing.s5),
+        gap: Gap.all(ZonaiSpacing.s3),
+        padding: .symmetric(vertical: ZonaiSpacing.s3, horizontal: ZonaiSpacing.s4),
         radius: .all(Radius.circular(8.px)),
         backgroundColor: bgColor,
         border: .all(color: borderColor, width: 1.px, style: .solid),
+        raw: const {'border-left-width': '3px'},
       ),
-      css('.dashboard-cron-left').styles(
+      css('.dashboard-cron-item--ok').styles(raw: const {'border-left-color': 'var(--zonai-success)'}),
+      css('.dashboard-cron-item--failed').styles(raw: const {'border-left-color': 'var(--zonai-error)'}),
+      css('.dashboard-cron-item--running').styles(raw: const {'border-left-color': 'var(--zonai-muted)'}),
+      css('.dashboard-cron-main').styles(
         display: .flex,
         flexDirection: FlexDirection.column,
         gap: Gap.all(ZonaiSpacing.s1),
@@ -477,37 +472,18 @@ class DashboardScreen extends StatelessComponent {
         },
       ),
       css('.dashboard-cron-meta').styles(fontSize: 0.6875.rem, color: mutedColor),
-      css('.dashboard-cron-right').styles(
+      // Tables
+      css('.dashboard-tables').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
-        alignItems: .center,
+        flexWrap: .wrap,
         gap: Gap.all(ZonaiSpacing.s4),
-        flex: Flex(grow: 0, shrink: 0),
+        flex: Flex(grow: 1, shrink: 1),
+        minHeight: .zero,
+        maxHeight: 280.px,
+        overflow: Overflow.auto,
+        alignContent: .start,
       ),
-      css('.dashboard-cron-duration').styles(fontSize: 0.6875.rem, color: mutedColor),
-      css('.dashboard-cron-status').styles(
-        fontSize: 0.6875.rem,
-        fontWeight: .w600,
-        padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: 3.px),
-        radius: .all(Radius.circular(4.px)),
-      ),
-      css('.dashboard-cron-status--ok').styles(color: successColor, backgroundColor: successBgColor),
-      css('.dashboard-cron-status--failed').styles(color: errorColor, backgroundColor: errorBgColor),
-      css('.dashboard-cron-status--running').styles(color: mutedColor, backgroundColor: hoverColor),
-      // Collections
-      css(
-        '.dashboard-section',
-      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s5)),
-      css(
-        '.dashboard-section-header',
-      ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, justifyContent: .spaceBetween),
-      css(
-        '.dashboard-section-link',
-      ).styles(fontSize: 0.8125.rem, fontWeight: .w600, color: primaryColor, raw: const {'text-decoration': 'none'}),
-      css('.dashboard-section-link:hover').styles(color: primaryHoverColor),
-      css(
-        '.dashboard-tables',
-      ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s4)),
       css('.dashboard-table-card').styles(
         display: .flex,
         flexDirection: FlexDirection.column,
@@ -529,8 +505,11 @@ class DashboardScreen extends StatelessComponent {
       ),
       css('.dashboard-table-name').styles(fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-table-meta').styles(fontSize: 0.75.rem, color: mutedColor),
-      css.media(MediaQuery.all(maxWidth: 1024.px), [css('.dashboard-tables').styles(justifyContent: .center)]),
-      css.media(MediaQuery.all(maxWidth: 640.px), [css('.dashboard-header').styles(display: .none)]),
+      css.media(MediaQuery.all(maxWidth: 640.px), [
+        css('.dashboard-header').styles(display: .none),
+        css('.dashboard-row--split').styles(flexWrap: .wrap),
+        css('.dashboard-panel--crons').styles(width: 100.percent),
+      ]),
     ]),
   ];
 }
@@ -547,6 +526,55 @@ class _StatCard extends StatelessComponent {
       span(classes: 'dashboard-stat-label', [.text(label)]),
       span(classes: 'dashboard-stat-value', [.text(value)]),
     ]);
+  }
+}
+
+class _CronJobRow extends StatelessComponent {
+  const _CronJobRow({
+    required this.job,
+    required this.isRunning,
+    required this.showRun,
+    required this.onRun,
+  });
+
+  final CronJobSummary job;
+  final bool isRunning;
+  final bool showRun;
+  final void Function() onRun;
+
+  @override
+  Component build(BuildContext context) {
+    final status = isRunning
+        ? 'running'
+        : job.failed
+        ? 'failed'
+        : job.succeeded
+        ? 'ok'
+        : 'running';
+    final statusLabel = switch (status) {
+      'running' => 'Running',
+      'failed' => 'Failed',
+      _ => 'Succeeded',
+    };
+
+    return div(
+      classes: 'dashboard-cron-item dashboard-cron-item--$status',
+      attributes: {'aria-label': '${job.name}, $statusLabel, ${_fmtCronMeta(job.lastStarted, job.duration)}'},
+      [
+        div(classes: 'dashboard-cron-main', [
+          span(classes: 'dashboard-cron-name', [.text(job.name)]),
+          span(classes: 'dashboard-cron-meta', [.text(_fmtCronMeta(job.lastStarted, job.duration))]),
+        ]),
+        if (showRun)
+          ZonaiButton(
+            variant: ZonaiButtonVariant.ghost,
+            size: ZonaiButtonSize.sm,
+            disabled: isRunning,
+            onClick: onRun,
+            child: .text(isRunning ? 'Running…' : 'Run'),
+          ),
+      ],
+    );
   }
 }
 
@@ -590,6 +618,13 @@ String _timeAgo(DateTime dt) {
   if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
   if (diff.inHours < 24) return '${diff.inHours}h ago';
   return '${diff.inDays}d ago';
+}
+
+String _fmtCronMeta(DateTime lastStarted, Duration? duration) {
+  final ago = _timeAgo(lastStarted);
+  final took = duration == null ? null : _fmtDuration(duration);
+  if (took == null) return ago;
+  return '$ago · $took';
 }
 
 String _fmtTableMeta(int? count) {

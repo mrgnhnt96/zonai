@@ -5,7 +5,6 @@ import 'package:zonai/src/deps/versions.dart';
 
 import 'commands/ai/ai.dart';
 import 'commands/compile.dart';
-import 'commands/cron.dart';
 import 'commands/db/db.dart';
 import 'commands/dev/dev.dart';
 import 'commands/ping.dart';
@@ -25,7 +24,6 @@ Commands:
   serve       Serve the application
   compile     Compile all workers
   ping        Ping worker executables
-  cron        Run cron jobs manually
   rules       Inspect compiled rules
   ai          Install AI coding assistant reference files
 ''';
@@ -62,8 +60,6 @@ Future<int> run() async {
       return await compile();
     case ['ping']:
       return await ping();
-    case ['cron', ...final path]:
-      return await cron(path);
     case ['rules', ...final path]:
       return await rules(path);
     case ['ai', ...final path]:

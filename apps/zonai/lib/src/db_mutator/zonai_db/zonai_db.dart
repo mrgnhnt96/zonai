@@ -20,6 +20,7 @@ import 'package:zonai/src/internal/tables/auth_challenge_table.dart';
 import 'package:zonai/src/internal/tables/jwt_table.dart';
 import 'package:zonai/src/internal/tables/photos_table.dart';
 import 'package:zonai/src/messengers/config_mailman.dart';
+import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
@@ -27,6 +28,8 @@ import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai/src/utils/photo_stream_utils.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
+import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
@@ -54,6 +57,7 @@ part 'parts/cleanup_photos.dart';
 part 'parts/count.dart';
 part 'parts/create.dart';
 part 'parts/dashboard_metrics.dart';
+part 'parts/run_cron_job.dart';
 part 'parts/delete.dart';
 part 'parts/effects.dart';
 part 'parts/expand.dart';
@@ -273,6 +277,10 @@ class ZonaiDb {
       () =>
           _dashboardMetrics(jwt: jwt, since: since, excludeAdmin: excludeAdmin),
     );
+  }
+
+  Future<void> runCronJob({required Jwt jwt, required String name}) async {
+    return await _run(() => _runCronJob(jwt: jwt, name: name));
   }
 
   Future<void> sendEmail(Email email) async {
