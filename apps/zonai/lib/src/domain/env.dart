@@ -5,6 +5,18 @@ import 'package:watcher/watcher.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/domain/constants.dart';
 
+String parseEnvValue(String raw) {
+  final value = raw.trim();
+  if (value.length >= 2) {
+    final first = value[0];
+    final last = value[value.length - 1];
+    if ((first == '"' && last == '"') || (first == "'" && last == "'")) {
+      return value.substring(1, value.length - 1);
+    }
+  }
+  return value;
+}
+
 class Env {
   Env();
 
@@ -96,7 +108,7 @@ class Env {
 
       if (key.isEmpty) continue;
 
-      items[key] = value;
+      items[key] = parseEnvValue(value);
     }
 
     return _items = Map.unmodifiable(items);
