@@ -66,14 +66,15 @@ Unlike [extensions](extensions.md), the cron worker **can compile with zero app 
 
 Extend the abstract base class from `package:zonai_schema/zonai_schema.dart` (which re-exports scheduling types from `package:cron/cron.dart`).
 
-| Property / method | Purpose                                                                                  |
-| ----------------- | ---------------------------------------------------------------------------------------- |
-| `name`            | Stable identifier for logging and `_cron_jobs` history (use `snake_case`)                |
-| `schedule`        | When the job should run (`Schedule` from the `cron` package)                             |
-| `strict`          | Whether missed runs are skipped or caught up on startup (default `true`)                 |
-| `runOnStartup`    | Run once immediately when crons start, before the first scheduled tick (default `false`) |
-| `enabled`         | Declared on the type; the scheduler does not skip disabled jobs yet                      |
-| `run()`           | Async work for one execution; uncaught errors are logged and recorded as failed runs     |
+| Property / method | Purpose |
+| ----------------- | ------- |
+
+| `name` | Stable identifier for logging, `_cron_jobs` history, and on-demand invocation (use `snake_case`) |
+| `schedule` | When the job should run (`Schedule` from the `cron` package) |
+| `strict` | Whether missed runs are skipped or caught up on startup (default `true`) |
+| `runOnStartup` | Run once immediately when crons start, before the first scheduled tick (default `false`) |
+| `enabled` | Declared on the type; the scheduler does not skip disabled jobs yet |
+| `run()` | Async work for one execution; uncaught errors are logged and recorded as failed runs |
 
 ### Schedules
 
@@ -186,6 +187,21 @@ When crons are compiled:
 
 If the executable is missing at runtime, the server logs instructions to add files under `cronsPath` and run `zonai serve` or press **`c`** to recompile.
 
+## Running on demand
+
+Every job's `name` is its stable handle for triggering a run outside the schedule — not only for `_cron_jobs` history. The `name` must exactly match the value passed to the `CronJob` constructor.
+
+**Dev TUI** — in `zonai dev`, press **`j`** to open **Run cron job** and select a job by name. The crons worker must be compiled.
+
+**HTTP API** — while the server is running, an admin can trigger a job by name:
+
+```bash
+curl -X POST 'http://localhost:8080/crons/run?name=cleanup_logs' \
+  -H 'Authorization: Bearer <admin-jwt>'
+```
+
+The run is recorded in `_cron_jobs` the same way as a scheduled tick. If no job matches the given `name`, the invocation returns an error.
+
 ## Commands
 
 From your app directory (where `zonai.yaml` lives):
@@ -196,6 +212,9 @@ dart run zonai compile
 
 # Dev server: watches cronsPath, starts the cron worker, recompiles on change
 dart run zonai serve
+
+# Dev TUI: press j to run a cron job by name
+dart run zonai dev
 ```
 
 While `serve` is running:

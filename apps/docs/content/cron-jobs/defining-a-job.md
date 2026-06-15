@@ -28,13 +28,13 @@ DailyReportJob main() => DailyReportJob();
 
 ## Constructor Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `name` | `String` | Yes | — | Unique identifier; used in `_cron_jobs` history and `zonai cron run <name>` |
-| `schedule` | `Schedule` | Yes | — | When to run |
-| `strict` | `bool` | No | `true` | Whether to skip missed runs (see below) |
-| `runOnStartup` | `bool` | No | `false` | Run once immediately at server startup |
-| `enabled` | `bool` | No | `true` | Set to `false` to disable without deleting the file |
+| Parameter      | Type       | Required | Default | Description                                                                                                 |
+| -------------- | ---------- | -------- | ------- | ----------------------------------------------------------------------------------------------------------- |
+| `name`         | `String`   | Yes      | —       | Unique identifier; used in `_cron_jobs` history and on-demand invocation by name (dev TUI or `POST /crons/run?name=<name>`) |
+| `schedule`     | `Schedule` | Yes      | —       | When to run                                                                                                 |
+| `strict`       | `bool`     | No       | `true`  | Whether to skip missed runs (see below)                                                                     |
+| `runOnStartup` | `bool`     | No       | `false` | Run once immediately at server startup                                                                      |
+| `enabled`      | `bool`     | No       | `true`  | Set to `false` to disable without deleting the file                                                         |
 
 ## Schedule
 

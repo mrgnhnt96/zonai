@@ -43,7 +43,7 @@ Use case: "does this specific user's token have permission to delete from the po
 
 ## Requirements
 
-The rules worker must be compiled. The server does not need to be running — `zonai rules` spawns the rules worker directly as a subprocess (similar to `zonai cron run`).
+The rules worker must be compiled. The server does not need to be running — `zonai rules` spawns the rules worker directly as a subprocess.
 
 Compile workers if needed:
 ```sh

@@ -487,7 +487,6 @@ dart run zonai dev         # interactive TUI (compile, serve, logs, schema scaff
 dart run zonai compile     # compile all workers only
 dart run zonai db migrate  # run SQL migrations
 dart run zonai db admin    # manage admin accounts
-dart run zonai cron        # manually trigger a cron job
 dart run zonai rules       # inspect compiled authorization rules
 dart run zonai ping        # test worker executables
 dart run zonai version     # show version + check for updates
@@ -592,7 +591,6 @@ dart run zonai serve       # start server with file-watching + auto-recompile
 dart run zonai dev         # interactive TUI
 dart run zonai compile     # compile all workers only
 dart run zonai db migrate  # run SQL migrations
-dart run zonai cron        # manually trigger a cron job
 dart run zonai rules       # inspect compiled authorization rules
 dart run zonai ping        # test worker executables
 dart run zonai version     # show version
@@ -1171,7 +1169,14 @@ CleanupLogsJob main() => const CleanupLogsJob();
 
 | Property | Default | Purpose |
 |----------|---------|---------|
-| `name` | required | Unique snake_case job identifier (used in `_cron_jobs` history) |
+| `name` | required | Unique snake_case job identifier (used in `_cron_jobs` history and on-demand invocation) |
+
+## Running on demand
+
+Jobs can be triggered by `name` outside their schedule:
+
+- **Dev TUI:** `zonai dev`, press `j`, select job by name
+- **HTTP API:** `POST /crons/run?name=<name>` with admin JWT (server must be running)
 | `schedule` | required | When to run: `Schedule.parse('* * * * *')` |
 | `strict` | `true` | `true` = skip missed runs; `false` = catch up on startup |
 | `runOnStartup` | `false` | Run once immediately when crons start |

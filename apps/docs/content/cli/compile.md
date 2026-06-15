@@ -33,7 +33,7 @@ In dev mode (`zonai serve`), Zonai watches source files and recompiles workers a
 - Setting up a fresh clone before starting the server
 - Verifying compilation succeeds in CI
 - Updating compiled binaries after discarding changes that left executables stale
-- Preparing workers before running `zonai cron run` or `zonai rules` without starting the server
+- Preparing workers before running `zonai rules` without starting the server
 
 ## vs. zonai build
 

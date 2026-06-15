@@ -26,6 +26,15 @@ Zonai records each job run in the internal `_cron_jobs` table:
 
 Query this table to audit job history or debug failures.
 
+## Running on Demand
+
+Each job's `name` property is its stable identifier for on-demand runs — not only for `_cron_jobs` history. Trigger a job immediately by name, without waiting for its schedule:
+
+- **Dev TUI:** `zonai dev`, then press **`j`** to run a job by name
+- **HTTP API:** `POST /crons/run?name=<name>` (admin JWT required)
+
+See [Running Jobs Manually](/cron-jobs/running-manually) for details.
+
 ## Creating a Job
 
 Create a file in `cronsPath` (any name), extend `CronJob`, and export a `main()` function:

@@ -17,7 +17,7 @@ zonai dev
 - **Operations tester** — test CRUD operations against the running database
 - **Migration helper** — generate and apply schema migrations without leaving the terminal
 - **Admin management** — create and manage admin accounts
-- **Cron viewer** — view configured cron jobs and their last-run status
+- **Run cron job** — trigger a cron job immediately by name (`j`)
 - **Worker status** — see which workers are running and restart them on demand
 
 ## Project Initialization

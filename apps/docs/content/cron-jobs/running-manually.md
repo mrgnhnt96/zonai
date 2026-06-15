@@ -3,18 +3,28 @@ title: Running Jobs Manually
 description: How to trigger a cron job on demand without waiting for its schedule.
 ---
 
-## Command
+Cron jobs can be invoked by their `name` property — the same value passed to the `CronJob` constructor. Two ways to trigger a run outside the schedule:
+
+## Dev TUI
+
+In `zonai dev`, press **`j`** to open **Run cron job**, then select a job by name from the list.
 
 ```sh
-zonai cron run <name>
+zonai dev
 ```
 
-Triggers a cron job immediately by its `name` property, without waiting for its schedule.
+The crons worker must be compiled (`zonai compile`, or press **`c`** in the TUI). Output from `logger` calls appears in the TUI panel. The run is recorded in `_cron_jobs` with its status and duration.
+
+## HTTP API
+
+While the server is running, admins can invoke a job by name over HTTP:
 
 ```sh
-zonai cron run cleanup-old-logs
-zonai cron run daily-report
+curl -X POST 'http://localhost:8080/crons/run?name=cleanup-old-logs' \
+  -H 'Authorization: Bearer <admin-jwt>'
 ```
+
+Requires an admin JWT. The job runs in the cron worker and is recorded in `_cron_jobs` like a scheduled run. If no job matches the given `name`, the API returns an error.
 
 ## When to Use
 
@@ -25,24 +35,4 @@ zonai cron run daily-report
 
 ## Behavior
 
-The command waits for the job to complete. Output from `logger` calls in the job is printed to the terminal. The run is recorded in `_cron_jobs` with its status and duration.
-
-## No Server Required
-
-`zonai cron run` spawns the compiled crons worker as a subprocess directly — it does not connect to a running server. The crons worker must be compiled (either via `zonai compile` or `zonai serve` in dev mode), but the HTTP server does not need to be running:
-
-```sh
-# Compile workers if not already done
-zonai compile
-
-# Then run the job directly
-zonai cron run cleanup-old-logs
-```
-
-## Flags
-
-Use `--flavor` to target a specific config flavor:
-
-```sh
-zonai cron run daily-report --flavor prod
-```
+The run executes in the cron worker process. Output from `logger` calls is forwarded to the server console (visible in the dev TUI or server logs). The run is recorded in `_cron_jobs` with its status and duration.
