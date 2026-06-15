@@ -217,8 +217,21 @@ class MessageHandler<R extends Request> {
   /// their parent id so the host can commit them when the matching notification
   /// response arrives.
   Future<void> runWithParent(covariant Request request, Future<void> Function() body) {
+    final pendingSideEffects = <Future<void>>[];
+
+    void queueSideEffect(Future<void>? sideEffect) {
+      if (sideEffect != null) {
+        pendingSideEffects.add(sideEffect);
+      }
+    }
+
     return runMergedScoped(
-      body,
+      () async {
+        await body();
+        if (pendingSideEffects.isNotEmpty) {
+          await Future.wait(pendingSideEffects);
+        }
+      },
       includeIfAbsent: {
         _msgProvider.overrideWith(() => _Msg(reply, sendRequest)),
         _cronProvider.overrideWith(
@@ -246,38 +259,45 @@ class MessageHandler<R extends Request> {
         ),
         _mutateProvider.overrideWith(
           () => _Mutate(
-            update: ({required tableName, required updates, required where, limit}) async {
-              await sendRequest(
-                UpdateRecordRequest(
-                  table: tableName,
-                  updates: updates,
-                  where: where,
-                  jwt: request.jwt,
-                  parent: request,
+            update: ({required tableName, required updates, required where, limit}) {
+              queueSideEffect(
+                sendRequest(
+                  UpdateRecordRequest(
+                    table: tableName,
+                    updates: updates,
+                    where: where,
+                    jwt: request.jwt,
+                    parent: request,
+                  ),
+                  expectResponse: false,
                 ),
-                expectResponse: false,
               );
             },
-            delete: ({required tableName, required where, limit}) async {
-              await sendRequest(
-                DeleteRecordRequest(
-                  table: tableName,
-                  where: where,
-                  parent: request,
-                  jwt: request.jwt,
+            delete: ({required tableName, required where, limit}) {
+              queueSideEffect(
+                sendRequest(
+                  DeleteRecordRequest(
+                    table: tableName,
+                    where: where,
+                    limit: limit,
+                    parent: request,
+                    jwt: request.jwt,
+                  ),
+                  expectResponse: false,
                 ),
-                expectResponse: false,
               );
             },
-            create: ({required tableName, required objects}) async {
-              await sendRequest(
-                CreateRecordRequest(
-                  table: tableName,
-                  objects: objects,
-                  parent: request,
-                  jwt: request.jwt,
+            create: ({required tableName, required objects}) {
+              queueSideEffect(
+                sendRequest(
+                  CreateRecordRequest(
+                    table: tableName,
+                    objects: objects,
+                    parent: request,
+                    jwt: request.jwt,
+                  ),
+                  expectResponse: false,
                 ),
-                expectResponse: false,
               );
             },
           ),

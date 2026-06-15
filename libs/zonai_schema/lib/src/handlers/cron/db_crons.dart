@@ -47,13 +47,15 @@ class DbCrons {
   Future<CronJobRunResponse> _manuallyRunJob(RunCronJobRequest request) async {
     for (final job in jobs) {
       if (job.name == request.name) {
-        // Run on a separate request so job lifecycle notifications (which reuse
-        // the run request id) cannot complete the host's pending CronJobRunResponse.
-        _runJob(job, RunCronJobRequest(name: job.name)).ignore();
+        // Use the host [request] so queued [mutate] effects share its id.
+        // Lifecycle notifications are out-of-band and do not complete this RPC.
+        final result = await _runJob(job, request);
+
         return CronJobRunResponse(
           id: request.id,
           name: job.name,
-          accepted: true,
+          accepted: result.succeeded,
+          error: result.error,
         );
       }
     }

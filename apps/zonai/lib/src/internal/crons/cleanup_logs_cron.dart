@@ -4,7 +4,7 @@ final class CleanupLogsCron extends CronJob {
   CleanupLogsCron()
     : super(name: '_cleanup_logs', schedule: Schedule.parse('0 3 * * *'));
 
-  static const retention = Duration(days: 30);
+  static const retention = Duration(days: 4);
 
   @override
   Future<void> run() async {

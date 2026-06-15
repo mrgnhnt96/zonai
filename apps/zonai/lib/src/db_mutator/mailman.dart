@@ -173,14 +173,16 @@ class Mailman<S extends Request, R extends Response> {
     Receivable<S, R> receivable,
     R response,
     List<MutationRequest> mutations,
-  ) {
-    _deliverUnexpected(receivable.onUnexpectedDelivery, response);
-
+  ) async {
     if (mutations.isNotEmpty) {
-      zonaiDB.commitEffects(mutations).catchError((error, stack) {
+      try {
+        await zonaiDB.commitEffects(mutations);
+      } catch (error, stack) {
         logger.error('Failed to commit effects', error, stack);
-      });
+      }
     }
+
+    await _deliverUnexpected(receivable.onUnexpectedDelivery, response);
   }
 
   void _log(DebugResponse response) {
