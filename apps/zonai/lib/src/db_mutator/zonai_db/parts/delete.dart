@@ -18,6 +18,14 @@ extension _DeleteX on ZonaiDb {
       );
       logger.trace('sql_build');
 
+      if (objects.isEmpty) {
+        logger.verbose('No records to delete', prefix: _prefix);
+        step = 'effects';
+        await _executeEffects();
+        logger.trace('done', extra: {'rows': 0});
+        return 0;
+      }
+
       step = 'sql_execute';
       final (deleteError, deleteResult) = await _execute((
         deleteOperation.query,
@@ -107,7 +115,20 @@ extension _DeleteX on ZonaiDb {
     }
 
     if (readResult.rows.isEmpty) {
-      throw RecordNotFoundException(table: table);
+      if (payload.limit == 1) {
+        throw RecordNotFoundException(table: table);
+      }
+
+      final deleteOperation = await _getOperation(
+        DeleteOperationRequest(
+          table: table,
+          where: payload.where,
+          limit: payload.limit,
+          jwt: jwt,
+        ),
+      );
+
+      return (<Map<String, Object?>>[], deleteOperation: deleteOperation);
     }
 
     final rows = readResult.rows.map((e) => e.toMap()).toList();

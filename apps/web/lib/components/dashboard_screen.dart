@@ -119,7 +119,7 @@ class DashboardScreen extends StatelessComponent {
               ]),
               div(classes: 'dashboard-panel dashboard-panel--errors', [
                 p(classes: 'dashboard-panel-title', [.text('Top Errors (24h)')]),
-                if (topErrors.isLoading)
+                if (topErrors.isLoading && !topErrors.hasValue)
                   div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
                 else if (topErrorsData.isEmpty)
                   div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
@@ -149,10 +149,28 @@ class DashboardScreen extends StatelessComponent {
             ]),
             div(classes: 'dashboard-row dashboard-row--split', [
               div(classes: 'dashboard-panel dashboard-panel--crons', [
-                p(classes: 'dashboard-panel-title', [
-                  .text(cronJobsData.isEmpty ? 'Cron Jobs' : 'Cron Jobs (${cronJobsData.length})'),
+                div(classes: 'dashboard-panel-heading', [
+                  p(classes: 'dashboard-panel-title', [
+                    .text(cronJobsData.isEmpty ? 'Cron Jobs' : 'Cron Jobs (${cronJobsData.length})'),
+                  ]),
+                  if (isClient)
+                    ZonaiIconButton(
+                      size: ZonaiIconButtonSize.xs,
+                      variant: ZonaiIconButtonVariant.ghost,
+                      disabled: cronJobs.isLoading,
+                      attributes: {'aria-label': 'Refresh cron jobs'},
+                      events: cronJobs.isLoading
+                          ? null
+                          : appTooltipEvents(
+                              context,
+                              text: 'Refresh cron jobs',
+                              placement: AppTooltipPlacement.belowLeft,
+                            ),
+                      onClick: () => context.read(cronJobsProvider.notifier).refresh(),
+                      child: _dashboardRefreshIcon(),
+                    ),
                 ]),
-                if (cronJobs.isLoading)
+                if (cronJobs.isLoading && !cronJobs.hasValue)
                   div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
                 else if (cronJobsData.isEmpty)
                   div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
@@ -163,7 +181,7 @@ class DashboardScreen extends StatelessComponent {
                     for (final job in cronJobsData)
                       _CronJobRow(
                         job: job,
-                        isRunning: runningCronJobs.contains(job.name),
+                        isSubmitting: runningCronJobs.contains(job.name),
                         showRun: isClient,
                         onRun: () => context.read(runningCronJobsProvider.notifier).run(job.name),
                       ),
@@ -275,7 +293,7 @@ class DashboardScreen extends StatelessComponent {
       css(
         '.dashboard-row',
       ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s5)),
-      css('.dashboard-row--split').styles(alignItems: .stretch, flexWrap: .nowrap, width: 100.percent),
+      css('.dashboard-row--split').styles(alignItems: .stretch, flexWrap: .wrap, width: 100.percent),
       css('.dashboard-panel').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
@@ -288,11 +306,24 @@ class DashboardScreen extends StatelessComponent {
         raw: const {'box-shadow': 'var(--zonai-shadow-sm)'},
       ),
       css('.dashboard-panel--wide').styles(flex: Flex(grow: 2, shrink: 1), minWidth: 320.px),
-      css('.dashboard-panel--errors').styles(flex: Flex(grow: 0, shrink: 1), maxWidth: 400.px, minWidth: 240.px),
+      css('.dashboard-panel--errors').styles(flex: Flex(grow: 1, shrink: 1), maxWidth: 400.px, minWidth: 240.px),
+      css('.dashboard-panel--crons').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        maxWidth: 100.percent,
+        minWidth: .zero,
+        minHeight: .zero,
+        raw: const {'flex-basis': '420px'},
+      ),
+      css('.dashboard-panel--tables').styles(
+        flex: Flex(grow: 999, shrink: 1),
+        minWidth: 280.px,
+        minHeight: .zero,
+        raw: const {'flex-basis': '0'},
+      ),
       css(
-        '.dashboard-panel--crons',
-      ).styles(flex: Flex(grow: 0, shrink: 0), width: 420.px, minWidth: .zero, minHeight: .zero),
-      css('.dashboard-panel--tables').styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero, minHeight: .zero),
+        '.dashboard-panel-heading',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, justifyContent: .spaceBetween),
+      css('.dashboard-refresh-icon').styles(width: 1.em, height: 1.em, display: .block),
       css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
         flex: Flex(grow: 1, shrink: 0),
@@ -505,10 +536,21 @@ class DashboardScreen extends StatelessComponent {
       ),
       css('.dashboard-table-name').styles(fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-table-meta').styles(fontSize: 0.75.rem, color: mutedColor),
+      css.media(MediaQuery.all(maxWidth: 1024.px), [
+        css('.dashboard-panel--wide').styles(
+          flex: Flex(grow: 1, shrink: 1),
+          width: 100.percent,
+          minWidth: 100.percent,
+        ),
+        css('.dashboard-panel--errors').styles(
+          flex: Flex(grow: 1, shrink: 1),
+          width: 100.percent,
+          maxWidth: 100.percent,
+          minWidth: 100.percent,
+        ),
+      ]),
       css.media(MediaQuery.all(maxWidth: 640.px), [
         css('.dashboard-header').styles(display: .none),
-        css('.dashboard-row--split').styles(flexWrap: .wrap),
-        css('.dashboard-panel--crons').styles(width: 100.percent),
       ]),
     ]),
   ];
@@ -532,18 +574,19 @@ class _StatCard extends StatelessComponent {
 class _CronJobRow extends StatelessComponent {
   const _CronJobRow({
     required this.job,
-    required this.isRunning,
+    required this.isSubmitting,
     required this.showRun,
     required this.onRun,
   });
 
   final CronJobSummary job;
-  final bool isRunning;
+  final bool isSubmitting;
   final bool showRun;
   final void Function() onRun;
 
   @override
   Component build(BuildContext context) {
+    final isRunning = isSubmitting || job.inProgress;
     final status = isRunning
         ? 'running'
         : job.failed
@@ -576,6 +619,27 @@ class _CronJobRow extends StatelessComponent {
       ],
     );
   }
+}
+
+Component _dashboardRefreshIcon() {
+  return svg(
+    viewBox: '0 0 24 24',
+    attributes: {
+      'aria-hidden': 'true',
+      'fill': 'none',
+      'stroke': 'currentColor',
+      'stroke-width': '2',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    },
+    classes: 'dashboard-refresh-icon',
+    [
+      path(d: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', []),
+      path(d: 'M21 3v5h-5', []),
+      path(d: 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', []),
+      path(d: 'M8 16H3v5', []),
+    ],
+  );
 }
 
 // ── Formatting ─────────────────────────────────────────────────────────────────

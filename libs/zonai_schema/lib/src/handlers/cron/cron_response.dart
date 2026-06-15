@@ -17,9 +17,9 @@ sealed class CronResponse extends Response {
       JobCompleted._path => JobCompleted.fromJson(json),
       JobFailed._path => JobFailed.fromJson(json),
       LastJobRunResponse._path => LastJobRunResponse.fromJson(json),
+      CronJobRunResponse._path => CronJobRunResponse.fromJson(json),
       CleanupUnreferencedPhotosResponse._path =>
         CleanupUnreferencedPhotosResponse.fromJson(json),
-      CronJobRunResponse._path => CronJobRunResponse.fromJson(json),
       final path => throw ArgumentError('Invalid cron response path: $path'),
     };
   }

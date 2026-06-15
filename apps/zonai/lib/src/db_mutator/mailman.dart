@@ -30,6 +30,11 @@ mixin Receivable<S extends Request, R extends Response> on Mailman<S, R> {
   Future<R> onRequest(S request);
 
   Future<void> onUnexpectedDelivery(R response);
+
+  /// Worker notifications that reuse a pending RPC [Response.id] must not
+  /// complete that RPC. Override when a worker pushes lifecycle events on the
+  /// same id channel as request/reply pairs.
+  bool isOutOfBandNotification(R response) => false;
 }
 
 class Mailman<S extends Request, R extends Response> {
@@ -164,6 +169,20 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
+  void _deliverUnexpectedWithEffects(
+    Receivable<S, R> receivable,
+    R response,
+    List<MutationRequest> mutations,
+  ) {
+    _deliverUnexpected(receivable.onUnexpectedDelivery, response);
+
+    if (mutations.isNotEmpty) {
+      zonaiDB.commitEffects(mutations).catchError((error, stack) {
+        logger.error('Failed to commit effects', error, stack);
+      });
+    }
+  }
+
   void _log(DebugResponse response) {
     switch (response.level) {
       case .debug:
@@ -283,19 +302,19 @@ class Mailman<S extends Request, R extends Response> {
       return;
     }
 
+    if (_pendingResponses.containsKey(response.id)) {
+      if (this case final Receivable<S, R> receivable when response is R) {
+        if (receivable.isOutOfBandNotification(response)) {
+          _deliverUnexpectedWithEffects(receivable, response, mutations);
+          return;
+        }
+      }
+    }
+
     final completer = _pendingResponses.remove(response.id);
     if (completer == null) {
-      if (this case Receivable(
-        :final onUnexpectedDelivery,
-      ) when response is R) {
-        _deliverUnexpected(onUnexpectedDelivery, response);
-
-        if (mutations.isNotEmpty) {
-          zonaiDB.commitEffects(mutations).catchError((error, stack) {
-            logger.error('Failed to commit effects', error, stack);
-          });
-        }
-
+      if (this case final Receivable<S, R> receivable when response is R) {
+        _deliverUnexpectedWithEffects(receivable, response, mutations);
         return;
       }
 
@@ -523,6 +542,14 @@ class Mailman<S extends Request, R extends Response> {
 
       if (response case final T response) {
         return response;
+      }
+
+      // Worker replies are parsed in Response.fromJson; an empty payload cannot
+      // be re-decoded into a typed Response (etc.).
+      if (response is R) {
+        throw StateError(
+          'Invalid response: Got ${response.runtimeType}, expected $T',
+        );
       }
 
       final payload = response.payload;

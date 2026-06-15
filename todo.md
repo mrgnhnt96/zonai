@@ -13,6 +13,7 @@
 - [ ] Support user defined favicon
 - [ ] When clicking on an error in the dashboard, open the trace in the logs table
 - [ ] Add icon for "filter" in the row details panel next to each field. Will auto apply "column=..." filter
+- [ ] Support custom favicon
 
 - [ ] Improve the "references" experience
   - [ ] List all references in tables & rows

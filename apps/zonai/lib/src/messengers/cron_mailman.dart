@@ -18,6 +18,13 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
 
   static const debug = 'CRON';
 
+  @override
+  bool isOutOfBandNotification(CronResponse response) {
+    return response is JobStarted ||
+        response is JobCompleted ||
+        response is JobFailed;
+  }
+
   void start() {
     send(StartCronsRequest()).then(
       (_) {},

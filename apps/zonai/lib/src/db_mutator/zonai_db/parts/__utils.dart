@@ -209,6 +209,10 @@ extension UtilsX on ZonaiDb {
           mut.jwt,
         );
 
+        if (objects.isEmpty) {
+          return [];
+        }
+
         logger.trace('(SIDE EFFECT) Deleting records: ${objects.length}');
 
         return [

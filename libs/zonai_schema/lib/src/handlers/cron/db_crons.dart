@@ -47,7 +47,9 @@ class DbCrons {
   Future<CronJobRunResponse> _manuallyRunJob(RunCronJobRequest request) async {
     for (final job in jobs) {
       if (job.name == request.name) {
-        _runJob(job, request).ignore();
+        // Run on a separate request so job lifecycle notifications (which reuse
+        // the run request id) cannot complete the host's pending CronJobRunResponse.
+        _runJob(job, RunCronJobRequest(name: job.name)).ignore();
         return CronJobRunResponse(
           id: request.id,
           name: job.name,
