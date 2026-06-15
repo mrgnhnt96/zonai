@@ -90,6 +90,29 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/crons/run": {
+      "post": {
+        "operationId": "cron_run",
+        "tags": [
+          "cron"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      }
+    },
     "/img/{id}": {
       "get": {
         "operationId": "photos_view",
@@ -218,6 +241,47 @@ const kSwaggerJson = r'''{
                 "schema": {
                   "type": "object",
                   "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/metrics": {
+      "get": {
+        "operationId": "dashboard_metrics",
+        "tags": [
+          "dashboard"
+        ],
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "exclude_admin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardMetrics"
                 }
               }
             }
@@ -898,6 +962,57 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "table"
+        ]
+      },
+      "DashboardMetrics": {
+        "type": "object",
+        "properties": {
+          "requestCount24h": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "errorCount24h": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "activeSessions": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "p95ResponseMs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "requestBuckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardRequestBucket"
+            }
+          }
+        },
+        "required": [
+          "requestCount24h",
+          "errorCount24h",
+          "activeSessions",
+          "requestBuckets"
+        ]
+      },
+      "DashboardRequestBucket": {
+        "type": "object",
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "hour",
+          "count"
         ]
       },
       "GetBody": {
@@ -1915,6 +2030,20 @@ paths:
             application/json:
               schema:
                 type: string
+  '/crons/run':
+    post:
+      operationId: cron_run
+      tags:
+        - cron
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: No content
   '/img/{id}':
     get:
       operationId: photos_view
@@ -1999,6 +2128,32 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  '/dashboard/metrics':
+    get:
+      operationId: dashboard_metrics
+      tags:
+        - dashboard
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            nullable: true
+        - name: exclude_admin
+          in: query
+          required: false
+          schema:
+            type: boolean
+            nullable: true
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardMetrics'
   '/db':
     get:
       operationId: db_get
@@ -2418,6 +2573,43 @@ components:
           type: string
       required:
         - table
+    DashboardMetrics:
+      type: object
+      properties:
+        requestCount24h:
+          type: integer
+          format: int64
+        errorCount24h:
+          type: integer
+          format: int64
+        activeSessions:
+          type: integer
+          format: int64
+        p95ResponseMs:
+          type: integer
+          format: int64
+          nullable: true
+        requestBuckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardRequestBucket'
+      required:
+        - requestCount24h
+        - errorCount24h
+        - activeSessions
+        - requestBuckets
+    DashboardRequestBucket:
+      type: object
+      properties:
+        hour:
+          type: integer
+          format: int64
+        count:
+          type: integer
+          format: int64
+      required:
+        - hour
+        - count
     GetBody:
       type: object
       properties:
