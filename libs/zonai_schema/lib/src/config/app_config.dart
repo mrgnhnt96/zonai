@@ -76,12 +76,8 @@ final class AppConfig {
   /// Trusted proxy headers for client IP resolution (rate limits, logging).
   final TrustedProxyConfig trustedProxy;
 
-  /// External identity providers whose JWTs Zonai will trust on incoming
-  /// requests. Each entry maps an issuer to a Zonai auth collection.
-  ///
-  /// Empty by default — Zonai trusts only the tokens it mints itself. Adding
-  /// entries opens the auth path to foreign tokens; see the per-variant docs
-  /// for verification semantics.
+  /// External identity providers whose JWTs Zonai trusts. Empty list means
+  /// Zonai trusts only the tokens it mints itself.
   final List<ExternalIdpConfig> externalIdps;
 
   /// Active password secret first, then [previousPasswordSecrets] (verify).

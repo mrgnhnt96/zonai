@@ -70,10 +70,10 @@ void main() {
       }
     });
 
-    test('fromJson throws ArgumentError on unknown kind', () {
+    test('fromJson throws ArgumentError on unknown type', () {
       expect(
         () => ExternalIdpConfig.fromJson(<String, dynamic>{
-          'kind': 'mystery_protocol',
+          'type': 'mystery_protocol',
           'issuer': 'x',
           'audience': 'y',
           'authTable': 'z',
@@ -93,7 +93,7 @@ void main() {
       expect(config.fetchTimeout, const Duration(seconds: 2));
     });
 
-    test('kind discriminator is stable per variant', () {
+    test('type discriminator is stable per variant', () {
       const shared = SharedSecretIdpConfig(
         issuer: 'a',
         audience: 'b',
@@ -106,10 +106,10 @@ void main() {
         authTable: 'c',
         jwksUrl: 'd',
       );
-      expect(shared.kind, 'shared_secret');
-      expect(jwks.kind, 'jwks');
-      expect(shared.toJson()['kind'], 'shared_secret');
-      expect(jwks.toJson()['kind'], 'jwks');
+      expect(shared.type, 'shared_secret');
+      expect(jwks.type, 'jwks');
+      expect(shared.toJson()['type'], 'shared_secret');
+      expect(jwks.toJson()['type'], 'jwks');
     });
   });
 }

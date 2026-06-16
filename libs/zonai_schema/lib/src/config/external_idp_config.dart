@@ -1,62 +1,30 @@
-/// Configuration for trusting JWTs minted by external identity providers.
-///
-/// Lets a Zonai deployment accept tokens from a foreign IdP (Supabase Auth,
-/// Auth0, Clerk, Cognito, Firebase Auth, custom OIDC, etc.) and map their
-/// users into a Zonai-managed auth collection. The runtime side (verification,
-/// auto-provisioning, `Jwt` construction from foreign claims) is layered on
-/// top of this config and lives outside [zonai_schema].
-///
-/// This file ships only the schema-layer contract — the wire format for
-/// configuring trust, the algorithm pinning each variant requires, and the
-/// JSON round-trip. The runtime trust pipeline is a follow-up.
-///
-/// See mrgnhnt96/zonai#2 for the design rationale.
+// See mrgnhnt96/zonai#2 for the design rationale.
+
+/// Trust configuration for a JWT issued by an external identity provider.
 sealed class ExternalIdpConfig {
   const ExternalIdpConfig();
 
-  /// Dispatch a JSON map to the matching concrete variant. Throws
-  /// [ArgumentError] for unknown `kind` values so misconfiguration fails loudly
-  /// at config-worker compile time rather than at request time.
   factory ExternalIdpConfig.fromJson(Map<String, dynamic> json) {
-    return switch (json['kind']) {
-      SharedSecretIdpConfig._kind => SharedSecretIdpConfig.fromJson(json),
-      JwksIdpConfig._kind => JwksIdpConfig.fromJson(json),
-      final k => throw ArgumentError.value(
-        k,
-        'kind',
-        'Unknown external IdP kind',
+    return switch (json['type']) {
+      SharedSecretIdpConfig._type => SharedSecretIdpConfig.fromJson(json),
+      JwksIdpConfig._type => JwksIdpConfig.fromJson(json),
+      final t => throw ArgumentError.value(
+        t,
+        'type',
+        'Unknown external IdP type',
       ),
     };
   }
 
-  /// The `iss` claim that incoming tokens must declare. Verification rejects
-  /// any token whose `iss` does not match exactly.
   String get issuer;
-
-  /// The `aud` claim that incoming tokens must declare. Verification rejects
-  /// any token whose `aud` does not match exactly.
   String get audience;
-
-  /// The Zonai auth collection that users from this IdP map into. Provisioning,
-  /// rule evaluation, and admin-claim derivation all key off this collection;
-  /// the runtime auto-provisioning hook is registered on the matching auth
-  /// table's extension class.
   String get authTable;
+  String get type;
 
-  /// Discriminator that identifies the concrete variant in JSON.
-  String get kind;
-
-  Map<String, dynamic> toJson();
+  Map<String, Object?> toJson() => {'type': type};
 }
 
-/// Trust a JWT issuer that signs tokens with a shared HMAC secret.
-///
-/// Suitable for IdPs that publish a single symmetric secret (Supabase Auth,
-/// many custom internal IdPs). The verifier pins HS256 — tokens whose `alg`
-/// header is anything else are rejected, which closes the standard "alg=none"
-/// and confused-deputy attacks.
-///
-/// For IdPs that publish public keys via JWKS, use [JwksIdpConfig].
+/// Configuration for an IdP that signs tokens with a shared HMAC secret.
 final class SharedSecretIdpConfig extends ExternalIdpConfig {
   const SharedSecretIdpConfig({
     required this.issuer,
@@ -73,7 +41,7 @@ final class SharedSecretIdpConfig extends ExternalIdpConfig {
         secret: json['secret'] as String,
       );
 
-  static const _kind = 'shared_secret';
+  static const _type = 'shared_secret';
 
   @override
   final String issuer;
@@ -82,16 +50,15 @@ final class SharedSecretIdpConfig extends ExternalIdpConfig {
   @override
   final String authTable;
 
-  /// The shared HMAC secret used to verify token signatures. Treat as a
-  /// production secret; configure via env-injected `String.fromEnvironment`.
+  /// HMAC secret used to verify token signatures.
   final String secret;
 
   @override
-  String get kind => _kind;
+  String get type => _type;
 
   @override
-  Map<String, dynamic> toJson() => {
-    'kind': _kind,
+  Map<String, Object?> toJson() => {
+    ...super.toJson(),
     'issuer': issuer,
     'audience': audience,
     'authTable': authTable,
@@ -99,17 +66,7 @@ final class SharedSecretIdpConfig extends ExternalIdpConfig {
   };
 }
 
-/// Trust a JWT issuer that publishes its public keys via JWKS.
-///
-/// Suitable for production IdPs that publish a rotating set of public keys at
-/// a well-known URL (Auth0, Clerk, Cognito, Firebase Auth, any OIDC-compliant
-/// provider). The verifier pins RS256/ES256 — tokens whose `alg` header is
-/// anything else are rejected.
-///
-/// The runtime fetches [jwksUrl] on demand, caches the response for
-/// [cacheTtl], and re-fetches when a token references an unknown `kid`. The
-/// fetch path is bounded by [fetchTimeout] and circuit-breaks on repeated
-/// failure so a degraded IdP does not amplify into a DoS on the auth path.
+/// Configuration for an IdP that publishes its public keys via JWKS.
 final class JwksIdpConfig extends ExternalIdpConfig {
   const JwksIdpConfig({
     required this.issuer,
@@ -133,7 +90,7 @@ final class JwksIdpConfig extends ExternalIdpConfig {
         : Duration(seconds: json['fetchTimeoutSeconds'] as int),
   );
 
-  static const _kind = 'jwks';
+  static const _type = 'jwks';
 
   @override
   final String issuer;
@@ -142,23 +99,21 @@ final class JwksIdpConfig extends ExternalIdpConfig {
   @override
   final String authTable;
 
-  /// URL of the JWKS endpoint. Typically discoverable via
-  /// `${issuer}/.well-known/openid-configuration`.
+  /// URL of the JWKS endpoint.
   final String jwksUrl;
 
-  /// How long the runtime caches a JWKS response before re-fetching.
+  /// How long a JWKS response is reused before being re-fetched.
   final Duration cacheTtl;
 
-  /// Maximum time the auth path will wait for a JWKS fetch on a cold cache
-  /// before failing the request. Keeps a slow IdP from blocking auth.
+  /// Maximum time to wait for a JWKS fetch on a cold cache.
   final Duration fetchTimeout;
 
   @override
-  String get kind => _kind;
+  String get type => _type;
 
   @override
-  Map<String, dynamic> toJson() => {
-    'kind': _kind,
+  Map<String, Object?> toJson() => {
+    ...super.toJson(),
     'issuer': issuer,
     'audience': audience,
     'authTable': authTable,
