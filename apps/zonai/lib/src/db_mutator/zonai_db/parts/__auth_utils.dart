@@ -165,8 +165,8 @@ extension _AuthUtilsX on ZonaiDb {
       // External-trust JWTs have no `_jwt` revocation row to check, so
       // there's no separation between "claims-only" and "full" extraction
       // for them; the verified, user-resolved Jwt is returned directly.
-      final external = await _tryExternalIdpJwt(jwt);
-      if (external != null) return external;
+      final externalJwt = await _tryExternalIdpJwt(jwt);
+      if (externalJwt != null) return externalJwt;
       throw const InvalidJwtException();
     }
 
@@ -191,8 +191,8 @@ extension _AuthUtilsX on ZonaiDb {
       // Internal HS256 didn't match — try configured external IdPs
       // before rejecting. External tokens skip [_validateJwt]
       // (revocation lives with the IdP, not in zonai's `_jwt` table).
-      final external = await _tryExternalIdpJwt(jwt);
-      if (external != null) return external;
+      final externalJwt = await _tryExternalIdpJwt(jwt);
+      if (externalJwt != null) return externalJwt;
       throw const InvalidJwtException();
     }
 
