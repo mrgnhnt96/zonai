@@ -2,8 +2,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:zonai_schema/payloads.dart';
 
-import 'components/auth_app_shell.dart';
-import 'components/home_app_shell.dart';
+import 'components/app_shell_gate.dart';
 import 'providers/photos_config_provider.dart';
 import 'utils/page_title.dart';
 
@@ -62,25 +61,19 @@ class App extends StatelessComponent {
           'og:title': title,
         },
       ),
-      if (initialSignedIn)
-        HomeAppShell(
-          initialSqliteNames: initialSqliteNames,
-          initialDisplayNames: initialDisplayNames,
-          tablesLoadError: tablesLoadError,
-          initialSchemaShapes: initialSchemaShapes,
-          initialCollectionActions: initialCollectionActions,
-          initialPath: initialPath,
-          initialAppName: appConfig.appName,
-          initialBaseUrl: appConfig.baseUrl,
-          initialPhotosConfig: photosConfigToJson(appConfig.photos),
-        )
-      else
-        AuthAppShell(
-          initialPath: initialPath,
-          initialAppName: appConfig.appName,
-          initialBaseUrl: appConfig.baseUrl,
-          initialAuthTypeNames: [for (final type in initialAuthTypes) type.name],
-        ),
+      AppShellGate(
+        initialSignedIn: initialSignedIn,
+        initialPath: initialPath,
+        initialAppName: appConfig.appName,
+        initialBaseUrl: appConfig.baseUrl,
+        initialAuthTypeNames: [for (final type in initialAuthTypes) type.name],
+        initialSqliteNames: initialSqliteNames,
+        initialDisplayNames: initialDisplayNames,
+        tablesLoadError: tablesLoadError,
+        initialSchemaShapes: initialSchemaShapes,
+        initialCollectionActions: initialCollectionActions,
+        initialPhotosConfig: photosConfigToJson(appConfig.photos),
+      ),
     ]);
   }
 

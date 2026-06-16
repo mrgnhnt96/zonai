@@ -45,12 +45,14 @@ class _DevPartFormState extends State<DevPartForm> {
       ? null
       : _tables[_tableIndex.clamp(0, _tables.length - 1)];
 
+  int get _fieldCount => _partType.requiresTable ? 3 : 2;
+
   int get _focusedFieldIndex => switch (_field) {
     _PartFormField.none => 0,
     _PartFormField.partType => 0,
     _PartFormField.table => 1,
     _PartFormField.className => _partType.requiresTable ? 2 : 1,
-    _PartFormField.actions => _partType.requiresTable ? 2 : 1,
+    _PartFormField.actions => _fieldCount,
   };
 
   void _blurField() {
@@ -119,10 +121,16 @@ class _DevPartFormState extends State<DevPartForm> {
 
   void _nextField() {
     if (_field == _PartFormField.actions) {
+      final next = devFormTabNextAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        _focusedAction = _focusedAction == DevFormAction.cancel
-            ? DevFormAction.submit
-            : DevFormAction.cancel;
+        if (next == null) {
+          _field = _PartFormField.partType;
+        } else {
+          _focusedAction = next;
+        }
       });
       return;
     }
@@ -139,18 +147,22 @@ class _DevPartFormState extends State<DevPartForm> {
         _PartFormField.actions => _PartFormField.none,
       };
       if (_field == _PartFormField.actions) {
-        _focusedAction = DevFormAction.cancel;
+        _focusedAction = devFormFirstAction();
       }
     });
   }
 
   void _previousField() {
     if (_field == _PartFormField.actions) {
+      final prev = devFormTabPreviousAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        if (_focusedAction == DevFormAction.submit) {
-          _focusedAction = DevFormAction.cancel;
-        } else {
+        if (prev == null) {
           _field = _PartFormField.className;
+        } else {
+          _focusedAction = prev;
         }
       });
       return;
@@ -159,7 +171,7 @@ class _DevPartFormState extends State<DevPartForm> {
     setState(() {
       _field = switch (_field) {
         _PartFormField.none => _PartFormField.actions,
-        _PartFormField.partType => _PartFormField.none,
+        _PartFormField.partType => _PartFormField.actions,
         _PartFormField.table => _PartFormField.partType,
         _PartFormField.className =>
           _partType.requiresTable
@@ -168,13 +180,18 @@ class _DevPartFormState extends State<DevPartForm> {
         _PartFormField.actions => _PartFormField.className,
       };
       if (_field == _PartFormField.actions) {
-        _focusedAction = DevFormAction.submit;
+        _focusedAction = devFormLastAction(submitEnabled: _canSubmit);
       }
     });
   }
 
+  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
+    action: _focusedAction,
+    submitEnabled: _canSubmit,
+  );
+
   void _activateAction() {
-    switch (_focusedAction) {
+    switch (_effectiveFocusedAction) {
       case DevFormAction.cancel:
         _cancel();
       case DevFormAction.submit:
@@ -314,7 +331,9 @@ class _DevPartFormState extends State<DevPartForm> {
         fields: fields,
         footer: DevFormActionBar(
           submitLabel: 'Create',
-          focusedAction: _field == _PartFormField.actions ? _focusedAction : null,
+          focusedAction: _field == _PartFormField.actions
+              ? _effectiveFocusedAction
+              : null,
           onFocusSubmit: () => setState(() {
             _field = _PartFormField.actions;
             _focusedAction = DevFormAction.submit;

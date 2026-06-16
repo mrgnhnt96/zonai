@@ -2,9 +2,12 @@ import 'package:zonai_client/gen/interfaces.dart';
 import 'package:zonai_schema/payloads.dart';
 
 class AdminAuth {
-  const AdminAuth({required this._auth});
+  const AdminAuth({required AuthDataSource auth, required Storage storage})
+    : _auth = auth,
+      _storage = storage;
 
   final AuthDataSource _auth;
+  final Storage _storage;
 
   Future<AuthSession?> signIn({
     required AdminSignInAuthBody body,
@@ -14,7 +17,12 @@ class AdminAuth {
       body: body,
       authorization: authorization,
     );
-    return raw == null ? null : AuthSession.fromJson(raw);
+    if (raw == null) {
+      return null;
+    }
+    final session = AuthSession.fromJson(raw);
+    await _storage.save(AuthSession.key, session.accessToken);
+    return session;
   }
 
   Future<void> sendOtp({

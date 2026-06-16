@@ -47,4 +47,21 @@ class RateLimit {
       false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
     };
   }
+
+  Future<GuardResult> checkByTable(
+    String table,
+    String ipAddress,
+    RateLimitOperation operation,
+  ) async {
+    final isAllowed = await rateLimiter.check(
+      table: table,
+      ipAddress: ipAddress,
+      operation: operation,
+    );
+
+    return switch (isAllowed) {
+      true => const .pass(),
+      false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
+    };
+  }
 }

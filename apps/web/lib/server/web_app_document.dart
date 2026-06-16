@@ -6,6 +6,8 @@ import '../auth/auth_routes.dart';
 import '../constants/theme.dart';
 import '../utils/zonai_cookie.dart';
 import 'app_config.dart';
+import 'session_auth.dart';
+import 'ssr_auth_cookie.dart';
 import 'sqlite_table_names.dart';
 import 'supported_auth_types.dart';
 import 'table_collection_actions.dart';
@@ -24,8 +26,14 @@ Component buildWebAppDocument() {
         final tables = loadZonaiSqliteTableNames();
         final schemaShapes = await loadTableSchemaShapes();
         final token = context.cookies[ZonaiCookie.authToken.key];
-        final collectionActions = await loadTableCollectionActions(authToken: token);
-        final signedIn = token != null && token.isNotEmpty;
+        final session = await resolveSsrSession(token);
+        if (session.clearAuthCookie) {
+          clearAuthCookie(context);
+        }
+        final signedIn = ssrShowsSignedInShell(session, token);
+        final collectionActions = signedIn
+            ? await loadTableCollectionActions(authToken: token)
+            : const {};
         final authTypes = await loadSupportedAuthTypes();
         final appConfig = await loadAppConfig();
         final initialPath = AuthRoutes.fromUrlPath(context.url);

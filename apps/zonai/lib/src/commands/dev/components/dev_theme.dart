@@ -298,6 +298,50 @@ bool devFormActivateKey(KeyboardEvent event) {
       event.logicalKey == LogicalKey.space;
 }
 
+/// First action button focused when tabbing forward into [DevFormActionBar].
+DevFormAction devFormFirstAction() => DevFormAction.cancel;
+
+/// Last action button when tabbing backward from the first input.
+DevFormAction devFormLastAction({required bool submitEnabled}) =>
+    submitEnabled ? DevFormAction.submit : DevFormAction.cancel;
+
+/// Next action when tabbing forward within the action bar.
+///
+/// Returns `null` when focus should wrap to the first input field.
+DevFormAction? devFormTabNextAction({
+  required DevFormAction current,
+  required bool submitEnabled,
+}) {
+  return switch (current) {
+    DevFormAction.cancel => submitEnabled ? DevFormAction.submit : null,
+    DevFormAction.submit => null,
+  };
+}
+
+/// Previous action when tabbing backward within the action bar.
+///
+/// Returns `null` when focus should wrap to the last input field.
+DevFormAction? devFormTabPreviousAction({
+  required DevFormAction current,
+  required bool submitEnabled,
+}) {
+  return switch (current) {
+    DevFormAction.submit => DevFormAction.cancel,
+    DevFormAction.cancel => null,
+  };
+}
+
+/// Keeps action focus off a disabled submit button.
+DevFormAction devFormEffectiveAction({
+  required DevFormAction action,
+  required bool submitEnabled,
+}) {
+  if (action == DevFormAction.submit && !submitEnabled) {
+    return DevFormAction.cancel;
+  }
+  return action;
+}
+
 class DevFormActionBar extends StatelessComponent {
   const DevFormActionBar({
     required this.submitLabel,
@@ -338,7 +382,7 @@ class DevFormActionBar extends StatelessComponent {
           label: submitLabel,
           primary: true,
           enabled: submitEnabled,
-          focused: focusedAction == DevFormAction.submit,
+          focused: submitEnabled && focusedAction == DevFormAction.submit,
           onTap: () {
             onFocusSubmit?.call();
             if (submitEnabled) onSubmit();
@@ -365,6 +409,11 @@ class DevFormCard extends StatefulComponent {
   final String title;
   final String? subtitle;
   final Color accentColor;
+  /// Index of the focused row in the scrollable form body.
+  ///
+  /// Field indices are `0` through [fields.length - 1]. When a [footer] is
+  /// present in the scrollable list, pass [fields.length] while action buttons
+  /// are focused so the footer scrolls into view.
   final int focusedFieldIndex;
   final List<Component> fields;
   final Component? expandedField;
@@ -403,16 +452,17 @@ class _DevFormCardState extends State<DevFormCard> {
   }
 
   void _scrollToFocused(Duration _) {
-    if (!mounted || component.fields.isEmpty) return;
-    if (component.expandedField != null &&
-        component.focusedFieldIndex >= component.fields.length) {
-      return;
-    }
+    if (!mounted) return;
 
-    final index = component.focusedFieldIndex.clamp(
-      0,
-      component.fields.length - 1,
-    );
+    final footerInList =
+        component.footer != null && component.expandedField == null;
+    final maxIndex = footerInList
+        ? component.fields.length
+        : math.max(0, component.fields.length - 1);
+
+    if (component.fields.isEmpty && !footerInList) return;
+
+    final index = component.focusedFieldIndex.clamp(0, maxIndex);
     _scrollController.ensureIndexVisible(index: index);
   }
 

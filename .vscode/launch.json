@@ -15,7 +15,7 @@
             "cwd": "apps/web",
             "request": "launch",
             "type": "jaspr",
-            "args": []
+            "args": ["--no-managed-build-options"]
         },
         {
             "name": "docs",

@@ -9,10 +9,14 @@ typedef UnauthorizedHandler = void Function();
 
 UnauthorizedHandler? _unauthorizedHandler;
 
-/// Called by [AuthNotifier] on the client so API 403 responses sign the user out.
+/// Called by [AuthNotifier] on the client so API 401/403 responses sign the user out.
 void registerUnauthorizedHandler(UnauthorizedHandler? handler) {
   _unauthorizedHandler = handler;
 }
+
+/// HTTP status codes that mean the stored session is no longer valid.
+bool isUnauthorizedStatusCode(int statusCode) =>
+    statusCode == 401 || statusCode == 403;
 
 /// Shared Zonai HTTP client for the web app, using [appBaseUrlProvider] from config.
 ///
@@ -36,7 +40,7 @@ final class _UnauthorizedInterceptor implements HttpInterceptor {
 
   @override
   void onResponse(HttpResponse response) {
-    if (response.statusCode == 403) {
+    if (isUnauthorizedStatusCode(response.statusCode)) {
       _unauthorizedHandler?.call();
     }
   }

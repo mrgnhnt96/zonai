@@ -7,49 +7,57 @@ class Auth {
   Auth({required AuthDataSource auth, required Storage storage})
     : _auth = auth,
       _storage = storage,
-      admin = AdminAuth(auth: auth);
+      admin = AdminAuth(auth: auth, storage: storage);
 
   final AuthDataSource _auth;
   final Storage _storage;
   final AdminAuth admin;
 
   String? _token;
+
+  /// The stored bearer token (`accessToken` compact JWT string).
   Future<String?> get token async {
     if (_token case final value?) {
       return value;
     }
 
-    if (await _storage['token'] case final String token) {
+    if (await _storage[AuthSession.key] case final String token) {
       return token;
     }
 
     return null;
   }
 
+  /// Persists the bearer token returned as [AuthSession.accessToken].
   Future<void> setToken(String? value) async {
     _token = value;
     if (value == null) {
-      _storage.remove('token');
+      await _storage.remove(AuthSession.key);
     } else {
-      _storage.save('token', value);
+      await _storage.save(AuthSession.key, value);
     }
   }
 
+  /// Parsed claims for the stored bearer token.
   Future<Jwt?> get jwt async {
-    final token = _token ?? await _storage['token'];
-    if (token is! String) {
+    if (await token case final String token) {
+      return Jwt.parse(token);
+    }
+    return null;
+  }
+
+  /// Clears the stored bearer token.
+  Future<void> clearToken() async {
+    await setToken(null);
+  }
+
+  Future<AuthSession?> _sessionFromRaw(Map<String, Object?>? raw) async {
+    if (raw == null) {
       return null;
     }
-
-    return Jwt.parse(token);
-  }
-
-  Future<void> setJwt(Jwt value) async {
-    await _storage.save('token', value.toJson());
-  }
-
-  Future<void> clearJwt() async {
-    await _storage.remove('token');
+    final session = AuthSession.fromJson(raw);
+    await setToken(session.accessToken);
+    return session;
   }
 
   Future<AuthSession?> authenticate({
@@ -60,7 +68,7 @@ class Auth {
       body: body,
       authorization: authorization,
     );
-    return raw == null ? null : AuthSession.fromJson(raw);
+    return _sessionFromRaw(raw);
   }
 
   /// Sign in with email and password.
@@ -72,7 +80,7 @@ class Auth {
       body: body,
       authorization: authorization,
     );
-    return raw == null ? null : AuthSession.fromJson(raw);
+    return _sessionFromRaw(raw);
   }
 
   /// Sign up with email and password.
@@ -84,7 +92,7 @@ class Auth {
       body: body,
       authorization: authorization,
     );
-    return raw == null ? null : AuthSession.fromJson(raw);
+    return _sessionFromRaw(raw);
   }
 
   Future<void> sentOtp({
@@ -117,12 +125,12 @@ class Auth {
 
   Future<AuthSession?> confirm({required VerifyAuthBody body}) async {
     final raw = await _auth.confirm(body: body);
-    return raw == null ? null : AuthSession.fromJson(raw);
+    return _sessionFromRaw(raw);
   }
 
   Future<AuthSession?> refreshToken({String? authorization}) async {
     final raw = await _auth.refreshToken(authorization: authorization ?? '');
-    return raw == null ? null : AuthSession.fromJson(raw);
+    return _sessionFromRaw(raw);
   }
 
   Future<void> logout({String? authorization}) async {

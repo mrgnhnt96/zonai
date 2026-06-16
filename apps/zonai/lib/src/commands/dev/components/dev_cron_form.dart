@@ -50,7 +50,7 @@ class _DevCronFormState extends State<DevCronForm> {
   }
 
   void _activateAction() {
-    switch (_focusedAction) {
+    switch (_effectiveFocusedAction) {
       case DevFormAction.cancel:
         _cancel();
       case DevFormAction.submit:
@@ -59,6 +59,13 @@ class _DevCronFormState extends State<DevCronForm> {
   }
 
   bool get _canSubmit => _jobs.isNotEmpty;
+
+  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
+    action: _focusedAction,
+    submitEnabled: _canSubmit,
+  );
+
+  int get _focusedFieldIndex => _actionsFocused ? 1 : 0;
 
   @override
   Component build(BuildContext context) {
@@ -80,15 +87,42 @@ class _DevCronFormState extends State<DevCronForm> {
         }
         if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
           if (_actionsFocused) {
+            final next = devFormTabNextAction(
+              current: _effectiveFocusedAction,
+              submitEnabled: _canSubmit,
+            );
             setState(() {
-              _focusedAction = _focusedAction == DevFormAction.cancel
-                  ? DevFormAction.submit
-                  : DevFormAction.cancel;
+              if (next == null) {
+                _actionsFocused = false;
+              } else {
+                _focusedAction = next;
+              }
             });
           } else {
             setState(() {
               _actionsFocused = true;
-              _focusedAction = DevFormAction.submit;
+              _focusedAction = devFormFirstAction();
+            });
+          }
+          return true;
+        }
+        if (event.logicalKey == LogicalKey.tab && event.isShiftPressed) {
+          if (_actionsFocused) {
+            final prev = devFormTabPreviousAction(
+              current: _effectiveFocusedAction,
+              submitEnabled: _canSubmit,
+            );
+            setState(() {
+              if (prev == null) {
+                _actionsFocused = false;
+              } else {
+                _focusedAction = prev;
+              }
+            });
+          } else {
+            setState(() {
+              _actionsFocused = true;
+              _focusedAction = devFormLastAction(submitEnabled: _canSubmit);
             });
           }
           return true;
@@ -107,6 +141,7 @@ class _DevCronFormState extends State<DevCronForm> {
         title: 'Run Cron Job',
         subtitle:
             'Runs the selected cron job right now, ignoring its normal schedule — handy for testing job logic without waiting.',
+        focusedFieldIndex: _focusedFieldIndex,
         fields: [
           DevSelectField(
             label: 'Job',
@@ -117,7 +152,7 @@ class _DevCronFormState extends State<DevCronForm> {
         ],
         footer: DevFormActionBar(
           submitLabel: 'Run',
-          focusedAction: _actionsFocused ? _focusedAction : null,
+          focusedAction: _actionsFocused ? _effectiveFocusedAction : null,
           onFocusSubmit: () => setState(() {
             _actionsFocused = true;
             _focusedAction = DevFormAction.submit;

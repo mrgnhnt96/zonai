@@ -17,7 +17,7 @@ Future<Map<String, TableCollectionActions>> loadTableCollectionActions({String? 
         return await zonaiDB.collectionActions(jwt: jwt);
       } on ExecutableUnavailableException {
         return const {};
-      } on StateError {
+      } on AuthException {
         return const {};
       }
     },

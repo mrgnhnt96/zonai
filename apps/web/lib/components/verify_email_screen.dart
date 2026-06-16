@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/web.dart' as web;
 
 import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
@@ -61,8 +62,11 @@ class VerifyEmailScreenState extends State<VerifyEmailScreen> {
   }
 
   void _continue() {
-    final signedIn = context.read(authProvider);
-    context.goApp(signedIn ? AuthRoutes.home : AuthRoutes.signIn);
+    if (context.read(authProvider)) {
+      web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
+      return;
+    }
+    context.goApp(AuthRoutes.signIn);
   }
 
   @override

@@ -47,13 +47,6 @@ class _DevTextFormState extends State<DevTextForm> {
     setState(() => _inputFocused = false);
   }
 
-  void _focusActions() {
-    setState(() {
-      _inputFocused = false;
-      _focusedAction = DevFormAction.submit;
-    });
-  }
-
   void _submit() {
     final trimmed = _controller.text.trim();
     if (trimmed.isEmpty) return;
@@ -62,7 +55,7 @@ class _DevTextFormState extends State<DevTextForm> {
   }
 
   void _activateAction() {
-    switch (_focusedAction) {
+    switch (_effectiveFocusedAction) {
       case DevFormAction.cancel:
         _cancel();
       case DevFormAction.submit:
@@ -71,6 +64,13 @@ class _DevTextFormState extends State<DevTextForm> {
   }
 
   bool get _canSubmit => _controller.text.trim().isNotEmpty;
+
+  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
+    action: _focusedAction,
+    submitEnabled: _canSubmit,
+  );
+
+  int get _focusedFieldIndex => _inputFocused ? 0 : 1;
 
   @override
   Component build(BuildContext context) {
@@ -83,24 +83,42 @@ class _DevTextFormState extends State<DevTextForm> {
         }
         if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
           if (_inputFocused) {
-            _focusActions();
-          } else {
             setState(() {
-              _focusedAction = _focusedAction == DevFormAction.cancel
-                  ? DevFormAction.submit
-                  : DevFormAction.cancel;
+              _inputFocused = false;
+              _focusedAction = devFormFirstAction();
+            });
+          } else {
+            final next = devFormTabNextAction(
+              current: _effectiveFocusedAction,
+              submitEnabled: _canSubmit,
+            );
+            setState(() {
+              if (next == null) {
+                _inputFocused = true;
+              } else {
+                _focusedAction = next;
+              }
             });
           }
           return true;
         }
         if (event.logicalKey == LogicalKey.tab && event.isShiftPressed) {
-          if (!_inputFocused) {
-            setState(() => _inputFocused = true);
-          } else {
+          if (_inputFocused) {
             setState(() {
-              _focusedAction = _focusedAction == DevFormAction.submit
-                  ? DevFormAction.cancel
-                  : DevFormAction.submit;
+              _inputFocused = false;
+              _focusedAction = devFormLastAction(submitEnabled: _canSubmit);
+            });
+          } else {
+            final prev = devFormTabPreviousAction(
+              current: _effectiveFocusedAction,
+              submitEnabled: _canSubmit,
+            );
+            setState(() {
+              if (prev == null) {
+                _inputFocused = true;
+              } else {
+                _focusedAction = prev;
+              }
             });
           }
           return true;
@@ -114,6 +132,7 @@ class _DevTextFormState extends State<DevTextForm> {
       child: DevFormCard(
         title: component.title,
         onBackgroundTap: _blurInput,
+        focusedFieldIndex: _focusedFieldIndex,
         fields: [
           DevFormField(
             label: component.label,
@@ -129,7 +148,7 @@ class _DevTextFormState extends State<DevTextForm> {
         ],
         footer: DevFormActionBar(
           submitLabel: component.submitLabel,
-          focusedAction: _inputFocused ? null : _focusedAction,
+          focusedAction: _inputFocused ? null : _effectiveFocusedAction,
           onFocusSubmit: () => setState(() {
             _inputFocused = false;
             _focusedAction = DevFormAction.submit;

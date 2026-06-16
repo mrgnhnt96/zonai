@@ -84,13 +84,8 @@ Request toShelfRequest(Context context) {
           'http://$host${requestUri.path.isEmpty ? '/' : requestUri.path}',
         ).replace(queryParameters: requestUri.queryParameters.isEmpty ? null : requestUri.queryParameters);
 
-  // jaspr_router matches mount-less app paths (`/sign-in`); normalize SSR input
-  // from `/_/sign-in` so we render instead of 302-looping back to the same URL.
-  final appPath = AuthRoutes.normalizePath(absoluteUri.path);
-  if (appPath != absoluteUri.path) {
-    absoluteUri = absoluteUri.replace(path: appPath);
-  }
-
+  // Keep the browser mount prefix (`/_/…`) so jaspr_router route paths align with
+  // client hydration. App logic still uses mount-less paths via [AuthRoutes.normalizePath].
   return Request(context.request.method, absoluteUri, headers: headers);
 }
 

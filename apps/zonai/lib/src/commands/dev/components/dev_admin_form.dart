@@ -42,7 +42,16 @@ class _DevAdminFormState extends State<DevAdminForm> {
 
   bool get _textFieldFocused => _fieldIndex >= 0 && !_actionsFocused;
 
-  int get _focusedFieldIndex => _textFieldFocused ? _fieldIndex : 0;
+  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
+    action: _focusedAction,
+    submitEnabled: _canSubmit,
+  );
+
+  int get _focusedFieldIndex {
+    if (_actionsFocused) return _fieldCount;
+    if (!_textFieldFocused) return 0;
+    return _fieldIndex;
+  }
 
   void _blurField() {
     if (!_textFieldFocused && !_actionsFocused) return;
@@ -52,16 +61,8 @@ class _DevAdminFormState extends State<DevAdminForm> {
     });
   }
 
-  void _focusActions() {
-    setState(() {
-      _fieldIndex = -1;
-      _actionsFocused = true;
-      _focusedAction = DevFormAction.submit;
-    });
-  }
-
   void _activateAction() {
-    switch (_focusedAction) {
+    switch (_effectiveFocusedAction) {
       case DevFormAction.cancel:
         _cancel();
       case DevFormAction.submit:
@@ -116,40 +117,55 @@ class _DevAdminFormState extends State<DevAdminForm> {
 
   void _nextField() {
     if (_actionsFocused) {
+      final next = devFormTabNextAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        _focusedAction = _focusedAction == DevFormAction.cancel
-            ? DevFormAction.submit
-            : DevFormAction.cancel;
+        if (next == null) {
+          _actionsFocused = false;
+          _fieldIndex = 0;
+        } else {
+          _focusedAction = next;
+        }
       });
       return;
     }
-    if (_fieldCount <= 1) return;
     setState(() {
       if (_fieldIndex >= _fieldCount - 1) {
-        _focusActions();
+        _fieldIndex = -1;
+        _actionsFocused = true;
+        _focusedAction = devFormFirstAction();
       } else {
-        _fieldIndex = _fieldIndex < 0 ? 0 : (_fieldIndex + 1) % _fieldCount;
+        _fieldIndex = _fieldIndex < 0 ? 0 : _fieldIndex + 1;
       }
     });
   }
 
   void _previousField() {
     if (_actionsFocused) {
+      final prev = devFormTabPreviousAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        if (_focusedAction == DevFormAction.submit) {
-          _focusedAction = DevFormAction.cancel;
-        } else {
+        if (prev == null) {
           _actionsFocused = false;
           _fieldIndex = _fieldCount - 1;
+        } else {
+          _focusedAction = prev;
         }
       });
       return;
     }
-    if (_fieldCount <= 1) return;
     setState(() {
-      _fieldIndex = _fieldIndex < 0
-          ? _fieldCount - 1
-          : (_fieldIndex - 1 + _fieldCount) % _fieldCount;
+      if (_fieldIndex <= 0) {
+        _fieldIndex = -1;
+        _actionsFocused = true;
+        _focusedAction = devFormLastAction(submitEnabled: _canSubmit);
+      } else {
+        _fieldIndex = _fieldIndex - 1;
+      }
     });
   }
 
@@ -180,7 +196,10 @@ class _DevAdminFormState extends State<DevAdminForm> {
 
   bool _isFieldFocused(int index) => _fieldIndex == index;
 
-  void _focusField(int index) => setState(() => _fieldIndex = index);
+  void _focusField(int index) => setState(() {
+    _fieldIndex = index;
+    _actionsFocused = false;
+  });
 
   List<Component> _buildFields() {
     final fields = <Component>[
@@ -283,7 +302,7 @@ class _DevAdminFormState extends State<DevAdminForm> {
         fields: _buildFields(),
         footer: DevFormActionBar(
           submitLabel: 'Create',
-          focusedAction: _actionsFocused ? _focusedAction : null,
+          focusedAction: _actionsFocused ? _effectiveFocusedAction : null,
           onFocusSubmit: () => setState(() {
             _actionsFocused = true;
             _focusedAction = DevFormAction.submit;

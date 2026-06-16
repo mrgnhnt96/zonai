@@ -124,23 +124,28 @@ class _DevEmailPreviewFormState extends State<DevEmailPreviewForm> {
   }
 
   void _nextField() {
+    final canPreview = _missingVariables.isEmpty;
     setState(() {
       _field = switch (_field) {
         _PreviewField.none => _PreviewField.template,
-        _PreviewField.template => _PreviewField.preview,
-        _PreviewField.preview => _PreviewField.variables,
-        _PreviewField.variables => _PreviewField.none,
+        _PreviewField.template => _PreviewField.variables,
+        _PreviewField.variables =>
+            canPreview ? _PreviewField.preview : _PreviewField.template,
+        _PreviewField.preview => _PreviewField.template,
       };
     });
   }
 
   void _previousField() {
+    final canPreview = _missingVariables.isEmpty;
     setState(() {
       _field = switch (_field) {
-        _PreviewField.none => _PreviewField.variables,
-        _PreviewField.template => _PreviewField.none,
-        _PreviewField.preview => _PreviewField.template,
-        _PreviewField.variables => _PreviewField.preview,
+        _PreviewField.none =>
+            canPreview ? _PreviewField.preview : _PreviewField.variables,
+        _PreviewField.template =>
+            canPreview ? _PreviewField.preview : _PreviewField.variables,
+        _PreviewField.variables => _PreviewField.template,
+        _PreviewField.preview => _PreviewField.variables,
       };
     });
   }
@@ -317,7 +322,7 @@ class _DevEmailPreviewFormState extends State<DevEmailPreviewForm> {
               label: 'Preview',
               primary: true,
               enabled: missing.isEmpty,
-              focused: _field == _PreviewField.preview,
+              focused: _field == _PreviewField.preview && missing.isEmpty,
               onTap: () {
                 setState(() => _field = _PreviewField.preview);
                 _preview();

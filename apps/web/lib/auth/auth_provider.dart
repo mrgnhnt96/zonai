@@ -45,8 +45,12 @@ class AuthNotifier extends Notifier<bool> {
 
     if (!AuthRoutes.isSignInPath(next)) return;
 
-    // Back from the app to a sign-in URL should leave the session.
+    // Router redirects (not explicit back navigation) should send signed-in users home.
     if (previous != null && !AuthRoutes.isSignInPath(previous)) {
+      if (_hasAuthToken()) {
+        web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
+        return;
+      }
       signOut();
       return;
     }
@@ -61,7 +65,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> verifyOtp({required String email, required String code}) async {
     await _client.auth.confirm(body: AdminVerifyOtpAuthBody(email: email, code: code));
-    signIn();
+    await signIn();
   }
 
   Future<void> sendMagicLink({required String email}) async {
@@ -70,7 +74,7 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> verifyMagicLink({required String secret}) async {
     await _client.auth.confirm(body: AdminVerifyMagicLinkAuthBody(secret: secret));
-    signIn();
+    await signIn();
   }
 
   Future<void> sendResetPassword({required String email}) async {
@@ -98,16 +102,25 @@ class AuthNotifier extends Notifier<bool> {
 
   Future<void> signInWithPassword({required String email, required String password}) async {
     await _client.auth.admin.signIn(body: AdminSignInAuthBody(email: email, password: password));
-    signIn();
+    await signIn();
   }
 
-  void signIn() {
-    if (ref.binding.isClient) {
-      web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
+  Future<void> signIn() async {
+    if (!ref.binding.isClient) {
+      state = true;
+      _syncRouteForAuthStateWithSignedIn(true);
       return;
     }
+
+    final token = await _client.auth.token;
+    if (token == null || token.isEmpty) {
+      state = false;
+      throw StateError('Sign-in did not return a session token');
+    }
+
+    ZonaiCookie.authToken.write(token);
     state = true;
-    _syncRouteForAuthStateWithSignedIn(true);
+    web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
   }
 
   Future<void> refreshSession() async {
@@ -129,7 +142,7 @@ class AuthNotifier extends Notifier<bool> {
         await _client.auth.logout();
       } catch (_) {}
     }
-    await _client.auth.clearJwt();
+    await _client.auth.clearToken();
     if (ref.binding.isClient && notifyRoute) {
       web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.signIn));
       return;

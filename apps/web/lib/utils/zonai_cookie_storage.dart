@@ -1,18 +1,18 @@
 import 'package:revali_client/revali_client.dart';
+import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
 
 /// [Storage] adapter that persists the access token in the [ZonaiCookie.authToken] cookie.
 ///
-/// Non-token keys (e.g. `__BASE_URL__` written by the generated [Server]) are kept
-/// in memory only.
+/// [AuthSession.key] stores the compact bearer JWT string (`accessToken`), not
+/// decoded JWT claims. Non-token keys (e.g. `__BASE_URL__` written by the
+/// generated [Server]) are kept in memory only.
 class ZonaiCookieStorage implements Storage {
-  static const tokenKey = 'token';
-
   final Map<String, Object?> _memory = {};
 
   @override
   Future<Object?> operator [](String key) async {
-    if (key == tokenKey) {
+    if (key == AuthSession.key) {
       return ZonaiCookie.authToken.read();
     }
     return _memory[key];
@@ -26,7 +26,7 @@ class ZonaiCookieStorage implements Storage {
 
   @override
   Future<void> remove(String key) async {
-    if (key == tokenKey) {
+    if (key == AuthSession.key) {
       ZonaiCookie.authToken.remove();
       return;
     }
@@ -35,7 +35,7 @@ class ZonaiCookieStorage implements Storage {
 
   @override
   Future<void> save(String key, Object? value) async {
-    if (key == tokenKey && value is String) {
+    if (key == AuthSession.key && value is String) {
       ZonaiCookie.authToken.write(value);
       return;
     }

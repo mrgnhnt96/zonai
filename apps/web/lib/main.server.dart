@@ -9,6 +9,8 @@ import 'constants/theme.dart';
 import 'auth/auth_routes.dart';
 import 'main.server.options.dart';
 import 'server/app_config.dart';
+import 'server/session_auth.dart';
+import 'server/ssr_auth_cookie.dart';
 import 'server/sqlite_table_names.dart';
 import 'server/supported_auth_types.dart';
 import 'server/table_collection_actions.dart';
@@ -29,8 +31,14 @@ void main() {
           final tables = loadZonaiSqliteTableNames();
           final schemaShapes = await loadTableSchemaShapes();
           final token = context.cookies[ZonaiCookie.authToken.key];
-          final collectionActions = await loadTableCollectionActions(authToken: token);
-          final signedIn = token != null && token.isNotEmpty;
+          final session = await resolveSsrSession(token);
+          if (session.clearAuthCookie) {
+            clearAuthCookie(context);
+          }
+          final signedIn = ssrShowsSignedInShell(session, token);
+          final collectionActions = signedIn
+              ? await loadTableCollectionActions(authToken: token)
+              : const {};
           // Always load so sign-out after an authenticated refresh still has auth types.
           final authTypes = await loadSupportedAuthTypes();
           final appConfig = await loadAppConfig();

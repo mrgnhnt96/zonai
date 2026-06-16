@@ -6,6 +6,7 @@ import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../components/auth_header_rate_limit.dart';
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
 
@@ -36,7 +37,7 @@ class AuthController {
     return result;
   }
 
-  @BodyRateLimit<AuthBody>(.refreshToken)
+  @AuthHeaderRateLimit(.refreshToken)
   @Post('refresh')
   Future<Map<String, Object?>?> refreshToken({
     @Header(HttpHeaders.authorizationHeader) required String authorization,

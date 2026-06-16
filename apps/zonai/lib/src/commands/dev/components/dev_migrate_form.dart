@@ -32,13 +32,6 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
     setState(() => _inputFocused = false);
   }
 
-  void _focusActions() {
-    setState(() {
-      _inputFocused = false;
-      _focusedAction = DevFormAction.submit;
-    });
-  }
-
   void _submit() {
     final trimmed = _controller.text.trim();
     if (trimmed.isEmpty) return;
@@ -52,7 +45,7 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
   }
 
   void _activateAction() {
-    switch (_focusedAction) {
+    switch (_effectiveFocusedAction) {
       case DevFormAction.cancel:
         _cancel();
       case DevFormAction.submit:
@@ -61,6 +54,13 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
   }
 
   bool get _canSubmit => _controller.text.trim().isNotEmpty;
+
+  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
+    action: _focusedAction,
+    submitEnabled: _canSubmit,
+  );
+
+  int get _focusedFieldIndex => _inputFocused ? 0 : 1;
 
   @override
   Component build(BuildContext context) {
@@ -73,24 +73,42 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
         }
         if (event.logicalKey == LogicalKey.tab && !event.isShiftPressed) {
           if (_inputFocused) {
-            _focusActions();
-          } else {
             setState(() {
-              _focusedAction = _focusedAction == DevFormAction.cancel
-                  ? DevFormAction.submit
-                  : DevFormAction.cancel;
+              _inputFocused = false;
+              _focusedAction = devFormFirstAction();
+            });
+          } else {
+            final next = devFormTabNextAction(
+              current: _effectiveFocusedAction,
+              submitEnabled: _canSubmit,
+            );
+            setState(() {
+              if (next == null) {
+                _inputFocused = true;
+              } else {
+                _focusedAction = next;
+              }
             });
           }
           return true;
         }
         if (event.logicalKey == LogicalKey.tab && event.isShiftPressed) {
-          if (!_inputFocused) {
-            setState(() => _inputFocused = true);
-          } else {
+          if (_inputFocused) {
             setState(() {
-              _focusedAction = _focusedAction == DevFormAction.submit
-                  ? DevFormAction.cancel
-                  : DevFormAction.submit;
+              _inputFocused = false;
+              _focusedAction = devFormLastAction(submitEnabled: _canSubmit);
+            });
+          } else {
+            final prev = devFormTabPreviousAction(
+              current: _effectiveFocusedAction,
+              submitEnabled: _canSubmit,
+            );
+            setState(() {
+              if (prev == null) {
+                _inputFocused = true;
+              } else {
+                _focusedAction = prev;
+              }
             });
           }
           return true;
@@ -106,6 +124,7 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
         subtitle:
             'Compares your schema files to the last snapshot and writes a migration for any changes. Name it after what changed — it becomes part of the filename.',
         onBackgroundTap: _blurInput,
+        focusedFieldIndex: _focusedFieldIndex,
         fields: [
           DevFormField(
             label: 'Migration name',
@@ -120,7 +139,7 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
         ],
         footer: DevFormActionBar(
           submitLabel: 'Generate',
-          focusedAction: _inputFocused ? null : _focusedAction,
+          focusedAction: _inputFocused ? null : _effectiveFocusedAction,
           onFocusSubmit: () => setState(() {
             _inputFocused = false;
             _focusedAction = DevFormAction.submit;

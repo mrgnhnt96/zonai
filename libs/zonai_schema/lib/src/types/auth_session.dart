@@ -1,6 +1,9 @@
 class AuthSession {
   const AuthSession({required this.accessToken, required this.user});
 
+  /// Storage key for the compact bearer JWT string ([accessToken]).
+  static const key = 'token';
+
   factory AuthSession.fromJson(Map<String, Object?> json) => AuthSession(
     accessToken: json['accessToken'] as String,
     user: (json['user'] as Map).cast<String, Object?>(),

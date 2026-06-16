@@ -87,13 +87,12 @@ List<AuthType> authTypesOrEmpty(BuildContext context) {
 }
 
 bool _isSignedIn(BuildContext context) {
-  if (!context.binding.isClient) {
-    return false;
-  }
   return ProviderScope.containerOf(context).read(authProvider);
 }
 
 final List<RouteBase> authRoutes = [
+  // Home under the mount; top-level redirect sends unauthenticated users to sign-in.
+  Route(path: AuthRoutes.mountPath, name: 'auth-home', builder: (_, _) => const Component.empty()),
   Route.lazy(
     path: '${AuthRoutes.mountPath}${AuthRoutes.verifyEmailCallback}',
     name: 'verify-email',

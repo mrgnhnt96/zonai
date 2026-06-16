@@ -33,7 +33,7 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
     _EmailTestField.none => 0,
     _EmailTestField.to => 0,
     _EmailTestField.template => 1,
-    _EmailTestField.actions => 1,
+    _EmailTestField.actions => 2,
   };
 
   void _blurField() {
@@ -67,10 +67,16 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
 
   void _nextField() {
     if (_field == _EmailTestField.actions) {
+      final next = devFormTabNextAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        _focusedAction = _focusedAction == DevFormAction.cancel
-            ? DevFormAction.submit
-            : DevFormAction.cancel;
+        if (next == null) {
+          _field = _EmailTestField.to;
+        } else {
+          _focusedAction = next;
+        }
       });
       return;
     }
@@ -83,18 +89,22 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
         _EmailTestField.actions => _EmailTestField.none,
       };
       if (_field == _EmailTestField.actions) {
-        _focusedAction = DevFormAction.cancel;
+        _focusedAction = devFormFirstAction();
       }
     });
   }
 
   void _previousField() {
     if (_field == _EmailTestField.actions) {
+      final prev = devFormTabPreviousAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        if (_focusedAction == DevFormAction.submit) {
-          _focusedAction = DevFormAction.cancel;
-        } else {
+        if (prev == null) {
           _field = _EmailTestField.template;
+        } else {
+          _focusedAction = prev;
         }
       });
       return;
@@ -103,18 +113,23 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
     setState(() {
       _field = switch (_field) {
         _EmailTestField.none => _EmailTestField.actions,
-        _EmailTestField.to => _EmailTestField.none,
+        _EmailTestField.to => _EmailTestField.actions,
         _EmailTestField.template => _EmailTestField.to,
         _EmailTestField.actions => _EmailTestField.template,
       };
       if (_field == _EmailTestField.actions) {
-        _focusedAction = DevFormAction.submit;
+        _focusedAction = devFormLastAction(submitEnabled: _canSubmit);
       }
     });
   }
 
+  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
+    action: _focusedAction,
+    submitEnabled: _canSubmit,
+  );
+
   void _activateAction() {
-    switch (_focusedAction) {
+    switch (_effectiveFocusedAction) {
       case DevFormAction.cancel:
         _cancel();
       case DevFormAction.submit:
@@ -205,7 +220,9 @@ class _DevEmailTestFormState extends State<DevEmailTestForm> {
         ],
         footer: DevFormActionBar(
           submitLabel: 'Send',
-          focusedAction: _field == _EmailTestField.actions ? _focusedAction : null,
+          focusedAction: _field == _EmailTestField.actions
+              ? _effectiveFocusedAction
+              : null,
           onFocusSubmit: () => setState(() {
             _field = _EmailTestField.actions;
             _focusedAction = DevFormAction.submit;

@@ -73,6 +73,7 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
   ];
 
   int get _focusedFieldIndex {
+    if (_field == _SchemaFormField.actions) return _visibleFields.length;
     if (_field == _SchemaFormField.none) return 0;
     return _visibleFields.indexOf(_field).clamp(0, _visibleFields.length - 1);
   }
@@ -121,10 +122,16 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
 
   void _nextField() {
     if (_field == _SchemaFormField.actions) {
+      final next = devFormTabNextAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        _focusedAction = _focusedAction == DevFormAction.cancel
-            ? DevFormAction.submit
-            : DevFormAction.cancel;
+        if (next == null) {
+          _field = _visibleFields.first;
+        } else {
+          _focusedAction = next;
+        }
       });
       return;
     }
@@ -150,18 +157,22 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
         _focusedAuthChip = 0;
       }
       if (_field == _SchemaFormField.actions) {
-        _focusedAction = DevFormAction.cancel;
+        _focusedAction = devFormFirstAction();
       }
     });
   }
 
   void _previousField() {
     if (_field == _SchemaFormField.actions) {
+      final prev = devFormTabPreviousAction(
+        current: _effectiveFocusedAction,
+        submitEnabled: _canSubmit,
+      );
       setState(() {
-        if (_focusedAction == DevFormAction.submit) {
-          _focusedAction = DevFormAction.cancel;
-        } else {
+        if (prev == null) {
           _field = _visibleFields.last;
+        } else {
+          _focusedAction = prev;
         }
       });
       return;
@@ -180,18 +191,25 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
 
     final index = fields.indexOf(_field);
     setState(() {
-      _field = index <= 0 ? _SchemaFormField.actions : fields[index - 1];
+      if (index <= 0) {
+        _field = _SchemaFormField.actions;
+        _focusedAction = devFormLastAction(submitEnabled: _canSubmit);
+      } else {
+        _field = fields[index - 1];
+      }
       if (_field == _SchemaFormField.authTypes) {
         _focusedAuthChip = _authTypeLabels.length - 1;
-      }
-      if (_field == _SchemaFormField.actions) {
-        _focusedAction = DevFormAction.submit;
       }
     });
   }
 
+  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
+    action: _focusedAction,
+    submitEnabled: _canSubmit,
+  );
+
   void _activateAction() {
-    switch (_focusedAction) {
+    switch (_effectiveFocusedAction) {
       case DevFormAction.cancel:
         _cancel();
       case DevFormAction.submit:
@@ -433,7 +451,9 @@ class _DevSchemaFormState extends State<DevSchemaForm> {
         fields: _buildFields(),
         footer: DevFormActionBar(
           submitLabel: 'Create',
-          focusedAction: _field == _SchemaFormField.actions ? _focusedAction : null,
+          focusedAction: _field == _SchemaFormField.actions
+              ? _effectiveFocusedAction
+              : null,
           onFocusSubmit: () => setState(() {
             _field = _SchemaFormField.actions;
             _focusedAction = DevFormAction.submit;
