@@ -59,5 +59,20 @@ imagesPath: uploads/photos
         values: {fsProvider.overrideWith(() => memoryFs)},
       );
     });
+
+    test('derives buildImagesPath from imagesPath', () {
+      final memoryFs = MemoryFileSystem();
+
+      runScoped(
+        () {
+          memoryFs.file('zonai.yaml').writeAsStringSync('version: 0.1.0\n');
+
+          final settings = Settings.load();
+
+          expect(settings.buildImagesPath, 'build/.zonai/data/images');
+        },
+        values: {fsProvider.overrideWith(() => memoryFs)},
+      );
+    });
   });
 }

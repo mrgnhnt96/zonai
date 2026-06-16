@@ -190,6 +190,7 @@ class Settings {
   String get buildSettingsPath => _normalize([buildDirectory, path]);
   String get buildEmailTemplatesPath =>
       _normalize([buildDirectory, emailTemplatesPath]);
+  String get buildImagesPath => _normalize([buildDirectory, imagesPath]);
 
   /// The path to the binary for the extensions
   String get compiledExecutableDirectory =>

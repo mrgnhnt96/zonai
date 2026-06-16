@@ -5,8 +5,10 @@ import 'package:zonai/gen/version.dart';
 import '../../../deps/args.dart';
 import '../../../deps/fs.dart';
 import '../../../deps/logger.dart';
+import '../../../deps/settings.dart';
 import '../../compile.dart';
 import 'init_email_templates.dart';
+import 'init_favicon.dart';
 import 'init_scaffold.dart';
 
 /// Scaffolds a new Zonai project: config, admin schema, email templates,
@@ -82,6 +84,11 @@ void _createScaffold() {
   ]) {
     fs.directory(dir).createSync(recursive: true);
   }
+
+  _writeBytesIfAbsent(
+    fs.path.join(settings.imagesPath, 'favicon.ico'),
+    kDefaultFavicon,
+  );
 }
 
 void _writeIfAbsent(String path, String contents) {
@@ -90,6 +97,15 @@ void _writeIfAbsent(String path, String contents) {
 
   file.parent.createSync(recursive: true);
   file.writeAsStringSync(contents);
+  stdout.writeln('Created $path');
+}
+
+void _writeBytesIfAbsent(String path, List<int> bytes) {
+  final file = fs.file(path);
+  if (file.existsSync()) return;
+
+  file.parent.createSync(recursive: true);
+  file.writeAsBytesSync(bytes);
   stdout.writeln('Created $path');
 }
 

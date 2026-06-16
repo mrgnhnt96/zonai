@@ -73,6 +73,12 @@ Future<int> build() async {
     file.copySync(settings.buildSettingsPath);
   }
 
+  if (fs.file(fs.path.join(settings.imagesPath, 'favicon.ico')) case final file
+      when file.existsSync()) {
+    fs.directory(settings.buildImagesPath).createSync(recursive: true);
+    file.copySync(fs.path.join(settings.buildImagesPath, 'favicon.ico'));
+  }
+
   if (settings.buildSettings.targetsCurrentPlatform() && kIsCompiled) {
     fs.file(settings.buildExecutablePath).copySync(Platform.executable);
   } else {

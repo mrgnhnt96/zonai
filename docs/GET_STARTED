@@ -74,7 +74,11 @@ To throttle API traffic per client IP and collection, add Dart files under `lib/
 
 To run scheduled background tasks (cleanup, reports, maintenance), add one Dart file per job under `lib/src/crons` (or your `cronsPath`). See **[cron.md](cron.md)** for schedules, `strict` / catch-up, run history, and examples.
 
-## 10. Optional checks
+## 10. Favicon
+
+A placeholder `favicon.ico` is written to your images directory on first run and served at `GET /favicon.ico`. To supply your own icon, see **[favicon.md](favicon.md)**.
+
+## 11. Optional checks
 
 - Run CLI package tests:
 
