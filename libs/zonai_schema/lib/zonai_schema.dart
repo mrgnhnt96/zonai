@@ -45,6 +45,7 @@ export 'src/column_types/updated_when_column.dart';
 export 'src/config/app_config.dart';
 export 'src/exceptions/schema_exception.dart';
 export 'src/config/email_config.dart';
+export 'src/config/external_idp_config.dart';
 export 'src/config/photos_config.dart';
 export 'src/config/trusted_proxy_config.dart';
 export 'src/types/cron_job.dart';
