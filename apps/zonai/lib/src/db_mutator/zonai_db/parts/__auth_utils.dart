@@ -160,7 +160,15 @@ extension _AuthUtilsX on ZonaiDb {
     if (jwt == null) return null;
 
     final decoded = await _jwt.verify(jwt);
-    if (decoded == null) throw const InvalidJwtException();
+    if (decoded == null) {
+      // Internal HS256 didn't match — try configured external IdPs.
+      // External-trust JWTs have no `_jwt` revocation row to check, so
+      // there's no separation between "claims-only" and "full" extraction
+      // for them; the verified, user-resolved Jwt is returned directly.
+      final externalJwt = await _tryExternalIdpJwt(jwt);
+      if (externalJwt != null) return externalJwt;
+      throw const InvalidJwtException();
+    }
 
     if (Jwt.isCronWorkerPayload(decoded)) throw const InvalidJwtException();
 
@@ -180,6 +188,11 @@ extension _AuthUtilsX on ZonaiDb {
 
     final decoded = await _jwt.verify(jwt);
     if (decoded == null) {
+      // Internal HS256 didn't match — try configured external IdPs
+      // before rejecting. External tokens skip [_validateJwt]
+      // (revocation lives with the IdP, not in zonai's `_jwt` table).
+      final externalJwt = await _tryExternalIdpJwt(jwt);
+      if (externalJwt != null) return externalJwt;
       throw const InvalidJwtException();
     }
 
