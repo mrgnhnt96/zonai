@@ -1,4 +1,5 @@
 import 'package:zonai_schema/src/config/email_config.dart';
+import 'package:zonai_schema/src/config/external_idp_config.dart';
 import 'package:zonai_schema/src/config/photos_config.dart';
 import 'package:zonai_schema/src/config/trusted_proxy_config.dart';
 import 'package:zonai_schema/src/types/image_mime_type.dart';
@@ -25,6 +26,7 @@ final class AppConfig {
       allowedMimeTypes: ImageMimeType.defaultAllowed,
     ),
     this.trustedProxy = const TrustedProxyConfig(),
+    this.externalIdps = const [],
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(
@@ -41,6 +43,7 @@ final class AppConfig {
     trustedProxy: TrustedProxyConfig.fromJson(
       json['trustedProxy'] as Map<String, dynamic>?,
     ),
+    externalIdps: _externalIdpList(json['externalIdps']),
   );
 
   /// Display name for the app (browser title, UI branding).
@@ -73,6 +76,14 @@ final class AppConfig {
   /// Trusted proxy headers for client IP resolution (rate limits, logging).
   final TrustedProxyConfig trustedProxy;
 
+  /// External identity providers whose JWTs Zonai will trust on incoming
+  /// requests. Each entry maps an issuer to a Zonai auth collection.
+  ///
+  /// Empty by default — Zonai trusts only the tokens it mints itself. Adding
+  /// entries opens the auth path to foreign tokens; see the per-variant docs
+  /// for verification semantics.
+  final List<ExternalIdpConfig> externalIdps;
+
   /// Active password secret first, then [previousPasswordSecrets] (verify).
   List<String> get passwordSecretsForVerify =>
       List<String>.unmodifiable([passwordSecret, ...previousPasswordSecrets]);
@@ -84,10 +95,18 @@ final class AppConfig {
   void validate() {
     final errors = <String>[];
     if (appName.isEmpty) errors.add('appName is empty');
-    if (jwtSecret.isEmpty) errors.add('jwtSecret is empty — set the JWT_SECRET environment variable');
-    if (passwordSecret.isEmpty) errors.add('passwordSecret is empty — set the PASSWORD_SECRET environment variable');
+    if (jwtSecret.isEmpty)
+      errors.add(
+        'jwtSecret is empty — set the JWT_SECRET environment variable',
+      );
+    if (passwordSecret.isEmpty)
+      errors.add(
+        'passwordSecret is empty — set the PASSWORD_SECRET environment variable',
+      );
     if (errors.isNotEmpty) {
-      throw StateError('AppConfig has missing required fields:\n${errors.map((e) => '  - $e').join('\n')}');
+      throw StateError(
+        'AppConfig has missing required fields:\n${errors.map((e) => '  - $e').join('\n')}',
+      );
     }
   }
 
@@ -101,6 +120,7 @@ final class AppConfig {
     'baseUrl': baseUrl,
     'jwtExpiresIn': jwtExpiresIn.inSeconds,
     'trustedProxy': trustedProxy.toJson(),
+    'externalIdps': externalIdps.map((idp) => idp.toJson()).toList(),
   };
 
   static List<String> _stringList(Object? value) {
@@ -113,5 +133,19 @@ final class AppConfig {
       );
     }
     return value.map((e) => e as String).toList();
+  }
+
+  static List<ExternalIdpConfig> _externalIdpList(Object? value) {
+    if (value == null) return const [];
+    if (value is! List<dynamic>) {
+      throw ArgumentError.value(
+        value,
+        'externalIdps',
+        'expected a JSON array of external IdP config objects',
+      );
+    }
+    return value
+        .map((e) => ExternalIdpConfig.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
   }
 }
