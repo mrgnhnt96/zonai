@@ -1,3 +1,5 @@
+import 'package:meta/meta.dart';
+
 // See mrgnhnt96/zonai#2 for the design rationale.
 
 /// Trust configuration for a JWT issued by an external identity provider.
@@ -21,7 +23,13 @@ sealed class ExternalIdpConfig {
   String get authTable;
   String get type;
 
-  Map<String, Object?> toJson() => {'type': type};
+  @mustCallSuper
+  Map<String, Object?> toJson() => {
+    'type': type,
+    'issuer': issuer,
+    'audience': audience,
+    'authTable': authTable,
+  };
 }
 
 /// Configuration for an IdP that signs tokens with a shared HMAC secret.
@@ -57,13 +65,7 @@ final class SharedSecretIdpConfig extends ExternalIdpConfig {
   String get type => _type;
 
   @override
-  Map<String, Object?> toJson() => {
-    ...super.toJson(),
-    'issuer': issuer,
-    'audience': audience,
-    'authTable': authTable,
-    'secret': secret,
-  };
+  Map<String, Object?> toJson() => {...super.toJson(), 'secret': secret};
 }
 
 /// Configuration for an IdP that publishes its public keys via JWKS.
@@ -114,9 +116,6 @@ final class JwksIdpConfig extends ExternalIdpConfig {
   @override
   Map<String, Object?> toJson() => {
     ...super.toJson(),
-    'issuer': issuer,
-    'audience': audience,
-    'authTable': authTable,
     'jwksUrl': jwksUrl,
     'cacheTtlSeconds': cacheTtl.inSeconds,
     'fetchTimeoutSeconds': fetchTimeout.inSeconds,
