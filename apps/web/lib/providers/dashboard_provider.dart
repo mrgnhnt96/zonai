@@ -1,9 +1,11 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:zonai_client/server.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 
-import '../api/dashboard_client.dart';
 import '../api/cron_client.dart';
+import '../api/dashboard_client.dart';
+import '../utils/cron_job_summary.dart';
 import '../utils/sqlite_table_utils.dart';
 import '../utils/user_facing_error.dart';
 import 'sqlite_tables_provider.dart';
@@ -42,31 +44,6 @@ final class TopError {
   final String? detail;
 }
 
-final class CronJobSummary {
-  const CronJobSummary({
-    required this.name,
-    required this.lastStarted,
-    this.lastCompleted,
-    this.lastFailed,
-    this.lastError,
-  });
-
-  final String name;
-  final DateTime lastStarted;
-  final DateTime? lastCompleted;
-  final DateTime? lastFailed;
-  final String? lastError;
-
-  bool get succeeded => lastCompleted != null && lastFailed == null;
-  bool get failed => lastFailed != null;
-  bool get inProgress => lastCompleted == null && lastFailed == null;
-
-  Duration? get duration {
-    if (lastCompleted == null) return null;
-    return lastCompleted!.difference(lastStarted);
-  }
-}
-
 final class DashboardMetrics {
   const DashboardMetrics({required this.stats, required this.buckets});
 
@@ -87,6 +64,7 @@ final topErrorsProvider = AsyncNotifierProvider<_TopErrorsNotifier, List<TopErro
 // Tracks which error message is currently expanded (null = none).
 final expandedErrorProvider = NotifierProvider<_ExpandedErrorNotifier, String?>(_ExpandedErrorNotifier.new);
 
+/// Cron jobs loaded client-side via the cron list API.
 final cronJobsProvider = AsyncNotifierProvider<_CronJobsNotifier, List<CronJobSummary>>(_CronJobsNotifier.new);
 
 final runningCronJobsProvider = NotifierProvider<RunningCronJobsNotifier, Set<String>>(RunningCronJobsNotifier.new);
@@ -162,7 +140,7 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
     for (final item in _parseItems(data)) {
       final key = _errorGroupKey(item);
       if (key == null) continue;
-      final ts = _parseTimestamp(item['timestamp']) ?? DateTime.now();
+      final ts = parseCronTimestamp(item['timestamp']) ?? DateTime.now();
       final existing = groups[key];
       if (existing == null) {
         groups[key] = (count: 1, lastSeen: ts, detail: item['error'] as String?);
@@ -195,7 +173,14 @@ class _CronJobsNotifier extends AsyncNotifier<List<CronJobSummary>> {
   Future<List<CronJobSummary>> build() async {
     if (!ref.binding.isClient) return const [];
 
-    final data = await ref.read(revaliServerProvider).db.list(
+    return await _loadCronJobs(server: ref.read(revaliServerProvider));
+  }
+
+  void refresh() => ref.invalidateSelf();
+
+  Future<List<CronJobSummary>> _loadCronJobs({required Server server}) async {
+    final names = await listCronJobs(server: server);
+    final data = await server.db.list(
       body: const ListBody(
         table: '_cron_jobs',
         limit: 200,
@@ -203,33 +188,9 @@ class _CronJobsNotifier extends AsyncNotifier<List<CronJobSummary>> {
       ),
     );
 
-    final seen = <String>{};
-    final jobs = <CronJobSummary>[];
-
-    for (final item in _parseItems(data)) {
-      final name = item['name'];
-      if (name is! String || seen.contains(name)) continue;
-      seen.add(name);
-
-      final started = _parseTimestamp(item['started']);
-      if (started == null) continue;
-
-      jobs.add(
-        CronJobSummary(
-          name: name,
-          lastStarted: started,
-          lastCompleted: _parseTimestamp(item['completed']),
-          lastFailed: _parseTimestamp(item['failed']),
-          lastError: item['error'] as String?,
-        ),
-      );
-    }
-
-    jobs.sort((a, b) => a.name.compareTo(b.name));
-    return jobs;
+    final history = cronHistoryFromListItems(_parseItems(data));
+    return mergeCronJobSummaries(names, history);
   }
-
-  void refresh() => ref.invalidateSelf();
 }
 
 class RunningCronJobsNotifier extends Notifier<Set<String>> {
@@ -320,9 +281,3 @@ List<Map<String, Object?>> _parseItems(Map<String, Object?> data) {
       if (e is Map) {for (final MapEntry(:key, :value) in e.entries) key.toString(): value as Object?},
   ];
 }
-
-DateTime? _parseTimestamp(Object? raw) => switch (raw) {
-  final int ms => DateTime.fromMillisecondsSinceEpoch(ms),
-  final num ms => DateTime.fromMillisecondsSinceEpoch(ms.toInt()),
-  _ => null,
-};

@@ -45,6 +45,10 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
         throw Exception(
           '$RunCronJobRequest should not be called to main thread',
         );
+      case ListCronJobsRequest():
+        throw Exception(
+          '$ListCronJobsRequest should not be called to main thread',
+        );
       case StartCronsRequest():
         throw Exception(
           '$StartCronsRequest should not be called to main thread',
@@ -136,6 +140,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
       case CronsStopped():
       case CronsStarted():
       case LastJobRunResponse():
+      case ListCronJobsResponse():
       case CleanupUnreferencedPhotosResponse():
         logger.warn(
           'Ignoring unexpected cron notification: ${response.runtimeType}',

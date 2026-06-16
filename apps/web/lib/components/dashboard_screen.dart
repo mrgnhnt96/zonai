@@ -7,6 +7,7 @@ import '../constants/button_sizes.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/dashboard_provider.dart';
+import '../utils/cron_job_summary.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
@@ -38,13 +39,14 @@ class DashboardScreen extends StatelessComponent {
     final topErrors = isClient ? context.watch(topErrorsProvider) : const AsyncValue<List<TopError>>.loading();
     final expandedError = context.watch(expandedErrorProvider);
     final cronJobs = isClient ? context.watch(cronJobsProvider) : const AsyncValue<List<CronJobSummary>>.loading();
+    final cronJobsData = cronJobs.value ?? [];
+    final cronJobsLoading = cronJobs.isLoading;
     final runningCronJobs = isClient ? context.watch(runningCronJobsProvider) : const <String>{};
     final tableCounts = isClient ? context.watch(tableCountsProvider) : const AsyncValue<Map<String, int>>.loading();
 
     final statsData = metrics.value?.stats;
     final bucketsData = metrics.value?.buckets ?? [];
     final topErrorsData = topErrors.value ?? [];
-    final cronJobsData = cronJobs.value ?? [];
     final tableCountsData = tableCounts.value ?? {};
 
     final maxBucket = bucketsData.isEmpty ? 0 : bucketsData.map((bkt) => bkt.count).reduce((x, y) => x > y ? x : y);
@@ -157,9 +159,9 @@ class DashboardScreen extends StatelessComponent {
                     ZonaiIconButton(
                       size: ZonaiIconButtonSize.xs,
                       variant: ZonaiIconButtonVariant.ghost,
-                      disabled: cronJobs.isLoading,
+                      disabled: cronJobsLoading,
                       attributes: {'aria-label': 'Refresh cron jobs'},
-                      events: cronJobs.isLoading
+                      events: cronJobsLoading
                           ? null
                           : appTooltipEvents(
                               context,
@@ -170,7 +172,7 @@ class DashboardScreen extends StatelessComponent {
                       child: _dashboardRefreshIcon(),
                     ),
                 ]),
-                if (cronJobs.isLoading && !cronJobs.hasValue)
+                if (cronJobsLoading && cronJobsData.isEmpty)
                   div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
                 else if (cronJobsData.isEmpty)
                   div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
@@ -484,6 +486,7 @@ class DashboardScreen extends StatelessComponent {
       css('.dashboard-cron-item--ok').styles(raw: const {'border-left-color': 'var(--zonai-success)'}),
       css('.dashboard-cron-item--failed').styles(raw: const {'border-left-color': 'var(--zonai-error)'}),
       css('.dashboard-cron-item--running').styles(raw: const {'border-left-color': 'var(--zonai-muted)'}),
+      css('.dashboard-cron-item--pending').styles(raw: const {'border-left-color': 'var(--zonai-border)'}),
       css('.dashboard-cron-main').styles(
         display: .flex,
         flexDirection: FlexDirection.column,
@@ -593,10 +596,13 @@ class _CronJobRow extends StatelessComponent {
         ? 'failed'
         : job.succeeded
         ? 'ok'
-        : 'running';
+        : job.hasRun
+        ? 'running'
+        : 'pending';
     final statusLabel = switch (status) {
       'running' => 'Running',
       'failed' => 'Failed',
+      'pending' => 'Never run',
       _ => 'Succeeded',
     };
 
@@ -684,7 +690,8 @@ String _timeAgo(DateTime dt) {
   return '${diff.inDays}d ago';
 }
 
-String _fmtCronMeta(DateTime lastStarted, Duration? duration) {
+String _fmtCronMeta(DateTime? lastStarted, Duration? duration) {
+  if (lastStarted == null) return 'Never run';
   final ago = _timeAgo(lastStarted);
   final took = duration == null ? null : _fmtDuration(duration);
   if (took == null) return ago;

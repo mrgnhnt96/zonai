@@ -90,6 +90,26 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/crons/list": {
+      "get": {
+        "operationId": "cron_list",
+        "tags": [
+          "cron"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CronJobList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/crons/run": {
       "post": {
         "operationId": "cron_run",
@@ -951,6 +971,20 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "address"
+        ]
+      },
+      "CronJobList": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "names"
         ]
       },
       "PhotoCreateMeta": {
@@ -2030,6 +2064,18 @@ paths:
             application/json:
               schema:
                 type: string
+  '/crons/list':
+    get:
+      operationId: cron_list
+      tags:
+        - cron
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJobList'
   '/crons/run':
     post:
       operationId: cron_run
@@ -2566,6 +2612,15 @@ components:
           nullable: true
       required:
         - address
+    CronJobList:
+      type: object
+      properties:
+        names:
+          type: array
+          items:
+            type: string
+      required:
+        - names
     PhotoCreateMeta:
       type: object
       properties:

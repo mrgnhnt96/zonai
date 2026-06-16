@@ -58,6 +58,7 @@ part 'parts/count.dart';
 part 'parts/create.dart';
 part 'parts/dashboard_metrics.dart';
 part 'parts/run_cron_job.dart';
+part 'parts/list_cron_jobs.dart';
 part 'parts/delete.dart';
 part 'parts/effects.dart';
 part 'parts/expand.dart';
@@ -281,6 +282,10 @@ class ZonaiDb {
 
   Future<void> runCronJob({required Jwt jwt, required String name}) async {
     return await _run(() => _runCronJob(jwt: jwt, name: name));
+  }
+
+  Future<List<String>> listCronJobs({required Jwt jwt}) async {
+    return await _run(() => _listCronJobs(jwt: jwt));
   }
 
   Future<void> sendEmail(Email email) async {

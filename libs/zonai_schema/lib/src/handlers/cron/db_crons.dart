@@ -29,6 +29,11 @@ class DbCrons {
             throw Exception(
               '$CleanupUnreferencedPhotosRequest should not be called from main thread',
             );
+          case ListCronJobsRequest():
+            return ListCronJobsResponse(
+              id: request.id,
+              names: [for (final job in jobs) job.name],
+            );
         }
       },
     );
