@@ -1,7 +1,5 @@
 import 'package:raindrop/raindrop.dart';
-import 'package:zonai_schema/src/internal/photos_table.dart';
-import 'package:zonai_schema/src/internal/tables.dart'
-    show ensureInternalTablesForIntrospection, photos;
+import 'package:zonai_schema/src/internal/tables/photos_table.dart';
 
 extension PhotoColumnDefinition<S> on SchemaBuilder<S> {
   ColumnType<W> photo<W extends PhotoId?>(
@@ -15,7 +13,6 @@ extension PhotoColumnDefinition<S> on SchemaBuilder<S> {
       transformer: const PhotoTransformer(),
     );
 
-    ensureInternalTablesForIntrospection();
     return column.references(() => photos.id);
   }
 }

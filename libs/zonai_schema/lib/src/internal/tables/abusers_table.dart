@@ -1,9 +1,47 @@
 import 'package:zonai_schema/zonai_schema.dart';
-import 'package:zonai_schema/src/internal/tables.dart';
-import 'package:zonai_schema/src/internal/abusers_table.dart' as schema;
-import 'package:zonai_schema/src/internal/abusers_table.dart' hide AbusersTable;
 
-class AbusersTable extends schema.AbusersTable {
+class AbuserEntry {
+  const AbuserEntry({
+    required this.id,
+    required this.ip,
+    required this.report,
+    required this.createdAt,
+    required this.blackListed,
+    required this.updatedAt,
+    required this.blockedUntil,
+  });
+
+  final AbuserId id;
+  final String ip;
+  final AbuseReport report;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final bool blackListed;
+  final DateTime? blockedUntil;
+}
+
+enum AbuseReport { suspiciousActivity, spam, bruteForce, other }
+
+class AbuserId implements Id {
+  AbuserId(this.value) {
+    if (!value.endsWith(_suffix)) {
+      throw ArgumentError.value(value, 'value', 'Value must end with $_suffix');
+    }
+  }
+
+  factory AbuserId.fromJson(String value) => AbuserId(value);
+
+  static AbuserId generate() => AbuserId(Id.generate(_suffix));
+
+  static const _suffix = 'ab';
+
+  @override
+  final String value;
+
+  String toJson() => value;
+}
+
+class AbusersTable extends Table<AbuserEntry> {
   AbusersTable(super.$)
     : id = $.id(
         'id',
@@ -40,10 +78,4 @@ class AbusersTable extends schema.AbusersTable {
   final ColumnType<DateTime?> blockedUntil;
 }
 
-final abusers = () {
-  final abusers = table('_abusers', AbusersTable.new);
-
-  setupInternalTables(abusers: abusers);
-
-  return abusers;
-}();
+final abusers = table('_abusers', AbusersTable.new);

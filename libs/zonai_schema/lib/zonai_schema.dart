@@ -51,8 +51,8 @@ export 'src/config/trusted_proxy_config.dart';
 export 'src/types/cron_job.dart';
 export 'src/extension.dart';
 export 'src/handlers/messages/message_handler.dart' hide Request, Response, msg;
-export 'src/internal/photos_table.dart';
-export 'src/internal/tables.dart' hide setupInternalTables;
+export 'src/internal/tables/abusers_table.dart';
+export 'src/internal/tables/photos_table.dart';
 export 'src/operations/table_operations.dart';
 export 'src/rate_limit/rate_limit_policy.dart';
 export 'src/rate_limits/table/rate_limits.dart'

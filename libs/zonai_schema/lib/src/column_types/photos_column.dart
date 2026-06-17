@@ -1,36 +1,32 @@
 import 'dart:convert';
 
 import 'package:raindrop/raindrop.dart';
-import 'package:zonai_schema/src/internal/photos_table.dart';
-import 'package:zonai_schema/src/internal/tables.dart'
-    as tables
-    show ensureInternalTablesForIntrospection, photos;
+import 'package:zonai_schema/src/internal/tables/photos_table.dart' as photos_table;
 
 extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
-  ColumnType<W> photos<W extends List<PhotoId>?>(
+  ColumnType<W> photos<W extends List<photos_table.PhotoId>?>(
     String name,
     Field<S, W> field,
   ) {
-    final column = custom<List<PhotoId>, String, W>(
+    final column = custom<List<photos_table.PhotoId>, String, W>(
       name,
       field,
       sqlType: 'TEXT',
       transformer: const PhotosTransformer(),
     );
 
-    tables.ensureInternalTablesForIntrospection();
-    return column.references(() => tables.photos.id);
+    return column.references(() => photos_table.photos.id);
   }
 }
 
-class PhotosTransformer extends ColumnTransformer<List<PhotoId>, String> {
+class PhotosTransformer extends ColumnTransformer<List<photos_table.PhotoId>, String> {
   const PhotosTransformer();
 
   @override
-  String encode(List<PhotoId> input) =>
+  String encode(List<photos_table.PhotoId> input) =>
       jsonEncode(input.map((e) => e.value).toList());
 
   @override
-  List<PhotoId> decode(String input) =>
-      jsonDecode(input).map((e) => PhotoId(e)).toList();
+  List<photos_table.PhotoId> decode(String input) =>
+      jsonDecode(input).map((e) => photos_table.PhotoId(e)).toList();
 }

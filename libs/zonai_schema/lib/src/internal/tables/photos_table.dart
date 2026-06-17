@@ -1,8 +1,54 @@
 import 'package:zonai_schema/zonai_schema.dart';
-import 'package:zonai_schema/src/internal/tables.dart';
-import 'package:zonai_schema/src/internal/photos_table.dart' as schema;
 
-class PhotosTable extends schema.PhotosTable {
+class PhotoEntry {
+  const PhotoEntry({
+    required this.id,
+    required this.ownerId,
+    required this.ownerTable,
+    required this.table,
+    required this.path,
+    required this.extension,
+    required this.createdAt,
+  });
+
+  PhotoEntry.create({
+    required this.id,
+    required this.ownerId,
+    required this.ownerTable,
+    required this.table,
+    required this.path,
+    required this.extension,
+  }) : createdAt = .now();
+
+  final PhotoId id;
+  final Id ownerId;
+  final String ownerTable;
+  final DateTime createdAt;
+  final String table;
+  final String path;
+  final String extension;
+}
+
+class PhotoId implements Id {
+  PhotoId(this.value) {
+    if (!value.endsWith(_suffix)) {
+      throw ArgumentError.value(value, 'value', 'Value must end with $_suffix');
+    }
+  }
+
+  factory PhotoId.fromJson(String value) => PhotoId(value);
+
+  static PhotoId generate() => PhotoId(Id.generate(_suffix));
+
+  static const _suffix = 'ph';
+
+  String toJson() => value;
+
+  @override
+  final String value;
+}
+
+class PhotosTable extends Table<PhotoEntry> {
   PhotosTable(super.$)
     : id = $.id(
         'id',
@@ -15,7 +61,7 @@ class PhotosTable extends schema.PhotosTable {
         (s) => UnknownId(s.ownerId.value),
         fromString: UnknownId.new,
         synthetic: const UnknownId('__PHOTO_OWNER__'),
-        generate: () => throw Exception('Owner ID is required for photos'),
+        generate: () => const UnknownId('__PHOTO_OWNER__'),
         isPrimaryKey: false,
       ),
       ownerTable = $.text('owner_collection', (s) => s.ownerTable),
@@ -46,10 +92,4 @@ class PhotosTable extends schema.PhotosTable {
   final TextColumn extension;
 }
 
-final photos = () {
-  final photos = table('_photos', PhotosTable.new);
-
-  setupInternalTables(photos: photos);
-
-  return photos;
-}();
+final photos = table('_photos', PhotosTable.new);

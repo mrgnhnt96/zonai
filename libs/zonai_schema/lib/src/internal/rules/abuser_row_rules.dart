@@ -1,6 +1,5 @@
 import 'package:zonai_schema/src/internal/tables/abusers_table.dart';
 import 'package:zonai_schema/src/rules/rules.dart';
-import 'package:zonai_schema/src/internal/abusers_table.dart' show AbuserEntry;
 import 'package:zonai_schema/src/types/jwt.dart';
 
 AbuserRowRules main() => AbuserRowRules();
