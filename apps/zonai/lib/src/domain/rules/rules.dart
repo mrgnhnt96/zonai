@@ -27,7 +27,7 @@ class Rules {
     if (args.release) return;
 
     if (__subscription != null) return;
-    if (!fs.directory(settings.rulesPath).existsSync()) return;
+    fs.ensureDirectory(settings.rulesPath);
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Rules changed: ${event.path}');

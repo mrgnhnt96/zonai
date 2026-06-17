@@ -31,13 +31,15 @@ class Migrate {
       return;
     }
 
-    final migrationsDir = fs.directory(settings.migrationsPath);
-    if (!migrationsDir.existsSync()) {
+    final hadMigrationsDir =
+        fs.directory(settings.migrationsPath).existsSync();
+    fs.ensureDirectory(settings.migrationsPath);
+
+    if (!hadMigrationsDir) {
       run(name: 'initialize').catchError((e, stack) {
         logger.error('$e', 'Failed to initialize migrations', stack);
         return 1;
       }).ignore();
-      return;
     }
 
     __subscription = _watcher.events.listen((event) async {

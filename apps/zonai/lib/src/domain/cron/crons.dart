@@ -27,7 +27,7 @@ final class CronsCompiler {
     if (args.release) return;
 
     if (__subscription != null) return;
-    if (!fs.directory(settings.cronsPath).existsSync()) return;
+    fs.ensureDirectory(settings.cronsPath);
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Crons changed: ${event.path}');

@@ -22,11 +22,8 @@ class Operations {
       __watcher ??= DirectoryWatcher(settings.operationsPath);
 
   DirectoryWatcher? __schemasWatcher;
-  DirectoryWatcher? get _schemasWatcher {
-    final dir = fs.directory(settings.schemasPath);
-    if (!dir.existsSync()) return null;
-    return __schemasWatcher ??= DirectoryWatcher(settings.schemasPath);
-  }
+  DirectoryWatcher get _schemasWatcher =>
+      __schemasWatcher ??= DirectoryWatcher(settings.schemasPath);
 
   StreamSubscription<WatchEvent>? __subscription;
   StreamSubscription<WatchEvent>? __schemaSubscription;
@@ -34,27 +31,30 @@ class Operations {
   void watch() {
     if (args.release) return;
 
-    if (__subscription == null &&
-        fs.directory(settings.operationsPath).existsSync()) {
+    fs.ensureDirectory(settings.operationsPath);
+    fs.ensureDirectory(settings.schemasPath);
+
+    var subscribed = false;
+
+    if (__subscription == null) {
       __subscription = _watcher.events.listen((event) {
         logger.debug('Operations changed: ${event.path}');
         logger.info('Detected changes in operations, recompiling...');
         compile();
       });
+      subscribed = true;
     }
 
     if (__schemaSubscription == null) {
-      final schemasWatcher = _schemasWatcher;
-      if (schemasWatcher != null) {
-        __schemaSubscription = schemasWatcher.events.listen((event) {
-          logger.debug('Schema changed: ${event.path}');
-          logger.info('Detected changes in schemas, recompiling operations...');
-          compile();
-        });
-      }
+      __schemaSubscription = _schemasWatcher.events.listen((event) {
+        logger.debug('Schema changed: ${event.path}');
+        logger.info('Detected changes in schemas, recompiling operations...');
+        compile();
+      });
+      subscribed = true;
     }
 
-    if (__subscription != null || __schemaSubscription != null) {
+    if (subscribed) {
       cleanUp.add(stop);
     }
   }
