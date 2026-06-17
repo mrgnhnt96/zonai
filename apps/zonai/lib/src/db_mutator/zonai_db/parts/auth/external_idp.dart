@@ -33,13 +33,11 @@ extension _ExternalIdpX on ZonaiDb {
         .firstOrNull;
     if (idpConfig == null) return null;
 
-    final claims = switch (idpConfig) {
-      SharedSecretIdpConfig() => SharedSecretIdpVerifier(
-        idpConfig,
-      ).verify(rawJwt),
-      JwksIdpConfig() => throw UnimplementedError(
-        'JwksIdpConfig verification is a follow-up to #2.',
+    final claims = await switch (idpConfig) {
+      SharedSecretIdpConfig() => Future.value(
+        SharedSecretIdpVerifier(idpConfig).verify(rawJwt),
       ),
+      JwksIdpConfig() => JwksIdpVerifier(idpConfig).verify(rawJwt),
     };
 
     return await _externalJwtFromClaims(idpConfig, claims);
