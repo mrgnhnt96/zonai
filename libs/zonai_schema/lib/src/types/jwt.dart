@@ -4,6 +4,7 @@ import 'package:clock/clock.dart';
 import 'package:zonai_schema/src/types/cron_jwt.dart';
 import 'package:zonai_schema/src/types/id.dart';
 import 'package:zonai_schema/src/types/jwt_id.dart';
+import 'package:zonai_schema/src/types/provisioning_jwt.dart';
 
 /// A JWT token for a [user].
 ///
@@ -48,9 +49,17 @@ class Jwt {
   static bool isCronWorkerPayload(Map<String, Object?> json) =>
       json['CRON'] == true;
 
+  /// Worker IPC sentinel ([ProvisioningJwt]); must not be accepted on user
+  /// bearer tokens.
+  static bool isProvisioningWorkerPayload(Map<String, Object?> json) =>
+      ProvisioningJwt.isProvisioningPayload(json);
+
   factory Jwt.fromJson(Map<String, dynamic> json) {
     if (isCronWorkerPayload(json)) {
       return CronJwt();
+    }
+    if (isProvisioningWorkerPayload(json)) {
+      return ProvisioningJwt(authTable: json['authTable'] as String);
     }
 
     return Jwt(

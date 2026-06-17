@@ -84,4 +84,22 @@ mixin AuthExtension<R> on Extension<R> {
   /// Unlike [onSignIn], no email is sent by default — the server sends the
   /// reset link before this hook runs.
   Future<void> onPasswordReset(R user, Jwt? jwt) async {}
+
+  /// Called when an external IdP token's `sub` does not match any
+  /// existing row in this auth collection. Use this hook to insert
+  /// the missing row from the verified [claims], so the auth flow
+  /// can resolve `Jwt.user` and proceed.
+  ///
+  /// Use the `mutate.create.one(...)` global from inside this hook
+  /// to insert the row. Mutations queued during this hook are
+  /// flushed inline (not after the request transaction) so the auth
+  /// pipeline can re-fetch the new row immediately. The hook runs
+  /// under a `ProvisioningJwt` scoped to this collection — it can
+  /// only mutate this auth table.
+  ///
+  /// If the hook returns without provisioning (the default no-op,
+  /// or a hook that decides [claims] doesn't satisfy required
+  /// invariants), the auth request fails with the same
+  /// `UserNotFoundAuthException` callers see without the hook.
+  Future<void> onExternalAuthFirstSeen(Map<String, Object?> claims) async {}
 }

@@ -147,15 +147,38 @@ When the claim resolves and equals the configured value, `Jwt.admin = (isAdmin: 
 
 ## Provisioning users
 
-The current implementation requires the user row to already exist in `authTable` before an external token is accepted. If the row is missing, the request fails with `UserNotFoundAuthException`.
+When an external IdP token's `sub` doesn't match any existing row in `authTable`, zonai invokes the auth collection's `onExternalAuthFirstSeen` extension hook (default: no-op). The hook receives the verified claims and may insert the missing row so the auth flow can resolve `Jwt.user` and proceed.
 
-For deployments where users are created out-of-band (admin script, separate provisioning service, or a webhook from the IdP), this is sufficient.
+```dart
+import 'package:zonai_schema/zonai_schema.dart';
+import 'package:my_app/src/schemas/users.dart';
 
-For deployments that want zonai to auto-create the user row on first sign-in (the typical pattern), an `onExternalAuthFirstSeen` extension hook is tracked at [#2](https://github.com/mrgnhnt96/zonai/issues/2). Until that ships, options:
+final class UsersExtension extends Extension<User> with AuthExtension<User> {
+  UsersExtension() : super(users);
 
-- Provision via an IdP webhook (Supabase Auth, Auth0, etc. all support outbound webhooks on user creation).
-- Provision on first sign-in from the client (extra round trip, brittle on network failures — not recommended).
-- Periodic reconcile job (eventually-consistent — acceptable for low-churn user bases).
+  @override
+  Future<void> onExternalAuthFirstSeen(Map<String, Object?> claims) async {
+    // Convert the verified claims into a row shape for this collection,
+    // then queue the insert. Mutations queued during this hook are
+    // flushed inline (not after the request transaction) so the auth
+    // pipeline can re-fetch the new row immediately.
+    mutate.create.one(
+      tableName: users.table.name,
+      object: <String, dynamic>{
+        'id': claims['sub'] as String,
+        'email': claims['email'] as String?,
+        // … map other claims into your schema's columns
+      },
+    );
+  }
+}
+```
+
+**Restricted scope.** During `onExternalAuthFirstSeen` the hook runs under a `ProvisioningJwt` scoped to the configured `authTable`. The rules layer accepts elevated `create` / `update` only against that one table; mutations targeting any other collection are rejected with a clear error. A buggy hook cannot mutate unrelated data.
+
+**Refusing to provision.** Return from the hook without queueing a mutation (the default behavior, or a hook that decides `claims` doesn't satisfy required invariants) and the auth request fails with the same `UserNotFoundAuthException` callers see without the hook defined.
+
+**Alternative provisioning paths.** If you'd rather create users out-of-band (admin script, IdP webhook, periodic reconcile), leave `onExternalAuthFirstSeen` unimplemented. The auth flow will reject unknown `sub`s with `UserNotFoundAuthException` until the row exists.
 
 ## Security considerations
 
@@ -182,7 +205,6 @@ External-IdP trust expands zonai's attack surface in ways the schema-layer types
 ## Limitations
 
 - `JwksIdpConfig` runtime not yet implemented (asymmetric verification, JWKS fetch + cache, key rotation). Tracked in [#2](https://github.com/mrgnhnt96/zonai/issues/2).
-- `onExternalAuthFirstSeen` provisioning hook not yet implemented. Tracked in [#2](https://github.com/mrgnhnt96/zonai/issues/2).
 - Admin-claim mapping is equality-only. List-membership not yet supported.
 - External tokens are not recorded in the `_jwt` table; explicit token-level revocation through zonai is not possible.
 
@@ -190,5 +212,5 @@ External-IdP trust expands zonai's attack surface in ways the schema-layer types
 
 - **[auth.md](auth.md)** — zonai's built-in auth flows (password, OTP, magic link).
 - **[rules.md](rules.md)** — row-level authorization for external-authenticated users.
-- **[extensions.md](extensions.md)** — lifecycle hooks (the future `onExternalAuthFirstSeen` will live here).
+- **[extensions.md](extensions.md)** — lifecycle hooks including `onExternalAuthFirstSeen`.
 - **[#2](https://github.com/mrgnhnt96/zonai/issues/2)** — design RFC for the external-IdP feature, including the open follow-ups.

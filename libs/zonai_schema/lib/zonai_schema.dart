@@ -73,6 +73,7 @@ export 'src/types/image_mime_type.dart';
 export 'src/types/jwt.dart';
 export 'src/types/cron_jwt.dart';
 export 'src/types/jwt_id.dart';
+export 'src/types/provisioning_jwt.dart';
 export 'src/types/order_by.dart';
 export 'src/types/paginated.dart';
 export 'src/types/rate_limit_operation.dart';

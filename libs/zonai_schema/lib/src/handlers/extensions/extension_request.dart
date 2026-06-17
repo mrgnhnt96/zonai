@@ -21,7 +21,7 @@ enum ExtensionStep { before, afterSuccess, afterError }
 
 enum ExtensionType { create, update, delete }
 
-enum AuthExtensionStep { onSignUp, onSignIn, onRefresh, onLogout, onPasswordReset }
+enum AuthExtensionStep { onSignUp, onSignIn, onRefresh, onLogout, onPasswordReset, onExternalAuthFirstSeen }
 
 /// The [jwt] belongs to the user who is making the request, not the user that is being created or signed in.
 final class AuthExtensionRequest extends ExtensionRequest {
@@ -40,6 +40,15 @@ final class AuthExtensionRequest extends ExtensionRequest {
   AuthExtensionRequest.onPasswordReset({required this.table, required this.object, required super.jwt})
     : step = .onPasswordReset,
       super(path: _path, id: Request.generateId());
+
+  /// Invoked when an external IdP token's `sub` does not match any
+  /// existing row in [table]. The hook may insert the missing row
+  /// (via the `mutate` API) so the auth flow can resolve `Jwt.user`
+  /// and proceed. [object] carries the verified IdP claims map.
+  AuthExtensionRequest.onExternalAuthFirstSeen({required this.table, required this.object, required super.jwt})
+    : step = .onExternalAuthFirstSeen,
+      super(path: _path, id: Request.generateId());
+
   AuthExtensionRequest._({required super.id, required this.table, required this.object, required this.step, required super.jwt}) : super(path: _path);
 
   factory AuthExtensionRequest.fromRequest(UnknownRequest request) {
