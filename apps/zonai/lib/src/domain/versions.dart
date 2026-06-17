@@ -27,7 +27,7 @@ class Versions {
       return;
     }
 
-    if (args['no-version-check'] case true) {
+    if (args['no-version-check'] == true || args['version-check'] == false) {
       return;
     }
 
