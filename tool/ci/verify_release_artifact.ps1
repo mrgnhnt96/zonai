@@ -22,34 +22,42 @@ try {
   Write-Host "compile succeeded"
 
   Write-Host "Verifying serve (must stay running for ${ServeSeconds}s)..."
-  $logDir = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
-  $serveLog = Join-Path $logDir "zonai-serve.log"
-  $serveErrLog = Join-Path $logDir "zonai-serve.err.log"
-  if (Test-Path $serveLog) { Remove-Item $serveLog -Force }
-  if (Test-Path $serveErrLog) { Remove-Item $serveErrLog -Force }
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = $Executable
+  $psi.Arguments = "serve --log verbose"
+  $psi.WorkingDirectory = $PlaygroundDir
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
 
-  $serve = Start-Process `
-    -FilePath $Executable `
-    -ArgumentList "serve", "--log", "verbose" `
-    -WorkingDirectory $PlaygroundDir `
-    -PassThru `
-    -RedirectStandardOutput $serveLog `
-    -RedirectStandardError $serveErrLog
+  $serve = New-Object System.Diagnostics.Process
+  $serve.StartInfo = $psi
+  $serve.EnableRaisingEvents = $true
+  $serve.add_OutputDataReceived({
+    param($sender, $eventArgs)
+    if ($null -ne $eventArgs.Data) {
+      Write-Host $eventArgs.Data
+    }
+  })
+  $serve.add_ErrorDataReceived({
+    param($sender, $eventArgs)
+    if ($null -ne $eventArgs.Data) {
+      Write-Host $eventArgs.Data
+    }
+  })
+
+  $null = $serve.Start()
+  $serve.BeginOutputReadLine()
+  $serve.BeginErrorReadLine()
 
   Start-Sleep -Seconds $ServeSeconds
-
-  if (Test-Path $serveLog) {
-    Get-Content $serveLog | Write-Host
-  }
-  if (Test-Path $serveErrLog) {
-    Get-Content $serveErrLog | Write-Host
-  }
 
   if ($serve.HasExited) {
     throw "serve exited before ${ServeSeconds}s (exit code $($serve.ExitCode))"
   }
 
   Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
+  $serve.WaitForExit()
   Write-Host "serve stayed running for ${ServeSeconds}s"
 }
 finally {
