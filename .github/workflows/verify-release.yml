@@ -24,16 +24,6 @@ jobs:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
             executable_name: zonai
-          # Temporarily linux-only while validating compat-check on CI.
-          # - os: macos-latest
-          #   artifact_name: zonai-macos-arm64
-          #   executable_name: zonai
-          # - os: macos-15-intel
-          #   artifact_name: zonai-macos-x64
-          #   executable_name: zonai
-          # - os: windows-latest
-          #   artifact_name: zonai-windows-x64
-          #   executable_name: zonai.exe
 
     steps:
       - name: Checkout
@@ -43,15 +33,8 @@ jobs:
           token: ${{ secrets.SUBMODULES_PAT }}
           submodules: recursive
 
-      - name: Configure raindrop sparse checkout (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
+      - name: Configure raindrop sparse checkout
         run: bash tool/setup_raindrop_submodule.sh
-
-      - name: Configure raindrop sparse checkout (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./tool/setup_raindrop_submodule.ps1
 
       - name: Download release version files (triggering compile run)
         if: github.event_name == 'workflow_run'
