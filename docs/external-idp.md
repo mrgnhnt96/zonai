@@ -12,27 +12,30 @@ External-IdP trust is **opt-in per issuer**. With `AppConfig.externalIdps` empty
 
 For greenfield apps where zonai can own auth end-to-end, the built-in [password / OTP / magic-link flows](auth.md) are simpler — don't reach for external IdPs unless you need them.
 
-## How it works
-
-1. Client sends a request with `Authorization: Bearer <token>`.
-2. Zonai's JWT extraction tries the **internal** verifier first (HS256 against `AppConfig.jwtSecret`).
-3. If internal verification fails, zonai inspects the token's `iss` claim and matches it against the configured `AppConfig.externalIdps`.
-4. If an entry matches, the matched variant's verifier validates the signature, algorithm, `iss`, `aud`, `exp`, and `nbf` claims.
-5. On success, zonai looks up the user row in the IdP's mapped `authTable` by `id == sub`.
-6. The resolved row becomes `Jwt.user`; the rest of the request proceeds normally — rules, operations, extensions all run as if the user had signed in through zonai's own flow.
-
-**External tokens skip the `_jwt` revocation table check.** Zonai didn't mint them and has no `jti` to look up. Revocation is the IdP's responsibility; keep external token TTLs short.
-
 ## Configuration
 
-Each entry in `AppConfig.externalIdps` is a sealed [`ExternalIdpConfig`](https://github.com/mrgnhnt96/zonai/blob/main/libs/zonai_schema/lib/src/config/external_idp_config.dart) variant. Two variants ship:
+Each entry in `AppConfig.externalIdps` is a sealed [`ExternalIdpConfig`](https://github.com/mrgnhnt96/zonai/blob/main/libs/zonai_schema/lib/src/config/external_idp_config.dart) variant:
 
-| Variant | When to use |
-| --- | --- |
-| [`SharedSecretIdpConfig`](#shared-secret-hs256) | IdPs that sign tokens with a symmetric HMAC secret (Supabase Auth, many custom internal IdPs). |
-| [`JwksIdpConfig`](#jwks-rs256--es256) | IdPs that publish their public keys via a JWKS endpoint (Auth0, Clerk, Cognito, Firebase Auth, any OIDC provider). |
+| Variant                                         | When to use                                                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`SharedSecretIdpConfig`](#shared-secret-hs256) | IdPs that sign tokens with a symmetric HMAC secret (Supabase Auth, many custom internal IdPs).                     |
+| [`JwksIdpConfig`](#jwks-rs256--es256)           | IdPs that publish their public keys via a JWKS endpoint (Auth0, Clerk, Cognito, Firebase Auth, any OIDC provider). |
 
 Multiple IdPs can be configured simultaneously — a deployment can trust Supabase Auth for end users and a different IdP for admins.
+
+## Required JWT claims
+
+Every external token must include these standard claims. Missing or mismatched values are the most common source of auth failures.
+
+| Claim | Required | Notes                                                                                                                                                                                |
+| ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `iss` | yes      | Must match the `issuer` field of a configured IdP **exactly** — trailing slashes and subdomains matter.                                                                              |
+| `aud` | yes      | Must match the `audience` field exactly. Accepted as a string or a list that contains the configured value.                                                                          |
+| `sub` | yes      | Used to look up the user row in `authTable` by `id`. A token whose `sub` has no matching row fails with `UserNotFoundAuthException` unless `onExternalAuthFirstSeen` provisions one. |
+| `exp` | yes      | Expiry timestamp. Zonai treats tokens without `exp` as invalid, even though the JWT spec permits its absence.                                                                        |
+| `nbf` | no       | Not-before timestamp. Honored if present — tokens are rejected before their `nbf` time.                                                                                              |
+
+The signing algorithm must also match the configured variant: `HS256` for `SharedSecretIdpConfig`, or `RS256` / `RS384` / `RS512` / `ES256` / `ES384` / `ES512` for `JwksIdpConfig`. Any other algorithm (including `alg=none`) is rejected before the signature check runs.
 
 ## Shared secret (HS256)
 
@@ -60,16 +63,14 @@ AppConfig main() {
 
 **Field reference:**
 
-| Field | Required | Purpose |
-| --- | --- | --- |
-| `issuer` | yes | The `iss` claim incoming tokens must declare exactly. |
-| `audience` | yes | The `aud` claim incoming tokens must declare exactly. Accepted as a String or a List that contains this value. |
-| `authTable` | yes | The zonai auth collection that users from this IdP map into. The `sub` claim is looked up against this table's `id` column. |
-| `secret` | yes | The HMAC secret used to verify signatures. Treat as a production secret; bake in via `const String.fromEnvironment('NAME')` rather than hardcoding. The `const` is required — without it, `fromEnvironment` returns the runtime default (`''`) instead of the compile-time-injected value. |
-| `adminClaimPath` | no | See [Admin-claim mapping](#admin-claim-mapping). |
-| `adminClaimEquals` | no | See [Admin-claim mapping](#admin-claim-mapping). |
-
-**Algorithm pinning:** the verifier rejects any `alg` header other than `HS256`. Tokens with `alg=none` or `alg=RS256` (the classic confused-deputy attack) fail before the signature check runs.
+| Field              | Required | Purpose                                                                                                                                                                                                                                                                                    |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `issuer`           | yes      | The `iss` claim incoming tokens must declare exactly.                                                                                                                                                                                                                                      |
+| `audience`         | yes      | The `aud` claim incoming tokens must declare exactly. Accepted as a String or a List that contains this value.                                                                                                                                                                             |
+| `authTable`        | yes      | The zonai auth collection that users from this IdP map into. The `sub` claim is looked up against this table's `id` column.                                                                                                                                                                |
+| `secret`           | yes      | The HMAC secret used to verify signatures. Treat as a production secret; bake in via `const String.fromEnvironment('NAME')` rather than hardcoding. The `const` is required — without it, `fromEnvironment` returns the runtime default (`''`) instead of the compile-time-injected value. |
+| `adminClaimPath`   | no       | See [Admin-claim mapping](#admin-claim-mapping).                                                                                                                                                                                                                                           |
+| `adminClaimEquals` | no       | See [Admin-claim mapping](#admin-claim-mapping).                                                                                                                                                                                                                                           |
 
 ## JWKS (RS256 / ES256)
 
@@ -97,22 +98,16 @@ AppConfig main() {
 
 **Field reference:**
 
-| Field | Required | Purpose |
-| --- | --- | --- |
-| `issuer` | yes | The `iss` claim incoming tokens must declare exactly. |
-| `audience` | yes | The `aud` claim incoming tokens must declare exactly. Accepted as a String or a List that contains this value. |
-| `authTable` | yes | The zonai auth collection that users from this IdP map into. The `sub` claim is looked up against this table's `id` column. |
-| `jwksUrl` | yes | URL of the IdP's JWKS endpoint. Typically discoverable via `${issuer}/.well-known/openid-configuration`'s `jwks_uri` field. |
-| `cacheTtl` | no | How long the parsed JWKS is reused before the next refresh. Defaults to 1h. |
-| `fetchTimeout` | no | Maximum time to wait for a JWKS fetch on a cold cache. Defaults to 2s. A failing IdP cannot indefinitely block auth. |
-| `adminClaimPath` | no | See [Admin-claim mapping](#admin-claim-mapping). |
-| `adminClaimEquals` | no | See [Admin-claim mapping](#admin-claim-mapping). |
-
-**Algorithm pinning:** the verifier accepts only `RS256` / `RS384` / `RS512` / `ES256` / `ES384` / `ES512`. HMAC algorithms (`HS*`) and `alg=none` are rejected before the signature check — closes the confused-deputy attack where an asymmetric verifier is handed a key as if it were an HMAC secret.
-
-**Key rotation handling:** if a token's `kid` is not in the cached key set, the cache is refreshed once before failing. Newly-rotated keys land on the next request without waiting for the TTL.
-
-**DoS posture:** `fetchTimeout` bounds the per-request wait on a cold JWKS cache. A failing or slow IdP fails auth requests fast rather than holding them open.
+| Field              | Required | Purpose                                                                                                                     |
+| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `issuer`           | yes      | The `iss` claim incoming tokens must declare exactly.                                                                       |
+| `audience`         | yes      | The `aud` claim incoming tokens must declare exactly. Accepted as a String or a List that contains this value.              |
+| `authTable`        | yes      | The zonai auth collection that users from this IdP map into. The `sub` claim is looked up against this table's `id` column. |
+| `jwksUrl`          | yes      | URL of the IdP's JWKS endpoint. Typically discoverable via `${issuer}/.well-known/openid-configuration`'s `jwks_uri` field. |
+| `cacheTtl`         | no       | How long the parsed JWKS is reused before the next refresh. Defaults to 1h.                                                 |
+| `fetchTimeout`     | no       | Maximum time to wait for a JWKS fetch on a cold cache. Defaults to 2s.                                                      |
+| `adminClaimPath`   | no       | See [Admin-claim mapping](#admin-claim-mapping).                                                                            |
+| `adminClaimEquals` | no       | See [Admin-claim mapping](#admin-claim-mapping).                                                                            |
 
 ## Per-IdP walkthroughs
 
@@ -150,8 +145,6 @@ JwksIdpConfig(
   adminClaimEquals: 'admin',
 ),
 ```
-
-See [JWKS (RS256 / ES256)](#jwks-rs256--es256) for the JWKS-shaped field reference, caching behavior, and operational responsibilities.
 
 ### Custom OIDC / internal HMAC IdP
 
@@ -217,15 +210,13 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
 }
 ```
 
-**Restricted scope.** During `onExternalAuthFirstSeen` the hook runs under a `ProvisioningJwt` scoped to the configured `authTable`. The rules layer accepts elevated `create` / `update` only against that one table; mutations targeting any other collection are rejected with a clear error. A buggy hook cannot mutate unrelated data.
+**Restricted scope.** During `onExternalAuthFirstSeen` the hook runs under a `ProvisioningJwt` scoped to the configured `authTable`. Mutations targeting any other collection are rejected with a clear error — a buggy hook cannot mutate unrelated data.
 
-**Refusing to provision.** Return from the hook without queueing a mutation (the default behavior, or a hook that decides `claims` doesn't satisfy required invariants) and the auth request fails with the same `UserNotFoundAuthException` callers see without the hook defined.
+**Refusing to provision.** Return from the hook without queueing a mutation (the default behavior, or a hook that decides `claims` doesn't satisfy required invariants) and the auth request fails with `UserNotFoundAuthException`.
 
 **Alternative provisioning paths.** If you'd rather create users out-of-band (admin script, IdP webhook, periodic reconcile), leave `onExternalAuthFirstSeen` unimplemented. The auth flow will reject unknown `sub`s with `UserNotFoundAuthException` until the row exists.
 
-**Provisioning gate.** First-seen provisioning is gated by an `ExternalIdpProvisioningGate` consulted before `onExternalAuthFirstSeen` fires. The default gate registered in `zonai`'s deps (`AllowAllExternalIdpProvisioningGate`) always allows — non-HTTP consumers (CLI tools, integration tests) pay no overhead.
-
-HTTP servers register a gate that consults rate-limits or abuse signals. The `apps/server` deployment provides `ExternalIdpProvisioning` as a Revali lifecycle component that binds an HTTP-aware gate to each request's IP, rate-limiting provisioning per **(auth-table, IP)** through the standard rate-limit machinery (`RateLimitOperation.externalIdpProvisioning`). The default policy is 30 attempts per hour; tune per auth table by overriding `AuthTableRateLimits.externalIdpProvisioningPolicy`:
+**Rate limiting.** HTTP deployments rate-limit first-seen provisioning per **(auth-table, IP)** — defaulting to 30 attempts per hour. Tune this per auth table by overriding `AuthTableRateLimits.externalIdpProvisioningPolicy`:
 
 ```dart
 final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
@@ -238,59 +229,13 @@ final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
 }
 ```
 
-When the gate rejects, the auth flow throws `ExternalIdpProvisioningRejectedException`. Once a `sub` is provisioned, subsequent requests for that user resolve the row from the auth table directly and bypass the gate entirely.
-
-Custom gates for non-Revali deployments can implement `ExternalIdpProvisioningGate` and override `externalIdpProvisioningGateProvider`:
-
-```dart
-import 'package:scoped_deps/scoped_deps.dart';
-import 'package:zonai/deps.dart';
-import 'package:zonai/src/services/external_idp_provisioning_gate.dart';
-
-final class CustomGate implements ExternalIdpProvisioningGate {
-  @override
-  Future<bool> canProvision({
-    required String table,
-    required String issuer,
-    required String sub,
-  }) async {
-    // Consult your own abuse signals, allowlist, claims-predicate,
-    // capacity ceiling, etc. Return false to reject provisioning.
-    return true;
-  }
-}
-
-void main() {
-  runScoped(
-    () => /* start your server */,
-    values: {
-      externalIdpProvisioningGateProvider.overrideWith(CustomGate.new),
-    },
-  );
-}
-```
+Once a `sub` is provisioned, subsequent requests for that user bypass the rate limit entirely.
 
 ## Security considerations
 
-External-IdP trust expands zonai's attack surface in ways the schema-layer types already enforce or document.
-
-**At the type level (compile-time / config-load-time):**
-
-- `iss`, `aud`, and `authTable` are required on every variant. There's no way to construct a config that skips audience binding (which would enable token confusion across services).
-- Variants pin their algorithm: `SharedSecretIdpConfig` is HS256-only, `JwksIdpConfig` will be RS256/ES256-only. Reject `alg=none` and confused-deputy at the variant level rather than relying on header parsing in the verifier.
-- Unknown variant `type` values throw `ArgumentError` at config load — misconfiguration fails loudly at startup, not at request time.
-
-**At verification time:**
-
-- Standard `iss`, `aud`, `exp`, `nbf` checks per RFC 7519.
-- `exp` is **required** (the RFC technically permits its absence; zonai treats missing `exp` as a misconfigured token).
-- Constant-time signature comparison.
-
-**Operational responsibilities:**
-
-- Treat HMAC secrets and JWKS URLs as production secrets. Bake them in via env-injected `const String.fromEnvironment('NAME')` rather than hardcoding. The `const` is load-bearing — without it the call evaluates at runtime and returns the default empty string instead of the compile-time-injected value.
-- Keep external token TTLs short — zonai cannot revoke a token it didn't issue. Compromised tokens stay valid until natural expiry.
-- For multi-IdP setups, the auth check loops through every configured `iss`. Order configs so the most-frequently-hit IdP comes first.
+- Treat HMAC secrets and JWKS URLs as production secrets. Bake them in via `const String.fromEnvironment('NAME')` rather than hardcoding. The `const` is load-bearing — without it the call evaluates at runtime and returns the default empty string instead of the compile-time-injected value.
+- **Keep external token TTLs short.** Zonai cannot revoke a token it didn't issue — external tokens skip the `_jwt` revocation table. Compromised tokens stay valid until natural expiry.
+- For multi-IdP setups, order configs so the most-frequently-hit IdP comes first.
 
 ## Limitations
 
@@ -302,4 +247,3 @@ External-IdP trust expands zonai's attack surface in ways the schema-layer types
 - **[auth.md](auth.md)** — zonai's built-in auth flows (password, OTP, magic link).
 - **[rules.md](rules.md)** — row-level authorization for external-authenticated users.
 - **[extensions.md](extensions.md)** — lifecycle hooks including `onExternalAuthFirstSeen`.
-- **[#2](https://github.com/mrgnhnt96/zonai/issues/2)** — design RFC for the external-IdP feature, including the open follow-ups.
