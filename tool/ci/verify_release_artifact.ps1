@@ -9,6 +9,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Write-ServeLogs {
+  param(
+    [string]$OutPath,
+    [string]$ErrPath
+  )
+
+  if (Test-Path $OutPath) {
+    Get-Content $OutPath | Write-Host
+  }
+  if (Test-Path $ErrPath) {
+    Get-Content $ErrPath | Write-Host
+  }
+}
+
 $Executable = (Resolve-Path $Executable).Path
 $PlaygroundDir = (Resolve-Path $PlaygroundDir).Path
 Push-Location $PlaygroundDir
@@ -22,42 +36,31 @@ try {
   Write-Host "compile succeeded"
 
   Write-Host "Verifying serve (must stay running for ${ServeSeconds}s)..."
-  $psi = New-Object System.Diagnostics.ProcessStartInfo
-  $psi.FileName = $Executable
-  $psi.Arguments = "serve --log verbose"
-  $psi.WorkingDirectory = $PlaygroundDir
-  $psi.UseShellExecute = $false
-  $psi.RedirectStandardOutput = $true
-  $psi.RedirectStandardError = $true
+  $logDir = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
+  $serveLog = Join-Path $logDir "zonai-serve.log"
+  $serveErrLog = Join-Path $logDir "zonai-serve.err.log"
+  if (Test-Path $serveLog) { Remove-Item $serveLog -Force }
+  if (Test-Path $serveErrLog) { Remove-Item $serveErrLog -Force }
 
-  $serve = New-Object System.Diagnostics.Process
-  $serve.StartInfo = $psi
-  $serve.EnableRaisingEvents = $true
-  $serve.add_OutputDataReceived({
-    param($sender, $eventArgs)
-    if ($null -ne $eventArgs.Data) {
-      Write-Host $eventArgs.Data
-    }
-  })
-  $serve.add_ErrorDataReceived({
-    param($sender, $eventArgs)
-    if ($null -ne $eventArgs.Data) {
-      Write-Host $eventArgs.Data
-    }
-  })
-
-  $null = $serve.Start()
-  $serve.BeginOutputReadLine()
-  $serve.BeginErrorReadLine()
+  $serve = Start-Process `
+    -FilePath $Executable `
+    -ArgumentList "serve", "--log", "verbose" `
+    -WorkingDirectory $PlaygroundDir `
+    -PassThru `
+    -RedirectStandardOutput $serveLog `
+    -RedirectStandardError $serveErrLog
 
   Start-Sleep -Seconds $ServeSeconds
 
   if ($serve.HasExited) {
+    Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
     throw "serve exited before ${ServeSeconds}s (exit code $($serve.ExitCode))"
   }
 
   Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
   $serve.WaitForExit()
+  Start-Sleep -Milliseconds 250
+  Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
   Write-Host "serve stayed running for ${ServeSeconds}s"
 }
 finally {
