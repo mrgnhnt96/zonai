@@ -51,7 +51,7 @@ AppConfig main() {
         issuer: 'https://your-project.supabase.co/auth/v1',
         audience: 'authenticated',
         authTable: 'users',
-        secret: String.fromEnvironment('SUPABASE_JWT_SECRET'),
+        secret: const String.fromEnvironment('SUPABASE_JWT_SECRET'),
       ),
     ],
   );
@@ -65,7 +65,7 @@ AppConfig main() {
 | `issuer` | yes | The `iss` claim incoming tokens must declare exactly. |
 | `audience` | yes | The `aud` claim incoming tokens must declare exactly. Accepted as a String or a List that contains this value. |
 | `authTable` | yes | The zonai auth collection that users from this IdP map into. The `sub` claim is looked up against this table's `id` column. |
-| `secret` | yes | The HMAC secret used to verify signatures. Treat as a production secret; bake in via `String.fromEnvironment` rather than hardcoding. |
+| `secret` | yes | The HMAC secret used to verify signatures. Treat as a production secret; bake in via `const String.fromEnvironment('NAME')` rather than hardcoding. The `const` is required — without it, `fromEnvironment` returns the runtime default (`''`) instead of the compile-time-injected value. |
 | `adminClaimPath` | no | See [Admin-claim mapping](#admin-claim-mapping). |
 | `adminClaimEquals` | no | See [Admin-claim mapping](#admin-claim-mapping). |
 
@@ -82,7 +82,7 @@ SharedSecretIdpConfig(
   issuer: 'https://YOUR_PROJECT_REF.supabase.co/auth/v1',
   audience: 'authenticated',
   authTable: 'users',  // your zonai auth collection
-  secret: String.fromEnvironment('SUPABASE_JWT_SECRET'),
+  secret: const String.fromEnvironment('SUPABASE_JWT_SECRET'),
   // Optional — flag maintainers from Supabase's app_metadata:
   adminClaimPath: 'app_metadata.is_admin',
   adminClaimEquals: true,
@@ -119,7 +119,7 @@ SharedSecretIdpConfig(
   issuer: 'https://internal-auth.your-company.example',
   audience: 'zonai-data-api',
   authTable: 'employees',
-  secret: String.fromEnvironment('INTERNAL_IDP_JWT_SECRET'),
+  secret: const String.fromEnvironment('INTERNAL_IDP_JWT_SECRET'),
 ),
 ```
 
@@ -175,7 +175,7 @@ External-IdP trust expands zonai's attack surface in ways the schema-layer types
 
 **Operational responsibilities:**
 
-- Treat HMAC secrets and JWKS URLs as production secrets. Bake them in via env-injected `String.fromEnvironment` rather than hardcoding.
+- Treat HMAC secrets and JWKS URLs as production secrets. Bake them in via env-injected `const String.fromEnvironment('NAME')` rather than hardcoding. The `const` is load-bearing — without it the call evaluates at runtime and returns the default empty string instead of the compile-time-injected value.
 - Keep external token TTLs short — zonai cannot revoke a token it didn't issue. Compromised tokens stay valid until natural expiry.
 - For multi-IdP setups, the auth check loops through every configured `iss`. Order configs so the most-frequently-hit IdP comes first.
 
