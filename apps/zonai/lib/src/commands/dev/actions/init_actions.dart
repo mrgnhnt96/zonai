@@ -5,6 +5,7 @@ import 'package:zonai/gen/version.dart';
 import '../../../deps/args.dart';
 import '../../../deps/fs.dart';
 import '../../../deps/logger.dart';
+import '../../../deps/process.dart';
 import '../../../deps/settings.dart';
 import '../../compile.dart';
 import 'init_email_templates.dart';
@@ -14,10 +15,49 @@ import 'init_scaffold.dart';
 /// Scaffolds a new Zonai project: config, admin schema, email templates,
 /// .gitignore entries, and worker compilation.
 Future<void> initProject() async {
+  _createPubspec();
+  await _runPubGet();
   _createZonaiYaml();
   _updateGitignore();
   _createScaffold();
   await _compileWorkers();
+}
+
+void _createPubspec() {
+  final file = fs.file('pubspec.yaml');
+  if (file.existsSync()) return;
+
+  final name = _deriveProjectName();
+  file.writeAsStringSync('''name: $name
+publish_to: none
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  zonai_schema: ^$kVersion
+''');
+  stdout.writeln('Created pubspec.yaml');
+}
+
+String _deriveProjectName() {
+  final dirName = fs.path.basename(fs.currentDirectory.path);
+  var name = dirName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+  if (name.isEmpty || !RegExp(r'^[a-z]').hasMatch(name)) {
+    name = 'zonai_app';
+  }
+  return name;
+}
+
+Future<void> _runPubGet() async {
+  if (!fs.file('pubspec.yaml').existsSync()) return;
+
+  stdout.writeln('Running dart pub get...');
+  final result = await process.runDart(['pub', 'get']);
+  if (result.exitCode != 0) {
+    logger.error('dart pub get failed');
+    logger.error('${result.stderr}');
+  }
 }
 
 void _createZonaiYaml() {

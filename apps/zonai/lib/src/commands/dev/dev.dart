@@ -5,23 +5,19 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_logger/zonai_logger.dart' as zonai_log;
 import 'package:zonai_schema/payloads.dart';
 
-import '../../deps/fs.dart';
 import '../../deps/keyboard_input.dart';
 import '../../deps/kill.dart';
 import '../../deps/logger.dart';
 import '../../deps/stdin.dart' as zonai_stdin;
 import '../../deps/zonai_db.dart';
 import '../../utils/admin_create_shape.dart';
-import 'actions/init_actions.dart';
+import 'actions/project_init.dart';
 import 'components/dev_app.dart';
 import 'dev_form_options.dart';
 
 Future<int> dev() async {
-  if (!_configExists()) {
-    if (!_promptInit()) return 0;
-    stdout.writeln();
-    await initProject();
-    stdout.writeln();
+  if (await ensureProjectInitialized() case final exitCode?) {
+    return exitCode;
   }
 
   // Zonai's stdin wrapper and kill handler conflict with nocterm's TUI:
@@ -76,14 +72,3 @@ Future<int> dev() async {
   return 0;
 }
 
-bool _configExists() =>
-    fs.file('zonai.yml').existsSync() || fs.file('zonai.yaml').existsSync();
-
-/// Prompts for Y/n using a single keypress (stdin may be in raw mode).
-bool _promptInit() {
-  stdout.write('No zonai.yaml found. Initialize project? [Y/n]: ');
-  final byte = stdin.readByteSync();
-  final char = byte >= 0 ? String.fromCharCode(byte).toLowerCase() : '';
-  stdout.writeln(char == 'n' ? 'n' : 'y');
-  return char != 'n';
-}

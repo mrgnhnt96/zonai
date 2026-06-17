@@ -8,6 +8,7 @@ import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai/src/utils/serve_guard.dart';
 
+import 'dev/actions/project_init.dart';
 import '../deps/args.dart';
 import '../deps/config.dart';
 import '../deps/extensions.dart';
@@ -23,6 +24,10 @@ import '../deps/rules.dart';
 import '../native/resqlite_native.dart';
 
 Future<int> serve() async {
+  if (await ensureProjectInitialized() case final initExitCode?) {
+    return initExitCode;
+  }
+
   var exitCode = 0;
 
   await runServeGuarded(() async {
