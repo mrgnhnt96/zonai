@@ -131,6 +131,8 @@ extension _ExternalIdpX on ZonaiDb {
       jti is String && jti.isNotEmpty ? jti : 'ext:${config.issuer}:$sub',
     );
 
+    final isAdmin = resolveAdminFromClaims(config, claims);
+
     return Jwt(
       userId: UnknownId(sub),
       table: config.authTable,
@@ -138,7 +140,7 @@ extension _ExternalIdpX on ZonaiDb {
       expiresAt: expiresAt,
       user: user,
       claims: claims,
-      admin: (isAdmin: false, canEdit: null),
+      admin: (isAdmin: isAdmin, canEdit: isAdmin ? true : null),
     );
   }
 }
