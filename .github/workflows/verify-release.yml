@@ -76,6 +76,10 @@ jobs:
         with:
           sdk: "3.12.0"
 
+      - name: Configure revali git overrides
+        shell: bash
+        run: bash tool/ci/use_revali_git_overrides.sh
+
       - name: Get dependencies
         run: dart pub get
 
