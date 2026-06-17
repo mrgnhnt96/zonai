@@ -29,7 +29,12 @@ check_server_health() {
   return 1
 }
 
-cd "$playground_dir"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ -f "${repo_root}/VERSION" ]]; then
+  bash "${repo_root}/tool/ci/sync_playground_version.sh" "${playground_dir}" "${repo_root}/VERSION"
+fi
+
+cd "${repo_root}/${playground_dir}"
 
 echo "Verifying compile..."
 "$executable" compile

@@ -48,6 +48,13 @@ function Write-ServeLogs {
 
 $Executable = (Resolve-Path $Executable).Path
 $PlaygroundDir = (Resolve-Path $PlaygroundDir).Path
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+$VersionFile = Join-Path $RepoRoot "VERSION"
+
+if (Test-Path $VersionFile) {
+  & (Join-Path $RepoRoot "tool/ci/sync_playground_version.sh") "apps/playground" $VersionFile
+}
+
 Push-Location $PlaygroundDir
 
 try {

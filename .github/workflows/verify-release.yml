@@ -52,6 +52,23 @@ jobs:
         shell: pwsh
         run: ./tool/setup_raindrop_submodule.ps1
 
+      - name: Download release version files (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: release-version
+
+      - name: Download release version files (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: release-version
+
       - name: Download artifact (triggering compile run)
         if: github.event_name == 'workflow_run'
         uses: dawidd6/action-download-artifact@v6
