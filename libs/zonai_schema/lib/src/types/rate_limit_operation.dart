@@ -18,4 +18,9 @@ enum RateLimitOperation {
   logoutAll,
   adminAuthenticate,
   adminSignIn,
+
+  /// Bucket key used by `RateLimiter.checkExternalIdpProvisioning`.
+  /// Policy is fixed at the framework level (no `AuthTableRateLimits`
+  /// override surface); use the dedicated method, not `check`.
+  externalIdpProvisioning,
 }

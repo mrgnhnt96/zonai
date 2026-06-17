@@ -140,3 +140,20 @@ final class AuthFailedException extends AuthException {
     return 'Failed to authenticate';
   }
 }
+
+/// Thrown when the registered [ExternalIdpProvisioningGate] rejects
+/// provisioning a first-seen external-IdP `sub` for [table].
+///
+/// HTTP servers typically register a gate that consults rate limits or
+/// abuse signals; the default no-op gate (used outside HTTP contexts)
+/// never throws.
+final class ExternalIdpProvisioningRejectedException extends AuthException {
+  const ExternalIdpProvisioningRejectedException({required this.table});
+
+  /// Auth table that provisioning was rejected for.
+  final String table;
+
+  @override
+  String toString() =>
+      'External-IdP first-seen provisioning rejected for table: $table';
+}

@@ -35,4 +35,11 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
   Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
 
   Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
+
+  /// Throttles `onExternalAuthFirstSeen` hook invocations for this auth
+  /// table, keyed per client IP. Bounds the abuse vector where a
+  /// compromised external IdP mints unique `sub` claims to provision
+  /// unbounded rows. Override to tighten or return `null` to disable.
+  Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async =>
+      .externalIdpProvisioning;
 }

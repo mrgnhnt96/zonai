@@ -223,6 +223,53 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
 
 **Alternative provisioning paths.** If you'd rather create users out-of-band (admin script, IdP webhook, periodic reconcile), leave `onExternalAuthFirstSeen` unimplemented. The auth flow will reject unknown `sub`s with `UserNotFoundAuthException` until the row exists.
 
+**Provisioning gate.** First-seen provisioning is gated by an `ExternalIdpProvisioningGate` consulted before `onExternalAuthFirstSeen` fires. The default gate registered in `zonai`'s deps (`AllowAllExternalIdpProvisioningGate`) always allows — non-HTTP consumers (CLI tools, integration tests) pay no overhead.
+
+HTTP servers register a gate that consults rate-limits or abuse signals. The `apps/server` deployment provides `ExternalIdpProvisioning` as a Revali lifecycle component that binds an HTTP-aware gate to each request's IP, rate-limiting provisioning per **(auth-table, IP)** through the standard rate-limit machinery (`RateLimitOperation.externalIdpProvisioning`). The default policy is 30 attempts per hour; tune per auth table by overriding `AuthTableRateLimits.externalIdpProvisioningPolicy`:
+
+```dart
+final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
+  UsersRateLimits() : super(users);
+
+  @override
+  Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async {
+    return const RateLimitPolicy(maxRequests: 10, window: Duration(hours: 1));
+  }
+}
+```
+
+When the gate rejects, the auth flow throws `ExternalIdpProvisioningRejectedException`. Once a `sub` is provisioned, subsequent requests for that user resolve the row from the auth table directly and bypass the gate entirely.
+
+Custom gates for non-Revali deployments can implement `ExternalIdpProvisioningGate` and override `externalIdpProvisioningGateProvider`:
+
+```dart
+import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/deps.dart';
+import 'package:zonai/src/services/external_idp_provisioning_gate.dart';
+
+final class CustomGate implements ExternalIdpProvisioningGate {
+  @override
+  Future<bool> canProvision({
+    required String table,
+    required String issuer,
+    required String sub,
+  }) async {
+    // Consult your own abuse signals, allowlist, claims-predicate,
+    // capacity ceiling, etc. Return false to reject provisioning.
+    return true;
+  }
+}
+
+void main() {
+  runScoped(
+    () => /* start your server */,
+    values: {
+      externalIdpProvisioningGateProvider.overrideWith(CustomGate.new),
+    },
+  );
+}
+```
+
 ## Security considerations
 
 External-IdP trust expands zonai's attack surface in ways the schema-layer types already enforce or document.
