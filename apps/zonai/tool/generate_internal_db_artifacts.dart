@@ -382,7 +382,7 @@ void _validateTableArtifacts({
     )) {
       errors.add(
         'Missing operations for "${table.tableName}" '
-        '(expected lib/src/internal/operations/*_operations.dart '
+        '(expected zonai_schema lib/src/internal/operations/*_operations.dart '
         'importing ${table.importPath})',
       );
     }
@@ -394,7 +394,7 @@ void _validateTableArtifacts({
     )) {
       errors.add(
         'Missing row rules for "${table.tableName}" '
-        '(expected lib/src/internal/rules/*_row_rules.dart '
+        '(expected zonai_schema lib/src/internal/rules/*_row_rules.dart '
         'importing ${table.importPath})',
       );
     }
@@ -406,7 +406,7 @@ void _validateTableArtifacts({
     )) {
       errors.add(
         'Missing table rules for "${table.tableName}" '
-        '(expected lib/src/internal/rules/*_table_rules.dart '
+        '(expected zonai_schema lib/src/internal/rules/*_table_rules.dart '
         'importing ${table.importPath})',
       );
     }
