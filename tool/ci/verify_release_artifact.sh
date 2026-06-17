@@ -4,6 +4,7 @@ set -euo pipefail
 executable="${1:?executable path required}"
 playground_dir="${2:-apps/playground}"
 serve_seconds="${3:-5}"
+health_timeout_seconds="${4:-30}"
 
 executable="$(cd "$(dirname "$executable")" && pwd)/$(basename "$executable")"
 
@@ -33,15 +34,15 @@ cd "$playground_dir"
 echo "Verifying compile..."
 "$executable" compile
 
-echo "Verifying serve (must stay running for ${serve_seconds}s)..."
+echo "Verifying serve (must respond on /health, then stay up for ${serve_seconds}s)..."
 "$executable" serve --log verbose --no-version-check &
 serve_pid=$!
 
-deadline=$(( $(date +%s) + serve_seconds ))
+health_deadline=$(( $(date +%s) + health_timeout_seconds ))
 health_ok=false
 
-echo "Waiting for /health..."
-while (( $(date +%s) < deadline )); do
+echo "Waiting for /health (timeout ${health_timeout_seconds}s)..."
+while (( $(date +%s) < health_deadline )); do
   if ! kill -0 "$serve_pid" 2>/dev/null; then
     wait "$serve_pid" 2>/dev/null || true
     echo "serve exited before health check" >&2
@@ -59,21 +60,18 @@ done
 if [[ "$health_ok" != true ]]; then
   kill "$serve_pid" 2>/dev/null || true
   wait "$serve_pid" 2>/dev/null || true
-  echo "health check failed within ${serve_seconds}s" >&2
+  echo "health check failed within ${health_timeout_seconds}s" >&2
   exit 1
 fi
 
-remaining=$(( deadline - $(date +%s) ))
-if (( remaining > 0 )); then
-  sleep "$remaining"
-fi
+sleep "$serve_seconds"
 
 if ! kill -0 "$serve_pid" 2>/dev/null; then
   wait "$serve_pid" 2>/dev/null || true
-  echo "serve exited before ${serve_seconds}s" >&2
+  echo "serve exited before ${serve_seconds}s after health check" >&2
   exit 1
 fi
 
 kill "$serve_pid" 2>/dev/null || true
 wait "$serve_pid" 2>/dev/null || true
-echo "serve stayed running for ${serve_seconds}s"
+echo "serve stayed running for ${serve_seconds}s after health check"

@@ -4,7 +4,9 @@ param(
 
   [string]$PlaygroundDir = "apps/playground",
 
-  [int]$ServeSeconds = 5
+  [int]$ServeSeconds = 5,
+
+  [int]$HealthTimeoutSeconds = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,7 +58,7 @@ try {
   }
   Write-Host "compile succeeded"
 
-  Write-Host "Verifying serve (must stay running for ${ServeSeconds}s)..."
+  Write-Host "Verifying serve (must respond on /health, then stay up for ${ServeSeconds}s)..."
   $logDir = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
   $serveLog = Join-Path $logDir "zonai-serve.log"
   $serveErrLog = Join-Path $logDir "zonai-serve.err.log"
@@ -71,11 +73,11 @@ try {
     -RedirectStandardOutput $serveLog `
     -RedirectStandardError $serveErrLog
 
-  $deadline = (Get-Date).AddSeconds($ServeSeconds)
+  $healthDeadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)
   $healthOk = $false
 
-  Write-Host "Waiting for /health..."
-  while ((Get-Date) -lt $deadline) {
+  Write-Host "Waiting for /health (timeout ${HealthTimeoutSeconds}s)..."
+  while ((Get-Date) -lt $healthDeadline) {
     if ($serve.HasExited) {
       Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
       throw "serve exited before health check (exit code $($serve.ExitCode))"
@@ -92,24 +94,21 @@ try {
   if (-not $healthOk) {
     Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
     Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
-    throw "health check failed within ${ServeSeconds}s"
+    throw "health check failed within ${HealthTimeoutSeconds}s"
   }
 
-  $remaining = ($deadline - (Get-Date)).TotalSeconds
-  if ($remaining -gt 0) {
-    Start-Sleep -Seconds $remaining
-  }
+  Start-Sleep -Seconds $ServeSeconds
 
   if ($serve.HasExited) {
     Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
-    throw "serve exited before ${ServeSeconds}s (exit code $($serve.ExitCode))"
+    throw "serve exited before ${ServeSeconds}s after health check (exit code $($serve.ExitCode))"
   }
 
   Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
   $serve.WaitForExit()
   Start-Sleep -Milliseconds 250
   Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
-  Write-Host "serve stayed running for ${ServeSeconds}s"
+  Write-Host "serve stayed running for ${ServeSeconds}s after health check"
 }
 finally {
   Pop-Location
