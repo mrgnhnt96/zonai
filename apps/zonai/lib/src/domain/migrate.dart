@@ -27,16 +27,17 @@ class Migrate {
     if (args.release) return;
     if (__subscription != null) return;
 
-    if (fs.directory(settings.migrationsPath) case final dir
-        when !dir.existsSync()) {
-      if (!fs.directory(settings.schemasPath).existsSync()) {
-        return;
-      }
+    if (!fs.directory(settings.schemasPath).existsSync()) {
+      return;
+    }
 
+    final migrationsDir = fs.directory(settings.migrationsPath);
+    if (!migrationsDir.existsSync()) {
       run(name: 'initialize').catchError((e, stack) {
         logger.error('$e', 'Failed to initialize migrations', stack);
         return 1;
       }).ignore();
+      return;
     }
 
     __subscription = _watcher.events.listen((event) async {
