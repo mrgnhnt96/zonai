@@ -40,17 +40,18 @@ jobs:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
             output_name: zonai
-          - os: macos-latest
-            artifact_name: zonai-macos-arm64
-            output_name: zonai
-          - os: macos-15-intel
-            artifact_name: zonai-macos-x64
-            output_name: zonai
-            target_arch: x64
-            dart_architecture: x64
-          - os: windows-latest
-            artifact_name: zonai-windows-x64
-            output_name: zonai.exe
+          # Temporarily linux-only while validating compat-check on CI.
+          # - os: macos-latest
+          #   artifact_name: zonai-macos-arm64
+          #   output_name: zonai
+          # - os: macos-15-intel
+          #   artifact_name: zonai-macos-x64
+          #   output_name: zonai
+          #   target_arch: x64
+          #   dart_architecture: x64
+          # - os: windows-latest
+          #   artifact_name: zonai-windows-x64
+          #   output_name: zonai.exe
 
     steps:
       - name: Checkout zonai
