@@ -3,9 +3,35 @@ name: Compile
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tool/ci/resolve_release_version.sh
+
+      - name: Upload release version files
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-version
+          path: |
+            VERSION
+            apps/zonai/lib/gen/version.dart
+
   compile:
     name: ${{ matrix.artifact_name }}
+    needs: prepare
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -33,6 +59,11 @@ jobs:
           # GITHUB_TOKEN cannot read private submodule repos; raindrop is private.
           token: ${{ secrets.SUBMODULES_PAT }}
           submodules: recursive
+
+      - name: Download release version files
+        uses: actions/download-artifact@v4
+        with:
+          name: release-version
 
       - name: Configure raindrop sparse checkout (Unix)
         if: runner.os != 'Windows'
