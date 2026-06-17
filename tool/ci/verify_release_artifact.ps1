@@ -9,6 +9,27 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$HealthUrls = @(
+  "http://127.0.0.1:8080/health",
+  "http://[::1]:8080/health",
+  "http://localhost:8080/health"
+)
+
+function Test-ServerHealth {
+  foreach ($url in $HealthUrls) {
+    try {
+      $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2
+      if ($response.StatusCode -eq 200) {
+        Write-Host "Health check passed: $url"
+        return $true
+      }
+    } catch {
+      continue
+    }
+  }
+  return $false
+}
+
 function Write-ServeLogs {
   param(
     [string]$OutPath,
@@ -50,7 +71,34 @@ try {
     -RedirectStandardOutput $serveLog `
     -RedirectStandardError $serveErrLog
 
-  Start-Sleep -Seconds $ServeSeconds
+  $deadline = (Get-Date).AddSeconds($ServeSeconds)
+  $healthOk = $false
+
+  Write-Host "Waiting for /health..."
+  while ((Get-Date) -lt $deadline) {
+    if ($serve.HasExited) {
+      Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
+      throw "serve exited before health check (exit code $($serve.ExitCode))"
+    }
+
+    if (Test-ServerHealth) {
+      $healthOk = $true
+      break
+    }
+
+    Start-Sleep -Milliseconds 500
+  }
+
+  if (-not $healthOk) {
+    Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
+    Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
+    throw "health check failed within ${ServeSeconds}s"
+  }
+
+  $remaining = ($deadline - (Get-Date)).TotalSeconds
+  if ($remaining -gt 0) {
+    Start-Sleep -Seconds $remaining
+  }
 
   if ($serve.HasExited) {
     Write-ServeLogs -OutPath $serveLog -ErrPath $serveErrLog
