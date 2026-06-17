@@ -35,6 +35,8 @@ EOF
   write_git_override revali_client constructs/revali_client/revali_client
   write_git_override revali_client_gen constructs/revali_client/revali_client_gen
   write_git_override revali_server constructs/revali_server
+  write_git_override revali_swagger constructs/revali_swagger/revali_swagger
+  write_git_override revali_swagger_annotations constructs/revali_swagger/revali_swagger_annotations
   write_git_override revali_construct packages/revali_construct
   write_git_override revali_core packages/revali_core
 } > "${PUBSPEC_OVERRIDES}"
