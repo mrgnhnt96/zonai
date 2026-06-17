@@ -30,7 +30,7 @@ Each entry in `AppConfig.externalIdps` is a sealed [`ExternalIdpConfig`](https:/
 | Variant | When to use |
 | --- | --- |
 | [`SharedSecretIdpConfig`](#shared-secret-hs256) | IdPs that sign tokens with a symmetric HMAC secret (Supabase Auth, many custom internal IdPs). |
-| `JwksIdpConfig` | IdPs that publish their public keys via a JWKS endpoint (Auth0, Clerk, Cognito, Firebase Auth, any OIDC provider). **Verification path is not yet implemented** — the config type exists but throws `UnimplementedError` at runtime. Track [#2](https://github.com/mrgnhnt96/zonai/issues/2). |
+| [`JwksIdpConfig`](#jwks-rs256--es256) | IdPs that publish their public keys via a JWKS endpoint (Auth0, Clerk, Cognito, Firebase Auth, any OIDC provider). |
 
 Multiple IdPs can be configured simultaneously — a deployment can trust Supabase Auth for end users and a different IdP for admins.
 
@@ -71,6 +71,49 @@ AppConfig main() {
 
 **Algorithm pinning:** the verifier rejects any `alg` header other than `HS256`. Tokens with `alg=none` or `alg=RS256` (the classic confused-deputy attack) fail before the signature check runs.
 
+## JWKS (RS256 / ES256)
+
+Use this for any IdP that publishes its signing public keys at a JWKS endpoint (RFC 7517). Covers the bulk of managed IdPs — Auth0, Clerk, AWS Cognito, Firebase Auth, Okta, any OIDC-compliant provider.
+
+```dart
+import 'package:zonai_schema/zonai_schema.dart';
+
+AppConfig main() {
+  return AppConfig(
+    appName: 'My App',
+    passwordSecret: '...',
+    jwtSecret: '...',
+    externalIdps: const [
+      JwksIdpConfig(
+        issuer: 'https://YOUR_TENANT.auth0.com/',
+        audience: 'https://your-api.example/',
+        authTable: 'users',
+        jwksUrl: 'https://YOUR_TENANT.auth0.com/.well-known/jwks.json',
+      ),
+    ],
+  );
+}
+```
+
+**Field reference:**
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| `issuer` | yes | The `iss` claim incoming tokens must declare exactly. |
+| `audience` | yes | The `aud` claim incoming tokens must declare exactly. Accepted as a String or a List that contains this value. |
+| `authTable` | yes | The zonai auth collection that users from this IdP map into. The `sub` claim is looked up against this table's `id` column. |
+| `jwksUrl` | yes | URL of the IdP's JWKS endpoint. Typically discoverable via `${issuer}/.well-known/openid-configuration`'s `jwks_uri` field. |
+| `cacheTtl` | no | How long the parsed JWKS is reused before the next refresh. Defaults to 1h. |
+| `fetchTimeout` | no | Maximum time to wait for a JWKS fetch on a cold cache. Defaults to 2s. A failing IdP cannot indefinitely block auth. |
+| `adminClaimPath` | no | See [Admin-claim mapping](#admin-claim-mapping). |
+| `adminClaimEquals` | no | See [Admin-claim mapping](#admin-claim-mapping). |
+
+**Algorithm pinning:** the verifier accepts only `RS256` / `RS384` / `RS512` / `ES256` / `ES384` / `ES512`. HMAC algorithms (`HS*`) and `alg=none` are rejected before the signature check — closes the confused-deputy attack where an asymmetric verifier is handed a key as if it were an HMAC secret.
+
+**Key rotation handling:** if a token's `kid` is not in the cached key set, the cache is refreshed once before failing. Newly-rotated keys land on the next request without waiting for the TTL.
+
+**DoS posture:** `fetchTimeout` bounds the per-request wait on a cold JWKS cache. A failing or slow IdP fails auth requests fast rather than holding them open.
+
 ## Per-IdP walkthroughs
 
 ### Supabase Auth
@@ -97,8 +140,6 @@ Notes:
 
 ### Auth0
 
-`JwksIdpConfig` (forthcoming). Once shipped:
-
 ```dart
 JwksIdpConfig(
   issuer: 'https://YOUR_TENANT.auth0.com/',
@@ -109,6 +150,8 @@ JwksIdpConfig(
   adminClaimEquals: 'admin',
 ),
 ```
+
+See [JWKS (RS256 / ES256)](#jwks-rs256--es256) for the JWKS-shaped field reference, caching behavior, and operational responsibilities.
 
 ### Custom OIDC / internal HMAC IdP
 
@@ -224,8 +267,7 @@ External-IdP trust expands zonai's attack surface in ways the schema-layer types
 
 ## Limitations
 
-- `JwksIdpConfig` runtime not yet implemented (asymmetric verification, JWKS fetch + cache, key rotation). Tracked in [#2](https://github.com/mrgnhnt96/zonai/issues/2).
-- Admin-claim mapping is equality-only. List-membership not yet supported.
+- Admin-claim mapping is equality-only. List-membership claims (e.g. Cognito's `cognito:groups` as a `List<String>`) can't be expressed in `adminClaimPath` / `adminClaimEquals` — use a row-level rule that derives admin from the user row's own columns instead.
 - External tokens are not recorded in the `_jwt` table; explicit token-level revocation through zonai is not possible.
 
 ## See also

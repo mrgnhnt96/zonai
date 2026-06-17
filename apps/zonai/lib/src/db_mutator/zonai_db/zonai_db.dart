@@ -26,6 +26,7 @@ import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
+import 'package:zonai/src/utils/jwks_idp_verifier.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai/src/utils/photo_stream_utils.dart';
 import 'package:zonai/src/utils/shared_secret_idp_verifier.dart';
@@ -100,6 +101,11 @@ class ZonaiDb {
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
+  /// Keyed by `JwksIdpConfig.jwksUrl` so multiple configs against the
+  /// same endpoint share a key cache and HTTP client. Constructed
+  /// lazily by [_jwksVerifierFor]; disposed in [dispose].
+  final Map<String, JwksIdpVerifier> _jwksVerifiers = {};
+
   File? __dbFile;
 
   /// Closes the underlying [ResqliteDelegate] and clears the open [db].
@@ -119,6 +125,10 @@ class ZonaiDb {
     _rules.dispose();
     _operations.dispose();
     _config.dispose();
+    for (final verifier in _jwksVerifiers.values) {
+      verifier.dispose();
+    }
+    _jwksVerifiers.clear();
   }
 
   Future<AppConfig> getConfig() async {
