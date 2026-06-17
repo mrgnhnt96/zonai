@@ -200,5 +200,5 @@ final class _DefaultAuthTableRateLimits {
   Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
 
   Future<RateLimitPolicy?> externalAuthFirstSeenPolicy() async =>
-      const RateLimitPolicy(maxRequests: 60, window: Duration(hours: 1));
+      externalAuthFirstSeenDefaultPolicy;
 }

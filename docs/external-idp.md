@@ -180,7 +180,7 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
 
 **Alternative provisioning paths.** If you'd rather create users out-of-band (admin script, IdP webhook, periodic reconcile), leave `onExternalAuthFirstSeen` unimplemented. The auth flow will reject unknown `sub`s with `UserNotFoundAuthException` until the row exists.
 
-**Rate limiting.** Each first-seen invocation goes through the [rate-limit framework](rate-limiting.md) — `RateLimitOperation.externalAuthFirstSeen`. The default policy is **60 attempts per hour per auth table**, bounding the abuse vector where a hostile external IdP mints unique `sub` claims to flood the auth collection. Tune via `AuthTableRateLimits.externalAuthFirstSeenPolicy`:
+**Rate limiting.** Each first-seen invocation goes through the [rate-limit framework](rate-limiting.md) — `RateLimitOperation.externalAuthFirstSeen`. The default policy is **60 attempts per hour per (auth-table, issuer)** bucket, bounding the abuse vector where a compromised external IdP mints unique `sub` claims to flood the auth collection. Each registered IdP gets its own bucket against a given table, so a burst from one issuer does not exhaust the budget for the others. Tune via `AuthTableRateLimits.externalAuthFirstSeenPolicy`:
 
 ```dart
 final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
@@ -196,9 +196,9 @@ final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
 }
 ```
 
-The counter increments only when the hook is invoked — once a `sub` is provisioned, subsequent requests for that user hit the cache-warm path and never touch the limit. When the limit is hit, the auth flow throws `ExternalAuthFirstSeenRateLimitedException`.
+The counter increments only when the hook is invoked. Once a `sub` is provisioned, subsequent requests for that user resolve the row from the auth table directly and bypass the hook (and the limiter) entirely. When the limit is hit, the auth flow throws `ExternalAuthFirstSeenRateLimitedException`.
 
-The bucket is per-auth-table (the rate-limit `clientIp` column carries a sentinel string for now; per-IP throttling can land later by threading the request IP through `parseJwt`).
+The bucket keys on `iss:<issuer>` rather than the request IP because the actual client IP is not threaded down to the verification site today; per-IP throttling can layer in later by passing the IP through `parseJwt`. Production deployments should consider tightening the default policy — 60 attempts per hour still permits steady inflation of the auth table under a sustained compromise.
 
 ## Security considerations
 
