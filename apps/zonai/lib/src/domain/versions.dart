@@ -91,6 +91,26 @@ class Versions {
     return null;
   }
 
+  /// Prints the current and latest version for explicit version checks.
+  Future<void> printVersionCheck() async {
+    if (!kIsCompiled) {
+      logger.info('Current version: v$current');
+      logger.info('Version checks are only available in compiled builds.');
+      return;
+    }
+
+    final latestVersion = await latest();
+    logger.info('Current version: v$current');
+
+    if (latestVersion == current) {
+      logger.info('You are on the latest version.');
+      return;
+    }
+
+    logger.info('Latest version: v$latestVersion');
+    logger.info('Run `zonai version update` to install.');
+  }
+
   Future<void> downloadBinary({
     required String version,
     required String targetDestination,
@@ -126,8 +146,11 @@ class Versions {
 
     final targetVersion = _parseVersion(release);
     if (targetVersion == current) {
+      logger.info('Zonai is already up to date (v$current).');
       return;
     }
+
+    logger.info('Downloading Zonai v$targetVersion...');
 
     final assetName = _artifactName;
     final asset = _findAsset(release, assetName);
@@ -143,6 +166,15 @@ class Versions {
     );
 
     settings.version = targetVersion;
+
+    if (Platform.isWindows) {
+      logger.info(
+        'Update downloaded. It will be applied when the CLI exits.',
+      );
+      return;
+    }
+
+    logger.info('Updated to Zonai v$targetVersion.');
   }
 
   String _parseVersion(Map<String, dynamic> release) {

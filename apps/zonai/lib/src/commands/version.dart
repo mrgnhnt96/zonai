@@ -29,7 +29,7 @@ Future<int> version(List<String> path) async {
       await versions.downloadUpdate();
       return 0;
     case ['check']:
-      await versions.checkForUpdate();
+      await versions.printVersionCheck();
       return 0;
     default:
       logger.info(_usage);

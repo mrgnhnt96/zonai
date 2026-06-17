@@ -38,7 +38,14 @@ Future<int> run() async {
     return exitCode;
   }
 
-  await versions.checkForUpdate();
+  final isExplicitVersionCommand = switch (args.path) {
+    ['version', 'update' || 'check', ...] => true,
+    _ => false,
+  };
+
+  if (!isExplicitVersionCommand) {
+    await versions.checkForUpdate();
+  }
 
   if (args.help && args.path.isEmpty) {
     logger.info(_usage);
