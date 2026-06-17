@@ -900,9 +900,11 @@ packages:
   revali:
     dependency: "direct overridden"
     description:
-      path: "../../revali/packages/revali"
-      relative: true
-    source: path
+      path: "packages/revali"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.1"
   revali_annotations:
     dependency: transitive
@@ -915,72 +917,92 @@ packages:
   revali_client:
     dependency: "direct overridden"
     description:
-      path: "../../revali/constructs/revali_client/revali_client"
-      relative: true
-    source: path
+      path: "constructs/revali_client/revali_client"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.0.4"
   revali_client_gen:
     dependency: "direct overridden"
     description:
-      path: "../../revali/constructs/revali_client/revali_client_gen"
-      relative: true
-    source: path
+      path: "constructs/revali_client/revali_client_gen"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.0"
   revali_construct:
     dependency: "direct overridden"
     description:
-      path: "../../revali/packages/revali_construct"
-      relative: true
-    source: path
+      path: "packages/revali_construct"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.0"
   revali_core:
     dependency: "direct overridden"
     description:
-      path: "../../revali/packages/revali_core"
-      relative: true
-    source: path
+      path: "packages/revali_core"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "1.5.0"
   revali_router:
     dependency: "direct overridden"
     description:
-      path: "../../revali/revali_router/revali_router"
-      relative: true
-    source: path
+      path: "revali_router/revali_router"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "3.3.0"
   revali_router_annotations:
     dependency: "direct overridden"
     description:
-      path: "../../revali/revali_router/revali_router_annotations"
-      relative: true
-    source: path
+      path: "revali_router/revali_router_annotations"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.1.0"
   revali_router_core:
     dependency: "direct overridden"
     description:
-      path: "../../revali/revali_router/revali_router_core"
-      relative: true
-    source: path
+      path: "revali_router/revali_router_core"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.2.0"
   revali_server:
     dependency: "direct overridden"
     description:
-      path: "../../revali/constructs/revali_server"
-      relative: true
-    source: path
+      path: "constructs/revali_server"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "2.3.0"
   revali_swagger:
     dependency: "direct overridden"
     description:
-      path: "../../revali/constructs/revali_swagger/revali_swagger"
-      relative: true
-    source: path
+      path: "constructs/revali_swagger/revali_swagger"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "0.0.0"
   revali_swagger_annotations:
     dependency: "direct overridden"
     description:
-      path: "../../revali/constructs/revali_swagger/revali_swagger_annotations"
-      relative: true
-    source: path
+      path: "constructs/revali_swagger/revali_swagger_annotations"
+      ref: "feat/wrap-request"
+      resolved-ref: "1522e7b0e00e4376b9e0abb7c3071e88acc4159c"
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
     version: "0.0.0"
   riverpod:
     dependency: transitive

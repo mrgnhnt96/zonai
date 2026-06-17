@@ -95,7 +95,7 @@ class Config {
 
     await ConfigGenerator(configs: files).create();
 
-    final result = await process.run('dart', [
+    final result = await process.runDart([
       'compile',
       'exe',
       ...env.dartDefineArgs,

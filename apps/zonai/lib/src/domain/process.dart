@@ -1,6 +1,12 @@
 import 'dart:io' as io;
 
+import 'package:zonai/src/utils/dart_sdk.dart';
+
 class Process {
+  Future<io.ProcessResult> runDart(List<String> arguments) async {
+    return run(await resolveDartExecutable(), arguments);
+  }
+
   Future<io.ProcessResult> run(String command, List<String> arguments) async {
     final result = await io.Process.run(command, arguments);
     return result;

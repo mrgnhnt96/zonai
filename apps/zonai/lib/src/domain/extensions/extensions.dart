@@ -68,7 +68,7 @@ class Extensions {
 
     await ExtensionGenerator(extensions: files).create();
 
-    final result = await process.run('dart', [
+    final result = await process.runDart([
       'compile',
       'exe',
       ...env.dartDefineArgs,
@@ -102,7 +102,7 @@ class Extensions {
     }
 
     // analyze directory for compile errors
-    final result = await process.run('dart', ['analyze', directory.path]);
+    final result = await process.runDart(['analyze', directory.path]);
     final exitCode = await result.exitCode;
 
     if (exitCode != 0) {

@@ -28,6 +28,7 @@ class Settings {
     this.host,
     this.port,
     this.basePath,
+    this.dartSdkPath,
   });
 
   static const defaultZonaiDirectory = '.zonai';
@@ -138,6 +139,10 @@ class Settings {
         _ => defaultSettings.port,
       },
       basePath: basePath,
+      dartSdkPath: switch (map['dartSdkPath']) {
+        final String value => value,
+        _ => defaultSettings.dartSdkPath,
+      },
     );
   }
 
@@ -158,6 +163,7 @@ class Settings {
   final String path;
   final String? host;
   final int? port;
+  final String? dartSdkPath;
 
   String _normalize(List<String> paths) {
     return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));

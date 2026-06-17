@@ -72,7 +72,7 @@ class Rules {
 
     await RuleGenerator(rules: files).create();
 
-    final result = await process.run('dart', [
+    final result = await process.runDart([
       'compile',
       'exe',
       ...env.dartDefineArgs,
@@ -105,7 +105,7 @@ class Rules {
       return true;
     }
 
-    final result = await process.run('dart', ['analyze', directory.path]);
+    final result = await process.runDart(['analyze', directory.path]);
     final exitCode = result.exitCode;
 
     if (exitCode != 0) {

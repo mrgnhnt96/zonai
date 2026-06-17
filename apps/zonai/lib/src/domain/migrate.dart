@@ -11,6 +11,7 @@ import '../deps/keyboard_input.dart';
 import '../deps/logger.dart';
 import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
+import '../utils/dart_sdk.dart';
 import '../db_mutator/zonai_db/zonai_db.dart';
 import '../../zonai.dart';
 
@@ -91,6 +92,8 @@ class Migrate {
     try {
       _running = Completer<int>();
       bool hasChanges = false;
+
+      configureRaindropDartSdk();
 
       result = await runZoned(
         () async {

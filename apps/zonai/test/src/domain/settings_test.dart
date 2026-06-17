@@ -74,5 +74,23 @@ imagesPath: uploads/photos
         values: {fsProvider.overrideWith(() => memoryFs)},
       );
     });
+
+    test('loads dartSdkPath from zonai.yaml', () {
+      final memoryFs = MemoryFileSystem();
+
+      runScoped(
+        () {
+          memoryFs.file('zonai.yaml').writeAsStringSync('''
+version: 0.1.0
+dartSdkPath: /opt/dart-sdk
+''');
+
+          final settings = Settings.load();
+
+          expect(settings.dartSdkPath, '/opt/dart-sdk');
+        },
+        values: {fsProvider.overrideWith(() => memoryFs)},
+      );
+    });
   });
 }

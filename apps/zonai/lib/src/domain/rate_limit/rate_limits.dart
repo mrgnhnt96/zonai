@@ -70,7 +70,7 @@ final class RateLimitsCompiler {
 
     await RateLimitGenerator(rateLimits: files).create();
 
-    final result = await process.run('dart', [
+    final result = await process.runDart([
       'compile',
       'exe',
       ...env.dartDefineArgs,
@@ -102,7 +102,7 @@ final class RateLimitsCompiler {
       return true;
     }
 
-    final result = await process.run('dart', ['analyze', directory.path]);
+    final result = await process.runDart(['analyze', directory.path]);
     if (result.exitCode != 0) {
       final details = [
         result.stdout,
