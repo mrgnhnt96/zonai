@@ -225,7 +225,18 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
 
 **Provisioning gate.** First-seen provisioning is gated by an `ExternalIdpProvisioningGate` consulted before `onExternalAuthFirstSeen` fires. The default gate registered in `zonai`'s deps (`AllowAllExternalIdpProvisioningGate`) always allows — non-HTTP consumers (CLI tools, integration tests) pay no overhead.
 
-HTTP servers register a gate that consults rate-limits or abuse signals. The `apps/server` deployment provides `ExternalIdpProvisioning` as a Revali lifecycle component that binds an HTTP-aware gate to each request's IP, rate-limiting provisioning per **(auth-table, IP, issuer)** at 30 attempts per hour. A compromised issuer cannot exhaust the budget for sibling issuers behind the same IP; a single hostile IP cannot exhaust the budget for legitimate IPs hitting the same issuer.
+HTTP servers register a gate that consults rate-limits or abuse signals. The `apps/server` deployment provides `ExternalIdpProvisioning` as a Revali lifecycle component that binds an HTTP-aware gate to each request's IP, rate-limiting provisioning per **(auth-table, IP)** through the standard rate-limit machinery (`RateLimitOperation.externalIdpProvisioning`). The default policy is 30 attempts per hour; tune per auth table by overriding `AuthTableRateLimits.externalIdpProvisioningPolicy`:
+
+```dart
+final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
+  UsersRateLimits() : super(users);
+
+  @override
+  Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async {
+    return const RateLimitPolicy(maxRequests: 10, window: Duration(hours: 1));
+  }
+}
+```
 
 When the gate rejects, the auth flow throws `ExternalIdpProvisioningRejectedException`. Once a `sub` is provisioned, subsequent requests for that user resolve the row from the auth table directly and bypass the gate entirely.
 

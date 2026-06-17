@@ -133,13 +133,10 @@ class DbRateLimits {
         null => defaults.auth.adminSignInPolicy(),
         final a => a.adminSignInPolicy(),
       },
-      // The external-IdP provisioning bucket is keyed by
-      // (table, IP+issuer, operation) and has no consumer-override
-      // surface — the policy lives in `apps/server`'s gate impl.
-      // This switch arm exists only because the enum is exhaustive;
-      // callers should use `RateLimiter.checkExternalIdpProvisioning`
-      // rather than reaching through `check` with this operation.
-      .externalIdpProvisioning => Future<RateLimitPolicy?>.value(null),
+      .externalIdpProvisioning => switch (bucket?.auth) {
+        null => defaults.auth.externalIdpProvisioningPolicy(),
+        final a => a.externalIdpProvisioningPolicy(),
+      },
     };
 
     return RateLimitResponse(id: request.id, policy: await policy);
@@ -201,4 +198,7 @@ final class _DefaultAuthTableRateLimits {
   Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
 
   Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
+
+  Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async =>
+      .externalIdpProvisioning;
 }

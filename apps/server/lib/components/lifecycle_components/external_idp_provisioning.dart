@@ -2,6 +2,7 @@ import 'package:revali_router/revali_router.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/services/external_idp_provisioning_gate.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 /// Per-request lifecycle hook that overrides the zonai default
 /// [externalIdpProvisioningGateProvider] (a no-op) with an HTTP-aware
@@ -28,13 +29,9 @@ class ExternalIdpProvisioning implements LifecycleComponent {
   }
 }
 
-/// HTTP-aware impl that rate-limits provisioning per (table, IP,
-/// issuer) using the same `_rate_limit` table the existing
-/// `RateLimit` guards write to.
-///
-/// Reuses [RateLimiter.checkExternalIdpProvisioning] rather than the
-/// generic `check` so this throttle stays separate from the per-route
-/// operation policies and can be tuned independently.
+/// HTTP-aware impl that rate-limits provisioning per (table, IP) via
+/// the existing rate-limit framework. Policy is tunable per auth
+/// table through `AuthTableRateLimits.externalIdpProvisioningPolicy`.
 final class _HttpExternalIdpProvisioningGate
     implements ExternalIdpProvisioningGate {
   const _HttpExternalIdpProvisioningGate({required this.ipAddress});
@@ -47,10 +44,10 @@ final class _HttpExternalIdpProvisioningGate
     required String issuer,
     required String sub,
   }) async {
-    return await rateLimiter.checkExternalIdpProvisioning(
+    return await rateLimiter.check(
       table: table,
       ipAddress: ipAddress,
-      issuer: issuer,
+      operation: RateLimitOperation.externalIdpProvisioning,
     );
   }
 }

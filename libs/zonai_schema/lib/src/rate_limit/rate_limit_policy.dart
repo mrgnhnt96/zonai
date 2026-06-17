@@ -7,6 +7,14 @@ final class RateLimitPolicy {
     window: Duration(minutes: 1),
   );
 
+  /// Default for `AuthTableRateLimits.externalIdpProvisioningPolicy`.
+  /// Tighter than [defaultPolicy] because the first-seen path
+  /// provisions a new row in the auth table on each accepted hit.
+  static const externalIdpProvisioning = RateLimitPolicy(
+    maxRequests: 30,
+    window: Duration(hours: 1),
+  );
+
   factory RateLimitPolicy.fromJson(Map<String, dynamic> json) {
     return RateLimitPolicy(
       maxRequests: json['maxRequests'] as int,
