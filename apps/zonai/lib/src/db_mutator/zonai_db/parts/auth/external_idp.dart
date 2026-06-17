@@ -116,10 +116,28 @@ extension _ExternalIdpX on ZonaiDb {
 
     var user = await _externalAuthUserById(table: config.authTable, id: sub);
     if (user == null) {
-      // First-seen path: give the consumer's hook a chance to
-      // provision the row, then re-attempt the lookup. The hook is
-      // invoked with a ProvisioningJwt that the rules layer
-      // restricts to mutating exactly this auth table.
+      // First-seen path: rate-limit the hook invocation to bound the
+      // abuse vector where a hostile external IdP mints a flood of
+      // unique `sub` claims to provision unbounded rows. The bucket
+      // is per-authTable (the rate-limit "IP" column carries the
+      // sentinel `__external_first_seen__` since the actual client IP
+      // is not threaded down here — per-IP throttling can land later
+      // by passing the IP through `parseJwt`).
+      final allowed = await rateLimiter.check(
+        table: config.authTable,
+        ipAddress: '__external_first_seen__',
+        operation: .externalAuthFirstSeen,
+      );
+      if (!allowed) {
+        throw ExternalAuthFirstSeenRateLimitedException(
+          table: config.authTable,
+        );
+      }
+
+      // Give the consumer's hook a chance to provision the row, then
+      // re-attempt the lookup. The hook is invoked with a
+      // ProvisioningJwt that the rules layer restricts to mutating
+      // exactly this auth table.
       await _extensions.send<NoActionExtensionResponse>(
         AuthExtensionRequest.onExternalAuthFirstSeen(
           table: config.authTable,

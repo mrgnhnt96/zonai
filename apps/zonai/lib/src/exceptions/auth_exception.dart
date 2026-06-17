@@ -140,3 +140,20 @@ final class AuthFailedException extends AuthException {
     return 'Failed to authenticate';
   }
 }
+
+/// Thrown when the `onExternalAuthFirstSeen` rate limit is exceeded
+/// for the requested auth collection. Protects against a hostile
+/// external IdP minting a flood of unique `sub` claims to provision
+/// unbounded rows.
+///
+/// Tune the limit via `AuthTableRateLimits.externalAuthFirstSeenPolicy`.
+final class ExternalAuthFirstSeenRateLimitedException extends AuthException {
+  const ExternalAuthFirstSeenRateLimitedException({required this.table});
+
+  final String table;
+
+  @override
+  String toString() =>
+      'External-IdP first-seen provisioning rate limit exceeded for table: '
+      '$table';
+}

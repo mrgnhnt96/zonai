@@ -35,4 +35,13 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
   Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
 
   Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
+
+  /// Throttles `onExternalAuthFirstSeen` hook invocations to bound the
+  /// abuse vector where a hostile external IdP mints a flood of unique
+  /// `sub` claims to provision unbounded rows in this auth table.
+  ///
+  /// Defaults to 60 attempts per hour per table (returned by the base
+  /// `defaultPolicy`). Override to tighten or return `null` to disable.
+  Future<RateLimitPolicy?> externalAuthFirstSeenPolicy() async =>
+      const RateLimitPolicy(maxRequests: 60, window: Duration(hours: 1));
 }

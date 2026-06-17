@@ -18,4 +18,5 @@ enum RateLimitOperation {
   logoutAll,
   adminAuthenticate,
   adminSignIn,
+  externalAuthFirstSeen,
 }

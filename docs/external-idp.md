@@ -180,6 +180,26 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
 
 **Alternative provisioning paths.** If you'd rather create users out-of-band (admin script, IdP webhook, periodic reconcile), leave `onExternalAuthFirstSeen` unimplemented. The auth flow will reject unknown `sub`s with `UserNotFoundAuthException` until the row exists.
 
+**Rate limiting.** Each first-seen invocation goes through the [rate-limit framework](rate-limiting.md) — `RateLimitOperation.externalAuthFirstSeen`. The default policy is **60 attempts per hour per auth table**, bounding the abuse vector where a hostile external IdP mints unique `sub` claims to flood the auth collection. Tune via `AuthTableRateLimits.externalAuthFirstSeenPolicy`:
+
+```dart
+final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
+  UsersRateLimits() : super(users);
+
+  @override
+  Future<RateLimitPolicy?> externalAuthFirstSeenPolicy() async {
+    return const RateLimitPolicy(
+      maxRequests: 10,
+      window: Duration(minutes: 15),
+    );
+  }
+}
+```
+
+The counter increments only when the hook is invoked — once a `sub` is provisioned, subsequent requests for that user hit the cache-warm path and never touch the limit. When the limit is hit, the auth flow throws `ExternalAuthFirstSeenRateLimitedException`.
+
+The bucket is per-auth-table (the rate-limit `clientIp` column carries a sentinel string for now; per-IP throttling can land later by threading the request IP through `parseJwt`).
+
 ## Security considerations
 
 External-IdP trust expands zonai's attack surface in ways the schema-layer types already enforce or document.
