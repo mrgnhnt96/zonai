@@ -44,7 +44,7 @@ try {
 
   $serve = Start-Process `
     -FilePath $Executable `
-    -ArgumentList "serve", "--log", "verbose" `
+    -ArgumentList "serve", "--log", "verbose", "--no-version-check" `
     -WorkingDirectory $PlaygroundDir `
     -PassThru `
     -RedirectStandardOutput $serveLog `

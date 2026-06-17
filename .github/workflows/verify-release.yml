@@ -83,11 +83,6 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
-      - name: Verify release artifact (Unix)
-        if: runner.os != 'Windows'
+      - name: Verify release artifact
+        shell: bash
         run: bash tool/ci/verify_release_artifact.sh "build/${{ matrix.executable_name }}"
-
-      - name: Verify release artifact (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./tool/ci/verify_release_artifact.ps1 -Executable "build/${{ matrix.executable_name }}"
