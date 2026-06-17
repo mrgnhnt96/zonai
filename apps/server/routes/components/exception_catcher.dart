@@ -52,6 +52,10 @@ final class Exceptions implements LifecycleComponent {
       ),
       AuthTableNotFoundException() ||
       AuthFailedException() => _internal(exception),
+      ExternalIdpProvisioningRejectedException() => .handled(
+        statusCode: 403,
+        body: {'error': '$exception'},
+      ),
     };
   }
 
