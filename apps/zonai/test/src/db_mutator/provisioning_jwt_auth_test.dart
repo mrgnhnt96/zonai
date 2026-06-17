@@ -109,7 +109,7 @@ void main() {
 const _jwtSecret = 'test-jwt-pepper';
 
 const _testConfig = AppConfig(
-  appName: 'test',
+  applicationName: 'test',
   passwordSecret: 'test-password-pepper',
   jwtSecret: _jwtSecret,
 );

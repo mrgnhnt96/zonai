@@ -561,7 +561,7 @@ class _DevAppState extends State<DevApp> {
   Future<String> _resolveAppName() async {
     try {
       final config = await configResolver.resolve();
-      return config.appName;
+      return config.applicationName;
     } catch (_) {
       return 'My App';
     }

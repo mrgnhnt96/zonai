@@ -41,7 +41,7 @@ class App extends StatelessComponent {
           )
         : null;
     final title = PageTitle.resolve(
-      appName: appConfig.appName,
+      appName: appConfig.applicationName,
       signedIn: initialSignedIn,
       path: initialPath,
       tableDisplayName: tableDisplayName,
@@ -53,7 +53,7 @@ class App extends StatelessComponent {
         meta: {
           'viewport': 'width=device-width, initial-scale=1',
           'description': PageTitle.description(
-            appName: appConfig.appName,
+            appName: appConfig.applicationName,
             signedIn: initialSignedIn,
             path: initialPath,
             tableDisplayName: tableDisplayName,
@@ -64,7 +64,7 @@ class App extends StatelessComponent {
       AppShellGate(
         initialSignedIn: initialSignedIn,
         initialPath: initialPath,
-        initialAppName: appConfig.appName,
+        initialAppName: appConfig.applicationName,
         initialBaseUrl: appConfig.baseUrl,
         initialAuthTypeNames: [for (final type in initialAuthTypes) type.name],
         initialSqliteNames: initialSqliteNames,

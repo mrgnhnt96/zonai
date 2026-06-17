@@ -36,7 +36,7 @@ class _Send {
     final message = Message()
       ..from = Address(
         email.from?.address ?? emailConfig.from.address,
-        email.from?.name ?? emailConfig.from.name ?? config.appName,
+        email.from?.name ?? emailConfig.from.name ?? config.applicationName,
       )
       ..recipients.add(Address(email.to.address, email.to.name))
       ..subject = email.subject
@@ -114,7 +114,7 @@ class _EmailContent {
   String html() => renderEmailTemplate(
     templateName: email.template,
     variables: email.variables,
-    appName: config.appName,
+    appName: config.applicationName,
     emailTemplatesPath: settings.emailTemplatesPath,
   );
 }
