@@ -17,7 +17,7 @@ echo "Verifying compile..."
 "$executable" compile
 
 echo "Verifying serve (must stay running for ${serve_seconds}s)..."
-"$executable" serve &
+"$executable" serve --log verbose &
 serve_pid=$!
 
 sleep "$serve_seconds"

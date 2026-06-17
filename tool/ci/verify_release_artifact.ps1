@@ -22,14 +22,28 @@ try {
   Write-Host "compile succeeded"
 
   Write-Host "Verifying serve (must stay running for ${ServeSeconds}s)..."
+  $logDir = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
+  $serveLog = Join-Path $logDir "zonai-serve.log"
+  $serveErrLog = Join-Path $logDir "zonai-serve.err.log"
+  if (Test-Path $serveLog) { Remove-Item $serveLog -Force }
+  if (Test-Path $serveErrLog) { Remove-Item $serveErrLog -Force }
+
   $serve = Start-Process `
     -FilePath $Executable `
-    -ArgumentList "serve" `
+    -ArgumentList "serve", "--log", "verbose" `
     -WorkingDirectory $PlaygroundDir `
     -PassThru `
-    -NoNewWindow
+    -RedirectStandardOutput $serveLog `
+    -RedirectStandardError $serveErrLog
 
   Start-Sleep -Seconds $ServeSeconds
+
+  if (Test-Path $serveLog) {
+    Get-Content $serveLog | Write-Host
+  }
+  if (Test-Path $serveErrLog) {
+    Get-Content $serveErrLog | Write-Host
+  }
 
   if ($serve.HasExited) {
     throw "serve exited before ${ServeSeconds}s (exit code $($serve.ExitCode))"
