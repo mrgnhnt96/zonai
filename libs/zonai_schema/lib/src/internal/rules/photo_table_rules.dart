@@ -1,5 +1,5 @@
-import 'package:zonai/src/internal/tables/photos_table.dart';
-import 'package:zonai/src/internal/rules/internal_rules.dart';
+import 'package:zonai_schema/src/internal/tables/photos_table.dart';
+import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide photos, PhotosTable;
 
 PhotoTableRules main() => PhotoTableRules();

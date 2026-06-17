@@ -1,5 +1,5 @@
-import 'package:zonai/src/internal/tables/auth_challenge_table.dart';
-import 'package:zonai/src/internal/rules/internal_rules.dart';
+import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart';
+import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
 AuthChallengeRowRules main() => AuthChallengeRowRules();

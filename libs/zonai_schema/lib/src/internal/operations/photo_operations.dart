@@ -1,4 +1,4 @@
-import 'package:zonai/src/internal/tables/photos_table.dart';
+import 'package:zonai_schema/src/internal/tables/photos_table.dart';
 import 'package:zonai_schema/src/operations/table_operations.dart';
 import 'package:zonai_schema/src/internal/photos_table.dart' show PhotoEntry;
 

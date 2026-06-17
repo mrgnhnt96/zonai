@@ -1,5 +1,5 @@
 import 'package:file/file.dart';
-import 'package:zonai/src/internal/internal_db_artifacts.dart';
+import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 

@@ -5,7 +5,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
-import 'package:zonai/src/internal/tables/logs_table.dart';
+import 'package:zonai_schema/src/internal/tables/logs_table.dart';
 import 'photo_view_headers.dart';
 
 const _errorSummaryMaxLength = 120;

@@ -1,7 +1,7 @@
 import 'package:file/file.dart';
 
 import '../deps/fs.dart';
-import '../internal/internal_db_artifacts.dart';
+import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 
 /// A user-defined table discovered from schema source files.
 class SchemaTableInfo {

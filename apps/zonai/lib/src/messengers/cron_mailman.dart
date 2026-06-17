@@ -4,7 +4,7 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
-import 'package:zonai/src/internal/tables/crons_table.dart';
+import 'package:zonai_schema/src/internal/tables/crons_table.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
 

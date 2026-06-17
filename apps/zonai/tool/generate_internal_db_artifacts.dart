@@ -1,4 +1,4 @@
-// Generates lib/src/internal/internal_db_artifacts.dart from framework files.
+// Generates libs/zonai_schema/lib/src/internal/internal_db_artifacts.dart.
 //
 // Run from this package:
 //   dart run tool/generate_internal_db_artifacts.dart
@@ -43,6 +43,11 @@ const _migrationsDartHeader = '''
 const _raindropConfig = 'raindrop.yaml';
 const _migrationsDir = 'lib/src/internal/migrations';
 const _migrationsDartPath = 'lib/src/internal/internal_db_migrations.dart';
+const _schemaPackageRoot = '../../libs/zonai_schema';
+const _schemaInternalRoot = 'lib/src/internal';
+const _artifactsDartPath =
+    '$_schemaPackageRoot/$_schemaInternalRoot/internal_db_artifacts.dart';
+const _importPrefix = 'package:zonai_schema/src/internal';
 
 final _tableNamePattern = RegExp(r"table\s*\(\s*'([^']+)'");
 final _tableGetterPattern = RegExp(r'final\s+(\w+)\s*=\s*table\s*\(');
@@ -56,10 +61,11 @@ Future<void> main(List<String> args) async {
       '_zonai_v${kVersion.replaceAll('.', '-')}__';
 
   final packageRoot = Directory.current;
-  final libRoot = Directory('${packageRoot.path}/lib/src/internal');
+  final schemaRoot = Directory(p.join(packageRoot.path, _schemaPackageRoot));
+  final libRoot = Directory(p.join(schemaRoot.path, _schemaInternalRoot));
   if (!libRoot.existsSync()) {
     stderr.writeln(
-      'Run from the zonai package root (lib/src/internal not found).',
+      'Run from the zonai package root ($_schemaPackageRoot/$_schemaInternalRoot not found).',
     );
     exit(1);
   }
@@ -78,28 +84,28 @@ Future<void> main(List<String> args) async {
   final operations = _discoverEntries(
     Directory('${libRoot.path}/operations'),
     suffix: '_operations.dart',
-    importPrefix: 'package:zonai/src/internal/operations/',
+    importPrefix: '$_importPrefix/operations/',
   );
   final rules = _discoverEntries(
     Directory('${libRoot.path}/rules'),
     suffix: '_rules.dart',
-    importPrefix: 'package:zonai/src/internal/rules/',
+    importPrefix: '$_importPrefix/rules/',
     exclude: {'internal_rules.dart'},
   );
   final rateLimits = _discoverEntries(
     Directory('${libRoot.path}/rate_limits'),
     suffix: '_rate_limits.dart',
-    importPrefix: 'package:zonai/src/internal/rate_limits/',
+    importPrefix: '$_importPrefix/rate_limits/',
   );
   final extensions = _discoverEntries(
     Directory('${libRoot.path}/extensions'),
     suffix: '_extension.dart',
-    importPrefix: 'package:zonai/src/internal/extensions/',
+    importPrefix: '$_importPrefix/extensions/',
   );
   final crons = _discoverEntries(
     Directory('${libRoot.path}/crons'),
     suffix: '_cron.dart',
-    importPrefix: 'package:zonai/src/internal/crons/',
+    importPrefix: '$_importPrefix/crons/',
   );
   final tables = _discoverTables(libRoot);
 
@@ -117,7 +123,7 @@ Future<void> main(List<String> args) async {
     crons: crons,
     tables: tables,
   );
-  final outFile = File('${libRoot.path}/internal_db_artifacts.dart');
+  final outFile = File(p.join(packageRoot.path, _artifactsDartPath));
 
   if (checkOnly) {
     final migrationsDart = File('${packageRoot.path}/$_migrationsDartPath');
@@ -353,9 +359,9 @@ List<({String importPath, String getter, String tableName})> _discoverTables(
 
   scanDir(
     Directory('${internalRoot.path}/tables'),
-    'package:zonai/src/internal/tables/',
+    '$_importPrefix/tables/',
   );
-  scanDir(internalRoot, 'package:zonai/src/internal/');
+  scanDir(internalRoot, '$_importPrefix/');
 
   tables.sort((a, b) => a.tableName.compareTo(b.tableName));
   return tables;

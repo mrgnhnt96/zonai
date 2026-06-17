@@ -3,7 +3,7 @@ import 'package:raindrop/raindrop.dart' hide Table;
 import 'package:resqlite/resqlite.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
-import 'package:zonai/src/internal/tables/rate_limit_table.dart'
+import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart'
     as rate_limit_table;
 import 'package:zonai/src/messengers/rate_limit_mailman.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';

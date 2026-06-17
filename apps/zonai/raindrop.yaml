@@ -1,7 +1,7 @@
 dialect: sqlite
 
 # Migratable internal tables (_raindrop_migrations lives outside this dir).
-schemas: lib/src/internal/tables
+schemas: ../../libs/zonai_schema/lib/src/internal/tables
 
 # SQL migrations and journal/snapshots checked into the repo.
 out: lib/src/internal/migrations
