@@ -53,3 +53,7 @@ Thumbs.db
 apps/web/.cursor
 *.stop
 .serve.lock
+
+# Platform-specific Zonai build artifacts (rebuilt by compile/serve)
+**/.zonai/executables/
+**/.zonai/lib/

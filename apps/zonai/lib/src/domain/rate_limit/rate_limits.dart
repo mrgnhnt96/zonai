@@ -29,6 +29,7 @@ final class RateLimitsCompiler {
     if (args.release) return;
 
     if (__subscription != null) return;
+    if (!fs.directory(settings.rateLimitPath).existsSync()) return;
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Rate limits changed: ${event.path}');

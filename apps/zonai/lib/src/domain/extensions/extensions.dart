@@ -27,6 +27,7 @@ class Extensions {
   void watch() {
     if (args.release) return;
     if (__subscription != null) return;
+    if (!fs.directory(settings.extensionsPath).existsSync()) return;
 
     __subscription = _watcher.events.listen((event) {
       logger.debug('Extensions changed: ${event.path}');

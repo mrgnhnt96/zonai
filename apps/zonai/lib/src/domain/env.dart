@@ -32,6 +32,8 @@ class Env {
     if (args.release) return;
     if (__subscription != null) return;
 
+    if (!env.exists) return;
+
     __subscription = _watcher.events.listen((event) {
       logger.debug('Env changed: ${event.path}');
       onChange();

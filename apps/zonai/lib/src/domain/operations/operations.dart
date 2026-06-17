@@ -34,7 +34,8 @@ class Operations {
   void watch() {
     if (args.release) return;
 
-    if (__subscription == null) {
+    if (__subscription == null &&
+        fs.directory(settings.operationsPath).existsSync()) {
       __subscription = _watcher.events.listen((event) {
         logger.debug('Operations changed: ${event.path}');
         logger.info('Detected changes in operations, recompiling...');

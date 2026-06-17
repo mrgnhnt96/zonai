@@ -14,6 +14,13 @@ $PlaygroundDir = (Resolve-Path $PlaygroundDir).Path
 Push-Location $PlaygroundDir
 
 try {
+  Write-Host "Verifying compile..."
+  & $Executable compile
+  if ($LASTEXITCODE -ne 0) {
+    throw "compile failed with exit code $LASTEXITCODE"
+  }
+  Write-Host "compile succeeded"
+
   Write-Host "Verifying serve (must stay running for ${ServeSeconds}s)..."
   $serve = Start-Process `
     -FilePath $Executable `
@@ -30,13 +37,6 @@ try {
 
   Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
   Write-Host "serve stayed running for ${ServeSeconds}s"
-
-  Write-Host "Verifying compile..."
-  & $Executable compile
-  if ($LASTEXITCODE -ne 0) {
-    throw "compile failed with exit code $LASTEXITCODE"
-  }
-  Write-Host "compile succeeded"
 }
 finally {
   Pop-Location

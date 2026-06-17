@@ -13,6 +13,9 @@ fi
 
 cd "$playground_dir"
 
+echo "Verifying compile..."
+"$executable" compile
+
 echo "Verifying serve (must stay running for ${serve_seconds}s)..."
 "$executable" serve &
 serve_pid=$!
@@ -28,7 +31,3 @@ fi
 kill "$serve_pid" 2>/dev/null || true
 wait "$serve_pid" 2>/dev/null || true
 echo "serve stayed running for ${serve_seconds}s"
-
-echo "Verifying compile..."
-"$executable" compile
-echo "compile succeeded"
