@@ -1,14 +1,14 @@
 name: Deploy Docs
 
 on:
-  push:
-    # branches: [main]
-    # paths:
-    #   - "apps/docs/**"
-    #   - "pubspec.yaml"
-    #   - "pubspec.lock"
-    #   - "pubspec_overrides.yaml"
-    #   - ".github/workflows/deploy-docs.yml"
+  # push:
+  # branches: [main]
+  # paths:
+  #   - "apps/docs/**"
+  #   - "pubspec.yaml"
+  #   - "pubspec.lock"
+  #   - "pubspec_overrides.yaml"
+  #   - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
 permissions:
