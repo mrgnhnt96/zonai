@@ -1,0 +1,6 @@
+# Placeholder version — replaced by tool/ci/verify_compat.sh during CI.
+version: 0.0.0
+
+migrationsPath: .zonai/migrations
+schemasPath: lib/src/schemas
+configPath: lib/src/config
