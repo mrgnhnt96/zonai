@@ -101,6 +101,11 @@ class ZonaiDb {
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
+  /// Keyed by `JwksIdpConfig.jwksUrl` so multiple configs against the
+  /// same endpoint share a key cache and HTTP client. Constructed
+  /// lazily by [_jwksVerifierFor]; disposed in [dispose].
+  final Map<String, JwksIdpVerifier> _jwksVerifiers = {};
+
   File? __dbFile;
 
   /// Closes the underlying [ResqliteDelegate] and clears the open [db].
@@ -120,6 +125,10 @@ class ZonaiDb {
     _rules.dispose();
     _operations.dispose();
     _config.dispose();
+    for (final verifier in _jwksVerifiers.values) {
+      verifier.dispose();
+    }
+    _jwksVerifiers.clear();
   }
 
   Future<AppConfig> getConfig() async {

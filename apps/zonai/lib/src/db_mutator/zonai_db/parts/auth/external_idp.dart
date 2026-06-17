@@ -37,11 +37,19 @@ extension _ExternalIdpX on ZonaiDb {
       SharedSecretIdpConfig() => Future.value(
         SharedSecretIdpVerifier(idpConfig).verify(rawJwt),
       ),
-      JwksIdpConfig() => JwksIdpVerifier(idpConfig).verify(rawJwt),
+      JwksIdpConfig() => _jwksVerifierFor(idpConfig).verify(rawJwt),
     };
 
     return await _externalJwtFromClaims(idpConfig, claims);
   }
+
+  /// Returns a process-wide [JwksIdpVerifier] for [config], keyed by
+  /// [JwksIdpConfig.jwksUrl] so its key cache and HTTP client live
+  /// across requests. Without this hoist, every external-IdP token
+  /// verification would trigger a fresh JWKS fetch — the cache only
+  /// works if the verifier outlives a single call.
+  JwksIdpVerifier _jwksVerifierFor(JwksIdpConfig config) =>
+      _jwksVerifiers.putIfAbsent(config.jwksUrl, () => JwksIdpVerifier(config));
 
   /// Decodes the JWT payload segment WITHOUT verifying the signature
   /// to read its `iss` claim. The result is only used to pick an IdP

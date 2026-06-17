@@ -8,8 +8,8 @@ import 'package:jose/jose.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/config/external_idp_config.dart';
 
-import '../../../lib/src/exceptions/auth_exception.dart';
-import '../../../lib/src/utils/jwks_idp_verifier.dart';
+import 'package:zonai/src/exceptions/auth_exception.dart';
+import 'package:zonai/src/utils/jwks_idp_verifier.dart';
 
 const _issuer = 'https://issuer.example/auth';
 const _audience = 'api.example.com';
@@ -131,8 +131,8 @@ void main() {
           ),
         );
         final verifier = JwksIdpVerifier(_config, httpClient: mockClient);
-        // Build a token with alg=HS256 manually so the verifier sees it
-        // before any signature check happens.
+        // Sign with an HMAC key so the token's `alg` is `HS256` — the
+        // verifier rejects on the allowlist before any signature check.
         final hsToken = await _signedJwt(
           signingKey: JsonWebKey.fromJson({
             'kty': 'oct',
@@ -162,8 +162,8 @@ void main() {
         ),
       );
       final verifier = JwksIdpVerifier(_config, httpClient: mockClient);
-      // Build a token with alg=none. jose may not let us build one
-      // directly, so construct manually.
+      // `alg=none` tokens have an empty signature segment; build the
+      // compact form directly.
       final header = base64Url
           .encode(utf8.encode(jsonEncode({'alg': 'none', 'typ': 'JWT'})))
           .replaceAll('=', '');
@@ -515,6 +515,104 @@ void main() {
           verifier.verify('a.b'),
           throwsA(isA<InvalidJwtException>()),
         );
+      });
+    });
+
+    test('rejects plaintext jwksUrl without fetching', () async {
+      final pair = _makeRsaKeyPair(kid: 'k');
+      var fetched = false;
+      final mockClient = MockClient((_) async {
+        fetched = true;
+        return http.Response(
+          jsonEncode({
+            'keys': [pair.publicJwk],
+          }),
+          200,
+        );
+      });
+      final verifier = JwksIdpVerifier(
+        JwksIdpConfig(
+          issuer: 'https://issuer.example',
+          audience: 'gravity-brew',
+          authTable: 'users',
+          jwksUrl: 'http://issuer.example/.well-known/jwks.json',
+        ),
+        httpClient: mockClient,
+      );
+      final token = await _signedJwt(
+        signingKey: pair.signingKey,
+        payload: validPayload(),
+      );
+      await withClock(Clock.fixed(now), () async {
+        await expectLater(
+          verifier.verify(token),
+          throwsA(isA<InvalidJwtException>()),
+        );
+      });
+      expect(fetched, isFalse);
+    });
+
+    test('floors kid-miss refreshes: only one fetch per window across '
+        'rapid unknown-kid tokens', () async {
+      final goodPair = _makeRsaKeyPair(kid: 'good');
+      var fetchCount = 0;
+      final mockClient = MockClient((_) async {
+        fetchCount++;
+        return http.Response(
+          jsonEncode({
+            'keys': [goodPair.publicJwk],
+          }),
+          200,
+        );
+      });
+      final verifier = JwksIdpVerifier(_config, httpClient: mockClient);
+
+      // First call with a good token populates the cache (a
+      // cold-cache refresh, NOT a kid-miss refresh — must not arm
+      // the floor).
+      final goodToken = await _signedJwt(
+        signingKey: goodPair.signingKey,
+        payload: validPayload(),
+      );
+
+      // Forge tokens whose `kid` is not in the JWKS by signing with
+      // throwaway keys carrying unknown kids — verification fails on
+      // kid lookup before any signature check.
+      final attackerKeyA = JsonWebKey.fromJson({
+        ...JsonWebKey.generate('RS256').toJson(),
+        'kid': 'attacker-a',
+      });
+      final attackerKeyB = JsonWebKey.fromJson({
+        ...JsonWebKey.generate('RS256').toJson(),
+        'kid': 'attacker-b',
+      });
+      final attackTokenA = await _signedJwt(
+        signingKey: attackerKeyA,
+        payload: validPayload(),
+      );
+      final attackTokenB = await _signedJwt(
+        signingKey: attackerKeyB,
+        payload: validPayload(),
+      );
+
+      await withClock(Clock.fixed(now), () async {
+        await verifier.verify(goodToken);
+        expect(fetchCount, 1);
+
+        // First attacker token: kid miss → ONE refresh (the
+        // legitimate rotation case looks identical at this stage).
+        await expectLater(
+          verifier.verify(attackTokenA),
+          throwsA(isA<InvalidJwtException>()),
+        );
+        expect(fetchCount, 2);
+
+        // Second attacker token within the floor: NO refresh.
+        await expectLater(
+          verifier.verify(attackTokenB),
+          throwsA(isA<InvalidJwtException>()),
+        );
+        expect(fetchCount, 2);
       });
     });
   });

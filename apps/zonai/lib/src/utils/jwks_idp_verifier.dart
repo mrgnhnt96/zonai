@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:clock/clock.dart' show clock;
@@ -9,9 +8,10 @@ import 'package:zonai_schema/src/config/external_idp_config.dart';
 
 /// Verifies JWTs against a [JwksIdpConfig].
 ///
-/// Fetches the IdP's JWKS endpoint on demand, caches the parsed key
-/// set for [JwksIdpConfig.cacheTtl], and verifies tokens via the
-/// `jose` library's `JsonWebSignature` + `JsonWebKeyStore` pipeline.
+/// Fetches the IdP's JWKS endpoint on demand and caches the parsed
+/// key set for [JwksIdpConfig.cacheTtl]. Instances are intended to
+/// outlive a single request — the cache only does its job when the
+/// verifier is shared across calls for the same [JwksIdpConfig].
 ///
 /// **Algorithm pinning:** rejects any `alg` outside `RS256` / `RS384`
 /// / `RS512` / `ES256` / `ES384` / `ES512`. Blocks `alg=none` and the
@@ -19,12 +19,16 @@ import 'package:zonai_schema/src/config/external_idp_config.dart';
 /// an asymmetric public key.
 ///
 /// **Key rotation:** if a token's `kid` is not in the cached key
-/// set, the cache is refreshed once (capped per fetch) before
-/// failing — newly-rotated keys land on the next request without
-/// waiting for the TTL.
+/// set, the cache is refreshed once — newly-rotated keys land on the
+/// next request without waiting for the TTL. To bound amplification,
+/// kid-miss refreshes are floored to one attempt per
+/// [_kidMissRefreshFloor]; further kid misses inside the window are
+/// rejected without re-fetching.
 ///
 /// **DoS posture:** [JwksIdpConfig.fetchTimeout] bounds the per-call
 /// HTTP wait. A failing IdP cannot indefinitely block auth.
+/// [JwksIdpConfig.jwksUrl] must be `https://`; plaintext JWKS lets a
+/// network attacker substitute keys and forge any token.
 final class JwksIdpVerifier {
   JwksIdpVerifier(this._config, {http.Client? httpClient})
     : _httpClient = httpClient ?? http.Client();
@@ -32,6 +36,18 @@ final class JwksIdpVerifier {
   final JwksIdpConfig _config;
   final http.Client _httpClient;
   _JwksCacheEntry? _cache;
+  DateTime? _lastKidMissRefresh;
+
+  /// Minimum time between kid-miss-driven refreshes. Bounds the
+  /// amplification surface where a stream of tokens with random
+  /// unknown `kid` values would otherwise force one JWKS fetch per
+  /// token. TTL-driven refreshes are not gated by this floor.
+  static const _kidMissRefreshFloor = Duration(seconds: 10);
+
+  /// Releases the underlying HTTP client. Safe to call multiple times.
+  void dispose() {
+    _httpClient.close();
+  }
 
   /// Algorithms whose JWS signatures this verifier accepts. HMAC
   /// algorithms (`HS*`) are intentionally rejected — they presume a
@@ -97,8 +113,11 @@ final class JwksIdpVerifier {
   ///
   /// If the cached set is fresh and contains [requestedKid] (when
   /// the token presented one), it's returned directly. Otherwise the
-  /// JWKS is re-fetched. A second miss after the refresh throws —
-  /// the token references a key the IdP doesn't advertise.
+  /// JWKS is re-fetched — except that a kid-miss with an otherwise-
+  /// fresh cache only triggers a refresh once per
+  /// [_kidMissRefreshFloor], so a stream of tokens with bogus `kid`s
+  /// cannot drive unbounded JWKS fetches. A miss after the refresh
+  /// throws: the token references a key the IdP doesn't advertise.
   Future<JsonWebKeyStore> _getKeyStore({required String? requestedKid}) async {
     final cache = _cache;
     final cacheFresh = cache != null && !cache.isExpired();
@@ -107,6 +126,19 @@ final class JwksIdpVerifier {
 
     if (cacheFresh && cacheContainsKid) {
       return cache!.keyStore;
+    }
+
+    if (cacheFresh && !cacheContainsKid) {
+      // kid miss with a fresh cache: allow one refresh per floor
+      // window. A legitimate key rotation only needs one fetch to
+      // pick up the new kid; rapid-fire kid misses after that are
+      // the amplification pattern this floor blocks.
+      final lastKidMiss = _lastKidMissRefresh;
+      if (lastKidMiss != null &&
+          clock.now().difference(lastKidMiss) < _kidMissRefreshFloor) {
+        throw const InvalidJwtException();
+      }
+      _lastKidMissRefresh = clock.now();
     }
 
     await _refreshCache();
@@ -120,17 +152,23 @@ final class JwksIdpVerifier {
 
   /// Fetches the JWKS endpoint and rebuilds the cache.
   ///
-  /// On any failure (network error, non-200 status, malformed JSON,
-  /// missing `keys` array) the cache is left unchanged and the
-  /// caller fails closed via [InvalidJwtException] in [_getKeyStore].
+  /// Throws [InvalidJwtException] on a non-`https://` URL, network
+  /// error, timeout, non-200 status, malformed JSON, or a missing
+  /// `keys` array; the previous cache (if any) is left untouched.
   Future<void> _refreshCache() async {
+    final Uri uri;
+    try {
+      uri = Uri.parse(_config.jwksUrl);
+    } on Object {
+      throw const InvalidJwtException();
+    }
+    if (uri.scheme != 'https') {
+      throw const InvalidJwtException();
+    }
+
     final http.Response resp;
     try {
-      resp = await _httpClient
-          .get(Uri.parse(_config.jwksUrl))
-          .timeout(_config.fetchTimeout);
-    } on TimeoutException {
-      throw const InvalidJwtException();
+      resp = await _httpClient.get(uri).timeout(_config.fetchTimeout);
     } on Object {
       throw const InvalidJwtException();
     }
@@ -195,7 +233,7 @@ final class JwksIdpVerifier {
   }
 }
 
-class _JwksCacheEntry {
+final class _JwksCacheEntry {
   _JwksCacheEntry({
     required this.keyStore,
     required this.kids,
