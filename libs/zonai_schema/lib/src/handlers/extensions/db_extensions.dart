@@ -205,6 +205,13 @@ class DbExtensions {
             request.jwt,
           );
         }
+      case .onExternalAuthFirstSeen:
+        if (extension case AuthExtension(:final onExternalAuthFirstSeen)) {
+          // `request.object` carries the verified IdP claims map here,
+          // NOT a typed row — skip `safeCreate`. The hook converts
+          // claims to its own row shape via `mutate.create.one(...)`.
+          await onExternalAuthFirstSeen(request.object.cast<String, Object?>());
+        }
     }
   }
 }

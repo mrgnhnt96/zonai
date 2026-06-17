@@ -100,7 +100,11 @@ extension _ExternalIdpX on ZonaiDb {
   }
 
   /// Constructs a zonai [Jwt] from verified external IdP claims by
-  /// resolving the user row in the IdP's mapped auth table.
+  /// resolving the user row in the IdP's mapped auth table. If the
+  /// row is missing on first lookup, invokes the auth collection's
+  /// [AuthExtension.onExternalAuthFirstSeen] hook (under a
+  /// [ProvisioningJwt] scoped to [ExternalIdpConfig.authTable]),
+  /// drains any mutations the hook queued, then re-fetches.
   Future<Jwt> _externalJwtFromClaims(
     ExternalIdpConfig config,
     Map<String, Object?> claims,
@@ -110,9 +114,26 @@ extension _ExternalIdpX on ZonaiDb {
       throw const InvalidJwtException();
     }
 
-    final user = await _externalAuthUserById(table: config.authTable, id: sub);
+    var user = await _externalAuthUserById(table: config.authTable, id: sub);
     if (user == null) {
-      throw UserNotFoundAuthException(table: config.authTable);
+      // First-seen path: give the consumer's hook a chance to
+      // provision the row, then re-attempt the lookup. The hook is
+      // invoked with a ProvisioningJwt that the rules layer
+      // restricts to mutating exactly this auth table.
+      await _extensions.send<NoActionExtensionResponse>(
+        AuthExtensionRequest.onExternalAuthFirstSeen(
+          table: config.authTable,
+          object: claims,
+          jwt: ProvisioningJwt(authTable: config.authTable),
+        ),
+      );
+      // Flush whatever the hook queued (typically a single
+      // `mutate.create.one(...)`) so the re-fetch sees the new row.
+      await _executeEffects();
+      user = await _externalAuthUserById(table: config.authTable, id: sub);
+      if (user == null) {
+        throw UserNotFoundAuthException(table: config.authTable);
+      }
     }
 
     final exp = claims['exp'];

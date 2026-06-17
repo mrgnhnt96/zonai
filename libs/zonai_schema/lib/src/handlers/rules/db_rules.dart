@@ -4,6 +4,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 import 'package:zonai_schema/src/rules/rules.dart';
+import 'package:zonai_schema/src/types/provisioning_jwt.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/collection_actions.dart';
 
@@ -126,6 +127,17 @@ class DbRules {
         tableRules is AuthTableRules &&
         request.jwt?.admin.isAdmin != true) {
       throw StateError('Cannot create auth records, use the auth API instead');
+    }
+
+    // ProvisioningJwt is admin-level for the auth table it was issued
+    // against, but rejected for any other collection. Scope the
+    // elevated-write power to exactly one table; a buggy
+    // `onExternalAuthFirstSeen` hook cannot mutate unrelated data.
+    final jwt = request.jwt;
+    if (jwt is ProvisioningJwt && jwt.authTable != request.table) {
+      throw StateError(
+        'ProvisioningJwt scoped to "${jwt.authTable}" cannot ${op.name} on "${request.table}"',
+      );
     }
 
     final canAccess = await switch (op) {

@@ -171,6 +171,9 @@ extension _AuthUtilsX on ZonaiDb {
     }
 
     if (Jwt.isCronWorkerPayload(decoded)) throw const InvalidJwtException();
+    if (Jwt.isProvisioningWorkerPayload(decoded)) {
+      throw const InvalidJwtException();
+    }
 
     try {
       return Jwt.fromJson(decoded);
@@ -200,6 +203,18 @@ extension _AuthUtilsX on ZonaiDb {
     if (Jwt.isCronWorkerPayload(decoded)) {
       logger.error(
         'Attempt to use cron JWT as a user JWT, this is absolutely not expected and should be considered a security threat'
+        'Rotate the JWT secret and deploy a new version of the application immediately',
+      );
+      throw const InvalidJwtException();
+    }
+
+    /// Do not allow provisioning JWT to be a user JWT — same threat
+    /// posture as the cron sentinel above. A signed bearer token
+    /// with a `'PROVISIONING'` flag would bypass auth-table write
+    /// restrictions if accepted as a user identity.
+    if (Jwt.isProvisioningWorkerPayload(decoded)) {
+      logger.error(
+        'Attempt to use provisioning JWT as a user JWT, this is absolutely not expected and should be considered a security threat. '
         'Rotate the JWT secret and deploy a new version of the application immediately',
       );
       throw const InvalidJwtException();
