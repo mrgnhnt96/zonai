@@ -156,27 +156,21 @@ extension _ExternalIdpX on ZonaiDb {
   /// [ProvisioningJwt] for [ExternalIdpConfig.authTable]), drains any
   /// mutations the hook queued, then returns the new row.
   ///
-  /// Throttled per (auth-table, issuer) via
-  /// [AuthTableRateLimits.externalAuthFirstSeenPolicy].
+  /// Gated by [externalIdpProvisioningGate]. The default no-op gate
+  /// always allows; HTTP servers register an impl that consults rate
+  /// limits or abuse signals.
   Future<Map<String, Object?>> _provisionExternalAuthUser(
     ExternalIdpConfig config,
     String sub,
     Map<String, Object?> claims,
   ) async {
-    // The rate-limit framework keys on (table, clientIp, operation);
-    // we key by `iss:<issuer>` because the request IP is not threaded
-    // down to this call site. Each registered IdP gets its own bucket,
-    // so one compromised issuer cannot exhaust the provisioning budget
-    // for the others.
-    // TODO: thread the request IP through `parseJwt` for finer-grained
-    // per-IP keying alongside per-issuer.
-    final allowed = await rateLimiter.check(
+    final allowed = await externalIdpProvisioningGate.canProvision(
       table: config.authTable,
-      ipAddress: 'iss:${config.issuer}',
-      operation: .externalAuthFirstSeen,
+      issuer: config.issuer,
+      sub: sub,
     );
     if (!allowed) {
-      throw ExternalAuthFirstSeenRateLimitedException(table: config.authTable);
+      throw ExternalIdpProvisioningRejectedException(table: config.authTable);
     }
 
     await _extensions.send<NoActionExtensionResponse>(

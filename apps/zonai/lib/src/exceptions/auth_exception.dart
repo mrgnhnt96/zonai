@@ -141,19 +141,19 @@ final class AuthFailedException extends AuthException {
   }
 }
 
-/// Thrown when the `onExternalAuthFirstSeen` hook rate limit is
-/// exceeded for [table].
+/// Thrown when the registered [ExternalIdpProvisioningGate] rejects
+/// provisioning a first-seen external-IdP `sub` for [table].
 ///
-/// Tune the limit via
-/// [AuthTableRateLimits.externalAuthFirstSeenPolicy].
-final class ExternalAuthFirstSeenRateLimitedException extends AuthException {
-  const ExternalAuthFirstSeenRateLimitedException({required this.table});
+/// HTTP servers typically register a gate that consults rate limits or
+/// abuse signals; the default no-op gate (used outside HTTP contexts)
+/// never throws.
+final class ExternalIdpProvisioningRejectedException extends AuthException {
+  const ExternalIdpProvisioningRejectedException({required this.table});
 
-  /// Auth table whose first-seen rate limit was exceeded.
+  /// Auth table that provisioning was rejected for.
   final String table;
 
   @override
   String toString() =>
-      'External-IdP first-seen provisioning rate limit exceeded for table: '
-      '$table';
+      'External-IdP first-seen provisioning rejected for table: $table';
 }

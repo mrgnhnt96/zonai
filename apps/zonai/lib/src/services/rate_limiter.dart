@@ -17,6 +17,17 @@ final class RateLimiter {
   RateLimitsMailman? __mailman;
   RateLimitsMailman get _mailman => __mailman ??= RateLimitsMailman();
 
+  /// Fixed policy for external-IdP first-seen provisioning. Not
+  /// consumer-overridable through `AuthTableRateLimits` because the
+  /// abuse vector this throttle defends against ("compromised IdP
+  /// mints unique sub claims to flood the auth table") is the same
+  /// shape regardless of consumer schema. Operators tune by tightening
+  /// the per-IP slice of the bucket key, not by widening this policy.
+  static const _externalIdpProvisioningPolicy = RateLimitPolicy(
+    maxRequests: 30,
+    window: Duration(hours: 1),
+  );
+
   Future<bool> check({
     required String table,
     required String ipAddress,
@@ -42,6 +53,45 @@ final class RateLimiter {
       return true;
     }
 
+    return _checkBucket(
+      table: table,
+      ipAddress: ipAddress,
+      operation: operation,
+      policy: policy,
+    );
+  }
+
+  /// Rate-limits external-IdP first-seen provisioning per
+  /// (table, IP, issuer) using the fixed
+  /// [_externalIdpProvisioningPolicy]. Separate entry point from
+  /// [check] so the consumer policy-override surface
+  /// (`AuthTableRateLimits`) is not extended for a framework-level
+  /// concern.
+  ///
+  /// The bucket key in the `_rate_limit` table is composed as
+  /// `'<ipAddress>:iss:<issuer>'`, so a compromised issuer cannot
+  /// exhaust the budget for sibling issuers behind the same IP, and
+  /// a single hostile IP cannot exhaust the budget for legitimate
+  /// IPs hitting the same issuer.
+  Future<bool> checkExternalIdpProvisioning({
+    required String table,
+    required String ipAddress,
+    required String issuer,
+  }) async {
+    return _checkBucket(
+      table: table,
+      ipAddress: '$ipAddress:iss:$issuer',
+      operation: RateLimitOperation.externalIdpProvisioning,
+      policy: _externalIdpProvisioningPolicy,
+    );
+  }
+
+  Future<bool> _checkBucket({
+    required String table,
+    required String ipAddress,
+    required RateLimitOperation operation,
+    required RateLimitPolicy policy,
+  }) async {
     final db = await zonaiDB.open();
     final now = clock.now();
     final rateLimitSchema = rate_limit_table.rateLimits;
