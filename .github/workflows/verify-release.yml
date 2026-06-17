@@ -2,9 +2,10 @@ name: Verify Release
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: [Compile]
-    types: [completed]
+  # Disabled during compat-check validation — use workflow_dispatch on the branch.
+  # workflow_run:
+  #   workflows: [Compile]
+  #   types: [completed]
 
 permissions:
   actions: read
