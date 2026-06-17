@@ -20,7 +20,7 @@ dependencies:
     path: ../web
 
 dev_dependencies:
-  revali: ^2.1.1
-  revali_client_gen: ^2.1.0
-  revali_server: ^2.3.0
-  revali_swagger:
+  revali: ^2.2.0
+  revali_client_gen: ^2.2.0
+  revali_server: ^2.4.0
+  revali_swagger: ^1.0.0

@@ -19,5 +19,5 @@ dependencies:
     path: ../scoped_deps
 
 dev_dependencies:
-  revali_router:
+  revali_router: ^3.4.0
   test: ^1.26.2
