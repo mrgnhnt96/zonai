@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Simulate a user upgrading zonai: set up a project with the old binary, then
-# verify the new binary still compiles, serves, and reads old migration files.
+# verify the new binary still compiles, applies migrations on the existing DB,
+# serves, and does not regenerate SQL for unchanged app schemas.
 #
 # Usage: verify_compat.sh <old_binary_path> <new_binary_path>
 set -euo pipefail
@@ -13,6 +14,7 @@ health_timeout_seconds="${HEALTH_TIMEOUT_SECONDS:-30}"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 compat_dir="${repo_root}/apps/compat"
+compat_db_path="${compat_dir}/.zonai/data/zonai.sqlite"
 
 old_binary="$(cd "$(dirname "$old_binary")" && pwd)/$(basename "$old_binary")"
 new_binary="$(cd "$(dirname "$new_binary")" && pwd)/$(basename "$new_binary")"
@@ -122,6 +124,33 @@ assert_migrations_exist() {
   echo "Found ${count} migration SQL file(s)"
 }
 
+assert_db_exists() {
+  if [[ ! -f "$compat_db_path" ]]; then
+    echo "Expected database at ${compat_db_path}" >&2
+    exit 1
+  fi
+  echo "Database present: ${compat_db_path}"
+}
+
+assert_no_schema_changes() {
+  local executable="$1"
+  local output
+
+  echo "Verifying migration snapshots (dry-run)..."
+  if ! output="$("$executable" db migrate generate --name compat-check --dry-run --no-version-check 2>&1)"; then
+    echo "$output" >&2
+    exit 1
+  fi
+
+  if ! grep -Fq 'No schema changes detected.' <<< "$output"; then
+    echo "New binary would regenerate migrations from old snapshots:" >&2
+    echo "$output" >&2
+    exit 1
+  fi
+
+  echo "Migration snapshots unchanged (no schema diff)"
+}
+
 ensure_executable "$old_binary"
 ensure_executable "$new_binary"
 
@@ -145,9 +174,16 @@ echo "Running dart pub get..."
 
   echo "Old binary: generate initial migration"
   "$old_binary" db migrate generate --name initialize --no-version-check
+
+  echo "Old binary: apply migrations (internal + user)"
+  "$old_binary" db migrate apply --no-version-check
+
+  echo "Old binary: serve on migrated database"
+  verify_serve "$old_binary"
 )
 
 assert_migrations_exist
+assert_db_exists
 
 echo "=== Phase 2: Simulate user upgrade (update zonai.yaml version only) ==="
 new_version="$(extract_version "$new_binary")"
@@ -161,10 +197,14 @@ echo "=== Phase 3: Verify new binary against old project state ==="
   echo "New binary: compile"
   "$new_binary" compile
 
+  echo "New binary: apply pending migrations on database from old release"
+  "$new_binary" db migrate apply --no-version-check
+  assert_db_exists
+
+  echo "New binary: serve on upgraded database"
   verify_serve "$new_binary"
 
-  echo "New binary: verify migration snapshots (dry-run)"
-  "$new_binary" db migrate generate --name compat-check --dry-run --no-version-check
+  assert_no_schema_changes "$new_binary"
 )
 
 echo "Compatibility check passed (old v${old_version} -> new v${new_version})"
