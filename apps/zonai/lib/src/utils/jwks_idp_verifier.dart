@@ -125,7 +125,7 @@ final class JwksIdpVerifier {
         requestedKid == null || (cache?.kids.contains(requestedKid) ?? false);
 
     if (cacheFresh && cacheContainsKid) {
-      return cache!.keyStore;
+      return cache.keyStore;
     }
 
     if (cacheFresh && !cacheContainsKid) {
