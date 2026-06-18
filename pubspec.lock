@@ -964,10 +964,12 @@ packages:
   revali_server:
     dependency: "direct overridden"
     description:
-      path: "../../revali/constructs/revali_server"
-      relative: true
-    source: path
-    version: "2.4.0"
+      path: "constructs/revali_server"
+      ref: c89dd3ed
+      resolved-ref: c89dd3ed445e2b47184672edc6b9cca3bdddcb9f
+      url: "https://github.com/mrgnhnt96/revali.git"
+    source: git
+    version: "2.4.1"
   revali_swagger:
     dependency: "direct overridden"
     description:

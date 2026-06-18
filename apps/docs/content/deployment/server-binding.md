@@ -10,7 +10,7 @@ host: localhost
 port: 8080
 ```
 
-`localhost` only accepts connections from the same machine. For production, set `host: 0.0.0.0` to accept connections on all interfaces.
+When `host` is `localhost` (the default), the server binds dual-stack on `::` so both IPv4 and IPv6 clients can connect. For production behind a reverse proxy, set `host: 127.0.0.1` to listen on IPv4 loopback only. Set `host: 0.0.0.0` to listen on all IPv4 interfaces.
 
 ## Configuration Precedence
 
@@ -33,28 +33,29 @@ port: 8080
 zonai serve --host 0.0.0.0 --port 9000
 ```
 
-## When to Use 0.0.0.0
+## When to Override `host`
 
-Bind to `0.0.0.0` when:
-- The server is not behind a reverse proxy and needs to accept external connections directly
-- Running inside Docker — `localhost` inside the container is not reachable from the host
-- Developing with an **emulator** — the emulator reaches the host at `10.0.2.2` (IPv4 only)
+Override the default `localhost` binding when:
 
-## `localhost` (IPv4 vs IPv6)
+- **Production behind a reverse proxy** — use `host: 127.0.0.1` so the process listens on loopback only
+- **IPv4 all interfaces explicitly** — use `host: 0.0.0.0`
+- **The server is not behind a reverse proxy** and must accept external connections directly on IPv4
 
-The default `localhost` bind address may listen on IPv6 loopback (`[::1]`) only. IPv4 clients — including `curl http://127.0.0.1:8080` and emulators via `10.0.2.2` — see **Connection refused** even though the server is up.
+## `localhost` (dual-stack default)
 
-**Symptoms:** `lsof` shows `TCP [::1]:8080 (LISTEN)` but not `127.0.0.1`.
+When `host` is `localhost` (the built-in default), the server binds dual-stack on `::` with `v6Only: false`. Both IPv4 and IPv6 clients work out of the box — including `curl http://127.0.0.1:8080` and emulators via `10.0.2.2`.
 
-**Fix:** override the bind address:
+To restrict binding:
 
 ```sh
-zonai serve --host 0.0.0.0
-# or IPv4 loopback only:
+# IPv4 loopback only (typical behind nginx/Caddy)
 zonai serve --host 127.0.0.1
+
+# IPv4 on all interfaces
+zonai serve --host 0.0.0.0
 ```
 
-Or set `host: 0.0.0.0` in `zonai.yaml`. The same flags apply to `zonai dev`.
+Or set `host:` in `zonai.yaml`. The same flags apply to `zonai dev`.
 
 ## Recommended: Reverse Proxy
 

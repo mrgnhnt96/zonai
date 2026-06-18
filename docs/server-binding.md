@@ -31,31 +31,27 @@ dart run zonai serve --host=127.0.0.1 --port=8080
 
 Use `--host 0.0.0.0` when the server runs inside a container or on a remote machine and must accept connections from outside `localhost`.
 
-## `localhost`, and IPv4 clients
+## `localhost` default binding
 
-The default bind address `localhost` often resolves to IPv6 loopback (`[::1]`) only. The server is running, but anything that connects over IPv4 gets **Connection refused**:
+The default host is `localhost`, but the server does **not** pass that string directly to `HttpServer.bind`. When the resolved host is `localhost`, Zonai binds dual-stack via `::` with `v6Only: false`, so both IPv4 and IPv6 clients can connect — including:
 
-- `curl http://127.0.0.1:8080` fails
-- `curl http://[::1]:8080` works
-- Emulators (Android, iOS, etc.) reach the host via `10.0.2.2` (IPv4 only) — there is no IPv6 alias
+- `curl http://127.0.0.1:8080`
+- `curl http://[::1]:8080`
+- Android emulators via `10.0.2.2` (IPv4 only)
 
-Override the bind address:
+This avoids the macOS foot-gun where `HttpServer.bind('localhost', …)` can land on `[::1]` only and reject IPv4 connections.
+
+To restrict binding, override the host:
 
 ```bash
-# All interfaces — works for Android emulator (10.0.2.2) and host-side IPv4 tools
-dart run zonai serve --host 0.0.0.0
-
 # IPv4 loopback only
 dart run zonai serve --host 127.0.0.1
+
+# IPv4 on all interfaces
+dart run zonai serve --host 0.0.0.0
 ```
 
-Or set a stable default in `zonai.yaml`:
-
-```yaml
-host: 0.0.0.0
-```
-
-The same `--host` and `--port` flags work with `zonai dev`.
+Or set `host:` in `zonai.yaml`. The same `--host` and `--port` flags work with `zonai dev`.
 
 ## Client IP behind a reverse proxy
 

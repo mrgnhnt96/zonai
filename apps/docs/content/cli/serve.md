@@ -55,11 +55,11 @@ zonai serve
 # Dev mode on a custom port
 zonai serve --flavor dev --port 9000
 
-# Emulator or other IPv4 clients (default localhost may bind [::1] only)
-zonai serve --host 0.0.0.0
+# IPv4 loopback only (e.g. behind a reverse proxy)
+zonai serve --host 127.0.0.1
 
 # Production mode
 zonai serve --release --flavor prod
 ```
 
-The default `localhost` bind can listen on IPv6 only (`[::1]`), so `127.0.0.1` and emulators (`10.0.2.2`) may fail with Connection refused. Use `--host 0.0.0.0` or `--host 127.0.0.1`, or set `host:` in `zonai.yaml`. See [Server Binding](/deployment/server-binding).
+The default `host: localhost` binds dual-stack on `::`, so IPv4 and IPv6 clients (including emulators via `10.0.2.2`) work without overrides. See [Server Binding](/deployment/server-binding).
