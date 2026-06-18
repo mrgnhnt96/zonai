@@ -21,6 +21,7 @@ class DbExtensions {
           'Existing extensions: ${map[extension.table.name]?.runtimeType}, tried to register ${extension.runtimeType}',
         );
       }
+      map[extension.table.name] = extension;
     }
 
     return _extensionsByTable = map;

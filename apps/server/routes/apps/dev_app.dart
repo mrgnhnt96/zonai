@@ -5,6 +5,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/zonai.dart' hide Args;
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_server/components/lifecycle_components/external_idp_provisioning.dart';
 import 'package:zonai_server/components/lifecycle_components/trace_id.dart';
 import 'package:zonai_server/config/server_binding.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
@@ -19,6 +20,7 @@ import '../components/exception_catcher.dart';
 @Exceptions()
 @AllowOrigins.all()
 @Trace()
+@ExternalIdpProvisioning()
 @App(flavor: 'dev')
 final class DevApp extends AppConfig {
   DevApp()
