@@ -2,10 +2,9 @@ name: Release
 
 on:
   workflow_dispatch:
-  # Disabled during compat-check validation — use workflow_dispatch on the branch.
-  # workflow_run:
-  #   workflows: [Verify Release]
-  #   types: [completed]
+  workflow_run:
+    workflows: [Verify Release]
+    types: [completed]
 
 permissions:
   contents: write
@@ -14,9 +13,8 @@ permissions:
 jobs:
   release:
     if: >-
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success')
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
