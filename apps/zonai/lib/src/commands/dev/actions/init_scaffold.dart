@@ -112,7 +112,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 AppConfig main() {
   return AppConfig(
-    applicationName: 'My App',
+    appName: 'My App',
     passwordSecret: 'change-me-password-secret',
     jwtSecret: 'change-me-jwt-secret',
     baseUrl: 'http://localhost:8080',

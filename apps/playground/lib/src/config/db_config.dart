@@ -2,7 +2,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 AppConfig main() {
   return AppConfig(
-    applicationName: 'Banana',
+    appName: 'Banana',
     passwordSecret: 'password',
     jwtSecret: 'jwt',
     baseUrl: 'http://localhost:8080',

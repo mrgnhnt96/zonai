@@ -13,7 +13,7 @@ import 'package:zonai_schema/src/types/image_mime_type.dart';
 /// [passwordSecretsForVerify] / [jwtSecretsForVerify] in order.
 final class AppConfig {
   const AppConfig({
-    required this.applicationName,
+    required this.appName,
     required this.passwordSecret,
     required this.jwtSecret,
     this.previousPasswordSecrets = const [],
@@ -30,7 +30,7 @@ final class AppConfig {
   });
 
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(
-    applicationName: json['appName'] as String,
+    appName: json['appName'] as String,
     passwordSecret: json['passwordSecret'] as String,
     jwtSecret: json['jwtSecret'] as String,
     previousPasswordSecrets: _stringList(json['previousPasswordSecrets']),
@@ -47,7 +47,7 @@ final class AppConfig {
   );
 
   /// Display name for the app (browser title, UI branding).
-  final String applicationName;
+  final String appName;
 
   final String passwordSecret;
   final String jwtSecret;
@@ -90,7 +90,7 @@ final class AppConfig {
 
   void validate() {
     final errors = <String>[];
-    if (applicationName.isEmpty) errors.add('applicationName is empty');
+    if (appName.isEmpty) errors.add('appName is empty');
     if (jwtSecret.isEmpty)
       errors.add(
         'jwtSecret is empty — set the JWT_SECRET environment variable',
@@ -107,7 +107,7 @@ final class AppConfig {
   }
 
   Map<String, dynamic> toJson() => {
-    'appName': applicationName,
+    'appName': appName,
     'passwordSecret': passwordSecret,
     'jwtSecret': jwtSecret,
     'previousPasswordSecrets': previousPasswordSecrets,
