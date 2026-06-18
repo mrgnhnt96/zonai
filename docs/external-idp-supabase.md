@@ -127,11 +127,18 @@ AppConfig main() {
 ```
 
 Grab `SUPABASE_JWT_SECRET` from **Project Settings → API → JWT Keys →
-Legacy HS256 (Shared Secret) → Reveal**. Inject it at compile time:
+Legacy HS256 (Shared Secret) → Reveal**. Add it to `.env` (or the
+flavor equivalent — `.env.dev`, `.env.prod`, etc.) in the same
+directory as `zonai.yaml`:
 
-```sh
-zonai compile --define=SUPABASE_JWT_SECRET=<hmac-secret> ...
+```env
+SUPABASE_JWT_SECRET=<hmac-secret>
 ```
+
+`zonai compile` reads `.env` and passes each entry through to
+`dart compile exe` as a `-D` define, baking the value into the worker
+binary. See [config-and-env-flavors.md](config-and-env-flavors.md) for
+the file-lookup rules and per-flavor overrides.
 
 **`const` is load-bearing.** `String.fromEnvironment` (no `const`)
 returns the runtime default at runtime instead of the compile-time
