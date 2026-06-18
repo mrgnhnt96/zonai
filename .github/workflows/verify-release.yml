@@ -103,3 +103,94 @@ jobs:
       - name: Verify release artifact
         shell: bash
         run: bash tool/ci/verify_release_artifact.sh "build/${{ matrix.executable_name }}"
+
+  compat-check:
+    name: compat-${{ matrix.artifact_name }}
+    needs: verify
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: zonai-linux-x64
+            executable_name: zonai
+          - os: macos-latest
+            artifact_name: zonai-macos-arm64
+            executable_name: zonai
+          - os: macos-15-intel
+            artifact_name: zonai-macos-x64
+            executable_name: zonai
+          - os: windows-latest
+            artifact_name: zonai-windows-x64
+            executable_name: zonai.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Configure raindrop sparse checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/setup_raindrop_submodule.ps1
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Download new binary (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ${{ matrix.artifact_name }}
+          path: build/new
+
+      - name: Download new binary (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: ${{ matrix.artifact_name }}
+          path: build/new
+
+      - name: Download previous release binary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p build/old
+          gh release download \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${{ matrix.artifact_name }}.zip" \
+            --dir build/old/
+          unzip -o "build/old/${{ matrix.artifact_name }}.zip" -d build/old/
+          if [[ "${{ matrix.executable_name }}" != *.exe ]]; then
+            chmod +x "build/old/${{ matrix.executable_name }}"
+          fi
+
+      - name: Run compatibility check
+        shell: bash
+        run: >-
+          bash tool/ci/verify_compat.sh
+          "build/old/${{ matrix.executable_name }}"
+          "build/new/${{ matrix.executable_name }}"
