@@ -33,12 +33,13 @@ All paths are optional. Zonai uses sensible defaults so you only need to set a p
 
 ## Server Fields
 
+
 | Key | Default | Description |
 |-----|---------|-------------|
-| `host` | `localhost` | Bind address. Set to `0.0.0.0` to listen on all interfaces. |
+| `host` | `localhost` | Bind address. Set to `0.0.0.0` to listen on all interfaces. `localhost` may bind IPv6 only — use `0.0.0.0` or `127.0.0.1` if IPv4 clients (e.g. emulators via `10.0.2.2`) cannot connect. |
 | `port` | `8080` | HTTP port. |
 
-CLI `--host` and `--port` flags take precedence over these values.
+CLI `--host` and `--port` flags take precedence over these values. See [Server Binding](/deployment/server-binding) for examples and the macOS IPv4/IPv6 note.
 
 ## Build Settings
 

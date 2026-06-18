@@ -11,14 +11,14 @@ zonai serve [flags]
 
 ## Flags
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--host <address>` | Bind address | `zonai.yaml` value, then `localhost` |
-| `--port <number>` | HTTP port | `zonai.yaml` value, then `8080` |
-| `--flavor <name>` | Config flavor to load | (none) |
-| `--release` | Production mode — skip watchers and recompile | `false` |
-| `--no-auto-migrate` | Skip applying pending migrations on startup | `false` |
-| `-c, --config <path>` | Path to a custom `zonai.yaml` | Auto-detected |
+| Flag                  | Description                                                     | Default                              |
+| --------------------- | --------------------------------------------------------------- | ------------------------------------ |
+| `--host <address>`    | Bind address (see [Server Binding](/deployment/server-binding)) | `zonai.yaml` value, then `localhost` |
+| `--port <number>`     | HTTP port                                                       | `zonai.yaml` value, then `8080`      |
+| `--flavor <name>`     | Config flavor to load                                           | (none)                               |
+| `--release`           | Production mode — skip watchers and recompile                   | `false`                              |
+| `--no-auto-migrate`   | Skip applying pending migrations on startup                     | `false`                              |
+| `-c, --config <path>` | Path to a custom `zonai.yaml`                                   | Auto-detected                        |
 
 ## Startup Sequence
 
@@ -35,12 +35,12 @@ In dev mode (the default), Zonai watches your source directories for changes and
 
 **Keyboard shortcuts in dev mode:**
 
-| Key | Action |
-|-----|--------|
-| `c` | Manually recompile all workers |
-| `m` | Generate and apply database migrations |
+| Key | Action                                         |
+| --- | ---------------------------------------------- |
+| `c` | Manually recompile all workers                 |
+| `m` | Generate and apply database migrations         |
 | `p` | Ping all workers and print their health status |
-| `q` | Graceful shutdown |
+| `q` | Graceful shutdown                              |
 
 ## Release Mode
 
@@ -55,6 +55,11 @@ zonai serve
 # Dev mode on a custom port
 zonai serve --flavor dev --port 9000
 
+# Emulator or other IPv4 clients (default localhost may bind [::1] only)
+zonai serve --host 0.0.0.0
+
 # Production mode
 zonai serve --release --flavor prod
 ```
+
+The default `localhost` bind can listen on IPv6 only (`[::1]`), so `127.0.0.1` and emulators (`10.0.2.2`) may fail with Connection refused. Use `--host 0.0.0.0` or `--host 127.0.0.1`, or set `host:` in `zonai.yaml`. See [Server Binding](/deployment/server-binding).

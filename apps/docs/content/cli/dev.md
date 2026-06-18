@@ -6,8 +6,10 @@ description: The recommended development command — runs the server with an int
 Start the Zonai server and open an interactive terminal UI (TUI) for development.
 
 ```sh
-zonai dev
+zonai dev [flags]
 ```
+
+`--host` and `--port` use the same precedence as `zonai serve` (CLI → `zonai.yaml` → defaults). On macOS, if IPv4 clients or an Android emulator cannot reach the server, try `zonai dev --host 0.0.0.0`. See [Server Binding](/deployment/server-binding).
 
 `zonai dev` is the go-to command during development. It runs the server and wraps it in a TUI that provides live feedback and shortcuts for common tasks.
 

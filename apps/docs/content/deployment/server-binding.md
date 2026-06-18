@@ -38,6 +38,23 @@ zonai serve --host 0.0.0.0 --port 9000
 Bind to `0.0.0.0` when:
 - The server is not behind a reverse proxy and needs to accept external connections directly
 - Running inside Docker — `localhost` inside the container is not reachable from the host
+- Developing with an **emulator** — the emulator reaches the host at `10.0.2.2` (IPv4 only)
+
+## `localhost` (IPv4 vs IPv6)
+
+The default `localhost` bind address may listen on IPv6 loopback (`[::1]`) only. IPv4 clients — including `curl http://127.0.0.1:8080` and emulators via `10.0.2.2` — see **Connection refused** even though the server is up.
+
+**Symptoms:** `lsof` shows `TCP [::1]:8080 (LISTEN)` but not `127.0.0.1`.
+
+**Fix:** override the bind address:
+
+```sh
+zonai serve --host 0.0.0.0
+# or IPv4 loopback only:
+zonai serve --host 127.0.0.1
+```
+
+Or set `host: 0.0.0.0` in `zonai.yaml`. The same flags apply to `zonai dev`.
 
 ## Recommended: Reverse Proxy
 

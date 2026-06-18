@@ -31,6 +31,32 @@ dart run zonai serve --host=127.0.0.1 --port=8080
 
 Use `--host 0.0.0.0` when the server runs inside a container or on a remote machine and must accept connections from outside `localhost`.
 
+## `localhost`, and IPv4 clients
+
+The default bind address `localhost` often resolves to IPv6 loopback (`[::1]`) only. The server is running, but anything that connects over IPv4 gets **Connection refused**:
+
+- `curl http://127.0.0.1:8080` fails
+- `curl http://[::1]:8080` works
+- Emulators (Android, iOS, etc.) reach the host via `10.0.2.2` (IPv4 only) — there is no IPv6 alias
+
+Override the bind address:
+
+```bash
+# All interfaces — works for Android emulator (10.0.2.2) and host-side IPv4 tools
+dart run zonai serve --host 0.0.0.0
+
+# IPv4 loopback only
+dart run zonai serve --host 127.0.0.1
+```
+
+Or set a stable default in `zonai.yaml`:
+
+```yaml
+host: 0.0.0.0
+```
+
+The same `--host` and `--port` flags work with `zonai dev`.
+
 ## Client IP behind a reverse proxy
 
 When nginx, Traefik, Coolify, Cloudflare, or another proxy sits in front of Zonai, rate limits and logs need the **real client IP**, not the proxy’s. Configure **`trustedProxy`** on `AppConfig` in your config worker — see **[rate-limiting.md](rate-limiting.md#client-ip)** for the full example and semantics (rightmost vs leftmost IP in `X-Forwarded-For`).
