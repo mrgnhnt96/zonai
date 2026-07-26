@@ -150,7 +150,18 @@ class _SignInRootScreen extends StatelessComponent {
     final authTypes = context.watch(supportedAuthTypesProvider);
 
     if (authTypes.isEmpty) {
-      return const SignInScreen(child: _SignInMessage('No sign-in methods are configured.'));
+      return const SignInScreen(
+        tagline: 'Sign-in unavailable',
+        child: AuthFormCard(
+          children: [
+            ZonaiPageTitle('No sign-in methods'),
+            ZonaiPageSubtitle(
+              'This app has no authentication methods configured. '
+              'Add an auth extension to enable sign-in.',
+            ),
+          ],
+        ),
+      );
     }
 
     if (authTypes.length == 1 && AuthRoutes.isSignInRoot(path)) {
@@ -176,16 +187,5 @@ class _SignInLoading extends StatelessComponent {
     return const SignInScreen(
       child: AuthFormCard(children: [ZonaiPageTitle('Sign in'), ZonaiPageSubtitle('Loading sign-in options…')]),
     );
-  }
-}
-
-class _SignInMessage extends StatelessComponent {
-  const _SignInMessage(this.message);
-
-  final String message;
-
-  @override
-  Component build(BuildContext context) {
-    return SignInScreen(child: AuthFormCard(children: [const ZonaiPageTitle('Sign in'), ZonaiPageSubtitle(message)]));
   }
 }
