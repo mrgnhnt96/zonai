@@ -42,6 +42,7 @@ class _Get {
         where: where,
         limit: 1,
         offset: offset,
+        jwt: jwt,
       );
 
       return result?.single;
