@@ -58,3 +58,8 @@ apps/web/.cursor
 # Platform-specific Zonai build artifacts (rebuilt by compile/serve)
 **/.zonai/executables/
 **/.zonai/lib/
+
+# Runtime data (sqlite db, uploaded photos/recordings, the replay-viewer
+# static build) — never source, can get large (recordings/replay-viewer
+# especially), must never be committed.
+**/.zonai/data/
