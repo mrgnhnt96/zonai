@@ -7,7 +7,7 @@ class AuthorRowRules extends RowRules<AuthorTable, Author> {
   AuthorRowRules() : super(authors);
 
   @override
-  Future<bool> canView(Jwt? jwt, Author row) async => true;
+  Future<bool> canView(Jwt? jwt, Author row) async => row.id == jwt?.userId;
 
   @override
   Future<bool> canUpdate(Jwt? jwt, Author row) async => true;
