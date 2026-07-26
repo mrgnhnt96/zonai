@@ -53,6 +53,72 @@ request` log line. After the fix: the same call resolves in well under a
 second with no timeout and no unknown-request log line, end to end. Left
 below for reference/history.
 
+**Update 2026-07-26: reclassified — likely not a zonai bug.** Could not
+reproduce the crash as a genuine application defect despite substantial
+live testing: ran the real compiled binary (`dart compile exe
+-D__ZONAI_COMPILED__=true`, matching how `zonai build` actually produces
+`kIsCompiled=true`) against `apps/playground`, both idle and under
+continuous `/health` polling and real `/db` create/list traffic, for
+several minutes at a stretch with no crash — well past the "~5-10s" /
+"~30s" windows claimed below. It *did* die once, but the captured death
+sequence didn't match this entry's own symptom at all: no 20-second
+health-check-exhausted retry, no `Unexpectedly failed to make connection`
+log line — it jumped straight from normal request handling into
+`Kill.force()`'s own sequence (`'Killing process'` →
+`cleanUp.run()` → worker kills → `exit(0)`), which only runs when `Kill`'s
+`SIGTERM`/`SIGINT` watcher fires (`apps/zonai/lib/src/domain/kill.dart`).
+That points at an external signal, not a Revali re-entry bug. Checking
+`override_canvas` (the project this was originally found in) turned up
+direct corroboration in its own `todo.md`, written the same session,
+in an aside about testing CORS: *"background zonai server processes kept
+dying between separate shell tool invocations for reasons not fully
+root-caused — `disown`ing the process helped but didn't fully eliminate
+it; a real terminal session would not have this problem."* Same symptom
+class (a backgrounded `zonai serve` dying with no application-level
+cause), same night, independently noticed. The likely real mechanism:
+running `zonai serve` as a backgrounded job across many separate
+shell-tool invocations (an agentic dev-tool pattern, not a real terminal
+session) without detaching it (`disown`/`nohup`/`setsid`) leaves it
+attached to a shell process that the tool harness can cycle or reap
+between calls, which can deliver `SIGHUP`/`SIGTERM` to the whole process
+group. This entry's own "ruled out" section only tested a trivial
+`sleep`-loop background job surviving in the same environment — that
+doesn't rule out job-control differences for a real process tree with
+open sockets and child workers, which is a meaningfully different shape.
+**Not changing** the "explicitly ruled out" / "suggested next step"
+write-up below — left as-is for whoever wants to dig further or has a
+setup where this still reproduces; if it does, get a *live* debugger
+attached to a `dart run` (non-compiled) process from a real terminal
+session, since that's the one repro condition that hasn't actually been
+tried yet.
+
+## 9. `zonai serve` spontaneously dies after a short idle gap — not tied to any request, not a multi-instance artifact
+
+**Severity: makes any real deployment unusable.** Found 2026-07-26 while manually driving `override_canvas`'s organization-collaborators feature end to end against a real running server (not via the automated test suite, which never hits this — its requests fire back-to-back with no gap, and every test file finishes well inside whatever window this needs to trigger).
+
+**The symptom**: after serving normally for a few seconds — including handling real requests successfully — the process exits on its own. The only output, ever, is:
+
+```
+Serving at http://:::PORT/
+Access the UI at http://:::PORT/_
+Unexpectedly failed to make connection to Revali (server)
+```
+
+No stack trace, no earlier warning. `curl .../health` goes from `200` to connection-refused, and the OS process itself (tracked by PID, checked with `kill -0`, not just the HTTP port) is gone.
+
+**Explicitly ruled out, not just assumed:**
+
+- **Not multiple concurrent `zonai serve` instances** (a real, documented issue elsewhere in this repo's `apps/server/README.md` — IPC cross-talk past ~2-3 concurrent instances). Verified clean before and during every repro: `ps aux` showed zero other `zonai`/worker processes anywhere on the machine, `lsof -i :<port>` showed nothing else bound to the port in use, no stray `ServeLock` files. Tracked the single PID directly with `kill -0` on a 1-second cadence alongside HTTP health checks — it dies alone, in isolation, every time.
+- **Not the sandbox/harness reaping background processes.** A trivial `for i in 1..60; do sleep 1; done` background job in the exact same environment ran uninterrupted the whole time.
+- **Not the dev-mode file watchers or keyboard input listener** (`extensions.watch()`, `rules.watch()`, `rateLimitsCompiler.watch()`, `cronsCompiler.watch()`, `config.watch()`, `operations.watch()`, `keyboardInput.watch()` — all gated behind `if (args.release) return;`, per `serve.dart`/`extensions.dart`/`keyboard_input.dart`). Re-ran with `--release` explicitly passed: still dies, just survives a bit longer (~30s vs. ~5-10s without it).
+- **Not tied to request content.** Reproduces with zero application (`/db`, `/auth`) traffic at all — plain repeated `/health` polling is enough exposure, and busier polling measurably extends (but doesn't prevent) time-to-death, which reads as "some activity resets a timer, but something still eventually fires and kills the process."
+
+**Where the log line comes from** (confirmed by reading source, not guessed): `logger.error('Unexpectedly failed to make connection to Revali (server)')` at `apps/zonai/lib/src/db_mutator/revali.dart:223`, inside `_checkHealth`'s exhausted-attempts branch (200 attempts × 100ms = up to 20s of polling `health()` before giving up). That function is called from `_startCompiled` (`revali.dart:~135`), which on failure runs `await stop()` — closing the real `_httpServer` and killing `_process`. **Not isolated**: what re-invokes `Revali.start()`/`_checkHealth()` a second time, well after the first (successful) startup already returned `true` and served real traffic. The only direct caller of `revali.start()` found by inspection is the one-time call in `serve.dart:78`; no `Timer.periodic`, second `start()`/`_checkHealth()` call site, or heartbeat/liveness mechanism was located in the time spent looking. Worth checking: whether `ServeLock`/`kill` (`apps/zonai/lib/src/utils/serve_lock.dart`, `../deps/kill.dart`) or something in the resqlite/native layer schedules any idle-based self-check that isn't gated by `args.release`.
+
+**Suggested next step for whoever picks this up**: reproduce with `dart run` (not the compiled binary) so a debugger/breakpoint can catch the *second* call into `Revali.start()`/`_checkHealth()` directly — grep alone didn't find it, so it's likely reached through an interface/callback rather than a direct call. A minimal repro: `zonai serve --release --port <p>` in a scratch dir (same shape as `apps/server/test/integration/*`'s scratch setup — only `.zonai/executables`/`.zonai/lib`/`.zonai/migrations`/`zonai.yaml`, no raw `lib/` source), confirm `/health` is `200`, then do nothing for 60 seconds and confirm the process (via PID, not just the port) is still alive.
+
+**How to verify a fix**: same repro as above — `zonai serve` (with or without `--release`) should survive an arbitrarily long idle period between requests with no crash, matching how a real, lightly-used production deployment actually behaves.
+
 ## 8. `get.*`/`AuthOperations.addClaims` deadlock the issuing worker if that worker is itself mid-request — "unsafe reentrant IPC," not just "slow"
 
 **Severity: silently breaks every request through the affected worker, not just the one that triggered it.** Found 2026-07-26 while building `override_canvas`'s organization-collaborators feature (a row needing to check "does the caller have access to this *other* table's row" as part of its own access decision). Not caused by or specific to that feature — it's a property of the generic `get`/`mutate` IPC mechanism (`libs/zonai_schema/lib/src/handlers/messages/deps/__get.dart`, wired up generically in `message_handler.dart`) combined with how every worker type (rules, operations, extensions, cron) shares the exact same `MessageHandler` request/reply loop.
