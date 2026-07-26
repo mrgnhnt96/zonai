@@ -17,6 +17,42 @@ Re-ran `dart analyze`/`dart test` across `libs/zonai_schema`, `apps/zonai`,
 `apps/server` — same results as before; nothing regressed. Left below for
 reference/history.
 
+**Update 2026-07-26: fixed.** Root cause was on the **host** side, not the
+worker side the "suggested fix" below points at — `MessageHandler`'s
+`_pendingHostReplies` (worker-side) was already correctly keyed by request
+id and never confused two in-flight requests. The actual bug was
+`Mailman._send`/`_sendOnce` in `apps/zonai/lib/src/db_mutator/mailman.dart`:
+it fully serialized each outgoing request through `_sendChain`, including
+the *wait for the worker's reply*, not just the stdin write. `_list`'s
+per-row `_requireRowAccess`/`_requireTableAccess` always calls back into
+the same `RulesMailman` to check row/table rules (`__utils.dart`) — so when
+a row rule's own `get.one`/`get.many` needs the host to answer a nested
+`GetRecordRequest`, satisfying that read calls `zonaiDB.list`, which calls
+`RulesMailman.send(...)` again for the *nested* table's row rules. That
+nested send queues behind `_sendChain`, which is still occupied waiting on
+the *outer*, still-unanswered request — a real circular wait, not just a
+slow path. It only ever resolved because `_sendOnce`'s hardcoded 1-second
+`.timeout()` forced the outer request's entry out of `_pendingResponses`,
+unblocking the chain — at which point the outer request's real (late)
+reply arrived with nowhere to land, logged as `Received response for
+unknown request` (or `Received error for unknown request`, if the nested
+call itself failed first). **Fixed** by splitting `_send` into a
+`_writeOnce` step (still serialized via `_sendChain` — restart-check,
+process start, the actual stdin write) and a separate, unserialized
+`_awaitOnce` step (the timeout-guarded wait for the reply), so a reentrant
+send to the same worker no longer queues behind its own outer request.
+**How this was confirmed**: added a scratch row rule
+(`PostRowRules.canView` in `apps/playground`) that calls
+`get.one(tableName: 'companies', ...)`, compiled and ran the real
+playground server end to end (not a unit test — this app has no existing
+Mailman test coverage), and hit `GET /db/list?table=posts` for real.
+Before the fix: reproduced the exact symptom in the report below,
+including a real `TimeoutException after 0:00:01.000000` at
+`Mailman._sendOnce` and a live `[RULES_EXE]: Received error for unknown
+request` log line. After the fix: the same call resolves in well under a
+second with no timeout and no unknown-request log line, end to end. Left
+below for reference/history.
+
 ## 8. `get.*`/`AuthOperations.addClaims` deadlock the issuing worker if that worker is itself mid-request — "unsafe reentrant IPC," not just "slow"
 
 **Severity: silently breaks every request through the affected worker, not just the one that triggered it.** Found 2026-07-26 while building `override_canvas`'s organization-collaborators feature (a row needing to check "does the caller have access to this *other* table's row" as part of its own access decision). Not caused by or specific to that feature — it's a property of the generic `get`/`mutate` IPC mechanism (`libs/zonai_schema/lib/src/handlers/messages/deps/__get.dart`, wired up generically in `message_handler.dart`) combined with how every worker type (rules, operations, extensions, cron) shares the exact same `MessageHandler` request/reply loop.

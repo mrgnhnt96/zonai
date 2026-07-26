@@ -606,12 +606,29 @@ class Mailman<S extends Request, R extends Response> {
   }
 
   Future<Response?> _send(Request request) {
-    final result = _sendChain.then((_) => _sendOnce(request));
-    _sendChain = result.then((_) {}, onError: (_) {});
-    return result;
+    final write = _sendChain.then((_) => _writeOnce(request));
+    _sendChain = write.then((_) {}, onError: (_) {});
+    return write.then((pendingResponse) {
+      if (pendingResponse == null) return null;
+      return _awaitOnce(request, pendingResponse);
+    });
   }
 
-  Future<Response?> _sendOnce(Request request) async {
+  /// Ensures the worker is running (restarting first if a stop was
+  /// requested) and writes [request] to its stdin, serialized via
+  /// [_sendChain] so writes can't interleave on the wire and a pending
+  /// restart can't race a write to the about-to-be-killed process.
+  ///
+  /// Deliberately does not wait for the reply — a worker's own handler for
+  /// an incoming request can issue its own nested request back through
+  /// this same Mailman (e.g. a row rule calling `get.one`) before it's
+  /// replied to that incoming request. Waiting for the reply here too
+  /// would serialize that nested send behind its own still-outstanding
+  /// outer request, which can never resolve: a genuine deadlock, not just
+  /// a slow path.
+  Future<Completer<(Response, List<MutationRequest>)>?> _writeOnce(
+    Request request,
+  ) async {
     await _ensureRestartedIfRequested();
 
     final process = await _start();
@@ -626,7 +643,13 @@ class Mailman<S extends Request, R extends Response> {
     _pendingResponses[request.id] = pendingResponse;
 
     process.stdin.writeln(jsonEncode(request.toJson()));
+    return pendingResponse;
+  }
 
+  Future<Response?> _awaitOnce(
+    Request request,
+    Completer<(Response, List<MutationRequest>)> pendingResponse,
+  ) async {
     try {
       final (response, muts) = await pendingResponse.future.timeout(
         const Duration(seconds: 1),
