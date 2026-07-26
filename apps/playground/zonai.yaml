@@ -1,5 +1,5 @@
 # The current version of the playground app
-version: 0.2.0
+version: 0.3.2
 
 migrationsPath: .zonai/migrations
 schemasPath: lib/src/schemas
