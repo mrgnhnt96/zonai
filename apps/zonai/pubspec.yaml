@@ -26,6 +26,7 @@ dependencies:
   resqlite:
     path: ../../libs/resqlite
   revali_router: ^3.4.0
+  revali_swagger_annotations: ^1.0.0
   scoped_deps:
     path: ../../libs/scoped_deps
   watcher: ^1.2.1

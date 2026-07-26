@@ -26,14 +26,14 @@ class RootController {
   }
 
   @Get('swagger.json')
-  String swaggerJson({required Headers responseHeaders}) {
+  StringContent swaggerJson({required Headers responseHeaders}) {
     responseHeaders.mimeType = 'application/json; charset=utf-8';
-    return kSwaggerJson;
+    return StringContent(kSwaggerJson);
   }
 
   @Get('swagger.yaml')
-  String swaggerYaml({required Headers responseHeaders}) {
+  StringContent swaggerYaml({required Headers responseHeaders}) {
     responseHeaders.mimeType = 'text/yaml; charset=utf-8';
-    return kSwaggerYaml;
+    return StringContent(kSwaggerYaml);
   }
 }

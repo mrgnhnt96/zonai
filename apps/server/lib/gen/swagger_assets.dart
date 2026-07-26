@@ -62,7 +62,7 @@ const kSwaggerJson = r'''{
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/StringContent"
                 }
               }
             }
@@ -82,7 +82,7 @@ const kSwaggerJson = r'''{
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/StringContent"
                 }
               }
             }
@@ -971,6 +971,17 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "address"
+        ]
+      },
+      "StringContent": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
         ]
       },
       "CronJobList": {
@@ -2051,7 +2062,7 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/StringContent'
   '/swagger.yaml':
     get:
       operationId: root_swaggerYaml
@@ -2063,7 +2074,7 @@ paths:
           content:
             application/json:
               schema:
-                type: string
+                $ref: '#/components/schemas/StringContent'
   '/crons/list':
     get:
       operationId: cron_list
@@ -2612,6 +2623,13 @@ components:
           nullable: true
       required:
         - address
+    StringContent:
+      type: object
+      properties:
+        value:
+          type: string
+      required:
+        - value
     CronJobList:
       type: object
       properties:
