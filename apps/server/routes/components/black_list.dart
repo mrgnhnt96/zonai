@@ -5,7 +5,7 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 import 'package:raindrop/raindrop.dart';
 
-final class BlackList {
+final class BlackList implements LifecycleComponent {
   const BlackList();
 
   Future<GuardResult> check(@Ip() String ipAddress) async {
