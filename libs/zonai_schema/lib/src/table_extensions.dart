@@ -3,6 +3,7 @@ import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 import 'package:zonai_schema/src/column_types/updated_at_column.dart';
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
+import 'package:zonai_schema/src/transformers/server_generated_transformer.dart';
 
 extension TableExtensions<S extends rd.Schema<R>, R> on rd.Table<S, R> {
   R safeCreate(Map<String, dynamic> data) {
@@ -21,7 +22,7 @@ extension TableExtensions<S extends rd.Schema<R>, R> on rd.Table<S, R> {
           if (column.autoIncrement) continue;
           if (!column.isPrimaryKey) continue;
           mutable[column.name] ??= transformer.encodedPrimaryKey();
-        case SecretTransformer():
+        case SecretTransformer() || ServerGeneratedTransformer():
           if (!mutable.containsKey(column.name)) {
             mutable[column.name] = column.isNullable ? null : '';
           }

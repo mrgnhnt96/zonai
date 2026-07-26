@@ -227,6 +227,29 @@ rd.ToQuery<PostTable, Post> custom(
 
 The default implementation throws `UnimplementedError`. Custom operations must be allowed in your **rules** for the collection (same as any other operation name).
 
+## Overriding `insert` to fill in a server-generated value
+
+Override **`insert`** when a column's real value must never come from the client — a server-generated API key, a computed size/checksum, anything you'd otherwise have to trust the caller to report honestly:
+
+```dart
+final class ClientAppOperations extends TableOperations<ClientAppTable, ClientApp> {
+  ClientAppOperations() : super(clientApps);
+
+  @override
+  insert(Map<String, dynamic> data) {
+    return super.insert({...data, 'api_key': _generateApiKey()});
+  }
+}
+```
+
+**Gotcha**: [rules](rules.md) run *before* operations, against a row built by `Table.safeCreate` from the *raw, unmodified* request data (`insert`'s override above never runs until after rules pass). If the column the client never provides is a plain, non-nullable text/int/etc. column, `safeCreate` leaves it out of the row entirely, and decoding a missing value into a non-nullable field throws — a real `curl` request to `create` on such a table fails with `type 'Null' is not a subtype of type 'String' in type cast` before your `insert` override ever gets a chance to run.
+
+Use **`$.serverGenerated(name, field)`** for this column instead of `$.text`/a generic column. It behaves like a normal `TEXT` column (non-nullable end to end, no schema compromise), except `Table.safeCreate` fills in a blank placeholder (`''`) when the client's payload omits it — the same mechanism `$.password` already uses for the same reason. Unlike `$.password`, a `serverGenerated` column is **not** stripped from responses during sanitization (`_sanitize` type-checks specifically for `SecretTransformer`, which `ServerGeneratedTransformer` deliberately does not implement) — use it for values that should be visible to ordinary callers once set (an API key a dashboard needs to display), not secrets like passwords.
+
+```dart
+apiKey = $.serverGenerated('api_key', (s) => s.apiKey),
+```
+
 ## Internal tables
 
 Framework-managed SQLite tables (`_jwt`, `_log`, `_rate_limit`, `_auth_challenges`, `_raindrop_migrations`) ship with built-in operations. They are **always** merged into the `db_operations` executable; you do not add files for them under `operationsPath`.

@@ -14,7 +14,9 @@ dependencies:
   crypto: ^3.0.7
   meta: ^1.17.0
   raindrop:
+    path: ../raindrop/packages/raindrop
   raindrop_sqlite:
+    path: ../raindrop/packages/raindrop_sqlite
   scoped_deps:
     path: ../scoped_deps
 
