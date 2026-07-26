@@ -43,7 +43,9 @@ import 'package:cron/cron.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class CleanupLogsJob extends CronJob {
-  const CleanupLogsJob()
+  // Not `const` — `Schedule.parse` isn't a const constructor, so a job
+  // built from it can't be either.
+  CleanupLogsJob()
     : super(
         name: 'cleanup_logs',
         schedule: Schedule.parse('0 3 * * *'), // every day at 03:00
@@ -55,7 +57,7 @@ final class CleanupLogsJob extends CronJob {
   }
 }
 
-CleanupLogsJob main() => const CleanupLogsJob();
+CleanupLogsJob main() => CleanupLogsJob();
 ```
 
 Only files with a `.dart` extension under `cronsPath` are included (searched recursively). Define **one cron job per file**. Each file’s `main()` must return a non-null `CronJob`. If two files use the same `name`, run history and catch-up logic are ambiguous — use a unique `name` per job.
@@ -135,7 +137,8 @@ import 'package:cron/cron.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class PurgeOldLogsJob extends CronJob {
-  const PurgeOldLogsJob()
+  // Not `const` — see the note on CleanupLogsJob above.
+  PurgeOldLogsJob()
     : super(
         name: 'purge_old_logs',
         schedule: Schedule.parse('0 2 * * *'),
@@ -145,9 +148,10 @@ final class PurgeOldLogsJob extends CronJob {
   Future<void> run() async {
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
 
+    // `_Delete.many` takes `tableName`/`where`/`limit` only — no `updates:`
+    // parameter (that's an `_Update.many`-only argument).
     mutate.delete.many(
       tableName: 'logs',
-      updates: [],
       where: Lt('created_at', cutoff),
     );
 
@@ -155,7 +159,7 @@ final class PurgeOldLogsJob extends CronJob {
   }
 }
 
-PurgeOldLogsJob main() => const PurgeOldLogsJob();
+PurgeOldLogsJob main() => PurgeOldLogsJob();
 ```
 
 For SMTP setup, template files, and `email.send.*` helpers, see **[email.md](email.md)**. For compile-time env passed into the cron worker executable, see **[config-and-env-flavors.md](config-and-env-flavors.md)**.
@@ -241,7 +245,8 @@ import 'package:cron/cron.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class PurgeExpiredJwtsJob extends CronJob {
-  const PurgeExpiredJwtsJob()
+  // Not `const` — see the note on CleanupLogsJob earlier in this doc.
+  PurgeExpiredJwtsJob()
     : super(
         name: 'purge_expired_jwts',
         schedule: Schedule.parse('0 4 * * *'),
@@ -252,13 +257,12 @@ final class PurgeExpiredJwtsJob extends CronJob {
   Future<void> run() async {
     mutate.delete.many(
       tableName: 'jwts',
-      updates: [],
       where: Lt('expires_at', DateTime.now()),
     );
   }
 }
 
-PurgeExpiredJwtsJob main() => const PurgeExpiredJwtsJob();
+PurgeExpiredJwtsJob main() => PurgeExpiredJwtsJob();
 ```
 
 ## See also
