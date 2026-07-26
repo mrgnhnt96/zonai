@@ -18,26 +18,39 @@ The `Jwt` object is passed to every rule and extension method. It contains all t
 
 ## Admin Claims
 
-`admin.isAdmin` and `admin.canEdit` are only set for admin accounts — accounts created via `zonai db admin add`. Regular user JWTs always have `admin.isAdmin == false`.
+`admin.isAdmin`/`admin.canEdit` are computed **per auth table**, not per row: every JWT issued for *any* row in a table that has `AsAdmin` gets `isAdmin: true` — sign-up, sign-in, OTP, magic link, it doesn't matter which flow authenticated it. There is no per-row "is this specific account an admin" flag.
 
-`admin.canEdit` is controlled by the `AsAdmin` mixin on the auth table schema. To enable admin accounts on a table, add `with AsAdmin` to the table class:
+**`AsAdmin` must only ever go on a dedicated, admin-only auth table — never on a table that also accepts public self-registration.** Putting it on your regular `users` table (or any table reachable through `/auth/sign-up`) gives **every single signed-up user full admin rights**, silently bypassing every `jwt?.admin.isAdmin`/`jwt?.admin.canEdit` check in every rule in your app. This is not a hypothetical: verify it yourself against a real running server — add `AsAdmin` to any table with a `PasswordAuth` sign-up path, sign up a brand-new account, and decode the returned JWT.
+
+Correct usage — a **separate** table, used only for accounts created via `zonai db admin add`:
 
 ```dart
-final class UserTable extends AuthTable<User> with PasswordAuth, AsAdmin {
+final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
   // admin.canEdit defaults to true
 }
 ```
 
-To create read-only admins (they can view but not mutate), override `canEdit` to return `false`:
+Lock down public self-registration on that table too, as defense in depth — `zonai db admin add` bypasses rules entirely (it writes directly, not through `/auth/sign-up`), so this doesn't block legitimate admin creation:
 
 ```dart
-final class UserTable extends AuthTable<User> with PasswordAuth, AsAdmin {
+class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
+  AdminRowRules() : super(admins);
+
+  @override
+  Future<bool> canSignUp(Jwt? jwt, AuthType authType) async => false;
+}
+```
+
+To create read-only admins (they can view but not mutate), override `canEdit` to return `false` on the same dedicated table:
+
+```dart
+final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
   @override
   bool get canEdit => false;
 }
 ```
 
-Then enforce it in your table rules:
+Then enforce it in your table rules (for whichever *other* tables the admin needs to manage — not the admin table itself):
 
 ```dart
 // Allow read for any admin; require canEdit for mutations
