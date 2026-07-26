@@ -92,6 +92,74 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 11. `Jwt.parse` throws on a malformed token instead of returning `null` — fixed
+
+**Severity: correctness/robustness.** `Jwt.parse`'s return type is `Jwt?`
+and it already returns `null` for the wrong-number-of-parts case, but any
+other malformation — corrupt base64url, a payload segment that decodes to
+non-JSON or non-object JSON, or valid JSON missing fields `Jwt.fromJson`
+needs — threw an uncaught exception instead. Found 2026-07-26 while
+looking at `Jwt.parse` after fixing the adjacent base64url-padding bug in
+the same method (see the padding fix already in this file's history for
+that one — RFC 7515's stripped-padding convention vs. `base64Url.decode`
+requiring a multiple-of-four length). Both `zonai_client`'s `Auth.jwt`
+(called on every page load to read the stored token's claims) and the
+server's `AuthHeaderRateLimit` guard call `Jwt.parse` directly with no
+try/catch of their own, so a corrupted/stale/tampered token would crash
+the caller instead of being treated as "not a valid token."
+
+**How this was confirmed**: `Jwt.parse('header.${base64Url.encode(utf8.encode('not-json'))}.sig')`
+threw `FormatException: Unexpected character (at character 1)` straight
+out of `jsonDecode`, uncaught.
+
+**Fixed**: wrapped the decode/`Jwt.fromJson` steps in a `try`/`on Object`
+that returns `null`, matching the existing `Jwt.maybeFromJson` pattern
+(and `parse`'s own already-established "return null" contract for the
+wrong-part-count case). Regression coverage in the new
+`libs/zonai_schema/test/src/types/jwt_test.dart`: wrong-part-count,
+non-JSON payload, non-object JSON payload, JSON missing required fields,
+and invalid base64url characters all now return `null` instead of
+throwing; a real (unpadded) token still decodes correctly. `dart
+test`/`dart analyze` clean across `libs/zonai_schema`, `apps/zonai`,
+`libs/zonai_client`.
+
+## 10. `POST /auth/reset-password` crashes with an uncaught scoping error whenever email isn't configured — not a graceful skip like the docs describe
+
+**Severity: breaks password reset outright for any app without SMTP configured**, which is presumably the common case for local dev and any fresh deployment before email is wired up — `docs/email.md` explicitly documents "If `AppConfig.email` is missing, send attempts are skipped and a warning is logged," which is not what actually happens. Found 2026-07-26 while adding a "forgot password" flow to `override_canvas`'s `apps/website`.
+
+**Reproduction** (against a real compiled `apps/server` binary with no `AppConfig.email` set, which is this app's actual current config):
+
+```
+curl -X POST /auth/reset-password -d '{"type":"sendResetPassword","table":"users","email":"real@example.com"}'
+# → empty response, connection dropped
+
+# server log:
+Bad state: read(ScopedRef<_Logger>) was called in a scope which does not contain a corresponding value for the provided ref.
+Did you forget to call: runScoped(() {...}, values: {value})?
+Unhandled error while serving (process continues)
+```
+
+A second identical request within 60 seconds gets a normal `{"error":"Must wait 60 seconds before sending a new code"}` — confirming the *first* request's core logic (creating the `authChallenges` row, rate-limit bookkeeping) succeeds; the crash happens strictly *after* that, in the code path that's supposed to just warn-and-skip the actual email send.
+
+**Root cause**, `apps/zonai/lib/src/email/courier.dart`'s `_Send._send`:
+
+```dart
+Future<void> _send(Email email) async {
+  final config = await configResolver.resolve();
+  final emailConfig = config.email;
+  if (emailConfig == null) {
+    logger.warn('Cannot send email because email configuration is missing');  // <-- throws
+    return;
+  }
+  ...
+```
+
+`logger` here is a `scoped_deps` reference requiring `runScoped(..., values: {loggerRef: ...})` to have been set up somewhere up the call stack in the *current* execution context — this works fine from other paths that already print to this same server's log (e.g. this session's own cron output, `[CRON] started: _delete_old_rate_limits`), so the scope itself is real and set up correctly for at least some worker/handler contexts. It is specifically **not** set up for whatever context invokes `courier.send` from `_sendResetPassword` (`apps/zonai/lib/src/db_mutator/zonai_db/parts/auth/reset_password.dart`) when reached via the real `/auth/reset-password` route — not isolated further than that (didn't trace which handler/worker owns this request path or where its `runScoped` wrapper should be, or already is, established).
+
+**Not fixed here.** `apps/website`'s forgot-password UI was written against the correct client-side contract (`POST /auth/reset-password` then `POST /auth/confirm`, per `zonai_client`'s `Auth.sendResetPassword`/`Auth.confirm`) but the feature cannot actually be exercised end-to-end in this app until either this is fixed or real SMTP is configured (unconfirmed whether configuring email avoids this specific branch entirely, since the crash is *in* the missing-config branch specifically — if it's a wave-through-once-you-add-email bug, that would only mask it for configured deployments, not fix the "docs promise a graceful skip, code doesn't deliver one" gap for everyone else).
+
+**How to verify a fix**: repeat the exact reproduction above (no `AppConfig.email` set) and confirm the request returns whatever the *intended* success response is (the `sendResetPassword` client call is `Future<void>`, no body expected) with a real "warning logged" line in the server's own log instead of the scoping crash — then separately confirm the same call with a real, working SMTP config actually delivers the email.
+
 ## 9. `zonai serve` spontaneously dies after a short idle gap — not tied to any request, not a multi-instance artifact
 
 **Severity: makes any real deployment unusable.** Found 2026-07-26 while manually driving `override_canvas`'s organization-collaborators feature end to end against a real running server (not via the automated test suite, which never hits this — its requests fire back-to-back with no gap, and every test file finishes well inside whatever window this needs to trigger).
@@ -161,6 +229,17 @@ Both cases: the worker is currently handling an incoming request it must eventua
 **How to verify a fix**: re-add `get.one`/`get.many` to a row rule (or `get.many` to `addClaims`) and confirm real, concurrent request traffic through that worker no longer logs `Received response for unknown request`.
 
 ## 7. No CORS support anywhere — a standalone frontend on a different origin from the server cannot call it from a real browser
+
+**Update 2026-07-26: fixed.** Confirmed via a real preflight against the
+compiled `apps/server` binary — `OPTIONS /db` and `OPTIONS /db/list` with
+`Origin: http://localhost:3000` (override_canvas's `apps/website`, a
+genuinely different origin from the server's `:8080`) both return `200`
+with `access-control-allow-origin: http://localhost:3000`,
+`access-control-allow-methods`, `access-control-allow-headers`, and
+`access-control-allow-credentials: true`. `apps/website`'s dashboard sign-in
+flow (browser, not curl) round-trips correctly against a server on a
+different port with this fix in place. Not re-run against the original
+"zero hits" grep to find exactly where this landed; left below for history.
 
 **Severity: blocks a whole class of deployment** (any frontend that isn't served from the exact same origin as the zonai server) **— not caused by, or specific to, any one endpoint.** Found 2026-07-25 while building `override_canvas`'s asset-resolution-during-replay feature, but it applies to every browser-side call any external frontend makes to zonai — sign-in, generic `/db` CRUD, everything.
 

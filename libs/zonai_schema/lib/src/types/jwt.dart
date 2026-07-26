@@ -95,9 +95,28 @@ class Jwt {
 
     final [_, payload, _] = parts;
 
-    final payloadJson = jsonDecode(utf8.decode(base64Url.decode(payload)));
+    // JWTs are conventionally issued with the base64url padding stripped
+    // (RFC 7515) — every token this library itself issues is unpadded (see
+    // apps/zonai's JWT signing) — but `base64Url.decode` requires the input
+    // length to be an exact multiple of four and throws
+    // `FormatException: Invalid length, must be multiple of four` otherwise.
+    // Confirmed live: this broke every real signed-in session in a browser
+    // client (zonai_client's `Auth.jwt` calls this on every page load),
+    // permanently, on every token the server actually issues.
+    final normalized = switch (payload.length % 4) {
+      0 => payload,
+      final remainder => payload.padRight(payload.length + (4 - remainder), '='),
+    };
 
-    return Jwt.fromJson(payloadJson);
+    // A malformed/corrupted/tampered token can fail at any of decode, utf8,
+    // JSON, or Jwt.fromJson's own field access — parse's contract (like
+    // maybeFromJson's) is to return null on any such failure, not throw.
+    try {
+      final payloadJson = jsonDecode(utf8.decode(base64Url.decode(normalized)));
+      return Jwt.fromJson(payloadJson as Map<String, dynamic>);
+    } on Object {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() {
