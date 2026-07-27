@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:zonai/src/deps/revali.dart';
 
+import '../../../../gen/server/lib/config/server_binding.dart';
 import '../../../deps/logger.dart';
 import '../../../domain/constants.dart';
 import '../../../native/resqlite_native.dart';
@@ -29,7 +30,10 @@ class ServerController {
     if (isRunning) return;
     _debug('Probing for existing server...');
     final stopwatch = Stopwatch()..start();
-    if (await checkZonaiServerHealth()) {
+    if (await checkZonaiServerHealth(
+      host: ServerBinding.host,
+      port: ServerBinding.port,
+    )) {
       _debug('Found existing server (${stopwatch.elapsedMilliseconds}ms)');
       _attach(quiet: true);
     } else {
@@ -57,7 +61,9 @@ class ServerController {
       }
       _debug('No healthy server found (${healthCheck.elapsedMilliseconds}ms)');
 
-      _onOutput('No server found at ${serverHealthUrl()}.');
+      _onOutput(
+        'No server found at ${serverHealthUrl(host: ServerBinding.host, port: ServerBinding.port)}.',
+      );
       _onOutput(
         'Start the dev server externally (e.g. sip r play serve), then try again.',
       );
@@ -128,7 +134,10 @@ class ServerController {
     Duration delay = const Duration(milliseconds: 100),
   }) async {
     for (var i = 0; i < attempts; i++) {
-      if (await checkZonaiServerHealth()) {
+      if (await checkZonaiServerHealth(
+        host: ServerBinding.host,
+        port: ServerBinding.port,
+      )) {
         if (i > 0) {
           _debug('Health check succeeded on attempt $i');
         }

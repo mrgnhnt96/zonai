@@ -4,6 +4,7 @@ import 'dart:io' as io;
 import 'package:scoped_deps/scoped_deps.dart';
 import '../../deps.dart';
 import '../../gen/server/.revali/server/server.dart' as server;
+import '../../gen/server/lib/config/server_binding.dart';
 import '../domain/constants.dart';
 import '../utils/serve_lock.dart';
 import '../utils/server_health.dart';
@@ -59,11 +60,12 @@ class Revali {
       if (isHealthy) {
         // We hold this project's serve lock, so no other process serving
         // *this* project could be the one answering the health check.
-        // Something else owns port $defaultServerPort -- most likely
-        // another zonai project. Don't silently pretend we're running.
+        // Something else owns this project's configured port -- most
+        // likely another zonai project. Don't silently pretend we're
+        // running.
         if (kIsCompiled && _serveLock != null) {
           logger.error(
-            'Port $defaultServerPort is already in use by another '
+            'Port ${ServerBinding.port} is already in use by another '
             'process. If you have another zonai project running '
             '(`zonai serve` or `zonai dev`), stop it first -- only one '
             'zonai server can bind this port at a time.',
@@ -263,7 +265,10 @@ class Revali {
     }
   }
 
-  Future<bool> health() async => checkZonaiServerHealth();
+  Future<bool> health() async => checkZonaiServerHealth(
+    host: ServerBinding.host,
+    port: ServerBinding.port,
+  );
 
   void _releaseServeLock() {
     _serveLock?.release();
