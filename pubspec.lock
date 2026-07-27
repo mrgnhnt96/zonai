@@ -998,7 +998,7 @@ packages:
       path: "../scoped_deps"
       relative: true
     source: path
-    version: "0.1.0+2"
+    version: "0.2.0"
   scratch_space:
     dependency: transitive
     description:
