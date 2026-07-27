@@ -34,24 +34,29 @@ class HomeSidebar extends StatelessComponent {
     // Mobile drawer always shows full table list while open.
     final collapsed = ui.sidebarVisuallyCollapsed;
     final systemExpanded = ui.systemTablesExpanded;
+    final viewsExpanded = ui.viewsExpanded;
     final appName = context.watch(appNameProvider);
     final tables = context.watch(sqliteTablesProvider);
     final initial = appName.isNotEmpty ? appName[0].toUpperCase() : 'Z';
 
     final userTables = [
       for (final t in tables.tables)
-        if (!isSystemSqliteTable(t.sqliteName)) t,
+        if (!t.isView && !isSystemSqliteTable(t.sqliteName)) t,
     ];
     final systemTables = [
       for (final t in tables.tables)
-        if (isSystemSqliteTable(t.sqliteName)) t,
+        if (!t.isView && isSystemSqliteTable(t.sqliteName)) t,
     ];
+    final viewTables = [for (final t in tables.tables) if (t.isView) t];
     final peekFocusedSystem = !systemExpanded && focused != null && isSystemSqliteTable(focused!.sqliteName);
+    final peekFocusedView = !viewsExpanded && focused != null && focused!.isView;
     final panelShown = systemExpanded || peekFocusedSystem;
+    final viewsPanelShown = viewsExpanded || peekFocusedView;
 
     final railTables = <SqliteTableRef>[
       ...userTables,
       if (focused != null && isSystemSqliteTable(focused!.sqliteName) && !userTables.contains(focused)) focused!,
+      if (focused != null && focused!.isView && !userTables.contains(focused)) focused!,
     ];
 
     return aside(
@@ -93,35 +98,26 @@ class HomeSidebar extends StatelessComponent {
                   p(classes: ZonaiClasses.sectionLabel, [.text('Tables')]),
                   _TablesList(tables: userTables, focused: focused, collapsed: false),
                 ],
+                if (viewTables.isNotEmpty)
+                  _CollapsibleTableGroup(
+                    label: 'Views',
+                    tables: viewTables,
+                    focused: focused,
+                    expanded: viewsExpanded,
+                    panelShown: viewsPanelShown,
+                    peekFocused: peekFocusedView,
+                    onToggle: () => context.read(homeUiProvider.notifier).toggleViews(),
+                  ),
                 if (systemTables.isNotEmpty)
-                  div(classes: 'home-sidebar-system', [
-                    button(
-                      classes: 'home-sidebar-system-toggle',
-                      type: .button,
-                      attributes: {'aria-expanded': systemExpanded ? 'true' : 'false'},
-                      onClick: () => context.read(homeUiProvider.notifier).toggleSystemTables(),
-                      [
-                        span(
-                          classes:
-                              'home-sidebar-system-chevron${systemExpanded ? ' home-sidebar-system-chevron--open' : ''}',
-                          [.text('›')],
-                        ),
-                        span(classes: ZonaiClasses.sectionLabel, [.text('System')]),
-                      ],
-                    ),
-                    div(
-                      classes:
-                          'home-sidebar-system-panel'
-                          '${panelShown ? ' home-sidebar-system-panel--shown' : ''}'
-                          '${peekFocusedSystem ? ' home-sidebar-system-panel--peek' : ''}',
-                      attributes: {'aria-hidden': panelShown ? 'false' : 'true'},
-                      [
-                        div(classes: 'home-sidebar-system-panel-inner', [
-                          _TablesList(tables: systemTables, focused: focused, collapsed: false),
-                        ]),
-                      ],
-                    ),
-                  ]),
+                  _CollapsibleTableGroup(
+                    label: 'System',
+                    tables: systemTables,
+                    focused: focused,
+                    expanded: systemExpanded,
+                    panelShown: panelShown,
+                    peekFocused: peekFocusedSystem,
+                    onToggle: () => context.read(homeUiProvider.notifier).toggleSystemTables(),
+                  ),
               ],
             ],
           ),
@@ -299,9 +295,9 @@ class HomeSidebar extends StatelessComponent {
         },
       ),
       css(
-        '.home-sidebar-system',
+        '.home-sidebar-collapsible',
       ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
-      css('.home-sidebar-system-toggle').styles(
+      css('.home-sidebar-collapsible-toggle').styles(
         cursor: .pointer,
         padding: .symmetric(vertical: ZonaiSpacing.s2),
         display: .flex,
@@ -315,9 +311,9 @@ class HomeSidebar extends StatelessComponent {
         raw: const {'font': 'inherit'},
       ),
       css(
-        '.home-sidebar-system-toggle:hover',
-      ).styles(raw: const {'& .home-sidebar-system-chevron': 'color: var(--zonai-fg)'}),
-      css('.home-sidebar-system-chevron').styles(
+        '.home-sidebar-collapsible-toggle:hover',
+      ).styles(raw: const {'& .home-sidebar-collapsible-chevron': 'color: var(--zonai-fg)'}),
+      css('.home-sidebar-collapsible-chevron').styles(
         display: .inlineFlex,
         alignItems: .center,
         justifyContent: .center,
@@ -328,13 +324,13 @@ class HomeSidebar extends StatelessComponent {
         flex: Flex(grow: 0, shrink: 0),
         raw: const {'line-height': '1', 'transition': 'transform 0.15s ease'},
       ),
-      css('.home-sidebar-system-chevron--open').styles(raw: const {'transform': 'rotate(90deg)'}),
-      css('.home-sidebar-system-panel').styles(
+      css('.home-sidebar-collapsible-chevron--open').styles(raw: const {'transform': 'rotate(90deg)'}),
+      css('.home-sidebar-collapsible-panel').styles(
         raw: const {'display': 'grid', 'grid-template-rows': '0fr', 'transition': 'grid-template-rows 0.2s ease'},
       ),
-      css('.home-sidebar-system-panel--shown').styles(raw: const {'grid-template-rows': '1fr'}),
-      css('.home-sidebar-system-panel-inner').styles(overflow: Overflow.hidden, minHeight: .zero),
-      css('.home-sidebar-system-panel .home-sidebar-item:not(.home-sidebar-item-focused)').styles(
+      css('.home-sidebar-collapsible-panel--shown').styles(raw: const {'grid-template-rows': '1fr'}),
+      css('.home-sidebar-collapsible-panel-inner').styles(overflow: Overflow.hidden, minHeight: .zero),
+      css('.home-sidebar-collapsible-panel .home-sidebar-item:not(.home-sidebar-item-focused)').styles(
         overflow: Overflow.hidden,
         raw: const {
           'max-height': '2.75rem',
@@ -342,7 +338,7 @@ class HomeSidebar extends StatelessComponent {
         },
       ),
       css(
-        '.home-sidebar-system-panel--peek .home-sidebar-item:not(.home-sidebar-item-focused)',
+        '.home-sidebar-collapsible-panel--peek .home-sidebar-item:not(.home-sidebar-item-focused)',
       ).styles(margin: .zero, raw: const {'max-height': '0', 'opacity': '0', 'pointer-events': 'none'}),
       css('.home-sidebar-footer').styles(
         margin: .only(top: .auto),
@@ -635,6 +631,12 @@ class _SidebarListAreaState extends State<_SidebarListArea> {
       if (!mounted) return;
     }
 
+    if (focused.isView && !context.read(homeUiProvider).viewsExpanded) {
+      context.read(homeUiProvider.notifier).setViewsExpanded(true);
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
+    }
+
     await Future<void>.delayed(Duration.zero);
     if (!mounted) return;
 
@@ -648,6 +650,60 @@ class _SidebarListAreaState extends State<_SidebarListArea> {
           .read(homeUiProvider.notifier)
           .saveSidebarScrollTop(body: _isBody, scrollTop: scrollEl.scrollTop.toDouble());
     }
+  }
+}
+
+/// A named, collapsible group of tables in the sidebar body — used for both
+/// the "System" (framework-managed) and "Views" (read-only, query-defined)
+/// groups, which share the same expand/collapse/peek behavior and styling.
+class _CollapsibleTableGroup extends StatelessComponent {
+  const _CollapsibleTableGroup({
+    required this.label,
+    required this.tables,
+    required this.focused,
+    required this.expanded,
+    required this.panelShown,
+    required this.peekFocused,
+    required this.onToggle,
+  });
+
+  final String label;
+  final List<SqliteTableRef> tables;
+  final SqliteTableRef? focused;
+  final bool expanded;
+  final bool panelShown;
+  final bool peekFocused;
+  final void Function() onToggle;
+
+  @override
+  Component build(BuildContext context) {
+    return div(classes: 'home-sidebar-collapsible', [
+      button(
+        classes: 'home-sidebar-collapsible-toggle',
+        type: .button,
+        attributes: {'aria-expanded': expanded ? 'true' : 'false'},
+        onClick: onToggle,
+        [
+          span(
+            classes: 'home-sidebar-collapsible-chevron${expanded ? ' home-sidebar-collapsible-chevron--open' : ''}',
+            [.text('›')],
+          ),
+          span(classes: ZonaiClasses.sectionLabel, [.text(label)]),
+        ],
+      ),
+      div(
+        classes:
+            'home-sidebar-collapsible-panel'
+            '${panelShown ? ' home-sidebar-collapsible-panel--shown' : ''}'
+            '${peekFocused ? ' home-sidebar-collapsible-panel--peek' : ''}',
+        attributes: {'aria-hidden': panelShown ? 'false' : 'true'},
+        [
+          div(classes: 'home-sidebar-collapsible-panel-inner', [
+            _TablesList(tables: tables, focused: focused, collapsed: false),
+          ]),
+        ],
+      ),
+    ]);
   }
 }
 

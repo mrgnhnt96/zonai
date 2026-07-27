@@ -11,6 +11,7 @@ final class HomeUiState {
     this.sidebarToggling = false,
     this.settingsOpen = false,
     this.systemTablesExpanded = false,
+    this.viewsExpanded = false,
     this.mobileNavOpen = false,
     this.mobileNavClosing = false,
   });
@@ -21,6 +22,7 @@ final class HomeUiState {
   final bool sidebarToggling;
   final bool settingsOpen;
   final bool systemTablesExpanded;
+  final bool viewsExpanded;
   final bool mobileNavOpen;
 
   /// True during the 0.2s close animation so the sidebar CSS transition stays active.
@@ -33,6 +35,7 @@ final class HomeUiState {
 class HomeUiNotifier extends Notifier<HomeUiState> {
   static const _collapsedKey = 'zonai_sidebar_collapsed';
   static const _systemOpenKey = 'zonai_sidebar_system_open';
+  static const _viewsOpenKey = 'zonai_sidebar_views_open';
 
   Timer? _mobileNavCloseTimer;
   Timer? _sidebarToggleTimer;
@@ -69,7 +72,11 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
     if (!ref.binding.isClient) {
       return const HomeUiState();
     }
-    return HomeUiState(sidebarCollapsed: _readCollapsed(), systemTablesExpanded: _readSystemOpen());
+    return HomeUiState(
+      sidebarCollapsed: _readCollapsed(),
+      systemTablesExpanded: _readSystemOpen(),
+      viewsExpanded: _readViewsOpen(),
+    );
   }
 
   void toggleSidebar() {
@@ -86,6 +93,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
       sidebarToggling: true,
       settingsOpen: collapsed ? false : state.settingsOpen,
       systemTablesExpanded: state.systemTablesExpanded,
+      viewsExpanded: state.viewsExpanded,
       mobileNavOpen: false,
       mobileNavClosing: false,
     );
@@ -95,6 +103,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
         sidebarToggling: false,
         settingsOpen: state.settingsOpen,
         systemTablesExpanded: state.systemTablesExpanded,
+        viewsExpanded: state.viewsExpanded,
         mobileNavOpen: state.mobileNavOpen,
         mobileNavClosing: state.mobileNavClosing,
       );
@@ -112,10 +121,28 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
       sidebarToggling: state.sidebarToggling,
       settingsOpen: state.settingsOpen,
       systemTablesExpanded: expanded,
+      viewsExpanded: state.viewsExpanded,
       mobileNavOpen: state.mobileNavOpen,
       mobileNavClosing: state.mobileNavClosing,
     );
     _writeSystemOpen(expanded);
+  }
+
+  void toggleViews() {
+    setViewsExpanded(!state.viewsExpanded);
+  }
+
+  void setViewsExpanded(bool expanded) {
+    state = HomeUiState(
+      sidebarCollapsed: state.sidebarCollapsed,
+      sidebarToggling: state.sidebarToggling,
+      settingsOpen: state.settingsOpen,
+      systemTablesExpanded: state.systemTablesExpanded,
+      viewsExpanded: expanded,
+      mobileNavOpen: state.mobileNavOpen,
+      mobileNavClosing: state.mobileNavClosing,
+    );
+    _writeViewsOpen(expanded);
   }
 
   void openMobileNav() {
@@ -126,6 +153,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
       sidebarToggling: state.sidebarToggling,
       settingsOpen: state.settingsOpen,
       systemTablesExpanded: state.systemTablesExpanded,
+      viewsExpanded: state.viewsExpanded,
       mobileNavOpen: true,
       mobileNavClosing: false,
     );
@@ -140,6 +168,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
       sidebarToggling: state.sidebarToggling,
       settingsOpen: state.settingsOpen,
       systemTablesExpanded: state.systemTablesExpanded,
+      viewsExpanded: state.viewsExpanded,
       mobileNavOpen: false,
       mobileNavClosing: true,
     );
@@ -149,6 +178,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
         sidebarToggling: state.sidebarToggling,
         settingsOpen: state.settingsOpen,
         systemTablesExpanded: state.systemTablesExpanded,
+        viewsExpanded: state.viewsExpanded,
         mobileNavOpen: false,
         mobileNavClosing: false,
       );
@@ -169,6 +199,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
       sidebarToggling: state.sidebarToggling,
       settingsOpen: true,
       systemTablesExpanded: state.systemTablesExpanded,
+      viewsExpanded: state.viewsExpanded,
       mobileNavOpen: state.mobileNavOpen,
       mobileNavClosing: state.mobileNavClosing,
     );
@@ -180,6 +211,7 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
       sidebarToggling: state.sidebarToggling,
       settingsOpen: false,
       systemTablesExpanded: state.systemTablesExpanded,
+      viewsExpanded: state.viewsExpanded,
       mobileNavOpen: state.mobileNavOpen,
       mobileNavClosing: state.mobileNavClosing,
     );
@@ -225,6 +257,24 @@ class HomeUiNotifier extends Notifier<HomeUiState> {
         web.window.localStorage.setItem(_systemOpenKey, '1');
       } else {
         web.window.localStorage.removeItem(_systemOpenKey);
+      }
+    } catch (_) {}
+  }
+
+  static bool _readViewsOpen() {
+    try {
+      return web.window.localStorage.getItem(_viewsOpenKey) == '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static void _writeViewsOpen(bool open) {
+    try {
+      if (open) {
+        web.window.localStorage.setItem(_viewsOpenKey, '1');
+      } else {
+        web.window.localStorage.removeItem(_viewsOpenKey);
       }
     } catch (_) {}
   }

@@ -1,11 +1,20 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
-/// One SQLite-backed table: UI label may differ from the real table name.
+/// One table in the sidebar: a real SQLite-backed table, or a read-only view.
+///
+/// UI label may differ from the real table name. [isView] tables have no
+/// `sqlite_master` row — they're sourced from schema shapes, not the SQLite
+/// file, and never support create/update/delete.
 final class SqliteTableRef {
-  const SqliteTableRef({required this.sqliteName, required this.displayName});
+  const SqliteTableRef({
+    required this.sqliteName,
+    required this.displayName,
+    this.isView = false,
+  });
 
   final String sqliteName;
   final String displayName;
+  final bool isView;
 
   @override
   bool operator ==(Object other) => other is SqliteTableRef && other.sqliteName == sqliteName;

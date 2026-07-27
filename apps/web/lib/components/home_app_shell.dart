@@ -39,14 +39,18 @@ class HomeAppShell extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    final tables = <SqliteTableRef>[
-      for (var i = 0; i < initialSqliteNames.length; i++)
-        SqliteTableRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
-    ];
     final schemaShapes = augmentWebSchemaShapes({
       for (final MapEntry(:key, :value) in initialSchemaShapes.entries)
         key: TableSchemaShape.fromJson(Map<String, dynamic>.from(value)),
     });
+    final tables = <SqliteTableRef>[
+      for (var i = 0; i < initialSqliteNames.length; i++)
+        SqliteTableRef(sqliteName: initialSqliteNames[i], displayName: initialDisplayNames[i]),
+      // Views have no `sqlite_master` row, so they're never in the SQLite
+      // name list above — they're only visible through their schema shape.
+      for (final MapEntry(key: name, value: shape) in schemaShapes.entries)
+        if (shape.isView) SqliteTableRef(sqliteName: name, displayName: name, isView: true),
+    ];
     final collectionActions = {
       for (final MapEntry(:key, :value) in initialCollectionActions.entries)
         key: TableCollectionActions.fromJson(Map<String, dynamic>.from(value)),
