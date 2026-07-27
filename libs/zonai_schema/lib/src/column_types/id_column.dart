@@ -68,6 +68,13 @@ class IdTransformer<I extends Id> extends ColumnTransformer<I, Object>
 }
 
 extension IdOperators<T extends Id> on ColumnOf<T> {
-  /// String equals [value].
-  SQL equals(T value) => SQL([this, Op.equals, value.value]);
+  /// Compares against another [Id] value, or another id-typed column — e.g.
+  /// a join condition: `posts.authorId.equals(authors.id)`.
+  SQL equals(ColumnOr<T> value) {
+    final operand = switch (value) {
+      final Id id => id.value,
+      final other => other,
+    };
+    return SQL([this, Op.equals, operand]);
+  }
 }

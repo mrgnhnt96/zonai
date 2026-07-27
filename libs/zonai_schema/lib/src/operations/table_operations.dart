@@ -12,6 +12,7 @@ import '../false_delegate.dart';
 import '../handlers/operations/operation_request.dart';
 
 part 'table_translator.dart';
+part 'view_operations.dart';
 
 /// Type-erased view of [TableOperations] for APIs (e.g. [DbOperations])
 /// that hold multiple schemas. [Iterable] parameters use this type so call
@@ -433,38 +434,6 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     return builder;
   }
 
-  /// Default sort when [orderBy] is omitted: newest records first.
-  ///
-  /// Prefers [CreatedAtTransformer] columns, then auto-increment primary keys,
-  /// then any primary key.
-  List<OrderByTerm>? _defaultListOrderBy() {
-    for (final column in table.columns) {
-      if (column.transformer is CreatedAtTransformer) {
-        return [
-          OrderByTerm(column: column.name, direction: SortDirection.desc),
-        ];
-      }
-    }
-
-    for (final column in table.columns) {
-      if (column.isPrimaryKey && column.autoIncrement) {
-        return [
-          OrderByTerm(column: column.name, direction: SortDirection.desc),
-        ];
-      }
-    }
-
-    for (final column in table.columns) {
-      if (column.isPrimaryKey) {
-        return [
-          OrderByTerm(column: column.name, direction: SortDirection.desc),
-        ];
-      }
-    }
-
-    return null;
-  }
-
   /// [selectFrom] with optional filter and pagination applied first.
   rd.SelectFromBuilder<rd.Schema<R>, R, R> list({
     Where? where,
@@ -479,7 +448,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
       builder = builder.where(_whereFilter(where, table.name));
     }
 
-    final resolvedOrderBy = orderBy ?? _defaultListOrderBy();
+    final resolvedOrderBy = orderBy ?? _defaultOrderByFor(table);
     if (resolvedOrderBy != null && resolvedOrderBy.isNotEmpty) {
       builder = builder.orderBy({
         for (final term in resolvedOrderBy)
@@ -750,11 +719,40 @@ class JwtConfig {
   }
 }
 
+/// Default sort when a caller's `orderBy` is omitted: newest records first.
+///
+/// Prefers [CreatedAtTransformer] columns, then auto-increment primary keys,
+/// then any primary key.
+List<OrderByTerm>? _defaultOrderByFor(rd.Table<dynamic, dynamic> table) {
+  for (final column in table.columns) {
+    if (column.transformer is CreatedAtTransformer) {
+      return [OrderByTerm(column: column.name, direction: SortDirection.desc)];
+    }
+  }
+
+  for (final column in table.columns) {
+    if (column.isPrimaryKey && column.autoIncrement) {
+      return [OrderByTerm(column: column.name, direction: SortDirection.desc)];
+    }
+  }
+
+  for (final column in table.columns) {
+    if (column.isPrimaryKey) {
+      return [OrderByTerm(column: column.name, direction: SortDirection.desc)];
+    }
+  }
+
+  return null;
+}
+
 /// Builds a parameterized [SQL] filter from a [Where] condition.
 ///
 /// Values are bound as parameters (not inlined), so the DB driver handles
 /// escaping. Column and table identifiers are double-quote escaped.
-SQL _whereFilter(Where where, String tableName) {
+///
+/// [tableName] qualifies every column reference; pass `null` for an
+/// unqualified reference (see [WhereX.sql]).
+SQL _whereFilter(Where where, String? tableName) {
   final (sql, params) = where.sql(tableName);
   final parts = sql.split('?');
   final chunks = <Object?>[];

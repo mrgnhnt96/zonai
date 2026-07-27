@@ -3,7 +3,14 @@ import 'package:zonai_schema/zonai_schema.dart';
 import 'where_value.dart';
 
 extension WhereX on Where {
-  (String, List<Object?>) sql(String tableName) {
+  /// Renders this [Where] to a parameterized SQL fragment.
+  ///
+  /// [tableName] qualifies every column reference (`"table"."column"`).
+  /// Pass `null` for an unqualified reference (`"column"`) — required when
+  /// there's no single table name to qualify with, e.g. a view's query
+  /// joining multiple tables, where columns must resolve by name against
+  /// the joined `FROM`/`JOIN` clauses instead.
+  (String, List<Object?>) sql(String? tableName) {
     return WhereSql(tableName, this).toSql();
   }
 }
@@ -13,12 +20,13 @@ class WhereSql {
 
   factory WhereSql.fromJson(Map<String, dynamic> json) {
     return WhereSql(
-      json['table'] as String,
+      json['table'] as String?,
       Where.fromJson(json['data'] as Map<String, dynamic>),
     );
   }
 
-  final String table;
+  /// Qualifies every column reference when set; unqualified otherwise.
+  final String? table;
   final Where data;
 
   (String, List<Object?>) toSql([Where? data]) {
@@ -27,7 +35,10 @@ class WhereSql {
     return (sql, params);
   }
 
-  String _col(String column) => '"${_esc(table)}"."${_esc(column)}"';
+  String _col(String column) => switch (table) {
+    null => '"${_esc(column)}"',
+    final table => '"${_esc(table)}"."${_esc(column)}"',
+  };
 
   String _build(Where where, List<Object?> params) {
     switch (where) {
