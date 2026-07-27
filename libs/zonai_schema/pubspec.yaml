@@ -18,7 +18,7 @@ dependencies:
   raindrop_sqlite:
     path: ../raindrop/packages/raindrop_sqlite
   scoped_deps:
-    path: ../scoped_deps
+    path: ../../../scoped_deps
 
 dev_dependencies:
   revali_router: ^3.4.0

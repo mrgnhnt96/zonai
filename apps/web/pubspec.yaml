@@ -17,7 +17,7 @@ dependencies:
   riverpod: 3.2.1
   universal_web: ^1.1.1
   scoped_deps:
-    path: ../../libs/scoped_deps
+    path: ../../../scoped_deps
   sqlite3: ^2.9.4
   zonai_schema:
     path: ../../libs/zonai_schema
