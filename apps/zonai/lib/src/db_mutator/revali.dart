@@ -36,21 +36,46 @@ class Revali {
       return true;
     }
 
+    if (kIsCompiled) {
+      devLog('Acquiring serve lock...');
+      final lockWatch = Stopwatch()..start();
+      _serveLock = ServeLock.tryAcquire();
+      devLog(
+        'Serve lock ${_serveLock == null ? 'unavailable' : 'acquired'} '
+        '(${lockWatch.elapsedMilliseconds}ms)',
+      );
+    }
+
     // during development, the server could already be running, so we can just return true
     if (!(isDev && kIsCompiled)) {
       devLog('Quick health check...');
       final quickHealth = Stopwatch()..start();
-      if (await _checkHealth(quick: true)) {
+      final isHealthy = await _checkHealth(quick: true);
+      devLog(
+        'Quick health check ${isHealthy ? 'passed' : 'failed'} '
+        '(${quickHealth.elapsedMilliseconds}ms)',
+      );
+
+      if (isHealthy) {
+        // We hold this project's serve lock, so no other process serving
+        // *this* project could be the one answering the health check.
+        // Something else owns port $defaultServerPort -- most likely
+        // another zonai project. Don't silently pretend we're running.
+        if (kIsCompiled && _serveLock != null) {
+          logger.error(
+            'Port $defaultServerPort is already in use by another '
+            'process. If you have another zonai project running '
+            '(`zonai serve` or `zonai dev`), stop it first -- only one '
+            'zonai server can bind this port at a time.',
+          );
+          _releaseServeLock();
+          return false;
+        }
+
         logger.debug('Revali server is already running');
-        devLog(
-          'Quick health check passed (${quickHealth.elapsedMilliseconds}ms)',
-        );
         _isRunning = true;
         return true;
       }
-      devLog(
-        'Quick health check failed (${quickHealth.elapsedMilliseconds}ms)',
-      );
     } else {
       devLog('Skipping quick health check (starting compiled server)');
     }
@@ -89,14 +114,11 @@ class Revali {
       if (isDev) logger.debug(message);
     }
 
-    devLog('Acquiring serve lock...');
-    final lockWatch = Stopwatch()..start();
-    _serveLock = ServeLock.tryAcquire();
+    // Acquired earlier in start(); a null lock here means another process is
+    // already serving this exact project (see ServeLock.tryAcquire logging).
     if (_serveLock == null) {
-      devLog('Serve lock unavailable (${lockWatch.elapsedMilliseconds}ms)');
       return false;
     }
-    devLog('Serve lock acquired (${lockWatch.elapsedMilliseconds}ms)');
 
     final cliLogger = logger;
 
