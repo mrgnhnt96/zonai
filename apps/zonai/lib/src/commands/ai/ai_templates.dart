@@ -122,7 +122,14 @@ final items = table('items', ItemTable.new);
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
 | `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
+| `$.updatedWhen(name, getter, watchColumn:)` | `DateTimeColumn` | Auto-set when `watchColumn` changes |
 | `$.isVerified(name, getter)` | `IsVerifiedColumn` | Auth tables |
+| `$.enumerator(name, values, getter)` | `EnumColumn<E>` | Dart enum stored as TEXT |
+| `$.enumList(name, values, getter)` | `EnumListColumn<E>` | List of enum values |
+| `$.list(name, getter, fromJson:)` | `ListColumn<T>` | JSON array in TEXT |
+| `$.map(name, getter)` | `MapColumn` | JSON object in TEXT |
+| `$.photos(name, getter)` | `PhotosColumn` | List of `PhotoId` |
+| `$.serverGenerated(name, getter)` | `ColumnType<String>` | Value client can never set; `safeCreate` fills `''` for rules; unlike `password`, not stripped from responses |
 
 Nullable getter type (`String?`) → nullable SQL column.
 
@@ -823,7 +830,14 @@ users of this table to authenticate as admins.
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
 | `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
+| `$.updatedWhen(name, getter, watchColumn:)` | `DateTimeColumn` | Auto-set when `watchColumn` changes |
 | `$.isVerified(name, getter)` | `IsVerifiedColumn` | Auth tables |
+| `$.enumerator(name, values, getter)` | `EnumColumn<E>` | Dart enum stored as TEXT |
+| `$.enumList(name, values, getter)` | `EnumListColumn<E>` | List of enum values |
+| `$.list(name, getter, fromJson:)` | `ListColumn<T>` | JSON array in TEXT |
+| `$.map(name, getter)` | `MapColumn` | JSON object in TEXT |
+| `$.photos(name, getter)` | `PhotosColumn` | List of `PhotoId` |
+| `$.serverGenerated(name, getter)` | `ColumnType<String>` | Value client can never set; `safeCreate` fills `''` for rules; unlike `password`, not stripped from responses |
 
 Nullable getter (`String?`) → nullable column in SQL.
 
