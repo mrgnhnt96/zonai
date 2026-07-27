@@ -127,10 +127,18 @@ final class ColumnShape {
 
 /// Full schema metadata for a collection table.
 final class TableSchemaShape {
-  const TableSchemaShape({required this.table, required this.columns});
+  const TableSchemaShape({
+    required this.table,
+    required this.columns,
+    this.isView = false,
+  });
 
   final String table;
   final List<ColumnShape> columns;
+
+  /// Whether this collection is a read-only view (`ViewOperations`) rather
+  /// than a real SQLite table — no `sqlite_master` row, no write operations.
+  final bool isView;
 
   factory TableSchemaShape.fromJson(Map<String, dynamic> json) {
     return TableSchemaShape(
@@ -139,12 +147,14 @@ final class TableSchemaShape {
         for (final item in json['columns'] as List)
           ColumnShape.fromJson(Map<String, dynamic>.from(item as Map)),
       ],
+      isView: json['isView'] as bool? ?? false,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'table': table,
     'columns': [for (final column in columns) column.toJson()],
+    'isView': isView,
   };
 
   ColumnShape? columnNamed(String name) {
@@ -159,11 +169,12 @@ final class TableSchemaShape {
     if (identical(this, other)) return true;
     return other is TableSchemaShape &&
         table == other.table &&
+        isView == other.isView &&
         _listEquals(columns, other.columns);
   }
 
   @override
-  int get hashCode => Object.hash(table, Object.hashAll(columns));
+  int get hashCode => Object.hash(table, isView, Object.hashAll(columns));
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

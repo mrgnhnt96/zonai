@@ -48,6 +48,20 @@ void main() {
       final restored = TableSchemaShape.fromJson(shape.toJson());
       expect(restored, shape);
     });
+
+    test('isView defaults to false and can be set', () {
+      final table = tableSchemaShapeFromTable(
+        rd.Table.getFor(_DemoTable.schemaTable),
+      );
+      final view = tableSchemaShapeFromTable(
+        rd.Table.getFor(_DemoTable.schemaTable),
+        isView: true,
+      );
+
+      expect(table.isView, isFalse);
+      expect(view.isView, isTrue);
+      expect(TableSchemaShape.fromJson(view.toJson()).isView, isTrue);
+    });
   });
 }
 

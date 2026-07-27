@@ -135,7 +135,10 @@ class DbOperations {
     final shapes = <String, TableSchemaShape>{};
     for (final name in operationsByTable.keys) {
       final ops = operationsByTable[name]!;
-      shapes[name] = tableSchemaShapeFromTable(ops.table);
+      shapes[name] = tableSchemaShapeFromTable(
+        ops.table,
+        isView: ops is ViewOperations,
+      );
     }
     return AllTableSchemaShapesResponse(id: request.id, shapes: shapes);
   }

@@ -18,12 +18,13 @@ import 'package:zonai_schema/src/types/column_shape_kind.dart';
 import 'package:zonai_schema/src/types/schema_shape.dart';
 
 /// Builds [TableSchemaShape] from a Raindrop [table] definition.
-TableSchemaShape tableSchemaShapeFromTable(rd.Table table) {
+TableSchemaShape tableSchemaShapeFromTable(rd.Table table, {bool isView = false}) {
   return TableSchemaShape(
     table: table.name,
     columns: [
       for (final column in table.columns) columnShapeFromColumn(column),
     ],
+    isView: isView,
   );
 }
 
