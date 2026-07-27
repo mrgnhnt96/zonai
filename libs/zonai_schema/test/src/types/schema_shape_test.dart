@@ -22,6 +22,8 @@ void main() {
       expect(shape.columnNamed('password')?.isSecret, isTrue);
       expect(shape.columnNamed('status')?.enumValues, ['draft', 'published']);
       expect(shape.columnNamed('created_at')?.isReadOnly, isTrue);
+      expect(shape.columnNamed('api_key')?.isReadOnly, isTrue);
+      expect(shape.columnNamed('api_key')?.isSecret, isFalse);
     });
 
     test('maps photo transformer runtime type to photo kind', () {
@@ -73,6 +75,7 @@ final class _DemoRow {
     required this.password,
     required this.status,
     required this.createdAt,
+    required this.apiKey,
   });
 
   final UnknownId id;
@@ -81,6 +84,7 @@ final class _DemoRow {
   final String password;
   final _Status status;
   final DateTime createdAt;
+  final String apiKey;
 }
 
 enum _Status { draft, published }
@@ -97,7 +101,8 @@ final class _DemoTable extends Table<_DemoRow> {
       isVerified = $.isVerified('is_verified', (s) => s.isVerified),
       password = $.password('password', (s) => s.password),
       status = $.enumerator('status', _Status.values, (s) => s.status),
-      createdAt = $.createdAt('created_at', (s) => s.createdAt);
+      createdAt = $.createdAt('created_at', (s) => s.createdAt),
+      apiKey = $.serverGenerated('api_key', (s) => s.apiKey);
 
   static final schemaTable = zs.table('demo_rows', _DemoTable.new);
 
@@ -109,6 +114,7 @@ final class _DemoTable extends Table<_DemoRow> {
     password: read(password),
     status: read(status),
     createdAt: read(createdAt),
+    apiKey: read(apiKey),
   );
 
   final IdColumn<UnknownId> id;
@@ -117,6 +123,7 @@ final class _DemoTable extends Table<_DemoRow> {
   final PasswordColumn password;
   final EnumColumn<_Status> status;
   final DateTimeColumn createdAt;
+  final ColumnType<String> apiKey;
 }
 
 final class _PhotoRow {

@@ -14,6 +14,10 @@ import 'package:raindrop/raindrop.dart';
 /// stripped from responses during sanitization — use this when the
 /// column's eventual value should be visible to ordinary callers (unlike a
 /// password), just not something the client provides at create time.
+///
+/// `tableSchemaShapeFromTable` also flags these columns `isReadOnly`, so the
+/// admin dashboard displays the value but doesn't offer a raw text field to
+/// overwrite it directly.
 abstract interface class ServerGeneratedTransformer<T, O>
     extends ColumnTransformer<T, O> {
   const ServerGeneratedTransformer();

@@ -14,6 +14,7 @@ import 'package:zonai_schema/src/column_types/photo_column.dart';
 import 'package:zonai_schema/src/column_types/photos_column.dart';
 import 'package:zonai_schema/src/column_types/updated_at_column.dart';
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
+import 'package:zonai_schema/src/transformers/server_generated_transformer.dart';
 import 'package:zonai_schema/src/types/column_shape_kind.dart';
 import 'package:zonai_schema/src/types/schema_shape.dart';
 
@@ -157,6 +158,12 @@ _describeColumn(rd.Column column) {
       enumValues: const [],
       isSecret: true,
       isReadOnly: false,
+    ),
+    final transformer when transformer is ServerGeneratedTransformer => (
+      kind: _kindFromSqlType(column.sqlType),
+      enumValues: const [],
+      isSecret: false,
+      isReadOnly: true,
     ),
     null => (
       kind: _kindFromSqlType(column.sqlType),
