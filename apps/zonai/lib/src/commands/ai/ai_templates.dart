@@ -300,6 +300,105 @@ request is rejected with a permissions error.
 
 ---
 
+## Views
+
+Read-only, query-defined collections — no backing SQLite table, no
+`CREATE VIEW`, no migration. Built entirely on the existing schema/operations/
+rules mechanism, using Raindrop's own join/select API.
+
+**The schema lives in the operations file, never under `schemasPath`.**
+raindrop_cli's migration generator finds *any* top-level variable typed as a
+raindrop `Schema` inside `schemasPath` — regardless of what function produced
+it — so a separate "views" folder next to `schemas/` would only avoid
+migration generation by convention, not by construction. `operationsPath` is
+never scanned for migrations, so defining the schema there is safe
+structurally. Note the `hide Table, table` on the raindrop import — needed
+because this file uses zonai_schema's `Table`/`table()` and both packages
+export symbols with those names:
+
+```dart
+import 'package:raindrop/raindrop.dart' hide Table, table;
+import 'package:zonai_schema/zonai_schema.dart';
+import '../schemas/authors.dart';
+import '../schemas/posts.dart';
+
+ViewOperations<PostSummary> main() =>
+    ViewOperations(postSummary, PostSummaryQuery());
+
+final class PostSummaryTable extends Table<PostSummary> {
+  PostSummaryTable(super.$)
+    : id = $.id('id', (s) => s.id,
+          fromString: PostsId.new, generate: PostsId.generate),
+      title = $.text('title', (s) => s.title),
+      authorName = $.text('author_name', (s) => s.authorName);
+
+  @override
+  PostSummary fromRow(RowReader read) => PostSummary(
+    id: read(id), title: read(title)!, authorName: read(authorName)!,
+  );
+
+  final IdColumn<PostsId> id;
+  final TextColumn title;
+  final TextColumn authorName;
+}
+
+final postSummary = table('post_summary', PostSummaryTable.new);
+
+final class PostSummaryQuery extends ViewQuery<PostSummary> {
+  @override
+  SelectFromBuilder<dynamic, dynamic, dynamic> query() => db
+      .select(
+        posts.id.aliasedAs('id'),
+        posts.title.aliasedAs('title'),
+        authors.name.aliasedAs('author_name'),
+      )
+      .from(posts)
+      .join(authors, on: posts.authorId.equals(authors.id));
+
+  @override
+  SelectFromBuilder<dynamic, dynamic, dynamic> countQuery() => db
+      .select(count(posts.id))
+      .from(posts)
+      .join(authors, on: posts.authorId.equals(authors.id));
+}
+```
+
+`ViewQuery<R>` — implement `query()`/`countQuery()` with columns/joins only,
+no `where`/`limit`/`offset`/`orderBy` (`ViewOperations` applies those
+generically on top). Every selected column must use `.aliasedAs(name)`
+matching the schema's column name exactly — Raindrop auto-aliases joined
+columns as `"table__column"` otherwise, and row reconstruction breaks.
+
+Rules use `ViewTableRules`/`ViewRowRules` (extend the regular `TableRules`/
+`RowRules`), importing the schema from the operations file that declares
+it — `canCreate`/`canUpdate`/`canDelete` are hard-denied, even for admin
+tokens; only `canView`/`canList` (and row `canView`) are yours to override:
+
+```dart
+import '../operations/post_summary_operations.dart';
+
+final class PostSummaryTableRules
+    extends ViewTableRules<PostSummaryTable, PostSummary> {
+  PostSummaryTableRules() : super(postSummary);
+
+  @override Future<bool> canView(Jwt? jwt) async => true;
+  @override Future<bool> canList(Jwt? jwt) async => true;
+}
+PostSummaryTableRules main() => PostSummaryTableRules();
+```
+
+`ViewOperations` is `final` — construct it, don't extend it. The schema,
+`ViewQuery`'s two methods, and the two rules files are the only things you
+write; pagination, filtering, sort, and write rejection are handled
+centrally, the same way for every view.
+
+**Filtering caveat**: a caller's `where`/`orderBy` reference columns by the
+alias `query()` selects them as. `WHERE` generally can't reference a
+`SELECT` alias in SQL (unlike `ORDER BY`) — expose a column under its
+natural, unambiguous source-table name if you need it filterable.
+
+---
+
 ## Extensions
 
 Lifecycle hooks around mutations and auth events.
@@ -745,6 +844,9 @@ class ItemsId implements z.Id {
 ```
 
 Use a unique 2-3 char suffix per table. IDs are `<timestamp>_<suffix>`.
+
+For a read-only, query-defined collection (a join/projection with no backing
+table), see `zonai-views.mdc` instead of declaring it here.
 """;
 
 const cursorOperationsMdc = r"""---
@@ -818,6 +920,9 @@ rd.ToQuery<PostTable, Post> custom(
 ```
 
 One file per collection. `main()` must return a non-null `TableOperations`.
+
+For a read-only view's operations file (`ViewOperations`/`ViewQuery` instead
+of default CRUD), see `zonai-views.mdc`.
 """;
 
 const cursorRulesMdc = r"""---
@@ -924,6 +1029,168 @@ return `true` for unauthenticated callers.
 
 For `list`: every row must pass row-level `canView`. Design `canList` and
 `canView` together, or filter via query to only return accessible rows.
+
+For a read-only view's rules (`ViewTableRules`/`ViewRowRules`, which hard-deny
+create/update/delete), see `zonai-views.mdc`.
+""";
+
+const cursorViewsMdc = r"""---
+description: zonai views — read-only, query-defined collections (ViewQuery, ViewOperations, ViewTableRules, ViewRowRules)
+globs: lib/src/operations/**
+alwaysApply: false
+---
+
+# Zonai Views
+
+A view is a read-only collection defined by a query instead of a real SQLite
+table — typically a join or projection across other collections. Exposed
+through the same `/db` surface as regular collections, and goes through the
+same rules checks. No `CREATE VIEW`, no migration, no raindrop changes — a
+view is one operations file (schema + query) plus rules files, wired
+together like any other collection.
+
+## Schema + query — both in the operations file, never under `schemasPath`
+
+raindrop_cli's migration generator finds *any* top-level variable typed as a
+raindrop `Schema` inside `schemasPath` — regardless of what function produced
+it — so a separate "views" folder next to `schemas/` would only avoid
+migration generation by convention, not by construction. `operationsPath` is
+never scanned for migrations, so defining the schema there instead is safe
+structurally.
+
+Note the `hide Table, table` on the raindrop import — needed because this
+file uses zonai_schema's `Table`/`table()` and both packages export symbols
+with those names:
+
+```dart
+import 'package:raindrop/raindrop.dart' hide Table, table;
+import 'package:zonai_schema/zonai_schema.dart';
+import '../schemas/authors.dart';
+import '../schemas/posts.dart';
+
+ViewOperations<PostSummary> main() =>
+    ViewOperations(postSummary, PostSummaryQuery());
+
+final class PostSummaryTable extends Table<PostSummary> {
+  PostSummaryTable(super.$)
+    : id = $.id('id', (s) => s.id,
+          fromString: PostsId.new, generate: PostsId.generate),
+      title = $.text('title', (s) => s.title),
+      authorName = $.text('author_name', (s) => s.authorName);
+
+  @override
+  PostSummary fromRow(RowReader read) => PostSummary(
+    id: read(id), title: read(title)!, authorName: read(authorName)!,
+  );
+
+  final IdColumn<PostsId> id;
+  final TextColumn title;
+  final TextColumn authorName;
+}
+
+final postSummary = table('post_summary', PostSummaryTable.new);
+
+final class PostSummaryQuery extends ViewQuery<PostSummary> {
+  @override
+  SelectFromBuilder<dynamic, dynamic, dynamic> query() => db
+      .select(
+        posts.id.aliasedAs('id'),
+        posts.title.aliasedAs('title'),
+        authors.name.aliasedAs('author_name'),
+      )
+      .from(posts)
+      .join(authors, on: posts.authorId.equals(authors.id));
+
+  @override
+  SelectFromBuilder<dynamic, dynamic, dynamic> countQuery() => db
+      .select(count(posts.id))
+      .from(posts)
+      .join(authors, on: posts.authorId.equals(authors.id));
+}
+```
+
+The schema half is an ordinary `Table<R>` — `Table.safeCreate`/`fromRow`
+reconstruct rows from raw SQL result maps exactly like a regular collection.
+
+`ViewQuery<R>` — implement `query()`/`countQuery()` with columns/joins only,
+never `where`/`limit`/`offset`/`orderBy` (`ViewOperations` applies those
+generically on top, the same way default `list()` does for a regular table):
+
+- **Alias every selected column with `.aliasedAs(name)`**, matching the
+  schema's declared column name exactly. Raindrop auto-qualifies and
+  auto-aliases every projected column as `"table__column"` the moment a query
+  has a join — without `.aliasedAs`, the raw result won't have a column named
+  `author_name` at all, and `Table.safeCreate` can't reconstruct a row.
+- **`countQuery()` mirrors the same joins as `query()`**, projecting a
+  countable expression (`count(...)`) instead of the column list.
+- **Never call `.where`/`.limit`/`.offset`/`.orderBy` inside `query()`/
+  `countQuery()`** — a view can't opt out of the generic pagination/filter
+  layer `ViewOperations` applies for every request.
+
+`ViewQuery` is `abstract base class` — subclass with `final class`.
+`ViewOperations` is `final` — construct it, don't extend it; that's what
+guarantees `list()`/`count()` can never be overridden to bypass the
+where/limit/offset logic or the write rejection below.
+
+## Rules — `ViewTableRules`/`ViewRowRules`
+
+Extend the regular `TableRules`/`RowRules` base classes, but
+`canCreate`/`canUpdate`/`canDelete` are hard-denied already — including for
+admin tokens, which the regular base classes grant by default. Only
+`canView`/`canList` (table) and `canView` (row) are yours to override. Import
+the schema from the operations file that declares it:
+
+```dart
+import '../operations/post_summary_operations.dart';
+
+final class PostSummaryTableRules
+    extends ViewTableRules<PostSummaryTable, PostSummary> {
+  PostSummaryTableRules() : super(postSummary);
+
+  @override Future<bool> canView(Jwt? jwt) async => true;
+  @override Future<bool> canList(Jwt? jwt) async => true;
+}
+PostSummaryTableRules main() => PostSummaryTableRules();
+```
+
+```dart
+import '../operations/post_summary_operations.dart';
+
+final class PostSummaryRowRules
+    extends ViewRowRules<PostSummaryTable, PostSummary> {
+  PostSummaryRowRules() : super(postSummary);
+
+  @override
+  Future<bool> canView(Jwt? jwt, PostSummary row) async => true;
+}
+PostSummaryRowRules main() => PostSummaryRowRules();
+```
+
+These go under `rulesPath` exactly like any other collection's rules files,
+keyed by the view's table name.
+
+## Filtering caveat
+
+A caller's `where`/`orderBy` reference columns by the alias `query()` selects
+them as. `ORDER BY` can reference a `.select` alias; `WHERE` generally cannot
+in standard SQL, since it's evaluated before the `SELECT` list. Expose a
+column under its natural, unambiguous source-table name if you need it
+filterable — not a renamed alias that only makes sense in the projection.
+
+This also affects the default sort when no `orderBy` is given: it falls back
+to an unqualified `"column"` reference (no table prefix), since a view has no
+real `FROM`/`JOIN` target to qualify with. If two joined tables share a
+column name in the default-sort candidate list (commonly `id`), that
+reference is ambiguous — pass an explicit `orderBy` (or `orderBy: []` to opt
+out of the default) rather than relying on the fallback.
+
+## Write access
+
+Denied twice over: rules deny it before SQL is ever built, and
+`ViewOperations` itself throws `UnsupportedError` from
+`insert`/`insertMany`/`update`/`delete` if somehow reached anyway. In
+practice, `POST`/`PATCH`/`DELETE` against a view return a plain `403` from
+the rules layer.
 """;
 
 const cursorExtensionsMdc = r"""---
@@ -1241,6 +1508,7 @@ const cursorMdcFiles = <String, String>{
   'zonai-schemas.mdc': cursorSchemasMdc,
   'zonai-operations.mdc': cursorOperationsMdc,
   'zonai-rules.mdc': cursorRulesMdc,
+  'zonai-views.mdc': cursorViewsMdc,
   'zonai-extensions.mdc': cursorExtensionsMdc,
   'zonai-rate-limits.mdc': cursorRateLimitsMdc,
   'zonai-crons.mdc': cursorCronsMdc,

@@ -1,6 +1,6 @@
 import 'package:zonai_schema/zonai_schema.dart';
 
-import '../views/post_summary.dart';
+import '../operations/post_summary_operations.dart';
 
 PostSummaryTableRules main() => PostSummaryTableRules();
 
