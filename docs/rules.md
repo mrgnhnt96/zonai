@@ -411,6 +411,7 @@ Tighten these overrides for production — the playground values are intentional
 ## See also
 
 - **[operations.md](operations.md)** — SQL generation for each operation (runs after rules pass)
+- **[views.md](views.md)** — read-only, query-defined collections with their own rules base classes
 - **[extensions.md](extensions.md)** — lifecycle hooks around mutations and auth (before/after SQL)
 - **[rate-limiting.md](rate-limiting.md)** — per-operation request limits (separate worker, same compile flow)
 - **[config-and-env-flavors.md](config-and-env-flavors.md)** — worker executables and compile-time env

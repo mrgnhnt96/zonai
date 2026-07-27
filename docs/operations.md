@@ -315,6 +315,7 @@ UserOperations main() => UserOperations();
 ## See also
 
 - **[rules.md](rules.md)** — collection and record access rules (checked before SQL runs)
+- **[views.md](views.md)** — read-only, query-defined collections built on `TableOperations`
 - **[extensions.md](extensions.md)** — lifecycle hooks around mutations and auth (before/after SQL)
 - **[rate-limiting.md](rate-limiting.md)** — per-operation request limits (separate worker, same compile flow)
 - **[cron.md](cron.md)** — scheduled background jobs (separate worker, same compile flow)
