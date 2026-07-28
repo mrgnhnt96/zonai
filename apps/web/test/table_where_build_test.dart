@@ -147,5 +147,17 @@ void main() {
 
       expect(result, isA<TableWhereBuildError>());
     });
+
+    test('eq on integer column rejects leading-zero digit strings instead of matching nothing', () {
+      final result = buildWhereFromDraft(
+        rows: const [
+          FilterConditionDraft(columnName: 'count', operator: TableWhereOperator.eq, valueText: '0014303072000'),
+        ],
+        combine: FilterCombine.and,
+        columnShapes: shapes,
+      );
+
+      expect(result, isA<TableWhereBuildError>());
+    });
   });
 }

@@ -36,6 +36,22 @@ void main() {
       expect(parseEditValue(draftValue: 0, textInput: '42', shape: shape), 42);
     });
 
+    test('integer columns reject leading-zero digit strings instead of silently truncating', () {
+      const shape = ColumnShape(
+        name: 'parcel_id',
+        kind: ColumnShapeKind.integer,
+        isNullable: false,
+        isPrimaryKey: false,
+        autoIncrement: false,
+        sqlType: 'INTEGER',
+      );
+
+      expect(
+        () => parseEditValue(draftValue: null, textInput: '0014303072000', shape: shape),
+        throwsFormatException,
+      );
+    });
+
     test('map column parses JSON object', () {
       const shape = ColumnShape(
         name: 'meta',

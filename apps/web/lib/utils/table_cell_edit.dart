@@ -235,7 +235,7 @@ Object? parseEditValue({required Object? draftValue, required String textInput, 
   final editKind = effectiveColumnEditKind(shape, draftValue);
 
   return switch (editKind) {
-    ColumnShapeKind.integer => int.parse(trimmed),
+    ColumnShapeKind.integer => _parseIntegerEditValue(trimmed),
     ColumnShapeKind.id => trimmed,
     ColumnShapeKind.real => double.parse(trimmed),
     ColumnShapeKind.bigInt => _parseBigIntEditValue(trimmed, shape: shape),
@@ -343,6 +343,18 @@ bool _passwordValuesEqual(Object? a, Object? b) {
   bool unchanged(Object? value) => value == null || (value is String && value.trim().isEmpty);
   if (unchanged(a) && unchanged(b)) return true;
   return a == b;
+}
+
+/// Parses a whole-number string, rejecting values that can't round-trip through
+/// [int] (e.g. leading zeros) so the query layer never silently binds a value
+/// that no longer matches the stored text (SQLite/Postgres would then coerce a
+/// numeric parameter and drop the leading zeros, causing `eq` to match nothing).
+int _parseIntegerEditValue(String text) {
+  final parsed = int.parse(text);
+  if (parsed.toString() != text) {
+    throw FormatException('"$text" cannot be stored as an integer without losing its exact digits');
+  }
+  return parsed;
 }
 
 bool _parseBool(String text) {
