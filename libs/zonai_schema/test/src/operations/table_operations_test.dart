@@ -144,6 +144,35 @@ final class _Operations extends TableOperations<_TestTable, _Row> {
   _Operations() : super(widgets);
 }
 
+class _FlagRow {
+  const _FlagRow({this.id, required this.amount, required this.active});
+
+  final int? id;
+  final double amount;
+  final bool active;
+}
+
+class _FlagTable extends Table<_FlagRow> {
+  _FlagTable(super.$)
+    : id = $.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
+      amount = $.real('amount', (s) => s.amount),
+      active = $.boolean('active', (s) => s.active);
+
+  @override
+  _FlagRow fromRow(RowReader read) =>
+      _FlagRow(id: read(id), amount: read(amount)!, active: read(active)!);
+
+  final ColumnType<int?> id;
+  final ColumnType<double> amount;
+  final ColumnType<bool> active;
+}
+
+final flags = sqliteTable('flags', _FlagTable.new);
+
+final class _FlagOperations extends TableOperations<_FlagTable, _FlagRow> {
+  _FlagOperations() : super(flags);
+}
+
 class _OwnerId implements Id {
   const _OwnerId(this.value);
 
@@ -562,6 +591,37 @@ void main() {
       await execOps.insert({'title': 'z', 'qty': 1, 'tags': '[]'});
       await execOps.delete(const Eq('title', 'z'), limit: 2);
       expect(await execOps.count(where: const Eq('title', 'z')).single, 1);
+    });
+
+    group('wire-value coercion', () {
+      late _FlagOperations flagOps;
+
+      setUp(() async {
+        flagOps = _FlagOperations()..db = memoryDb;
+        await memoryDb.execute(
+          'CREATE TABLE "flags" ('
+          '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+          '"amount" REAL NOT NULL, '
+          '"active" INTEGER NOT NULL'
+          ');',
+          const [],
+        );
+      });
+
+      test('insert with a whole-number JSON value for a REAL column decodes '
+          'as a double instead of throwing', () async {
+        final inserted = await flagOps.insert({
+          'amount': 750000,
+          'active': false,
+        });
+        expect(inserted.single.amount, 750000.0);
+      });
+
+      test('insert with a JSON bool for a BooleanColumn decodes correctly '
+          'instead of throwing', () async {
+        final inserted = await flagOps.insert({'amount': 1.5, 'active': false});
+        expect(inserted.single.active, isFalse);
+      });
     });
 
     group('UpdateValue SQLite execution', () {
