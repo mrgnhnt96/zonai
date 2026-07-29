@@ -64,9 +64,8 @@ Future<int> build() async {
   String target;
   for (final migration in migrations) {
     target = fs.path.join(settings.buildMigrationsPath, '${migration.tag}.sql');
-    fs.file(target)
-      ..createSync(recursive: true)
-      ..writeAsString(migration.sql);
+    final file = fs.file(target)..createSync(recursive: true);
+    await file.writeAsString(migration.sql);
   }
 
   if (fs.file(settings.path) case final file when file.existsSync()) {
@@ -80,7 +79,7 @@ Future<int> build() async {
   }
 
   if (settings.buildSettings.targetsCurrentPlatform() && kIsCompiled) {
-    fs.file(settings.buildExecutablePath).copySync(Platform.executable);
+    fs.file(Platform.executable).copySync(settings.buildExecutablePath);
   } else {
     await versions.downloadBinary(
       version: settings.version,
