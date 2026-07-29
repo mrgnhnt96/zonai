@@ -99,6 +99,16 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
+      - name: Install native build toolchain (Linux)
+        # argon2.gen compiles libsodium via an autoconf/make build (see
+        # tool/native/argon2_builder); confirmed via a bare `dart:stable`
+        # container that build-essential alone isn't enough -- it also
+        # needs autoconf/automake/libtool/m4. ubuntu-latest may already
+        # have these, but installing explicitly removes the ambiguity
+        # rather than hoping the runner image includes them.
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
       - name: Build zonai
         shell: bash
         env:
