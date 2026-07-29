@@ -1,0 +1,16 @@
+# Build-time-only helper package.
+#
+# Its sole purpose is to depend on `sodium` so `dart build cli` triggers
+# sodium's own (tested, already-correct) build hook, which compiles the
+# vendored libsodium C source into a native library for the current
+# platform. We take the resulting library file and embed its bytes into
+# zonai (see ../../generate_argon2_native.dart) -- this package itself is
+# never shipped or depended on by the zonai CLI.
+name: argon2_builder
+publish_to: none
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  sodium: ^4.0.0

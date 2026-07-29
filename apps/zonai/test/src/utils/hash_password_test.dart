@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:file/local.dart';
+import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 
+import '../../../lib/deps.dart';
 import '../../../lib/src/utils/hash_password.dart';
 
 /// Low-cost parameters so Argon2 remains correct but tests stay fast.
@@ -227,5 +230,38 @@ void main() {
       final b = _hasher.generateSecureSalt(16);
       expect(a, isNot(b));
     });
+  });
+
+  group('native Argon2 backend', () {
+    // The native path needs the `fs` scoped_deps provider (to locate the
+    // compiled library on disk) -- every other test in this file runs
+    // outside any scope, so it silently falls back to the pure-Dart path
+    // instead of erroring. This group explicitly provides a scope so the
+    // native path actually runs, guarding the one property that matters
+    // most: it must produce byte-identical output to the pure-Dart path,
+    // since existing password hashes were (and, without a built native
+    // library, still may be) produced by that path.
+    test(
+      'produces output identical to a fixed-salt pure-Dart reference hash',
+      () async {
+        // Recorded once from the pure-Dart path (parallelism: 1, so this
+        // exact call is also what the native path would be asked to
+        // reproduce) -- see hash_password.dart's `_argon2DigestPureDart`.
+        const fixedSalt = [
+          0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+          0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+          // dart format off
+        ];
+        const expectedPureDartEncoding =
+            'AAECAwQFBgcICQoLDA0ODw==./uSVNjFQNTcKCSpsi4HzkP2IMIgqGLoX19PcLnYgp0U=';
+
+        final encoded = await runMergedScopedFuture(
+          () => _hasher.hash(password: 'native-vs-pure-dart', salt: fixedSalt),
+          override: {fsProvider.overrideWith(LocalFileSystem.new)},
+        );
+
+        expect(encoded, expectedPureDartEncoding);
+      },
+    );
   });
 }

@@ -35,6 +35,19 @@ resqlite:
       - dart pub get
     (aliases): [resqlite-native, rn]
 
+argon2:
+  gen:
+    (command):
+      # Current-platform only for now, unlike resqlite.gen -- `dart build
+      # cli` (which compiles the vendored libsodium source via sodium's own
+      # build hook) doesn't yet have an equivalent to
+      # tool/build_native.dart's --arch cross-compilation support.
+      - mkdir -p apps/zonai/lib/gen/native
+      - cd apps/zonai && dart run tool/build_argon2_native.dart
+      - cd apps/zonai && dart run tool/generate_argon2_native.dart
+      - dart pub get
+    (aliases): [argon2-native, an]
+
 db:
   clear-logs:
     (command): cd apps/playground && dart run zonai db logs clear
@@ -165,6 +178,9 @@ zonai:
       - |
         echo "Generating resqlite native library"
         ${{ resqlite.gen }}
+      - |
+        echo "Generating native Argon2 library"
+        ${{ argon2.gen }}
       - |
         echo "Generating embedded web assets"
         ${{ web.gen }}

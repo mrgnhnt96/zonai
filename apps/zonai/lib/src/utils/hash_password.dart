@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:argon2/argon2.dart';
 import 'package:zonai/src/deps/config_resolver.dart';
+import 'package:zonai/src/native/argon2_ffi.dart' as argon2_ffi;
+import 'package:zonai/src/native/argon2_native.dart';
 
 /// Argon2id password hashing with a random salt per credential.
 ///
@@ -100,7 +103,7 @@ final class HashPassword {
       resolvedSalt = Uint8List.fromList(salt);
     }
 
-    final digest = _computeDigest(
+    final digest = await _digestOffMainIsolate(
       password: password,
       secret: await passwordSecret,
       salt: resolvedSalt,
@@ -133,7 +136,7 @@ final class HashPassword {
     }
 
     for (final secret in await _passwordSecretsForVerify()) {
-      final expected = _computeDigest(
+      final expected = await _digestOffMainIsolate(
         password: rawPassword,
         secret: secret,
         salt: parsed.salt,
@@ -145,38 +148,36 @@ final class HashPassword {
     return false;
   }
 
-  Uint8List _computeDigest({
+  /// Runs the Argon2 digest on a separate isolate. Argon2 is deliberately
+  /// CPU-heavy (that's what makes it resistant to brute-forcing); computing
+  /// it inline would block this isolate's event loop for the full ~100-200ms
+  /// cost on every hash/verify, stalling every other in-flight request
+  /// (list/create/etc.) on the same isolate for that window. `Isolate.run`
+  /// keeps that cost off the request-handling isolate and lets concurrent
+  /// hashes actually run in parallel across cores instead of queueing.
+  Future<Uint8List> _digestOffMainIsolate({
     required String password,
     required String secret,
     required Uint8List salt,
-  }) {
-    final params = Argon2Parameters(
-      Argon2Parameters.ARGON2_id,
-      salt,
-      version: Argon2Parameters.ARGON2_VERSION_13,
-      iterations: iterations,
-      memory: memoryKiB,
-      lanes: parallelism,
+  }) async {
+    // Resolved here, on the calling isolate, because it needs the `fs`
+    // scoped_deps provider -- a spawned isolate has no Zone/scope context
+    // to read that from. Only the resulting plain path string crosses the
+    // isolate boundary below.
+    final nativeLibraryPath = await _cachedNativeLibraryPath();
+
+    return Isolate.run(
+      () => _argon2Digest(
+        password: password,
+        secret: secret,
+        salt: salt,
+        iterations: iterations,
+        memoryKiB: memoryKiB,
+        parallelism: parallelism,
+        hashLength: hashLength,
+        nativeLibraryPath: nativeLibraryPath,
+      ),
     );
-
-    final argon = Argon2BytesGenerator()..init(params);
-    final passwordBytes = _passwordAndSecretBytes(password, secret);
-
-    final result = Uint8List(hashLength);
-    argon.generateBytes(passwordBytes, result, 0, result.length);
-    return result;
-  }
-
-  Uint8List _passwordAndSecretBytes(String password, String secret) {
-    final p = utf8.encode(password);
-    final s = utf8.encode(secret);
-    final out = Uint8List(4 + p.length + 4 + s.length);
-    final view = ByteData.sublistView(out);
-    view.setUint32(0, p.length, Endian.big);
-    out.setRange(4, 4 + p.length, p);
-    view.setUint32(4 + p.length, s.length, Endian.big);
-    out.setRange(8 + p.length, 8 + p.length + s.length, s);
-    return out;
   }
 
   Uint8List generateSecureSalt(int length) {
@@ -232,4 +233,109 @@ final class _StoredHashRecord {
 
   final Uint8List salt;
   final Uint8List hash;
+}
+
+/// Resolves once (via the `fs` scoped_deps provider, so this must run on a
+/// isolate that actually has a scope -- never inside `Isolate.run`) and
+/// caches the native Argon2 library's path for the lifetime of this
+/// isolate. `null` means resolution failed (not built, unsupported
+/// platform, etc.); cached too, so every hash/verify call doesn't retry a
+/// failing filesystem lookup.
+Future<String?>? _nativeLibraryPathFuture;
+
+Future<String?> _cachedNativeLibraryPath() {
+  return _nativeLibraryPathFuture ??= resolveArgon2NativeLibraryPath().then(
+    (path) => path,
+    onError: (Object _, StackTrace __) => null,
+  );
+}
+
+/// Top-level (not an instance method) so `Isolate.run` can send it to a
+/// fresh isolate without dragging the `HashPassword` instance along.
+///
+/// Tries the native (libsodium) path first -- same standardized Argon2id
+/// algorithm, same output for the same inputs (verified byte-for-byte
+/// against the pure-Dart path in hash_password_test.dart), but backed by
+/// compiled C instead of interpreted Dart: ~35ms vs ~240ms per hash at
+/// default cost parameters on the machine this was measured on. Falls
+/// back to the pure-Dart implementation when:
+///  - `parallelism != 1`: libsodium's simplified `crypto_pwhash` has no
+///    lanes parameter, so it can't reproduce output for a non-default
+///    parallelism.
+///  - [nativeLibraryPath] is null, or `dlopen`/hashing it fails (e.g. a
+///    dev checkout that hasn't run `scripts argon2 gen` yet, or an
+///    unsupported platform) -- the fallback keeps that a slow-but-working
+///    degradation, not a crash.
+Future<Uint8List> _argon2Digest({
+  required String password,
+  required String secret,
+  required Uint8List salt,
+  required int iterations,
+  required int memoryKiB,
+  required int parallelism,
+  required int hashLength,
+  required String? nativeLibraryPath,
+}) async {
+  if (parallelism == 1 && nativeLibraryPath != null) {
+    try {
+      argon2_ffi.install(nativeLibraryPath);
+      return argon2_ffi.cryptoPwhashArgon2id(
+        password: _passwordAndSecretBytes(password, secret),
+        salt: salt,
+        outLen: hashLength,
+        iterations: iterations,
+        memoryKiB: memoryKiB,
+      );
+    } catch (_) {
+      // Fall through to the pure-Dart path below.
+    }
+  }
+
+  return _argon2DigestPureDart(
+    password: password,
+    secret: secret,
+    salt: salt,
+    iterations: iterations,
+    memoryKiB: memoryKiB,
+    parallelism: parallelism,
+    hashLength: hashLength,
+  );
+}
+
+Uint8List _argon2DigestPureDart({
+  required String password,
+  required String secret,
+  required Uint8List salt,
+  required int iterations,
+  required int memoryKiB,
+  required int parallelism,
+  required int hashLength,
+}) {
+  final params = Argon2Parameters(
+    Argon2Parameters.ARGON2_id,
+    salt,
+    version: Argon2Parameters.ARGON2_VERSION_13,
+    iterations: iterations,
+    memory: memoryKiB,
+    lanes: parallelism,
+  );
+
+  final argon = Argon2BytesGenerator()..init(params);
+  final passwordBytes = _passwordAndSecretBytes(password, secret);
+
+  final result = Uint8List(hashLength);
+  argon.generateBytes(passwordBytes, result, 0, result.length);
+  return result;
+}
+
+Uint8List _passwordAndSecretBytes(String password, String secret) {
+  final p = utf8.encode(password);
+  final s = utf8.encode(secret);
+  final out = Uint8List(4 + p.length + 4 + s.length);
+  final view = ByteData.sublistView(out);
+  view.setUint32(0, p.length, Endian.big);
+  out.setRange(4, 4 + p.length, p);
+  view.setUint32(4 + p.length, s.length, Endian.big);
+  out.setRange(8 + p.length, 8 + p.length + s.length, s);
+  return out;
 }
