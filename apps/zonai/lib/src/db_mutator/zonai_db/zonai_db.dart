@@ -11,6 +11,7 @@ import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
+import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
@@ -81,9 +82,9 @@ const _prefix = '[ZONAI_DB]';
 
 class ZonaiDb {
   ZonaiDb()
-    : _extensions = ExtensionsMailman(),
-      _rules = RulesMailman(),
-      _operations = OperationsMailman(),
+    : _extensions = MailmanPool(ExtensionsMailman.new),
+      _rules = MailmanPool(RulesMailman.new),
+      _operations = MailmanPool(OperationsMailman.new),
       _config = ConfigMailman(),
       _jwt = JwtGenerator(),
       _hashPassword = HashPassword();
@@ -94,9 +95,19 @@ class ZonaiDb {
   /// is opened twice in parallel.
   Future<Raindrop>? _opening;
 
-  final ExtensionsMailman _extensions;
-  final RulesMailman _rules;
-  final OperationsMailman _operations;
+  // Pooled: every list/get/create/update/delete round-trips through rules
+  // (access checks) and often operations (SQL building) and extensions
+  // (hooks), each normally a single OS subprocess. One process serializes
+  // every request behind one stdin/stdout pipe regardless of concurrency;
+  // pooling spreads them across a handful of independent processes instead.
+  // Not done for [ConfigMailman] (config resolution isn't the hot path
+  // here) or the cron worker (a singleton scheduler -- pooling it would run
+  // every job N times). See [MailmanPool]'s doc comment.
+  final MailmanPool<ExtensionRequest, ExtensionResponse, ExtensionsMailman>
+  _extensions;
+  final MailmanPool<RuleRequest, RuleResponse, RulesMailman> _rules;
+  final MailmanPool<OperationRequest, OperationResponse, OperationsMailman>
+  _operations;
   final ConfigMailman _config;
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;

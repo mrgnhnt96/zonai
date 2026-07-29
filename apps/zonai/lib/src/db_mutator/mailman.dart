@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
+import 'dart:math' show min;
 
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
@@ -734,5 +735,62 @@ class Mailman<S extends Request, R extends Response> {
     }
 
     _pendingResponses.clear();
+  }
+}
+
+/// A small pool of independent [Mailman] worker subprocesses of the same
+/// kind, round-robining [send] calls across them.
+///
+/// A single [Mailman] talks to one OS process over one stdin/stdout line
+/// protocol (see [Mailman._sendChain] / `_writeOnce`). However many CPU
+/// cores the host has, requests routed through one worker are bottlenecked
+/// by that one process reading and replying to one line at a time --
+/// measured under load, that ceiling shows up as throughput *degrading*
+/// past a handful of concurrent callers, not scaling with them. Running N
+/// independent worker processes and spreading requests across them turns
+/// one serial pipe into N parallel ones.
+///
+/// Only pool **stateless per-request** workers, where handling request A
+/// has no bearing on how request B is handled -- rules, extensions, and
+/// operations all qualify (each call is a pure function of its request).
+/// Do **not** pool workers with singleton or scheduling semantics: the cron
+/// worker, for example, must run each scheduled job exactly once, and
+/// pooling it would run every job N times.
+class MailmanPool<
+  S extends Request,
+  R extends Response,
+  M extends Mailman<S, R>
+> {
+  MailmanPool(M Function() create, {int? size})
+    : _workers = List.generate(size ?? defaultPoolSize, (_) => create());
+
+  /// Defaults to 1 (one worker, identical footprint to the unpooled
+  /// [Mailman]) -- pooling is opt-in via `ZONAI_WORKER_POOL_SIZE`. Every
+  /// `ZonaiDb` (one per server, but also one per test/e2e setup, and tests
+  /// run many of those concurrently) spawns its own pool, so a bigger
+  /// default multiplies process count across every concurrent instance,
+  /// not just the one production server it was meant to help. A single
+  /// deployment that wants the throughput can set
+  /// `ZONAI_WORKER_POOL_SIZE=4` (or similar, capped by available cores)
+  /// deliberately.
+  static int get defaultPoolSize {
+    final override = int.tryParse(
+      io.Platform.environment['ZONAI_WORKER_POOL_SIZE'] ?? '',
+    );
+    if (override != null && override > 0) {
+      return min(override, io.Platform.numberOfProcessors * 2);
+    }
+    return 1;
+  }
+
+  final List<M> _workers;
+  int _next = 0;
+
+  M _pick() => _workers[_next++ % _workers.length];
+
+  Future<T> send<T extends R?>(S request) => _pick().send<T>(request);
+
+  Future<void> dispose() async {
+    await Future.wait(_workers.map((w) => w.dispose()));
   }
 }
