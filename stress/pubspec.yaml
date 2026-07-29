@@ -1,0 +1,9 @@
+name: zonai_stress
+publish_to: none
+description: >
+  Load-testing harness for zonai. Builds the fixture app in fixture/,
+  boots a compiled zonai server, and drives concurrent HTTP load against
+  it to measure throughput and latency.
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
