@@ -995,9 +995,11 @@ packages:
   scoped_deps:
     dependency: transitive
     description:
-      path: "../scoped_deps"
-      relative: true
-    source: path
+      path: "."
+      ref: "743f3682bacb51b7e20f96fece18f6ef64be9908"
+      resolved-ref: "743f3682bacb51b7e20f96fece18f6ef64be9908"
+      url: "https://github.com/mrgnhnt96/scoped_deps.git"
+    source: git
     version: "0.2.0"
   scratch_space:
     dependency: transitive

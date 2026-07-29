@@ -5,8 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/config/external_idp_config.dart';
 
-import '../../../lib/src/exceptions/auth_exception.dart';
-import '../../../lib/src/utils/shared_secret_idp_verifier.dart';
+import 'package:zonai/src/exceptions/auth_exception.dart';
+import 'package:zonai/src/utils/shared_secret_idp_verifier.dart';
 
 /// Builds an HS256 JWT with the supplied [header] and [payload], signed
 /// with [secret]. Mirrors the segment/padding rules in

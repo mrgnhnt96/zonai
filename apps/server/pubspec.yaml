@@ -13,7 +13,9 @@ dependencies:
   revali_client: ^2.0.4
   revali_router: ^3.4.0
   scoped_deps:
-    path: ../../../scoped_deps
+    git:
+      url: https://github.com/mrgnhnt96/scoped_deps.git
+      ref: 743f3682bacb51b7e20f96fece18f6ef64be9908
   zonai:
     path: ../zonai
   zonai_web:
