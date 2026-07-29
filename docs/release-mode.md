@@ -67,6 +67,11 @@ buildSettings:
 
 Defaults match the machine running `build`. The target must be compatible with your host (for example, you cannot cross-compile to macOS from Apple Silicon).
 
+**This only affects the worker executables** (config, rules, operations, extensions, rate limits) — those are compiled locally on every `build`, subject to the same-host restriction above. The **`zonai` binary bundled into `build/`** works differently depending on whether `buildSettings` targets the machine running `build`:
+
+- **Same platform** (the default): `build` copies the already-running `zonai` binary straight into `build/zonai` — nothing is downloaded, no network access needed. This only applies when running a *compiled* `zonai` (not `dart run zonai build`, which has no running binary to copy from).
+- **Different platform** (`buildSettings` targets another OS/arch, or you ran `dart run zonai build`): `build` downloads the matching release binary from `mrgnhnt96/zonai`'s GitHub releases for `zonai.yaml`'s `version`. That release tag and a matching asset (`zonai-linux-x64.zip`, `zonai-windows-x64.zip`, `zonai-macos-arm64.zip`, or `zonai-macos-x64.zip`) must already exist, and the machine running `build` needs network access to `api.github.com`. If this repository is private, set **`GITHUB_TOKEN`** or **`GH_TOKEN`** in the environment first — an unauthenticated request against a private repo fails with a 404, not a clear permissions error.
+
 ### Which workers are affected
 
 All five workers use the same compile flags:

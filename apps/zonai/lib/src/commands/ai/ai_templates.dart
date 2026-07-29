@@ -600,6 +600,39 @@ dart run zonai version     # show version + check for updates
 
 ---
 
+## Release & deployment
+
+`zonai compile` builds workers only, in place, under `.zonai/executables/`.
+`zonai build` does that plus copies migrations, `zonai.yaml`, and a `zonai`
+binary into `build/` — a self-contained bundle ready to ship. Both accept
+`--release` (strip `assert(...)` from worker code, disable dev-only file
+watchers/keyboard shortcuts) and `--flavor <name>` (select `.env.<name>`).
+
+Cross-compile workers to another OS/arch via `buildSettings` in `zonai.yaml`:
+
+```yaml
+buildSettings:
+  targetOs: linux   # linux | macos | windows
+  targetArch: x64   # x64 | arm64
+```
+
+Defaults to the machine running `build`. Workers are always compiled locally
+with `dart compile exe`, so the normal Dart AOT rule still applies: you
+cannot compile a macOS or Windows target from a different host OS.
+
+The `zonai` binary bundled into `build/` is handled separately from the
+workers — it's **copied** from the currently-running `zonai` binary when
+`buildSettings` targets the host running `build` (the default), or
+**downloaded** from this project's GitHub releases (matching `zonai.yaml`'s
+`version`) when targeting a different platform. The download path needs
+network access to `api.github.com`, and `GITHUB_TOKEN`/`GH_TOKEN` set if the
+repo is private — an unauthenticated request against a private repo fails
+with a plain 404, not a clear permissions error. Running via `dart run
+zonai build` (not a compiled `zonai`) always takes the download path, since
+there's no running binary to copy from.
+
+---
+
 ## Generated workers
 
 `zonai compile` produces executables in `.zonai/executables/`:
@@ -616,7 +649,8 @@ Intermediate Dart sources written to `.dart_tool/zonai/` before compilation.
 // Single-file tool templates
 // ---------------------------------------------------------------------------
 
-const claudeMd = r"""# Zonai Project
+const claudeMd =
+    r"""# Zonai Project
 
 This is a **zonai** application. Zonai is a Dart CLI framework that compiles
 your Dart code into worker executables and runs a SQLite-backed REST API.
@@ -624,7 +658,8 @@ your Dart code into worker executables and runs a SQLite-backed REST API.
 Use `dart run zonai dev` to launch the interactive TUI, or
 `dart run zonai serve` to start the server with auto-recompile on file changes.
 
-""" + _doc;
+""" +
+    _doc;
 
 const copilotMd = _doc;
 const windsurfRules = _doc;
@@ -1517,6 +1552,60 @@ PurgeExpiredJwtsJob main() => const PurgeExpiredJwtsJob();
 ```
 """;
 
+const cursorReleaseMdc = r"""---
+description: zonai release & deployment — build vs compile, --release/--flavor, cross-compiling via buildSettings
+globs: zonai.yaml
+alwaysApply: false
+---
+
+# Zonai Release & Deployment
+
+## `build` vs `compile`
+
+| | `compile` | `build` |
+| --- | --- | --- |
+| Worker output | `.zonai/executables/*.exe` | `build/.zonai/executables/*.exe` |
+| Migrations | not copied | SQL copied into `build/` |
+| `zonai.yaml` | not copied | copied into `build/` |
+| `zonai` binary | not included | `build/zonai` (or `zonai.exe` on Windows) |
+| Typical use | local `serve`, quick rebuilds | CI, deploy hosts, containers |
+
+```bash
+dart run zonai build --release --flavor prod   # deploy bundle under build/
+dart run zonai compile --release               # workers only, in place
+```
+
+`--release` strips `assert(...)` from worker code and disables dev-only file
+watchers/keyboard shortcuts during `serve`. `--flavor <name>` selects
+`.env.<name>` for compile-time env defines.
+
+## Cross-compiling
+
+```yaml
+# zonai.yaml
+buildSettings:
+  targetOs: linux   # linux | macos | windows
+  targetArch: x64   # x64 | arm64
+```
+
+Defaults to the machine running `build`. Worker executables are always
+compiled locally with `dart compile exe`, so the normal Dart AOT rule still
+applies: you cannot compile a macOS or Windows target from a different host
+OS.
+
+The **`zonai` binary bundled into `build/`** is not compiled — it's either:
+- **copied** from the currently-running `zonai` binary, when `buildSettings`
+  targets the host running `build` (the default), or
+- **downloaded** from this project's GitHub releases, matching `zonai.yaml`'s
+  `version`, when targeting a different platform. Needs network access to
+  `api.github.com`, and `GITHUB_TOKEN`/`GH_TOKEN` set if the repo is private
+  — an unauthenticated request against a private repo fails with a plain
+  404, not a clear permissions error.
+
+Running via `dart run zonai build` (not a compiled `zonai`) always takes the
+download path — there's no running binary to copy from.
+""";
+
 const cursorMdcFiles = <String, String>{
   'zonai-overview.mdc': cursorOverviewMdc,
   'zonai-schemas.mdc': cursorSchemasMdc,
@@ -1526,4 +1615,5 @@ const cursorMdcFiles = <String, String>{
   'zonai-extensions.mdc': cursorExtensionsMdc,
   'zonai-rate-limits.mdc': cursorRateLimitsMdc,
   'zonai-crons.mdc': cursorCronsMdc,
+  'zonai-release.mdc': cursorReleaseMdc,
 };
