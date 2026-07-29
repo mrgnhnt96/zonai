@@ -117,7 +117,10 @@ extension _PasswordX on ZonaiDb {
       logger.trace('sql_build');
 
       step = 'sql_execute';
-      final (error, result) = await _execute((operation.query, operation.values));
+      final (error, result) = await _execute((
+        operation.query,
+        operation.values,
+      ));
       logger.trace('sql_execute');
 
       if (error != null || result == null) {
@@ -137,6 +140,10 @@ extension _PasswordX on ZonaiDb {
       await _extensions.send<NoActionExtensionResponse>(
         AuthExtensionRequest.onSignUp(table: table, object: user, jwt: newJwt),
       );
+      logger.trace('ext_hook');
+
+      step = 'effects';
+      await _executeEffects();
       logger.trace('done');
 
       return (user: user, jwt: token);

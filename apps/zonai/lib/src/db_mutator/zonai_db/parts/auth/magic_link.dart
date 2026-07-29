@@ -219,6 +219,8 @@ extension _MagicLinkX on ZonaiDb {
       AuthExtensionRequest.onSignUp(table: table, object: user, jwt: newJwt),
     );
 
+    await _executeEffects();
+
     return (user: user, jwt: token);
   }
 }
