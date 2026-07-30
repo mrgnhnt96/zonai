@@ -200,6 +200,37 @@ fly deploy --local-only
 
 `--local-only` builds the Docker image locally via Docker Desktop instead of Fly's remote builder. This matters here because the whole build pipeline above was pinned to `--platform linux/amd64` explicitly — using the local builder keeps you in control of the final image architecture regardless of your host machine's architecture pulling the base image, so it matches what Fly machines actually run.
 
+## Don't Ship a Hardcoded `localhost` `baseUrl`
+
+`AppConfig.baseUrl` (see [Config](/configuration/zonai-yaml)) is easy to leave hardcoded to
+`http://localhost:8080` during local development and forget about — it compiles fine, `serve` never
+complains, and nothing breaks loudly. It just means every absolute link the server generates (email
+templates, magic links, anything built from `baseUrl`) silently points at `localhost` in production
+instead of your real domain.
+
+Read it from an environment variable with a `localhost` fallback instead, the same way you'd handle
+`passwordSecret`/`jwtSecret`:
+
+```dart
+AppConfig main() {
+  return AppConfig(
+    // ...
+    baseUrl: Platform.environment['BASE_URL'] ?? 'http://localhost:8080',
+  );
+}
+```
+
+Then set the real value in `fly.toml`'s `[env]` block — it isn't a secret, so it doesn't need `fly
+secrets set`:
+
+```toml
+[env]
+  BASE_URL = "https://your-app.fly.dev"
+```
+
+Nothing checks this for you at build or boot time, so it's worth grepping your own `AppConfig` for
+hardcoded `localhost` before every first production deploy, not just this one field.
+
 ## First Boot: Creating an Admin Account
 
 `zonai serve` auto-applies pending migrations on startup, but that's the only thing that happens automatically. A brand-new deployment has zero admin accounts and no sign-up screen, so sign-in will fail with a generic "check your email and password" error until you seed one. Run it once against the live deployment:
