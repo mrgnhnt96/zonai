@@ -142,7 +142,7 @@ assert_no_schema_changes() {
     exit 1
   fi
 
-  if ! grep -Fq 'No schema changes detected.' <<< "$output"; then
+  if ! grep -Fq 'No changes detected' <<< "$output"; then
     echo "New binary would regenerate migrations from old snapshots:" >&2
     echo "$output" >&2
     exit 1
