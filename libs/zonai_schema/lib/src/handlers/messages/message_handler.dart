@@ -16,6 +16,7 @@ part 'deps/__email.dart';
 part 'deps/__get.dart';
 part 'deps/__log.dart';
 part 'deps/__mutate.dart';
+part 'deps/__native_library.dart';
 part 'deps/__notify.dart';
 part 'deps/__cron.dart';
 part 'request.dart';
@@ -160,6 +161,24 @@ class MessageHandler<R extends Request> {
                     'Received unexpected response for get record request ${result?.path}',
                   );
                   logger.debug('Unexpected Response: ${result?.toJson()}');
+                }
+
+                return null;
+              }),
+            ),
+            _nativeLibraryRequestProvider.overrideWith(
+              () => _NativeLibrary((library) async {
+                final result = await sendRequest(
+                  NativeLibraryRequest(library: library),
+                );
+
+                if (result case NativeLibraryResponse(:final libraryPath)) {
+                  return libraryPath;
+                } else {
+                  logger.error(
+                    'Received unexpected response for native library request '
+                    '${result?.path}',
+                  );
                 }
 
                 return null;

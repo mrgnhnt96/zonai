@@ -26,6 +26,7 @@ base class Response {
       PongResponse._path => PongResponse.fromJson(json),
       MessageErrorResponse._path => MessageErrorResponse.fromJson(json),
       GetRecordResponse._path => GetRecordResponse.fromJson(json),
+      NativeLibraryResponse._path => NativeLibraryResponse.fromJson(json),
       _ when path.startsWith(CronResponse.prefix) => CronResponse.fromJson(
         json,
       ),
@@ -172,4 +173,29 @@ final class GetRecordResponse extends Response {
 
   @override
   Map<String, dynamic> toJson() => {...super.toJson(), 'records': records};
+}
+
+/// Reply to a [NativeLibraryRequest]: the spawner's shared, on-disk install
+/// path for the requested library, freshly (re-)extracted from the
+/// spawner's own embedded copy.
+final class NativeLibraryResponse extends Response {
+  NativeLibraryResponse({required super.id, required this.libraryPath})
+    : super(path: _path, payload: {'libraryPath': libraryPath});
+
+  factory NativeLibraryResponse.fromJson(Map<String, dynamic> json) {
+    return NativeLibraryResponse(
+      id: json['id'] as String,
+      libraryPath: json['libraryPath'] as String,
+    );
+  }
+
+  static const _path = '${Response.prefix}.native_library';
+
+  final String libraryPath;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'libraryPath': libraryPath,
+  };
 }

@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
+    show NativeLibraryKind, nativeLibraryHost;
 
 import '../../gen/native/argon2_native.g.dart';
 import '../deps/fs.dart';
@@ -25,6 +27,31 @@ import 'argon2_ffi.dart' as argon2_ffi;
 /// built yet) would escape as a synchronous exception before this function
 /// ever returns a Future, bypassing callers' `.then(onError: ...)` entirely.
 Future<String> resolveArgon2NativeLibraryPath() async {
+  return await _requestFromSpawner() ?? await provideArgon2NativeLibraryPath();
+}
+
+/// Asks the spawning `zonai` process to confirm/refresh the shared Argon2
+/// native library and report its path.
+///
+/// Mirrors resqlite_native.dart's `_requestFromSpawner` -- see there for the
+/// full rationale. Returns `null` (fall back to self-extraction) when
+/// there's no spawner to ask, the request times out, or the spawner reports
+/// failure.
+Future<String?> _requestFromSpawner() async {
+  try {
+    return await nativeLibraryHost
+        .request(NativeLibraryKind.argon2)
+        .timeout(const Duration(seconds: 10));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Ensures the *spawner's own* embedded Argon2 native library is present at
+/// the shared install path and returns that path. Spawner-side half of the
+/// ask-your-spawner protocol -- see resqlite_native.dart's
+/// `provideResqliteNativeLibraryPath` for the full rationale.
+Future<String> provideArgon2NativeLibraryPath() async {
   return switch (kIsCompiled) {
     true => _extractCompiledLibrary(),
     false => _syncNativeAssetLibrary(_developmentLibraryPath()),

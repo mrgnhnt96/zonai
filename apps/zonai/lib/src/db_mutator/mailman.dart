@@ -26,6 +26,8 @@ import '../deps/mutations.dart';
 import '../deps/process.dart';
 import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
+import '../native/argon2_native.dart' show provideArgon2NativeLibraryPath;
+import '../native/resqlite_native.dart' show provideResqliteNativeLibraryPath;
 
 mixin Receivable<S extends Request, R extends Response> on Mailman<S, R> {
   Future<R> onRequest(S request);
@@ -222,6 +224,9 @@ class Mailman<S extends Request, R extends Response> {
         case final GetRecordRequest request:
           response = await _fetch(request);
 
+        case final NativeLibraryRequest request:
+          response = await _provideNativeLibrary(request);
+
         case final Request request:
           if (this case Receivable(:final onRequest) when request is S) {
             response = await onRequest(request);
@@ -350,6 +355,33 @@ class Mailman<S extends Request, R extends Response> {
       return MessageErrorResponse(
         id: request.id,
         message: 'Failed to get records',
+        error: '$e',
+        stackTrace: stack.toString(),
+      );
+    }
+  }
+
+  /// Answers a worker's [NativeLibraryRequest] by (re-)extracting *this*
+  /// process's own embedded copy of the requested native library to the
+  /// shared install path and reporting that path back.
+  ///
+  /// This process (the spawner) is always running natively on the machine
+  /// both it and the worker are on right now -- unlike the worker, which
+  /// may have been cross-compiled elsewhere -- so its own embedded copy is
+  /// the correct one to hand back, regardless of what the worker's own
+  /// embedded bytes might say.
+  Future<Response> _provideNativeLibrary(NativeLibraryRequest request) async {
+    try {
+      final libraryPath = switch (request.library) {
+        NativeLibraryKind.resqlite => await provideResqliteNativeLibraryPath(),
+        NativeLibraryKind.argon2 => await provideArgon2NativeLibraryPath(),
+      };
+
+      return NativeLibraryResponse(id: request.id, libraryPath: libraryPath);
+    } catch (e, stack) {
+      return MessageErrorResponse(
+        id: request.id,
+        message: 'Failed to provide native library (${request.library.name})',
         error: '$e',
         stackTrace: stack.toString(),
       );

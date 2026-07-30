@@ -29,6 +29,7 @@ abstract base class Request {
       UpdateRecordRequest._path => UpdateRecordRequest.fromJson(json),
       SendEmailRequest._path => SendEmailRequest.fromJson(json),
       SendBuiltInEmailRequest._path => SendBuiltInEmailRequest.fromJson(json),
+      NativeLibraryRequest._path => NativeLibraryRequest.fromJson(json),
       _ when path.startsWith(CronRequest.prefix) => CronRequest.fromJson(json),
       _ => UnknownRequest(
         path: path,
@@ -147,6 +148,47 @@ final class GetRecordRequest extends Request {
       'limit': limit,
       'offset': offset,
     };
+  }
+}
+
+/// Which embedded native library a worker is asking its spawner to
+/// confirm/refresh on disk (see [NativeLibraryRequest]).
+enum NativeLibraryKind { resqlite, argon2 }
+
+/// Sent by a worker process up to whatever spawned it (the `zonai serve`
+/// process, or a `zonai` process running a command directly), asking it to
+/// ensure its own embedded copy of [library] is extracted to the shared
+/// on-disk install path and to report that path back.
+///
+/// A worker executable is `dart compile exe --target-os X --target-arch Y`
+/// compiled locally, which can cross-compile the executable format fine but
+/// leaves the embedded native-library byte-array constants unaffected --
+/// baked in by *this* host, not necessarily a match for wherever the
+/// resulting binary actually runs. The spawner, by construction, is always
+/// running natively on the machine both processes are on right now, so its
+/// own embedded copy is guaranteed correct where the worker's might not be.
+final class NativeLibraryRequest extends Request {
+  NativeLibraryRequest({required this.library, super.jwt})
+    : super(path: _path, id: Request.generateId());
+
+  NativeLibraryRequest._({required super.id, required this.library, super.jwt})
+    : super(path: _path);
+
+  factory NativeLibraryRequest.fromJson(Map<String, dynamic> json) {
+    return NativeLibraryRequest._(
+      id: json['id'] as String,
+      library: NativeLibraryKind.values.byName(json['library'] as String),
+      jwt: Jwt.maybeFromJson(json['jwt']),
+    );
+  }
+
+  static const _path = '${Request.prefix}.native_library';
+
+  final NativeLibraryKind library;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'library': library.name};
   }
 }
 

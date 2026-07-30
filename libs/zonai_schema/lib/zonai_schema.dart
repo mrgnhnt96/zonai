@@ -53,7 +53,14 @@ export 'src/config/trusted_proxy_config.dart';
 export 'src/types/cron_job.dart';
 export 'src/types/supabase_claims.dart';
 export 'src/extension.dart';
-export 'src/handlers/messages/message_handler.dart' hide Request, Response, msg;
+export 'src/handlers/messages/message_handler.dart'
+    hide
+        Request,
+        Response,
+        msg,
+        nativeLibraryHost,
+        NativeLibraryRequest,
+        NativeLibraryResponse;
 export 'src/internal/tables/abusers_table.dart';
 export 'src/internal/tables/photos_table.dart';
 export 'src/operations/table_operations.dart';
