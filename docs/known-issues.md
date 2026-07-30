@@ -92,6 +92,78 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 12. Compiled `zonai serve` segfaults seconds after startup on Linux x64/arm64 — `sqlite3LeaveMutexAndCloseZombie` — fixed
+
+**Update 2026-07-30: fixed.** Found deploying `wholesale-command-station`'s
+`apps/server`-shaped consumer app to Fly.io. Reproduced identically on real
+Fly.io x86_64 hardware, emulated amd64, and native arm64, on both a
+self-compiled binary and the official v0.3.4 release, always at the same
+native frame:
+
+```
+===== CRASH =====
+si_signo=Segmentation fault(11), si_code=SEGV_MAPERR(1)
+  pc ... sqlite3LeaveMutexAndCloseZombie+0x170
+```
+
+100%-reproducible, not a race — crashed on the very first database open
+every single time, including a lone `zonai db migrate apply` with no
+worker subprocesses involved yet.
+
+**Root cause**, isolated with a minimal standalone repro independent of
+any zonai CLI machinery: `raindrop_sqlite`'s `ResqliteDelegate.open` opens
+the same database file through *two separately-built SQLite libraries* —
+resqlite's custom `sqlite3mc` build and `package:sqlite3`'s own,
+separately dlopen-ed copy (the system `libsqlite3.so` on Linux). On
+Linux, resqlite's `install()` loads with `RTLD_GLOBAL` (needed so
+`@Native` process-lookup bindings can see symbols loaded via
+`DynamicLibrary.open`), which exposes its sqlite3 symbols process-wide —
+so `package:sqlite3`'s calls could cross into resqlite's
+ABI-incompatible implementation (different `SQLITE_*` build flags affect
+struct layout), corrupting connection state built by one implementation
+when touched by the other's code. A repro combining just `resqlite` +
+`package:sqlite3` against one file segfaulted inside the *system*
+`libsqlite3.so` on the first query, every run.
+
+**Never caught by existing tests** because they run on macOS, where
+`DynamicLibrary.open` doesn't force global symbol visibility by default —
+this is a Linux-only bug, which happens to be exactly the platform a
+compiled server actually deploys to.
+
+**Fixed**:
+- `mrgnhnt96/resqlite` (`zonai` branch, `fd4ce41`): exports
+  `installedNativeLibrary` publicly and adds every standard `sqlite3_*`
+  symbol `package:sqlite3`'s FFI bindings require to the linker version
+  script, so a consumer can point `package:sqlite3` at resqlite's own
+  already-loaded library instead of a second one. All of these functions
+  already existed in `sqlite3mc_amalgamation.c` — this only changes
+  symbol visibility.
+- `mrgnhnt96/raindrop` (`zonai` branch, `dd499e1`): `ResqliteDelegate.open`
+  now does exactly that via `package:sqlite3`'s `open.overrideForAll`
+  before opening either connection. Also constrains `sqlite3` to
+  `<3.0.0` — 3.0.0 replaced the entire `DynamicLibrary`-based loading
+  mechanism with Dart's build-hooks feature and dropped `open.dart`
+  outright, which the fix depends on.
+- This repo (`main`, `3404812`): bumps both submodule pins, and fixes a
+  separate, real bug found investigating this — the spawner handles a
+  `NativeLibraryRequest` from each of the 5 worker types independently,
+  and `provideResqliteNativeLibraryPath`/`provideArgon2NativeLibraryPath`
+  re-extracted the embedded native library from scratch on every call
+  with no caching, so concurrent requests at startup could race to
+  truncate/rewrite the same shared `.so` file. Now memoized per process
+  (clearing the cache on failure so a transient error doesn't wedge
+  future attempts), and the actual write is now atomic (temp file +
+  rename in the same directory) as defense in depth.
+
+**How this was verified**: a standalone repro exercising
+`ResqliteDelegate.open` directly crashed on iteration 1 of 30 before the
+fix, and passed 30/30 after it. End to end: a full `zonai build --release`
++ `zonai serve --release` cycle against `wholesale-command-station`'s real
+schema, run 15 times from a completely fresh database each time (migrate
++ admin + serve + health check), was 15/15 clean after the fix (0/15
+before it, on the exact same build pipeline). Deployed live to Fly.io —
+stable, health check passing, no crashes.
+
 ## 11. `Jwt.parse` throws on a malformed token instead of returning `null` — fixed
 
 **Severity: correctness/robustness.** `Jwt.parse`'s return type is `Jwt?`
