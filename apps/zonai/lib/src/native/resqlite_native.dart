@@ -72,11 +72,37 @@ Future<String?> _requestFromSpawner() async {
 /// guaranteed correct. Also used directly by [ensureResqliteNativeInstalled]
 /// itself when there's no spawner above it to ask (it IS the authoritative
 /// source in that case).
-Future<String> provideResqliteNativeLibraryPath() async {
-  return switch (kIsCompiled) {
-    true => await _extractCompiledLibrary(),
-    false => await _syncNativeAssetLibrary(_developmentLibraryPath()),
-  };
+///
+/// Memoized per process: the spawner runs one [Mailman] per worker type
+/// (config/rules/operations/rate_limit/crons), each independently receiving
+/// a `NativeLibraryRequest` from its own worker subprocess at startup, so
+/// this can legitimately be called several times concurrently within the
+/// same event loop. Without caching, each call independently truncates and
+/// rewrites the same shared `.so` -- and since [_writeLibraryBytes] used to
+/// write in place, a worker's `dlopen` racing one of those in-flight
+/// rewrites could map a partially-written library and crash deep inside it
+/// (surfaced as a `sqlite3LeaveMutexAndCloseZombie` segfault in the wild).
+/// Caching the in-flight `Future` collapses concurrent callers onto a single
+/// extraction; [_writeLibraryBytes]'s rename-based write is the other half
+/// of the fix, for any caller that isn't covered by this cache (e.g. a
+/// worker's own self-extraction fallback racing the spawner's copy).
+Future<String> provideResqliteNativeLibraryPath() {
+  return _installFuture ??= _provideResqliteNativeLibraryPath();
+}
+
+Future<String>? _installFuture;
+
+Future<String> _provideResqliteNativeLibraryPath() async {
+  try {
+    return switch (kIsCompiled) {
+      true => await _extractCompiledLibrary(),
+      false => await _syncNativeAssetLibrary(_developmentLibraryPath()),
+    };
+  } catch (e) {
+    // Don't cache a failure forever -- let the next call retry from scratch.
+    _installFuture = null;
+    rethrow;
+  }
 }
 
 Future<String> _extractCompiledLibrary() async {
@@ -120,12 +146,24 @@ Future<String> _syncNativeAssetLibrary(String sourcePath) async {
   return dest.absolute.path;
 }
 
+/// Writes [bytes] to [dest] via a same-directory temp file + rename, so a
+/// concurrent reader (another process's `dlopen`, or another isolate's
+/// [File.readAsBytes]) can never observe a partially-written file -- POSIX
+/// (and Windows) rename onto an existing path is atomic, so [dest] always
+/// either has its old complete contents or its new complete contents, never
+/// a truncated in-between state. See [provideResqliteNativeLibraryPath] for
+/// why concurrent writers to this path are a real, observed scenario.
 Future<void> _writeLibraryBytes(File dest, List<int> bytes) async {
   dest.parent.createSync(recursive: true);
-  await dest.writeAsBytes(bytes, flush: true);
+
+  final tempFile = File(
+    '${dest.path}.tmp-$pid-${Object().hashCode.toRadixString(36)}',
+  );
+  await tempFile.writeAsBytes(bytes, flush: true);
   if (!Platform.isWindows) {
-    await Process.run('chmod', ['755', dest.path]);
+    await Process.run('chmod', ['755', tempFile.path]);
   }
+  await tempFile.rename(dest.path);
 }
 
 String _developmentLibraryPath() {

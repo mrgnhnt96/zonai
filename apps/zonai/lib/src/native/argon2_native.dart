@@ -50,12 +50,26 @@ Future<String?> _requestFromSpawner() async {
 /// Ensures the *spawner's own* embedded Argon2 native library is present at
 /// the shared install path and returns that path. Spawner-side half of the
 /// ask-your-spawner protocol -- see resqlite_native.dart's
-/// `provideResqliteNativeLibraryPath` for the full rationale.
-Future<String> provideArgon2NativeLibraryPath() async {
-  return switch (kIsCompiled) {
-    true => _extractCompiledLibrary(),
-    false => _syncNativeAssetLibrary(_developmentLibraryPath()),
-  };
+/// `provideResqliteNativeLibraryPath` for the full rationale, including why
+/// this is memoized per process (5 `Mailman`s can each receive a
+/// `NativeLibraryRequest` and call this concurrently) and why
+/// [_writeLibraryBytes] writes via rename instead of in place.
+Future<String> provideArgon2NativeLibraryPath() {
+  return _installFuture ??= _provideArgon2NativeLibraryPath();
+}
+
+Future<String>? _installFuture;
+
+Future<String> _provideArgon2NativeLibraryPath() async {
+  try {
+    return switch (kIsCompiled) {
+      true => await _extractCompiledLibrary(),
+      false => await _syncNativeAssetLibrary(_developmentLibraryPath()),
+    };
+  } catch (e) {
+    _installFuture = null;
+    rethrow;
+  }
 }
 
 Future<String> _extractCompiledLibrary() async {
@@ -99,12 +113,20 @@ Future<String> _syncNativeAssetLibrary(String sourcePath) async {
   return dest.absolute.path;
 }
 
+/// Writes [bytes] to [dest] via a same-directory temp file + rename -- see
+/// resqlite_native.dart's `_writeLibraryBytes` for why this needs to be
+/// atomic rather than an in-place truncate + write.
 Future<void> _writeLibraryBytes(File dest, List<int> bytes) async {
   dest.parent.createSync(recursive: true);
-  await dest.writeAsBytes(bytes, flush: true);
+
+  final tempFile = File(
+    '${dest.path}.tmp-$pid-${Object().hashCode.toRadixString(36)}',
+  );
+  await tempFile.writeAsBytes(bytes, flush: true);
   if (!Platform.isWindows) {
-    await Process.run('chmod', ['755', dest.path]);
+    await Process.run('chmod', ['755', tempFile.path]);
   }
+  await tempFile.rename(dest.path);
 }
 
 String _developmentLibraryPath() {
