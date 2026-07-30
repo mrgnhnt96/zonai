@@ -29,7 +29,8 @@ extension _UpdateX on ZonaiDb {
         _throwDatabaseError(
           updateError,
           table: table,
-          failure: ([cause]) => RecordUpdateFailedException(table: table, cause: cause),
+          failure: ([cause]) =>
+              RecordUpdateFailedException(table: table, cause: cause),
         );
       }
 
@@ -64,7 +65,8 @@ extension _UpdateX on ZonaiDb {
         _throwDatabaseError(
           updatedError,
           table: table,
-          failure: ([cause]) => RecordUpdateFailedException(table: table, cause: cause),
+          failure: ([cause]) =>
+              RecordUpdateFailedException(table: table, cause: cause),
         );
       }
 
@@ -130,22 +132,16 @@ extension _UpdateX on ZonaiDb {
             throw InvalidPasswordUpdateException(table: table);
           }
         case ObjectUpdate(:final object):
-          if (passwordColumnName == null) {
-            result.add(update);
-            continue;
-          }
-
-          if (object.containsKey(passwordColumnName)) {
+          if (passwordColumnName != null &&
+              object.containsKey(passwordColumnName)) {
             if (object[passwordColumnName] case final String value) {
               final hashed = await _hashPassword.hash(password: value);
               object[passwordColumnName] = hashed;
               changed = true;
-              continue;
+            } else {
+              throw InvalidPasswordUpdateException(table: table);
             }
-
-            throw InvalidPasswordUpdateException(table: table);
           }
-
           result.add(update);
         case ColumnUpdate():
           result.add(update);
@@ -204,7 +200,8 @@ extension _UpdateX on ZonaiDb {
       _throwDatabaseError(
         readError,
         table: table,
-        failure: ([cause]) => RecordReadFailedException(table: table, cause: cause),
+        failure: ([cause]) =>
+            RecordReadFailedException(table: table, cause: cause),
       );
     }
 
