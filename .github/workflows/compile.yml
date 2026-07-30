@@ -40,6 +40,9 @@ jobs:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
             output_name: zonai
+          - os: ubuntu-24.04-arm
+            artifact_name: zonai-linux-arm64
+            output_name: zonai
           - os: macos-latest
             artifact_name: zonai-macos-arm64
             output_name: zonai

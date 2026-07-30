@@ -18,6 +18,7 @@ Download a pre-compiled binary for your platform:
 - [macOS (Apple Silicon)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-macos-arm64.zip)
 - [macOS (Intel)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-macos-x64.zip)
 - [Linux (x64)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-linux-x64.zip)
+- [Linux (arm64)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-linux-arm64.zip)
 - [Windows (x64)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-windows-x64.zip)
 
 Extract the zip and place the `zonai` (or `zonai.exe`) binary in the root of your project.

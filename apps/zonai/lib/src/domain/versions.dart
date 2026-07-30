@@ -256,6 +256,7 @@ class Versions {
   String _artifactNameFor(TargetOs targetOs, Arch targetArch) {
     return switch ((targetOs, targetArch)) {
       (.linux, .x64) => 'zonai-linux-x64.zip',
+      (.linux, .arm64) => 'zonai-linux-arm64.zip',
       (.windows, .x64) => 'zonai-windows-x64.zip',
       (.macos, .arm64) => 'zonai-macos-arm64.zip',
       (.macos, .x64) => 'zonai-macos-x64.zip',

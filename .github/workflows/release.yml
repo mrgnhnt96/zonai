@@ -65,6 +65,7 @@ jobs:
             --title "Zonai ${tag}" \
             --generate-notes \
             release-assets/zonai-linux-x64.zip \
+            release-assets/zonai-linux-arm64.zip \
             release-assets/zonai-macos-arm64.zip \
             release-assets/zonai-macos-x64.zip \
             release-assets/zonai-windows-x64.zip

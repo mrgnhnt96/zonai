@@ -17,7 +17,7 @@ enum Arch {
       // .windowsArm64 => arm64,
       .windowsX64 => x64,
 
-      // .linuxArm64 => arm64,
+      .linuxArm64 => arm64,
       // .linuxArm => arm,
       // .linuxRiscv64 => riscv64,
       .linuxX64 => x64,

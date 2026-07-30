@@ -5,6 +5,7 @@
 #
 # Expects artifact layout from compile workflow downloads:
 #   <artifacts-dir>/zonai-linux-x64/zonai
+#   <artifacts-dir>/zonai-linux-arm64/zonai
 #   <artifacts-dir>/zonai-macos-arm64/zonai
 #   <artifacts-dir>/zonai-macos-x64/zonai
 #   <artifacts-dir>/zonai-windows-x64/zonai.exe
@@ -36,6 +37,7 @@ pack() {
 }
 
 pack "zonai-linux-x64.zip" "${artifacts_dir}/zonai-linux-x64/zonai"
+pack "zonai-linux-arm64.zip" "${artifacts_dir}/zonai-linux-arm64/zonai"
 pack "zonai-macos-arm64.zip" "${artifacts_dir}/zonai-macos-arm64/zonai"
 pack "zonai-macos-x64.zip" "${artifacts_dir}/zonai-macos-x64/zonai"
 pack "zonai-windows-x64.zip" "${artifacts_dir}/zonai-windows-x64/zonai.exe"

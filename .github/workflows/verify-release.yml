@@ -24,6 +24,9 @@ jobs:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
             executable_name: zonai
+          - os: ubuntu-24.04-arm
+            artifact_name: zonai-linux-arm64
+            executable_name: zonai
           - os: macos-latest
             artifact_name: zonai-macos-arm64
             executable_name: zonai
@@ -117,6 +120,9 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
+            executable_name: zonai
+          - os: ubuntu-24.04-arm
+            artifact_name: zonai-linux-arm64
             executable_name: zonai
           - os: macos-latest
             artifact_name: zonai-macos-arm64
