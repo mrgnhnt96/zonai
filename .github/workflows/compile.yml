@@ -40,20 +40,25 @@ jobs:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
             output_name: zonai
+            native_libs_artifact: native-libs-linux-x64
           - os: ubuntu-24.04-arm
             artifact_name: zonai-linux-arm64
             output_name: zonai
+            native_libs_artifact: native-libs-linux-arm64
           - os: macos-latest
             artifact_name: zonai-macos-arm64
             output_name: zonai
+            native_libs_artifact: native-libs-macos-arm64
           - os: macos-15-intel
             artifact_name: zonai-macos-x64
             output_name: zonai
             target_arch: x64
             dart_architecture: x64
+            native_libs_artifact: native-libs-macos-x64
           - os: windows-latest
             artifact_name: zonai-windows-x64
             output_name: zonai.exe
+            native_libs_artifact: native-libs-windows-x64
 
     steps:
       - name: Checkout zonai
@@ -112,10 +117,42 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
+      # Native libraries (resqlite, Argon2) rarely change and are slow to
+      # build from source on every compile run. Prefer the latest
+      # successful `native-libs.yml` run's artifact for this platform;
+      # `resqlite.gen`/`argon2.gen` (invoked below via `zonai compile`) fall
+      # back to building from source when ZONAI_SKIP_NATIVE_BUILD isn't
+      # "true" -- which covers both a failed download here and the
+      # bootstrapping case where native-libs.yml has never run yet.
+      - name: Download pre-built native libraries (latest successful native-libs run)
+        id: download-native-libs
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: native-libs.yml
+          workflow_conclusion: success
+          name: ${{ matrix.native_libs_artifact }}
+          path: apps/zonai/lib/gen/native
+
+      - name: Check downloaded native libraries
+        id: native-libs
+        shell: bash
+        run: |
+          if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
+             [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Using pre-built native libraries from native-libs.yml."
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No native-libs.yml artifact found for ${{ matrix.native_libs_artifact }} (or the download failed) -- building resqlite/Argon2 from source instead. Run the 'Native Libraries' workflow once to speed up future compiles."
+          fi
+
       - name: Build zonai
         shell: bash
         env:
           TARGET_ARCH: ${{ matrix.target_arch }}
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
         # Use `dart pub global run` so Windows Git Bash finds sip (global stubs are .bat-only).
         run: |
           mkdir -p build-logs

@@ -30,7 +30,16 @@ resqlite:
         if [ -n "$TARGET_ARCH" ]; then
           build_args+=(--arch "$TARGET_ARCH")
         fi
-        dart run tool/build_native.dart "${build_args[@]}"
+        # CI (compile.yml) sets ZONAI_SKIP_NATIVE_BUILD=true after
+        # downloading a prebuilt library from the native-libs.yml workflow
+        # into the same --output directory; `--check` confirms it's really
+        # there before trusting it. Unset/false (always the case for local
+        # `sip run resqlite gen`) always builds from source.
+        if [ "$ZONAI_SKIP_NATIVE_BUILD" = "true" ] && dart run tool/build_native.dart "${build_args[@]}" --check; then
+          echo "Using pre-fetched resqlite native library (ZONAI_SKIP_NATIVE_BUILD=true)"
+        else
+          dart run tool/build_native.dart "${build_args[@]}"
+        fi
       - cd apps/zonai && dart run tool/generate_resqlite_native.dart
       - dart pub get
     (aliases): [resqlite-native, rn]
@@ -43,7 +52,30 @@ argon2:
       # build hook) doesn't yet have an equivalent to
       # tool/build_native.dart's --arch cross-compilation support.
       - mkdir -p apps/zonai/lib/gen/native
-      - cd apps/zonai && dart run tool/build_argon2_native.dart
+      - |
+        cd apps/zonai || exit 1
+        # See resqlite.gen's matching comment: CI sets
+        # ZONAI_SKIP_NATIVE_BUILD=true after downloading a prebuilt library
+        # from native-libs.yml. build_argon2_native.dart has no --check
+        # flag, so confirm the expected file is actually there ourselves
+        # before trusting it.
+        skip=false
+        if [ "$ZONAI_SKIP_NATIVE_BUILD" = "true" ]; then
+          case "$RUNNER_OS" in
+            Linux) lib_name=libargon2sodium.so ;;
+            macOS) lib_name=libargon2sodium.dylib ;;
+            Windows) lib_name=argon2sodium.dll ;;
+            *) lib_name= ;;
+          esac
+          if [ -n "$lib_name" ] && [ -f "lib/gen/native/$lib_name" ]; then
+            skip=true
+          fi
+        fi
+        if [ "$skip" = true ]; then
+          echo "Using pre-fetched Argon2 native library (ZONAI_SKIP_NATIVE_BUILD=true)"
+        else
+          dart run tool/build_argon2_native.dart
+        fi
       - cd apps/zonai && dart run tool/generate_argon2_native.dart
       - dart pub get
     (aliases): [argon2-native, an]
