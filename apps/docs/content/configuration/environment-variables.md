@@ -13,7 +13,9 @@ Your Dart code reads a value at compile time:
 jwtSecret: const String.fromEnvironment('JWT_SECRET'),
 ```
 
-When Zonai compiles a worker, it reads your `.env` file and passes each value to `dart compile exe` as a `--define` flag. The compiled binary contains the literal value. If `JWT_SECRET` is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields.
+When Zonai compiles a worker, it reads your `.env` file and passes each value to `dart compile exe` as a compile-time define (`-Dkey=value`). The compiled binary contains the literal value. If `JWT_SECRET` is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields.
+
+This is an implementation detail, not a CLI flag — `zonai compile` and `zonai build` do not read `-D`/`--define` themselves. To override a value, edit `.env` (or `.env.<flavor>`, see below) or use `--dart-define` (see [CLI Overrides](#cli-overrides)).
 
 Changing a secret requires recompiling and redeploying the workers.
 
@@ -53,6 +55,16 @@ BASE_URL=https://api.myapp.com
 ```
 
 Each file must be self-contained with all the variables your workers need.
+
+## CLI Overrides
+
+Pass one-off values without editing `.env` using `--dart-define KEY=VALUE`, repeated for each key:
+
+```bash
+zonai build --dart-define BASE_URL=https://staging.example.com --dart-define FEATURE_X=on
+```
+
+CLI defines are merged on top of the loaded `.env`/`.env.<flavor>` file and win on key collisions. Use space-separated form (`--dart-define KEY=VALUE`), not `--dart-define=KEY=VALUE` — a joined value that itself contains `=` won't parse correctly.
 
 ## What Goes in .env
 

@@ -51,6 +51,8 @@ The `BASE_URL` compile-time environment variable is read when no `baseUrl` is pa
 dart run --define=BASE_URL=https://api.example.com lib/main.dart
 ```
 
+This `--define` flag belongs to `dart run`/`dart compile` and only affects how *this client script* reads `BASE_URL` — it's unrelated to the Zonai server's own env handling. To set `BASE_URL` for the server itself, see [Environment Variables](/configuration/environment-variables).
+
 ## Singleton vs. Explicit Instance
 
 `ZonaiClient.instance` is a lazy singleton backed by in-memory storage. It is

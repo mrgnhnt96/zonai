@@ -49,5 +49,69 @@ PLAIN=plain
         },
       );
     });
+
+    test('--dart-define overrides a matching .env key', () {
+      final memoryFs = MemoryFileSystem();
+
+      runScoped(
+        () {
+          memoryFs.file('.env').writeAsStringSync('''
+BASE_URL=http://localhost:8080
+JWT_SECRET=dev-secret
+''');
+
+          final env = Env();
+
+          expect(env.items['BASE_URL'], 'https://staging.example.com');
+          expect(env.items['JWT_SECRET'], 'dev-secret');
+        },
+        values: {
+          fsProvider.overrideWith(() => memoryFs),
+          argsProvider.overrideWith(
+            () => Args.parse([
+              '--dart-define',
+              'BASE_URL=https://staging.example.com',
+            ]),
+          ),
+        },
+      );
+    });
+
+    test('--dart-define adds keys when no .env file exists', () {
+      final memoryFs = MemoryFileSystem();
+
+      runScoped(
+        () {
+          final env = Env();
+
+          expect(env.items['FEATURE_FLAG'], 'on');
+        },
+        values: {
+          fsProvider.overrideWith(() => memoryFs),
+          argsProvider.overrideWith(
+            () => Args.parse(['--dart-define', 'FEATURE_FLAG=on']),
+          ),
+        },
+      );
+    });
+
+    test('repeated --dart-define flags are all applied', () {
+      final memoryFs = MemoryFileSystem();
+
+      runScoped(
+        () {
+          final env = Env();
+
+          expect(env.items['A'], '1');
+          expect(env.items['B'], '2');
+        },
+        values: {
+          fsProvider.overrideWith(() => memoryFs),
+          argsProvider.overrideWith(
+            () => Args.parse(['--dart-define', 'A=1', '--dart-define', 'B=2']),
+          ),
+        },
+      );
+    });
   });
 }

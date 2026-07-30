@@ -606,7 +606,11 @@ dart run zonai version     # show version + check for updates
 `zonai build` does that plus copies migrations, `zonai.yaml`, and a `zonai`
 binary into `build/` — a self-contained bundle ready to ship. Both accept
 `--release` (strip `assert(...)` from worker code, disable dev-only file
-watchers/keyboard shortcuts) and `--flavor <name>` (select `.env.<name>`).
+watchers/keyboard shortcuts), `--flavor <name>` (select `.env.<name>`), and
+repeated `--dart-define KEY=VALUE` flags (override/add compile-time env
+values on top of the selected `.env` file — CLI wins on key collisions; use
+space-separated form, not `--dart-define=KEY=VALUE`, since a joined value
+containing its own `=` won't parse).
 
 Cross-compile workers to another OS/arch via `buildSettings` in `zonai.yaml`:
 
@@ -1553,7 +1557,7 @@ PurgeExpiredJwtsJob main() => const PurgeExpiredJwtsJob();
 """;
 
 const cursorReleaseMdc = r"""---
-description: zonai release & deployment — build vs compile, --release/--flavor, cross-compiling via buildSettings
+description: zonai release & deployment — build vs compile, --release/--flavor/--dart-define, cross-compiling via buildSettings
 globs: zonai.yaml
 alwaysApply: false
 ---
@@ -1577,7 +1581,10 @@ dart run zonai compile --release               # workers only, in place
 
 `--release` strips `assert(...)` from worker code and disables dev-only file
 watchers/keyboard shortcuts during `serve`. `--flavor <name>` selects
-`.env.<name>` for compile-time env defines.
+`.env.<name>` for compile-time env defines. Repeated `--dart-define
+KEY=VALUE` flags override/add values on top of that file (CLI wins on key
+collisions) without editing it — use space-separated form, not
+`--dart-define=KEY=VALUE`.
 
 ## Cross-compiling
 

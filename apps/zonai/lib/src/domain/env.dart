@@ -84,34 +84,55 @@ class Env {
     return (file: flavorEnv, exists: hasFlavorEnv);
   }
 
+  /// Raw `KEY=VALUE` strings passed via repeated `--dart-define` flags.
+  ///
+  /// Must be space-separated (`--dart-define KEY=VALUE`), not `=`-joined
+  /// (`--dart-define=KEY=VALUE`) — [Args.parse] splits on every `=` in an
+  /// arg, so a joined value containing its own `=` fails to parse.
+  List<String> get _cliDefines {
+    return switch (args.values['dart-define']) {
+      null => const [],
+      final Iterable<dynamic> defines => [for (final d in defines) '$d'],
+      final define => ['$define'],
+    };
+  }
+
   Map<String, String> get items {
     if (_items case final items? when kIsCompiled) {
       return Map.unmodifiable(items);
     }
 
     final (file: env, :exists) = this.env;
+    final cliDefines = _cliDefines;
 
-    if (!exists) {
+    if (!exists && cliDefines.isEmpty) {
       return {};
     }
 
     final items = <String, String>{};
 
-    final lines = env.readAsLinesSync();
-    for (final line in lines) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+    void addEntry(String raw) {
+      final firstEqual = raw.indexOf('=');
+      if (firstEqual == -1) return;
 
-      final firstEqual = trimmed.indexOf('=');
-      if (firstEqual == -1) continue;
+      final key = raw.substring(0, firstEqual);
+      final value = raw.substring(firstEqual + 1);
 
-      final key = trimmed.substring(0, firstEqual);
-      final value = trimmed.substring(firstEqual + 1);
-
-      if (key.isEmpty) continue;
+      if (key.isEmpty) return;
 
       items[key] = parseEnvValue(value);
     }
+
+    if (exists) {
+      for (final line in env.readAsLinesSync()) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+        addEntry(trimmed);
+      }
+    }
+
+    // CLI-supplied defines override matching keys from the .env file.
+    cliDefines.forEach(addEntry);
 
     return _items = Map.unmodifiable(items);
   }
