@@ -14,19 +14,20 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 import '../support/raindrop_package_roots.dart';
 
-/// Reproduces the "editing a password via the admin UI silently doesn't take
-/// effect" report: the admin UI sends a single-row edit as one [ObjectUpdate]
-/// containing all changed columns. `_hashPasswordUpdates`
-/// (apps/zonai/lib/src/db_mutator/zonai_db/parts/update.dart) hashes the new
-/// password in place on that map, but its `ObjectUpdate` branch `continue`s
-/// without ever adding the (now-correctly-hashed) update back to the result
-/// list, so the whole update -- the password field and anything else in the
-/// same save -- never reaches the SQL statement. The row appears to save
-/// successfully (an unrelated `updated_at` bump still goes through), but the
-/// stored password hash is untouched, so the new password never works and
-/// the old one silently keeps working.
+/// Reproduces admin-UI password bugs on generic row save:
+///
+/// 1. **Update** — the admin UI sends a single-row edit as one [ObjectUpdate]
+///    containing all changed columns. `_hashPasswordUpdates`
+///    (apps/zonai/lib/src/db_mutator/zonai_db/parts/update.dart) hashes the
+///    new password in place on that map, but its `ObjectUpdate` branch used
+///    to `continue` without ever adding the (now-correctly-hashed) update
+///    back to the result list, so the whole update never reached SQL.
+///
+/// 2. **Create** — the admin UI creates a row via a plain object map that
+///    includes the password column. `_create` / `_createMany` used to insert
+///    that value without hashing, so sign-in failed (verify expects Argon2).
 void main() {
-  group('admin password update e2e', () {
+  group('admin password mutation e2e', () {
     late Directory projectRoot;
     late Directory fixtureRoot;
     late Settings settings;
@@ -345,6 +346,154 @@ void main() {
               const PasswordAuthPayload(email: email, password: newPassword),
             );
             expect(signInWithNewPassword, isNotNull);
+          } finally {
+            await db.dispose();
+          }
+        },
+        override: {
+          ..._e2eScopeOverrides(settings, appConfig: appConfig),
+          zonaiDbProvider.overrideWith(
+            () =>
+                () => db,
+          ),
+        },
+      );
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('admin can sign in a user created via a generic create (like the '
+        'admin UI sends) with the password supplied at create time', () async {
+      if (!_runningOnDartVm) {
+        return;
+      }
+
+      late ZonaiDb db;
+      await runMergedScopedFuture(
+        () async {
+          db = ZonaiDb();
+          try {
+            const adminEmail = 'admin-create@example.com';
+            const adminPassword = 'admin-create-password-1';
+            const userEmail = 'created-user@example.com';
+            const userPassword = 'created-user-password-1';
+
+            final adminSignUp = await db.authenticate(
+              'admins',
+              const PasswordAuthPayload(
+                email: adminEmail,
+                password: adminPassword,
+              ),
+            );
+            expect(adminSignUp, isNotNull);
+            final adminToken = adminSignUp!.jwt;
+
+            await db.create(
+              'users',
+              CreatePayload(
+                object: {
+                  'email': userEmail,
+                  'password': userPassword,
+                  'is_verified': false,
+                },
+                jwt: adminToken,
+              ),
+            );
+
+            await expectLater(
+              db.authenticate(
+                'users',
+                const PasswordAuthPayload(
+                  email: userEmail,
+                  password: 'wrong-password',
+                ),
+              ),
+              throwsA(isA<InvalidPasswordOrEmailException>()),
+              reason:
+                  'a wrong password must fail against a row created via '
+                  'the generic create path',
+            );
+
+            final signIn = await db.authenticate(
+              'users',
+              const PasswordAuthPayload(
+                email: userEmail,
+                password: userPassword,
+              ),
+            );
+            expect(
+              signIn,
+              isNotNull,
+              reason:
+                  'the password supplied at create time must work for '
+                  'sign-in (it must be hashed before insert, not stored '
+                  'as plain text)',
+            );
+          } finally {
+            await db.dispose();
+          }
+        },
+        override: {
+          ..._e2eScopeOverrides(settings, appConfig: appConfig),
+          zonaiDbProvider.overrideWith(
+            () =>
+                () => db,
+          ),
+        },
+      );
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('admin can sign in an admin created via a generic create (like the '
+        "admin UI's 'new row' form) with the password supplied at create "
+        'time', () async {
+      if (!_runningOnDartVm) {
+        return;
+      }
+
+      late ZonaiDb db;
+      await runMergedScopedFuture(
+        () async {
+          db = ZonaiDb();
+          try {
+            const bootstrapEmail = 'bootstrap-admin@example.com';
+            const bootstrapPassword = 'bootstrap-admin-password-1';
+            const createdEmail = 'created-admin@example.com';
+            const createdPassword = 'created-admin-password-1';
+
+            final bootstrap = await db.authenticate(
+              'admins',
+              const PasswordAuthPayload(
+                email: bootstrapEmail,
+                password: bootstrapPassword,
+              ),
+            );
+            expect(bootstrap, isNotNull);
+            final adminToken = bootstrap!.jwt;
+
+            await db.create(
+              'admins',
+              CreatePayload(
+                object: {
+                  'email': createdEmail,
+                  'password': createdPassword,
+                  'is_verified': false,
+                },
+                jwt: adminToken,
+              ),
+            );
+
+            final signIn = await db.authenticate(
+              'admins',
+              const PasswordAuthPayload(
+                email: createdEmail,
+                password: createdPassword,
+              ),
+            );
+            expect(
+              signIn,
+              isNotNull,
+              reason:
+                  'an admin row created via the generic create path must '
+                  'be sign-in-able with the password that was supplied',
+            );
           } finally {
             await db.dispose();
           }
