@@ -97,9 +97,52 @@ extension _CreateX on ZonaiDb {
     );
     logger.trace('ext_before');
 
+    final changed = await _hashPasswordCreate(table, payload.object);
+    if (changed) {
+      logger.trace('password_hash');
+      if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
+        throw PasswordUpdateForbiddenException(table: table);
+      }
+    }
+
     return await _getOperation(
       CreateOperationRequest(table: table, object: payload.object, jwt: jwt),
     );
+  }
+
+  /// Hashes a plain-text password column in [object] in place (the shape the
+  /// admin UI sends on row create). Returns whether a password was present and
+  /// hashed. Tables without a password column are a no-op.
+  Future<bool> _hashPasswordCreate(
+    String table,
+    Map<String, dynamic> object,
+  ) async {
+    String? passwordColumnName;
+    try {
+      final response = await _operations.send<ColumnNameResponse>(
+        GetColumnNameRequest(table: table, columnName: .password),
+      );
+      passwordColumnName = response.name;
+    } on MessageHandlerFailedException catch (error) {
+      if (error.cause?.contains('No password column on table') case true) {
+        return false;
+      }
+      rethrow;
+    } on StateError {
+      return false;
+    }
+
+    if (passwordColumnName == null ||
+        !object.containsKey(passwordColumnName)) {
+      return false;
+    }
+
+    if (object[passwordColumnName] case final String value) {
+      object[passwordColumnName] = await _hashPassword.hash(password: value);
+      return true;
+    }
+
+    throw InvalidPasswordUpdateException(table: table);
   }
 
   Future<_CrudListResult> _createMany(
@@ -196,6 +239,19 @@ extension _CreateX on ZonaiDb {
       );
     }
     logger.trace('ext_before');
+
+    var anyPasswordHashed = false;
+    for (final object in payload.objects) {
+      if (await _hashPasswordCreate(table, object)) {
+        anyPasswordHashed = true;
+      }
+    }
+    if (anyPasswordHashed) {
+      logger.trace('password_hash');
+      if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
+        throw PasswordUpdateForbiddenException(table: table);
+      }
+    }
 
     return await _getOperation(
       CreateManyOperationRequest(

@@ -105,7 +105,7 @@ final class PasswordUpdateForbiddenException extends CrudException {
 
   @override
   String toString() =>
-      'Only admins with edit access can update the password column on table "$table"';
+      'Only admins with edit access can set the password column on table "$table"';
 }
 
 final class InvalidPasswordUpdateException extends CrudException {
@@ -113,7 +113,7 @@ final class InvalidPasswordUpdateException extends CrudException {
 
   @override
   String toString() =>
-      'Password column on table "$table" can only be updated with a plain string value';
+      'Password column on table "$table" can only be set with a plain string value';
 }
 
 final class ForeignKeyConstraintException extends CrudException {
