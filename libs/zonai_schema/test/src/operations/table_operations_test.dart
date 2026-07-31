@@ -468,11 +468,21 @@ void main() {
       expect(sql, contains('WHERE'));
     });
 
-    test('delete with limit applies LIMIT', () {
+    test('delete with limit rewrites to pk IN (SELECT … LIMIT)', () {
       final query = ops.delete(const Eq('title', 'z'), limit: 3).compiled();
       final (sql, _) = dialect.translate(query);
       expect(sql, contains('DELETE FROM "widgets"'));
-      expect(sql.toUpperCase(), contains('LIMIT'));
+      expect(sql.toUpperCase(), contains(' IN ('));
+      expect(sql.toUpperCase(), contains('SELECT'));
+      expect(sql.toUpperCase(), contains('LIMIT 3'));
+      // Must not emit bare `DELETE … LIMIT` (fails on sqlite3mc amalgamation).
+      expect(
+        RegExp(
+          r'^DELETE\s+FROM\s+"widgets"\s+WHERE\b(?!.*\bIN\b).*LIMIT\s+3\s*$',
+          caseSensitive: false,
+        ).hasMatch(sql.trim()),
+        isFalse,
+      );
     });
 
     test('custom throws UnimplementedError', () {

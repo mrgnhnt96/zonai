@@ -477,15 +477,25 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     Where where, {
     int? limit,
   }) {
-    final builder = db
-        .delete(from: schema)
-        .where(_whereFilter(where, table.name));
-
-    if (limit != null) {
-      return builder.limit(limit);
+    if (limit == null) {
+      return db
+          .delete(from: schema)
+          .where(_whereFilter(where, table.name));
     }
 
-    return builder;
+    // sqlite3mc amalgamation cannot parse `DELETE … LIMIT` unless lemon was
+    // regenerated with SQLITE_ENABLE_UPDATE_DELETE_LIMIT (a plain -D at C
+    // compile time is not enough — compileoption_used can report 1 while the
+    // parser still rejects LIMIT). Rewrite to the always-supported form:
+    //   DELETE FROM t WHERE pk IN (SELECT pk FROM t WHERE … LIMIT n)
+    final pkColumn = table.columns.firstWhere((c) => c.isPrimaryKey);
+    final pkRef =
+        '"${_escapeIdent(table.name)}"."${_escapeIdent(pkColumn.name)}"';
+    final tableRef = '"${_escapeIdent(table.name)}"';
+    final (innerWhereSql, params) = where.sql(table.name);
+    final rewritten =
+        '$pkRef IN (SELECT $pkRef FROM $tableRef WHERE $innerWhereSql LIMIT $limit)';
+    return db.delete(from: schema).where(_sqlWithParams(rewritten, params));
   }
 
   rd.ToQuery<rd.Schema<R>, R> custom(
@@ -754,6 +764,10 @@ List<OrderByTerm>? _defaultOrderByFor(rd.Table<dynamic, dynamic> table) {
 /// unqualified reference (see [WhereX.sql]).
 SQL _whereFilter(Where where, String? tableName) {
   final (sql, params) = where.sql(tableName);
+  return _sqlWithParams(sql, params);
+}
+
+SQL _sqlWithParams(String sql, List<Object?> params) {
   final parts = sql.split('?');
   final chunks = <Object?>[];
   for (var i = 0; i < parts.length; i++) {
@@ -765,6 +779,8 @@ SQL _whereFilter(Where where, String? tableName) {
   }
   return SQL(chunks);
 }
+
+String _escapeIdent(String name) => name.replaceAll('"', '""');
 
 class Claims {
   const Claims(this.claims);
