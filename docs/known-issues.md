@@ -92,6 +92,60 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 13. `alterColumn`'s generated rebuild migration uses a positional `INSERT INTO ... SELECT *`, silently shuffling data into the wrong columns once a table has ever grown a column via `ALTER TABLE ADD COLUMN` — fixed
+
+**Update 2026-07-30: fixed.** `mrgnhnt96/raindrop` (`zonai` branch,
+`d3b001f`): `_rebuildTableFromAlters` (`sqlite_ddl.dart`) now builds the
+`INSERT`/`SELECT` from `tableColumns` explicitly — the exact fix suggested
+below — instead of a positional `SELECT *`, so a rebuilt table's rows land
+by column *name* regardless of how the source table's physical on-disk
+column order has drifted from its declared order. Added a regression test
+in `packages/raindrop_sqlite/test/sqlite_ddl_test.dart` (`inserts by
+explicit column name, not positional SELECT *`) using a `tableColumns`
+list whose order differs from a plausible physical layout, asserting the
+generated SQL is `INSERT INTO ... (col, col) SELECT col, col FROM ...`
+and never contains `SELECT * FROM`. Existing `alterColumn`/`generate`
+tests in the same file still pass unchanged. This repo's `libs/raindrop`
+submodule pin bumped to `d3b001f` to pick up the fix. Left below for
+reference/history.
+
+**Severity: silent data corruption on `db migrate apply`, not just a crash** — the crash (a `NOT NULL` constraint failure) is the *lucky* outcome; if every column in the rebuilt table happened to be nullable, this would corrupt real data with no error at all. Found 2026-07-30 in `override_canvas`, applying two long-pending migrations (`make_recording_client_app_and_org_nullable`/`make_recording_owner_id_nullable`, generated in an earlier session but never actually run against the real dev database until this one).
+
+**Reproduction**: any table that (a) has ever had a column added via a bare `ALTER TABLE ADD COLUMN` (which appends physically, at the end of on-disk column order) and (b) later goes through `alterColumn`'s rebuild path (e.g. widening a column to nullable) will have its rebuilt copy's rows shifted. Concretely, `recordings` had `sequence`/`session_id`/`organization_id` added later via separate `ALTER TABLE ADD COLUMN` calls, so its physical column order (`api_key, app_version, client_app_id, created_at, data, duration_ms, format_version, id, metadata, owner_id, platform, size_bytes, sequence, session_id, organization_id`) no longer matched the rebuilt table's declared/alphabetical order (`..., organization_id, owner_id, platform, sequence, session_id, size_bytes`). Applying the migration failed with:
+
+```
+SqliteException(1299): while selecting from statement, NOT NULL constraint failed: recordings_raindrop_rebuild.size_bytes, constraint failed (code 1299)
+  Causing statement: INSERT INTO "recordings_raindrop_rebuild" SELECT * FROM "recordings"
+```
+
+— because position 15 in the *old* table (`organization_id`, nullable) was being inserted into position 15 of the *new* table (`size_bytes`, `NOT NULL`).
+
+**Root cause.** `libs/raindrop/packages/raindrop_sqlite/lib/src/sqlite_ddl.dart:153`, inside `_rebuildTableFromAlters`:
+
+```dart
+'INSERT INTO $temp SELECT * FROM $table;',
+```
+
+`$temp`'s `CREATE TABLE` (line 132: `tableColumns.map(_columnDefinition).join(...)`) is built from `tableColumns` — the schema's own declared/sorted column order — but `$table`'s actual on-disk physical column order can diverge from that the moment any column was ever added via `alterColumn`'s sibling `addColumn` path (a plain `ALTER TABLE ADD COLUMN`, which SQLite always appends physically regardless of where the column sits in the schema's declared order). `SELECT *`/bare `INSERT INTO` both resolve by *position*, not name, so once the two orders diverge, every column from the divergence point on gets inserted into the wrong slot.
+
+**Worked around, not fixed here** (in `override_canvas`, not this repo): hand-edited the two pending migration files to use explicit, name-matched column lists on both sides of the `INSERT`/`SELECT` instead of relying on position — safe to do only because neither migration had ever actually been applied anywhere yet (confirmed via the `_raindrop_migrations` tracking table). This is a per-migration-file workaround; every future `alterColumn` rebuild on a table with this history will hit the same bug again until it's fixed at the source below.
+
+**Suggested fix**, in `_rebuildTableFromAlters` (`sqlite_ddl.dart`): build the `INSERT`/`SELECT` from `tableColumns` explicitly, the same list already used to build `defs`, instead of `SELECT *`:
+
+```dart
+final columnNames = tableColumns.map((c) => escapeName(c.name)).join(', ');
+steps.addAll([
+  'CREATE TABLE $temp (\n  $defs\n);',
+  'INSERT INTO $temp ($columnNames) SELECT $columnNames FROM $table;',
+  'DROP TABLE $table;',
+  'ALTER TABLE $temp RENAME TO $table;',
+]);
+```
+
+This is name-based and immune to physical/declared order divergence regardless of how the table got to its current on-disk shape.
+
+**How to verify a fix**: reproduce by creating a table, adding a column via a plain `ALTER TABLE ADD COLUMN` (not part of the same migration as the original schema), then triggering an unrelated `alterColumn` rebuild (e.g. widening some other, earlier-declared column to nullable) on the same table — confirm the rebuilt table's rows land in the *same* columns they started in (assert actual values, not just row count) both before and after the fix; before the fix, at least one column's values should visibly land in the wrong column once the physical and declared orders diverge enough.
+
 ## 12. Compiled `zonai serve` segfaults seconds after startup on Linux x64/arm64 — `sqlite3LeaveMutexAndCloseZombie` — fixed
 
 **Update 2026-07-30: fixed.** Found deploying `wholesale-command-station`'s
