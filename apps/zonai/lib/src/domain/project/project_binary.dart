@@ -38,7 +38,9 @@ class ProjectBinary {
       'exe',
       '-D__ZONAI_COMPILED__=true',
       ...env.dartDefineArgs,
-      if (!args.release) '--enable-asserts',
+      // `zonai build` always ships a production binary (no asserts). Dev
+      // `.zonai/zonai` keeps asserts unless `--release` is set.
+      if (buildSettings == null && !args.release) '--enable-asserts',
       if (buildSettings case final build?) ...[
         '--target-os',
         build.targetOs.name,
