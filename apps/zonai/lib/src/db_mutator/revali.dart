@@ -6,6 +6,7 @@ import '../../deps.dart';
 import '../../gen/server/.revali/server/server.dart' as server;
 import '../../gen/server/lib/config/server_binding.dart';
 import '../domain/constants.dart';
+import 'host_worker_registries.dart';
 import '../utils/serve_lock.dart';
 import '../utils/server_health.dart';
 
@@ -16,9 +17,14 @@ class Revali {
   io.HttpServer? _httpServer;
   ServeLock? _serveLock;
 
+  /// In-process HTTP ([createServer]) — AOT project/bootstrap binaries, or
+  /// JIT project entry with linked ops/rules registries.
+  bool get _inProcessHttp =>
+      kIsCompiled || HostWorkerRegistries.hasOperations;
+
   bool get isRunning =>
       _isRunning ??
-      switch (kIsCompiled) {
+      switch (_inProcessHttp) {
         true => false,
         false => _process != null,
       };
@@ -37,7 +43,7 @@ class Revali {
       return true;
     }
 
-    if (kIsCompiled) {
+    if (_inProcessHttp) {
       devLog('Acquiring serve lock...');
       final lockWatch = Stopwatch()..start();
       _serveLock = ServeLock.tryAcquire();
@@ -48,7 +54,7 @@ class Revali {
     }
 
     // during development, the server could already be running, so we can just return true
-    if (!(isDev && kIsCompiled)) {
+    if (!(isDev && _inProcessHttp)) {
       devLog('Quick health check...');
       final quickHealth = Stopwatch()..start();
       final isHealthy = await _checkHealth(quick: true);
@@ -63,7 +69,7 @@ class Revali {
         // Something else owns this project's configured port -- most
         // likely another zonai project. Don't silently pretend we're
         // running.
-        if (kIsCompiled && _serveLock != null) {
+        if (_inProcessHttp && _serveLock != null) {
           logger.error(
             'Port ${ServerBinding.port} is already in use by another '
             'process. If you have another zonai project running '
@@ -85,7 +91,7 @@ class Revali {
     logger.debug('Starting Revali server');
     devLog('Launching revali server process...');
 
-    if (kIsCompiled) {
+    if (_inProcessHttp) {
       return await _startCompiled(onStopped: onStopped);
     }
 

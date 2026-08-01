@@ -11,6 +11,7 @@ import 'package:raindrop/raindrop.dart' hide migrate;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
+import 'package:zonai/src/db_mutator/host_worker_registries.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
@@ -348,7 +349,7 @@ class ZonaiDb {
 
   Future<Map<String, TableSchemaShape>> schemaShapes() async {
     return await _run(() async {
-      final response = await _operations.send<AllTableSchemaShapesResponse>(
+      final response = await _dispatchOperation<AllTableSchemaShapesResponse>(
         GetAllTableSchemaShapesRequest(),
       );
       return response.shapes;
@@ -359,10 +360,10 @@ class ZonaiDb {
     Jwt? jwt,
   }) async {
     return await _run(() async {
-      final response = await _rules.send<AllTableCollectionActionsResponse>(
+      final response = await _dispatchRules<AllTableCollectionActionsResponse>(
         GetAllTableCollectionActionsRequest(jwt: jwt),
       );
-      return response.actions;
+      return response?.actions ?? const {};
     });
   }
 

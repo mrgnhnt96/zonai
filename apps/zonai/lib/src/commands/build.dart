@@ -1,13 +1,11 @@
-import 'dart:io';
-
+import 'package:file/file.dart';
 import 'package:zonai/src/commands/compile.dart';
 import 'package:zonai/src/deps/args.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/migrate.dart';
 import 'package:zonai/src/deps/settings.dart';
-import 'package:zonai/src/deps/versions.dart';
-import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/project/project_binary.dart';
 
 const _usage = '''
 Usage: zonai build
@@ -78,15 +76,11 @@ Future<int> build() async {
     file.copySync(fs.path.join(settings.buildImagesPath, 'favicon.ico'));
   }
 
-  if (settings.buildSettings.targetsCurrentPlatform() && kIsCompiled) {
-    fs.file(Platform.executable).copySync(settings.buildExecutablePath);
-  } else {
-    await versions.downloadBinary(
-      version: settings.version,
-      targetDestination: settings.buildExecutablePath,
-      targetOs: settings.buildSettings.targetOs,
-      targetArch: settings.buildSettings.targetArch,
-    );
+  // Project-linked binary with in-process ops/rules (full CLI surface).
+  if (await ProjectBinary().compile(buildSettings: settings.buildSettings)
+      case final exitCode
+      when exitCode != 0) {
+    return exitCode;
   }
 
   return 0;

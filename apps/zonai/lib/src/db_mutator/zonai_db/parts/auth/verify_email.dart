@@ -19,7 +19,7 @@ extension _VerifyEmailX on ZonaiDb {
       return;
     }
 
-    final isVerifiedColumn = await _operations.send<ColumnNameResponse>(
+    final isVerifiedColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .isVerified),
     );
 
@@ -43,7 +43,7 @@ extension _VerifyEmailX on ZonaiDb {
 
     await _expireOldChallenges(table: table, email: email, type: .verifyEmail);
 
-    final verifyEmail = (await _operations.send<VerifyEmailConfigResponse>(
+    final verifyEmail = (await _dispatchOperation<VerifyEmailConfigResponse>(
       GetVerifyEmailConfigOperationRequest(table: table),
     )).config;
 
@@ -126,10 +126,10 @@ extension _VerifyEmailX on ZonaiDb {
 
     await _consumeChallenge(challenge);
 
-    final isVerifiedColumn = await _operations.send<ColumnNameResponse>(
+    final isVerifiedColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: challenge.table, columnName: .isVerified),
     );
-    final idColumn = await _operations.send<ColumnNameResponse>(
+    final idColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: challenge.table, columnName: .id),
     );
 
@@ -150,7 +150,7 @@ extension _VerifyEmailX on ZonaiDb {
       throw StateError('Missing column(s) for email verification');
     }
 
-    final operation = await _operations.send<PerformOperationResponse>(
+    final operation = await _dispatchOperation<PerformOperationResponse>(
       UpdateOperationRequest(
         table: challenge.table,
         jwt: jwt,

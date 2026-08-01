@@ -3,6 +3,31 @@ part of zonai_db;
 extension UtilsX on ZonaiDb {
   File get _dbFile => __dbFile ??= fs.file(settings.zonaiSqlitePath);
 
+  Future<T?> _dispatchRules<T extends RuleResponse>(RuleRequest request) async {
+    if (HostWorkerRegistries.useInProcessRules) {
+      final response = await HostWorkerRegistries.rules!.dispatch(request);
+      if (response is T) return response;
+      throw StateError(
+        'In-process rules returned ${response.runtimeType}, expected $T',
+      );
+    }
+    return _rules.send<T>(request);
+  }
+
+  Future<T> _dispatchOperation<T extends OperationResponse>(
+    OperationRequest request,
+  ) async {
+    if (HostWorkerRegistries.useInProcessOperations) {
+      final response = await HostWorkerRegistries.operations!.dispatch(request);
+      if (response is T) return response;
+      throw StateError(
+        'In-process operations returned ${response.runtimeType}, expected $T',
+      );
+    }
+    return _operations.send<T>(request);
+  }
+
+
   Future<Raindrop> open() async {
     if (this.db case final db?) {
       return db;
@@ -109,7 +134,7 @@ extension UtilsX on ZonaiDb {
       return cached;
     }
 
-    final rules = await _rules.send<TableRulesResponse?>(
+    final rules = await _dispatchRules<TableRulesResponse>(
       TableRulesRequest(table: table, operation: operation.name, jwt: jwt),
     );
 
@@ -140,7 +165,7 @@ extension UtilsX on ZonaiDb {
       );
     }
 
-    final rules = await _rules.send<RowRulesResponse?>(
+    final rules = await _dispatchRules<RowRulesResponse>(
       RowRulesRequest(table: table, operation: operation, data: data, jwt: jwt),
     );
 
@@ -182,7 +207,7 @@ extension UtilsX on ZonaiDb {
     if (rows.isEmpty) return;
     if (_skipRowChecks['$table|${_jwtCacheKey(jwt)}'] == true) return;
 
-    final response = await _rules.send<BatchRowRulesResponse?>(
+    final response = await _dispatchRules<BatchRowRulesResponse>(
       BatchRowRulesRequest(
         table: table,
         operation: operation,
@@ -218,7 +243,9 @@ extension UtilsX on ZonaiDb {
       if (cached != null) return cached;
     }
 
-    final response = await _operations.send<PerformOperationResponse>(request);
+    final response = await _dispatchOperation<PerformOperationResponse>(
+      request,
+    );
     if (cacheKey != null) {
       _operationCache[cacheKey] = response;
     }
@@ -232,7 +259,7 @@ extension UtilsX on ZonaiDb {
       return _columnNameCache[key];
     }
 
-    final response = await _operations.send<ColumnNameResponse>(
+    final response = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: columnName),
     );
     return _columnNameCache[key] = response.name;
@@ -240,6 +267,10 @@ extension UtilsX on ZonaiDb {
 
   /// No-ops when the project has no extension handlers registered.
   Future<void> _runExtension(ExtensionRequest request) async {
+    if (HostWorkerRegistries.useInProcessExtensions) {
+      await HostWorkerRegistries.extensions!.dispatch(request);
+      return;
+    }
     if (!_detectProjectExtensions()) {
       return;
     }
@@ -247,6 +278,9 @@ extension UtilsX on ZonaiDb {
   }
 
   bool _detectProjectExtensions() {
+    if (HostWorkerRegistries.hasExtensions) {
+      return _hasProjectExtensions = true;
+    }
     if (_hasProjectExtensions case final cached?) {
       return cached;
     }
@@ -352,7 +386,7 @@ extension UtilsX on ZonaiDb {
     if (cached != null) return cached;
 
     // Warm the cache with a metadata-only round trip (empty object, keep secrets).
-    final response = await _operations.send<SanitizeOperationResponse>(
+    final response = await _dispatchOperation<SanitizeOperationResponse>(
       SanitizeOperationRequest(
         table: table,
         objects: const [{}],

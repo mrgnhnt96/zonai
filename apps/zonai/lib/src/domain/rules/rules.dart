@@ -12,6 +12,7 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
+import '../project/project_generator.dart';
 import 'rule_generator.dart';
 
 class Rules {
@@ -71,6 +72,7 @@ class Rules {
     }
 
     await RuleGenerator(rules: files).create();
+    await const ProjectGenerator().create();
 
     final result = await process.runDart([
       'compile',
@@ -93,6 +95,26 @@ class Rules {
       logger.info('----');
       logger.error('${result.stderr}');
       return;
+    }
+
+    final snapshotTarget = switch (buildSettings) {
+      != null => settings.buildRulesSnapshotPath,
+      _ => settings.compiledRulesSnapshotPath,
+    };
+    final snapshot = await process.runDart([
+      'compile',
+      'aot-snapshot',
+      ...env.dartDefineArgs,
+      if (!args.release) '--enable-asserts',
+      RuleGenerator.executablePath,
+      '-o',
+      snapshotTarget,
+    ]);
+    if (snapshot.exitCode != 0) {
+      logger.warn(
+        'Failed to compile rules AOT snapshot (isolate transport '
+        'will fall back to process): ${snapshot.stderr}',
+      );
     }
 
     final s = files.length == 1 ? '' : 's';

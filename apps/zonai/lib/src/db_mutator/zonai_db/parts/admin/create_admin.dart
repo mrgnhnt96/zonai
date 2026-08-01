@@ -48,7 +48,7 @@ extension _CreateAdminX on ZonaiDb {
     required String table,
     required Map<String, Object?> user,
   }) async {
-    final isVerifiedColumn = await _operations.send<ColumnNameResponse>(
+    final isVerifiedColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .isVerified),
     );
 
@@ -56,7 +56,7 @@ extension _CreateAdminX on ZonaiDb {
       return user;
     }
 
-    final idColumn = await _operations.send<ColumnNameResponse>(
+    final idColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .id),
     );
 
@@ -75,7 +75,7 @@ extension _CreateAdminX on ZonaiDb {
       return user;
     }
 
-    final operation = await _operations.send<PerformOperationResponse>(
+    final operation = await _dispatchOperation<PerformOperationResponse>(
       UpdateOperationRequest(
         table: table,
         jwt: null,

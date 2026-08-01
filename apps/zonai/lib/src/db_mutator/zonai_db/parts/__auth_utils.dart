@@ -8,7 +8,7 @@ extension _AuthUtilsX on ZonaiDb {
   }) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _operations.send<PerformOperationResponse>(
+    final response = await _dispatchOperation<PerformOperationResponse>(
       ViewAuthOperationRequest(
         table: table,
         jwt: jwt,
@@ -29,7 +29,7 @@ extension _AuthUtilsX on ZonaiDb {
       return null;
     }
 
-    final passwordColumn = await _operations.send<ColumnNameResponse>(
+    final passwordColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .password),
     );
 
@@ -56,7 +56,7 @@ extension _AuthUtilsX on ZonaiDb {
     required String email,
     bool sanitize = true,
   }) async {
-    final response = await _operations.send<PerformOperationResponse>(
+    final response = await _dispatchOperation<PerformOperationResponse>(
       ViewAuthOperationRequest(
         table: table,
         jwt: null,
@@ -90,7 +90,7 @@ extension _AuthUtilsX on ZonaiDb {
   }) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _operations.send<PerformOperationResponse>(
+    final response = await _dispatchOperation<PerformOperationResponse>(
       ViewAuthOperationRequest(
         table: table,
         jwt: jwt,
@@ -136,7 +136,7 @@ extension _AuthUtilsX on ZonaiDb {
   ) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _rules.send<AuthRowRulesResponse>(
+    final response = await _dispatchRules<AuthRowRulesResponse>(
       AuthRowRulesRequest(
         table: table,
         jwt: jwt,
@@ -261,7 +261,7 @@ extension _AuthUtilsX on ZonaiDb {
   ) async {
     final jwt = await _extractJwt(payload);
 
-    final response = await _rules.send<AuthTableRulesResponse>(
+    final response = await _dispatchRules<AuthTableRulesResponse>(
       AuthTableRulesRequest(
         table: table,
         jwt: jwt,
@@ -291,7 +291,7 @@ extension _AuthUtilsX on ZonaiDb {
       return null;
     }
 
-    final emailColumn = await _operations.send<ColumnNameResponse>(
+    final emailColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .email),
     );
 

@@ -84,7 +84,7 @@ extension _ExpandX on ZonaiDb {
     String table,
     String columnName,
   ) async {
-    final response = await _operations.send<ColumnReferenceResponse>(
+    final response = await _dispatchOperation<ColumnReferenceResponse>(
       GetColumnReferenceRequest(table: table, columnName: columnName),
     );
 

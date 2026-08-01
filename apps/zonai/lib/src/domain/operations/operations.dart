@@ -12,6 +12,7 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
+import '../project/project_generator.dart';
 import 'operation_generator.dart';
 
 class Operations {
@@ -92,6 +93,8 @@ class Operations {
       operations: files,
       schemasPath: settings.schemasPath,
     ).create();
+    // Keep project_main imports in sync for in-process / JIT restarts.
+    await const ProjectGenerator().create();
 
     final result = await process.runDart([
       'compile',
@@ -114,6 +117,26 @@ class Operations {
       logger.info('----');
       logger.error('${result.stderr}');
       return;
+    }
+
+    final snapshotTarget = switch (buildSettings) {
+      != null => settings.buildOperationsSnapshotPath,
+      _ => settings.compiledOperationsSnapshotPath,
+    };
+    final snapshot = await process.runDart([
+      'compile',
+      'aot-snapshot',
+      ...env.dartDefineArgs,
+      if (!args.release) '--enable-asserts',
+      OperationGenerator.executablePath,
+      '-o',
+      snapshotTarget,
+    ]);
+    if (snapshot.exitCode != 0) {
+      logger.warn(
+        'Failed to compile operations AOT snapshot (isolate transport '
+        'will fall back to process): ${snapshot.stderr}',
+      );
     }
 
     final s = files.length == 1 ? '' : 's';

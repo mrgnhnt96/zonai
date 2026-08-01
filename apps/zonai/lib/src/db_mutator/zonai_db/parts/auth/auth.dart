@@ -15,7 +15,7 @@ extension _AuthX on ZonaiDb {
         throw const InvalidJwtException();
       }
 
-      final emailColumn = await _operations.send<ColumnNameResponse>(
+      final emailColumn = await _dispatchOperation<ColumnNameResponse>(
         GetColumnNameRequest(table: oldJwt.table, columnName: .email),
       );
 
@@ -86,7 +86,7 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<String> _adminCollectionFor(AuthType authType) async {
-    final authTables = await _operations.send<AdminTablesResponse>(
+    final authTables = await _dispatchOperation<AdminTablesResponse>(
       GetAdminTablesOperationRequest(),
     );
 
@@ -150,7 +150,7 @@ extension _AuthX on ZonaiDb {
   }
 
   Future<List<AuthType>> _adminSupportedAuthTypes() async {
-    final authTables = await _operations.send<AdminTablesResponse>(
+    final authTables = await _dispatchOperation<AdminTablesResponse>(
       GetAdminTablesOperationRequest(),
     );
 
@@ -168,7 +168,7 @@ extension _AuthX on ZonaiDb {
     Map<String, Object?> user,
   ) async {
     final jwtId = JwtId.generate();
-    final userIdColumn = await _operations.send<ColumnNameResponse>(
+    final userIdColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .id),
     );
 
@@ -188,7 +188,7 @@ extension _AuthX on ZonaiDb {
       claims: {},
     );
 
-    final jwtConfig = await _operations.send<JwtConfigResponse>(
+    final jwtConfig = await _dispatchOperation<JwtConfigResponse>(
       GetJwtConfigOperationRequest(table: table, jwt: preJwt),
     );
 

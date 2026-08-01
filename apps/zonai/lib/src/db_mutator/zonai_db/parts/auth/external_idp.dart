@@ -79,7 +79,7 @@ extension _ExternalIdpX on ZonaiDb {
     required String table,
     required String id,
   }) async {
-    final idColumn = await _operations.send<ColumnNameResponse>(
+    final idColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: table, columnName: .id),
     );
     final idColumnName = idColumn.name;
@@ -87,7 +87,7 @@ extension _ExternalIdpX on ZonaiDb {
       throw StateError('No id column on table "$table"');
     }
 
-    final response = await _operations.send<PerformOperationResponse>(
+    final response = await _dispatchOperation<PerformOperationResponse>(
       ReadOperationRequest(
         table: table,
         where: Eq(idColumnName, id),

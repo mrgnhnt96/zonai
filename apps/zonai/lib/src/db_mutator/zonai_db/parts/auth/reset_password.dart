@@ -36,7 +36,7 @@ extension _ResetPasswordX on ZonaiDb {
       type: .passwordReset,
     );
 
-    final resetPassword = (await _operations.send<ResetPasswordConfigResponse>(
+    final resetPassword = (await _dispatchOperation<ResetPasswordConfigResponse>(
       GetResetPasswordConfigOperationRequest(table: table),
     )).config;
 
@@ -137,10 +137,10 @@ extension _ResetPasswordX on ZonaiDb {
 
     await _consumeChallenge(challenge);
 
-    final passwordColumn = await _operations.send<ColumnNameResponse>(
+    final passwordColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: challenge.table, columnName: .password),
     );
-    final idColumn = await _operations.send<ColumnNameResponse>(
+    final idColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: challenge.table, columnName: .id),
     );
 
@@ -167,7 +167,7 @@ extension _ResetPasswordX on ZonaiDb {
       throw StateError('Missing column(s) for password reset');
     }
 
-    final operation = await _operations.send<PerformOperationResponse>(
+    final operation = await _dispatchOperation<PerformOperationResponse>(
       UpdateOperationRequest(
         table: challenge.table,
         jwt: null,

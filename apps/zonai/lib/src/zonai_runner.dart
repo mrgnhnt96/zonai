@@ -2,6 +2,7 @@ import 'package:zonai/src/commands/build.dart';
 import 'package:zonai/src/commands/version.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/versions.dart';
+import 'package:zonai/src/domain/project/project_runtime.dart';
 
 import 'commands/ai/ai.dart';
 import 'commands/compile.dart';
@@ -50,6 +51,10 @@ Future<int> run() async {
   if (args.help && args.path.isEmpty) {
     logger.info(_usage);
     return 1;
+  }
+
+  if (await maybeReexecProjectRuntime() case final exitCode?) {
+    return exitCode;
   }
 
   switch (args.path) {
