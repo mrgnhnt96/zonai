@@ -30,7 +30,7 @@ void main() {
           for (final lang in const [
             'sh', 'bash', 'json', 'yaml', 'sql', 'nginx', 'ini', 'html',
             'dockerfile', 'typescript', 'text', 'rust', 'ruby', 'python',
-            'kotlin', 'javascript', 'java', 'go', 'css',
+            'kotlin', 'javascript', 'java', 'go', 'css', 'toml',
           ])
             lang: '{"name":"$lang","scopeName":"source.$lang","patterns":[]}',
         }),

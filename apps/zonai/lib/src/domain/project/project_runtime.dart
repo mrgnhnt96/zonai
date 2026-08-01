@@ -8,6 +8,7 @@ import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/settings.dart';
+import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/operations/operation_generator.dart';
 import 'package:zonai/src/domain/project/project_binary.dart';
 import 'package:zonai/src/domain/project/project_generator.dart';
@@ -42,10 +43,17 @@ Future<void> generateProjectEntry() async {
 /// re-exec into the project-linked entry (JIT) or compiled project binary
 /// (`--release`).
 ///
+/// Published AOT bootstrap binaries (`kIsCompiled`) stay in-process and use
+/// Mailman workers for ops/rules — they do not ship `lib/gen/` and cannot
+/// JIT-compile the path-dep package. Project-linked `build/zonai` already
+/// has registries set and returns earlier via [HostWorkerRegistries.hasOperations].
+///
 /// Returns the child exit code, or `null` when the current process should
-/// continue (already linked, forced workers, or non-project command).
+/// continue (already linked, compiled bootstrap, forced workers, or
+/// non-project command).
 Future<int?> maybeReexecProjectRuntime() async {
   if (HostWorkerRegistries.hasOperations) return null;
+  if (kIsCompiled) return null;
   if (forceWorkers) return null;
   if (!commandNeedsProjectRuntime(args.path)) return null;
 
