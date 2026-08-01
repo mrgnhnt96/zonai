@@ -16,6 +16,12 @@ final class Exceptions implements LifecycleComponent {
     return .handled(statusCode: 503, body: {'error': '$exception'});
   }
 
+  ExceptionCatcherResult<WriteBackpressureException> onWriteBackpressure(
+    WriteBackpressureException exception,
+  ) {
+    return .handled(statusCode: 503, body: {'error': '$exception'});
+  }
+
   ExceptionCatcherResult<AuthException> onAuthException(
     AuthException exception,
   ) {

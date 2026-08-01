@@ -1,4 +1,4 @@
-import 'dart:io' show HttpServer;
+import 'dart:io' show HttpServer, Platform;
 
 import 'package:revali_router/revali_router.dart';
 import 'package:scoped_deps/scoped_deps.dart';
@@ -24,7 +24,22 @@ import '../components/exception_catcher.dart';
 @App(flavor: 'dev')
 final class DevApp extends AppConfig {
   DevApp()
-    : super(host: ServerBinding.host, port: ServerBinding.port, prefix: '');
+    : super(
+        host: ServerBinding.host,
+        port: ServerBinding.port,
+        prefix: '',
+        // Multi-isolate accept only after host-side IPC caches / in-process
+        // sanitize — otherwise each isolate would spawn its own Mailman pools
+        // against one SQLite file. Opt in with ZONAI_HTTP_WORKERS; default 1.
+        workers: _httpWorkers,
+      );
+
+  static int get _httpWorkers {
+    final raw = Platform.environment['ZONAI_HTTP_WORKERS'];
+    final parsed = int.tryParse(raw ?? '');
+    if (parsed == null || parsed < 1) return 1;
+    return parsed;
+  }
 
   TrustedProxy _trustedProxy = const TrustedProxy();
 

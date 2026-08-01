@@ -69,10 +69,11 @@ class Trace implements LifecycleComponent {
     final isAdminRequest = await _isAdminRequest(context);
 
     final callback = (LogDetails details) async {
-      if (details.level != .request &&
-          details.level != .trace &&
-          details.level < .info)
-        return;
+      // Persist only actionable levels. `.trace` / `.request` were flooding
+      // `_log` with ~10 INSERTs per list call on the same SQLite file as app
+      // data, amplifying write-lock contention under load without helping
+      // operators. Console logging still happens via Logger.print.
+      if (details.level < .info) return;
       final db = await zonaiDB.open();
 
       await db.insert(into: logs).values([
