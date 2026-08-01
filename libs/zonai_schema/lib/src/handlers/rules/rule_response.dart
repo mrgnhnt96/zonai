@@ -24,6 +24,7 @@ sealed class RuleResponse extends Response {
     return switch (path) {
       TableRulesResponse._path => TableRulesResponse.fromJson(json),
       RowRulesResponse._path => RowRulesResponse.fromJson(json),
+      BatchRowRulesResponse._path => BatchRowRulesResponse.fromJson(json),
       AuthTableRulesResponse._path => AuthTableRulesResponse.fromJson(json),
       AuthRowRulesResponse._path => AuthRowRulesResponse.fromJson(json),
       AllTableCollectionActionsResponse._path =>
@@ -136,12 +137,14 @@ final class TableRulesResponse extends RuleResponse {
     required this.table,
     required this.operation,
     required this.canAccess,
+    this.skipRowChecks = false,
   }) : super(
          path: _path,
          payload: {
            'table': table,
            'operation': operation,
            'canAccess': canAccess,
+           'skipRowChecks': skipRowChecks,
          },
        );
 
@@ -151,6 +154,7 @@ final class TableRulesResponse extends RuleResponse {
       table: json['table'],
       operation: json['operation'],
       canAccess: json['canAccess'],
+      skipRowChecks: json['skipRowChecks'] as bool? ?? false,
     );
   }
 
@@ -160,19 +164,25 @@ final class TableRulesResponse extends RuleResponse {
   final String operation;
   final bool canAccess;
 
+  /// When true, host skips batch/per-row rules IPC for this table after a
+  /// successful table-access check (see [BaseRowRules.requiresPerRowCheck]).
+  final bool skipRowChecks;
+
   @override
   Map<String, dynamic> toJson() {
     return {
       'table': table,
       'operation': operation,
       'canAccess': canAccess,
+      'skipRowChecks': skipRowChecks,
       ...super.toJson(),
     };
   }
 
   @override
   String toString() {
-    return 'TableRulesResponse(table: $table, operation: $operation, canAccess: $canAccess)';
+    return 'TableRulesResponse(table: $table, operation: $operation, '
+        'canAccess: $canAccess, skipRowChecks: $skipRowChecks)';
   }
 }
 
@@ -262,5 +272,55 @@ final class RowRulesResponse extends RuleResponse {
   @override
   String toString() {
     return 'RowRulesResponse(table: $table, operation: $operation, canPerform: $canPerform)';
+  }
+}
+
+final class BatchRowRulesResponse extends RuleResponse {
+  BatchRowRulesResponse({
+    required super.id,
+    required this.table,
+    required this.operation,
+    required this.canPerform,
+  }) : super(
+         path: _path,
+         payload: {
+           'table': table,
+           'operation': operation.name,
+           'canPerform': canPerform,
+         },
+       );
+
+  factory BatchRowRulesResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['canPerform'] as List? ?? const [];
+    return BatchRowRulesResponse(
+      id: json['id'] as String,
+      table: json['table'] as String,
+      operation: RowOperation.fromString(json['operation'] as String)!,
+      canPerform: [for (final value in raw) value as bool],
+    );
+  }
+
+  static const _path = '${Response.prefix}.row.can_access_batch';
+
+  final String table;
+  final RowOperation operation;
+
+  /// Parallel to [BatchRowRulesRequest.rows] — `true` when that row is allowed.
+  final List<bool> canPerform;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'table': table,
+      'operation': operation.name,
+      'canPerform': canPerform,
+      ...super.toJson(),
+    };
+  }
+
+  @override
+  String toString() {
+    return 'BatchRowRulesResponse(table: $table, operation: $operation, '
+        'allowed=${canPerform.where((v) => v).length}/${canPerform.length})';
   }
 }

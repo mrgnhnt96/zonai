@@ -14,6 +14,8 @@ sealed class RuleRequest extends Request {
         return TableRulesRequest.fromRequest(request);
       case RowRulesRequest._path:
         return RowRulesRequest.fromRequest(request);
+      case BatchRowRulesRequest._path:
+        return BatchRowRulesRequest.fromRequest(request);
       case AuthTableRulesRequest._path:
         return AuthTableRulesRequest.fromRequest(request);
       case AuthRowRulesRequest._path:
@@ -192,6 +194,59 @@ final class RowRulesRequest extends RuleRequest {
       'table': table,
       'operation': operation.name,
       'data': data,
+    };
+  }
+}
+
+/// Checks row access for many rows in one worker round-trip.
+///
+/// List/stream paths previously issued one [RowRulesRequest] per row, which
+/// serializes ~N JSON IPC hops through a single rules worker pipe. Batching
+/// collapses that to one request so throughput scales with SQL, not pipe RTT.
+final class BatchRowRulesRequest extends RuleRequest {
+  BatchRowRulesRequest({
+    required this.table,
+    required this.operation,
+    required this.rows,
+    required super.jwt,
+  }) : super(path: _path, id: Request.generateId());
+
+  BatchRowRulesRequest._({
+    required super.id,
+    required this.table,
+    required this.operation,
+    required this.rows,
+    required super.jwt,
+  }) : super(path: _path);
+
+  factory BatchRowRulesRequest.fromRequest(UnknownRequest request) {
+    final rawRows = request.payload['rows'] as List? ?? const [];
+    return BatchRowRulesRequest._(
+      id: request.id,
+      table: request.payload['table'] as String,
+      operation: RowOperation.fromString(
+        request.payload['operation'] as String,
+      )!,
+      rows: [
+        for (final row in rawRows) Map<String, dynamic>.from(row as Map),
+      ],
+      jwt: request.jwt,
+    );
+  }
+
+  static const _path = '${Request.prefix}.row.can_access_batch';
+
+  final String table;
+  final RowOperation operation;
+  final List<Map<String, dynamic>> rows;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'table': table,
+      'operation': operation.name,
+      'rows': rows,
     };
   }
 }

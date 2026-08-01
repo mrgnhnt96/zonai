@@ -326,12 +326,15 @@ class DbOperations {
 
     final columns = ops.table.columns;
     final photoColumns = <String>[];
+    final secretColumns = <String>[];
     for (final column in columns) {
       switch (column.transformer) {
         case PhotoTransformer():
           photoColumns.add(column.name);
         case PhotosTransformer():
           photoColumns.add(column.name);
+        case SecretTransformer():
+          secretColumns.add(column.name);
         case _:
       }
     }
@@ -339,10 +342,8 @@ class DbOperations {
     for (final raw in request.objects) {
       final mutable = {...raw};
       if (!request.preserveSecrets) {
-        for (final column in columns) {
-          if (column.transformer is SecretTransformer) {
-            mutable.remove(column.name);
-          }
+        for (final name in secretColumns) {
+          mutable.remove(name);
         }
       }
       sanitized.add(mutable);
@@ -352,6 +353,7 @@ class DbOperations {
       id: request.id,
       objects: sanitized,
       photoColumns: photoColumns,
+      secretColumns: secretColumns,
     );
   }
 

@@ -30,6 +30,8 @@ class DbRules {
             return await _tableRules(request);
           case final RowRulesRequest request:
             return await _rowRules(request);
+          case final BatchRowRulesRequest request:
+            return await _batchRowRules(request);
           case final AuthTableRulesRequest request:
             return await _authTableRules(request);
           case final AuthRowRulesRequest request:
@@ -149,11 +151,15 @@ class DbRules {
       .count => tableRules.canList(request.jwt),
     };
 
+    final rowRules = rulesByTable[request.table]?.row;
+    final skipRowChecks = rowRules != null && !rowRules.requiresPerRowCheck;
+
     return TableRulesResponse(
       id: request.id,
       table: request.table,
       operation: request.operation,
       canAccess: canAccess,
+      skipRowChecks: skipRowChecks,
     );
   }
 
@@ -342,6 +348,47 @@ class DbRules {
       id: request.id,
       table: request.table,
       operation: request.operation,
+      canPerform: canPerform,
+    );
+  }
+
+  Future<BatchRowRulesResponse> _batchRowRules(
+    BatchRowRulesRequest request,
+  ) async {
+    final rules = rulesByTable[request.table];
+    final rowRules = rules?.row;
+    final op = request.operation;
+
+    if (rowRules == null) {
+      logger.warn('No rules found for row: ${request.table}');
+      return BatchRowRulesResponse(
+        id: request.id,
+        table: request.table,
+        operation: op,
+        canPerform: List<bool>.filled(request.rows.length, false),
+      );
+    }
+
+    if (rowRules case AuthRowRules()
+        when op == .create && request.jwt?.admin.isAdmin != true) {
+      throw StateError('Cannot create auth rows, use the auth API instead');
+    }
+
+    final canPerform = <bool>[];
+    for (final data in request.rows) {
+      final object = rowRules.table.safeCreate(data);
+      canPerform.add(await switch (op) {
+        .view => rowRules.canView(request.jwt, object),
+        .update => rowRules.canUpdate(request.jwt, object),
+        .delete => rowRules.canDelete(request.jwt, object),
+        .create => rowRules.canCreate(request.jwt, object),
+      });
+    }
+
+    return BatchRowRulesResponse(
+      id: request.id,
+      table: request.table,
+      operation: op,
       canPerform: canPerform,
     );
   }

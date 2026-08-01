@@ -38,4 +38,9 @@ class BaseRowRules<S extends rd.Schema<R>, R> {
 
     return false;
   }
+
+  /// When `false`, the host may skip per-row IPC after table access succeeds
+  /// (public tables whose row rules always allow). Defaults to `true` so
+  /// row-level ACL stays fail-closed unless authors opt out.
+  bool get requiresPerRowCheck => true;
 }

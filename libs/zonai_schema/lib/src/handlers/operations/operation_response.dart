@@ -198,8 +198,10 @@ final class SanitizeOperationResponse extends OperationResponse {
     required super.id,
     required List<Map<String, dynamic>> objects,
     List<String> photoColumns = const [],
+    List<String> secretColumns = const [],
   }) : objects = List.unmodifiable(objects),
        photoColumns = List.unmodifiable(photoColumns),
+       secretColumns = List.unmodifiable(secretColumns),
        super(path: _path, payload: const {});
 
   factory SanitizeOperationResponse.fromJson(Map<String, dynamic> json) {
@@ -213,6 +215,11 @@ final class SanitizeOperationResponse extends OperationResponse {
         for (final column in json['photoColumns'] as List<dynamic>? ?? const [])
           column as String,
       ],
+      secretColumns: [
+        for (final column
+            in json['secretColumns'] as List<dynamic>? ?? const [])
+          column as String,
+      ],
     );
   }
 
@@ -221,12 +228,17 @@ final class SanitizeOperationResponse extends OperationResponse {
   final List<Map<String, dynamic>> objects;
   final List<String> photoColumns;
 
+  /// Secret column names for this table — host caches these to sanitize
+  /// subsequent responses in-process without another ops IPC hop.
+  final List<String> secretColumns;
+
   @override
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
       'objects': jsonDecode(jsonEncode(objects)),
       'photoColumns': photoColumns,
+      'secretColumns': secretColumns,
     };
   }
 }
