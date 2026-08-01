@@ -116,11 +116,12 @@ extension _PasswordX on ZonaiDb {
       );
       logger.trace('sql_build');
 
+      // Serialize the INSERT so concurrent signups don't hit SQLite busy /
+      // write storms. Argon2 already finished above, off the writer lock.
       step = 'sql_execute';
-      final (error, result) = await _execute((
-        operation.query,
-        operation.values,
-      ));
+      final (error, result) = await _enqueueWrite(
+        () => _execute((operation.query, operation.values)),
+      );
       logger.trace('sql_execute');
 
       if (error != null || result == null) {

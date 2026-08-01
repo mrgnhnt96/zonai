@@ -376,14 +376,39 @@ class ZonaiDb {
   }
 
   Future<_CrudResult> create(String table, CreatePayload payload) async {
-    return await _runWrite(() => _create(table, payload));
+    // Hash Argon2 outside the writer lock so concurrent creates aren't
+    // serialized behind password hashing.
+    return await _run(() async {
+      final jwt = await _extractJwt(payload);
+      final changed = await _hashPasswordCreate(table, payload.object);
+      if (changed) {
+        if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
+          throw PasswordUpdateForbiddenException(table: table);
+        }
+      }
+      return await _enqueueWrite(() => _create(table, payload));
+    });
   }
 
   Future<_CrudListResult> createMany(
     String table,
     CreateManyPayload payload,
   ) async {
-    return await _runWrite(() => _createMany(table, payload));
+    return await _run(() async {
+      final jwt = await _extractJwt(payload);
+      var anyPasswordHashed = false;
+      for (final object in payload.objects) {
+        if (await _hashPasswordCreate(table, object)) {
+          anyPasswordHashed = true;
+        }
+      }
+      if (anyPasswordHashed) {
+        if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
+          throw PasswordUpdateForbiddenException(table: table);
+        }
+      }
+      return await _enqueueWrite(() => _createMany(table, payload));
+    });
   }
 
   Future<Jwt?> parseJwt(String? jwt) async {
@@ -480,6 +505,12 @@ class ZonaiDb {
   /// stacking into SQLite's 5s `busy_timeout`; when the queue is saturated,
   /// fails immediately with [WriteBackpressureException] (HTTP 503).
   Future<T> _runWrite<T>(Future<T> Function() body) async {
+    return _enqueueWrite(() => _run(body));
+  }
+
+  /// Like [_runWrite] but does not open a new riverpod scope — for use when
+  /// already inside [_run] (e.g. hash Argon2, then serialize only the INSERT).
+  Future<T> _enqueueWrite<T>(Future<T> Function() body) async {
     if (_pendingWrites >= _maxQueuedWrites) {
       throw const WriteBackpressureException();
     }
@@ -489,7 +520,7 @@ class ZonaiDb {
     _writeChain = done.future;
     try {
       await previous;
-      return await _run(body);
+      return await body();
     } finally {
       _pendingWrites--;
       done.complete();

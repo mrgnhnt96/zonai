@@ -97,13 +97,7 @@ extension _CreateX on ZonaiDb {
     );
     logger.trace('ext_before');
 
-    final changed = await _hashPasswordCreate(table, payload.object);
-    if (changed) {
-      logger.trace('password_hash');
-      if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
-        throw PasswordUpdateForbiddenException(table: table);
-      }
-    }
+    // Password hashing happens in [create] before the writer lock.
 
     return await _getOperation(
       CreateOperationRequest(table: table, object: payload.object, jwt: jwt),
@@ -226,18 +220,7 @@ extension _CreateX on ZonaiDb {
     }
     logger.trace('ext_before');
 
-    var anyPasswordHashed = false;
-    for (final object in payload.objects) {
-      if (await _hashPasswordCreate(table, object)) {
-        anyPasswordHashed = true;
-      }
-    }
-    if (anyPasswordHashed) {
-      logger.trace('password_hash');
-      if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
-        throw PasswordUpdateForbiddenException(table: table);
-      }
-    }
+    // Password hashing happens in [createMany] before the writer lock.
 
     return await _getOperation(
       CreateManyOperationRequest(
