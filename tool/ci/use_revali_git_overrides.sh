@@ -3,13 +3,13 @@
 #
 # Environment:
 #   REVALI_GIT_URL  — repository URL (default: https://github.com/mrgnhnt96/revali.git)
-#   REVALI_GIT_REF  — branch, tag, or commit (default: feat/wrap-request)
+#   REVALI_GIT_REF  — branch, tag, or commit (default: main)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PUBSPEC_OVERRIDES="${ROOT}/pubspec_overrides.yaml"
 REVALI_GIT_URL="${REVALI_GIT_URL:-https://github.com/mrgnhnt96/revali.git}"
-REVALI_GIT_REF="${REVALI_GIT_REF:-feat/wrap-request}"
+REVALI_GIT_REF="${REVALI_GIT_REF:-main}"
 
 write_git_override() {
   local package="$1"
