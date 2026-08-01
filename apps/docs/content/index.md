@@ -47,6 +47,10 @@ Nothing runs interpreted at request time on the AOT path. All logic is compiled 
 - Not a managed cloud service — you host it yourself, anywhere that runs a Linux/macOS/Windows binary
 - Not a general-purpose ORM — it is opinionated about how APIs are structured and uses SQLite as its database
 
+## For LLMs and coding agents
+
+A curated docs index lives at [/llms.txt](/llms.txt). Inside a Zonai app, run `zonai ai` to install project-local assistant rules (Cursor, Claude, Copilot, etc.).
+
 ## Next Steps
 
 - [Installation](/getting-started/installation) — prerequisites and CLI setup

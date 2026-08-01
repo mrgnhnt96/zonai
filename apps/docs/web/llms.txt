@@ -1,0 +1,153 @@
+# Zonai
+
+> A batteries-included Dart backend framework — schema-driven REST API, auth, SQLite, file uploads, cron jobs, and more.
+
+Zonai turns Dart schema, rules, and business logic into a production HTTP + SQLite server. You host the binary yourself (not a managed cloud BaaS). Docs: https://mrgnhnt96.github.io/zonai/ — source: https://github.com/mrgnhnt96/zonai
+
+This file is a curated index for LLMs and coding agents. Prefer these pages over guessing APIs. For project-local assistant rules, run `zonai ai cursor` (or `claude` / `copilot` / `windsurf` / `cline`) from an app root.
+
+## Critical facts for agents
+
+- **Package split**: `zonai_schema` (app dependency — tables, rules, ops types) + `zonai` (CLI / server, usually `dev_dependencies`). Optional client: `zonai_client`.
+- **Runtime**: `zonai serve` / `zonai build` produce a **project-linked binary** with operations + rules **in-process**. Workers under `.zonai/executables/` handle config, extensions, rate limits, and crons (IPC via MessagePack). Hot path: Rate limit → Rules → Operations → SQLite → Extensions → Response.
+- **CRUD shape**: table name is in the JSON body (or `?body=` for GET), **never** in the URL path. Endpoints: `GET/POST/PATCH/DELETE /db`, `/db/list`, `/db/count`, `/db/many`.
+- **Where filters**: docs/curl shorthand `{ "id": { "eq": "…" } }` is accepted. Canonical wire form is `{ "type": "eq", "column": "id", "value": "…" }`. Both work.
+- **Auth**: `Authorization: Bearer <jwt>`. Bodies include `"table": "users"` (or whatever auth table). Mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`, optional `AsAdmin`.
+- **Rules default deny**: unoverridden table/row/auth checks return false → HTTP 403 before SQL.
+- **Dev vs prod**: `zonai dev` / `zonai serve` for local; `zonai build` ships `build/zonai` (asserts off). Restart `serve` after editing ops/rules so the linked entry reloads; workers hot-recompile on their own.
+- **Migrations**: `zonai db migrate generate` then `apply` (or auto-migrate on serve). Commit `.zonai/migrations/`. Do not commit `.zonai/data/` or executables.
+- **Optional runtime env**: `ZONAI_FORCE_WORKERS`, `ZONAI_WORKER_TRANSPORT` (`auto`|`process`|`isolate`), `ZONAI_WORKER_POOL_SIZE`, `ZONAI_HTTP_WORKERS` (keep `1` with one SQLite file).
+
+## Getting started
+
+- [Introduction](https://mrgnhnt96.github.io/zonai/): What Zonai is and is not; request pipeline overview.
+- [Installation](https://mrgnhnt96.github.io/zonai/getting-started/installation): CLI install from GitHub Releases; Dart SDK requirements.
+- [Quick Start](https://mrgnhnt96.github.io/zonai/getting-started/quick-start): Create a project, auth + tasks tables, migrate, serve, curl examples.
+- [Project Structure](https://mrgnhnt96.github.io/zonai/getting-started/project-structure): Directory layout, naming conventions for rules/ops/extensions, what to commit.
+
+## Core concepts
+
+- [How a Request is Processed](https://mrgnhnt96.github.io/zonai/core-concepts/request-pipeline): Ordered pipeline and in-process vs worker boundaries.
+- [Workers](https://mrgnhnt96.github.io/zonai/core-concepts/workers): What workers are, when they run, pool/transport knobs.
+- [Config Flavors](https://mrgnhnt96.github.io/zonai/core-concepts/config-flavors): Dev/staging/prod config selection.
+
+## Configuration
+
+- [zonai.yaml Reference](https://mrgnhnt96.github.io/zonai/configuration/zonai-yaml): Paths, version, server settings.
+- [App Config](https://mrgnhnt96.github.io/zonai/configuration/app-config): `AppConfig` — `baseUrl`, JWT secret, SMTP, photos, workers.
+- [Environment Variables](https://mrgnhnt96.github.io/zonai/configuration/environment-variables): Compile-time `.env` secrets and optional `ZONAI_*` runtime tuning.
+
+## Schemas
+
+- [Defining Tables](https://mrgnhnt96.github.io/zonai/schemas/defining-tables): `Table` / entity / `table()` registration, column helpers, typed IDs.
+- [Auth Tables](https://mrgnhnt96.github.io/zonai/schemas/auth-tables): `AuthTable` + password/OTP/magic-link mixins.
+- [Photo Tables](https://mrgnhnt96.github.io/zonai/schemas/photo-tables): Built-in `_photos` and photo columns.
+
+## Database
+
+- [Migrations Overview](https://mrgnhnt96.github.io/zonai/database/migrations-overview): How schema changes become SQL.
+- [Generating Migrations](https://mrgnhnt96.github.io/zonai/database/generating-migrations): `zonai db migrate generate`.
+- [Applying Migrations](https://mrgnhnt96.github.io/zonai/database/applying-migrations): `apply` and auto-migrate on serve.
+
+## Operations (HTTP + SQL)
+
+- [Operations Overview](https://mrgnhnt96.github.io/zonai/operations/overview): Default vs custom operations; when to override SQL.
+- [Default Operations](https://mrgnhnt96.github.io/zonai/operations/default-operations): CRUD endpoints, request/response JSON, where/order_by shapes.
+- [Auth Operations](https://mrgnhnt96.github.io/zonai/operations/auth-operations): JWT claims, reset/OTP/magic-link URL paths.
+
+## Rules (authorization)
+
+- [Rules Overview](https://mrgnhnt96.github.io/zonai/rules/overview): Two-layer model (table then row); default deny.
+- [Table Rules](https://mrgnhnt96.github.io/zonai/rules/table-rules): Per-operation allow/deny from JWT.
+- [Row Rules](https://mrgnhnt96.github.io/zonai/rules/row-rules): Per-row checks; `requiresPerRowCheck`.
+- [Auth Rules](https://mrgnhnt96.github.io/zonai/rules/auth-rules): Sign-up, sign-in, password reset gates.
+- [JWT Claims](https://mrgnhnt96.github.io/zonai/rules/jwt-claims): Built-in claims and `addClaims`.
+- [Photo Rules](https://mrgnhnt96.github.io/zonai/rules/photo-rules): Upload/view/delete photo access.
+
+## Authentication
+
+- [Authentication Overview](https://mrgnhnt96.github.io/zonai/authentication/overview): JWT model, multi-table auth, response shape.
+- [Password Auth](https://mrgnhnt96.github.io/zonai/authentication/password-auth): Email/password + Argon2id.
+- [OTP Auth](https://mrgnhnt96.github.io/zonai/authentication/otp-auth): Email one-time codes.
+- [Magic Link Auth](https://mrgnhnt96.github.io/zonai/authentication/magic-link-auth): Passwordless emailed links.
+- [Session Management](https://mrgnhnt96.github.io/zonai/authentication/session-management): Refresh, logout, JWT lifetime.
+- [Admin Accounts](https://mrgnhnt96.github.io/zonai/authentication/admin-accounts): `zonai db admin`, `AsAdmin`, elevated claims.
+
+## Extensions (lifecycle hooks)
+
+- [Extensions Overview](https://mrgnhnt96.github.io/zonai/extensions/overview): Before/after hooks in the pipeline.
+- [Create Hooks](https://mrgnhnt96.github.io/zonai/extensions/create-hooks) · [Update Hooks](https://mrgnhnt96.github.io/zonai/extensions/update-hooks) · [Delete Hooks](https://mrgnhnt96.github.io/zonai/extensions/delete-hooks) · [Auth Hooks](https://mrgnhnt96.github.io/zonai/extensions/auth-hooks)
+- [Side Effects: get](https://mrgnhnt96.github.io/zonai/extensions/side-effects-get) · [mutate](https://mrgnhnt96.github.io/zonai/extensions/side-effects-mutate) · [email](https://mrgnhnt96.github.io/zonai/extensions/side-effects-email)
+
+## Cron jobs
+
+- [Cron Jobs Overview](https://mrgnhnt96.github.io/zonai/cron-jobs/overview)
+- [Defining a Job](https://mrgnhnt96.github.io/zonai/cron-jobs/defining-a-job)
+- [Catch-Up Logic](https://mrgnhnt96.github.io/zonai/cron-jobs/catch-up-logic)
+- [Running Jobs Manually](https://mrgnhnt96.github.io/zonai/cron-jobs/running-manually)
+- [Side Effects in Cron Jobs](https://mrgnhnt96.github.io/zonai/cron-jobs/side-effects)
+
+## Rate limiting
+
+- [Rate Limiting Overview](https://mrgnhnt96.github.io/zonai/rate-limiting/overview)
+- [Configuring Policies](https://mrgnhnt96.github.io/zonai/rate-limiting/configuring-policies)
+- [Auth Rate Limits](https://mrgnhnt96.github.io/zonai/rate-limiting/auth-rate-limits)
+- [Trusted Proxies](https://mrgnhnt96.github.io/zonai/rate-limiting/trusted-proxies)
+
+## Email
+
+- [SMTP Setup](https://mrgnhnt96.github.io/zonai/email/smtp-setup)
+- [Built-in Templates](https://mrgnhnt96.github.io/zonai/email/built-in-templates)
+- [Custom Templates](https://mrgnhnt96.github.io/zonai/email/custom-templates)
+- [Testing Email Locally](https://mrgnhnt96.github.io/zonai/email/testing-locally)
+
+## Dart client
+
+- [Client Overview](https://mrgnhnt96.github.io/zonai/dart-client/overview): Generated client install and `baseUrl`.
+- [Authentication](https://mrgnhnt96.github.io/zonai/dart-client/authentication)
+- [Database](https://mrgnhnt96.github.io/zonai/dart-client/database)
+- [Photos](https://mrgnhnt96.github.io/zonai/dart-client/photos)
+- [Email](https://mrgnhnt96.github.io/zonai/dart-client/email)
+- [Storage](https://mrgnhnt96.github.io/zonai/dart-client/storage)
+
+## CLI
+
+- [zonai ai](https://mrgnhnt96.github.io/zonai/cli/ai): Install LLM reference sheets into a project.
+- [zonai dev](https://mrgnhnt96.github.io/zonai/cli/dev): Interactive TUI + serve helpers.
+- [zonai serve](https://mrgnhnt96.github.io/zonai/cli/serve) · [zonai compile](https://mrgnhnt96.github.io/zonai/cli/compile) · [zonai build](https://mrgnhnt96.github.io/zonai/cli/build)
+- [zonai db](https://mrgnhnt96.github.io/zonai/cli/db) · [zonai rules](https://mrgnhnt96.github.io/zonai/cli/rules) · [zonai version](https://mrgnhnt96.github.io/zonai/cli/version)
+- [Global Flags](https://mrgnhnt96.github.io/zonai/cli/global-flags)
+
+## Deployment
+
+- [Building for Production](https://mrgnhnt96.github.io/zonai/deployment/building-for-production)
+- [Running the Server](https://mrgnhnt96.github.io/zonai/deployment/running-the-server)
+- [Server Binding](https://mrgnhnt96.github.io/zonai/deployment/server-binding)
+- [Environment & Secrets](https://mrgnhnt96.github.io/zonai/deployment/environment-and-secrets)
+- [Cross-Compilation](https://mrgnhnt96.github.io/zonai/deployment/cross-compilation)
+- [Deploying to Fly.io](https://mrgnhnt96.github.io/zonai/deployment/fly-io)
+
+## API
+
+- [OpenAPI Specification](https://mrgnhnt96.github.io/zonai/api/openapi-spec): Fetch the live OpenAPI JSON from a running server.
+- [About](https://mrgnhnt96.github.io/zonai/about): Docs site metadata.
+
+## Optional example shapes
+
+Create:
+
+```json
+{ "table": "tasks", "object": { "title": "Buy groceries", "isComplete": false } }
+```
+
+List with where (shorthand):
+
+```
+GET /db/list?body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}
+```
+
+Password sign-in:
+
+```json
+{ "table": "users", "email": "a@example.com", "password": "secret" }
+```
