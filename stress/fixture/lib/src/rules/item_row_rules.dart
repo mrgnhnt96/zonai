@@ -7,6 +7,9 @@ class ItemRowRules extends RowRules<ItemTable, Item> {
   ItemRowRules() : super(items);
 
   @override
+  bool get requiresPerRowCheck => false;
+
+  @override
   Future<bool> canView(Jwt? jwt, Item row) async => true;
 
   @override

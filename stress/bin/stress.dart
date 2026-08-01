@@ -250,6 +250,31 @@ Future<void> _ensureFixtureReady({
 
   print('Building fixture (zonai build)...');
   await _run(zonaiExe.path, ['build', '--no-version-check'], fixtureDir.path);
+
+  // `zonai build` copies Platform.executable into build/zonai. If a version
+  // prompt or download path ever short-circuits that, we'd silently bench an
+  // old binary — verify identity before trusting the result.
+  final built = File('${buildDir.path}/zonai');
+  if (!built.existsSync()) {
+    throw StateError('zonai build did not produce ${built.path}');
+  }
+  final cacheBytes = zonaiExe.readAsBytesSync();
+  final builtBytes = built.readAsBytesSync();
+  if (cacheBytes.length != builtBytes.length) {
+    throw StateError(
+      'build/zonai (${builtBytes.length} bytes) does not match compiled '
+      'cache (${cacheBytes.length} bytes) — refusing to stress a stale binary',
+    );
+  }
+  for (var i = 0; i < cacheBytes.length; i++) {
+    if (cacheBytes[i] != builtBytes[i]) {
+      throw StateError(
+        'build/zonai content differs from compiled cache — refusing to '
+        'stress a stale binary',
+      );
+    }
+  }
+  print('Verified build/zonai matches compiled cache (${cacheBytes.length} bytes).');
 }
 
 Future<void> _run(String executable, List<String> args, String cwd) async {
