@@ -39,6 +39,9 @@ Thumbs.db
 *.swp
 *~
 
+# Graphify knowledge-graph output
+**/graphify-out/
+
 # Secrets (adjust if you commit non-secret env files)
 .env
 .env.*
