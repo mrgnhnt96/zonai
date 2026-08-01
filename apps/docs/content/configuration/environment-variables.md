@@ -1,9 +1,9 @@
 ---
 title: Environment Variables
-description: How Zonai loads and bakes environment variables into compiled workers.
+description: How Zonai loads and bakes environment variables into compiled binaries.
 ---
 
-Zonai does not read environment variables at runtime. Instead, secrets are **baked into worker binaries at compile time** using Dart's `String.fromEnvironment`. This means the production server needs no `.env` file — the secrets travel inside the binary.
+Zonai does not read environment variables at runtime. Instead, secrets are **baked into compiled binaries at compile time** using Dart's `String.fromEnvironment`. This means the production server needs no `.env` file — the secrets travel inside the binary (workers and the project-linked `build/zonai`).
 
 ## How It Works
 
@@ -13,11 +13,11 @@ Your Dart code reads a value at compile time:
 jwtSecret: const String.fromEnvironment('JWT_SECRET'),
 ```
 
-When Zonai compiles a worker, it reads your `.env` file and passes each value to `dart compile exe` as a compile-time define (`-Dkey=value`). The compiled binary contains the literal value. If `JWT_SECRET` is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields.
+When Zonai compiles workers or the project binary, it reads your `.env` file and passes each value to `dart compile exe` as a compile-time define (`-Dkey=value`). The compiled binary contains the literal value. If `JWT_SECRET` is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields.
 
 This is an implementation detail, not a CLI flag — `zonai compile` and `zonai build` do not read `-D`/`--define` themselves. To override a value, edit `.env` (or `.env.<flavor>`, see below) or use `--dart-define` (see [CLI Overrides](#cli-overrides)).
 
-Changing a secret requires recompiling and redeploying the workers.
+Changing a secret requires recompiling and redeploying (`zonai build` / `compile`).
 
 ## .env File Format
 

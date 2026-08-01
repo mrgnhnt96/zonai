@@ -15,14 +15,16 @@ This creates a `build/` directory containing everything needed to run on a serve
 
 ```
 build/
-├── zonai                    # Compiled Zonai server binary
-├── .zonai/executables/      # All compiled worker binaries
+├── zonai                    # Project-linked server + CLI (ops/rules in-process)
+├── .zonai/executables/      # Worker binaries (config, extensions, rate limits, crons, …)
 ├── migrations/              # SQL migration files
 ├── email_templates/         # HTML email templates
 └── zonai.yaml               # Project configuration
 ```
 
 **Not included:** source code, the SQLite database, `.env` files (secrets are baked in at compile time).
+
+`build/zonai` is compiled from your project (generated `project_main.dart`). It is not a generic downloaded CLI binary.
 
 The OpenAPI spec is embedded in the server binary, so `/swagger.json` and `/swagger.yaml` work in production without shipping a separate `public/` directory. See [OpenAPI Specification](/api/openapi-spec).
 

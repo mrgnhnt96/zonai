@@ -51,7 +51,7 @@ After updating, recompile your workers — new versions may include worker API c
 ## System Requirements
 
 - **macOS, Linux, Windows** — all supported
-- **Disk** — compiled worker binaries live in `.zonai/executables/` (typically 5–20 MB total per project)
+- **Disk** — worker binaries live in `.zonai/executables/`; a project-linked `build/zonai` from `zonai build` is typically tens of MB
 - No runtime dependencies on the production server — the compiled bundle is self-contained
 
 ## Next Steps

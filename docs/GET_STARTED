@@ -44,11 +44,11 @@ fvm dart pub get
 
 ## 4. App configs and env flavors
 
-When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple **app config** Dart files and **`.env`** files for different targets (dev, staging, prod). Pass `--flavor <name>` to select which config file and which `.env.<flavor>` file to use. Env keys are baked into worker executables at compile time via `String.fromEnvironment`, not read from disk at runtime.
+When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple **app config** Dart files and **`.env`** files for different targets (dev, staging, prod). Pass `--flavor <name>` to select which config file and which `.env.<flavor>` file to use. Env keys are baked into compiled binaries at compile time via `String.fromEnvironment`, not read from disk at runtime.
 
 See **[config-and-env-flavors.md](config-and-env-flavors.md)** for file precedence, compile flow, worker outputs, and examples.
 
-For production builds and server deploys, pass **`--release`** so worker executables are compiled without `--enable-asserts`. See **[release-mode.md](release-mode.md)**.
+For production builds and server deploys, pass **`--release`** and run **`zonai build`** — that produces a **project-linked** `build/zonai` (ops/rules in-process) plus workers, without asserts. See **[release-mode.md](release-mode.md)**.
 
 To change which address the HTTP server listens on, set **`host`** and **`port`** in `zonai.yaml` or pass **`--host`** / **`--port`** to `serve`. See **[server-binding.md](server-binding.md)**.
 

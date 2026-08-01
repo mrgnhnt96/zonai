@@ -8,22 +8,24 @@ Every HTTP request in Zonai follows the same fixed, ordered pipeline. Understand
 ```
 HTTP Request
      ↓
-  1. Rate Limit Worker    — throttling (returns 429 if over limit)
+  1. Rate Limit        — throttling (returns 429 if over limit)
      ↓
-  2. Rules Worker         — authorization (returns 403 if denied)
+  2. Rules             — authorization (returns 403 if denied)
      ↓
-  3. Operations Worker    — SQL generation (builds the query)
+  3. Operations        — SQL generation (builds the query)
      ↓
-  4. SQLite               — execution (the only place data changes)
+  4. SQLite            — execution (the only place data changes)
      ↓
-  5. Rules Worker         — row filter (canView checked per returned row)
+  5. Rules             — row filter (canView checked per returned row)
      ↓
-  6. Extensions Worker    — side effects (hooks, email, cascades)
+  6. Extensions        — side effects (hooks, email, cascades)
      ↓
 Response
 ```
 
 The order is fixed and not configurable. Each step only runs if the previous step passed.
+
+**Where the logic runs:** on the default project-binary / project-entry path, **rules and operations** execute **in-process** inside the server. Rate limits, extensions, config, and crons still use worker IPC. Set `ZONAI_FORCE_WORKERS=1` to force ops/rules through Mailman workers as well.
 
 ## Step 1: Rate Limiting
 
@@ -36,7 +38,7 @@ See [Rate Limiting Overview](/rate-limiting/overview).
 
 ## Step 2: Rules (Authorization)
 
-After the rate limit passes, the rules worker evaluates whether the requesting JWT is permitted to perform this operation on this table.
+After the rate limit passes, rules evaluate whether the requesting JWT is permitted to perform this operation on this table.
 
 - If denied: returns `403 Forbidden` immediately. No SQL runs.
 - If allowed: proceeds to step 3.
@@ -45,7 +47,7 @@ See [Rules Overview](/rules/overview).
 
 ## Step 3: Operations (SQL Generation)
 
-The operations worker receives the HTTP payload and generates a SQL statement. It does **not** execute the SQL — it returns a structured query to the Zonai server, which validates and runs it.
+Operations receive the HTTP payload and generate a SQL statement. They do **not** execute the SQL — they return a structured query to the Zonai server, which validates and runs it.
 
 This is where default CRUD behavior lives and where custom operations plug in.
 
@@ -59,7 +61,7 @@ For mutation operations (create, update, delete), the `before*` extension hooks 
 
 ## Step 5: Row Filter (canView)
 
-After the database returns results, each row is passed back through the rules worker. `canView` is evaluated for every row in the result set. If any row returns `false`, the entire request fails with `403 Forbidden` — no data is returned.
+After the database returns results, each row is checked by row rules. `canView` is evaluated for every row in the result set. If any row returns `false`, the entire request fails with `403 Forbidden` — no data is returned.
 
 For mutations (create, update, delete), this step applies to the row(s) involved. If the row doesn't pass `canUpdate` or `canDelete`, the mutation is aborted with `403`.
 
@@ -67,7 +69,7 @@ See [Row Rules](/rules/row-rules).
 
 ## Step 6: Extensions (Side Effects)
 
-After the row filter, extension hooks fire:
+After the row filter, extension hooks fire (via the extensions worker):
 
 - `after*Success` hooks run after a successful mutation. They can queue additional mutations, reads, and emails.
 - `after*Error` hooks run if the SQL failed.
@@ -88,6 +90,6 @@ Authentication requests (`POST /auth/sign-up`, `POST /auth/sign-in`, etc.) follo
 
 ## What the Pipeline Does Not Do
 
-- **Not** validate request body shape — that is the operations worker's responsibility
-- **Not** parse `Authorization` headers at the pipeline level — JWT verification happens inside each worker
+- **Not** validate request body shape — that is the operations layer's responsibility
+- **Not** parse `Authorization` headers at the pipeline level — JWT verification happens inside rules/auth handling
 - **Not** serve static files — Zonai is an API server only

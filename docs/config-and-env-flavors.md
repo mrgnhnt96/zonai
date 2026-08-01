@@ -192,7 +192,9 @@ All of these compile steps pass the same `env.dartDefineArgs` flags (omitted whe
 | Extensions  | `lib/src/extensions`       | `.zonai/executables/db_extensions.exe` |
 | Rate limits | `lib/src/rate_limit`       |
 
-`dart run zonai compile` and `dart run zonai build` both compile all workers in one go (`build` also copies migrations, settings, and a `zonai` binary into `build/`). During development, `dart run zonai serve` recompiles when watched sources change (press `c` to recompile everything). With **`--release`**, `serve` uses pre-built executables and does not watch or recompile — run `build --release` or `compile --release` before serving. See **[release-mode.md](release-mode.md)**.
+`dart run zonai compile` and `dart run zonai build` both compile all workers in one go. `build` also copies migrations/settings and **compiles a project-linked** `build/zonai` (ops/rules in-process + full CLI). During development, `dart run zonai serve` re-execs into the project entry and recompiles workers when watched sources change (press `c` to recompile everything). With **`--release`**, `serve` does not watch or recompile — run `build --release` before serving from `build/`. See **[release-mode.md](release-mode.md)**.
+
+Ops/rules are linked into the project binary by default. Set `ZONAI_FORCE_WORKERS=1` to keep Mailman IPC for those layers. Treat both worker `.exe` files and `build/zonai` as containing any secrets you passed via `-D` defines.
 
 ### Using env in config (example)
 
@@ -228,8 +230,8 @@ dart run zonai serve --flavor dev
 
 ### Production and secrets
 
-- Pass **`--release`** when compiling or serving for production so worker executables are built without `--enable-asserts`. See **[release-mode.md](release-mode.md)**.
-- Treat compiled `.zonai/executables/*.exe` as containing any secrets you passed via `-D` defines.
+- Pass **`--release`** when compiling or serving for production so binaries are built without `--enable-asserts`. See **[release-mode.md](release-mode.md)**.
+- Treat compiled `.zonai/executables/*.exe` and `build/zonai` as containing any secrets you passed via `-D` defines.
 - Do not commit `.env` files with real credentials; add them to `.gitignore`.
 - For production, prefer CI or deploy-time env injection: set variables in the environment that runs `dart run zonai build` (or `compile`), or maintain a `.env.prod` only on the build host.
 - Missing keys compile to empty strings unless you pass `defaultValue:` to `fromEnvironment`; validate required secrets in config `main()` if needed.

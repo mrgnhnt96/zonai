@@ -3,7 +3,7 @@ title: zonai compile
 description: Compile worker executables without creating a deployment bundle.
 ---
 
-Compile all worker executables from source and write them to `.zonai/executables/`. Does not create a deployment bundle.
+Compile all worker executables from source and write them to `.zonai/executables/`. Also regenerates `.dart_tool/zonai/project_main.dart`. Does not create a deployment bundle (use `zonai build` for that).
 
 ```sh
 zonai compile [flags]
@@ -13,15 +13,15 @@ zonai compile [flags]
 
 | Flag | Description |
 |------|-------------|
-| `--flavor <name>` | Config flavor to compile workers with |
+| `--flavor <name>` | Config flavor to compile with |
 | `--release` | Compile without Dart asserts |
 | `-c, --config <path>` | Path to a custom `zonai.yaml` |
 
 ## Workers Compiled
 
 - `db_config` — config worker
-- `db_rules` — rules worker
-- `db_operations` — operations worker
+- `db_rules` — rules worker (also linked in-process by the project binary)
+- `db_operations` — operations worker (also linked in-process by the project binary)
 - `db_extensions` — extensions worker
 - `db_rate_limit` — rate limit worker
 - `db_crons` — crons worker
@@ -38,4 +38,4 @@ In dev mode (`zonai serve`), Zonai watches source files and recompiles workers a
 ## vs. zonai build
 
 - `zonai compile` — workers only, to `.zonai/executables/`. Use during development.
-- `zonai build` — full production bundle with everything needed to deploy. Use for deployment.
+- `zonai build` — workers + **project-linked** `build/zonai` + migrations/settings. Use for deployment.

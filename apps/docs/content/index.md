@@ -21,23 +21,25 @@ It is designed for Dart and Flutter developers who want to build a production-qu
 
 **Per-IP rate limiting** — configurable per-table and per-operation with a simple policy class.
 
-**Hot-reload development** — source files are watched, workers are recompiled automatically, and the server routes to the new worker without restarting.
+**Project-linked binary** — `zonai build` produces `build/zonai` with your ops/rules linked in-process for the CRUD hot path.
 
 ## How It Works
 
-Your Dart code compiles to **workers** — native executables that handle distinct concerns. Each HTTP request passes through an ordered pipeline:
+Your Dart code compiles into a **project-linked server binary** (operations and rules in-process) plus **workers** for config, extensions, rate limits, and crons. Each HTTP request passes through an ordered pipeline:
 
 ```
 HTTP Request
-  → Rules Worker (authorization)
-  → Rate Limit Worker (throttling)
-  → Operations Worker (SQL generation)
+  → Rate Limit (worker)
+  → Rules (in-process)
+  → Operations (in-process)
   → SQLite (execution)
-  → Extensions Worker (side effects)
+  → Extensions (worker)
   → Response
 ```
 
-Nothing runs interpreted at request time. All logic is compiled Dart. See [How a Request is Processed](/core-concepts/request-pipeline) for the full walkthrough.
+Nothing runs interpreted at request time on the AOT path. All logic is compiled Dart. See [How a Request is Processed](/core-concepts/request-pipeline) for the full walkthrough.
+
+**Hot-reload development** — worker sources are watched and recompiled automatically. Restart `serve` after editing ops/rules so the linked project entry reloads.
 
 ## What Zonai Is Not
 

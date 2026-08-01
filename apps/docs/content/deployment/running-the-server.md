@@ -16,9 +16,9 @@ Without `--release`, the server tries to watch source files that do not exist in
 ## Startup Sequence
 
 1. Load `zonai.yaml` for paths and configuration
-2. Start all worker processes from `.zonai/executables/`
-3. Apply pending migrations (unless `--no-auto-migrate`)
-4. Ping each worker to confirm readiness
+2. Register in-process ops/rules (project-linked binary)
+3. Start remaining worker processes from `.zonai/executables/` (config, extensions, rate limits, crons)
+4. Apply pending migrations (unless `--no-auto-migrate`)
 5. Open the HTTP listener
 
 ## Process Management

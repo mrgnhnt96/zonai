@@ -48,7 +48,9 @@ buildSettings:
 zonai build --flavor prod --release
 ```
 
-With `buildSettings` configured, the `build/` bundle contains binaries for the target platform.
+With `buildSettings` configured, the `build/` bundle contains a **project-linked**
+`zonai` binary and workers for the target platform — all compiled with
+`dart compile exe`, not downloaded.
 
 ## Verifying the Build
 

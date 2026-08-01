@@ -3,49 +3,57 @@ title: Workers
 description: What workers are, why they exist, and how Zonai uses them.
 ---
 
-A worker is a compiled Dart native executable that handles one category of logic for the Zonai server. Zonai communicates with workers via IPC (inter-process communication) at request time. Each HTTP request passes through several worker round-trips in sequence.
+A **worker** is a compiled Dart native executable that handles one category of logic for the Zonai server. Workers talk to the host over IPC (framed MessagePack on stdin/stdout, with an isolate/SendPort option for ops/rules).
+
+**Ops and rules are different on the default path.** `zonai serve` and `zonai build` produce a **project-linked** binary (or JIT `project_main` in development) that calls your operations and authorization code **in-process** — no IPC hop on create/list. Worker `.exe` files for ops/rules are still compiled for `zonai ping`, compatibility, and the `ZONAI_FORCE_WORKERS=1` escape hatch.
+
+Config, extensions, rate limits, and crons still run as worker processes.
 
 ## Worker Types
 
-| Worker | Source Directory | Responsibility |
-|--------|-----------------|----------------|
-| `rules` | `lib/src/rules/` | Evaluates authorization for each operation |
-| `operations` | `lib/src/operations/` | Generates SQL from HTTP request payloads |
-| `extensions` | `lib/src/extensions/` | Runs lifecycle hooks around mutations and auth events |
-| `rate_limit` | `lib/src/rate_limit/` | Checks and updates per-IP request quotas |
-| `crons` | `lib/src/crons/` | Runs scheduled background jobs on a timer |
-| `config` | `lib/src/config/` | Provides app-wide settings (JWT secret, SMTP, etc.) at startup |
+| Worker | Source Directory | Responsibility | Default runtime |
+|--------|------------------|----------------|-----------------|
+| `rules` | `lib/src/rules/` | Authorization for each operation | In-process (project binary) |
+| `operations` | `lib/src/operations/` | SQL generation from HTTP payloads | In-process (project binary) |
+| `extensions` | `lib/src/extensions/` | Lifecycle hooks around mutations and auth | Worker IPC |
+| `rate_limit` | `lib/src/rate_limit/` | Per-IP request quotas | Worker IPC |
+| `crons` | `lib/src/crons/` | Scheduled background jobs | Worker IPC |
+| `config` | `lib/src/config/` | App-wide settings (JWT, SMTP, …) | Worker IPC |
 
 ## Why Workers?
 
-**Type safety.** All business logic is written in Dart and compiled to native binaries. If your code references a column that doesn't exist, `dart compile` catches it before the server ever starts.
+**Type safety.** Business logic is written in Dart and compiled to native code. If your code references a column that doesn't exist, `dart compile` catches it before the server serves traffic.
 
-**Isolation.** A panic or bug in your extension code does not crash the HTTP server. Worker failures are caught and reported without taking down the process.
+**Isolation.** A panic in extension or cron code does not crash the HTTP server. Worker failures are caught and reported without taking down the process.
 
-**Correctness.** Configuration errors (missing SMTP credentials, wrong JWT secret) are detected at compile time, not discovered by a 3 AM alert.
+**Correctness.** Configuration errors (missing SMTP credentials, wrong JWT secret) are detected at compile time.
+
+**Speed (ops/rules).** Linking ops and rules into the project binary avoids per-request IPC for SQL generation and authorization — the hot path for CRUD.
 
 ## The Compile Step
 
-Workers are compiled from your source files in `lib/src/` into native executables in `.zonai/executables/`.
+Workers compile from `lib/src/` into `.zonai/executables/`. `zonai build` also compiles the project-linked `build/zonai`.
 
 ```bash
-# Compile all workers
+# Compile all workers (and regenerate project_main)
 zonai compile
 
-# Or compile as part of a production build
+# Full deploy bundle: workers + project binary + migrations
 zonai build --flavor prod --release
 ```
 
-Any change to rules, operations, extensions, config, rate_limit, or crons requires recompilation before the new code takes effect.
+Any change to rules, operations, extensions, config, rate_limit, or crons requires recompilation. For **in-process** ops/rules, restart `zonai serve` (or rebuild) so the linked entry reloads.
 
 ## Hot-Reload in Development
 
-`zonai serve` (without `--release`) watches your source files. When a Dart file in any worker directory changes, Zonai automatically recompiles that worker and routes future requests to the new binary — no server restart needed.
+`zonai serve` (without `--release`) watches worker source directories. When a Dart file for a **worker-backed** type changes, Zonai recompiles that worker and routes future requests to the new binary — no full server restart for those workers.
 
-Press `c` to force a recompile of all workers at any time.
+Press `c` to force a recompile of all workers (and regenerate `project_main`) at any time.
+
+Ops/rules source changes update generated entry files, but the running process still has the old linked code until you restart serve.
 
 ## Worker Health
 
-On startup, Zonai launches all worker processes and pings each one to confirm readiness. If any worker fails the ping, the server logs an error and **does not open the HTTP listener** — it will not silently serve requests with a broken rules or operations worker.
+On startup, Zonai starts the worker processes it still uses and can ping them for readiness. Press `p` in dev mode to manually ping workers.
 
-Press `p` in dev mode to manually ping all workers and inspect their status.
+With `ZONAI_FORCE_WORKERS=1`, ops and rules also run as Mailman workers (same as older Zonai versions).

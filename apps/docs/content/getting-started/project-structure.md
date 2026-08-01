@@ -56,11 +56,15 @@ Zonai manages these. Don't edit their contents by hand.
 
 **`.zonai/executables/`** — compiled worker binaries. Gitignore this directory. Rebuilt by `zonai serve` (auto) and `zonai compile` (manual).
 
+**`.zonai/zonai`** — optional AOT project binary used when `serve --release` runs from the app root (dev/prod without shipping `build/`).
+
+**`.dart_tool/zonai/`** — generated entrypoints (`project_main.dart`, worker stubs). Regenerated on compile/serve.
+
 **`.zonai/data/`** — the SQLite database file and uploaded photo files. Gitignore this. Never commit database files or user uploads.
 
 ## The `build/` Directory
 
-Created by `zonai build`. Contains everything needed to run on a production server: the `zonai` binary, worker executables, migration files, email templates, and `zonai.yaml`. Ship this entire directory to your server.
+Created by `zonai build`. Contains everything needed to run on a production server: the **project-linked** `zonai` binary (ops/rules in-process + full CLI), worker executables, migration files, email templates, and `zonai.yaml`. Ship this entire directory to your server.
 
 ## Naming Conventions
 

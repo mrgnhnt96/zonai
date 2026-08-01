@@ -8,15 +8,18 @@ library;
 const _doc = r"""
 # Zonai Framework Reference
 
-Zonai is a Dart CLI framework that compiles your declarative Dart code into
-worker executables and runs a SQLite-backed REST API server. You write schemas,
-rules, operations, extensions, rate limits, and crons — Zonai generates the SQL
-and handles HTTP.
+Zonai is a Dart CLI framework that compiles your declarative Dart code into a
+project-linked server binary (plus optional worker executables) and runs a
+SQLite-backed REST API. You write schemas, rules, operations, extensions, rate
+limits, and crons — Zonai generates the SQL and handles HTTP.
 
-**Worker compile model**: `zonai compile` builds five workers from your source:
-`db_operations`, `db_rules`, `db_extensions`, `db_rate_limit`, `db_crons`. The
-server calls these executables per request. Workers auto-recompile on file
-changes during `zonai serve`.
+**Runtime model**: `zonai serve` / `zonai build` produce a **project binary**
+that links your ops and rules **in-process** (no IPC on the create/list hot
+path). `zonai compile` also builds worker executables (`db_operations`,
+`db_rules`, `db_extensions`, `db_rate_limit`, `db_crons`, `db_config`) under
+`.zonai/executables/` for config/extensions/rate-limits/crons, ping/compat, and
+the `ZONAI_FORCE_WORKERS=1` escape hatch. In dev, workers auto-recompile on file
+changes; ops/rules edits require restarting `serve` so the linked entry reloads.
 
 ---
 
@@ -587,10 +590,10 @@ AppConfig main() {
 ## CLI Commands
 
 ```
-dart run zonai build       # compile workers + package binary for deployment
-dart run zonai serve       # start HTTP server with file-watching + auto-recompile
+dart run zonai build       # project-linked binary + workers + deploy bundle
+dart run zonai serve       # start HTTP server (JIT project entry; watchers)
 dart run zonai dev         # interactive TUI (compile, serve, logs, schema scaffold)
-dart run zonai compile     # compile all workers only
+dart run zonai compile     # compile worker executables only
 dart run zonai db migrate  # run SQL migrations
 dart run zonai db admin    # manage admin accounts
 dart run zonai rules       # inspect compiled authorization rules
@@ -602,17 +605,18 @@ dart run zonai version     # show version + check for updates
 
 ## Release & deployment
 
-`zonai compile` builds workers only, in place, under `.zonai/executables/`.
-`zonai build` does that plus copies migrations, `zonai.yaml`, and a `zonai`
-binary into `build/` — a self-contained bundle ready to ship. Both accept
-`--release` (strip `assert(...)` from worker code, disable dev-only file
+`zonai compile` builds workers in place under `.zonai/executables/`.
+`zonai build` does that plus copies migrations, `zonai.yaml`, and compiles a
+**project-linked** `build/zonai` that embeds your ops/rules and the full CLI
+(`serve`, `db`, …) — a self-contained bundle ready to ship. Both accept
+`--release` (strip `assert(...)` from compiled code, disable dev-only file
 watchers/keyboard shortcuts), `--flavor <name>` (select `.env.<name>`), and
 repeated `--dart-define KEY=VALUE` flags (override/add compile-time env
 values on top of the selected `.env` file — CLI wins on key collisions; use
 space-separated form, not `--dart-define=KEY=VALUE`, since a joined value
 containing its own `=` won't parse).
 
-Cross-compile workers to another OS/arch via `buildSettings` in `zonai.yaml`:
+Cross-compile via `buildSettings` in `zonai.yaml`:
 
 ```yaml
 buildSettings:
@@ -620,33 +624,31 @@ buildSettings:
   targetArch: x64   # x64 | arm64
 ```
 
-Defaults to the machine running `build`. Workers are always compiled locally
-with `dart compile exe`, so the normal Dart AOT rule still applies: you
-cannot compile a macOS or Windows target from a different host OS.
+Defaults to the machine running `build`. The project binary and workers are
+compiled with `dart compile exe` (including `--target-os` / `--target-arch`
+when set), so the normal Dart AOT rule applies: you cannot compile a macOS or
+Windows target from a different host OS.
 
-The `zonai` binary bundled into `build/` is handled separately from the
-workers — it's **copied** from the currently-running `zonai` binary when
-`buildSettings` targets the host running `build` (the default), or
-**downloaded** from this project's GitHub releases (matching `zonai.yaml`'s
-`version`) when targeting a different platform. The download path needs
-network access to `api.github.com`, and `GITHUB_TOKEN`/`GH_TOKEN` set if the
-repo is private — an unauthenticated request against a private repo fails
-with a plain 404, not a clear permissions error. Running via `dart run
-zonai build` (not a compiled `zonai`) always takes the download path, since
-there's no running binary to copy from.
+Day-to-day `serve` / `db` from a project root re-exec into the generated
+project entry (`.dart_tool/zonai/project_main.dart` under JIT, or
+`.zonai/zonai` with `--release`) so ops/rules stay in-process. Set
+`ZONAI_FORCE_WORKERS=1` to keep Mailman IPC for ops/rules instead.
 
 ---
 
 ## Generated workers
 
-`zonai compile` produces executables in `.zonai/executables/`:
-- `db_operations.exe` — SQL generation
-- `db_rules.exe` — authorization
+`zonai compile` / `zonai build` still produce executables in
+`.zonai/executables/` (or `build/.zonai/executables/`):
+- `db_operations.exe` — SQL generation (also linked into the project binary)
+- `db_rules.exe` — authorization (also linked into the project binary)
 - `db_extensions.exe` — lifecycle hooks
 - `db_rate_limit.exe` — rate limiting
 - `db_crons.exe` — scheduled jobs
+- `db_config.exe` — app config
 
-Intermediate Dart sources written to `.dart_tool/zonai/` before compilation.
+Intermediate Dart sources (including `project_main.dart`) are written to
+`.dart_tool/zonai/` before compilation.
 """;
 
 // ---------------------------------------------------------------------------
@@ -656,11 +658,12 @@ Intermediate Dart sources written to `.dart_tool/zonai/` before compilation.
 const claudeMd =
     r"""# Zonai Project
 
-This is a **zonai** application. Zonai is a Dart CLI framework that compiles
-your Dart code into worker executables and runs a SQLite-backed REST API.
+This is a **zonai** application. Zonai compiles your Dart code into a
+project-linked server binary (ops/rules in-process) plus worker executables
+for config, extensions, rate limits, and crons.
 
 Use `dart run zonai dev` to launch the interactive TUI, or
-`dart run zonai serve` to start the server with auto-recompile on file changes.
+`dart run zonai serve` to start the server (project entry + auto-recompile).
 
 """ +
     _doc;
@@ -681,18 +684,24 @@ alwaysApply: false
 
 # Zonai Framework Overview
 
-Zonai is a Dart CLI framework that compiles declarative Dart code into worker
-executables and runs a SQLite-backed REST API server.
+Zonai is a Dart CLI framework that compiles declarative Dart code into a
+project-linked server binary and optional worker executables, and runs a
+SQLite-backed REST API server.
 
-**Worker compile model**: `zonai compile` builds five workers from your source:
-- `db_operations` — custom CRUD SQL (`lib/src/operations/`)
-- `db_rules` — authorization decisions (`lib/src/rules/`)
+**Runtime model**: `zonai serve` / `zonai build` link your ops and rules
+**in-process** into the project binary (or JIT `project_main` in dev).
+`zonai compile` also builds workers from your source:
+- `db_operations` — custom CRUD SQL (`lib/src/operations/`) — also linked in-process
+- `db_rules` — authorization (`lib/src/rules/`) — also linked in-process
 - `db_extensions` — lifecycle hooks (`lib/src/extensions/`)
 - `db_rate_limit` — rate limiting (`lib/src/rate_limit/`)
 - `db_crons` — scheduled jobs (`lib/src/crons/`)
+- `db_config` — app config (`lib/src/config/`)
 
-The server calls these executables per request. Workers auto-recompile on
-file changes during `zonai serve`.
+Extensions/config/rate-limits/crons still run as worker processes. Ops/rules
+use Mailman workers only with `ZONAI_FORCE_WORKERS=1`. Worker binaries
+auto-recompile on file changes during `zonai serve`; restart serve after
+ops/rules edits so the linked entry reloads.
 
 ## Project structure
 
@@ -731,10 +740,10 @@ cronsPath:      lib/src/crons
 ## CLI Commands
 
 ```
-dart run zonai build       # compile workers + package for deployment
-dart run zonai serve       # start server with file-watching + auto-recompile
+dart run zonai build       # project-linked binary + workers + deploy bundle
+dart run zonai serve       # start server (JIT project entry; watchers)
 dart run zonai dev         # interactive TUI
-dart run zonai compile     # compile all workers only
+dart run zonai compile     # compile worker executables only
 dart run zonai db migrate  # run SQL migrations
 dart run zonai rules       # inspect compiled authorization rules
 dart run zonai ping        # test worker executables
@@ -1569,17 +1578,17 @@ alwaysApply: false
 | | `compile` | `build` |
 | --- | --- | --- |
 | Worker output | `.zonai/executables/*.exe` | `build/.zonai/executables/*.exe` |
+| Project binary | not built | `build/zonai` — **project-linked** (ops/rules + full CLI) |
 | Migrations | not copied | SQL copied into `build/` |
 | `zonai.yaml` | not copied | copied into `build/` |
-| `zonai` binary | not included | `build/zonai` (or `zonai.exe` on Windows) |
-| Typical use | local `serve`, quick rebuilds | CI, deploy hosts, containers |
+| Typical use | local workers, quick rebuilds | CI, deploy hosts, containers |
 
 ```bash
 dart run zonai build --release --flavor prod   # deploy bundle under build/
 dart run zonai compile --release               # workers only, in place
 ```
 
-`--release` strips `assert(...)` from worker code and disables dev-only file
+`--release` strips `assert(...)` from compiled code and disables dev-only file
 watchers/keyboard shortcuts during `serve`. `--flavor <name>` selects
 `.env.<name>` for compile-time env defines. Repeated `--dart-define
 KEY=VALUE` flags override/add values on top of that file (CLI wins on key
@@ -1595,22 +1604,14 @@ buildSettings:
   targetArch: x64   # x64 | arm64
 ```
 
-Defaults to the machine running `build`. Worker executables are always
-compiled locally with `dart compile exe`, so the normal Dart AOT rule still
-applies: you cannot compile a macOS or Windows target from a different host
-OS.
+Defaults to the machine running `build`. The project binary and workers are
+compiled with `dart compile exe` (plus `--target-os` / `--target-arch` when
+set). You cannot compile a macOS or Windows target from a different host OS.
 
-The **`zonai` binary bundled into `build/`** is not compiled — it's either:
-- **copied** from the currently-running `zonai` binary, when `buildSettings`
-  targets the host running `build` (the default), or
-- **downloaded** from this project's GitHub releases, matching `zonai.yaml`'s
-  `version`, when targeting a different platform. Needs network access to
-  `api.github.com`, and `GITHUB_TOKEN`/`GH_TOKEN` set if the repo is private
-  — an unauthenticated request against a private repo fails with a plain
-  404, not a clear permissions error.
-
-Running via `dart run zonai build` (not a compiled `zonai`) always takes the
-download path — there's no running binary to copy from.
+`build/zonai` is **not** a copy or download of the published CLI — it is
+compiled from generated `.dart_tool/zonai/project_main.dart` with your
+schemas/ops/rules linked in. Set `ZONAI_FORCE_WORKERS=1` to force Mailman
+IPC for ops/rules even on a project binary.
 """;
 
 const cursorMdcFiles = <String, String>{
