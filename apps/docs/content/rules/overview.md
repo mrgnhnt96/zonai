@@ -3,9 +3,9 @@ title: Rules Overview
 description: How Zonai's two-layer authorization model works.
 ---
 
-Rules are the authorization layer in Zonai. Every request passes through the rules worker first. A denial returns `403 Forbidden` immediately — no SQL runs, no extension fires.
+Rules are the authorization layer in Zonai. Every request passes through rules before SQL runs. A denial returns `403 Forbidden` immediately — no SQL runs, no extension fires.
 
-Rules are written in Dart, compiled into the rules worker. Any change requires recompilation.
+On the default path, rules run **in-process** inside the project-linked server binary (or JIT `project_main`). They are also compiled into `db_rules.exe` for `zonai ping`, compatibility, and `ZONAI_FORCE_WORKERS=1`. Restart `serve` (or rebuild) after editing rules so the linked entry reloads.
 
 ## Two Layers
 

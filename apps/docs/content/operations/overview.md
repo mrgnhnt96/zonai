@@ -34,9 +34,9 @@ PostOperations main() => PostOperations();
 
 All operations files in `operationsPath` are auto-discovered. Define at most one file per table.
 
-## The Operations Worker
+## The Operations Runtime
 
-All operations files compile into a single `db_operations` worker executable. In dev mode, changes to any operations file trigger an automatic recompile. Press `c` to force a recompile manually.
+Operations compile into the project-linked binary (in-process on the default path) and into `db_operations.exe` for force-workers / ping. In dev mode, `zonai serve` regenerates entry files and recompiles workers on change — restart serve after editing ops so linked code reloads. Press `c` to force a recompile manually.
 
 - [Default Operations](/operations/default-operations) — the built-in CRUD for every table
 - [Auth Operations](/operations/auth-operations) — JWT claims and auth flow configuration

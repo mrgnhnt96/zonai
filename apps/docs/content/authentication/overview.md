@@ -14,8 +14,8 @@ Most auth request bodies include a `table` field identifying which auth table th
 ## Sign-In Flow
 
 1. Client POSTs credentials to the appropriate auth endpoint with the target `table`.
-2. The rules worker evaluates the relevant auth rule (e.g. `canSignIn`).
-3. The operations worker validates the credentials.
+2. Auth rules evaluate the relevant check (e.g. `canSignIn`) — in-process on the default path.
+3. Auth operations validate the credentials (same runtime as other ops).
 4. On success, Zonai issues a signed JWT and fires the `onSignIn` extension hook.
 5. The token is returned in the response.
 

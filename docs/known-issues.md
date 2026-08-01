@@ -317,6 +317,8 @@ No stack trace, no earlier warning. `curl .../health` goes from `200` to connect
 
 **Severity: silently breaks every request through the affected worker, not just the one that triggered it.** Found 2026-07-26 while building `override_canvas`'s organization-collaborators feature (a row needing to check "does the caller have access to this *other* table's row" as part of its own access decision). Not caused by or specific to that feature — it's a property of the generic `get`/`mutate` IPC mechanism (`libs/zonai_schema/lib/src/handlers/messages/deps/__get.dart`, wired up generically in `message_handler.dart`) combined with how every worker type (rules, operations, extensions, cron) shares the exact same `MessageHandler` request/reply loop.
 
+**Protocol note (2026-07 update):** process Mailman IPC is now **length-prefixed MessagePack** (not JSON lines). Ops/rules on the default project-binary path run **in-process** (no Mailman hop), which avoids this class of nested-channel bug for those layers; the issue remains relevant for extensions/config/crons and for `ZONAI_FORCE_WORKERS=1`.
+
 **The reproduction, in two independent forms:**
 
 1. A row rule calling `get.*` to look up a *different* table, where the caller is itself in the middle of answering an incoming `RowRulesRequest`:

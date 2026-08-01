@@ -21,6 +21,13 @@ path). `zonai compile` also builds worker executables (`db_operations`,
 the `ZONAI_FORCE_WORKERS=1` escape hatch. In dev, workers auto-recompile on file
 changes; ops/rules edits require restarting `serve` so the linked entry reloads.
 
+**Runtime env (optional):** `ZONAI_FORCE_WORKERS`, `ZONAI_WORKER_TRANSPORT`
+(`auto`|`process`|`isolate`), `ZONAI_WORKER_POOL_SIZE` (default 1),
+`ZONAI_HTTP_WORKERS` (keep 1 — `>1` regresses list vs one SQLite file).
+Worker IPC uses framed MessagePack; list/create also benefit from host caches,
+batch row-rules, `requiresPerRowCheck => false` skip, skip-empty extensions,
+and write-queue 503 backpressure.
+
 ---
 
 ## Project structure
@@ -702,6 +709,12 @@ Extensions/config/rate-limits/crons still run as worker processes. Ops/rules
 use Mailman workers only with `ZONAI_FORCE_WORKERS=1`. Worker binaries
 auto-recompile on file changes during `zonai serve`; restart serve after
 ops/rules edits so the linked entry reloads.
+
+**Runtime env (optional):** `ZONAI_FORCE_WORKERS`, `ZONAI_WORKER_TRANSPORT`
+(`auto`|`process`|`isolate`), `ZONAI_WORKER_POOL_SIZE` (default 1),
+`ZONAI_HTTP_WORKERS` (keep 1). IPC is framed MessagePack; host caches,
+batch row-rules, `requiresPerRowCheck => false`, skip-empty extensions, and
+write-queue 503 apply on the hot path.
 
 ## Project structure
 

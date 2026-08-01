@@ -58,7 +58,7 @@ final email = row?['email'] as String?;
 `Eq('column', value)` is the simplest condition. More complex queries can be composed using `And`, `Or`, `Gt`, `Lt`, and other `Where` constructors. 
 ## Rules Apply
 
-`get` calls run through the rules worker using the same JWT from the original request. The same table and row rules that govern the main request apply here — if the requesting user cannot view a table, a `get` call for that table inside an extension will be denied.
+`get` calls enforce the same table and row rules as the main request, using the same JWT. On the default path those rules run **in-process**; with `ZONAI_FORCE_WORKERS=1` they go through the rules worker. If the requesting user cannot view a table, a `get` call for that table inside an extension will be denied.
 
 ## Common Uses
 

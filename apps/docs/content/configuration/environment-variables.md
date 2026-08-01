@@ -1,11 +1,14 @@
 ---
 title: Environment Variables
-description: How Zonai loads and bakes environment variables into compiled binaries.
+description: Compile-time secrets via .env, plus optional runtime ZONAI_* tuning knobs.
 ---
 
-Zonai does not read environment variables at runtime. Instead, secrets are **baked into compiled binaries at compile time** using Dart's `String.fromEnvironment`. This means the production server needs no `.env` file — the secrets travel inside the binary (workers and the project-linked `build/zonai`).
+Zonai uses environment variables in **two** ways:
 
-## How It Works
+1. **Compile-time secrets** — baked into binaries from `.env` / `--dart-define` via `String.fromEnvironment`. Production does not need a `.env` file on the server.
+2. **Runtime tuning** — a small set of `ZONAI_*` process environment variables read when the server starts (not baked into the binary).
+
+## Compile-time secrets (`.env`)
 
 Your Dart code reads a value at compile time:
 
@@ -18,6 +21,23 @@ When Zonai compiles workers or the project binary, it reads your `.env` file and
 This is an implementation detail, not a CLI flag — `zonai compile` and `zonai build` do not read `-D`/`--define` themselves. To override a value, edit `.env` (or `.env.<flavor>`, see below) or use `--dart-define` (see [CLI Overrides](#cli-overrides)).
 
 Changing a secret requires recompiling and redeploying (`zonai build` / `compile`).
+
+## Runtime tuning (`ZONAI_*`)
+
+These are read from the process environment at serve time. They are **not** loaded from `.env` unless you export them yourself in the shell or process manager.
+
+| Variable | Values | Default | Purpose |
+|----------|--------|---------|---------|
+| `ZONAI_FORCE_WORKERS` | `1` / `true` | unset | Force ops/rules through Mailman workers instead of in-process dispatch |
+| `ZONAI_WORKER_TRANSPORT` | `auto`, `process`, `isolate` | `auto` | How Mailman talks to ops/rules workers when workers are used (`auto` prefers isolate/SendPort when a snapshot exists, else process MessagePack) |
+| `ZONAI_WORKER_POOL_SIZE` | positive int | `1` | Number of OS processes per Mailman pool (ops/rules/extensions). Higher may help concurrent writes; often hurts pure list |
+| `ZONAI_HTTP_WORKERS` | positive int | `1` | HTTP accept isolates. **`>1` currently regresses list throughput** against one SQLite file — keep `1` unless you know you need otherwise |
+
+Example:
+
+```bash
+ZONAI_FORCE_WORKERS=1 ZONAI_WORKER_TRANSPORT=process ./zonai serve --release
+```
 
 ## .env File Format
 

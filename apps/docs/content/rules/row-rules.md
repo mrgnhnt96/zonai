@@ -53,7 +53,18 @@ The `row` parameter is the current state of the row from the database (or, for `
 
 Table rules run first (step 1 of the pipeline). If the table rule denies, row rules never run and the request returns `403` before any SQL executes.
 
-Row rules run after the database query (step 5 of the pipeline), once per row for `list` and `view` operations. For large result sets, keep row rules fast — avoid database queries inside them when possible.
+Row rules run after the database query (step 5 of the pipeline). Semantics are per-row for `list` and `view` — if any row fails `canView`, the whole request fails. Evaluation is **batched** (one rules call for the page), and tables that override `requiresPerRowCheck => false` skip row-rule work after table access succeeds.
+
+For large result sets, keep row rules fast — avoid database queries inside them when possible.
+
+### Skipping per-row checks
+
+```dart
+@override
+bool get requiresPerRowCheck => false; // public table: table rules are enough
+```
+
+Default is `true`. Use `false` only when every row that passes table rules is always visible/mutable for that caller class.
 
 ## Common Patterns
 

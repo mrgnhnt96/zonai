@@ -2,16 +2,16 @@
 
 Zonai enforces authorization through **rules**: Dart classes that decide whether a caller may perform an operation on a collection or on a specific row. Rules run **before** SQL is generated or executed. If a rule returns `false`, the server rejects the request with a permissions error and no database mutation occurs.
 
-Rules are defined under your project’s **`rulesPath`** (default `lib/src/rules`, overridable in `zonai.yaml`). They are compiled into the `db_rules` worker executable alongside config, extensions, operations, and rate limits.
+Rules are defined under your project’s **`rulesPath`** (default `lib/src/rules`, overridable in `zonai.yaml`). On the default path they run **in-process** inside the project-linked binary; they are also compiled into `db_rules.exe` for force-workers / ping.
 
 ## How it works
 
 1. An HTTP or auth handler receives a request (for example `POST /db` on `items`).
-2. The server sends a **rule request** to the compiled `db_rules` worker, including the collection name, operation, optional record data, and the caller’s JWT (if any).
-3. The worker evaluates your Dart rule classes and returns `canAccess` / `canPerform`.
-4. If allowed, the server continues to rate limiting, operations (SQL generation), and query execution.
+2. After rate limiting, the server evaluates **rules** (in-process by default, or via the `db_rules` worker with `ZONAI_FORCE_WORKERS=1`), including the collection name, operation, optional record data, and the caller’s JWT (if any).
+3. Rules return `canAccess` / `canPerform` (table access may also set `skipRowChecks` when `requiresPerRowCheck` is false).
+4. If allowed, the server continues to operations (SQL generation) and query execution.
 
-While `serve` is running, changes under `rulesPath` trigger a recompile so authorization stays in sync with your Dart code without restarting the database.
+While `serve` is running, changes under `rulesPath` regenerate workers and `project_main`. **Restart serve** so in-process rules reload; worker-only types pick up new binaries without a full restart.
 
 ## Two levels: table and row
 

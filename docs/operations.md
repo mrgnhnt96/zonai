@@ -2,19 +2,19 @@
 
 Zonai turns HTTP and auth requests into SQL through **collection operations**: Dart classes that describe how each table is read and written. For every collection declared under **`schemasPath`** (default `lib/src/schemas`), Zonai generates **default operations** at compile time — you do not need an operations file unless you want to customize behavior.
 
-Optional overrides live under **`operationsPath`** (default `lib/src/operations`, overridable in `zonai.yaml`). At compile time, Zonai bundles any custom operations files with built-in internal-table operations into the `db_operations` worker executable.
+Optional overrides live under **`operationsPath`** (default `lib/src/operations`, overridable in `zonai.yaml`). At compile time, Zonai bundles any custom operations files with built-in internal-table operations into the project-linked binary (in-process by default) and into `db_operations.exe` for force-workers / ping.
 
-Operations do **not** run queries themselves. The server sends a structured request to the worker; the worker returns SQL and bound values; the server executes that SQL against SQLite after rules and rate limits have been checked.
+Operations do **not** run queries themselves. The server asks operations for SQL and bound values (in-process dispatch, or Mailman when `ZONAI_FORCE_WORKERS=1`); the server executes that SQL against SQLite after rules and rate limits have been checked.
 
 ## How it works
 
 1. An HTTP or auth handler needs SQL for a collection (for example `create` on `items`).
-2. The server sends an **operation request** to the compiled `db_operations` worker.
-3. The worker finds the matching `TableOperations` instance (keyed by table name) — either a custom file from `operationsPath` or a generated default — and builds a Raindrop query.
-4. The worker translates the query to SQL for the configured dialect (SQLite by default) and returns it.
+2. The server dispatches an **operation request** to the linked ops registry (or the `db_operations` worker when force-workers is set).
+3. The matching `TableOperations` instance (keyed by table name) — either a custom file from `operationsPath` or a generated default — builds a Raindrop query.
+4. The query is translated to SQL for the configured dialect (SQLite by default) and returned.
 5. The server runs the SQL on the database and returns the result to the client.
 
-While `serve` is running, changes under `operationsPath` trigger a recompile so custom SQL generation stays in sync with your Dart code without restarting the database. Schema changes under `schemasPath` are picked up the next time workers are compiled (`dart run zonai compile` or **`c`** in `serve`).
+While `serve` is running, changes under `operationsPath` regenerate entry files and workers. **Restart serve** so in-process ops reload. Schema changes under `schemasPath` are picked up the next time workers / the project entry are compiled (`dart run zonai compile`, **`c`** in `serve`, or `zonai build`).
 
 ## When you need an operations file
 

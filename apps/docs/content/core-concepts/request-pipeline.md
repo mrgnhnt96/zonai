@@ -33,6 +33,7 @@ The rate limit check is always the first stop. It evaluates whether this client 
 
 - If over limit: returns `429 Too Many Requests` immediately. No rules are evaluated. No SQL runs.
 - If within limit: the counter increments and the request proceeds to step 2.
+- Tables with an unlimited / `null` policy are cached after the first resolve so later requests skip further rate-limit IPC.
 
 See [Rate Limiting Overview](/rate-limiting/overview).
 
@@ -57,27 +58,38 @@ See [Operations Overview](/operations/overview).
 
 Zonai executes the generated SQL against the SQLite database. This is the only step that reads from or writes to the database.
 
-For mutation operations (create, update, delete), the `before*` extension hooks run here, before the SQL executes. If a `before*` hook throws, the mutation is aborted and a `400` is returned.
+Mutating requests (create/update/delete) are **serialized** on the host so concurrent writes do not pile into SQLite's busy timeout. If too many writes are already queued (default cap 64), the server fails fast with **`503`** (`WriteBackpressureException`) instead of waiting.
+
+For mutation operations, the `before*` extension hooks run here, before the SQL executes. If a `before*` hook throws, the mutation is aborted and a `400` is returned.
 
 ## Step 5: Row Filter (canView)
 
-After the database returns results, each row is checked by row rules. `canView` is evaluated for every row in the result set. If any row returns `false`, the entire request fails with `403 Forbidden` — no data is returned.
+After the database returns results, row rules decide whether each row may be seen or mutated. Semantics are still per-row: if any row fails, the request returns `403 Forbidden`.
 
-For mutations (create, update, delete), this step applies to the row(s) involved. If the row doesn't pass `canUpdate` or `canDelete`, the mutation is aborted with `403`.
+Performance notes:
+
+- List/view checks are **batched** into one rules call for the page (not one IPC hop per row when workers are used).
+- If row rules set `requiresPerRowCheck => false` (typical for fully public tables), the host **skips** row-rule work after a successful table-access check.
 
 See [Row Rules](/rules/row-rules).
 
 ## Step 6: Extensions (Side Effects)
 
-After the row filter, extension hooks fire (via the extensions worker):
+After the row filter, extension hooks fire (via the extensions worker when the project has extension sources):
 
 - `after*Success` hooks run after a successful mutation. They can queue additional mutations, reads, and emails.
 - `after*Error` hooks run if the SQL failed.
 - Auth hooks (`onSignUp`, `onSignIn`, `onRefresh`, `onLogout`) run after the corresponding auth SQL.
 
+If the project has **no** extension Dart files (and no internal extensions), the host **skips** the extensions worker entirely.
+
 Extensions can chain up to 10 additional mutations before the chain is capped.
 
 See [Extensions Overview](/extensions/overview).
+
+## Host-side caches
+
+Repeated list/get traffic avoids redundant work after the first resolve: table-access decisions, ops SQL for read/list/count, sanitize column/photo metadata, empty blacklist lookups, and null rate-limit policies are cached in the server process until restart / worker recompile.
 
 ## Auth Requests
 

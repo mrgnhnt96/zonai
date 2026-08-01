@@ -57,3 +57,17 @@ Ops/rules source changes update generated entry files, but the running process s
 On startup, Zonai starts the worker processes it still uses and can ping them for readiness. Press `p` in dev mode to manually ping workers.
 
 With `ZONAI_FORCE_WORKERS=1`, ops and rules also run as Mailman workers (same as older Zonai versions).
+
+## IPC transport
+
+When workers are used, the host talks to them over **framed MessagePack** on stdin/stdout (length-prefixed binary frames — not JSON lines).
+
+For ops/rules workers only, Mailman can instead spawn an **isolate** (AOT snapshot when the host is AOT, or generated Dart source under JIT) and use `SendPort`. Control with `ZONAI_WORKER_TRANSPORT`:
+
+| Value | Behavior |
+|-------|----------|
+| `auto` (default) | Prefer isolate when a snapshot/entry exists; fall back to process |
+| `process` | Always MessagePack pipes to the `.exe` |
+| `isolate` | Prefer isolate; fall back to process if spawn fails |
+
+Optional `ZONAI_WORKER_POOL_SIZE` (default `1`) runs multiple OS processes per Mailman pool. See [Environment Variables](/configuration/environment-variables).
