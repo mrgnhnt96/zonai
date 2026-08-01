@@ -5,6 +5,10 @@ description: The ordered pipeline every HTTP request passes through in Zonai.
 
 Every HTTP request in Zonai follows the same fixed, ordered pipeline. Understanding this pipeline is the key to understanding how authorization, throttling, business logic, and side effects all interact.
 
+<Info>
+**Streaming requests** (`GET /db/stream*`) use this same pipeline on connect and again as SQLite results change. Prefer streams over client-side polling. See [Live Queries (Streaming)](/operations/streaming).
+</Info>
+
 ```text
 HTTP Request
      ↓

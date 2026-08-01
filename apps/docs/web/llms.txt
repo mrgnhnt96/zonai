@@ -1,8 +1,10 @@
 # Zonai
 
-> A batteries-included Dart backend framework — schema-driven REST API, auth, SQLite, file uploads, cron jobs, and more.
+> A batteries-included Dart backend framework — schema-driven REST API, auth, SQLite, **live query streams**, file uploads, cron jobs, and more.
 
 Zonai turns Dart schema, rules, and business logic into a production HTTP + SQLite server. You host the binary yourself (not a managed cloud BaaS). Docs: https://mrgnhnt96.github.io/zonai/ — source: https://github.com/mrgnhnt96/zonai
+
+**Live UI:** every table has `GET /db/stream`, `/db/stream/list`, `/db/stream/count`. Prefer `zonai_client` → `client.db.listen`. Do **not** poll. Search for **stream** / **listen** — not "realtime", "socket", "SSE", or "EventSource". Guide: https://mrgnhnt96.github.io/zonai/operations/streaming
 
 This file is a curated index for LLMs and coding agents. Prefer these pages over guessing APIs. For project-local assistant rules, run `zonai ai cursor` (or `claude` / `copilot` / `windsurf` / `cline`) from an app root.
 

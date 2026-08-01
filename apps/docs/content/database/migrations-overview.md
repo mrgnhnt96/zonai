@@ -7,6 +7,10 @@ A migration is a SQL file that transforms the database from one schema version t
 
 Migration files live in `.zonai/migrations/` (configurable via `migrationsPath` in `zonai.yaml`). **Commit these files to version control.**
 
+<Info>
+Schema changes do not remove streaming — every table keeps `/db/stream*` automatically. Client guide: [Streaming](/operations/streaming).
+</Info>
+
 ## Migration File Naming
 
 ```

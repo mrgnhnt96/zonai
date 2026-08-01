@@ -56,4 +56,6 @@ After updating, recompile your workers — new versions may include worker API c
 
 ## Next Steps
 
-- [Quick Start](/getting-started/quick-start) — build and run your first project
+- [Quick Start](/getting-started/quick-start) — build and run your first project (includes a live **stream** example)
+- [Live Queries (Streaming)](/operations/streaming) — `/db/stream*` and `client.db.listen` (do not poll)
+- [Dart Client](/dart-client/overview) — prefer `zonai_client` over hand-rolled HTTP

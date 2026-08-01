@@ -215,24 +215,42 @@ curl -X POST http://localhost:8080/auth/sign-in \
   -d '{"type":"signIn","table":"users","email":"alice@example.com","password":"hunter2"}'
 ```
 
-The response includes `data.accessToken`. Use it for subsequent requests:
+The response includes `data.accessToken`. Use it for subsequent requests. The table name is always in the JSON body — never in the URL path.
 
 ```bash
 TOKEN="eyJ..."
 
 # Create a task
-curl -X POST http://localhost:8080/db/tasks \
+curl -X POST http://localhost:8080/db \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"title":"Buy groceries","isComplete":false}'
+  -d '{"table":"tasks","object":{"title":"Buy groceries","isComplete":false}}'
 
 # List tasks
-curl http://localhost:8080/db/tasks/list \
-  -H "Authorization: Bearer $TOKEN"
+curl -G http://localhost:8080/db/list \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode 'body={"table":"tasks","limit":20}'
 ```
+
+## Step 8: Stream Live Updates (Do Not Poll)
+
+Zonai pushes query results over a long-lived HTTP connection whenever rows change. Prefer this over a timer. In Dart apps use `zonai_client` → `client.db.listen` (see [Streaming](/operations/streaming)).
+
+```bash
+# Keep this curl open — a new JSON payload arrives when matching rows change
+curl -N -G http://localhost:8080/db/stream/list \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode 'body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}'
+```
+
+<Info>
+Search docs for **stream** / **listen**, not "realtime" or "SSE". Every table gets `/db/stream`, `/db/stream/list`, and `/db/stream/count` automatically.
+</Info>
 
 ## Next Steps
 
+- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` and stream endpoints
 - [Project Structure](/getting-started/project-structure) — understand what each directory does
 - [Schemas](/schemas/defining-tables) — all column types and modifiers
 - [Rules](/rules/overview) — fine-grained authorization
+- [Dart Client](/dart-client/overview) — typed client including `db.listen`

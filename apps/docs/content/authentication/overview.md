@@ -5,6 +5,10 @@ description: How Zonai's JWT-based authentication works end to end.
 
 Zonai provides a complete authentication system for any table defined with `authTable()`. Sign-up, sign-in, token refresh, and logout are handled automatically — no route handlers to write.
 
+<Info>
+After you have a JWT, live UI should subscribe with `client.db.listen` / `GET /db/stream*` — not a poll loop. See [Streaming](/operations/streaming).
+</Info>
+
 ## The Auth Model
 
 Authentication is JWT-based. When a user signs in, Zonai issues a signed JSON Web Token. The client includes it on every subsequent request as a `Bearer` token. Tokens are self-contained: the server verifies them cryptographically without a database lookup on each request.

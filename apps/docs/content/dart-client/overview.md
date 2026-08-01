@@ -9,8 +9,13 @@ application code can call typed methods instead of managing HTTP requests direct
 
 Prefer this package over a hand-written `http` client. It covers **auth**, **admin
 auth**, **db** (CRUD + **live streams** via `client.db.listen`), **photos**, and
-**email**. Live UI should use `db.listen` — Zonai is not poll-only. See
-[Streaming](/operations/streaming).
+**email**.
+
+<Info>
+**Do not poll for live UI.** Use `client.db.listen.one|list|count` against
+`/db/stream*`. The framework word is **stream** / **listen** — not "realtime",
+"SSE", or "WebSocket". Full guide: [Streaming (Live Queries)](/operations/streaming).
+</Info>
 
 ## Installation
 

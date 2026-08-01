@@ -7,11 +7,15 @@ Rules are the authorization layer in Zonai. Every request passes through rules b
 
 On the default path, rules run **in-process** inside the project-linked server binary (or JIT `project_main`). They are also compiled into `db_rules.exe` for `zonai ping`, compatibility, and `ZONAI_FORCE_WORKERS=1`. Restart `serve` (or rebuild) after editing rules so the linked entry reloads.
 
+<Info>
+**Streaming reuses read rules.** `canView` / `canList` / `canCount` also gate `/db/stream`, `/db/stream/list`, and `/db/stream/count`. There is no separate `canStream*`. See [Streaming](/operations/streaming).
+</Info>
+
 ## Two Layers
 
 **Table rules** evaluate whether the requesting JWT may perform an operation on a table at all. They do not see individual rows — only the JWT and the operation type.
 
-- Applied to: `create`, `list`, `count`, `view`, `update`, `delete`, and auth operations
+- Applied to: `create`, `list`, `count`, `view`, `update`, `delete`, auth operations, and the matching **stream** routes (`/db/stream*`)
 - File: `<table>_table_rules.dart`
 
 **Row rules** run after the database returns results. They receive the JWT and the actual row data — enabling decisions like "only the owner may edit this."

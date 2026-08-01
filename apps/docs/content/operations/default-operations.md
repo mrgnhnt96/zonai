@@ -66,6 +66,34 @@ Response:
 { "data": 7 }
 ```
 
+### stream-one — `GET /db/stream`
+
+Long-lived connection. Pushes the matching row whenever it changes. Requires `where`. Prefer `client.db.listen.one` in Dart. See [Streaming](/operations/streaming).
+
+```
+GET /db/stream?body={"table":"tasks","where":{"id":{"eq":"tk_abc123"}},"expand":[]}
+```
+
+### stream-list — `GET /db/stream/list`
+
+Long-lived connection. Pushes the full matching page whenever the result set changes.
+
+```
+GET /db/stream/list?body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}
+```
+
+### stream-count — `GET /db/stream/count`
+
+Long-lived connection. Pushes a new count whenever matching rows change.
+
+```
+GET /db/stream/count?body={"table":"tasks"}
+```
+
+<Info>
+Do **not** poll these endpoints on a timer. Keep the HTTP connection open. Searching for "realtime"/"SSE"/"WebSocket" will miss them — the framework word is **stream**.
+</Info>
+
 ### create — `POST /db`
 
 ```json

@@ -2,6 +2,8 @@
 
 Generated HTTP client for the Zonai Revali server. Provides a typed Dart API over the server's REST endpoints, with built-in token management via the `X-Auth` response header pattern.
 
+**Live queries:** use `client.db.listen` (`one` / `list` / `count`) — Zonai pushes updates over `/db/stream*`. Do **not** poll. Docs: https://mrgnhnt96.github.io/zonai/operations/streaming
+
 ## Installation
 
 This package is not published to pub.dev. Add it as a path dependency in your `pubspec.yaml`:

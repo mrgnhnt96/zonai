@@ -38,7 +38,7 @@ These are the only directories you write code in.
 
 **`rules/`** — authorization files. `<table>_table_rules.dart` controls operation-level access; `<table>_row_rules.dart` controls per-row access. Unoverridden operations default to denied.
 
-**`operations/`** — custom SQL generation. Optional — most tables don't need a file here. Add one to override default CRUD behavior, add JWT claims to an auth table, or define non-standard operations.
+**`operations/`** — custom SQL generation. Optional — most tables don't need a file here. Defaults already cover CRUD **and live streams** (`/db/stream*`). Add a file to override SQL, add JWT claims to an auth table, or define non-standard operations. See [Streaming](/operations/streaming).
 
 **`extensions/`** — lifecycle hooks that run before and after mutations and auth events. Optional — add a file when a table needs side effects (sending email, creating related rows, audit logging).
 
@@ -79,3 +79,7 @@ Files in each worker directory are auto-discovered by convention:
 | Rate limits | `<table>_rate_limits.dart` | `item_rate_limits.dart` |
 
 No registration is needed — any `.dart` file in the correct directory is automatically included.
+
+<Info>
+**Live queries ship with every table.** Clients should use `zonai_client` `db.listen` or `GET /db/stream*` instead of polling. Details: [Streaming (Live Queries)](/operations/streaming).
+</Info>

@@ -5,7 +5,7 @@ description: What workers are, why they exist, and how Zonai uses them.
 
 A **worker** is a compiled Dart native executable that handles one category of logic for the Zonai server. Workers talk to the host over IPC (framed MessagePack on stdin/stdout, with an isolate/SendPort option for ops/rules).
 
-**Ops and rules are different on the default path.** `zonai serve` and `zonai build` produce a **project-linked** binary (or JIT `project_main` in development) that calls your operations and authorization code **in-process** — no IPC hop on create/list. Worker `.exe` files for ops/rules are still compiled for `zonai ping`, compatibility, and the `ZONAI_FORCE_WORKERS=1` escape hatch.
+**Ops and rules are different on the default path.** `zonai serve` and `zonai build` produce a **project-linked** binary (or JIT `project_main` in development) that calls your operations and authorization code **in-process** — no IPC hop on create/list/**stream**. Worker `.exe` files for ops/rules are still compiled for `zonai ping`, compatibility, and the `ZONAI_FORCE_WORKERS=1` escape hatch.
 
 Config, extensions, rate limits, and crons still run as worker processes.
 
@@ -28,7 +28,7 @@ Config, extensions, rate limits, and crons still run as worker processes.
 
 **Correctness.** Configuration errors (missing SMTP credentials, wrong JWT secret) are detected at compile time.
 
-**Speed (ops/rules).** Linking ops and rules into the project binary avoids per-request IPC for SQL generation and authorization — the hot path for CRUD.
+**Speed (ops/rules).** Linking ops and rules into the project binary avoids per-request IPC for SQL generation and authorization — the hot path for CRUD and live streams.
 
 ## The Compile Step
 

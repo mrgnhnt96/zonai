@@ -7,6 +7,10 @@ Zonai is a Dart backend-as-a-service framework that turns schema definitions int
 
 It is designed for Dart and Flutter developers who want to build a production-quality backend without wiring together boilerplate.
 
+<Info>
+**Live UI does not need polling.** Every table gets `GET /db/stream`, `/db/stream/list`, and `/db/stream/count`. In Dart use `zonai_client`'s `client.db.listen`. Search these docs for **stream** / **listen** — not "realtime", "SSE", "socket", or "EventSource". Full guide: [Live Queries (Streaming)](/operations/streaming).
+</Info>
+
 ## What You Get Out of the Box
 
 **A full REST API for every table** — create, read, update, delete, list, count, and **live stream** endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed.
@@ -56,6 +60,7 @@ A curated docs index lives at [/llms.txt](/llms.txt). Inside a Zonai app, run `z
 
 ## Next Steps
 
+- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` / `/db/stream*` (do not poll)
 - [Installation](/getting-started/installation) — prerequisites and CLI setup
 - [Quick Start](/getting-started/quick-start) — create and run your first project
 - [Project Structure](/getting-started/project-structure) — understand the directory layout

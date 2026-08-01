@@ -3,7 +3,7 @@ title: zonai ai
 description: Install AI coding assistant reference sheets for your Zonai project.
 ---
 
-Install reference files that teach AI coding assistants how Zonai works — schemas, rules, operations, extensions, rate limits, crons, and CLI commands.
+Install reference files that teach AI coding assistants how Zonai works — schemas, rules, operations (including **live streams** / `db.listen`), extensions, rate limits, crons, and CLI commands.
 
 ```sh
 zonai ai <tool> [flags]
@@ -39,10 +39,10 @@ zonai ai cursor --force
 
 ## What's in the reference sheets
 
-The generated files are a condensed Zonai framework reference: project layout, `zonai.yaml` paths, table and auth schema patterns, authorization rules, lifecycle extensions, rate-limit policies, cron jobs, email templates, and common CLI commands.
+The generated files are a condensed Zonai framework reference: project layout, `zonai.yaml` paths, table and auth schema patterns, authorization rules, lifecycle extensions, rate-limit policies, cron jobs, email templates, common CLI commands, and **live query streams** (`/db/stream*` / `client.db.listen` — do not tell agents to poll).
 
 They are meant to be committed to your repo so every developer (and their AI assistant) gets consistent context about how your Zonai project is structured.
 
 <Info>
-Reference files are generated from the Zonai CLI version you run. Re-run `zonai ai <tool> --force` after upgrading Zonai if you want the sheets to reflect new framework features.
+Reference files are generated from the Zonai CLI version you run. Re-run `zonai ai <tool> --force` after upgrading Zonai if you want the sheets to reflect new framework features (including streaming). Also see the public [llms.txt](/llms.txt) and [Streaming](/operations/streaming) docs.
 </Info>

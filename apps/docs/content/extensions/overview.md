@@ -7,6 +7,10 @@ Extensions are lifecycle hooks that run before and after database mutations and 
 
 Extensions are written in Dart and compiled into the extensions worker.
 
+<Info>
+Mutations that fire extensions also wake open **stream** subscriptions for affected queries. Clients watching with `db.listen` / `/db/stream*` see updates without polling. See [Streaming](/operations/streaming).
+</Info>
+
 ## Creating an Extension
 
 Create `<table>_extensions.dart` in `extensionsPath`. Extend `Extension<T>` and override the hooks you need. Export a `main()` function:

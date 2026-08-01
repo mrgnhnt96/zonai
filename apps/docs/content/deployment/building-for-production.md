@@ -11,6 +11,10 @@ zonai build --flavor prod --release
 
 This creates a `build/` directory containing everything needed to run on a server. No Dart SDK is required on the target machine.
 
+<Info>
+Production bundles include the same **live stream** routes as local serve (`/db/stream*`). Clients should use `zonai_client` `db.listen` in production too — [Streaming](/operations/streaming).
+</Info>
+
 ## What Gets Bundled
 
 ```

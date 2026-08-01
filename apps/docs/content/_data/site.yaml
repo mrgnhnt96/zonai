@@ -1,8 +1,6 @@
-title: Zonai
-titleBase: Zonai
 description: >-
-  A batteries-included Dart backend framework — auth, database, file uploads,
-  cron jobs, and more.
+  A batteries-included Dart backend framework — auth, SQLite, live query
+  streams (db.listen / /db/stream), file uploads, cron jobs, and more.
 favicon: /favicon.png
 image: /images/logo.png
 keywords:
@@ -12,7 +10,12 @@ keywords:
   - BaaS
   - SQLite
   - authentication
+  - streaming
+  - live queries
+  - zonai_client
   - Zonai
+title: Zonai
+titleBase: Zonai
 url: https://mrgnhnt96.github.io/zonai
 social:
   - name: GitHub

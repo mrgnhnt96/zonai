@@ -5,6 +5,10 @@ description: How to define tables with built-in authentication (password, OTP, m
 
 An auth table is a regular table with built-in authentication endpoints. Use `authTable()` instead of `table()`, and extend `AuthTable<T>` instead of `Table<T>`. Mix in one or more auth methods to enable the corresponding sign-in flows.
 
+<Info>
+Auth tables still get normal CRUD **and** live streams (`/db/stream*`). After sign-in, use `client.db.listen` for live data — [Streaming](/operations/streaming).
+</Info>
+
 ## Auth Mixins
 
 | Mixin | Sign-in Method | Docs |

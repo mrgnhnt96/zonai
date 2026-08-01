@@ -7,6 +7,10 @@ Row rules run after the database returns results. They receive the JWT and the a
 
 If `canView` returns `false` for any row in the result set, the entire request returns `403 Forbidden` — no data is returned. The same applies to `canUpdate` and `canDelete`: if the fetched row fails the check, the mutation is aborted and `403` is returned.
 
+<Info>
+`canView` also applies to each emission from `/db/stream` and `/db/stream/list`. Live queries are not a rules bypass. See [Streaming](/operations/streaming).
+</Info>
+
 ## Creating Row Rules
 
 Create `<table>_row_rules.dart` in `rulesPath` and extend `RowRules`:

@@ -5,6 +5,10 @@ description: How to define database tables and columns using Dart schema files.
 
 Schemas define the structure of your database. They are Dart files in `lib/src/schemas/` that describe tables and their columns. When you change a schema file, Zonai generates the SQL migration to keep the database in sync.
 
+<Info>
+Registering a table automatically exposes CRUD **and** live stream endpoints (`/db/stream*`). Clients should use `zonai_client` `db.listen` for live UI — [Streaming](/operations/streaming).
+</Info>
+
 ## The table() Function
 
 `table('table_name', TableClass.new)` registers a table with Zonai. The first argument is the table name as it appears in the database (snake_case, plural). The second is the constructor of the Dart class that defines the columns. The return value is a table reference used in rules, operations, extensions, and rate limits.

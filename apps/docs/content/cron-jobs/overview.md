@@ -7,6 +7,10 @@ Cron jobs are scheduled background tasks that run on a timer, independent of HTT
 
 Use cron jobs for: purging old data, sending periodic digests, flagging stale records, running maintenance tasks.
 
+<Info>
+Cron mutations that change rows will also push updates to any open `/db/stream*` / `db.listen` subscriptions watching those queries. See [Streaming](/operations/streaming).
+</Info>
+
 ## How Jobs Run
 
 The cron worker runs each job on its configured `Schedule`. Jobs run one at a time — if a job is still running when its next scheduled time arrives, that run is skipped (see [Catch-Up Logic](/cron-jobs/catch-up-logic)).

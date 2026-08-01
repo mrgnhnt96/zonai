@@ -51,6 +51,7 @@ void main() {
               SidebarGroup(
                 links: [
                   SidebarLink(text: 'Introduction', href: '/'),
+                  SidebarLink(text: 'Live Queries (Streaming)', href: '/operations/streaming'),
                 ],
               ),
               SidebarGroup(
@@ -64,6 +65,7 @@ void main() {
               SidebarGroup(
                 title: 'Core Concepts',
                 links: [
+                  SidebarLink(text: 'Live Queries (Streaming)', href: '/operations/streaming'),
                   SidebarLink(text: 'How a Request is Processed', href: '/core-concepts/request-pipeline'),
                   SidebarLink(text: 'Workers', href: '/core-concepts/workers'),
                   SidebarLink(text: 'Config Flavors', href: '/core-concepts/config-flavors'),
@@ -97,8 +99,8 @@ void main() {
                 title: 'Operations',
                 links: [
                   SidebarLink(text: 'Overview', href: '/operations/overview'),
-                  SidebarLink(text: 'Default Operations', href: '/operations/default-operations'),
                   SidebarLink(text: 'Streaming (Live Queries)', href: '/operations/streaming'),
+                  SidebarLink(text: 'Default Operations', href: '/operations/default-operations'),
                   SidebarLink(text: 'Auth Operations', href: '/operations/auth-operations'),
                 ],
               ),
@@ -183,6 +185,7 @@ void main() {
                 title: 'Dart Client',
                 links: [
                   SidebarLink(text: 'Overview', href: '/dart-client/overview'),
+                  SidebarLink(text: 'Live Streaming (db.listen)', href: '/operations/streaming'),
                   SidebarLink(text: 'Authentication', href: '/dart-client/authentication'),
                   SidebarLink(text: 'Storage', href: '/dart-client/storage'),
                   SidebarLink(text: 'Database', href: '/dart-client/database'),

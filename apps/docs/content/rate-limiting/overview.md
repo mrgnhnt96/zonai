@@ -7,6 +7,10 @@ Zonai tracks requests per client IP address, per table, per operation. When a cl
 
 Rate limiting runs in the pipeline **after rules pass but before operations execute** — a throttled request consumes no SQL resources.
 
+<Info>
+Stream routes share read policies: `getPolicy` → `/db/stream`, `limitPolicy` → `/db/stream/list`, `countPolicy` → `/db/stream/count`. Long-lived streams still count as requests when they open. See [Streaming](/operations/streaming).
+</Info>
+
 ## Default Policy
 
 If no rate limit file exists for a table, a default policy of **100 requests per minute per IP** applies to all operations.
@@ -36,3 +40,4 @@ By default, Zonai reads the client IP from the TCP connection. Behind a reverse 
 - [Configuring Policies](/rate-limiting/configuring-policies)
 - [Auth Rate Limits](/rate-limiting/auth-rate-limits)
 - [Trusted Proxies](/rate-limiting/trusted-proxies)
+- [Streaming (Live Queries)](/operations/streaming) — stream routes share get/list/count policies

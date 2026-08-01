@@ -27,7 +27,8 @@ Replace the host and port with your server's binding. Defaults are `localhost:80
 
 The spec is generated from your server's route definitions and request/response types. It covers:
 
-- Database CRUD routes (`/db`, `/db/list`, `/db/count`, …)
+- Database CRUD routes (`/db`, `/db/list`, `/db/count`, `/db/many`, …)
+- **Live query streams** (`/db/stream`, `/db/stream/list`, `/db/stream/count`) — see [Streaming](/operations/streaming)
 - Authentication routes (`/auth/sign-up`, `/auth/sign-in`, …)
 - Photo upload and serving (`/img`)
 - Dashboard metrics (`/dashboard/metrics`)
