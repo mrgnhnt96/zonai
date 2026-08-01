@@ -58,7 +58,7 @@ extension _PasswordX on ZonaiDb {
       logger.trace('jwt_create');
 
       step = 'ext_hook';
-      await _extensions.send<NoActionExtensionResponse>(
+      await _runExtension(
         AuthExtensionRequest.onSignIn(table: table, object: user, jwt: jwt),
       );
       logger.trace('ext_hook');
@@ -137,7 +137,7 @@ extension _PasswordX on ZonaiDb {
       logger.trace('jwt_create');
 
       step = 'ext_hook';
-      await _extensions.send<NoActionExtensionResponse>(
+      await _runExtension(
         AuthExtensionRequest.onSignUp(table: table, object: user, jwt: newJwt),
       );
       logger.trace('ext_hook');

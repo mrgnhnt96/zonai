@@ -173,7 +173,7 @@ extension _ExternalIdpX on ZonaiDb {
       throw ExternalIdpProvisioningRejectedException(table: config.authTable);
     }
 
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       AuthExtensionRequest.onExternalAuthFirstSeen(
         table: config.authTable,
         object: claims,

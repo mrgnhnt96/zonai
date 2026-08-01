@@ -225,6 +225,49 @@ extension UtilsX on ZonaiDb {
     return response;
   }
 
+  /// Cached [GetColumnNameRequest] results (including `null` = column absent).
+  Future<String?> _cachedColumnName(String table, ColumnName columnName) async {
+    final key = '$table|${columnName.name}';
+    if (_columnNameCache.containsKey(key)) {
+      return _columnNameCache[key];
+    }
+
+    final response = await _operations.send<ColumnNameResponse>(
+      GetColumnNameRequest(table: table, columnName: columnName),
+    );
+    return _columnNameCache[key] = response.name;
+  }
+
+  /// No-ops when the project has no extension handlers registered.
+  Future<void> _runExtension(ExtensionRequest request) async {
+    if (!_detectProjectExtensions()) {
+      return;
+    }
+    await _extensions.send<NoActionExtensionResponse>(request);
+  }
+
+  bool _detectProjectExtensions() {
+    if (_hasProjectExtensions case final cached?) {
+      return cached;
+    }
+
+    if (InternalDbArtifacts.extensions.isNotEmpty) {
+      return _hasProjectExtensions = true;
+    }
+
+    final dir = fs.directory(settings.extensionsPath);
+    if (!dir.existsSync()) {
+      return _hasProjectExtensions = false;
+    }
+
+    for (final entity in dir.listSync(recursive: true)) {
+      if (entity is File && entity.path.endsWith('.dart')) {
+        return _hasProjectExtensions = true;
+      }
+    }
+    return _hasProjectExtensions = false;
+  }
+
   String? _operationCacheKey(OperationRequest request) {
     // Only cache pure SQL-build reads — mutation SQL often embeds row values.
     return switch (request) {

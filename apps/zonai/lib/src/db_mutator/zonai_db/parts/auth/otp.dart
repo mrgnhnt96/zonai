@@ -185,7 +185,7 @@ extension _OtpX on ZonaiDb {
 
     final (newJwt, token) = await _createJwt(table, user);
 
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       AuthExtensionRequest.onSignUp(table: table, object: user, jwt: newJwt),
     );
 

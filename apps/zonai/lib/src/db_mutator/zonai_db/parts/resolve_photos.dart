@@ -2,11 +2,8 @@ part of zonai_db;
 
 extension _ResolvePhotosX on ZonaiDb {
   Future<List<String>> _photoColumnsFor(String table) async {
-    final response = await _operations.send<SanitizeOperationResponse>(
-      SanitizeOperationRequest(table: table, objects: const [{}]),
-    );
-
-    return response.photoColumns;
+    final meta = await _sanitizeMetaFor(table);
+    return meta.photoColumns;
   }
 
   /// checks whether the table has photo columns

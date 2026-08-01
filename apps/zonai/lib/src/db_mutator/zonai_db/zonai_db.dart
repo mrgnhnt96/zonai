@@ -120,6 +120,12 @@ class ZonaiDb {
   final Map<String, PerformOperationResponse> _operationCache = {};
   final Map<String, ({List<String> secretColumns, List<String> photoColumns})>
   _sanitizeMetaCache = {};
+  final Map<String, String?> _columnNameCache = {};
+
+  /// Lazily detected: when the project has no extension Dart files (and no
+  /// internal extensions), create/update/delete skip the extensions worker
+  /// entirely.
+  bool? _hasProjectExtensions;
 
   /// Serializes mutating work so concurrent creates don't pile into
   /// SQLite's 5s busy_timeout. Excess waiters fail fast with 503.
@@ -155,6 +161,8 @@ class ZonaiDb {
     _skipRowChecks.clear();
     _operationCache.clear();
     _sanitizeMetaCache.clear();
+    _columnNameCache.clear();
+    _hasProjectExtensions = null;
     for (final verifier in _jwksVerifiers.values) {
       verifier.dispose();
     }

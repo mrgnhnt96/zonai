@@ -154,7 +154,7 @@ extension _PhotoX on ZonaiDb {
         await db.delete(from: photos).where(photos.id.equals(row.id));
       }
 
-      await _extensions.send<NoActionExtensionResponse>(
+      await _runExtension(
         ErrorExtensionRequest.create(
           table: table.name,
           error: e.toString(),
@@ -237,7 +237,7 @@ extension _PhotoX on ZonaiDb {
     PhotoEntry? updatedRow;
 
     try {
-      await _extensions.send<NoActionExtensionResponse>(
+      await _runExtension(
         BeforeUpdateExtensionRequest(
           table: table.name,
           objects: [table.mapOut(photo)],
@@ -301,7 +301,7 @@ extension _PhotoX on ZonaiDb {
         await newFile.delete();
       }
 
-      await _extensions.send<NoActionExtensionResponse>(
+      await _runExtension(
         ErrorExtensionRequest.update(
           table: table.name,
           error: e.toString(),
@@ -346,7 +346,7 @@ extension _PhotoX on ZonaiDb {
       await _deletePhotoEntry(photo, jwt: jwt);
     } catch (e, stack) {
       logger.error('$e', 'Failed to delete photo', stack);
-      await _extensions.send<NoActionExtensionResponse>(
+      await _runExtension(
         ErrorExtensionRequest.delete(
           table: table.name,
           error: e.toString(),

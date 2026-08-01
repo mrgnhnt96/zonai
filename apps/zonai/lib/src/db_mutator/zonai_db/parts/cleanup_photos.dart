@@ -95,7 +95,7 @@ extension _CleanupPhotosX on ZonaiDb {
 
     final object = table.mapOut(photo);
 
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       DeleteExtensionRequest.before(
         table: table.name,
         objects: [object],

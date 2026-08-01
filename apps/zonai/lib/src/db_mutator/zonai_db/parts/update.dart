@@ -54,7 +54,7 @@ extension _UpdateX on ZonaiDb {
         extra: {'rows': updatedResult?.rows.length ?? 0},
       );
       if (updatedError != null || updatedResult == null) {
-        await _extensions.send<NoActionExtensionResponse>(
+        await _runExtension(
           ErrorExtensionRequest.update(
             table: table,
             error: updatedError?.toString() ?? 'Unknown error',
@@ -104,18 +104,8 @@ extension _UpdateX on ZonaiDb {
     String table,
     List<Update> updates,
   ) async {
-    String? passwordColumnName;
-    try {
-      final response = await _operations.send<ColumnNameResponse>(
-        GetColumnNameRequest(table: table, columnName: .password),
-      );
-      passwordColumnName = response.name;
-    } on MessageHandlerFailedException catch (error) {
-      if (error.cause?.contains('No password column on table') case true) {
-        return (updates, false);
-      }
-      rethrow;
-    } on StateError {
+    final passwordColumnName = await _cachedColumnName(table, .password);
+    if (passwordColumnName == null) {
       return (updates, false);
     }
 
@@ -132,8 +122,7 @@ extension _UpdateX on ZonaiDb {
             throw InvalidPasswordUpdateException(table: table);
           }
         case ObjectUpdate(:final object):
-          if (passwordColumnName != null &&
-              object.containsKey(passwordColumnName)) {
+          if (object.containsKey(passwordColumnName)) {
             if (object[passwordColumnName] case final String value) {
               final hashed = await _hashPassword.hash(password: value);
               object[passwordColumnName] = hashed;
@@ -157,7 +146,7 @@ extension _UpdateX on ZonaiDb {
     required List<Map<String, Object?>> before,
     required List<Map<String, Object?>> after,
   }) async {
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       AfterUpdateExtensionRequest(
         table: table,
         before: before,
@@ -220,7 +209,7 @@ extension _UpdateX on ZonaiDb {
 
     await _requirePhotoReferencesFromUpdates(table, payload.updates);
 
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       BeforeUpdateExtensionRequest(
         table: table,
         objects: sanitizedBefore,

@@ -83,7 +83,7 @@ extension _ResetPasswordX on ZonaiDb {
       return;
     }
 
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       AuthExtensionRequest.onPasswordReset(
         table: table,
         object: user,

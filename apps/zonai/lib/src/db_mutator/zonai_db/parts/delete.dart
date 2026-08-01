@@ -33,7 +33,7 @@ extension _DeleteX on ZonaiDb {
       ));
       logger.trace('sql_execute_delete');
       if (deleteError != null || deleteResult == null) {
-        await _extensions.send<NoActionExtensionResponse>(
+        await _runExtension(
           ErrorExtensionRequest.delete(
             table: table,
             error: deleteError?.toString() ?? 'Unknown error',
@@ -73,7 +73,7 @@ extension _DeleteX on ZonaiDb {
     Jwt? jwt, {
     required List<Map<String, Object?>> objects,
   }) async {
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       DeleteExtensionRequest.afterSuccess(
         table: table,
         objects: objects,
@@ -139,7 +139,7 @@ extension _DeleteX on ZonaiDb {
 
     final sanitized = await _sanitizeRows(table, rows, jwt: jwt);
 
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       DeleteExtensionRequest.before(table: table, objects: sanitized, jwt: jwt),
     );
     logger.trace('ext_before');

@@ -27,7 +27,7 @@ extension _CreateX on ZonaiDb {
       ));
       logger.trace('sql_execute');
       if (error != null || result == null) {
-        await _extensions.send<NoActionExtensionResponse>(
+        await _runExtension(
           ErrorExtensionRequest.create(
             table: table,
             error: error?.toString() ?? 'Unknown error',
@@ -68,7 +68,7 @@ extension _CreateX on ZonaiDb {
     Jwt? jwt, {
     required Map<String, Object?> object,
   }) async {
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       CreateExtensionRequest.afterSuccess(
         table: table,
         object: object,
@@ -88,7 +88,7 @@ extension _CreateX on ZonaiDb {
     await _requirePhotoReferences(table, payload.object);
     logger.trace('photo_refs');
 
-    await _extensions.send<NoActionExtensionResponse>(
+    await _runExtension(
       CreateExtensionRequest.before(
         table: table,
         object: payload.object,
@@ -117,21 +117,7 @@ extension _CreateX on ZonaiDb {
     String table,
     Map<String, dynamic> object,
   ) async {
-    String? passwordColumnName;
-    try {
-      final response = await _operations.send<ColumnNameResponse>(
-        GetColumnNameRequest(table: table, columnName: .password),
-      );
-      passwordColumnName = response.name;
-    } on MessageHandlerFailedException catch (error) {
-      if (error.cause?.contains('No password column on table') case true) {
-        return false;
-      }
-      rethrow;
-    } on StateError {
-      return false;
-    }
-
+    final passwordColumnName = await _cachedColumnName(table, .password);
     if (passwordColumnName == null ||
         !object.containsKey(passwordColumnName)) {
       return false;
@@ -178,7 +164,7 @@ extension _CreateX on ZonaiDb {
       ));
       logger.trace('sql_execute');
       if (error != null || result == null) {
-        await _extensions.send<NoActionExtensionResponse>(
+        await _runExtension(
           ErrorExtensionRequest.create(
             table: table,
             error: error?.toString() ?? 'Unknown error',
@@ -234,7 +220,7 @@ extension _CreateX on ZonaiDb {
     logger.trace('photo_refs');
 
     for (final object in payload.objects) {
-      await _extensions.send<NoActionExtensionResponse>(
+      await _runExtension(
         CreateExtensionRequest.before(table: table, object: object, jwt: jwt),
       );
     }

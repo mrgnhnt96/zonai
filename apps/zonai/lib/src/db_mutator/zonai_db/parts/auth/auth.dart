@@ -126,7 +126,7 @@ extension _AuthX on ZonaiDb {
     final (newJwt, token) = await _createJwt(table, user);
     logger.trace('jwt_create');
 
-    await _extensions.send<NoActionExtensionResponse>(switch (extensionStep) {
+    await _runExtension(switch (extensionStep) {
       .onSignIn => AuthExtensionRequest.onSignIn(
         table: table,
         object: user,
