@@ -10,6 +10,8 @@ class OperationsMailman extends Mailman<OperationRequest, OperationResponse> {
     : super(
         debugName: debug,
         executablePath: settings.compiledOperationsPath,
+        snapshotPath: settings.compiledOperationsSnapshotPath,
+        sourceEntryPath: settings.generatedOperationsEntryPath,
         fromJson: OperationResponse.fromJson,
       );
 

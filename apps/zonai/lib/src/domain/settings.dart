@@ -183,6 +183,10 @@ class Settings {
       _normalize([buildExecutableDirectory, 'db_rules.exe']);
   String get buildOperationsPath =>
       _normalize([buildExecutableDirectory, 'db_operations.exe']);
+  String get buildRulesSnapshotPath =>
+      _normalize([buildExecutableDirectory, 'db_rules.aot']);
+  String get buildOperationsSnapshotPath =>
+      _normalize([buildExecutableDirectory, 'db_operations.aot']);
   String get buildConfigPath =>
       _normalize([buildExecutableDirectory, 'db_config.exe']);
   String get buildRateLimitPath =>
@@ -207,12 +211,26 @@ class Settings {
       _normalize([compiledExecutableDirectory, 'db_rules.exe']);
   String get compiledOperationsPath =>
       _normalize([compiledExecutableDirectory, 'db_operations.exe']);
+  String get compiledRulesSnapshotPath =>
+      _normalize([compiledExecutableDirectory, 'db_rules.aot']);
+  String get compiledOperationsSnapshotPath =>
+      _normalize([compiledExecutableDirectory, 'db_operations.aot']);
   String get compiledConfigPath =>
       _normalize([compiledExecutableDirectory, 'db_config.exe']);
   String get compiledRateLimitPath =>
       _normalize([compiledExecutableDirectory, 'db_rate_limit.exe']);
   String get compiledCronsPath =>
       _normalize([compiledExecutableDirectory, 'db_crons.exe']);
+
+  /// Generated Dart entry for workers (ops/rules isolate spawn under JIT).
+  String get generatedOperationsEntryPath =>
+      _normalize(['.dart_tool', 'zonai', 'db_operations.dart']);
+  String get generatedRulesEntryPath =>
+      _normalize(['.dart_tool', 'zonai', 'db_rules.dart']);
+  String get generatedProjectMainPath =>
+      _normalize(['.dart_tool', 'zonai', 'project_main.dart']);
+  String get compiledProjectBinaryPath =>
+      _normalize([defaultZonaiDirectory, 'zonai']);
 
   String get zonaiSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai.sqlite'));

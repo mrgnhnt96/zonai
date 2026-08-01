@@ -154,8 +154,12 @@ class OperationGenerator {
     schemaEntries,
   ) {
     final b = StringBuffer();
+    b.writeln("import 'dart:isolate';");
     b.writeln(
       "import 'package:zonai_schema/src/handlers/operations/db_operations.dart' as db_operations;",
+    );
+    b.writeln(
+      "import 'package:zonai_schema/src/handlers/messages/message_io.dart';",
     );
     b.writeln("import 'package:zonai_schema/zonai_schema.dart';");
     for (final e in entries) {
@@ -171,8 +175,17 @@ class OperationGenerator {
     }
 
     b.writeln();
-    b.writeln('void main() {');
-    b.writeln('  db_operations.DbOperations(');
+    b.writeln('void main(List<String> args, [SendPort? host]) {');
+    b.writeln('  final worker = createDbOperations();');
+    b.writeln('  if (host != null) {');
+    b.writeln('    worker.start(io: SendPortMessageIo(host));');
+    b.writeln('  } else {');
+    b.writeln('    worker.start();');
+    b.writeln('  }');
+    b.writeln('}');
+    b.writeln();
+    b.writeln('db_operations.DbOperations createDbOperations() {');
+    b.writeln('  return db_operations.DbOperations(');
     b.writeln('    operations: [');
     for (final e in entries) {
       b.writeln(
@@ -185,7 +198,7 @@ class OperationGenerator {
       b.writeln('      ${e.alias}.${e.getter},');
     }
     b.writeln('    ],');
-    b.writeln('  ).start();');
+    b.writeln('  );');
     b.writeln('}');
     b.writeln();
     b.writeln(

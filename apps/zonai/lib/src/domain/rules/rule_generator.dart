@@ -81,16 +81,29 @@ class RuleGenerator {
 
   String _dbRulesDartSource(List<({String alias, String importPath})> entries) {
     final b = StringBuffer();
+    b.writeln("import 'dart:isolate';");
     b.writeln(
       "import 'package:zonai_schema/src/handlers/rules/db_rules.dart' as db_rules;",
+    );
+    b.writeln(
+      "import 'package:zonai_schema/src/handlers/messages/message_io.dart';",
     );
     b.writeln("import 'package:zonai_schema/zonai_schema.dart';");
     for (final e in entries) {
       b.writeln("import '${e.importPath}' as ${e.alias};");
     }
     b.writeln();
-    b.writeln('void main() {');
-    b.writeln('  db_rules.DbRules(');
+    b.writeln('void main(List<String> args, [SendPort? host]) {');
+    b.writeln('  final worker = createDbRules();');
+    b.writeln('  if (host != null) {');
+    b.writeln('    worker.start(io: SendPortMessageIo(host));');
+    b.writeln('  } else {');
+    b.writeln('    worker.start();');
+    b.writeln('  }');
+    b.writeln('}');
+    b.writeln();
+    b.writeln('db_rules.DbRules createDbRules() {');
+    b.writeln('  return db_rules.DbRules(');
     b.writeln('    rules: [');
     for (final e in entries) {
       b.writeln(
@@ -98,7 +111,7 @@ class RuleGenerator {
       );
     }
     b.writeln('    ],');
-    b.writeln('  ).start();');
+    b.writeln('  );');
     b.writeln('}');
     b.writeln();
     b.writeln('Rules loadRule(String sourcePath, Rules Function() load) {');

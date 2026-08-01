@@ -8,6 +8,8 @@ class RulesMailman extends Mailman<RuleRequest, RuleResponse> {
     : super(
         debugName: debug,
         executablePath: settings.compiledRulesPath,
+        snapshotPath: settings.compiledRulesSnapshotPath,
+        sourceEntryPath: settings.generatedRulesEntryPath,
         fromJson: RuleResponse.fromJson,
       );
 

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
+import 'dart:isolate';
 import 'dart:math' show min;
 
 import 'package:scoped_deps/scoped_deps.dart';
+import 'package:zonai/src/db_mutator/worker_transport.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/deps/courier.dart';
 import 'package:zonai/src/messengers/config_mailman.dart';
@@ -15,6 +17,8 @@ import 'package:zonai/src/messengers/rules_mailman.dart';
 import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
+import 'package:zonai_schema/src/handlers/messages/message_io.dart'
+    show coerceStringKeyedMap;
 
 import '../db_mutator/executable_unavailable_exception.dart';
 import '../db_mutator/payloads/payloads.dart';
@@ -48,6 +52,8 @@ class Mailman<S extends Request, R extends Response> {
     required this.debugName,
     required this.executablePath,
     required R Function(Map<String, dynamic>) fromJson,
+    this.snapshotPath,
+    this.sourceEntryPath,
     // Subprocess stdout preserves frame order (mutation RPCs before the reply).
     // Sync broadcast avoids delayed stream delivery; mutation [Request]s are
     // queued in [_listenToMessages] so enqueue cannot fall behind the next
@@ -74,8 +80,19 @@ class Mailman<S extends Request, R extends Response> {
   final R Function(Map<String, dynamic>) _fromJson;
   final String executablePath;
 
+  /// Optional AOT snapshot for [Isolate.spawnUri] (ops/rules).
+  final String? snapshotPath;
+
+  /// Optional generated `.dart` entry for JIT isolate spawn.
+  final String? sourceEntryPath;
+
   io.Process? _process;
-  Future<io.Process?>? _starting;
+  Isolate? _isolate;
+  SendPort? _isolatePeer;
+  ReceivePort? _isolateLocal;
+  StreamSubscription<dynamic>? _isolateSubscription;
+  var _isolateHandshakeDone = false;
+  Future<void>? _starting;
   final StringBuffer _stderrBuffer = StringBuffer();
   final IpcFrameBuffer _stdoutFrames = IpcFrameBuffer();
   final StreamController<Request> _request;
@@ -90,8 +107,8 @@ class Mailman<S extends Request, R extends Response> {
 
   Future<void>? _restartFuture;
 
-  /// Serializes [stdin] writes so concurrent [_send] calls cannot interleave
-  /// framed MessagePack payloads on the worker subprocess.
+  /// Serializes outbound writes so concurrent [_send] calls cannot interleave
+  /// framed MessagePack / SendPort payloads.
   Future<void> _sendChain = Future.value();
 
   Future<void> dispose() async {
@@ -267,9 +284,9 @@ class Mailman<S extends Request, R extends Response> {
       );
     }
     try {
-      _process?.stdin.add(IpcCodec.encode(response.toJson()));
+      _sendOutbound(response.toJson());
     } on Object catch (e, stack) {
-      logger.error('$_prefix: Failed to write to child stdin', e, stack);
+      logger.error('$_prefix: Failed to write to worker', e, stack);
     }
   }
 
@@ -337,8 +354,29 @@ class Mailman<S extends Request, R extends Response> {
     completer.complete((response, mutations));
   }
 
-  bool get isRunning => _process != null;
-  bool get hasExecutable => fs.file(executablePath).existsSync();
+  bool get isRunning => _process != null || _isolate != null;
+  bool get hasExecutable =>
+      fs.file(executablePath).existsSync() || _hasIsolateAsset;
+
+  bool get _hasIsolateAsset {
+    if (snapshotPath != null && fs.file(snapshotPath!).existsSync()) {
+      return true;
+    }
+    if (isRunningOnDartVm &&
+        sourceEntryPath != null &&
+        fs.file(sourceEntryPath!).existsSync()) {
+      return true;
+    }
+    return false;
+  }
+
+  void _sendOutbound(Map<String, dynamic> message) {
+    if (_isolatePeer case final peer?) {
+      peer.send(message);
+      return;
+    }
+    _process?.stdin.add(IpcCodec.encode(message));
+  }
 
   Future<Response> _fetch(GetRecordRequest request) async {
     try {
@@ -390,25 +428,40 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
-  Future<io.Process?> _start() async {
-    if (_process case final process?) {
-      return process;
-    }
+  Future<void> _start() async {
+    if (isRunning) return;
 
     if (!hasExecutable) {
-      return null;
+      return;
     }
 
     return _starting ??= _startOnce().whenComplete(() => _starting = null);
   }
 
-  Future<io.Process?> _startOnce() async {
-    if (_process case final process?) {
-      return process;
-    }
+  Future<void> _startOnce() async {
+    if (isRunning) return;
 
     if (!hasExecutable) {
-      return null;
+      return;
+    }
+
+    final mode = workerTransportModeFromEnv();
+    if (mode != WorkerTransportMode.process) {
+      final started = await _tryStartIsolate();
+      if (started) {
+        logger.debug('Started isolate worker', prefix: _prefix);
+        return;
+      }
+      if (mode == WorkerTransportMode.isolate) {
+        logger.warn(
+          '$_prefix: Isolate transport requested but failed; '
+          'falling back to process',
+        );
+      }
+    }
+
+    if (!fs.file(executablePath).existsSync()) {
+      return;
     }
 
     logger.debug('Starting | $executablePath', prefix: _prefix);
@@ -455,8 +508,89 @@ class Mailman<S extends Request, R extends Response> {
     );
 
     logger.debug('Started', prefix: _prefix);
+  }
 
-    return p;
+  Future<bool> _tryStartIsolate() async {
+    Uri? entry;
+    Uri? packageConfig;
+
+    if (isRunningOnDartVm &&
+        sourceEntryPath != null &&
+        fs.file(sourceEntryPath!).existsSync()) {
+      entry = Uri.file(fs.file(sourceEntryPath!).absolute.path);
+      final pkg = fs.file('.dart_tool/package_config.json');
+      if (pkg.existsSync()) {
+        packageConfig = Uri.file(pkg.absolute.path);
+      }
+    } else if (snapshotPath != null && fs.file(snapshotPath!).existsSync()) {
+      entry = Uri.file(fs.file(snapshotPath!).absolute.path);
+    } else {
+      return false;
+    }
+
+    final local = ReceivePort();
+    final errors = ReceivePort();
+    try {
+      _isolateHandshakeDone = false;
+      _isolateLocal = local;
+      _isolateSubscription = local.listen(_onIsolateMessage, onError: _onStreamError);
+      errors.listen((error) {
+        logger.error('$_prefix: Isolate error', error);
+      });
+
+      _isolate = await Isolate.spawnUri(
+        entry,
+        const [],
+        local.sendPort,
+        onError: errors.sendPort,
+        packageConfig: packageConfig,
+      );
+
+      // Wait for worker to send its SendPort (see SendPortMessageIo).
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!_isolateHandshakeDone) {
+        if (DateTime.now().isAfter(deadline)) {
+          throw TimeoutException('Isolate worker handshake timed out');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      return _isolatePeer != null;
+    } catch (e, stack) {
+      logger.debug('Isolate spawn failed: $e', prefix: _prefix);
+      logger.debug('$stack', prefix: _prefix);
+      await _tearDownIsolate();
+      return false;
+    } finally {
+      errors.close();
+    }
+  }
+
+  void _onIsolateMessage(dynamic raw) {
+    if (!_isolateHandshakeDone) {
+      if (raw is SendPort) {
+        _isolatePeer = raw;
+        _isolateHandshakeDone = true;
+      }
+      return;
+    }
+    if (raw is! Map) {
+      logger.error(
+        '$_prefix: Isolate message was not a Map (${raw.runtimeType})',
+      );
+      return;
+    }
+    _listenToMessages(coerceStringKeyedMap(raw));
+  }
+
+  Future<void> _tearDownIsolate() async {
+    await _isolateSubscription?.cancel();
+    _isolateSubscription = null;
+    _isolateLocal?.close();
+    _isolateLocal = null;
+    _isolate?.kill(priority: Isolate.immediate);
+    _isolate = null;
+    _isolatePeer = null;
+    _isolateHandshakeDone = false;
   }
 
   void _onStdoutChunk(List<int> chunk) {
@@ -671,8 +805,8 @@ class Mailman<S extends Request, R extends Response> {
   ) async {
     await _ensureRestartedIfRequested();
 
-    final process = await _start();
-    if (process == null) {
+    await _start();
+    if (!isRunning) {
       if (hasExecutable) {
         logger.debug('Skipping send of request: $request', prefix: _prefix);
       }
@@ -682,7 +816,7 @@ class Mailman<S extends Request, R extends Response> {
     final pendingResponse = Completer<(Response, List<MutationRequest>)>();
     _pendingResponses[request.id] = pendingResponse;
 
-    process.stdin.add(IpcCodec.encode(request.toJson()));
+    _sendOutbound(request.toJson());
     return pendingResponse;
   }
 
@@ -757,6 +891,11 @@ class Mailman<S extends Request, R extends Response> {
       process.kill();
       _process = null;
       _stdoutFrames.clear();
+    }
+
+    if (_isolate != null) {
+      logger.debug('Killing isolate', prefix: _prefix);
+      await _tearDownIsolate();
     }
 
     _pendingMutations.clear();
