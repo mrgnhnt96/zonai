@@ -45,6 +45,17 @@ class Versions {
       return null;
     }
 
+    // Same escape hatch as [checkForUpdate] — CI/stress/scripts pass
+    // `--no-version-check` when the pinned project version intentionally
+    // differs from the CLI under test (e.g. local unreleased builds).
+    if (args['no-version-check'] == true || args['version-check'] == false) {
+      logger.warn(
+        'Version mismatch ignored (--no-version-check): '
+        'project=${settings.version} cli=$kVersion',
+      );
+      return null;
+    }
+
     logger.error(
       'Version mismatch: $Settings.version (${settings.version}) != $kVersion',
     );
