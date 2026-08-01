@@ -6,24 +6,80 @@ sealed class Where {
   const Where();
 
   factory Where.fromJson(Map json) {
-    return switch (json['type']) {
-      Eq._type => Eq.fromJson(json),
-      Null._type => Null.fromJson(json),
-      NotNull._type => NotNull.fromJson(json),
-      Gt._type => Gt.fromJson(json),
-      Gte._type => Gte.fromJson(json),
-      Lt._type => Lt.fromJson(json),
-      Lte._type => Lte.fromJson(json),
-      In._type => In.fromJson(json),
-      NotIn._type => NotIn.fromJson(json),
-      And._type => And.fromJson(json),
-      Or._type => Or.fromJson(json),
-      Contains._type => Contains.fromJson(json),
-      NotContains._type => NotContains.fromJson(json),
-      StartsWith._type => StartsWith.fromJson(json),
-      EndsWith._type => EndsWith.fromJson(json),
+    // Canonical wire form: { "type": "eq", "column": "...", "value": ... }
+    if (json.containsKey('type')) {
+      return switch (json['type']) {
+        Eq._type => Eq.fromJson(json),
+        Null._type => Null.fromJson(json),
+        NotNull._type => NotNull.fromJson(json),
+        Gt._type => Gt.fromJson(json),
+        Gte._type => Gte.fromJson(json),
+        Lt._type => Lt.fromJson(json),
+        Lte._type => Lte.fromJson(json),
+        In._type => In.fromJson(json),
+        NotIn._type => NotIn.fromJson(json),
+        And._type => And.fromJson(json),
+        Or._type => Or.fromJson(json),
+        Contains._type => Contains.fromJson(json),
+        NotContains._type => NotContains.fromJson(json),
+        StartsWith._type => StartsWith.fromJson(json),
+        EndsWith._type => EndsWith.fromJson(json),
+        _ => throw ArgumentError.value(
+          json['type'],
+          'type',
+          'Invalid where type',
+        ),
+      };
+    }
+
+    // Shorthand: { "column": { "eq": value } } (used in docs / curl examples).
+    if (json.length == 1) {
+      final entry = json.entries.single;
+      final op = entry.value;
+      if (op is Map) {
+        return _fromShorthand(entry.key.toString(), Map<Object?, Object?>.from(op));
+      }
+    }
+
+    throw ArgumentError.value(
+      json,
+      'where',
+      'Expected {type,column,...} or shorthand {column: {op: value}}',
+    );
+  }
+
+  static Where _fromShorthand(String column, Map<Object?, Object?> op) {
+    if (op.length != 1) {
+      throw ArgumentError.value(
+        op,
+        'where',
+        'Shorthand where ops must have exactly one operator',
+      );
+    }
+    final MapEntry(key: rawOp, value: value) = op.entries.single;
+    final operator = rawOp.toString();
+    return switch (operator) {
+      'eq' => Eq(column, value as Object),
+      'gt' => Gt(column, value as Object),
+      'gte' => Gte(column, value as Object),
+      'lt' => Lt(column, value as Object),
+      'lte' => Lte(column, value as Object),
+      'in' => In(column, switch (value) {
+        final List list => [for (final v in list) v as Object],
+        _ => throw ArgumentError.value(value, 'in', 'Expected a list'),
+      }),
+      'not_in' => NotIn(column, switch (value) {
+        final List list => [for (final v in list) v as Object],
+        _ => throw ArgumentError.value(value, 'not_in', 'Expected a list'),
+      }),
+      'contains' => Contains(column, value as Object),
+      'not_contains' => NotContains(column, value as Object),
+      'starts_with' => StartsWith(column, value as Object),
+      'ends_with' => EndsWith(column, value as Object),
+      'is_null' || 'null' => Null(column),
+      'not_null' => NotNull(column),
       _ => throw ArgumentError.value(
-        json['type'],
+        operator,
         'type',
         'Invalid where type',
       ),

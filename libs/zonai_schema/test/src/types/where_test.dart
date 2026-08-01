@@ -12,6 +12,32 @@ void main() {
   }
 
   group(Where, () {
+    test('shorthand {column: {eq: value}} parses', () {
+      final where = Where.fromJson({
+        'id': {'eq': 'tk_abc123'},
+      });
+      expect(where, isA<Eq>());
+      expect((where as Eq).column, 'id');
+      expect(where.value, 'tk_abc123');
+    });
+
+    test('shorthand {column: {eq: bool}} parses', () {
+      final where = Where.fromJson({
+        'isComplete': {'eq': false},
+      });
+      expect(where, isA<Eq>());
+      expect((where as Eq).value, isFalse);
+    });
+
+    test('shorthand rejects unknown ops', () {
+      expect(
+        () => Where.fromJson({
+          'id': {'nope': 'x'},
+        }),
+        throwsArgumentError,
+      );
+    });
+
     test('Eq round-trips', () {
       expectRoundTrip(const Eq('col', 'x'));
       expectRoundTrip(const Eq('n', 42));
