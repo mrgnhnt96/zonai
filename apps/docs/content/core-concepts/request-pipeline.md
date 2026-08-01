@@ -5,7 +5,7 @@ description: The ordered pipeline every HTTP request passes through in Zonai.
 
 Every HTTP request in Zonai follows the same fixed, ordered pipeline. Understanding this pipeline is the key to understanding how authorization, throttling, business logic, and side effects all interact.
 
-```
+```text
 HTTP Request
      ↓
   1. Rate Limit        — throttling (returns 429 if over limit)

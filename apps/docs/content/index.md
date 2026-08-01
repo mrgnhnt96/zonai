@@ -27,7 +27,7 @@ It is designed for Dart and Flutter developers who want to build a production-qu
 
 Your Dart code compiles into a **project-linked server binary** (operations and rules in-process) plus **workers** for config, extensions, rate limits, and crons. Each HTTP request passes through an ordered pipeline:
 
-```
+```text
 HTTP Request
   → Rate Limit (worker)
   → Rules (in-process)

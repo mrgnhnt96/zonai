@@ -116,7 +116,7 @@ SMTP_PASS=replace-with-api-key
 
 ## .gitignore
 
-```
+```text
 .env
 .env.*
 ```
