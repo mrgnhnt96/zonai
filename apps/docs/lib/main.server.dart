@@ -98,7 +98,7 @@ void main() {
                 links: [
                   SidebarLink(text: 'Overview', href: '/operations/overview'),
                   SidebarLink(text: 'Default Operations', href: '/operations/default-operations'),
-                  SidebarLink(text: 'Custom Operations', href: '/operations/custom-operations'),
+                  SidebarLink(text: 'Streaming (Live Queries)', href: '/operations/streaming'),
                   SidebarLink(text: 'Auth Operations', href: '/operations/auth-operations'),
                 ],
               ),

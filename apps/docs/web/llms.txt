@@ -10,10 +10,12 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 
 - **Package split**: `zonai_schema` (app dependency — tables, rules, ops types) + `zonai` (CLI / server, usually `dev_dependencies`). Optional client: `zonai_client`.
 - **Runtime**: `zonai serve` / `zonai build` produce a **project-linked binary** with operations + rules **in-process**. Workers under `.zonai/executables/` handle config, extensions, rate limits, and crons (IPC via MessagePack). Hot path: Rate limit → Rules → Operations → SQLite → Extensions → Response.
-- **CRUD shape**: table name is in the JSON body (or `?body=` for GET), **never** in the URL path. Endpoints: `GET/POST/PATCH/DELETE /db`, `/db/list`, `/db/count`, `/db/many`.
+- **CRUD shape**: table name is in the JSON body (or `?body=` for GET), **never** in the URL path. Endpoints: `GET/POST/PATCH/DELETE /db`, `/db/list`, `/db/count`, `/db/many`, plus live **`/db/stream`**, `/db/stream/list`, `/db/stream/count`.
+- **Live queries (do not poll)**: long-lived HTTP streams push updates when SQLite results change. Client API: `client.db.listen.one|list|count` with `StreamBody` / `StreamListBody` / `StreamCountBody`. Search docs for **stream** / **listen** — not "realtime", "socket", "SSE", or "EventSource".
 - **Where filters**: docs/curl shorthand `{ "id": { "eq": "…" } }` is accepted. Canonical wire form is `{ "type": "eq", "column": "id", "value": "…" }`. Both work.
 - **Auth**: `Authorization: Bearer <jwt>`. Bodies include `"table": "users"` (or whatever auth table). Mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`, optional `AsAdmin`.
-- **Rules default deny**: unoverridden table/row/auth checks return false → HTTP 403 before SQL.
+- **Client**: prefer shipping `zonai_client` (auth, admin auth, db + listen, photos, email) over hand-rolled `package:http`.
+- **Rules default deny**: unoverridden table/row/auth checks return false → HTTP 403 before SQL. Streams reuse `canView` / `canList` / `canCount`.
 - **Dev vs prod**: `zonai dev` / `zonai serve` for local; `zonai build` ships `build/zonai` (asserts off). Restart `serve` after editing ops/rules so the linked entry reloads; workers hot-recompile on their own.
 - **Migrations**: `zonai db migrate generate` then `apply` (or auto-migrate on serve). Commit `.zonai/migrations/`. Do not commit `.zonai/data/` or executables.
 - **Optional runtime env**: `ZONAI_FORCE_WORKERS`, `ZONAI_WORKER_TRANSPORT` (`auto`|`process`|`isolate`), `ZONAI_WORKER_POOL_SIZE`, `ZONAI_HTTP_WORKERS` (keep `1` with one SQLite file).
@@ -53,6 +55,7 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 
 - [Operations Overview](https://mrgnhnt96.github.io/zonai/operations/overview): Default vs custom operations; when to override SQL.
 - [Default Operations](https://mrgnhnt96.github.io/zonai/operations/default-operations): CRUD endpoints, request/response JSON, where/order_by shapes.
+- [Streaming (Live Queries)](https://mrgnhnt96.github.io/zonai/operations/streaming): `/db/stream*` and `client.db.listen` — push updates, do not poll.
 - [Auth Operations](https://mrgnhnt96.github.io/zonai/operations/auth-operations): JWT claims, reset/OTP/magic-link URL paths.
 
 ## Rules (authorization)
@@ -103,9 +106,9 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 
 ## Dart client
 
-- [Client Overview](https://mrgnhnt96.github.io/zonai/dart-client/overview): Generated client install and `baseUrl`.
+- [Client Overview](https://mrgnhnt96.github.io/zonai/dart-client/overview): Generated client install and `baseUrl` — prefer over hand-rolled HTTP.
 - [Authentication](https://mrgnhnt96.github.io/zonai/dart-client/authentication)
-- [Database](https://mrgnhnt96.github.io/zonai/dart-client/database)
+- [Database](https://mrgnhnt96.github.io/zonai/dart-client/database): CRUD + **`db.listen` live streams**.
 - [Photos](https://mrgnhnt96.github.io/zonai/dart-client/photos)
 - [Email](https://mrgnhnt96.github.io/zonai/dart-client/email)
 - [Storage](https://mrgnhnt96.github.io/zonai/dart-client/storage)
@@ -144,6 +147,12 @@ List with where (shorthand):
 
 ```
 GET /db/list?body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}
+```
+
+Live stream one row (keep connection open — do not poll):
+
+```
+GET /db/stream?body={"table":"tasks","where":{"id":{"eq":"tk_abc123"}},"expand":[]}
 ```
 
 Password sign-in:

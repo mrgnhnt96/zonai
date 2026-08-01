@@ -7,6 +7,11 @@ description: The generated Dart client for the Zonai server — installation, qu
 It handles token storage, automatic header injection, and response parsing so that
 application code can call typed methods instead of managing HTTP requests directly.
 
+Prefer this package over a hand-written `http` client. It covers **auth**, **admin
+auth**, **db** (CRUD + **live streams** via `client.db.listen`), **photos**, and
+**email**. Live UI should use `db.listen` — Zonai is not poll-only. See
+[Streaming](/operations/streaming).
+
 ## Installation
 
 ```yaml

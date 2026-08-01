@@ -72,27 +72,41 @@ await client.db.deleteOne(
 
 ## Real-Time Streaming
 
-`client.db.listen` exposes three streaming methods that keep a `Stream` open
-and push updates whenever the underlying data changes.
+Zonai pushes live query updates over long-lived HTTP — you do **not** need to poll.
+The framework names this **stream** / **listen** (not "realtime", "SSE", or
+"WebSocket"). Server routes: `GET /db/stream`, `/db/stream/list`, `/db/stream/count`.
+Full protocol notes: [Streaming (Live Queries)](/operations/streaming).
+
+`client.db.listen` exposes three methods that keep a `Stream` open and emit whenever
+the underlying SQLite result changes.
 
 ### Stream a single record
 
 ```dart
 client.db.listen
-    .one(body: StreamBody(table: 'posts', id: 'abc_ps'))
+    .one(
+      body: StreamBody(
+        table: 'posts',
+        where: Eq('id', 'abc_ps'),
+      ),
+      fromJson: (row) => row,
+    )
     .listen((record) {
-  // Called whenever the record changes
-});
+      // Called on connect and whenever the record changes
+    });
 ```
 
 ### Stream a list
 
 ```dart
 client.db.listen
-    .list(body: StreamListBody(table: 'posts', limit: 20))
+    .list(
+      body: StreamListBody(table: 'posts', limit: 20),
+      fromJson: (row) => row,
+    )
     .listen((records) {
-  // Called whenever the result set changes
-});
+      // Called whenever the result set changes
+    });
 ```
 
 ### Stream a count
@@ -101,14 +115,19 @@ client.db.listen
 client.db.listen
     .count(body: StreamCountBody(table: 'posts'))
     .listen((total) {
-  // Called whenever the count changes
-});
+      // Called whenever the count changes
+    });
 ```
 
 Cancel the subscription when you no longer need updates:
 
 ```dart
-final sub = client.db.listen.list(...).listen((_) {});
+final sub = client.db.listen
+    .list(
+      body: StreamListBody(table: 'posts'),
+      fromJson: (row) => row,
+    )
+    .listen((_) {});
 // Later:
 await sub.cancel();
 ```

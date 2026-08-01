@@ -41,16 +41,18 @@ RateLimitPolicy(maxRequests: N, window: Duration(...))
 
 ## Per-Operation Methods
 
-All methods are `async` and return `Future<RateLimitPolicy?>`.
+All methods are `async` and return `Future<RateLimitPolicy?>`. Paths use a JSON `table` in the body (or `?body=`), not a path segment.
 
-| Method | Endpoint |
+| Method | Endpoints |
 |--------|----------|
-| `createPolicy()` | `POST /db/<table>` |
-| `updatePolicy()` | `PATCH /db/<table>/:id` |
-| `deletePolicy()` | `DELETE /db/<table>/:id` |
-| `getPolicy()` | `GET /db/<table>/:id` |
-| `limitPolicy()` | `GET /db/<table>/list` |
-| `countPolicy()` | `GET /db/<table>/count` |
+| `createPolicy()` | `POST /db` |
+| `updatePolicy()` | `PATCH /db` |
+| `deletePolicy()` | `DELETE /db` |
+| `getPolicy()` | `GET /db`, `GET /db/stream` |
+| `limitPolicy()` | `GET /db/list`, `GET /db/stream/list` |
+| `countPolicy()` | `GET /db/count`, `GET /db/stream/count` |
+
+Streaming shares the read policies above. Details: [Streaming](/operations/streaming).
 
 ## Disabling Rate Limiting for an Operation
 

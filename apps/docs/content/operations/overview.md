@@ -39,4 +39,5 @@ All operations files in `operationsPath` are auto-discovered. Define at most one
 Operations compile into the project-linked binary (in-process on the default path) and into `db_operations.exe` for force-workers / ping. In dev mode, `zonai serve` regenerates entry files and recompiles workers on change — restart serve after editing ops so linked code reloads. Press `c` to force a recompile manually.
 
 - [Default Operations](/operations/default-operations) — the built-in CRUD for every table
+- [Streaming (Live Queries)](/operations/streaming) — `/db/stream*` and `client.db.listen` (no polling)
 - [Auth Operations](/operations/auth-operations) — JWT claims and auth flow configuration

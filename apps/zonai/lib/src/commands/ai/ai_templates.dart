@@ -21,6 +21,11 @@ path). `zonai compile` also builds worker executables (`db_operations`,
 the `ZONAI_FORCE_WORKERS=1` escape hatch. In dev, workers auto-recompile on file
 changes; ops/rules edits require restarting `serve` so the linked entry reloads.
 
+**Live queries**: every table has `GET /db/stream`, `/db/stream/list`, and
+`/db/stream/count`. Prefer `zonai_client`'s `client.db.listen` over polling or
+hand-rolled HTTP. Search for **stream** / **listen** — not "realtime", "SSE",
+or "WebSocket". Streams reuse `canView` / `canList` / `canCount` rules.
+
 **Runtime env (optional):** `ZONAI_FORCE_WORKERS`, `ZONAI_WORKER_TRANSPORT`
 (`auto`|`process`|`isolate`), `ZONAI_WORKER_POOL_SIZE` (default 1),
 `ZONAI_HTTP_WORKERS` (keep 1 — `>1` regresses list vs one SQLite file).
@@ -234,6 +239,25 @@ UserOperations main() => UserOperations();
 | `verifyEmailConfig` | Verify-email path + expiry |
 
 One file per collection. Each file's `main()` must return a `TableOperations` instance.
+
+### Default HTTP surface (every table)
+
+| Op | Method | Path |
+|----|--------|------|
+| get | GET | `/db` |
+| list | GET | `/db/list` |
+| count | GET | `/db/count` |
+| stream-one | GET | `/db/stream` |
+| stream-list | GET | `/db/stream/list` |
+| stream-count | GET | `/db/stream/count` |
+| create / create many | POST | `/db` / `/db/many` |
+| update / update many | PATCH | `/db` / `/db/many` |
+| delete / delete many | DELETE | `/db` / `/db/many` |
+
+Table name is always in the JSON body (`?body=` for GET), never in the path.
+Payload types: `StreamBody`, `StreamListBody`, `StreamCountBody` in
+`zonai_schema`. Dart apps should use `package:zonai_client` —
+`client.db.listen.one|list|count` — not a custom poller.
 
 ---
 
@@ -695,6 +719,11 @@ Zonai is a Dart CLI framework that compiles declarative Dart code into a
 project-linked server binary and optional worker executables, and runs a
 SQLite-backed REST API server.
 
+**Live queries**: `GET /db/stream`, `/db/stream/list`, `/db/stream/count` push
+updates when data changes. Prefer `zonai_client` (`client.db.listen`) over
+polling or hand-rolled HTTP. Search for **stream** / **listen**, not
+"realtime"/"SSE"/"WebSocket".
+
 **Runtime model**: `zonai serve` / `zonai build` link your ops and rules
 **in-process** into the project binary (or JIT `project_main` in dev).
 `zonai compile` also builds workers from your source:
@@ -933,9 +962,14 @@ alwaysApply: false
 # Zonai Operations
 
 Operations are **optional** — default CRUD SQL is auto-generated for every
-table in `schemasPath`. Add a file under `operationsPath` only to:
+table (get/list/count/**stream**/create/update/delete). Add a file under
+`operationsPath` only to:
 - Override SQL for specific operations
 - Add custom JWT claims on auth collections
+
+**Live queries** (no polling): `GET /db/stream`, `/db/stream/list`,
+`/db/stream/count` — use `zonai_client` `client.db.listen`. Search for
+**stream**, not "realtime"/"SSE".
 
 Each file's `main()` returns one `TableOperations` instance:
 
@@ -1426,9 +1460,9 @@ Data policy methods (all default to 100 req/min):
 
 | Method | Operation | HTTP |
 |--------|-----------|------|
-| `getPolicy()` | `view` | `GET /db` |
-| `limitPolicy()` | `list` | `GET /db/list` |
-| `countPolicy()` | `count` | `GET /db/count` |
+| `getPolicy()` | `view` | `GET /db`, `GET /db/stream` |
+| `limitPolicy()` | `list` | `GET /db/list`, `GET /db/stream/list` |
+| `countPolicy()` | `count` | `GET /db/count`, `GET /db/stream/count` |
 | `createPolicy()` | `create` | `POST /db` |
 | `updatePolicy()` | `update` | `PATCH /db` |
 | `deletePolicy()` | `delete` | `DELETE /db` |

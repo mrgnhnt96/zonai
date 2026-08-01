@@ -37,14 +37,16 @@ All unoverridden methods default to `false` (deny).
 
 ## Available Methods
 
-| Method           | Endpoint Checked Before | Default |
-| ---------------- | ----------------------- | ------- |
-| `canCreate(jwt)` | `POST /db`              | `false` |
-| `canList(jwt)`   | `GET /db/list`          | `false` |
-| `canCount(jwt)`  | `GET /db/count`         | `false` |
-| `canView(jwt)`   | `GET /db`               | `false` |
-| `canUpdate(jwt)` | `PATCH /db`             | `false` |
-| `canDelete(jwt)` | `DELETE /db`            | `false` |
+| Method           | Endpoint Checked Before                                      | Default |
+| ---------------- | ------------------------------------------------------------ | ------- |
+| `canCreate(jwt)` | `POST /db`                                                   | `false` |
+| `canList(jwt)`   | `GET /db/list`, `GET /db/stream/list`                        | `false` |
+| `canCount(jwt)`  | `GET /db/count`, `GET /db/stream/count`                      | `false` |
+| `canView(jwt)`   | `GET /db`, `GET /db/stream`                                  | `false` |
+| `canUpdate(jwt)` | `PATCH /db`                                                  | `false` |
+| `canDelete(jwt)` | `DELETE /db`                                                 | `false` |
+
+Streaming (`/db/stream*`) reuses the same `canView` / `canList` / `canCount` checks as ordinary reads — there is no separate `canStream*` method. See [Streaming](/operations/streaming).
 
 For `view`, `update`, and `delete`: the table rule runs first, then row rules run (if the table rule passes).
 

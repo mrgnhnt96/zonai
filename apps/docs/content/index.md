@@ -9,11 +9,13 @@ It is designed for Dart and Flutter developers who want to build a production-qu
 
 ## What You Get Out of the Box
 
-**A full REST API for every table** — create, read, update, delete, list, and count endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed.
+**A full REST API for every table** — create, read, update, delete, list, count, and **live stream** endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed.
 
 **Built-in authentication** — password sign-up/sign-in, one-time passcodes, and magic links are available by mixing a single trait into an auth table. Sessions, refresh, and logout are included.
 
 **Authorization rules** — evaluated before any SQL executes. Return `true` or `false`; a denied request gets a `403` immediately, with zero database access.
+
+**Generated Dart client** — `zonai_client` wraps auth, admin auth, db (including `db.listen` streams), photos, and email so apps do not hand-roll HTTP.
 
 **Transactional email via SMTP** — HTML templates with Mustache variables, sent from lifecycle hooks.
 
@@ -43,9 +45,10 @@ Nothing runs interpreted at request time on the AOT path. All logic is compiled 
 
 ## What Zonai Is Not
 
-- Not a full application framework — Zonai is an API server only (no HTML rendering, no client library)
+- Not a full application framework — Zonai is an API server (no HTML rendering). Use `zonai_client` (or raw HTTP) from Flutter/Dart apps
 - Not a managed cloud service — you host it yourself, anywhere that runs a Linux/macOS/Windows binary
 - Not a general-purpose ORM — it is opinionated about how APIs are structured and uses SQLite as its database
+- Not "poll-only" for live UI — use `/db/stream*` / `client.db.listen` (search docs for **stream**, not "realtime"/"SSE")
 
 ## For LLMs and coding agents
 

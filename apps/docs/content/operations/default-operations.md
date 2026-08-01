@@ -7,17 +7,22 @@ Every table registered with `table()` or `authTable()` automatically gets these 
 
 ## Endpoints
 
-| Operation     | Method   | Path        | Body location  |
-| ------------- | -------- | ----------- | -------------- |
-| `get`         | `GET`    | `/db`       | `?body=<JSON>` |
-| `list`        | `GET`    | `/db/list`  | `?body=<JSON>` |
-| `count`       | `GET`    | `/db/count` | `?body=<JSON>` |
-| `create`      | `POST`   | `/db`       | JSON body      |
-| `create many` | `POST`   | `/db/many`  | JSON body      |
-| `update`      | `PATCH`  | `/db`       | JSON body      |
-| `update many` | `PATCH`  | `/db/many`  | JSON body      |
-| `delete`      | `DELETE` | `/db`       | JSON body      |
-| `delete many` | `DELETE` | `/db/many`  | JSON body      |
+| Operation     | Method   | Path               | Body location  |
+| ------------- | -------- | ------------------ | -------------- |
+| `get`         | `GET`    | `/db`              | `?body=<JSON>` |
+| `list`        | `GET`    | `/db/list`         | `?body=<JSON>` |
+| `count`       | `GET`    | `/db/count`        | `?body=<JSON>` |
+| `stream-one`  | `GET`    | `/db/stream`       | `?body=<JSON>` |
+| `stream-list` | `GET`    | `/db/stream/list`  | `?body=<JSON>` |
+| `stream-count`| `GET`    | `/db/stream/count` | `?body=<JSON>` |
+| `create`      | `POST`   | `/db`              | JSON body      |
+| `create many` | `POST`   | `/db/many`         | JSON body      |
+| `update`      | `PATCH`  | `/db`              | JSON body      |
+| `update many` | `PATCH`  | `/db/many`         | JSON body      |
+| `delete`      | `DELETE` | `/db`              | JSON body      |
+| `delete many` | `DELETE` | `/db/many`         | JSON body      |
+
+Live updates use the `stream-*` routes (and `client.db.listen` in `zonai_client`). See [Streaming (Live Queries)](/operations/streaming) — do not poll unless your environment cannot hold a long-lived HTTP connection.
 
 ## Request / Response Shape
 
