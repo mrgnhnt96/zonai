@@ -56,10 +56,13 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}
         run: |
+          # Jaspr already sets <base href="${BASE_PATH}/"> from site.yaml.
+          # Only prefix root-absolute href/src that are not already under BASE_PATH
+          # (naive s|href="/|…| doubled /zonai/ into /zonai/zonai/).
+          repo="${BASE_PATH#/}"
           find build/jaspr -name '*.html' -print0 |
-            xargs -0 sed -i \
-              -e "s|href=\"/|href=\"${BASE_PATH}/|g" \
-              -e "s|src=\"/|src=\"${BASE_PATH}/|g"
+            xargs -0 perl -pi -e \
+              's#(href|src)="/(?!'"${repo}"'/)#${1}="'"${BASE_PATH}"'/#g'
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
