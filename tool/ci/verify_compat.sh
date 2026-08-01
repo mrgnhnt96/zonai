@@ -169,17 +169,16 @@ echo "Running dart pub get..."
 
 (
   cd "${compat_dir}"
-  echo "Old binary: compile"
-  "$old_binary" compile --no-version-check
-
+  # Skip old-binary compile/serve. apps/compat path-depends the monorepo
+  # zonai_schema, which may speak a newer IPC than the previous release
+  # host (e.g. MessagePack vs JSON lines). A real upgrade recompiles
+  # workers with the new binary (Phase 3); Phase 1 only needs the DB and
+  # migration snapshots produced by the old CLI.
   echo "Old binary: generate initial migration"
   "$old_binary" db migrate generate --name initialize --no-version-check
 
   echo "Old binary: apply migrations (internal + user)"
   "$old_binary" db migrate apply --no-version-check
-
-  echo "Old binary: serve on migrated database"
-  verify_serve "$old_binary"
 )
 
 assert_migrations_exist

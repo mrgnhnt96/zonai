@@ -7,7 +7,5 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  zonai:
-    path: ../zonai
   zonai_schema:
     path: ../../libs/zonai_schema
