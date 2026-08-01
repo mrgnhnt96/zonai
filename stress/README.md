@@ -1,9 +1,9 @@
 # zonai stress harness
 
 A load-testing tool for zonai. It builds a small fixture app (`fixture/`),
-boots a real compiled `zonai serve` instance from it, and drives concurrent
-HTTP load against it to measure throughput and latency — and to find where
-the server stops scaling.
+boots the **project-linked** `build/zonai serve --release` binary from it, and
+drives concurrent HTTP load against it to measure throughput and latency — and
+to find where the server stops scaling.
 
 ## Usage
 
@@ -12,10 +12,12 @@ cd stress
 dart run bin/stress.dart
 ```
 
-First run compiles the `zonai` CLI itself (`-D__ZONAI_COMPILED__=true`, ~30s,
-cached at `.cache/zonai_exe`), fetches the fixture's deps, generates+applies
-its migration, and runs `zonai build` (~5s). Subsequent runs skip the parts
-that are already done; pass `--skip-build` to also reuse the last build.
+First run compiles the bootstrap `zonai` CLI (`-D__ZONAI_COMPILED__=true`,
+~30s, cached at `.cache/zonai_exe`), writes fixture `pubspec_overrides` for
+local resqlite/revali, fetches the fixture's deps, generates+applies its
+migration, and runs `zonai build` (workers + **project-linked** `build/zonai`).
+Subsequent runs skip the parts that are already done; pass `--skip-build` to
+also reuse the last build.
 
 Useful flags (all optional):
 
@@ -63,11 +65,18 @@ row-level restrictions) and a `users` auth table (password auth). Its rate
 limits are explicitly disabled (`lib/src/rate_limit/*.dart` return `null`
 policies) — see the first finding below for why that matters.
 
-## Findings (measured 2026-07-31, Apple M-series, local revali + Phase A/B)
+## Findings (measured 2026-07-31 / Phase 2 project binary, Apple M-series)
 
 Numbers are from one run on one machine; treat them as *shape*, not SLA.
-Latest: `results/phase_ab.json`. Earlier: `crud_new_binary.json` (~608 list
-after batch row-rules), `crud_run.json` (Jul 28 ~313).
+After the project-linked binary (ops/rules in-process), create climbed past
+the prior ~4.2k Mailman baseline; list stayed ~3.1k (already mostly host-side).
+
+Example Phase 2 sweep (`--scenarios=list,create --concurrency=1,10,50`):
+
+| scenario | concurrency | req/s |
+|---|---|---|
+| list | 50 | ~3143 |
+| create | 10 | ~5882 |
 
 ### 1. The default rate limit will dominate any naive load test
 
@@ -121,9 +130,12 @@ See `results/auth_new_binary.json`.
 
 ### 5. Harness gotchas
 
-- Stress verifies `build/zonai` byte-matches the compiled cache after build.
+- After Phase 2, `build/zonai` is **project-specific** — the harness no longer
+  byte-compares it to the bootstrap CLI cache.
 - `--no-version-check` also skips `assertVersion`.
 - Fixture `sqlite3` must stay `<3.0.0` (`open.dart` removed in 3.x).
+- Fixture depends on `zonai` as a path package so `project_main` can link it;
+  stress writes gitignored `pubspec_overrides.yaml` for local resqlite/revali.
 
 ## Bug found and fixed while building this harness
 
