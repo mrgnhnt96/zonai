@@ -6,6 +6,7 @@ extension _CountX on ZonaiDb {
     CountPayload payload, {
     Jwt? userJwt,
     bool trace = true,
+    bool skipTableAccess = false,
   }) async {
     if (trace) {
       logger.setTraceProps({'op': 'count', 'table': table});
@@ -13,7 +14,9 @@ extension _CountX on ZonaiDb {
     }
 
     final jwt = userJwt ?? await _extractJwt(payload);
-    await _requireTableAccess(table, .list, jwt);
+    if (!skipTableAccess) {
+      await _requireTableAccess(table, .list, jwt);
+    }
 
     final operation = await _getOperation(
       CountOperationRequest(table: table, where: payload.where, jwt: jwt),

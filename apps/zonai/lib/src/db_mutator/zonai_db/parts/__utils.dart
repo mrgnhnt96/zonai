@@ -92,6 +92,10 @@ extension UtilsX on ZonaiDb {
     if (!tableRules.canAccess) {
       throw TableAccessDeniedException(table: table, operation: operation.name);
     }
+
+    if (tableRules.skipRowChecks) {
+      _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = true;
+    }
   }
 
   Future<TableRulesResponse> _tableRules(
@@ -99,17 +103,26 @@ extension UtilsX on ZonaiDb {
     TableOperation operation,
     Jwt? jwt,
   ) async {
+    final cacheKey = '$table|${operation.name}|${_jwtCacheKey(jwt)}';
+    final cached = _tableAccessCache[cacheKey];
+    if (cached != null) {
+      return cached;
+    }
+
     final rules = await _rules.send<TableRulesResponse?>(
       TableRulesRequest(table: table, operation: operation.name, jwt: jwt),
     );
 
-    return rules ??
+    final response =
+        rules ??
         TableRulesResponse(
           id: '-1',
           table: table,
           operation: operation.name,
           canAccess: false,
         );
+    _tableAccessCache[cacheKey] = response;
+    return response;
   }
 
   Future<RowRulesResponse> _rowRules(
@@ -118,6 +131,15 @@ extension UtilsX on ZonaiDb {
     Map<String, dynamic> data,
     Jwt? jwt,
   ) async {
+    if (_skipRowChecks['$table|${_jwtCacheKey(jwt)}'] == true) {
+      return RowRulesResponse(
+        id: '-1',
+        table: table,
+        operation: operation,
+        canPerform: true,
+      );
+    }
+
     final rules = await _rules.send<RowRulesResponse?>(
       RowRulesRequest(table: table, operation: operation, data: data, jwt: jwt),
     );
@@ -146,10 +168,90 @@ extension UtilsX on ZonaiDb {
     }
   }
 
+  /// Batch equivalent of [_requireRowAccess] for multi-row reads.
+  ///
+  /// One rules-worker round-trip for the whole page instead of N sequential
+  /// hops. Preserves fail-closed semantics: any denied row fails the call.
+  /// Skipped entirely when table rules reported [TableRulesResponse.skipRowChecks].
+  Future<void> _requireRowsAccess(
+    String table,
+    RowOperation operation,
+    List<Map<String, dynamic>> rows,
+    Jwt? jwt,
+  ) async {
+    if (rows.isEmpty) return;
+    if (_skipRowChecks['$table|${_jwtCacheKey(jwt)}'] == true) return;
+
+    final response = await _rules.send<BatchRowRulesResponse?>(
+      BatchRowRulesRequest(
+        table: table,
+        operation: operation,
+        rows: rows,
+        jwt: jwt,
+      ),
+    );
+
+    final allowed = response?.canPerform;
+    if (allowed == null || allowed.length != rows.length) {
+      throw RowAccessDeniedException(
+        table: table,
+        operation: operation.toString(),
+      );
+    }
+
+    for (final canPerform in allowed) {
+      if (!canPerform) {
+        throw RowAccessDeniedException(
+          table: table,
+          operation: operation.toString(),
+        );
+      }
+    }
+  }
+
   Future<PerformOperationResponse> _getOperation(
     OperationRequest request,
   ) async {
-    return await _operations.send<PerformOperationResponse>(request);
+    final cacheKey = _operationCacheKey(request);
+    if (cacheKey != null) {
+      final cached = _operationCache[cacheKey];
+      if (cached != null) return cached;
+    }
+
+    final response = await _operations.send<PerformOperationResponse>(request);
+    if (cacheKey != null) {
+      _operationCache[cacheKey] = response;
+    }
+    return response;
+  }
+
+  String? _operationCacheKey(OperationRequest request) {
+    // Only cache pure SQL-build reads — mutation SQL often embeds row values.
+    return switch (request) {
+      CountOperationRequest(:final table, :final where, :final jwt) =>
+        'count|$table|${jsonEncode(where?.toJson())}|${_jwtCacheKey(jwt)}',
+      ListOperationRequest(
+        :final table,
+        :final where,
+        :final limit,
+        :final offset,
+        :final orderBy,
+        :final groupBy,
+        :final jwt,
+      ) =>
+        'list|$table|${jsonEncode(where?.toJson())}|$limit|$offset|'
+            '${jsonEncode([
+              for (final term in orderBy ?? const <OrderByTerm>[]) term.toJson(),
+            ])}|$groupBy|${_jwtCacheKey(jwt)}',
+      ReadOperationRequest(:final table, :final where, :final jwt) =>
+        'read|$table|${jsonEncode(where.toJson())}|${_jwtCacheKey(jwt)}',
+      _ => null,
+    };
+  }
+
+  String _jwtCacheKey(Jwt? jwt) {
+    if (jwt == null) return '';
+    return '${jwt.userId.value}|${jwt.admin.isAdmin}|${jwt.admin.canEdit}';
   }
 
   Never _throwDatabaseError(
@@ -189,15 +291,35 @@ extension UtilsX on ZonaiDb {
       return const [];
     }
 
+    final preserveSecrets = _preserveSecretsForJwt(jwt);
+    final meta = await _sanitizeMetaFor(table);
+    final cleaned = <Map<String, Object?>>[
+      for (final row in rows)
+        {
+          for (final MapEntry(:key, :value) in row.entries)
+            if (preserveSecrets || !meta.secretColumns.contains(key)) key: value,
+        },
+    ];
+    return _resolvePhotoFields(cleaned, meta.photoColumns);
+  }
+
+  Future<({List<String> secretColumns, List<String> photoColumns})>
+  _sanitizeMetaFor(String table) async {
+    final cached = _sanitizeMetaCache[table];
+    if (cached != null) return cached;
+
+    // Warm the cache with a metadata-only round trip (empty object, keep secrets).
     final response = await _operations.send<SanitizeOperationResponse>(
       SanitizeOperationRequest(
         table: table,
-        objects: rows,
-        preserveSecrets: _preserveSecretsForJwt(jwt),
+        objects: const [{}],
+        preserveSecrets: true,
       ),
     );
-
-    return _resolvePhotoFields(response.objects, response.photoColumns);
+    return _sanitizeMetaCache[table] = (
+      secretColumns: response.secretColumns,
+      photoColumns: response.photoColumns,
+    );
   }
 
   Future<List<_SideEffect>> _getEffect(MutationRequest mut) async {

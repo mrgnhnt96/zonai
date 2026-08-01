@@ -29,9 +29,7 @@ extension _StreamListX on ZonaiDb {
     }
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();
-    for (final object in objects) {
-      await _requireRowAccess(table, .view, object, jwt);
-    }
+    await _requireRowsAccess(table, .view, objects, jwt);
 
     await for (final result in _stream(operation.query, operation.values)) {
       yield await _expandRows(

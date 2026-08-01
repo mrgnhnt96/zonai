@@ -32,6 +32,7 @@ extension _ListX on ZonaiDb {
         CountPayload(where: payload.where),
         userJwt: jwt,
         trace: false,
+        skipTableAccess: true,
       );
       logger.trace('count_query', extra: {'count': count});
 
@@ -64,9 +65,7 @@ extension _ListX on ZonaiDb {
       logger.verbose('Found ${objects.length} objects', prefix: _prefix);
 
       step = 'row_access';
-      for (final object in objects) {
-        await _requireRowAccess(table, .view, object, jwt);
-      }
+      await _requireRowsAccess(table, .view, objects, jwt);
       logger.trace('row_access', extra: {'rows': objects.length});
 
       step = 'sanitize';

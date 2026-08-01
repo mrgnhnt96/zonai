@@ -112,6 +112,21 @@ class ZonaiDb {
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
+  /// Host-side caches so repeated list/get calls avoid Mailman IPC after the
+  /// first resolve. Cleared implicitly when this [ZonaiDb] is disposed (new
+  /// process / worker recompile restarts the server).
+  final Map<String, TableRulesResponse> _tableAccessCache = {};
+  final Map<String, bool> _skipRowChecks = {};
+  final Map<String, PerformOperationResponse> _operationCache = {};
+  final Map<String, ({List<String> secretColumns, List<String> photoColumns})>
+  _sanitizeMetaCache = {};
+
+  /// Serializes mutating work so concurrent creates don't pile into
+  /// SQLite's 5s busy_timeout. Excess waiters fail fast with 503.
+  Future<void>? _writeChain;
+  var _pendingWrites = 0;
+  static const _maxQueuedWrites = 64;
+
   /// Keyed by `JwksIdpConfig.jwksUrl` so multiple configs against the
   /// same endpoint share a key cache and HTTP client. Constructed
   /// lazily by [_jwksVerifierFor]; disposed in [dispose].
@@ -136,6 +151,10 @@ class ZonaiDb {
     _rules.dispose();
     _operations.dispose();
     _config.dispose();
+    _tableAccessCache.clear();
+    _skipRowChecks.clear();
+    _operationCache.clear();
+    _sanitizeMetaCache.clear();
     for (final verifier in _jwksVerifiers.values) {
       verifier.dispose();
     }
@@ -348,14 +367,14 @@ class ZonaiDb {
   }
 
   Future<_CrudResult> create(String table, CreatePayload payload) async {
-    return await _run(() => _create(table, payload));
+    return await _runWrite(() => _create(table, payload));
   }
 
   Future<_CrudListResult> createMany(
     String table,
     CreateManyPayload payload,
   ) async {
-    return await _run(() => _createMany(table, payload));
+    return await _runWrite(() => _createMany(table, payload));
   }
 
   Future<Jwt?> parseJwt(String? jwt) async {
@@ -367,11 +386,11 @@ class ZonaiDb {
   }
 
   Future<_CrudListResult> update(String table, UpdatePayload payload) async {
-    return await _run(() => _update(table, payload));
+    return await _runWrite(() => _update(table, payload));
   }
 
   Future<int> delete(String table, DeletePayload payload) async {
-    return await _run(() => _delete(table, payload));
+    return await _runWrite(() => _delete(table, payload));
   }
 
   Future<_CrudResult> read(String table, ViewPayload payload) async {
@@ -435,6 +454,8 @@ class ZonaiDb {
       rethrow;
     } on PermissionException {
       rethrow;
+    } on WriteBackpressureException {
+      rethrow;
     } catch (e, stack) {
       final mapped = mapDatabaseError(
         e,
@@ -443,6 +464,26 @@ class ZonaiDb {
             StateError('Failed to run database operation: $cause'),
       );
       Error.throwWithStackTrace(mapped, stack);
+    }
+  }
+
+  /// Runs [body] on a single-writer queue. Prevents concurrent creates from
+  /// stacking into SQLite's 5s `busy_timeout`; when the queue is saturated,
+  /// fails immediately with [WriteBackpressureException] (HTTP 503).
+  Future<T> _runWrite<T>(Future<T> Function() body) async {
+    if (_pendingWrites >= _maxQueuedWrites) {
+      throw const WriteBackpressureException();
+    }
+    _pendingWrites++;
+    final previous = _writeChain;
+    final done = Completer<void>();
+    _writeChain = done.future;
+    try {
+      await previous;
+      return await _run(body);
+    } finally {
+      _pendingWrites--;
+      done.complete();
     }
   }
 

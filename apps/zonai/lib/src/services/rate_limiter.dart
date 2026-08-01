@@ -17,27 +17,50 @@ final class RateLimiter {
   RateLimitsMailman? __mailman;
   RateLimitsMailman get _mailman => __mailman ??= RateLimitsMailman();
 
+  /// Tables whose rate-limit worker returned `null` (unlimited). After the
+  /// first resolve we skip the IPC hop entirely — the policy is static for
+  /// the life of the process (worker recompile restarts the server).
+  final Set<(String, RateLimitOperation)> _unlimited = {};
+
+  /// Non-null policies resolved from the worker, keyed by table+operation.
+  final Map<(String, RateLimitOperation), RateLimitPolicy> _policies = {};
+
   Future<bool> check({
     required String table,
     required String ipAddress,
     required RateLimitOperation operation,
   }) async {
-    final response = await _mailman
-        .send<RateLimitResponse>(
-          RateLimitRequest(table: table, operation: operation),
-        )
-        .catchError((e, stack) {
-          if (e is ExecutableUnavailableException) {
-            return RateLimitResponse(
-              policy: RateLimitPolicy.defaultPolicy,
-              id: '',
-            );
-          }
+    final key = (table, operation);
+    if (_unlimited.contains(key)) {
+      return true;
+    }
 
-          throw Error.throwWithStackTrace(e, stack);
-        });
+    var policy = _policies[key];
+    if (policy == null && !_policies.containsKey(key)) {
+      final response = await _mailman
+          .send<RateLimitResponse>(
+            RateLimitRequest(table: table, operation: operation),
+          )
+          .catchError((e, stack) {
+            if (e is ExecutableUnavailableException) {
+              return RateLimitResponse(
+                policy: RateLimitPolicy.defaultPolicy,
+                id: '',
+              );
+            }
 
-    final policy = response.policy;
+            throw Error.throwWithStackTrace(e, stack);
+          });
+
+      final resolved = response.policy;
+      if (resolved == null) {
+        _unlimited.add(key);
+        return true;
+      }
+      _policies[key] = resolved;
+      policy = resolved;
+    }
+
     if (policy == null) {
       return true;
     }

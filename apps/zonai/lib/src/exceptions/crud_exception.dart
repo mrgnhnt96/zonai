@@ -139,3 +139,14 @@ final class InvalidColumnValueException extends CrudException {
   String toString() =>
       'An ID field has an invalid format. Use the full text ID (for example test-1234567890_co).';
 }
+
+/// Thrown when too many mutating requests are already queued for the single
+/// SQLite writer. Mapped to HTTP 503 so clients can retry instead of waiting
+/// on a multi-second busy-timeout spin.
+final class WriteBackpressureException implements Exception {
+  const WriteBackpressureException();
+
+  @override
+  String toString() =>
+      'Server is busy writing; retry shortly (write queue saturated).';
+}
