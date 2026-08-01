@@ -2,6 +2,7 @@ import 'package:zonai_schema/src/extension.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 
 class DbExtensions {
@@ -27,37 +28,40 @@ class DbExtensions {
     return _extensionsByTable = map;
   }
 
-  void start() {
+  void start({MessageIo? io}) {
     MessageHandler(
       fromUnknownRequest: ExtensionRequest.fromRequest,
-      onMessage: (request) async {
-        switch (request) {
-          case final CreateExtensionRequest request:
-            await _create(request);
-            return NoActionExtensionResponse(id: request.id);
-
-          case final BeforeUpdateExtensionRequest request:
-            await _beforeUpdate(request);
-            return NoActionExtensionResponse(id: request.id);
-
-          case final AfterUpdateExtensionRequest request:
-            await _afterUpdate(request);
-            return NoActionExtensionResponse(id: request.id);
-
-          case final DeleteExtensionRequest request:
-            await _delete(request);
-            return NoActionExtensionResponse(id: request.id);
-
-          case final ErrorExtensionRequest request:
-            await _error(request);
-            return NoActionExtensionResponse(id: request.id);
-
-          case final AuthExtensionRequest request:
-            await _auth(request);
-            return NoActionExtensionResponse(id: request.id);
-        }
-      },
+      onMessage: dispatch,
+      io: io,
     ).listen();
+  }
+
+  Future<Response?> dispatch(ExtensionRequest request) async {
+    switch (request) {
+      case final CreateExtensionRequest request:
+        await _create(request);
+        return NoActionExtensionResponse(id: request.id);
+
+      case final BeforeUpdateExtensionRequest request:
+        await _beforeUpdate(request);
+        return NoActionExtensionResponse(id: request.id);
+
+      case final AfterUpdateExtensionRequest request:
+        await _afterUpdate(request);
+        return NoActionExtensionResponse(id: request.id);
+
+      case final DeleteExtensionRequest request:
+        await _delete(request);
+        return NoActionExtensionResponse(id: request.id);
+
+      case final ErrorExtensionRequest request:
+        await _error(request);
+        return NoActionExtensionResponse(id: request.id);
+
+      case final AuthExtensionRequest request:
+        await _auth(request);
+        return NoActionExtensionResponse(id: request.id);
+    }
   }
 
   Future<void> _delete(DeleteExtensionRequest request) async {

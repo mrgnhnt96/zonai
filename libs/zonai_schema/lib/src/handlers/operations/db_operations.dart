@@ -1,5 +1,7 @@
 import 'package:raindrop/raindrop.dart' as rd;
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_response.dart';
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
@@ -40,40 +42,45 @@ class DbOperations {
     return _operationsByTable = map;
   }
 
-  void start() {
+  void start({MessageIo? io}) {
     MessageHandler(
       fromUnknownRequest: OperationRequest.fromRequest,
-      onMessage: (request) async {
-        switch (request) {
-          case final CountOperationRequest request:
-            return await _count(request);
-          case final PerformOperationRequest request:
-            return await _performOperation(request);
-          case final ViewAuthOperationRequest request:
-            return await _viewAuthOperation(request);
-          case final CreateAuthOperationRequest request:
-            return await _createAuthOperation(request);
-          case final GetColumnNameRequest request:
-            return await _getColumnName(request);
-          case final GetColumnReferenceRequest request:
-            return await _getColumnReference(request);
-          case final GetAllTableSchemaShapesRequest request:
-            return await _getAllTableSchemaShapes(request);
-          case final GetJwtConfigOperationRequest request:
-            return await _getJwtConfig(request);
-          case final SanitizeOperationRequest request:
-            return await _sanitize(request);
-          case final GetAdminTablesOperationRequest request:
-            return await _getAdminTables(request);
-          case final GetMagicLinkConfigOperationRequest request:
-            return await _getMagicLinkConfig(request);
-          case final GetResetPasswordConfigOperationRequest request:
-            return await _getResetPasswordConfig(request);
-          case final GetVerifyEmailConfigOperationRequest request:
-            return await _getVerifyEmailConfig(request);
-        }
-      },
+      onMessage: dispatch,
+      io: io,
     ).listen();
+  }
+
+  /// Handles one ops request without any transport. Used by stdio workers,
+  /// SendPort isolates, and in-process project binaries.
+  Future<Response?> dispatch(OperationRequest request) async {
+    switch (request) {
+      case final CountOperationRequest request:
+        return await _count(request);
+      case final PerformOperationRequest request:
+        return await _performOperation(request);
+      case final ViewAuthOperationRequest request:
+        return await _viewAuthOperation(request);
+      case final CreateAuthOperationRequest request:
+        return await _createAuthOperation(request);
+      case final GetColumnNameRequest request:
+        return await _getColumnName(request);
+      case final GetColumnReferenceRequest request:
+        return await _getColumnReference(request);
+      case final GetAllTableSchemaShapesRequest request:
+        return await _getAllTableSchemaShapes(request);
+      case final GetJwtConfigOperationRequest request:
+        return await _getJwtConfig(request);
+      case final SanitizeOperationRequest request:
+        return await _sanitize(request);
+      case final GetAdminTablesOperationRequest request:
+        return await _getAdminTables(request);
+      case final GetMagicLinkConfigOperationRequest request:
+        return await _getMagicLinkConfig(request);
+      case final GetResetPasswordConfigOperationRequest request:
+        return await _getResetPasswordConfig(request);
+      case final GetVerifyEmailConfigOperationRequest request:
+        return await _getVerifyEmailConfig(request);
+    }
   }
 
   Future<AdminTablesResponse> _getAdminTables(

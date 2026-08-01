@@ -1,6 +1,7 @@
 import 'package:raindrop/dialect.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_response.dart';
 import 'package:zonai_schema/src/rules/rules.dart';
@@ -21,26 +22,30 @@ class DbRules {
   final List<Rules> rules;
   final SqlDialect dialect;
 
-  void start() {
+  void start({MessageIo? io}) {
     MessageHandler(
       fromUnknownRequest: RuleRequest.fromRequest,
-      onMessage: (request) async {
-        switch (request) {
-          case final TableRulesRequest request:
-            return await _tableRules(request);
-          case final RowRulesRequest request:
-            return await _rowRules(request);
-          case final BatchRowRulesRequest request:
-            return await _batchRowRules(request);
-          case final AuthTableRulesRequest request:
-            return await _authTableRules(request);
-          case final AuthRowRulesRequest request:
-            return await _authRowRules(request);
-          case final GetAllTableCollectionActionsRequest request:
-            return await _allTableCollectionActions(request);
-        }
-      },
+      onMessage: dispatch,
+      io: io,
     ).listen();
+  }
+
+  /// Handles one rules request without any transport.
+  Future<Response?> dispatch(RuleRequest request) async {
+    switch (request) {
+      case final TableRulesRequest request:
+        return await _tableRules(request);
+      case final RowRulesRequest request:
+        return await _rowRules(request);
+      case final BatchRowRulesRequest request:
+        return await _batchRowRules(request);
+      case final AuthTableRulesRequest request:
+        return await _authTableRules(request);
+      case final AuthRowRulesRequest request:
+        return await _authRowRules(request);
+      case final GetAllTableCollectionActionsRequest request:
+        return await _allTableCollectionActions(request);
+    }
   }
 
   void _assertTableRules(_Rules rules) {

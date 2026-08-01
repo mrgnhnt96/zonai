@@ -8,9 +8,7 @@ import 'package:meta/meta.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
-import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
-import 'package:zonai_schema/src/handlers/messages/stdin.dart';
-import 'package:zonai_schema/src/handlers/messages/stdout.dart';
+import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 part 'deps/__email.dart';
@@ -27,14 +25,11 @@ class MessageHandler<R extends Request> {
   MessageHandler({
     required this.onMessage,
     required this.fromUnknownRequest,
-    Stdin? stdin,
-    Stdout? stdout,
-  }) : stdin = Stdin(),
-       stdout = Stdout();
+    MessageIo? io,
+  }) : io = io ?? StdioMessageIo();
 
   final Future<Response?> Function(R) onMessage;
-  final Stdin stdin;
-  final Stdout stdout;
+  final MessageIo io;
   final R Function(UnknownRequest) fromUnknownRequest;
 
   final Map<String, Completer<Response>> _pendingHostReplies = {};
@@ -45,90 +40,80 @@ class MessageHandler<R extends Request> {
       if (_listening) return;
       _listening = true;
 
-      final frames = IpcFrameBuffer();
-
       queue:
-      await for (final chunk in stdin.stream) {
-        final List<Map<String, dynamic>> maps;
-        try {
-          maps = frames.push(chunk);
-        } on FormatException catch (e, stack) {
-          logger.error('Invalid IPC frame on stdin', error: '$e', stackTrace: '$stack');
+      await for (final raw in io.incoming) {
+        final map = coerceStringKeyedMap(raw);
+
+        final pathRaw = map['path'];
+
+        if (pathRaw is String && pathRaw.startsWith(Response.prefix)) {
+          Response? response;
+          try {
+            response = Response.fromJson(map);
+          } catch (e, stack) {
+            logger.error('Invalid response payload', error: '$e', stackTrace: '$stack');
+            continue;
+          }
+          if (_pendingHostReplies.containsKey(response.id)) {
+            _deliverHostReply(response);
+            continue;
+          }
+          logger.warn(
+            'Ignoring response with no pending id',
+            properties: switch (response) {
+              MessageErrorResponse(:final message, :final error) => {
+                'path': pathRaw,
+                'id': response.id,
+                'error_message': message,
+                'cause': error ?? '(null)',
+              },
+              _ => {'path': pathRaw, 'id': response.id},
+            },
+          );
           continue;
         }
 
-        for (final map in maps) {
-          final pathRaw = map['path'];
+        if (pathRaw is! String || !pathRaw.startsWith(Request.prefix)) {
+          logger.error(
+            'Invalid message path (expected ${Request.prefix})',
+            properties: {'path': pathRaw},
+          );
+          continue;
+        }
 
-          if (pathRaw is String && pathRaw.startsWith(Response.prefix)) {
-            Response? response;
-            try {
-              response = Response.fromJson(map);
-            } catch (e, stack) {
-              logger.error('Invalid response payload', error: '$e', stackTrace: '$stack');
-              continue;
-            }
-            if (_pendingHostReplies.containsKey(response.id)) {
-              _deliverHostReply(response);
-              continue;
-            }
-            logger.warn(
-              'Ignoring response with no pending id',
-              properties: switch (response) {
-                MessageErrorResponse(:final message, :final error) => {
-                  'path': pathRaw,
-                  'id': response.id,
-                  'error_message': message,
-                  'cause': error ?? '(null)',
-                },
-                _ => {'path': pathRaw, 'id': response.id},
-              },
-            );
+        Request request;
+        try {
+          request = Request.fromJson(map);
+        } catch (e, stack) {
+          logger.error(
+            'Invalid request payload for path "$pathRaw"',
+            error: '$e',
+            stackTrace: '$stack',
+          );
+          continue;
+        }
+
+        switch (request) {
+          case RequestPing():
+            reply(PongResponse(id: request.id));
             continue;
-          }
+          case RequestKill():
+            break queue;
 
-          if (pathRaw is! String || !pathRaw.startsWith(Request.prefix)) {
-            logger.error(
-              'Invalid stdin message path (expected ${Request.prefix})',
-              properties: {'path': pathRaw},
+          case final R request:
+            _handleResponse(request);
+
+          case final UnknownRequest request:
+            _handleResponse(fromUnknownRequest(request));
+
+          case _:
+            reply(
+              MessageErrorResponse(
+                id: request.id,
+                message: 'Unhandled request',
+                error: 'Unhandled request ${request.runtimeType}(${request.path})',
+              ),
             );
-            continue;
-          }
-
-          Request request;
-          try {
-            request = Request.fromJson(map);
-          } catch (e, stack) {
-            logger.error(
-              'Invalid request payload for path "$pathRaw"',
-              error: '$e',
-              stackTrace: '$stack',
-            );
-            continue;
-          }
-
-          switch (request) {
-            case RequestPing():
-              reply(PongResponse(id: request.id));
-              continue;
-            case RequestKill():
-              break queue;
-
-            case final R request:
-              _handleResponse(request);
-
-            case final UnknownRequest request:
-              _handleResponse(fromUnknownRequest(request));
-
-            case _:
-              reply(
-                MessageErrorResponse(
-                  id: request.id,
-                  message: 'Unhandled request',
-                  error: 'Unhandled request ${request.runtimeType}(${request.path})',
-                ),
-              );
-          }
         }
       }
 
@@ -343,7 +328,7 @@ class MessageHandler<R extends Request> {
     }
 
     try {
-      stdout.writeFrame(IpcCodec.encode(request.toJson()));
+      io.send(request.toJson());
     } catch (e) {
       _pendingHostReplies.remove(request.id);
       assert(false, 'Failed to encode request: $e');
@@ -358,7 +343,7 @@ class MessageHandler<R extends Request> {
     assert(_listening, 'Cannot send a message while not listening');
 
     try {
-      stdout.writeFrame(IpcCodec.encode(message.toJson()));
+      io.send(message.toJson());
     } catch (e) {
       assert(false, 'Failed to encode message: $e');
       print('Failed to encode message: $e');
@@ -390,7 +375,6 @@ class MessageHandler<R extends Request> {
   }
 
   void dispose() {
-    stdin.dispose();
-    stdout.dispose();
+    io.dispose();
   }
 }
