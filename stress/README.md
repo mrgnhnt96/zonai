@@ -26,12 +26,14 @@ Useful flags (all optional):
 | `--concurrency=1,10,25,50,100` | | comma list of concurrency levels to sweep |
 | `--duration=5` | seconds | measured duration per concurrency level |
 | `--warmup=1` | seconds | untimed warmup before each measured run |
-| `--scenarios=list,create,mixed,auth-signin,auth-signup` | | which scenarios to run |
+| `--scenarios=list,create,delete,mixed,auth-signin,auth-signup` | | which scenarios to run |
 | `--seed=200` | rows | rows created before measuring (plus one auth user) |
 | `--port=8099` | | port for the fixture server |
-| `--skip-build` | | reuse `fixture/build/` instead of rebuilding |
+| `--mode=build|dev` | `build` | `build`: project-linked `build/zonai serve --release`. `dev`: JIT `dart run zonai serve` (same path as day-to-day serve / what `zonai dev` attaches to). |
+| `--skip-build` | | reuse `fixture/build/` (and skip worker recompile when executables exist) |
 | `--recompile` | | force-recompile the cached `zonai` binary |
 | `--keep-server` | | leave the server running after the run for manual poking |
+| `--keep-db` | | preserve existing SQLite (default is wipe before serve for fair runs) |
 | `--json=path` | | write raw per-level stats as JSON |
 
 Example — a longer CRUD-only sweep with results saved:

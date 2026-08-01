@@ -129,6 +129,70 @@ RequestSender signIn(
   );
 }
 
+/// Delete path: create a row, then `DELETE /db` it by id. Reported latency
+/// is the delete only (create is setup). Exercises canDelete + sqlite write.
+RequestSender deleteItem(Uri base) {
+  final createUri = base.replace(path: '/db');
+  final deleteUri = base.replace(path: '/db');
+  return (client) async {
+    final createRequest = await client.postUrl(createUri);
+    createRequest.headers.contentType = ContentType.json;
+    createRequest.write(
+      jsonEncode({
+        'table': 'items',
+        'object': {'name': 'stress-del-${_randomToken()}'},
+      }),
+    );
+    final createResponse = await createRequest.close();
+    final createBody = await createResponse.transform(utf8.decoder).join();
+    if (createResponse.statusCode < 200 || createResponse.statusCode >= 300) {
+      return RequestResult(
+        success: false,
+        latency: Duration.zero,
+        statusCode: createResponse.statusCode,
+        error: 'create-for-delete HTTP ${createResponse.statusCode}',
+      );
+    }
+
+    final id = _idFromCreateBody(createBody);
+    if (id == null) {
+      return RequestResult(
+        success: false,
+        latency: Duration.zero,
+        statusCode: createResponse.statusCode,
+        error: 'create-for-delete missing id: $createBody',
+      );
+    }
+
+    return _send(
+      client,
+      'DELETE',
+      deleteUri,
+      body: {
+        'table': 'items',
+        'where': {
+          'type': 'eq',
+          'column': 'id',
+          'value': id,
+        },
+      },
+    );
+  };
+}
+
+String? _idFromCreateBody(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is Map && decoded['data'] is Map) {
+      final id = (decoded['data'] as Map)['id'];
+      if (id is String && id.isNotEmpty) return id;
+    }
+  } catch (_) {
+    // fall through
+  }
+  return null;
+}
+
 Future<bool> waitForHealth(
   Uri base, {
   Duration timeout = const Duration(seconds: 20),
