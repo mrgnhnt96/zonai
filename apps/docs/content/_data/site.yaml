@@ -1,2 +1,19 @@
+title: Zonai
 titleBase: Zonai
-favicon: favicon.ico
+description: >-
+  A batteries-included Dart backend framework — auth, database, file uploads,
+  cron jobs, and more.
+favicon: /favicon.png
+image: /images/logo.png
+keywords:
+  - Dart
+  - Flutter
+  - backend
+  - BaaS
+  - SQLite
+  - authentication
+  - Zonai
+url: https://mrgnhnt96.github.io/zonai
+social:
+  - name: GitHub
+    url: https://github.com/mrgnhnt96/zonai

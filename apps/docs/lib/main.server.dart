@@ -1,6 +1,7 @@
 /// The entrypoint for the **server** environment.
 library;
 
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 import 'package:jaspr_content/components/callout.dart';
 import 'package:jaspr_content/components/code_block.dart';
@@ -37,10 +38,10 @@ void main() {
         Image(zoom: true),
       ],
       layouts: [
-        DocsLayout(
+        ZonaiDocsLayout(
           header: Header(
             title: 'Zonai',
-            logo: '/images/logo.svg',
+            logo: '/images/logo-192.png',
             items: [
               ThemeToggle(),
             ],
@@ -215,4 +216,43 @@ void main() {
       ),
     ),
   );
+}
+
+/// [DocsLayout] with site-level description / OG image / keywords fallbacks.
+final class ZonaiDocsLayout extends DocsLayout {
+  const ZonaiDocsLayout({super.sidebar, super.header, super.footer});
+
+  @override
+  Iterable<Component> buildHead(Page page) sync* {
+    yield* super.buildHead(page);
+
+    final pageData = page.data.page;
+    final siteData = page.data.site;
+
+    if (pageData['description'] == null) {
+      if (siteData['description'] case final String description) {
+        yield meta(name: 'description', content: description);
+        yield meta(attributes: {'property': 'og:description'}, content: description);
+      }
+    }
+
+    if (pageData['keywords'] == null) {
+      if (siteData['keywords'] case final List keywords) {
+        yield meta(name: 'keywords', content: keywords.join(', '));
+      } else if (siteData['keywords'] case final String keywords) {
+        yield meta(name: 'keywords', content: keywords);
+      }
+    }
+
+    if (pageData['image'] == null) {
+      if (siteData['image'] case final String image) {
+        final absolute = switch (siteData['url']) {
+          final String url when image.startsWith('/') =>
+            '${url.replaceAll(RegExp(r'/+$'), '')}$image',
+          _ => image,
+        };
+        yield meta(attributes: {'property': 'og:image'}, content: absolute);
+      }
+    }
+  }
 }

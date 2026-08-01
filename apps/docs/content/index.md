@@ -1,6 +1,6 @@
 ---
 title: Introduction
-description: What Zonai is, who it's for, and the problem it solves.
+description: A batteries-included Dart backend framework — auth, database, file uploads, cron jobs, and more.
 ---
 
 Zonai is a Dart backend-as-a-service framework that turns schema definitions into a complete REST API. Write your tables, rules, and business logic in Dart — Zonai handles the HTTP layer, the database, and the auth system.
