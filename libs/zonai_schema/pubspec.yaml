@@ -13,6 +13,7 @@ dependencies:
   cron: ^0.6.2
   crypto: ^3.0.7
   meta: ^1.17.0
+  msgpack_dart: ^1.0.1
   raindrop:
     path: ../raindrop/packages/raindrop
   raindrop_sqlite:

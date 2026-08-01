@@ -12,6 +12,7 @@ import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rate_limit_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
+import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
 
@@ -47,10 +48,10 @@ class Mailman<S extends Request, R extends Response> {
     required this.debugName,
     required this.executablePath,
     required R Function(Map<String, dynamic>) fromJson,
-    // Subprocess stdout preserves line order (mutation RPCs before the reply).
+    // Subprocess stdout preserves frame order (mutation RPCs before the reply).
     // Sync broadcast avoids delayed stream delivery; mutation [Request]s are
     // queued in [_listenToMessages] so enqueue cannot fall behind the next
-    // response line after an async [_handleRequest] await.
+    // response frame after an async [_handleRequest] await.
   }) : _response = StreamController.broadcast(sync: true),
        _request = StreamController.broadcast(sync: true),
        _fromJson = fromJson {
@@ -76,6 +77,7 @@ class Mailman<S extends Request, R extends Response> {
   io.Process? _process;
   Future<io.Process?>? _starting;
   final StringBuffer _stderrBuffer = StringBuffer();
+  final IpcFrameBuffer _stdoutFrames = IpcFrameBuffer();
   final StreamController<Request> _request;
   late final StreamSubscription<Request> _requestSubscription;
   final StreamController<(Response, List<MutationRequest>)> _response;
@@ -89,7 +91,7 @@ class Mailman<S extends Request, R extends Response> {
   Future<void>? _restartFuture;
 
   /// Serializes [stdin] writes so concurrent [_send] calls cannot interleave
-  /// JSON lines on the worker subprocess.
+  /// framed MessagePack payloads on the worker subprocess.
   Future<void> _sendChain = Future.value();
 
   Future<void> dispose() async {
@@ -265,7 +267,7 @@ class Mailman<S extends Request, R extends Response> {
       );
     }
     try {
-      _process?.stdin.writeln(jsonEncode(response.toJson()));
+      _process?.stdin.add(IpcCodec.encode(response.toJson()));
     } on Object catch (e, stack) {
       logger.error('$_prefix: Failed to write to child stdin', e, stack);
     }
@@ -412,6 +414,7 @@ class Mailman<S extends Request, R extends Response> {
     logger.debug('Starting | $executablePath', prefix: _prefix);
 
     _stderrBuffer.clear();
+    _stdoutFrames.clear();
     final p = _process = await process.start(executablePath, []);
     p.stderr
         .transform(utf8.decoder)
@@ -427,6 +430,7 @@ class Mailman<S extends Request, R extends Response> {
 
         logger.warn('$_prefix: Exited (exit code: $exitCode)');
         _process = null;
+        _stdoutFrames.clear();
         final failure = WorkerProcessFailedException(
           workerName: debugName,
           executablePath: executablePath,
@@ -445,28 +449,31 @@ class Mailman<S extends Request, R extends Response> {
       }
     });
 
-    p.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen(
-          Zone.current.bindUnaryCallback<void, String>(_listenToMessages),
-          onError: _onStreamError,
-        );
+    p.stdout.listen(
+      Zone.current.bindUnaryCallback<void, List<int>>(_onStdoutChunk),
+      onError: _onStreamError,
+    );
 
     logger.debug('Started', prefix: _prefix);
 
     return p;
   }
 
-  void _listenToMessages(String message) {
-    Map<String, dynamic> json;
+  void _onStdoutChunk(List<int> chunk) {
+    final List<Map<String, dynamic>> maps;
     try {
-      json = jsonDecode(message.trim()) as Map<String, dynamic>;
-    } on Object catch (e, stack) {
-      logger.error('$_prefix: Malformed message on stdout', e, stack);
+      maps = _stdoutFrames.push(chunk);
+    } on FormatException catch (e, stack) {
+      logger.error('$_prefix: Malformed IPC frame on stdout', e, stack);
       return;
     }
 
+    for (final map in maps) {
+      _listenToMessages(map);
+    }
+  }
+
+  void _listenToMessages(Map<String, dynamic> json) {
     final pathRaw = json['path'];
     if (pathRaw is! String) {
       logger.error('$_prefix: Message missing path');
@@ -480,7 +487,7 @@ class Mailman<S extends Request, R extends Response> {
           response = Response.fromJson(json);
         } on Object catch (e, stack) {
           logger.error(
-            '$_prefix: Invalid response JSON for path "$pathRaw"',
+            '$_prefix: Invalid response payload for path "$pathRaw"',
             e,
             stack,
           );
@@ -501,7 +508,7 @@ class Mailman<S extends Request, R extends Response> {
           request = Request.fromJson(json);
         } on Object catch (e, stack) {
           logger.error(
-            '$_prefix: Invalid request JSON for path "$pathRaw"',
+            '$_prefix: Invalid request payload for path "$pathRaw"',
             e,
             stack,
           );
@@ -675,7 +682,7 @@ class Mailman<S extends Request, R extends Response> {
     final pendingResponse = Completer<(Response, List<MutationRequest>)>();
     _pendingResponses[request.id] = pendingResponse;
 
-    process.stdin.writeln(jsonEncode(request.toJson()));
+    process.stdin.add(IpcCodec.encode(request.toJson()));
     return pendingResponse;
   }
 
@@ -749,6 +756,7 @@ class Mailman<S extends Request, R extends Response> {
       logger.debug('Killing', prefix: _prefix);
       process.kill();
       _process = null;
+      _stdoutFrames.clear();
     }
 
     _pendingMutations.clear();
@@ -773,10 +781,10 @@ class Mailman<S extends Request, R extends Response> {
 /// A small pool of independent [Mailman] worker subprocesses of the same
 /// kind, round-robining [send] calls across them.
 ///
-/// A single [Mailman] talks to one OS process over one stdin/stdout line
-/// protocol (see [Mailman._sendChain] / `_writeOnce`). However many CPU
-/// cores the host has, requests routed through one worker are bottlenecked
-/// by that one process reading and replying to one line at a time --
+/// A single [Mailman] talks to one OS process over one stdin/stdout framed
+/// MessagePack protocol (see [Mailman._sendChain] / `_writeOnce`). However many
+/// CPU cores the host has, requests routed through one worker are bottlenecked
+/// by that one process reading and replying to one frame at a time --
 /// measured under load, that ceiling shows up as throughput *degrading*
 /// past a handful of concurrent callers, not scaling with them. Running N
 /// independent worker processes and spreading requests across them turns

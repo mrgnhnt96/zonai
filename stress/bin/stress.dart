@@ -215,13 +215,8 @@ Future<void> _ensureFixtureReady({
   required File zonaiExe,
   required bool skipBuild,
 }) async {
-  final packageConfig = File(
-    '${fixtureDir.path}/.dart_tool/package_config.json',
-  );
-  if (!packageConfig.existsSync()) {
-    print('Fetching fixture dependencies (dart pub get)...');
-    await _run(Platform.resolvedExecutable, ['pub', 'get'], fixtureDir.path);
-  }
+  print('Fetching fixture dependencies (dart pub get)...');
+  await _run(Platform.resolvedExecutable, ['pub', 'get'], fixtureDir.path);
 
   final migrationsDir = Directory('${fixtureDir.path}/.zonai/migrations');
   if (!migrationsDir.existsSync() || migrationsDir.listSync().isEmpty) {
