@@ -5,9 +5,17 @@ description: Producing a Linux deploy bundle from macOS and running it on Fly.io
 
 This guide covers the parts of a Fly.io deployment that are specific to Fly and to cross-OS builds. For the basics of what `zonai build` produces, `--release` semantics, and process management, see [Building for Production](/deployment/building-for-production), [Release Mode](https://github.com/mrgnhnt96/zonai/blob/main/docs/release-mode.md), and [Running the Server](/deployment/running-the-server) first — this doc assumes you already know those.
 
-## Why This Needs Its Own Guide
+## Do You Even Need Docker?
 
-[Cross-Compilation](/deployment/cross-compilation) covers `buildSettings.targetOs`/`targetArch` for the common case of building on macOS and targeting Linux — but that only cross-compiles your **app's worker executables**. It does not help with two things a real Fly.io deploy also needs:
+**Probably not.** If you're deploying a normal consumer app — no changes to the zonai framework itself, just your own schemas/rules/config — set `buildSettings.targetOs`/`targetArch` in `zonai.yaml` and run `zonai build --flavor prod --release` on your dev machine. See [Cross-Compilation](/deployment/cross-compilation). This produces a native Linux `build/` bundle directly via `dart compile exe`. No container runtime, no GitHub token, nothing else required — go straight to packaging that bundle into a minimal runtime image (see the plain `Dockerfile` at the bottom of this guide, which just copies `build/` — it doesn't build anything).
+
+The rest of this guide, specifically the **Docker-Based Linux Build** section below, is for a narrower and much less common case: producing the `zonai` **CLI binary itself** from source — needed only if you're working on the zonai framework, or you need a fix/version that isn't published as a release yet. If your locally-installed `zonai` already builds and serves your app correctly, you don't need any of that; skip to [Producing the app's deploy bundle](#producing-the-apps-deploy-bundle).
+
+## Why the From-Source Path Needs Its Own Guide
+
+A consumer app's `buildSettings`-driven `zonai build` genuinely cross-compiles end to end — the project binary and workers, including the parts that link against Argon2/libsodium and resqlite's native `sqlite3mc` build, all come out as real target-OS binaries with no native toolchain on the host. That's because those native libraries are **already built** (shipped as prebuilt platform binaries by the framework) — a consumer build links against the existing one for your target, it doesn't recompile any C from source.
+
+Rebuilding the zonai CLI framework itself is a different task, with two real limitations that a normal consumer deploy never hits:
 
 - **`zonai build`'s own cross-compile support only currently produces `linux/x64`.** There is no cross-compile path to `linux/arm64` today. A native `zonai build` run directly on a `linux/arm64` machine also fails outright:
 
@@ -15,11 +23,11 @@ This guide covers the parts of a Fly.io deployment that are specific to Fly and 
   Unsupported operation: Unsupported architecture: linux_arm64
   ```
 
-- **The `zonai` CLI binary itself cannot be cross-compiled from macOS to Linux.** It embeds native FFI dependencies — Argon2/libsodium (built via a build hook) and resqlite's own native `sqlite3mc` build — that must be compiled *natively on the target OS*, not cross-compiled. This is true whether you're rebuilding the framework from source or just producing a consumer app's `zonai build` bundle.
+- **Producing new prebuilt native libraries (Argon2/libsodium, resqlite's `sqlite3mc` build) requires compiling them natively on each target OS** — this only comes up when you're changing the framework's native code or need those libraries for a platform they haven't been built for yet. It is not something a consumer app's `zonai build` ever does.
 
-The workable recipe — matching what zonai's own CI does in `.github/workflows/compile.yml` and the `zonai.compile` script in `scripts.yaml` — is to do the actual build inside a genuine Linux container, regardless of your host OS/arch.
+If you need to rebuild the framework from source for one of those reasons, the workable recipe — matching what zonai's own CI does in `.github/workflows/compile.yml` and the `zonai.compile` script in `scripts.yaml` — is to do the actual build inside a genuine Linux container, regardless of your host OS/arch.
 
-## The Docker-Based Linux Build
+## The Docker-Based Linux Build (Framework Rebuilds Only)
 
 Run everything inside a `dart:stable` container targeting `linux/amd64` (Fly's default/most common machine architecture) — this gives you a real native Linux build environment whether your host is macOS Apple Silicon, macOS Intel, or something else entirely:
 

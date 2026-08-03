@@ -666,6 +666,13 @@ compiled with `dart compile exe` (including `--target-os` / `--target-arch`
 when set), so the normal Dart AOT rule applies: you cannot compile a macOS or
 Windows target from a different host OS.
 
+**No Docker or container runtime is needed to produce a Linux deploy bundle
+from macOS (or any other host)** — `buildSettings` + `zonai build` cross-compile
+natively via `dart compile exe`. A container is only relevant if you're
+rebuilding the zonai CLI framework itself from source (e.g. an unreleased
+framework fix); that is a different, much narrower task than shipping your
+app, and does not apply to a normal deploy.
+
 Day-to-day `serve` / `db` from a project root re-exec into the generated
 project entry (`.dart_tool/zonai/project_main.dart` under JIT, or
 `.zonai/zonai` with `--release`) so ops/rules stay in-process. Set
@@ -1666,6 +1673,11 @@ buildSettings:
 Defaults to the machine running `build`. The project binary and workers are
 compiled with `dart compile exe` (plus `--target-os` / `--target-arch` when
 set). You cannot compile a macOS or Windows target from a different host OS.
+
+**No Docker/container runtime needed** to produce a Linux bundle from macOS —
+this is a native cross-compile. Docker only enters the picture if you're
+rebuilding the zonai CLI framework itself from source, which is unrelated to
+shipping a normal app.
 
 `build/zonai` is **not** a copy or download of the published CLI — it is
 compiled from generated `.dart_tool/zonai/project_main.dart` with your
