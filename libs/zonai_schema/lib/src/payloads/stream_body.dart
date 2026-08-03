@@ -14,8 +14,11 @@ class StreamBody {
   factory StreamBody.fromJson(Map<String, dynamic> json) {
     return StreamBody(
       table: json['table'] as String,
-      where: Where.fromJson(json['where'] as Map<String, dynamic>),
-      expand: json['expand'] as List<String>? ?? [],
+      where: Where.fromJson(Map<String, dynamic>.from(json['where'] as Map)),
+      expand: [
+        if (json['expand'] case final List list)
+          for (final item in list) item as String,
+      ],
     );
   }
 

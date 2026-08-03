@@ -46,7 +46,10 @@ class StreamListBody {
           'Expected a list of order terms',
         ),
       },
-      expand: json['expand'] as List<String>? ?? [],
+      expand: [
+        if (json['expand'] case final List list)
+          for (final item in list) item as String,
+      ],
       groupBy: json['group_by'] as String?,
     );
   }
