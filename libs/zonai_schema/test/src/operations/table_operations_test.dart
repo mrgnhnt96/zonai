@@ -603,6 +603,18 @@ void main() {
       expect(await execOps.count(where: const Eq('title', 'z')).single, 1);
     });
 
+    test('eq matches a TEXT value that is all digits with a leading zero', () async {
+      await execOps.insert({
+        'title': '0014303072000',
+        'qty': 1,
+        'tags': '[]',
+      });
+      expect(
+        await execOps.count(where: const Eq('title', '0014303072000')).single,
+        1,
+      );
+    });
+
     group('wire-value coercion', () {
       late _FlagOperations flagOps;
 
