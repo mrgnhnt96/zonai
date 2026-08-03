@@ -76,10 +76,10 @@ class Auth {
     required SignInAuthBody body,
     String? authorization,
   }) async {
-    final raw = await _auth.authenticate(
-      body: body,
-      authorization: authorization,
-    );
+    // Prefer the dedicated /auth/sign-in route (typed SignInAuthBody) over the
+    // polymorphic /auth authenticate endpoint — avoids 500s when a caller
+    // omits `type`/`table` and keeps sign-in on the BodyRateLimit(.signIn) bucket.
+    final raw = await _auth.signIn(body: body);
     return _sessionFromRaw(raw);
   }
 
