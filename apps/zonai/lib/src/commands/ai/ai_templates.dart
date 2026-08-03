@@ -135,6 +135,7 @@ final items = table('items', ItemTable.new);
 | `$.email(name, getter)` | `EmailColumn` | Auth tables |
 | `$.password(name, getter)` | `PasswordColumn` | Auth tables; Argon2id auto-hashed |
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
+| `$.dateTime(name, getter)` | `DateTimeColumn` | Client-settable timestamp |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
 | `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
 | `$.updatedWhen(name, getter, watchColumn:)` | `DateTimeColumn` | Auto-set when `watchColumn` changes |
@@ -147,6 +148,11 @@ final items = table('items', ItemTable.new);
 | `$.serverGenerated(name, getter)` | `ColumnType<String>` | Value client can never set; `safeCreate` fills `''` for rules; unlike `password`, not stripped from responses |
 
 Nullable getter type (`String?`) → nullable SQL column.
+
+Every `DateTimeColumn` (`dateTime`, `createdAt`, `updatedAt`, `updatedWhen`)
+speaks epoch milliseconds on the wire in both directions — reads always come
+back as an `int`, and writes accept either epoch milliseconds or an ISO-8601
+string.
 
 ### Auth tables
 
@@ -918,6 +924,7 @@ users of this table to authenticate as admins.
 | `$.email(name, getter)` | `EmailColumn` | Auth tables |
 | `$.password(name, getter)` | `PasswordColumn` | Auto-hashed (Argon2id) |
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
+| `$.dateTime(name, getter)` | `DateTimeColumn` | Client-settable timestamp |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
 | `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
 | `$.updatedWhen(name, getter, watchColumn:)` | `DateTimeColumn` | Auto-set when `watchColumn` changes |
@@ -930,6 +937,11 @@ users of this table to authenticate as admins.
 | `$.serverGenerated(name, getter)` | `ColumnType<String>` | Value client can never set; `safeCreate` fills `''` for rules; unlike `password`, not stripped from responses |
 
 Nullable getter (`String?`) → nullable column in SQL.
+
+Every `DateTimeColumn` (`dateTime`, `createdAt`, `updatedAt`, `updatedWhen`)
+speaks epoch milliseconds on the wire in both directions — reads always come
+back as an `int`, and writes accept either epoch milliseconds or an ISO-8601
+string.
 
 ## ID classes (`lib/src/ids.dart`)
 
