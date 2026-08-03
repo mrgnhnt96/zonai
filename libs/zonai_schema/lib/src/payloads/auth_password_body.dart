@@ -6,7 +6,14 @@ sealed class AuthBody {
   const AuthBody({required this.table, required this.type});
 
   factory AuthBody.fromJson(Map<String, dynamic> json) {
-    return switch (json['type']) {
+    // Tolerate clients that omit `type` but send email+password — previously
+    // that fell through to ArgumentError / Null casts and surfaced as HTTP 500.
+    final rawType = json['type'];
+    final type = rawType ??
+        ((json['email'] is String && json['password'] is String)
+            ? SignInAuthBody._type
+            : null);
+    return switch (type) {
       SignInAuthBody._type => SignInAuthBody.fromJson(json),
       SignUpAuthBody._type => SignUpAuthBody.fromJson(json),
       SendOtpAuthBody._type => SendOtpAuthBody.fromJson(json),
@@ -483,10 +490,21 @@ class SignInAuthBody extends AuthBody {
   final String password;
 
   factory SignInAuthBody.fromJson(Map<String, dynamic> json) {
+    final email = json['email'];
+    final password = json['password'];
+    if (email is! String || password is! String) {
+      throw ArgumentError(
+        'SignInAuthBody requires string email and password '
+        '(got email=${email.runtimeType}, password=${password.runtimeType})',
+      );
+    }
+    // Default table to `users` when omitted — bare {email,password} bodies
+    // used to cast null→String and return HTTP 500 from /auth and /auth/sign-in.
+    final table = json['table'];
     return SignInAuthBody(
-      table: json['table'] as String,
-      email: json['email'] as String,
-      password: json['password'] as String,
+      table: table is String && table.isNotEmpty ? table : 'users',
+      email: email,
+      password: password,
     );
   }
 
