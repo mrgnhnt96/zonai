@@ -35,18 +35,14 @@ void main() {
         resqliteRoot: raindropPackages.resqlite,
       );
 
-      final compile = await Process.run(
-        Platform.resolvedExecutable,
-        [
-          'compile',
-          'exe',
-          '-D__ZONAI_COMPILED__=true',
-          'bin/zonai.dart',
-          '-o',
-          executablePath,
-        ],
-        workingDirectory: zonaiPackageDir.path,
-      );
+      final compile = await Process.run(Platform.resolvedExecutable, [
+        'compile',
+        'exe',
+        '-D__ZONAI_COMPILED__=true',
+        'bin/zonai.dart',
+        '-o',
+        executablePath,
+      ], workingDirectory: zonaiPackageDir.path);
       if (compile.exitCode != 0) {
         throw StateError(
           'dart compile exe failed:\n${compile.stderr}\n${compile.stdout}',
@@ -63,31 +59,34 @@ void main() {
         return;
       }
 
-      final config = jsonDecode(
-        File(p.join(projectRoot.path, '.dart_tool', 'package_config.json'))
-            .readAsStringSync(),
-      ) as Map<String, dynamic>;
-      final packageNames = (config['packages'] as List<dynamic>)
-          .map((pkg) => (pkg as Map<String, dynamic>)['name'] as String);
+      final config =
+          jsonDecode(
+                File(
+                  p.join(projectRoot.path, '.dart_tool', 'package_config.json'),
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+      final packageNames = (config['packages'] as List<dynamic>).map(
+        (pkg) => (pkg as Map<String, dynamic>)['name'] as String,
+      );
       expect(packageNames, isNot(contains('raindrop_cli')));
 
-      final migrationsDir = Directory(p.join(projectRoot.path, '.zonai', 'migrations'));
+      final migrationsDir = Directory(
+        p.join(projectRoot.path, '.zonai', 'migrations'),
+      );
       if (migrationsDir.existsSync()) {
         migrationsDir.deleteSync(recursive: true);
       }
 
-      final result = await Process.run(
-        executablePath,
-        [
-          'db',
-          'migrate',
-          'generate',
-          '--name',
-          'initialize',
-          '--no-version-check',
-        ],
-        workingDirectory: projectRoot.path,
-      );
+      final result = await Process.run(executablePath, [
+        'db',
+        'migrate',
+        'generate',
+        '--name',
+        'initialize',
+        '--no-version-check',
+        '--no-raindrop-sync',
+      ], workingDirectory: projectRoot.path);
 
       expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
       expect(
@@ -134,8 +133,9 @@ Future<void> _bootstrapEndUserProject({
   required String raindropSqliteRoot,
   required String resqliteRoot,
 }) async {
-  Directory(p.join(projectRoot.path, 'lib', 'src', 'schemas'))
-      .createSync(recursive: true);
+  Directory(
+    p.join(projectRoot.path, 'lib', 'src', 'schemas'),
+  ).createSync(recursive: true);
 
   File(p.join(projectRoot.path, 'pubspec.yaml')).writeAsStringSync('''
 name: migrate_compiled_e2e_fixture
@@ -163,8 +163,9 @@ migrationsPath: .zonai/migrations
 schemasPath: lib/src/schemas
 ''');
 
-  File(p.join(projectRoot.path, 'lib', 'src', 'schemas', 'users.dart'))
-      .writeAsStringSync('''
+  File(
+    p.join(projectRoot.path, 'lib', 'src', 'schemas', 'users.dart'),
+  ).writeAsStringSync('''
 import 'package:raindrop/raindrop.dart';
 import 'package:raindrop_sqlite/raindrop_sqlite.dart';
 
@@ -193,11 +194,10 @@ class UserSchema extends Schema<User> {
 final users = sqliteTable('users', UserSchema.new);
 ''');
 
-  final pubGet = await Process.run(
-    Platform.resolvedExecutable,
-    const ['pub', 'get'],
-    workingDirectory: projectRoot.path,
-  );
+  final pubGet = await Process.run(Platform.resolvedExecutable, const [
+    'pub',
+    'get',
+  ], workingDirectory: projectRoot.path);
   if (pubGet.exitCode != 0) {
     throw StateError(
       'dart pub get failed:\n${pubGet.stderr}\n${pubGet.stdout}',

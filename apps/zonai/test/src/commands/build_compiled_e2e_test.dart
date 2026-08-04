@@ -64,6 +64,7 @@ void main() {
         final result = await Process.run(executablePath, [
           'build',
           '--no-version-check',
+          '--no-raindrop-sync',
         ], workingDirectory: projectRoot.path);
 
         expect(
@@ -86,6 +87,7 @@ void main() {
         final version = await Process.run(bundledExecutable.path, [
           'version',
           '--no-version-check',
+          '--no-raindrop-sync',
         ]);
         expect(
           version.exitCode,
@@ -112,6 +114,7 @@ void main() {
           '--name',
           'initialize',
           '--no-version-check',
+          '--no-raindrop-sync',
         ], workingDirectory: projectRoot.path);
         expect(
           generate.exitCode,
@@ -142,6 +145,7 @@ void main() {
         final build = await Process.run(executablePath, [
           'build',
           '--no-version-check',
+          '--no-raindrop-sync',
         ], workingDirectory: projectRoot.path);
         expect(build.exitCode, 0, reason: '${build.stderr}\n${build.stdout}');
 

@@ -30,7 +30,9 @@ void main() {
       }
 
       fixtureRoot = Directory(
-        p.normalize(p.join(Directory.current.path, '..', '..', 'e2e', 'external_auth')),
+        p.normalize(
+          p.join(Directory.current.path, '..', '..', 'e2e', 'external_auth'),
+        ),
       );
       if (!fixtureRoot.existsSync()) {
         // When tests run from repo root via workspace tooling.
@@ -42,7 +44,9 @@ void main() {
         reason: 'fixture missing at ${fixtureRoot.path}',
       );
 
-      projectRoot = Directory.systemTemp.createTempSync('zonai_external_auth_e2e_');
+      projectRoot = Directory.systemTemp.createTempSync(
+        'zonai_external_auth_e2e_',
+      );
       final repoRoot = fixtureRoot.parent.parent;
       final raindropPackages = RaindropPackageRoots.fromPackageConfig();
       _copyTree(fixtureRoot, projectRoot);
@@ -52,11 +56,10 @@ void main() {
         raindropPackages: raindropPackages,
       );
 
-      final pubGet = await Process.run(
-        Platform.resolvedExecutable,
-        const ['pub', 'get'],
-        workingDirectory: projectRoot.path,
-      );
+      final pubGet = await Process.run(Platform.resolvedExecutable, const [
+        'pub',
+        'get',
+      ], workingDirectory: projectRoot.path);
       expect(pubGet.exitCode, 0, reason: '${pubGet.stderr}\n${pubGet.stdout}');
 
       settings = await runMergedScopedFuture(
@@ -78,37 +81,43 @@ void main() {
         ],
       );
 
-      await runMergedScopedFuture(
-        () async {
-          await _runZonai(
-            projectRoot,
-            ['compile', '--no-version-check'],
-          );
-          await _runZonai(
-            projectRoot,
-            ['db', 'migrate', 'generate', '--name', 'initialize', '--no-version-check'],
-          );
-          await _runZonai(
-            projectRoot,
-            ['db', 'migrate', 'apply', '--no-version-check'],
-          );
+      await runMergedScopedFuture(() async {
+        await _runZonai(projectRoot, [
+          'compile',
+          '--no-version-check',
+          '--no-raindrop-sync',
+        ]);
+        await _runZonai(projectRoot, [
+          'db',
+          'migrate',
+          'generate',
+          '--name',
+          'initialize',
+          '--no-version-check',
+          '--no-raindrop-sync',
+        ]);
+        await _runZonai(projectRoot, [
+          'db',
+          'migrate',
+          'apply',
+          '--no-version-check',
+          '--no-raindrop-sync',
+        ]);
 
-          final extensionsExe = File(
-            p.join(
-              projectRoot.path,
-              '.zonai',
-              'executables',
-              'db_extensions.exe',
-            ),
-          );
-          expect(
-            extensionsExe.existsSync(),
-            isTrue,
-            reason: 'compile must produce db_extensions.exe',
-          );
-        },
-        override: _e2eScopeOverrides(settings),
-      );
+        final extensionsExe = File(
+          p.join(
+            projectRoot.path,
+            '.zonai',
+            'executables',
+            'db_extensions.exe',
+          ),
+        );
+        expect(
+          extensionsExe.existsSync(),
+          isTrue,
+          reason: 'compile must produce db_extensions.exe',
+        );
+      }, override: _e2eScopeOverrides(settings));
     });
 
     tearDownAll(() {
@@ -133,22 +142,19 @@ void main() {
         );
 
         await withClock(Clock.fixed(now), () async {
-          await runMergedScopedFuture(
-            () async {
-              final db = ZonaiDb();
-              try {
-                final jwt = await db.parseJwt(token);
-                expect(jwt, isNotNull);
-                expect(jwt!.userId.value, sub);
-                expect(jwt.table, 'users');
-                expect(jwt.user['id'], sub);
-                expect(jwt.user['email'], 'sam@example.com');
-              } finally {
-                await db.dispose();
-              }
-            },
-            override: _e2eScopeOverrides(settings, appConfig: appConfig),
-          );
+          await runMergedScopedFuture(() async {
+            final db = ZonaiDb();
+            try {
+              final jwt = await db.parseJwt(token);
+              expect(jwt, isNotNull);
+              expect(jwt!.userId.value, sub);
+              expect(jwt.table, 'users');
+              expect(jwt.user['id'], sub);
+              expect(jwt.user['email'], 'sam@example.com');
+            } finally {
+              await db.dispose();
+            }
+          }, override: _e2eScopeOverrides(settings, appConfig: appConfig));
         });
       },
     );
@@ -171,19 +177,16 @@ void main() {
         );
 
         await withClock(Clock.fixed(now), () async {
-          await runMergedScopedFuture(
-            () async {
-              final db = ZonaiDb();
-              try {
-                final jwt = await db.parseJwt(token);
-                expect(jwt, isNotNull);
-                expect(jwt!.user['email'], 'sam@example.com');
-              } finally {
-                await db.dispose();
-              }
-            },
-            override: _e2eScopeOverrides(settings, appConfig: appConfig),
-          );
+          await runMergedScopedFuture(() async {
+            final db = ZonaiDb();
+            try {
+              final jwt = await db.parseJwt(token);
+              expect(jwt, isNotNull);
+              expect(jwt!.user['email'], 'sam@example.com');
+            } finally {
+              await db.dispose();
+            }
+          }, override: _e2eScopeOverrides(settings, appConfig: appConfig));
         });
       },
     );
@@ -217,11 +220,11 @@ Future<void> _runZonai(Directory projectRoot, List<String> args) async {
   final zonaiEntry = p.normalize(
     p.join(Directory.current.path, 'bin', 'zonai.dart'),
   );
-  final result = await Process.run(
-    Platform.resolvedExecutable,
-    ['run', zonaiEntry, ...args],
-    workingDirectory: projectRoot.path,
-  );
+  final result = await Process.run(Platform.resolvedExecutable, [
+    'run',
+    zonaiEntry,
+    ...args,
+  ], workingDirectory: projectRoot.path);
   expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
 }
 

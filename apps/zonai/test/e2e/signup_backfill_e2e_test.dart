@@ -82,7 +82,11 @@ void main() {
       );
 
       await runMergedScopedFuture(() async {
-        await _runZonai(projectRoot, ['compile', '--no-version-check']);
+        await _runZonai(projectRoot, [
+          'compile',
+          '--no-version-check',
+          '--no-raindrop-sync',
+        ]);
         await _runZonai(projectRoot, [
           'db',
           'migrate',
@@ -90,12 +94,14 @@ void main() {
           '--name',
           'initialize',
           '--no-version-check',
+          '--no-raindrop-sync',
         ]);
         await _runZonai(projectRoot, [
           'db',
           'migrate',
           'apply',
           '--no-version-check',
+          '--no-raindrop-sync',
         ]);
 
         final extensionsExe = File(
