@@ -23,6 +23,8 @@ Download a pre-compiled binary for your platform:
 
 Extract the zip and place the `zonai` (or `zonai.exe`) binary in the root of your project.
 
+On macOS or Linux you can skip picking an architecture: [`zonai`](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai) is a single self-extracting file (~35 MiB) that detects the current OS/arch and dispatches to the matching binary embedded inside it (macOS arm64, macOS x64, Linux x64, Linux arm64 — all four, picked at runtime). Download it, `chmod +x zonai`, and run it directly — no zip, no picking a platform, no other tools required. The first run decompresses and caches the binary for your platform using a small decompressor bundled inside the file itself; later runs skip straight to it. It isn't a Windows-runnable `.exe`; Windows always needs the dedicated `zonai-windows-x64.zip` above.
+
 Verify the installation:
 
 ```bash
