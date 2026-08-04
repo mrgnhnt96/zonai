@@ -11,7 +11,54 @@ permissions:
   actions: read
 
 jobs:
+  package-fat-binary:
+    name: Package fat binary (macOS + Linux)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tool/ci/resolve_release_version.sh
+
+      - name: Download compile artifacts (triggering verify run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          commit: ${{ github.event.workflow_run.head_sha }}
+          path: artifacts
+
+      - name: Download compile artifacts (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          path: artifacts
+
+      - name: Package fat binary
+        run: bash tool/ci/package_fat_binary.sh artifacts release-assets
+
+      - name: Upload fat binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zonai-fat-binary
+          path: release-assets/zonai
+
   release:
+    needs: package-fat-binary
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
@@ -47,6 +94,12 @@ jobs:
           workflow_conclusion: success
           path: artifacts
 
+      - name: Download fat binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: zonai-fat-binary
+          path: release-assets
+
       - name: Package release assets
         run: bash tool/ci/package_release_assets.sh artifacts
 
@@ -68,7 +121,8 @@ jobs:
             release-assets/zonai-linux-arm64.zip \
             release-assets/zonai-macos-arm64.zip \
             release-assets/zonai-macos-x64.zip \
-            release-assets/zonai-windows-x64.zip
+            release-assets/zonai-windows-x64.zip \
+            release-assets/zonai
 
       - name: Commit release version
         env:
