@@ -96,6 +96,8 @@ raindrop:
       cd libs/raindrop || exit 1
       git branch -D main
       git fetch upstream main:main
+  gen: cd apps/zonai && dart run tool/generate_raindrop_bundle.dart
+  stub: cd apps/zonai && dart run tool/generate_raindrop_bundle.dart --stub
 
 zonai_client:
   (aliases): [client]
@@ -216,6 +218,9 @@ zonai:
       - |
         echo "Generating embedded web assets"
         ${{ web.gen }}
+      - |
+        echo "Generating embedded raindrop bundle"
+        ${{ raindrop.gen }}
       - |
         BUILD_DIR="$(pwd)/build"
         # Without deleting the directory, clear out all the files (recursively) in the directory

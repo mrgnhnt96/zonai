@@ -1,6 +1,7 @@
 import 'package:zonai/src/commands/build.dart';
 import 'package:zonai/src/commands/version.dart';
 import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/raindrop_sync.dart';
 import 'package:zonai/src/deps/versions.dart';
 import 'package:zonai/src/domain/project/project_runtime.dart';
 
@@ -9,6 +10,7 @@ import 'commands/compile.dart';
 import 'commands/db/db.dart';
 import 'commands/dev/dev.dart';
 import 'commands/ping.dart';
+import 'commands/raindrop.dart';
 import 'commands/rules.dart';
 import 'commands/serve.dart';
 import 'deps/args.dart';
@@ -26,6 +28,7 @@ Commands:
   compile     Compile all workers
   ping        Ping worker executables
   rules       Inspect compiled rules
+  raindrop    Manage the embedded raindrop bundle
   ai          Install AI coding assistant reference files
 ''';
 
@@ -53,6 +56,8 @@ Future<int> run() async {
     return 1;
   }
 
+  await raindropSync.ensure();
+
   if (await maybeReexecProjectRuntime() case final exitCode?) {
     return exitCode;
   }
@@ -74,6 +79,8 @@ Future<int> run() async {
       return await ping();
     case ['rules', ...final path]:
       return await rules(path);
+    case ['raindrop', ...final path]:
+      return await raindrop(path);
     case ['ai', ...final path]:
       return await ai(path);
     default:
