@@ -1,5 +1,5 @@
-import 'package:revali_router_core/method_mutations/headers/headers.dart';
-import 'package:revali_router_core/trusted_proxy/trusted_proxy.dart';
+import 'package:revali_core/method_mutations/headers/headers.dart';
+import 'package:revali_core/trusted_proxy/trusted_proxy.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/config/trusted_proxy_config.dart';
 

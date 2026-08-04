@@ -9,7 +9,7 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  revali_router_core: ^2.3.0
+  revali_core: ^1.6.0
   cron: ^0.6.2
   crypto: ^3.0.7
   meta: ^1.17.0

@@ -418,18 +418,12 @@ dependency_overrides:
     path: ${revaliRoot.path}/constructs/revali_swagger/revali_swagger_annotations
   revali_router:
     path: ${revaliRoot.path}/revali_router/revali_router
-  revali_router_annotations:
-    path: ${revaliRoot.path}/revali_router/revali_router_annotations
-  revali_router_core:
-    path: ${revaliRoot.path}/revali_router/revali_router_core
   revali:
     path: ${revaliRoot.path}/packages/revali
   revali_client:
     path: ${revaliRoot.path}/constructs/revali_client/revali_client
   revali_client_gen:
     path: ${revaliRoot.path}/constructs/revali_client/revali_client_gen
-  revali_server:
-    path: ${revaliRoot.path}/constructs/revali_server
   revali_construct:
     path: ${revaliRoot.path}/packages/revali_construct
   revali_core:

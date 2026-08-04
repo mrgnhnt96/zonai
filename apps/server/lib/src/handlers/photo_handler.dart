@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:revali_router_core/revali_router_core.dart';
+import 'package:revali_core/revali_core.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_schema/zonai_schema.dart';
