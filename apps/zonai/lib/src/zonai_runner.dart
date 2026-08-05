@@ -2,6 +2,7 @@ import 'package:zonai/src/commands/build.dart';
 import 'package:zonai/src/commands/version.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/raindrop_sync.dart';
+import 'package:zonai/src/deps/schema_version_check.dart';
 import 'package:zonai/src/deps/versions.dart';
 import 'package:zonai/src/domain/project/project_runtime.dart';
 
@@ -57,6 +58,10 @@ Future<int> run() async {
   }
 
   await raindropSync.ensure();
+
+  if (await schemaVersionCheck.ensure() case final exitCode?) {
+    return exitCode;
+  }
 
   if (await maybeReexecProjectRuntime() case final exitCode?) {
     return exitCode;

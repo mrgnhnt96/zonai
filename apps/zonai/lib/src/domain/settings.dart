@@ -236,6 +236,7 @@ class Settings {
       _normalize([internalDirectory, '.raindrop_sync.json']);
   String get pubspecPath => _normalize(['pubspec.yaml']);
   String get pubspecOverridesPath => _normalize(['pubspec_overrides.yaml']);
+  String get pubspecLockPath => _normalize(['pubspec.lock']);
 
   /// Generated Dart entry for workers (ops/rules isolate spawn under JIT).
   String get generatedOperationsEntryPath =>

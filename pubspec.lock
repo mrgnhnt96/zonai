@@ -908,84 +908,70 @@ packages:
   revali:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/packages/revali"
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali"
       relative: false
     source: path
-    version: "2.2.0"
+    version: "3.0.0"
   revali_annotations:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/packages/revali_annotations"
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali_annotations"
       relative: false
     source: path
-    version: "2.0.2"
+    version: "3.0.0"
   revali_client:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/constructs/revali_client/revali_client"
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_client/revali_client"
       relative: false
     source: path
     version: "2.0.4"
   revali_client_gen:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/constructs/revali_client/revali_client_gen"
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_client/revali_client_gen"
       relative: false
     source: path
     version: "2.2.0"
   revali_construct:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/packages/revali_construct"
-      relative: false
-    source: path
-    version: "2.2.0"
-  revali_core:
-    dependency: "direct overridden"
-    description:
-      path: "/tmp/revali/packages/revali_core"
-      relative: false
-    source: path
-    version: "1.6.0"
-  revali_router:
-    dependency: "direct overridden"
-    description:
-      path: "/tmp/revali/revali_router/revali_router"
-      relative: false
-    source: path
-    version: "3.4.0"
-  revali_router_annotations:
-    dependency: "direct overridden"
-    description:
-      path: "/tmp/revali/revali_router/revali_router_annotations"
-      relative: false
-    source: path
-    version: "2.2.0"
-  revali_router_core:
-    dependency: "direct overridden"
-    description:
-      path: "/tmp/revali/revali_router/revali_router_core"
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali_construct"
       relative: false
     source: path
     version: "2.3.0"
-  revali_server:
+  revali_core:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/constructs/revali_server"
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali_core"
       relative: false
     source: path
-    version: "2.4.1"
+    version: "2.0.0"
+  revali_docker:
+    dependency: "direct overridden"
+    description:
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_docker"
+      relative: false
+    source: path
+    version: "1.0.0"
+  revali_router:
+    dependency: "direct overridden"
+    description:
+      path: "/Users/morgan/Development/dart_projects/revali/revali_router/revali_router"
+      relative: false
+    source: path
+    version: "4.0.0"
   revali_swagger:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/constructs/revali_swagger/revali_swagger"
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_swagger/revali_swagger"
       relative: false
     source: path
     version: "1.0.0"
   revali_swagger_annotations:
     dependency: "direct overridden"
     description:
-      path: "/tmp/revali/constructs/revali_swagger/revali_swagger_annotations"
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_swagger/revali_swagger_annotations"
       relative: false
     source: path
     version: "1.0.0"

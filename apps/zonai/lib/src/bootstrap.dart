@@ -18,6 +18,7 @@ import 'package:zonai/src/deps/operations.dart';
 import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/raindrop_sync.dart';
 import 'package:zonai/src/deps/revali.dart';
+import 'package:zonai/src/deps/schema_version_check.dart';
 import 'package:zonai/src/deps/rate_limiter.dart';
 import 'package:zonai/src/deps/rate_limits.dart';
 import 'package:zonai/src/deps/crons.dart';
@@ -91,6 +92,7 @@ Future<void> runZonai(List<String> arguments) async {
       settingsProvider,
       versionsProvider,
       raindropSyncProvider,
+      schemaVersionCheckProvider,
     },
   );
 }

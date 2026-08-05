@@ -18,6 +18,7 @@ export 'src/deps/operations.dart';
 export 'src/deps/process.dart';
 export 'src/deps/raindrop_sync.dart';
 export 'src/deps/revali.dart';
+export 'src/deps/schema_version_check.dart';
 export 'src/deps/rules.dart';
 export 'src/deps/settings.dart';
 export 'src/deps/stdin.dart';
