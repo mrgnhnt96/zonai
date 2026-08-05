@@ -86,6 +86,7 @@ void main() {
           'compile',
           '--no-version-check',
           '--no-raindrop-sync',
+          '--no-schema-version-check',
         ]);
         await _runZonai(projectRoot, [
           'db',
@@ -95,6 +96,7 @@ void main() {
           'initialize',
           '--no-version-check',
           '--no-raindrop-sync',
+          '--no-schema-version-check',
         ]);
         await _runZonai(projectRoot, [
           'db',
@@ -102,6 +104,7 @@ void main() {
           'apply',
           '--no-version-check',
           '--no-raindrop-sync',
+          '--no-schema-version-check',
         ]);
 
         final extensionsExe = File(

@@ -65,6 +65,7 @@ void main() {
           'build',
           '--no-version-check',
           '--no-raindrop-sync',
+          '--no-schema-version-check',
         ], workingDirectory: projectRoot.path);
 
         expect(
@@ -88,6 +89,7 @@ void main() {
           'version',
           '--no-version-check',
           '--no-raindrop-sync',
+          '--no-schema-version-check',
         ]);
         expect(
           version.exitCode,
@@ -115,6 +117,7 @@ void main() {
           'initialize',
           '--no-version-check',
           '--no-raindrop-sync',
+          '--no-schema-version-check',
         ], workingDirectory: projectRoot.path);
         expect(
           generate.exitCode,
@@ -146,6 +149,7 @@ void main() {
           'build',
           '--no-version-check',
           '--no-raindrop-sync',
+          '--no-schema-version-check',
         ], workingDirectory: projectRoot.path);
         expect(build.exitCode, 0, reason: '${build.stderr}\n${build.stdout}');
 

@@ -86,6 +86,7 @@ void main() {
         'initialize',
         '--no-version-check',
         '--no-raindrop-sync',
+        '--no-schema-version-check',
       ], workingDirectory: projectRoot.path);
 
       expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
