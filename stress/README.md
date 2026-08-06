@@ -182,38 +182,93 @@ reach `HybridStreamEngine`'s cleanup, leaking an entry (plus every
 subsequent write to its watched table queuing into an orphaned controller)
 forever.
 
-**Mechanism-level repro** (`apps/zonai/tool/stream_disconnect_repro.dart`):
-wraps a `StreamController` in `.asBroadcastStream()` exactly as
-`BodyImpl.read()` does, serves it through a bare `HttpServer` the way
-`DefaultResponseHandler` does, then destroys the client socket abruptly
-mid-stream. Result: `onCancel` on the source **did** fire, ~2s after the
-disconnect (once a buffered write finally failed and the cancellation
-cascaded back). At this minimal, simplified level, cancellation propagates
-fine.
+**Mechanism-level repro, first attempt (WRONG — corrected below)**
+(`apps/zonai/tool/stream_disconnect_repro.dart`): wraps a `StreamController`
+in `.asBroadcastStream()` exactly as `BodyImpl.read()` does, serves it
+through a bare `HttpServer` the way `DefaultResponseHandler` does, then
+destroys the client socket abruptly mid-stream. First run reported `onCancel`
+firing ~2s after the disconnect. **That result was an artifact of the test
+itself**: the script called `source.close()` right before checking the
+result, and explicitly closing a controller forces a paused (not cancelled)
+subscription to resolve — which is a completely different code path from
+disconnect-triggered cancellation. Checking the result *before* any explicit
+close (the script has since been corrected) shows the true behavior:
+`onCancel` never fires from the disconnect alone, even after a 10s window
+with 50+ pushes. See `apps/zonai/tool/hybrid_stream_cancel_repro.dart` for
+the isolated, zero-HTTP confirmation: `asBroadcastStream()`'s documented
+default `onCancel` *pauses* the underlying subscription once the last
+listener goes away — it does not cancel it — and a `StreamController` that's
+paused this way sits there forever unless something else (like an explicit
+`close()`) forces resolution. `HybridStreamEngine` never closes a live
+entry's controller from outside; closing only ever happens as a
+*consequence* of `onCancel` already having fired. Nothing breaks that
+deadlock, so the pause is permanent. **Fix**, confirmed working in the same
+repro: pass `onCancel: (sub) => sub.cancel()` to `asBroadcastStream()` in
+`BodyImpl.read()` — these response-body streams are one-shot and never need
+the "maybe a new listener resumes it later" semantics the default is for.
+This is a `revali_router` fix (external dependency — not made here).
 
 **Full-system measurement** (`bin/leak_scan.dart`, `--mode=build`,
 1600+ stream opens per run, project-linked binary): both drop modes were run
-for 4 minutes at `--streams-per-wave=30 --hold=2 --wave-interval=3`.
+for 4 minutes at `--streams-per-wave=30 --hold=2 --wave-interval=3`, with
+every request using the *same* query (`table=items, limit=50`).
 
 | drop mode | waves | opened | RSS start→end | RSS peak | growth |
 |---|---|---|---|---|---|
 | abrupt | 54 | 1609 | 75.0MB→144.3MB | 149.1MB | +69.3MB |
 | graceful | 54 | 1595 | 75.1MB→144.3MB | 147.9MB | +69.2MB |
 
-Both curves are effectively identical, and both **plateau** rather than
-climb linearly: RSS rises steadily for the first ~150-180s, then holds flat
-(144-149MB) for the remainder of each 4-minute run. A real unbounded leak in
-`HybridStreamEngine.onDependencyChanges`'s entry cache would keep growing for
-the full run, not plateau — and if the leak were specific to *abrupt*
-disconnects skipping cleanup, graceful (which unambiguously cancels the
-subscription) should have stayed flat while abrupt kept climbing. Neither
-happened.
+Both curves plateau rather than climb linearly, and are effectively
+identical between drop modes. At the time this was read as refuting the leak
+theory entirely. **That reading was incomplete, not wrong about the data**:
+`HybridStreamEngine` caches one entry *per distinct query*, and every
+request here used the identical `(sql, params)` — so this run only ever had
+**one** entry, no matter how many abandoned subscribers piled up on it.
+Leaked subscribers on a single entry are cheap (a few extra list entries and
+`isClosed` checks per write) — nowhere near enough to move a ~70-150MB RSS
+number. The 4-minute plateau is real; it just wasn't testing the thing that
+turned out to matter.
 
-**Conclusion: the leak theory is refuted, both at the mechanism level and at
-full-system scale.** The ~69MB rise-then-plateau looks like a one-time
-warm-up cost (heap high-water-mark settling, connection/buffer pool sizing,
-or similar) common to sustained `/db/stream/list` churn regardless of how
-the connection ends, not a growth pattern tied to cancellation semantics.
+**Confirmed leak, with real severity (2026-08-06, follow-up)**: a 15-minute
+mixed-workload run (`bin/leak_scan.dart`, CRUD at `list@10/create@5/delete@5`
+concurrently with stream waves mixing `/db/stream/list` (varied
+`limit`/`offset`), `/db/stream` (one), and `/db/stream/count`, each keyed by
+a distinct seeded row id — see `stream_scenarios.dart`'s per-request
+parameter variation) collapsed: `list` p95 hit **12.9 seconds** (vs. ~3000
+req/s in earlier single-scenario benchmarks), and 2168/2300 stream-open
+attempts timed out. RSS itself stayed noisy/non-monotonic (59-121MB, no
+clean trend) — the collapse was a latency problem, not a memory-growth one,
+consistent with the mechanism below (leaked entries are cheap in RAM; the
+cost is CPU, one SQL requery per live entry per write).
+
+Isolated directly with `apps/zonai/tool/hybrid_stream_cancel_repro.dart`
+(a real `HybridStreamEngine`, no compiled server needed): opening 100
+distinct `/db/stream/list` connections (varied `limit`, so 100 distinct
+entries) and measuring `create` latency before/after:
+
+| condition | median create latency |
+|---|---|
+| baseline, no open streams | 2ms |
+| 100 distinct entries alive | 84-135ms (~50x) |
+| 20s after closing all 100 (~50 more writes in that window) | 87-135ms — **no recovery** |
+| same test with a graceful close (`subscription.cancel()` first) instead of abrupt | same — no recovery either |
+
+Every write to a watched table costs one SQL requery *per live entry*
+watching it, unbatched (`HybridStreamEngine._flushQueue`/`_requery`). That's
+fine as long as entries get removed when their client leaves — the whole
+point of this investigation was checking whether they do. They don't, and
+the mechanism-level repro above explains why: `asBroadcastStream()`'s
+default pause-not-cancel behavior means the disconnect never reaches
+`HybridStreamEngine.controller.onCancel`, so `_remove(entry)` never runs, for
+*either* graceful or abrupt disconnects — confirmed identically in both the
+server-level create-latency test above and the zero-HTTP mechanism repro.
+
+**Why the two investigations don't contradict each other**: the 4-minute
+plateau test only ever exercised one entry (identical query every time), so
+it could never have shown this — leaked *subscribers* on one entry are
+cheap; leaked *entries* (one per distinct query) are what cost a requery
+each on every write. This round specifically varied query parameters to
+create many distinct entries, which is what surfaced it.
 
 **Secondary finding, root-caused and fixed (2026-08-05, follow-up):** under
 this same sustained load, a small but consistent fraction of new stream
@@ -271,14 +326,39 @@ naming convention, not just the actually-generated files around it. Worth a
 deliberate decision (narrow the ignore pattern, or relocate hand-written
 components out of `gen/`) rather than a silent fix bundled into this PR.
 
-**Recommendation:** the original leak theory needed no fix — it isn't real.
-If CPU/memory monitoring for the compiled binary is still wanted going
-forward, it should watch for genuinely unbounded growth (no plateau) rather
-than assume `/db/stream*` connection churn itself is suspect. The `ps`-based
-sampler in this harness (`lib/src/process_metrics.dart`) is a fine
-one-off/CI-scan tool but isn't a substitute for real production monitoring
-(no `vm_service` is wired into zonai) — that's a separate decision, not
-made here.
+**Fixed and verified end-to-end (2026-08-06).** The fix landed in
+`revali_router` (coordinated live via the `llm_chat` cross-repo channel —
+`revali`'s agent applied `onCancel: (sub) => sub.cancel()` to
+`BodyImpl.read()`'s `.asBroadcastStream()` call at
+`revali_router/revali_router/lib/src/body/body_impl.dart:69`, added their own
+regression test tracing it through the real `async*`/`yield*` wrapper down
+to `default_response_handler.dart`, and reported 281 tests passing with no
+regressions). Re-ran the exact 100-distinct-entries create-latency
+diagnostic against a fresh `zonai build` of the fixture (picks up the local
+revali path dependency) with the fix in place:
+
+| condition | median create latency |
+|---|---|
+| baseline | 1ms |
+| 100 distinct entries alive | 52ms (expected — they're live, each legitimately costs a requery per write) |
+| 1s after abrupt-closing all 100 | 5ms |
+| 3s after | 2ms |
+| 5s / 10s / 20s after | 1ms — back to baseline and **stays there** |
+
+Before the fix this stayed pinned at 84-135ms indefinitely (confirmed out to
+20s+ and 60s+ in earlier rounds). Recovery now happens within 1-3s, matching
+the natural write-failure-detection timing from the mechanism repro, and
+holds through the rest of the window — no relapse. **Nothing to do on the
+zonai side**: the fix is entirely in the dependency; zonai just needs
+whatever revali release picks this commit up.
+
+If CPU/memory monitoring for the compiled binary is wanted independently of
+this (now-fixed) bug, watch CPU/latency under sustained writes (not just
+RSS — this bug's footprint was always CPU, not memory) since RSS alone
+stayed noisy/inconclusive even with the bug fully triggered. The `ps`-based sampler
+in this harness (`lib/src/process_metrics.dart`) is a fine one-off/CI-scan
+tool but isn't a substitute for real production monitoring (no `vm_service`
+is wired into zonai) — that's a separate decision, not made here.
 
 ## Bug found and fixed while building this harness
 
