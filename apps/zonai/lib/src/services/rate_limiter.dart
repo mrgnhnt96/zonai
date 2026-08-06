@@ -9,7 +9,6 @@ import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_response.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-// TODO: we need a cron to clean this every day or something
 final class RateLimiter {
   RateLimiter();
 
