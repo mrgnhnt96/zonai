@@ -10,6 +10,14 @@
 // once the last listener goes away. This script reproduces that exact wiring
 // with a bare HttpServer, forcibly disconnects the client mid-stream (not a
 // clean close), and reports whether the source ever sees onCancel.
+//
+// CORRECTED (2026-08-06): an earlier version of this script called
+// `source.close()` right before checking the result, which itself forces a
+// paused subscription to resolve and fire onCancel -- masking the real
+// answer. Checking `sourceCancelled` *before* any explicit close (as below)
+// shows the true behavior: onCancel never fires from the disconnect alone.
+// See tool/hybrid_stream_cancel_repro.dart for the isolated, zero-HTTP
+// confirmation and the fix (a custom `onCancel: (sub) => sub.cancel()`).
 import 'dart:async';
 import 'dart:io';
 
@@ -75,31 +83,35 @@ Future<void> main() async {
   stdout.writeln('--- destroying client socket abruptly (no clean FIN) ---');
   socket.destroy();
 
-  // Give the disconnect time to propagate through addStream()'s write
-  // failure -> subscription cancel -> asBroadcastStream() cancel chain.
-  await Future<void>.delayed(const Duration(seconds: 2));
+  // Give the disconnect a long window to propagate on its own -- no
+  // explicit close() of anything yet, so this reports the TRUE effect of
+  // the disconnect alone.
+  await Future<void>.delayed(const Duration(seconds: 10));
 
   pushTimer.cancel();
-  await source.close();
-  await server.close(force: true);
 
   stdout.writeln('');
   stdout.writeln('=== RESULT ===');
-  stdout.writeln('source.onCancel fired: $sourceCancelled');
+  stdout.writeln('source.onCancel fired from the disconnect alone: $sourceCancelled');
   if (sourceCancelled) {
     stdout.writeln(
-      'PASS (leak refuted): abrupt disconnect propagated all the way back '
-      'to the source stream, so HybridStreamEngine.controller.onCancel '
-      'would fire too and the entry would be cleaned up.',
+      'UNEXPECTED: the disconnect alone propagated back to the source '
+      'stream. Re-investigate -- this contradicts hybrid_stream_cancel_repro.dart.',
     );
   } else {
     stdout.writeln(
-      'FAIL (leak confirmed): abrupt disconnect never reached the source '
-      'stream -- asBroadcastStream() only paused it. HybridStreamEngine\'s '
-      'entry (and its StreamController) is never cleaned up on this path, '
-      'and every subsequent write to a watched table queues into the '
-      'orphaned controller forever.',
+      'CONFIRMED (leak mechanism real): the abrupt disconnect never reached '
+      'the source stream on its own -- asBroadcastStream() only paused it, '
+      'per its documented default. HybridStreamEngine\'s entry (and its '
+      'StreamController) is never cleaned up on this path, and every '
+      'subsequent write to a watched table queues into the orphaned '
+      'controller forever. See tool/hybrid_stream_cancel_repro.dart for the '
+      'minimal, zero-HTTP confirmation and fix.',
     );
   }
-  exit(sourceCancelled ? 0 : 1);
+
+  // Only now close, for cleanup -- after the result is already recorded.
+  await source.close();
+  await server.close(force: true);
+  exit(sourceCancelled ? 1 : 0);
 }
