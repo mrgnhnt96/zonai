@@ -96,8 +96,7 @@ raindrop:
       cd libs/raindrop || exit 1
       git branch -D main
       git fetch upstream main:main
-  gen: cd apps/zonai && dart run tool/generate_raindrop_bundle.dart
-  stub: cd apps/zonai && dart run tool/generate_raindrop_bundle.dart --stub
+  vendor: cd libs/zonai_schema && dart run tool/generate_raindrop_vendor.dart
 
 zonai_client:
   (aliases): [client]
@@ -208,6 +207,9 @@ zonai:
     (bail):
     (command):
       - ${{ version.gen }}
+      - |
+        echo "Vendoring raindrop into zonai_schema"
+        ${{ raindrop.vendor }}
       - ${{ server.copy-to-cli }}
       - |
         echo "Generating resqlite native library"
@@ -218,9 +220,6 @@ zonai:
       - |
         echo "Generating embedded web assets"
         ${{ web.gen }}
-      - |
-        echo "Generating embedded raindrop bundle"
-        ${{ raindrop.gen }}
       - |
         BUILD_DIR="$(pwd)/build"
         # Without deleting the directory, clear out all the files (recursively) in the directory
