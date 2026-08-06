@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:raindrop/raindrop.dart';
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
+import 'package:zonai/src/db_mutator/zonai_db/resqlite/resqlite_delegate.dart';
 import 'package:resqlite/resqlite.dart' as rs;
 
 Future<void> main() async {

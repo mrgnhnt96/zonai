@@ -6,7 +6,7 @@
 // Resync this file: dart run tool/generate_internal_db_artifacts.dart --sync-migrations-dart
 
 
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).
 final internalDbMigrations = [

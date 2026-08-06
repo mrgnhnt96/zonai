@@ -277,7 +277,7 @@ String _formatMigrationsDart(List<({String tag, String sql})> migrations) {
   final buffer = StringBuffer()..writeln('$_migrationsDartHeader');
   buffer
     ..writeln()
-    ..writeln("import 'package:raindrop/raindrop.dart';")
+    ..writeln("import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';")
     ..writeln()
     ..writeln(
       '/// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).',
@@ -460,7 +460,9 @@ String _formatArtifactsDart({
 }) {
   final buffer = StringBuffer()..writeln('$_generatedHeader');
   buffer.writeln();
-  buffer.writeln("import 'package:raindrop/raindrop.dart' show Schema;");
+  buffer.writeln(
+    "import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' show Schema;",
+  );
   for (final c in tables) {
     buffer.writeln("import '${c.importPath}' as _schema_${c.getter};");
   }

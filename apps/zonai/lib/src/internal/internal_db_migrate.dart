@@ -1,5 +1,5 @@
-import 'package:raindrop/raindrop.dart' as raindrop;
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as raindrop;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:zonai/src/internal/internal_db_migrations.dart';
 
 /// Applies versioned migrations for framework-managed SQLite tables.

@@ -6,7 +6,7 @@ import 'package:test/test.dart';
 
 import 'package:zonai/gen/version.dart';
 
-import '../../support/raindrop_package_roots.dart';
+import '../../support/package_roots.dart';
 
 /// End-to-end: a compiled `zonai` binary running `zonai build` against a
 /// project targeting its own platform must bundle a working copy of
@@ -23,16 +23,13 @@ void main() {
       }
 
       zonaiPackageDir = Directory(zonaiPackageRootFromConfig());
-      final raindropPackages = RaindropPackageRoots.fromPackageConfig();
 
       projectRoot = Directory.systemTemp.createTempSync('zonai_build_e2e_');
       executablePath = p.join(projectRoot.path, 'zonai');
 
       await _bootstrapEndUserProject(
         projectRoot: projectRoot,
-        raindropRoot: raindropPackages.raindrop,
-        raindropSqliteRoot: raindropPackages.raindropSqlite,
-        resqliteRoot: raindropPackages.resqlite,
+        zonaiSchemaRoot: zonaiSchemaPackageRootFromConfig(),
       );
 
       final compile = await Process.run(Platform.resolvedExecutable, [
@@ -64,7 +61,6 @@ void main() {
         final result = await Process.run(executablePath, [
           'build',
           '--no-version-check',
-          '--no-raindrop-sync',
           '--no-schema-version-check',
         ], workingDirectory: projectRoot.path);
 
@@ -88,7 +84,6 @@ void main() {
         final version = await Process.run(bundledExecutable.path, [
           'version',
           '--no-version-check',
-          '--no-raindrop-sync',
           '--no-schema-version-check',
         ]);
         expect(
@@ -116,7 +111,6 @@ void main() {
           '--name',
           'initialize',
           '--no-version-check',
-          '--no-raindrop-sync',
           '--no-schema-version-check',
         ], workingDirectory: projectRoot.path);
         expect(
@@ -148,7 +142,6 @@ void main() {
         final build = await Process.run(executablePath, [
           'build',
           '--no-version-check',
-          '--no-raindrop-sync',
           '--no-schema-version-check',
         ], workingDirectory: projectRoot.path);
         expect(build.exitCode, 0, reason: '${build.stderr}\n${build.stdout}');
@@ -187,9 +180,7 @@ bool get _runningOnDartVm =>
 
 Future<void> _bootstrapEndUserProject({
   required Directory projectRoot,
-  required String raindropRoot,
-  required String raindropSqliteRoot,
-  required String resqliteRoot,
+  required String zonaiSchemaRoot,
 }) async {
   Directory(
     p.join(projectRoot.path, 'lib', 'src', 'schemas'),
@@ -203,16 +194,8 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  raindrop:
-    path: ${jsonEncode(raindropRoot)}
-  raindrop_sqlite:
-    path: ${jsonEncode(raindropSqliteRoot)}
-
-dependency_overrides:
-  raindrop:
-    path: ${jsonEncode(raindropRoot)}
-  resqlite:
-    path: ${jsonEncode(resqliteRoot)}
+  zonai_schema:
+    path: ${jsonEncode(zonaiSchemaRoot)}
 ''');
 
   File(p.join(projectRoot.path, 'zonai.yaml')).writeAsStringSync('''
@@ -224,8 +207,7 @@ schemasPath: lib/src/schemas
   File(
     p.join(projectRoot.path, 'lib', 'src', 'schemas', 'users.dart'),
   ).writeAsStringSync('''
-import 'package:raindrop/raindrop.dart';
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
 class User {
   const User({required this.name, this.id});
@@ -234,7 +216,7 @@ class User {
   final String name;
 }
 
-class UserSchema extends Schema<User> {
+class UserSchema extends Table<User> {
   UserSchema(super.\$)
       : id = \$.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
         name = \$.text('name', (s) => s.name);
@@ -249,7 +231,7 @@ class UserSchema extends Schema<User> {
   final ColumnType<String> name;
 }
 
-final users = sqliteTable('users', UserSchema.new);
+final users = table('users', UserSchema.new);
 ''');
 
   final pubGet = await Process.run(Platform.resolvedExecutable, const [

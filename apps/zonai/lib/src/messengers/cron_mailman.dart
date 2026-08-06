@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/deps/logger.dart';

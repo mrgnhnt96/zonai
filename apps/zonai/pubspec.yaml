@@ -23,8 +23,6 @@ dependencies:
   mustache_template: ^2.0.4
   path: ^1.9.1
   pub_semver: ^2.2.0
-  raindrop:
-    path: ../../libs/raindrop/packages/raindrop
   raindrop_cli:
     path: ../../libs/raindrop/packages/raindrop_cli
   resqlite:
@@ -32,6 +30,7 @@ dependencies:
   revali_router: ^3.4.0
   revali_swagger_annotations: ^1.0.0
   scoped_deps: ^0.2.1
+  sqlite3: ">=2.4.0 <3.0.0"
   watcher: ^1.2.1
   yaml: ^3.1.0
   yaml_edit: ^2.2.4
@@ -43,8 +42,6 @@ dependencies:
     path: ../web
 
 dev_dependencies:
-  raindrop_sqlite:
-    path: ../../libs/raindrop/packages/raindrop_sqlite
   test: ^1.26.0
 
 executables:

@@ -1,7 +1,7 @@
-import 'package:raindrop/ddl.dart';
-import 'package:raindrop/raindrop.dart'
-    show Column, Raindrop, ReferentialAction, Schema, Table;
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/ddl.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
+    show Column, Raindrop, TableMeta, ReferentialAction, Schema;
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
 
 /// Ensures framework-managed SQLite tables exist.
 ///
@@ -16,7 +16,7 @@ final class SqliteInternalTableSync {
     Raindrop db,
     S schema,
   ) async {
-    final meta = Table.getFor(schema);
+    final meta = TableMeta.getFor(schema);
     final expected = [
       for (final c in meta.columns) _columnInfoFromRaindropColumn(c),
     ].toList();

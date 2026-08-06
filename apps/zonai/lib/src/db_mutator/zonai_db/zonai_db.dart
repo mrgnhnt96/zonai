@@ -6,9 +6,8 @@ import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:file/file.dart';
-import 'package:raindrop/raindrop.dart' as raindrop show migrate;
-import 'package:raindrop/raindrop.dart' hide migrate;
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as raindrop show migrate;
+import 'package:zonai/src/db_mutator/zonai_db/resqlite/resqlite_delegate.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/host_worker_registries.dart';

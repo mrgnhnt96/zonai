@@ -12,8 +12,6 @@ import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-import '../support/raindrop_package_roots.dart';
-
 /// Reproduces admin-UI password bugs on generic row save:
 ///
 /// 1. **Update** — the admin UI sends a single-row edit as one [ObjectUpdate]
@@ -62,13 +60,8 @@ void main() {
         'zonai_admin_password_update_e2e_',
       );
       final repoRoot = fixtureRoot.parent.parent;
-      final raindropPackages = RaindropPackageRoots.fromPackageConfig();
       _copyTree(fixtureRoot, projectRoot);
-      _rewritePubspecPaths(
-        projectRoot: projectRoot,
-        repoRoot: repoRoot,
-        raindropPackages: raindropPackages,
-      );
+      _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
 
       final pubGet = await Process.run(Platform.resolvedExecutable, const [
         'pub',
@@ -91,7 +84,6 @@ void main() {
         await _runZonai(projectRoot, [
           'compile',
           '--no-version-check',
-          '--no-raindrop-sync',
           '--no-schema-version-check',
         ]);
         await _runZonai(projectRoot, [
@@ -101,7 +93,6 @@ void main() {
           '--name',
           'initialize',
           '--no-version-check',
-          '--no-raindrop-sync',
           '--no-schema-version-check',
         ]);
         await _runZonai(projectRoot, [
@@ -109,7 +100,6 @@ void main() {
           'migrate',
           'apply',
           '--no-version-check',
-          '--no-raindrop-sync',
           '--no-schema-version-check',
         ]);
 
@@ -564,7 +554,6 @@ Future<void> _runZonai(Directory projectRoot, List<String> args) async {
 void _rewritePubspecPaths({
   required Directory projectRoot,
   required Directory repoRoot,
-  required RaindropPackageRoots raindropPackages,
 }) {
   final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
   final zonaiSchemaRoot = p.join(repoRoot.path, 'libs', 'zonai_schema');
@@ -578,16 +567,6 @@ environment:
 dependencies:
   zonai_schema:
     path: ${jsonEncode(zonaiSchemaRoot)}
-  raindrop:
-    path: ${jsonEncode(raindropPackages.raindrop)}
-
-dependency_overrides:
-  raindrop:
-    path: ${jsonEncode(raindropPackages.raindrop)}
-  raindrop_sqlite:
-    path: ${jsonEncode(raindropPackages.raindropSqlite)}
-  resqlite:
-    path: ${jsonEncode(raindropPackages.resqlite)}
 ''');
 }
 

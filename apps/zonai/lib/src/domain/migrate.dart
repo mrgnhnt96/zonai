@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:file/file.dart';
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
 import 'package:watcher/watcher.dart';
 import 'package:zonai/src/deps/args.dart';
@@ -108,6 +108,10 @@ class Migrate {
             if (dryRun case true) '--dry-run',
             '--name',
             name,
+            '--schema-package-prefix',
+            'package:zonai_schema/gen/raindrop/raindrop/',
+            '--table-class-name',
+            'TableMeta',
           ]);
 
           return exitCode;

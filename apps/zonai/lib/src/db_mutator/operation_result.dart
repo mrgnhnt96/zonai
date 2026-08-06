@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart' show DatabaseResult;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' show DatabaseResult;
 import 'objected_row.dart';
 
 class OperationResult {

@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 class ObjectedRow {
   const ObjectedRow({required this.columns, required this.values});
@@ -16,7 +16,7 @@ class ObjectedRow {
   }
 }
 
-extension TableMapOutX<T extends Schema<R>, R> on Table<T, R> {
+extension TableMapOutX<T extends Schema<R>, R> on TableMeta<T, R> {
   Map<String, Object?> mapOut(R row) {
     return ObjectedRow(
       columns: columns.map((e) => e.name).toList(),

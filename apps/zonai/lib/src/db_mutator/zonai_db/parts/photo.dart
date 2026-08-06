@@ -10,7 +10,7 @@ extension _PhotoX on ZonaiDb {
       final jwt = await zonaiDB.parseJwt(token);
       logger.trace('jwt_extract');
 
-      final table = Table.get(photos);
+      final table = TableMeta.get(photos);
       if (table == null) {
         throw const PhotosTableNotFoundException();
       }
@@ -72,7 +72,7 @@ extension _PhotoX on ZonaiDb {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
     logger.trace('jwt_extract');
 
-    final table = Table.get(photos);
+    final table = TableMeta.get(photos);
     if (table == null) {
       throw const PhotosTableNotFoundException();
     }
@@ -177,7 +177,7 @@ extension _PhotoX on ZonaiDb {
     required Stream<List<int>> image,
   }) async {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
-    final table = Table.get(photos);
+    final table = TableMeta.get(photos);
     if (table == null) {
       throw const PhotosTableNotFoundException();
     }
@@ -320,7 +320,7 @@ extension _PhotoX on ZonaiDb {
     required String id,
   }) async {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
-    final table = Table.get(photos);
+    final table = TableMeta.get(photos);
     if (table == null) {
       throw const PhotosTableNotFoundException();
     }
