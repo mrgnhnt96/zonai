@@ -97,7 +97,12 @@ Set<String>? _extractReferencedTables(String sql) {
 int _skipJoinModifiers(String sql, ({String upper, int after}) word) {
   var i = word.after;
   while (true) {
-    i = _skipWhitespaceCommentsStrings(sql, i);
+    // Only whitespace/comments, not strings: the table right after JOIN (or
+    // after a JOIN modifier) may be a quoted identifier, and skipping it here
+    // as string noise would consume it before _readTableReference can parse
+    // it, leaving `i` pointing at whatever word comes after (e.g. an alias's
+    // AS keyword) instead of the table itself.
+    i = _skipWhitespaceComments(sql, i);
     final next = _readUpperWord(sql, i);
     if (next == null) return i;
     switch (next.upper) {
@@ -119,7 +124,12 @@ int _skipJoinModifiers(String sql, ({String upper, int after}) word) {
 }
 
 ({String name, int end, bool isEmpty})? _readTableReference(String sql, int i) {
-  i = _skipWhitespaceCommentsStrings(sql, i);
+  // Only whitespace/comments here, NOT strings: the very next token may be
+  // the quoted identifier this function itself needs to parse (the isQuote
+  // branch below). Skipping strings generically would consume it as noise
+  // before that branch ever runs, then mis-read whatever word comes after
+  // it as the table name instead.
+  i = _skipWhitespaceComments(sql, i);
   if (i >= sql.length) return (name: '', end: i, isEmpty: true);
 
   final c = sql.codeUnitAt(i);
@@ -141,10 +151,13 @@ int _skipJoinModifiers(String sql, ({String upper, int after}) word) {
     end = word.after;
   }
 
-  i = _skipWhitespaceCommentsStrings(sql, end);
+  // Same reasoning as above: only whitespace/comments, not strings -- a
+  // quoted alias or the next clause's quoted identifier must not be
+  // consumed here while merely checking for a schema-qualifying dot.
+  i = _skipWhitespaceComments(sql, end);
   if (i < sql.length && sql.codeUnitAt(i) == 0x2E) {
     i++;
-    i = _skipWhitespaceCommentsStrings(sql, i);
+    i = _skipWhitespaceComments(sql, i);
     final second = _readTableReference(sql, i);
     if (second == null) return null;
     if (second.isEmpty) return null;
