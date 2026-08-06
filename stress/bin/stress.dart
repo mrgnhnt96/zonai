@@ -14,6 +14,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:zonai_stress/src/harness_setup.dart';
 import 'package:zonai_stress/src/load_runner.dart';
 import 'package:zonai_stress/src/report.dart';
 import 'package:zonai_stress/src/scenarios.dart';
@@ -37,13 +38,13 @@ Future<void> main(List<String> rawArgs) async {
 
   print('== zonai stress harness ==');
 
-  await _ensureCompiledZonai(
+  await ensureCompiledZonai(
     zonaiExe,
     zonaiPackageDir,
     force: args.recompile,
     repoRoot: repoRoot,
   );
-  await _ensureFixtureReady(
+  await ensureFixtureReady(
     fixtureDir: fixtureDir,
     repoRoot: repoRoot,
     zonaiExe: zonaiExe,
@@ -53,9 +54,9 @@ Future<void> main(List<String> rawArgs) async {
 
   print('Starting server on port ${args.port} (mode=${args.mode.name})...');
   if (args.resetDb) {
-    _resetFixtureDb(fixtureDir: fixtureDir, buildDir: buildDir, mode: args.mode);
+    resetFixtureDb(fixtureDir: fixtureDir, buildDir: buildDir, mode: args.mode);
   }
-  final server = await _startServer(
+  final server = await startServer(
     mode: args.mode,
     port: args.port,
     fixtureDir: fixtureDir,
@@ -74,7 +75,7 @@ Future<void> main(List<String> rawArgs) async {
   try {
     final healthy = await waitForHealth(
       baseUri,
-      timeout: args.mode == _ServerMode.dev
+      timeout: args.mode == ServerMode.dev
           ? const Duration(seconds: 90)
           : const Duration(seconds: 30),
     );
@@ -210,273 +211,6 @@ Future<void> _seed(Uri baseUri, {required int count}) async {
   }
 }
 
-/// Deletes fixture SQLite files so each harness run starts from an empty DB
-/// (auto-migrate on serve recreates schema). Pass `--keep-db` to skip.
-void _resetFixtureDb({
-  required Directory fixtureDir,
-  required Directory buildDir,
-  required _ServerMode mode,
-}) {
-  final roots = <Directory>[
-    Directory('${fixtureDir.path}/.zonai/data'),
-    if (mode == _ServerMode.build)
-      Directory('${buildDir.path}/.zonai/data'),
-  ];
-  var deleted = 0;
-  for (final dir in roots) {
-    if (!dir.existsSync()) continue;
-    for (final entity in dir.listSync()) {
-      if (entity is! File) continue;
-      final name = entity.uri.pathSegments.last;
-      if (!name.startsWith('zonai.sqlite')) continue;
-      entity.deleteSync();
-      deleted++;
-    }
-  }
-  if (deleted > 0) {
-    print('Reset DB: removed $deleted sqlite file(s) before serve.');
-  } else {
-    print('Reset DB: no existing sqlite files.');
-  }
-}
-
-Future<Process> _startServer({
-  required _ServerMode mode,
-  required int port,
-  required Directory fixtureDir,
-  required Directory buildDir,
-}) async {
-  final serveArgs = [
-    'serve',
-    '--port',
-    '$port',
-    '--no-version-check',
-    '--no-open',
-  ];
-
-  return switch (mode) {
-    // Dev workflow: `dart run zonai serve` → JIT project_main (ops/rules
-    // in-process, no AOT project binary). Matches day-to-day `zonai serve`
-    // / the server `zonai dev` attaches to when not using a compiled CLI.
-    _ServerMode.dev => Process.start(
-      Platform.resolvedExecutable,
-      ['run', 'zonai', ...serveArgs],
-      workingDirectory: fixtureDir.path,
-    ),
-    // Production artifact: project-linked `build/zonai serve --release`.
-    _ServerMode.build => Process.start(
-      '${buildDir.path}/zonai',
-      [...serveArgs, '--release'],
-      workingDirectory: buildDir.path,
-    ),
-  };
-}
-
-Future<void> _ensureCompiledZonai(
-  File zonaiExe,
-  Directory zonaiPackageDir, {
-  required bool force,
-  required Directory repoRoot,
-}) async {
-  final versionFile = File('${repoRoot.path}/VERSION');
-  final expectedVersion = versionFile.existsSync()
-      ? versionFile.readAsStringSync().trim()
-      : null;
-
-  if (!force && zonaiExe.existsSync()) {
-    final reported = await _extractZonaiVersion(zonaiExe);
-    if (expectedVersion == null || reported == expectedVersion) {
-      print('Using cached compiled zonai at ${zonaiExe.path} (v$reported)');
-      return;
-    }
-    print(
-      'Cached zonai is v$reported but VERSION is $expectedVersion; '
-      'recompiling...',
-    );
-  } else if (force) {
-    print('Recompiling zonai CLI (--recompile)...');
-  } else {
-    print('Compiling zonai CLI (this happens once, ~30s)...');
-  }
-
-  final result = await Process.run(Platform.resolvedExecutable, [
-    'compile',
-    'exe',
-    '-D__ZONAI_COMPILED__=true',
-    'bin/zonai.dart',
-    '-o',
-    zonaiExe.path,
-  ], workingDirectory: zonaiPackageDir.path);
-  if (result.exitCode != 0) {
-    throw StateError(
-      'dart compile exe failed:\n${result.stderr}\n${result.stdout}',
-    );
-  }
-  final reported = await _extractZonaiVersion(zonaiExe);
-  print('Compiled zonai CLI v$reported → ${zonaiExe.path}');
-}
-
-Future<String?> _extractZonaiVersion(File zonaiExe) async {
-  final result = await Process.run(zonaiExe.path, ['version'], environment: {
-    // Avoid "new version available" noise affecting parsing.
-    'CI': '1',
-  });
-  final match = RegExp(
-    r'Zonai: v([0-9][0-9.]*)',
-  ).firstMatch('${result.stdout}\n${result.stderr}');
-  return match?.group(1);
-}
-
-Future<void> _ensureFixtureReady({
-  required Directory fixtureDir,
-  required Directory repoRoot,
-  required File zonaiExe,
-  required bool skipBuild,
-  required _ServerMode mode,
-}) async {
-  _ensureFixturePubOverrides(fixtureDir, repoRoot);
-
-  print('Fetching fixture dependencies (dart pub get)...');
-  await _run(Platform.resolvedExecutable, ['pub', 'get'], fixtureDir.path);
-
-  final migrationsDir = Directory('${fixtureDir.path}/.zonai/migrations');
-  if (!migrationsDir.existsSync() || migrationsDir.listSync().isEmpty) {
-    print('Generating and applying initial migration...');
-    await _run(zonaiExe.path, [
-      'db',
-      'migrate',
-      'generate',
-      '--name',
-      'initialize',
-      '--no-version-check',
-    ], fixtureDir.path);
-    await _run(zonaiExe.path, [
-      'db',
-      'migrate',
-      'apply',
-      '--no-version-check',
-    ], fixtureDir.path);
-  }
-
-  final executablesDir = Directory('${fixtureDir.path}/.zonai/executables');
-  if (!skipBuild || !executablesDir.existsSync()) {
-    print('Compiling fixture workers (zonai compile)...');
-    await _run(zonaiExe.path, [
-      'compile',
-      '--no-version-check',
-    ], fixtureDir.path);
-  }
-
-  if (mode == _ServerMode.dev) {
-    print('Dev mode: skipping zonai build (using JIT project entry).');
-    return;
-  }
-
-  final buildDir = Directory('${fixtureDir.path}/build');
-  final built = File('${buildDir.path}/zonai');
-  if (skipBuild && built.existsSync()) {
-    print('--skip-build set; reusing existing ${built.path}');
-    return;
-  }
-
-  print('Building fixture (zonai build)...');
-  await _run(zonaiExe.path, ['build', '--no-version-check'], fixtureDir.path);
-
-  if (!built.existsSync()) {
-    throw StateError('zonai build did not produce ${built.path}');
-  }
-
-  // Guard against a stale bootstrap CLI that still *copies* itself into
-  // build/zonai instead of compiling a project-linked binary.
-  if (_sameFileBytes(built, zonaiExe)) {
-    throw StateError(
-      'fixture/build/zonai is identical to the bootstrap CLI cache — '
-      'zonai build did not produce a project-linked binary. '
-      'Recompile the cache with --recompile (needs a zonai that has '
-      'ProjectBinary.compile).',
-    );
-  }
-
-  print(
-    'Built project binary at ${built.path} (${built.lengthSync()} bytes).',
-  );
-}
-
-/// Writes gitignored [pubspec_overrides.yaml] so project-binary compile can
-/// resolve local resqlite + revali the same way the monorepo workspace does.
-void _ensureFixturePubOverrides(Directory fixtureDir, Directory repoRoot) {
-  final revaliRoot = _resolveRevaliRoot(repoRoot);
-  final overrides = File('${fixtureDir.path}/pubspec_overrides.yaml');
-  overrides.writeAsStringSync('''
-# Generated by stress/bin/stress.dart — do not commit (gitignored).
-dependency_overrides:
-  resqlite:
-    path: ${repoRoot.path}/libs/resqlite
-  revali_swagger:
-    path: ${revaliRoot.path}/constructs/revali_swagger/revali_swagger
-  revali_swagger_annotations:
-    path: ${revaliRoot.path}/constructs/revali_swagger/revali_swagger_annotations
-  revali_router:
-    path: ${revaliRoot.path}/revali_router/revali_router
-  revali:
-    path: ${revaliRoot.path}/packages/revali
-  revali_client:
-    path: ${revaliRoot.path}/constructs/revali_client/revali_client
-  revali_client_gen:
-    path: ${revaliRoot.path}/constructs/revali_client/revali_client_gen
-  revali_construct:
-    path: ${revaliRoot.path}/packages/revali_construct
-  revali_core:
-    path: ${revaliRoot.path}/packages/revali_core
-  revali_annotations:
-    path: ${revaliRoot.path}/packages/revali_annotations
-''');
-}
-
-Directory _resolveRevaliRoot(Directory repoRoot) {
-  // Monorepo pubspec_overrides use `../../revali` from zonai → Development/revali.
-  final candidates = [
-    Directory('${repoRoot.parent.parent.path}/revali'),
-    Directory('${repoRoot.parent.path}/revali'),
-    Directory('${repoRoot.path}/../revali'),
-  ];
-  for (final dir in candidates) {
-    if (Directory('${dir.path}/packages/revali').existsSync()) {
-      return dir.absolute;
-    }
-  }
-  throw StateError(
-    'Could not find local revali checkout. Tried:\n'
-    '${candidates.map((d) => '  - ${d.path}').join('\n')}',
-  );
-}
-
-Future<void> _run(String executable, List<String> args, String cwd) async {
-  final result = await Process.run(executable, args, workingDirectory: cwd);
-  if (result.exitCode != 0) {
-    throw StateError(
-      '$executable ${args.join(' ')} failed in $cwd:\n'
-      '${result.stderr}\n${result.stdout}',
-    );
-  }
-}
-
-bool _sameFileBytes(File a, File b) {
-  if (!a.existsSync() || !b.existsSync()) return false;
-  if (a.lengthSync() != b.lengthSync()) return false;
-  // Detect the pre-ProjectBinary `zonai build` failure mode that copies the
-  // bootstrap CLI into build/zonai verbatim.
-  return a.readAsBytesSync() == b.readAsBytesSync();
-}
-
-enum _ServerMode {
-  /// JIT project entry via `dart run zonai serve` (dev workflow).
-  dev,
-
-  /// Project-linked AOT from `zonai build` (`build/zonai serve --release`).
-  build,
-}
-
 class _Args {
   _Args({
     required this.port,
@@ -504,7 +238,7 @@ class _Args {
   final bool keepServer;
   final bool resetDb;
   final String? jsonOutput;
-  final _ServerMode mode;
+  final ServerMode mode;
 
   static _Args parse(List<String> raw) {
     final map = <String, String>{};
@@ -525,8 +259,8 @@ class _Args {
 
     final modeName = map['mode'] ?? 'build';
     final mode = switch (modeName) {
-      'dev' || 'jit' => _ServerMode.dev,
-      'build' || 'release' => _ServerMode.build,
+      'dev' || 'jit' => ServerMode.dev,
+      'build' || 'release' => ServerMode.build,
       _ => throw FormatException(
         'Unknown --mode=$modeName (expected dev|build)',
       ),
