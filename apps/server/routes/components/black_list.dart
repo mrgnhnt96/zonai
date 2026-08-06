@@ -3,7 +3,6 @@ import 'package:revali_router/revali_router.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai_schema/zonai_schema.dart';
-import 'package:raindrop/raindrop.dart';
 
 final class BlackList implements LifecycleComponent {
   const BlackList();
