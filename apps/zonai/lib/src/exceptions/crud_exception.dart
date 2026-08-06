@@ -23,7 +23,8 @@ final class RecordDeletedWhileStreamingException extends CrudException {
 
   @override
   String toString() {
-    if (id != null) return 'Record was deleted while streaming: $id (table: $table)';
+    if (id != null)
+      return 'Record was deleted while streaming: $id (table: $table)';
     return 'Record not found or was deleted (table: $table)';
   }
 }
@@ -149,4 +150,19 @@ final class WriteBackpressureException implements Exception {
   @override
   String toString() =>
       'Server is busy writing; retry shortly (write queue saturated).';
+}
+
+/// Thrown when too many concurrent read requests (read/list/count) are
+/// already in flight. Unlike [WriteBackpressureException], reads aren't
+/// serialized -- this caps how many can run *concurrently* rather than how
+/// many are waiting for a turn -- but without it a burst of concurrent reads
+/// has no ceiling and just queues behind the rules-worker's single
+/// stdin/stdout pipe with ever-growing latency instead of failing fast.
+/// Mapped to HTTP 503 so clients can retry instead of waiting indefinitely.
+final class ReadBackpressureException implements Exception {
+  const ReadBackpressureException();
+
+  @override
+  String toString() =>
+      'Server is busy reading; retry shortly (read concurrency saturated).';
 }

@@ -6,12 +6,15 @@ import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:file/file.dart';
-import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as raindrop show migrate;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
+    as raindrop
+    show migrate;
 import 'package:zonai/src/db_mutator/zonai_db/resqlite/resqlite_delegate.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/host_worker_registries.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
+import 'package:zonai/src/db_mutator/zonai_db/concurrency_gate.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/mutations.dart';
@@ -132,6 +135,18 @@ class ZonaiDb {
   Future<void>? _writeChain;
   var _pendingWrites = 0;
   static const _maxQueuedWrites = 64;
+
+  /// Caps concurrent read-path work (read/list/count). Reads aren't
+  /// serialized like writes -- this just bounds how many can be in flight
+  /// at once so a large enough burst fails fast with 503 instead of queueing
+  /// unboundedly behind the rules-worker's single pipe (see the MailmanPool
+  /// comment above). Set well above documented/benchmarked concurrency
+  /// (stress/README.md's sweeps go up to 100) so normal load never trips it.
+  static const _maxQueuedReads = 256;
+  final ConcurrencyGate _readGate = ConcurrencyGate(
+    maxConcurrent: _maxQueuedReads,
+    onSaturated: () => const ReadBackpressureException(),
+  );
 
   /// Keyed by `JwksIdpConfig.jwksUrl` so multiple configs against the
   /// same endpoint share a key cache and HTTP client. Constructed
@@ -427,15 +442,15 @@ class ZonaiDb {
   }
 
   Future<_CrudResult> read(String table, ViewPayload payload) async {
-    return await _run(() => _read(table, payload));
+    return await _runRead(() => _read(table, payload));
   }
 
   Future<_CrudPaginatedResult> list(String table, ListPayload payload) async {
-    return await _run(() => _list(table, payload));
+    return await _runRead(() => _list(table, payload));
   }
 
   Future<int> count(String table, CountPayload payload) async {
-    return await _run(() => _count(table, payload));
+    return await _runRead(() => _count(table, payload));
   }
 
   Stream<int> streamCount(String table, CountPayload payload) async* {
@@ -524,6 +539,14 @@ class ZonaiDb {
       _pendingWrites--;
       done.complete();
     }
+  }
+
+  /// Runs [body], failing immediately with [ReadBackpressureException]
+  /// (HTTP 503) if too many reads are already concurrently in flight.
+  /// Unlike [_runWrite], admitted reads run concurrently, not serialized --
+  /// this only bounds *how many* can be in flight at once.
+  Future<T> _runRead<T>(Future<T> Function() body) {
+    return _readGate.run(() => _run(body));
   }
 
   Stream<T> _runStream<T>(Stream<T> Function() body) async* {
