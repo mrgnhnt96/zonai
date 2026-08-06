@@ -222,20 +222,6 @@ class Settings {
   String get compiledCronsPath =>
       _normalize([compiledExecutableDirectory, 'db_crons.exe']);
 
-  /// Where the embedded raindrop/raindrop_sqlite bundle gets materialized in
-  /// a target project (see RaindropSync). Not to be confused with
-  /// [compiledExecutableDirectory] -- this holds vendored package source,
-  /// not compiled worker binaries.
-  String get internalDirectory =>
-      _normalize([defaultZonaiDirectory, 'internal']);
-  String get internalRaindropPath =>
-      _normalize([internalDirectory, 'raindrop']);
-  String get internalRaindropSqlitePath =>
-      _normalize([internalDirectory, 'raindrop_sqlite']);
-  String get internalRaindropStampPath =>
-      _normalize([internalDirectory, '.raindrop_sync.json']);
-  String get pubspecPath => _normalize(['pubspec.yaml']);
-  String get pubspecOverridesPath => _normalize(['pubspec_overrides.yaml']);
   String get pubspecLockPath => _normalize(['pubspec.lock']);
 
   /// Generated Dart entry for workers (ops/rules isolate spawn under JIT).

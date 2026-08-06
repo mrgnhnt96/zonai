@@ -87,7 +87,6 @@ void _updateGitignore() {
     'zonai.sqlite*',
     '.serve.lock',
     'pubspec_overrides.yaml',
-    '.zonai/internal/',
   ];
 
   final file = fs.file('.gitignore');

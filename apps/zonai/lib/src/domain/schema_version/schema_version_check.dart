@@ -26,7 +26,7 @@ class SchemaVersionCheck {
 
   /// Testability seam only -- production always falls back to [kVersion].
   /// A nullable field (rather than parsing `kVersion` directly in the
-  /// constructor) keeps this `const`-constructible like [RaindropSync].
+  /// constructor) keeps this `const`-constructible.
   final Version? _requiredVersion;
 
   Version get requiredVersion => _requiredVersion ?? Version.parse(kVersion);
