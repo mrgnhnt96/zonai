@@ -215,30 +215,64 @@ warm-up cost (heap high-water-mark settling, connection/buffer pool sizing,
 or similar) common to sustained `/db/stream/list` churn regardless of how
 the connection ends, not a growth pattern tied to cancellation semantics.
 
-**Secondary finding, not chased further this round:** under this same
-sustained load, a small but consistent fraction of new stream connections
-timed out waiting for a response entirely (11/1620 on the abrupt run,
-25/1620 on the graceful run — see `openTimeouts` in `StreamWaveStats`,
-`stress/lib/src/stream_scenarios.dart`). `runStreamWaves` opens each wave's
-connections with a fresh `HttpClient` per connection and a 5s timeout per
-open, added specifically because an earlier version of this harness would
-otherwise hang forever on one stuck request per wave (`Future.wait` waits
-for *all* of a wave's opens). Whether this reflects real server-side
-contention (e.g. the single-instance rules-worker Mailman serializing 30
-concurrent `canList` checks) or is an artifact of the harness itself
-(30 brand-new `HttpClient`s opening concurrently) wasn't distinguished here
-— worth a follow-up if `/db/stream*` latency under concurrent load ever
-becomes a real concern, but it's a request-latency question, not a
-leak/monitoring one.
+**Secondary finding, root-caused and fixed (2026-08-05, follow-up):** under
+this same sustained load, a small but consistent fraction of new stream
+connections timed out waiting for a response entirely (11/1620 on the
+abrupt run, 25/1620 on the graceful run — see `openTimeouts` in
+`StreamWaveStats`, `stress/lib/src/stream_scenarios.dart`).
+
+Root cause, confirmed with a series of throwaway diagnostics (not kept —
+each just hit the fixture server directly with `dart:io`, no new harness
+code): `GET /health` (no DB/rules at all) stays flat and fast (2-54ms) under
+30-way concurrency; `GET /db/list` (same rules/rate-limit path as
+`/db/stream/list`, but no `HybridStreamEngine`/streaming) shows the *same*
+linear per-request latency ramp as the streaming endpoint did (~40ms for the
+1st concurrent request up to ~750-820ms for the 30th, repeatable across
+warm runs). That rules out both a harness-client artifact (the `/health`
+control) and anything streaming-specific (`/db/list` alone reproduces it):
+concurrent reads have no ceiling and just queue behind
+`ZonaiDb`'s single rules-worker pipe (`_rules` `MailmanPool`, pool size 1 by
+default — see the comment at `apps/zonai/lib/src/db_mutator/zonai_db/zonai_db.dart:98-105`)
+with latency growing roughly linearly in the number of concurrent callers,
+and no equivalent of the write path's `WriteBackpressureException`/503 to
+fail fast once that queue gets too deep.
+
+**Fix:** `read`/`list`/`count` now run through a new `ConcurrencyGate`
+(`apps/zonai/lib/src/db_mutator/zonai_db/concurrency_gate.dart`) capping
+concurrent in-flight reads at 256 (comfortably above every concurrency level
+already benchmarked in this README, including the `c=100` sweeps) and
+failing fast with the new `ReadBackpressureException` (HTTP 503, mapped in
+`apps/zonai/lib/gen/server/routes/components/exception_catcher.dart`) past
+that. Unlike the write path's queue, reads aren't serialized against each
+other — the gate only bounds how many can be concurrently in flight, so
+normal concurrent read throughput is unaffected. Regression-tested in
+`apps/zonai/test/src/db_mutator/zonai_db/concurrency_gate_test.dart` (the
+mechanism in isolation — no real DB/rules-worker needed, since the relevant
+existing e2e coverage, `concurrent_list_e2e_test.dart`, was independently
+found to be broken already — see below).
 
 **Separately acknowledged, not re-investigated:** `rate_limits` rows are
-never pruned (`apps/zonai/lib/src/services/rate_limiter.dart:12`,
-`// TODO: we need a cron to clean this every day or something`). Unbounded
-SQLite row growth from long-running traffic, not a Dart-heap leak — the
-cause is already known and undisputed, so it didn't need repro treatment.
+*already* pruned — `DeleteOldRateLimitsCron`
+(`libs/zonai_schema/lib/src/internal/crons/delete_old_rate_limits_cron.dart`)
+runs every 15 minutes and deletes rows with `window_start` older than 7
+days, wired into every project's cron worker unconditionally via
+`InternalDbArtifacts.crons`. The `// TODO: we need a cron to clean this
+every day or something` comment that used to sit above `RateLimiter` (now
+removed) was stale — added in the original rate-limiting commit, before
+that cron existed, and never cleaned up once it did.
 
-**Recommendation:** no fix needed for the original leak theory — it isn't
-real. If CPU/memory monitoring for the compiled binary is still wanted going
+**Also found, unrelated to either fix, not addressed here:**
+`apps/zonai/lib/gen/server/routes/components/exception_catcher.dart` — the
+hand-written exception-to-HTTP-status mapping used above — has never been
+committed to git on any branch. It's currently caught by the (also
+pending/uncommitted) `.gitignore` addition of `**/gen/`, which is too broad:
+it ignores hand-maintained business logic living under a `gen/` directory
+naming convention, not just the actually-generated files around it. Worth a
+deliberate decision (narrow the ignore pattern, or relocate hand-written
+components out of `gen/`) rather than a silent fix bundled into this PR.
+
+**Recommendation:** the original leak theory needed no fix — it isn't real.
+If CPU/memory monitoring for the compiled binary is still wanted going
 forward, it should watch for genuinely unbounded growth (no plateau) rather
 than assume `/db/stream*` connection churn itself is suspect. The `ps`-based
 sampler in this harness (`lib/src/process_metrics.dart`) is a fine
