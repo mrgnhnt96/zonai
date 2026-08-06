@@ -1,21 +1,31 @@
-// Investigates whether HybridStreamEngine entries get cleaned up when a
-// client of `GET /db/stream/list` goes away. Boots the same fixture
-// `zonai serve` the rest of the stress harness uses, opens repeated waves of
-// long-lived stream connections, drops each wave either gracefully or
-// abruptly, and samples the server process's RSS/CPU throughout so growth
-// (or its absence) is visible directly, not just theorized.
+// Investigates whether the compiled zonai binary's RSS grows unboundedly
+// under sustained, varied traffic -- mixed CRUD (list/create/delete) at
+// realistic concurrency, plus stream connections mixing list/one/count with
+// varied parameters (so HybridStreamEngine accumulates many distinct
+// entries, not just one repeatedly-cached one) -- dropped either gracefully
+// or abruptly. Boots the same fixture `zonai serve` the rest of the stress
+// harness uses and samples the server process's RSS/CPU throughout so
+// growth (or its absence) is visible directly, not just theorized.
 //
 // Usage (from the stress/ directory):
 //   dart run bin/leak_scan.dart --drop=graceful
-//   dart run bin/leak_scan.dart --drop=abrupt --duration=5 --skip-build
+//   dart run bin/leak_scan.dart --drop=abrupt --duration=15
+//
+// Do NOT pass --skip-build if a dependency (e.g. a local revali checkout)
+// changed since the last run -- the fixture's project-linked binary is an
+// AOT snapshot and only picks up source changes on a fresh `zonai build`.
 //
 // See stress/README.md's Findings section for how to interpret a run.
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:zonai_stress/src/harness_setup.dart';
+import 'package:zonai_stress/src/load_runner.dart';
 import 'package:zonai_stress/src/process_metrics.dart';
-import 'package:zonai_stress/src/scenarios.dart' show waitForHealth;
+import 'package:zonai_stress/src/scenarios.dart';
+import 'package:zonai_stress/src/stats.dart';
 import 'package:zonai_stress/src/stream_scenarios.dart';
 
 Future<void> main(List<String> rawArgs) async {
@@ -81,6 +91,10 @@ Future<void> main(List<String> rawArgs) async {
     }
     print('Server healthy (pid ${server.pid}).');
 
+    print('Seeding ${args.seedRows} rows for stream one/count variety...');
+    final knownIds = await _seedAndCollectIds(baseUri, count: args.seedRows);
+    print('Seeded ${knownIds.length} rows.');
+
     final stopSampling = Completer<void>();
     final samples = <ProcessSample>[];
     final samplingDone = sampleProcess(
@@ -89,27 +103,65 @@ Future<void> main(List<String> rawArgs) async {
       stop: stopSampling.future,
     ).forEach(samples.add);
 
+    final totalDuration = Duration(
+      milliseconds: (args.durationMinutes * 60 * 1000).round(),
+    );
+
     print(
-      'Running stream waves for ${args.durationMinutes}min '
-      '(${args.streamsPerWave} streams/wave, hold '
+      'Running ${args.durationMinutes}min of mixed traffic: CRUD '
+      '(list@${args.crudConcurrency}, create@${args.crudConcurrency ~/ 2}, '
+      'delete@${args.crudConcurrency ~/ 2}) concurrently with stream waves '
+      '(${args.streamsPerWave} streams/wave mixing list/one/count, hold '
       '${args.holdSeconds}s, every ${args.waveIntervalSeconds}s, '
       'drop=${args.drop.name})...',
     );
-    final waveStats = await runStreamWaves(
-      baseUri: baseUri,
-      totalDuration: Duration(
-        milliseconds: (args.durationMinutes * 60 * 1000).round(),
+    final runner = LoadRunner();
+    final results = await Future.wait([
+      runner.run(
+        scenario: 'list',
+        sender: listItems(baseUri),
+        concurrency: args.crudConcurrency,
+        duration: totalDuration,
+        warmup: Duration.zero,
       ),
-      holdDuration: Duration(seconds: args.holdSeconds),
-      waveInterval: Duration(seconds: args.waveIntervalSeconds),
-      streamsPerWave: args.streamsPerWave,
-      dropMode: args.drop,
-    );
+      runner.run(
+        scenario: 'create',
+        sender: createItem(baseUri),
+        concurrency: max(1, args.crudConcurrency ~/ 2),
+        duration: totalDuration,
+        warmup: Duration.zero,
+      ),
+      runner.run(
+        scenario: 'delete',
+        sender: deleteItem(baseUri),
+        concurrency: max(1, args.crudConcurrency ~/ 2),
+        duration: totalDuration,
+        warmup: Duration.zero,
+      ),
+      runStreamWaves(
+        baseUri: baseUri,
+        totalDuration: totalDuration,
+        holdDuration: Duration(seconds: args.holdSeconds),
+        waveInterval: Duration(seconds: args.waveIntervalSeconds),
+        streamsPerWave: args.streamsPerWave,
+        dropMode: args.drop,
+        knownIds: knownIds,
+      ),
+    ]);
 
     stopSampling.complete();
     await samplingDone;
 
+    final crudStats = results.take(3).cast<ScenarioStats>().toList();
+    final waveStats = results[3] as StreamWaveStats;
+
     print('');
+    for (final s in crudStats) {
+      print(
+        '${s.scenario}: ${s.requestsPerSecond.toStringAsFixed(1)} req/s, '
+        'p95=${s.p95.toStringAsFixed(1)}ms, errors=${s.errors}/${s.total}',
+      );
+    }
     print('Wave stats: $waveStats');
     final summary = LeakSummary.fromSamples(samples);
     print('RSS summary: $summary');
@@ -145,6 +197,39 @@ Future<void> main(List<String> rawArgs) async {
   }
 }
 
+/// Creates [count] rows via `POST /db` and returns their ids, so
+/// `/db/stream` (one) and `/db/stream/count` have real rows to query --
+/// `_streamOne` throws before ever reaching HybridStreamEngine if its
+/// `where` matches nothing.
+Future<List<String>> _seedAndCollectIds(Uri baseUri, {required int count}) async {
+  final client = HttpClient();
+  final ids = <String>[];
+  try {
+    final uri = baseUri.replace(path: '/db');
+    for (var i = 0; i < count; i++) {
+      final request = await client.postUrl(uri);
+      request.headers.contentType = ContentType.json;
+      request.write(
+        jsonEncode({
+          'table': 'items',
+          'object': {'name': 'leak-scan-seed-$i'},
+        }),
+      );
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+      if (response.statusCode < 200 || response.statusCode >= 300) continue;
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['data'] is Map) {
+        final id = (decoded['data'] as Map)['id'];
+        if (id is String && id.isNotEmpty) ids.add(id);
+      }
+    }
+  } finally {
+    client.close(force: true);
+  }
+  return ids;
+}
+
 class _Args {
   _Args({
     required this.port,
@@ -159,6 +244,8 @@ class _Args {
     required this.recompile,
     required this.keepServer,
     required this.resetDb,
+    required this.crudConcurrency,
+    required this.seedRows,
   });
 
   final int port;
@@ -173,6 +260,8 @@ class _Args {
   final bool recompile;
   final bool keepServer;
   final bool resetDb;
+  final int crudConcurrency;
+  final int seedRows;
 
   static _Args parse(List<String> raw) {
     final map = <String, String>{};
@@ -217,6 +306,8 @@ class _Args {
       recompile: flags.contains('recompile'),
       keepServer: flags.contains('keep-server'),
       resetDb: !flags.contains('keep-db'),
+      crudConcurrency: int.parse(map['crud-concurrency'] ?? '10'),
+      seedRows: int.parse(map['seed'] ?? '50'),
     );
   }
 }
