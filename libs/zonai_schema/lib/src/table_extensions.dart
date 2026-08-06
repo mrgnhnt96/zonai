@@ -1,11 +1,11 @@
-import 'package:raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/create_primary_key.dart';
 import 'package:zonai_schema/src/column_types/updated_at_column.dart';
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 import 'package:zonai_schema/src/transformers/server_generated_transformer.dart';
 
-extension TableExtensions<S extends rd.Schema<R>, R> on rd.Table<S, R> {
+extension TableExtensions<S extends rd.Schema<R>, R> on rd.TableMeta<S, R> {
   R safeCreate(Map<String, dynamic> data) {
     final mutable = {...data};
     for (final column in columns) {

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:zonai_schema/src/internal/tables/photos_table.dart' as photos_table;
 
 extension PhotosColumnDefinition<S> on SchemaBuilder<S> {

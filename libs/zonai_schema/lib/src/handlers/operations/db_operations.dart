@@ -1,5 +1,5 @@
-import 'package:raindrop/raindrop.dart' as rd;
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
@@ -35,7 +35,7 @@ class DbOperations {
     }
 
     for (final schema in tables) {
-      final name = rd.Table.getFor(schema).name;
+      final name = rd.TableMeta.getFor(schema).name;
       map.putIfAbsent(name, () => defaultOperationsFor(schema));
     }
 
@@ -440,7 +440,7 @@ class DbOperations {
   }
 
   rd.Column? _tryFindColumn(
-    rd.Table table,
+    rd.TableMeta table,
     bool Function(rd.Column<dynamic, dynamic> column) test,
   ) {
     for (final column in table.columns) {
@@ -451,28 +451,28 @@ class DbOperations {
     return null;
   }
 
-  rd.Column? _emailColumn(rd.Table table, {required String tableName}) {
+  rd.Column? _emailColumn(rd.TableMeta table, {required String tableName}) {
     return _tryFindColumn(
       table,
       (column) => column.transformer is EmailTransformer,
     );
   }
 
-  rd.Column? _isVerifiedColumn(rd.Table table, {required String tableName}) {
+  rd.Column? _isVerifiedColumn(rd.TableMeta table, {required String tableName}) {
     return _tryFindColumn(
       table,
       (column) => column.transformer is IsVerifiedTransformer,
     );
   }
 
-  rd.Column? _passwordColumn(rd.Table table, {required String tableName}) {
+  rd.Column? _passwordColumn(rd.TableMeta table, {required String tableName}) {
     return _tryFindColumn(
       table,
       (column) => column.transformer is PasswordTransformer,
     );
   }
 
-  rd.Column _idColumn(rd.Table table, {required String tableName}) {
+  rd.Column _idColumn(rd.TableMeta table, {required String tableName}) {
     return _tryFindColumn(
           table,
           (column) =>

@@ -1,18 +1,16 @@
 /// Shared table definitions and database types for Zonai.
 library;
 
-export 'package:raindrop/dialect.dart' show SqlDialect;
-export 'package:raindrop/raindrop.dart'
-    show
-        SchemaBuilder,
-        ColumnType,
-        Order,
-        uniqueIndex,
-        index,
-        IndexBuilderOn,
-        ReferencesColumn,
-        RowReader;
-export 'package:raindrop_sqlite/raindrop_sqlite.dart'
+export 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart' show SqlDialect;
+// `table` is hidden: zonai_schema's own `table()` helper (see
+// src/schemas/table.dart) is the developer-facing version -- the vendored
+// `TableMeta`/reflection API is internal. `Logger`/`migrate` are hidden
+// because they collide with `package:zonai_logger`'s `Logger` and zonai's
+// own `migrate` -- callers that need raindrop's originals import the
+// vendored path directly with a prefix.
+export 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
+    hide table, Logger, migrate;
+export 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
     show
         BooleanColumnDefinition,
         BigIntColumnDefinition,

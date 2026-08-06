@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart' hide Table;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:zonai_schema/src/transformers/server_generated_transformer.dart';
 
 extension ServerGeneratedColumnDefinition<S> on SchemaBuilder<S> {

@@ -1,6 +1,6 @@
-import 'package:raindrop/raindrop.dart' hide Table;
-import 'package:raindrop/raindrop.dart' as rd show Table;
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd
+    show TableMeta;
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
@@ -279,7 +279,7 @@ void main() {
             for (final row in result.rows)
               Map.fromIterables(result.columns, row),
           ];
-          final table = rd.Table.getFor(_postSummary);
+          final table = rd.TableMeta.getFor(_postSummary);
           final reconstructed = asMaps.map(table.safeCreate).toList();
           expect(reconstructed, everyElement(isA<_PostSummary>()));
           expect(

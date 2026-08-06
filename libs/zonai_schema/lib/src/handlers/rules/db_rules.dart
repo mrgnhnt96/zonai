@@ -1,5 +1,5 @@
-import 'package:raindrop/dialect.dart';
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';

@@ -1,5 +1,5 @@
-import 'package:raindrop/raindrop.dart' as rd;
-import 'package:raindrop_sqlite/raindrop_sqlite.dart'
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
     show BigIntTransformer, BooleanTransfomer, DateTimeTransfomer;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/email_column.dart';
@@ -19,7 +19,7 @@ import 'package:zonai_schema/src/types/column_shape_kind.dart';
 import 'package:zonai_schema/src/types/schema_shape.dart';
 
 /// Builds [TableSchemaShape] from a Raindrop [table] definition.
-TableSchemaShape tableSchemaShapeFromTable(rd.Table table, {bool isView = false}) {
+TableSchemaShape tableSchemaShapeFromTable(rd.TableMeta table, {bool isView = false}) {
   return TableSchemaShape(
     table: table.name,
     columns: [

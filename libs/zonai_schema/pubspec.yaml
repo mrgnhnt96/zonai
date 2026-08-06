@@ -14,11 +14,8 @@ dependencies:
   crypto: ^3.0.7
   meta: ^1.17.0
   msgpack_dart: ^1.0.1
-  raindrop:
-    path: ../raindrop/packages/raindrop
-  raindrop_sqlite:
-    path: ../raindrop/packages/raindrop_sqlite
   scoped_deps: ^0.2.1
+  sqlite3: ">=2.4.0 <3.0.0"
 
 dev_dependencies:
   revali_router: ^3.4.0

@@ -2,7 +2,7 @@ library rules;
 
 import 'dart:async';
 
-import 'package:raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/zonai_schema.dart';
 
 part 'table/auth_table_rules.dart';
@@ -19,5 +19,5 @@ sealed class Rules<S extends rd.Schema<R>, R> {
 
   final S schema;
 
-  rd.Table<S, R> get table => rd.Table.getFor(schema);
+  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
 }

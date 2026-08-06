@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 extension MapColumnDefinition<S> on SchemaBuilder<S> {
   /// JSON object as [Map<String, dynamic>], stored in TEXT

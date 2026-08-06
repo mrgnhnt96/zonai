@@ -1,4 +1,3 @@
-import 'package:raindrop/raindrop.dart' hide Table, table;
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// Row shape for Raindrop's migration tracking table (created by [migrate]).

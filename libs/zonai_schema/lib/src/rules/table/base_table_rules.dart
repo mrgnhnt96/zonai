@@ -5,7 +5,7 @@ sealed class BaseTableRules<S extends rd.Schema<R>, R> {
 
   final S schema;
 
-  rd.Table<S, R> get table => rd.Table.getFor(schema);
+  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
 
   Future<bool> canCreate(Jwt? jwt) async {
     if (jwt?.admin.canEdit case true) {

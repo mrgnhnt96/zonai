@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// A [Filter] backed by a raw SQL predicate (no parameter binding).
 ///

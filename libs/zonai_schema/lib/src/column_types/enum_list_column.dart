@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 extension EnumListColumnDefinition<S> on SchemaBuilder<S> {
   ColumnType<W> enumList<E extends Enum, W extends List<E>?>(

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:raindrop/raindrop.dart' as rd show Table;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd show TableMeta;
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/tables/table.dart' as zs;
 import 'package:zonai_schema/zonai_schema.dart' hide table;
@@ -9,7 +9,7 @@ void main() {
   group('tableSchemaShapeFromTable', () {
     test('maps zonai column transformers to semantic kinds', () {
       final shape = tableSchemaShapeFromTable(
-        rd.Table.getFor(_DemoTable.schemaTable),
+        rd.TableMeta.getFor(_DemoTable.schemaTable),
       );
 
       expect(shape.table, 'demo_rows');
@@ -28,7 +28,7 @@ void main() {
 
     test('maps photo transformer runtime type to photo kind', () {
       final shape = tableSchemaShapeFromTable(
-        rd.Table.getFor(_PhotoDemoTable.schemaTable),
+        rd.TableMeta.getFor(_PhotoDemoTable.schemaTable),
       );
 
       expect(shape.columnNamed('image')?.kind, ColumnShapeKind.photo);
@@ -36,7 +36,7 @@ void main() {
 
     test('maps BigIntTransfomer columns to bigInt kind', () {
       final shape = tableSchemaShapeFromTable(
-        rd.Table.getFor(_BigIntDemoTable.schemaTable),
+        rd.TableMeta.getFor(_BigIntDemoTable.schemaTable),
       );
 
       expect(shape.columnNamed('big_count')?.kind, ColumnShapeKind.bigInt);
@@ -45,7 +45,7 @@ void main() {
 
     test('round-trips through json', () {
       final shape = tableSchemaShapeFromTable(
-        rd.Table.getFor(_DemoTable.schemaTable),
+        rd.TableMeta.getFor(_DemoTable.schemaTable),
       );
       final restored = TableSchemaShape.fromJson(shape.toJson());
       expect(restored, shape);
@@ -53,10 +53,10 @@ void main() {
 
     test('isView defaults to false and can be set', () {
       final table = tableSchemaShapeFromTable(
-        rd.Table.getFor(_DemoTable.schemaTable),
+        rd.TableMeta.getFor(_DemoTable.schemaTable),
       );
       final view = tableSchemaShapeFromTable(
-        rd.Table.getFor(_DemoTable.schemaTable),
+        rd.TableMeta.getFor(_DemoTable.schemaTable),
         isView: true,
       );
 

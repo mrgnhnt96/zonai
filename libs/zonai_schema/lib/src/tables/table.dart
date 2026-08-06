@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/schemas/table.dart';
 
 /// Defines a database-backed table with the given [name] and [builder].

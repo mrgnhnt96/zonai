@@ -7,7 +7,7 @@ base class TableRateLimits<S extends Table<R>, R> implements RateLimits<S, R> {
   final S schema;
 
   @override
-  rd.Table<S, R> get table => rd.Table.getFor(schema);
+  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
 
   Future<RateLimitPolicy?> getPolicy() async => .defaultPolicy;
 

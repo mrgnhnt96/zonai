@@ -10,7 +10,7 @@
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 
 
-import 'package:raindrop/raindrop.dart' show Schema;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' show Schema;
 import 'package:zonai_schema/src/internal/tables/abusers_table.dart' as _schema_abusers;
 import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart' as _schema_authChallenges;
 import 'package:zonai_schema/src/internal/tables/crons_table.dart' as _schema_crons;

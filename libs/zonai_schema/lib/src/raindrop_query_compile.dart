@@ -1,4 +1,4 @@
-import 'package:raindrop/dialect.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 
 /// Compiles a terminal Raindrop builder into a [Query] for SQL translation.
 extension RaindropQueryCompile<S, V> on ToQuery<S, V> {

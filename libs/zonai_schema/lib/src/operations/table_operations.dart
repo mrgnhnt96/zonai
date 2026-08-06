@@ -1,9 +1,8 @@
 import 'dart:convert';
 
 import 'package:meta/meta.dart';
-import 'package:raindrop/dialect.dart';
-import 'package:raindrop/raindrop.dart' as rd;
-import 'package:raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/where_sql.dart';
 import 'package:zonai_schema/zonai_schema.dart';
@@ -39,7 +38,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
 
   final S schema;
 
-  rd.Table<S, R> get table => rd.Table.getFor(schema);
+  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
 
   rd.Column<dynamic, dynamic> _requireColumn(String name) {
     for (final column in table.columns) {
@@ -733,7 +732,7 @@ class JwtConfig {
 ///
 /// Prefers [CreatedAtTransformer] columns, then auto-increment primary keys,
 /// then any primary key.
-List<OrderByTerm>? _defaultOrderByFor(rd.Table<dynamic, dynamic> table) {
+List<OrderByTerm>? _defaultOrderByFor(rd.TableMeta<dynamic, dynamic> table) {
   for (final column in table.columns) {
     if (column.transformer is CreatedAtTransformer) {
       return [OrderByTerm(column: column.name, direction: SortDirection.desc)];

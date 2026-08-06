@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 extension UpdatedAtColumnDefinition<S> on SchemaBuilder<S> {
   ColumnType<W> updatedAt<W extends DateTime?>(

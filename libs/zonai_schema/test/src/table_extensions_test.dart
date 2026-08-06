@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/transformers/secret_transformer.dart';
@@ -71,11 +71,11 @@ final class _GeneratedRowTable extends Table<_GeneratedRow> {
 void main() {
   group('secret columns', () {
     late _SecretRowTable schema;
-    late rd.Table<_SecretRowTable, _SecretRow> rows;
+    late rd.TableMeta<_SecretRowTable, _SecretRow> rows;
 
     setUp(() {
       schema = table('secret_rows', _SecretRowTable.new);
-      rows = rd.Table.getFor(schema);
+      rows = rd.TableMeta.getFor(schema);
     });
 
     test(
@@ -96,11 +96,11 @@ void main() {
 
   group('server-generated columns', () {
     late _GeneratedRowTable schema;
-    late rd.Table<_GeneratedRowTable, _GeneratedRow> rows;
+    late rd.TableMeta<_GeneratedRowTable, _GeneratedRow> rows;
 
     setUp(() {
       schema = table('generated_rows', _GeneratedRowTable.new);
-      rows = rd.Table.getFor(schema);
+      rows = rd.TableMeta.getFor(schema);
     });
 
     test(

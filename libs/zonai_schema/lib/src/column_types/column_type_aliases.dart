@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:zonai_schema/src/internal/tables/photos_table.dart';
 
 typedef TextColumn = ColumnType<String>;

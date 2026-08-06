@@ -8,7 +8,7 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
   final S schema;
 
   @override
-  rd.Table<S, R> get table => rd.Table.getFor(schema);
+  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
 
   Future<RateLimitPolicy?> signInPolicy() async => .defaultPolicy;
 

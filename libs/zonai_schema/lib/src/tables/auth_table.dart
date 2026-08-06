@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// Defines an auth-related database-backed table with the given [name] and [builder].
@@ -44,7 +44,7 @@ S authTable<S extends AuthTable<T>, T>(
       if (extra case final extra?) {
         extra.call(table);
 
-        for (final index in rd.Table.getFor(table).indexes) {
+        for (final index in rd.TableMeta.getFor(table).indexes) {
           if (index.columns.contains(table.id)) {
             if (index.isUnique) {
               continue;

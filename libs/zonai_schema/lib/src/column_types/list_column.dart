@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// Column handle for a JSON string array stored in TEXT (SQLite json1).
 ///

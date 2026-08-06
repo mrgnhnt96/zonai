@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/schemas/auth_table.dart';
 import 'package:zonai_schema/src/types/email_address.dart';
@@ -9,7 +9,7 @@ abstract class Extension<T> {
 
   final rd.Schema schema;
 
-  rd.Table get table => rd.Table.getFor(schema);
+  rd.TableMeta get table => rd.TableMeta.getFor(schema);
   String get tableName => table.name;
 
   Future<void> beforeCreate(T object, Jwt? jwt) async {}

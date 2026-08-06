@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// A transformer for a column whose real value is supplied later by a
 /// custom `TableOperations.insert` override (e.g. a server-generated API

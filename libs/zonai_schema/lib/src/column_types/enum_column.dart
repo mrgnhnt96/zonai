@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// Dart [Enum] stored as TEXT (enum [.name] on the wire by default).
 extension EnumColumnDefinition<S> on SchemaBuilder<S> {

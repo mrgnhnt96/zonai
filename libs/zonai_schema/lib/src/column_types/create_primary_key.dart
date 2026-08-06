@@ -1,4 +1,4 @@
-import 'package:raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// Implemented by [ColumnTransformer]s whose primary-key columns should receive a
 /// server-generated value when hydrating partial rows (for example rules
