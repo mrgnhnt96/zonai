@@ -359,12 +359,13 @@ raindrop `Schema` inside `schemasPath` — regardless of what function produced
 it — so a separate "views" folder next to `schemas/` would only avoid
 migration generation by convention, not by construction. `operationsPath` is
 never scanned for migrations, so defining the schema there is safe
-structurally. Note the `hide Table, table` on the raindrop import — needed
-because this file uses zonai_schema's `Table`/`table()` and both packages
-export symbols with those names:
+structurally. Import only `zonai_schema` — it re-exports raindrop's query
+builder (`.select`/`.from`/`.join`, `count`, etc.) already, so a separate
+`package:raindrop/raindrop.dart` import isn't needed and will collide: both
+packages would then export symbols like `Table`/`table`, producing
+`ambiguous_import`.
 
 ```dart
-import 'package:raindrop/raindrop.dart' hide Table, table;
 import 'package:zonai_schema/zonai_schema.dart';
 import '../schemas/authors.dart';
 import '../schemas/posts.dart';
@@ -1186,12 +1187,13 @@ migration generation by convention, not by construction. `operationsPath` is
 never scanned for migrations, so defining the schema there instead is safe
 structurally.
 
-Note the `hide Table, table` on the raindrop import — needed because this
-file uses zonai_schema's `Table`/`table()` and both packages export symbols
-with those names:
+Import only `zonai_schema` — it re-exports raindrop's query builder
+(`.select`/`.from`/`.join`, `count`, etc.) already, so a separate
+`package:raindrop/raindrop.dart` import isn't needed and will collide: both
+packages would then export symbols like `Table`/`table`, producing
+`ambiguous_import`.
 
 ```dart
-import 'package:raindrop/raindrop.dart' hide Table, table;
 import 'package:zonai_schema/zonai_schema.dart';
 import '../schemas/authors.dart';
 import '../schemas/posts.dart';
