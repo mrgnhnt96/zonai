@@ -15,8 +15,15 @@ dependencies:
   meta: ^1.17.0
   msgpack_dart: ^1.0.1
   scoped_deps: ^0.2.1
-  sqlite3: ">=2.4.0 <3.0.0"
 
 dev_dependencies:
   revali_router: ^3.4.0
   test: ^1.26.2
+  # Only used by SQLiteDelegate (gen/raindrop/raindrop_sqlite/src/sqlite_delegate.dart),
+  # which this package's own tests use for fast in-memory SQLite testing. Never a
+  # regular dependency: SQLiteDelegate isn't exported from zonai_schema.dart's public
+  # barrel (the sub-barrel exports it, but the outer barrel's `show` clause excludes
+  # it), so no consumer's code path can reach it. Keeping it a dev_dependency means
+  # consumers (e.g. a Flutter client also using Drift, which pins sqlite3 ^3.0.0) never
+  # have to resolve zonai_schema's <3.0.0 constraint at all. See issue #24.
+  sqlite3: ">=2.4.0 <3.0.0"

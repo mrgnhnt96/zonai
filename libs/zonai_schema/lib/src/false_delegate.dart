@@ -1,5 +1,5 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
-import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart';
 
 class FalseDelegate extends RaindropDelegate {
   FalseDelegate() : super(dialect: const SQLiteDialect());

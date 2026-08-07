@@ -1,5 +1,5 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
-import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/column_types/column_types.dart'
     show BigIntTransformer, BooleanTransfomer, DateTimeTransfomer;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/email_column.dart';

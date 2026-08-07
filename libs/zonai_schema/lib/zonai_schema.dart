@@ -10,7 +10,14 @@ export 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart' show SqlDialect
 // vendored path directly with a prefix.
 export 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
     hide table, Logger, migrate;
-export 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
+// Exported from the column_types sub-barrel directly, not raindrop_sqlite.dart's
+// top-level barrel: that one also unconditionally exports sqlite_delegate.dart
+// (needs package:sqlite3) and sqlite_table.dart/builders/ -- a `show` clause here
+// only filters which NAMES get re-exported, it doesn't stop the compiler from
+// having to resolve every file in an unrestricted `export` chain. Importing this
+// narrower sub-barrel means a client that only builds queries (no SQLiteDelegate,
+// ever) doesn't need sqlite3 resolvable at all. See issue #24.
+export 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/column_types/column_types.dart'
     show
         BooleanColumnDefinition,
         BigIntColumnDefinition,
