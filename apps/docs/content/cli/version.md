@@ -39,3 +39,8 @@ Recompile your workers after a CLI update — new versions may update the worker
 ```sh
 zonai compile
 ```
+
+If a CLI update changed the host↔worker wire protocol, `zonai compile`
+detects a stale dev host binary and rebuilds it automatically. If you're
+running a deployed `zonai build` bundle instead, rebuild and redeploy with
+`zonai build` — see [Upgrading Zonai](/cli/upgrading).
