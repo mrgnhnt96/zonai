@@ -353,7 +353,7 @@ void main() {
       );
 
       expect(rules.canCreate(admin, row), completion(isFalse));
-      expect(rules.canUpdate(admin, row), completion(isFalse));
+      expect(rules.canUpdate(admin, row, row), completion(isFalse));
       expect(rules.canDelete(admin, row), completion(isFalse));
     });
   });

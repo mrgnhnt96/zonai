@@ -109,4 +109,26 @@ void main() {
       expect(await rules.canView(_jwtFor('user-2'), row), isFalse);
     },
   );
+
+  test('canUpdate matches the signed-in user against before, not after — the '
+      "id doesn't change across an update, but before is the row that's "
+      'actually persisted right now', () async {
+    const before = _User(
+      id: _UserId('user-1'),
+      email: 'a@b.com',
+      isVerified: true,
+      passwordHash: 'hash',
+      name: 'Ada',
+    );
+    const after = _User(
+      id: _UserId('user-1'),
+      email: 'a@b.com',
+      isVerified: true,
+      passwordHash: 'hash',
+      name: 'Ada Lovelace',
+    );
+
+    expect(await rules.canUpdate(_jwtFor('user-1'), before, after), isTrue);
+    expect(await rules.canUpdate(_jwtFor('user-2'), before, after), isFalse);
+  });
 }
