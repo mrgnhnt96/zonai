@@ -28,10 +28,10 @@ final class TaskRowRules extends RowRules<TaskTable, Task> {
   Future<bool> canView(Jwt? jwt, Task row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Task row) async {
+  Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async {
     // Admins can always edit; owners can edit their own rows
     if (jwt?.admin.isAdmin ?? false) return true;
-    return jwt?.userId == row.createdBy.value;
+    return jwt?.userId == before.createdBy.value;
   }
 
   @override
@@ -44,14 +44,40 @@ final class TaskRowRules extends RowRules<TaskTable, Task> {
 
 ## Available Methods
 
-| Method                       | When It Runs                                                       |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `canView(Jwt? jwt, T row)`   | Before returning a row in `view` or `list`                         |
-| `canUpdate(Jwt? jwt, T row)` | Before executing an `update`                                       |
-| `canDelete(Jwt? jwt, T row)` | Before executing a `delete`                                        |
-| `canCreate(Jwt? jwt, T row)` | Before executing a `create` (row contains the data to be inserted) |
+| Method                                    | When It Runs                                                        |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| `canView(Jwt? jwt, T row)`                 | Before returning a row in `view` or `list`                         |
+| `canUpdate(Jwt? jwt, T before, T after)`   | Before executing an `update`                                       |
+| `canDelete(Jwt? jwt, T row)`               | Before executing a `delete`                                        |
+| `canCreate(Jwt? jwt, T row)`               | Before executing a `create` (row contains the data to be inserted) |
 
-The `row` parameter is the current state of the row from the database (or, for `canCreate`, the data being inserted).
+`row`/`before` is the current state of the row from the database (or, for `canCreate`, the data being inserted). `after` is the row the pending update would produce, computed ahead of the write — exact for every update type, including JSON list/map column operations (`Add`/`Remove`/`AddAll`/`RemoveAll`, nested map sets, merge patches).
+
+<Info>
+**Breaking change:** `canUpdate` used to take a single `row` (the pre-write state). It now takes `before` and `after`, matching `Extension.afterUpdateSuccess(T before, T after, Jwt?)`'s existing shape — moved earlier so a rule can reject the write instead of only observing it.
+
+Migrating is mechanical: add the `after` parameter, and use `before` wherever the old code used `row`. If your rule doesn't need to inspect the prospective post-write state, ignore `after` — behavior is unchanged.
+
+```dart
+// Before
+Future<bool> canUpdate(Jwt? jwt, Task row) async => jwt?.userId == row.createdBy.value;
+
+// After
+Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async => jwt?.userId == before.createdBy.value;
+```
+
+This unlocks gating on the transition itself, not just the current row — e.g. denying a write that would add a role the caller isn't allowed to grant:
+
+```dart
+@override
+Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
+  if (after.roles.contains('admin') && !before.roles.contains('admin')) {
+    return jwt?.admin.isAdmin ?? false; // only an existing admin may grant admin
+  }
+  return jwt?.admin.canEdit ?? false;
+}
+```
+</Info>
 
 ## Row Rules vs. Table Rules
 
@@ -75,8 +101,8 @@ Default is `true`. Use `false` only when every row that passes table rules is al
 ```dart
 // Owner-only update/delete
 @override
-Future<bool> canUpdate(Jwt? jwt, Task row) async =>
-    jwt?.userId == row.authorId.value;
+Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async =>
+    jwt?.userId == before.authorId.value;
 
 // Admin bypass with owner fallback
 @override
