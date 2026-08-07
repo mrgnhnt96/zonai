@@ -22,10 +22,9 @@ Defining it inside the operations file sidesteps that risk structurally instead 
 
 ## Writing the view
 
-Both the schema and `ViewQuery<R>` live in one operations file. Note the `hide Table, table` on the raindrop import — this file needs zonai_schema's `Table`/`table()` for the schema, and both packages export symbols with those names:
+Both the schema and `ViewQuery<R>` live in one operations file. Import only `zonai_schema` — it re-exports raindrop's query builder (`.select`/`.from`/`.join`, `count`, etc.) already, so a separate `package:raindrop/raindrop.dart` import isn't needed and will collide: both packages would then export symbols like `Table`/`table`, producing `ambiguous_import`.
 
 ```dart
-import 'package:raindrop/raindrop.dart' hide Table, table;
 import 'package:zonai_schema/zonai_schema.dart';
 
 import '../ids.dart';
