@@ -12,7 +12,7 @@ class ItemRowRules extends RowRules<ItemTable, Item> {
   }
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Item row) async {
+  Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
     return true;
   }
 

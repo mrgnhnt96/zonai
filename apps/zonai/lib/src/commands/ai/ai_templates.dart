@@ -301,9 +301,9 @@ class ItemRowRules extends RowRules<ItemTable, Item> {
   Future<bool> canView(Jwt? jwt, Item row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Item row) async {
+  Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
     if (jwt?.admin.canEdit == true) return true;
-    return jwt?.userId.value == row.ownerId.value;
+    return jwt?.userId.value == before.ownerId.value;
   }
 
   @override Future<bool> canCreate(Jwt? jwt, Item row) async => jwt != null;
@@ -1099,9 +1099,9 @@ class ItemRowRules extends RowRules<ItemTable, Item> {
   Future<bool> canView(Jwt? jwt, Item row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Item row) async {
+  Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
     if (jwt?.admin.canEdit == true) return true;
-    return jwt?.userId.value == row.ownerId.value;
+    return jwt?.userId.value == before.ownerId.value;
   }
 
   @override Future<bool> canCreate(Jwt? jwt, Item row) async => jwt != null;

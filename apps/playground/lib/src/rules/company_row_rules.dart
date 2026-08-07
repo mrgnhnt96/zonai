@@ -10,7 +10,7 @@ class CompanyRowRules extends RowRules<CompanyTable, Company> {
   Future<bool> canView(Jwt? jwt, Company row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Company row) async => true;
+  Future<bool> canUpdate(Jwt? jwt, Company before, Company after) async => true;
 
   @override
   Future<bool> canDelete(Jwt? jwt, Company row) async => true;

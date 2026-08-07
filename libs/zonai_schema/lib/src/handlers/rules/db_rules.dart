@@ -8,6 +8,7 @@ import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/types/provisioning_jwt.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/collection_actions.dart';
+import 'package:zonai_schema/src/update/update_simulator.dart';
 
 class _Rules {
   _Rules();
@@ -344,7 +345,13 @@ class DbRules {
 
     final canPerform = await switch (op) {
       .view => rowRules.canView(request.jwt, object),
-      .update => rowRules.canUpdate(request.jwt, object),
+      .update => rowRules.canUpdate(
+        request.jwt,
+        object,
+        rowRules.table.safeCreate(
+          rowRules.table.simulateUpdate(request.data, request.updates),
+        ),
+      ),
       .delete => rowRules.canDelete(request.jwt, object),
       .create => rowRules.canCreate(request.jwt, object),
     };
@@ -384,7 +391,13 @@ class DbRules {
       final object = rowRules.table.safeCreate(data);
       canPerform.add(await switch (op) {
         .view => rowRules.canView(request.jwt, object),
-        .update => rowRules.canUpdate(request.jwt, object),
+        .update => rowRules.canUpdate(
+          request.jwt,
+          object,
+          rowRules.table.safeCreate(
+            rowRules.table.simulateUpdate(data, request.updates),
+          ),
+        ),
         .delete => rowRules.canDelete(request.jwt, object),
         .create => rowRules.canCreate(request.jwt, object),
       });

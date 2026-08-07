@@ -10,7 +10,7 @@ class InviteRowRules extends RowRules<InviteTable, Invite> {
   Future<bool> canView(Jwt? jwt, Invite row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Invite row) async => true;
+  Future<bool> canUpdate(Jwt? jwt, Invite before, Invite after) async => true;
 
   @override
   Future<bool> canDelete(Jwt? jwt, Invite row) async => true;

@@ -11,7 +11,11 @@ class CellEditFixtureRowRules
   Future<bool> canView(Jwt? jwt, CellEditFixture row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, CellEditFixture row) async => true;
+  Future<bool> canUpdate(
+    Jwt? jwt,
+    CellEditFixture before,
+    CellEditFixture after,
+  ) async => true;
 
   @override
   Future<bool> canDelete(Jwt? jwt, CellEditFixture row) async => true;

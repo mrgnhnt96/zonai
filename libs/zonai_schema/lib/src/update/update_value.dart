@@ -1,5 +1,23 @@
 part of update;
 
+/// Reinterprets [raw] as an [UpdateValue] if it's a wire-encoded one (e.g.
+/// `{"type": "increment"}`), or returns `null` if it's a plain literal value.
+///
+/// Shared by [TableOperations.update] (SQL building) and
+/// `TableUpdateSimulation.simulateUpdate` (Dart-side simulation) so both
+/// paths disambiguate nested `ObjectUpdate` map values identically.
+UpdateValue? tryParseUpdateValue(Object? raw) {
+  if (raw is! Map) {
+    return null;
+  }
+
+  try {
+    return UpdateValue.fromJson(Map<String, dynamic>.from(raw));
+  } catch (_) {
+    return null;
+  }
+}
+
 sealed class UpdateValue {
   const UpdateValue();
   factory UpdateValue.literal(Object? value) = Literal;

@@ -10,7 +10,7 @@ class PostRowRules extends RowRules<PostTable, Post> {
   Future<bool> canView(Jwt? jwt, Post row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Post row) async => true;
+  Future<bool> canUpdate(Jwt? jwt, Post before, Post after) async => true;
 
   @override
   Future<bool> canDelete(Jwt? jwt, Post row) async => true;

@@ -15,7 +15,10 @@ class BaseRowRules<S extends rd.Schema<R>, R> {
     return false;
   }
 
-  Future<bool> canUpdate(Jwt? jwt, R row) async {
+  /// [before] is the row as it exists prior to the write; [after] is the row
+  /// [Update]s would produce, simulated ahead of the write (exact for every
+  /// [UpdateValue] variant — see `TableUpdateSimulation.simulateUpdate`).
+  Future<bool> canUpdate(Jwt? jwt, R before, R after) async {
     if (jwt?.admin.canEdit case true) {
       return true;
     }

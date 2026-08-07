@@ -13,7 +13,7 @@ class ViewRowRules<S extends Table<R>, R> extends RowRules<S, R> {
   Future<bool> canCreate(Jwt? jwt, R row) async => false;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, R row) async => false;
+  Future<bool> canUpdate(Jwt? jwt, R before, R after) async => false;
 
   @override
   Future<bool> canDelete(Jwt? jwt, R row) async => false;

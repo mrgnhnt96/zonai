@@ -149,7 +149,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
               continue;
             }
 
-            if (_tryUpdateValue(value) case final nested?) {
+            if (tryParseUpdateValue(value) case final nested?) {
               if (_convertUpdateValue(key, nested, inferredColumns)
                   case final converted?) {
                 updateables.add(converted);
@@ -401,21 +401,6 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
       wire,
       const rd.RawSQL('))), \'[]\')'),
     ]);
-  }
-
-  /// When [ObjectUpdate] embeds [UpdateValue] maps (e.g. from JSON), apply the
-  /// same semantics as [ColumnUpdate]. Plain maps without a known `type`
-  /// remain literal row values.
-  UpdateValue? _tryUpdateValue(Object? raw) {
-    if (raw is! Map) {
-      return null;
-    }
-
-    try {
-      return UpdateValue.fromJson(Map<String, dynamic>.from(raw));
-    } catch (_) {
-      return null;
-    }
   }
 
   rd.SelectFromBuilder<rd.Schema<R>, R, int> count({Where? where}) {

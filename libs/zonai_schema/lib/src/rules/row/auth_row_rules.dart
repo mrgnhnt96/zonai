@@ -49,14 +49,14 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
     return _rowIdMatches(row, jwtUserId);
   }
 
-  Future<bool> canUpdate(Jwt? jwt, R row) async {
+  Future<bool> canUpdate(Jwt? jwt, R before, R after) async {
     if (jwt?.admin.canEdit case true) {
       return true;
     }
 
     final jwtUserId = jwt?.userId;
     if (jwtUserId == null) return false;
-    return _rowIdMatches(row, jwtUserId);
+    return _rowIdMatches(before, jwtUserId);
   }
 
   Future<bool> canDelete(Jwt? jwt, R row) async {

@@ -1,5 +1,6 @@
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
+import 'package:zonai_schema/src/update/update.dart';
 
 sealed class RuleRequest extends Request {
   const RuleRequest({
@@ -153,11 +154,19 @@ final class TableRulesRequest extends RuleRequest {
   }
 }
 
+// TODO(future): this and BatchRowRulesRequest below gained an `updates`
+// field (issue #23) without bumping `IpcCodec.version` — the protocol stamp
+// only guards the outer framing/codec, not individual request shapes, so a
+// stale worker/host pairing across this change fails with a raw decode
+// error rather than the friendly WorkerProtocolMismatchException. Still an
+// open question (raised, not yet resolved) whether wire-shape changes like
+// this one should force a stamp bump too.
 final class RowRulesRequest extends RuleRequest {
   RowRulesRequest({
     required this.table,
     required this.operation,
     required this.data,
+    this.updates = const [],
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
@@ -166,6 +175,7 @@ final class RowRulesRequest extends RuleRequest {
     required this.table,
     required this.operation,
     required this.data,
+    required this.updates,
     required super.jwt,
   }) : super(path: _path);
 
@@ -177,6 +187,10 @@ final class RowRulesRequest extends RuleRequest {
         request.payload['operation'] as String,
       )!,
       data: request.payload['data'] as Map<String, dynamic>,
+      updates: [
+        for (final u in request.payload['updates'] as List? ?? const [])
+          Update.fromJson(Map<String, dynamic>.from(u as Map)),
+      ],
       jwt: request.jwt,
     );
   }
@@ -187,6 +201,10 @@ final class RowRulesRequest extends RuleRequest {
   final RowOperation operation;
   final Map<String, dynamic> data;
 
+  /// The pending update payload, present only for [RowOperation.update] —
+  /// used to simulate the post-write row for [BaseRowRules.canUpdate].
+  final List<Update> updates;
+
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -194,6 +212,7 @@ final class RowRulesRequest extends RuleRequest {
       'table': table,
       'operation': operation.name,
       'data': data,
+      'updates': [for (final u in updates) u.toJson()],
     };
   }
 }
@@ -208,6 +227,7 @@ final class BatchRowRulesRequest extends RuleRequest {
     required this.table,
     required this.operation,
     required this.rows,
+    this.updates = const [],
     required super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
@@ -216,6 +236,7 @@ final class BatchRowRulesRequest extends RuleRequest {
     required this.table,
     required this.operation,
     required this.rows,
+    required this.updates,
     required super.jwt,
   }) : super(path: _path);
 
@@ -227,8 +248,10 @@ final class BatchRowRulesRequest extends RuleRequest {
       operation: RowOperation.fromString(
         request.payload['operation'] as String,
       )!,
-      rows: [
-        for (final row in rawRows) Map<String, dynamic>.from(row as Map),
+      rows: [for (final row in rawRows) Map<String, dynamic>.from(row as Map)],
+      updates: [
+        for (final u in request.payload['updates'] as List? ?? const [])
+          Update.fromJson(Map<String, dynamic>.from(u as Map)),
       ],
       jwt: request.jwt,
     );
@@ -240,6 +263,11 @@ final class BatchRowRulesRequest extends RuleRequest {
   final RowOperation operation;
   final List<Map<String, dynamic>> rows;
 
+  /// The pending update payload, shared across every row in [rows] — one
+  /// `UPDATE ... SET` clause applies uniformly to every matched row.
+  /// Present only for [RowOperation.update].
+  final List<Update> updates;
+
   @override
   Map<String, dynamic> toJson() {
     return {
@@ -247,6 +275,7 @@ final class BatchRowRulesRequest extends RuleRequest {
       'table': table,
       'operation': operation.name,
       'rows': rows,
+      'updates': [for (final u in updates) u.toJson()],
     };
   }
 }

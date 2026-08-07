@@ -154,8 +154,9 @@ extension UtilsX on ZonaiDb {
     String table,
     RowOperation operation,
     Map<String, dynamic> data,
-    Jwt? jwt,
-  ) async {
+    Jwt? jwt, {
+    List<Update> updates = const [],
+  }) async {
     if (_skipRowChecks['$table|${_jwtCacheKey(jwt)}'] == true) {
       return RowRulesResponse(
         id: '-1',
@@ -166,7 +167,13 @@ extension UtilsX on ZonaiDb {
     }
 
     final rules = await _dispatchRules<RowRulesResponse>(
-      RowRulesRequest(table: table, operation: operation, data: data, jwt: jwt),
+      RowRulesRequest(
+        table: table,
+        operation: operation,
+        data: data,
+        updates: updates,
+        jwt: jwt,
+      ),
     );
 
     return rules ??
@@ -182,9 +189,16 @@ extension UtilsX on ZonaiDb {
     String table,
     RowOperation operation,
     Map<String, dynamic> data,
-    Jwt? jwt,
-  ) async {
-    final result = await _rowRules(table, operation, data, jwt);
+    Jwt? jwt, {
+    List<Update> updates = const [],
+  }) async {
+    final result = await _rowRules(
+      table,
+      operation,
+      data,
+      jwt,
+      updates: updates,
+    );
     if (result.canPerform case false) {
       throw RowAccessDeniedException(
         table: table,
@@ -202,8 +216,9 @@ extension UtilsX on ZonaiDb {
     String table,
     RowOperation operation,
     List<Map<String, dynamic>> rows,
-    Jwt? jwt,
-  ) async {
+    Jwt? jwt, {
+    List<Update> updates = const [],
+  }) async {
     if (rows.isEmpty) return;
     if (_skipRowChecks['$table|${_jwtCacheKey(jwt)}'] == true) return;
 
@@ -212,6 +227,7 @@ extension UtilsX on ZonaiDb {
         table: table,
         operation: operation,
         rows: rows,
+        updates: updates,
         jwt: jwt,
       ),
     );

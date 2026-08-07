@@ -201,7 +201,22 @@ extension _UpdateX on ZonaiDb {
     final objects = readResult.rows.map((e) => e.toMap()).toList();
 
     for (final row in objects) {
-      await _requireRowAccess(table, .update, row, jwt);
+      // Pre-password-hash payload: canUpdate's simulated `after` shows the
+      // plaintext for a password-column update, not the hash that will
+      // actually be written (hashing happens later, in
+      // _hashPasswordUpdates). Narrow, pre-existing-adjacent gap — rules
+      // don't gate on the password column today.
+      // TODO(future): if a table ever needs canUpdate to see the post-hash
+      // value, this check would need to move after _hashPasswordUpdates —
+      // not done here since no consumer needs it yet and it changes the
+      // fail-fast ordering of the rules gate.
+      await _requireRowAccess(
+        table,
+        .update,
+        row,
+        jwt,
+        updates: payload.updates,
+      );
     }
     logger.trace('row_access');
 

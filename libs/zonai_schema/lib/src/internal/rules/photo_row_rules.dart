@@ -11,10 +11,10 @@ final class PhotoRowRules extends InternalRowRules<PhotosTable, PhotoEntry> {
   Future<bool> canView(Jwt? jwt, PhotoEntry row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, PhotoEntry row) async {
+  Future<bool> canUpdate(Jwt? jwt, PhotoEntry before, PhotoEntry after) async {
     if (jwt == null) return false;
     if (jwt.admin.isAdmin) return true;
-    if (jwt.userId == row.ownerId) return true;
+    if (jwt.userId == before.ownerId) return true;
 
     return false;
   }
