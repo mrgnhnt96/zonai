@@ -51,6 +51,9 @@ import '../sqlite_internal_table_sync.dart';
 part 'parts/__auth_utils.dart';
 part 'parts/__utils.dart';
 part 'parts/admin/create_admin.dart';
+part 'parts/admin/list_admins.dart';
+part 'parts/admin/remove_admin.dart';
+part 'parts/admin/reset_admin_password.dart';
 part 'parts/auth/auth.dart';
 part 'parts/auth/challenge.dart';
 part 'parts/auth/external_idp.dart';
@@ -296,6 +299,23 @@ class ZonaiDb {
         verified: verified,
       ),
     );
+  }
+
+  Future<Map<String, Object?>> resetAdminPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    return await _run(
+      () => _resetAdminPassword(email: email, newPassword: newPassword),
+    );
+  }
+
+  Future<Map<String, Object?>> removeAdmin({required String email}) async {
+    return await _run(() => _removeAdmin(email: email));
+  }
+
+  Future<List<Map<String, Object?>>> listAdmins() async {
+    return await _run(() => _listAdmins());
   }
 
   Future<File> getPhoto(String id, {required String? token}) {
