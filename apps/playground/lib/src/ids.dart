@@ -29,7 +29,7 @@ sealed class Id implements z.Id {
   String toJson() => value;
 
   @override
-  bool operator ==(Object other) => other is Id && other.value == value;
+  bool operator ==(Object other) => other is z.Id && other.value == value;
 
   @override
   int get hashCode => value.hashCode;

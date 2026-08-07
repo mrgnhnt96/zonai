@@ -47,7 +47,7 @@ sealed class ${names.idClass} implements z.Id {
 
   @override
   bool operator ==(Object other) =>
-      other is ${names.idClass} && other.value == value;
+      other is z.Id && other.value == value;
 
   @override
   int get hashCode => value.hashCode;
