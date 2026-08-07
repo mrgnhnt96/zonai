@@ -1,0 +1,50 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// Vendored from the raindrop/raindrop_sqlite packages (libs/raindrop
+// submodule) so zonai_schema has no external path/git dependency on them.
+// Baked in with explicit permission from raindrop's original author.
+//
+// Regenerate: dart run tool/generate_raindrop_vendor.dart
+
+import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
+
+/// {@template insert_values_builder}
+/// The insert builder that takes a list of values.
+/// {@endtemplate}
+class InsertValuesBuilder<S extends Schema<R>, R, V>
+    extends InsertBuilder<S, R, V> {
+  /// {@macro insert_values_builder}
+  InsertValuesBuilder(super.executor, {required super.config});
+
+  /// Add the [values] to the builder.
+  InsertWithValuesBuilder<S, R, V> values(List<R> values) {
+    return InsertWithValuesBuilder(
+      executor,
+      config: config.copyWith({
+        #values: [...values],
+      }),
+    );
+  }
+}
+
+/// {@template insert_with_values_builder}
+/// An insert builder that has values to insert.
+/// {@endtemplate}
+class InsertWithValuesBuilder<S extends Schema<R>, R, V>
+    extends InsertBuilder<S, R, V> with ToQuery<S, V> {
+  /// {@macro insert_with_values_builder}
+  InsertWithValuesBuilder(super.executor, {required super.config});
+
+  @override
+  Query<V> compile() => Query<V>(
+        shape: config.get(#into)! as TableMeta,
+        clauses: {
+          InsertSlot.verb: const Keyword('INSERT'),
+          InsertSlot.body: InsertBodyClause(
+            config.get(#into)! as TableMeta,
+            config.get(#values)! as List<dynamic>,
+          ),
+          ...?config.get<Map<int, Clause>>(#extraClauses),
+        },
+      );
+}

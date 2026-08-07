@@ -66,3 +66,20 @@ apps/web/.cursor
 # static build) — never source, can get large (recordings/replay-viewer
 # especially), must never be committed.
 **/.zonai/data/
+zonai.sqlite*
+
+# AI stuff
+.llm_chat
+.game_loop
+# llm_chat identity for this project
+.llm_chat/
+
+# machine-local hook config (absolute paths)
+.claude/settings.local.json
+**/gen/**
+
+# ...except the vendored raindrop source: raindrop is a private submodule
+# (libs/raindrop), so anyone without access to it can't regenerate this --
+# committing the vendor output lets them build zonai from a plain clone.
+!libs/zonai_schema/lib/gen/raindrop/
+!libs/zonai_schema/lib/gen/raindrop/**

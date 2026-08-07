@@ -1,0 +1,67 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// Vendored from the raindrop/raindrop_sqlite packages (libs/raindrop
+// submodule) so zonai_schema has no external path/git dependency on them.
+// Baked in with explicit permission from raindrop's original author.
+//
+// Regenerate: dart run tool/generate_raindrop_vendor.dart
+
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
+
+/// {@template sql}
+/// SQL-based logic, makes it easy to add custom SQL code.
+/// {@endtemplate}
+class SQL extends Filter {
+  /// {@macro sql}
+  SQL(List<Object?> chunks) : chunks = [...chunks];
+
+  SQL.function(String name, List<Object?> chunks)
+      : this([
+          RawSQL('$name('),
+          for (var i = 0; i < chunks.length; i++) ...[
+            if (i > 0) const RawSQL(','),
+            chunks[i],
+          ],
+          const RawSQL(')'),
+        ]);
+
+  /// The chunks of the SQL portion.
+  final List<Object?> chunks;
+
+  @override
+  String toString() => chunks.join(' ');
+}
+
+/// {@template raw_sql}
+/// Provides a raw SQL object.
+/// {@endtemplate}
+class RawSQL {
+  /// {@macro raw_sql}
+  const RawSQL(this.sql);
+
+  /// The raw SQL itself.
+  final String sql;
+
+  @override
+  String toString() => sql;
+}
+
+sealed class Op {
+  /// The SQL equals operator.
+  static const equals = RawSQL('=');
+
+  /// The SQL not-equals operator.
+  static const notEquals = RawSQL('!=');
+
+  /// The SQL greater than operator.
+  static const greaterThan = RawSQL('>');
+
+  /// The SQL greater than or equal operator.
+  static const greaterThanOrEqual = RawSQL('>=');
+
+  /// The SQL less than operator.
+  static const lessThan = RawSQL('<');
+
+  /// The SQL less than or equal operator.
+  static const lessThanOrEqual = RawSQL('<=');
+}
