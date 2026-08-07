@@ -12,6 +12,7 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
+import '../ipc_protocol_stamp.dart';
 import '../project/project_generator.dart';
 import 'operation_generator.dart';
 
@@ -118,6 +119,8 @@ class Operations {
       logger.error('${result.stderr}');
       return;
     }
+
+    writeProtocolStamp(target);
 
     final snapshotTarget = switch (buildSettings) {
       != null => settings.buildOperationsSnapshotPath,

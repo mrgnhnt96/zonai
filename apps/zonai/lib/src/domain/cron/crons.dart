@@ -12,6 +12,7 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
+import '../ipc_protocol_stamp.dart';
 import 'cron_generator.dart';
 
 final class CronsCompiler {
@@ -89,6 +90,8 @@ final class CronsCompiler {
       logger.error('${result.stderr}');
       return;
     }
+
+    writeProtocolStamp(target);
 
     final s = files.length == 1 ? '' : 's';
     logger.info('Compiled ${files.length} cron$s');

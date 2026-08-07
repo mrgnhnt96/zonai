@@ -12,6 +12,7 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
+import '../ipc_protocol_stamp.dart';
 import 'config_generator.dart';
 
 class Config {
@@ -117,6 +118,8 @@ class Config {
       logger.error('${result.stderr}');
       return;
     }
+
+    writeProtocolStamp(target);
 
     final s = files.length == 1 ? '' : 's';
     logger.info('Compiled ${files.length} config$s');

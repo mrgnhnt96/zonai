@@ -23,6 +23,7 @@ import 'package:zonai_schema/src/handlers/messages/message_io.dart'
 import '../db_mutator/executable_unavailable_exception.dart';
 import '../db_mutator/payloads/payloads.dart';
 import '../db_mutator/worker_process_failed_exception.dart';
+import '../db_mutator/worker_protocol_mismatch_exception.dart';
 import '../deps/clean_up.dart';
 import '../deps/executable_stop.dart';
 import '../deps/fs.dart';
@@ -47,6 +48,7 @@ mixin Receivable<S extends Request, R extends Response> on Mailman<S, R> {
 
 class Mailman<S extends Request, R extends Response> {
   static final _loggedMissingExecutables = <String>{};
+  static final _loggedProtocolMismatches = <String>{};
 
   Mailman({
     required this.debugName,
@@ -174,6 +176,23 @@ class Mailman<S extends Request, R extends Response> {
 
   Never _throwExecutableUnavailable() {
     throw _logExecutableRequiredStack();
+  }
+
+  /// Refuses to spawn [executablePath] when its compiled wire-protocol
+  /// stamp doesn't match this host's own [IpcCodec.version] -- see
+  /// `WorkerProtocolMismatchException.forStamp`.
+  void _throwIfProtocolMismatch(String executablePath) {
+    final error = WorkerProtocolMismatchException.forStamp(
+      workerName: debugName,
+      executablePath: executablePath,
+      hostVersion: IpcCodec.version,
+    );
+    if (error == null) return;
+
+    if (_loggedProtocolMismatches.add(executablePath)) {
+      logger.error(error.message, error.runtimeType, StackTrace.current);
+    }
+    throw error;
   }
 
   Future<void> _deliverUnexpected(
@@ -463,6 +482,8 @@ class Mailman<S extends Request, R extends Response> {
     if (!fs.file(executablePath).existsSync()) {
       return;
     }
+
+    _throwIfProtocolMismatch(executablePath);
 
     logger.debug('Starting | $executablePath', prefix: _prefix);
 

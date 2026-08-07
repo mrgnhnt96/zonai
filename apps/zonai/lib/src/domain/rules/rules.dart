@@ -12,6 +12,7 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
+import '../ipc_protocol_stamp.dart';
 import '../project/project_generator.dart';
 import 'rule_generator.dart';
 
@@ -96,6 +97,8 @@ class Rules {
       logger.error('${result.stderr}');
       return;
     }
+
+    writeProtocolStamp(target);
 
     final snapshotTarget = switch (buildSettings) {
       != null => settings.buildRulesSnapshotPath,
