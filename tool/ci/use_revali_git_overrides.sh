@@ -29,16 +29,15 @@ EOF
 dependency_overrides:
 EOF
   write_git_override revali_router revali_router/revali_router
-  write_git_override revali_router_annotations revali_router/revali_router_annotations
-  write_git_override revali_router_core revali_router/revali_router_core
   write_git_override revali packages/revali
   write_git_override revali_client constructs/revali_client/revali_client
   write_git_override revali_client_gen constructs/revali_client/revali_client_gen
-  write_git_override revali_server constructs/revali_server
+  write_git_override revali_docker constructs/revali_docker
   write_git_override revali_swagger constructs/revali_swagger/revali_swagger
   write_git_override revali_swagger_annotations constructs/revali_swagger/revali_swagger_annotations
   write_git_override revali_construct packages/revali_construct
   write_git_override revali_core packages/revali_core
+  write_git_override revali_annotations packages/revali_annotations
 } > "${PUBSPEC_OVERRIDES}"
 
 echo "Wrote ${PUBSPEC_OVERRIDES} (url: ${REVALI_GIT_URL}, ref: ${REVALI_GIT_REF})"
