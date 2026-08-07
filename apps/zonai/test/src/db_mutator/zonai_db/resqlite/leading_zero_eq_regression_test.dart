@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:resqlite/resqlite.dart' as rs;
 import 'package:test/test.dart';
 import 'package:zonai/src/db_mutator/zonai_db/resqlite/resqlite_delegate.dart';
+import 'package:zonai_schema/src/types/where_sql.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 // Issue #21: an `eq` filter against a TEXT column silently returns zero rows
@@ -11,8 +13,13 @@ import 'package:zonai_schema/zonai_schema.dart';
 // leading zero") only exercises the SQL-builder layer against
 // `package:sqlite3` -- never the real `resqlite` native driver the reports
 // (issue #21, and SupposedlySam's 2026-08-04 re-confirmation on a compiled
-// v0.5.1 binary) are actually about. This test drives the exact same Eq/
-// WhereSql code path but against a real ResqliteDelegate, closing that gap.
+// v0.5.1 binary) are actually about. This test drives the full pipeline a
+// real HTTP request goes through -- a raw JSON body, decoded via
+// `Where.fromJson`, rendered to SQL via `WhereX.sql`, executed against a
+// real ResqliteDelegate -- closing that gap short of standing up a full
+// server + admin auth, which turned out to be its own rabbit hole for this
+// minimal fixture and isn't where a numeric-coercion bug would plausibly
+// live anyway.
 void main() {
   setUpAll(() {
     final lib = File('lib/gen/native/${rs.defaultLibraryFileName}');
@@ -62,24 +69,28 @@ void main() {
         }
 
         for (final value in values) {
-          // The exact SQL shape WhereSql._build emits for Eq(column, value):
-          // '"<column>" = ?' with the value bound unchanged -- see
-          // libs/zonai_schema/lib/src/types/where_sql.dart. Inlined here
-          // rather than imported since that extension isn't part of
-          // zonai_schema's public barrel; already exercised directly by
-          // table_operations_test.dart's SQL-builder-layer test.
+          // A real request body: a JSON string wire value, exactly like
+          // what an HTTP handler decodes before building a Where.
+          final requestBody =
+              '{"type":"eq","column":"value_key","value":${jsonEncode(value)}}';
+          final where = Where.fromJson(
+            jsonDecode(requestBody) as Map<String, dynamic>,
+          );
+          final (whereSql, params) = where.sql('items');
+
           final result = await db.execute(
-            'SELECT * FROM "items" WHERE "value_key" = ?',
-            [value],
+            'SELECT * FROM "items" WHERE $whereSql',
+            params,
           );
 
           expect(
             result.rows,
             hasLength(1),
             reason:
-                'eq("value_key", "$value") via the real resqlite driver -- '
-                'issue #21 reports the leading-zero case comes back empty '
-                'while the other three match',
+                'eq("value_key", "$value") from a real JSON request body, '
+                'through Where.fromJson and WhereX.sql, via the real '
+                'resqlite driver -- issue #21 reports the leading-zero case '
+                'comes back empty while the other three match',
           );
         }
       } finally {
