@@ -24,6 +24,22 @@ Flags:
 
 Accounts are created with `isVerified = true` by default so they can sign in immediately.
 
+## Listing Admin Accounts
+
+```
+zonai db admin list
+```
+
+Lists every admin account (id, email, and any other non-secret columns). Never prints the password hash.
+
+## Removing an Admin Account
+
+```
+zonai db admin remove --email admin@example.com
+```
+
+Makes `add` recoverable — a removed email can be re-added later. There is no `--force` on `add` itself; removing first is the deliberate, distinct step.
+
 ## Signing In as an Admin
 
 Admin accounts sign in through a dedicated endpoint:
@@ -66,7 +82,13 @@ The `canEdit` flag provides a second, finer-grained permission level — useful 
 
 ## Changing an Admin Password
 
-Use the standard password reset flow (`POST /auth/reset-password`), the admin UI, or update the row directly:
+If nobody has the current password — the usual reason to reach for this — reset it directly from the CLI. The server does not need to be running:
+
+```
+zonai db admin reset-password --email admin@example.com --password newSecurePassword
+```
+
+If the admin already knows their password and just wants to change it, use the standard password reset flow (`POST /auth/reset-password`), the admin UI, or update the row directly:
 
 ```
 PATCH /db

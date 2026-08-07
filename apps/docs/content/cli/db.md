@@ -47,6 +47,42 @@ zonai db admin add -e admin@example.com -p secret123 --data '{"name":"Admin"}'
 | `--data` | `-d` | Extra JSON fields to merge into the row |
 | `--no-verify` | — | Skip email verification for this account |
 
+### list
+
+List every admin account (id, email, and any other non-secret columns — never the password hash):
+
+```sh
+zonai db admin list
+zonai db admin ls   # alias
+```
+
+### reset-password
+
+Reset an existing admin account's password. Use this to recover a deployment where an admin account exists but nobody has the password:
+
+```sh
+zonai db admin reset-password --email admin@example.com --password newSecret123
+zonai db admin reset -e admin@example.com -p newSecret123   # alias
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--email` | `-e` | Admin email address (required) |
+| `--password` | `-p` | New admin password (required) |
+
+### remove
+
+Remove an existing admin account. Makes `add` recoverable — a removed email can be re-added later:
+
+```sh
+zonai db admin remove --email admin@example.com
+zonai db admin rm -e admin@example.com   # aliases: rm, delete
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--email` | `-e` | Admin email address (required) |
+
 See [Admin Accounts](/authentication/admin-accounts).
 
 ## db email
