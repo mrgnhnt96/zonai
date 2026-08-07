@@ -289,16 +289,30 @@ extension UtilsX on ZonaiDb {
       return _hasProjectExtensions = true;
     }
 
-    final dir = fs.directory(settings.extensionsPath);
-    if (!dir.existsSync()) {
-      return _hasProjectExtensions = false;
+    // The compiled worker is what a deployed/built server actually ships and
+    // spawns -- a `zonai build` bundle (or the scratch-dir shape used by
+    // integration tests) has no `lib/` source tree at all, so checking only
+    // the source directory below would report "no extensions" and silently
+    // skip every beforeCreate/beforeUpdate hook.
+    if (fs.file(settings.compiledExtensionsPath).existsSync()) {
+      return _hasProjectExtensions = true;
     }
 
-    for (final entity in dir.listSync(recursive: true)) {
-      if (entity is File && entity.path.endsWith('.dart')) {
-        return _hasProjectExtensions = true;
+    final dir = fs.directory(settings.extensionsPath);
+    if (dir.existsSync()) {
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is File && entity.path.endsWith('.dart')) {
+          return _hasProjectExtensions = true;
+        }
       }
     }
+
+    logger.warn(
+      'No extensions detected (checked ${settings.compiledExtensionsPath} '
+      'and ${settings.extensionsPath}) -- beforeCreate/beforeUpdate hooks '
+      'will not run for this process',
+      prefix: _prefix,
+    );
     return _hasProjectExtensions = false;
   }
 
