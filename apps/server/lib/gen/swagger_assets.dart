@@ -664,6 +664,91 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/db/custom/{operation}": {
+      "patch": {
+        "operationId": "db_custom",
+        "tags": [
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "operation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomOneBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/custom/{operation}/many": {
+      "patch": {
+        "operationId": "db_customMany",
+        "tags": [
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "operation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth": {
       "post": {
         "operationId": "auth_authenticate",
@@ -1711,6 +1796,68 @@ const kSwaggerJson = r'''{
           "updates"
         ]
       },
+      "CustomOneBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Update"
+            }
+          }
+        },
+        "required": [
+          "table",
+          "updates"
+        ]
+      },
+      "CustomBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Update"
+            }
+          }
+        },
+        "required": [
+          "table",
+          "updates"
+        ]
+      },
       "DeleteOneBody": {
         "type": "object",
         "properties": {
@@ -2430,6 +2577,58 @@ paths:
       responses:
         '200':
           description: No content
+  '/db/custom/{operation}':
+    patch:
+      operationId: db_custom
+      tags:
+        - db
+      parameters:
+        - name: operation
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomOneBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/db/custom/{operation}/many':
+    patch:
+      operationId: db_customMany
+      tags:
+        - db
+      parameters:
+        - name: operation
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
   '/auth':
     post:
       operationId: auth_authenticate
@@ -3094,6 +3293,46 @@ components:
       required:
         - table
         - where
+        - updates
+    CustomOneBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Update'
+      required:
+        - table
+        - updates
+    CustomBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Update'
+      required:
+        - table
         - updates
     DeleteOneBody:
       type: object
