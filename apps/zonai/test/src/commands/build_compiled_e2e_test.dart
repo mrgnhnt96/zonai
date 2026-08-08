@@ -186,6 +186,14 @@ Future<void> _bootstrapEndUserProject({
     p.join(projectRoot.path, 'lib', 'src', 'schemas'),
   ).createSync(recursive: true);
 
+  // `zonai build` always compiles a project-linked binary (in-process
+  // ops/rules, see ProjectBinary.compile) by running `dart compile exe`
+  // against `.dart_tool/zonai/project_main.dart` *inside this project's own
+  // package graph* -- so, unlike `db`/`serve` (which can fall back to
+  // Mailman/IPC workers via ZONAI_FORCE_WORKERS), the project genuinely
+  // needs `zonai` itself resolvable, not just `zonai_schema`. Real projects
+  // get this from a `zonai: {path: ...}` dev dependency (see
+  // apps/playground/pubspec.yaml); mirror that here.
   File(p.join(projectRoot.path, 'pubspec.yaml')).writeAsStringSync('''
 name: build_compiled_e2e_fixture
 publish_to: none
@@ -196,6 +204,8 @@ environment:
 dependencies:
   zonai_schema:
     path: ${jsonEncode(zonaiSchemaRoot)}
+  zonai:
+    path: ${jsonEncode(zonaiPackageRootFromConfig())}
 ''');
 
   File(p.join(projectRoot.path, 'zonai.yaml')).writeAsStringSync('''
