@@ -18,11 +18,15 @@ import '../../zonai.dart';
 class Migrate {
   Migrate();
 
+  static const _autoDebounceDuration = Duration(milliseconds: 300);
+
   DirectoryWatcher? __watcher;
   DirectoryWatcher get _watcher =>
-      __watcher ??= DirectoryWatcher(settings.migrationsPath);
+      __watcher ??= DirectoryWatcher(settings.schemasPath);
 
   StreamSubscription<WatchEvent>? __subscription;
+  Timer? _debounce;
+  bool _rerunPending = false;
 
   void auto() {
     if (args.release) return;
@@ -32,8 +36,7 @@ class Migrate {
       return;
     }
 
-    final hadMigrationsDir =
-        fs.directory(settings.migrationsPath).existsSync();
+    final hadMigrationsDir = fs.directory(settings.migrationsPath).existsSync();
     fs.ensureDirectory(settings.migrationsPath);
 
     if (!hadMigrationsDir) {
@@ -43,11 +46,37 @@ class Migrate {
       }).ignore();
     }
 
-    __subscription = _watcher.events.listen((event) async {
-      run(name: 'auto');
+    __subscription = _watcher.events.listen((event) {
+      _scheduleAutoRun();
     });
 
     cleanUp.add(stop);
+  }
+
+  // Schema edits often touch several files in quick succession (e.g. a
+  // multi-table change). Debounce so a burst of events becomes one run
+  // against settled files, and if a run is already in flight when the
+  // debounce fires, queue exactly one follow-up run instead of dropping the
+  // later changes.
+  void _scheduleAutoRun() {
+    _debounce?.cancel();
+    _debounce = Timer(_autoDebounceDuration, _runAutoNow);
+  }
+
+  void _runAutoNow() {
+    if (_running != null) {
+      _rerunPending = true;
+      return;
+    }
+
+    unawaited(
+      run(name: 'auto').then((_) {
+        if (_rerunPending) {
+          _rerunPending = false;
+          _runAutoNow();
+        }
+      }),
+    );
   }
 
   void listenForKeyboardInput() {
@@ -68,6 +97,9 @@ class Migrate {
   }
 
   void stop() {
+    _debounce?.cancel();
+    _debounce = null;
+    _rerunPending = false;
     __subscription?.cancel();
     __subscription = null;
   }
