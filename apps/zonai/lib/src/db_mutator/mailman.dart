@@ -95,6 +95,13 @@ class Mailman<S extends Request, R extends Response> {
   StreamSubscription<dynamic>? _isolateSubscription;
   var _isolateHandshakeDone = false;
   Future<void>? _starting;
+
+  /// Whether this worker has ever completed a round trip since it was last
+  /// (re)started. Cleared on every fresh spawn in [_startOnce] so
+  /// [_awaitOnce] can tell a genuinely cold worker (which still has to boot
+  /// its runtime and open the DB before it can answer anything) apart from
+  /// an already-established one that just isn't responding.
+  var _warmedUp = false;
   final StringBuffer _stderrBuffer = StringBuffer();
   final IpcFrameBuffer _stdoutFrames = IpcFrameBuffer();
   final StreamController<Request> _request;
@@ -464,6 +471,8 @@ class Mailman<S extends Request, R extends Response> {
       return;
     }
 
+    _warmedUp = false;
+
     final mode = workerTransportModeFromEnv();
     if (mode != WorkerTransportMode.process) {
       final started = await _tryStartIsolate();
@@ -554,7 +563,10 @@ class Mailman<S extends Request, R extends Response> {
     try {
       _isolateHandshakeDone = false;
       _isolateLocal = local;
-      _isolateSubscription = local.listen(_onIsolateMessage, onError: _onStreamError);
+      _isolateSubscription = local.listen(
+        _onIsolateMessage,
+        onError: _onStreamError,
+      );
       errors.listen((error) {
         logger.error('$_prefix: Isolate error', error);
       });
@@ -841,14 +853,29 @@ class Mailman<S extends Request, R extends Response> {
     return pendingResponse;
   }
 
+  /// Steady-state request/reply timeout for an already-established worker —
+  /// deliberately tight so a genuinely stuck worker fails fast.
+  static const _warmRequestTimeout = Duration(seconds: 1);
+
+  /// Request/reply timeout while [_warmedUp] is still false, i.e. no
+  /// request has completed since this worker was last (re)started. A freshly
+  /// spawned worker still has to boot its runtime and open the DB before it
+  /// can answer anything; under concurrent load (several workers cold
+  /// starting at once) that alone can take longer than [_warmRequestTimeout].
+  /// Matches the generous timeout already used elsewhere for other
+  /// first-contact worker operations (see resqlite_native.dart's
+  /// `_requestFromSpawner`).
+  static const _coldStartRequestTimeout = Duration(seconds: 10);
+
   Future<Response?> _awaitOnce(
     Request request,
     Completer<(Response, List<MutationRequest>)> pendingResponse,
   ) async {
     try {
       final (response, muts) = await pendingResponse.future.timeout(
-        const Duration(seconds: 1),
+        _warmedUp ? _warmRequestTimeout : _coldStartRequestTimeout,
       );
+      _warmedUp = true;
 
       final recorded = mutations.addAll(muts);
       if (!recorded && muts.isNotEmpty) {
