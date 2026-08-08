@@ -265,9 +265,10 @@ Map<String, dynamic> _rfc7396MergePatch(
   for (final entry in patch.entries) {
     if (entry.value == null) {
       result.remove(entry.key);
-    } else if (entry.value is Map && result[entry.key] is Map) {
+    } else if (entry.value is Map) {
+      final existing = result[entry.key];
       result[entry.key] = _rfc7396MergePatch(
-        Map<String, dynamic>.from(result[entry.key] as Map),
+        existing is Map ? Map<String, dynamic>.from(existing) : {},
         Map<String, dynamic>.from(entry.value as Map),
       );
     } else {

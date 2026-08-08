@@ -352,6 +352,36 @@ void main() {
         ]);
       });
 
+      test('ObjectUpdate merge patch into a key absent from the target drops '
+          'nulls, matching RFC 7396 / real json_patch', () async {
+        await execOps.insert({
+          'title': 'merge3',
+          'profile': {'displayName': 'Old'},
+        });
+        await expectSimulateMatchesReal('merge3', [
+          Update.object({
+            'profile': {
+              'nested': {'b': null, 'c': 2},
+            },
+          }),
+        ]);
+      });
+
+      test('ObjectUpdate merge patch into a key holding a scalar drops nulls, '
+          'matching RFC 7396 / real json_patch', () async {
+        await execOps.insert({
+          'title': 'merge4',
+          'profile': {'a': 'scalar-value'},
+        });
+        await expectSimulateMatchesReal('merge4', [
+          Update.object({
+            'profile': {
+              'a': {'b': null, 'c': 2},
+            },
+          }),
+        ]);
+      });
+
       test('ColumnUpdate without dots replaces the entire map', () async {
         await execOps.insert({
           'title': 'replace1',
