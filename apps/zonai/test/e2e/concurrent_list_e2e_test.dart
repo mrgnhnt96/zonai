@@ -159,13 +159,21 @@ Future<void> _runZonai(Directory projectRoot, List<String> args) async {
   final zonaiEntry = p.normalize(
     p.join(Directory.current.path, 'bin', 'zonai.dart'),
   );
-  final result = await Process.run(Platform.resolvedExecutable, [
-    'run',
-    zonaiEntry,
-    ...args,
-  ], workingDirectory: projectRoot.path);
+  final result = await Process.run(
+    Platform.resolvedExecutable,
+    ['run', zonaiEntry, ...args],
+    workingDirectory: projectRoot.path,
+    environment: _forceWorkersEnv,
+  );
   expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
 }
+
+/// The fixture project only depends on `zonai_schema`, not `zonai` itself,
+/// so it can't JIT-link a project-linked entry (`package:zonai/...` isn't
+/// resolvable from it). Forcing Mailman/IPC workers skips that project-linked
+/// re-exec (see `maybeReexecProjectRuntime`) and drives `db migrate
+/// generate`/`apply` through the already-compiled worker executables instead.
+const _forceWorkersEnv = {'ZONAI_FORCE_WORKERS': '1'};
 
 void _rewritePubspecPaths({
   required Directory projectRoot,
