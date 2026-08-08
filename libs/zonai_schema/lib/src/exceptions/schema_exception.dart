@@ -55,3 +55,29 @@ final class TableNotRegisteredException extends SchemaException {
   @override
   String toString() => 'Table "$table" is not registered';
 }
+
+/// Thrown when a `RowRulesRequest`/`BatchRowRulesRequest` wire payload for an
+/// update operation has no `updates` field at all, rather than treating that
+/// as "no updates" (`after == before`).
+///
+/// An up-to-date sender always writes `updates` (even `[]`) — see
+/// `RowRulesRequest.toJson`/`BatchRowRulesRequest.toJson`. Its total absence
+/// means the payload predates issue #23's before/after `canUpdate` change,
+/// so `canUpdate` can't be trusted to see the real post-write row. Refusing
+/// loudly here is safer than silently authorizing against a stale `after`.
+final class StaleRowRulesRequestException extends SchemaException {
+  const StaleRowRulesRequestException({
+    required this.table,
+    required this.operation,
+  });
+
+  final String table;
+  final String operation;
+
+  @override
+  String toString() =>
+      'Row rules request for "$table" ($operation) has no "updates" field. '
+      'This looks like a pre-issue-#23 sender (predates before/after '
+      'canUpdate) rather than a request with genuinely no updates — refusing '
+      'rather than silently treating after as identical to before.';
+}

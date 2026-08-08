@@ -1,3 +1,4 @@
+import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
 import 'package:zonai_schema/src/update/update.dart';
@@ -154,13 +155,11 @@ final class TableRulesRequest extends RuleRequest {
   }
 }
 
-// TODO(future): this and BatchRowRulesRequest below gained an `updates`
-// field (issue #23) without bumping `IpcCodec.version` — the protocol stamp
-// only guards the outer framing/codec, not individual request shapes, so a
-// stale worker/host pairing across this change fails with a raw decode
-// error rather than the friendly WorkerProtocolMismatchException. Still an
-// open question (raised, not yet resolved) whether wire-shape changes like
-// this one should force a stamp bump too.
+// `updates` (issue #23) doesn't bump `IpcCodec.version` — the protocol stamp
+// only guards the outer framing/codec, not individual request shapes. A
+// stale (pre-issue-#23) sender's payload has no `updates` key at all, which
+// `.fromRequest` below (and BatchRowRulesRequest's) rejects via
+// StaleRowRulesRequestException rather than silently defaulting to `[]`.
 final class RowRulesRequest extends RuleRequest {
   RowRulesRequest({
     required this.table,
@@ -180,12 +179,22 @@ final class RowRulesRequest extends RuleRequest {
   }) : super(path: _path);
 
   factory RowRulesRequest.fromRequest(UnknownRequest request) {
+    final table = request.payload['table'] as String;
+    final operation = RowOperation.fromString(
+      request.payload['operation'] as String,
+    )!;
+    if (operation == RowOperation.update &&
+        !request.payload.containsKey('updates')) {
+      throw StaleRowRulesRequestException(
+        table: table,
+        operation: operation.name,
+      );
+    }
+
     return RowRulesRequest._(
       id: request.id,
-      table: request.payload['table'] as String,
-      operation: RowOperation.fromString(
-        request.payload['operation'] as String,
-      )!,
+      table: table,
+      operation: operation,
       data: request.payload['data'] as Map<String, dynamic>,
       updates: [
         for (final u in request.payload['updates'] as List? ?? const [])
@@ -241,13 +250,23 @@ final class BatchRowRulesRequest extends RuleRequest {
   }) : super(path: _path);
 
   factory BatchRowRulesRequest.fromRequest(UnknownRequest request) {
+    final table = request.payload['table'] as String;
+    final operation = RowOperation.fromString(
+      request.payload['operation'] as String,
+    )!;
+    if (operation == RowOperation.update &&
+        !request.payload.containsKey('updates')) {
+      throw StaleRowRulesRequestException(
+        table: table,
+        operation: operation.name,
+      );
+    }
+
     final rawRows = request.payload['rows'] as List? ?? const [];
     return BatchRowRulesRequest._(
       id: request.id,
-      table: request.payload['table'] as String,
-      operation: RowOperation.fromString(
-        request.payload['operation'] as String,
-      )!,
+      table: table,
+      operation: operation,
       rows: [for (final row in rawRows) Map<String, dynamic>.from(row as Map)],
       updates: [
         for (final u in request.payload['updates'] as List? ?? const [])
