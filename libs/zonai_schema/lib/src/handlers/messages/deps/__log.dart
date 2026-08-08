@@ -2,7 +2,13 @@ part of '../message_handler.dart';
 
 final _loggerProvider = create<_Logger>(_Logger._);
 
-_Logger get logger => read(_loggerProvider);
+/// Falls back to a no-op [_Logger] when read outside a [runScoped] zone
+/// (e.g. calling [DbRules.dispatch] directly in a test, without going
+/// through [MessageHandler.listen]'s scope) rather than throwing — logging
+/// is diagnostic, not load-bearing, so a caller that never set up a scope
+/// shouldn't crash on a `logger.warn` any more than it would on an actual
+/// no-op logger.
+_Logger get logger => read(_loggerProvider, orElse: _Logger._);
 
 class _Logger {
   _Logger(this._log);

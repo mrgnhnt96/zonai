@@ -120,6 +120,23 @@ class DbRules {
   Set<String> customRowOperationNames(String table) =>
       rulesByTable[table]?.row?.customOperationNames ?? const {};
 
+  /// Logs and denies a custom operation name that isn't a key in the
+  /// relevant `customOperations` map. Widening `RowOperation.fromString`
+  /// from a throw to a nullable `classicOperation` (issue #25) turned an
+  /// unrecognized operation name from a loud crash into a 403 — this keeps
+  /// that 403 debuggable instead of silent.
+  bool _denyUnregisteredCustomOperation({
+    required String table,
+    required String operation,
+    required String scope,
+  }) {
+    logger.warn(
+      'Denied unregistered custom $scope operation "$operation" on "$table" '
+      '— not a key in customOperations',
+    );
+    return false;
+  }
+
   Future<TableRulesResponse> _tableRules(TableRulesRequest request) async {
     final rules = rulesByTable[request.table];
     final tableRules = rules?.tableRules;
@@ -137,7 +154,11 @@ class DbRules {
     final op = request.classicOperation;
     if (op == null) {
       final canAccess = switch (tableRules.customOperations[request.operation]) {
-        null => false,
+        null => _denyUnregisteredCustomOperation(
+          table: request.table,
+          operation: request.operation,
+          scope: 'table',
+        ),
         final rule => await rule(request.jwt),
       };
 
@@ -386,7 +407,13 @@ class DbRules {
             rowRules.table.simulateUpdate(request.data, request.updates),
           ),
         ) ??
-        Future.value(false),
+        Future.value(
+          _denyUnregisteredCustomOperation(
+            table: request.table,
+            operation: request.operation,
+            scope: 'row',
+          ),
+        ),
     };
 
     return RowRulesResponse(
@@ -442,7 +469,13 @@ class DbRules {
               rowRules.table.simulateUpdate(data, request.updates),
             ),
           ) ??
-          Future.value(false),
+          Future.value(
+            _denyUnregisteredCustomOperation(
+              table: request.table,
+              operation: request.operation,
+              scope: 'row',
+            ),
+          ),
       });
     }
 
