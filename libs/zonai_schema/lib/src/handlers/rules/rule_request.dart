@@ -180,15 +180,10 @@ final class RowRulesRequest extends RuleRequest {
 
   factory RowRulesRequest.fromRequest(UnknownRequest request) {
     final table = request.payload['table'] as String;
-    final operation = RowOperation.fromString(
-      request.payload['operation'] as String,
-    )!;
-    if (operation == RowOperation.update &&
+    final operation = request.payload['operation'] as String;
+    if (operation == RowOperation.update.name &&
         !request.payload.containsKey('updates')) {
-      throw StaleRowRulesRequestException(
-        table: table,
-        operation: operation.name,
-      );
+      throw StaleRowRulesRequestException(table: table, operation: operation);
     }
 
     return RowRulesRequest._(
@@ -207,11 +202,14 @@ final class RowRulesRequest extends RuleRequest {
   static const _path = '${Request.prefix}.row.can_access';
 
   final String table;
-  final RowOperation operation;
+  final String operation;
   final Map<String, dynamic> data;
 
-  /// The pending update payload, present only for [RowOperation.update] —
-  /// used to simulate the post-write row for [BaseRowRules.canUpdate].
+  RowOperation? get classicOperation => RowOperation.fromString(operation);
+
+  /// The pending update payload, present for [RowOperation.update] and for
+  /// row-scoped custom operations — used to simulate the post-write row for
+  /// [BaseRowRules.canUpdate] or a custom operation's row rule.
   final List<Update> updates;
 
   @override
@@ -219,7 +217,7 @@ final class RowRulesRequest extends RuleRequest {
     return {
       ...super.toJson(),
       'table': table,
-      'operation': operation.name,
+      'operation': operation,
       'data': data,
       'updates': [for (final u in updates) u.toJson()],
     };
@@ -251,15 +249,10 @@ final class BatchRowRulesRequest extends RuleRequest {
 
   factory BatchRowRulesRequest.fromRequest(UnknownRequest request) {
     final table = request.payload['table'] as String;
-    final operation = RowOperation.fromString(
-      request.payload['operation'] as String,
-    )!;
-    if (operation == RowOperation.update &&
+    final operation = request.payload['operation'] as String;
+    if (operation == RowOperation.update.name &&
         !request.payload.containsKey('updates')) {
-      throw StaleRowRulesRequestException(
-        table: table,
-        operation: operation.name,
-      );
+      throw StaleRowRulesRequestException(table: table, operation: operation);
     }
 
     final rawRows = request.payload['rows'] as List? ?? const [];
@@ -279,7 +272,10 @@ final class BatchRowRulesRequest extends RuleRequest {
   static const _path = '${Request.prefix}.row.can_access_batch';
 
   final String table;
-  final RowOperation operation;
+  final String operation;
+
+  RowOperation? get classicOperation => RowOperation.fromString(operation);
+
   final List<Map<String, dynamic>> rows;
 
   /// The pending update payload, shared across every row in [rows] — one
@@ -292,7 +288,7 @@ final class BatchRowRulesRequest extends RuleRequest {
     return {
       ...super.toJson(),
       'table': table,
-      'operation': operation.name,
+      'operation': operation,
       'rows': rows,
       'updates': [for (final u in updates) u.toJson()],
     };

@@ -1,5 +1,10 @@
 part of rules;
 
+/// Table-level authorization for one named custom operation
+/// (`TableOperations.custom`). Receives the same `jwt` as `canCreate`/
+/// `canUpdate`/etc. — there's no row to inspect at this level.
+typedef CustomTableOperationRule = Future<bool> Function(Jwt? jwt);
+
 sealed class BaseTableRules<S extends rd.Schema<R>, R> {
   const BaseTableRules(this.schema);
 
@@ -41,4 +46,10 @@ sealed class BaseTableRules<S extends rd.Schema<R>, R> {
     }
     return false;
   }
+
+  /// Table-level authorization for named custom operations
+  /// (`TableOperations.custom`), keyed by operation name. An operation name
+  /// not present here is denied — same fail-closed default as every method
+  /// above.
+  Map<String, CustomTableOperationRule> get customOperations => const {};
 }

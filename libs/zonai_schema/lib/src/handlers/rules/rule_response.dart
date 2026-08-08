@@ -239,7 +239,7 @@ final class RowRulesResponse extends RuleResponse {
          path: _path,
          payload: {
            'table': table,
-           'operation': operation.name,
+           'operation': operation,
            'canPerform': canPerform,
          },
        );
@@ -248,7 +248,7 @@ final class RowRulesResponse extends RuleResponse {
     return RowRulesResponse(
       id: json['id'] as String,
       table: json['table'] as String,
-      operation: RowOperation.fromString(json['operation'])!,
+      operation: json['operation'] as String,
       canPerform: json['canPerform'] as bool,
     );
   }
@@ -256,14 +256,14 @@ final class RowRulesResponse extends RuleResponse {
   static const _path = '${Response.prefix}.row.can_access';
 
   final String table;
-  final RowOperation operation;
+  final String operation;
   final bool canPerform;
 
   @override
   Map<String, dynamic> toJson() {
     return {
       'table': table,
-      'operation': operation.name,
+      'operation': operation,
       'canPerform': canPerform,
       ...super.toJson(),
     };
@@ -285,7 +285,7 @@ final class BatchRowRulesResponse extends RuleResponse {
          path: _path,
          payload: {
            'table': table,
-           'operation': operation.name,
+           'operation': operation,
            'canPerform': canPerform,
          },
        );
@@ -295,7 +295,7 @@ final class BatchRowRulesResponse extends RuleResponse {
     return BatchRowRulesResponse(
       id: json['id'] as String,
       table: json['table'] as String,
-      operation: RowOperation.fromString(json['operation'] as String)!,
+      operation: json['operation'] as String,
       canPerform: [for (final value in raw) value as bool],
     );
   }
@@ -303,7 +303,7 @@ final class BatchRowRulesResponse extends RuleResponse {
   static const _path = '${Response.prefix}.row.can_access_batch';
 
   final String table;
-  final RowOperation operation;
+  final String operation;
 
   /// Parallel to [BatchRowRulesRequest.rows] — `true` when that row is allowed.
   final List<bool> canPerform;
@@ -312,7 +312,7 @@ final class BatchRowRulesResponse extends RuleResponse {
   Map<String, dynamic> toJson() {
     return {
       'table': table,
-      'operation': operation.name,
+      'operation': operation,
       'canPerform': canPerform,
       ...super.toJson(),
     };

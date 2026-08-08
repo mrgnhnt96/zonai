@@ -105,21 +105,24 @@ class DbRules {
     return _rulesByTable = rules;
   }
 
+  /// Registered custom operation names for [table]'s table-level rules —
+  /// the same source of truth [_tableRules] denies against for an unknown
+  /// name. Used to validate a custom operation before it reaches the rate
+  /// limiter (bucketing on an unvalidated caller-supplied name would let a
+  /// caller rotate it to dodge the limit entirely).
+  Set<String> customTableOperationNames(String table) =>
+      rulesByTable[table]?.tableRules?.customOperations.keys.toSet() ??
+      const {};
+
+  /// Registered custom operation names for [table]'s row-level rules. See
+  /// [customTableOperationNames] — and [BaseRowRules.customOperationNames]
+  /// for why this can't just read `.customOperations.keys` directly here.
+  Set<String> customRowOperationNames(String table) =>
+      rulesByTable[table]?.row?.customOperationNames ?? const {};
+
   Future<TableRulesResponse> _tableRules(TableRulesRequest request) async {
     final rules = rulesByTable[request.table];
     final tableRules = rules?.tableRules;
-
-    // TODO(future): We can support custom operations by forwarding
-    // the request operation to the rules
-    final op = request.classicOperation;
-    if (op == null) {
-      return TableRulesResponse(
-        id: request.id,
-        table: request.table,
-        operation: request.operation,
-        canAccess: false,
-      );
-    }
 
     if (tableRules == null) {
       logger.warn('No rules found for table: ${request.table}');
@@ -128,6 +131,25 @@ class DbRules {
         table: request.table,
         operation: request.operation,
         canAccess: false,
+      );
+    }
+
+    final op = request.classicOperation;
+    if (op == null) {
+      final canAccess = switch (tableRules.customOperations[request.operation]) {
+        null => false,
+        final rule => await rule(request.jwt),
+      };
+
+      final rowRules = rulesByTable[request.table]?.row;
+      final skipRowChecks = rowRules != null && !rowRules.requiresPerRowCheck;
+
+      return TableRulesResponse(
+        id: request.id,
+        table: request.table,
+        operation: request.operation,
+        canAccess: canAccess,
+        skipRowChecks: skipRowChecks,
       );
     }
 
@@ -325,7 +347,6 @@ class DbRules {
     final rules = rulesByTable[request.table];
     final rowRules = rules?.row;
 
-    final op = request.operation;
     if (rowRules == null) {
       logger.warn('No rules found for row: ${request.table}');
       return RowRulesResponse(
@@ -335,6 +356,8 @@ class DbRules {
         canPerform: false,
       );
     }
+
+    final op = request.classicOperation;
 
     if (rowRules case AuthRowRules()
         when op == .create && request.jwt?.admin.isAdmin != true) {
@@ -354,6 +377,16 @@ class DbRules {
       ),
       .delete => rowRules.canDelete(request.jwt, object),
       .create => rowRules.canCreate(request.jwt, object),
+      null =>
+        rowRules.customOperationCheck(
+          request.operation,
+          request.jwt,
+          object,
+          rowRules.table.safeCreate(
+            rowRules.table.simulateUpdate(request.data, request.updates),
+          ),
+        ) ??
+        Future.value(false),
     };
 
     return RowRulesResponse(
@@ -369,14 +402,14 @@ class DbRules {
   ) async {
     final rules = rulesByTable[request.table];
     final rowRules = rules?.row;
-    final op = request.operation;
+    final op = request.classicOperation;
 
     if (rowRules == null) {
       logger.warn('No rules found for row: ${request.table}');
       return BatchRowRulesResponse(
         id: request.id,
         table: request.table,
-        operation: op,
+        operation: request.operation,
         canPerform: List<bool>.filled(request.rows.length, false),
       );
     }
@@ -400,13 +433,23 @@ class DbRules {
         ),
         .delete => rowRules.canDelete(request.jwt, object),
         .create => rowRules.canCreate(request.jwt, object),
+        null =>
+          rowRules.customOperationCheck(
+            request.operation,
+            request.jwt,
+            object,
+            rowRules.table.safeCreate(
+              rowRules.table.simulateUpdate(data, request.updates),
+            ),
+          ) ??
+          Future.value(false),
       });
     }
 
     return BatchRowRulesResponse(
       id: request.id,
       table: request.table,
-      operation: op,
+      operation: request.operation,
       canPerform: canPerform,
     );
   }
