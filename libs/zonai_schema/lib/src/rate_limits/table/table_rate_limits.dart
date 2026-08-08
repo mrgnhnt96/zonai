@@ -20,4 +20,10 @@ base class TableRateLimits<S extends Table<R>, R> implements RateLimits<S, R> {
   Future<RateLimitPolicy?> updatePolicy() async => .defaultPolicy;
 
   Future<RateLimitPolicy?> deletePolicy() async => .defaultPolicy;
+
+  /// Policy for one named custom operation (`TableOperations.custom`).
+  /// [operation] is validated against the table's registered
+  /// `TableRules`/`RowRules.customOperations` before this is ever called.
+  Future<RateLimitPolicy?> customPolicy(String operation) async =>
+      .defaultPolicy;
 }

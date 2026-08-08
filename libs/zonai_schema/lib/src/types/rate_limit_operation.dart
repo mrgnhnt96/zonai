@@ -19,6 +19,10 @@ enum RateLimitOperation {
   adminAuthenticate,
   adminSignIn,
 
+  /// Named custom operations (`TableOperations.custom`). The specific
+  /// operation name travels separately — see [RateLimitRequest.customOperation].
+  custom,
+
   /// Bucket key used by `RateLimiter.checkExternalIdpProvisioning`.
   /// Policy is fixed at the framework level (no `AuthTableRateLimits`
   /// override surface); use the dedicated method, not `check`.

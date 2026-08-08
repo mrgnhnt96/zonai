@@ -2,13 +2,17 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/types/rate_limit_operation.dart';
 
 final class RateLimitRequest extends Request {
-  RateLimitRequest({required this.table, required this.operation})
-    : super(id: Request.generateId(), path: _path);
+  RateLimitRequest({
+    required this.table,
+    required this.operation,
+    this.customOperation,
+  }) : super(id: Request.generateId(), path: _path);
 
   RateLimitRequest._({
     required super.id,
     required this.table,
     required this.operation,
+    this.customOperation,
   }) : super(path: _path);
 
   factory RateLimitRequest.fromRequest(UnknownRequest request) {
@@ -18,6 +22,7 @@ final class RateLimitRequest extends Request {
       operation: RateLimitOperation.values.byName(
         request.payload['operation'] as String,
       ),
+      customOperation: request.payload['customOperation'] as String?,
     );
   }
 
@@ -26,11 +31,16 @@ final class RateLimitRequest extends Request {
       id: json['id'] as String,
       table: json['table'] as String,
       operation: RateLimitOperation.values.byName(json['operation'] as String),
+      customOperation: json['customOperation'] as String?,
     );
   }
 
   final String table;
   final RateLimitOperation operation;
+
+  /// The custom operation name, present only when [operation] is
+  /// [RateLimitOperation.custom].
+  final String? customOperation;
 
   static const _path = '${Request.prefix}.rate_limit';
 
@@ -39,6 +49,11 @@ final class RateLimitRequest extends Request {
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'table': table, 'operation': operation.name};
+    return {
+      ...super.toJson(),
+      'table': table,
+      'operation': operation.name,
+      'customOperation': customOperation,
+    };
   }
 }
