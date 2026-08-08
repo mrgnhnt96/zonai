@@ -6,6 +6,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
+import '../components/custom_body_rate_limit.dart';
 import '../components/query_rate_limit.dart';
 
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
@@ -68,6 +69,26 @@ class DbController {
     @Body() required UpdateBody body,
   }) async {
     return await dbHandler.updateMany(authorization, body);
+  }
+
+  @CustomBodyRateLimit<CustomOneBody>()
+  @Patch('custom/:operation')
+  Future<Map<String, Object?>> custom({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Param() required String operation,
+    @Body() required CustomOneBody body,
+  }) async {
+    return await dbHandler.custom(authorization, operation, body);
+  }
+
+  @CustomBodyRateLimit<CustomBody>()
+  @Patch('custom/:operation/many')
+  Future<List<Map<String, Object?>>> customMany({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Param() required String operation,
+    @Body() required CustomBody body,
+  }) async {
+    return await dbHandler.customMany(authorization, operation, body);
   }
 
   @BodyRateLimit<DeleteOneBody>(.delete)

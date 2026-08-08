@@ -91,6 +91,45 @@ class DbHandler {
     );
   }
 
+  Future<Map<String, Object?>> custom(
+    String? authorization,
+    String operation,
+    CustomOneBody body,
+  ) async {
+    final result = await zonaiDB.custom(
+      body.table,
+      .new(
+        operation: operation,
+        where: body.where,
+        limit: body.limit,
+        updates: body.updates,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
+    );
+
+    if (result.isEmpty) {
+      throw StateError('Custom operation did not return a row');
+    }
+    return result.first;
+  }
+
+  Future<List<Map<String, Object?>>> customMany(
+    String? authorization,
+    String operation,
+    CustomBody body,
+  ) async {
+    return await zonaiDB.custom(
+      body.table,
+      .new(
+        operation: operation,
+        where: body.where,
+        limit: body.limit,
+        updates: body.updates,
+        jwt: _parseBearerAuthorization(authorization),
+      ),
+    );
+  }
+
   Future<void> delete(String? authorization, DeleteOneBody body) async {
     await zonaiDB.delete(
       body.table,

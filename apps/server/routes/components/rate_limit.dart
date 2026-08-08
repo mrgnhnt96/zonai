@@ -64,4 +64,39 @@ class RateLimit {
       false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
     };
   }
+
+  /// Validates [operation] against [table]'s registered custom operations
+  /// before it's ever used as a rate-limit bucket dimension — an
+  /// unvalidated, caller-supplied name would let a caller rotate it to dodge
+  /// the limit entirely (each new name starts at a fresh counter).
+  Future<GuardResult> checkCustomOperation(
+    String table,
+    String operation,
+    String ipAddress,
+  ) async {
+    final registered = rateLimiter.isRegisteredCustomOperation(
+      table: table,
+      operationName: operation,
+    );
+
+    if (registered == false) {
+      return const .block(statusCode: 404, body: 'Unknown operation');
+    }
+
+    // `registered == null`: can't validate cheaply (e.g. ZONAI_FORCE_WORKERS=1)
+    // -- fall back to the coarse per-table `.custom` bucket rather than trust
+    // an unvalidated name as a bucket dimension. The rules layer still denies
+    // an unregistered operation regardless; this only protects the limiter.
+    final isAllowed = await rateLimiter.check(
+      table: table,
+      ipAddress: ipAddress,
+      operation: .custom,
+      customOperation: registered == null ? null : operation,
+    );
+
+    return switch (isAllowed) {
+      true => const .pass(),
+      false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
+    };
+  }
 }
