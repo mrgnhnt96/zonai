@@ -60,8 +60,8 @@ Future<void> runZonai(List<String> arguments) async {
         kill.force();
       } catch (e, stack) {
         logger.error('Crash!', e, stack);
-        kill.force();
         exitCode = 1;
+        kill.force();
       }
     },
     values: {

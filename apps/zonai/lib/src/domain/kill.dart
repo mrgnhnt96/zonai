@@ -47,6 +47,11 @@ class Kill {
   }
 
   /// kill the current process
+  ///
+  /// Exits with the ambient [exitCode] (0 by default) rather than always 0,
+  /// so a command that set a non-zero [exitCode] before calling this (e.g.
+  /// bootstrap.dart's command dispatch, or a `serve` startup failure) still
+  /// reports failure to the OS instead of always looking like success.
   void force() async {
     logger.debug('Killing process');
     _dispose();
@@ -54,7 +59,7 @@ class Kill {
     if (!_lifeline.isCompleted) {
       _lifeline.complete();
     }
-    exit(0);
+    exit(exitCode);
   }
 
   void _dispose() async {

@@ -19,8 +19,7 @@ class Revali {
 
   /// In-process HTTP ([createServer]) — AOT project/bootstrap binaries, or
   /// JIT project entry with linked ops/rules registries.
-  bool get _inProcessHttp =>
-      kIsCompiled || HostWorkerRegistries.hasOperations;
+  bool get _inProcessHttp => kIsCompiled || HostWorkerRegistries.hasOperations;
 
   bool get isRunning =>
       _isRunning ??
@@ -153,6 +152,7 @@ class Revali {
         );
         if (!isDev) {
           logger.debug('Killing process');
+          io.exitCode = 1;
           kill.force();
         }
         onStopped?.call();
