@@ -53,26 +53,38 @@ final class _Operations extends TableOperations<_TestTable, _Row> {
 }
 
 class _JsonRow {
-  const _JsonRow({this.id, required this.title, this.profile = const {}});
+  const _JsonRow({
+    this.id,
+    required this.title,
+    this.profile = const {},
+    this.password = '',
+  });
 
   final int? id;
   final String title;
   final Map<String, dynamic> profile;
+  final String password;
 }
 
 class _JsonTable extends Table<_JsonRow> {
   _JsonTable(super.$)
     : id = $.integer('id', (s) => s.id).primaryKey(autoIncrement: true),
       title = $.text('title', (s) => s.title),
-      profile = $.map('profile', (s) => s.profile);
+      profile = $.map('profile', (s) => s.profile),
+      password = $.password('password', (s) => s.password);
 
   @override
-  _JsonRow fromRow(RowReader read) =>
-      _JsonRow(id: read(id), title: read(title)!, profile: read(profile)!);
+  _JsonRow fromRow(RowReader read) => _JsonRow(
+    id: read(id),
+    title: read(title)!,
+    profile: read(profile)!,
+    password: read(password) ?? '',
+  );
 
   final ColumnType<int?> id;
   final TextColumn title;
   final MapColumn profile;
+  final PasswordColumn password;
 }
 
 final jsonWidgets = sqliteTable('sim_json_widgets', _JsonTable.new);
@@ -270,7 +282,8 @@ void main() {
           'CREATE TABLE "sim_json_widgets" ('
           '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
           '"title" TEXT NOT NULL, '
-          '"profile" TEXT NOT NULL DEFAULT \'{}\''
+          '"profile" TEXT NOT NULL DEFAULT \'{}\', '
+          '"password" TEXT NOT NULL DEFAULT \'\''
           ');',
           const [],
         );
@@ -390,6 +403,50 @@ void main() {
         await expectSimulateMatchesReal('replace1', [
           Update.column('profile', const Literal({'b': 2})),
         ]);
+      });
+
+      group('secret column redaction', () {
+        // Deliberately NOT run through expectSimulateMatchesReal: the real
+        // UPDATE (no hashing at this layer) genuinely writes the submitted
+        // plaintext, so simulated and real are expected to diverge here —
+        // that divergence is the point, not a parity bug.
+        test('a Literal password update is redacted in the simulated after '
+            'row, never exposing the submitted plaintext', () async {
+          await execOps.insert({
+            'title': 'pw1',
+            'profile': {},
+            'password': 'old-hash',
+          });
+          final before = await _rawRow(
+            memoryDb,
+            'sim_json_widgets',
+            'title',
+            'pw1',
+          );
+          final after = execOps.table.simulateUpdate(before, [
+            Update.column('password', const Literal('new-plaintext-password')),
+          ]);
+          expect(after['password'], '__REDACTED__');
+        });
+
+        test('an ObjectUpdate password update is redacted in the simulated '
+            'after row, matching how the admin edit flow sends it', () async {
+          await execOps.insert({
+            'title': 'pw2',
+            'profile': {},
+            'password': 'old-hash',
+          });
+          final before = await _rawRow(
+            memoryDb,
+            'sim_json_widgets',
+            'title',
+            'pw2',
+          );
+          final after = execOps.table.simulateUpdate(before, [
+            Update.object({'password': 'new-plaintext-password'}),
+          ]);
+          expect(after['password'], '__REDACTED__');
+        });
       });
     });
   });

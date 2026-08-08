@@ -7,7 +7,13 @@ import 'package:zonai_schema/src/column_types/map_column.dart';
 import 'package:zonai_schema/src/column_types/updated_at_column.dart';
 import 'package:zonai_schema/src/column_types/updated_when_column.dart';
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
+import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 import 'package:zonai_schema/src/update/update.dart';
+
+/// Stand-in value for any [SecretTransformer] column (e.g. a password) in a
+/// simulated `after` row — the real submitted value is never put there, so it
+/// can't leak as plaintext into rule code or across IPC to the rules worker.
+const _redactedSecretValue = '__REDACTED__';
 
 /// Computes the row [Update]s would produce when applied to a row, without
 /// running any SQL.
@@ -32,6 +38,13 @@ import 'package:zonai_schema/src/update/update.dart';
 /// is wall-clock write time, which isn't meaningfully simulatable ahead of
 /// the actual write, and — like the real update builder — any [Update]
 /// naming one of them directly is silently ignored rather than applied.
+///
+/// [SecretTransformer] columns (e.g. a password) never carry their real
+/// submitted value in `after` — it's replaced with [_redactedSecretValue].
+/// `after` is only used for the `canUpdate` rules check, never for the real
+/// write, so mutating it away from the true value is safe and, for a secret
+/// column, required: hashing (`_hashPasswordUpdates`) runs after the rules
+/// check, so the unredacted value here would otherwise be plaintext.
 extension TableUpdateSimulation<S extends rd.Schema<R>, R>
     on rd.TableMeta<S, R> {
   Map<String, Object?> simulateUpdate(
@@ -90,6 +103,8 @@ extension TableUpdateSimulation<S extends rd.Schema<R>, R>
                 after[key] = jsonEncode(
                   _rfc7396MergePatch(current, Map<String, dynamic>.from(value)),
                 );
+              } else if (col.transformer is SecretTransformer) {
+                after[key] = _redactedSecretValue;
               } else {
                 after[key] = col.encode(col.decode(value));
               }
@@ -116,7 +131,9 @@ extension TableUpdateSimulation<S extends rd.Schema<R>, R>
     final col = _requireSimColumn(columnName);
     switch (value) {
       case Literal(:final value):
-        after[columnName] = col.encode(col.decode(value));
+        after[columnName] = col.transformer is SecretTransformer
+            ? _redactedSecretValue
+            : col.encode(col.decode(value));
       case Increment():
         if (col.transformer is MapTransformer) {
           throw ArgumentError(
