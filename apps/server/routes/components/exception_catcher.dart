@@ -142,6 +142,10 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 404,
         body: {'error': '$exception'},
       ),
+      CustomOperationRequiresWhereException() => .handled(
+        statusCode: 400,
+        body: {'error': '$exception'},
+      ),
       DatabaseNotOpenException() => .handled(
         statusCode: 503,
         body: {'error': '$exception'},

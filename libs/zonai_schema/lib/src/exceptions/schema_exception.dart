@@ -81,3 +81,29 @@ final class StaleRowRulesRequestException extends SchemaException {
       'canUpdate) rather than a request with genuinely no updates — refusing '
       'rather than silently treating after as identical to before.';
 }
+
+/// Thrown when a custom operation's payload carries `updates` but no `where`.
+///
+/// A custom op with no `where` skips row rules entirely and authorizes on
+/// the table rule alone (see `_customOperationBuild`). Table rules are
+/// documented as the permissive, coarse gate — real protection lives in row
+/// rules (`docs/rules.md`) — so that combination would let a permissive
+/// table rule authorize an unbounded write across every row in the table.
+/// Refusing this shape outright makes it unrepresentable rather than merely
+/// discouraged.
+final class CustomOperationRequiresWhereException extends SchemaException {
+  const CustomOperationRequiresWhereException({
+    required this.table,
+    required this.operation,
+  });
+
+  final String table;
+  final String operation;
+
+  @override
+  String toString() =>
+      'Custom operation "$operation" on "$table" has "updates" but no '
+      '"where" — this would authorize a table-wide write on the table rule '
+      'alone, bypassing row rules. Provide "where" whenever "updates" is '
+      'non-empty.';
+}

@@ -103,6 +103,13 @@ extension _CustomX on ZonaiDb {
     })
   >
   _customOperationBuild(String table, CustomPayload payload, Jwt? jwt) async {
+    if (payload.updates.isNotEmpty && payload.where == null) {
+      throw CustomOperationRequiresWhereException(
+        table: table,
+        operation: payload.operation,
+      );
+    }
+
     await _requireCustomTableAccess(table, payload.operation, jwt);
     logger.trace('table_access');
 

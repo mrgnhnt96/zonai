@@ -205,7 +205,7 @@ class TinRowRules extends RowRules<TinTable, Tin> {
 }
 ```
 
-The row rule's `before`/`after` are the same shape as `canUpdate`'s — `after` is simulated from the operation's `updates` ahead of the write. A custom operation invoked with no `where` (a table-scoped action with no target row) only runs the table-level check.
+The row rule's `before`/`after` are the same shape as `canUpdate`'s — `after` is simulated from the operation's `updates` ahead of the write. A custom operation invoked with no `where` (a table-scoped action with no target row) only runs the table-level check — so `where` is **required** whenever `updates` is non-empty; omitting it would let the (deliberately permissive) table rule alone authorize a write across every row, skipping row rules entirely. A request that violates this is rejected outright.
 
 ## Auth collections
 
