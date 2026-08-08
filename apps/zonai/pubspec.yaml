@@ -27,7 +27,7 @@ dependencies:
     path: ../../libs/raindrop/packages/raindrop_cli
   resqlite:
     path: ../../libs/resqlite
-  revali_router: ^3.4.0
+  revali_router: ^4.0.0
   revali_swagger_annotations: ^1.0.0
   scoped_deps: ^0.2.1
   sqlite3: ">=2.4.0 <3.0.0"

@@ -11,7 +11,7 @@ dependencies:
   jaspr: ^0.23.1
   path: ^1.9.1
   revali_client: ^2.0.4
-  revali_router: ^3.4.0
+  revali_router: ^4.0.0
   scoped_deps: ^0.2.1
   zonai:
     path: ../zonai
@@ -19,8 +19,8 @@ dependencies:
     path: ../web
 
 dev_dependencies:
-  revali: ^2.2.0
+  revali: ^3.0.0
   revali_client_gen: ^2.2.0
-  revali_docker: ^0.0.1
+  revali_docker: ^1.0.0
   revali_swagger: ^1.0.0
   test: ^1.26.0

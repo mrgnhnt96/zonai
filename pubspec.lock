@@ -932,7 +932,7 @@ packages:
       path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_client/revali_client_gen"
       relative: false
     source: path
-    version: "2.2.0"
+    version: "2.3.0"
   revali_construct:
     dependency: "direct overridden"
     description:
