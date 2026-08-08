@@ -15,6 +15,7 @@ export 'src/payloads/cron_job_list.dart';
 export 'src/payloads/dashboard_metrics.dart';
 export 'src/payloads/create_body.dart';
 export 'src/payloads/create_many_body.dart';
+export 'src/payloads/custom_body.dart';
 export 'src/payloads/delete_body.dart';
 export 'src/payloads/get_body.dart';
 export 'src/payloads/photo_bodies.dart';
