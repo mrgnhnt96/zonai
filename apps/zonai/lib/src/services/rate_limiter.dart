@@ -104,6 +104,11 @@ final class RateLimiter {
     // name into the free-text `table` column instead of the closed
     // `operation` enum column, so `fill` and `reserve` on the same table get
     // independent counters with no schema migration.
+    assert(
+      !table.contains(':'),
+      'Table name "$table" contains ":", which collides with the '
+      '"table:operation" custom-op rate-limit bucket key format below.',
+    );
     final bucketTable = customOperation == null
         ? table
         : '$table:$customOperation';
