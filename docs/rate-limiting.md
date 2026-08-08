@@ -103,6 +103,20 @@ Override the methods that correspond to the operations you want to customize. Ea
 | `update`  | `updatePolicy()` | `PATCH /db`, `PATCH /db/many`   |
 | `delete`  | `deletePolicy()` | `DELETE /db`, `DELETE /db/many` |
 
+### Custom operations (`TableOperations.custom`)
+
+```dart
+@override
+Future<RateLimitPolicy?> customPolicy(String operation) async {
+  return switch (operation) {
+    'fill' => const RateLimitPolicy(maxRequests: 20, window: Duration(minutes: 1)),
+    _ => .defaultPolicy,
+  };
+}
+```
+
+`PATCH /db/custom/:operation` buckets separately per operation name (`fill` and `reserve` on the same collection get independent counters), but only for a name that's registered in that collection's `TableRules.customOperations` — an unrecognized operation name is rejected with **404** before it ever reaches the rate limiter, so it can't be used to dodge a limit by rotating the name.
+
 ### Auth operations (`AuthTableRateLimits`)
 
 | Operation           | Policy method               | Used by                     |
@@ -210,6 +224,8 @@ When a client exceeds a limit, the guard returns:
 - **Body:** `Rate limit exceeded`
 
 There is no `Retry-After` header today. Clients should back off until the policy window expires.
+
+`PATCH /db/custom/:operation` additionally returns **404 Not Found** when `:operation` isn't registered in that collection's `TableRules.customOperations` (see [rules.md](rules.md#custom-operation-rules)) — checked before the rate limiter, not after.
 
 ## See also
 

@@ -137,9 +137,9 @@ Example — only the owner may update a row:
 
 ```dart
 @override
-Future<bool> canUpdate(Jwt? jwt, Item row) async {
+Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
   if (jwt?.admin.canEdit case true) return true;
-  return jwt?.userId.value == row.ownerId.value;
+  return jwt?.userId.value == before.ownerId.value;
 }
 ```
 
@@ -155,7 +155,7 @@ Override the methods that correspond to operations your API uses. Each returns `
 | `canView`   | `view`           | `GET /db`, stream-one              |
 | `canList`   | `list`           | `GET /db/list`, stream-list, count |
 
-Table rules currently evaluate only these standard operation names. Custom operation strings (handled by `TableOperations.custom`) are denied at the collection-rules layer until custom-operation rule support is added.
+Table rules evaluate these standard operation names directly. Custom operation strings (handled by `TableOperations.custom`) go through `customOperations` instead — see [Custom operation rules](#custom-operation-rules).
 
 ## Row rule methods
 
@@ -164,11 +164,48 @@ Row rules receive the **typed row** (built from request data via `Table.safeCrea
 | Method      | When called                                             |
 | ----------- | ------------------------------------------------------- |
 | `canCreate` | Before insert; row is the payload, not yet in the DB    |
-| `canUpdate` | Before update; row reflects the target record           |
+| `canUpdate` | Before update; receives `before` and the simulated post-write `after` (see the example above) |
 | `canDelete` | Before delete; row reflects the target record           |
 | `canView`   | Before returning a single row or including it in a list |
 
 You cannot create auth collection rows through the generic DB API (`canCreate` on auth collections throws). Use the auth API (`POST /auth/sign-up`, etc.) instead.
+
+## Custom operation rules
+
+`TableOperations.custom(operation, {where, updates})` is the escape hatch for named operations that aren't create/update/delete/view/list — model state transitions (`fill`, `reserve`, `collect`) as their own operations rather than a generic update, so the rule's intent is readable from the operation name.
+
+Declare authorization for each operation name on `customOperations`, on both table and row rules. An operation name that isn't a key in the map is **denied** — same fail-closed default as every method above.
+
+```dart
+final class TinTableRules extends TableRules<TinTable, Tin> {
+  TinTableRules() : super(tins);
+
+  @override
+  Map<String, CustomTableOperationRule> get customOperations => {
+    'reserve': (jwt) async => jwt != null,
+    'fill': (jwt) async => jwt?.admin.canEdit == true,
+    'collect': (jwt) async => jwt != null,
+  };
+}
+```
+
+```dart
+class TinRowRules extends RowRules<TinTable, Tin> {
+  TinRowRules() : super(tins);
+
+  @override
+  Map<String, CustomRowOperationRule<Tin>> get customOperations => {
+    'reserve': (jwt, before, after) async =>
+        before.status.value == 'empty' && after.status.value == 'reserved',
+    'fill': (jwt, before, after) async =>
+        jwt?.admin.canEdit == true && before.status.value == 'reserved',
+    'collect': (jwt, before, after) async =>
+        before.reservedBy.value == jwt?.userId.value,
+  };
+}
+```
+
+The row rule's `before`/`after` are the same shape as `canUpdate`'s — `after` is simulated from the operation's `updates` ahead of the write. A custom operation invoked with no `where` (a table-scoped action with no target row) only runs the table-level check.
 
 ## Auth collections
 

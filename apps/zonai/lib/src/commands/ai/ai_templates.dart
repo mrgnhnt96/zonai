@@ -1035,7 +1035,7 @@ Override `TableOperations` methods to customize SQL:
 rd.ToQuery<PostTable, Post> custom(
   String operation, {
   Where? where,
-  Map<String, dynamic>? values,
+  List<Update> updates = const [],
 }) {
   return switch (operation) {
     'archive' => db
@@ -1043,10 +1043,14 @@ rd.ToQuery<PostTable, Post> custom(
         .setAll([UpdateableColumn(table['archived'], true)])
         .where(RawSqlFilter(where!.sql(table.name)))
         .toQuery(),
-    _ => super.custom(operation, where: where, values: values),
+    _ => super.custom(operation, where: where, updates: updates),
   };
 }
 ```
+
+Custom operations still need matching entries in `TableRules.customOperations`/
+`RowRules.customOperations` (keyed by the same operation name) or they're
+denied — see `zonai-rules.mdc`.
 
 One file per collection. `main()` must return a non-null `TableOperations`.
 
@@ -1128,6 +1132,28 @@ class UserRowRules extends AuthRowRules<UserTable, User> {
 }
 UserRowRules main() => UserRowRules();
 ```
+
+## Custom operations
+
+`TableOperations.custom(operation, ...)` calls need a matching entry, keyed by
+the same operation name, on both table and row rules — otherwise they're denied:
+
+```dart
+@override
+Map<String, CustomTableOperationRule> get customOperations => {
+  'archive': (jwt) async => jwt?.admin.canEdit == true,
+};
+```
+
+```dart
+@override
+Map<String, CustomRowOperationRule<Item>> get customOperations => {
+  'archive': (jwt, before, after) async => jwt?.admin.canEdit == true,
+};
+```
+
+The row rule receives `before`/`after` exactly like `canUpdate` — the `Update`s
+passed to `custom()` are simulated the same way ahead of the write.
 
 Base class pairs:
 - Regular: `TableRules<S, R>` / `RowRules<S, R>`

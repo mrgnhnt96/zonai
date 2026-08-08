@@ -146,7 +146,7 @@ These map to `TableOperation` names in rules and rate limiting:
 
 `list` requests accept an optional `order_by` array of `{ "column": "...", "direction": "asc" | "desc" }` terms. Columns must exist on the collection schema; unknown columns are rejected when SQL is built.
 
-Any other operation string is treated as a **custom operation** and routed to `custom()`.
+Any other operation string is treated as a **custom operation** and routed to `custom()`, via `PATCH /db/custom/:operation` (or `PATCH /db/custom/:operation/many`) — the operation name travels on the URL, `table`/`where`/`updates` in the body like every other `/db` route.
 
 ### Update behavior
 
@@ -212,20 +212,18 @@ Override **`custom`** to handle operation names that are not `create`, `update`,
 rd.ToQuery<PostTable, Post> custom(
   String operation, {
   Where? where,
-  Map<String, dynamic>? values,
+  List<Update> updates = const [],
 }) {
   return switch (operation) {
-    'archive' => db
-        .update(posts)
-        .setAll([UpdateableColumn(table['archived'], true)])
-        .where(RawSqlFilter(where!.sql(table.name)))
-        .toQuery(),
-    _ => super.custom(operation, where: where, values: values),
+    'archive' => update(updates, where: where!),
+    _ => super.custom(operation, where: where, updates: updates),
   };
 }
 ```
 
-The default implementation throws `UnimplementedError`. Custom operations must be allowed in your **rules** for the collection (same as any other operation name).
+`updates` uses the same typed `Update` vocabulary as the standard `update()` builder (see [Update behavior](#update-behavior) above) — which is what lets `archive` above just delegate straight to it. This also means a custom operation's row rule can inspect the exact post-write row (`canUpdate`-style `before`/`after`), not just a raw payload — see [Custom operation rules](rules.md#custom-operation-rules).
+
+The default implementation throws `UnimplementedError`. Custom operations must be allowed in your **rules** for the collection (same as any other operation name) — table rules and row rules deny an operation name that isn't registered.
 
 ## Overriding `insert` to fill in a server-generated value
 
