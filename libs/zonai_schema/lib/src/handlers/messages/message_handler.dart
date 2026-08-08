@@ -104,7 +104,24 @@ class MessageHandler<R extends Request> {
             _handleResponse(request);
 
           case final UnknownRequest request:
-            _handleResponse(fromUnknownRequest(request));
+            R typed;
+            try {
+              typed = fromUnknownRequest(request);
+            } catch (e, stack) {
+              // An uncaught throw here would escape the switch and the
+              // `await for` above, killing this worker's whole listen loop
+              // over one bad request instead of just failing that request.
+              reply(
+                MessageErrorResponse(
+                  id: request.id,
+                  message: 'Invalid request payload',
+                  error: e.toString(),
+                  stackTrace: stack.toString(),
+                ),
+              );
+              continue;
+            }
+            _handleResponse(typed);
 
           case _:
             reply(
