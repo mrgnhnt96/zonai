@@ -130,6 +130,17 @@ class Migrate {
       result = await runZoned(
         () async {
           final exitCode = await CliRunner().run([
+            // zonai fully drives dialect/schemas/out itself, so point
+            // --config at a path that can't exist. Otherwise raindrop_cli
+            // defaults to './raindrop.yaml' and would pick up an unrelated
+            // one sitting in the working directory (this monorepo's own
+            // apps/zonai/raindrop.yaml, for example), silently redirecting
+            // generated Dart output to wherever that file's "dart:" points.
+            '--config',
+            fs.path.join(
+              settings.migrationsPath,
+              '.raindrop-config-disabled.yaml',
+            ),
             '--dialect',
             'sqlite',
             '--schemas',
