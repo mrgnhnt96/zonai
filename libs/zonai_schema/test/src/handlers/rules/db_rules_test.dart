@@ -35,6 +35,22 @@ class _ItemRowRules extends RowRules<_ItemTable, _Item> {
   Future<bool> canUpdate(Jwt? jwt, _Item before, _Item after) async {
     return !after.roles.contains('admin');
   }
+
+  @override
+  Map<String, CustomRowOperationRule<_Item>> get customOperations => {
+    // Mirrors issue #25's motivating example: a named state-transition rule
+    // that inspects the simulated post-write row, same as canUpdate above.
+    'archive': (jwt, before, after) async => !after.roles.contains('locked'),
+  };
+}
+
+final class _ItemTableRules extends TableRules<_ItemTable, _Item> {
+  const _ItemTableRules(super.schema);
+
+  @override
+  Map<String, CustomTableOperationRule> get customOperations => {
+    'archive': (jwt) async => true,
+  };
 }
 
 void main() {
@@ -52,7 +68,7 @@ void main() {
         final response = await dbRules.dispatch(
           RowRulesRequest(
             table: 'rules_items',
-            operation: RowOperation.update,
+            operation: RowOperation.update.name,
             data: {'id': 1, 'roles': '["member"]'},
             updates: [Update.column('roles', const Add('admin'))],
             jwt: null,
@@ -68,7 +84,7 @@ void main() {
       final response = await dbRules.dispatch(
         RowRulesRequest(
           table: 'rules_items',
-          operation: RowOperation.update,
+          operation: RowOperation.update.name,
           data: {'id': 1, 'roles': '["member"]'},
           updates: [Update.column('roles', const Add('editor'))],
           jwt: null,
@@ -83,7 +99,7 @@ void main() {
       final response = await dbRules.dispatch(
         BatchRowRulesRequest(
           table: 'rules_items',
-          operation: RowOperation.update,
+          operation: RowOperation.update.name,
           rows: [
             {'id': 1, 'roles': '["member"]'},
             {'id': 2, 'roles': '["member"]'},
@@ -107,7 +123,7 @@ void main() {
       final response = await dbRules.dispatch(
         RowRulesRequest(
           table: 'rules_items',
-          operation: RowOperation.update,
+          operation: RowOperation.update.name,
           data: {'id': 1, 'roles': '["admin"]'},
           jwt: null,
         ),
@@ -118,5 +134,126 @@ void main() {
       expect(response, isA<RowRulesResponse>());
       expect((response as RowRulesResponse).canPerform, isFalse);
     });
+  });
+
+  group('DbRules custom operations', () {
+    late DbRules dbRulesWithTable;
+
+    setUp(() {
+      dbRulesWithTable = DbRules(
+        rules: [_ItemTableRules(items), _ItemRowRules(items)],
+      );
+    });
+
+    test('table-level: a registered custom operation is dispatched', () async {
+      final response = await dbRulesWithTable.dispatch(
+        TableRulesRequest(table: 'rules_items', operation: 'archive', jwt: null),
+      );
+
+      expect(response, isA<TableRulesResponse>());
+      expect((response as TableRulesResponse).canAccess, isTrue);
+    });
+
+    test(
+      'table-level: an unregistered custom operation name is denied',
+      () async {
+        final response = await dbRulesWithTable.dispatch(
+          TableRulesRequest(
+            table: 'rules_items',
+            operation: 'unknown_op',
+            jwt: null,
+          ),
+        );
+
+        expect(response, isA<TableRulesResponse>());
+        expect((response as TableRulesResponse).canAccess, isFalse);
+      },
+    );
+
+    test(
+      'row-level: a registered custom operation sees the simulated after row',
+      () async {
+        final response = await dbRulesWithTable.dispatch(
+          RowRulesRequest(
+            table: 'rules_items',
+            operation: 'archive',
+            data: {'id': 1, 'roles': '["member"]'},
+            updates: [Update.column('roles', const Add('locked'))],
+            jwt: null,
+          ),
+        );
+
+        expect(response, isA<RowRulesResponse>());
+        expect((response as RowRulesResponse).canPerform, isFalse);
+      },
+    );
+
+    test('row-level: a custom operation with no locking update is allowed', () async {
+      final response = await dbRulesWithTable.dispatch(
+        RowRulesRequest(
+          table: 'rules_items',
+          operation: 'archive',
+          data: {'id': 1, 'roles': '["member"]'},
+          updates: [Update.column('roles', const Add('editor'))],
+          jwt: null,
+        ),
+      );
+
+      expect(response, isA<RowRulesResponse>());
+      expect((response as RowRulesResponse).canPerform, isTrue);
+    });
+
+    test('row-level: an unregistered custom operation name is denied', () async {
+      final response = await dbRulesWithTable.dispatch(
+        RowRulesRequest(
+          table: 'rules_items',
+          operation: 'unknown_op',
+          data: {'id': 1, 'roles': '["member"]'},
+          jwt: null,
+        ),
+      );
+
+      expect(response, isA<RowRulesResponse>());
+      expect((response as RowRulesResponse).canPerform, isFalse);
+    });
+
+    test('batch row-level: applies the custom rule per row', () async {
+      final response = await dbRulesWithTable.dispatch(
+        BatchRowRulesRequest(
+          table: 'rules_items',
+          operation: 'archive',
+          rows: [
+            {'id': 1, 'roles': '["member"]'},
+            {'id': 2, 'roles': '["member"]'},
+          ],
+          updates: [
+            Update.column('roles', const Add('locked')),
+          ],
+          jwt: null,
+        ),
+      );
+
+      expect(response, isA<BatchRowRulesResponse>());
+      expect((response as BatchRowRulesResponse).canPerform, [
+        isFalse,
+        isFalse,
+      ]);
+    });
+
+    test(
+      'DbRules.customTableOperationNames/customRowOperationNames expose the '
+      'registered names',
+      () {
+        expect(
+          dbRulesWithTable.customTableOperationNames('rules_items'),
+          {'archive'},
+        );
+        expect(
+          dbRulesWithTable.customRowOperationNames('rules_items'),
+          {'archive'},
+        );
+        expect(dbRulesWithTable.customTableOperationNames('unknown_table'), isEmpty);
+      },
+    );
   });
 }
