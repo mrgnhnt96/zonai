@@ -231,7 +231,7 @@ extension UtilsX on ZonaiDb {
           id: '-1',
           table: table,
           operation: operation.name,
-          canPerform: true,
+          canPerform: false,
         );
   }
 
@@ -321,7 +321,7 @@ extension UtilsX on ZonaiDb {
       ),
     );
 
-    if ((rules?.canPerform ?? true) case false) {
+    if ((rules?.canPerform ?? false) case false) {
       throw RowAccessDeniedException(table: table, operation: operation);
     }
   }
