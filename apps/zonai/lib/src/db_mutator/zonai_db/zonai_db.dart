@@ -66,6 +66,7 @@ part 'parts/auth/verify_email.dart';
 part 'parts/cleanup_photos.dart';
 part 'parts/count.dart';
 part 'parts/create.dart';
+part 'parts/custom.dart';
 part 'parts/dashboard_metrics.dart';
 part 'parts/run_cron_job.dart';
 part 'parts/list_cron_jobs.dart';
@@ -455,6 +456,10 @@ class ZonaiDb {
 
   Future<_CrudListResult> update(String table, UpdatePayload payload) async {
     return await _runWrite(() => _update(table, payload));
+  }
+
+  Future<_CrudListResult> custom(String table, CustomPayload payload) async {
+    return await _runWrite(() => _custom(table, payload));
   }
 
   Future<int> delete(String table, DeletePayload payload) async {

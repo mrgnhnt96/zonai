@@ -150,6 +150,56 @@ extension UtilsX on ZonaiDb {
     return response;
   }
 
+  /// Custom-operation counterpart of [_requireTableAccess] — [operation] is
+  /// an arbitrary name (`TableOperations.custom`), not a [TableOperation],
+  /// so it can't go through the enum-typed helper above.
+  Future<void> _requireCustomTableAccess(
+    String table,
+    String operation,
+    Jwt? jwt,
+  ) async {
+    logger.verbose(
+      'Checking table rules for $table custom:$operation',
+      prefix: _prefix,
+    );
+    final tableRules = await _customTableRules(table, operation, jwt);
+
+    if (!tableRules.canAccess) {
+      throw TableAccessDeniedException(table: table, operation: operation);
+    }
+
+    if (tableRules.skipRowChecks) {
+      _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = true;
+    }
+  }
+
+  Future<TableRulesResponse> _customTableRules(
+    String table,
+    String operation,
+    Jwt? jwt,
+  ) async {
+    final cacheKey = '$table|$operation|${_jwtCacheKey(jwt)}';
+    final cached = _tableAccessCache[cacheKey];
+    if (cached != null) {
+      return cached;
+    }
+
+    final rules = await _dispatchRules<TableRulesResponse>(
+      TableRulesRequest(table: table, operation: operation, jwt: jwt),
+    );
+
+    final response =
+        rules ??
+        TableRulesResponse(
+          id: '-1',
+          table: table,
+          operation: operation,
+          canAccess: false,
+        );
+    _tableAccessCache[cacheKey] = response;
+    return response;
+  }
+
   Future<RowRulesResponse> _rowRules(
     String table,
     RowOperation operation,
@@ -161,7 +211,7 @@ extension UtilsX on ZonaiDb {
       return RowRulesResponse(
         id: '-1',
         table: table,
-        operation: operation,
+        operation: operation.name,
         canPerform: true,
       );
     }
@@ -169,7 +219,7 @@ extension UtilsX on ZonaiDb {
     final rules = await _dispatchRules<RowRulesResponse>(
       RowRulesRequest(
         table: table,
-        operation: operation,
+        operation: operation.name,
         data: data,
         updates: updates,
         jwt: jwt,
@@ -180,7 +230,7 @@ extension UtilsX on ZonaiDb {
         RowRulesResponse(
           id: '-1',
           table: table,
-          operation: operation,
+          operation: operation.name,
           canPerform: true,
         );
   }
@@ -225,7 +275,7 @@ extension UtilsX on ZonaiDb {
     final response = await _dispatchRules<BatchRowRulesResponse>(
       BatchRowRulesRequest(
         table: table,
-        operation: operation,
+        operation: operation.name,
         rows: rows,
         updates: updates,
         jwt: jwt,
@@ -247,6 +297,32 @@ extension UtilsX on ZonaiDb {
           operation: operation.toString(),
         );
       }
+    }
+  }
+
+  /// Custom-operation counterpart of [_requireRowAccess] — [operation] is an
+  /// arbitrary name (`TableOperations.custom`), not a [RowOperation].
+  Future<void> _requireCustomRowAccess(
+    String table,
+    String operation,
+    Map<String, dynamic> data,
+    Jwt? jwt, {
+    List<Update> updates = const [],
+  }) async {
+    if (_skipRowChecks['$table|${_jwtCacheKey(jwt)}'] == true) return;
+
+    final rules = await _dispatchRules<RowRulesResponse>(
+      RowRulesRequest(
+        table: table,
+        operation: operation,
+        data: data,
+        updates: updates,
+        jwt: jwt,
+      ),
+    );
+
+    if ((rules?.canPerform ?? true) case false) {
+      throw RowAccessDeniedException(table: table, operation: operation);
     }
   }
 

@@ -37,6 +37,23 @@ class UpdatePayload extends JwtPayload {
   final List<Update> updates;
 }
 
+/// [where] is nullable — unlike [UpdatePayload], a custom operation may be
+/// table-scoped with no target rows.
+class CustomPayload extends JwtPayload {
+  const CustomPayload({
+    required this.operation,
+    this.where,
+    this.updates = const [],
+    this.limit,
+    super.jwt,
+  });
+
+  final String operation;
+  final Where? where;
+  final int? limit;
+  final List<Update> updates;
+}
+
 class DeletePayload extends JwtPayload {
   const DeletePayload({required this.where, this.limit, super.jwt});
 
