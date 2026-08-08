@@ -17,6 +17,27 @@ Most tables don't need one. If your table uses standard CRUD with no custom logi
 
 - Adding custom JWT claims to an auth table's token (e.g. include `role` or `plan` in the JWT)
 - Configuring auth flows: password-reset link URL, OTP expiry, magic link redirect
+- Adding a named, non-CRUD operation (a state transition like `archive` or `reserve`) via `custom()`
+
+## Custom / Non-CRUD Operations
+
+Override `custom` to handle an operation name that isn't create/update/delete/view/list/count. It's reached via `PATCH /db/custom/:operation` (or `PATCH /db/custom/:operation/many`) — the operation name travels on the URL, `table`/`where`/`updates` in the body like every other `/db` route:
+
+```dart
+@override
+rd.ToQuery<PostTable, Post> custom(
+  String operation, {
+  Where? where,
+  List<Update> updates = const [],
+}) {
+  return switch (operation) {
+    'archive' => update(updates, where: where!),
+    _ => super.custom(operation, where: where, updates: updates),
+  };
+}
+```
+
+`updates` uses the same typed `Update` vocabulary as the standard `update()` builder, which is what lets `archive` above just delegate straight to it. The default implementation throws `UnimplementedError`. A custom operation must also be allowed in your rules for the collection — see [Table Rules: Custom Operations](/rules/table-rules#custom-operations) and [Row Rules: Custom Operations](/rules/row-rules#custom-operations).
 
 ## Creating an Operations File
 

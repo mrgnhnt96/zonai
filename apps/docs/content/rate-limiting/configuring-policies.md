@@ -51,8 +51,21 @@ All methods are `async` and return `Future<RateLimitPolicy?>`. Paths use a JSON 
 | `getPolicy()` | `GET /db`, `GET /db/stream` |
 | `limitPolicy()` | `GET /db/list`, `GET /db/stream/list` |
 | `countPolicy()` | `GET /db/count`, `GET /db/stream/count` |
+| `customPolicy(operation)` | `PATCH /db/custom/:operation`, `PATCH /db/custom/:operation/many` |
 
 Streaming shares the read policies above. Details: [Streaming](/operations/streaming).
+
+`customPolicy` buckets separately per operation name (`fill` and `reserve` on the same table get independent counters), but only for a name that's actually registered in that table's rules — an unrecognized `:operation` is rejected with `404` before it ever reaches the rate limiter:
+
+```dart
+@override
+Future<RateLimitPolicy?> customPolicy(String operation) async {
+  return switch (operation) {
+    'fill' => const RateLimitPolicy(maxRequests: 20, window: Duration(minutes: 1)),
+    _ => .defaultPolicy,
+  };
+}
+```
 
 ## Disabling Rate Limiting for an Operation
 

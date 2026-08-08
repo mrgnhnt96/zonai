@@ -80,3 +80,16 @@ Future<bool> canCreate(Jwt? jwt) async {
 ```
 
 See [JWT Claims](/rules/jwt-claims) for all available fields.
+
+## Custom Operations
+
+Named operations that aren't create/update/delete/view/list/count — `TableOperations.custom(operation, ...)` — go through `customOperations`, not the methods above. An operation name that isn't a key in the map is denied, same as any unoverridden method:
+
+```dart
+@override
+Map<String, CustomTableOperationRule> get customOperations => {
+  'archive': (jwt) async => jwt?.admin.canEdit ?? false,
+};
+```
+
+Row rules need a matching entry too — see [Row Rules: Custom Operations](/rules/row-rules#custom-operations).

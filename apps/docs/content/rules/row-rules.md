@@ -122,3 +122,17 @@ Future<bool> canDelete(Jwt? jwt, Task row) async {
 @override
 Future<bool> canView(Jwt? jwt, Task row) async => true;
 ```
+
+## Custom Operations
+
+Named operations that aren't create/update/delete/view — `TableOperations.custom(operation, ...)` — go through `customOperations`, keyed by the same operation name. An operation name that isn't a key in the map is denied, same as any unoverridden method above:
+
+```dart
+@override
+Map<String, CustomRowOperationRule<Task>> get customOperations => {
+  'archive': (jwt, before, after) async =>
+      jwt?.admin.canEdit ?? false,
+};
+```
+
+`before`/`after` work exactly like `canUpdate`'s — `after` is simulated from the operation's `updates` ahead of the write, so a rule can gate on the transition itself (e.g. only an admin may set `status` to `'archived'`). Table rules need a matching entry too — see [Table Rules: Custom Operations](/rules/table-rules#custom-operations).
