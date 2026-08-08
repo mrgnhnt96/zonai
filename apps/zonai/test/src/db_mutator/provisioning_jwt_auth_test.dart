@@ -5,15 +5,34 @@ import 'package:file/local.dart';
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 import 'package:zonai/deps.dart';
-import 'package:zonai/gen/version.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../../support/config_worker_fixture.dart';
+
 void main() {
   group('ProvisioningJwt bearer hardening', () {
+    late ConfigWorkerFixture fixture;
+    late Settings settings;
+
+    setUpAll(() async {
+      fixture = await ConfigWorkerFixture.setUp(
+        namePrefix: 'provisioning_jwt_auth',
+        appName: 'Provisioning JWT Auth Test',
+        passwordSecret: _passwordSecret,
+        jwtSecret: _jwtSecret,
+      );
+      settings = await runMergedScopedFuture(
+        () async => Settings.load(fixture.projectRoot.path),
+        override: {fsProvider.overrideWith(LocalFileSystem.new)},
+      );
+    });
+
+    tearDownAll(() => fixture.tearDown());
+
     test(
       'signed PROVISIONING payload verifies but is rejected as user JWT',
       () async {
@@ -42,12 +61,10 @@ void main() {
           payload: const {'PROVISIONING': true, 'authTable': 'users'},
         );
 
-        await _withTestConfig(() async {
+        await _withTestConfig(settings, () async {
           await expectLater(
             ZonaiDb().parseJwt(token),
-            throwsA(
-              predicate<StateError>((error) => error.message == 'Invalid JWT'),
-            ),
+            throwsA(isA<InvalidJwtException>()),
           );
         });
       },
@@ -62,12 +79,10 @@ void main() {
           payload: const {'PROVISIONING': true, 'authTable': 'users'},
         );
 
-        await _withTestConfig(() async {
+        await _withTestConfig(settings, () async {
           await expectLater(
             ZonaiDb().parseJwtClaimsOnly(token),
-            throwsA(
-              predicate<StateError>((error) => error.message == 'Invalid JWT'),
-            ),
+            throwsA(isA<InvalidJwtException>()),
           );
         });
       },
@@ -107,29 +122,7 @@ void main() {
 }
 
 const _jwtSecret = 'test-jwt-pepper';
-
-const _testConfig = AppConfig(
-  appName: 'test',
-  passwordSecret: 'test-password-pepper',
-  jwtSecret: _jwtSecret,
-);
-
-final _testSettings = Settings(
-  path: 'zonai.yaml',
-  migrationsPath: '.zonai/migrations',
-  dataPath: '.zonai/data',
-  schemasPath: 'lib/src/schemas',
-  extensionsPath: 'lib/src/extensions',
-  rulesPath: 'lib/src/rules',
-  operationsPath: 'lib/src/operations',
-  configPath: 'lib/src/config',
-  emailTemplatesPath: 'lib/src/email_templates',
-  rateLimitPath: 'lib/src/rate_limit',
-  cronsPath: 'lib/src/crons',
-  imagesPath: '.zonai/data/images',
-  buildSettings: BuildSettings.current(),
-  version: kVersion,
-);
+const _passwordSecret = 'test-password-pepper';
 
 /// Matches [JwtGenerator]'s HS256 segments (same base64url / padding rules).
 String _manualJwt({
@@ -150,16 +143,14 @@ String _manualJwt({
   return '$signingInput.$sig';
 }
 
-Future<T> _withTestConfig<T>(Future<T> Function() body) {
+Future<T> _withTestConfig<T>(Settings settings, Future<T> Function() body) {
   return runMergedScopedFuture(
     body,
     override: {
       fsProvider.overrideWith(LocalFileSystem.new),
       loggerProvider.overrideWith(() => Logger(level: .error)),
-      settingsProvider.overrideWith(() => _testSettings),
-      configResolverProvider.overrideWith(
-        () => ConfigResolver.fixed(_testConfig),
-      ),
+      settingsProvider.overrideWith(() => settings),
+      processProvider,
       cleanUpProvider,
       executableStopProvider,
     },
