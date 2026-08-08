@@ -201,6 +201,28 @@ playground:
     cd apps/playground || exit 1
     dart run zonai db logs clear --log verbose
 
+bootstrap:
+  test:
+    (aliases): [tests, t]
+    (description): >-
+      Generates everything apps/zonai's test suite needs to load (lib/gen's
+      native/ and server/ subtrees) without doing a full `zonai compile` --
+      no web build, no raindrop vendor re-run (already committed), no
+      final `dart compile exe`. Run this once after a clean checkout (and
+      `dart pub get`) before `dart test` in apps/zonai.
+    (bail):
+    (command):
+      - ${{ version.gen }}
+      - |
+        echo "Generating resqlite native library"
+        ${{ resqlite.gen }}
+      - |
+        echo "Generating native Argon2 library"
+        ${{ argon2.gen }}
+      - |
+        echo "Generating server artifacts (apps/zonai/lib/gen/server)"
+        ${{ server.copy-to-cli }}
+
 zonai:
   # compiles server, web, and cli in 1 executable
   compile:

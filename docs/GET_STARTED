@@ -42,7 +42,37 @@ Resolve the whole workspace from the repository root:
 fvm dart pub get
 ```
 
-## 4. App configs and env flavors
+## 4. Generate the artifacts `apps/zonai`'s tests need
+
+`apps/zonai/lib/gen/` (native libraries, the copied-and-rewritten server
+tree) is gitignored and not committed, but several `lib/src/*.dart` files
+import straight into it (e.g. `lib/src/db_mutator/revali.dart` imports
+`../../gen/server/.revali/server/server.dart`). Without it, `dart test` in
+`apps/zonai` fails to even *load* affected test files, with errors like:
+
+```
+lib/gen/native/resqlite_native.g.dart      No such file or directory
+lib/gen/native/argon2_native.g.dart        No such file or directory
+lib/gen/server/.revali/server/server.dart  No such file or directory
+```
+
+One command regenerates everything needed (native Argon2/resqlite
+libraries, the synced server tree, the version stamp) without doing a full
+release build (no web asset build, no `dart compile exe`):
+
+```bash
+dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main # one-time
+sip run bootstrap test
+```
+
+Rerun `sip run bootstrap test` whenever `apps/server`'s routes/annotations
+change, or after switching branches, so the copied `lib/gen/server` tree
+and native libraries stay in sync. See `scripts.yaml`'s `bootstrap.test`
+entry for exactly what it runs (`version.gen`, `resqlite.gen`, `argon2.gen`,
+`server.copy-to-cli`); `zonai.compile` composes the same building blocks for
+a full release build.
+
+## 5. App configs and env flavors
 
 When you work on a Zonai app (e.g. `apps/playground`), you can maintain multiple **app config** Dart files and **`.env`** files for different targets (dev, staging, prod). Pass `--flavor <name>` to select which config file and which `.env.<flavor>` file to use. Env keys are baked into compiled binaries at compile time via `String.fromEnvironment`, not read from disk at runtime.
 
@@ -52,33 +82,33 @@ For production builds and server deploys, pass **`--release`** and run **`zonai 
 
 To change which address the HTTP server listens on, set **`host`** and **`port`** in `zonai.yaml` or pass **`--host`** / **`--port`** to `serve`. See **[server-binding.md](server-binding.md)**.
 
-## 5. Collection operations
+## 6. Collection operations
 
 Each database collection needs an operations class that turns API requests into SQL. Add one Dart file per collection under `lib/src/operations` (or your `operationsPath`). See **[operations.md](operations.md)** for layout, `CollectionOperations`, auth mixins, and custom operations.
 
-## 6. Access rules
+## 7. Access rules
 
 Each collection needs rules that decide who may read and write data. Add collection- and record-level Dart files under `lib/src/rules` (or your `rulesPath`). See **[rules.md](rules.md)** for the two-level model, JWT checks, auth rules, and examples.
 
-## 7. Extensions
+## 8. Extensions
 
 To run Dart hooks around creates, updates, deletes, and auth events (side effects, emails, related row updates), add one extension file per collection under `lib/src/extensions` (or your `extensionsPath`). See **[extensions.md](extensions.md)** for hook methods, `get` / `mutate` / `email` APIs, and examples.
 
 For session token refresh (`POST /auth/refresh`), see **[auth.md](auth.md)**.
 
-## 8. Rate limiting
+## 9. Rate limiting
 
 To throttle API traffic per client IP and collection, add Dart files under `lib/src/rate_limit` (or your `rateLimitPath`). See **[rate-limiting.md](rate-limiting.md)** for policy methods, defaults, and examples.
 
-## 9. Cron jobs
+## 10. Cron jobs
 
 To run scheduled background tasks (cleanup, reports, maintenance), add one Dart file per job under `lib/src/crons` (or your `cronsPath`). See **[cron.md](cron.md)** for schedules, `strict` / catch-up, run history, and examples.
 
-## 10. Favicon
+## 11. Favicon
 
 A placeholder `favicon.ico` is written to your images directory on first run and served at `GET /favicon.ico`. To supply your own icon, see **[favicon.md](favicon.md)**.
 
-## 11. Optional checks
+## 12. Optional checks
 
 - Run CLI package tests:
 
