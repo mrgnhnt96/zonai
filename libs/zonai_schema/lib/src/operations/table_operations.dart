@@ -485,7 +485,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
   rd.ToQuery<rd.Schema<R>, R> custom(
     String operation, {
     Where? where,
-    Map<String, dynamic>? values,
+    List<Update> updates = const [],
   }) {
     throw UnimplementedError(
       'Custom operation has not been implemented: $operation',
@@ -536,8 +536,8 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
           orderBy: orderBy,
           groupBy: groupBy != null ? table[groupBy] : null,
         ).compiled(),
-      CustomOperationRequest(:final where, :final operation, :final values) =>
-        custom(operation, where: where, values: values).compiled(),
+      CustomOperationRequest(:final where, :final operation, :final updates) =>
+        custom(operation, where: where, updates: updates).compiled(),
       PerformOperationRequest(:final operation) => throw StateError(
         'Invalid operation: $operation',
       ),

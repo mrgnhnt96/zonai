@@ -639,7 +639,7 @@ final class CustomOperationRequest extends PerformOperationRequest {
     required super.table,
     required super.operation,
     required this.where,
-    required this.values,
+    required this.updates,
     required super.jwt,
   });
 
@@ -648,7 +648,7 @@ final class CustomOperationRequest extends PerformOperationRequest {
     required super.table,
     required super.operation,
     required this.where,
-    required this.values,
+    required this.updates,
     required super.jwt,
   }) : super._();
 
@@ -661,17 +661,24 @@ final class CustomOperationRequest extends PerformOperationRequest {
         final Map<String, dynamic> json => Where.fromJson(json),
         _ => null,
       },
-      values: request.payload['values'] as Map<String, dynamic>?,
+      updates: [
+        for (final update in request.payload['updates'] as List? ?? const [])
+          Update.fromJson(Map<String, dynamic>.from(update as Map)),
+      ],
       jwt: request.jwt,
     );
   }
 
   final Where? where;
-  final Map<String, dynamic>? values;
+  final List<Update> updates;
 
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'where': where?.toJson(), 'values': values};
+    return {
+      ...super.toJson(),
+      'where': where?.toJson(),
+      'updates': updates.map((update) => update.toJson()).toList(),
+    };
   }
 }
 
