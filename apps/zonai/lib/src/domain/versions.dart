@@ -3,6 +3,7 @@ import 'dart:io' hide stdin;
 
 import 'package:archive/archive.dart';
 import 'package:http/http.dart' as http;
+import 'package:pub_semver/pub_semver.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai/src/domain/arch.dart';
@@ -13,6 +14,16 @@ import 'package:zonai_logger/zonai_logger.dart';
 
 const _repo = 'mrgnhnt96/zonai';
 const _apiBase = 'https://api.github.com/repos/$_repo';
+const _migrationGuideUrl = 'https://mrgnhnt96.github.io/zonai/cli/upgrading';
+
+/// Whether moving the CLI from [from] to [to] crosses a semver `^`-breaking
+/// boundary (major once >= 1.0, otherwise minor) -- the same cohort check
+/// used elsewhere for schema version drift.
+bool isBreakingCliUpgrade({required String from, required String to}) {
+  final fromVersion = Version.parse(from);
+  final toVersion = Version.parse(to);
+  return !VersionConstraint.compatibleWith(fromVersion).allows(toVersion);
+}
 
 class Versions {
   const Versions();
@@ -177,15 +188,23 @@ class Versions {
     );
 
     settings.version = targetVersion;
+    final breakingUpgrade = isBreakingCliUpgrade(
+      from: current,
+      to: targetVersion,
+    );
 
     if (Platform.isWindows) {
-      logger.info(
-        'Update downloaded. It will be applied when the CLI exits.',
-      );
-      return;
+      logger.info('Update downloaded. It will be applied when the CLI exits.');
+    } else {
+      logger.info('Updated to Zonai v$targetVersion.');
     }
 
-    logger.info('Updated to Zonai v$targetVersion.');
+    if (breakingUpgrade) {
+      logger.warn(
+        'This update may include breaking changes. '
+        'See the migration guide: $_migrationGuideUrl',
+      );
+    }
   }
 
   String _parseVersion(Map<String, dynamic> release) {
