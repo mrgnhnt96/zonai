@@ -1,0 +1,19 @@
+# Files and directories created by pub.
+**/doc/api/
+.dart_tool/
+.packages
+
+# Conventional directory for build output.
+/build/
+
+# Miscellaneous
+*.log
+*.swp
+.DS_Store
+.history
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/

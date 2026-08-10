@@ -1,0 +1,132 @@
+name: Deploy Website
+
+# Builds apps/website and publishes it to THIS repository's GitHub Pages site,
+# which owns the apex domain zonai.dev.
+#
+# A Pages site can only carry one custom domain, so the docs cannot also live
+# here — they are published to a separate repo by deploy-docs.yml and served at
+# docs.zonai.dev. Keeping the apex here means the apex DNS never has to move.
+#
+# No deploy secret is needed: publishing to our own Pages uses the built-in
+# GITHUB_TOKEN via the `pages: write` / `id-token: write` permissions below.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/website/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "pubspec_overrides.yaml"
+      - ".github/workflows/deploy-website.yml"
+      # A release rewrites VERSION, which changes the version badge, the install
+      # command and every download URL on the page.
+      - "VERSION"
+  workflow_dispatch:
+  # Called by the release workflow so a new CLI release republishes the site.
+  # `ref` must be passed there: the release job commits VERSION *after* the run
+  # started, so the default checkout would build the pre-release commit.
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build. Defaults to the triggering ref.
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Shared with any other workflow that deploys Pages for this repo — GitHub
+# allows only one Pages deployment at a time. Not cancel-in-progress: a
+# half-finished Pages deployment should be left to complete.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  WEBSITE_DOMAIN: zonai.dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # An empty ref falls back to the triggering ref.
+          ref: ${{ inputs.ref }}
+          # GITHUB_TOKEN cannot read private submodule repos; raindrop is private.
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Configure revali git overrides
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Get dependencies
+        run: dart pub get
+
+      # Regenerated rather than trusted: VERSION is the source of truth, and the
+      # release workflow commits it. If the committed version.dart lags behind,
+      # the published site would advertise a version that was never released and
+      # link to download URLs under a tag that may not exist.
+      - name: Sync the displayed version from VERSION
+        working-directory: apps/website
+        run: dart run tool/sync_version.dart
+
+      - name: Analyze
+        working-directory: apps/website
+        run: dart analyze --fatal-infos
+
+      - name: Build website
+        working-directory: apps/website
+        run: dart run jaspr_cli:jaspr build --verbose
+
+      # A silently-empty build would otherwise publish a blank site over a
+      # working one, and the custom domain is lost the moment CNAME goes missing.
+      #
+      # The hero check is not decoration: `jaspr build` pre-renders by crawling a
+      # server it starts on port 8080, and if anything else answers there it will
+      # happily save that response as index.html.
+      - name: Verify build output
+        working-directory: apps/website/build/jaspr
+        run: |
+          test -s index.html || { echo "::error::index.html missing or empty"; exit 1; }
+          grep -qx "$WEBSITE_DOMAIN" CNAME || {
+            echo "::error::CNAME missing or wrong: $(cat CNAME 2>/dev/null)"; exit 1; }
+          grep -q 'Your schema' index.html || {
+            echo "::error::index.html rendered without hero content"; exit 1; }
+          for anchor in download dashboard live start; do
+            grep -q "id=\"$anchor\"" index.html || {
+              echo "::error::section #$anchor is missing from the render"; exit 1; }
+          done
+
+          # Jaspr leaves build metadata behind; it should not be published.
+          rm -rf .dart_tool .build.manifest
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/website/build/jaspr
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
