@@ -1,6 +1,6 @@
 name: zonai_client
 description: Generated HTTP client for the Zonai Revali server.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 
 resolution: workspace

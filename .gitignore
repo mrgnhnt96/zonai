@@ -7,7 +7,6 @@ pubspec_overrides.yaml
 .revali*
 apps/zonai/lib/gen/
 apps/web/lib/gen/
-libs/zonai_client/lib/gen/
 
 # Flutter
 build/
