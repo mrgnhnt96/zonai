@@ -1,14 +1,76 @@
 ---
-title: Introduction
-description: A batteries-included Dart backend framework — auth, database, file uploads, cron jobs, and more.
+title: Zonai
+description: A batteries-included Dart backend framework — auth, database, live query streams, file uploads, cron jobs, and more.
 ---
 
 Zonai is a Dart backend-as-a-service framework that turns schema definitions into a complete REST API. Write your tables, rules, and business logic in Dart — Zonai handles the HTTP layer, the database, and the auth system.
 
 It is designed for Dart and Flutter developers who want to build a production-quality backend without wiring together boilerplate.
 
+<CardGrid columns="3">
+
+<Card title="Quick Start" href="/getting-started/quick-start" icon="rocket">
+
+Go from `dart create` to a running server with auth and CRUD in about ten minutes.
+
+</Card>
+
+<Card title="Live Queries" href="/operations/streaming" icon="bolt" badge="live">
+
+`client.db.listen` and `/db/stream*` push updates as SQLite changes. Never poll.
+
+</Card>
+
+<Card title="Dart Client" href="/dart-client/overview" icon="dart">
+
+`zonai_client` wraps auth, db, photos and email so apps never hand-roll HTTP.
+
+</Card>
+
+</CardGrid>
+
+## Write a table, get an API
+
+Define a table in Dart:
+
+```dart
+final class TaskTable extends Table<Task> {
+  TaskTable(super.$)
+    : id = $.id('id', (s) => s.id, fromString: TasksId.new, generate: TasksId.generate),
+      title = $.text('title', (s) => s.title),
+      isComplete = $.boolean('is_complete', (s) => s.isComplete),
+      createdAt = $.createdAt('created_at', (s) => s.createdAt),
+      updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
+
+  // …
+}
+
+final tasks = table('tasks', TaskTable.new);
+```
+
+Every endpoint below exists the moment that file does — no handlers, no codegen step:
+
+```text
+POST   /db          create        GET  /db/stream        live single row
+GET    /db          read          GET  /db/stream/list   live list
+PATCH  /db          update        GET  /db/stream/count  live count
+DELETE /db          delete
+GET    /db/list     list          POST /auth/sign-up     from an AuthTable
+GET    /db/count    count         POST /auth/sign-in
+```
+
+And live UI is a subscription, not a timer:
+
+```dart
+client.db.listen
+    .list(body: StreamListBody(table: 'tasks'), fromJson: Task.fromJson)
+    .listen((tasks) => setState(() => _tasks = tasks));
+```
+
 <Info>
+
 **Live UI does not need polling.** Every table gets `GET /db/stream`, `/db/stream/list`, and `/db/stream/count`. In Dart use `zonai_client`'s `client.db.listen`. Search these docs for **stream** / **listen** — not "realtime", "SSE", "socket", or "EventSource". Full guide: [Live Queries (Streaming)](/operations/streaming).
+
 </Info>
 
 ## What You Get Out of the Box
@@ -47,6 +109,12 @@ Nothing runs interpreted at request time on the AOT path. All logic is compiled 
 
 **Hot-reload development** — worker sources are watched and recompiled automatically. Restart `serve` after editing ops/rules so the linked project entry reloads.
 
+## Browse the Docs
+
+Press <kbd>⌘</kbd><kbd>K</kbd> to search every page, or start from a section:
+
+<SectionCards />
+
 ## What Zonai Is Not
 
 - Not a full application framework — Zonai is an API server (no HTML rendering). Use `zonai_client` (or raw HTTP) from Flutter/Dart apps
@@ -60,7 +128,7 @@ A curated docs index lives at [/llms.txt](/llms.txt). Inside a Zonai app, run `z
 
 ## Next Steps
 
-- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` / `/db/stream*` (do not poll)
 - [Installation](/getting-started/installation) — prerequisites and CLI setup
 - [Quick Start](/getting-started/quick-start) — create and run your first project
 - [Project Structure](/getting-started/project-structure) — understand the directory layout
+- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` / `/db/stream*` (do not poll)

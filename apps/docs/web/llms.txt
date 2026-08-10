@@ -2,9 +2,11 @@
 
 > A batteries-included Dart backend framework — schema-driven REST API, auth, SQLite, **live query streams**, file uploads, cron jobs, and more.
 
-Zonai turns Dart schema, rules, and business logic into a production HTTP + SQLite server. You host the binary yourself (not a managed cloud BaaS). Docs: https://mrgnhnt96.github.io/zonai/ — source: https://github.com/mrgnhnt96/zonai
+Zonai turns Dart schema, rules, and business logic into a production HTTP + SQLite server. You host the binary yourself (not a managed cloud BaaS). Docs: https://docs.zonai.dev/ — source: https://github.com/mrgnhnt96/zonai
 
-**Live UI:** every table has `GET /db/stream`, `/db/stream/list`, `/db/stream/count`. Prefer `zonai_client` → `client.db.listen`. Do **not** poll. Search for **stream** / **listen** — not "realtime", "socket", "SSE", or "EventSource". Guide: https://mrgnhnt96.github.io/zonai/operations/streaming
+**Live UI:** every table has `GET /db/stream`, `/db/stream/list`, `/db/stream/count`. Prefer `zonai_client` → `client.db.listen`. Do **not** poll. Search for **stream** / **listen** — not "realtime", "socket", "SSE", or "EventSource". Guide: https://docs.zonai.dev/operations/streaming
+
+The docs site has full-text search (press ⌘K / Ctrl+K on any page); the same corpus is available as JSON at https://docs.zonai.dev/search-index.json — one record per page, split by heading, with the anchor for each section.
 
 This file is a curated index for LLMs and coding agents. Prefer these pages over guessing APIs. For project-local assistant rules, run `zonai ai cursor` (or `claude` / `copilot` / `windsurf` / `cline`) from an app root.
 
@@ -24,118 +26,119 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 
 ## Getting started
 
-- [Introduction](https://mrgnhnt96.github.io/zonai/): What Zonai is and is not; request pipeline overview.
-- [Installation](https://mrgnhnt96.github.io/zonai/getting-started/installation): CLI install from GitHub Releases; Dart SDK requirements.
-- [Quick Start](https://mrgnhnt96.github.io/zonai/getting-started/quick-start): Create a project, auth + tasks tables, migrate, serve, curl examples.
-- [Project Structure](https://mrgnhnt96.github.io/zonai/getting-started/project-structure): Directory layout, naming conventions for rules/ops/extensions, what to commit.
+- [Introduction](https://docs.zonai.dev/): What Zonai is and is not; request pipeline overview.
+- [Installation](https://docs.zonai.dev/getting-started/installation): CLI install from GitHub Releases; Dart SDK requirements.
+- [Quick Start](https://docs.zonai.dev/getting-started/quick-start): Create a project, auth + tasks tables, migrate, serve, curl examples.
+- [Project Structure](https://docs.zonai.dev/getting-started/project-structure): Directory layout, naming conventions for rules/ops/extensions, what to commit.
 
 ## Core concepts
 
-- [How a Request is Processed](https://mrgnhnt96.github.io/zonai/core-concepts/request-pipeline): Ordered pipeline and in-process vs worker boundaries.
-- [Workers](https://mrgnhnt96.github.io/zonai/core-concepts/workers): What workers are, when they run, pool/transport knobs.
-- [Config Flavors](https://mrgnhnt96.github.io/zonai/core-concepts/config-flavors): Dev/staging/prod config selection.
+- [How a Request is Processed](https://docs.zonai.dev/core-concepts/request-pipeline): Ordered pipeline and in-process vs worker boundaries.
+- [Workers](https://docs.zonai.dev/core-concepts/workers): What workers are, when they run, pool/transport knobs.
+- [Config Flavors](https://docs.zonai.dev/core-concepts/config-flavors): Dev/staging/prod config selection.
 
 ## Configuration
 
-- [zonai.yaml Reference](https://mrgnhnt96.github.io/zonai/configuration/zonai-yaml): Paths, version, server settings.
-- [App Config](https://mrgnhnt96.github.io/zonai/configuration/app-config): `AppConfig` — `baseUrl`, JWT secret, SMTP, photos, workers.
-- [Environment Variables](https://mrgnhnt96.github.io/zonai/configuration/environment-variables): Compile-time `.env` secrets and optional `ZONAI_*` runtime tuning.
+- [zonai.yaml Reference](https://docs.zonai.dev/configuration/zonai-yaml): Paths, version, server settings.
+- [App Config](https://docs.zonai.dev/configuration/app-config): `AppConfig` — `baseUrl`, JWT secret, SMTP, photos, workers.
+- [Environment Variables](https://docs.zonai.dev/configuration/environment-variables): Compile-time `.env` secrets and optional `ZONAI_*` runtime tuning.
 
 ## Schemas
 
-- [Defining Tables](https://mrgnhnt96.github.io/zonai/schemas/defining-tables): `Table` / entity / `table()` registration, column helpers, typed IDs.
-- [Auth Tables](https://mrgnhnt96.github.io/zonai/schemas/auth-tables): `AuthTable` + password/OTP/magic-link mixins.
-- [Photo Tables](https://mrgnhnt96.github.io/zonai/schemas/photo-tables): Built-in `_photos` and photo columns.
+- [Defining Tables](https://docs.zonai.dev/schemas/defining-tables): `Table` / entity / `table()` registration, column helpers, typed IDs.
+- [Auth Tables](https://docs.zonai.dev/schemas/auth-tables): `AuthTable` + password/OTP/magic-link mixins.
+- [Photo Tables](https://docs.zonai.dev/schemas/photo-tables): Built-in `_photos` and photo columns.
 
 ## Database
 
-- [Migrations Overview](https://mrgnhnt96.github.io/zonai/database/migrations-overview): How schema changes become SQL.
-- [Generating Migrations](https://mrgnhnt96.github.io/zonai/database/generating-migrations): `zonai db migrate generate`.
-- [Applying Migrations](https://mrgnhnt96.github.io/zonai/database/applying-migrations): `apply` and auto-migrate on serve.
+- [Migrations Overview](https://docs.zonai.dev/database/migrations-overview): How schema changes become SQL.
+- [Generating Migrations](https://docs.zonai.dev/database/generating-migrations): `zonai db migrate generate`.
+- [Applying Migrations](https://docs.zonai.dev/database/applying-migrations): `apply` and auto-migrate on serve.
 
 ## Operations (HTTP + SQL)
 
-- [Operations Overview](https://mrgnhnt96.github.io/zonai/operations/overview): Default vs custom operations; when to override SQL.
-- [Default Operations](https://mrgnhnt96.github.io/zonai/operations/default-operations): CRUD endpoints, request/response JSON, where/order_by shapes.
-- [Streaming (Live Queries)](https://mrgnhnt96.github.io/zonai/operations/streaming): `/db/stream*` and `client.db.listen` — push updates, do not poll.
-- [Auth Operations](https://mrgnhnt96.github.io/zonai/operations/auth-operations): JWT claims, reset/OTP/magic-link URL paths.
+- [Operations Overview](https://docs.zonai.dev/operations/overview): Default vs custom operations; when to override SQL.
+- [Default Operations](https://docs.zonai.dev/operations/default-operations): CRUD endpoints, request/response JSON, where/order_by shapes.
+- [Streaming (Live Queries)](https://docs.zonai.dev/operations/streaming): `/db/stream*` and `client.db.listen` — push updates, do not poll.
+- [Auth Operations](https://docs.zonai.dev/operations/auth-operations): JWT claims, reset/OTP/magic-link URL paths.
 
 ## Rules (authorization)
 
-- [Rules Overview](https://mrgnhnt96.github.io/zonai/rules/overview): Two-layer model (table then row); default deny.
-- [Table Rules](https://mrgnhnt96.github.io/zonai/rules/table-rules): Per-operation allow/deny from JWT.
-- [Row Rules](https://mrgnhnt96.github.io/zonai/rules/row-rules): Per-row checks; `requiresPerRowCheck`.
-- [Auth Rules](https://mrgnhnt96.github.io/zonai/rules/auth-rules): Sign-up, sign-in, password reset gates.
-- [JWT Claims](https://mrgnhnt96.github.io/zonai/rules/jwt-claims): Built-in claims and `addClaims`.
-- [Photo Rules](https://mrgnhnt96.github.io/zonai/rules/photo-rules): Upload/view/delete photo access.
+- [Rules Overview](https://docs.zonai.dev/rules/overview): Two-layer model (table then row); default deny.
+- [Table Rules](https://docs.zonai.dev/rules/table-rules): Per-operation allow/deny from JWT.
+- [Row Rules](https://docs.zonai.dev/rules/row-rules): Per-row checks; `requiresPerRowCheck`.
+- [Auth Rules](https://docs.zonai.dev/rules/auth-rules): Sign-up, sign-in, password reset gates.
+- [JWT Claims](https://docs.zonai.dev/rules/jwt-claims): Built-in claims and `addClaims`.
+- [Photo Rules](https://docs.zonai.dev/rules/photo-rules): Upload/view/delete photo access.
 
 ## Authentication
 
-- [Authentication Overview](https://mrgnhnt96.github.io/zonai/authentication/overview): JWT model, multi-table auth, response shape.
-- [Password Auth](https://mrgnhnt96.github.io/zonai/authentication/password-auth): Email/password + Argon2id.
-- [OTP Auth](https://mrgnhnt96.github.io/zonai/authentication/otp-auth): Email one-time codes.
-- [Magic Link Auth](https://mrgnhnt96.github.io/zonai/authentication/magic-link-auth): Passwordless emailed links.
-- [Session Management](https://mrgnhnt96.github.io/zonai/authentication/session-management): Refresh, logout, JWT lifetime.
-- [Admin Accounts](https://mrgnhnt96.github.io/zonai/authentication/admin-accounts): `zonai db admin`, `AsAdmin`, elevated claims.
+- [Authentication Overview](https://docs.zonai.dev/authentication/overview): JWT model, multi-table auth, response shape.
+- [Password Auth](https://docs.zonai.dev/authentication/password-auth): Email/password + Argon2id.
+- [OTP Auth](https://docs.zonai.dev/authentication/otp-auth): Email one-time codes.
+- [Magic Link Auth](https://docs.zonai.dev/authentication/magic-link-auth): Passwordless emailed links.
+- [Session Management](https://docs.zonai.dev/authentication/session-management): Refresh, logout, JWT lifetime.
+- [Admin Accounts](https://docs.zonai.dev/authentication/admin-accounts): `zonai db admin`, `AsAdmin`, elevated claims.
 
 ## Extensions (lifecycle hooks)
 
-- [Extensions Overview](https://mrgnhnt96.github.io/zonai/extensions/overview): Before/after hooks in the pipeline.
-- [Create Hooks](https://mrgnhnt96.github.io/zonai/extensions/create-hooks) · [Update Hooks](https://mrgnhnt96.github.io/zonai/extensions/update-hooks) · [Delete Hooks](https://mrgnhnt96.github.io/zonai/extensions/delete-hooks) · [Auth Hooks](https://mrgnhnt96.github.io/zonai/extensions/auth-hooks)
-- [Side Effects: get](https://mrgnhnt96.github.io/zonai/extensions/side-effects-get) · [mutate](https://mrgnhnt96.github.io/zonai/extensions/side-effects-mutate) · [email](https://mrgnhnt96.github.io/zonai/extensions/side-effects-email)
+- [Extensions Overview](https://docs.zonai.dev/extensions/overview): Before/after hooks in the pipeline.
+- [Create Hooks](https://docs.zonai.dev/extensions/create-hooks) · [Update Hooks](https://docs.zonai.dev/extensions/update-hooks) · [Delete Hooks](https://docs.zonai.dev/extensions/delete-hooks) · [Auth Hooks](https://docs.zonai.dev/extensions/auth-hooks)
+- [Side Effects: get](https://docs.zonai.dev/extensions/side-effects-get) · [mutate](https://docs.zonai.dev/extensions/side-effects-mutate) · [email](https://docs.zonai.dev/extensions/side-effects-email)
 
 ## Cron jobs
 
-- [Cron Jobs Overview](https://mrgnhnt96.github.io/zonai/cron-jobs/overview)
-- [Defining a Job](https://mrgnhnt96.github.io/zonai/cron-jobs/defining-a-job)
-- [Catch-Up Logic](https://mrgnhnt96.github.io/zonai/cron-jobs/catch-up-logic)
-- [Running Jobs Manually](https://mrgnhnt96.github.io/zonai/cron-jobs/running-manually)
-- [Side Effects in Cron Jobs](https://mrgnhnt96.github.io/zonai/cron-jobs/side-effects)
+- [Cron Jobs Overview](https://docs.zonai.dev/cron-jobs/overview)
+- [Defining a Job](https://docs.zonai.dev/cron-jobs/defining-a-job)
+- [Catch-Up Logic](https://docs.zonai.dev/cron-jobs/catch-up-logic)
+- [Running Jobs Manually](https://docs.zonai.dev/cron-jobs/running-manually)
+- [Side Effects in Cron Jobs](https://docs.zonai.dev/cron-jobs/side-effects)
 
 ## Rate limiting
 
-- [Rate Limiting Overview](https://mrgnhnt96.github.io/zonai/rate-limiting/overview)
-- [Configuring Policies](https://mrgnhnt96.github.io/zonai/rate-limiting/configuring-policies)
-- [Auth Rate Limits](https://mrgnhnt96.github.io/zonai/rate-limiting/auth-rate-limits)
-- [Trusted Proxies](https://mrgnhnt96.github.io/zonai/rate-limiting/trusted-proxies)
+- [Rate Limiting Overview](https://docs.zonai.dev/rate-limiting/overview)
+- [Configuring Policies](https://docs.zonai.dev/rate-limiting/configuring-policies)
+- [Auth Rate Limits](https://docs.zonai.dev/rate-limiting/auth-rate-limits)
+- [Trusted Proxies](https://docs.zonai.dev/rate-limiting/trusted-proxies)
 
 ## Email
 
-- [SMTP Setup](https://mrgnhnt96.github.io/zonai/email/smtp-setup)
-- [Built-in Templates](https://mrgnhnt96.github.io/zonai/email/built-in-templates)
-- [Custom Templates](https://mrgnhnt96.github.io/zonai/email/custom-templates)
-- [Testing Email Locally](https://mrgnhnt96.github.io/zonai/email/testing-locally)
+- [SMTP Setup](https://docs.zonai.dev/email/smtp-setup)
+- [Built-in Templates](https://docs.zonai.dev/email/built-in-templates)
+- [Custom Templates](https://docs.zonai.dev/email/custom-templates)
+- [Testing Email Locally](https://docs.zonai.dev/email/testing-locally)
 
 ## Dart client
 
-- [Client Overview](https://mrgnhnt96.github.io/zonai/dart-client/overview): Generated client install and `baseUrl` — prefer over hand-rolled HTTP.
-- [Authentication](https://mrgnhnt96.github.io/zonai/dart-client/authentication)
-- [Database](https://mrgnhnt96.github.io/zonai/dart-client/database): CRUD + **`db.listen` live streams**.
-- [Photos](https://mrgnhnt96.github.io/zonai/dart-client/photos)
-- [Email](https://mrgnhnt96.github.io/zonai/dart-client/email)
-- [Storage](https://mrgnhnt96.github.io/zonai/dart-client/storage)
+- [Client Overview](https://docs.zonai.dev/dart-client/overview): Generated client install and `baseUrl` — prefer over hand-rolled HTTP.
+- [Authentication](https://docs.zonai.dev/dart-client/authentication)
+- [Database](https://docs.zonai.dev/dart-client/database): CRUD + **`db.listen` live streams**.
+- [Photos](https://docs.zonai.dev/dart-client/photos)
+- [Email](https://docs.zonai.dev/dart-client/email)
+- [Storage](https://docs.zonai.dev/dart-client/storage)
 
 ## CLI
 
-- [zonai ai](https://mrgnhnt96.github.io/zonai/cli/ai): Install LLM reference sheets into a project.
-- [zonai dev](https://mrgnhnt96.github.io/zonai/cli/dev): Interactive TUI + serve helpers.
-- [zonai serve](https://mrgnhnt96.github.io/zonai/cli/serve) · [zonai compile](https://mrgnhnt96.github.io/zonai/cli/compile) · [zonai build](https://mrgnhnt96.github.io/zonai/cli/build)
-- [zonai db](https://mrgnhnt96.github.io/zonai/cli/db) · [zonai rules](https://mrgnhnt96.github.io/zonai/cli/rules) · [zonai version](https://mrgnhnt96.github.io/zonai/cli/version)
-- [Global Flags](https://mrgnhnt96.github.io/zonai/cli/global-flags)
+- [zonai ai](https://docs.zonai.dev/cli/ai): Install LLM reference sheets into a project.
+- [zonai dev](https://docs.zonai.dev/cli/dev): Interactive TUI + serve helpers.
+- [zonai serve](https://docs.zonai.dev/cli/serve) · [zonai compile](https://docs.zonai.dev/cli/compile) · [zonai build](https://docs.zonai.dev/cli/build)
+- [zonai db](https://docs.zonai.dev/cli/db) · [zonai rules](https://docs.zonai.dev/cli/rules) · [zonai version](https://docs.zonai.dev/cli/version)
+- [Upgrading Zonai](https://docs.zonai.dev/cli/upgrading): Moving between releases, including breaking upgrades.
+- [Global Flags](https://docs.zonai.dev/cli/global-flags)
 
 ## Deployment
 
-- [Building for Production](https://mrgnhnt96.github.io/zonai/deployment/building-for-production)
-- [Running the Server](https://mrgnhnt96.github.io/zonai/deployment/running-the-server)
-- [Server Binding](https://mrgnhnt96.github.io/zonai/deployment/server-binding)
-- [Environment & Secrets](https://mrgnhnt96.github.io/zonai/deployment/environment-and-secrets)
-- [Cross-Compilation](https://mrgnhnt96.github.io/zonai/deployment/cross-compilation)
-- [Deploying to Fly.io](https://mrgnhnt96.github.io/zonai/deployment/fly-io)
+- [Building for Production](https://docs.zonai.dev/deployment/building-for-production)
+- [Running the Server](https://docs.zonai.dev/deployment/running-the-server)
+- [Server Binding](https://docs.zonai.dev/deployment/server-binding)
+- [Environment & Secrets](https://docs.zonai.dev/deployment/environment-and-secrets)
+- [Cross-Compilation](https://docs.zonai.dev/deployment/cross-compilation)
+- [Deploying to Fly.io](https://docs.zonai.dev/deployment/fly-io)
 
 ## API
 
-- [OpenAPI Specification](https://mrgnhnt96.github.io/zonai/api/openapi-spec): Fetch the live OpenAPI JSON from a running server.
-- [About](https://mrgnhnt96.github.io/zonai/about): Docs site metadata.
+- [OpenAPI Specification](https://docs.zonai.dev/api/openapi-spec): Fetch the live OpenAPI JSON from a running server.
+- [About](https://docs.zonai.dev/about): Docs site metadata.
 
 ## Optional example shapes
 

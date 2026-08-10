@@ -14,6 +14,7 @@ import 'package:jaspr_content/components/sidebar_toggle_button.dart'
     deferred as _sidebar_toggle_button;
 import 'package:jaspr_content/components/theme_toggle.dart'
     deferred as _theme_toggle;
+import 'package:zonai_docs/components/search.dart' deferred as _search;
 
 /// Default [ClientOptions] for use with your Jaspr project.
 ///
@@ -52,6 +53,10 @@ ClientOptions get defaultClientOptions => ClientOptions(
     'jaspr_content:theme_toggle': ClientLoader(
       (p) => _theme_toggle.ThemeToggle(),
       loader: _theme_toggle.loadLibrary,
+    ),
+    'search': ClientLoader(
+      (p) => _search.DocsSearch(),
+      loader: _search.loadLibrary,
     ),
   },
 );

@@ -122,6 +122,32 @@ web:
       - ${{ server.sync-to-cli }}
       - cd apps/web && dart pub get && dart run jaspr_cli:jaspr serve --no-managed-build-options
 
+docs:
+  (aliases): [doc, d]
+  # The ⌘K search index is a committed build artifact so `docs start` works
+  # from a clean checkout. Regenerate it whenever content/ changes -- `docs
+  # test` fails if the committed copy has gone stale.
+  index:
+    (aliases): [search-index, si]
+    (command): cd apps/docs && dart run tool/build_search_index.dart
+  start:
+    (aliases): [serve, dev]
+    (bail):
+    (command):
+      - ${{ docs.index }}
+      - cd apps/docs && dart pub get && dart run jaspr_cli:jaspr serve
+  build:
+    (bail):
+    (command):
+      - ${{ docs.index }}
+      - cd apps/docs && dart pub get && dart run jaspr_cli:jaspr build
+  test:
+    (aliases): [t]
+    (bail):
+    (command):
+      - ${{ docs.build }}
+      - cd apps/docs && dart test
+
 server:
   sync-to-cli:
     (aliases): [sync, s]
