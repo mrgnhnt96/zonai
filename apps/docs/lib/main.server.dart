@@ -47,7 +47,7 @@ void main() {
         ZonaiDocsLayout(
           header: Header(
             title: 'Zonai',
-            logo: '/images/logo-192.png',
+            logo: '/images/logo.svg',
             items: [
               const DocsSearch(),
               const _GitHubLink(),

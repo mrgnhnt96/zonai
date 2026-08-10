@@ -126,16 +126,33 @@ class RuneMark extends StatelessComponent {
       classes: glow ? 'rune rune-glow' : 'rune',
       styles: Styles(width: size.px, height: size.px),
       [
-        img(
-          src: '/images/logo.png',
-          alt: '',
-          width: size,
-          height: size,
-          attributes: const {'loading': 'eager', 'decoding': 'async'},
+        svg(
+          width: size.px,
+          height: size.px,
+          viewBox: '0 0 64 64',
+          attributes: const {'fill': 'none', 'aria-hidden': 'true'},
+          [
+            path(d: _runeUpper, attributes: _runeStroke, []),
+            path(d: _runeLower, attributes: _runeStroke, []),
+            circle(cx: '32', cy: '32', r: '11', attributes: _runeStroke, []),
+            circle(cx: '32', cy: '32', r: '4.8', attributes: const {'fill': 'currentColor'}, []),
+          ],
         ),
       ],
     );
   }
+
+  /// Kept in step with `assets/logo.svg`, the artwork every icon is built from.
+  /// [_runeLower] is [_runeUpper] turned a half circle about (32,32).
+  static const _runeUpper = 'M10 20 20 10h34l-14.222 14.222';
+  static const _runeLower = 'M54 44 44 54H10l14.222-14.222';
+
+  static const _runeStroke = {
+    'stroke': 'currentColor',
+    'stroke-width': '6',
+    'stroke-linejoin': 'miter',
+    'stroke-miterlimit': '6',
+  };
 
   @css
   static List<StyleRule> get styles => [
@@ -147,10 +164,11 @@ class RuneMark extends StatelessComponent {
         justifyContent: .center,
         raw: {'flex': '0 0 auto'},
       ),
-      css('img').styles(
+      css('svg').styles(
         width: 100.percent,
         height: 100.percent,
-        raw: {'object-fit': 'contain', 'display': 'block'},
+        color: .variable('--zon'),
+        raw: {'display': 'block'},
       ),
     ]),
     css('.rune-glow', [
