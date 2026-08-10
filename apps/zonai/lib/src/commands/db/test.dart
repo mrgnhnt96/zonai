@@ -31,14 +31,14 @@ Future<int> test() async {
     logger.info('--------------------------------');
     logger.info('SEND TEST EMAIL');
     final email = Email(
-      to: EmailAddress(address: 'mrgnhnt96+test@gmail.com', name: 'Test User'),
+      to: EmailAddress(address: 'test@example.com', name: 'Test User'),
       subject: 'Test Email',
       template: 'verify_email',
       variables: {
         'name': 'Test User',
         'verificationUrl': 'https://www.google.com',
         'expiresIn': '1 hour',
-        'email': 'mrgnhnt96+test@gmail.com',
+        'email': 'test@example.com',
       },
     );
 

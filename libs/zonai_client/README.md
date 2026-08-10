@@ -6,12 +6,9 @@ Generated HTTP client for the Zonai Revali server. Provides a typed Dart API ove
 
 ## Installation
 
-This package is not published to pub.dev. Add it as a path dependency in your `pubspec.yaml`:
-
 ```yaml
 dependencies:
-  zonai_client:
-    path: ../zonai_client   # adjust path as needed
+  zonai_client: ^0.1.0
 ```
 
 ## Quick Start

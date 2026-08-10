@@ -906,84 +906,74 @@ packages:
     source: hosted
     version: "0.6.0"
   revali:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali
-      sha256: "97c05a1b9f8770d52f29836eef3909a45123cb90df25e03d7b4f8bf41afca452"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali"
+      relative: false
+    source: path
     version: "3.1.0"
   revali_annotations:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_annotations
-      sha256: "4fffc27efa57e1db815c8e7caffb1d779a773e5e70d11894c6166d93d861da94"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali_annotations"
+      relative: false
+    source: path
     version: "3.0.0"
   revali_client:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_client
-      sha256: fcf005c2af1ecf267ddb036e193a13938cb2265405e849f7838d2c162265d1f9
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_client/revali_client"
+      relative: false
+    source: path
     version: "2.0.5"
   revali_client_gen:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_client_gen
-      sha256: "7e8941d469b28019e1a92945de51fd2493aca46f3af72d57c157ff275ae6e464"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_client/revali_client_gen"
+      relative: false
+    source: path
     version: "2.3.0"
   revali_construct:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_construct
-      sha256: "8d28276e09ca16cdbfc2588bc7da455005eba001ad44cde65575181ae97d744e"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali_construct"
+      relative: false
+    source: path
     version: "2.4.0"
   revali_core:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_core
-      sha256: "5f0267a8934dbb6d62c108ead838216199cd0a9573801d623edd22947f639349"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/packages/revali_core"
+      relative: false
+    source: path
     version: "2.0.1"
   revali_docker:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_docker
-      sha256: "6091ad3f4d8d7cf2e0fe919d29cb86c1d431d5e44cb442181013e2b1a78fb497"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_docker"
+      relative: false
+    source: path
     version: "1.1.0"
   revali_router:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_router
-      sha256: "363b4b770d3625493d5cce7175a3be99e790dddd74e72d932ee9c78b764ac549"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/revali_router/revali_router"
+      relative: false
+    source: path
     version: "4.0.2"
   revali_swagger:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_swagger
-      sha256: "86bda2226d13d078b0ecc4baf7330607f19e7edfec72bfe2c995a499a51e1dcf"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_swagger/revali_swagger"
+      relative: false
+    source: path
     version: "1.1.0"
   revali_swagger_annotations:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: revali_swagger_annotations
-      sha256: d0f3315044b5fc7f61b2c56eda5d73d4465b6d5145f10e2b9171ae567ed20925
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/morgan/Development/dart_projects/revali/constructs/revali_swagger/revali_swagger_annotations"
+      relative: false
+    source: path
     version: "1.0.0"
   riverpod:
     dependency: transitive
