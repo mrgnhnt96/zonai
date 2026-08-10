@@ -623,6 +623,13 @@ AppConfig main() {
 }
 ```
 
+`String.fromEnvironment(...)` values above are populated at **compile time**
+from `.env`/`.env.<flavor>` files and `--dart-define KEY=VALUE` flags passed
+to `zonai compile`/`zonai build` — see **Release & deployment** below. This
+is a separate mechanism from `buildSettings` in `zonai.yaml` (target
+OS/arch only, for cross-compiling); `buildSettings` having no env/secret
+fields does not mean there's no way to inject secrets.
+
 ---
 
 ## CLI Commands
@@ -654,7 +661,8 @@ values on top of the selected `.env` file — CLI wins on key collisions; use
 space-separated form, not `--dart-define=KEY=VALUE`, since a joined value
 containing its own `=` won't parse).
 
-Cross-compile via `buildSettings` in `zonai.yaml`:
+Cross-compile via `buildSettings` in `zonai.yaml` (unrelated to secrets/env
+values above — this only picks target OS/arch, it has no define/env field):
 
 ```yaml
 buildSettings:
@@ -828,6 +836,13 @@ AppConfig main() {
   );
 }
 ```
+
+`String.fromEnvironment(...)` values above are populated at **compile time**
+from `.env`/`.env.<flavor>` files and `--dart-define KEY=VALUE` flags passed
+to `zonai compile`/`zonai build` — see `zonai-release.mdc`. This is separate
+from `buildSettings` above (target OS/arch only, for cross-compiling);
+`buildSettings` having no env/secret fields does not mean there's no way to
+inject secrets.
 """;
 
 const cursorSchemasMdc = r"""---
@@ -1690,6 +1705,9 @@ collisions) without editing it — use space-separated form, not
 `--dart-define=KEY=VALUE`.
 
 ## Cross-compiling
+
+`buildSettings` is unrelated to secrets/env values above — it only picks
+target OS/arch, and has no define/env field:
 
 ```yaml
 # zonai.yaml
