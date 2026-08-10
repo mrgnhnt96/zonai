@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" width="100" alt="Zonai logo" />
+  <img src="assets/logo-badge.png" width="100" alt="Zonai logo" />
 </p>
 
 <h1 align="center">Zonai</h1>
