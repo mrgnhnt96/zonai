@@ -14,7 +14,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 
 const _repo = 'mrgnhnt96/zonai';
 const _apiBase = 'https://api.github.com/repos/$_repo';
-const _migrationGuideUrl = 'https://mrgnhnt96.github.io/zonai/cli/upgrading';
+const _migrationGuideUrl = 'https://docs.zonai.dev/cli/upgrading';
 
 /// Whether moving the CLI from [from] to [to] crosses a semver `^`-breaking
 /// boundary (major once >= 1.0, otherwise minor) -- the same cohort check

@@ -1,6 +1,6 @@
 # zonai_schema
 
-Shared relational model for [Zonai](https://mrgnhnt96.github.io/zonai/) — Raindrop schemas, typed IDs, column helpers, and anything else clients and services need to agree on the DB shape.
+Shared relational model for [Zonai](https://docs.zonai.dev/) — Raindrop schemas, typed IDs, column helpers, and anything else clients and services need to agree on the DB shape.
 
 ## Installation
 

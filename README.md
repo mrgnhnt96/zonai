@@ -8,6 +8,6 @@
 
 ---
 
-See **[docs](https://mrgnhnt96.github.io/zonai/)** · **[Live Queries](https://mrgnhnt96.github.io/zonai/operations/streaming)** (`/db/stream*` · `client.db.listen` — do not poll) · **[llms.txt](https://mrgnhnt96.github.io/zonai/llms.txt)**
+See **[docs](https://docs.zonai.dev/)** · **[Live Queries](https://docs.zonai.dev/operations/streaming)** (`/db/stream*` · `client.db.listen` — do not poll) · **[llms.txt](https://docs.zonai.dev/llms.txt)**
 
 Local setup: **[docs/GET_STARTED](docs/GET_STARTED)**

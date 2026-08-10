@@ -62,7 +62,7 @@ void main() {
         expect(error.message, contains('v1'));
         expect(error.message, contains('zonai compile'));
         expect(error.message, contains('zonai build'));
-        expect(error.message, contains('https://mrgnhnt96.github.io/zonai/cli/upgrading'));
+        expect(error.message, contains('https://docs.zonai.dev/cli/upgrading'));
       }, values: overrides());
     });
   });

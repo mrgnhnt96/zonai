@@ -46,7 +46,7 @@ final class WorkerProtocolMismatchException implements Exception {
       'a deployed `zonai build` bundle instead (compile only refreshes '
       'workers there, not the bundle), rebuild with `zonai build` and '
       'redeploy.\n'
-      'See https://mrgnhnt96.github.io/zonai/cli/upgrading';
+      'See https://docs.zonai.dev/cli/upgrading';
 
   @override
   String toString() => message;
