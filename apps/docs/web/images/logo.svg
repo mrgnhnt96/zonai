@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <g stroke="#0B8F6C" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="6">
+    <path d="M10 20 20 10h34l-14.222 14.222"/>
+    <path d="M54 44 44 54H10l14.222-14.222"/>
+    <circle cx="32" cy="32" r="11"/>
+  </g>
+  <circle id="rune-core" cx="32" cy="32" r="4.8" fill="#0B8F6C"/>
+</svg>

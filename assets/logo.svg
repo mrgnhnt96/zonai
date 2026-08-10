@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!--
+    The Zonai rune, redrawn from the carved-stone render this replaced.
+    That render was assets/logo.png, up to commit b6ca84b, if it is ever
+    wanted again.
+
+    A Z whose diagonal runs radially into a ring at the centre, with the core
+    lit inside it. The lower half is literally the upper half turned a half
+    circle about (32,32), so the two halves cannot drift apart: edit one and
+    mirror the numbers.
+
+    Ink spans 58.6 x 50.0 of the 64 grid and is centred on (32,32), which
+    leaves the mark roughly 92% of the width and safe to drop into a square.
+    Colour comes from `currentColor`; tool/logo/build_icons.sh stamps the
+    per-site value in.
+  -->
+  <g stroke="currentColor" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="6">
+    <path d="M10 20 20 10h34l-14.222 14.222"/>
+    <path d="M54 44 44 54H10l14.222-14.222"/>
+    <circle cx="32" cy="32" r="11"/>
+  </g>
+  <!-- Dropped from the 16px favicon slice, where it closes up the ring. -->
+  <circle id="rune-core" cx="32" cy="32" r="4.8" fill="currentColor"/>
+</svg>
