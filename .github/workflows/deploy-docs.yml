@@ -1,30 +1,61 @@
 name: Deploy Docs
 
+# Builds apps/docs and publishes the static output to a separate repository,
+# whose GitHub Pages site owns docs.zonai.dev.
+#
+# Two repos are needed because a Pages site can only carry one custom domain,
+# and this repo's Pages site owns the apex domain zonai.dev.
+#
+# Required repository secret:
+#   DOCS_DEPLOY_KEY — the private half of a write deploy key registered on
+#                     DOCS_REPOSITORY. A deploy key rather than a PAT because
+#                     it is scoped to that one repository by construction, so
+#                     it cannot reach anything else in the account even if the
+#                     secret leaks. Rotate by deleting the key under that
+#                     repo's Settings → Deploy keys and re-running the setup in
+#                     docs/jaspr-docs-site-deployment.md.
+
 on:
-  # push:
-  # branches: [main]
-  # paths:
-  #   - "apps/docs/**"
-  #   - "pubspec.yaml"
-  #   - "pubspec.lock"
-  #   - "pubspec_overrides.yaml"
-  #   - ".github/workflows/deploy-docs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/docs/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "pubspec_overrides.yaml"
+      - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
+  # Called by the release workflow so a new CLI release republishes the docs.
+  # `ref` must be passed there: the release job commits VERSION *after* the run
+  # started, so the default checkout would build the pre-release commit.
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build. Defaults to the triggering ref.
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: docs
+  cancel-in-progress: true
+
+env:
+  DOCS_REPOSITORY: mrgnhnt96/zonai-docs
+  DOCS_DOMAIN: docs.zonai.dev
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # An empty ref falls back to the triggering ref.
+          ref: ${{ inputs.ref }}
           # GITHUB_TOKEN cannot read private submodule repos; raindrop is private.
           token: ${{ secrets.SUBMODULES_PAT }}
           submodules: recursive
@@ -43,38 +74,70 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
-      - name: Configure GitHub Pages base path
-        run: |
-          printf '\nbase: /%s/\n' "${{ github.event.repository.name }}" >> apps/docs/content/_data/site.yaml
+      - name: Analyze
+        working-directory: apps/docs
+        run: dart analyze --fatal-infos
+
+      # Regenerated rather than trusted. `dart test` below also fails on a
+      # stale committed index, but a deploy should never ship one either way.
+      - name: Build the search index
+        working-directory: apps/docs
+        run: dart run tool/build_search_index.dart
 
       - name: Build docs
         working-directory: apps/docs
         run: dart run jaspr_cli:jaspr build --verbose
 
-      - name: Rewrite absolute URLs for GitHub Pages
+      # After the build, so the anchor test can check every search result's
+      # deep link against the HTML that is about to be published.
+      - name: Verify navigation, search index and anchors
         working-directory: apps/docs
-        env:
-          BASE_PATH: /${{ github.event.repository.name }}
+        run: dart test
+
+      # A silently-empty build would otherwise publish a blank site over a
+      # working one, and the custom domain is lost the moment CNAME goes missing.
+      - name: Verify build output
+        working-directory: apps/docs/build/jaspr
         run: |
-          # Jaspr already sets <base href="${BASE_PATH}/"> from site.yaml.
-          # Only prefix root-absolute href/src that are not already under BASE_PATH
-          # (naive s|href="/|…| doubled /zonai/ into /zonai/zonai/).
-          repo="${BASE_PATH#/}"
-          find build/jaspr -name '*.html' -print0 |
-            xargs -0 perl -pi -e \
-              's#(href|src)="/(?!'"${repo}"'/)#${1}="'"${BASE_PATH}"'/#g'
+          test -s index.html || { echo "::error::index.html missing or empty"; exit 1; }
+          grep -qx "$DOCS_DOMAIN" CNAME || {
+            echo "::error::CNAME missing or wrong: $(cat CNAME 2>/dev/null)"; exit 1; }
+          test -s search-index.json || {
+            echo "::error::search-index.json was not published"; exit 1; }
+          pages=$(find . -name index.html | wc -l)
+          [ "$pages" -ge 70 ] || {
+            echo "::error::only $pages pages rendered; expected the full site"; exit 1; }
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: apps/docs/build/jaspr
+      - name: Publish to ${{ env.DOCS_REPOSITORY }}
+        env:
+          DEPLOY_KEY: ${{ secrets.DOCS_DEPLOY_KEY }}
+        working-directory: apps/docs/build/jaspr
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::DOCS_DEPLOY_KEY is not set"; exit 1
+          fi
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      pages: write
-      id-token: write
-    steps:
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+          # Written under RUNNER_TEMP, not the workspace, so a stray `git add`
+          # can never sweep the private key into the published artifact.
+          key="$RUNNER_TEMP/docs_deploy_key"
+          install -m 600 /dev/null "$key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          trap 'rm -f "$key"' EXIT
+
+          # Jaspr leaves build metadata behind; it should not be published.
+          rm -rf .dart_tool .build.manifest
+
+          # Pages runs Jekyll by default, which would drop any path segment
+          # beginning with an underscore.
+          touch .nojekyll
+
+          # Published as a single orphan commit: the target repo is an artifact
+          # of this one, so its history carries no information worth keeping.
+          git init -q -b main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA::7} from ${GITHUB_REPOSITORY}"
+
+          GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+            git push -q --force "git@github.com:${DOCS_REPOSITORY}.git" main
