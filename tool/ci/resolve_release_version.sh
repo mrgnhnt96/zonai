@@ -18,23 +18,16 @@ read_repo_version() {
   tr -d '[:space:]' < "${VERSION_FILE}"
 }
 
-# The CLI's own releases are tagged `v<semver>`. This repo also publishes
-# per-package releases (`zonai_schema-v0.1.0`, `zonai_client-v0.1.0`), and
-# those are newer -- so taking the newest release of *any* kind resolved the
-# CLI version to `zonai_schema-v0.1.0`, which `bump_minor` then turned into
-# the literal string `zonai_schema-v0.2.0` and wrote into VERSION and
-# kVersion. Filter to the CLI's tag shape; releases come back newest-first,
-# so the first match is the latest CLI release.
+# Taking the newest release of *any* kind resolved the CLI version to
+# `zonai_schema-v0.1.0`, which bump_minor then turned into the literal string
+# `zonai_schema-v0.2.0` and wrote into VERSION and kVersion. See
+# latest_cli_release_tag.sh for why GitHub's "latest" cannot be trusted here.
+#
+# No tag (a repo with no CLI release yet) falls back to 0.0.0, which is the
+# bootstrap path for a first release -- not an error.
 read_latest_release_version() {
   local latest_tag=""
-  # draft/prerelease are excluded to keep /releases/latest's semantics: the
-  # plain list endpoint returns drafts to a token that can see them, and a
-  # draft v9.9.9 sitting in the repo would otherwise decide the next version.
-  if latest_tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-    -q '[.[] | select(.draft == false and .prerelease == false)
-             | select(.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))]
-        | .[0].tag_name' \
-    2>/dev/null)"; then
+  if latest_tag="$(bash "${ROOT}/tool/ci/latest_cli_release_tag.sh" 2>/dev/null)"; then
     if [[ -n "${latest_tag}" && "${latest_tag}" != "null" ]]; then
       echo "${latest_tag#v}"
       return

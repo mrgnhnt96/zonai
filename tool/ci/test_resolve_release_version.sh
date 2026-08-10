@@ -24,6 +24,9 @@ trap 'rm -rf "${work}"' EXIT
 
 mkdir -p "${work}/tree/tool/ci" "${work}/tree/apps/zonai/lib/gen" "${work}/bin"
 cp "${repo_root}/tool/ci/resolve_release_version.sh" "${work}/tree/tool/ci/"
+# resolve_release_version.sh shells out to this for the tag; the copy has to
+# come along or the resolver silently falls back to its 0.0.0 bootstrap.
+cp "${repo_root}/tool/ci/latest_cli_release_tag.sh" "${work}/tree/tool/ci/"
 
 # Newest-first, exactly as the API returns it: the two package releases sit
 # above the CLI's, which is what made "take the first one" wrong.

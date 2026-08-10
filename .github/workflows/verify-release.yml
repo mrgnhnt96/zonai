@@ -286,13 +286,24 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: build/new
 
+      # Pinned to the newest CLI tag, not GitHub's "latest": a per-package
+      # release (zonai_schema-v*, zonai_client-v*) takes that slot whenever one
+      # is published after a CLI release, and those carry no binaries -- which
+      # is exactly how this job started failing with "no assets to download"
+      # on 2026-08-10 without anything about the compat check changing.
       - name: Download previous release binary
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p build/old
-          gh release download \
+          tag="$(bash tool/ci/latest_cli_release_tag.sh)"
+          if [[ -z "${tag}" ]]; then
+            echo "no zonai CLI release (v<semver>) to compare against" >&2
+            exit 1
+          fi
+          echo "Comparing against ${tag}"
+          gh release download "${tag}" \
             --repo "${GITHUB_REPOSITORY}" \
             --pattern "${{ matrix.artifact_name }}.zip" \
             --dir build/old/
