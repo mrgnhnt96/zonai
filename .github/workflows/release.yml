@@ -137,3 +137,33 @@ jobs:
             git commit -m "chore: release v${VERSION}"
             git push origin HEAD
           fi
+
+  # Republish both sites against the release commit. They read VERSION, so the
+  # version badge, the install command and every download URL follow the tag
+  # that was just cut.
+  #
+  # Called rather than left to a `push` trigger on VERSION: the commit above is
+  # made with GITHUB_TOKEN, and GitHub deliberately does not start new workflow
+  # runs from those pushes. `ref: main` picks up that commit, which is newer
+  # than the SHA this run started on.
+  deploy-website:
+    name: Publish zonai.dev
+    needs: release
+    # A called workflow is capped by the caller's grant, and this one deploys to
+    # our own Pages — without these two it fails at actions/deploy-pages.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-website.yml
+    with:
+      ref: main
+    secrets: inherit
+
+  deploy-docs:
+    name: Publish docs.zonai.dev
+    needs: release
+    uses: ./.github/workflows/deploy-docs.yml
+    with:
+      ref: main
+    secrets: inherit
