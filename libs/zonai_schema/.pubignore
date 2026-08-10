@@ -1,0 +1,9 @@
+# These two vendored raindrop_sqlite files import package:sqlite3, which is a
+# dev_dependency on purpose (issue #24 -- consumers must never have to resolve
+# zonai_schema's sqlite3 constraint). They're unreachable from the public
+# barrel (see lib/zonai_schema.dart), but `dart pub publish` statically checks
+# every file under lib/ regardless of reachability, so they must be dropped
+# from the published tarball. They stay checked in for this package's own
+# tests, which import them directly.
+lib/gen/raindrop/raindrop_sqlite/src/sqlite_delegate.dart
+lib/gen/raindrop/raindrop_sqlite/src/builders/delete/sqlite_delete.dart

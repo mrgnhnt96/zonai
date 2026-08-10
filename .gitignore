@@ -76,10 +76,4 @@ zonai.sqlite*
 
 # machine-local hook config (absolute paths)
 .claude/settings.local.json
-**/gen/**
-
-# ...except the vendored raindrop source: raindrop is a private submodule
-# (libs/raindrop), so anyone without access to it can't regenerate this --
-# committing the vendor output lets them build zonai from a plain clone.
-!libs/zonai_schema/lib/gen/raindrop/
-!libs/zonai_schema/lib/gen/raindrop/**
+apps/server/lib/gen/
