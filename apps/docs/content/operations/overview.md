@@ -6,7 +6,9 @@ description: What operations do and when you need to write them.
 Operations are the layer that translates HTTP requests into SQL statements. For every table, Zonai provides default operations (create, update, delete, view, list, count, **and live stream**) that work with zero code. Operations files are where you override those defaults, add custom JWT claims, or introduce new non-CRUD endpoints.
 
 <Info>
+
 **Built-in live queries:** `GET /db/stream`, `/db/stream/list`, `/db/stream/count` — use `client.db.listen` in Dart. Do not poll. Guide: [Streaming (Live Queries)](/operations/streaming).
+
 </Info>
 
 ## When You Don't Need an Operations File

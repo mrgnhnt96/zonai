@@ -81,5 +81,7 @@ Files in each worker directory are auto-discovered by convention:
 No registration is needed — any `.dart` file in the correct directory is automatically included.
 
 <Info>
+
 **Live queries ship with every table.** Clients should use `zonai_client` `db.listen` or `GET /db/stream*` instead of polling. Details: [Streaming (Live Queries)](/operations/streaming).
+
 </Info>

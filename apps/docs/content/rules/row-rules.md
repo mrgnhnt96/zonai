@@ -8,7 +8,9 @@ Row rules run after the database returns results. They receive the JWT and the a
 If `canView` returns `false` for any row in the result set, the entire request returns `403 Forbidden` — no data is returned. The same applies to `canUpdate` and `canDelete`: if the fetched row fails the check, the mutation is aborted and `403` is returned.
 
 <Info>
+
 `canView` also applies to each emission from `/db/stream` and `/db/stream/list`. Live queries are not a rules bypass. See [Streaming](/operations/streaming).
+
 </Info>
 
 ## Creating Row Rules
@@ -54,13 +56,16 @@ final class TaskRowRules extends RowRules<TaskTable, Task> {
 `row`/`before` is the current state of the row from the database (or, for `canCreate`, the data being inserted). `after` is the row the pending update would produce, computed ahead of the write — exact for every update type, including JSON list/map column operations (`Add`/`Remove`/`AddAll`/`RemoveAll`, nested map sets, merge patches).
 
 <Info>
+
 Two columns can't reflect the true post-write value in `after`, so don't gate a rule on them:
 
 - **Server-managed columns** (`createdAt`/`updatedAt`/`updatedWhen`) report their pre-write value — the real value is wall-clock write time, which isn't known until the write actually happens.
 - **Secret columns** (e.g. a `password` column) are always redacted to `'__REDACTED__'` — the real submitted value is never put in `after`, so it can't leak into rule code or across IPC to the rules worker.
+
 </Info>
 
 <Info>
+
 **Breaking change:** `canUpdate` used to take a single `row` (the pre-write state). It now takes `before` and `after`, matching `Extension.afterUpdateSuccess(T before, T after, Jwt?)`'s existing shape — moved earlier so a rule can reject the write instead of only observing it.
 
 Migrating is mechanical: add the `after` parameter, and use `before` wherever the old code used `row`. If your rule doesn't need to inspect the prospective post-write state, ignore `after` — behavior is unchanged.
@@ -84,6 +89,7 @@ Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
   return jwt?.admin.canEdit ?? false;
 }
 ```
+
 </Info>
 
 ## Row Rules vs. Table Rules

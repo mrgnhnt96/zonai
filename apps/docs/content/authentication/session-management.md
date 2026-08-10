@@ -41,7 +41,9 @@ The `onRefresh` extension hook fires after the new token is issued.
 Refresh the token proactively — before it expires. A common pattern is to check the token's `expiresAt` claim on each app launch and refresh if it will expire within the next 24 hours.
 
 <Info>
+
 You can only refresh a token that is still valid. Once a token expires, the user must sign in again from scratch.
+
 </Info>
 
 ## Logout (Current Session)

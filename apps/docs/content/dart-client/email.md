@@ -58,7 +58,9 @@ await client.email.sendPasswordReset(email: SendResetPasswordEmail(
 ```
 
 <Info>
+
 The email endpoints require the caller to be authenticated, except when the
 server is configured to allow unauthenticated email sends via rules. Ensure a
 valid token is stored before calling these methods.
+
 </Info>

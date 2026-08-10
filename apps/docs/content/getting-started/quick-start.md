@@ -184,7 +184,9 @@ final class TaskTableRules extends TableRules<TaskTable, Task> {
 ```
 
 <Info>
+
 Without a rules file, all operations on a table are denied. Auth endpoints use auth-specific rules (`canSignUp`, `canSignIn`, etc.) in addition to CRUD rules — and they still require a rules file. If you omit it, sign-up and sign-in will be denied.
+
 </Info>
 
 ## Step 6: Start the Dev Server
@@ -244,7 +246,9 @@ curl -N -G http://localhost:8080/db/stream/list \
 ```
 
 <Info>
+
 Search docs for **stream** / **listen**, not "realtime" or "SSE". Every table gets `/db/stream`, `/db/stream/list`, and `/db/stream/count` automatically.
+
 </Info>
 
 ## Next Steps

@@ -53,5 +53,7 @@ UserRateLimits main() => UserRateLimits();
 All methods are `async` and return `Future<RateLimitPolicy?>`. Return `null` to disable rate limiting for that endpoint.
 
 <Info>
+
 Email-sending endpoints (`sendOtpPolicy`, `sendMagicLinkPolicy`, `sendResetPasswordPolicy`, `sendVerifyEmailPolicy`) should be throttled aggressively. Unconstrained, an attacker can use your SMTP account to flood anyone's inbox.
+
 </Info>

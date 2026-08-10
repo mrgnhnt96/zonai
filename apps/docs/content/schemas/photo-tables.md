@@ -6,7 +6,9 @@ description: Storing and serving binary file uploads with the built-in _photos t
 `_photos` is a built-in reserved table. You don't define a schema file for it — Zonai manages it automatically. It is designed for binary file uploads: images, documents, or any blob.
 
 <Info>
+
 Rows that store photo IDs can still be watched with `db.listen` / `/db/stream*` like any other table. See [Streaming](/operations/streaming).
+
 </Info>
 
 ## Uploading a Photo
@@ -72,7 +74,9 @@ profileImages = $.photos('profile_images', (s) => s.profileImages), # array of p
 ```
 
 <Info>
+
 If you want/need to clean up the image during a row update, you can delete the `_photos` row in an `afterDeleteSuccess` extension.
+
 </Info>
 
 ## Storage

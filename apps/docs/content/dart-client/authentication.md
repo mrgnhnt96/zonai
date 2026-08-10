@@ -8,8 +8,10 @@ successful auth call, the access token is stored and injected into every
 subsequent request without any additional code in the application.
 
 <Info>
+
 After auth, prefer `client.db.listen` for live screens instead of polling.
 See [Streaming](/operations/streaming) and [Database](/dart-client/database#real-time-streaming).
+
 </Info>
 
 ## The X-Auth Header Pattern

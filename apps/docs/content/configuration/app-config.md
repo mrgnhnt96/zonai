@@ -16,7 +16,9 @@ See [Config Flavors](/core-concepts/config-flavors) for how to use different con
 | `passwordSecret` | `String` | Used in Argon2id password hashing. Must be unique per project. Use `String.fromEnvironment`.       |
 
 <Info>
+
 `passwordSecret` is separate from `jwtSecret`. Never use the same value for both. To rotate `passwordSecret` without invalidating existing passwords, add the old value to `previousPasswordSecrets` in your app config before removing it.
+
 </Info>
 
 ## Optional Fields

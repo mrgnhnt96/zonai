@@ -14,7 +14,9 @@ zonai dev [flags]
 `zonai dev` is the go-to command during development. It runs the server and wraps it in a TUI that provides live feedback and shortcuts for common tasks.
 
 <Info>
+
 While developing Flutter/Dart clients, use `zonai_client` `db.listen` against the local server — live queries are available in dev too. See [Streaming](/operations/streaming).
+
 </Info>
 
 ## TUI Features
@@ -40,5 +42,7 @@ If `zonai.yaml` does not exist in the current directory, `zonai dev` prompts you
 | Schema viewer        | ✓           | —                          |
 
 <Info>
+
 Use `zonai serve` when you want the server without the TUI — for example, to get a closer-to-production environment during development, or to run in CI. Use `zonai serve --release` for production.
+
 </Info>

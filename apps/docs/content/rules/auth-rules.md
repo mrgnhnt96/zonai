@@ -30,7 +30,9 @@ final class UserTableRules extends TableRules<UserTable, User>
 ```
 
 <Info>
+
 Auth rule methods default to `true` (allow) when not overridden. This is the opposite of regular table rules, which default to `false` (deny).
+
 </Info>
 
 ## Available Methods

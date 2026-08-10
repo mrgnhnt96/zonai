@@ -57,9 +57,11 @@ Use the no-op variant when:
 - You want to assert in tests that no storage calls happen
 
 <Info>
+
 In debug builds, `ZonaiStorage.none()` triggers assertion failures if any
 storage operation is attempted, making it easy to catch unexpected token
 reads or writes during development.
+
 </Info>
 
 ## Passing a Custom Storage

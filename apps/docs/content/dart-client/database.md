@@ -7,9 +7,11 @@ The `db` property on `ZonaiClient` wraps the server's database endpoints. All
 methods accept a body object that mirrors the corresponding REST request body.
 
 <Info>
+
 **Start here for live UI:** [Real-Time Streaming](#real-time-streaming) below
 (`client.db.listen`). Do not invent a poller. Server guide:
 [Streaming (Live Queries)](/operations/streaming).
+
 </Info>
 
 ## Real-Time Streaming

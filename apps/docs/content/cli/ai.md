@@ -44,5 +44,7 @@ The generated files are a condensed Zonai framework reference: project layout, `
 They are meant to be committed to your repo so every developer (and their AI assistant) gets consistent context about how your Zonai project is structured.
 
 <Info>
+
 Reference files are generated from the Zonai CLI version you run. Re-run `zonai ai <tool> --force` after upgrading Zonai if you want the sheets to reflect new framework features (including streaming). Also see the public [llms.txt](/llms.txt) and [Streaming](/operations/streaming) docs.
+
 </Info>

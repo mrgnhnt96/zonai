@@ -77,5 +77,7 @@ zonai build --flavor prod --release
 ```
 
 <Info>
+
 Forgetting `--flavor` causes the base `db_config.dart` to be used, which may have wrong or missing credentials. Always specify `--flavor` explicitly and treat the base file as a template.
+
 </Info>

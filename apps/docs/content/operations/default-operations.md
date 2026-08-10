@@ -91,7 +91,9 @@ GET /db/stream/count?body={"table":"tasks"}
 ```
 
 <Info>
+
 Do **not** poll these endpoints on a timer. Keep the HTTP connection open. Searching for "realtime"/"SSE"/"WebSocket" will miss them — the framework word is **stream**.
+
 </Info>
 
 ### create — `POST /db`

@@ -39,7 +39,9 @@ The optional `object` field passes extra fields to set on the row at creation. O
 On success: the row is created with `isVerified = false`, the `onSignUp` extension fires, and the response includes the new user and an `accessToken`.
 
 <Info>
+
 The account starts unverified. Try sending the verification email in your `onSignUp` extension hook and gate sign-in on `canSignIn` checking `isVerified`.
+
 </Info>
 
 ## Sign-In

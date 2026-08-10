@@ -8,7 +8,9 @@ Rules are the authorization layer in Zonai. Every request passes through rules b
 On the default path, rules run **in-process** inside the project-linked server binary (or JIT `project_main`). They are also compiled into `db_rules.exe` for `zonai ping`, compatibility, and `ZONAI_FORCE_WORKERS=1`. Restart `serve` (or rebuild) after editing rules so the linked entry reloads.
 
 <Info>
+
 **Streaming reuses read rules.** `canView` / `canList` / `canCount` also gate `/db/stream`, `/db/stream/list`, and `/db/stream/count`. There is no separate `canStream*`. See [Streaming](/operations/streaming).
+
 </Info>
 
 ## Two Layers
@@ -37,7 +39,9 @@ Rule methods return `Future<bool>`:
 This applies to all rule methods including `canView`. If a row fails `canView`, the entire request returns `403` — not a partial or filtered response.
 
 <Info>
+
 If no rules file exists for a table, **all operations on that table are denied by default**. This is intentional — tables start private and you explicitly open them up.
+
 </Info>
 
 ## The JWT Parameter

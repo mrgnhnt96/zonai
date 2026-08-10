@@ -56,7 +56,9 @@ On a valid code: `canSignIn` in auth row rules is evaluated, the `onSignIn` exte
 On an invalid or expired code: `401 Unauthorized`.
 
 <Info>
+
 After 3 failed verification attempts, the code is invalidated. The user must request a new code via `POST /auth`.
+
 </Info>
 
 ## Configuration

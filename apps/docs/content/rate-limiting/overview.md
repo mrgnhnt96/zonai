@@ -8,7 +8,9 @@ Zonai tracks requests per client IP address, per table, per operation. When a cl
 Rate limiting runs in the pipeline **after rules pass but before operations execute** — a throttled request consumes no SQL resources.
 
 <Info>
+
 Stream routes share read policies: `getPolicy` → `/db/stream`, `limitPolicy` → `/db/stream/list`, `countPolicy` → `/db/stream/count`. Long-lived streams still count as requests when they open. See [Streaming](/operations/streaming).
+
 </Info>
 
 ## Default Policy
