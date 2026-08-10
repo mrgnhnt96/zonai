@@ -2,7 +2,7 @@ description: >-
   A batteries-included Dart backend framework — auth, SQLite, live query
   streams (db.listen / /db/stream), file uploads, cron jobs, and more.
 favicon: /favicon.png
-image: /images/logo.png
+image: /images/og.png
 keywords:
   - Dart
   - Flutter
