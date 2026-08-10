@@ -195,6 +195,11 @@ class Settings {
       _normalize([buildExecutableDirectory, 'db_extensions.exe']);
   String get buildCronsPath =>
       _normalize([buildExecutableDirectory, 'db_crons.exe']);
+
+  /// Where `zonai build` places the target's shared libraries, matching the
+  /// `.zonai/lib` path the running binary resolves them from.
+  String get buildNativeLibDirectory =>
+      _normalize([buildDirectory, defaultZonaiDirectory, 'lib']);
   String get buildMigrationsPath =>
       _normalize([buildDirectory, migrationsPath]);
   String get buildSettingsPath => _normalize([buildDirectory, path]);
@@ -223,6 +228,10 @@ class Settings {
       _normalize([compiledExecutableDirectory, 'db_crons.exe']);
 
   String get pubspecLockPath => _normalize(['pubspec.lock']);
+
+  /// The project's resolved package graph, written by `dart pub get`.
+  String get packageConfigPath =>
+      _normalize(['.dart_tool', 'package_config.json']);
 
   /// Generated Dart entry for workers (ops/rules isolate spawn under JIT).
   String get generatedOperationsEntryPath =>
@@ -253,8 +262,12 @@ class Settings {
 
 class BuildSettings {
   BuildSettings({required this.targetOs, required this.targetArch}) {
-    if (!TargetOs.current().canCompile(targetOs)) {
-      throw Exception('Target OS is not compatible with current architecture');
+    if (!TargetOs.current().canCompile(targetOs, targetArch)) {
+      throw Exception(
+        'Cannot build for ${targetOs.name}/${targetArch.name} on '
+        '${TargetOs.current().name}/${Arch.current().name}: Dart only '
+        'cross-compiles to Linux; every other target must match the host.',
+      );
     }
   }
 

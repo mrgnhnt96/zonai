@@ -6,6 +6,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
 
 import '../../gen/native/argon2_native.g.dart';
 import '../deps/fs.dart';
+import '../domain/native_library_stamp.dart';
 import '../domain/settings.dart';
 import 'argon2_ffi.dart' as argon2_ffi;
 
@@ -83,6 +84,14 @@ Future<String> _extractCompiledLibrary() async {
   final dest = fs.file(
     fs.path.join(libDir.path, argon2_ffi.defaultLibraryFileName),
   );
+
+  // See the matching guard in resqlite_native.dart: a stamped library here
+  // was placed for this target by `zonai build`, and is correct where this
+  // binary's cross-compiled embedded bytes are not.
+  if (hasCurrentNativeLibraryStamp(dest.path)) {
+    return dest.absolute.path;
+  }
+
   await _writeLibraryBytes(dest, argon2NativeLibraryBytes);
 
   return dest.absolute.path;

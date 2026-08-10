@@ -11,6 +11,13 @@ import '../../support/package_roots.dart';
 /// End-to-end: a compiled `zonai` binary running `zonai build` against a
 /// project targeting its own platform must bundle a working copy of
 /// itself at `build/zonai`, not silently omit it.
+///
+/// The fixture depends on `zonai_schema` and nothing else, because that is
+/// what every real project looks like: zonai ships as a standalone binary and
+/// is never a dependency of the applications it builds. It briefly carried a
+/// `zonai` path dependency (27b3273) to satisfy `zonai build`'s unconditional
+/// project-linked compile -- which made the fixture the only "project" shaped
+/// that way, and hid the fact that the command could not build a real one.
 void main() {
   group('compiled zonai build', () {
     late Directory projectRoot;
@@ -77,8 +84,8 @@ void main() {
           bundledExecutable.existsSync(),
           isTrue,
           reason:
-              'zonai build must copy the running binary into build/zonai '
-              'so the bundle is self-contained',
+              'zonai build must leave a runnable zonai at build/zonai so the '
+              'bundle is self-contained',
         );
 
         final version = await Process.run(bundledExecutable.path, [
@@ -92,6 +99,25 @@ void main() {
           reason:
               'bundled build/zonai must itself run: '
               '${version.stderr}\n${version.stdout}',
+        );
+
+        expect(
+          '${result.stdout}',
+          contains('package:zonai is not resolvable'),
+          reason:
+              'the fallback to worker IPC must say why it happened -- losing '
+              'in-process dispatch silently is indistinguishable from a '
+              'normal build',
+        );
+
+        // The bundled binary drives ops/rules over IPC, so a bundle without
+        // these starts and then fails on the first db call.
+        expect(
+          Directory(
+            p.join(projectRoot.path, 'build', '.zonai', 'executables'),
+          ).existsSync(),
+          isTrue,
+          reason: 'worker executables must be bundled for the IPC path',
         );
       },
       timeout: const Timeout(Duration(minutes: 3)),
@@ -186,14 +212,10 @@ Future<void> _bootstrapEndUserProject({
     p.join(projectRoot.path, 'lib', 'src', 'schemas'),
   ).createSync(recursive: true);
 
-  // `zonai build` always compiles a project-linked binary (in-process
-  // ops/rules, see ProjectBinary.compile) by running `dart compile exe`
-  // against `.dart_tool/zonai/project_main.dart` *inside this project's own
-  // package graph* -- so, unlike `db`/`serve` (which can fall back to
-  // Mailman/IPC workers via ZONAI_FORCE_WORKERS), the project genuinely
-  // needs `zonai` itself resolvable, not just `zonai_schema`. Real projects
-  // get this from a `zonai: {path: ...}` dev dependency (see
-  // apps/playground/pubspec.yaml); mirror that here.
+  // `zonai_schema` and nothing else -- deliberately. A project-linked binary
+  // (in-process ops/rules, see ProjectBinary.compile) would need `zonai`
+  // resolvable here, and no real project has that, so `zonai build` must
+  // produce a working bundle without it.
   File(p.join(projectRoot.path, 'pubspec.yaml')).writeAsStringSync('''
 name: build_compiled_e2e_fixture
 publish_to: none
@@ -204,8 +226,6 @@ environment:
 dependencies:
   zonai_schema:
     path: ${jsonEncode(zonaiSchemaRoot)}
-  zonai:
-    path: ${jsonEncode(zonaiPackageRootFromConfig())}
 ''');
 
   File(p.join(projectRoot.path, 'zonai.yaml')).writeAsStringSync('''

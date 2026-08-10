@@ -7,6 +7,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
 
 import '../../gen/native/resqlite_native.g.dart';
 import '../deps/fs.dart';
+import '../domain/native_library_stamp.dart';
 import '../domain/settings.dart';
 
 /// Ensures the resqlite native library is loaded before any FFI use.
@@ -23,7 +24,8 @@ Future<void> ensureResqliteNativeInstalled() async {
 }
 
 Future<String> _resolveInstallPath() async {
-  return await _requestFromSpawner() ?? await provideResqliteNativeLibraryPath();
+  return await _requestFromSpawner() ??
+      await provideResqliteNativeLibraryPath();
 }
 
 /// Asks the spawning `zonai` process to confirm/refresh the shared resqlite
@@ -113,9 +115,15 @@ Future<String> _extractCompiledLibrary() async {
     libDir.createSync(recursive: true);
   }
 
-  final dest = fs.file(
-    fs.path.join(libDir.path, defaultLibraryFileName),
-  );
+  final dest = fs.file(fs.path.join(libDir.path, defaultLibraryFileName));
+
+  // A stamped library was placed here by `zonai build` for this exact target
+  // and release, because this binary's own embedded bytes are for whatever
+  // platform compiled it -- which, cross-compiled, is not this one. Keep it.
+  if (hasCurrentNativeLibraryStamp(dest.path)) {
+    return dest.absolute.path;
+  }
+
   await _writeLibraryBytes(dest, resqliteNativeLibraryBytes);
 
   return dest.absolute.path;

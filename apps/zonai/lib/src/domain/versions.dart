@@ -8,6 +8,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai/src/domain/arch.dart';
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/native_library_stamp.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai/src/domain/target_os.dart';
 import 'package:zonai_logger/zonai_logger.dart';
@@ -156,6 +157,75 @@ class Versions {
     await _installExecutableFromArchive(targetDestination, response.bodyBytes);
   }
 
+  /// Downloads the [targetOs]/[targetArch] shared libraries for [version]
+  /// into [destination], stamping each so a cross-compiled binary running
+  /// there keeps them instead of self-extracting its own.
+  ///
+  /// `dart compile exe --target-os` cross-compiles the executable format but
+  /// not the native-library bytes embedded in it, so a host binary built for
+  /// another platform carries the *build* machine's libraries. These assets
+  /// are built on a native runner per target (see .github/workflows) and are
+  /// the same ones embedded in that target's published binary.
+  Future<void> downloadNativeLibs({
+    required String version,
+    required String destination,
+    required TargetOs targetOs,
+    required Arch targetArch,
+  }) async {
+    logger.debug('Downloading native libraries for $targetOs/$targetArch');
+
+    final release = await _fetchRelease(version);
+    final assetName = _nativeLibsArtifactNameFor(targetOs, targetArch);
+    final asset = _findAsset(release, assetName);
+
+    final response = await _downloadAsset(asset);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to download native libraries for $assetName');
+    }
+
+    final archive = ZipDecoder().decodeBytes(response.bodyBytes);
+    if (archive.isEmpty) {
+      throw Exception('Native library archive is empty: $assetName');
+    }
+
+    final directory = fs.directory(destination);
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true);
+    }
+
+    for (final entry in archive) {
+      if (!entry.isFile) continue;
+
+      // Flat by construction (see tool/ci/package_native_lib_assets.sh); take
+      // the basename anyway so a nested entry can't escape [destination].
+      final name = fs.path.basename(entry.name);
+      final path = fs.path.join(directory.path, name);
+
+      await _installLibrary(path, entry.content);
+      writeNativeLibraryStamp(
+        path,
+        version: version,
+        targetOs: targetOs,
+        targetArch: targetArch,
+      );
+      logger.debug('Installed native library: $path');
+    }
+  }
+
+  /// Writes a downloaded library via a temp file + rename, so a concurrent
+  /// `dlopen` can never map a partially-written file -- the same reason
+  /// resqlite_native.dart's `_writeLibraryBytes` does it this way.
+  Future<void> _installLibrary(String path, List<int> bytes) async {
+    final destination = fs.file(path);
+    final temp = fs.file('$path.tmp-$pid');
+
+    await temp.writeAsBytes(bytes, flush: true);
+    if (!Platform.isWindows) {
+      await process.run('chmod', ['755', temp.path]);
+    }
+    temp.renameSync(destination.path);
+  }
+
   Future<void> downloadUpdate([String? version]) async {
     if (!kIsCompiled) {
       throw Exception('Cannot download update for non-compiled version');
@@ -211,15 +281,44 @@ class Versions {
     return (release['tag_name'] as String).replaceAll('v', '');
   }
 
+  /// The newest zonai *CLI* release.
+  ///
+  /// Not `/releases/latest`: this repo also publishes per-package releases
+  /// (`zonai_schema-v0.1.0`, `zonai_client-v0.1.0`), and GitHub's "latest" is
+  /// simply the most recent non-draft, non-prerelease one. On 2026-08-10 a
+  /// package release took that slot, so the update check reported a new
+  /// version of "zonai_client-0.1.0" and `version update` then failed looking
+  /// for a `zonai-<os>-<arch>.zip` asset that release does not have.
+  ///
+  /// Releases come back newest-first, so the first `v<semver>` tag wins.
+  /// draft/prerelease are filtered to keep `/releases/latest`'s semantics.
   Future<Map<String, dynamic>> _fetchLatestRelease() async {
-    final response = await _githubGet(Uri.parse('$_apiBase/releases/latest'));
+    final response = await _githubGet(
+      Uri.parse('$_apiBase/releases?per_page=100'),
+    );
 
     if (response.statusCode != 200) {
       throw _releaseRequestError('latest release', response.statusCode);
     }
 
-    return json.decode(response.body) as Map<String, dynamic>;
+    final releases = json.decode(response.body) as List<dynamic>;
+    for (final release in releases) {
+      if (release is! Map<String, dynamic>) continue;
+      if (release['draft'] == true || release['prerelease'] == true) continue;
+
+      if (release['tag_name'] case final String tag
+          when _cliReleaseTag.hasMatch(tag)) {
+        return release;
+      }
+    }
+
+    throw Exception(
+      'No zonai CLI release found: none of the latest ${releases.length} '
+      'releases is tagged v<major>.<minor>.<patch>.',
+    );
   }
+
+  static final _cliReleaseTag = RegExp(r'^v\d+\.\d+\.\d+$');
 
   Future<Map<String, dynamic>> _fetchRelease(String version) async {
     final tag = version.startsWith('v') ? version : 'v$version';
@@ -284,12 +383,22 @@ class Versions {
   String get _artifactName => _artifactNameFor(.current(), .current());
 
   String _artifactNameFor(TargetOs targetOs, Arch targetArch) {
+    return 'zonai-${_targetSlug(targetOs, targetArch)}.zip';
+  }
+
+  String _nativeLibsArtifactNameFor(TargetOs targetOs, Arch targetArch) {
+    return 'native-libs-${_targetSlug(targetOs, targetArch)}.zip';
+  }
+
+  /// The `<os>-<arch>` half of a release asset name. Both asset families are
+  /// published per target by release.yml and must agree on this spelling.
+  String _targetSlug(TargetOs targetOs, Arch targetArch) {
     return switch ((targetOs, targetArch)) {
-      (.linux, .x64) => 'zonai-linux-x64.zip',
-      (.linux, .arm64) => 'zonai-linux-arm64.zip',
-      (.windows, .x64) => 'zonai-windows-x64.zip',
-      (.macos, .arm64) => 'zonai-macos-arm64.zip',
-      (.macos, .x64) => 'zonai-macos-x64.zip',
+      (.linux, .x64) => 'linux-x64',
+      (.linux, .arm64) => 'linux-arm64',
+      (.windows, .x64) => 'windows-x64',
+      (.macos, .arm64) => 'macos-arm64',
+      (.macos, .x64) => 'macos-x64',
       _ => throw UnsupportedError(
         'Unsupported release target: $targetOs/$targetArch',
       ),
