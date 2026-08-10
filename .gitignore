@@ -61,6 +61,15 @@ apps/web/.cursor
 **/.zonai/executables/
 **/.zonai/lib/
 
+# The build-command smoke fixture generates its whole .zonai/ per run
+# (tool/ci/verify_build_command.sh wipes and regenerates it, migrations
+# included), unlike a real project where migrations are committed source.
+e2e/build_smoke/.zonai/
+# Its lock is never authoritative either: CI writes a pubspec_overrides.yaml
+# into this fixture (it is not a workspace member, so the root's overrides
+# miss it) and pub re-resolves against that anyway.
+e2e/build_smoke/pubspec.lock
+
 # Runtime data (sqlite db, uploaded photos/recordings, the replay-viewer
 # static build) — never source, can get large (recordings/replay-viewer
 # especially), must never be committed.

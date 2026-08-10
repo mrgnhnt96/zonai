@@ -1,0 +1,16 @@
+name: zonai_build_smoke
+description: >
+  Fixture for tool/ci/verify_build_command.sh: the shape every real zonai
+  project has -- a `zonai_schema` dependency and nothing else. zonai itself
+  ships as a standalone binary and is never a dependency here, which is
+  exactly what makes `zonai build` worth gating: it cannot compile a
+  project-linked binary against this package graph, and must still produce a
+  complete, runnable bundle.
+publish_to: none
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  zonai_schema:
+    path: ../../libs/zonai_schema

@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
 # Updates pubspec_overrides.yaml to pull revali packages from GitHub instead of local paths.
 #
+# Usage: use_revali_git_overrides.sh [target-dir]
+#
+# [target-dir] is relative to the repo root and defaults to the root itself,
+# whose overrides cover every workspace member. Pass a directory for a project
+# that resolves on its own -- e2e/ fixtures are not workspace members, so the
+# root's overrides never reach them, and they would silently resolve the
+# revali family from pub.dev while everything else in the run is pinned here.
+#
 # Environment:
 #   REVALI_GIT_URL  — repository URL (default: https://github.com/mrgnhnt96/revali.git)
 #   REVALI_GIT_REF  — branch, tag, or commit (default: main)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PUBSPEC_OVERRIDES="${ROOT}/pubspec_overrides.yaml"
+target_dir="${1:-.}"
+PUBSPEC_OVERRIDES="$(cd "${ROOT}/${target_dir}" && pwd)/pubspec_overrides.yaml"
 REVALI_GIT_URL="${REVALI_GIT_URL:-https://github.com/mrgnhnt96/revali.git}"
 REVALI_GIT_REF="${REVALI_GIT_REF:-main}"
 

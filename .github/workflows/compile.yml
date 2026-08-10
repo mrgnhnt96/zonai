@@ -40,24 +40,29 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
+            target: linux-x64
             output_name: zonai
             native_libs_artifact: native-libs-linux-x64
           - os: ubuntu-24.04-arm
             artifact_name: zonai-linux-arm64
+            target: linux-arm64
             output_name: zonai
             native_libs_artifact: native-libs-linux-arm64
           - os: macos-latest
             artifact_name: zonai-macos-arm64
+            target: macos-arm64
             output_name: zonai
             native_libs_artifact: native-libs-macos-arm64
           - os: macos-15-intel
             artifact_name: zonai-macos-x64
+            target: macos-x64
             output_name: zonai
             target_arch: x64
             dart_architecture: x64
             native_libs_artifact: native-libs-macos-x64
           - os: windows-latest
             artifact_name: zonai-windows-x64
+            target: windows-x64
             output_name: zonai.exe
             native_libs_artifact: native-libs-windows-x64
 
@@ -166,6 +171,32 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: build/${{ matrix.output_name }}
+
+      # The shared libraries this binary embedded, shipped as their own
+      # release assets by release.yml. `dart compile exe --target-os` does not
+      # cross-compile embedded native-library bytes, so a cross-target
+      # `zonai build` needs correct ones for its target from somewhere; these
+      # are that somewhere.
+      #
+      # Uploaded from *this* run rather than read off native-libs.yml later:
+      # whether the step above downloaded them or fell back to building from
+      # source, what sits here is exactly what went into the binary. Since a
+      # library placed on disk overrides the embedded copy, shipping a pair
+      # that disagrees would fail silently and at runtime.
+      #
+      # The globs stay at this directory level on purpose -- they exclude the
+      # multi-megabyte *.g.dart byte arrays, and the nested build cache dir
+      # that resqlite's builder leaves behind next to its output.
+      - name: Upload embedded native libraries
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-libs-embedded-${{ matrix.target }}
+          path: |
+            apps/zonai/lib/gen/native/*.so
+            apps/zonai/lib/gen/native/*.dylib
+            apps/zonai/lib/gen/native/*.dll
+          if-no-files-found: error
 
       # Temporary: capture full build output for debugging CI failures.
       - name: Upload build log

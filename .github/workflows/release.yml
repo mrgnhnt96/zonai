@@ -103,6 +103,12 @@ jobs:
       - name: Package release assets
         run: bash tool/ci/package_release_assets.sh artifacts
 
+      # The `native-libs-embedded-*` artifacts arrive with the compile
+      # download above (it pulls the whole run, not one named artifact), so
+      # these are the libraries those exact binaries embedded.
+      - name: Package native library assets
+        run: bash tool/ci/package_native_lib_assets.sh artifacts release-assets
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -113,16 +119,56 @@ jobs:
             echo "Release ${tag} already exists" >&2
             exit 1
           fi
+          # --latest explicitly: GitHub otherwise picks "Latest" by date, and
+          # this repo also publishes per-package releases
+          # (zonai_schema-v*, zonai_client-v*). One of those became Latest on
+          # 2026-08-10, and since it carries no assets it silently broke every
+          # `releases/latest/download/...` install link in the docs and the
+          # CLI's own update check.
           gh release create "${tag}" \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Zonai ${tag}" \
+            --latest \
             --generate-notes \
             release-assets/zonai-linux-x64.zip \
             release-assets/zonai-linux-arm64.zip \
             release-assets/zonai-macos-arm64.zip \
             release-assets/zonai-macos-x64.zip \
             release-assets/zonai-windows-x64.zip \
+            release-assets/native-libs-linux-x64.zip \
+            release-assets/native-libs-linux-arm64.zip \
+            release-assets/native-libs-macos-arm64.zip \
+            release-assets/native-libs-macos-x64.zip \
+            release-assets/native-libs-windows-x64.zip \
             release-assets/zonai
+
+      # `zonai build` resolves these by exact name against the release for a
+      # pinned version (see Versions._findAsset), and a missing one surfaces
+      # only when somebody cross-builds for that target -- possibly long after
+      # the release. Assert the set here, where the release was just made.
+      - name: Verify release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          tag="v${VERSION}"
+          assets="$(gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" \
+            --json assets --jq '.assets[].name')"
+          missing=0
+          for target in linux-x64 linux-arm64 macos-arm64 macos-x64 windows-x64; do
+            for prefix in zonai native-libs; do
+              if ! grep -qx "${prefix}-${target}.zip" <<<"${assets}"; then
+                echo "missing release asset: ${prefix}-${target}.zip" >&2
+                missing=1
+              fi
+            done
+          done
+          if ! grep -qx "zonai" <<<"${assets}"; then
+            echo "missing release asset: zonai (fat binary)" >&2
+            missing=1
+          fi
+          [ "${missing}" -eq 0 ] || exit 1
+          echo "All 11 release assets present on ${tag}."
 
       - name: Commit release version
         env:

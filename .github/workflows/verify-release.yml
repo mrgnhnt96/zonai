@@ -107,6 +107,113 @@ jobs:
         shell: bash
         run: bash tool/ci/verify_release_artifact.sh "build/${{ matrix.executable_name }}"
 
+  # `verify` drives compile/serve against apps/playground, which carries a
+  # `zonai: {path: ...}` dev dependency -- a shape no real project has, since
+  # zonai ships as a standalone binary. It also never runs `build`. Between
+  # v0.5 and v0.6 `zonai build` was broken for every project *without* that
+  # dependency and CI stayed green throughout. This job is that gap: the real
+  # command, a real-shaped project, and the bundle actually serving.
+  build-command:
+    name: build-${{ matrix.artifact_name }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: zonai-linux-x64
+            executable_name: zonai
+          - os: ubuntu-24.04-arm
+            artifact_name: zonai-linux-arm64
+            executable_name: zonai
+          - os: macos-latest
+            artifact_name: zonai-macos-arm64
+            executable_name: zonai
+          - os: macos-15-intel
+            artifact_name: zonai-macos-x64
+            executable_name: zonai
+          - os: windows-latest
+            artifact_name: zonai-windows-x64
+            executable_name: zonai.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # GITHUB_TOKEN cannot read private submodule repos; raindrop is private.
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Configure raindrop sparse checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/setup_raindrop_submodule.ps1
+
+      - name: Download release version files (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: release-version
+
+      - name: Download release version files (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: release-version
+
+      - name: Download artifact (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: ${{ matrix.artifact_name }}
+          path: build
+
+      - name: Download artifact (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: ${{ matrix.artifact_name }}
+          path: build
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      # The fixture is not a workspace member, so the root overrides other
+      # jobs write would never reach it -- pin it explicitly to the same ref
+      # rather than let it resolve the revali family from pub.dev.
+      - name: Configure revali git overrides
+        shell: bash
+        run: |
+          bash tool/ci/use_revali_git_overrides.sh
+          bash tool/ci/use_revali_git_overrides.sh e2e/build_smoke
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Verify the build command
+        shell: bash
+        run: bash tool/ci/verify_build_command.sh "build/${{ matrix.executable_name }}"
+
   compat-check:
     name: compat-${{ matrix.artifact_name }}
     needs: verify
