@@ -17,14 +17,37 @@ Registering a table automatically exposes CRUD **and** live stream endpoints (`/
 
 ## Typed IDs
 
-Every table uses a typed ID class extending `Id`. This prevents accidentally passing a `tasks` ID where a `users` ID is expected:
+Every table has its own ID type, so a `tasks` ID can't be passed where a `users` ID is expected. They all live together in `lib/src/ids.dart`, under a `sealed` base class that supplies the shared `value` field:
 
 ```dart
+import 'package:zonai_schema/zonai_schema.dart' as z;
+
+sealed class Id implements z.Id {
+  const Id(this.value);
+
+  @override
+  final String value;
+
+  @override
+  bool operator ==(Object other) => other is z.Id && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
+
+  @override
+  String toString() => value;
+}
+
 class TasksId extends Id {
   const TasksId(super.value);
-  factory TasksId.generate() => TasksId(Id.generate('tk'));  // 'tk' is a short suffix
+
+  factory TasksId.generate() => TasksId(z.Id.generate(_suffix));
+
+  static const _suffix = 'tk';  // a short, per-table suffix
 }
 ```
+
+`zonai_schema` is imported as `z` because its `Id` is an `abstract interface class` — your base class *implements* it and declares `value` itself, rather than extending it. Making the base `sealed` is what lets a single `Id.fromJson` switch over every ID in the project exhaustively; see [Quick Start](/getting-started/quick-start) for that full file.
 
 The suffix appears at the end of generated IDs (e.g. `abc123_tk`), making debugging easier.
 
@@ -42,7 +65,9 @@ Each column maps a Dart type to a SQLite type:
 | `$.dateTime(...)` | `DateTime` | INTEGER NOT NULL (Unix ms) |
 | `$.id(...)` | Custom `Id` subclass | TEXT NOT NULL |
 | `$.createdAt(...)` | `DateTime` | INTEGER NOT NULL (auto-set) |
-| `$.updatedAt(...)` | `DateTime` | INTEGER NOT NULL (auto-updated) |
+| `$.updatedAt(...)` | `DateTime?` | INTEGER (auto-updated) |
+
+A column is nullable when the accessor you hand the builder returns a nullable type — there is no `isNullable` argument. `$.text('bio', (s) => s.bio)` is a `TextColumn` when `bio` is a `String` and a `ColumnType<String?>` when it is a `String?`. `$.updatedAt(...)` is always nullable, since a freshly inserted row has not been updated yet.
 
 ## Indexes
 
@@ -73,6 +98,7 @@ final posts = table('posts', PostTable.new, (t) {
 ## Complete Example
 
 ```dart
+import 'package:my_app/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class Post {
@@ -83,7 +109,7 @@ final class Post {
     this.publishedAt,
     required this.viewCount,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
   });
 
   final PostsId id;
@@ -92,12 +118,7 @@ final class Post {
   final DateTime? publishedAt;  // nullable — not published yet
   final int viewCount;
   final DateTime createdAt;
-  final DateTime updatedAt;
-}
-
-class PostsId extends Id {
-  const PostsId(super.value);
-  factory PostsId.generate() => PostsId(Id.generate('po'));
+  final DateTime? updatedAt;
 }
 
 final class PostTable extends Table<Post> {
@@ -105,7 +126,7 @@ final class PostTable extends Table<Post> {
     : id = $.id('id', (s) => s.id, fromString: PostsId.new, generate: PostsId.generate),
       title = $.text('title', (s) => s.title),
       body = $.text('body', (s) => s.body),
-      publishedAt = $.dateTime('published_at', (s) => s.publishedAt, isNullable: true),
+      publishedAt = $.dateTime('published_at', (s) => s.publishedAt),
       viewCount = $.integer('view_count', (s) => s.viewCount),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
@@ -124,10 +145,10 @@ final class PostTable extends Table<Post> {
   final IdColumn<PostsId> id;
   final TextColumn title;
   final TextColumn body;
-  final DateTimeColumn? publishedAt;
-  final IntegerColumn viewCount;
-  final CreatedAtColumn createdAt;
-  final UpdatedAtColumn updatedAt;
+  final ColumnType<DateTime?> publishedAt;
+  final IntColumn viewCount;
+  final DateTimeColumn createdAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final posts = table('posts', PostTable.new, (t) {

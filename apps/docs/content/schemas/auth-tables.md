@@ -87,12 +87,13 @@ Custom fields can be embedded in JWT claims via [Auth Operations](/operations/au
 ## Complete Example
 
 ```dart
+import 'package:my_app/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class User {
   const User({
     required this.id, required this.email, required this.isVerified,
-    required this.name, required this.createdAt, required this.updatedAt,
+    required this.name, required this.createdAt, this.updatedAt,
     required this.passwordHash,
   });
   final UsersId id;
@@ -100,13 +101,8 @@ final class User {
   final bool isVerified;
   final String name;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
   final String passwordHash;
-}
-
-class UsersId extends Id {
-  const UsersId(super.value);
-  factory UsersId.generate() => UsersId(Id.generate('us'));
 }
 
 final class UserTable extends AuthTable<User> with PasswordAuth, OtpAuth {
@@ -130,8 +126,8 @@ final class UserTable extends AuthTable<User> with PasswordAuth, OtpAuth {
   final EmailColumn email;
   final IsVerifiedColumn isVerified;
   final TextColumn name;
-  final CreatedAtColumn createdAt;
-  final UpdatedAtColumn updatedAt;
+  final DateTimeColumn createdAt;
+  final ColumnType<DateTime?> updatedAt;
   final PasswordColumn passwordHash;
 }
 

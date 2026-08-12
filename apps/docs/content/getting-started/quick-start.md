@@ -35,59 +35,129 @@ If no `zonai.yaml` exists, `zonai dev` prompts you through creating one
 
 ## Step 3: Define Tables
 
+Every table's ID is its own type, and they all live in one file. `zonai dev`
+creates `lib/src/ids.dart` when it initializes the project, and appends to it
+each time you scaffold a table (press `n` in `zonai dev`). Written by hand, the
+two IDs this guide needs look like this:
+
+```dart
+import 'package:zonai_schema/zonai_schema.dart' as z;
+
+sealed class Id implements z.Id {
+  const Id(this.value);
+
+  factory Id.fromJson(String json) {
+    final parts = json.split('_');
+
+    if (parts.length != 2) {
+      throw ArgumentError('Invalid ID format: $json');
+    }
+
+    return switch (parts[1]) {
+      TasksId._suffix => TasksId(json),
+      UsersId._suffix => UsersId(json),
+      _ => throw ArgumentError('Invalid ID format: $json'),
+    };
+  }
+
+  @override
+  final String value;
+
+  @override
+  String toString() => value;
+
+  String toJson() => value;
+
+  @override
+  bool operator ==(Object other) => other is z.Id && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+class UsersId extends Id {
+  const UsersId(super.value);
+
+  factory UsersId.generate() => UsersId(z.Id.generate(_suffix));
+
+  static const _suffix = 'us';
+}
+
+class TasksId extends Id {
+  const TasksId(super.value);
+
+  factory TasksId.generate() => TasksId(z.Id.generate(_suffix));
+
+  static const _suffix = 'tk';
+}
+```
+
+Two details matter here. `zonai_schema` is imported as `z` because its `Id` is
+an `abstract interface class` — your base class *implements* it and supplies the
+`value` field itself; it cannot `extend` it. And the base is `sealed` so
+`Id.fromJson` can switch over every ID in the project exhaustively, which is
+what lets a bare string coming off the wire be resolved back to the right type.
+
 Create `lib/src/schemas/users.dart`:
 
 ```dart
+import 'package:my_app/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class User {
   const User({
     required this.id,
     required this.email,
+    required this.passwordHash,
     required this.isVerified,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
   });
 
   final UsersId id;
   final String email;
+  final String passwordHash;
   final bool isVerified;
   final DateTime createdAt;
-  final DateTime updatedAt;
-}
-
-class UsersId extends Id {
-  const UsersId(super.value);
-  factory UsersId.generate() => UsersId(Id.generate('us'));
+  final DateTime? updatedAt;
 }
 
 final class UserTable extends AuthTable<User> with PasswordAuth {
   UserTable(super.$)
     : id = $.id('id', (s) => s.id, fromString: UsersId.new, generate: UsersId.generate),
       email = $.email('email', (s) => s.email),
+      passwordHash = $.password('password', (s) => s.passwordHash),
       isVerified = $.isVerified('is_verified', (s) => s.isVerified),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
 
   @override
   User fromRow(RowReader read) => User(
-    id: read(id), email: read(email), isVerified: read(isVerified),
+    id: read(id), email: read(email), passwordHash: read(passwordHash),
+    isVerified: read(isVerified),
     createdAt: read(createdAt), updatedAt: read(updatedAt),
   );
 
   final IdColumn<UsersId> id;
   final EmailColumn email;
+  final PasswordColumn passwordHash;
   final IsVerifiedColumn isVerified;
-  final CreatedAtColumn createdAt;
-  final UpdatedAtColumn updatedAt;
+  final DateTimeColumn createdAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final users = authTable('users', UserTable.new);
 ```
 
+`PasswordAuth` is what adds the sign-up and sign-in routes, and it requires the
+`$.password` column to hash into — an `AuthTable` mixing it in without one will
+not compile. `updatedAt` is nullable because `$.updatedAt` only fills in on
+write, so a freshly inserted row has none yet.
+
 Create `lib/src/schemas/tasks.dart`:
 
 ```dart
+import 'package:my_app/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class Task {
@@ -96,19 +166,14 @@ final class Task {
     required this.title,
     required this.isComplete,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
   });
 
   final TasksId id;
   final String title;
   final bool isComplete;
   final DateTime createdAt;
-  final DateTime updatedAt;
-}
-
-class TasksId extends Id {
-  const TasksId(super.value);
-  factory TasksId.generate() => TasksId(Id.generate('tk'));
+  final DateTime? updatedAt;
 }
 
 final class TaskTable extends Table<Task> {
@@ -127,9 +192,9 @@ final class TaskTable extends Table<Task> {
 
   final IdColumn<TasksId> id;
   final TextColumn title;
-  final BoolColumn isComplete;
-  final CreatedAtColumn createdAt;
-  final UpdatedAtColumn updatedAt;
+  final BooleanColumn isComplete;
+  final DateTimeColumn createdAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final tasks = table('tasks', TaskTable.new);
