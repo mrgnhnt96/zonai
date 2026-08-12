@@ -110,13 +110,39 @@ See [Custom Templates](/email/custom-templates).
 
 ### clear
 
-Delete all records from the `_log` table:
+Delete records from the `_log` table:
 
 ```sh
-zonai db logs clear   # aliases: delete, rm
+zonai db logs clear                    # aliases: delete, rm
+zonai db logs clear --older-than 7d    # keep the last week
+zonai db logs clear --vacuum           # also shrink the file on disk
+zonai db logs clear --vacuum --force   # skip the confirmation (alias: -f)
 ```
 
-Useful in development when logs have grown too large.
+`--older-than` takes a number followed by `s`, `m`, `h`, `d` or `w` — for
+example `30m`, `24h`, `7d`, `2w`. Without it, every record is deleted.
+
+#### Reclaiming disk space
+
+Deleting rows does not shrink the database file. SQLite keeps the emptied
+pages on an internal freelist and reuses them for future writes, so a `clear`
+that removes millions of records can leave the file exactly as large as it
+was. `clear` says so when it happens.
+
+`--vacuum` rewrites the file from its live pages only and returns the
+difference to the operating system. It prompts first, because the rewrite:
+
+- needs roughly **twice the current file size** free on disk, since SQLite
+  builds a complete copy before swapping it in
+- takes time proportional to the file size — a large database can take minutes
+- holds an exclusive lock throughout, so a running server blocks on writes
+
+Answering no cancels the command; nothing is deleted. Pass `--force` to skip
+the prompt in scripts.
+
+This matters most on databases created before v0.6.2, which persisted
+`trace`- and `request`-level entries to `_log`. Those levels are no longer
+written, but rows already on disk stay until they are cleared and vacuumed.
 
 ## db clear
 
