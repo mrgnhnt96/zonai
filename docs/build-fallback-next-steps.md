@@ -33,6 +33,10 @@ existence shaped that way.
 
 ### The decision `zonai build` now makes
 
+*(Superseded by item 2 below, which replaced this with `resolveProjectLink()`
+in `domain/project/project_link.dart`. Left as-written because the reasoning
+about which conditions belong here still holds.)*
+
 `projectLinkSkipReason()` in `apps/zonai/lib/src/commands/build.dart` returns the
 reason a project-linked binary is impossible, or `null`:
 
@@ -162,17 +166,22 @@ Related: `native-libs.yml` is `workflow_dispatch`-only and hasn't run since
 2026-08-01. Its artifacts expire at the 90-day default (**~2026-10-30**), after
 which every compile silently falls back to source builds behind a `::warning::`.
 
-### 2. In-process ops/rules for real deployments
+### 2. In-process ops/rules for real deployments — **done**
+
+Implemented and verified end to end; kept here because the decisions and the
+things it deliberately does *not* fix are the part worth not rediscovering.
+What shipped is listed under "What was built" below; everything above that line
+is the problem statement it was written against.
 
 Since zonai can never be an application dependency, `projectResolvesZonai()` is
-false in every real project — so the linked binary from `865ee7c` is unreachable
-outside `apps/playground`. **The speed win has never applied to a real deploy.**
+false in every real project — so the linked binary from `865ee7c` was unreachable
+outside `apps/playground`. **The speed win had never applied to a real deploy.**
 
-`dart compile exe --packages=<file>` is the way out, and it was proven manually:
-synthesize a merged `package_config.json` from the project's and zonai's own, and
-compile the project entry against it. A binary was built and run this way for a
-project depending only on hosted `zonai_schema ^0.1.1` / `zonai_client ^0.1.1`,
-with no `zonai` anywhere in its pubspec.
+`dart compile exe --packages=<file>` is the way out, and it was proven manually
+first: synthesize a merged `package_config.json` from the project's and zonai's
+own, and compile the project entry against it. A binary was built and run this
+way for a project depending only on hosted `zonai_schema ^0.1.1` /
+`zonai_client ^0.1.1`, with no `zonai` anywhere in its pubspec.
 
 **The merge policy matters and is not symmetric:**
 
@@ -190,11 +199,11 @@ aren't there, nothing can be merged and the build falls back to workers exactly
 as it does today. The point of the work is that it stops being the *only*
 outcome.
 
-#### What already exists
+#### The merge itself
 
 `apps/zonai/lib/src/domain/project/merged_package_config.dart` with 13 tests
-(`test/src/domain/project/merged_package_config_test.dart`). Pure functions, no
-wiring — **nothing imports it**, so it changes no behaviour until step 2 below.
+(`test/src/domain/project/merged_package_config_test.dart`). Pure functions;
+`project_link.dart` is what calls them.
 
 ```dart
 MergedPackageConfig mergePackageConfigs({projectConfig, projectConfigPath, zonaiConfig, zonaiConfigPath})
@@ -237,59 +246,133 @@ config it finds and confirms `bin/zonai.dart` is really there.
 So step 1 is a sibling of `zonaiSourceEntrypoint()` returning the config path
 instead of the entrypoint, over the same candidates — not a new mechanism.
 
-#### What is left
+#### What was built
 
-1. **`zonaiPackageConfigPath()`** in `zonai_entrypoint.dart`, reusing
-   `_packageConfigCandidates()`. Returns `null` when zonai's sources aren't
-   reachable, which is the bare-released-binary case.
-2. **Wire it into `ProjectBinary().compile()`**: write the merged config, pass
-   `--packages=<file>` to `dart compile exe`.
-3. **Relax `projectLinkSkipReason()`** in `commands/build.dart`. Today it
-   returns "package:zonai is not resolvable" whenever `projectResolvesZonai()`
-   is false, which is every real project. It has to try the merge first and skip
-   only when zonai's own config cannot be found — with the reason still named,
-   since every branch there is a silent fallback to worker IPC.
-4. **Log `overridden`.** It is returned for this and currently consumed by
-   nothing; a version substitution that nothing mentions is the failure this
-   whole document keeps running into.
-5. **Decide about `maybeReexecProjectRuntime`** (`project_runtime.dart`), the
-   JIT path for `serve`/`db`/`dev`. It carries the same `projectResolvesZonai()`
-   guard, so it either gets the same treatment or an explicit note saying why
-   not.
-6. **An e2e test**: a fixture with no `zonai` dependency producing a linked
-   binary that runs. `e2e/build_smoke` is already shaped for this. The manual
-   proof above has never been automated, so nothing would catch this regressing
-   back to workers — and it regressing is invisible by construction, because
-   falling back to workers *works*.
-A `verify.yaml` rule for the two files is already in place on this machine.
+**`apps/zonai/lib/src/domain/project/project_link.dart`** is the whole
+decision, in one function. `resolveProjectLink()` returns a `ProjectLink` that
+is one of three things, and *writes the merged config as part of answering*:
+
+| | `skipReason` | `packageConfigPath` | when |
+|---|---|---|---|
+| `.direct()` | `null` | `null` | the project already depends on zonai (`apps/playground`) — its own resolution is correct, so passing a config would only be a chance to get it wrong |
+| `.merged()` | `null` | the merged file | every real project, when zonai's sources are reachable |
+| `.skip()` | the reason | `null` | forced workers, no `pub get`, no zonai sources, or an unreadable config |
+
+Writing is not held apart from the decision on purpose: the decision *is*
+whether that file could be produced. A separate predicate answering "yes, link"
+and then failing to write the config hands `dart compile exe` an entry it
+cannot resolve, which is the failure `865ee7c` shipped twice.
+
+Four call sites, all through that one function:
+
+1. **`zonaiPackageConfigPath()`** (`zonai_entrypoint.dart`) — the same
+   candidates and the same standard of proof as `zonaiSourceEntrypoint()`
+   (`bin/zonai.dart` confirmed present under the root the config names), but it
+   returns the config, which is what `--packages` takes. `null` is the
+   bare-released-binary case. Its `_entrypointFromPackageConfig` helper now
+   returns `null` on a malformed config instead of throwing, since every caller
+   is choosing between resolutions and has a fallback for finding none.
+2. **`ProjectBinary.compile()`** takes the `ProjectLink` its caller already
+   decided on and passes `--packages=<file>` when there is one. It resolves for
+   itself only in the dev host rebuild (`compile.dart`).
+3. **`build.dart`** resolves once and reuses the value for both the
+   link/bundle branch and the compile, so the two cannot disagree.
+   `projectLinkSkipReason()` is gone rather than relaxed: as a wrapper it would
+   have been unreferenced code that writes a file as a side effect, which is a
+   trap for whoever calls it next expecting a query. `resolveProjectLink()
+   .skipReason` is the same answer at the one place that needs it.
+4. **`maybeReexecProjectRuntime()`** got the same treatment rather than a note
+   saying why not: `dart run` takes `--packages` just as `dart compile exe`
+   does. Splitting them would be worse than the duplication — dev `serve`/`db`
+   would keep dispatching over worker IPC while `build` linked, so the path a
+   developer exercises would stop being the one they ship.
+
+`overridden` is logged by `logOverriddenPackages()`, called once per flow by
+whoever resolved the link — not by `compile()`, which some of those flows call
+afterwards, because saying it twice per build trains people to stop reading it.
+Against `e2e/build_smoke` it reports `equatable, meta, revali_core`.
+
+**`zonai version` now prints a second line** — `Ops/rules: in-process
+(project-linked)` or `Ops/rules: worker IPC`. There was previously no way to
+ask a binary which dispatch it got, and that is precisely why `zonai build`
+could ship the wrong one for two releases: both bundles start, both serve, both
+answer `/health`. It reads `useInProcessOperations`, so `ZONAI_FORCE_WORKERS`
+shows up in it too — what is claimed is what dispatch will *do*, not what was
+compiled in.
+
+#### Verification that actually ran
+
+- **9 new unit tests** (`project_link_test.dart`) plus the existing 13 for the
+  merge; full suite green, `dart analyze` clean.
+- **The real command, against `e2e/build_smoke`** (`zonai_schema` only, no
+  `zonai` in its pubspec, confirmed by grepping its `package_config.json`):
+  built a linked binary, ran it, served `/health` 200 out of `build/`.
+- **The JIT path too**: `db migrate apply` from the same fixture logged
+  `Starting project entry (JIT)` and applied migrations, where before it logged
+  "package:zonai is not resolvable — staying on Mailman workers".
+- **`verify_build_command.sh` now runs two passes**, because both outcomes ship
+  and are indistinguishable from outside. Pass 1 (`ZONAI_FORCE_WORKERS=1`)
+  asserts the bundled binary is byte-identical to the published one and reports
+  `worker IPC`; pass 2 asserts the opposite on both counts and then serves. The
+  second full worker compile is the bulk of the added CI time, paid
+  deliberately — nothing else covers the fallback for the host target.
+- **Positive control:** running the whole gate with `ZONAI_FORCE_WORKERS=1`
+  exported makes pass 2 fall back, and the gate **exits 1** on the
+  `Ops/rules: in-process` assertion. Pass 1's assertions still pass in that run,
+  so the two halves fail independently.
+
+#### What it does not fix
+
+- **A bare released binary still falls back**, and always will: with no zonai
+  sources on disk there is no second graph to merge. The point of the work is
+  that this stopped being the *only* outcome, not that it went away. In
+  `override_canvas`'s Docker build the sources are there — it already `COPY`s
+  the monorepo at `Dockerfile:33`.
+- **`verify_build_command.sh` cannot reproduce that case.** It runs inside the
+  repo, so zonai's sources are always reachable and pass 2 always links; pass 1
+  stands in for the bare binary with an env var, which is not the same thing.
+- **The cross-target gate now links too**, post-release. `cross_target_build.sh`
+  falls back before the release exists (no native-library assets to fetch, and
+  `build.dart` refuses to ship a linked binary without them) and links after.
+  So `verify_cross_target_bundle.sh` now runs a *linked* cross-compiled binary
+  on Linux — the riskier configuration, and the one item 4's stamped-library
+  fetch exists for. That gate reports the new `Ops/rules:` line rather than
+  asserting on it, precisely because which branch it gets depends on whether
+  the release is already out.
+- **The collision that forces the merge direction is not exercised by CI.**
+  `e2e/build_smoke` depends on the monorepo's `libs/zonai_schema` by path, so
+  both graphs agree on it and the `SQLiteDelegate` failure (issue #24) never
+  arises. Only the manual proof against hosted `zonai_schema ^0.1.1` ever hit
+  it. Reversing the merge direction would stay green here.
+- **Workers are still in every bundle.** `build()` calls `compile()`
+  unconditionally before the link branch, and `db_config`/`db_crons` still
+  spawn as processes — only operations and rules are registered in-process by
+  the generated entry.
+- No measurement of the dispatch cost this saves has been taken. Do not quote
+  a number that does not exist.
+
+A `verify.yaml` rule for these files is in place on this machine.
 `.game_loop/` is gitignored, so it travels with the checkout it was written in
 and not with the repo — a fresh clone has to add it again.
 
-#### What it actually buys, and what it does not
+#### What it actually buys
 
-Worth knowing before spending the time, because the honest answer is narrower
-than "it makes deploys faster":
+Narrower than "it makes deploys faster", and worth stating precisely because
+the change is invisible in every other way:
 
-- Four call sites change. Three are dispatch (`zonai_db/parts/__utils.dart:7`
-  rules, `:20` operations, `:362` extensions), each otherwise a serialise → pipe
-  → subprocess → deserialise round trip per rule check and per operation. No
-  measurement of that cost exists; do not quote a number that has not been
-  taken.
+- Four call sites are affected. Three are dispatch
+  (`zonai_db/parts/__utils.dart:7` rules, `:20` operations, `:362` extensions),
+  each otherwise a serialise → pipe → subprocess → deserialise round trip per
+  rule check and per operation. No measurement of that cost exists; do not
+  quote a number that has not been taken.
 - The fourth is behavioural, not performance: `RateLimiter`
   `isRegisteredCustomOperation` (`services/rate_limiter.dart:44`) can only
   answer when rules are linked, and returns `null` otherwise, so callers fall
   back to the coarse per-table `.custom` bucket. **Per-operation rate limiting
-  has therefore never run in fine-grained mode outside `apps/playground`.** The
-  rules layer still denies unregistered operations, so this is not an
-  authorisation hole — but it is the strongest single argument for doing the
-  work.
-- It does **not** remove workers from the bundle: `build()` calls `compile()`
-  unconditionally before the link/no-link branch, so a linked bundle still ships
-  all six worker executables.
-- It therefore does **not** retire the cross-compiled native-library failure
-  class in item 4 — it moves it. A linked binary is itself cross-compiled and
-  embeds the build host's libraries, which is exactly why `1dd6ee0` added the
-  stamped-library fetch for that path.
+  had therefore never run in fine-grained mode outside `apps/playground`**, and
+  now does wherever a project links. The rules layer still denies unregistered
+  operations, so this was never an authorisation hole — but it was the
+  strongest single argument for doing the work.
 
 ### 3. The `_extractCompiledLibrary` guard has no automated test
 
@@ -322,6 +405,13 @@ path every process on the machine loads from, so one worker's mistake replaced
 a working library for all of them (`invalid ELF header`, reproduced under
 `--platform linux/amd64`). `checkNativeLibraryPlatform`
 (`domain/native_library_format.dart`) reads the object-file header and refuses.
+
+Since item 2, this gate builds a *linked* cross-compiled binary once the
+release exists (before that the native-library fetch fails and `build.dart`
+falls back rather than ship a linked binary without them). That is the shape
+this whole item is about — a binary embedding the build host's libraries and
+depending entirely on the stamped ones fetched beside it — so the gate now
+covers the riskier configuration than the one it was written against.
 
 The gate is `cross-target-build` + `cross-target-run` in `verify-release.yml`,
 driving `tool/ci/cross_target_build.sh` and
