@@ -12,6 +12,7 @@ import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/keyboard_input.dart';
 import 'package:zonai/src/deps/kill.dart';
 import 'package:zonai/src/deps/logger.dart';
+import 'package:zonai/src/deps/message_contract_hash.dart';
 import 'package:zonai/src/deps/migrate.dart';
 import 'package:zonai/src/deps/mutations.dart';
 import 'package:zonai/src/deps/operations.dart';
@@ -74,6 +75,7 @@ Future<void> runZonai(List<String> arguments) async {
       cleanUpProvider,
       mutationsProvider,
       keyboardInputProvider,
+      messageContractHashProvider,
       migrateProvider,
       extensionsProvider,
       executableStopProvider,

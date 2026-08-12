@@ -23,6 +23,7 @@ export 'src/deps/settings.dart';
 export 'src/deps/stdin.dart';
 export 'src/deps/zonai_db.dart';
 export 'src/deps/logger.dart';
+export 'src/deps/message_contract_hash.dart';
 export 'src/deps/rate_limiter.dart';
 export 'src/deps/rate_limits.dart';
 export 'src/deps/external_idp_provisioning_gate.dart';
