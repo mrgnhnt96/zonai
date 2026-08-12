@@ -214,6 +214,158 @@ jobs:
         shell: bash
         run: bash tool/ci/verify_build_command.sh "build/${{ matrix.executable_name }}"
 
+  # Every job above builds for the platform it is running on, so none of them
+  # can see the failure that took a real deployment down: `dart compile exe
+  # --target-os` cross-compiles the executable format but NOT the native
+  # library bytes embedded as Dart constants, so a bundle built on macOS for
+  # Linux ships Mach-O libraries inside every executable it contains. Whether
+  # that bundle is deployable depends on `zonai build` fetching the target's
+  # real libraries beside them -- which it did only on the project-linked
+  # branch, i.e. never for a project shaped like a real one.
+  #
+  # The two halves cannot be one job. Building must happen on a host that is
+  # not the target (macOS), running must happen on the target (Linux), and
+  # GitHub's macOS runners have no container runtime to stand in for one.
+  cross-target-build:
+    name: cross-build-linux-x64
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Download release version files (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: release-version
+
+      - name: Download release version files (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: release-version
+
+      - name: Download artifact (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: zonai-macos-arm64
+          path: build
+
+      - name: Download artifact (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: zonai-macos-arm64
+          path: build
+
+      # The *host's* libraries, on purpose: the probe compiled below embeds
+      # them and is then cross-compiled for Linux, which is exactly the shape
+      # of every worker in the bundle and the only way to make a binary that
+      # would install the wrong library if the guard let it.
+      - name: Download embedded native libraries (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: native-libs-embedded-macos-arm64
+          path: apps/zonai/lib/gen/native
+
+      - name: Download embedded native libraries (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          name: native-libs-embedded-macos-arm64
+          path: apps/zonai/lib/gen/native
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: |
+          bash tool/ci/use_revali_git_overrides.sh
+          bash tool/ci/use_revali_git_overrides.sh e2e/build_smoke
+
+      - name: Get dependencies
+        run: dart pub get
+
+      # Formats the downloaded .dylib bytes into the Dart constants the probe
+      # embeds. No C toolchain runs here -- the libraries themselves were built
+      # by compile.yml and are what this reads.
+      - name: Generate embedded native library sources
+        shell: bash
+        working-directory: apps/zonai
+        run: |
+          dart run tool/generate_resqlite_native.dart
+          dart run tool/generate_argon2_native.dart
+
+      - name: Build a linux/x64 bundle on macOS arm64
+        shell: bash
+        run: |
+          bash tool/ci/cross_target_build.sh \
+            build/zonai linux x64 e2e/build_smoke cross-target-out
+
+      - name: Upload the cross-target bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-target-linux-x64
+          retention-days: 10
+          path: cross-target-out
+          if-no-files-found: error
+
+  cross-target-run:
+    name: cross-run-linux-x64
+    needs: cross-target-build
+    runs-on: ubuntu-latest
+
+    steps:
+      # No submodules and no PAT: this job runs a bundle that is already built
+      # and needs nothing from the repo but the script that checks it.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the cross-target bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-target-linux-x64
+          path: cross-target-out
+
+      - name: Run the macOS-built bundle on linux/x64
+        shell: bash
+        run: |
+          bash tool/ci/verify_cross_target_bundle.sh \
+            cross-target-out/bundle \
+            cross-target-out/native_library_probe \
+            cross-target-out/VERSION
+
   compat-check:
     name: compat-${{ matrix.artifact_name }}
     needs: verify
