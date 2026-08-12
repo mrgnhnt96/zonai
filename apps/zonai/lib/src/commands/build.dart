@@ -82,27 +82,51 @@ Future<int> build() async {
     file.copySync(fs.path.join(settings.buildImagesPath, 'favicon.ico'));
   }
 
+  // Cross-compiling produces executables for the target carrying *this*
+  // machine's native libraries (see downloadNativeLibs), and that is true of
+  // every executable in the bundle, not just a linked host binary: the worker
+  // .exe files compiled by `compile` above are `dart compile exe --target-os`
+  // builds of this same source. Fetching the target's real libraries is
+  // therefore unconditional here -- it used to sit inside the linked-binary
+  // branch below, which meant a project that can't link (the normal case:
+  // nothing depends on package:zonai) shipped workers whose only copy of
+  // resqlite/argon2 was the build host's.
+  final nativeLibError = switch (settings.buildSettings
+      .targetsCurrentPlatform()) {
+    true => null,
+    false => await _bundleTargetNativeLibs(),
+  };
+
   // Project-linked binary with in-process ops/rules (full CLI surface), when
   // this project can have one. Otherwise bundle the published binary, which
   // drives the Mailman workers compiled above -- the same pairing every
   // pre-project-linking build shipped.
   if (projectLinkSkipReason() case final reason?) {
     logger.info('Bundling the published zonai binary: $reason');
+    if (nativeLibError != null) {
+      // Not fatal: the published binary is built for the target, so its own
+      // embedded libraries are correct, and a worker asks it for them rather
+      // than trusting its own (see resqlite_native.dart's
+      // `_requestFromSpawner`). What's lost is the fallback for when that ask
+      // fails -- which now surfaces as a refusal to install, not as a
+      // wrong-architecture library written over the shared path.
+      logger.warn(
+        'Bundling without the target\'s native libraries: $nativeLibError. '
+        'Workers will depend on the host binary answering their native '
+        'library requests, with no on-disk fallback if it cannot.',
+      );
+    }
     await _bundlePublishedBinary();
     return 0;
   }
 
-  // Cross-compiling links fine, but the binary would carry *this* machine's
-  // native libraries (see downloadNativeLibs). Placing the target's real ones
-  // beside it is what makes that binary correct -- so if they can't be
-  // fetched, don't ship a linked binary that would self-extract the wrong
-  // ones at runtime; fall back to the published binary for the target.
-  if (!settings.buildSettings.targetsCurrentPlatform()) {
-    if (await _bundleTargetNativeLibs() case final error?) {
-      logger.warn('Bundling the published zonai binary: $error');
-      await _bundlePublishedBinary();
-      return 0;
-    }
+  // A linked binary has no such host above it to ask, so the fetched
+  // libraries are the only correct ones it will ever see -- without them,
+  // don't ship it at all; fall back to the published binary for the target.
+  if (nativeLibError != null) {
+    logger.warn('Bundling the published zonai binary: $nativeLibError');
+    await _bundlePublishedBinary();
+    return 0;
   }
 
   if (await ProjectBinary().compile(buildSettings: settings.buildSettings)
@@ -119,13 +143,16 @@ Future<String?> _bundleTargetNativeLibs() async {
   final build = settings.buildSettings;
   logger.info(
     'Fetching ${build.targetOs.name}/${build.targetArch.name} native '
-    'libraries for the linked binary',
+    'libraries for the bundle',
   );
 
   try {
     await versions.downloadNativeLibs(
-      // kVersion, not settings.version: a linked binary is compiled from
-      // *this* CLI's source, so it must pair with this release's libraries.
+      // kVersion, not settings.version: the binaries that read this stamp --
+      // a linked host binary, and the worker executables either way -- are
+      // compiled from *this* CLI's source, so they must pair with this
+      // release's libraries, and `hasCurrentNativeLibraryStamp` compares the
+      // stamp against the reader's own kVersion.
       // The stock-binary fallback downloads settings.version and is stamped
       // to match, but here the two can diverge -- `--no-version-check` lets a
       // project pin a version the CLI isn't -- and a stamp that doesn't match
