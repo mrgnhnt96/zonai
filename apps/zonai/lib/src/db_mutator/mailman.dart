@@ -53,6 +53,7 @@ class Mailman<S extends Request, R extends Response> {
   static final _loggedProtocolMismatches = <String>{};
   static final _loggedContractMismatches = <String>{};
   static final _loggedStaleSnapshots = <String>{};
+  static var _loggedInertContractGuard = false;
 
   Mailman({
     required this.debugName,
@@ -215,6 +216,8 @@ class Mailman<S extends Request, R extends Response> {
   /// the failure is an HTTP 5xx to whoever happened to be calling rather than
   /// a message to whoever can fix it.
   void _throwIfContractMismatch(String executablePath) {
+    _warnIfContractGuardInert(executablePath);
+
     final error = WorkerContractMismatchException.forStamp(
       workerName: debugName,
       executablePath: executablePath,
@@ -226,6 +229,43 @@ class Mailman<S extends Request, R extends Response> {
       logger.error(error.message, error.runtimeType, StackTrace.current);
     }
     throw error;
+  }
+
+  /// Says once, per process, that the contract guard cannot run here.
+  ///
+  /// Both guard sites pass an unknown host contract silently, and that is the
+  /// right call -- a missing stamp is the ordinary state of an ad-hoc fixture,
+  /// and refusing those would break far more than it caught. What was wrong is
+  /// that the *published CLI serving a project directly* lands in that branch
+  /// on every spawn (`kIsCompiled` is true, nothing stamped the binary, see
+  /// [hostContractUnknownReason]), which is the default shape for a consumer,
+  /// and it looked exactly like a guard that had run and found nothing.
+  ///
+  /// It does not add a refusal. There is nothing here to refuse *on*: with no
+  /// host contract, a stale worker and a fresh one are the same observation.
+  ///
+  /// Only fires when [artifactPath] is stamped. With nothing stamped on either
+  /// side no comparison was ever available to lose, and saying so on a project
+  /// that has not run `zonai compile` yet would be noise, not news.
+  void _warnIfContractGuardInert(String artifactPath) {
+    if (_loggedInertContractGuard) return;
+    if (hostMessageContractHash() != null) return;
+    if (readMessageContractStamp(artifactPath) == null) return;
+
+    final reason = hostContractUnknownReason();
+    if (reason == null) return;
+
+    _loggedInertContractGuard = true;
+    logger.warn(
+      '$_prefix: the message-contract check is not running -- $reason\n'
+      'Workers beside this host are stamped, so there is drift to catch and '
+      'nothing to catch it with: a worker built against a different '
+      '`zonai_schema` vocabulary will start rather than be refused, and fail '
+      'part-way through a request instead of at spawn.\n'
+      'Run `zonai compile` after any `zonai_schema` change to keep them in '
+      'step. A `zonai build` bundle stamps its own binary and does not have '
+      'this gap.',
+    );
   }
 
   Future<void> _deliverUnexpected(
@@ -581,6 +621,8 @@ class Mailman<S extends Request, R extends Response> {
   /// differently), so a stale snapshot beside a fresh executable should cost
   /// in-process dispatch, not the request.
   bool _snapshotContractIsStale(String path) {
+    _warnIfContractGuardInert(path);
+
     final hostContract = hostMessageContractHash();
     if (!isMessageContractStale(path, hostHash: hostContract)) return false;
 

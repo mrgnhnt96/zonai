@@ -74,6 +74,42 @@ String? hostMessageContractHash() {
   return messageContractHash.value;
 }
 
+/// Why [hostMessageContractHash] cannot answer, or `null` when it can.
+///
+/// Every caller of [isMessageContractStale] treats an unknown host contract as
+/// "not stale", which is the right call and is also how the guard goes quiet
+/// without saying so. This is the sentence that lets a caller say so.
+///
+/// The case worth naming is the first one. A `zonai` downloaded from a release
+/// is compiled by zonai's own CI (`scripts.yaml`, a bare `dart compile exe`),
+/// so nothing stamps it -- and when it serves a project directly it *is* the
+/// host, on every spawn, for the ordinary consumer who has no `package:zonai`
+/// anywhere. That is not a fixture edge case, it is the default shape, and it
+/// was indistinguishable from a guard that had run and found nothing.
+///
+/// [isCompiled] and [readStamp] are seams for tests only: [kIsCompiled] is a
+/// compile-time `false` under `dart test`, so the branch this exists for is
+/// otherwise unreachable from a test.
+String? hostContractUnknownReason({
+  bool isCompiled = kIsCompiled,
+  String? Function(String executablePath)? readStamp,
+}) {
+  if (isCompiled) {
+    final read = readStamp ?? readMessageContractStamp;
+    if (read(io.Platform.resolvedExecutable) != null) return null;
+
+    return 'this `zonai` binary carries no contract stamp of its own, so it '
+        'cannot say which `zonai_schema` vocabulary it was compiled against. '
+        'A released CLI is never stamped -- one CLI serves many projects, so a '
+        'stamp beside it could not describe any of them.';
+  }
+
+  if (messageContractHash.value != null) return null;
+
+  return '`zonai_schema` does not resolve from this project\'s package config, '
+      'so there are no contract sources to hash -- run `dart pub get`.';
+}
+
 /// Whether the artifact at [executablePath] was definitely built against a
 /// different contract than [hostHash].
 ///
