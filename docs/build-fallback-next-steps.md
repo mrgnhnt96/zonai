@@ -185,7 +185,111 @@ with no `zonai` anywhere in its pubspec.
 
 Requires zonai's sources on disk beside the CLI — true in override_canvas's
 Docker build (it already `COPY`s the monorepo at `Dockerfile:33`), false for a
-bare released binary. Unbuilt.
+bare released binary. That limitation does not go away: when zonai's own sources
+aren't there, nothing can be merged and the build falls back to workers exactly
+as it does today. The point of the work is that it stops being the *only*
+outcome.
+
+#### What already exists
+
+`apps/zonai/lib/src/domain/project/merged_package_config.dart` with 13 tests
+(`test/src/domain/project/merged_package_config_test.dart`). Pure functions, no
+wiring — **nothing imports it**, so it changes no behaviour until step 2 below.
+
+```dart
+MergedPackageConfig mergePackageConfigs({projectConfig, projectConfigPath, zonaiConfig, zonaiConfigPath})
+MergedPackageConfig? writeMergedPackageConfig({projectConfigPath, zonaiConfigPath, outputPath})
+
+class MergedPackageConfig { Map<String, Object?> config; List<String> overridden; }
+```
+
+Decisions already baked in, so disagreeing with one is a visible act rather than
+an accident:
+
+- **zonai wins on collisions**, for the structural reason above. A test asserts
+  the direction with that reasoning in a comment.
+- **Every `rootUri` is absolutised against its own config file's directory
+  before merging.** This is the part that fails silently if skipped: both
+  configs commonly say `../something` while sitting in different `.dart_tool`
+  directories, so carrying the strings across repoints packages at directories
+  that may well exist and be wrong.
+- **`overridden` reports only packages whose `rootUri` actually differs.** A
+  workspace project and the CLI beside it agree on most of the graph; listing
+  those buries the few that matter. It exists to be logged — every entry is a
+  package the app's code will be compiled against a different version of than
+  pub chose for it.
+- **Deterministic output**: `configVersion` 2, packages sorted, no `generated`
+  timestamp (it is rewritten every build; a moving clock makes every diff look
+  like a graph change).
+- **Returns `null` rather than throwing** on a missing or half-written config,
+  matching `projectResolvesZonai()`'s existing judgement.
+
+#### Finding zonai's own `package_config.json` is already solved
+
+Recorded because it was previously written up as the open design question, on
+the grounds that `Platform.packageConfig` is null under AOT. It is — but
+`apps/zonai/lib/src/utils/zonai_entrypoint.dart:62` already handles exactly
+that: `_packageConfigCandidates()` tries `Platform.packageConfig`, then walks up
+from `Directory.current`, then from `Platform.script`, and
+`_entrypointFromPackageConfig` resolves zonai's package root out of whichever
+config it finds and confirms `bin/zonai.dart` is really there.
+
+So step 1 is a sibling of `zonaiSourceEntrypoint()` returning the config path
+instead of the entrypoint, over the same candidates — not a new mechanism.
+
+#### What is left
+
+1. **`zonaiPackageConfigPath()`** in `zonai_entrypoint.dart`, reusing
+   `_packageConfigCandidates()`. Returns `null` when zonai's sources aren't
+   reachable, which is the bare-released-binary case.
+2. **Wire it into `ProjectBinary().compile()`**: write the merged config, pass
+   `--packages=<file>` to `dart compile exe`.
+3. **Relax `projectLinkSkipReason()`** in `commands/build.dart`. Today it
+   returns "package:zonai is not resolvable" whenever `projectResolvesZonai()`
+   is false, which is every real project. It has to try the merge first and skip
+   only when zonai's own config cannot be found — with the reason still named,
+   since every branch there is a silent fallback to worker IPC.
+4. **Log `overridden`.** It is returned for this and currently consumed by
+   nothing; a version substitution that nothing mentions is the failure this
+   whole document keeps running into.
+5. **Decide about `maybeReexecProjectRuntime`** (`project_runtime.dart`), the
+   JIT path for `serve`/`db`/`dev`. It carries the same `projectResolvesZonai()`
+   guard, so it either gets the same treatment or an explicit note saying why
+   not.
+6. **An e2e test**: a fixture with no `zonai` dependency producing a linked
+   binary that runs. `e2e/build_smoke` is already shaped for this. The manual
+   proof above has never been automated, so nothing would catch this regressing
+   back to workers — and it regressing is invisible by construction, because
+   falling back to workers *works*.
+A `verify.yaml` rule for the two files is already in place on this machine.
+`.game_loop/` is gitignored, so it travels with the checkout it was written in
+and not with the repo — a fresh clone has to add it again.
+
+#### What it actually buys, and what it does not
+
+Worth knowing before spending the time, because the honest answer is narrower
+than "it makes deploys faster":
+
+- Four call sites change. Three are dispatch (`zonai_db/parts/__utils.dart:7`
+  rules, `:20` operations, `:362` extensions), each otherwise a serialise → pipe
+  → subprocess → deserialise round trip per rule check and per operation. No
+  measurement of that cost exists; do not quote a number that has not been
+  taken.
+- The fourth is behavioural, not performance: `RateLimiter`
+  `isRegisteredCustomOperation` (`services/rate_limiter.dart:44`) can only
+  answer when rules are linked, and returns `null` otherwise, so callers fall
+  back to the coarse per-table `.custom` bucket. **Per-operation rate limiting
+  has therefore never run in fine-grained mode outside `apps/playground`.** The
+  rules layer still denies unregistered operations, so this is not an
+  authorisation hole — but it is the strongest single argument for doing the
+  work.
+- It does **not** remove workers from the bundle: `build()` calls `compile()`
+  unconditionally before the link/no-link branch, so a linked bundle still ships
+  all six worker executables.
+- It therefore does **not** retire the cross-compiled native-library failure
+  class in item 4 — it moves it. A linked binary is itself cross-compiled and
+  embeds the build host's libraries, which is exactly why `1dd6ee0` added the
+  stamped-library fetch for that path.
 
 ### 3. The `_extractCompiledLibrary` guard has no automated test
 
