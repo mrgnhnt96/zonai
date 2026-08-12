@@ -257,16 +257,16 @@ The `_photos` table is different: it backs the photo upload API and ships with p
 
 ## Photos collection (`_photos`)
 
-The `_photos` table stores metadata for uploaded images (file path, owner, target collection). It is managed by Zonai and accessed through the **photo HTTP API** (`GET`, `POST`, `PATCH`, `DELETE` on `/photos`), not through generic `GET /db/list` on `_photos`.
+The `_photos` table stores metadata for uploaded images (file path, owner, target collection). It is managed by Zonai and accessed through the **photo HTTP API** (`GET`, `POST`, `PATCH`, `DELETE` on `/img`), not through generic `GET /db/list` on `_photos`.
 
 Each photo request runs the same rule pipeline as other operations: **collection rules first**, then **row rules** when a row is involved.
 
 | Photo API operation           | Table check | Row check                                     |
 | ----------------------------- | ----------- | --------------------------------------------- |
-| Create (`POST /photos`)       | `canCreate` | `canCreate` (payload row built before insert) |
-| View (`GET /photos/:id`)      | `canView`   | `canView`                                     |
-| Update (`PATCH /photos/:id`)  | `canUpdate` | `canUpdate`                                   |
-| Delete (`DELETE /photos/:id`) | `canDelete` | `canDelete`                                   |
+| Create (`POST /img`)          | `canCreate` | `canCreate` (payload row built before insert) |
+| View (`GET /img/:id`)         | `canView`   | `canView`                                     |
+| Update (`PATCH /img/:id`)     | `canUpdate` | `canUpdate`                                   |
+| Delete (`DELETE /img/:id`)    | `canDelete` | `canDelete`                                   |
 
 ### Row shape
 
@@ -277,7 +277,7 @@ Rule methods receive a typed **`PhotoEntry`** from `package:zonai_schema/zonai_s
 | `row.id`         | Photo ID (`PhotoId`)                                                                  |
 | `row.ownerId`    | Authenticated user at upload time (`jwt.userId` when a token was sent)                |
 | `row.ownerTable` | Auth collection name from the JWT                                                     |
-| `row.collection` | App collection the photo is attached to (from `PhotoCreateMeta.collection` on create) |
+| `row.table`      | App collection the photo is attached to (from `PhotoCreateMeta.collection` on create) |
 | `row.path`       | Relative path under the configured images directory                                   |
 | `row.extension`  | Normalized file extension (`jpg`, `png`, etc.)                                        |
 

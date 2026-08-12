@@ -33,13 +33,13 @@ final class TaskRowRules extends RowRules<TaskTable, Task> {
   Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async {
     // Admins can always edit; owners can edit their own rows
     if (jwt?.admin.isAdmin ?? false) return true;
-    return jwt?.userId == before.createdBy.value;
+    return jwt?.userId == before.createdBy;
   }
 
   @override
   Future<bool> canDelete(Jwt? jwt, Task row) async {
     if (jwt?.admin.isAdmin ?? false) return true;
-    return jwt?.userId == row.createdBy.value;
+    return jwt?.userId == row.createdBy;
   }
 }
 ```
