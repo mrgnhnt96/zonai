@@ -115,9 +115,9 @@ final class ItemTable extends Table<Item> {
 
   final IdColumn<ItemsId> id;
   final TextColumn body;
-  final TextColumn? description;
+  final ColumnType<String?> description;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final items = table('items', ItemTable.new);
@@ -199,7 +199,7 @@ import 'package:zonai_schema/zonai_schema.dart' as z;
 class ItemsId implements z.Id {
   const ItemsId(this.value);
   factory ItemsId.generate() => ItemsId(z.Id.generate('it')); // short suffix
-  factory ItemsId.new(String v) => ItemsId(v);
+  @override
   final String value;
   @override String toString() => value;
   @override bool operator ==(Object o) => o is ItemsId && o.value == value;
@@ -367,11 +367,24 @@ packages would then export symbols like `Table`/`table`, producing
 
 ```dart
 import 'package:zonai_schema/zonai_schema.dart';
+import '../ids.dart';
 import '../schemas/authors.dart';
 import '../schemas/posts.dart';
 
 ViewOperations<PostSummary> main() =>
     ViewOperations(postSummary, PostSummaryQuery());
+
+final class PostSummary {
+  const PostSummary({
+    required this.id,
+    required this.title,
+    required this.authorName,
+  });
+
+  final PostsId id;
+  final String title;
+  final String authorName;
+}
 
 final class PostSummaryTable extends Table<PostSummary> {
   PostSummaryTable(super.$)
@@ -423,6 +436,8 @@ it — `canCreate`/`canUpdate`/`canDelete` are hard-denied, even for admin
 tokens; only `canView`/`canList` (and row `canView`) are yours to override:
 
 ```dart
+import 'package:zonai_schema/zonai_schema.dart';
+
 import '../operations/post_summary_operations.dart';
 
 final class PostSummaryTableRules
@@ -455,8 +470,7 @@ Lifecycle hooks around mutations and auth events.
 import 'package:zonai_schema/zonai_schema.dart';
 import '../schemas/items.dart';
 
-class ItemExtensions extends Extension<Item>
-    with CreateExtension, UpdateExtension, DeleteExtension {
+class ItemExtensions extends Extension<Item> {
   ItemExtensions() : super(items);
 
   @override
@@ -467,7 +481,7 @@ class ItemExtensions extends Extension<Item>
   @override
   Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
     mutate.update.one(
-      collection: 'items',
+      table: 'items',
       updates: [Update.column('body', .literal('processed'))],
       where: Eq('id', object.id),
     );
@@ -498,20 +512,23 @@ class ItemExtensions extends Extension<Item>
 ItemExtensions main() => ItemExtensions();
 ```
 
-Mixins: `CreateExtension`, `UpdateExtension`, `DeleteExtension`, `AuthExtension`.
+Create, update and delete hooks are methods on `Extension<R>` itself, each
+defaulting to a no-op -- override what you need, there is no mixin to add.
 
-`AuthExtension` hooks: `onSignUp(R user, Jwt? jwt)`, `onSignIn`, `onRefresh`,
-`onLogout`.
+`AuthExtension<R>` is the only mixin, for auth tables:
+`class UserExtensions extends Extension<User> with AuthExtension<User>`. Its
+hooks are `onSignUp(R user, Jwt? jwt)`, `onSignIn`, `onRefresh`, `onLogout`,
+`onPasswordReset` and `onExternalAuthFirstSeen(Map<String, Object?> claims)`.
 
 ### Side effect globals (from `package:zonai_schema/zonai_schema.dart`)
 
 | Global | Purpose |
 |--------|---------|
-| `get.one(collection:, where:)` | Read a single row |
-| `get.many(collection:, where:)` | Read multiple rows |
-| `mutate.create.one(collection:, values:)` | Queue a create |
-| `mutate.update.one(collection:, updates:, where:)` | Queue an update |
-| `mutate.delete.many(tableName:, updates:, where:)` | Queue deletes |
+| `get.one(tableName:, where:)` | Read a single row |
+| `get.many(tableName:, where:)` | Read multiple rows |
+| `mutate.create.one(tableName:, object:)` | Queue a create |
+| `mutate.update.one(table:, updates:, where:)` | Queue an update |
+| `mutate.delete.many(tableName:, where:)` | Queue deletes |
 | `email.send.verifyEmail(...)` | Send verify-email link |
 | `email.send.loginNotice(...)` | Send login notification |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
@@ -565,7 +582,7 @@ import 'package:cron/cron.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class CleanupLogsJob extends CronJob {
-  const CleanupLogsJob()
+  CleanupLogsJob()
     : super(
         name: 'cleanup_logs',           // unique snake_case identifier
         schedule: Schedule.parse('0 3 * * *'), // daily at 03:00
@@ -576,14 +593,13 @@ final class CleanupLogsJob extends CronJob {
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
     mutate.delete.many(
       tableName: 'logs',
-      updates: [],
       where: Lt('created_at', cutoff),
     );
     logger.info('Queued log cleanup older than $cutoff');
   }
 }
 
-CleanupLogsJob main() => const CleanupLogsJob();
+CleanupLogsJob main() => CleanupLogsJob();
 ```
 
 | Property | Default | Purpose |
@@ -896,9 +912,9 @@ final class ItemTable extends Table<Item> {
 
   final IdColumn<ItemsId> id;
   final TextColumn body;
-  final TextColumn? description;
+  final ColumnType<String?> description;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final items = table('items', ItemTable.new);
@@ -974,7 +990,7 @@ import 'package:zonai_schema/zonai_schema.dart' as z;
 class ItemsId implements z.Id {
   const ItemsId(this.value);
   factory ItemsId.generate() => ItemsId(z.Id.generate('it'));
-  factory ItemsId.new(String v) => ItemsId(v);
+  @override
   final String value;
   @override String toString() => value;
   @override bool operator ==(Object o) => o is ItemsId && o.value == value;
@@ -1236,11 +1252,24 @@ packages would then export symbols like `Table`/`table`, producing
 
 ```dart
 import 'package:zonai_schema/zonai_schema.dart';
+import '../ids.dart';
 import '../schemas/authors.dart';
 import '../schemas/posts.dart';
 
 ViewOperations<PostSummary> main() =>
     ViewOperations(postSummary, PostSummaryQuery());
+
+final class PostSummary {
+  const PostSummary({
+    required this.id,
+    required this.title,
+    required this.authorName,
+  });
+
+  final PostsId id;
+  final String title;
+  final String authorName;
+}
 
 final class PostSummaryTable extends Table<PostSummary> {
   PostSummaryTable(super.$)
@@ -1312,6 +1341,8 @@ admin tokens, which the regular base classes grant by default. Only
 the schema from the operations file that declares it:
 
 ```dart
+import 'package:zonai_schema/zonai_schema.dart';
+
 import '../operations/post_summary_operations.dart';
 
 final class PostSummaryTableRules
@@ -1325,6 +1356,8 @@ PostSummaryTableRules main() => PostSummaryTableRules();
 ```
 
 ```dart
+import 'package:zonai_schema/zonai_schema.dart';
+
 import '../operations/post_summary_operations.dart';
 
 final class PostSummaryRowRules
@@ -1365,7 +1398,7 @@ the rules layer.
 """;
 
 const cursorExtensionsMdc = r"""---
-description: zonai extensions — lifecycle hooks, CreateExtension, UpdateExtension, DeleteExtension, AuthExtension, get/mutate/email globals
+description: zonai extensions — lifecycle hooks, create/update/delete hooks, AuthExtension, get/mutate/email globals
 globs: lib/src/extensions/**
 alwaysApply: false
 ---
@@ -1383,24 +1416,23 @@ rules → rate limits → beforeCreate → SQL insert → afterCreateSuccess
                                       afterCreateError
 ```
 
-## Base class and mixins
+## Base class and hooks
 
 ```dart
 import 'package:zonai_schema/zonai_schema.dart';
 import '../schemas/items.dart';
 
-class ItemExtensions extends Extension<Item>
-    with CreateExtension, UpdateExtension, DeleteExtension {
+class ItemExtensions extends Extension<Item> {
   ItemExtensions() : super(items);
 
-  // CreateExtension
+  // Create hooks
   @override
   Future<void> beforeCreate(Item object, Jwt? jwt) async {}
 
   @override
   Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
     mutate.update.one(
-      collection: 'items',
+      table: 'items',
       updates: [Update.column('status', .literal(1))],
       where: Eq('id', object.id),
     );
@@ -1409,7 +1441,7 @@ class ItemExtensions extends Extension<Item>
   @override
   Future<void> afterCreateError(Object error, Jwt? jwt) async {}
 
-  // UpdateExtension
+  // Update hooks
   @override
   Future<void> beforeUpdate(Item row, Jwt? jwt) async {}
 
@@ -1419,7 +1451,7 @@ class ItemExtensions extends Extension<Item>
   @override
   Future<void> afterUpdateError(Object error, Jwt? jwt) async {}
 
-  // DeleteExtension
+  // Delete hooks
   @override
   Future<void> beforeDelete(Item row, Jwt? jwt) async {}
 
@@ -1439,12 +1471,15 @@ Throwing from an **after** hook fails after the DB change committed.
 ## Auth extension (`AuthExtension` mixin)
 
 ```dart
-class UserExtensions extends Extension<User> with AuthExtension {
+class UserExtensions extends Extension<User> with AuthExtension<User> {
   UserExtensions() : super(users);
 
   @override
   Future<void> onSignUp(User user, Jwt? jwt) async {
-    email.send.verifyEmail(collection: 'users');
+    email.send.verifyEmail(
+      EmailAddress(address: user.email),
+      table: 'users',
+    );
   }
 
   @override
@@ -1464,15 +1499,15 @@ UserExtensions main() => UserExtensions();
 
 | Global | Purpose |
 |--------|---------|
-| `get.one(collection:, where:)` | Read a single row (respects rules) |
-| `get.many(collection:, where:)` | Read multiple rows |
-| `mutate.create.one(collection:, values:)` | Queue a create side effect |
-| `mutate.update.one(collection:, updates:, where:)` | Queue an update |
-| `mutate.delete.many(tableName:, updates:, where:)` | Queue bulk deletes |
-| `email.send.verifyEmail(collection:)` | Send verify-email link |
-| `email.send.loginNotice(collection:)` | Send login notification |
-| `email.send.passwordReset(collection:)` | Send password reset link |
-| `email.send.magicLink(collection:)` | Send magic-link sign-in |
+| `get.one(tableName:, where:)` | Read a single row (respects rules) |
+| `get.many(tableName:, where:)` | Read multiple rows |
+| `mutate.create.one(tableName:, object:)` | Queue a create side effect |
+| `mutate.update.one(table:, updates:, where:)` | Queue an update |
+| `mutate.delete.many(tableName:, where:)` | Queue bulk deletes |
+| `email.send.verifyEmail(to, table:)` | Send verify-email link |
+| `email.send.loginNotice(to, table:)` | Send login notification |
+| `email.send.passwordReset(to, table:)` | Send password reset link |
+| `email.send.magicLink(to, table:)` | Send magic-link sign-in |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
 `mutate` writes are **queued**, run after the main mutation commits, going
@@ -1582,7 +1617,7 @@ import 'package:cron/cron.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class CleanupLogsJob extends CronJob {
-  const CleanupLogsJob()
+  CleanupLogsJob()
     : super(
         name: 'cleanup_logs',           // unique snake_case identifier
         schedule: Schedule.parse('0 3 * * *'), // daily at 03:00
@@ -1593,14 +1628,13 @@ final class CleanupLogsJob extends CronJob {
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
     mutate.delete.many(
       tableName: 'logs',
-      updates: [],
       where: Lt('created_at', cutoff),
     );
     logger.info('Queued log cleanup');
   }
 }
 
-CleanupLogsJob main() => const CleanupLogsJob();
+CleanupLogsJob main() => CleanupLogsJob();
 ```
 
 ## CronJob properties
@@ -1635,11 +1669,11 @@ Cron jobs access the same globals as extensions:
 
 | Global | Purpose |
 |--------|---------|
-| `get.one(collection:, where:)` | Read a single row |
-| `get.many(collection:, where:)` | Read multiple rows |
-| `mutate.create.one(collection:, values:)` | Queue a create |
-| `mutate.update.one(collection:, updates:, where:)` | Queue an update |
-| `mutate.delete.many(tableName:, updates:, where:)` | Queue bulk deletes |
+| `get.one(tableName:, where:)` | Read a single row |
+| `get.many(tableName:, where:)` | Read multiple rows |
+| `mutate.create.one(tableName:, object:)` | Queue a create |
+| `mutate.update.one(table:, updates:, where:)` | Queue an update |
+| `mutate.delete.many(tableName:, where:)` | Queue bulk deletes |
 | `email.send.*` | Send transactional email |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
