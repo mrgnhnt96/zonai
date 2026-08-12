@@ -17,6 +17,27 @@ String? zonaiSourceEntrypoint() {
   return _entrypointFromWalkUp();
 }
 
+/// The `package_config.json` that resolves `package:zonai` to sources on disk.
+///
+/// Same candidates and same standard of proof as [zonaiSourceEntrypoint] --
+/// a config only counts once `bin/zonai.dart` is confirmed under the root it
+/// names -- but it returns the config rather than the entry, because that is
+/// what `--packages` takes.
+///
+/// `null` is the bare-released-binary case: a `zonai` downloaded to a machine
+/// that has none of its sources. Nothing can be merged there, and a build has
+/// to fall back to worker IPC. That is not a failure to fix, it is the
+/// limitation the merge is bounded by.
+String? zonaiPackageConfigPath() {
+  for (final configPath in _packageConfigCandidates()) {
+    if (_entrypointFromPackageConfig(configPath) != null) {
+      return configPath;
+    }
+  }
+
+  return null;
+}
+
 /// Entrypoint for `dart run` subprocesses and snapshot re-exec.
 ///
 /// Kernel snapshots (`dart run zonai`) break resqlite [@Native] FFI after
@@ -94,16 +115,28 @@ String? _entrypointFromPackageConfig(String configPath) {
     return null;
   }
 
-  final config =
-      jsonDecode(configFile.readAsStringSync()) as Map<String, dynamic>;
-  final packages = config['packages'] as List<dynamic>;
+  // A half-written or hand-edited config is a config that resolves nothing,
+  // not a reason to bring the process down: every caller here is choosing
+  // between package resolutions and has a fallback for finding none.
+  final List<dynamic> packages;
+  try {
+    final config =
+        jsonDecode(configFile.readAsStringSync()) as Map<String, dynamic>;
+    packages = config['packages'] as List<dynamic>;
+  } catch (_) {
+    return null;
+  }
+
   for (final raw in packages) {
-    final pkg = raw as Map<String, dynamic>;
-    if (pkg['name'] != 'zonai') {
+    if (raw is! Map || raw['name'] != 'zonai') {
       continue;
     }
 
-    final rootUri = pkg['rootUri'] as String;
+    final rootUri = raw['rootUri'];
+    if (rootUri is! String) {
+      continue;
+    }
+
     final packageRoot = configFile.parent.uri
         .resolve(rootUri)
         .toFilePath(windows: Platform.isWindows);

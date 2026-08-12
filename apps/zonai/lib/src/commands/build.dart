@@ -101,7 +101,22 @@ Future<int> build() async {
   // this project can have one. Otherwise bundle the published binary, which
   // drives the Mailman workers compiled above -- the same pairing every
   // pre-project-linking build shipped.
-  if (projectLinkSkipReason() case final reason?) {
+  //
+  // Resolved once, and the same value is handed to the compile below: this
+  // both answers "can we link?" and writes the package config that makes it
+  // true, so asking twice risks a yes here and a different graph there.
+  //
+  // Every skip is a silent fallback to worker IPC -- both outcomes build,
+  // bundle and serve identically -- so the reason is the only thing that
+  // distinguishes "correctly fell back" from "quietly lost in-process
+  // dispatch", and it is always logged.
+  //
+  // Cross-target is deliberately not among the reasons: `dart compile exe
+  // --target-os` can link for another platform, and the native libraries it
+  // would get wrong are supplied separately by _bundleTargetNativeLibs.
+  final link = resolveProjectLink();
+
+  if (link.skipReason case final reason?) {
     logger.info('Bundling the published zonai binary: $reason');
     if (nativeLibError != null) {
       // Not fatal: the published binary is built for the target, so its own
@@ -129,7 +144,12 @@ Future<int> build() async {
     return 0;
   }
 
-  if (await ProjectBinary().compile(buildSettings: settings.buildSettings)
+  logOverriddenPackages(link);
+
+  if (await ProjectBinary().compile(
+        buildSettings: settings.buildSettings,
+        link: link,
+      )
       case final exitCode when exitCode != 0) {
     return exitCode;
   }
@@ -168,29 +188,6 @@ Future<String?> _bundleTargetNativeLibs() async {
     return 'could not fetch native libraries for '
         '${build.targetOs.name}/${build.targetArch.name} ($e)';
   }
-}
-
-/// Why this build cannot produce a project-linked binary, or `null` when it
-/// can.
-///
-/// Exposed for tests: each branch is a silent fallback to worker IPC, and the
-/// reason is the only thing that distinguishes "correctly fell back" from
-/// "quietly lost in-process dispatch".
-String? projectLinkSkipReason() {
-  if (forceWorkers) {
-    return '$kForceWorkersEnv is set';
-  }
-
-  if (!projectResolvesZonai()) {
-    return 'package:zonai is not resolvable from this project -- ops and '
-        'rules will run as worker processes. Add `zonai: {path: ...}` to '
-        'dev_dependencies to link them in-process instead.';
-  }
-
-  // Cross-target is deliberately absent: `dart compile exe --target-os` can
-  // link for another platform, and the native libraries it would get wrong
-  // are supplied separately by _bundleTargetNativeLibs.
-  return null;
 }
 
 /// Puts a stock `zonai` at `settings.buildExecutablePath`.

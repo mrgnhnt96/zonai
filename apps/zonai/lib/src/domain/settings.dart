@@ -240,6 +240,16 @@ class Settings {
       _normalize(['.dart_tool', 'zonai', 'db_rules.dart']);
   String get generatedProjectMainPath =>
       _normalize(['.dart_tool', 'zonai', 'project_main.dart']);
+
+  /// Where the project's package graph and zonai's own are merged, for
+  /// `--packages`. See [mergePackageConfigs].
+  ///
+  /// Deliberately *not* at `<dir>/.dart_tool/package_config.json` for any
+  /// directory: that is the shape the SDK auto-discovers by walking up from a
+  /// script, and a second config it could find on its own would decide builds
+  /// nobody pointed at it. This one only ever applies when passed explicitly.
+  String get mergedPackageConfigPath =>
+      _normalize(['.dart_tool', 'zonai', 'package_config.json']);
   String get compiledProjectBinaryPath =>
       _normalize([defaultZonaiDirectory, 'zonai']);
 
