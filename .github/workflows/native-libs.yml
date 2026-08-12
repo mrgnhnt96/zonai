@@ -144,12 +144,14 @@ jobs:
             exit 1
           fi
           echo "Packing: ${files[*]}"
-          # --force-local, because $RUNNER_TEMP on Windows is `D:\a\_temp` and
-          # GNU tar reads a leading `D:` as a host:path remote spec -- it tries
-          # to resolve a machine called `D` and fails with "Cannot connect to
-          # D: resolve failed". The flag says "that colon is a drive letter".
-          tar --force-local -czf \
-            "$RUNNER_TEMP/${{ matrix.artifact_name }}.tar.gz" "${files[@]}"
+          # The archive path is written by the shell, never parsed by tar.
+          # $RUNNER_TEMP on Windows is `D:\a\_temp`, and GNU tar reads a leading
+          # `D:` as a host:path remote spec -- it tries to resolve a machine
+          # called `D` and fails with "Cannot connect to D: resolve failed".
+          # GNU tar's --force-local fixes that but does not exist in the bsdtar
+          # macOS ships, so the flag trades a Windows failure for a macOS one.
+          # `-f -` plus a redirect is the one form all three tars agree on.
+          tar -czf - "${files[@]}" > "$RUNNER_TEMP/${{ matrix.artifact_name }}.tar.gz"
 
       # A same-run handoff to the publish job below, which is the only thing
       # that reads it. The durable copy is the release asset it becomes.

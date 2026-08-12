@@ -172,13 +172,14 @@ jobs:
             --pattern "${archive}" \
             --dir "${RUNNER_TEMP}" \
             --clobber
-          # --force-local for the same reason native-libs.yml packs with it:
-          # `D:\a\_temp` on Windows parses as a host:path remote spec. This side
-          # has never been reached on Windows, because the cache release did not
-          # exist and every run took the miss path -- it would have failed on the
-          # first Windows compile after the cache was populated.
-          tar --force-local -xzf "${RUNNER_TEMP}/${archive}" \
-            -C apps/zonai/lib/gen/native
+          # Read through the shell for the same reason native-libs.yml writes
+          # that way: `D:\a\_temp` on Windows parses as a host:path remote spec
+          # in GNU tar, and GNU tar's --force-local does not exist in the bsdtar
+          # macOS ships. This side has never been reached on Windows, because
+          # the cache release did not exist and every run took the miss path --
+          # it would have failed on the first Windows compile after the cache
+          # was populated.
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
           echo "Restored ${archive} from ${NATIVE_LIBS_CACHE_TAG}:"
           ls -la apps/zonai/lib/gen/native
 
