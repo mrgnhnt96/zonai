@@ -302,6 +302,22 @@ class BuildSettings {
     return targetOs == TargetOs.current() && targetArch == Arch.current();
   }
 
+  /// The `dart compile` flags that aim an artifact at this target.
+  ///
+  /// A getter rather than four literals at each call site because omitting it
+  /// is invisible: an artifact built for the host ships inside a target bundle
+  /// and every transport it feeds has a fallback, so the build passes, the
+  /// deploy passes, and what is lost is a faster path nobody was watching.
+  /// `zonai build` shipped host-arch ops/rules AOT snapshots for exactly that
+  /// reason -- the `.exe` compile beside them spread these flags and the
+  /// snapshot compile did not.
+  List<String> get compileTargetArgs => [
+    '--target-os',
+    targetOs.name,
+    '--target-arch',
+    targetArch.name,
+  ];
+
   Map<String, dynamic> toJson() {
     return {'targetOs': targetOs.name, 'targetArch': targetArch.name};
   }

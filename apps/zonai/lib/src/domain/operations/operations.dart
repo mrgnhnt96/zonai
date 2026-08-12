@@ -97,17 +97,18 @@ class Operations {
     // Keep project_main imports in sync for in-process / JIT restarts.
     await const ProjectGenerator().create();
 
+    // One list for both compiles below -- see the note in rules.dart for why
+    // they must not be spelled out separately.
+    final compileArgs = [
+      ...env.dartDefineArgs,
+      if (!args.release) '--enable-asserts',
+      ...?buildSettings?.compileTargetArgs,
+    ];
+
     final result = await process.runDart([
       'compile',
       'exe',
-      ...env.dartDefineArgs,
-      if (!args.release) '--enable-asserts',
-      if (buildSettings case final build?) ...[
-        '--target-os',
-        build.targetOs.name,
-        '--target-arch',
-        build.targetArch.name,
-      ],
+      ...compileArgs,
       OperationGenerator.executablePath,
       '-o',
       target,
@@ -129,8 +130,7 @@ class Operations {
     final snapshot = await process.runDart([
       'compile',
       'aot-snapshot',
-      ...env.dartDefineArgs,
-      if (!args.release) '--enable-asserts',
+      ...compileArgs,
       OperationGenerator.executablePath,
       '-o',
       snapshotTarget,

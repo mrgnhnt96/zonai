@@ -75,17 +75,20 @@ class Rules {
     await RuleGenerator(rules: files).create();
     await const ProjectGenerator().create();
 
+    // One list for both compiles below. They emit the same code for the same
+    // target and differ only in output format, so a flag either belongs to both
+    // or to neither -- and the one time they were spelled out separately, the
+    // snapshot silently came out for the build host.
+    final compileArgs = [
+      ...env.dartDefineArgs,
+      if (!args.release) '--enable-asserts',
+      ...?buildSettings?.compileTargetArgs,
+    ];
+
     final result = await process.runDart([
       'compile',
       'exe',
-      ...env.dartDefineArgs,
-      if (!args.release) '--enable-asserts',
-      if (buildSettings case final build?) ...[
-        '--target-os',
-        build.targetOs.name,
-        '--target-arch',
-        build.targetArch.name,
-      ],
+      ...compileArgs,
       RuleGenerator.executablePath,
       '-o',
       target,
@@ -107,8 +110,7 @@ class Rules {
     final snapshot = await process.runDart([
       'compile',
       'aot-snapshot',
-      ...env.dartDefineArgs,
-      if (!args.release) '--enable-asserts',
+      ...compileArgs,
       RuleGenerator.executablePath,
       '-o',
       snapshotTarget,
