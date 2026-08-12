@@ -9,7 +9,10 @@ void main() {
     });
 
     test('returns PackageNotFound for whitespace-only content', () {
-      final result = resolvedPackageVersion('   \n', packageName: 'zonai_schema');
+      final result = resolvedPackageVersion(
+        '   \n',
+        packageName: 'zonai_schema',
+      );
       expect(result, isA<PackageNotFound>());
     });
 
@@ -22,7 +25,10 @@ void main() {
     });
 
     test('returns PackageNotFound when packages: is missing entirely', () {
-      final result = resolvedPackageVersion('sdks:\n  dart: ">=3.0.0"\n', packageName: 'zonai_schema');
+      final result = resolvedPackageVersion(
+        'sdks:\n  dart: ">=3.0.0"\n',
+        packageName: 'zonai_schema',
+      );
       expect(result, isA<PackageNotFound>());
     });
 
@@ -34,20 +40,23 @@ void main() {
       expect(result, isA<PackageNotFound>());
     });
 
-    test('returns UnresolvableVersion for a path-sourced entry with no version key '
-        '(the actual shape zonai_schema has in every fixture in this repo today)', () {
-      final result = resolvedPackageVersion(
-        'packages:\n'
-        '  zonai_schema:\n'
-        '    dependency: "direct main"\n'
-        '    description:\n'
-        '      path: "../../libs/zonai_schema"\n'
-        '      relative: true\n'
-        '    source: path\n',
-        packageName: 'zonai_schema',
-      );
-      expect(result, isA<UnresolvableVersion>());
-    });
+    test(
+      'returns UnresolvableVersion for a path-sourced entry with no version key '
+      '(the actual shape zonai_schema has in every fixture in this repo today)',
+      () {
+        final result = resolvedPackageVersion(
+          'packages:\n'
+          '  zonai_schema:\n'
+          '    dependency: "direct main"\n'
+          '    description:\n'
+          '      path: "../../libs/zonai_schema"\n'
+          '      relative: true\n'
+          '    source: path\n',
+          packageName: 'zonai_schema',
+        );
+        expect(result, isA<UnresolvableVersion>());
+      },
+    );
 
     test('returns UnresolvableVersion for a git-sourced entry', () {
       final result = resolvedPackageVersion(
@@ -73,13 +82,16 @@ void main() {
       expect((result as ResolvedVersion).version.toString(), '0.5.1');
     });
 
-    test('returns UnresolvableVersion for hosted with a missing version key', () {
-      final result = resolvedPackageVersion(
-        'packages:\n  zonai_schema:\n    source: hosted\n',
-        packageName: 'zonai_schema',
-      );
-      expect(result, isA<UnresolvableVersion>());
-    });
+    test(
+      'returns UnresolvableVersion for hosted with a missing version key',
+      () {
+        final result = resolvedPackageVersion(
+          'packages:\n  zonai_schema:\n    source: hosted\n',
+          packageName: 'zonai_schema',
+        );
+        expect(result, isA<UnresolvableVersion>());
+      },
+    );
 
     test('returns UnresolvableVersion for hosted with an unparsable version', () {
       final result = resolvedPackageVersion(

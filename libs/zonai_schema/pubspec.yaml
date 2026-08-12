@@ -2,7 +2,7 @@ name: zonai_schema
 description: >
   Shared relational model for Zonai — Raindrop schemas, typed IDs, column
   helpers, and anything else clients and services need to agree on the DB shape.
-version: 0.1.1
+version: 0.2.0
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_schema
 resolution: workspace
 

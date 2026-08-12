@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:zonai/gen/version.dart';
+import 'package:zonai/src/domain/schema_version/min_schema_version.dart';
 
 import '../../../deps/args.dart';
 import '../../../deps/fs.dart';
@@ -35,7 +36,7 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
 
 dependencies:
-  zonai_schema: ^$kVersion
+  zonai_schema: ^$kMinSchemaVersion
 ''');
   stdout.writeln('Created pubspec.yaml');
 }

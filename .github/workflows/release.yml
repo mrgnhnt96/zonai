@@ -24,6 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # `zonai init` scaffolds `zonai_schema: ^<kMinSchemaVersion>`, so
+      # releasing the CLI ahead of the schema release it names hands new
+      # projects a pubspec pub cannot resolve. Nothing in the test suite can
+      # see this -- every checkout here resolves zonai_schema by path -- so it
+      # is gated at the one moment it matters.
+      - name: Verify the declared zonai_schema floor is published
+        run: bash apps/zonai/tool/verify_min_schema_version.sh
+
       - name: Resolve release version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
