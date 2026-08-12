@@ -29,7 +29,7 @@ All paths are optional. Zonai uses sensible defaults so you only need to set a p
 | `emailTemplatesPath` | `lib/src/email_templates` | HTML email templates |
 | `migrationsPath` | `.zonai/migrations` | Generated SQL migration files |
 | `dataPath` | `.zonai/data` | SQLite database directory |
-| `imagesPath` | `<dataPath>/images` | Uploaded photo files |
+| `imagesPath` | `<dataPath>/images` | Uploaded photo files, plus the dashboard's [`favicon.ico` and `logo.png`](/dashboard/branding) |
 
 ## Server Fields
 

@@ -114,6 +114,7 @@ const List<NavGroup> navigation = [
       NavItem('Overview', '/dashboard/overview', summary: 'Reaching the dashboard, signing in, and exposing it safely.'),
       NavItem('Metrics & Cron Jobs', '/dashboard/metrics', summary: 'Request volume, error rate, sessions, and manual job runs.'),
       NavItem('Browsing & Editing Data', '/dashboard/table-editor', summary: 'Sort, filter and edit rows with typed column editors.'),
+      NavItem('Branding', '/dashboard/branding', summary: 'Replace the favicon and logo by dropping files into imagesPath.'),
     ],
   ),
   NavGroup(

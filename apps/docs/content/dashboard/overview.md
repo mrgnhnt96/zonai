@@ -76,5 +76,6 @@ server to the internet:
 
 - [Metrics & Cron Jobs](/dashboard/metrics) — what the landing screen reports
 - [Browsing & Editing Data](/dashboard/table-editor) — the table UI
+- [Branding](/dashboard/branding) — replacing the favicon and logo
 - [Admin Accounts](/authentication/admin-accounts) — creating the account you sign in with
 - [Server Binding](/deployment/server-binding) — which interface the server listens on
