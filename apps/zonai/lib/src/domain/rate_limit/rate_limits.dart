@@ -13,6 +13,7 @@ import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
 import '../ipc_protocol_stamp.dart';
+import '../message_contract_stamp.dart';
 import 'rate_limit_generator.dart';
 
 final class RateLimitsCompiler {
@@ -94,6 +95,7 @@ final class RateLimitsCompiler {
     }
 
     writeProtocolStamp(target);
+    writeMessageContractStamp(target);
 
     final s = files.length == 1 ? '' : 's';
     logger.info('Compiled ${files.length} rate limit$s');

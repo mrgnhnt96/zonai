@@ -22,6 +22,7 @@ import 'package:zonai_schema/src/handlers/messages/message_io.dart'
 
 import '../db_mutator/executable_unavailable_exception.dart';
 import '../db_mutator/payloads/payloads.dart';
+import '../db_mutator/worker_contract_mismatch_exception.dart';
 import '../db_mutator/worker_process_failed_exception.dart';
 import '../db_mutator/worker_protocol_mismatch_exception.dart';
 import '../deps/clean_up.dart';
@@ -32,6 +33,7 @@ import '../deps/mutations.dart';
 import '../deps/process.dart';
 import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
+import '../domain/message_contract_stamp.dart';
 import '../native/argon2_native.dart' show provideArgon2NativeLibraryPath;
 import '../native/resqlite_native.dart' show provideResqliteNativeLibraryPath;
 
@@ -49,6 +51,8 @@ mixin Receivable<S extends Request, R extends Response> on Mailman<S, R> {
 class Mailman<S extends Request, R extends Response> {
   static final _loggedMissingExecutables = <String>{};
   static final _loggedProtocolMismatches = <String>{};
+  static final _loggedContractMismatches = <String>{};
+  static final _loggedStaleSnapshots = <String>{};
 
   Mailman({
     required this.debugName,
@@ -197,6 +201,28 @@ class Mailman<S extends Request, R extends Response> {
     if (error == null) return;
 
     if (_loggedProtocolMismatches.add(executablePath)) {
+      logger.error(error.message, error.runtimeType, StackTrace.current);
+    }
+    throw error;
+  }
+
+  /// Refuses to spawn [executablePath] when it was compiled against a
+  /// different message vocabulary than this host speaks -- see
+  /// `WorkerContractMismatchException.forStamp`.
+  ///
+  /// Runs at spawn, next to the protocol check, for the reason that check
+  /// exists: a worker allowed this far fails inside a request handler, where
+  /// the failure is an HTTP 5xx to whoever happened to be calling rather than
+  /// a message to whoever can fix it.
+  void _throwIfContractMismatch(String executablePath) {
+    final error = WorkerContractMismatchException.forStamp(
+      workerName: debugName,
+      executablePath: executablePath,
+      hostContract: hostMessageContractHash(),
+    );
+    if (error == null) return;
+
+    if (_loggedContractMismatches.add(executablePath)) {
       logger.error(error.message, error.runtimeType, StackTrace.current);
     }
     throw error;
@@ -493,6 +519,7 @@ class Mailman<S extends Request, R extends Response> {
     }
 
     _throwIfProtocolMismatch(executablePath);
+    _throwIfContractMismatch(executablePath);
 
     logger.debug('Starting | $executablePath', prefix: _prefix);
 
@@ -540,6 +567,39 @@ class Mailman<S extends Request, R extends Response> {
     logger.debug('Started', prefix: _prefix);
   }
 
+  /// Whether the AOT snapshot at [path] was built against a different message
+  /// vocabulary than this host speaks -- the isolate transport's version of
+  /// `_throwIfContractMismatch`.
+  ///
+  /// Declines rather than throwing, which looks like a weaker guard and is
+  /// not. Returning `false` from [_tryStartIsolate] falls through to the
+  /// worker process, which is stamped separately and refuses loudly on its
+  /// own if it is stale too -- so a genuinely stale pair still fails at spawn
+  /// with the full message. What this buys is the case the two have diverged:
+  /// the `.exe` and the `.aot` are separate compiles of the same sources
+  /// (rules.dart's `compileArgs` note records the time they came out
+  /// differently), so a stale snapshot beside a fresh executable should cost
+  /// in-process dispatch, not the request.
+  bool _snapshotContractIsStale(String path) {
+    final hostContract = hostMessageContractHash();
+    if (!isMessageContractStale(path, hostHash: hostContract)) return false;
+
+    if (_loggedStaleSnapshots.add(path)) {
+      logger.warn(
+        '$_prefix: $path was built against message contract '
+        '${_shortContract(readMessageContractStamp(path))} but this host '
+        'speaks ${_shortContract(hostContract)} -- ignoring it and using the '
+        'worker process instead (dispatch still works, in-process does not). '
+        'Run `zonai compile` to refresh it, or `zonai build` and redeploy if '
+        'this host is a deployed bundle.',
+      );
+    }
+    return true;
+  }
+
+  static String _shortContract(String? hash) =>
+      hash == null ? 'nothing' : hash.substring(0, min(12, hash.length));
+
   Future<bool> _tryStartIsolate() async {
     Uri? entry;
     Uri? packageConfig;
@@ -554,6 +614,7 @@ class Mailman<S extends Request, R extends Response> {
         packageConfig = Uri.file(pkg.absolute.path);
       }
     } else if (snapshotPath != null && fs.file(snapshotPath!).existsSync()) {
+      if (_snapshotContractIsStale(snapshotPath!)) return false;
       entry = Uri.file(fs.file(snapshotPath!).absolute.path);
       fromSnapshot = true;
     } else {

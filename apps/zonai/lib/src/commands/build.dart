@@ -10,6 +10,7 @@ import 'package:zonai/src/deps/migrate.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/versions.dart';
 import 'package:zonai/src/domain/constants.dart';
+import 'package:zonai/src/domain/message_contract_stamp.dart';
 import 'package:zonai/src/domain/project/project_binary.dart';
 import 'package:zonai/src/domain/project/project_runtime.dart';
 
@@ -205,13 +206,26 @@ Future<String?> _bundleTargetNativeLibs() async {
 Future<void> _bundlePublishedBinary() async {
   if (settings.buildSettings.targetsCurrentPlatform() && kIsCompiled) {
     fs.file(Platform.executable).copySync(settings.buildExecutablePath);
-    return;
+  } else {
+    await versions.downloadBinary(
+      version: settings.version,
+      targetDestination: settings.buildExecutablePath,
+      targetOs: settings.buildSettings.targetOs,
+      targetArch: settings.buildSettings.targetArch,
+    );
   }
 
-  await versions.downloadBinary(
-    version: settings.version,
-    targetDestination: settings.buildExecutablePath,
-    targetOs: settings.buildSettings.targetOs,
-    targetArch: settings.buildSettings.targetArch,
-  );
+  // A linked binary gets its contract stamp from `ProjectBinary.compile`,
+  // which compiled it. A stock one was compiled by somebody else, so nothing
+  // would stamp it -- and an unstamped host cannot know its own contract, so
+  // `hostMessageContractHash` reads null and the worker guard goes inert for
+  // the *ordinary* deployment (nothing depends on package:zonai, so nothing
+  // links; see resolveProjectLink).
+  //
+  // What is recorded is the contract this bundle was *assembled* against,
+  // which is what the drift this guards is measured from: the workers beside
+  // it were compiled from these same sources a moment ago, and the case that
+  // breaks them is a later `zonai compile` refreshing workers, against
+  // different sources, next to an unchanged bundle.
+  writeMessageContractStamp(settings.buildExecutablePath);
 }

@@ -7,6 +7,7 @@ import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/ipc_protocol_stamp.dart';
+import 'package:zonai/src/domain/message_contract_stamp.dart';
 import 'package:zonai/src/domain/operations/operation_generator.dart';
 import 'package:zonai/src/domain/project/project_generator.dart';
 import 'package:zonai/src/domain/project/project_link.dart';
@@ -83,6 +84,7 @@ class ProjectBinary {
     }
 
     writeProtocolStamp(target);
+    writeMessageContractStamp(target);
 
     logger.info('Compiled project binary');
     return 0;

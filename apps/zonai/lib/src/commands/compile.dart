@@ -1,4 +1,5 @@
 import 'package:zonai/src/domain/ipc_protocol_stamp.dart';
+import 'package:zonai/src/domain/message_contract_stamp.dart';
 import 'package:zonai/src/domain/project/project_binary.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
@@ -21,22 +22,51 @@ Future<int> compile([BuildSettings? buildSettings]) async {
   // returns (see build.dart), so it can never go stale. This only matters
   // for the dev host binary: `zonai compile` refreshes workers but, until
   // now, never touched the host -- so a worker recompiled against a wire
-  // protocol change (see ipc_protocol_stamp.dart) could silently outrun an
+  // protocol change (see ipc_protocol_stamp.dart) or a message vocabulary
+  // change (see message_contract_hash.dart) could silently outrun an
   // already-built host binary sitting on disk.
   if (buildSettings == null) {
-    await _rebuildHostIfProtocolStale();
+    await _rebuildHostIfStale();
   }
 
   return 0;
 }
 
-Future<void> _rebuildHostIfProtocolStale() async {
+Future<void> _rebuildHostIfStale() async {
   final hostPath = settings.compiledProjectBinaryPath;
-  if (!isProtocolStale(hostPath, hostVersion: IpcCodec.version)) return;
+  if (!fs.file(hostPath).existsSync()) return;
 
-  logger.info(
-    'Host binary IPC protocol is stale (v${readProtocolStamp(hostPath)}, '
-    'now v${IpcCodec.version}) -- rebuilding...',
-  );
+  final reason =
+      _protocolStaleReason(hostPath) ?? _contractStaleReason(hostPath);
+  if (reason == null) return;
+
+  logger.info('$reason -- rebuilding host binary...');
   await ProjectBinary().compile();
+}
+
+String? _protocolStaleReason(String hostPath) {
+  if (!isProtocolStale(hostPath, hostVersion: IpcCodec.version)) return null;
+
+  return 'Host binary IPC protocol is stale '
+      '(v${readProtocolStamp(hostPath)}, now v${IpcCodec.version})';
+}
+
+/// Unlike the protocol check, a *missing* contract stamp counts as stale here.
+///
+/// At spawn time an unstamped binary has to pass -- there is nothing to
+/// compare, and refusing would break every ad-hoc build. But that also means
+/// an unstamped host binary leaves the guard permanently inert. Rebuilding is
+/// cheap and happens once: after it, the host carries a stamp and the check
+/// has something to work with.
+String? _contractStaleReason(String hostPath) {
+  final expected = messageContractHash.value;
+  if (expected == null) return null;
+
+  final stamped = readMessageContractStamp(hostPath);
+  if (stamped == expected) return null;
+
+  if (stamped == null) {
+    return 'Host binary carries no message contract stamp';
+  }
+  return 'Host binary message contract is stale';
 }

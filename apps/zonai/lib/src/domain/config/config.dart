@@ -13,6 +13,7 @@ import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
 import '../ipc_protocol_stamp.dart';
+import '../message_contract_stamp.dart';
 import 'config_generator.dart';
 
 class Config {
@@ -120,6 +121,7 @@ class Config {
     }
 
     writeProtocolStamp(target);
+    writeMessageContractStamp(target);
 
     final s = files.length == 1 ? '' : 's';
     logger.info('Compiled ${files.length} config$s');

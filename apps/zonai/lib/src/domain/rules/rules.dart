@@ -13,6 +13,7 @@ import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
 import '../ipc_protocol_stamp.dart';
+import '../message_contract_stamp.dart';
 import '../project/project_generator.dart';
 import 'rule_generator.dart';
 
@@ -102,6 +103,7 @@ class Rules {
     }
 
     writeProtocolStamp(target);
+    writeMessageContractStamp(target);
 
     final snapshotTarget = switch (buildSettings) {
       != null => settings.buildRulesSnapshotPath,
@@ -115,7 +117,12 @@ class Rules {
       '-o',
       snapshotTarget,
     ]);
-    if (snapshot.exitCode != 0) {
+    if (snapshot.exitCode == 0) {
+      // Its own stamp, not the .exe's: this is a separate compile of the same
+      // sources, and when it fails the previous snapshot stays on disk. The
+      // stamp has to describe the file that is actually there.
+      writeMessageContractStamp(snapshotTarget);
+    } else {
       logger.warn(
         'Failed to compile rules AOT snapshot (isolate transport '
         'will fall back to process): ${snapshot.stderr}',
