@@ -15,6 +15,26 @@
 # prove the bundle it emits actually serves -- the artifact a deploy copies,
 # not just a file that exists.
 #
+# TWO PASSES, because `zonai build` now has two outcomes for this fixture and
+# both ship. A project with no `zonai` dependency used to be an unconditional
+# fallback to worker IPC; it now gets a project-linked binary whenever zonai's
+# own sources are reachable, by merging the two package graphs into a config
+# passed to `dart compile exe --packages`. Each pass costs a full worker
+# compile, which is the bulk of this job's runtime -- paid deliberately,
+# because the two branches produce bundles that are indistinguishable from
+# outside (both serve, both answer /health) and only one of them is what the
+# build intended.
+#
+#   1. ZONAI_FORCE_WORKERS=1 -- the published-binary fallback. Still what a
+#      bare released binary does on a machine with no zonai sources, which no
+#      other gate covers for the host target.
+#   2. the default -- the project-linked binary, ops and rules in-process.
+#
+# NOT covered here: the bare-binary case itself. This runs inside the repo, so
+# zonai's sources are always reachable and pass 2 always links. A deploy that
+# has only the binary takes the fallback for a reason nothing here reproduces,
+# and pass 1 stands in for it with an env var instead.
+#
 # Usage: verify_build_command.sh <executable> [fixture-dir] [health-timeout-s]
 set -euo pipefail
 
@@ -50,10 +70,6 @@ dart pub get
 echo "Generating a migration so the bundle has one to carry..."
 "$executable" db migrate generate --name initialize --no-version-check
 
-echo "Running zonai build..."
-"$executable" build --no-version-check
-
-echo "Checking bundle contents..."
 require_file() {
   if [[ ! -f "$1" ]]; then
     echo "zonai build did not produce $1" >&2
@@ -61,6 +77,64 @@ require_file() {
   fi
   echo "  ok: $1"
 }
+
+# `zonai version` names the dispatch the binary will actually use. It is the
+# only thing that distinguishes the two bundles: a project-linked binary and a
+# fallback bundle both start, both serve, both answer /health, and both pass
+# every other assertion in this file. Reported from the same flag the dispatch
+# path reads, so ZONAI_FORCE_WORKERS shows up in it too -- which is what makes
+# asserting "in-process" below a real check rather than a restatement of what
+# was compiled.
+require_dispatch() {
+  local binary="$1" expected="$2" reported
+  if [[ ! -x "$binary" ]]; then
+    chmod +x "$binary"
+  fi
+
+  reported="$("$binary" version --no-version-check --no-schema-version-check)"
+  if ! grep -q "Ops/rules: ${expected}" <<<"$reported"; then
+    echo "expected '${binary}' to report 'Ops/rules: ${expected}'" >&2
+    echo "it reported:" >&2
+    echo "$reported" >&2
+    exit 1
+  fi
+  echo "  ok: ${binary} reports 'Ops/rules: ${expected}'"
+}
+
+# ---------------------------------------------------------------------------
+# Pass 1: the published-binary fallback.
+# ---------------------------------------------------------------------------
+echo "Pass 1/2: zonai build with ZONAI_FORCE_WORKERS=1 (fallback)..."
+ZONAI_FORCE_WORKERS=1 "$executable" build --no-version-check
+
+require_file "build/${built_name}"
+
+# The direct evidence of which branch ran, and the reason this pass is not a
+# restatement of its own env var: the fallback *copies* the running binary, so
+# the two files are byte-identical. A linked binary is compiled fresh and never
+# will be. (True only because this gate builds for the host with a compiled
+# CLI -- cross-target and source runs download instead of copying.)
+if ! cmp -s "$executable" "build/${built_name}"; then
+  echo "ZONAI_FORCE_WORKERS=1 did not bundle the published binary:" >&2
+  echo "  build/${built_name} differs from ${executable}, so something was" >&2
+  echo "  compiled when the fallback was supposed to be taken." >&2
+  exit 1
+fi
+echo "  ok: build/${built_name} is the published binary, byte for byte"
+
+require_dispatch "build/${built_name}" "worker IPC"
+
+# Start pass 2 from nothing so nothing it asserts can be satisfied by pass 1's
+# output. `.zonai` is kept: it holds the migration generated above.
+rm -rf build
+
+# ---------------------------------------------------------------------------
+# Pass 2: the project-linked binary, and the bundle a deploy actually gets.
+# ---------------------------------------------------------------------------
+echo "Pass 2/2: zonai build (project-linked)..."
+"$executable" build --no-version-check
+
+echo "Checking bundle contents..."
 
 require_file "build/${built_name}"
 require_file "build/zonai.yaml"
@@ -104,6 +178,20 @@ fi
 
 echo "Checking the bundled binary runs..."
 "./build/${built_name}" version --no-version-check --no-schema-version-check
+
+# The point of pass 2. Falling back works, so losing the linked binary breaks
+# nothing visible -- it costs in-process dispatch and, with it, per-operation
+# rate limiting, while every other assertion in this file keeps passing. This
+# is the only line that would notice.
+require_dispatch "build/${built_name}" "in-process"
+
+if cmp -s "$executable" "build/${built_name}"; then
+  echo "build/${built_name} is byte-identical to the published binary, so" >&2
+  echo "  nothing was linked -- see the build log above for the reason it" >&2
+  echo "  fell back." >&2
+  exit 1
+fi
+echo "  ok: build/${built_name} was compiled, not copied"
 
 # Everything above proves the bundle was assembled. This proves it works:
 # serve out of build/ exactly as a deploy does (see the Dockerfile layout --
