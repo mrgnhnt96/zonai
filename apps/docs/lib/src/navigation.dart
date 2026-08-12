@@ -101,9 +101,19 @@ const List<NavGroup> navigation = [
     items: [
       NavItem('Operations Overview', '/operations/overview', summary: 'Default vs. custom operations, and when to override the SQL.'),
       NavItem('Default Operations', '/operations/default-operations', summary: 'CRUD endpoints, request/response JSON, where and order_by shapes.'),
-      NavItem('Live Queries', '/operations/streaming', badge: 'live', summary: 'db.listen and /db/stream* push updates — do not poll.'),
+      NavItem('Live Queries', '/operations/streaming', badge: 'live', summary: 'db.listen and /db/stream* push updates as data changes.'),
       NavItem('Auth Operations', '/operations/auth-operations', summary: 'Sign-up, sign-in, reset, OTP and magic-link routes.'),
       NavItem('OpenAPI Specification', '/api/openapi-spec', summary: 'Fetch the live OpenAPI JSON from a running server.'),
+    ],
+  ),
+  NavGroup(
+    'Dashboard',
+    icon: NavIcons.layout,
+    summary: 'The admin UI every server serves at /_.',
+    items: [
+      NavItem('Overview', '/dashboard/overview', summary: 'Reaching the dashboard, signing in, and exposing it safely.'),
+      NavItem('Metrics & Cron Jobs', '/dashboard/metrics', summary: 'Request volume, error rate, sessions, and manual job runs.'),
+      NavItem('Browsing & Editing Data', '/dashboard/table-editor', summary: 'Sort, filter and edit rows with typed column editors.'),
     ],
   ),
   NavGroup(
@@ -327,6 +337,10 @@ abstract final class NavIcons {
 
   static const terminal =
       '$_open<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>';
+
+  static const layout =
+      '$_open<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>'
+      '<path d="M9 12h12"/></svg>';
 
   static const server =
       '$_open<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/>'

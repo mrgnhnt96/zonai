@@ -89,6 +89,8 @@ client.db.listen
 
 **Per-IP rate limiting** — configurable per-table and per-operation with a simple policy class.
 
+**Built-in admin dashboard** — every server serves a UI at `/_` with traffic metrics, cron job status, and a full table browser and editor. See [Dashboard Overview](/dashboard/overview).
+
 **Project-linked binary** — `zonai build` produces `build/zonai` with your ops/rules linked in-process for the CRUD hot path.
 
 ## How It Works
