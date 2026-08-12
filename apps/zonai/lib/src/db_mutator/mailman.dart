@@ -543,6 +543,7 @@ class Mailman<S extends Request, R extends Response> {
   Future<bool> _tryStartIsolate() async {
     Uri? entry;
     Uri? packageConfig;
+    var fromSnapshot = false;
 
     if (isRunningOnDartVm &&
         sourceEntryPath != null &&
@@ -554,6 +555,7 @@ class Mailman<S extends Request, R extends Response> {
       }
     } else if (snapshotPath != null && fs.file(snapshotPath!).existsSync()) {
       entry = Uri.file(fs.file(snapshotPath!).absolute.path);
+      fromSnapshot = true;
     } else {
       return false;
     }
@@ -589,7 +591,19 @@ class Mailman<S extends Request, R extends Response> {
       }
       return _isolatePeer != null;
     } catch (e, stack) {
-      logger.debug('Isolate spawn failed: $e', prefix: _prefix);
+      // A snapshot that is present and will not spawn is worth saying out loud:
+      // the fallback to the .exe worker serves identically, so this is the only
+      // moment the loss of in-process dispatch is observable at all. The most
+      // likely cause on a deployed bundle is a snapshot built for the build
+      // host rather than the target.
+      if (fromSnapshot) {
+        logger.warn(
+          '$_prefix: $snapshotPath would not spawn, falling back to the '
+          'worker process (dispatch still works, in-process does not): $e',
+        );
+      } else {
+        logger.debug('Isolate spawn failed: $e', prefix: _prefix);
+      }
       logger.debug('$stack', prefix: _prefix);
       await _tearDownIsolate();
       return false;
