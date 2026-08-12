@@ -6,6 +6,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
 
 import '../../gen/native/argon2_native.g.dart';
 import '../deps/fs.dart';
+import '../domain/native_library_format.dart';
 import '../domain/native_library_stamp.dart';
 import '../domain/settings.dart';
 import 'argon2_ffi.dart' as argon2_ffi;
@@ -91,6 +92,16 @@ Future<String> _extractCompiledLibrary() async {
   if (hasCurrentNativeLibraryStamp(dest.path)) {
     return dest.absolute.path;
   }
+
+  // See the matching guard in resqlite_native.dart: nothing vouches for the
+  // file at this path, so these embedded bytes become the shared copy -- and
+  // they are only correct if this binary was compiled for the platform it is
+  // running on.
+  checkNativeLibraryPlatform(
+    argon2NativeLibraryBytes,
+    name: 'argon2',
+    destination: dest.path,
+  );
 
   await _writeLibraryBytes(dest, argon2NativeLibraryBytes);
 

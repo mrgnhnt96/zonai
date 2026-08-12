@@ -7,6 +7,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
 
 import '../../gen/native/resqlite_native.g.dart';
 import '../deps/fs.dart';
+import '../domain/native_library_format.dart';
 import '../domain/native_library_stamp.dart';
 import '../domain/settings.dart';
 
@@ -123,6 +124,17 @@ Future<String> _extractCompiledLibrary() async {
   if (hasCurrentNativeLibraryStamp(dest.path)) {
     return dest.absolute.path;
   }
+
+  // No stamp vouches for what's there, so this process's own embedded bytes
+  // are about to become the copy every process on this machine loads. They
+  // are only the right ones if this binary was compiled for the platform it
+  // is now running on -- and a cross-compiled worker is exactly the case
+  // where it wasn't.
+  checkNativeLibraryPlatform(
+    resqliteNativeLibraryBytes,
+    name: 'resqlite',
+    destination: dest.path,
+  );
 
   await _writeLibraryBytes(dest, resqliteNativeLibraryBytes);
 
