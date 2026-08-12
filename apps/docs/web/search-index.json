@@ -102,7 +102,7 @@
         {
           "h": "Step 3: Define Tables",
           "a": "step-3-define-tables",
-          "b": "Create lib/src/schemas/users.dart: import 'package:zonai_schema/zonai_schema.dart'; final class User { const User({ required this.id, required this.email, required this.isVerified, required this.createdAt, required this.updatedAt, }); final UsersId id; final String email; final bool isVerified; final DateTime createdAt; final DateTime updatedAt; } class UsersId extends Id { const UsersId(super.value); factory UsersId.generate() => UsersId(Id.generate('us')); } final class UserTable extends AuthTable with PasswordAuth { UserTable(super.$) : id = $.id('id', (s) => s.id, fromString: UsersId.new, generate: UsersId.generate), email = $.email('email', (s) => s.email), isVerified = $.isVerified('is_verified', (s) => s.isVerified), createdAt = $.createdAt('created_at', (s) => s.createdAt), updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt); @override User fromRow(RowReader read) => User( id: read(id), email: read(email), isVerified: read(isVerified), createdAt: read(createdAt), updatedAt: read(updatedAt), ); final IdColumn id; final EmailColumn email; final IsVerifiedColumn isVerified; final CreatedAtColumn createdAt; final UpdatedAtColumn updatedAt; } final users = authTable('users"
+          "b": "Every table's ID is its own type, and they all live in one file. zonai dev creates lib/src/ids.dart when it initializes the project, and appends to it each time you scaffold a table (press n in zonai dev). Written by hand, the two IDs this guide needs look like this: import 'package:zonai_schema/zonai_schema.dart' as z; sealed class Id implements z.Id { const Id(this.value); factory Id.fromJson(String json) { final parts = json.split('_'); if (parts.length != 2) { throw ArgumentError('Invalid ID format: $json'); } return switch (parts[1]) { TasksId._suffix => TasksId(json), UsersId._suffix => UsersId(json), _ => throw ArgumentError('Invalid ID format: $json'), }; } @override final String value; @override String toString() => value; String toJson() => value; @override bool operator ==(Object other) => other is z.Id && other.value == value; @override int get hashCode => value.hashCode; } class UsersId extends Id { const UsersId(super.value); factory UsersId.generate() => UsersId(z.Id.generate(_suffix)); static const _suffix = 'us'; } class TasksId extends Id { const TasksId(super.value); factory TasksId.generate() => TasksId(z.Id.generate(_suffix)); static const _suffix = 'tk'; } Two"
         },
         {
           "h": "Step 4: Configure the App",
@@ -460,12 +460,12 @@
         {
           "h": "Typed IDs",
           "a": "typed-ids",
-          "b": "Every table uses a typed ID class extending Id. This prevents accidentally passing a tasks ID where a users ID is expected: class TasksId extends Id { const TasksId(super.value); factory TasksId.generate() => TasksId(Id.generate('tk')); // 'tk' is a short suffix } The suffix appears at the end of generated IDs (e.g. abc123_tk), making debugging easier."
+          "b": "Every table has its own ID type, so a tasks ID can't be passed where a users ID is expected. They all live together in lib/src/ids.dart, under a sealed base class that supplies the shared value field: import 'package:zonai_schema/zonai_schema.dart' as z; sealed class Id implements z.Id { const Id(this.value); @override final String value; @override bool operator ==(Object other) => other is z.Id && other.value == value; @override int get hashCode => value.hashCode; @override String toString() => value; } class TasksId extends Id { const TasksId(super.value); factory TasksId.generate() => TasksId(z.Id.generate(_suffix)); static const _suffix = 'tk'; // a short, per-table suffix } zonai_schema is imported as z because its Id is an abstract interface class — your base class implements it and declares value itself, rather than extending it. Making the base sealed is what lets a single Id.fromJson switch over every ID in the project exhaustively; see Quick Start for that full file. The suffix appears at the end of generated IDs (e.g. abc123_tk), making debugging easier."
         },
         {
           "h": "Column Types",
           "a": "column-types",
-          "b": "Each column maps a Dart type to a SQLite type: Builder Method Dart Type SQLite Type $.text(...) String TEXT NOT NULL $.text(...) nullable String? TEXT $.integer(...) int INTEGER NOT NULL $.real(...) double REAL NOT NULL $.boolean(...) bool INTEGER NOT NULL (0/1) $.dateTime(...) DateTime INTEGER NOT NULL (Unix ms) $.id(...) Custom Id subclass TEXT NOT NULL $.createdAt(...) DateTime INTEGER NOT NULL (auto-set) $.updatedAt(...) DateTime INTEGER NOT NULL (auto-updated)"
+          "b": "Each column maps a Dart type to a SQLite type: Builder Method Dart Type SQLite Type $.text(...) String TEXT NOT NULL $.text(...) nullable String? TEXT $.integer(...) int INTEGER NOT NULL $.real(...) double REAL NOT NULL $.boolean(...) bool INTEGER NOT NULL (0/1) $.dateTime(...) DateTime INTEGER NOT NULL (Unix ms) $.id(...) Custom Id subclass TEXT NOT NULL $.createdAt(...) DateTime INTEGER NOT NULL (auto-set) $.updatedAt(...) DateTime? INTEGER (auto-updated) A column is nullable when the accessor you hand the builder returns a nullable type — there is no isNullable argument. $.text('bio', (s) => s.bio) is a TextColumn when bio is a String and a ColumnType<String?> when it is a String?. $.updatedAt(...) is always nullable, since a freshly inserted row has not been updated yet."
         },
         {
           "h": "Indexes",
@@ -480,7 +480,7 @@
         {
           "h": "Complete Example",
           "a": "complete-example",
-          "b": "import 'package:zonai_schema/zonai_schema.dart'; final class Post { const Post({ required this.id, required this.title, required this.body, this.publishedAt, required this.viewCount, required this.createdAt, required this.updatedAt, }); final PostsId id; final String title; final String body; final DateTime? publishedAt; // nullable — not published yet final int viewCount; final DateTime createdAt; final DateTime updatedAt; } class PostsId extends Id { const PostsId(super.value); factory PostsId.generate() => PostsId(Id.generate('po')); } final class PostTable extends Table { PostTable(super.$) : id = $.id('id', (s) => s.id, fromString: PostsId.new, generate: PostsId.generate), title = $.text('title', (s) => s.title), body = $.text('body', (s) => s.body), publishedAt = $.dateTime('published_at', (s) => s.publishedAt, isNullable: true), viewCount = $.integer('view_count', (s) => s.viewCount), createdAt = $.createdAt('created_at', (s) => s.createdAt), updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt); @override Post fromRow(RowReader read) => Post( id: read(id), title: read(title), body: read(body), publishedAt: read(publishedAt), viewCount: read(viewCount), createdAt: read(c"
+          "b": "import 'package:my_app/src/ids.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class Post { const Post({ required this.id, required this.title, required this.body, this.publishedAt, required this.viewCount, required this.createdAt, this.updatedAt, }); final PostsId id; final String title; final String body; final DateTime? publishedAt; // nullable — not published yet final int viewCount; final DateTime createdAt; final DateTime? updatedAt; } final class PostTable extends Table { PostTable(super.$) : id = $.id('id', (s) => s.id, fromString: PostsId.new, generate: PostsId.generate), title = $.text('title', (s) => s.title), body = $.text('body', (s) => s.body), publishedAt = $.dateTime('published_at', (s) => s.publishedAt), viewCount = $.integer('view_count', (s) => s.viewCount), createdAt = $.createdAt('created_at', (s) => s.createdAt), updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt); @override Post fromRow(RowReader read) => Post( id: read(id), title: read(title), body: read(body), publishedAt: read(publishedAt), viewCount: read(viewCount), createdAt: read(createdAt), updatedAt: read(updatedAt), ); final IdColumn id; final TextColumn title; final TextColumn b"
         }
       ]
     },
@@ -516,7 +516,7 @@
         {
           "h": "Complete Example",
           "a": "complete-example",
-          "b": "import 'package:zonai_schema/zonai_schema.dart'; final class User { const User({ required this.id, required this.email, required this.isVerified, required this.name, required this.createdAt, required this.updatedAt, required this.passwordHash, }); final UsersId id; final String email; final bool isVerified; final String name; final DateTime createdAt; final DateTime updatedAt; final String passwordHash; } class UsersId extends Id { const UsersId(super.value); factory UsersId.generate() => UsersId(Id.generate('us')); } final class UserTable extends AuthTable with PasswordAuth, OtpAuth { UserTable(super.$) : id = $.id('id', (s) => s.id, fromString: UsersId.new, generate: UsersId.generate), email = $.email('email', (s) => s.email), isVerified = $.isVerified('is_verified', (s) => s.isVerified), name = $.text('name', (s) => s.name), createdAt = $.createdAt('created_at', (s) => s.createdAt), updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt), passwordHash = $.password('password', (s) => s.passwordHash); @override User fromRow(RowReader read) => User( id: read(id), email: read(email), isVerified: read(isVerified), name: read(name), createdAt: read(createdAt), updatedAt: read(update"
+          "b": "import 'package:my_app/src/ids.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class User { const User({ required this.id, required this.email, required this.isVerified, required this.name, required this.createdAt, this.updatedAt, required this.passwordHash, }); final UsersId id; final String email; final bool isVerified; final String name; final DateTime createdAt; final DateTime? updatedAt; final String passwordHash; } final class UserTable extends AuthTable with PasswordAuth, OtpAuth { UserTable(super.$) : id = $.id('id', (s) => s.id, fromString: UsersId.new, generate: UsersId.generate), email = $.email('email', (s) => s.email), isVerified = $.isVerified('is_verified', (s) => s.isVerified), name = $.text('name', (s) => s.name), createdAt = $.createdAt('created_at', (s) => s.createdAt), updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt), passwordHash = $.password('password', (s) => s.passwordHash); @override User fromRow(RowReader read) => User( id: read(id), email: read(email), isVerified: read(isVerified), name: read(name), createdAt: read(createdAt), updatedAt: read(updatedAt), passwordHash: read(passwordHash), ); final IdColumn id; final EmailColumn email"
         }
       ]
     },
@@ -700,7 +700,7 @@
         {
           "h": "Creating an Operations File",
           "a": "creating-an-operations-file",
-          "b": "Create a .dart file in operationsPath for the table you want to customize. Export a main() function that returns a TableOperations instance: import 'package:my_app/src/schemas/posts.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class PostOperations extends TableOperations<PostTable, Post> { PostOperations() : super(posts); @override // Override methods here } PostOperations main() => PostOperations(); All operations files in operationsPath are auto-discovered. Define at most one file per table."
+          "b": "Create a .dart file in operationsPath for the table you want to customize. Export a main() function that returns a TableOperations instance: import 'package:my_app/src/schemas/posts.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class PostOperations extends TableOperations<PostTable, Post> { PostOperations() : super(posts); // Override the operations you want to customize here. } PostOperations main() => PostOperations(); All operations files in operationsPath are auto-discovered. Define at most one file per table."
         },
         {
           "h": "The Operations Runtime",
@@ -1126,7 +1126,7 @@
         {
           "h": "Creating Row Rules",
           "a": "creating-row-rules",
-          "b": "Create _row_rules.dart in rulesPath and extend RowRules: import 'package:my_app/src/schemas/tasks.dart'; import 'package:zonai_schema/zonai_schema.dart'; TaskRowRules main() => TaskRowRules(); final class TaskRowRules extends RowRules<TaskTable, Task> { TaskRowRules() : super(tasks); @override Future canView(Jwt? jwt, Task row) async => true; @override Future canUpdate(Jwt? jwt, Task before, Task after) async { // Admins can always edit; owners can edit their own rows if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == before.createdBy.value; } @override Future canDelete(Jwt? jwt, Task row) async { if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == row.createdBy.value; } }"
+          "b": "Create _row_rules.dart in rulesPath and extend RowRules: import 'package:my_app/src/schemas/tasks.dart'; import 'package:zonai_schema/zonai_schema.dart'; TaskRowRules main() => TaskRowRules(); final class TaskRowRules extends RowRules<TaskTable, Task> { TaskRowRules() : super(tasks); @override Future canView(Jwt? jwt, Task row) async => true; @override Future canUpdate(Jwt? jwt, Task before, Task after) async { // Admins can always edit; owners can edit their own rows if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == before.createdBy; } @override Future canDelete(Jwt? jwt, Task row) async { if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == row.createdBy; } }"
         },
         {
           "h": "Available Methods",
@@ -1162,12 +1162,17 @@
       "g": "Rules & Authorization",
       "s": [
         {
-          "b": "Auth rules control the authentication endpoints (sign-up, sign-in, password reset) for an auth table. They live in the same file as table rules, added as a mixin."
+          "b": "Auth rules control the authentication endpoints (sign-up, sign-in, password reset) for an auth table. They are split across two classes, the same way ordinary rules are: AuthTableRules gates the endpoint for the table as a whole, and AuthRowRules gates it for the specific account row involved. Both are base classes you extend — neither is a mixin, and neither is combined with TableRules/RowRules. An AuthTable is not a Table, so TableRules<UserTable, User> will not even accept an auth table as its type argument."
         },
         {
           "h": "Enabling Auth Rules",
           "a": "enabling-auth-rules",
-          "b": "Add with AuthTableRules<UserTable, User> to your table rules class: import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class UserTableRules extends TableRules<UserTable, User> with AuthTableRules<UserTable, User> { UserTableRules() : super(users); // Regular table rules @override Future canList(Jwt? jwt) async => jwt?.admin.isAdmin ?? false; // Auth rules (default: true — allow) @override Future canSignIn(User user) async { return user.isVerified; // block unverified accounts } } Auth rule methods default to true (allow) when not overridden. This is the opposite of regular table rules, which default to false (deny)."
+          "b": "In rulesPath, _table_rules.dart extends AuthTableRules: import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class UserTableRules extends AuthTableRules<UserTable, User> { UserTableRules() : super(users); // Inherited from the ordinary table rules: who may list accounts at all. @override Future canList(Jwt? jwt) async => jwt?.admin.isAdmin ?? false; // Auth-specific: who may hit the authentication endpoints. @override Future canAuthenticate(Jwt? jwt, AuthType authType) async { return authType != AuthType.magicLink; // no magic-link sign-in here } } UserTableRules main() => UserTableRules(); and _row_rules.dart extends AuthRowRules: import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class UserRowRules extends AuthRowRules<UserTable, User> { UserRowRules() : super(users); @override Future canSignUp(Jwt? jwt, AuthType authType) async { // Invite-only: an existing admin has to be the one creating the account. return jwt?.admin.isAdmin ?? false; } } UserRowRules main() => UserRowRules(); Auth rules do not receive the account row or the submitted credentials — only the caller's Jwt? and "
+        },
+        {
+          "h": "AuthType",
+          "a": "authtype",
+          "b": "Every auth rule takes the authentication method being attempted: enum AuthType { password, otp, magicLink } This is what lets one rule allow password sign-in while refusing OTP, without touching the other endpoints."
         },
         {
           "h": "Available Methods",
@@ -1175,24 +1180,29 @@
           "b": ""
         },
         {
-          "h": "canSignUp(signUpData)",
-          "a": "cansignupsignupdata",
-          "b": "Called before a new account row is created. signUpData contains the submitted fields (the password is never exposed): @override Future canSignUp(SignUpData signUpData) async { return signUpData.email.endsWith('@mycompany.com'); // restrict to company domain } Returning false rejects the sign-up with a 403. Use sparingly — rejecting sign-ups without explanation is confusing for users."
+          "h": "canAuthenticate(jwt, authType) — table level",
+          "a": "canauthenticatejwt-authtype--table-level",
+          "b": "On AuthTableRules. Gates the authentication endpoints for the table as a whole. Defaults to true. @override Future canAuthenticate(Jwt? jwt, AuthType authType) async { return authType == AuthType.password; // password only } AuthTableRules also inherits canCreate, canUpdate, canDelete, canView and canList from the ordinary table rules, all of which take just a Jwt? and all of which default to deny unless the caller is an admin. See Table Rules."
         },
         {
-          "h": "canSignIn(user)",
-          "a": "cansigninuser",
-          "b": "Called after credentials are validated but before the JWT is issued. user is the authenticated row: @override Future canSignIn(User user) async { return user.isVerified; // block unverified accounts from signing in } Returning false results in 401 Unauthorized — the user authenticated but was denied a token."
+          "h": "canSignUp(jwt, authType) — row level",
+          "a": "cansignupjwt-authtype--row-level",
+          "b": "On AuthRowRules. Called before a new account row is created, and only when no matching row exists yet. @override Future canSignUp(Jwt? jwt, AuthType authType) async { return jwt?.admin.isAdmin ?? false; // invite-only } The default allows an admin unconditionally, and otherwise allows the attempt when the table actually supports that method — AuthType.password requires the table to mix in PasswordAuth, otp requires OtpAuth, magicLink requires MagicLinkAuth."
         },
         {
-          "h": "canPasswordReset(user)",
-          "a": "canpasswordresetuser",
-          "b": "Called before a password reset email is sent. Returning false silently suppresses the email (the endpoint still returns 200 OK): @override Future canPasswordReset(User user) async { return user.isVerified; // don't send reset emails to unverified accounts } This is useful when you want to avoid revealing whether an email address is registered."
+          "h": "canSignIn(jwt, authType) — row level",
+          "a": "cansigninjwt-authtype--row-level",
+          "b": "Called before a token is issued. @override Future canSignIn(Jwt? jwt, AuthType authType) async { return authType != AuthType.otp; // no OTP sign-in } Defaults to the same \"is this method supported by the table\" check as canSignUp, without the admin bypass."
+        },
+        {
+          "h": "canPasswordReset(jwt, authType) — row level",
+          "a": "canpasswordresetjwt-authtype--row-level",
+          "b": "Called before a password reset email is sent. @override Future canPasswordReset(Jwt? jwt, AuthType authType) async => false; Defaults to true for AuthType.password when the table mixes in PasswordAuth, and false for otp and magicLink — there is no password to reset on those. AuthRowRules also inherits the row-level canView, canCreate, canUpdate and canDelete. Their defaults let an admin through, and otherwise allow only the account whose row ID matches Jwt.userId — which is what stops one signed-in user reading another's account row."
         },
         {
           "h": "Common Patterns",
           "a": "common-patterns",
-          "b": "// Block unverified accounts from signing in @override Future canSignIn(User user) async => user.isVerified; // Restrict sign-up to a company email domain @override Future canSignUp(SignUpData data) async => data.email.endsWith('@mycompany.com'); // Prevent password reset for suspended accounts @override Future canPasswordReset(User user) async => user.status != 'suspended';"
+          "b": "// Invite-only: accounts can only be created by an admin @override Future canSignUp(Jwt? jwt, AuthType authType) async => jwt?.admin.isAdmin ?? false; // Password only -- refuse OTP and magic-link entirely @override Future canAuthenticate(Jwt? jwt, AuthType authType) async => authType == AuthType.password; // Disable self-service password reset @override Future canPasswordReset(Jwt? jwt, AuthType authType) async => false;"
         }
       ]
     },
@@ -1203,27 +1213,32 @@
       "g": "Rules & Authorization",
       "s": [
         {
-          "b": "The _photos table has its own rules class. Without a photo rules file, uploads and deletes are denied; viewing is public by default."
+          "b": "The _photos table backs the photo HTTP API. It is a framework-managed table, but unlike the other internal tables its built-in rules are marked overridable — you can replace them with your own. There is no dedicated PhotoRules base class. You write the same TableRules and RowRules you would for any collection, typed against the framework's PhotosTable and PhotoEntry, and pass the photos schema getter to the constructor."
         },
         {
           "h": "Creating Photo Rules",
           "a": "creating-photo-rules",
-          "b": "Create a file in rulesPath (conventionally photos_rules.dart) extending PhotoRules: import 'package:zonai_schema/zonai_schema.dart'; AppPhotoRules main() => AppPhotoRules(); final class AppPhotoRules extends PhotoRules { @override Future canUpload(Jwt? jwt) async => jwt != null; @override Future canView(Jwt? jwt, Photo photo) async => true; @override Future canDelete(Jwt? jwt, Photo photo) async { if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == photo.ownerId; } }"
+          "b": "Add both files under rulesPath — a collection-rules file and a row-rules file, exactly as you would for one of your own tables. Registering only one leaves the other at its built-in default. import 'package:zonai_schema/zonai_schema.dart'; PhotoTableRules main() => PhotoTableRules(); final class PhotoTableRules extends TableRules<PhotosTable, PhotoEntry> { PhotoTableRules() : super(photos); @override Future canCreate(Jwt? jwt) async => jwt != null; @override Future canView(Jwt? jwt) async => true; } import 'package:zonai_schema/zonai_schema.dart'; PhotoRowRules main() => PhotoRowRules(); final class PhotoRowRules extends RowRules<PhotosTable, PhotoEntry> { PhotoRowRules() : super(photos); @override Future canView(Jwt? jwt, PhotoEntry row) async => true; @override Future canDelete(Jwt? jwt, PhotoEntry row) async { if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == row.ownerId; } } Compare jwt.userId against row.ownerId directly — both are Ids. Comparing jwt.userId to row.ownerId.value compares an Id to a String, which is always false, and would silently deny every owner."
         },
         {
-          "h": "Available Methods",
-          "a": "available-methods",
-          "b": "Method Endpoint Default canUpload(jwt) POST /img false canView(jwt, photo) GET /img/:id true canDelete(jwt, photo) DELETE /img/:id false The photo parameter contains the metadata row for the file (MIME type, size, who uploaded it, etc.)."
+          "h": "Endpoints and the rules they run",
+          "a": "endpoints-and-the-rules-they-run",
+          "b": "Each request runs the collection rule first, then the row rule when a row is involved. Photo API operation Table check Row check POST /img canCreate canCreate GET /img/:id canView canView PATCH /img/:id canUpdate canUpdate DELETE /img/:id canDelete canDelete The _photos table is reached through this API, not through the generic /db/ routes."
+        },
+        {
+          "h": "The PhotoEntry row",
+          "a": "the-photoentry-row",
+          "b": "Row rules receive a PhotoEntry, exported from package:zonai_schema/zonai_schema.dart: Field Purpose row.id Photo ID (PhotoId) row.ownerId The authenticated user at upload time, as an Id row.ownerTable The auth collection that user came from row.table The app collection the photo is attached to row.path Relative path under the configured images directory row.extension Normalized file extension (jpg, png, …) row.createdAt Upload time"
+        },
+        {
+          "h": "Built-in defaults",
+          "a": "built-in-defaults",
+          "b": "Without override files, the built-in rules apply: Collection rules — create, view, update and delete are all allowed, for every caller including unauthenticated ones. Row rules: Method Default canView Allowed for everyone canCreate Requires a JWT (jwt != null) canUpdate Owner (jwt.userId == row.ownerId) or admin canDelete Owner or admin Note that your own TableRules/RowRules do not inherit these permissive defaults — the public base classes deny by default for non-admins, so once you add an override file you are responsible for every method it exposes. Only _photos can be overridden this way. Registering rules for any other internal table (_jwt, _log, _rate_limit, _auth_challenges, _raindrop_migrations) raises a duplicate-registration error when the rules worker loads."
         },
         {
           "h": "File Constraints",
           "a": "file-constraints",
-          "b": "File size and MIME type constraints are enforced before rules run — they are configured in AppConfig.photos. Your canUpload rule only sees valid uploads that have already passed the size and type checks. photos: PhotosConfig( maxBytes: 5 1024 1024, allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png], ),"
-        },
-        {
-          "h": "Common Patterns",
-          "a": "common-patterns",
-          "b": "// Authenticated upload, public viewing @override Future canUpload(Jwt? jwt) async => jwt != null; @override Future canView(Jwt? jwt, Photo photo) async => true; // Owner-only delete @override Future canDelete(Jwt? jwt, Photo photo) async => jwt?.userId == photo.ownerId;"
+          "b": "File size and MIME type constraints are enforced before rules run — they are configured in AppConfig.photos. Your canCreate rule only sees uploads that have already passed the size and type checks. photos: PhotosConfig( maxBytes: 5 1024 1024, allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png], ),"
         }
       ]
     },
@@ -1638,27 +1653,27 @@
         {
           "h": "Enabling Auth Hooks",
           "a": "enabling-auth-hooks",
-          "b": "import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; class UserExtensions extends Extension with AuthExtension<UserTable, User> { UserExtensions() : super(users); @override Future onSignUp(User user) async { ... } @override Future onSignIn(User user) async { ... } } UserExtensions main() => UserExtensions();"
+          "b": "import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; class UserExtensions extends Extension with AuthExtension { UserExtensions() : super(users); @override Future onSignUp(User user, Jwt? jwt) async { // ... } @override Future onSignIn(User user, Jwt? jwt) async { // ... } } UserExtensions main() => UserExtensions();"
         },
         {
-          "h": "onSignUp(T user)",
-          "a": "onsignupt-user",
-          "b": "Fires after the sign-up INSERT commits and the new account row is fully created. @override Future onSignUp(User user) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); // Create a companion row (e.g. a billing profile) mutate.create.one( tableName: 'profiles', object: {'user_id': user.id.value}, ); }"
+          "h": "onSignUp(T user, Jwt? jwt)",
+          "a": "onsignupt-user-jwt-jwt",
+          "b": "Fires after the sign-up INSERT commits and the new account row is fully created. @override Future onSignUp(User user, Jwt? jwt) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); // Create a companion row (e.g. a billing profile) mutate.create.one( tableName: 'profiles', object: {'user_id': user.id.value}, ); }"
         },
         {
-          "h": "onSignIn(T user)",
-          "a": "onsignint-user",
-          "b": "Fires after credentials are validated and the JWT is about to be issued. Throwing here prevents the token from being returned to the client. @override Future onSignIn(User user) async { await mutate.update.one( table: 'users', updates: [Update.column('last_signed_in_at', UpdateValue.literal(DateTime.now()))], where: Eq('id', user.id.value), ); } Use for: recording last-login timestamp, sending login-notification emails, triggering security alerts."
+          "h": "onSignIn(T user, Jwt? jwt)",
+          "a": "onsignint-user-jwt-jwt",
+          "b": "Fires after credentials are validated and the JWT is about to be issued. Throwing here prevents the token from being returned to the client. @override Future onSignIn(User user, Jwt? jwt) async { mutate.update.one( table: 'users', updates: [Update.column('last_signed_in_at', UpdateValue.literal(DateTime.now()))], where: Eq('id', user.id.value), ); } Use for: recording last-login timestamp, sending login-notification emails, triggering security alerts."
         },
         {
-          "h": "onRefresh(T user)",
-          "a": "onrefresht-user",
-          "b": "Fires when the client exchanges an existing token for a new one via POST /auth/refresh. @override Future onRefresh(User user) async { // Update last active timestamp }"
+          "h": "onRefresh(T user, Jwt? jwt)",
+          "a": "onrefresht-user-jwt-jwt",
+          "b": "Fires when the client exchanges an existing token for a new one via POST /auth/refresh. @override Future onRefresh(User user, Jwt? jwt) async { // Update last active timestamp }"
         },
         {
-          "h": "onLogout(T user)",
-          "a": "onlogoutt-user",
-          "b": "Fires when the current session token is explicitly revoked via DELETE /auth. Also fires for each revoked session when DELETE /auth/all is called. @override Future onLogout(User user) async { // Revoke any push notification subscriptions for this user }"
+          "h": "onLogout(T user, Jwt? jwt)",
+          "a": "onlogoutt-user-jwt-jwt",
+          "b": "Fires when the current session token is explicitly revoked via DELETE /auth. Also fires for each revoked session when DELETE /auth/all is called. @override Future onLogout(User user, Jwt? jwt) async { // Revoke any push notification subscriptions for this user }"
         }
       ]
     },
@@ -1812,7 +1827,7 @@
         {
           "h": "Creating a Job",
           "a": "creating-a-job",
-          "b": "Create a file in cronsPath (any name), extend CronJob, and export a main() function: import 'package:zonai_schema/zonai_schema.dart'; final class CleanupOldLogsJob extends CronJob { CleanupOldLogsJob() : super(name: 'cleanup-old-logs', schedule: Schedule.parse('0 3 ')); @override Future run() async { final cutoff = DateTime.now().subtract(const Duration(days: 30)); mutate.delete.many( tableName: '_log', updates: [], where: Lt('created_at', cutoff), ); logger.info('Queued deletion of logs older than $cutoff'); } } CleanupOldLogsJob main() => CleanupOldLogsJob();"
+          "b": "Create a file in cronsPath (any name), extend CronJob, and export a main() function: import 'package:zonai_schema/zonai_schema.dart'; final class CleanupOldLogsJob extends CronJob { CleanupOldLogsJob() : super(name: 'cleanup-old-logs', schedule: Schedule.parse('0 3 ')); @override Future run() async { final cutoff = DateTime.now().subtract(const Duration(days: 30)); mutate.delete.many( tableName: '_log', where: Lt('created_at', cutoff), ); logger.info('Queued deletion of logs older than $cutoff'); } } CleanupOldLogsJob main() => CleanupOldLogsJob();"
         },
         {
           "h": "Related",
@@ -2119,7 +2134,7 @@
         {
           "h": "Where to Configure",
           "a": "where-to-configure",
-          "b": "Create a file in rateLimitPath named _rate_limits.dart. Extend TableRateLimits (or AuthTableRateLimits for auth tables) and override the methods you want to customize: import 'package:zonai_schema/zonai_schema.dart'; final class TaskRateLimits extends TableRateLimits { @override RateLimitPolicy? createPolicy() => RateLimitPolicy(maxRequests: 10, window: Duration(minutes: 1)); } TaskRateLimits main() => TaskRateLimits();"
+          "b": "Create a file in rateLimitPath named _rate_limits.dart. Extend TableRateLimits (or AuthTableRateLimits for auth tables) and override the methods you want to customize: import 'package:my_app/src/schemas/tasks.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class TaskRateLimits extends TableRateLimits<TaskTable, Task> { TaskRateLimits() : super(tasks); @override Future<RateLimitPolicy?> createPolicy() async => const RateLimitPolicy(maxRequests: 10, window: Duration(minutes: 1)); } TaskRateLimits main() => TaskRateLimits(); TableRateLimits is generic over the table and its row type, and its constructor takes the table itself — the same tasks value you registered with table(...). Every policy method is asynchronous and returns Future<RateLimitPolicy?>; returning null disables limiting for that operation."
         },
         {
           "h": "Client IP Resolution",
