@@ -77,13 +77,23 @@ jobs:
           TARGET_ARCH: ${{ matrix.target_arch }}
         run: |
           mkdir -p apps/zonai/lib/gen/native
-          cd libs/resqlite
-          dart pub get
-          build_args=(--output ../../apps/zonai/lib/gen/native)
+          (
+            cd libs/resqlite
+            dart pub get
+            build_args=(--output ../../apps/zonai/lib/gen/native)
+            if [ -n "$TARGET_ARCH" ]; then
+              build_args+=(--arch "$TARGET_ARCH")
+            fi
+            dart run tool/build_native.dart "${build_args[@]}"
+          )
+          # The sidecar that lets compile.yml tell this artifact apart from one
+          # built before the submodule pin moved. It travels in the artifact
+          # because the upload below takes the whole directory.
+          stamp_args=(--library resqlite)
           if [ -n "$TARGET_ARCH" ]; then
-            build_args+=(--arch "$TARGET_ARCH")
+            stamp_args+=(--arch "$TARGET_ARCH")
           fi
-          dart run tool/build_native.dart "${build_args[@]}"
+          cd apps/zonai && dart run tool/native_build_stamp.dart write "${stamp_args[@]}"
 
       - name: Build Argon2 native library
         shell: bash
@@ -95,6 +105,7 @@ jobs:
           mkdir -p apps/zonai/lib/gen/native
           cd apps/zonai
           dart run tool/build_argon2_native.dart
+          dart run tool/native_build_stamp.dart write --library argon2
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

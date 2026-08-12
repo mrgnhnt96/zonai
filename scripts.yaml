@@ -24,21 +24,32 @@ resqlite:
     (command):
       - mkdir -p apps/zonai/lib/gen/native
       - |
-        cd libs/resqlite || exit 1
-        dart pub get || exit 1
-        build_args=(--output ../../apps/zonai/lib/gen/native)
-        if [ -n "$TARGET_ARCH" ]; then
-          build_args+=(--arch "$TARGET_ARCH")
-        fi
         # CI (compile.yml) sets ZONAI_SKIP_NATIVE_BUILD=true after
         # downloading a prebuilt library from the native-libs.yml workflow
-        # into the same --output directory; `--check` confirms it's really
-        # there before trusting it. Unset/false (always the case for local
-        # `sip run resqlite gen`) always builds from source.
-        if [ "$ZONAI_SKIP_NATIVE_BUILD" = "true" ] && dart run tool/build_native.dart "${build_args[@]}" --check; then
+        # into lib/gen/native/. `native_build_stamp.dart check` confirms that
+        # library was built from the sources in *this* checkout, not merely
+        # that a file is sitting there -- see its own header for why an
+        # existence check let stale bytes ship silently. Unset/false (always
+        # the case for local `sip run resqlite gen`) always builds from
+        # source, and stamps what it built.
+        stamp_args=(--library resqlite)
+        if [ -n "$TARGET_ARCH" ]; then
+          stamp_args+=(--arch "$TARGET_ARCH")
+        fi
+        if [ "$ZONAI_SKIP_NATIVE_BUILD" = "true" ] &&
+           (cd apps/zonai && dart run tool/native_build_stamp.dart check "${stamp_args[@]}"); then
           echo "Using pre-fetched resqlite native library (ZONAI_SKIP_NATIVE_BUILD=true)"
         else
-          dart run tool/build_native.dart "${build_args[@]}"
+          (
+            cd libs/resqlite || exit 1
+            dart pub get || exit 1
+            build_args=(--output ../../apps/zonai/lib/gen/native)
+            if [ -n "$TARGET_ARCH" ]; then
+              build_args+=(--arch "$TARGET_ARCH")
+            fi
+            dart run tool/build_native.dart "${build_args[@]}"
+          ) || exit 1
+          (cd apps/zonai && dart run tool/native_build_stamp.dart write "${stamp_args[@]}") || exit 1
         fi
       - cd apps/zonai && dart run tool/generate_resqlite_native.dart
       - dart pub get
@@ -54,27 +65,16 @@ argon2:
       - mkdir -p apps/zonai/lib/gen/native
       - |
         cd apps/zonai || exit 1
-        # See resqlite.gen's matching comment: CI sets
-        # ZONAI_SKIP_NATIVE_BUILD=true after downloading a prebuilt library
-        # from native-libs.yml. build_argon2_native.dart has no --check
-        # flag, so confirm the expected file is actually there ourselves
-        # before trusting it.
-        skip=false
-        if [ "$ZONAI_SKIP_NATIVE_BUILD" = "true" ]; then
-          case "$RUNNER_OS" in
-            Linux) lib_name=libargon2sodium.so ;;
-            macOS) lib_name=libargon2sodium.dylib ;;
-            Windows) lib_name=argon2sodium.dll ;;
-            *) lib_name= ;;
-          esac
-          if [ -n "$lib_name" ] && [ -f "lib/gen/native/$lib_name" ]; then
-            skip=true
-          fi
-        fi
-        if [ "$skip" = true ]; then
+        # See resqlite.gen's matching comment. This used to be a bare
+        # `[ -f ... ]`, which passed for any file of the right name however
+        # old -- including one built before the sodium version or the builder
+        # script changed underneath it.
+        if [ "$ZONAI_SKIP_NATIVE_BUILD" = "true" ] &&
+           dart run tool/native_build_stamp.dart check --library argon2; then
           echo "Using pre-fetched Argon2 native library (ZONAI_SKIP_NATIVE_BUILD=true)"
         else
-          dart run tool/build_argon2_native.dart
+          dart run tool/build_argon2_native.dart || exit 1
+          dart run tool/native_build_stamp.dart write --library argon2 || exit 1
         fi
       - cd apps/zonai && dart run tool/generate_argon2_native.dart
       - dart pub get
