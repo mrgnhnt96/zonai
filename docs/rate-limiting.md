@@ -107,15 +107,19 @@ Override the methods that correspond to the operations you want to customize. Ea
 
 ```dart
 @override
-Future<RateLimitPolicy?> customPolicy(String operation) async {
+Future<RateLimitPolicy?> customPolicy(String? operation) async {
   return switch (operation) {
     'fill' => const RateLimitPolicy(maxRequests: 20, window: Duration(minutes: 1)),
+    // Name unavailable -- one counter shared by every custom operation.
+    null => const RateLimitPolicy(maxRequests: 60, window: Duration(minutes: 1)),
     _ => .defaultPolicy,
   };
 }
 ```
 
 `PATCH /db/custom/:operation` buckets separately per operation name (`fill` and `reserve` on the same collection get independent counters), but only for a name that's registered in that collection's `TableRules.customOperations` — an unrecognized operation name is rejected with **404** before it ever reaches the rate limiter, so it can't be used to dodge a limit by rotating the name.
+
+Checking that registration means reading the collection's rules, which the server can only do without an IPC round-trip when rules are linked into the binary. When they aren't — a binary built without a project link, or `ZONAI_FORCE_WORKERS=1` — the name arrives unvalidated, and bucketing on it would restore exactly the bypass above. The server drops the name instead of the limit: `operation` is **`null`**, every custom operation on the collection shares one counter, and the `404` is skipped (the rules layer still denies an unregistered operation, just later in the request). Handle `null` if that shared counter should differ from `defaultPolicy`.
 
 ### Auth operations (`AuthTableRateLimits`)
 

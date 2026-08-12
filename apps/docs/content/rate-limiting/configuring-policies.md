@@ -59,13 +59,21 @@ Streaming shares the read policies above. Details: [Streaming](/operations/strea
 
 ```dart
 @override
-Future<RateLimitPolicy?> customPolicy(String operation) async {
+Future<RateLimitPolicy?> customPolicy(String? operation) async {
   return switch (operation) {
     'fill' => const RateLimitPolicy(maxRequests: 20, window: Duration(minutes: 1)),
+    // Name unavailable -- one counter shared by every custom operation.
+    null => const RateLimitPolicy(maxRequests: 60, window: Duration(minutes: 1)),
     _ => .defaultPolicy,
   };
 }
 ```
+
+### When `operation` is `null`
+
+Validating the name requires the table's rules, and the server can only read those without an IPC round-trip when rules are linked into the binary. When they aren't — a binary built without a project link, or `ZONAI_FORCE_WORKERS=1` — the name arrives unvalidated, and trusting it would hand callers a bypass: every new name they invent starts on a fresh counter.
+
+So in that case the server drops the name rather than the limit. `operation` is `null`, all custom operations on the table share one counter, and the `404` for an unregistered name is skipped — the rules layer still denies it, just later in the request. Handle `null` if you want that shared counter to differ from `defaultPolicy`.
 
 ## Disabling Rate Limiting for an Operation
 

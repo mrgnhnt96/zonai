@@ -17,7 +17,7 @@ class DbRateLimits {
   void start() {
     MessageHandler<RateLimitRequest>(
       fromUnknownRequest: RateLimitRequest.fromRequest,
-      onMessage: _resolve,
+      onMessage: dispatch,
     ).listen();
   }
 
@@ -52,7 +52,7 @@ class DbRateLimits {
     return _byTable = map;
   }
 
-  Future<RateLimitResponse> _resolve(RateLimitRequest request) async {
+  Future<RateLimitResponse> dispatch(RateLimitRequest request) async {
     final bucket = byTable[request.table];
     final defaults = _defaultBucket;
 
@@ -138,10 +138,8 @@ class DbRateLimits {
         final a => a.externalIdpProvisioningPolicy(),
       },
       .custom => switch (bucket?.tableRateLimits) {
-        null => defaults.tableRateLimits.customPolicy(
-          request.customOperation!,
-        ),
-        final c => c.customPolicy(request.customOperation!),
+        null => defaults.tableRateLimits.customPolicy(request.customOperation),
+        final c => c.customPolicy(request.customOperation),
       },
     };
 
@@ -175,7 +173,7 @@ final class _DefaultTableRateLimits {
 
   Future<RateLimitPolicy?> deletePolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> customPolicy(String operation) async =>
+  Future<RateLimitPolicy?> customPolicy(String? operation) async =>
       .defaultPolicy;
 }
 
