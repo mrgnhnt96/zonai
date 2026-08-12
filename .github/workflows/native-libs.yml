@@ -107,8 +107,27 @@ jobs:
           dart run tool/build_argon2_native.dart
           dart run tool/native_build_stamp.dart write --library argon2
 
+      # UNLIKE every other artifact in this repo, this one is not a step on the
+      # way to a release and no release contains it. It is purely compile.yml's
+      # cross-run build cache: compile.yml pulls "latest successful run of
+      # native-libs.yml" to skip rebuilding libsodium via autoconf on every
+      # platform, every run.
+      #
+      # So retention here is not storage hygiene, it is cache lifetime. This
+      # workflow is workflow_dispatch-only, so with 10 days the cache is only
+      # warm for 10 days after someone remembers to dispatch it; past that,
+      # every compile silently falls back to building from source behind a
+      # ::warning::. That is slower but never wrong -- the .build-inputs stamp
+      # refuses a stale cache regardless, so nothing incorrect can ship either
+      # way.
+      #
+      # If the cache is worth keeping warm, the fix is a `schedule:` trigger
+      # above rather than a longer retention: a weekly run keeps it fresh inside
+      # any window, where a 90-day retention just meant a 90-day-old library was
+      # still sitting there waiting to be found stale.
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
+          retention-days: 10
           path: apps/zonai/lib/gen/native/

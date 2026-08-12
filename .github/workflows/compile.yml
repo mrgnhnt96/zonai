@@ -22,10 +22,23 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash tool/ci/resolve_release_version.sh
 
+      # Every artifact this workflow produces is a step on the way to a release,
+      # and the release is the durable copy -- the binaries become release
+      # assets, the embedded libraries become native-libs-*.zip, and VERSION
+      # lands in the `chore: release` commit. Keeping them for the 90-day
+      # default is paying to store a second copy of something already published.
+      #
+      # 10 days is chosen to outlast the gap between a compile run and the
+      # release that consumes it, which is normally minutes and has never been
+      # days. What it costs: release.yml and verify-release.yml resolve compile
+      # artifacts by "latest successful run" with no commit filter, so a compile
+      # older than 10 days can no longer be released or verified from -- re-run
+      # compile.yml instead, which is the right move at that age anyway.
       - name: Upload release version files
         uses: actions/upload-artifact@v4
         with:
           name: release-version
+          retention-days: 10
           path: |
             VERSION
             apps/zonai/lib/gen/version.dart
@@ -170,6 +183,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
+          # See the retention note on "Upload release version files".
+          retention-days: 10
           path: build/${{ matrix.output_name }}
 
       # The shared libraries this binary embedded, shipped as their own
@@ -192,6 +207,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: native-libs-embedded-${{ matrix.target }}
+          # See the retention note on "Upload release version files". These are
+          # the shortest-lived of the set: release.yml repackages them as
+          # native-libs-<os>-<arch>.zip in the same release the binaries go to.
+          retention-days: 10
           path: |
             apps/zonai/lib/gen/native/*.so
             apps/zonai/lib/gen/native/*.dylib
@@ -204,6 +223,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}-build-log
+          # Debugging output for a run someone is actively looking at. Nobody
+          # opens a build log from a month ago.
+          retention-days: 10
           path: |
             build-logs/
             build/logs/

@@ -51,10 +51,14 @@ jobs:
       - name: Package fat binary
         run: bash tool/ci/package_fat_binary.sh artifacts release-assets
 
+      # A handoff between two jobs in this same run: the release job downloads it
+      # moments later and publishes it as a release asset. Nothing reads it
+      # across runs, so its useful life is the length of one workflow.
       - name: Upload fat binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: zonai-fat-binary
+          retention-days: 10
           path: release-assets/zonai
 
   release:
