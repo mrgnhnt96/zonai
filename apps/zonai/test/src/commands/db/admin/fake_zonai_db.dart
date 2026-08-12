@@ -88,4 +88,30 @@ class FakeZonaiDb extends ZonaiDb {
     if (listAdminsError case final error?) throw error;
     return listAdminsResult;
   }
+
+  Object? clearLogsError;
+  int clearLogsResult = 0;
+
+  /// Set once [clearLogs] runs. The outer option distinguishes "never called"
+  /// from "called with no cutoff", which is the difference between
+  /// `--older-than` being ignored and it being absent.
+  ({DateTime? before})? clearLogsCall;
+  var vacuumCalled = false;
+
+  /// Lets a test stand in for the side effect the real VACUUM has -- shrinking
+  /// the file on disk -- so the reclaimed-bytes arithmetic can be asserted.
+  void Function()? onVacuum;
+
+  @override
+  Future<int> clearLogs({DateTime? before}) async {
+    clearLogsCall = (before: before);
+    if (clearLogsError case final error?) throw error;
+    return clearLogsResult;
+  }
+
+  @override
+  Future<void> vacuum() async {
+    vacuumCalled = true;
+    onVacuum?.call();
+  }
 }
