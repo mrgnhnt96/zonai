@@ -12,7 +12,6 @@ final class Article {
   final String body;
 }
 
-
 final class ArticleTable extends Table<Article> {
   ArticleTable(super.$)
     : id = $.id(

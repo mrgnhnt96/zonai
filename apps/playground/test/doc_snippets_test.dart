@@ -176,11 +176,7 @@ String _resolve(String code) => code
     .replaceAllMapped(
       RegExp(r"package:my_app/src/schemas/(\w+)\.dart"),
       (m) => switch (m.group(1)!) {
-        'users' ||
-        'items' ||
-        'posts' ||
-        'authors' ||
-        'companies' =>
+        'users' || 'items' || 'posts' || 'authors' || 'companies' =>
           'package:zonai_playground/src/schemas/${m.group(1)}.dart',
         final other => 'fixtures/$other.dart',
       },
@@ -238,7 +234,6 @@ List<_Snippet> _fences(String root, File file) {
   }
   return out;
 }
-
 
 String _render(Map<_Snippet, List<String>> failures) => failures.entries
     .map(

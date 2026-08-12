@@ -16,7 +16,6 @@ final class Profile {
   final String displayName;
 }
 
-
 final class ProfileTable extends Table<Profile> {
   ProfileTable(super.$)
     : id = $.id(
