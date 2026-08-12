@@ -67,8 +67,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 ItemExtensions main() => ItemExtensions();
 
-class ItemExtensions extends Extension<Item>
-    with CreateExtension, UpdateExtension, DeleteExtension {
+class ItemExtensions extends Extension<Item> {
   ItemExtensions() : super(items);
 }
 ```
@@ -81,16 +80,29 @@ Unlike rules and operations, extensions have **no built-in internal handlers**. 
 
 Extend **`Extension<R>`** with your row type `R` and pass the schema getter (for example `items`, `users`) to the superclass constructor.
 
-Add only the mixins you need:
+The create, update and delete hooks are methods on `Extension<R>` itself, each
+defaulting to a no-op — override the ones you want and leave the rest alone.
+There is no mixin to opt into them:
 
-| Mixin             | Use for                                                    |
-| ----------------- | ---------------------------------------------------------- |
-| `CreateExtension` | Create hooks                                               |
-| `UpdateExtension` | Update hooks                                               |
-| `DeleteExtension` | Delete hooks                                               |
-| `AuthExtension`   | Sign-up, sign-in, refresh, logout hooks (auth collections) |
+| Hook group | Methods                                                              |
+| ---------- | -------------------------------------------------------------------- |
+| Create     | `beforeCreate`, `afterCreateSuccess`, `afterCreateError`             |
+| Update     | `beforeUpdate`, `afterUpdateSuccess`, `afterUpdateError`             |
+| Delete     | `beforeDelete`, `afterDeleteSuccess`, `afterDeleteError`             |
 
-You can combine mixins on one class (for example `CreateExtension` + `UpdateExtension` + `DeleteExtension` on a regular collection, or add `AuthExtension` on a user collection).
+**`AuthExtension<R>`** is the one mixin, and it applies only to auth
+collections. It takes a single type argument — the row type, the same one you
+gave `Extension` — and adds `onSignUp`, `onSignIn`, `onRefresh`, `onLogout`,
+`onPasswordReset` and `onExternalAuthFirstSeen`:
+
+```dart
+class UserExtensions extends Extension<User> with AuthExtension<User> {
+  UserExtensions() : super(users);
+}
+```
+
+Every hook takes a trailing `Jwt? jwt` — the caller's token, or `null` when the
+request is unauthenticated.
 
 ### Default email behavior
 
@@ -231,8 +243,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 ItemExtensions main() => ItemExtensions();
 
-class ItemExtensions extends Extension<Item>
-    with CreateExtension, UpdateExtension, DeleteExtension {
+class ItemExtensions extends Extension<Item> {
   ItemExtensions() : super(items);
 
   @override
@@ -243,7 +254,7 @@ class ItemExtensions extends Extension<Item>
   @override
   Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
     mutate.update.one(
-      collection: 'items',
+      table: 'items',
       updates: [Update.column('body', .literal('Something else!!!'))],
       where: Eq('id', object.id),
     );
@@ -251,7 +262,7 @@ class ItemExtensions extends Extension<Item>
 }
 ```
 
-For auth collections, mix in `AuthExtension` and override `onSignUp`, `onSignIn`, `onRefresh`, or `onLogout` as needed.
+For auth collections, mix in `AuthExtension<R>` and override `onSignUp`, `onSignIn`, `onRefresh`, or `onLogout` as needed.
 
 ## See also
 
