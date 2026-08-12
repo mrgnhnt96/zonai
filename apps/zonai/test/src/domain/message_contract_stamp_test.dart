@@ -171,4 +171,62 @@ void main() {
       }, values: overrides());
     });
   });
+
+  group('hostContractUnknownReason', () {
+    test('silent when the sources hash (the JIT host)', () {
+      runScoped(() {
+        expect(hostContractUnknownReason(), isNull);
+      }, values: overrides());
+    });
+
+    test('names pub get when zonai_schema does not resolve', () {
+      runScoped(() {
+        expect(hostContractUnknownReason(), contains('dart pub get'));
+      }, values: overrides(hash: null));
+    });
+
+    // The case the whole thing exists for, and the one `kIsCompiled` puts out
+    // of reach of a test unless it is injected: a released `zonai` serving a
+    // project directly. Nothing stamps that binary, so every spawn compares
+    // against an unknown host and waves the worker through.
+    test('explains an unstamped compiled host', () {
+      runScoped(() {
+        final reason = hostContractUnknownReason(
+          isCompiled: true,
+          readStamp: (_) => null,
+        );
+
+        expect(reason, isNotNull);
+        expect(reason, contains('no contract stamp'));
+      }, values: overrides());
+    });
+
+    test('silent when a compiled host is stamped', () {
+      runScoped(() {
+        expect(
+          hostContractUnknownReason(
+            isCompiled: true,
+            readStamp: (_) => 'abc123',
+          ),
+          isNull,
+        );
+      }, values: overrides());
+    });
+
+    // A compiled host answers from its own stamp and never from the sources on
+    // disk -- they have moved on independently and say nothing about what it
+    // was compiled against. Asserting it here keeps this in lockstep with
+    // [hostMessageContractHash], which the message would otherwise contradict.
+    test('a stamped compiled host does not consult the sources', () {
+      runScoped(() {
+        expect(
+          hostContractUnknownReason(
+            isCompiled: true,
+            readStamp: (_) => 'abc123',
+          ),
+          isNull,
+        );
+      }, values: overrides(hash: null));
+    });
+  });
 }
