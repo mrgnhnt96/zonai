@@ -52,8 +52,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 final class PostOperations extends TableOperations<PostTable, Post> {
   PostOperations() : super(posts);
 
-  @override
-  // Override methods here
+  // Override the operations you want to customize here.
 }
 
 PostOperations main() => PostOperations();

@@ -22,16 +22,25 @@ If no rate limit file exists for a table, a default policy of **100 requests per
 Create a file in `rateLimitPath` named `<table>_rate_limits.dart`. Extend `TableRateLimits` (or `AuthTableRateLimits` for auth tables) and override the methods you want to customize:
 
 ```dart
+import 'package:my_app/src/schemas/tasks.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class TaskRateLimits extends TableRateLimits {
+final class TaskRateLimits extends TableRateLimits<TaskTable, Task> {
+  TaskRateLimits() : super(tasks);
+
   @override
-  RateLimitPolicy? createPolicy() =>
-      RateLimitPolicy(maxRequests: 10, window: Duration(minutes: 1));
+  Future<RateLimitPolicy?> createPolicy() async =>
+      const RateLimitPolicy(maxRequests: 10, window: Duration(minutes: 1));
 }
 
 TaskRateLimits main() => TaskRateLimits();
 ```
+
+`TableRateLimits` is generic over the table and its row type, and its
+constructor takes the table itself — the same `tasks` value you registered with
+`table(...)`. Every policy method is asynchronous and returns
+`Future<RateLimitPolicy?>`; returning `null` disables limiting for that
+operation.
 
 ## Client IP Resolution
 

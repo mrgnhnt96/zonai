@@ -57,7 +57,6 @@ final class CleanupOldLogsJob extends CronJob {
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
     mutate.delete.many(
       tableName: '_log',
-      updates: [],
       where: Lt('created_at', cutoff),
     );
     logger.info('Queued deletion of logs older than $cutoff');

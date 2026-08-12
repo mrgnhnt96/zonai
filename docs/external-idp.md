@@ -199,7 +199,7 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
     // flushed inline (not after the request transaction) so the auth
     // pipeline can re-fetch the new row immediately.
     mutate.create.one(
-      tableName: users.table.name,
+      tableName: tableName,
       object: <String, dynamic>{
         'id': claims['sub'] as String,
         'email': claims['email'] as String?,
