@@ -212,13 +212,24 @@ not have been expressed, let alone observed.
 - **A worker whose stamp is missing.** Unknown, not wrong, by design — the
   alternative refuses every ad-hoc fixture. Row two above is what that looks
   like.
-- **The published CLI acting as host.** When `resolveProjectLink` skips and
-  `maybeReexecProjectRuntime` returns null, the `zonai` binary itself serves —
-  the ordinary shape for a consumer whose project does not depend on
-  `package:zonai` and who does not have zonai's sources on disk. That binary is
-  built with `__ZONAI_COMPILED__=true` (scripts.yaml), so
+- **The published CLI acting as host** — still missed, but it now *says so*.
+  A released `zonai` serving a project directly (`zonai serve`, `zonai db …`)
+  is built with `__ZONAI_COMPILED__=true` (scripts.yaml), and nothing stamps
+  it: `compile.yml` runs a bare `dart compile exe`. So
   `hostMessageContractHash` looks for a sidecar beside
-  `Platform.resolvedExecutable` and finds none: unknown, and everything passes.
+  `Platform.resolvedExecutable`, finds none, and everything passes.
+
+  **This has nothing to do with project linking**, which is how it was first
+  written down here and in `docs/linking-a-bare-released-binary.md`.
+  `maybeReexecProjectRuntime` returns at `if (kIsCompiled) return null`
+  (`project_runtime.dart:58`) — *before* it ever calls `resolveProjectLink`.
+  A compiled CLI is the host whether or not the project could link, so closing
+  the linking case would not close this. The two are independent.
+
+  It is also narrower than "every consumer": `_bundlePublishedBinary` stamps
+  the binary it bundles, so a deployed `zonai build` bundle carries a stamp and
+  the guard runs there. What is uncovered is the CLI used *in place* — which is
+  the developer's own loop, and therefore where `zonai_schema` actually moves.
 
   Not closed on purpose. One CLI serves many projects, so a sidecar beside it
   cannot describe any of them. Baking the hash in at CLI-build time *would*
@@ -228,6 +239,33 @@ not have been expressed, let alone observed.
   consumer on 0.2.0 with a CLI shipping 0.2.1. Hashing the project's sources
   instead would measure the wrong thing entirely: the CLI parses worker
   messages with the schema compiled into it, not with whatever is on disk.
+
+  So the gap stays, and `Mailman._warnIfContractGuardInert` states it instead.
+  It adds no refusal — with no host contract there is nothing to refuse *on*,
+  since a stale worker and a fresh one are the same observation — and it fires
+  once per process, at the spawn where the comparison would have happened
+  rather than at startup, so commands that never reach a worker stay quiet. It
+  is conditioned on the *worker* being stamped: with nothing stamped on either
+  side no comparison was ever available to lose, and a project that has not run
+  `zonai compile` yet would only be getting noise.
+  `hostContractUnknownReason` supplies the sentence, and takes `isCompiled` /
+  `readStamp` as seams because `kIsCompiled` is a compile-time `false` under
+  `dart test`.
+
+  Watched, in `apps/playground` on 2026-08-12, against the compiled
+  `.zonai/zonai` under `ZONAI_FORCE_WORKERS=true` (the same way in as the
+  snapshot rows above), driving `zonai db admin list`:
+
+  | host stamp | worker stamps | result |
+  |---|---|---|
+  | present | present | silent — the guard ran |
+  | **removed** | present | the warning, once, on the first spawn; command still succeeded |
+  | removed | **removed** | silent — nothing to lose |
+
+  Removing the host's stamp is a stand-in for a released binary, not the thing
+  itself: it produces the same state `hostMessageContractHash` reads, but it
+  cannot be reproduced in this repo any other way — see
+  `docs/linking-a-bare-released-binary.md` on why.
 
   This is the one case where the coarse guard is the right one:
   `SchemaVersionCheck` no-ops for path dependencies but *works* for exactly
