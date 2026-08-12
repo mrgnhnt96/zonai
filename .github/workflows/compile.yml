@@ -7,6 +7,12 @@ permissions:
   actions: read
   contents: read
 
+env:
+  # MUST match native-libs.yml's copy -- check_workflows.sh asserts they agree.
+  # A mismatch raises no error anywhere: the download below just never finds the
+  # cache, and every compile quietly rebuilds libsodium from source instead.
+  NATIVE_LIBS_CACHE_TAG: native-libs-cache
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -137,34 +143,55 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       # Native libraries (resqlite, Argon2) rarely change and are slow to
-      # build from source on every compile run. Prefer the latest
-      # successful `native-libs.yml` run's artifact for this platform;
-      # `resqlite.gen`/`argon2.gen` (invoked below via `zonai compile`) fall
-      # back to building from source when ZONAI_SKIP_NATIVE_BUILD isn't
-      # "true" -- which covers both a failed download here and the
-      # bootstrapping case where native-libs.yml has never run yet.
-      - name: Download pre-built native libraries (latest successful native-libs run)
+      # build from source on every compile run -- Argon2 means compiling
+      # libsodium through autoconf. They come from the rolling cache release
+      # the Native Libraries workflow publishes; `resqlite.gen`/`argon2.gen`
+      # (invoked below via `zonai compile`) fall back to building from source
+      # when ZONAI_SKIP_NATIVE_BUILD isn't "true" -- which covers a failed
+      # download here, the bootstrapping case where the cache release does not
+      # exist yet, and a cache whose .build-inputs stamp no longer matches
+      # this checkout.
+      #
+      # A release rather than the previous "latest successful run of
+      # native-libs.yml" artifact: artifacts expire, so the cache silently went
+      # cold on a timer, and resolving one workflow's artifacts from another is
+      # a lookup with no commit filter and an `actions: read` scope. A release
+      # asset is addressed by name, never expires, and is replaced in place.
+      - name: Download pre-built native libraries (cache release)
         id: download-native-libs
         continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: native-libs.yml
-          workflow_conclusion: success
-          name: ${{ matrix.native_libs_artifact }}
-          path: apps/zonai/lib/gen/native
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          archive="${{ matrix.native_libs_artifact }}.tar.gz"
+          mkdir -p apps/zonai/lib/gen/native
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C apps/zonai/lib/gen/native
+          echo "Restored ${archive} from ${NATIVE_LIBS_CACHE_TAG}:"
+          ls -la apps/zonai/lib/gen/native
 
       - name: Check downloaded native libraries
         id: native-libs
         shell: bash
         run: |
+          # "found" only means bytes arrived. Whether they are the RIGHT bytes is
+          # decided later by native_build_stamp.dart's `check`, inside
+          # resqlite.gen/argon2.gen -- which is why this can stay a presence
+          # test without being the kind of existence check that used to let a
+          # stale library ship.
           if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
              [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "Using pre-built native libraries from native-libs.yml."
+            echo "Using pre-built native libraries from ${NATIVE_LIBS_CACHE_TAG}."
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No native-libs.yml artifact found for ${{ matrix.native_libs_artifact }} (or the download failed) -- building resqlite/Argon2 from source instead. Run the 'Native Libraries' workflow once to speed up future compiles."
+            echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release (or the download failed) -- building resqlite/Argon2 from source instead. Run the 'Native Libraries' workflow once to populate the cache."
           fi
 
       - name: Build zonai

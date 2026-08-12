@@ -6,6 +6,14 @@ on:
 permissions:
   contents: read
 
+env:
+  # The rolling release these libraries are published to, and the one
+  # compile.yml pulls them back out of. MUST match compile.yml's copy --
+  # check_workflows.sh asserts they agree, because a mismatch is not an error
+  # anywhere: compile.yml simply never finds the cache and quietly rebuilds
+  # libsodium from source on five platforms, forever.
+  NATIVE_LIBS_CACHE_TAG: native-libs-cache
+
 jobs:
   build:
     name: ${{ matrix.artifact_name }}
@@ -107,27 +115,101 @@ jobs:
           dart run tool/build_argon2_native.dart
           dart run tool/native_build_stamp.dart write --library argon2
 
-      # UNLIKE every other artifact in this repo, this one is not a step on the
-      # way to a release and no release contains it. It is purely compile.yml's
-      # cross-run build cache: compile.yml pulls "latest successful run of
-      # native-libs.yml" to skip rebuilding libsodium via autoconf on every
-      # platform, every run.
+      # Packed here, on the runner that built them, rather than in the publish
+      # job: tar preserves what the build produced instead of round-tripping
+      # through an artifact upload that drops file modes.
       #
-      # So retention here is not storage hygiene, it is cache lifetime. This
-      # workflow is workflow_dispatch-only, so with 10 days the cache is only
-      # warm for 10 days after someone remembers to dispatch it; past that,
-      # every compile silently falls back to building from source behind a
-      # ::warning::. That is slower but never wrong -- the .build-inputs stamp
-      # refuses a stale cache regardless, so nothing incorrect can ship either
-      # way.
+      # tar.gz rather than zip, unlike the per-version release assets: this is a
+      # private cache format that only compile.yml reads, and `tar -xzf` works
+      # on all three runner OSes (Windows ships bsdtar) whereas `unzip` is not
+      # guaranteed on the Windows image.
       #
-      # If the cache is worth keeping warm, the fix is a `schedule:` trigger
-      # above rather than a longer retention: a weekly run keeps it fresh inside
-      # any window, where a 90-day retention just meant a 90-day-old library was
-      # still sitting there waiting to be found stale.
-      - name: Upload artifact
+      # The .build-inputs stamps must travel with the libraries -- they are what
+      # lets compile.yml tell this cache apart from one built before the sources
+      # moved. Without them every download is refused as unvouched-for and the
+      # cache does nothing at all.
+      - name: Pack native libraries
+        shell: bash
+        run: |
+          cd apps/zonai/lib/gen/native
+          files=()
+          for file in *.so *.dylib *.dll *.build-inputs; do
+            [ -e "$file" ] && files+=("$file")
+          done
+          # Two libraries and two stamps. Fewer means something upstream did not
+          # produce what it claims to, and shipping that as a cache would push
+          # the failure into every later compile run instead of this one.
+          if [ "${#files[@]}" -lt 4 ]; then
+            echo "Expected 2 libraries + 2 stamps, found ${#files[@]}: ${files[*]}" >&2
+            exit 1
+          fi
+          echo "Packing: ${files[*]}"
+          tar -czf "$RUNNER_TEMP/${{ matrix.artifact_name }}.tar.gz" "${files[@]}"
+
+      # A same-run handoff to the publish job below, which is the only thing
+      # that reads it. The durable copy is the release asset it becomes.
+      - name: Upload packed native libraries
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           retention-days: 10
-          path: apps/zonai/lib/gen/native/
+          path: ${{ runner.temp }}/${{ matrix.artifact_name }}.tar.gz
+          if-no-files-found: error
+
+  # Publishing is split out so `contents: write` is held by a job that runs no
+  # build code -- it downloads artifacts and calls `gh`, nothing else. The build
+  # job above runs `dart pub get`, a C toolchain and third-party build hooks,
+  # and has no business holding a token that can write to the repo.
+  #
+  # `needs: build` means a failed platform leaves the whole cache untouched
+  # rather than half-updated. That is not a correctness requirement -- each
+  # target's asset is downloaded and validated independently, by its own
+  # .build-inputs stamp -- but "the cache is from one run" is easier to reason
+  # about than "some of it is".
+  publish:
+    name: Publish cache release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packed native libraries
+        uses: actions/download-artifact@v4
+        with:
+          path: packed
+          merge-multiple: true
+
+      # Assets are replaced in place on one rolling tag. That is the point of
+      # using a release rather than an artifact: artifacts expire and had to be
+      # found via "latest successful run of another workflow", while this never
+      # expires, is addressed by name, and does not accumulate a fresh copy per
+      # run the way a scheduled artifact upload would.
+      #
+      # --prerelease is load-bearing, NOT cosmetic. GitHub's /releases/latest is
+      # the most recent non-draft, non-prerelease release of ANY kind, so an
+      # unmarked release here would take that slot and 404 every
+      # releases/latest/download link in the docs -- exactly what
+      # zonai_schema-v0.1.0 did on 2026-08-10. The CLI's own resolution is
+      # already safe either way (versions.dart and latest_cli_release_tag.sh
+      # both require a `v<semver>` tag AND skip prereleases), but the docs links
+      # go through GitHub's endpoint directly and have no such filter.
+      - name: Publish to the cache release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "${NATIVE_LIBS_CACHE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${NATIVE_LIBS_CACHE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Native library build cache" \
+              --prerelease \
+              --notes "Prebuilt resqlite and Argon2 libraries that compile.yml reuses instead of rebuilding libsodium from source on every run.
+
+          Not a zonai release. Nothing here is installable and the tag does not point at meaningful source -- assets are replaced in place by the Native Libraries workflow. Each archive carries a \`.build-inputs\` stamp; compile.yml refuses any whose stamp does not match the sources in its checkout, so a stale cache costs build time and never correctness."
+          fi
+
+          gh release upload "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber \
+            packed/*.tar.gz
+
+          echo "Published $(ls packed/*.tar.gz | wc -l | tr -d ' ') archive(s) to ${NATIVE_LIBS_CACHE_TAG}."
