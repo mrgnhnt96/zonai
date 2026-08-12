@@ -22,6 +22,9 @@ import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
 import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart';
 import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
+// `show logs`: this file already has a `Level` in scope from the logger, and
+// logs_table.dart exports one of its own.
+import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
 import 'package:zonai_schema/src/internal/tables/photos_table.dart';
 import 'package:zonai/src/messengers/config_mailman.dart';
 import 'package:zonai/src/messengers/cron_mailman.dart';
@@ -64,6 +67,7 @@ part 'parts/auth/password.dart';
 part 'parts/auth/reset_password.dart';
 part 'parts/auth/verify_email.dart';
 part 'parts/cleanup_photos.dart';
+part 'parts/clear_logs.dart';
 part 'parts/count.dart';
 part 'parts/create.dart';
 part 'parts/custom.dart';
@@ -317,6 +321,20 @@ class ZonaiDb {
 
   Future<List<Map<String, Object?>>> listAdmins() async {
     return await _run(() => _listAdmins());
+  }
+
+  /// Deletes log rows, optionally only those recorded before [before].
+  /// Returns the number of rows removed.
+  Future<int> clearLogs({DateTime? before}) async {
+    return await _runWrite(() => _clearLogs(before: before));
+  }
+
+  /// Rewrites the database file so space freed by deletes is returned to the
+  /// operating system. Serialized against other writes: the rewrite takes an
+  /// exclusive lock for its duration, so letting it interleave would just
+  /// push concurrent writers into SQLite's busy timeout.
+  Future<void> vacuum() async {
+    return await _runWrite(() => _vacuum());
   }
 
   Future<File> getPhoto(String id, {required String? token}) {

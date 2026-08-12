@@ -9,7 +9,7 @@ Options:
   -h, --help      Show help information
 
 Subcommands:
-  clear           Delete all log records
+  clear           Delete log records, optionally reclaiming their disk space
 ''';
 
 Future<int> logs(List<String> path) async {
