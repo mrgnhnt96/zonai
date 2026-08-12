@@ -210,6 +210,41 @@ for worker in db_operations db_rules; do
   require_file "build/.zonai/executables/${worker}.exe"
 done
 
+# Presence was all this checked until the .aot snapshots shipped host-arch for
+# two releases: `zonai build` passed buildSettings to the .exe compile and not
+# to the aot-snapshot one, and nothing here read the bytes. Everything in the
+# executables directory is an object file, snapshots included (a .aot carries a
+# real ELF/Mach-O header), so there is no reason to check one kind and not the
+# other -- and the failure mode is the quiet one: a wrong-arch snapshot serves
+# identically via the worker-process fallback.
+echo "Checking the platform of every object file in build/.zonai/executables..."
+checked_objects=0
+while IFS= read -r object; do
+  actual_platform="$(object_platform "$object")"
+  if [[ "$actual_platform" == unknown ]]; then
+    # Not a pass. A header this cannot read is a file this gate did not check,
+    # and saying so is the difference between coverage and the appearance of it.
+    echo "  NOT CHECKED: ${object} has no header object_platform() reads" >&2
+    continue
+  fi
+  if [[ "$actual_platform" != "${target_os}/${target_arch}" ]]; then
+    echo "  ${object} is a ${actual_platform} object file" >&2
+    echo "  expected ${target_os}/${target_arch}." >&2
+    echo "  It would ship inside a ${target_os}/${target_arch} bundle and fail" >&2
+    echo "  only once something on the target tried to load it." >&2
+    exit 1
+  fi
+  echo "  ok: ${object} is a ${actual_platform} object file"
+  checked_objects=$((checked_objects + 1))
+done < <(find build/.zonai/executables -type f \( -name '*.exe' -o -name '*.aot' \) | sort)
+
+if [[ "$checked_objects" == "0" ]]; then
+  echo "build/.zonai/executables held no .exe or .aot to check." >&2
+  echo "The require_file calls above passed, so this is a find/glob problem" >&2
+  echo "here rather than a missing bundle -- it is not a pass." >&2
+  exit 1
+fi
+
 # Cross-compiled deliberately: this binary embeds the *host's* libraries, which
 # is what makes it the negative control on the target. See
 # verify_cross_target_bundle.sh.

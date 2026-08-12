@@ -2,25 +2,31 @@
 # Run a bundle built on another platform (see cross_target_build.sh) on a
 # machine of the platform it was built for.
 #
-# Three things are checked, and they fail for different reasons:
+# Four things are checked, and they fail for different reasons:
 #
 #   1. The bundle runs. Migrations apply, which means resqlite was dlopen'd --
 #      the check that would have caught a bundle carrying the build host's
 #      libraries.
-#   2. No library in `.zonai/lib/` is a foreign object file afterwards, and any
+#   2. The ops/rules .aot snapshots spawn as isolates here. The build half reads
+#      their headers; this reads what the VM does with them, which is the thing
+#      that actually has to work. Both transports serve identically, so the
+#      assertion is the absence of the fallback warning -- and an absence is
+#      worth nothing without a case where it appears, hence the control that
+#      breaks a snapshot on purpose and requires the warning.
+#   3. No library in `.zonai/lib/` is a foreign object file afterwards, and any
 #      that shipped with the bundle is byte-identical. Every executable here
 #      extracts to that *same* path, so one of them getting it wrong replaces
 #      the library for all of them; reading the headers after the run is how
 #      that shows up as a failure rather than as the next deployment's mystery.
 #      The header check works whether or not the bundle carried libraries,
 #      which matters because a pre-release bundle cannot carry them.
-#   3. A cross-compiled binary refuses to install its own embedded libraries
+#   4. A cross-compiled binary refuses to install its own embedded libraries
 #      here (negative control), and still keeps a correctly stamped one
 #      (positive control). Without the negative control this gate would pass
 #      just as happily against a build that writes the wrong library, because
 #      nothing else here forces the self-extraction path to run.
 #
-# A missing probe (passed as `-`, or a path that does not exist) skips 3 and
+# A missing probe (passed as `-`, or a path that does not exist) skips 4 and
 # says so. cross_target_build.sh only builds one where the embedded-library
 # sources are present.
 #
@@ -121,7 +127,81 @@ if ! compgen -G ".zonai/data/*.sqlite" >/dev/null; then
 fi
 echo "  ok: migrations applied against a real database file"
 
-echo "== 2. nothing foreign was installed into the shared library path =="
+echo "== 2. the ops/rules snapshots spawn as isolates here =="
+# `zonai ping` starts every worker, which makes it the cheapest way to reach the
+# isolate transport: a bundle carries no source entry, so each mailman spawns its
+# .aot snapshot and only falls back to the .exe worker when that fails. It also
+# reaches the snapshots on a project-linked bundle, where `serve` would dispatch
+# in-process and never touch them.
+#
+# The ping is not the assertion. Both transports answer it, which is exactly the
+# bug: a host-arch snapshot shipped for two releases without a single check going
+# red. What is asserted is the fallback warning, and its absence here only counts
+# because the control below shows it appearing.
+ping_log="$(mktemp)"
+if ! ./zonai ping --no-version-check > "$ping_log" 2>&1; then
+  echo "  zonai ping failed outright:" >&2
+  cat "$ping_log" >&2
+  exit 1
+fi
+for worker in rules operation; do
+  if ! grep -q "Ping ${worker} succeeded" "$ping_log"; then
+    echo "  ${worker} did not answer a ping:" >&2
+    cat "$ping_log" >&2
+    exit 1
+  fi
+done
+if grep -q "would not spawn" "$ping_log"; then
+  echo "  a snapshot in this bundle would not spawn on ${target_os}/${target_arch}:" >&2
+  grep "would not spawn" "$ping_log" >&2
+  echo "  Dispatch still works through the worker process, which is why this is" >&2
+  echo "  the only place it shows -- the bundle serves identically without" >&2
+  echo "  in-process ops and rules." >&2
+  exit 1
+fi
+echo "  ok: rules and operations answered, and neither fell back to its process"
+
+# Positive control. A snapshot that cannot spawn has to produce that warning, or
+# the silence just checked is compatible with a tap that never fires. Breaking
+# one on purpose is the only way to know which was read.
+rules_snapshot=".zonai/executables/db_rules.aot"
+if [[ ! -f "$rules_snapshot" ]]; then
+  echo "  NOT CHECKED: no ${rules_snapshot}, so the warning this step relies on" >&2
+  echo "  was never provoked. The silence above is unproven, not a pass." >&2
+else
+  snapshot_backup="$(mktemp)"
+  cp "$rules_snapshot" "$snapshot_backup"
+  # Restore on any exit: leaving a bundle sabotaged would make every later step
+  # -- and any reuse of this checkout -- read as a failure of something else.
+  trap 'cp "$snapshot_backup" "$rules_snapshot" 2>/dev/null || true' EXIT
+  printf 'not a snapshot' > "$rules_snapshot"
+
+  control_log="$(mktemp)"
+  ./zonai ping --no-version-check > "$control_log" 2>&1 || true
+
+  cp "$snapshot_backup" "$rules_snapshot"
+  trap - EXIT
+
+  if ! grep -q "would not spawn" "$control_log"; then
+    echo "  a deliberately broken ${rules_snapshot} produced no warning:" >&2
+    cat "$control_log" >&2
+    echo "  The check above reads that warning, so without this the silence" >&2
+    echo "  there proves nothing about the snapshot that shipped." >&2
+    exit 1
+  fi
+  # The fallback is the reason a wrong snapshot is survivable rather than fatal.
+  # If it stops working, this gate should start failing for that instead.
+  if ! grep -q "Ping rules succeeded" "$control_log"; then
+    echo "  with a broken snapshot, rules stopped answering entirely:" >&2
+    cat "$control_log" >&2
+    echo "  The .exe worker is meant to take over. That fallback is what makes" >&2
+    echo "  a wrong-arch snapshot a slow deploy rather than a broken one." >&2
+    exit 1
+  fi
+  echo "  ok: a broken snapshot warns and falls back, so the check above reads something"
+fi
+
+echo "== 3. nothing foreign was installed into the shared library path =="
 checked_any=0
 for pair in "${resqlite_library}:${before_resqlite}" "${argon2_library}:${before_argon2}"; do
   library="${pair%%:*}"
@@ -166,12 +246,12 @@ if [[ "$checked_any" == "0" ]]; then
   echo "  reached the extraction path, and step 1 above is what vouched for it." >&2
 fi
 
-echo "== 3. self-extraction refuses a foreign library, keeps a stamped one =="
+echo "== 4. self-extraction refuses a foreign library, keeps a stamped one =="
 if [[ -z "$probe" ]]; then
   echo "  NOT CHECKED: no probe was supplied, so the guard's refuse/keep" >&2
   echo "  behaviour was not exercised here at all. cross_target_build.sh builds" >&2
   echo "  one only where apps/zonai/lib/gen/native/*.g.dart exists." >&2
-  echo "Cross-target bundle verified on ${target_os}/${target_arch} (step 3 skipped)"
+  echo "Cross-target bundle verified on ${target_os}/${target_arch} (step 4 skipped)"
   exit 0
 fi
 
