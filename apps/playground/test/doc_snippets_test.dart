@@ -14,10 +14,11 @@
 // function body they belong in. Nothing here checks those, and nothing here
 // checks a snippet's *behavior*: it compiles or it doesn't.
 //
-// Snippets that don't analyze today are listed in `doc_snippets_baseline.txt`,
-// keyed by content hash so editing one forces it to be fixed or re-listed.
-// This test fails when a snippet outside that list breaks, and equally when a
-// listed one starts passing -- the list only ever shrinks.
+// There is no baseline: every self-contained snippet compiles, and the #26
+// backlog that once needed one is paid off. A snippet that is deliberately not
+// compilable opts out by tagging its fence -- ```dart no-analyze -- which is
+// visible in the diff of the doc that owns it, rather than as a hash in a list
+// somewhere else. Adding one should be rare and should say why in the prose.
 import 'dart:convert';
 import 'dart:io';
 
@@ -41,41 +42,32 @@ void main() {
             'matching the docs rather than the docs losing their examples.',
       );
 
-      final failures = await _analyze(snippets, playground);
-      final baseline = _readBaseline(root);
+      final analysis = await _analyze(snippets, playground);
+      final failures = analysis.failures;
 
-      final present = {for (final s in snippets) s.id};
-      final failing = {for (final f in failures.keys) f.id};
-
-      final unexpected = {
-        for (final e in failures.entries)
-          if (!baseline.contains(e.key.id)) e.key: e.value,
-      };
-      // Two ways a line stops earning its place: the snippet it names now
-      // compiles, or it no longer names a snippet at all (someone edited the
-      // example, which changes its content-addressed key). Both are stale.
-      final stale = baseline.difference(failing);
-
+      // Checked before the snippets themselves: a broken fixture makes every
+      // snippet importing it fail for a reason that has nothing to do with the
+      // docs, and those failures would be indistinguishable from real drift.
       expect(
-        unexpected,
+        analysis.fixtureErrors,
         isEmpty,
         reason:
-            'These snippets no longer compile against the API they describe:\n'
-            '${_render(unexpected)}\n'
-            'Fix the snippet, or -- if it is deliberately incomplete -- add its '
-            'key to apps/playground/test/doc_snippets_baseline.txt with a note '
-            'saying why.',
+            'test/fixtures/doc_snippets no longer analyzes:\n'
+            '  ${analysis.fixtureErrors.join('\n  ')}\n'
+            'Fix the fixture. Nothing below this line can be trusted while a '
+            'stand-in the snippets import is itself broken.',
       );
 
       expect(
-        stale,
+        failures,
         isEmpty,
         reason:
-            'These doc_snippets_baseline.txt lines no longer excuse anything '
-            '-- the snippet compiles now, or it was edited and no longer has '
-            'this key:\n  ${stale.map((k) => '$k${present.contains(k) ? ' (compiles now)' : ' (no such snippet)'}').join('\n  ')}\n'
-            'Delete them. A baseline that keeps entries it no longer needs '
-            'stops being evidence of anything.',
+            'These snippets no longer compile against the API they describe:\n'
+            '${_render(failures)}\n'
+            'Fix the snippet against the real API. If it is a sketch that is '
+            'deliberately not compilable -- elided bodies, a placeholder '
+            'import -- tag its fence ```dart no-analyze and say why in the '
+            'prose around it. Do not reintroduce a baseline file.',
       );
     },
     timeout: const Timeout(Duration(minutes: 5)),
@@ -90,10 +82,6 @@ class _Snippet {
   final String source;
   final int line;
   final String code;
-
-  /// Keyed by content, not by line: editing a snippet changes its key, so a
-  /// baselined snippet can't be quietly rewritten and stay excused.
-  late final String id = '$source#${_fnv1a(code)}';
 
   bool get _hasImports =>
       code.contains(RegExp(r'^\s*import ', multiLine: true));
@@ -112,25 +100,13 @@ class _Snippet {
   String toString() => '$source:$line';
 }
 
-/// FNV-1a, so a snippet's key is stable across runs and SDK versions without
-/// pulling in a hashing dependency for it.
-String _fnv1a(String input) {
-  var hash = 0x811c9dc5;
-  for (final byte in utf8.encode(input)) {
-    hash = ((hash ^ byte) * 0x01000193) & 0xffffffff;
-  }
-  return hash.toRadixString(16).padLeft(8, '0');
-}
-
 /// Runs the analyzer over [snippets] and maps each one to its errors.
 ///
 /// They're written under the playground's `lib/` because the examples use the
 /// relative imports of a real zonai project (`../schemas/items.dart`,
 /// `../ids.dart`) -- imports that only resolve from inside one.
-Future<Map<_Snippet, List<String>>> _analyze(
-  List<_Snippet> snippets,
-  String playground,
-) async {
+Future<({Map<_Snippet, List<String>> failures, List<String> fixtureErrors})>
+_analyze(List<_Snippet> snippets, String playground) async {
   final dir = Directory(p.join(playground, 'lib', 'src', '__doc_snippets__'));
   if (dir.existsSync()) dir.deleteSync(recursive: true);
   dir.createSync(recursive: true);
@@ -162,17 +138,27 @@ Future<Map<_Snippet, List<String>>> _analyze(
     ], workingDirectory: playground);
 
     final failures = <_Snippet, List<String>>{};
+    // Errors in the copied fixtures, which are not snippets and so are not
+    // attributable to any doc. Left unreported they are worse than invisible:
+    // a broken fixture takes down every snippet that imports it, and the pile
+    // of resulting failures reads as doc drift rather than as one bad
+    // stand-in.
+    final fixtureErrors = <String>[];
     for (final line in const LineSplitter().convert(result.stdout as String)) {
       final parts = line.split('|');
       if (parts.length < 8) continue;
       if (parts[0] != 'ERROR') continue; // warnings/lints are not drift
       final snippet = byFile[p.basename(parts[3])];
-      if (snippet == null) continue;
+      if (snippet == null) {
+        final where = p.relative(parts[3], from: dir.path);
+        fixtureErrors.add('$where:${parts[4]} ${parts[2]}: ${parts[7]}');
+        continue;
+      }
       failures
           .putIfAbsent(snippet, () => [])
           .add('${parts[2]} (snippet line ${parts[4]}): ${parts[7]}');
     }
-    return failures;
+    return (failures: failures, fixtureErrors: fixtureErrors);
   } finally {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   }
@@ -181,17 +167,24 @@ Future<Map<_Snippet, List<String>>> _analyze(
 /// `my_app` is the docs' stand-in for the reader's own project. Point it at
 /// the playground where the table really exists, and at a fixture where the
 /// docs invented one.
-String _resolve(String code) => code.replaceAllMapped(
-  RegExp(r"package:my_app/src/schemas/(\w+)\.dart"),
-  (m) => switch (m.group(1)!) {
-    'users' ||
-    'items' ||
-    'posts' ||
-    'authors' ||
-    'companies' => 'package:zonai_playground/src/schemas/${m.group(1)}.dart',
-    final other => 'fixtures/$other.dart',
-  },
-);
+String _resolve(String code) => code
+    // The schema pages teach the `lib/src/ids.dart` that `zonai dev` writes.
+    // It can't resolve to the playground's own ids.dart: that one carries the
+    // playground's tables, not the `tasks`/`profiles`/`articles` the docs
+    // invent, and the snippets that import it declare their own tables anyway.
+    .replaceAll('package:my_app/src/ids.dart', 'fixtures/ids.dart')
+    .replaceAllMapped(
+      RegExp(r"package:my_app/src/schemas/(\w+)\.dart"),
+      (m) => switch (m.group(1)!) {
+        'users' ||
+        'items' ||
+        'posts' ||
+        'authors' ||
+        'companies' =>
+          'package:zonai_playground/src/schemas/${m.group(1)}.dart',
+        final other => 'fixtures/$other.dart',
+      },
+    );
 
 Iterable<_Snippet> _collect(String root) sync* {
   for (final f in Directory(
@@ -246,22 +239,11 @@ List<_Snippet> _fences(String root, File file) {
   return out;
 }
 
-Set<String> _readBaseline(String root) {
-  final file = File(
-    p.join(root, 'apps', 'playground', 'test', 'doc_snippets_baseline.txt'),
-  );
-  if (!file.existsSync()) return {};
-  return {
-    for (final line in const LineSplitter().convert(file.readAsStringSync()))
-      if (line.trim().isNotEmpty && !line.trimLeft().startsWith('#'))
-        line.trim(),
-  };
-}
 
 String _render(Map<_Snippet, List<String>> failures) => failures.entries
     .map(
       (e) =>
-          '  ${e.key} (${e.key.id})\n'
+          '  ${e.key}\n'
           '${e.value.map((m) => '      $m').join('\n')}',
     )
     .join('\n');

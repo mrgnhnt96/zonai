@@ -2,6 +2,8 @@
 // these fixtures exist and when to extend them.
 import 'package:zonai_schema/zonai_schema.dart';
 
+import 'ids.dart';
+
 final class Profile {
   const Profile({
     required this.id,
@@ -14,23 +16,6 @@ final class Profile {
   final String displayName;
 }
 
-final class ProfilesId implements Id {
-  const ProfilesId(this.value);
-
-  factory ProfilesId.generate() => ProfilesId(Id.generate('pr'));
-
-  @override
-  final String value;
-
-  @override
-  bool operator ==(Object other) => other is Id && other.value == value;
-
-  @override
-  int get hashCode => value.hashCode;
-
-  @override
-  String toString() => value;
-}
 
 final class ProfileTable extends Table<Profile> {
   ProfileTable(super.$)

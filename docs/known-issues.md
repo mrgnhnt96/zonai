@@ -589,9 +589,11 @@ to `BlackList` would show the same absence for every controller listed
 above; this wasn't repeated here to avoid making an unrelated,
 broader-blast-radius change while investigating.
 
-**Suggested fix.** In `apps/server/routes/components/black_list.dart`:
+**Suggested fix.** In `apps/server/routes/components/black_list.dart`
+(`no-analyze`: the import is a placeholder and the bodies are elided, so this
+sketch is deliberately not compilable — see the note after it):
 
-```dart
+```dart no-analyze
 import 'package:revali_router_annotations/revali_router_annotations.dart'; // or wherever LifecycleComponent is exported from for this workspace's pinned revali version
 
 final class BlackList implements LifecycleComponent {

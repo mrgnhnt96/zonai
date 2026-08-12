@@ -2,6 +2,8 @@
 // these fixtures exist and when to extend them.
 import 'package:zonai_schema/zonai_schema.dart';
 
+import 'ids.dart';
+
 final class Article {
   const Article({required this.id, required this.title, required this.body});
 
@@ -10,23 +12,6 @@ final class Article {
   final String body;
 }
 
-final class ArticlesId implements Id {
-  const ArticlesId(this.value);
-
-  factory ArticlesId.generate() => ArticlesId(Id.generate('ar'));
-
-  @override
-  final String value;
-
-  @override
-  bool operator ==(Object other) => other is Id && other.value == value;
-
-  @override
-  int get hashCode => value.hashCode;
-
-  @override
-  String toString() => value;
-}
 
 final class ArticleTable extends Table<Article> {
   ArticleTable(super.$)
