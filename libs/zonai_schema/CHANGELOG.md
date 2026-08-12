@@ -55,7 +55,18 @@ project against your resolved `zonai_schema`. A stale executable keeps the old
 code, and the `.protocol` stamp will not catch it — that stamp records the IPC
 framing version, which did not change here.
 
-Requires zonai CLI 0.6.2 or newer.
+### A note on the CLI you're running
+
+Custom operations need this release, but the CLI has to catch up too.
+
+zonai CLI **0.6.2 and earlier** check the resolved `zonai_schema` against the
+CLI's *own* version, on the assumption that the two ship in lockstep. They
+don't — so those CLIs refuse to start on any `0.x` schema, including `0.1.1`
+and this release, with *"zonai_schema … is too far behind this CLI"*. Until
+the next CLI release lands, pass `--no-schema-version-check`.
+
+The next CLI replaces that comparison with a declared floor, and this version
+is that floor.
 
 [#27]: https://github.com/mrgnhnt96/zonai/issues/27
 
