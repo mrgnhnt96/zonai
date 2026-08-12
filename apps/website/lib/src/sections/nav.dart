@@ -50,8 +50,12 @@ class SiteNavState extends State<SiteNav> {
     super.dispose();
   }
 
-  void _close() {
+  /// jaspr's `onClick` calls `preventDefault()` on anchor elements, so the
+  /// href navigation has to be replayed by hand here.
+  void _navigate(String href) {
     if (_open) setState(() => _open = false);
+    web.document.querySelector(href)?.scrollIntoView();
+    web.window.location.hash = href;
   }
 
   @override
@@ -65,7 +69,7 @@ class SiteNavState extends State<SiteNav> {
         ]),
 
         nav(classes: 'nav-links', attributes: const {'aria-label': 'Sections'}, [
-          for (final (label, href) in _navLinks) a(href: href, onClick: _close, [.text(label)]),
+          for (final (label, href) in _navLinks) a(href: href, onClick: () => _navigate(href), [.text(label)]),
         ]),
 
         div(classes: 'nav-actions', [
@@ -88,7 +92,7 @@ class SiteNavState extends State<SiteNav> {
       ]),
 
       div(classes: 'nav-sheet', [
-        for (final (label, href) in _navLinks) a(href: href, onClick: _close, [.text(label)]),
+        for (final (label, href) in _navLinks) a(href: href, onClick: () => _navigate(href), [.text(label)]),
         a(href: Links.docs, [.text('Documentation')]),
         a(href: Links.github, target: .blank, attributes: const {'rel': 'noopener'}, [.text('GitHub')]),
       ]),
