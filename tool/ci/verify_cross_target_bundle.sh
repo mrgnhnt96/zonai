@@ -7,16 +7,22 @@
 #   1. The bundle runs. Migrations apply, which means resqlite was dlopen'd --
 #      the check that would have caught a bundle carrying the build host's
 #      libraries.
-#   2. The stamped libraries are still the ones that shipped. Every executable
-#      here extracts to the *same* `.zonai/lib/` path, so one of them getting it
-#      wrong replaces the library for all of them; comparing digests before and
-#      after is how that shows up as a failure rather than as the next
-#      deployment's mystery.
+#   2. No library in `.zonai/lib/` is a foreign object file afterwards, and any
+#      that shipped with the bundle is byte-identical. Every executable here
+#      extracts to that *same* path, so one of them getting it wrong replaces
+#      the library for all of them; reading the headers after the run is how
+#      that shows up as a failure rather than as the next deployment's mystery.
+#      The header check works whether or not the bundle carried libraries,
+#      which matters because a pre-release bundle cannot carry them.
 #   3. A cross-compiled binary refuses to install its own embedded libraries
 #      here (negative control), and still keeps a correctly stamped one
 #      (positive control). Without the negative control this gate would pass
 #      just as happily against a build that writes the wrong library, because
 #      nothing else here forces the self-extraction path to run.
+#
+# A missing probe (passed as `-`, or a path that does not exist) skips 3 and
+# says so. cross_target_build.sh only builds one where the embedded-library
+# sources are present.
 #
 # Usage: verify_cross_target_bundle.sh <bundle-dir> <probe> [version-file]
 set -euo pipefail
@@ -25,8 +31,15 @@ bundle_dir="${1:?bundle directory required}"
 probe="${2:?probe path required}"
 version_file="${3:-}"
 
+# shellcheck source=tool/ci/object_platform.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/object_platform.sh"
+
 bundle_dir="$(cd "$bundle_dir" && pwd)"
-probe="$(cd "$(dirname "$probe")" && pwd)/$(basename "$probe")"
+if [[ "$probe" == "-" || ! -f "$probe" ]]; then
+  probe=""
+else
+  probe="$(cd "$(dirname "$probe")" && pwd)/$(basename "$probe")"
+fi
 
 target_os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 case "$target_os" in
@@ -51,7 +64,9 @@ resqlite_library="libresqlite${library_suffix}"
 argon2_library="libargon2sodium${library_suffix}"
 
 # Artifact upload does not preserve the executable bit.
-chmod +x "$probe"
+if [[ -n "$probe" ]]; then
+  chmod +x "$probe"
+fi
 chmod +x "${bundle_dir}/zonai"
 find "${bundle_dir}/.zonai/executables" -name '*.exe' -exec chmod +x {} +
 
@@ -66,8 +81,16 @@ digest_of() {
 cd "$bundle_dir"
 
 echo "== 1. the bundle runs on ${target_os}/${target_arch} =="
-before_resqlite="$(digest_of ".zonai/lib/${resqlite_library}")"
-before_argon2="$(digest_of ".zonai/lib/${argon2_library}")"
+# Digests only for what actually shipped: a pre-release bundle has no
+# .zonai/lib at all, and the run is still worth making.
+before_resqlite=""
+before_argon2=""
+if [[ -f ".zonai/lib/${resqlite_library}" ]]; then
+  before_resqlite="$(digest_of ".zonai/lib/${resqlite_library}")"
+fi
+if [[ -f ".zonai/lib/${argon2_library}" ]]; then
+  before_argon2="$(digest_of ".zonai/lib/${argon2_library}")"
+fi
 
 ./zonai version --no-version-check --no-schema-version-check
 ./zonai db migrate apply --no-version-check
@@ -82,23 +105,60 @@ if ! compgen -G ".zonai/data/*.sqlite" >/dev/null; then
 fi
 echo "  ok: migrations applied against a real database file"
 
-echo "== 2. the shipped libraries were not overwritten =="
+echo "== 2. nothing foreign was installed into the shared library path =="
+checked_any=0
 for pair in "${resqlite_library}:${before_resqlite}" "${argon2_library}:${before_argon2}"; do
   library="${pair%%:*}"
   before="${pair##*:}"
-  after="$(digest_of ".zonai/lib/${library}")"
-  if [[ "$before" != "$after" ]]; then
-    echo "  .zonai/lib/${library} changed while the bundle ran" >&2
-    echo "  before ${before}" >&2
-    echo "  after  ${after}" >&2
-    echo "  Something in the bundle extracted over the stamped library. On a" >&2
-    echo "  cross-compiled bundle those bytes are the build host's." >&2
+  path=".zonai/lib/${library}"
+
+  if [[ ! -f "$path" ]]; then
+    echo "  (no ${path}: nothing extracted it and none shipped)"
+    continue
+  fi
+  checked_any=1
+
+  # The check that does not depend on anything having shipped: whatever is at
+  # the shared path now has to be an object file for THIS platform. A bundle
+  # built on macOS that installed its own embedded copy fails here.
+  actual_platform="$(object_platform "$path")"
+  if [[ "$actual_platform" != "${target_os}/${target_arch}" ]]; then
+    echo "  ${path} is a ${actual_platform} object file" >&2
+    echo "  expected ${target_os}/${target_arch}." >&2
+    echo "  Something in this bundle extracted the build host's library over" >&2
+    echo "  the path every process here loads from." >&2
     exit 1
   fi
-  echo "  ok: .zonai/lib/${library} is byte-identical after the run"
+  echo "  ok: ${path} is a ${actual_platform} object file"
+
+  if [[ -n "$before" ]]; then
+    after="$(digest_of "$path")"
+    if [[ "$before" != "$after" ]]; then
+      echo "  ${path} changed while the bundle ran" >&2
+      echo "  before ${before}" >&2
+      echo "  after  ${after}" >&2
+      echo "  It shipped stamped for this target and something replaced it." >&2
+      exit 1
+    fi
+    echo "  ok: ${path} is byte-identical to what shipped"
+  fi
 done
 
+if [[ "$checked_any" == "0" ]]; then
+  echo "  NOT CHECKED: no library exists at .zonai/lib after the run, so this" >&2
+  echo "  step read nothing. That is not a pass -- it means the bundle never" >&2
+  echo "  reached the extraction path, and step 1 above is what vouched for it." >&2
+fi
+
 echo "== 3. self-extraction refuses a foreign library, keeps a stamped one =="
+if [[ -z "$probe" ]]; then
+  echo "  NOT CHECKED: no probe was supplied, so the guard's refuse/keep" >&2
+  echo "  behaviour was not exercised here at all. cross_target_build.sh builds" >&2
+  echo "  one only where apps/zonai/lib/gen/native/*.g.dart exists." >&2
+  echo "Cross-target bundle verified on ${target_os}/${target_arch} (step 3 skipped)"
+  exit 0
+fi
+
 control_dir="$(mktemp -d)"
 trap 'rm -rf "$control_dir"' EXIT
 
@@ -134,7 +194,18 @@ printf '%s %s %s' "$version" "$target_os" "$target_arch" \
   > "${control_dir}/positive/.zonai/lib/${resqlite_library}.stamp"
 planted="$(digest_of "${control_dir}/positive/.zonai/lib/${resqlite_library}")"
 
-reported="$(cd "${control_dir}/positive" && "$probe" resqlite)"
+# A refusal here rather than a path means the stamp did not apply, and the one
+# way that happens with a correct library is a version mismatch: the stamp is
+# written from VERSION, and the probe compares it against the kVersion compiled
+# into itself. They are the same file in CI; they diverge if a probe and a
+# VERSION from different checkouts are paired by hand.
+if ! reported="$(cd "${control_dir}/positive" && "$probe" resqlite 2>"${control_dir}/positive.err")"; then
+  echo "  the probe refused a library stamped '${version} ${target_os} ${target_arch}'" >&2
+  echo "  Check that ${version} is the kVersion compiled into this probe --" >&2
+  echo "  a stamp naming any other release does not apply." >&2
+  cat "${control_dir}/positive.err" >&2
+  exit 1
+fi
 if [[ "$reported" != *".zonai/lib/${resqlite_library}" ]]; then
   echo "  the probe reported ${reported}, not the stamped library" >&2
   exit 1

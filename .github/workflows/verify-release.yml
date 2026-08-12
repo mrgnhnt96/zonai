@@ -327,8 +327,20 @@ jobs:
           dart run tool/generate_resqlite_native.dart
           dart run tool/generate_argon2_native.dart
 
+      # zonai build reads GITHUB_TOKEN/GH_TOKEN for release downloads. The repo
+      # is public, so this is not about access: an unauthenticated Actions
+      # runner shares 60 API requests/hour per IP, and a 403 from that limit is
+      # indistinguishable in the output from a release that does not exist.
+      #
+      # REQUIRE_NATIVE_LIBS is deliberately unset here. This runs before the
+      # release that would publish this version's native-libs-*.zip, so the
+      # fetch cannot succeed and its absence is expected rather than a failure
+      # -- see the header of cross_target_build.sh, and the post-release job in
+      # release.yml that does require them.
       - name: Build a linux/x64 bundle on macOS arm64
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           bash tool/ci/cross_target_build.sh \
             build/zonai linux x64 e2e/build_smoke cross-target-out

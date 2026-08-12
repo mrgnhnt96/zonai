@@ -188,6 +188,109 @@ jobs:
             git push origin HEAD
           fi
 
+  # The half of the cross-target gate that cannot run before this point.
+  # verify-release.yml builds the same bundle and runs it on Linux, but the
+  # libraries `zonai build` fetches come from the release for THIS version, so
+  # before the release exists there is nothing to fetch and that job checks
+  # everything except the fetch. Here the assets exist, REQUIRE_NATIVE_LIBS
+  # makes their absence a failure, and what gets checked is the artifact people
+  # actually download rather than one assembled from compile artifacts.
+  #
+  # It runs after the release rather than gating it: a regression here means
+  # re-cutting a patch, which is the price of the fetch being release-shaped.
+  cross-target-build:
+    name: cross-build-linux-x64 (released)
+    needs: release
+    runs-on: macos-latest
+
+    steps:
+      # ref: main for the same reason deploy-website uses it -- the release job
+      # commits VERSION, and the stamp this checks must be the released one.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: |
+          bash tool/ci/use_revali_git_overrides.sh
+          bash tool/ci/use_revali_git_overrides.sh e2e/build_smoke
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Download the released macOS arm64 binary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          gh release download "v${version}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'zonai-macos-arm64.zip' \
+            --dir .
+          mkdir -p build
+          unzip -o zonai-macos-arm64.zip -d build
+          chmod +x build/zonai
+
+      # No probe is built here: this checkout has never run the native library
+      # generators, so apps/zonai/lib/gen/native is empty. cross_target_build.sh
+      # says so and the run half skips its controls by name -- they are covered
+      # pre-release, where that directory is populated from compile artifacts.
+      - name: Build a linux/x64 bundle from the released binary
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRE_NATIVE_LIBS: "1"
+        run: |
+          bash tool/ci/cross_target_build.sh \
+            build/zonai linux x64 e2e/build_smoke cross-target-out
+
+      - name: Upload the released cross-target bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-target-linux-x64-released
+          retention-days: 10
+          path: cross-target-out
+          if-no-files-found: error
+
+  cross-target-run:
+    name: cross-run-linux-x64 (released)
+    needs: cross-target-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download the released cross-target bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-target-linux-x64-released
+          path: cross-target-out
+
+      - name: Run the macOS-built bundle on linux/x64
+        shell: bash
+        run: |
+          bash tool/ci/verify_cross_target_bundle.sh \
+            cross-target-out/bundle \
+            - \
+            cross-target-out/VERSION
+
   # Republish both sites against the release commit. They read VERSION, so the
   # version badge, the install command and every download URL follow the tag
   # that was just cut.

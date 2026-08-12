@@ -15,8 +15,20 @@
 # platform -- the two halves cannot be one job, and GitHub's macOS runners have
 # no container runtime to fake it with.
 #
+# REQUIRE_NATIVE_LIBS=1 makes a bundle without the target's libraries a failure.
+# It is off by default because `zonai build` fetches them from the GitHub
+# release for *this* version, which does not exist yet while the release that
+# would publish it is still being verified. Running before the release can
+# therefore only check what does not depend on that download -- which is most
+# of what matters, since a bundle without those libraries still deploys (the
+# published binary is built for the target and answers its workers' requests).
+# The post-release job sets it to 1, where the assets do exist and their absence
+# is a real failure.
+#
 # Usage: cross_target_build.sh <executable> <target-os> <target-arch> [fixture-dir] [out-dir]
 set -euo pipefail
+
+require_native_libs="${REQUIRE_NATIVE_LIBS:-0}"
 
 executable="${1:?executable path required}"
 target_os="${2:?target os required}"
@@ -31,6 +43,9 @@ fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 out_dir="$(mkdir -p "$out_dir" && cd "$out_dir" && pwd)"
+
+# shellcheck source=tool/ci/object_platform.sh
+source "${repo_root}/tool/ci/object_platform.sh"
 
 host_os="$(uname -s)"
 case "$host_os" in
@@ -96,11 +111,73 @@ if [[ "$target_os" == windows ]]; then
 fi
 require_file "build/${built_name}"
 
+# Whether `zonai build` could fetch the target's libraries at all, and if not,
+# why -- named out loud rather than left as a quiet absence, because "the
+# release has not been cut yet" and "the fetch is broken" look identical in a
+# bundle that simply has no lib directory.
+report_missing_native_libs() {
+  local repo="${GITHUB_REPOSITORY:-mrgnhnt96/zonai}"
+  local auth=()
+  local token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+  if [[ -n "$token" ]]; then
+    auth=(-H "Authorization: Bearer ${token}")
+  fi
+
+  local status
+  status="$(curl -s -o /dev/null -w '%{http_code}' \
+    -H "Accept: application/vnd.github+json" \
+    "${auth[@]}" \
+    "https://api.github.com/repos/${repo}/releases/tags/v${version}" || echo "000")"
+
+  echo ""
+  echo "  NOT CHECKED: the bundle carries no target native libraries."
+  case "$status" in
+    404)
+      echo "  Release v${version} does not exist yet, which is expected before" >&2
+      echo "  the release that publishes it. zonai build fetches them from that" >&2
+      echo "  release, so there was nothing to fetch." >&2
+      ;;
+    200)
+      echo "  Release v${version} EXISTS, so the fetch should have worked." >&2
+      echo "  Check the build log above for the reason it did not." >&2
+      ;;
+    *)
+      echo "  Could not tell whether release v${version} exists (HTTP ${status})." >&2
+      echo "  A rate-limited or failed API call reads the same as a missing" >&2
+      echo "  release here, so this is stated rather than interpreted." >&2
+      ;;
+  esac
+  echo "  Skipped: the stamp naming this release and target, and the check that" >&2
+  echo "  the libraries are ${target_os}/${target_arch} object files." >&2
+  echo "  Still checked by the run half: that the bundle runs on the target," >&2
+  echo "  that nothing installs a foreign library, and that the guard refuses" >&2
+  echo "  one. Set REQUIRE_NATIVE_LIBS=1 to make this absence a failure." >&2
+  echo ""
+}
+
 # The point of the gate. Absent these, every executable in the bundle falls
 # back to the libraries it embedded, which are this host's.
+if [[ ! -d build/.zonai/lib ]]; then
+  if [[ "$require_native_libs" == "1" ]]; then
+    echo "zonai build produced no build/.zonai/lib, and REQUIRE_NATIVE_LIBS=1" >&2
+    report_missing_native_libs
+    exit 1
+  fi
+  report_missing_native_libs
+fi
+
+# Present is present: if a library shipped in the bundle it has to be right,
+# whether or not the fetch was required. Only the *requirement* is conditional.
 for library in libresqlite libargon2sodium; do
   library_path="build/.zonai/lib/${library}${library_suffix}"
-  require_file "$library_path"
+  if [[ ! -f "$library_path" ]]; then
+    if [[ "$require_native_libs" == "1" ]]; then
+      echo "zonai build did not produce $library_path" >&2
+      exit 1
+    fi
+    continue
+  fi
+  echo "  ok: $library_path"
 
   stamp_path="${library_path}.stamp"
   require_file "$stamp_path"
@@ -115,22 +192,16 @@ for library in libresqlite libargon2sodium; do
   fi
   echo "  ok: ${stamp_path} reads '${actual_stamp}'"
 
-  # `file` is the only check here that reads the bytes rather than what
-  # something claimed about them -- a correct stamp on a host library is the
-  # exact failure this gate exists to catch, and is indistinguishable from
-  # success without it.
-  description="$(file -b "$library_path")"
-  case "$target_os/$target_arch" in
-    linux/x64) expected_format="ELF 64-bit LSB shared object, x86-64" ;;
-    linux/arm64) expected_format="ELF 64-bit LSB shared object, ARM aarch64" ;;
-    *) expected_format="" ;;
-  esac
-  if [[ -n "$expected_format" && "$description" != *"$expected_format"* ]]; then
-    echo "  ${library_path} is '${description}'" >&2
-    echo "  expected it to contain '${expected_format}'" >&2
+  # The only check here that reads the bytes rather than what something claimed
+  # about them -- a correct stamp on a host library is the exact failure this
+  # gate exists to catch, and is indistinguishable from success without it.
+  actual_platform="$(object_platform "$library_path")"
+  if [[ "$actual_platform" != "${target_os}/${target_arch}" ]]; then
+    echo "  ${library_path} is a ${actual_platform} object file" >&2
+    echo "  expected ${target_os}/${target_arch}." >&2
     exit 1
   fi
-  echo "  ok: ${library_path} is ${description%%,*}"
+  echo "  ok: ${library_path} is a ${actual_platform} object file"
 done
 
 # The workers are the executables that would self-extract a host library on the
@@ -139,19 +210,30 @@ for worker in db_operations db_rules; do
   require_file "build/.zonai/executables/${worker}.exe"
 done
 
-echo "Compiling the native-library probe for ${target_os}/${target_arch}..."
 # Cross-compiled deliberately: this binary embeds the *host's* libraries, which
 # is what makes it the negative control on the target. See
 # verify_cross_target_bundle.sh.
-(
-  cd "${repo_root}/apps/zonai"
-  dart compile exe \
-    -D__ZONAI_COMPILED__=true \
-    --target-os "$target_os" \
-    --target-arch "$target_arch" \
-    test/support/native_library_probe.dart \
-    -o "${out_dir}/native_library_probe"
-)
+#
+# It can only be built where the embedded-library sources are, which is a
+# checkout that has run the generators. Where they are absent the probe is
+# skipped by name, and the run half says so too rather than quietly checking
+# one thing fewer.
+if compgen -G "${repo_root}/apps/zonai/lib/gen/native/*.g.dart" >/dev/null; then
+  echo "Compiling the native-library probe for ${target_os}/${target_arch}..."
+  (
+    cd "${repo_root}/apps/zonai"
+    dart compile exe \
+      -D__ZONAI_COMPILED__=true \
+      --target-os "$target_os" \
+      --target-arch "$target_arch" \
+      test/support/native_library_probe.dart \
+      -o "${out_dir}/native_library_probe"
+  )
+else
+  echo "NOT CHECKED: no apps/zonai/lib/gen/native/*.g.dart in this checkout, so"
+  echo "  the probe was not built and the run half cannot exercise the guard's"
+  echo "  refuse/keep controls. The bundle itself is still run on the target."
+fi
 
 echo "Staging the bundle for the ${target_os}/${target_arch} runner..."
 rm -rf "${out_dir}/bundle"
