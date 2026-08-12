@@ -11,22 +11,24 @@ This guide walks through creating a small REST API with a `users` auth table and
 dart create my_app && cd my_app
 ```
 
-Add Zonai to `pubspec.yaml`:
+Add `zonai_schema` — the package your tables, rules and operations are written
+against — to `pubspec.yaml`:
 
 ```yaml
 dependencies:
   zonai_schema: ^0.1.0
-
-dev_dependencies:
-  zonai: ^0.1.0
 ```
 
 Run `dart pub get`.
 
+The `zonai` CLI is not a pub package. It is a pre-compiled binary that lives in
+your project root; if you have not already downloaded it, see
+[Installation](/getting-started/installation).
+
 ## Step 2: Initialize Zonai
 
 ```bash
-zonai dev
+./zonai dev
 ```
 
 If no `zonai.yaml` exists, `zonai dev` prompts you through creating one

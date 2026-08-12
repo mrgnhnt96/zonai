@@ -9,11 +9,11 @@ Start the Zonai HTTP server.
 zonai serve [flags]
 ```
 
-From a project root with `dart run zonai`, the CLI re-execs into a **project
-entry** (JIT: `.dart_tool/zonai/project_main.dart`, or AOT `.zonai/zonai` with
-`--release`) so operations and rules run **in-process**. The published GitHub
-release binary stays in-process and uses Mailman workers for ops/rules. From
-`build/`, run the project-linked `./zonai serve --release`.
+Run from a project root, the CLI re-execs into a **project entry** (JIT:
+`.dart_tool/zonai/project_main.dart`, or AOT `.zonai/zonai` with `--release`)
+so operations and rules run **in-process**. The published release binary stays
+in-process and uses Mailman workers for ops/rules. From `build/`, run the
+project-linked `./zonai serve --release`.
 
 ## Flags
 
