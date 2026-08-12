@@ -18,17 +18,21 @@
 /// IPC message an older schema can't parse (`RateLimitOperation.custom` was
 /// exactly that: a value the host sends and an old worker throws on).
 ///
-/// Nothing enforces the pairing. `verify_min_schema_version.sh` only checks
-/// that this version is actually published, which catches the release-ordering
-/// mistake below but says nothing about whether the floor is high enough. A
-/// floor left too low fails at the consumer, not here.
+/// Nothing enforces the pairing. `tool/verify_release_coupling.dart` only
+/// checks that this version is *reachable* by a consumer, which catches the
+/// release-ordering mistakes below but says nothing about whether the floor is
+/// high enough. A floor left too low fails at the consumer, not here.
 ///
 /// ## Release ordering
 ///
-/// This must never name a version that isn't on pub.dev yet: the scaffold
-/// writes `zonai_schema: ^$kMinSchemaVersion` into new projects, so a CLI
-/// released ahead of its schema hands people a pubspec that cannot resolve.
-/// Publish `zonai_schema` first, then release the CLI.
+/// This must never name a version a consumer can't actually resolve, which
+/// takes two things: the version is published, and the *published*
+/// `zonai_client` allows it (it depends on `zonai_schema`, so its constraint
+/// on pub.dev bounds anyone using both, whatever this repo says). The scaffold
+/// writes `zonai_schema: ^$kMinSchemaVersion` into new projects, so getting
+/// this wrong hands people a pubspec that cannot resolve.
+///
+/// Order, and the rest of it, in `docs/releasing.md`.
 ///
 /// Currently `0.2.0`: the first release where custom operations work at all.
 /// `0.1.1` ships `DbRateLimits` asserting `request.customOperation!` non-null

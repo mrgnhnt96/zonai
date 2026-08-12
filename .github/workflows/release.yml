@@ -24,13 +24,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # `zonai init` scaffolds `zonai_schema: ^<kMinSchemaVersion>`, so
-      # releasing the CLI ahead of the schema release it names hands new
-      # projects a pubspec pub cannot resolve. Nothing in the test suite can
-      # see this -- every checkout here resolves zonai_schema by path -- so it
-      # is gated at the one moment it matters.
-      - name: Verify the declared zonai_schema floor is published
-        run: bash apps/zonai/tool/verify_min_schema_version.sh
+      # The CLI cannot ship ahead of the zonai_schema floor it declares, and
+      # the floor is only reachable if the PUBLISHED zonai_client admits it
+      # too. Neither is visible from the test suites -- every checkout here
+      # resolves zonai_schema by path, and the constraints that bind consumers
+      # are the ones already on pub.dev. See docs/releasing.md.
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Verify the zonai_schema floor is reachable by a consumer
+        working-directory: apps/zonai
+        run: dart pub get && dart run tool/verify_release_coupling.dart
 
       - name: Resolve release version
         env:
