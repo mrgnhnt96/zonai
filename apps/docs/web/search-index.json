@@ -2670,7 +2670,7 @@
         {
           "h": "clear",
           "a": "clear",
-          "b": "Delete all records from the _log table: zonai db logs clear aliases: delete, rm Useful in development when logs have grown too large."
+          "b": "Delete records from the _log table: zonai db logs clear aliases: delete, rm zonai db logs clear --older-than 7d keep the last week zonai db logs clear --vacuum also shrink the file on disk zonai db logs clear --vacuum --force skip the confirmation (alias: -f) --older-than takes a number followed by s, m, h, d or w — for example 30m, 24h, 7d, 2w. Without it, every record is deleted. Reclaiming disk space Deleting rows does not shrink the database file. SQLite keeps the emptied pages on an internal freelist and reuses them for future writes, so a clear that removes millions of records can leave the file exactly as large as it was. clear says so when it happens. --vacuum rewrites the file from its live pages only and returns the difference to the operating system. It prompts first, because the rewrite: needs roughly twice the current file size free on disk, since SQLite builds a complete copy before swapping it in takes time proportional to the file size — a large database can take minutes holds an exclusive lock throughout, so a running server blocks on writes Answering no cancels the command; nothing is deleted. Pass --force to skip the prompt in scripts. This matters most on databa"
         },
         {
           "h": "db clear",
@@ -2779,6 +2779,16 @@
           "h": "Protocol mismatch error",
           "a": "protocol-mismatch-error",
           "b": "If you see an error like: CONFIG worker (...) speaks IPC protocol vX but this host speaks vY. it means the host binary and a worker executable were compiled at different times across a wire-format change. Fix it: zonai compile zonai compile detects a stale dev host binary (.zonai/zonai) and rebuilds it automatically as part of every run — this is the right fix for normal day-to-day development, and it's why this should be rare. If the host you're running is a deployed zonai build bundle rather than a dev checkout, zonai compile won't help — it never touches build/zonai. Rebuild and redeploy instead: zonai build This case comes up when a long-running, already-started production zonai serve process has workers recompiled underneath it — that process can't rebuild itself while it's running, so it fails loudly instead of accepting a worker it can't actually talk to. Rebuild with zonai build, redeploy, and restart the process."
+        },
+        {
+          "h": "Message contract mismatch error",
+          "a": "message-contract-mismatch-error",
+          "b": "The wire format is only half of what the two sides have to agree on. The other half is the vocabulary inside it — the enum values, request fields and payload keys defined by zonai_schema. Those change far more often than the framing does, and a worker compiled before such a change starts up perfectly happily and then fails part-way through a request. Each worker is therefore stamped with a fingerprint of the zonai_schema sources it was compiled against, and the host refuses to spawn one whose fingerprint disagrees with its own: RATE_LIMITS worker (...) was built against message contract abc123def456 but this host speaks 0f9e8d7c6b5a. The fix is the same as for a protocol mismatch: zonai compile and zonai build + redeploy if the host is a deployed bundle. This is the expected error after upgrading zonai_schema without rebuilding workers, after pulling a newer CLI, or after restoring an older .zonai/executables/ directory. Editing zonai_schema sources in a local checkout does it too — though comment and formatting changes are excluded, so only edits that could actually change a message count. A worker with no fingerprint is allowed through: an executable built before this stamping ex"
+        },
+        {
+          "h": "The same warning, without the refusal",
+          "a": "the-same-warning-without-the-refusal",
+          "b": "Operations and rules can also run inside the host process, from an AOT snapshot (db_operations.aot, db_rules.aot), which is faster than talking to the .exe over a pipe. A snapshot whose fingerprint disagrees is skipped rather than refused: [OPERATIONS_EXE] .zonai/executables/db_operations.aot was built against message contract abc123def456 but this host speaks 0f9e8d7c6b5a -- ignoring it and using the worker process instead (dispatch still works, in-process does not). Run zonai compile to refresh it, ... Everything keeps working; you lose in-process dispatch until you rebuild. If the .exe beside it is stale too, you get the refusal above instead."
         },
         {
           "h": "After updating the CLI",

@@ -49,6 +49,58 @@ can't rebuild itself while it's running, so it fails loudly instead of
 accepting a worker it can't actually talk to. Rebuild with `zonai build`,
 redeploy, and restart the process.
 
+## Message contract mismatch error
+
+The wire format is only half of what the two sides have to agree on. The
+other half is the *vocabulary* inside it — the enum values, request fields
+and payload keys defined by `zonai_schema`. Those change far more often than
+the framing does, and a worker compiled before such a change starts up
+perfectly happily and then fails part-way through a request.
+
+Each worker is therefore stamped with a fingerprint of the `zonai_schema`
+sources it was compiled against, and the host refuses to spawn one whose
+fingerprint disagrees with its own:
+
+```
+RATE_LIMITS worker (...) was built against message contract abc123def456
+but this host speaks 0f9e8d7c6b5a.
+```
+
+The fix is the same as for a protocol mismatch:
+
+```sh
+zonai compile
+```
+
+and `zonai build` + redeploy if the host is a deployed bundle.
+
+This is the expected error after upgrading `zonai_schema` without rebuilding
+workers, after pulling a newer CLI, or after restoring an older
+`.zonai/executables/` directory. Editing `zonai_schema` sources in a local
+checkout does it too — though comment and formatting changes are excluded, so
+only edits that could actually change a message count.
+
+A worker with **no** fingerprint is allowed through: an executable built
+before this stamping existed, or compiled outside `zonai compile`/`zonai
+build`, is unknown rather than wrong. Run `zonai compile` to give it one.
+
+### The same warning, without the refusal
+
+Operations and rules can also run inside the host process, from an AOT
+snapshot (`db_operations.aot`, `db_rules.aot`), which is faster than talking
+to the `.exe` over a pipe. A snapshot whose fingerprint disagrees is skipped
+rather than refused:
+
+```
+[OPERATIONS_EXE] .zonai/executables/db_operations.aot was built against
+message contract abc123def456 but this host speaks 0f9e8d7c6b5a -- ignoring
+it and using the worker process instead (dispatch still works, in-process
+does not). Run `zonai compile` to refresh it, ...
+```
+
+Everything keeps working; you lose in-process dispatch until you rebuild. If
+the `.exe` beside it is stale too, you get the refusal above instead.
+
 ## After updating the CLI
 
 See [`zonai version`](/cli/version) for updating the CLI itself. After

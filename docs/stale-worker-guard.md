@@ -1,25 +1,21 @@
 # Catching a stale worker before it crashes
 
-Handoff doc. There is already a guard that refuses a version-skewed worker.
-It does not fire for the kind of skew that actually bit us, and when it doesn't
-fire the failure is unreadable. This is what it misses, what to key on instead,
-and — most of it — what the failure has to look like when it does fire.
+**Status: built.** This was a handoff doc; it is now the record of what was
+built, what was watched happening, and what is still missed. The diagnosis is
+kept because the reasoning behind the file set only makes sense next to it.
 
-## What exists
+## The failure
 
 `apps/zonai/lib/src/domain/ipc_protocol_stamp.dart` writes a `.protocol`
 sidecar next to every compiled worker holding `IpcCodec.version` (currently
 `1`). `WorkerProtocolMismatchException.forStamp` compares it to the host's
-before `Mailman` spawns anything, and refuses on a disagreement.
-
-It exists for one specific event: `066b88b` swapped the wire format from
-newline-JSON to framed MessagePack, with no backward compatibility. It answers
-**"can these two binaries talk to each other at all?"**
-
-## What it misses
+before `Mailman` spawns anything, and refuses on a disagreement. It exists for
+one specific event: `066b88b` swapped the wire format from newline-JSON to
+framed MessagePack, with no backward compatibility. It answers **"can these
+two binaries talk to each other at all?"**
 
 The framing is not the only thing that has to agree. The *vocabulary* inside
-the frame does too, and nothing records that.
+the frame does too, and nothing recorded that.
 
 #25 added `custom` to the `RateLimitOperation` enum. `IpcCodec.version` stayed
 `1` — correctly, the framing didn't change — so the stamp matched and
@@ -46,118 +42,212 @@ Adding an enum value widens what the host can *say* without changing how it is
 *said*. Same for a new required field on a request, a renamed payload key, or a
 new `Request` subtype — all invisible to a codec-version check.
 
-## Why this is worth doing now
+## What was built
 
-`zonai_schema` 0.2.0 raises the floor the CLI declares, so everyone upgrading
-has to rebuild their workers (`docs/releasing.md` says so, and the changelog
-says so). A stale worker is therefore the *expected* failure mode of this
-release — and it is precisely the one the guard is blind to. Shipping a release
-that causes worker rebuilds while the stale-worker guard can't see them is the
-wrong order.
+Option (b) from the original three: **a hash of the message contract, stamped
+beside the executable.**
 
-## What to key on — three options
+| | |
+|---|---|
+| `domain/message_contract_hash.dart` | resolves `zonai_schema`, walks the file set, hashes it |
+| `domain/dart_source_normalizer.dart` | strips comments and collapses whitespace before hashing |
+| `domain/message_contract_stamp.dart` | the `.contract` sidecar, and which hash the host speaks |
+| `db_mutator/worker_contract_mismatch_exception.dart` | the refusal, and its message |
 
-**(a) Bump `IpcCodec.version` on every vocabulary change.** Cheapest. Also
-wrong twice: it makes a framing constant mean something it doesn't, and it
-relies on someone remembering — the same failure mode the version mirror had.
-A guard nobody bumps is not a guard. Not recommended, but worth naming so the
-next person doesn't rediscover it as an idea.
+`writeMessageContractStamp` runs beside `writeProtocolStamp` at all seven
+compile sites (six workers plus the project binary), on the two AOT snapshots,
+and in `_bundlePublishedBinary` so a bundle that ships the stock CLI still
+records what it was assembled against. `Mailman._throwIfContractMismatch` runs
+at spawn, immediately after the protocol check. `zonai compile` rebuilds a host
+binary whose stamp is stale *or missing* — the second case matters, because an
+unstamped host has nothing to compare and would leave the guard inert forever.
 
-**(b) Stamp a hash of the message contract.** At worker-compile time, hash the
-sources that define what crosses the wire — the `Request`/`Response` subclasses
-under `libs/zonai_schema/lib/src/handlers/**` and the enums they parse
-(`RateLimitOperation`, `AuthExtensionStep`, …) — and write it beside the
-executable like the protocol stamp. Any change to the vocabulary changes the
-hash, with nobody having to notice.
+The sidecar *appends* rather than replaces: `db_operations.exe.contract`, not
+`db_operations.contract`. The `.protocol` stamp replaces the extension, and
+that scheme cannot tell `db_operations.exe` from the `db_operations.aot`
+snapshot beside it — they would claim the same file. Two artifacts compiled by
+separate invocations need two stamps; rules.dart's note on `compileArgs`
+records the time those two invocations came out different.
 
-Cost: the hash must cover exactly the right files. Too narrow and it misses a
-change; too broad (all of `lib/src`) and every unrelated edit forces a rebuild,
-which trains people to ignore it. Worth writing down which files are in the set
-and why, next to the hash function.
+### Both spawn paths
 
-**(c) Stamp the resolved `zonai_schema` version.** Trivial, and it composes
-with `kMinSchemaVersion`: record which schema version each worker was built
-against, refuse when it is below the host's floor.
+`Mailman` can reach a worker two ways, and only one of them was covered at
+first.
 
-Its weakness is exactly where the bug was found: in this monorepo (and any
-project using a path dependency) `zonai_schema` has no resolved version, so
-this degrades to "unknown" — and `isProtocolStale` treats unknown as not-stale
-on purpose. Consumers on pub.dev would be covered; the people developing zonai
-would not.
+- **Process** (`.exe` over stdin/stdout) — `_throwIfContractMismatch` refuses.
+- **Isolate from generated source** (dev, on the Dart VM) — JIT-compiled at
+  spawn from the current sources. It *is* the host's sources; it cannot be
+  stale, and nothing checks it.
+- **Isolate from an AOT snapshot** (`db_operations.aot`, `db_rules.aot`; taken
+  on a compiled host, which is the ordinary production shape) —
+  `_snapshotContractIsStale` declines it.
 
-**Recommendation: (b), with (c) as a cheap first cut** if it needs to ship
-alongside the release. They compose — (c) covers the hosted case in an
-afternoon, (b) covers the path-dependency case properly. Do not do (a).
+That third one **declines rather than throws**, which reads as the weaker
+choice and isn't. Returning `false` from `_tryStartIsolate` falls through to
+the worker process, which carries its own stamp and refuses loudly if it is
+stale too — so a genuinely stale pair still fails at spawn with the full
+message. What the soft decline buys is the case where the two have *diverged*:
+a stale snapshot beside a fresh executable then costs in-process dispatch
+rather than the request. It logs a warning naming both contracts and the
+command, once per path.
+
+The protocol check was left alone on the snapshot path. Covering it would mean
+changing `.protocol`'s naming scheme, which is a format already on disk in
+every existing project, for a gap that opens only when the framing changes —
+twice, in the project's life. Not worth the churn today; named here so the
+asymmetry is a decision rather than an oversight.
+
+Options (a) and (c) were not taken. (a) — bumping `IpcCodec.version` on every
+vocabulary change — makes a framing constant mean something it doesn't and
+relies on someone remembering. (c) — stamping the resolved `zonai_schema`
+version — degrades to "unknown" for every path dependency, which is where the
+bug was found; it is subsumed by (b) anyway, since a version bump changes the
+sources and therefore the hash.
+
+### Which files are hashed
+
+Every Dart file inside `zonai_schema`'s `lib/` reachable through
+`import`/`export`/`part` from anything under `lib/src/handlers/`. 207 files at
+the time of writing, of 260 in the package.
+
+The set is *computed, not curated*, and that is the point. The obvious
+hand-drawn boundary — `lib/src/handlers/**` and nothing else, which is what
+this doc originally proposed — would have missed the bug that prompted the
+whole exercise: `RateLimitOperation` lives in
+`lib/src/types/rate_limit_operation.dart`, one import away from the handler
+that parses it. A boundary a person draws is a boundary a person has to
+remember to redraw.
+
+It errs broad on purpose. Too broad costs a worker rebuild nobody needed; too
+narrow costs the 503 above. The cost of broad is paid down by hashing
+*normalized* source: comments and whitespace are stripped, so doc edits and
+`dart format` — which is most of what actually changes in these files — do not
+count. Verified against the real sources:
+
+| edit | hash |
+|---|---|
+| rewrite a doc comment | unchanged |
+| reflow with blank lines and indentation | unchanged |
+| add a value to `RateLimitOperation` | **changed** |
+| rename `'customOperation'` to `'custom_operation'` | **changed** |
 
 ## The failure has to be loud
 
-This is the part that matters more than which key is chosen. **A guard that
-detects staleness and then reports it badly has not solved this.** The
-observed failure above is the anti-pattern: a 503 carrying a Dart stack trace,
-from which nothing about the actual problem or its fix is recoverable.
+This mattered more than which key was chosen. **A guard that detects staleness
+and then reports it badly has not solved this.** The observed failure above is
+the anti-pattern: a 503 carrying a Dart stack trace, from which nothing about
+the actual problem or its fix is recoverable.
 
-Required, when the guard fires:
+Six requirements, each one now asserted on the message text in
+`worker_contract_mismatch_exception_test.dart` — a test that only checked
+`throwsA(isA<…>())` would leave the whole point untested:
 
-1. **Fail before doing work, not mid-request.** Refuse at spawn, the way
-   `WorkerProtocolMismatchException` already does. A stale worker must never
-   get far enough to fail inside a request handler, because there the failure
-   arrives as a 5xx to an end user rather than as a message to the operator.
-2. **Name the thing.** Which worker, and its path on disk. "A worker is stale"
-   is not actionable when there are six of them.
-3. **Show both sides.** What the worker was built with, what this host
-   expects. A reader has to be able to see the gap, not take our word that
-   there is one.
-4. **Say why it happened**, in terms of something the reader did — upgraded
-   `zonai_schema`, pulled a newer CLI, restored an old build directory. Not
-   "hash mismatch".
-5. **Give the exact command.** `zonai compile` for a dev project;
-   `zonai build` + redeploy for a deployed bundle. State which case is which —
-   `zonai compile` only refreshes workers in a bundle, not the bundle itself,
-   and that distinction has caught people out.
-6. **Never degrade silently.** Not to a warning, not to "unknown, carry on"
-   *once staleness is actually established*. Unknown (no stamp) may pass;
-   known-and-different must not.
+1. **Fail before doing work, not mid-request.** Refuse at spawn.
+2. **Name the thing** — which worker, and its path on disk.
+3. **Show both sides**, so a reader can see the gap rather than take our word.
+4. **Say why it happened**, in terms of something the reader did.
+5. **Give the exact command**, and say which case is which.
+6. **Never degrade silently** once staleness is actually established.
 
-`WorkerProtocolMismatchException.message` already does all six and is the shape
-to copy:
+What it produces:
 
 ```
-RATE_LIMITS worker (.zonai/executables/db_rate_limit.exe) speaks IPC protocol
-v1 but this host speaks v2.
-The host binary and this worker were compiled at different times across a
-wire-format change. Run `zonai compile` -- it detects a stale dev host binary
-and rebuilds it automatically. If this host is a deployed `zonai build` bundle
-instead (compile only refreshes workers there, not the bundle), rebuild with
-`zonai build` and redeploy.
+CONFIG worker (.zonai/executables/db_config.exe) was built against message
+contract 765731660f2b but this host speaks 2f4a6becd11d.
+The wire format still matches -- what changed is the vocabulary inside it: an
+enum value, a request field, or a payload key that this worker was compiled
+before. Upgrading `zonai_schema`, pulling a newer CLI, or restoring an older
+build directory all do this. Left alone the worker would start and then fail
+part-way through a request.
+Run `zonai compile` -- it rebuilds every worker, and a stale dev host binary
+with them. If this host is a deployed `zonai build` bundle instead (compile
+only refreshes workers there, not the bundle), rebuild with `zonai build` and
+redeploy.
 See https://docs.zonai.dev/cli/upgrading
 ```
 
-Reuse it rather than writing a second, worse one — either by extending
-`WorkerProtocolMismatchException` with a second cause, or by adding a sibling
-that follows the same template.
+## Watched failing
 
-## How to verify a fix
+A guard nobody has watched fail is not known to work. In `apps/playground`, on
+2026-08-12: `zonai compile` to stamp the workers, then a value added to
+`RateLimitOperation` without touching `IpcCodec.version`, then `zonai serve`
+(the JIT dev host, so the host is the edited sources while the workers on disk
+are not).
 
-Reproduce first, because a guard nobody has watched fail is not known to work:
+| state | result |
+|---|---|
+| stamped, contract drifted | **refused at spawn** — the message above, before the server bound a port |
+| `.contract` files deleted, same drift | server started and served (HTTP 302 on `/_`) |
+| stamped, no drift | server started and served |
 
-1. Build workers, then change the vocabulary underneath them — add a value to
-   an enum a request parses, without touching `IpcCodec.version`.
-2. Rebuild the host only, leaving `.zonai/executables/` alone.
-3. Send a request that uses the new value.
+The middle row is the world before this change, and is also the deliberate
+"unknown passes" behaviour: nothing to compare, so nothing refused. The
+refusal in the first row arrives during startup config resolution, not as a
+5xx to a caller — requirement 1, observed rather than asserted.
 
-Before: HTTP 503 with `No enum value with that name: …`. After: refused at
-spawn with a message naming the worker, both versions, and the command.
+### The snapshot path
 
-Assert on the *message*, not just the exception type. Every requirement above
-is about what the text says, so a test that only checks `throwsA(isA<…>())`
-leaves the whole point untested.
+Harder to reach: it needs a compiled host that is *also* using Mailman for
+ops/rules, and in this monorepo a project always links (zonai's sources are on
+disk beside the CLI, so `resolveProjectLink` merges the graphs and ops run
+in-process, never touching Mailman). `ZONAI_FORCE_WORKERS=true` against the
+compiled `.zonai/zonai` is the way in — it turns off in-process dispatch
+without changing anything the guard reads.
 
-## What it will still miss
+Driving `zonai db admin list` through it, with `db_operations.exe.contract`
+and `db_operations.aot.contract` set independently:
 
-- A worker whose stamp is **missing** — built before stamping existed, or
-  compiled outside `zonai compile`/`zonai build`. That stays "unknown, not
-  wrong" by design; the alternative refuses every ad-hoc fixture.
-- Divergence that isn't in the hashed set, under (b). Say out loud which files
-  are covered, so the gap is visible rather than assumed shut.
-- Anything about whether the worker is *correct* — only whether it was built
-  from the same contract.
+| `.aot` | `.exe` | result |
+|---|---|---|
+| fresh | fresh | `Started isolate worker` — snapshot used, in-process dispatch kept |
+| **stale** | fresh | warning, fell through to `db_operations.exe`, command succeeded |
+| **stale** | **stale** | warning, then the refusal — `Failed to list admin accounts: … OPERATIONS worker … was built against message contract 000000000000 but this host speaks 765731660f2b` |
+
+Row two is the case the soft decline exists for, and is the reason the two
+artifacts needed separate stamps: under the old shared-sidecar scheme it could
+not have been expressed, let alone observed.
+
+## What it still misses
+
+- **A worker whose stamp is missing.** Unknown, not wrong, by design — the
+  alternative refuses every ad-hoc fixture. Row two above is what that looks
+  like.
+- **The published CLI acting as host.** When `resolveProjectLink` skips and
+  `maybeReexecProjectRuntime` returns null, the `zonai` binary itself serves —
+  the ordinary shape for a consumer whose project does not depend on
+  `package:zonai` and who does not have zonai's sources on disk. That binary is
+  built with `__ZONAI_COMPILED__=true` (scripts.yaml), so
+  `hostMessageContractHash` looks for a sidecar beside
+  `Platform.resolvedExecutable` and finds none: unknown, and everything passes.
+
+  Not closed on purpose. One CLI serves many projects, so a sidecar beside it
+  cannot describe any of them. Baking the hash in at CLI-build time *would*
+  work, but it would compare the CLI's compiled-in `zonai_schema` against the
+  project's on exact equality — turning `SchemaVersionCheck`'s deliberate
+  "at or above the floor is fine" into "identical or refuse", and refusing a
+  consumer on 0.2.0 with a CLI shipping 0.2.1. Hashing the project's sources
+  instead would measure the wrong thing entirely: the CLI parses worker
+  messages with the schema compiled into it, not with whatever is on disk.
+
+  This is the one case where the coarse guard is the right one:
+  `SchemaVersionCheck` no-ops for path dependencies but *works* for exactly
+  this consumer, because they have a resolved `zonai_schema` version in
+  `pubspec.lock`. The two are complementary — a version floor where a hash
+  cannot go, a hash everywhere the version is unknowable.
+- **The framing check on the snapshot path.** `.protocol` still can't
+  distinguish a `.aot` from its sibling `.exe`; see above for why that was
+  left.
+- **Anything outside `zonai_schema`.** A change to the host's own message
+  handling in `apps/zonai` that never touches the schema is not in the
+  closure.
+- **A stock-binary bundle's own vocabulary.** `_bundlePublishedBinary` stamps
+  the bundle with the contract it was *assembled* against, not with what the
+  published binary was compiled from. That catches later drift, which is what
+  this guard is for; a published CLI already out of step with the project's
+  `zonai_schema` is `SchemaVersionCheck`'s job.
+- **Its own silence.** `MessageContractHash.compute` never throws — a
+  staleness check that takes down the thing it is checking is worse than no
+  check — so anything it cannot answer becomes "unknown" and passes. If it
+  breaks, it breaks quiet.
+- **Whether the worker is *correct*.** Only whether it was built from the same
+  contract.
