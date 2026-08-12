@@ -11,6 +11,7 @@ class App extends StatelessComponent {
   const App({
     super.key,
     required this.appConfig,
+    required this.hasBrandLogo,
     required this.initialSqliteNames,
     required this.initialDisplayNames,
     this.tablesLoadError,
@@ -22,6 +23,7 @@ class App extends StatelessComponent {
   }) : assert(initialSqliteNames.length == initialDisplayNames.length, 'SQLite names and display labels must align');
 
   final AppConfig appConfig;
+  final bool hasBrandLogo;
   final List<String> initialSqliteNames;
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
@@ -66,6 +68,7 @@ class App extends StatelessComponent {
         initialPath: initialPath,
         initialAppName: appConfig.appName,
         initialBaseUrl: appConfig.baseUrl,
+        hasBrandLogo: hasBrandLogo,
         initialAuthTypeNames: [for (final type in initialAuthTypes) type.name],
         initialSqliteNames: initialSqliteNames,
         initialDisplayNames: initialDisplayNames,

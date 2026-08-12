@@ -6,6 +6,7 @@ import '../../auth/auth_route_provider.dart';
 import '../../auth/auth_routes.dart';
 import '../../auth/supported_auth_types_provider.dart';
 import '../../providers/app_name_provider.dart';
+import '../../providers/brand_logo_provider.dart';
 import 'ui_styles.dart';
 import 'zonai_button.dart';
 import 'zonai_card.dart';
@@ -20,10 +21,14 @@ class AuthBrand extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     final appName = context.watch(appNameProvider);
+    final hasBrandLogo = context.watch(hasBrandLogoProvider);
     final initial = appName.isNotEmpty ? appName[0].toUpperCase() : 'Z';
 
     return div(classes: ZonaiClasses.authBrand, [
-      div(classes: ZonaiClasses.authLogo, [.text(initial)]),
+      if (hasBrandLogo)
+        img(src: brandLogoUrl, alt: appName, classes: '${ZonaiClasses.authLogo} ${ZonaiClasses.authLogoImage}')
+      else
+        div(classes: ZonaiClasses.authLogo, [.text(initial)]),
       h2(classes: ZonaiClasses.authAppName, [.text(appName)]),
       p(classes: ZonaiClasses.authTagline, [.text(tagline)]),
     ]);

@@ -24,6 +24,7 @@ class HomeAppShell extends StatelessComponent {
     required this.initialPath,
     required this.initialAppName,
     required this.initialBaseUrl,
+    required this.hasBrandLogo,
     required this.initialPhotosConfig,
   }) : assert(initialSqliteNames.length == initialDisplayNames.length, 'SQLite names and display labels must align');
 
@@ -35,6 +36,7 @@ class HomeAppShell extends StatelessComponent {
   final String initialPath;
   final String initialAppName;
   final String initialBaseUrl;
+  final bool hasBrandLogo;
   final Map<String, Object?> initialPhotosConfig;
 
   @override
@@ -62,6 +64,7 @@ class HomeAppShell extends StatelessComponent {
           initialPath: initialPath,
           initialAppName: initialAppName,
           initialBaseUrl: initialBaseUrl,
+          hasBrandLogo: hasBrandLogo,
           initialPhotosConfig: photosConfigFromJson(Map<String, dynamic>.from(initialPhotosConfig)),
           initialAuthTypes: const [],
           tables: SqliteTablesSnapshot(tables: tables, loadError: tablesLoadError),

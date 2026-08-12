@@ -9,6 +9,7 @@ import 'constants/theme.dart';
 import 'auth/auth_routes.dart';
 import 'main.server.options.dart';
 import 'server/app_config.dart';
+import 'server/brand_logo.dart';
 import 'server/session_auth.dart';
 import 'server/ssr_auth_cookie.dart';
 import 'server/sqlite_table_names.dart';
@@ -42,9 +43,11 @@ void main() {
           // Always load so sign-out after an authenticated refresh still has auth types.
           final authTypes = await loadSupportedAuthTypes();
           final appConfig = await loadAppConfig();
+          final hasBrandLogo = await loadHasBrandLogo();
           final initialPath = AuthRoutes.normalizePath(context.url);
           return App(
             appConfig: appConfig,
+            hasBrandLogo: hasBrandLogo,
             initialSqliteNames: tables.sqliteNames,
             initialDisplayNames: tables.displayNames,
             tablesLoadError: tables.error,

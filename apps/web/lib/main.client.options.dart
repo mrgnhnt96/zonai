@@ -34,6 +34,7 @@ ClientOptions get defaultClientOptions => ClientOptions(
         initialPath: p['initialPath'] as String,
         initialAppName: p['initialAppName'] as String,
         initialBaseUrl: p['initialBaseUrl'] as String,
+        hasBrandLogo: p['hasBrandLogo'] as bool,
         initialAuthTypeNames: (p['initialAuthTypeNames'] as List<Object?>)
             .cast<String>(),
       ),
@@ -55,6 +56,7 @@ ClientOptions get defaultClientOptions => ClientOptions(
         initialPath: p['initialPath'] as String,
         initialAppName: p['initialAppName'] as String,
         initialBaseUrl: p['initialBaseUrl'] as String,
+        hasBrandLogo: p['hasBrandLogo'] as bool,
         initialPhotosConfig: (p['initialPhotosConfig'] as Map<String, Object?>),
       ),
       loader: _home_app_shell.loadLibrary,

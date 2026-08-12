@@ -37,6 +37,7 @@ abstract final class ZonaiClasses {
   static const authLayout = 'z-auth-layout';
   static const authBrand = 'z-auth-brand';
   static const authLogo = 'z-auth-logo';
+  static const authLogoImage = 'z-auth-logo--image';
   static const authAppName = 'z-auth-app-name';
   static const authTagline = 'z-auth-tagline';
   static const authMethods = 'z-auth-methods';
@@ -315,6 +316,12 @@ List<StyleRule> get zonaiUiStyles => [
     fontSize: 1.375.rem,
     fontWeight: .w700,
     raw: const {'box-shadow': '0 8px 24px -6px var(--zonai-focus-ring)'},
+  ),
+  // A supplied mark owns the whole tile: no primary fill behind it, and
+  // `cover` so a non-square PNG crops instead of stretching.
+  css('.z-auth-logo--image').styles(
+    backgroundColor: Colors.transparent,
+    raw: const {'object-fit': 'cover'},
   ),
   css(
     '.z-auth-app-name',

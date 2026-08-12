@@ -16,12 +16,14 @@ class AuthAppShell extends StatelessComponent {
     required this.initialPath,
     required this.initialAppName,
     required this.initialBaseUrl,
+    required this.hasBrandLogo,
     required this.initialAuthTypeNames,
   });
 
   final String initialPath;
   final String initialAppName;
   final String initialBaseUrl;
+  final bool hasBrandLogo;
   final List<String> initialAuthTypeNames;
 
   @override
@@ -33,6 +35,7 @@ class AuthAppShell extends StatelessComponent {
         initialPath: initialPath,
         initialAppName: initialAppName,
         initialBaseUrl: initialBaseUrl,
+        hasBrandLogo: hasBrandLogo,
         initialAuthTypes: initialAuthTypes,
       ),
       child: Component.fragment([const PageTitleHead(), AuthRouter(initialPath: initialPath), const AppTooltipOverlay()]),

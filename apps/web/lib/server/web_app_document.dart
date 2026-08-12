@@ -6,6 +6,7 @@ import '../auth/auth_routes.dart';
 import '../constants/theme.dart';
 import '../utils/zonai_cookie.dart';
 import 'app_config.dart';
+import 'brand_logo.dart';
 import 'session_auth.dart';
 import 'ssr_auth_cookie.dart';
 import 'sqlite_table_names.dart';
@@ -36,9 +37,11 @@ Component buildWebAppDocument() {
             : const {};
         final authTypes = await loadSupportedAuthTypes();
         final appConfig = await loadAppConfig();
+        final hasBrandLogo = await loadHasBrandLogo();
         final initialPath = AuthRoutes.fromUrlPath(context.url);
         return App(
           appConfig: appConfig,
+          hasBrandLogo: hasBrandLogo,
           initialSqliteNames: tables.sqliteNames,
           initialDisplayNames: tables.displayNames,
           tablesLoadError: tables.error,

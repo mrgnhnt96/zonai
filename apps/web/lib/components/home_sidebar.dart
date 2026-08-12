@@ -8,6 +8,7 @@ import 'package:universal_web/web.dart' as web;
 import '../auth/auth_routes.dart';
 import '../constants/theme.dart';
 import '../providers/app_name_provider.dart';
+import '../providers/brand_logo_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/session_user_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
@@ -36,6 +37,7 @@ class HomeSidebar extends StatelessComponent {
     final systemExpanded = ui.systemTablesExpanded;
     final viewsExpanded = ui.viewsExpanded;
     final appName = context.watch(appNameProvider);
+    final hasBrandLogo = context.watch(hasBrandLogoProvider);
     final tables = context.watch(sqliteTablesProvider);
     final initial = appName.isNotEmpty ? appName[0].toUpperCase() : 'Z';
 
@@ -65,7 +67,14 @@ class HomeSidebar extends StatelessComponent {
       [
         div(classes: 'home-sidebar-header', [
           a(href: AuthRoutes.toUrlPath(AuthRoutes.home), classes: 'home-sidebar-brand', [
-            div(classes: 'home-sidebar-logo', [.text(initial)]),
+            if (hasBrandLogo)
+              img(
+                src: brandLogoUrl,
+                alt: appName,
+                classes: 'home-sidebar-logo home-sidebar-logo--image',
+              )
+            else
+              div(classes: 'home-sidebar-logo', [.text(initial)]),
             span(classes: 'home-sidebar-app-name', [.text(appName)]),
           ]),
           ZonaiIconButton(
@@ -231,6 +240,12 @@ class HomeSidebar extends StatelessComponent {
         color: onPrimaryColor,
         fontSize: 0.875.rem,
         fontWeight: .w700,
+      ),
+      // A supplied mark owns the whole tile: no primary fill behind it, and
+      // `cover` so a non-square PNG crops instead of stretching.
+      css('.home-sidebar-logo--image').styles(
+        backgroundColor: Colors.transparent,
+        raw: const {'object-fit': 'cover'},
       ),
       css('.home-sidebar-app-name').styles(
         fontSize: 0.875.rem,
