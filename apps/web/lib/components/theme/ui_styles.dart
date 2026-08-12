@@ -319,10 +319,7 @@ List<StyleRule> get zonaiUiStyles => [
   ),
   // A supplied mark owns the whole tile: no primary fill behind it, and
   // `cover` so a non-square PNG crops instead of stretching.
-  css('.z-auth-logo--image').styles(
-    backgroundColor: Colors.transparent,
-    raw: const {'object-fit': 'cover'},
-  ),
+  css('.z-auth-logo--image').styles(backgroundColor: Colors.transparent, raw: const {'object-fit': 'cover'}),
   css(
     '.z-auth-app-name',
   ).styles(margin: .zero, fontSize: 1.25.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),

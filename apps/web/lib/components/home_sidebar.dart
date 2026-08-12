@@ -49,7 +49,10 @@ class HomeSidebar extends StatelessComponent {
       for (final t in tables.tables)
         if (!t.isView && isSystemSqliteTable(t.sqliteName)) t,
     ];
-    final viewTables = [for (final t in tables.tables) if (t.isView) t];
+    final viewTables = [
+      for (final t in tables.tables)
+        if (t.isView) t,
+    ];
     final peekFocusedSystem = !systemExpanded && focused != null && isSystemSqliteTable(focused!.sqliteName);
     final peekFocusedView = !viewsExpanded && focused != null && focused!.isView;
     final panelShown = systemExpanded || peekFocusedSystem;
@@ -68,11 +71,7 @@ class HomeSidebar extends StatelessComponent {
         div(classes: 'home-sidebar-header', [
           a(href: AuthRoutes.toUrlPath(AuthRoutes.home), classes: 'home-sidebar-brand', [
             if (hasBrandLogo)
-              img(
-                src: brandLogoUrl,
-                alt: appName,
-                classes: 'home-sidebar-logo home-sidebar-logo--image',
-              )
+              img(src: brandLogoUrl, alt: appName, classes: 'home-sidebar-logo home-sidebar-logo--image')
             else
               div(classes: 'home-sidebar-logo', [.text(initial)]),
             span(classes: 'home-sidebar-app-name', [.text(appName)]),
@@ -243,10 +242,7 @@ class HomeSidebar extends StatelessComponent {
       ),
       // A supplied mark owns the whole tile: no primary fill behind it, and
       // `cover` so a non-square PNG crops instead of stretching.
-      css('.home-sidebar-logo--image').styles(
-        backgroundColor: Colors.transparent,
-        raw: const {'object-fit': 'cover'},
-      ),
+      css('.home-sidebar-logo--image').styles(backgroundColor: Colors.transparent, raw: const {'object-fit': 'cover'}),
       css('.home-sidebar-app-name').styles(
         fontSize: 0.875.rem,
         fontWeight: .w600,
