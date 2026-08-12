@@ -258,12 +258,15 @@ jobs:
           bash tool/ci/cross_target_build.sh \
             build/zonai linux x64 e2e/build_smoke cross-target-out
 
+      # See the note on the same step in verify-release.yml: the bundle is all
+      # dot-directories, which upload-artifact drops unless told otherwise.
       - name: Upload the released cross-target bundle
         uses: actions/upload-artifact@v4
         with:
           name: cross-target-linux-x64-released
           retention-days: 10
           path: cross-target-out
+          include-hidden-files: true
           if-no-files-found: error
 
   cross-target-run:

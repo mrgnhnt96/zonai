@@ -172,7 +172,13 @@ jobs:
             --pattern "${archive}" \
             --dir "${RUNNER_TEMP}" \
             --clobber
-          tar -xzf "${RUNNER_TEMP}/${archive}" -C apps/zonai/lib/gen/native
+          # --force-local for the same reason native-libs.yml packs with it:
+          # `D:\a\_temp` on Windows parses as a host:path remote spec. This side
+          # has never been reached on Windows, because the cache release did not
+          # exist and every run took the miss path -- it would have failed on the
+          # first Windows compile after the cache was populated.
+          tar --force-local -xzf "${RUNNER_TEMP}/${archive}" \
+            -C apps/zonai/lib/gen/native
           echo "Restored ${archive} from ${NATIVE_LIBS_CACHE_TAG}:"
           ls -la apps/zonai/lib/gen/native
 

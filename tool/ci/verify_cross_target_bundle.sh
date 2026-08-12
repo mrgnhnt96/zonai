@@ -63,6 +63,22 @@ fi
 resqlite_library="libresqlite${library_suffix}"
 argon2_library="libargon2sodium${library_suffix}"
 
+# A bundle that arrived without its payload is not a failing check, it is a
+# broken handoff, and the two must not read the same. Everything below lives
+# under `.zonai/`, which actions/upload-artifact drops unless the upload sets
+# include-hidden-files -- so this is the shape that mistake takes, and it is
+# worth naming rather than surfacing as `find: no such file`.
+for required in "${bundle_dir}/zonai" "${bundle_dir}/.zonai/executables"; do
+  if [[ ! -e "$required" ]]; then
+    echo "The bundle is missing ${required}." >&2
+    echo "Nothing here was checked. If this came from an artifact, confirm the" >&2
+    echo "upload set include-hidden-files: true -- the whole payload is under" >&2
+    echo "a dot-directory and is dropped silently without it." >&2
+    ls -la "$bundle_dir" >&2 || true
+    exit 1
+  fi
+done
+
 # Artifact upload does not preserve the executable bit.
 if [[ -n "$probe" ]]; then
   chmod +x "$probe"
