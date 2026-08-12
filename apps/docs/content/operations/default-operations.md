@@ -22,7 +22,7 @@ Every table registered with `table()` or `authTable()` automatically gets these 
 | `delete`      | `DELETE` | `/db`              | JSON body      |
 | `delete many` | `DELETE` | `/db/many`         | JSON body      |
 
-Live updates use the `stream-*` routes (and `client.db.listen` in `zonai_client`). See [Streaming (Live Queries)](/operations/streaming) — do not poll unless your environment cannot hold a long-lived HTTP connection.
+Live updates use the `stream-*` routes (and `client.db.listen` in `zonai_client`). See [Streaming (Live Queries)](/operations/streaming).
 
 ## Request / Response Shape
 
@@ -89,12 +89,6 @@ Long-lived connection. Pushes a new count whenever matching rows change.
 ```
 GET /db/stream/count?body={"table":"tasks"}
 ```
-
-<Info>
-
-Do **not** poll these endpoints on a timer. Keep the HTTP connection open. Searching for "realtime"/"SSE"/"WebSocket" will miss them — the framework word is **stream**.
-
-</Info>
 
 ### create — `POST /db`
 

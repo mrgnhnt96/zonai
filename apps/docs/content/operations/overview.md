@@ -7,7 +7,7 @@ Operations are the layer that translates HTTP requests into SQL statements. For 
 
 <Info>
 
-**Built-in live queries:** `GET /db/stream`, `/db/stream/list`, `/db/stream/count` — use `client.db.listen` in Dart. Do not poll. Guide: [Streaming (Live Queries)](/operations/streaming).
+**Built-in live queries:** `GET /db/stream`, `/db/stream/list`, `/db/stream/count` — use `client.db.listen` in Dart. Guide: [Streaming (Live Queries)](/operations/streaming).
 
 </Info>
 
@@ -65,6 +65,6 @@ All operations files in `operationsPath` are auto-discovered. Define at most one
 
 Operations compile into the project-linked binary (in-process on the default path) and into `db_operations.exe` for force-workers / ping. In dev mode, `zonai serve` regenerates entry files and recompiles workers on change — restart serve after editing ops so linked code reloads. Press `c` to force a recompile manually.
 
-- [Streaming (Live Queries)](/operations/streaming) — `/db/stream*` and `client.db.listen` (no polling) — **start here for live UI**
+- [Streaming (Live Queries)](/operations/streaming) — `/db/stream*` and `client.db.listen`, for live UI
 - [Default Operations](/operations/default-operations) — the built-in CRUD + stream routes for every table
 - [Auth Operations](/operations/auth-operations) — JWT claims and auth flow configuration

@@ -17,7 +17,7 @@ Go from `dart create` to a running server with auth and CRUD in about ten minute
 
 <Card title="Live Queries" href="/operations/streaming" icon="bolt" badge="live">
 
-`client.db.listen` and `/db/stream*` push updates as SQLite changes. Never poll.
+`client.db.listen` and `/db/stream*` push updates as SQLite data changes.
 
 </Card>
 
@@ -66,12 +66,6 @@ client.db.listen
     .list(body: StreamListBody(table: 'tasks'), fromJson: Task.fromJson)
     .listen((tasks) => setState(() => _tasks = tasks));
 ```
-
-<Info>
-
-**Live UI does not need polling.** Every table gets `GET /db/stream`, `/db/stream/list`, and `/db/stream/count`. In Dart use `zonai_client`'s `client.db.listen`. Search these docs for **stream** / **listen** — not "realtime", "SSE", "socket", or "EventSource". Full guide: [Live Queries (Streaming)](/operations/streaming).
-
-</Info>
 
 ## What You Get Out of the Box
 
@@ -122,7 +116,6 @@ Press <kbd>⌘</kbd><kbd>K</kbd> to search every page, or start from a section:
 - Not a full application framework — Zonai is an API server (no HTML rendering). Use `zonai_client` (or raw HTTP) from Flutter/Dart apps
 - Not a managed cloud service — you host it yourself, anywhere that runs a Linux/macOS/Windows binary
 - Not a general-purpose ORM — it is opinionated about how APIs are structured and uses SQLite as its database
-- Not "poll-only" for live UI — use `/db/stream*` / `client.db.listen` (search docs for **stream**, not "realtime"/"SSE")
 
 ## For LLMs and coding agents
 
@@ -133,4 +126,4 @@ A curated docs index lives at [/llms.txt](/llms.txt). Inside a Zonai app, run `z
 - [Installation](/getting-started/installation) — prerequisites and CLI setup
 - [Quick Start](/getting-started/quick-start) — create and run your first project
 - [Project Structure](/getting-started/project-structure) — understand the directory layout
-- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` / `/db/stream*` (do not poll)
+- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` and `/db/stream*`

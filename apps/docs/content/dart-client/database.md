@@ -8,17 +8,15 @@ methods accept a body object that mirrors the corresponding REST request body.
 
 <Info>
 
-**Start here for live UI:** [Real-Time Streaming](#real-time-streaming) below
-(`client.db.listen`). Do not invent a poller. Server guide:
-[Streaming (Live Queries)](/operations/streaming).
+**Live UI:** see [Real-Time Streaming](#real-time-streaming) below
+(`client.db.listen`). Server guide: [Streaming (Live Queries)](/operations/streaming).
 
 </Info>
 
 ## Real-Time Streaming
 
-Zonai pushes live query updates over long-lived HTTP — you do **not** need to poll.
-The framework names this **stream** / **listen** (not "realtime", "SSE", or
-"WebSocket"). Server routes: `GET /db/stream`, `/db/stream/list`, `/db/stream/count`.
+Zonai pushes live query updates over long-lived HTTP. Server routes:
+`GET /db/stream`, `/db/stream/list`, `/db/stream/count`.
 Full protocol notes: [Streaming (Live Queries)](/operations/streaming).
 
 `client.db.listen` exposes three methods that keep a `Stream` open and emit whenever

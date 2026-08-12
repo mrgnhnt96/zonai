@@ -236,9 +236,9 @@ curl -G http://localhost:8080/db/list \
   --data-urlencode 'body={"table":"tasks","limit":20}'
 ```
 
-## Step 8: Stream Live Updates (Do Not Poll)
+## Step 8: Stream Live Updates
 
-Zonai pushes query results over a long-lived HTTP connection whenever rows change. Prefer this over a timer. In Dart apps use `zonai_client` → `client.db.listen` (see [Streaming](/operations/streaming)).
+Zonai pushes query results over a long-lived HTTP connection whenever rows change. In Dart apps use `zonai_client` → `client.db.listen` (see [Streaming](/operations/streaming)).
 
 ```bash
 # Keep this curl open — a new JSON payload arrives when matching rows change
@@ -249,7 +249,7 @@ curl -N -G http://localhost:8080/db/stream/list \
 
 <Info>
 
-Search docs for **stream** / **listen**, not "realtime" or "SSE". Every table gets `/db/stream`, `/db/stream/list`, and `/db/stream/count` automatically.
+Every table gets `/db/stream`, `/db/stream/list`, and `/db/stream/count` automatically.
 
 </Info>
 

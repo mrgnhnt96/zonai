@@ -82,6 +82,6 @@ No registration is needed — any `.dart` file in the correct directory is autom
 
 <Info>
 
-**Live queries ship with every table.** Clients should use `zonai_client` `db.listen` or `GET /db/stream*` instead of polling. Details: [Streaming (Live Queries)](/operations/streaming).
+**Live queries ship with every table.** Clients can subscribe with `zonai_client`'s `db.listen`, or `GET /db/stream*` directly. Details: [Streaming (Live Queries)](/operations/streaming).
 
 </Info>

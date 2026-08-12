@@ -1,9 +1,9 @@
 ---
 title: Streaming (Live Queries)
-description: Long-lived HTTP streams that push row, list, and count updates when SQLite data changes — no polling required.
+description: Long-lived HTTP streams that push row, list, and count updates when SQLite data changes.
 ---
 
-Zonai has **built-in live queries**. You do not need to poll, and you do not need a separate WebSocket or "realtime" product name. The framework word is **stream**.
+Zonai has **built-in live queries**. The server holds the HTTP connection open and pushes a new payload whenever the query's results change, so a client subscribes once instead of re-requesting on a timer.
 
 Every table gets three streaming endpoints next to ordinary get / list / count. Prefer the generated Dart client (`zonai_client`) — `client.db.listen` — over hand-rolled HTTP.
 
@@ -22,8 +22,6 @@ Same conventions as other DB routes: **table name in the JSON body**, never in t
 ## What "live" means
 
 The server keeps the HTTP response open and **pushes a new JSON payload whenever the underlying SQLite query result changes** (inserts, updates, deletes that affect the query). Cancel the client subscription (or close the connection) when you are done.
-
-This is not Server-Sent Events branding and not a separate pub/sub channel — it is a first-class `/db/stream*` route. Searching docs for `realtime`, `socket`, `SSE`, or `EventSource` will miss it; search for **`stream`** or **`listen`**.
 
 ## Prefer `zonai_client`
 
@@ -90,6 +88,6 @@ There are no separate `canStream*` rule methods. Streaming reuses:
 
 Rate limits reuse `getPolicy`, `limitPolicy`, and `countPolicy` respectively.
 
-## When you still might poll
+## When streaming is not an option
 
-Polling is only a fallback if you cannot hold a long-lived HTTP connection (some constrained proxies). For Flutter / Dart apps talking to Zonai, use `client.db.listen` first.
+Some constrained proxies will not hold a long-lived HTTP connection. Where that is the case, fall back to calling the ordinary `get` / `list` / `count` routes on a timer.
