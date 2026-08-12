@@ -196,6 +196,48 @@ Declared as a known gap in `.game_loop/verify.yaml`. Closing it needs a
 `*_compiled_e2e_test.dart` that compiles a binary, plants a stamped library, and
 asserts it survives.
 
+### 4. Cross-target deploys are now gated — what the gate does and does not prove
+
+Reported as a deploy failure on 2026-08-11: a project cross-building on macOS
+arm64 for a Fly linux/x64 machine. `downloadNativeLibs` was reachable only from
+the project-linked branch, so `_bundleTargetNativeLibs` never ran for a project
+that cannot link — which is every real one. `build.dart` now fetches before the
+branch, unconditionally when the target isn't the host.
+
+**A bundle without those libraries still deploys**, which is worth writing down
+because it contradicts the obvious reading. Verified by removing
+`build/.zonai/lib/` from a working bundle and running it: the *published* binary
+is built for the target, so its own embedded libraries are correct, and workers
+ask it for theirs over IPC rather than trusting their own. The fetch is the
+on-disk fallback for when that ask fails — not the thing that makes a deploy
+work.
+
+What actually breaks is the ask failing: pre-guard, a cross-compiled worker then
+self-extracted Mach-O over `.zonai/lib/libresqlite.so`, which is the *shared*
+path every process on the machine loads from, so one worker's mistake replaced
+a working library for all of them (`invalid ELF header`, reproduced under
+`--platform linux/amd64`). `checkNativeLibraryPlatform`
+(`domain/native_library_format.dart`) reads the object-file header and refuses.
+
+The gate is `cross-target-build` + `cross-target-run` in `verify-release.yml`,
+driving `tool/ci/cross_target_build.sh` and
+`tool/ci/verify_cross_target_bundle.sh`. It has to be two jobs: building must
+happen on a host that isn't the target, running must happen on the target, and
+macOS runners have no container runtime. Both halves were confirmed able to
+fail, against binaries compiled from the commit before the fix — the build half
+exits 1 with no `.zonai/lib/libresqlite.so`, the run half catches the pre-guard
+probe installing a Mach-O library into a Linux extraction path.
+
+**Not covered, and it is the half that a deploy failure will come from next:**
+nothing here runs the *application's* deploy — only `e2e/build_smoke`. Two
+things from that incident were never explained by anything in this repo and
+would still not be caught: the log line `Loading failed: Architecture mismatch.`
+appears nowhere in zonai (Linux says `invalid ELF header`, macOS dyld says
+`incompatible architecture`), so whatever prints it is app-side and is also what
+decided to continue past it; and Fly release-command machines do not mount
+volumes, which fits "admin row created, listed back, then not found" better than
+any library problem does.
+
 ## Gotchas worth not rediscovering
 
 - **`Verify Release` on `workflow_run` uses the *default branch's* workflow
