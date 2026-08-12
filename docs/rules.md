@@ -351,9 +351,11 @@ final class PhotoRowRules extends RowRules<PhotosTable, PhotoEntry> {
   }
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, PhotoEntry row) async {
+  Future<bool> canUpdate(Jwt? jwt, PhotoEntry before, PhotoEntry after) async {
     if (jwt?.admin.canEdit case true) return true;
-    return jwt?.userId == row.ownerId;
+    // `after` is the row the update would produce, so requiring the caller to
+    // own both sides stops an owner handing their photo to someone else.
+    return jwt?.userId == before.ownerId && jwt?.userId == after.ownerId;
   }
 
   @override

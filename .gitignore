@@ -85,3 +85,6 @@ zonai.sqlite*
 # machine-local hook config (absolute paths)
 .claude/settings.local.json
 apps/server/lib/gen/
+# Transient output of apps/playground/test/doc_snippets_test.dart -- the test
+# deletes it, but an interrupted run can leave it behind.
+**/__doc_snippets__/
