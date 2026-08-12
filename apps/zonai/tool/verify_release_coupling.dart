@@ -40,7 +40,7 @@ Future<void> main() async {
   final pending = <String>[];
 
   // (1) Is the floor itself published?
-  final schemaInfo = await _pubDev(_schema);
+  final schemaInfo = await _pubDevExpecting(_schema, floor.toString());
   if (!schemaInfo.versions.contains(floor.toString())) {
     problems.add(
       '$_schema $floor is NOT published (pub.dev has: '
@@ -71,7 +71,7 @@ Future<void> main() async {
     final declared = pkg.schemaConstraint;
     if (declared == null) continue;
 
-    final info = await _pubDev(pkg.name);
+    final info = await _pubDevExpecting(pkg.name, pkg.version);
     final publishedConstraint = info.latestSchemaConstraint;
     if (publishedConstraint == null) {
       stdout.writeln(
@@ -104,7 +104,7 @@ Future<void> main() async {
   // between preparing a release and cutting it. It is here so the reason the
   // checks above fail is visible in the same output.
   for (final pkg in _publishablePackages(repoRoot)) {
-    final info = await _pubDev(pkg.name);
+    final info = await _pubDevExpecting(pkg.name, pkg.version);
     if (info.latest != pkg.version) {
       pending.add(
         '${pkg.name}: repo has ${pkg.version}, pub.dev has ${info.latest}',
@@ -249,6 +249,27 @@ class _PubInfo {
 
 final _cache = <String, _PubInfo>{};
 
+/// Fetches [package]'s metadata, retrying while it still looks stale.
+///
+/// pub.dev serves this endpoint from a CDN with `max-age=120`, so a version
+/// published seconds ago can be invisible -- which in a release gate reads as
+/// "you forgot to publish". [expect] is the version we believe is out there;
+/// while it is missing we retry rather than report it absent.
+Future<_PubInfo> _pubDevExpecting(String package, String? expect) async {
+  for (var attempt = 0; ; attempt++) {
+    final info = await _pubDev(package);
+    if (expect == null || info.versions.contains(expect) || attempt >= 8) {
+      return info;
+    }
+    _cache.remove(package);
+    stdout.writeln(
+      '     $package $expect not visible yet (pub.dev caches for 120s) -- '
+      'retrying in 20s [${attempt + 1}/8]',
+    );
+    await Future<void>.delayed(const Duration(seconds: 20));
+  }
+}
+
 Future<_PubInfo> _pubDev(String package) async {
   if (_cache[package] case final cached?) return cached;
 
@@ -257,6 +278,12 @@ Future<_PubInfo> _pubDev(String package) async {
     final request = await client.getUrl(
       Uri.parse('https://pub.dev/api/packages/$package'),
     );
+    // Ask for an unencoded body on purpose. The CDN keys separately on
+    // Accept-Encoding, and the gzip variant has been observed serving a stale
+    // copy (age 87s, one release behind) while the identity variant came back
+    // fresh and uncached -- so requesting gzip here can report a package we
+    // just published as missing.
+    request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
     final response = await request.close();
     if (response.statusCode != 200) {
       stderr.writeln(
