@@ -26,6 +26,15 @@ class RootDataSourceImpl implements RootDataSource {
   }
 
   @override
+  Stream<List<int>> logo() async* {
+    final response = await _client.request(method: 'GET', path: '/logo.png');
+
+    yield* response.handleError((_) {
+      // do nothing
+    });
+  }
+
+  @override
   Future<String> swaggerJson() async {
     final response = await _client.request(
       method: 'GET',

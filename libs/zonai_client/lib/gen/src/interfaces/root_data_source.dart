@@ -5,6 +5,7 @@ abstract interface class RootDataSource {
 
   Future<void> health();
   Stream<List<int>> favicon();
+  Stream<List<int>> logo();
   Future<String> swaggerJson();
   Future<String> swaggerYaml();
 }

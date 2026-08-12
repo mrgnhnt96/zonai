@@ -25,6 +25,21 @@ class RootController {
     return file.openRead();
   }
 
+  /// Optional brand mark for the dashboard. Unlike [favicon], nothing seeds
+  /// this file -- its absence is what selects the letter-tile fallback, so a
+  /// 404 here is the normal case, not an error.
+  @swagger.ApiHidden()
+  @Get('logo.png')
+  Future<Stream<List<int>>> logo({required Headers responseHeaders}) async {
+    final file = fs.file(fs.path.join(settings.imagesPath, 'logo.png'));
+    if (!file.existsSync()) {
+      throw const PhotoFileNotFoundException();
+    }
+    responseHeaders.mimeType = 'image/png';
+    responseHeaders.set(HttpHeaders.contentDisposition, 'inline');
+    return file.openRead();
+  }
+
   @Get('swagger.json')
   StringContent swaggerJson({required Headers responseHeaders}) {
     responseHeaders.mimeType = 'application/json; charset=utf-8';

@@ -76,10 +76,15 @@ Future<int> build() async {
     file.copySync(settings.buildSettingsPath);
   }
 
-  if (fs.file(fs.path.join(settings.imagesPath, 'favicon.ico')) case final file
-      when file.existsSync()) {
-    fs.directory(settings.buildImagesPath).createSync(recursive: true);
-    file.copySync(fs.path.join(settings.buildImagesPath, 'favicon.ico'));
+  // Branding assets the server reads off disk at request time (see
+  // RootController). Each is optional -- a project that never dropped one in
+  // simply ships without it.
+  for (final name in const ['favicon.ico', 'logo.png']) {
+    if (fs.file(fs.path.join(settings.imagesPath, name)) case final file
+        when file.existsSync()) {
+      fs.directory(settings.buildImagesPath).createSync(recursive: true);
+      file.copySync(fs.path.join(settings.buildImagesPath, name));
+    }
   }
 
   // Cross-compiling produces executables for the target carrying *this*
