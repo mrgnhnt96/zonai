@@ -92,6 +92,73 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 14. `ZONAI_FORCE_WORKERS=1` never starts under `dart run` — the health check gives up 20s before `revali dev` is ready — not fixed
+
+**Severity: the documented escape hatch is unusable in dev.** Compiled binaries
+are unaffected, so nothing shipped is broken — but `ZONAI_FORCE_WORKERS=1` is
+referenced in ~14 doc pages as the way to exercise the worker path, and it
+cannot currently be exercised that way at all. Found 2026-08-12 while trying to
+reproduce #27 over the wire.
+
+**Reproduction**, from `apps/playground` on a clean, freshly-compiled project:
+
+```
+# works
+dart run ../zonai/bin/zonai.dart serve --no-version-check
+# → [CONFIG_EXE]: Started / Serving at http://:::8080/
+
+# hangs, then dies
+ZONAI_FORCE_WORKERS=1 dart run ../zonai/bin/zonai.dart serve --no-version-check
+# → Checking health of Revali (server) - Attempt 0
+#   ... Attempt 199
+#   Unexpectedly failed to make connection to Revali (server)
+```
+
+No `[CONFIG_EXE]` line ever appears in the failing run — the config worker is
+never spawned, so the server has nothing to become healthy *with*. Confirmed
+with fresh workers and a clear port; it is not the stale-executable problem in
+issue 15 below, and not a port conflict.
+
+**Root cause.** Three decisions compose into this, each defensible alone:
+
+1. `resolveProjectLink` (`project_link.dart:83`) returns
+   `ProjectLink.skip('$kForceWorkersEnv is set')` — so no project entry is
+   generated or run.
+2. `maybeReexecProjectRuntime` (`project_runtime.dart:59`) returns early on
+   `forceWorkers`, so the CLI stays on the bootstrap binary and
+   `HostWorkerRegistries.operations` is never assigned.
+3. `Revali._inProcessHttp` (`revali.dart:22`) is
+   `kIsCompiled || HostWorkerRegistries.hasOperations`. Under `dart run`,
+   `kIsCompiled` is false and `hasOperations` is now false too — so `start()`
+   takes `_startDebug`, which shells out to `dart run revali dev` in
+   `apps/server` and polls for health 200 times at 100ms.
+
+20 seconds is not close to enough for `revali dev` to generate and compile, so
+it always times out.
+
+The env var is meant to change **dispatch** (ops/rules over IPC instead of
+in-process). It also changes **how the server is hosted**, which nothing
+intends. Note the generated entry already guards its own registry assignment on
+`forceWorkers` (`project_generator.dart:34`), i.e. it is written to *run* under
+force-workers and simply not populate the registries — but (1) means it is
+never run at all. Those two are in direct disagreement, and that is the bug.
+
+**Suggested fix**: stop letting `forceWorkers` suppress the project link.
+Generate and run the entry as normal and let its existing
+`if (!HostWorkerRegistries.forceWorkers)` guard do the work it was written for
+— registries stay empty, dispatch goes over IPC, and `_inProcessHttp` keeps
+serving in-process because the entry ran. That makes the env var mean only what
+it says.
+
+If that turns out to be load-bearing elsewhere, the fallback is to decouple
+`_inProcessHttp` from `hasOperations` — but the disagreement above should be
+resolved either way, or the next person hits the same thing.
+
+**How to verify a fix**: the reproduction above should serve under
+`ZONAI_FORCE_WORKERS=1`, log `[RATE_LIMITS_EXE]: Started`, and answer a request
+end to end. Assert on the worker actually being spawned (the `[*_EXE]` lines),
+not just on the server binding a port — binding is what already works.
+
 ## 13. `alterColumn`'s generated rebuild migration uses a positional `INSERT INTO ... SELECT *`, silently shuffling data into the wrong columns once a table has ever grown a column via `ALTER TABLE ADD COLUMN` — fixed
 
 **Update 2026-07-30: fixed.** `mrgnhnt96/raindrop` (`zonai` branch,
