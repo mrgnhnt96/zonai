@@ -4,7 +4,7 @@
 
 Zonai turns Dart schema, rules, and business logic into a production HTTP + SQLite server. You host the binary yourself (not a managed cloud BaaS). Docs: https://docs.zonai.dev/ — source: https://github.com/mrgnhnt96/zonai
 
-**Live UI:** every table has `GET /db/stream`, `/db/stream/list`, `/db/stream/count`. Prefer `zonai_client` → `client.db.listen`. Do **not** poll. Search for **stream** / **listen** — not "realtime", "socket", "SSE", or "EventSource". Guide: https://docs.zonai.dev/operations/streaming
+**Live UI:** every table has `GET /db/stream`, `/db/stream/list`, `/db/stream/count`. Prefer `zonai_client` → `client.db.listen`. In this codebase the feature is named **stream** / **listen**. Guide: https://docs.zonai.dev/operations/streaming
 
 The docs site has full-text search (press ⌘K / Ctrl+K on any page); the same corpus is available as JSON at https://docs.zonai.dev/search-index.json — one record per page, split by heading, with the anchor for each section.
 
@@ -12,10 +12,10 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 
 ## Critical facts for agents
 
-- **Package split**: `zonai_schema` (app dependency — tables, rules, ops types) + `zonai` (CLI / server, usually `dev_dependencies`). Optional client: `zonai_client`.
+- **Package split**: `zonai_schema` (pub.dev dependency — tables, rules, ops types) and the optional `zonai_client` (pub.dev). The `zonai` CLI is **not** on pub.dev: it is a pre-compiled binary downloaded from https://zonai.dev and placed in the project root, invoked as `./zonai`.
 - **Runtime**: `zonai serve` / `zonai build` produce a **project-linked binary** with operations + rules **in-process**. Workers under `.zonai/executables/` handle config, extensions, rate limits, and crons (IPC via MessagePack). Hot path: Rate limit → Rules → Operations → SQLite → Extensions → Response.
 - **CRUD shape**: table name is in the JSON body (or `?body=` for GET), **never** in the URL path. Endpoints: `GET/POST/PATCH/DELETE /db`, `/db/list`, `/db/count`, `/db/many`, plus live **`/db/stream`**, `/db/stream/list`, `/db/stream/count`.
-- **Live queries (do not poll)**: long-lived HTTP streams push updates when SQLite results change. Client API: `client.db.listen.one|list|count` with `StreamBody` / `StreamListBody` / `StreamCountBody`. Search docs for **stream** / **listen** — not "realtime", "socket", "SSE", or "EventSource".
+- **Live queries**: long-lived HTTP streams push updates when SQLite results change. Client API: `client.db.listen.one|list|count` with `StreamBody` / `StreamListBody` / `StreamCountBody`.
 - **Where filters**: docs/curl shorthand `{ "id": { "eq": "…" } }` is accepted. Canonical wire form is `{ "type": "eq", "column": "id", "value": "…" }`. Both work.
 - **Auth**: `Authorization: Bearer <jwt>`. Bodies include `"table": "users"` (or whatever auth table). Mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`, optional `AsAdmin`.
 - **Client**: prefer shipping `zonai_client` (auth, admin auth, db + listen, photos, email) over hand-rolled `package:http`.
@@ -59,7 +59,7 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 
 - [Operations Overview](https://docs.zonai.dev/operations/overview): Default vs custom operations; when to override SQL.
 - [Default Operations](https://docs.zonai.dev/operations/default-operations): CRUD endpoints, request/response JSON, where/order_by shapes.
-- [Streaming (Live Queries)](https://docs.zonai.dev/operations/streaming): `/db/stream*` and `client.db.listen` — push updates, do not poll.
+- [Streaming (Live Queries)](https://docs.zonai.dev/operations/streaming): `/db/stream*` and `client.db.listen`.
 - [Auth Operations](https://docs.zonai.dev/operations/auth-operations): JWT claims, reset/OTP/magic-link URL paths.
 
 ## Rules (authorization)
@@ -126,6 +126,14 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 - [Upgrading Zonai](https://docs.zonai.dev/cli/upgrading): Moving between releases, including breaking upgrades.
 - [Global Flags](https://docs.zonai.dev/cli/global-flags)
 
+## Dashboard (admin UI)
+
+Served at `/_` by every Zonai server, in dev and production alike; there is no flag to disable it. Requires an admin JWT (`isAdmin`), created with `zonai db admin`. Routes: `/_` metrics, `/_/tables`, `/_/tables/<table>`, `/_/sign-in`.
+
+- [Dashboard Overview](https://docs.zonai.dev/dashboard/overview): Access, admin sign-in, and not exposing `/_` publicly.
+- [Metrics & Cron Jobs](https://docs.zonai.dev/dashboard/metrics): 24h requests, error rate, active sessions, top errors, manual cron runs.
+- [Browsing & Editing Data](https://docs.zonai.dev/dashboard/table-editor): Row grid with typed editors and foreign-key pickers. Edits fire extensions and push to live queries.
+
 ## Deployment
 
 - [Building for Production](https://docs.zonai.dev/deployment/building-for-production)
@@ -154,7 +162,7 @@ List with where (shorthand):
 GET /db/list?body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}
 ```
 
-Live stream one row (keep connection open — do not poll):
+Live stream one row (the connection stays open):
 
 ```
 GET /db/stream?body={"table":"tasks","where":{"id":{"eq":"tk_abc123"}},"expand":[]}

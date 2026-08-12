@@ -8,17 +8,17 @@
       "g": "",
       "s": [
         {
-          "b": "Zonai is a Dart backend-as-a-service framework that turns schema definitions into a complete REST API. Write your tables, rules, and business logic in Dart — Zonai handles the HTTP layer, the database, and the auth system. It is designed for Dart and Flutter developers who want to build a production-quality backend without wiring together boilerplate. Go from dart create to a running server with auth and CRUD in about ten minutes. client.db.listen and /db/stream push updates as SQLite changes. Never poll. zonai_client wraps auth, db, photos and email so apps never hand-roll HTTP."
+          "b": "Zonai is a Dart backend-as-a-service framework that turns schema definitions into a complete REST API. Write your tables, rules, and business logic in Dart — Zonai handles the HTTP layer, the database, and the auth system. It is designed for Dart and Flutter developers who want to build a production-quality backend without wiring together boilerplate. Go from dart create to a running server with auth and CRUD in about ten minutes. client.db.listen and /db/stream push updates as SQLite data changes. zonai_client wraps auth, db, photos and email so apps never hand-roll HTTP."
         },
         {
           "h": "Write a table, get an API",
           "a": "write-a-table-get-an-api",
-          "b": "Define a table in Dart: final class TaskTable extends Table { TaskTable(super.$) : id = $.id('id', (s) => s.id, fromString: TasksId.new, generate: TasksId.generate), title = $.text('title', (s) => s.title), isComplete = $.boolean('is_complete', (s) => s.isComplete), createdAt = $.createdAt('created_at', (s) => s.createdAt), updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt); // … } final tasks = table('tasks', TaskTable.new); Every endpoint below exists the moment that file does — no handlers, no codegen step: POST /db create GET /db/stream live single row GET /db read GET /db/stream/list live list PATCH /db update GET /db/stream/count live count DELETE /db delete GET /db/list list POST /auth/sign-up from an AuthTable GET /db/count count POST /auth/sign-in And live UI is a subscription, not a timer: client.db.listen .list(body: StreamListBody(table: 'tasks'), fromJson: Task.fromJson) .listen((tasks) => setState(() => _tasks = tasks)); Live UI does not need polling. Every table gets GET /db/stream, /db/stream/list, and /db/stream/count. In Dart use zonai_client's client.db.listen. Search these docs for stream / listen — not \"realtime\", \"SSE\", \"socket\", or \"EventSource\". Full "
+          "b": "Define a table in Dart: final class TaskTable extends Table { TaskTable(super.$) : id = $.id('id', (s) => s.id, fromString: TasksId.new, generate: TasksId.generate), title = $.text('title', (s) => s.title), isComplete = $.boolean('is_complete', (s) => s.isComplete), createdAt = $.createdAt('created_at', (s) => s.createdAt), updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt); // … } final tasks = table('tasks', TaskTable.new); Every endpoint below exists the moment that file does — no handlers, no codegen step: POST /db create GET /db/stream live single row GET /db read GET /db/stream/list live list PATCH /db update GET /db/stream/count live count DELETE /db delete GET /db/list list POST /auth/sign-up from an AuthTable GET /db/count count POST /auth/sign-in And live UI is a subscription, not a timer: client.db.listen .list(body: StreamListBody(table: 'tasks'), fromJson: Task.fromJson) .listen((tasks) => setState(() => _tasks = tasks));"
         },
         {
           "h": "What You Get Out of the Box",
           "a": "what-you-get-out-of-the-box",
-          "b": "A full REST API for every table — create, read, update, delete, list, count, and live stream endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed. Built-in authentication — password sign-up/sign-in, one-time passcodes, and magic links are available by mixing a single trait into an auth table. Sessions, refresh, and logout are included. Authorization rules — evaluated before any SQL executes. Return true or false; a denied request gets a 403 immediately, with zero database access. Generated Dart client — zonai_client wraps auth, admin auth, db (including db.listen streams), photos, and email so apps do not hand-roll HTTP. Transactional email via SMTP — HTML templates with Mustache variables, sent from lifecycle hooks. Scheduled background jobs — cron-syntax jobs compiled into a separate worker with access to the full database API. Per-IP rate limiting — configurable per-table and per-operation with a simple policy class. Project-linked binary — zonai build produces build/zonai with your ops/rules linked in-process for the CRUD hot path."
+          "b": "A full REST API for every table — create, read, update, delete, list, count, and live stream endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed. Built-in authentication — password sign-up/sign-in, one-time passcodes, and magic links are available by mixing a single trait into an auth table. Sessions, refresh, and logout are included. Authorization rules — evaluated before any SQL executes. Return true or false; a denied request gets a 403 immediately, with zero database access. Generated Dart client — zonai_client wraps auth, admin auth, db (including db.listen streams), photos, and email so apps do not hand-roll HTTP. Transactional email via SMTP — HTML templates with Mustache variables, sent from lifecycle hooks. Scheduled background jobs — cron-syntax jobs compiled into a separate worker with access to the full database API. Per-IP rate limiting — configurable per-table and per-operation with a simple policy class. Built-in admin dashboard — every server serves a UI at /_ with traffic metrics, cron job status, and a full table browser and editor. See Dashboard Overview. Project-linked binary — zonai build produces build/zonai with your o"
         },
         {
           "h": "How It Works",
@@ -33,7 +33,7 @@
         {
           "h": "What Zonai Is Not",
           "a": "what-zonai-is-not",
-          "b": "Not a full application framework — Zonai is an API server (no HTML rendering). Use zonai_client (or raw HTTP) from Flutter/Dart apps Not a managed cloud service — you host it yourself, anywhere that runs a Linux/macOS/Windows binary Not a general-purpose ORM — it is opinionated about how APIs are structured and uses SQLite as its database Not \"poll-only\" for live UI — use /db/stream / client.db.listen (search docs for stream, not \"realtime\"/\"SSE\")"
+          "b": "Not a full application framework — Zonai is an API server (no HTML rendering). Use zonai_client (or raw HTTP) from Flutter/Dart apps Not a managed cloud service — you host it yourself, anywhere that runs a Linux/macOS/Windows binary Not a general-purpose ORM — it is opinionated about how APIs are structured and uses SQLite as its database"
         },
         {
           "h": "For LLMs and coding agents",
@@ -43,7 +43,7 @@
         {
           "h": "Next Steps",
           "a": "next-steps",
-          "b": "Installation — prerequisites and CLI setup Quick Start — create and run your first project Project Structure — understand the directory layout Live Queries (Streaming) — client.db.listen / /db/stream (do not poll)"
+          "b": "Installation — prerequisites and CLI setup Quick Start — create and run your first project Project Structure — understand the directory layout Live Queries (Streaming) — client.db.listen and /db/stream"
         }
       ]
     },
@@ -76,7 +76,7 @@
         {
           "h": "Next Steps",
           "a": "next-steps",
-          "b": "Quick Start — build and run your first project (includes a live stream example) Live Queries (Streaming) — /db/stream and client.db.listen (do not poll) Dart Client — prefer zonai_client over hand-rolled HTTP"
+          "b": "Quick Start — build and run your first project (includes a live stream example) Live Queries (Streaming) — /db/stream and client.db.listen Dart Client — prefer zonai_client over hand-rolled HTTP"
         }
       ]
     },
@@ -92,12 +92,12 @@
         {
           "h": "Step 1: Create a Dart Project",
           "a": "step-1-create-a-dart-project",
-          "b": "dart create my_app && cd my_app Add Zonai to pubspec.yaml: dependencies: zonai_schema: ^0.1.0 dev_dependencies: zonai: ^0.1.0 Run dart pub get."
+          "b": "dart create my_app && cd my_app Add zonai_schema — the package your tables, rules and operations are written against — to pubspec.yaml: dependencies: zonai_schema: ^0.1.0 Run dart pub get. The zonai CLI is not a pub package. It is a pre-compiled binary that lives in your project root; if you have not already downloaded it, see Installation."
         },
         {
           "h": "Step 2: Initialize Zonai",
           "a": "step-2-initialize-zonai",
-          "b": "zonai dev If no zonai.yaml exists, zonai dev prompts you through creating one"
+          "b": "./zonai dev If no zonai.yaml exists, zonai dev prompts you through creating one"
         },
         {
           "h": "Step 3: Define Tables",
@@ -125,9 +125,9 @@
           "b": "Sign up: curl -X POST http://localhost:8080/auth/sign-up \\ -H \"Content-Type: application/json\" \\ -d '{\"type\":\"signUp\",\"table\":\"users\",\"email\":\"alice@example.com\",\"password\":\"hunter2\"}' Sign in: curl -X POST http://localhost:8080/auth/sign-in \\ -H \"Content-Type: application/json\" \\ -d '{\"type\":\"signIn\",\"table\":\"users\",\"email\":\"alice@example.com\",\"password\":\"hunter2\"}' The response includes data.accessToken. Use it for subsequent requests. The table name is always in the JSON body — never in the URL path. TOKEN=\"eyJ...\" Create a task curl -X POST http://localhost:8080/db \\ -H \"Authorization: Bearer $TOKEN\" \\ -H \"Content-Type: application/json\" \\ -d '{\"table\":\"tasks\",\"object\":{\"title\":\"Buy groceries\",\"isComplete\":false}}' List tasks curl -G http://localhost:8080/db/list \\ -H \"Authorization: Bearer $TOKEN\" \\ --data-urlencode 'body={\"table\":\"tasks\",\"limit\":20}'"
         },
         {
-          "h": "Step 8: Stream Live Updates (Do Not Poll)",
-          "a": "step-8-stream-live-updates-do-not-poll",
-          "b": "Zonai pushes query results over a long-lived HTTP connection whenever rows change. Prefer this over a timer. In Dart apps use zonai_client → client.db.listen (see Streaming). Keep this curl open — a new JSON payload arrives when matching rows change curl -N -G http://localhost:8080/db/stream/list \\ -H \"Authorization: Bearer $TOKEN\" \\ --data-urlencode 'body={\"table\":\"tasks\",\"where\":{\"isComplete\":{\"eq\":false}},\"limit\":20}' Search docs for stream / listen, not \"realtime\" or \"SSE\". Every table gets /db/stream, /db/stream/list, and /db/stream/count automatically."
+          "h": "Step 8: Stream Live Updates",
+          "a": "step-8-stream-live-updates",
+          "b": "Zonai pushes query results over a long-lived HTTP connection whenever rows change. In Dart apps use zonai_client → client.db.listen (see Streaming). Keep this curl open — a new JSON payload arrives when matching rows change curl -N -G http://localhost:8080/db/stream/list \\ -H \"Authorization: Bearer $TOKEN\" \\ --data-urlencode 'body={\"table\":\"tasks\",\"where\":{\"isComplete\":{\"eq\":false}},\"limit\":20}' Every table gets /db/stream, /db/stream/list, and /db/stream/count automatically."
         },
         {
           "h": "Next Steps",
@@ -163,7 +163,7 @@
         {
           "h": "Naming Conventions",
           "a": "naming-conventions",
-          "b": "Files in each worker directory are auto-discovered by convention: Type Filename Pattern Example Table rules _table_rules.dart task_table_rules.dart Row rules _row_rules.dart task_row_rules.dart Operations _operations.dart user_operations.dart Extensions _extensions.dart item_extensions.dart Rate limits _rate_limits.dart item_rate_limits.dart No registration is needed — any .dart file in the correct directory is automatically included. Live queries ship with every table. Clients should use zonai_client db.listen or GET /db/stream instead of polling. Details: Streaming (Live Queries)."
+          "b": "Files in each worker directory are auto-discovered by convention: Type Filename Pattern Example Table rules _table_rules.dart task_table_rules.dart Row rules _row_rules.dart task_row_rules.dart Operations _operations.dart user_operations.dart Extensions _extensions.dart item_extensions.dart Rate limits _rate_limits.dart item_rate_limits.dart No registration is needed — any .dart file in the correct directory is automatically included. Live queries ship with every table. Clients can subscribe with zonai_client's db.listen, or GET /db/stream directly. Details: Streaming (Live Queries)."
         }
       ]
     },
@@ -680,7 +680,7 @@
       "g": "Querying Data",
       "s": [
         {
-          "b": "Operations are the layer that translates HTTP requests into SQL statements. For every table, Zonai provides default operations (create, update, delete, view, list, count, and live stream) that work with zero code. Operations files are where you override those defaults, add custom JWT claims, or introduce new non-CRUD endpoints. Built-in live queries: GET /db/stream, /db/stream/list, /db/stream/count — use client.db.listen in Dart. Do not poll. Guide: Streaming (Live Queries)."
+          "b": "Operations are the layer that translates HTTP requests into SQL statements. For every table, Zonai provides default operations (create, update, delete, view, list, count, and live stream) that work with zero code. Operations files are where you override those defaults, add custom JWT claims, or introduce new non-CRUD endpoints. Built-in live queries: GET /db/stream, /db/stream/list, /db/stream/count — use client.db.listen in Dart. Guide: Streaming (Live Queries)."
         },
         {
           "h": "When You Don't Need an Operations File",
@@ -705,7 +705,7 @@
         {
           "h": "The Operations Runtime",
           "a": "the-operations-runtime",
-          "b": "Operations compile into the project-linked binary (in-process on the default path) and into db_operations.exe for force-workers / ping. In dev mode, zonai serve regenerates entry files and recompiles workers on change — restart serve after editing ops so linked code reloads. Press c to force a recompile manually. Streaming (Live Queries) — /db/stream and client.db.listen (no polling) — start here for live UI Default Operations — the built-in CRUD + stream routes for every table Auth Operations — JWT claims and auth flow configuration"
+          "b": "Operations compile into the project-linked binary (in-process on the default path) and into db_operations.exe for force-workers / ping. In dev mode, zonai serve regenerates entry files and recompiles workers on change — restart serve after editing ops so linked code reloads. Press c to force a recompile manually. Streaming (Live Queries) — /db/stream and client.db.listen, for live UI Default Operations — the built-in CRUD + stream routes for every table Auth Operations — JWT claims and auth flow configuration"
         }
       ]
     },
@@ -721,7 +721,7 @@
         {
           "h": "Endpoints",
           "a": "endpoints",
-          "b": "Operation Method Path Body location get GET /db ?body= list GET /db/list ?body= count GET /db/count ?body= stream-one GET /db/stream ?body= stream-list GET /db/stream/list ?body= stream-count GET /db/stream/count ?body= create POST /db JSON body create many POST /db/many JSON body update PATCH /db JSON body update many PATCH /db/many JSON body delete DELETE /db JSON body delete many DELETE /db/many JSON body Live updates use the stream- routes (and client.db.listen in zonai_client). See Streaming (Live Queries) — do not poll unless your environment cannot hold a long-lived HTTP connection."
+          "b": "Operation Method Path Body location get GET /db ?body= list GET /db/list ?body= count GET /db/count ?body= stream-one GET /db/stream ?body= stream-list GET /db/stream/list ?body= stream-count GET /db/stream/count ?body= create POST /db JSON body create many POST /db/many JSON body update PATCH /db JSON body update many PATCH /db/many JSON body delete DELETE /db JSON body delete many DELETE /db/many JSON body Live updates use the stream- routes (and client.db.listen in zonai_client). See Streaming (Live Queries)."
         },
         {
           "h": "Request / Response Shape",
@@ -756,7 +756,7 @@
         {
           "h": "stream-count — GET /db/stream/count",
           "a": "stream-count--get-dbstreamcount",
-          "b": "Long-lived connection. Pushes a new count whenever matching rows change. GET /db/stream/count?body={\"table\":\"tasks\"} Do not poll these endpoints on a timer. Keep the HTTP connection open. Searching for \"realtime\"/\"SSE\"/\"WebSocket\" will miss them — the framework word is stream."
+          "b": "Long-lived connection. Pushes a new count whenever matching rows change. GET /db/stream/count?body={\"table\":\"tasks\"}"
         },
         {
           "h": "create — POST /db",
@@ -803,11 +803,11 @@
     {
       "u": "/operations/streaming",
       "t": "Streaming (Live Queries)",
-      "d": "db.listen and /db/stream* push updates — do not poll.",
+      "d": "db.listen and /db/stream* push updates as data changes.",
       "g": "Querying Data",
       "s": [
         {
-          "b": "Zonai has built-in live queries. You do not need to poll, and you do not need a separate WebSocket or \"realtime\" product name. The framework word is stream. Every table gets three streaming endpoints next to ordinary get / list / count. Prefer the generated Dart client (zonai_client) — client.db.listen — over hand-rolled HTTP."
+          "b": "Zonai has built-in live queries. The server holds the HTTP connection open and pushes a new payload whenever the query's results change, so a client subscribes once instead of re-requesting on a timer. Every table gets three streaming endpoints next to ordinary get / list / count. Prefer the generated Dart client (zonai_client) — client.db.listen — over hand-rolled HTTP."
         },
         {
           "h": "Endpoints",
@@ -817,7 +817,7 @@
         {
           "h": "What \"live\" means",
           "a": "what-live-means",
-          "b": "The server keeps the HTTP response open and pushes a new JSON payload whenever the underlying SQLite query result changes (inserts, updates, deletes that affect the query). Cancel the client subscription (or close the connection) when you are done. This is not Server-Sent Events branding and not a separate pub/sub channel — it is a first-class /db/stream route. Searching docs for realtime, socket, SSE, or EventSource will miss it; search for stream or listen."
+          "b": "The server keeps the HTTP response open and pushes a new JSON payload whenever the underlying SQLite query result changes (inserts, updates, deletes that affect the query). Cancel the client subscription (or close the connection) when you are done."
         },
         {
           "h": "Prefer zonai_client",
@@ -835,9 +835,9 @@
           "b": "There are no separate canStream rule methods. Streaming reuses: canView → /db/stream canList → /db/stream/list canCount → /db/stream/count Rate limits reuse getPolicy, limitPolicy, and countPolicy respectively."
         },
         {
-          "h": "When you still might poll",
-          "a": "when-you-still-might-poll",
-          "b": "Polling is only a fallback if you cannot hold a long-lived HTTP connection (some constrained proxies). For Flutter / Dart apps talking to Zonai, use client.db.listen first."
+          "h": "When streaming is not an option",
+          "a": "when-streaming-is-not-an-option",
+          "b": "Some constrained proxies will not hold a long-lived HTTP connection. Where that is the case, fall back to calling the ordinary get / list / count routes on a timer."
         }
       ]
     },
@@ -905,6 +905,109 @@
           "h": "What is included",
           "a": "what-is-included",
           "b": "The spec is generated from your server's route definitions and request/response types. It covers: Database CRUD routes (/db, /db/list, /db/count, /db/many, …) Live query streams (/db/stream, /db/stream/list, /db/stream/count) — see Streaming Authentication routes (/auth/sign-up, /auth/sign-in, …) Photo upload and serving (/img) Dashboard metrics (/dashboard/metrics) Email sending (/email) Built-in health check (/health)"
+        }
+      ]
+    },
+    {
+      "u": "/dashboard/overview",
+      "t": "Dashboard Overview",
+      "d": "Reaching the dashboard, signing in, and exposing it safely.",
+      "g": "Dashboard",
+      "s": [
+        {
+          "b": "Every Zonai server serves a web dashboard at /_. It is compiled into the binary alongside your API, so there is nothing extra to install, deploy, or run — start the server and open it in a browser. ./zonai serve Access the UI at http://127.0.0.1:8080/_ The dashboard gives you two things: a look at what the server is doing (Metrics & Cron Jobs), and a way to read and change rows without writing a query (Browsing & Editing Data)."
+        },
+        {
+          "h": "Signing in",
+          "a": "signing-in",
+          "b": "The dashboard authenticates against your own auth table — the same credentials your app's users have. Whichever methods your table mixes in are what the sign-in screen offers: password, one-time passcode, or magic link. Password reset and email verification are handled in the UI too. You need an admin account. Signing in as an ordinary user is not enough — the dashboard's data is gated on the isAdmin claim in your JWT, and a non-admin session is rejected. Create one with zonai db admin, and see Admin Accounts for how the AsAdmin trait and the elevated claims work."
+        },
+        {
+          "h": "Where it lives",
+          "a": "where-it-lives",
+          "b": "Every screen sits under the /_ prefix, which keeps it clear of your API routes: Path Screen /_ Metrics and cron jobs /_/tables Table list /_/tables/ Row browser and editor /_/sign-in Sign-in"
+        },
+        {
+          "h": "Settings",
+          "a": "settings",
+          "b": "The account menu holds Account details, Admin options, an Appearance control for light and dark themes, and Sign out."
+        },
+        {
+          "h": "In production",
+          "a": "in-production",
+          "b": "The dashboard is part of the server, not a development-only extra: a binary from zonai build serves /_ exactly as zonai serve does. There is no flag that turns it off. That is convenient, and it is also worth thinking about before you expose a server to the internet: Admin accounts are the only thing standing in front of it. Treat those credentials as production secrets, and prefer OTP or magic-link sign-in over a shared password. Consider not exposing /_ publicly at all. If your deployment sits behind a reverse proxy, blocking or IP-allowlisting the /_ prefix there leaves your API reachable while keeping the dashboard private. Reaching it over an SSH tunnel to the host is another option. Rate limits still apply to the endpoints the dashboard calls, so a brute-force attempt against admin sign-in is throttled like any other auth traffic. See Auth Rate Limits."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Metrics & Cron Jobs — what the landing screen reports Browsing & Editing Data — the table UI Admin Accounts — creating the account you sign in with Server Binding — which interface the server listens on"
+        }
+      ]
+    },
+    {
+      "u": "/dashboard/metrics",
+      "t": "Metrics & Cron Jobs",
+      "d": "Request volume, error rate, sessions, and manual job runs.",
+      "g": "Dashboard",
+      "s": [
+        {
+          "b": "The landing screen at /_ answers \"is the server healthy, and what has it been doing?\" Everything on it is computed from the server's own request log and job history — there is no external metrics service to configure."
+        },
+        {
+          "h": "The numbers",
+          "a": "the-numbers",
+          "b": "Four figures sit across the top, all over a rolling 24-hour window: Tile What it counts Requests (24h) Total requests handled Error Rate Share of those requests that failed Active Sessions Sessions currently valid Tables Tables in the database Underneath, Requests over time breaks the same 24 hours into hourly buckets, so a traffic spike or an outage is visible as a shape rather than a single number. Exclude admin filters your own dashboard traffic out of the figures. Leave it on when you are trying to read real user activity — otherwise browsing tables inflates the request count you are looking at."
+        },
+        {
+          "h": "Top Errors (24h)",
+          "a": "top-errors-24h",
+          "b": "The failures from the same window, grouped so the repeated ones rise to the top rather than scrolling past one at a time. When nothing has failed, the panel says so — No errors in the last 24h is a useful thing to be able to confirm at a glance. For the full log rather than the summary, use zonai db."
+        },
+        {
+          "h": "Cron Jobs",
+          "a": "cron-jobs",
+          "b": "Every job defined in your project is listed with its most recent outcome: State Meaning Succeeded Last run completed Failed Last run threw Running Currently executing Never run Defined, but not yet triggered Run triggers a job immediately, without waiting for its schedule. That is the fastest way to check a job you have just written, and it is the same manual trigger described in Running Manually — so the usual caution applies: the job does real work against real data. A refresh control re-reads job state without reloading the page, which is useful while watching a long job finish. A job that mutates rows will also push updates to any open live queries watching those rows — including a table open in another dashboard tab."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Cron Jobs Overview — how scheduled jobs are compiled and run Catch-Up Logic — what happens to runs missed while the server was down Browsing & Editing Data — inspecting the rows a job touched"
+        }
+      ]
+    },
+    {
+      "u": "/dashboard/table-editor",
+      "t": "Browsing & Editing Data",
+      "d": "Sort, filter and edit rows with typed column editors.",
+      "g": "Dashboard",
+      "s": [
+        {
+          "b": "/_/tables lists every table in the database — the ones you defined plus the built-in ones such as _photos. Picking one opens it at /_/tables/ , where the rows are shown in a grid you can sort, filter and edit in place. This is the fastest way to check what your schema actually produced, seed a bit of data, or fix one bad row — without writing SQL or a curl command."
+        },
+        {
+          "h": "Finding rows",
+          "a": "finding-rows",
+          "b": "Sort by clicking a column. Filter per column. Date and time columns get a dedicated picker rather than making you type a timestamp format. Search from the side panel, for looking across a table rather than down one column. Query preview shows the query your filters and sort add up to, which is handy when you are working out the equivalent where clause for your app code. Selecting a row opens a detail panel with the full record — better than a wide grid when a table has many columns."
+        },
+        {
+          "h": "Editing",
+          "a": "editing",
+          "b": "Cells are edited in place, and the editor matches the column's type rather than making everything a text box: Column kind Editor Text Text field Number / big integer Numeric field Boolean Toggle Date and time Date-time picker Enum Single- or multi-select JSON Structured JSON field Password Masked field Photo Photo upload and preview Foreign key Row picker (below) New rows are created from the same screen."
+        },
+        {
+          "h": "Foreign keys",
+          "a": "foreign-keys",
+          "b": "A foreign-key column opens a picker over the referenced table instead of asking you to paste an ID — you search for the row you mean and select it. The value is validated against the target table, so a typo cannot leave a dangling reference behind."
+        },
+        {
+          "h": "What this bypasses, and what it does not",
+          "a": "what-this-bypasses-and-what-it-does-not",
+          "b": "The dashboard talks to the same HTTP API your app does, as an admin. Two consequences worth knowing: Extensions still fire. Creating or updating a row here runs the same create and update hooks as a request from your app, including any side effects such as sending email. A dashboard edit is not a quiet database write. Live queries still update. Anything watching those rows over /db/stream receives the change, so you can edit a row in the dashboard and watch your app's UI react. Admin sessions carry elevated claims, so your row rules will generally not restrict what the dashboard can see or change. Treat it as direct access to production data."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Defining Tables — where the columns and types come from Default Operations — the API the dashboard calls Photo Tables — how photo columns are stored Admin Accounts — the elevated claims involved"
         }
       ]
     },
@@ -2086,7 +2189,7 @@
       "g": "Dart Client",
       "s": [
         {
-          "b": "zonai_client is a generated Dart package that wraps the Zonai server's REST API. It handles token storage, automatic header injection, and response parsing so that application code can call typed methods instead of managing HTTP requests directly. Prefer this package over a hand-written http client. It covers auth, admin auth, db (CRUD + live streams via client.db.listen), photos, and email. Do not poll for live UI. Use client.db.listen.one list count against /db/stream. The framework word is stream / listen — not \"realtime\", \"SSE\", or \"WebSocket\". Full guide: Streaming (Live Queries)."
+          "b": "zonai_client is a generated Dart package that wraps the Zonai server's REST API. It handles token storage, automatic header injection, and response parsing so that application code can call typed methods instead of managing HTTP requests directly. Prefer this package over a hand-written http client. It covers auth, admin auth, db (CRUD + live streams via client.db.listen), photos, and email. For live screens, use client.db.listen.one list count. Full guide: Streaming (Live Queries)."
         },
         {
           "h": "Installation",
@@ -2122,7 +2225,7 @@
       "g": "Dart Client",
       "s": [
         {
-          "b": "The Dart client manages authentication tokens automatically. After the first successful auth call, the access token is stored and injected into every subsequent request without any additional code in the application. After auth, prefer client.db.listen for live screens instead of polling. See Streaming and Database."
+          "b": "The Dart client manages authentication tokens automatically. After the first successful auth call, the access token is stored and injected into every subsequent request without any additional code in the application."
         },
         {
           "h": "The X-Auth Header Pattern",
@@ -2153,12 +2256,12 @@
       "g": "Dart Client",
       "s": [
         {
-          "b": "The db property on ZonaiClient wraps the server's database endpoints. All methods accept a body object that mirrors the corresponding REST request body. Start here for live UI: Real-Time Streaming below (client.db.listen). Do not invent a poller. Server guide: Streaming (Live Queries)."
+          "b": "The db property on ZonaiClient wraps the server's database endpoints. All methods accept a body object that mirrors the corresponding REST request body. Live UI: see Real-Time Streaming below (client.db.listen). Server guide: Streaming (Live Queries)."
         },
         {
           "h": "Real-Time Streaming",
           "a": "real-time-streaming",
-          "b": "Zonai pushes live query updates over long-lived HTTP — you do not need to poll. The framework names this stream / listen (not \"realtime\", \"SSE\", or \"WebSocket\"). Server routes: GET /db/stream, /db/stream/list, /db/stream/count. Full protocol notes: Streaming (Live Queries). client.db.listen exposes three methods that keep a Stream open and emit whenever the underlying SQLite result changes."
+          "b": "Zonai pushes live query updates over long-lived HTTP. Server routes: GET /db/stream, /db/stream/list, /db/stream/count. Full protocol notes: Streaming (Live Queries). client.db.listen exposes three methods that keep a Stream open and emit whenever the underlying SQLite result changes."
         },
         {
           "h": "Stream a single record",
@@ -2343,7 +2446,7 @@
       "g": "CLI Reference",
       "s": [
         {
-          "b": "Start the Zonai HTTP server. zonai serve [flags] From a project root with dart run zonai, the CLI re-execs into a project entry (JIT: .dart_tool/zonai/project_main.dart, or AOT .zonai/zonai with --release) so operations and rules run in-process. The published GitHub release binary stays in-process and uses Mailman workers for ops/rules. From build/, run the project-linked ./zonai serve --release."
+          "b": "Start the Zonai HTTP server. zonai serve [flags] Run from a project root, the CLI re-execs into a project entry (JIT: .dart_tool/zonai/project_main.dart, or AOT .zonai/zonai with --release) so operations and rules run in-process. The published release binary stays in-process and uses Mailman workers for ops/rules. From build/, run the project-linked ./zonai serve --release."
         },
         {
           "h": "Flags",
@@ -2925,7 +3028,7 @@
       "g": "",
       "s": [
         {
-          "b": "Zonai docs are built with Jaspr Content and published to GitHub Pages. For LLMs: /llms.txt · Live queries: Streaming (stream / listen, not \"realtime\") {{site.social}} {{name}} {{/site.social}}"
+          "b": "Zonai docs are built with Jaspr Content and published to GitHub Pages. For LLMs: /llms.txt {{site.social}} {{name}} {{/site.social}}"
         }
       ]
     }
