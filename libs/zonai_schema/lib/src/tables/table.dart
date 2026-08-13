@@ -1,4 +1,9 @@
-import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart' show SQLiteDialect;
+// The narrow sqlite_dialect.dart, not the raindrop_sqlite.dart barrel: that
+// barrel unconditionally exports sqlite_delegate.dart (needs package:sqlite3),
+// and a `show` clause only filters NAMES -- the compiler still resolves every
+// file in the export chain. See issue #24 and zonai_schema.dart's comment.
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart'
+    show SQLiteDialect;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/schemas/table.dart';
 
