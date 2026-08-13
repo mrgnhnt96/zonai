@@ -28,4 +28,4 @@ dev_dependencies:
   # it), so no consumer's code path can reach it. Keeping it a dev_dependency means
   # consumers (e.g. a Flutter client also using Drift, which pins sqlite3 ^3.0.0) never
   # have to resolve zonai_schema's <3.0.0 constraint at all. See issue #24.
-  sqlite3: ">=2.4.0 <3.0.0"
+  sqlite3: ">=2.4.0 <4.0.0"

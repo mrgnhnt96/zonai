@@ -16,7 +16,7 @@ final class SqliteInternalTableSync {
     Raindrop db,
     S schema,
   ) async {
-    final meta = TableMeta.getFor(schema);
+    final meta = schema.$;
     final expected = [
       for (final c in meta.columns) _columnInfoFromRaindropColumn(c),
     ].toList();

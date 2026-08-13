@@ -11,17 +11,62 @@ import 'dart:isolate';
 import 'package:zonai_schema/gen/raindrop/raindrop/ddl.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 
+/// Serves [generator] over the isolate command protocol the CLI speaks.
+///
+/// Sends a command port back over [sendPort], then answers `generate`
+/// messages until the returned [ReceivePort] is closed.
+///
+/// A driver's DDL entrypoint is the only place this belongs:
+///
+/// ```dart
+/// void main(List<String> args, SendPort sendPort) =>
+///     serveDdlGenerator(MyDdlGenerator(), sendPort);
+/// ```
+ReceivePort serveDdlGenerator(DdlGenerator generator, SendPort sendPort) {
+  final receivePort = ReceivePort();
+  sendPort.send(receivePort.sendPort);
+
+  receivePort.listen((message) {
+    if (message is Map<String, dynamic>) {
+      final replyPort = message['replyPort'] as SendPort;
+      final action = message['action'] as String? ?? 'generate';
+
+      try {
+        switch (action) {
+          case 'generate':
+            final sql = generator.generate(
+              (message['operations'] as List<dynamic>)
+                  .map((o) => DiffOperation.fromMap((o as Map).cast()))
+                  .toList(),
+            );
+
+            replyPort.send({'success': true, 'sql': sql});
+          default:
+            replyPort.send(
+              {'success': false, 'error': 'Unknown action: $action'},
+            );
+        }
+      } on Object catch (e, st) {
+        replyPort.send({'success': false, 'error': '$e\n$st'});
+      }
+    }
+  });
+
+  return receivePort;
+}
+
 /// {@template ddl_generator}
 /// Abstract interface for generating DDL statements from diff operations.
 ///
-/// Each database dialect (PostgreSQL, SQLite, etc.) should provide its own
-/// implementation of this interface and define a main method in the file so
-/// it can be dynamically executed by the DDL runtime.
-/// ```
-/// void main(List<String> args, SendPort sendPort) => MyDdqlGenerator(sendPort);
+/// Each database dialect provides its own implementation, and its package's
+/// `lib/ddl.dart` defines a main method serving it so the CLI can execute it
+/// dynamically:
+/// ```dart
+/// void main(List<String> args, SendPort sendPort) =>
+///     serveDdlGenerator(MyDdlGenerator(), sendPort);
 ///
-/// class MyDdqlGenerator extends DdlGenerator {
-///   MyDdqlGenerator(super.sendPort) : super(dialect: const MyDialect());
+/// class MyDdlGenerator extends DdlGenerator {
+///   const MyDdlGenerator() : super(dialect: const MyDialect());
 ///
 ///   ...
 /// }
@@ -29,120 +74,47 @@ import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 /// {@endtemplate}
 abstract class DdlGenerator {
   /// {@macro ddl_generator}
-  DdlGenerator(SendPort sendPort, {required this.dialect}) {
-    final receivePort = ReceivePort();
-    sendPort.send(receivePort.sendPort);
-
-    receivePort.listen((message) {
-      if (message is Map<String, dynamic>) {
-        final replyPort = message['replyPort'] as SendPort;
-        final action = message['action'] as String? ?? 'generate';
-
-        try {
-          switch (action) {
-            case 'generate':
-              final sql = generate(
-                (message['operations'] as List<dynamic>)
-                    .map((o) => DiffOperation.fromMap((o as Map).cast()))
-                    .toList(),
-              );
-
-              replyPort.send({
-                'success': true,
-                'sql': sql,
-                'warnings': List<String>.from(_generationWarnings),
-              });
-            default:
-              replyPort.send(
-                {'success': false, 'error': 'Unknown action: $action'},
-              );
-          }
-        } catch (e, st) {
-          replyPort.send({'success': false, 'error': '$e\n$st'});
-        }
-      }
-    });
-  }
+  const DdlGenerator({required this.dialect});
 
   /// The SQL dialect used by this generator.
   final SqlDialect dialect;
 
-  final List<String> _generationWarnings = [];
-
-  /// Records a non-fatal issue for the host (e.g. CLI) to surface.
-  ///
-  /// Cleared at the start of each [generate] call.
-  void warn(String message) => _generationWarnings.add(message);
-
   /// Generates SQL DDL statements from a list of diff operations.
+  ///
+  /// Overridable so a dialect can validate ACROSS operations (e.g. SQLite
+  /// rejects a rebuild whose dependent table is itself altered in the same
+  /// run), overrides should still delegate here for the per-operation work.
   String generate(List<DiffOperation> operations) {
-    _generationWarnings.clear();
     return [
-      for (final op in operations)
-        switch (op) {
-          CreateTable(:final tableName, :final columns) =>
-            createTable(tableName, columns),
-          RenameTable(:final oldName, :final newName) =>
-            renameTable(oldName, newName),
-          DropTable(:final tableName) => dropTable(tableName),
-          AddColumn(:final tableName, :final column) =>
-            addColumn(tableName, column),
-          RenameColumn(:final tableName, :final oldName, :final newName) =>
-            renameColumn(tableName, oldName, newName),
-          DropColumn(:final tableName, :final columnName) =>
-            dropColumn(tableName, columnName),
-          AlterColumn(
-            :final tableName,
-            :final oldColumn,
-            :final newColumn,
-            :final tableColumns,
-            :final indexes,
-            :final companionAlters,
-          ) =>
-            alterColumn(
-              tableName,
-              oldColumn,
-              newColumn,
-              tableColumns,
-              indexes: indexes,
-              companionAlters: companionAlters,
-            ),
-          CreateIndex(:final index) => createIndex(index),
-          DropIndex(:final indexName) => dropIndex(indexName),
-        },
+      for (final op in operations) _nonBlank(op, render(op)),
     ].join('\n\n');
   }
 
-  /// Generates a CREATE TABLE statement.
-  String createTable(String tableName, List<ColumnInfo> columns);
+  /// Renders a single operation through the dialect's methods.
+  String render(DiffOperation operation) => switch (operation) {
+        CreateTable(:final table) => createTable(table),
+        DropTable(:final tableName) => dropTable(tableName),
+        final AlterTable alter => alterTable(alter),
+        CreateIndex(:final index) => createIndex(index),
+        DropIndex(:final indexName) => dropIndex(indexName),
+      };
 
-  /// Generate SQL to rename an existing table.
-  String renameTable(String oldName, String newName);
+  String _nonBlank(DiffOperation operation, String sql) {
+    if (sql.trim().isEmpty) {
+      throw StateError('${operation.describe()} produced no SQL.');
+    }
+    return sql;
+  }
+
+  /// Generates a CREATE TABLE statement.
+  String createTable(TableInfo table);
 
   /// Generates a DROP TABLE statement.
   String dropTable(String tableName);
 
-  /// Generates an ADD COLUMN statement.
-  String addColumn(String tableName, ColumnInfo column);
-
-  /// Generate SQL to rename an existing column.
-  String renameColumn(String tableName, String oldName, String newName);
-
-  /// Generates a DROP COLUMN statement.
-  String dropColumn(String tableName, String columnName);
-
-  /// Generates an ALTER COLUMN statement (or equivalent).
-  ///
-  /// [tableColumns] is the full column list after all in-place alterations on
-  /// the table, in pre-migration column order (PostgreSQL generators ignore it).
-  String alterColumn(
-    String tableName,
-    ColumnInfo oldColumn,
-    ColumnInfo newColumn,
-    List<ColumnInfo> tableColumns, {
-    List<IndexInfo> indexes = const [],
-    List<AlterColumn> companionAlters = const [],
-  });
+  /// Expresses every change [operation] carries, column changes, checks,
+  /// and this table's index changes.
+  String alterTable(AlterTable operation);
 
   /// Generates a CREATE INDEX statement.
   String createIndex(IndexInfo index);

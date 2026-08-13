@@ -1,3 +1,4 @@
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart' show SQLiteDialect;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/schemas/table.dart';
 
@@ -36,5 +37,5 @@ S table<S extends Table<T>, T>(
   S Function(rd.SchemaBuilder<T>) builder, [
   void Function(S table)? extra,
 ]) {
-  return rd.table(name, builder, dialect: 'sqlite', extra: extra);
+  return rd.table(name, builder, dialect: const SQLiteDialect(), extra: extra);
 }

@@ -8,39 +8,11 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
+/// A column value of type [V], accepted directly or as a [Future].
 typedef ColumnOr<V> = FutureOr<V>;
-
-/// Makes a [Column] usable as a [ColumnOr] operand by posing as a `Future<V>`.
-///
-/// This is a deliberate fiction: `ColumnOr<V>` is `FutureOr<V>` so a column
-/// must satisfy `Future<V>` to be accepted alongside a literal `V`.
-mixin ColumnOperand<V> implements Future<V> {
-  static Never _notAFuture() => throw UnsupportedError(
-        'A Column is not a real Future, it only poses as one so it can be '
-        'used as a ColumnOr operand.',
-      );
-
-  @override
-  Stream<V> asStream() => _notAFuture();
-
-  @override
-  Future<V> catchError(Function onError, {bool Function(Object error)? test}) =>
-      _notAFuture();
-
-  @override
-  Future<R> then<R>(FutureOr<R> Function(V value) onValue,
-          {Function? onError}) =>
-      _notAFuture();
-
-  @override
-  Future<V> timeout(Duration timeLimit, {FutureOr<V> Function()? onTimeout}) =>
-      _notAFuture();
-
-  @override
-  Future<V> whenComplete(FutureOr<void> Function() action) => _notAFuture();
-}
 
 /// Row field getter for schema [R].
 ///
@@ -50,9 +22,13 @@ mixin ColumnOperand<V> implements Future<V> {
 /// [Column.isNullable].
 typedef Field<R, W extends Object?> = W Function(R);
 
-class Column<R, V extends Object?>
-    with ColumnOperand<V>
-    implements Selectable<V> {
+/// A single column of a [TableMeta], usable as an operand in queries and as a
+/// selectable.
+///
+/// [R] is the row type of the owning table and [V] the Dart value type of
+/// the column.
+class Column<R, V extends Object?> with SqlOperand<V> implements Selectable<V> {
+  /// Creates a column named [name] on [table].
   Column(
     this.table,
     this.name, {
@@ -64,56 +40,26 @@ class Column<R, V extends Object?>
     this.autoIncrement = false,
     this.defaultValue,
     this.foreignKeyReference,
-  }) : valueOf = valueOf;
+  }) : _valueOf = valueOf;
 
   /// The table of the column.
-  final TableMeta table;
+  final TableMeta<Schema<dynamic>, dynamic> table;
 
   /// The name of the column.
   final String name;
 
   /// `V? Function(R)`, stored as [Function] so callers can pass in
   /// `V? Function(SpecificR)` without contravariant-cast issues.
-  final Function? valueOf;
+  final Function? _valueOf;
 
-  /// Same as [valueOf] but without any of its type data.
-  ///
-  /// This is useful for internal use mostly.
-  dynamic readValueOf(Object? r) => valueOf!(r as R) as dynamic;
+  /// Reads this column's value from row [r] via the accessor given at
+  /// construction, without any of its type data.
+  @internal
+  // ignore: avoid_dynamic_calls we know the contract of the function
+  dynamic readValueOf(Object? r) => _valueOf!(r as R) as dynamic;
 
-  Object? encode(V? input) {
-    if (input == null) return null;
-
-    return switch (transformer) {
-      final ColumnTransformer transformer => transformer.encode(input),
-      _ => input
-    };
-  }
-
-  V? decode(Object? input) {
-    if (input == null) return null;
-
-    // `input` may already be in the app-native shape [V] instead of the
-    // storage-encoded shape a transformer expects — e.g. a JSON create/update
-    // body handing a BooleanColumn a native `bool` rather than the `int`
-    // SQLite stores it as. In that case there's nothing to decode.
-    if (input is V) return input as V;
-
-    final decoded = switch (transformer) {
-      final ColumnTransformer transformer => transformer.decode(input),
-      _ => input
-    };
-
-    // JSON has no int/double distinction — a whole-number REAL column value
-    // like `750000` decodes as `int`, not `double`. `<double>[] is List<V>`
-    // is true for both `V == double` and `V == double?` (List is covariant).
-    if (decoded is int && <double>[] is List<V>) {
-      return decoded.toDouble() as V;
-    }
-
-    return decoded as V?;
-  }
-
+  /// A column's transformer for Dart to SQL conversion.
+  @override
   final ColumnTransformer<V, Object?>? transformer;
 
   /// If the column is a primary key.
@@ -128,13 +74,16 @@ class Column<R, V extends Object?>
   /// Whether this column auto-increments (for primary keys).
   bool autoIncrement;
 
-  /// Default value expression for the column.
-  final String? defaultValue;
+  /// The column's default: a value in the column's own type, or an
+  /// expression the database evaluates.
+  ///
+  /// `null` means the column has no default.
+  final ColumnOr<V>? defaultValue;
 
   /// Foreign key reference for this column.
   ForeignKeyReference? foreignKeyReference;
 
-  // TODO: should be on ColumnType
+  // TODO(wolfen): should be on ColumnType
   /// Returns the nullable version of this column.
   Column<R, V?> get nullable => Column(
         table,

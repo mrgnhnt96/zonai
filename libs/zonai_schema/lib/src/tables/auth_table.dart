@@ -1,3 +1,4 @@
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart' show SQLiteDialect;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/zonai_schema.dart';
 
@@ -39,12 +40,12 @@ S authTable<S extends AuthTable<T>, T>(
   return rd.table(
     name,
     builder,
-    dialect: 'sqlite',
+    dialect: const SQLiteDialect(),
     extra: (table) {
       if (extra case final extra?) {
         extra.call(table);
 
-        for (final index in rd.TableMeta.getFor(table).indexes) {
+        for (final index in table.$.indexes) {
           if (index.columns.contains(table.id)) {
             if (index.isUnique) {
               continue;

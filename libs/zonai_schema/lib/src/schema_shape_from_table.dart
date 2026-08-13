@@ -1,6 +1,6 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/column_types/column_types.dart'
-    show BigIntTransformer, BooleanTransfomer, DateTimeTransfomer;
+    show BigIntTransformer, BooleanTransformer, DateTimeTransformer;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/email_column.dart';
 import 'package:zonai_schema/src/column_types/enum_column.dart';
@@ -135,13 +135,13 @@ _describeColumn(rd.Column column) {
       isSecret: false,
       isReadOnly: false,
     ),
-    BooleanTransfomer() => (
+    BooleanTransformer() => (
       kind: .boolean,
       enumValues: const [],
       isSecret: false,
       isReadOnly: false,
     ),
-    DateTimeTransfomer() => (
+    DateTimeTransformer() => (
       kind: .dateTime,
       enumValues: const [],
       isSecret: false,
@@ -187,7 +187,7 @@ ColumnShapeKind _kindFromTransformerRuntimeType(rd.Column column) {
     'BigIntTransfomer' => ColumnShapeKind.bigInt,
     'BlobTransformer' => ColumnShapeKind.blob,
     'BooleanTransformer' => ColumnShapeKind.boolean,
-    'DateTimeTransfomer' => ColumnShapeKind.dateTime,
+    'DateTimeTransformer' => ColumnShapeKind.dateTime,
     'MapTransformer' => ColumnShapeKind.map,
     'ListTransformer' => ColumnShapeKind.list,
     'PhotoTransformer' => ColumnShapeKind.photo,

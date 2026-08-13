@@ -6,6 +6,7 @@
 //
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
+export 'exists.dart';
 export 'filter.dart';
 export 'not.dart';
 export 'sql.dart';

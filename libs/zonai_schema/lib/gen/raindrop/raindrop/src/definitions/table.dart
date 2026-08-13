@@ -6,19 +6,33 @@
 //
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
+import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/clause.dart';
 
 /// {@macro table}
 S table<S extends Schema<R>, R>(
   String name,
   S Function(SchemaBuilder<R>) builder, {
-  String? dialect,
+  SqlDialect? dialect,
   void Function(S table)? extra,
 }) {
   final table = TableMeta<S, R>._(name, builder, dialect: dialect);
   extra?.call(table.schema);
   return table.schema;
 }
+
+/// A table whose rows come from [query] rather than from storage.
+///
+/// Used by the generated `DerivedN` extensions, not meant to be called
+/// directly.
+@internal
+S derivedTable<S extends Schema<R>, R>(
+  String name,
+  S Function(SchemaBuilder<R>) builder,
+  Query<dynamic> query,
+) =>
+    TableMeta<S, R>._(name, builder, derivedFrom: query).schema;
 
 /// {@template table}
 /// A table holds all the data related to building and querying tables.
@@ -28,11 +42,11 @@ S table<S extends Schema<R>, R>(
 /// {@endtemplate}
 class TableMeta<S extends Schema<R>, R> implements Selectable<R> {
   /// {@macro table}
-  TableMeta._(this.name, this.builder, {this.alias, this.dialect})
+  TableMeta._(this.name, this.builder, {this.alias, this.dialect, this.derivedFrom})
       : columns = [],
-        indexes = [] {
+        indexes = [],
+        checks = [] {
     schema = builder(SchemaBuilder<R>(this));
-    TableMeta._schemaToTable[schema as Schema] = this;
   }
 
   /// The name of the table.
@@ -41,8 +55,8 @@ class TableMeta<S extends Schema<R>, R> implements Selectable<R> {
   /// Optional alias used when this table is referenced in a join.
   final String? alias;
 
-  /// The SQL dialect for this table (e.g., 'postgres', 'sqlite').
-  final String? dialect;
+  /// The dialect this table belongs to.
+  final SqlDialect? dialect;
 
   /// Returns [alias] or [name].
   String get aliasOrName => alias ?? name;
@@ -59,6 +73,9 @@ class TableMeta<S extends Schema<R>, R> implements Selectable<R> {
   /// The indexes defined on this table.
   final List<Index> indexes;
 
+  /// The table-level CHECK constraints defined on this table.
+  final List<Check> checks;
+
   /// Create a new row [R] instance from a raw column map.
   R create(Map<String, dynamic> data) {
     T read<T extends Object?>(ColumnType<T>? column) {
@@ -73,16 +90,28 @@ class TableMeta<S extends Schema<R>, R> implements Selectable<R> {
     return schema.fromRow(read);
   }
 
+  /// The rows a query returns, standing where a table would.
+  final Query<dynamic>? derivedFrom;
+
   /// Create an aliased instance of the table.
   TableMeta<S, R> aliased(String alias) =>
       TableMeta<S, R>._(name, builder, alias: alias, dialect: dialect);
+
+  /// This table's shape over [query]'s rows instead of its own.
+  TableMeta<S, R> asDerived(Query<dynamic> query) => TableMeta<S, R>._(
+        name,
+        builder,
+        alias: alias,
+        dialect: dialect,
+        derivedFrom: query,
+      );
 
   /// Returns the values of a row [instance] in column order.
   List<dynamic> values(dynamic instance) {
     if (instance is! R) {
       throw StateError('Only $R rows can be converted to values');
     }
-    return [...columns.map((c) => c.encode(c.valueOf!(instance)))];
+    return [...columns.map((c) => c.encode(c.readValueOf(instance)))];
   }
 
   /// Add a column by [name] and [field] to the table.
@@ -95,8 +124,15 @@ class TableMeta<S extends Schema<R>, R> implements Selectable<R> {
     bool isNullable = false,
     ColumnTransformer<V, Object?>? transformer,
     String? sqlType,
-    String? defaultValue,
+    ColumnOr<V>? defaultValue,
   }) {
+    if (defaultValue is Column) {
+      throw ArgumentError.value(
+        defaultValue,
+        'defaultValue',
+        'cannot be another column',
+      );
+    }
     final column = Column<R, V>(
       this,
       name,
@@ -113,19 +149,12 @@ class TableMeta<S extends Schema<R>, R> implements Selectable<R> {
   /// Adds an index to the table.
   void addIndex(Index index) => indexes.add(index);
 
-  bool _instanceOfSchema(Schema r) => r is S;
+  /// Adds a table-level CHECK constraint to the table.
+  void addCheck(Check check) => checks.add(check);
 
+  /// The column named [name].
+  ///
+  /// Throws a [StateError] if the table has no such column.
   Column<R, dynamic> operator [](String name) =>
       columns.firstWhere((c) => c.name == name);
-
-  /// Get the table by using a schema reference.
-  static TableMeta? get(Schema schema) => _schemaToTable[schema];
-
-  /// Get the table for an actual schema instance.
-  static TableMeta<S, R> getFor<S extends Schema<R>, R>(S s) =>
-      _schemaToTable.values.firstWhere((e) => e._instanceOfSchema(s))
-          as TableMeta<S, R>;
-
-  /// This does not contain aliased schemas.
-  static final Map<Schema, TableMeta> _schemaToTable = {};
 }

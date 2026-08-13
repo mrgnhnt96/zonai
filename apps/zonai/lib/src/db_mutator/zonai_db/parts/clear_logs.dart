@@ -12,7 +12,7 @@ extension _ClearLogsX on ZonaiDb {
   /// same number for free.
   Future<int> _clearLogs({DateTime? before}) async {
     final db = await open();
-    final table = TableMeta.get(logs)?.name ?? '_log';
+    final table = logs.$?.name ?? '_log';
 
     final result = switch (before) {
       null => await db.execute('DELETE FROM "$table"'),

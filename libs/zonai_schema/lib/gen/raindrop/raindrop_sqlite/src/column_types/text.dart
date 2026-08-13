@@ -8,11 +8,13 @@
 
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
+/// Strings, stored as a TEXT.
 extension TextColumnDefinition<R> on SchemaBuilder<R> {
+  /// A [String] column, optionally with a [defaultValue].
   ColumnType<W> text<W extends String?>(
     String name,
     Field<R, W> field, {
-    String? defaultValue,
+    ColumnOr<String>? defaultValue,
   }) {
     return column<String, W>(
       name,

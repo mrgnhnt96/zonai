@@ -27,11 +27,7 @@ sealed class DiffOperation {
     return switch (type) {
       'createTable' => CreateTable.fromMap(map),
       'dropTable' => DropTable.fromMap(map),
-      'addColumn' => AddColumn.fromMap(map),
-      'dropColumn' => DropColumn.fromMap(map),
-      'alterColumn' => AlterColumn.fromMap(map),
-      'renameTable' => RenameTable.fromMap(map),
-      'renameColumn' => RenameColumn.fromMap(map),
+      'alterTable' => AlterTable.fromMap(map),
       'createIndex' => CreateIndex.fromMap(map),
       'dropIndex' => DropIndex.fromMap(map),
       _ => throw ArgumentError('Unknown operation type: $type'),
@@ -44,36 +40,24 @@ sealed class DiffOperation {
 /// {@endtemplate}
 class CreateTable extends DiffOperation {
   /// {@macro create_table}
-  const CreateTable({
-    required this.tableName,
-    required this.columns,
-  });
+  const CreateTable(this.table);
 
   /// Creates a [CreateTable] from a map representation.
   factory CreateTable.fromMap(Map<String, dynamic> map) {
-    return CreateTable(
-      tableName: map['tableName'] as String,
-      columns: (map['columns'] as List<dynamic>)
-          .map((c) => ColumnInfo.fromMap(c as Map<String, dynamic>))
-          .toList(),
-    );
+    return CreateTable(TableInfo.fromMap(map['table'] as Map<String, dynamic>));
   }
 
-  /// The name of the table to create.
-  final String tableName;
-
-  /// The columns in the table.
-  final List<ColumnInfo> columns;
+  /// The table to create, in full.
+  final TableInfo table;
 
   @override
-  String describe() => 'Create table "$tableName"';
+  String describe() => 'Create table "${table.name}"';
 
   @override
   Map<String, dynamic> toMap() {
     return {
       'type': 'createTable',
-      'tableName': tableName,
-      'columns': columns.map((c) => c.toMap()).toList(),
+      'table': table.toMap(),
     };
   }
 }
@@ -105,241 +89,96 @@ class DropTable extends DiffOperation {
   }
 }
 
-/// {@template add_column}
-/// Operation to add a column to a table.
+/// {@template alter_table}
+/// Operation carrying every intra-table change as one unit: the full old and
+/// new definitions, detected column renames, the table's indexes on both
+/// sides, and the tables whose foreign keys reference it.
 /// {@endtemplate}
-class AddColumn extends DiffOperation {
-  /// {@macro add_column}
-  const AddColumn(this.tableName, this.column);
-
-  /// Creates an [AddColumn] from a map representation.
-  factory AddColumn.fromMap(Map<String, dynamic> map) {
-    return AddColumn(
-      map['tableName'] as String,
-      ColumnInfo.fromMap(map['column'] as Map<String, dynamic>),
-    );
-  }
-
-  /// The name of the table.
-  final String tableName;
-
-  /// The column to add.
-  final ColumnInfo column;
-
-  @override
-  String describe() => 'Add column "${column.name}" to table "$tableName"';
-
-  @override
-  Map<String, dynamic> toMap() {
-    return {
-      'type': 'addColumn',
-      'tableName': tableName,
-      'column': column.toMap(),
-    };
-  }
-}
-
-/// {@template drop_column}
-/// Operation to drop a column from a table.
-/// {@endtemplate}
-class DropColumn extends DiffOperation {
-  /// {@macro drop_column}
-  const DropColumn(this.tableName, this.columnName);
-
-  /// Creates a [DropColumn] from a map representation.
-  factory DropColumn.fromMap(Map<String, dynamic> map) {
-    return DropColumn(
-      map['tableName'] as String,
-      map['columnName'] as String,
-    );
-  }
-
-  /// The name of the table.
-  final String tableName;
-
-  /// The name of the column to drop.
-  final String columnName;
-
-  @override
-  String describe() => 'Drop column "$columnName" from table "$tableName"';
-
-  @override
-  Map<String, dynamic> toMap() {
-    return {
-      'type': 'dropColumn',
-      'tableName': tableName,
-      'columnName': columnName,
-    };
-  }
-}
-
-/// {@template alter_column}
-/// Operation to alter a column.
-/// {@endtemplate}
-class AlterColumn extends DiffOperation {
-  /// {@macro alter_column}
-  const AlterColumn(
-    this.tableName,
-    this.oldColumn,
-    this.newColumn,
-    this.tableColumns, {
-    this.indexes = const [],
-    this.companionAlters = const [],
+class AlterTable extends DiffOperation {
+  /// {@macro alter_table}
+  const AlterTable({
+    required this.oldTable,
+    required this.newTable,
+    this.renamedColumns = const {},
+    this.oldIndexes = const [],
+    this.newIndexes = const [],
+    this.referencedBy = const [],
   });
 
-  /// Creates an [AlterColumn] from a map representation.
-  factory AlterColumn.fromMap(Map<String, dynamic> map) {
-    final cols = map['tableColumns'] as List<dynamic>?;
-    final indexes = map['indexes'] as List<dynamic>?;
-    final companions = map['companionAlters'] as List<dynamic>?;
-    return AlterColumn(
-      map['tableName'] as String,
-      ColumnInfo.fromMap(map['oldColumn'] as Map<String, dynamic>),
-      ColumnInfo.fromMap(map['newColumn'] as Map<String, dynamic>),
-      cols != null
-          ? cols
-              .map(
-                  (c) => ColumnInfo.fromMap((c as Map).cast<String, dynamic>()))
-              .toList()
-          : const <ColumnInfo>[],
-      indexes: indexes != null
-          ? indexes
-              .map(
-                (i) => IndexInfo.fromMap((i as Map).cast<String, dynamic>()),
-              )
-              .toList()
-          : const <IndexInfo>[],
-      companionAlters: companions != null
-          ? companions
-              .map((c) => AlterColumn.fromMap((c as Map).cast<String, dynamic>()))
-              .toList()
-          : const <AlterColumn>[],
+  /// Creates an [AlterTable] from a map representation.
+  factory AlterTable.fromMap(Map<String, dynamic> map) {
+    return AlterTable(
+      oldTable: TableInfo.fromMap(map['oldTable'] as Map<String, dynamic>),
+      newTable: TableInfo.fromMap(map['newTable'] as Map<String, dynamic>),
+      renamedColumns: Map<String, String>.from(
+        map['renamedColumns'] as Map<String, dynamic>? ?? {},
+      ),
+      oldIndexes: _indexes(map['oldIndexes']),
+      newIndexes: _indexes(map['newIndexes']),
+      referencedBy: (map['referencedBy'] as List<dynamic>? ?? [])
+          .map((r) => ReferencedBy.fromMap(r as Map<String, dynamic>))
+          .toList(),
     );
   }
 
-  /// The name of the table.
-  final String tableName;
+  static List<IndexInfo> _indexes(Object? value) => [
+        for (final index in value as List<dynamic>? ?? <dynamic>[])
+          IndexInfo.fromMap(index as Map<String, dynamic>),
+      ];
 
-  /// The column before alteration.
-  final ColumnInfo oldColumn;
+  /// The table definition before the change.
+  final TableInfo oldTable;
 
-  /// The column after alteration.
-  final ColumnInfo newColumn;
+  /// The table definition after the change.
+  final TableInfo newTable;
 
-  /// Full target column list for the table after every in-place alteration in
-  /// this migration batch, in pre-migration column order. Used by SQLite
-  /// (table rebuild). Excludes columns added or dropped in separate ops.
-  final List<ColumnInfo> tableColumns;
+  /// Detected column renames, old name to new name.
+  final Map<String, String> renamedColumns;
 
-  /// Indexes on [tableName] to recreate after a SQLite table rebuild.
-  ///
-  /// `DROP TABLE` removes every index on the table; the SQLite DDL generator
-  /// emits `CREATE INDEX` for these before re-enabling foreign keys.
-  final List<IndexInfo> indexes;
+  /// This table's indexes before the change.
+  final List<IndexInfo> oldIndexes;
 
-  /// Additional in-place column alterations rebuilt together with this one.
-  ///
-  /// The SQLite DDL generator batches consecutive [AlterColumn] ops on the
-  /// same table into a single rebuild before calling [alterColumn].
-  final List<AlterColumn> companionAlters;
+  /// This table's indexes after the change.
+  final List<IndexInfo> newIndexes;
+
+  /// The transitive closure of tables whose foreign keys reference this one,
+  /// in their (unchanged) new-schema form. See [ReferencedBy] for why.
+  final List<ReferencedBy> referencedBy;
+
+  /// The table's name (unchanged by this operation).
+  String get tableName => newTable.name;
 
   @override
   String describe() {
-    final names = [
-      oldColumn.name,
-      ...companionAlters.map((a) => a.newColumn.name),
+    final diff = TableDiff.of(this);
+    final parts = [
+      for (final entry in renamedColumns.entries)
+        'rename column "${entry.key}" to "${entry.value}"',
+      for (final column in diff.addedColumns) 'add column "${column.name}"',
+      for (final column in diff.droppedColumns) 'drop column "${column.name}"',
+      for (final (old, _) in diff.alteredColumns) 'alter column "${old.name}"',
+      for (final name in diff.addedChecks.keys) 'add check "$name"',
+      for (final name in diff.droppedChecks.keys) 'drop check "$name"',
+      for (final name in diff.changedChecks.keys) 'change check "$name"',
+      for (final index in diff.addedIndexes) 'add index "${index.name}"',
+      for (final index in diff.droppedIndexes) 'drop index "${index.name}"',
     ];
-    return 'Alter column${names.length > 1 ? 's' : ''} '
-        '${names.map((n) => '"$n"').join(', ')} in table "$tableName"';
+    return 'Alter table "$tableName" (${parts.join(', ')})';
   }
 
   @override
   Map<String, dynamic> toMap() {
     return {
-      'type': 'alterColumn',
-      'tableName': tableName,
-      'oldColumn': oldColumn.toMap(),
-      'newColumn': newColumn.toMap(),
-      'tableColumns': tableColumns.map((c) => c.toMap()).toList(),
-      if (indexes.isNotEmpty)
-        'indexes': indexes.map((i) => i.toMap()).toList(),
-      if (companionAlters.isNotEmpty)
-        'companionAlters':
-            companionAlters.map((c) => c.toMap()).toList(),
-    };
-  }
-}
-
-/// {@template rename_table}
-/// Operation to rename a table.
-/// {@endtemplate}
-class RenameTable extends DiffOperation {
-  /// {@macro rename_table}
-  const RenameTable(this.oldName, this.newName);
-
-  /// Creates a [RenameTable] from a map representation.
-  factory RenameTable.fromMap(Map<String, dynamic> map) {
-    return RenameTable(
-      map['oldName'] as String,
-      map['newName'] as String,
-    );
-  }
-
-  /// The current name of the table.
-  final String oldName;
-
-  /// The new name for the table.
-  final String newName;
-
-  @override
-  String describe() => 'Rename table "$oldName" to "$newName"';
-
-  @override
-  Map<String, dynamic> toMap() {
-    return {
-      'type': 'renameTable',
-      'oldName': oldName,
-      'newName': newName,
-    };
-  }
-}
-
-/// {@template rename_column}
-/// Operation to rename a column.
-/// {@endtemplate}
-class RenameColumn extends DiffOperation {
-  /// {@macro rename_column}
-  const RenameColumn(this.tableName, this.oldName, this.newName);
-
-  /// Creates a [RenameColumn] from a map representation.
-  factory RenameColumn.fromMap(Map<String, dynamic> map) {
-    return RenameColumn(
-      map['tableName'] as String,
-      map['oldName'] as String,
-      map['newName'] as String,
-    );
-  }
-
-  /// The name of the table.
-  final String tableName;
-
-  /// The current name of the column.
-  final String oldName;
-
-  /// The new name for the column.
-  final String newName;
-
-  @override
-  String describe() =>
-      'Rename column "$oldName" to "$newName" in table "$tableName"';
-
-  @override
-  Map<String, dynamic> toMap() {
-    return {
-      'type': 'renameColumn',
-      'tableName': tableName,
-      'oldName': oldName,
-      'newName': newName,
+      'type': 'alterTable',
+      'oldTable': oldTable.toMap(),
+      'newTable': newTable.toMap(),
+      if (renamedColumns.isNotEmpty) 'renamedColumns': renamedColumns,
+      if (oldIndexes.isNotEmpty)
+        'oldIndexes': oldIndexes.map((i) => i.toMap()).toList(),
+      if (newIndexes.isNotEmpty)
+        'newIndexes': newIndexes.map((i) => i.toMap()).toList(),
+      if (referencedBy.isNotEmpty)
+        'referencedBy': referencedBy.map((r) => r.toMap()).toList(),
     };
   }
 }
@@ -362,8 +201,8 @@ class CreateIndex extends DiffOperation {
   final IndexInfo index;
 
   @override
-  String describe() =>
-      'Create ${index.isUnique ? 'unique ' : ''}index "${index.name}" on table "${index.tableName}"';
+  String describe() => '''
+Create ${index.isUnique ? 'unique ' : ''}index "${index.name}" on table "${index.tableName}"''';
 
   @override
   Map<String, dynamic> toMap() {
@@ -379,24 +218,31 @@ class CreateIndex extends DiffOperation {
 /// {@endtemplate}
 class DropIndex extends DiffOperation {
   /// {@macro drop_index}
-  const DropIndex(this.indexName);
+  const DropIndex(this.indexName, {required this.tableName});
 
   /// Creates a [DropIndex] from a map representation.
   factory DropIndex.fromMap(Map<String, dynamic> map) {
-    return DropIndex(map['indexName'] as String);
+    return DropIndex(
+      map['indexName'] as String,
+      tableName: map['tableName'] as String,
+    );
   }
 
   /// The name of the index to drop.
   final String indexName;
 
+  /// The table the index belongs to.
+  final String tableName;
+
   @override
-  String describe() => 'Drop index "$indexName"';
+  String describe() => 'Drop index "$indexName" on table "$tableName"';
 
   @override
   Map<String, dynamic> toMap() {
     return {
       'type': 'dropIndex',
       'indexName': indexName,
+      'tableName': tableName,
     };
   }
 }

@@ -20,19 +20,22 @@ class SQLiteDelegate extends RaindropDelegate with _DatabaseDelegate {
   @override
   final CommonDatabase _database;
 
-  void dispose() => _database.dispose();
+  /// Closes the underlying connection.
+  ///
+  /// The database is held privately, so without this a caller holding only
+  /// the delegate has no way to release the connection.
+  void close() => _database.close();
 
   /// Serializes every top-level [execute]/[transaction] call against this
   /// connection.
   ///
-  /// `sqlite3` only allows one transaction open at a time per connection —
-  /// a second `BEGIN` before the first `COMMIT`/`ROLLBACK` throws "cannot
-  /// start a transaction within a transaction" rather than queuing. Without
-  /// this chain, two concurrent callers sharing one [SQLiteDelegate] (e.g.
+  /// `sqlite3` only allows one transaction open at a time per connection — a
+  /// second `BEGIN` before the first `COMMIT`/`ROLLBACK` throws "cannot start
+  /// a transaction within a transaction" rather than queuing. Without this
+  /// chain, two concurrent callers sharing one [SQLiteDelegate] (e.g.
   /// concurrent HTTP requests reusing the read connection) race on that
   /// `BEGIN` and one of them fails. Chaining onto a single `Future` forces
-  /// each call to wait for the previous one's `COMMIT`/`ROLLBACK` before
-  /// starting its own.
+  /// each call to wait for the previous one's `COMMIT`/`ROLLBACK`.
   Future<void> _chain = Future.value();
 
   Future<T> _serialized<T>(Future<T> Function() body) {
@@ -119,7 +122,7 @@ mixin _DatabaseDelegate on Delegate {
         ),
       );
     } finally {
-      stmt.dispose();
+      stmt.close();
     }
   }
 }

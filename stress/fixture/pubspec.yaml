@@ -10,4 +10,4 @@ dependencies:
   zonai_schema:
     path: ../../libs/zonai_schema
   # Keep in sync with raindrop_sqlite — OpenDynamicLibrary was removed in 3.x.
-  sqlite3: ">=2.4.0 <3.0.0"
+  sqlite3: ">=2.4.0 <4.0.0"

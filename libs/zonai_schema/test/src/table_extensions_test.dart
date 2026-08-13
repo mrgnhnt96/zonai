@@ -75,7 +75,7 @@ void main() {
 
     setUp(() {
       schema = table('secret_rows', _SecretRowTable.new);
-      rows = rd.TableMeta.getFor(schema);
+      rows = schema.$ as TableMeta<_SecretRowTable, _SecretRow>;
     });
 
     test(
@@ -100,7 +100,7 @@ void main() {
 
     setUp(() {
       schema = table('generated_rows', _GeneratedRowTable.new);
-      rows = rd.TableMeta.getFor(schema);
+      rows = schema.$ as TableMeta<_GeneratedRowTable, _GeneratedRow>;
     });
 
     test(

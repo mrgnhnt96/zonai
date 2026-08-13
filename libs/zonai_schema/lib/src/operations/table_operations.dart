@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
+    show SQLiteInsertReturning;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/where_sql.dart';
@@ -38,7 +40,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
 
   final S schema;
 
-  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
+  rd.TableMeta<S, R> get table => schema.$ as rd.TableMeta<S, R>;
 
   rd.Column<dynamic, dynamic> _requireColumn(String name) {
     for (final column in table.columns) {

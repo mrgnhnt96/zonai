@@ -6,9 +6,4 @@
 //
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
-export 'index_columns.dart';
-export 'selectable.dart';
-export 'selectable_columns.dart';
-export 'updateable.dart';
-export 'updateable_columns.dart';
-export 'updateable_records.dart';
+export 'src/introspect.dart';

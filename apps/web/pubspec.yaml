@@ -17,7 +17,7 @@ dependencies:
   riverpod: 3.2.1
   universal_web: ^1.1.1
   scoped_deps: ^0.2.1
-  sqlite3: ^2.9.4
+  sqlite3: ">=2.4.0 <4.0.0"
   zonai_schema:
     path: ../../libs/zonai_schema
   zonai_client:

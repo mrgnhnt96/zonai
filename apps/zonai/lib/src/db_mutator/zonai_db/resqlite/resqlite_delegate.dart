@@ -13,7 +13,6 @@ import 'hybrid_stream_engine.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_delegate.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart';
 import 'package:resqlite/resqlite.dart' as rs;
-import 'package:sqlite3/open.dart' as sqlite3_open;
 import 'package:sqlite3/sqlite3.dart';
 
 /// Routes statements to resqlite’s reader [rs.Database.select] vs writer
@@ -252,11 +251,21 @@ DatabaseResult _fromWriteResult(rs.WriteResult wr) {
 /// worker isolates segfault on table scans under Dart 3.12 dynamic FFI until
 /// that native path is fixed upstream.
 final class ResqliteDelegate extends RaindropDelegate {
-  ResqliteDelegate._(this._database, this._reads, this._streams)
+  ResqliteDelegate._(
+    this._database,
+    this._reads,
+    this._rawReads,
+    this._streams,
+  )
       : super(dialect: const SQLiteDialect());
 
   final rs.Database _database;
   final SQLiteDelegate _reads;
+
+  /// The connection behind [_reads], kept so it can be closed.
+  ///
+  /// SQLiteDelegate holds it privately and exposes no way to close it.
+  final Database _rawReads;
   final HybridStreamEngine _streams;
   var _closed = false;
 
@@ -280,7 +289,19 @@ final class ResqliteDelegate extends RaindropDelegate {
     // see resqlite's `tool/build_native.dart`'s `_exportedSymbols`) means
     // both connections run the exact same code, eliminating the ABI
     // mismatch. Must happen before either connection is opened.
-    sqlite3_open.open.overrideForAll(() => rs.installedNativeLibrary);
+    // Under sqlite3 2.x this was forced at runtime here with
+    // `open.overrideForAll(() => rs.installedNativeLibrary)`. sqlite3 3.x
+    // removed DynamicLibrary loading, so the same guarantee -- one SQLite
+    // in this process, never a second dlopen'd copy -- now comes from the
+    // build hook, declared by the app:
+    //
+    //   user_defines:
+    //     sqlite3:
+    //       source: process
+    //
+    // which resolves to LookupInProcess(). resqlite already dlopens its
+    // library with RTLD_GLOBAL on Linux/Android (see native_library.dart)
+    // so its symbols are visible for that lookup.
 
     // SQLite disables foreign key enforcement by default on every new
     // connection — it is not a database-level setting, so declaring `ON
@@ -302,14 +323,14 @@ final class ResqliteDelegate extends RaindropDelegate {
     final reads = SQLiteDelegate(rawReads);
     final streams = HybridStreamEngine(reads.execute);
     await db.bindWriteInvalidation(streams.onDependencyChanges);
-    return ResqliteDelegate._(db, reads, streams);
+    return ResqliteDelegate._(db, reads, rawReads, streams);
   }
 
   Future<void> close() async {
     _closed = true;
     _streams.close();
     await _database.close();
-    _reads.dispose();
+    _rawReads.close();
   }
 
   Future<DatabaseResult> _executeRead(String query, List<Object?> values) =>

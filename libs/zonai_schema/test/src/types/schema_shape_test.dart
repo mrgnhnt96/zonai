@@ -9,7 +9,7 @@ void main() {
   group('tableSchemaShapeFromTable', () {
     test('maps zonai column transformers to semantic kinds', () {
       final shape = tableSchemaShapeFromTable(
-        rd.TableMeta.getFor(_DemoTable.schemaTable),
+        _DemoTable.schemaTable.$,
       );
 
       expect(shape.table, 'demo_rows');
@@ -28,7 +28,7 @@ void main() {
 
     test('maps photo transformer runtime type to photo kind', () {
       final shape = tableSchemaShapeFromTable(
-        rd.TableMeta.getFor(_PhotoDemoTable.schemaTable),
+        _PhotoDemoTable.schemaTable.$,
       );
 
       expect(shape.columnNamed('image')?.kind, ColumnShapeKind.photo);
@@ -36,7 +36,7 @@ void main() {
 
     test('maps BigIntTransfomer columns to bigInt kind', () {
       final shape = tableSchemaShapeFromTable(
-        rd.TableMeta.getFor(_BigIntDemoTable.schemaTable),
+        _BigIntDemoTable.schemaTable.$,
       );
 
       expect(shape.columnNamed('big_count')?.kind, ColumnShapeKind.bigInt);
@@ -45,7 +45,7 @@ void main() {
 
     test('round-trips through json', () {
       final shape = tableSchemaShapeFromTable(
-        rd.TableMeta.getFor(_DemoTable.schemaTable),
+        _DemoTable.schemaTable.$,
       );
       final restored = TableSchemaShape.fromJson(shape.toJson());
       expect(restored, shape);
@@ -53,10 +53,10 @@ void main() {
 
     test('isView defaults to false and can be set', () {
       final table = tableSchemaShapeFromTable(
-        rd.TableMeta.getFor(_DemoTable.schemaTable),
+        _DemoTable.schemaTable.$,
       );
       final view = tableSchemaShapeFromTable(
-        rd.TableMeta.getFor(_DemoTable.schemaTable),
+        _DemoTable.schemaTable.$,
         isView: true,
       );
 

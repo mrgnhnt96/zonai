@@ -1,0 +1,58 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// Vendored from the raindrop/raindrop_sqlite packages (libs/raindrop
+// submodule) so zonai_schema has no external path/git dependency on them.
+// Baked in with explicit permission from raindrop's original author.
+//
+// Regenerate: dart run tool/generate_raindrop_vendor.dart
+
+import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
+
+/// A table-level CHECK constraint.
+///
+/// ```dart
+/// final pets = table('pets', PetSchema.new, (table) {
+///   check('pets_legs', table.legs.greaterThan(0)).on(table);
+/// });
+/// ```
+///
+/// For what the DSL cannot say, the predicate can be a `raw()` fragment:
+///
+/// ```dart
+/// check('one_ref', raw('("a" IS NOT NULL) + ("b" IS NOT NULL) = 1')).on(t);
+/// ```
+CheckBuilder check(String name, Filter predicate) =>
+    CheckBuilder(name, predicate);
+
+/// Represents a table-level CHECK constraint definition.
+class Check {
+  /// Creates a check constraint.
+  const Check(this.name, this.predicate);
+
+  /// The constraint name.
+  final String name;
+
+  /// The predicate rows must satisfy.
+  final Filter predicate;
+}
+
+/// Builder for creating check definitions with fluent API.
+///
+/// Use [check] to create instances of this builder.
+class CheckBuilder {
+  /// Creates a builder for a constraint.
+  const CheckBuilder(this.name, this.predicate);
+
+  /// The constraint name.
+  final String name;
+
+  /// The predicate rows must satisfy.
+  final Filter predicate;
+
+  /// Attach the constraint to [schema]'s table.
+  Check on(Schema<dynamic> schema) {
+    final constraint = Check(name, predicate);
+    schema.$.addCheck(constraint);
+    return constraint;
+  }
+}

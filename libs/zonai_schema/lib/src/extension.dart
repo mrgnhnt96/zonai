@@ -9,7 +9,7 @@ abstract class Extension<T> {
 
   final rd.Schema schema;
 
-  rd.TableMeta get table => rd.TableMeta.getFor(schema);
+  rd.TableMeta get table => schema.$;
   String get tableName => table.name;
 
   Future<void> beforeCreate(T object, Jwt? jwt) async {}
@@ -20,7 +20,7 @@ abstract class Extension<T> {
   /// if the table is a [HasEmail] collection
   Future<void> afterCreateSuccess(T row, Jwt? jwt) async {
     if (row case HasEmail(email: final emailColumn)) {
-      if (emailColumn.valueOf?.call(row) case final String userEmail) {
+      if (emailColumn.readValueOf(row) case final String userEmail) {
         email.send.loginNotice(
           EmailAddress(address: userEmail),
           table: tableName,
@@ -47,7 +47,7 @@ mixin AuthExtension<R> on Extension<R> {
   /// if the table is a [HasEmail] collection
   Future<void> onSignUp(R user, Jwt? jwt) async {
     if (schema case HasEmail(email: final emailColumn)) {
-      if (emailColumn.valueOf?.call(user) case final String userEmail) {
+      if (emailColumn.readValueOf(user) case final String userEmail) {
         email.send.verifyEmail(
           EmailAddress(address: userEmail),
           table: tableName,
@@ -62,7 +62,7 @@ mixin AuthExtension<R> on Extension<R> {
   /// if the table is a [HasEmail] collection
   Future<void> onSignIn(R user, Jwt? jwt) async {
     if (schema case HasEmail(email: final emailColumn)) {
-      if (emailColumn.valueOf?.call(user) case final String userEmail) {
+      if (emailColumn.readValueOf(user) case final String userEmail) {
         email.send.loginNotice(
           EmailAddress(address: userEmail),
           table: tableName,

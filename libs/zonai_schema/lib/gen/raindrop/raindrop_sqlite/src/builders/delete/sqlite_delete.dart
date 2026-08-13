@@ -8,12 +8,7 @@
 
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 
-/// Appends `LIMIT` on `DELETE`.
-///
-/// Only works when SQLite was built from source with lemon regenerated under
-/// `SQLITE_ENABLE_UPDATE_DELETE_LIMIT`. The sqlite3mc amalgamation (resqlite)
-/// does not support this — prefer rewriting as
-/// `DELETE … WHERE pk IN (SELECT pk … LIMIT n)` at the call site.
+/// SQLite supports `LIMIT` on `DELETE`.
 extension SQLiteDeleteLimit<S extends Schema<R>, R, V>
     on DeleteWhereBuilder<S, R, V> {
   /// Cap how many rows the delete affects.

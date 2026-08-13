@@ -12,7 +12,7 @@ class BaseRowRules<S extends rd.Schema<R>, R> {
 
   final S schema;
 
-  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
+  rd.TableMeta<S, R> get table => schema.$ as rd.TableMeta<S, R>;
 
   Future<bool> canView(Jwt? jwt, R row) async {
     if (jwt?.admin.isAdmin case true) {
