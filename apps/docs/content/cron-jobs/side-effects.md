@@ -9,7 +9,7 @@ Cron jobs have access to the same side-effect APIs as extension hooks: `get`, `m
 
 Read rows from any table. Returns untyped maps:
 
-```dart
+```dart in:cron-run
 final expiredRows = await get.many(
   tableName: 'subscriptions',
   where: Lt('expires_at', DateTime.now()),
@@ -23,10 +23,9 @@ See [Side Effects: get](/extensions/side-effects-get) for full documentation.
 
 Insert, update, or delete rows. In cron jobs `mutate` calls go through the full pipeline (rules, operations, extensions) using the CronJwt system identity:
 
-```dart
+```dart in:cron-run
 mutate.delete.many(
   tableName: 'old_logs',
-  updates: [],
   where: Lt('created_at', cutoff),
 );
 
@@ -43,7 +42,7 @@ See [Side Effects: mutate](/extensions/side-effects-mutate) for full documentati
 
 Send transactional email using built-in helpers or custom templates:
 
-```dart
+```dart in:cron-run
 email.send.loginNotice(
   EmailAddress(address: admin['email'] as String),
   table: 'admins',
@@ -63,7 +62,7 @@ See [Side Effects: email](/extensions/side-effects-email) for full documentation
 
 Write structured log entries visible in server output and the `_log` table:
 
-```dart
+```dart in:cron-run
 logger.info('Processed ${rows.length} rows');
 logger.warn('Found ${stale.length} stale subscriptions');
 logger.error('Failed to send digest: $error');
@@ -71,7 +70,7 @@ logger.error('Failed to send digest: $error');
 
 ## Complete Example
 
-```dart
+```dart in:project-file
 final class ExpiryNotificationJob extends CronJob {
   ExpiryNotificationJob()
     : super(
@@ -84,7 +83,7 @@ final class ExpiryNotificationJob extends CronJob {
     final cutoff = DateTime.now().add(const Duration(days: 7));
     final expiring = await get.many(
       tableName: 'subscriptions',
-      where: And(Lt('expires_at', cutoff), Eq('notified', false)),
+      where: And([Lt('expires_at', cutoff), Eq('notified', false)]),
     ) ?? [];
 
     logger.info('Sending expiry notices to ${expiring.length} users');
@@ -100,7 +99,7 @@ final class ExpiryNotificationJob extends CronJob {
       mutate.update.one(
         table: 'subscriptions',
         updates: [Update.column('notified', .literal(true))],
-        where: Eq('id', row['id']),
+        where: Eq('id', row['id']!),
       );
     }
   }

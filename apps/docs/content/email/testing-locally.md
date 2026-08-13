@@ -25,7 +25,7 @@ brew install mailhog && mailhog
 
 Then configure `EmailConfig` in your dev flavor:
 
-```dart
+```dart in:app-config
 // db_config.dev.dart
 email: EmailConfig(
   host: 'localhost',

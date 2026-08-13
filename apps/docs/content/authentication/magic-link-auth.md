@@ -9,7 +9,7 @@ Magic link authentication lets users sign in by clicking a link sent to their em
 
 Add `with MagicLinkAuth` to your auth table class. No additional columns are needed — magic link tokens are transient:
 
-```dart
+```dart no-analyze
 final class UserTable extends AuthTable<User>
     with MagicLinkAuth {
   // or with other auth methods:

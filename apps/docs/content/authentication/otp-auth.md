@@ -9,7 +9,7 @@ OTP (one-time passcode) authentication lets users sign in by entering a short nu
 
 Add `with OtpAuth` to your auth table class. No additional columns are added — OTP codes are transient and not persisted to the schema:
 
-```dart
+```dart no-analyze
 final class UserTable extends AuthTable<User>
     with OtpAuth {
   // or combined with PasswordAuth:
@@ -69,7 +69,7 @@ Code length, expiry time, and rate limits are configured by overriding `otpConfi
 
 A table can use both `PasswordAuth` and `OtpAuth` at the same time:
 
-```dart
+```dart no-analyze
 final class UserTable extends AuthTable<User>
     with PasswordAuth, OtpAuth {
   // ...

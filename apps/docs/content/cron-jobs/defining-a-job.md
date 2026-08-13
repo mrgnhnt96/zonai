@@ -40,11 +40,11 @@ DailyReportJob main() => DailyReportJob();
 
 Schedules use standard 5-field cron syntax via `Schedule.parse('...')`:
 
-```dart
-Schedule.parse('0 3 * * *')    // every day at 3:00 AM
-Schedule.parse('*/15 * * * *') // every 15 minutes
-Schedule.parse('0 9 * * 1')    // every Monday at 9:00 AM
-Schedule.parse('0 0 1 * *')    // first of every month at midnight
+```dart in:expression
+Schedule.parse('0 3 * * *'),    // every day at 3:00 AM
+Schedule.parse('*/15 * * * *'), // every 15 minutes
+Schedule.parse('0 9 * * 1'),    // every Monday at 9:00 AM
+Schedule.parse('0 0 1 * *'),    // first of every month at midnight
 ```
 
 Quick reference: `minute hour day-of-month month day-of-week`. Use [crontab.guru](https://crontab.guru) to build expressions.
@@ -64,7 +64,7 @@ When `true`, the job fires once on server start regardless of its schedule. Usef
 
 Write job logic in `run()`. The `get`, `mutate`, `email`, and `logger` globals are all available:
 
-```dart
+```dart in:cron-run
 @override
 Future<void> run() async {
   final rows = await get.many(
@@ -78,7 +78,7 @@ Future<void> run() async {
     mutate.update.one(
       table: 'subscriptions',
       updates: [Update.column('status', .literal('expired'))],
-      where: Eq('id', row['id']),
+      where: Eq('id', row['id']!),
     );
   }
 }

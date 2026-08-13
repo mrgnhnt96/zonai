@@ -9,7 +9,7 @@ Password authentication is the classic email + password flow. Users sign up with
 
 Add `with PasswordAuth` to your auth table class. This registers the password-related endpoints and adds a `password` column (hashed storage, never returned in API responses):
 
-```dart
+```dart no-analyze
 final class UserTable extends AuthTable<User>
     with PasswordAuth {
   // ...

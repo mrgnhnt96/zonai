@@ -29,39 +29,41 @@ The server keeps the HTTP response open and **pushes a new JSON payload whenever
 import 'package:zonai_client/zonai_client.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final client = ZonaiClient.instance;
+Future<void> main() async {
+  final client = ZonaiClient.instance;
 
-// One row — where is required (usually id equality).
-final sub = client.db.listen
-    .one(
-      body: StreamBody(
-        table: 'tasks',
-        where: Eq('id', 'tk_abc123'),
-      ),
-      fromJson: (row) => row,
-    )
-    .listen((row) {
-      // Fired on connect and whenever that row changes.
-    });
+  // One row — where is required (usually id equality).
+  final sub = client.db.listen
+      .one(
+        body: StreamBody(
+          table: 'tasks',
+          where: Eq('id', 'tk_abc123'),
+        ),
+        fromJson: (row) => row,
+      )
+      .listen((row) {
+        // Fired on connect and whenever that row changes.
+      });
 
-// Matching list
-client.db.listen
-    .list(
-      body: StreamListBody(
-        table: 'tasks',
-        where: Eq('isComplete', false),
-        limit: 50,
-      ),
-      fromJson: (row) => row,
-    )
-    .listen((rows) { /* ... */ });
+  // Matching list
+  client.db.listen
+      .list(
+        body: StreamListBody(
+          table: 'tasks',
+          where: Eq('isComplete', false),
+          limit: 50,
+        ),
+        fromJson: (row) => row,
+      )
+      .listen((rows) { /* ... */ });
 
-// Count
-client.db.listen
-    .count(body: StreamCountBody(table: 'tasks'))
-    .listen((total) { /* ... */ });
+  // Count
+  client.db.listen
+      .count(body: StreamCountBody(table: 'tasks', where: Eq('isComplete', false)))
+      .listen((total) { /* ... */ });
 
-await sub.cancel();
+  await sub.cancel();
+}
 ```
 
 See [Dart Client — Database](/dart-client/database#real-time-streaming) for the full client API.

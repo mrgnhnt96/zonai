@@ -62,16 +62,16 @@ The response contains an `accessToken` with elevated claims.
 
 Tokens issued via `POST /auth/admin` include elevated claims accessible in rules and extensions:
 
-```dart
-jwt?.admin.isAdmin  // true
-jwt?.admin.canEdit  // true
+```dart in:expression
+jwt?.admin.isAdmin, // true
+jwt?.admin.canEdit, // true
 ```
 
 ## Using Admin Claims in Rules
 
 Gate privileged operations on `admin.isAdmin`:
 
-```dart
+```dart in:table-rules
 @override
 Future<bool> canDelete(Jwt? jwt) async {
   return jwt?.admin.isAdmin ?? false;

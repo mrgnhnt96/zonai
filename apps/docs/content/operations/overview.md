@@ -25,7 +25,7 @@ Most tables don't need one. If your table uses standard CRUD with no custom logi
 
 Override `custom` to handle an operation name that isn't create/update/delete/view/list/count. It's reached via `PATCH /db/custom/:operation` (or `PATCH /db/custom/:operation/many`) — the operation name travels on the URL, `table`/`where`/`updates` in the body like every other `/db` route:
 
-```dart
+```dart no-analyze
 @override
 rd.ToQuery<PostTable, Post> custom(
   String operation, {

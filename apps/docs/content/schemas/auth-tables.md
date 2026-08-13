@@ -21,7 +21,7 @@ Auth tables still get normal CRUD **and** live streams (`/db/stream*`). After si
 
 A table can use multiple mixins simultaneously:
 
-```dart
+```dart no-analyze
 final class UserTable extends AuthTable<User>
     with PasswordAuth, OtpAuth, MagicLinkAuth {
   // ...
@@ -67,7 +67,7 @@ See the [Authentication](/authentication/overview) section for request/response 
 
 Add any extra columns alongside the built-in auth fields. They are readable and writable via the standard `/db/<table>` API:
 
-```dart
+```dart no-analyze
 final class UserTable extends AuthTable<User> with PasswordAuth {
   UserTable(super.$)
     : id = $.id('id', ...),

@@ -7,11 +7,8 @@ description: Refreshing tokens, revoking sessions, and configuring JWT lifetime.
 
 By default, tokens expire 14 days after they are issued. This is set globally in `AppConfig`:
 
-```dart
-AppConfig(
-  jwtExpiresIn: const Duration(days: 14),
-  // ...
-)
+```dart in:app-config
+jwtExpiresIn: const Duration(days: 14),
 ```
 
 To override the lifetime for a specific auth table, set `jwtExpiresIn` in that table's `AuthOperations` class — see [Auth Operations](/operations/auth-operations).

@@ -68,9 +68,9 @@ Removes the photo record and its stored bytes.
 
 Store the `_photos` row ID in a column on any table that owns the photo:
 
-```dart
+```dart no-analyze
 avatarId = $.photo('avatar_id', (s) => s.avatarId),
-profileImages = $.photos('profile_images', (s) => s.profileImages), # array of photo IDs
+profileImages = $.photos('profile_images', (s) => s.profileImages), // photo IDs
 ```
 
 <Info>
@@ -93,7 +93,7 @@ For example, a JPEG uploaded for the `users` table might be stored at `.zonai/da
 
 **File size limit** — configured via `AppConfig.photos`:
 
-```dart
+```dart in:app-config
 photos: PhotosConfig(
   maxBytes: 5 * 1024 * 1024,  // 5 MB default
   allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png],

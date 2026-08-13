@@ -95,7 +95,7 @@ Zonai reads a `.env` from your **app root** — the same directory as `zonai.yam
 key into the compiled workers as a `-D` define. Your config reads them back with
 `String.fromEnvironment`:
 
-```dart
+```dart in:project-file
 // lib/src/config/db_config.dart
 AppConfig main() => AppConfig(
   appName: 'MyApp',
@@ -518,7 +518,7 @@ means every absolute link the server generates (email templates, magic links, an
 
 Read it from `.env` at build time, as in [step 2](#2-put-compile-time-config-in-env):
 
-```dart
+```dart in:app-config
 baseUrl: const String.fromEnvironment('BASE_URL', defaultValue: 'http://localhost:8080'),
 ```
 

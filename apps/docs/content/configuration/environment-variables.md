@@ -12,8 +12,12 @@ Zonai uses environment variables in **two** ways:
 
 Your Dart code reads a value at compile time:
 
-```dart
-jwtSecret: const String.fromEnvironment('JWT_SECRET'),
+```dart in:expression
+AppConfig(
+  appName: 'My App',
+  jwtSecret: const String.fromEnvironment('JWT_SECRET'),
+  passwordSecret: const String.fromEnvironment('PASSWORD_SECRET'),
+)
 ```
 
 When Zonai compiles workers or the project binary, it reads your `.env` file and passes each value to `dart compile exe` as a compile-time define (`-Dkey=value`). The compiled binary contains the literal value. If `JWT_SECRET` is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields.

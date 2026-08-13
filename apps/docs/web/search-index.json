@@ -404,7 +404,7 @@
         {
           "h": "Compile-time secrets (.env)",
           "a": "compile-time-secrets-env",
-          "b": "Your Dart code reads a value at compile time: jwtSecret: const String.fromEnvironment('JWT_SECRET'), When Zonai compiles workers or the project binary, it reads your .env file and passes each value to dart compile exe as a compile-time define (-Dkey=value). The compiled binary contains the literal value. If JWT_SECRET is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields. This is an implementation detail, not a CLI flag — zonai compile and zonai build do not read -D/--define themselves. To override a value, edit .env (or .env. , see below) or use --dart-define (see CLI Overrides). Changing a secret requires recompiling and redeploying (zonai build / compile)."
+          "b": "Your Dart code reads a value at compile time: AppConfig( appName: 'My App', jwtSecret: const String.fromEnvironment('JWT_SECRET'), passwordSecret: const String.fromEnvironment('PASSWORD_SECRET'), ) When Zonai compiles workers or the project binary, it reads your .env file and passes each value to dart compile exe as a compile-time define (-Dkey=value). The compiled binary contains the literal value. If JWT_SECRET is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields. This is an implementation detail, not a CLI flag — zonai compile and zonai build do not read -D/--define themselves. To override a value, edit .env (or .env. , see below) or use --dart-define (see CLI Overrides). Changing a secret requires recompiling and redeploying (zonai build / compile)."
         },
         {
           "h": "Runtime tuning (ZONAI_)",
@@ -470,7 +470,7 @@
         {
           "h": "Indexes",
           "a": "indexes",
-          "b": "Indexes are defined in a callback passed as the third argument to table(). Use index() for a regular index and uniqueIndex() for a unique index. Both take a name and then call .on() with the column(s) to index: final posts = table('posts', PostTable.new, (t) { index('posts_title_index').on(t.title); uniqueIndex('posts_slug_unique').on(t.slug); }); Composite indexes list multiple columns in .on(): final posts = table('posts', PostTable.new, (t) { index('posts_author_created_index').on(t.authorId, t.createdAt); });"
+          "b": "Indexes are defined in a callback passed as the third argument to table(). Use index() for a regular index and uniqueIndex() for a unique index. Both take a name and then call .on() with the column(s) to index: final posts = table('posts', PostTable.new, (t) { index('posts_title_index').on(t.title); uniqueIndex('posts_title_unique').on(t.title); }); Composite indexes list multiple columns in .on(): final posts = table('posts', PostTable.new, (t) { index('posts_author_created_index').on(t.authorId, t.createdAt); });"
         },
         {
           "h": "Naming Conventions",
@@ -552,7 +552,7 @@
         {
           "h": "Referencing Photos from Other Tables",
           "a": "referencing-photos-from-other-tables",
-          "b": "Store the _photos row ID in a column on any table that owns the photo: avatarId = $.photo('avatar_id', (s) => s.avatarId), profileImages = $.photos('profile_images', (s) => s.profileImages), array of photo IDs If you want/need to clean up the image during a row update, you can delete the _photos row in an afterDeleteSuccess extension."
+          "b": "Store the _photos row ID in a column on any table that owns the photo: avatarId = $.photo('avatar_id', (s) => s.avatarId), profileImages = $.photos('profile_images', (s) => s.profileImages), // photo IDs If you want/need to clean up the image during a row update, you can delete the _photos row in an afterDeleteSuccess extension."
         },
         {
           "h": "Storage",
@@ -822,7 +822,7 @@
         {
           "h": "Prefer zonai_client",
           "a": "prefer-zonai_client",
-          "b": "import 'package:zonai_client/zonai_client.dart'; import 'package:zonai_schema/zonai_schema.dart'; final client = ZonaiClient.instance; // One row — where is required (usually id equality). final sub = client.db.listen .one( body: StreamBody( table: 'tasks', where: Eq('id', 'tk_abc123'), ), fromJson: (row) => row, ) .listen((row) { // Fired on connect and whenever that row changes. }); // Matching list client.db.listen .list( body: StreamListBody( table: 'tasks', where: Eq('isComplete', false), limit: 50, ), fromJson: (row) => row, ) .listen((rows) { / ... / }); // Count client.db.listen .count(body: StreamCountBody(table: 'tasks')) .listen((total) { / ... / }); await sub.cancel(); See Dart Client — Database for the full client API."
+          "b": "import 'package:zonai_client/zonai_client.dart'; import 'package:zonai_schema/zonai_schema.dart'; Future main() async { final client = ZonaiClient.instance; // One row — where is required (usually id equality). final sub = client.db.listen .one( body: StreamBody( table: 'tasks', where: Eq('id', 'tk_abc123'), ), fromJson: (row) => row, ) .listen((row) { // Fired on connect and whenever that row changes. }); // Matching list client.db.listen .list( body: StreamListBody( table: 'tasks', where: Eq('isComplete', false), limit: 50, ), fromJson: (row) => row, ) .listen((rows) { / ... / }); // Count client.db.listen .count(body: StreamCountBody(table: 'tasks', where: Eq('isComplete', false))) .listen((total) { / ... / }); await sub.cancel(); } See Dart Client — Database for the full client API."
         },
         {
           "h": "Raw HTTP",
@@ -868,17 +868,17 @@
         {
           "h": "Password Reset Configuration",
           "a": "password-reset-configuration",
-          "b": "Override resetPasswordConfig to customize the reset link URL and token expiry: @override ResetPasswordConfig get resetPasswordConfig => ResetPasswordConfig( path: '/reset-password', // appended to AppConfig.baseUrl expiresIn: const Duration(hours: 1), ); The full reset link will be {baseUrl}{path}?token={token}."
+          "b": "Override resetPasswordConfig to customize the reset link URL and token expiry: @override Future resetPasswordConfig() async => ResetPasswordConfig( path: '/reset-password', // appended to AppConfig.baseUrl expiresIn: const Duration(hours: 1), ); The full reset link will be {baseUrl}{path}?token={token}."
         },
         {
           "h": "Email Verification Configuration",
           "a": "email-verification-configuration",
-          "b": "Override verifyEmailConfig to customize the verify-email link: @override VerifyEmailConfig get verifyEmailConfig => VerifyEmailConfig( path: '/verify-email', expiresIn: const Duration(hours: 24), );"
+          "b": "Override verifyEmailConfig to customize the verify-email link: @override Future verifyEmailConfig() async => VerifyEmailConfig( path: '/verify-email', expiresIn: const Duration(hours: 24), );"
         },
         {
           "h": "Magic Link Configuration",
           "a": "magic-link-configuration",
-          "b": "Override magicLinkConfig to customize the magic link redirect URL and expiry: @override MagicLinkConfig get magicLinkConfig => MagicLinkConfig( path: '/auth/callback', expiresIn: const Duration(minutes: 10), ); After the user clicks the link, Zonai validates the token and redirects to {baseUrl}{path}?token={jwt}."
+          "b": "Override magicLinkConfig to customize the magic link redirect URL and expiry: @override Future magicLinkConfig() async => MagicLinkConfig( path: '/auth/callback', expiresIn: const Duration(minutes: 10), ); After the user clicks the link, Zonai validates the token and redirects to {baseUrl}{path}?token={jwt}."
         }
       ]
     },
@@ -1431,7 +1431,7 @@
         {
           "h": "Token Lifetime",
           "a": "token-lifetime",
-          "b": "By default, tokens expire 14 days after they are issued. This is set globally in AppConfig: AppConfig( jwtExpiresIn: const Duration(days: 14), // ... ) To override the lifetime for a specific auth table, set jwtExpiresIn in that table's AuthOperations class — see Auth Operations. After a token expires, any request using it returns 401 Unauthorized. The user must sign in again or have refreshed their token before it expired."
+          "b": "By default, tokens expire 14 days after they are issued. This is set globally in AppConfig: jwtExpiresIn: const Duration(days: 14), To override the lifetime for a specific auth table, set jwtExpiresIn in that table's AuthOperations class — see Auth Operations. After a token expires, any request using it returns 401 Unauthorized. The user must sign in again or have refreshed their token before it expired."
         },
         {
           "h": "Refreshing a Token",
@@ -1487,7 +1487,7 @@
         {
           "h": "Admin JWT Claims",
           "a": "admin-jwt-claims",
-          "b": "Tokens issued via POST /auth/admin include elevated claims accessible in rules and extensions: jwt?.admin.isAdmin // true jwt?.admin.canEdit // true"
+          "b": "Tokens issued via POST /auth/admin include elevated claims accessible in rules and extensions: jwt?.admin.isAdmin, // true jwt?.admin.canEdit, // true"
         },
         {
           "h": "Using Admin Claims in Rules",
@@ -1855,7 +1855,7 @@
         {
           "h": "Schedule",
           "a": "schedule",
-          "b": "Schedules use standard 5-field cron syntax via Schedule.parse('...'): Schedule.parse('0 3 ') // every day at 3:00 AM Schedule.parse('/15 ') // every 15 minutes Schedule.parse('0 9 1') // every Monday at 9:00 AM Schedule.parse('0 0 1 ') // first of every month at midnight Quick reference: minute hour day-of-month month day-of-week. Use crontab.guru to build expressions."
+          "b": "Schedules use standard 5-field cron syntax via Schedule.parse('...'): Schedule.parse('0 3 '), // every day at 3:00 AM Schedule.parse('/15 '), // every 15 minutes Schedule.parse('0 9 1'), // every Monday at 9:00 AM Schedule.parse('0 0 1 '), // first of every month at midnight Quick reference: minute hour day-of-month month day-of-week. Use crontab.guru to build expressions."
         },
         {
           "h": "strict",
@@ -1870,7 +1870,7 @@
         {
           "h": "The run() Method",
           "a": "the-run-method",
-          "b": "Write job logic in run(). The get, mutate, email, and logger globals are all available: @override Future run() async { final rows = await get.many( tableName: 'subscriptions', where: Lt('expires_at', DateTime.now()), ) ?? []; logger.info('Found ${rows.length} expired subscriptions'); for (final row in rows) { mutate.update.one( table: 'subscriptions', updates: [Update.column('status', .literal('expired'))], where: Eq('id', row['id']), ); } } Errors thrown from run() are caught, logged to _cron_jobs, and do not crash the server."
+          "b": "Write job logic in run(). The get, mutate, email, and logger globals are all available: @override Future run() async { final rows = await get.many( tableName: 'subscriptions', where: Lt('expires_at', DateTime.now()), ) ?? []; logger.info('Found ${rows.length} expired subscriptions'); for (final row in rows) { mutate.update.one( table: 'subscriptions', updates: [Update.column('status', .literal('expired'))], where: Eq('id', row['id']!), ); } } Errors thrown from run() are caught, logged to _cron_jobs, and do not crash the server."
         }
       ]
     },
@@ -1883,7 +1883,7 @@
         {
           "h": "The strict Property",
           "a": "the-strict-property",
-          "b": "strict controls what happens when scheduled runs are missed (e.g. the server was offline): Value Default? Behavior strict: true Yes Skip missed runs — only run on the future schedule strict: false No Catch up — execute once on next startup if any runs were missed // Default — skip missed runs (suitable for cleanup jobs) CronJob(name: 'cleanup', schedule: Schedule.parse('0 3 ')) // Explicit skip CronJob(name: 'cleanup', schedule: Schedule.parse('0 3 '), strict: true) // Catch up missed runs (suitable for billing jobs) CronJob(name: 'billing', schedule: Schedule.parse('0 0 1 '), strict: false)"
+          "b": "strict controls what happens when scheduled runs are missed (e.g. the server was offline): Value Default? Behavior strict: true Yes Skip missed runs — only run on the future schedule strict: false No Catch up — execute once on next startup if any runs were missed strict is passed to super in the job's constructor. It defaults to true, so a cleanup job that should skip missed runs can leave it out entirely; a billing job that must catch up passes false: final class BillingJob extends CronJob { BillingJob() : super( name: 'billing', schedule: Schedule.parse('0 0 1 '), strict: false, // catch up if runs were missed ); @override Future run() async { // ... } } BillingJob main() => BillingJob();"
         },
         {
           "h": "How Catch-Up Works",
@@ -1924,7 +1924,7 @@
         {
           "h": "mutate",
           "a": "mutate",
-          "b": "Insert, update, or delete rows. In cron jobs mutate calls go through the full pipeline (rules, operations, extensions) using the CronJwt system identity: mutate.delete.many( tableName: 'old_logs', updates: [], where: Lt('created_at', cutoff), ); mutate.update.one( table: 'users', updates: [Update.column('status', .literal('inactive'))], where: Eq('id', userId), ); See Side Effects: mutate for full documentation."
+          "b": "Insert, update, or delete rows. In cron jobs mutate calls go through the full pipeline (rules, operations, extensions) using the CronJwt system identity: mutate.delete.many( tableName: 'old_logs', where: Lt('created_at', cutoff), ); mutate.update.one( table: 'users', updates: [Update.column('status', .literal('inactive'))], where: Eq('id', userId), ); See Side Effects: mutate for full documentation."
         },
         {
           "h": "email",
@@ -1939,7 +1939,7 @@
         {
           "h": "Complete Example",
           "a": "complete-example",
-          "b": "final class ExpiryNotificationJob extends CronJob { ExpiryNotificationJob() : super( name: 'expiry-notifications', schedule: Schedule.parse('0 9 '), ); @override Future run() async { final cutoff = DateTime.now().add(const Duration(days: 7)); final expiring = await get.many( tableName: 'subscriptions', where: And(Lt('expires_at', cutoff), Eq('notified', false)), ) ?? []; logger.info('Sending expiry notices to ${expiring.length} users'); for (final row in expiring) { email.send(Email( to: EmailAddress(address: row['email'] as String), subject: 'Your subscription expires soon', template: 'expiry_notice', variables: {'expires_at': row['expires_at']}, )); mutate.update.one( table: 'subscriptions', updates: [Update.column('notified', .literal(true))], where: Eq('id', row['id']), ); } } } ExpiryNotificationJob main() => ExpiryNotificationJob();"
+          "b": "final class ExpiryNotificationJob extends CronJob { ExpiryNotificationJob() : super( name: 'expiry-notifications', schedule: Schedule.parse('0 9 '), ); @override Future run() async { final cutoff = DateTime.now().add(const Duration(days: 7)); final expiring = await get.many( tableName: 'subscriptions', where: And([Lt('expires_at', cutoff), Eq('notified', false)]), ) ?? []; logger.info('Sending expiry notices to ${expiring.length} users'); for (final row in expiring) { email.send(Email( to: EmailAddress(address: row['email'] as String), subject: 'Your subscription expires soon', template: 'expiry_notice', variables: {'expires_at': row['expires_at']}, )); mutate.update.one( table: 'subscriptions', updates: [Update.column('notified', .literal(true))], where: Eq('id', row['id']!), ); } } } ExpiryNotificationJob main() => ExpiryNotificationJob();"
         }
       ]
     },
@@ -1991,7 +1991,7 @@
         {
           "h": "Common Email Providers",
           "a": "common-email-providers",
-          "b": "SendGrid host: 'smtp.sendgrid.net', port: 587, username: 'apikey', password: const String.fromEnvironment('SENDGRID_API_KEY'), Mailgun host: 'smtp.mailgun.org', port: 587, username: const String.fromEnvironment('MAILGUN_USERNAME'), password: const String.fromEnvironment('MAILGUN_PASSWORD'), AWS SES host: 'email-smtp.us-east-1.amazonaws.com', port: 587, username: const String.fromEnvironment('SES_ACCESS_KEY_ID'), password: const String.fromEnvironment('SES_SECRET_KEY'), Mailhog (local dev) host: 'localhost', port: 1025, username: '', password: '', from: EmailAddress(address: 'dev@localhost', name: 'Dev'),"
+          "b": "SendGrid EmailConfig( host: 'smtp.sendgrid.net', port: 587, username: 'apikey', password: const String.fromEnvironment('SENDGRID_API_KEY'), from: EmailAddress(address: 'no-reply@myapp.com', name: 'My App'), ) Mailgun EmailConfig( host: 'smtp.mailgun.org', port: 587, username: const String.fromEnvironment('MAILGUN_USERNAME'), password: const String.fromEnvironment('MAILGUN_PASSWORD'), from: EmailAddress(address: 'no-reply@myapp.com', name: 'My App'), ) AWS SES EmailConfig( host: 'email-smtp.us-east-1.amazonaws.com', port: 587, username: const String.fromEnvironment('SES_ACCESS_KEY_ID'), password: const String.fromEnvironment('SES_SECRET_KEY'), from: EmailAddress(address: 'no-reply@myapp.com', name: 'My App'), ) Mailhog (local dev) EmailConfig( host: 'localhost', port: 1025, username: '', password: '', from: EmailAddress(address: 'dev@localhost', name: 'Dev'), )"
         },
         {
           "h": "Testing the Configuration",

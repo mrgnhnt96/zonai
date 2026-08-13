@@ -27,7 +27,7 @@ Without any overrides, this is a no-op. Add overrides as needed.
 
 Override `addClaims` to embed additional data in the JWT issued on sign-in, sign-up, OTP verify, and magic link verify:
 
-```dart
+```dart in:auth-operations
 @override
 Future<Claims> addClaims({required Jwt jwt}) async {
   return Claims({
@@ -43,7 +43,7 @@ The JWT parameter contains the standard claims (including `userId`). You can use
 
 Override `jwtExpiresIn` to use a different token lifetime than the global `AppConfig.jwtExpiresIn`:
 
-```dart
+```dart in:auth-operations
 @override
 Duration? get jwtExpiresIn => const Duration(hours: 8);  // shorter than global default
 ```
@@ -54,10 +54,10 @@ Return `null` to fall back to the global `AppConfig.jwtExpiresIn`.
 
 Override `resetPasswordConfig` to customize the reset link URL and token expiry:
 
-```dart
+```dart in:auth-operations
 @override
-ResetPasswordConfig get resetPasswordConfig => ResetPasswordConfig(
-  path: '/reset-password',  // appended to AppConfig.baseUrl
+Future<ResetPasswordConfig> resetPasswordConfig() async => ResetPasswordConfig(
+  path: '/reset-password', // appended to AppConfig.baseUrl
   expiresIn: const Duration(hours: 1),
 );
 ```
@@ -68,9 +68,9 @@ The full reset link will be `{baseUrl}{path}?token={token}`.
 
 Override `verifyEmailConfig` to customize the verify-email link:
 
-```dart
+```dart in:auth-operations
 @override
-VerifyEmailConfig get verifyEmailConfig => VerifyEmailConfig(
+Future<VerifyEmailConfig> verifyEmailConfig() async => VerifyEmailConfig(
   path: '/verify-email',
   expiresIn: const Duration(hours: 24),
 );
@@ -80,9 +80,9 @@ VerifyEmailConfig get verifyEmailConfig => VerifyEmailConfig(
 
 Override `magicLinkConfig` to customize the magic link redirect URL and expiry:
 
-```dart
+```dart in:auth-operations
 @override
-MagicLinkConfig get magicLinkConfig => MagicLinkConfig(
+Future<MagicLinkConfig> magicLinkConfig() async => MagicLinkConfig(
   path: '/auth/callback',
   expiresIn: const Duration(minutes: 10),
 );

@@ -32,7 +32,7 @@ PostRateLimits main() => PostRateLimits();
 
 ## RateLimitPolicy
 
-```dart
+```dart no-analyze
 RateLimitPolicy(maxRequests: N, window: Duration(...))
 ```
 
@@ -57,7 +57,7 @@ Streaming shares the read policies above. Details: [Streaming](/operations/strea
 
 `customPolicy` buckets separately per operation name (`fill` and `reserve` on the same table get independent counters), but only for a name that's actually registered in that table's rules — an unrecognized `:operation` is rejected with `404` before it ever reaches the rate limiter:
 
-```dart
+```dart in:rate-limits
 @override
 Future<RateLimitPolicy?> customPolicy(String? operation) async {
   return switch (operation) {
@@ -79,7 +79,7 @@ So in that case the server drops the name rather than the limit. `operation` is 
 
 Return `null` to remove rate limiting for that operation entirely:
 
-```dart
+```dart in:rate-limits
 @override
 Future<RateLimitPolicy?> getPolicy() async => null; // No limit on view requests
 ```

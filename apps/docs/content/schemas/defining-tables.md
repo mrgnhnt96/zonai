@@ -73,16 +73,16 @@ A column is nullable when the accessor you hand the builder returns a nullable t
 
 Indexes are defined in a callback passed as the third argument to `table()`. Use `index()` for a regular index and `uniqueIndex()` for a unique index. Both take a name and then call `.on()` with the column(s) to index:
 
-```dart
+```dart in:project-file
 final posts = table('posts', PostTable.new, (t) {
   index('posts_title_index').on(t.title);
-  uniqueIndex('posts_slug_unique').on(t.slug);
+  uniqueIndex('posts_title_unique').on(t.title);
 });
 ```
 
 Composite indexes list multiple columns in `.on()`:
 
-```dart
+```dart in:project-file
 final posts = table('posts', PostTable.new, (t) {
   index('posts_author_created_index').on(t.authorId, t.createdAt);
 });

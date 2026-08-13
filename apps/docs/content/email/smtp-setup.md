@@ -5,7 +5,7 @@ description: Configuring SMTP credentials for transactional email delivery.
 
 Set the `email` field in `AppConfig` to an `EmailConfig` instance to enable transactional email:
 
-```dart
+```dart in:expression
 AppConfig(
   appName: 'My App',
   jwtSecret: const String.fromEnvironment('JWT_SECRET'),
@@ -41,39 +41,50 @@ All credentials should come from `String.fromEnvironment` — never hard-code se
 
 **SendGrid**
 
-```dart
-host: 'smtp.sendgrid.net',
-port: 587,
-username: 'apikey',
-password: const String.fromEnvironment('SENDGRID_API_KEY'),
+```dart in:expression
+EmailConfig(
+  host: 'smtp.sendgrid.net',
+  port: 587,
+  username: 'apikey',
+  password: const String.fromEnvironment('SENDGRID_API_KEY'),
+  from: EmailAddress(address: 'no-reply@myapp.com', name: 'My App'),
+)
 ```
 
 **Mailgun**
 
-```dart
-host: 'smtp.mailgun.org',
-port: 587,
-username: const String.fromEnvironment('MAILGUN_USERNAME'),
-password: const String.fromEnvironment('MAILGUN_PASSWORD'),
+```dart in:expression
+EmailConfig(
+  host: 'smtp.mailgun.org',
+  port: 587,
+  username: const String.fromEnvironment('MAILGUN_USERNAME'),
+  password: const String.fromEnvironment('MAILGUN_PASSWORD'),
+  from: EmailAddress(address: 'no-reply@myapp.com', name: 'My App'),
+)
 ```
 
 **AWS SES**
 
-```dart
-host: 'email-smtp.us-east-1.amazonaws.com',
-port: 587,
-username: const String.fromEnvironment('SES_ACCESS_KEY_ID'),
-password: const String.fromEnvironment('SES_SECRET_KEY'),
+```dart in:expression
+EmailConfig(
+  host: 'email-smtp.us-east-1.amazonaws.com',
+  port: 587,
+  username: const String.fromEnvironment('SES_ACCESS_KEY_ID'),
+  password: const String.fromEnvironment('SES_SECRET_KEY'),
+  from: EmailAddress(address: 'no-reply@myapp.com', name: 'My App'),
+)
 ```
 
 **Mailhog (local dev)**
 
-```dart
-host: 'localhost',
-port: 1025,
-username: '',
-password: '',
-from: EmailAddress(address: 'dev@localhost', name: 'Dev'),
+```dart in:expression
+EmailConfig(
+  host: 'localhost',
+  port: 1025,
+  username: '',
+  password: '',
+  from: EmailAddress(address: 'dev@localhost', name: 'Dev'),
+)
 ```
 
 ## Testing the Configuration

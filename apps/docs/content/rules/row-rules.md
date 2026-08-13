@@ -86,7 +86,7 @@ Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async =>
 
 This unlocks gating on the transition itself, not just the current row — e.g. denying a write that would add a role the caller isn't allowed to grant:
 
-```dart
+```dart in:row-rules
 @override
 Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async {
   if (after.ownerId != before.ownerId) {

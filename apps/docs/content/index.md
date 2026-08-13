@@ -33,7 +33,7 @@ Go from `dart create` to a running server with auth and CRUD in about ten minute
 
 Define a table in Dart:
 
-```dart
+```dart no-analyze
 final class TaskTable extends Table<Task> {
   TaskTable(super.$)
     : id = $.id('id', (s) => s.id, fromString: TasksId.new, generate: TasksId.generate),
@@ -61,7 +61,7 @@ GET    /db/count    count         POST /auth/sign-in
 
 And live UI is a subscription, not a timer:
 
-```dart
+```dart no-analyze
 client.db.listen
     .list(body: StreamListBody(table: 'tasks'), fromJson: Task.fromJson)
     .listen((tasks) => setState(() => _tasks = tasks));

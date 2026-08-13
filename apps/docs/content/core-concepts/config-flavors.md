@@ -38,7 +38,7 @@ This means the dev and prod binaries have different secrets baked in. Never depl
 
 **`lib/src/config/db_config.dev.dart`:**
 
-```dart
+```dart in:project-file
 AppConfig main() => AppConfig(
   appName: 'My App',
   jwtSecret: const String.fromEnvironment('JWT_SECRET'),
@@ -50,7 +50,7 @@ AppConfig main() => AppConfig(
 
 **`lib/src/config/db_config.prod.dart`:**
 
-```dart
+```dart in:project-file
 AppConfig main() => AppConfig(
   appName: 'My App',
   jwtSecret: const String.fromEnvironment('JWT_SECRET'),

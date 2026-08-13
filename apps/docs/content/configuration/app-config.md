@@ -25,7 +25,7 @@ See [Config Flavors](/core-concepts/config-flavors) for how to use different con
 
 ### Base URL
 
-```dart
+```dart in:app-config
 baseUrl: 'https://api.myapp.com',  // default: 'http://localhost:8080'
 ```
 
@@ -33,7 +33,7 @@ The public-facing URL of the server. Used to build links in auth emails (passwor
 
 ### JWT Lifetime
 
-```dart
+```dart in:app-config
 jwtExpiresIn: const Duration(days: 14),  // default: 14 days
 ```
 
@@ -41,7 +41,7 @@ Global token lifetime for all auth tables. To override per auth table, set `jwtE
 
 ### Secret Rotation
 
-```dart
+```dart in:app-config
 previousJwtSecrets: ['old-secret-1', 'old-secret-2'],
 previousPasswordSecrets: ['old-password-secret'],
 ```
@@ -50,7 +50,7 @@ Tokens signed with a previous JWT secret are still accepted during a rotation wi
 
 ### Email / SMTP
 
-```dart
+```dart in:app-config
 email: EmailConfig(
   host: const String.fromEnvironment('SMTP_HOST'),
   port: 587,
@@ -65,7 +65,7 @@ Required for any transactional email. Without this, all `email.send.*` calls wil
 
 ### Photos
 
-```dart
+```dart in:app-config
 photos: PhotosConfig(
   maxBytes: 5 * 1024 * 1024,  // 5 MB
   allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png, ImageMimeType.webp],
@@ -76,7 +76,7 @@ Constrains photo uploads before they reach the rules worker.
 
 ### Trusted Proxy
 
-```dart
+```dart in:app-config
 trustedProxy: TrustedProxyConfig(
   headers: ['x-forwarded-for'],
   useLeftmostIp: false,  // default: use rightmost (safer)
@@ -87,7 +87,7 @@ Required for correct client IP resolution behind a reverse proxy or load balance
 
 ## Minimal Example
 
-```dart
+```dart in:project-file
 AppConfig main() => AppConfig(
   appName: 'My App',
   jwtSecret: const String.fromEnvironment('JWT_SECRET'),
@@ -97,7 +97,7 @@ AppConfig main() => AppConfig(
 
 ## Full Example
 
-```dart
+```dart in:project-file
 AppConfig main() => AppConfig(
   appName: 'My App',
   jwtSecret: const String.fromEnvironment('JWT_SECRET'),

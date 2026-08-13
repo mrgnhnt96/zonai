@@ -12,15 +12,26 @@ description: What happens to scheduled jobs when the server is offline.
 | `strict: true`  | Yes      | **Skip** missed runs — only run on the future schedule              |
 | `strict: false` | No       | **Catch up** — execute once on next startup if any runs were missed |
 
-```dart
-// Default — skip missed runs (suitable for cleanup jobs)
-CronJob(name: 'cleanup', schedule: Schedule.parse('0 3 * * *'))
+`strict` is passed to `super` in the job's constructor. It defaults to `true`,
+so a cleanup job that should skip missed runs can leave it out entirely; a
+billing job that must catch up passes `false`:
 
-// Explicit skip
-CronJob(name: 'cleanup', schedule: Schedule.parse('0 3 * * *'), strict: true)
+```dart in:project-file
+final class BillingJob extends CronJob {
+  BillingJob()
+    : super(
+        name: 'billing',
+        schedule: Schedule.parse('0 0 1 * *'),
+        strict: false, // catch up if runs were missed
+      );
 
-// Catch up missed runs (suitable for billing jobs)
-CronJob(name: 'billing', schedule: Schedule.parse('0 0 1 * *'), strict: false)
+  @override
+  Future<void> run() async {
+    // ...
+  }
+}
+
+BillingJob main() => BillingJob();
 ```
 
 ## How Catch-Up Works

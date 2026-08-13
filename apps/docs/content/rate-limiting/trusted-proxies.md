@@ -9,7 +9,7 @@ When Zonai runs behind a reverse proxy, all TCP connections appear to come from 
 
 Set `AppConfig.trustedProxy` to tell Zonai which headers to read and how to interpret them:
 
-```dart
+```dart in:app-config
 trustedProxy: TrustedProxyConfig(
   headers: ['x-forwarded-for'],
   useLeftmostIp: false, // default — use rightmost (safer)
@@ -38,7 +38,7 @@ X-Forwarded-For: client_ip, proxy1_ip, proxy2_ip
 
 You can list multiple headers. Zonai checks them in order and uses the first one that is present:
 
-```dart
+```dart in:app-config
 trustedProxy: TrustedProxyConfig(
   headers: ['cf-connecting-ip', 'x-forwarded-for'],
 ),
@@ -52,16 +52,16 @@ This example checks for Cloudflare's single-IP header first, falling back to the
 ```nginx
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 ```
-```dart
+```dart in:expression
 TrustedProxyConfig(headers: ['x-forwarded-for'], useLeftmostIp: false)
 ```
 
 **Cloudflare**
-```dart
+```dart in:expression
 TrustedProxyConfig(headers: ['cf-connecting-ip'])
 ```
 
 **AWS ALB**
-```dart
+```dart in:expression
 TrustedProxyConfig(headers: ['x-forwarded-for'], useLeftmostIp: false)
 ```

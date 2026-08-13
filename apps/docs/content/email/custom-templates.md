@@ -36,7 +36,7 @@ Templates use [Mustache](https://mustache.github.io/mustache.5.html) syntax.
 
 Use `email.send(Email(...))` from any extension hook or cron job:
 
-```dart
+```dart in:extension-purchase
 @override
 Future<void> afterCreateSuccess(Purchase purchase, Jwt? jwt) async {
   final customer = await get.one(

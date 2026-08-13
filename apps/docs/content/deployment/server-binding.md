@@ -87,7 +87,7 @@ api.myapp.com {
 
 `AppConfig.baseUrl` is the **public-facing URL** used in email links (e.g. `https://api.myapp.com`). The `host`/`port` binding is where the server process listens. These are independent:
 
-```dart
+```dart in:app-config
 baseUrl: 'https://api.myapp.com',  // for email links
 // server actually listens on localhost:8080 behind nginx
 ```
