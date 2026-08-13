@@ -61,13 +61,26 @@ jobs:
           commit: ${{ github.event.workflow_run.head_sha }}
           path: artifacts
 
-      - name: Download compile artifacts (latest successful compile)
+      # `commit:` is what makes this safe, and its absence cost a release.
+      # Without it this takes the newest successful Compile run of ANY commit,
+      # so a manual dispatch happily packages binaries built weeks earlier and
+      # publishes them under today's version. That is exactly what v0.6.3 did:
+      # it shipped artifacts from c684ed28 (2026-08-12), so the released binary
+      # reported 0.6.2, and the post-release cross-build then failed running
+      # that stale binary against a freshly published zonai_schema.
+      #
+      # Pinned to the dispatched SHA, this now fails outright when no
+      # successful Compile exists for this commit -- the correct outcome, and
+      # loud. Run Compile on this ref first, then dispatch Release.
+      - name: Download compile artifacts (this commit)
         if: github.event_name == 'workflow_dispatch'
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           path: artifacts
 
       - name: Package fat binary
@@ -111,13 +124,26 @@ jobs:
           commit: ${{ github.event.workflow_run.head_sha }}
           path: artifacts
 
-      - name: Download compile artifacts (latest successful compile)
+      # `commit:` is what makes this safe, and its absence cost a release.
+      # Without it this takes the newest successful Compile run of ANY commit,
+      # so a manual dispatch happily packages binaries built weeks earlier and
+      # publishes them under today's version. That is exactly what v0.6.3 did:
+      # it shipped artifacts from c684ed28 (2026-08-12), so the released binary
+      # reported 0.6.2, and the post-release cross-build then failed running
+      # that stale binary against a freshly published zonai_schema.
+      #
+      # Pinned to the dispatched SHA, this now fails outright when no
+      # successful Compile exists for this commit -- the correct outcome, and
+      # loud. Run Compile on this ref first, then dispatch Release.
+      - name: Download compile artifacts (this commit)
         if: github.event_name == 'workflow_dispatch'
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           path: artifacts
 
       - name: Download fat binary artifact
