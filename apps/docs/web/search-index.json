@@ -315,6 +315,16 @@
           "b": "All paths are optional. Zonai uses sensible defaults so you only need to set a path if you deviate from the standard layout. Key Default Points To schemasPath lib/src/schemas Table definitions configPath lib/src/config AppConfig files operationsPath lib/src/operations Custom operations rulesPath lib/src/rules Authorization rules extensionsPath lib/src/extensions Lifecycle hooks rateLimitPath lib/src/rate_limit Rate limit policies cronsPath lib/src/crons Cron job definitions emailTemplatesPath lib/src/email_templates HTML email templates migrationsPath .zonai/migrations Generated SQL migration files dataPath .zonai/data SQLite database directory imagesPath /images Uploaded photo files, plus the dashboard's favicon.ico and logo.png"
         },
         {
+          "h": "Storage Fields",
+          "a": "storage-fields",
+          "b": "Key Default Description logDatabaseMaxSize (no limit) Hard ceiling on the log database file. A positive byte count, optionally suffixed b, kb, mb, gb or tb (powers of 1024) — e.g. 512mb."
+        },
+        {
+          "h": "logDatabaseMaxSize",
+          "a": "logdatabasemaxsize",
+          "b": "_log lives in its own database file, which is what makes a ceiling on it expressible at all: SQLite's cap bounds a file, so on a shared database it would be hit by whichever write arrived first — your application's inserts just as easily as a log line. It is off by default, and that is deliberate. Once the ceiling is reached, log writes fail and keep failing until retention frees space. That costs you observability at exactly the moment something is going wrong, so it is not imposed on a project that did not ask for it. Retention, the nightly reclaim, and the disk-full error already handle the ordinary case. Set it when you want a guarantee that this one table can never be what fills a volume: logDatabaseMaxSize: 512mb Pick a size that is generous relative to your retention window — the cap is a backstop for a runaway, not a substitute for retention. When it is reached, the server keeps serving requests and keeps printing to the console; it prints one line to stderr saying log records are no longer reaching the database, and the dashboard's log view stops gaining entries. Removing the key lifts the cap on the next server start. Nothing is stored in the database file, so there is no"
+        },
+        {
           "h": "Server Fields",
           "a": "server-fields",
           "b": "Key Default Description host localhost Bind address. When localhost, the server binds dual-stack on :: (IPv4 + IPv6). Use 127.0.0.1 for IPv4 loopback only or 0.0.0.0 for all IPv4 interfaces. port 8080 HTTP port. CLI --host and --port flags take precedence over these values. See Server Binding for examples."
@@ -327,7 +337,7 @@
         {
           "h": "Complete Example",
           "a": "complete-example",
-          "b": "version: 0.1.0 Server binding host: localhost port: 8080 Source paths (all have defaults — only set if you deviate) schemasPath: lib/src/schemas configPath: lib/src/config operationsPath: lib/src/operations rulesPath: lib/src/rules extensionsPath: lib/src/extensions rateLimitPath: lib/src/rate_limit cronsPath: lib/src/crons emailTemplatesPath: lib/src/email_templates Generated paths migrationsPath: .zonai/migrations dataPath: .zonai/data imagesPath: .zonai/data/images Cross-compilation (omit to build for current platform) buildSettings: targetOs: linux targetArch: x64 Minimal zonai.yaml (most projects only need this): version: 0.1.0"
+          "b": "version: 0.1.0 Server binding host: localhost port: 8080 Source paths (all have defaults — only set if you deviate) schemasPath: lib/src/schemas configPath: lib/src/config operationsPath: lib/src/operations rulesPath: lib/src/rules extensionsPath: lib/src/extensions rateLimitPath: lib/src/rate_limit cronsPath: lib/src/crons emailTemplatesPath: lib/src/email_templates Generated paths migrationsPath: .zonai/migrations dataPath: .zonai/data imagesPath: .zonai/data/images Optional hard ceiling on the log database (omit for no limit) logDatabaseMaxSize: 512mb Cross-compilation (omit to build for current platform) buildSettings: targetOs: linux targetArch: x64 Minimal zonai.yaml (most projects only need this): version: 0.1.0"
         }
       ]
     },
@@ -2670,7 +2680,7 @@
         {
           "h": "Where logs are stored",
           "a": "where-logs-are-stored",
-          "b": "_log lives in its own database file, zonai_log.sqlite, alongside zonai.sqlite in the data directory. _rate_limit gets one too, zonai_rate_limit.sqlite. Both are joined back onto the connection with SQLite's ATTACH, so nothing about querying them changes — the table API, the dashboard and zonai db logs all reach them by name as before. These two tables are disposable: high churn, bounded retention, and nothing worth reconstructing after a crash. That is what earns them a file of their own, and it buys three things that are impossible on a shared database: VACUUM takes its exclusive lock on the disposable data instead of on your tables, which is what makes reclaiming space from a cron viable at all deleting the file becomes a legitimate recovery step, and it is the only one that does not require a write to the volume that has run out of room a page cap becomes expressible, since a cap bounds a file — on a shared database it would be hit by whichever write arrived first, application inserts included _rate_limit gains one more: it is written on every request that reaches a limited operation, and that churn no longer competes for the application database's write-ahead log. Databases cre"
+          "b": "_log lives in its own database file, zonai_log.sqlite, alongside zonai.sqlite in the data directory. _rate_limit gets one too, zonai_rate_limit.sqlite. Both are joined back onto the connection with SQLite's ATTACH, so nothing about querying them changes — the table API, the dashboard and zonai db logs all reach them by name as before. These two tables are disposable: high churn, bounded retention, and nothing worth reconstructing after a crash. That is what earns them a file of their own, and it buys three things that are impossible on a shared database: VACUUM takes its exclusive lock on the disposable data instead of on your tables, which is what makes reclaiming space from a cron viable at all deleting the file becomes a legitimate recovery step, and it is the only one that does not require a write to the volume that has run out of room a page cap becomes expressible, since a cap bounds a file — on a shared database it would be hit by whichever write arrived first, application inserts included _rate_limit gains one more: it is written on every request that reaches a limited operation, and that churn no longer competes for the application database's write-ahead log. If you want a"
         },
         {
           "h": "clear",

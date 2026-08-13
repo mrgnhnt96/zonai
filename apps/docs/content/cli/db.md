@@ -132,6 +132,8 @@ own, and it buys three things that are impossible on a shared database:
 limited operation, and that churn no longer competes for the application
 database's write-ahead log.
 
+If you want a hard guarantee that `_log` can never be what fills a volume, [`logDatabaseMaxSize`](/configuration/zonai-yaml#logdatabasemaxsize) puts a ceiling on that file. It is off by default — a cap that is reached stops log writes, which costs observability exactly when you need it.
+
 Databases created before this change are moved on the next server start.
 **Existing rows are dropped rather than copied** — the deployments that need
 the split most hold millions of them on volumes with no room to copy

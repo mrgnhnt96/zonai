@@ -8,6 +8,7 @@ import 'package:zonai/src/domain/target_os.dart';
 
 import '../deps/args.dart';
 import '../deps/fs.dart';
+import '../utils/parse_bytes.dart';
 
 class Settings {
   const Settings({
@@ -29,6 +30,7 @@ class Settings {
     this.port,
     this.basePath,
     this.dartSdkPath,
+    this.logDatabaseMaxBytes,
   });
 
   static const defaultZonaiDirectory = '.zonai';
@@ -143,6 +145,29 @@ class Settings {
         final String value => value,
         _ => defaultSettings.dartSdkPath,
       },
+      // Opt-in, and absent means unlimited rather than "some default
+      // ceiling". A cap that is reached stops log writes entirely, which
+      // removes observability at exactly the moment something is going
+      // wrong -- not a thing to impose on a deployment that never asked.
+      //
+      // An unparseable value is *not* silently ignored: falling back to
+      // unlimited would leave an operator believing they had a ceiling they
+      // do not have, which is the failure this whole feature exists to
+      // prevent one instance of.
+      logDatabaseMaxBytes: switch (map['logDatabaseMaxSize']) {
+        null => null,
+        final int value when value > 0 => value,
+        final String value =>
+          parseBytes(value) ??
+              (throw FormatException(
+                'Invalid logDatabaseMaxSize: "$value". Expected a positive '
+                'byte count, optionally with a b/kb/mb/gb/tb suffix '
+                '(e.g. 512mb).',
+              )),
+        final value => throw FormatException(
+          'Invalid logDatabaseMaxSize: $value. Expected a size like 512mb.',
+        ),
+      },
     );
   }
 
@@ -164,6 +189,20 @@ class Settings {
   final String? host;
   final int? port;
   final String? dartSdkPath;
+
+  /// Hard ceiling on the log database file, in bytes, or `null` for no cap.
+  ///
+  /// Set with `logDatabaseMaxSize` in `zonai.yaml`. Off by default: reaching
+  /// it makes log writes fail, and a deployment that did not ask for that
+  /// would lose its logs at the worst possible moment. It exists for people
+  /// who want a guarantee that this one table can never be what fills a
+  /// volume.
+  ///
+  /// Only expressible because `_log` has a file of its own —
+  /// `max_page_count` bounds a *file*, so on the shared database the ceiling
+  /// would be hit by whichever write arrived first, application inserts
+  /// included.
+  final int? logDatabaseMaxBytes;
 
   String _normalize(List<String> paths) {
     return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));

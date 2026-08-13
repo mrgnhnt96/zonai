@@ -65,6 +65,14 @@ extension UtilsX on ZonaiDb {
         kLogDbSchema: _logDbFile.path,
         kRateLimitDbSchema: _rateLimitDbFile.path,
       },
+      // Opt-in and absent by default -- see `Settings.logDatabaseMaxBytes`
+      // for why a ceiling is not imposed on a deployment that never asked
+      // for one. `_rate_limit` gets none at all: it is bounded by its own
+      // retention window rather than by growth, and capping it would start
+      // failing the writes that enforce the limits.
+      maxBytes: {
+        if (settings.logDatabaseMaxBytes case final bytes?) kLogDbSchema: bytes,
+      },
     );
     final db = Raindrop(delegate);
 

@@ -271,9 +271,12 @@ final class ResqliteDelegate extends RaindropDelegate {
   /// connection under it. An unqualified table name resolves into an attached
   /// database when `main` has no table by that name, which is what lets a
   /// table live in its own file without every caller learning where it went.
+  /// [maxBytes] caps an attached database's file size, keyed by schema name.
+  /// A schema with no entry is uncapped, which is the default everywhere.
   static Future<ResqliteDelegate> open(
     String path, {
     Map<String, String> attach = const {},
+    Map<String, int> maxBytes = const {},
   }) async {
     // `rawReads` below opens the *same file* through package:sqlite3, which
     // by default dlopens its own, separate copy of libsqlite3 (the system
@@ -384,6 +387,34 @@ final class ResqliteDelegate extends RaindropDelegate {
     for (final schema in attach.keys) {
       await db.execute('PRAGMA "$schema".journal_mode = WAL');
       rawReads.execute('PRAGMA "$schema".journal_mode = WAL');
+    }
+
+    // `max_page_count` is measured to be **per-connection and not persisted**:
+    // setting it on the writer left a fresh handle -- and a later reopen --
+    // reading the default 4294967294. Two consequences, both load-bearing.
+    //
+    // It has to be set on *both* connections or it caps nothing in practice,
+    // because which one a write lands on depends on the statement: an
+    // `INSERT ... RETURNING` (what raindrop's builder emits) is answered by
+    // `rawReads`, a plain `INSERT` by the writer. Capping one would leave the
+    // other as an open door.
+    //
+    // And because it does not persist, removing the setting from `zonai.yaml`
+    // lifts the cap on the next start with nothing to reset -- which is the
+    // behaviour an operator staring at a stalled log table would expect, and
+    // the reason this needs no "uncap" path.
+    for (final MapEntry(key: schema, value: bytes) in maxBytes.entries) {
+      // Pages, not bytes, so the page size has to come from the file itself
+      // rather than be assumed to be the 4096 default.
+      final pageSize =
+          rawReads.select('PRAGMA "$schema".page_size').single.values.first!
+              as int;
+      final pages = bytes ~/ pageSize;
+      // SQLite refuses to set a maximum below the current size, so a cap
+      // under one page would be silently meaningless rather than strict.
+      if (pages < 1) continue;
+      await db.execute('PRAGMA "$schema".max_page_count = $pages');
+      rawReads.execute('PRAGMA "$schema".max_page_count = $pages');
     }
 
     final reads = SQLiteDelegate(rawReads);
