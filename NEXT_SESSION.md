@@ -61,52 +61,59 @@ Suites: zonai_schema 241, apps/zonai 470, doc snippets 3. All green.
 
 ## What is left
 
-### 1. Split `_log` into its own database file — the big one
+### 1. Split `_log` into its own database file — ✅ DONE (`3bcae06`, `09bbb00`)
 
-**Decision already made: drop existing `_log` rows.** No data migration. That
-removes the only genuinely hard part.
+Shipped. `_log` lives in `data/zonai_log.sqlite`, attached as `logdb` on
+**both** connections inside `ResqliteDelegate.open` — the ❌ property from
+`45befd6` is closed, and a test now reads back a row written through the
+attach, which is the only way to catch that failure (the write half works
+either way, which is what made the broken version silent).
 
-Three SQLite properties were checked against the real driver in `45befd6`:
+Nothing downstream changed. An unqualified `_log` resolves into the attached
+DB now that `main` has none, covering the table API, `dashboard_metrics`'s raw
+`FROM "_log"`, and the retention crons. The schema name appears only where a
+statement must name a *file*: the attach, the DDL, `VACUUM`, `wal_checkpoint`.
 
-- ✅ A page cap on the attached DB stops log writes and leaves application
-  writes untouched. **This is why the cap cannot land before the split** —
-  `max_page_count` bounds a *file*, so on the shared database the ceiling is hit
-  by whichever write arrives first, application inserts included.
-- ✅ `VACUUM <schema>` rewrites the attached file alone, so reclaiming log space
-  does not lock application data. This is what makes vacuuming from a cron
-  viable at all.
-- ❌ **A single `ATTACH` reaches only the write connection.** `ResqliteDelegate`
-  opens the same file twice — `rs.Database` for writes, a `package:sqlite3`
-  handle for reads — and routes by statement verb. Writes land in the attached
-  DB; reads are answered by a connection that has never heard of it. Log rows
-  would be written and then be unreadable.
+Existing rows are dropped on first open, as decided. Their pages go to main's
+freelist, so `db logs clear --vacuum` now rewrites **both** files.
 
-So the implementation requirement is concrete: **attach on both connections
-inside `ResqliteDelegate.open`**, right where `PRAGMA foreign_keys` is set
-(`resqlite_delegate.dart:339-341`). That pragma's own comment records the
-identical trap being learned the hard way — read it before starting.
+Covered by `log_database_split_test.dart` (8 tests): read-after-write through
+the attach, the drop-before-create ordering (main shadows the attached table,
+so a stale `_log` would silently send every write back to the shared file),
+the indexes being recreated in the new file rather than lost with the dropped
+table, a second open not re-running the move, and a live stream still
+re-emitting.
 
-Once the attach is on both connections, downstream should need no changes: an
-unqualified `_log` resolves into the attached DB when `main` has no such table,
-which covers the table API and `dashboard_metrics.dart`'s raw `FROM "_log"`.
+**Found while doing it:** an attached database keeps its own journal mode and
+defaults to `delete` — `main` read `wal` and `logdb` read `delete`, measured
+side by side. `_purge`'s per-round checkpoint and `_vacuum`'s trailing one
+were therefore **no-ops on the log DB**, silently, since a checkpoint against
+a database with no WAL just returns. Fixed in `09bbb00`.
 
-Remaining steps:
+Still not investigated: in WAL mode a transaction spanning `main` and an
+attached DB is **not atomic** across both. Harmless for logs; worth a thought
+before moving anything else (see #5).
 
-1. Create/open the log DB alongside `zonai.sqlite`; attach as e.g. `logdb` on
-   **both** connections.
-2. Create `_log` there; drop `_log` from `main` in an internal migration.
-3. Point `_purge` and `_vacuum` at the right schema.
-4. Confirm `zonai db logs`, the dashboard, and `dashboard_metrics` still read.
+### 2. `max_page_count` on the log DB — the remaining half
 
-One caveat not yet investigated: in WAL mode a transaction spanning `main` and
-an attached DB is **not atomic** across both. Harmless for logs; worth a
-thought before moving anything else.
+`journal_size_limit` is **resolved: deliberately not done.** Measuring it did
+not support the plan. With the limit at 32 KB and a 1.6 MB WAL, checkpoints at
+PASSIVE, FULL *and* RESTART all reported full success (`[0, 399, 399]` — not
+busy, every frame copied) and left the file at full size. Only TRUNCATE shrank
+it, and TRUNCATE does that with or without a limit. `_purge` uses PASSIVE and
+wants pages returned for reuse rather than the file shrunk; `_vacuum` already
+uses TRUNCATE. The finding is recorded next to the `journal_mode` pragma that
+replaced it in `resqlite_delegate.dart`.
 
-### 2. `max_page_count` + `journal_size_limit` on the log DB
+`max_page_count` is now unblocked and verified safe by `45befd6` (it stops log
+writes and leaves application writes untouched). **It needs a decision before
+it can land**, not just code:
 
-Blocked on #1, and *incorrect* before it — see above. `journal_size_limit` is
-independent and one line: the WAL currently grows and is never truncated after
-checkpoint. Only `PRAGMA foreign_keys` is set at open today.
+- What cap, and is it configurable in `zonai.yaml`?
+- What happens when it is hit. A log insert starts failing with `SQLITE_FULL`,
+  and the write path is `trace_id.dart`'s fire-and-forget callback. A cap that
+  can take down request handling is worse than the runaway table. This almost
+  certainly needs the log write to become explicitly non-fatal first.
 
 ### 3. Conditional VACUUM in the cleanup cron
 
@@ -132,8 +139,12 @@ nearly-full volume drain, and the error now says what to do.
 ### 5. `_rate_limit` in its own database too
 
 Requested. Same disposable profile as `_log` — per-request churn, bounded
-retention, nothing worth reconstructing. Do it after #1 so the mechanism is
-generalized once rather than twice. The `todo.md` entry from `c0d73ea` frames
+retention, nothing worth reconstructing. **Now cheap**: `ResqliteDelegate
+.open`'s `attach` takes a map, and `_ensureLogDatabase` is the template for
+drop-then-create-in-schema. The one thing to think about first is the
+non-atomic cross-database transaction noted in #1 — rate limiting reads and
+writes `_rate_limit` inside request handling, so unlike logs it may actually
+care. The `todo.md` entry from `c0d73ea` frames
 the general version ("table groups") and lists `_auth_challenges` and
 `_cron_jobs` as further candidates.
 
@@ -185,6 +196,17 @@ pending a person.
 Channel `z-log-cleanup` on llm_chat is still open; both sides stayed reachable.
 
 ## Traps worth not rediscovering
+
+- **An attached database inherits nothing.** Not the journal mode (defaults to
+  `delete` beside a WAL `main`), not pragmas, not the second connection. Every
+  connection-local or file-local setting has to be applied per connection
+  *and* per schema.
+- **A `wal_checkpoint` against a non-WAL database is not an error.** It returns
+  successfully and does nothing. Two disk-bounding routines ran that way for a
+  commit without a single symptom.
+- **`PRAGMA` is not a read verb**, so `ResqliteDelegate.execute` routes it to
+  the writer — which discards row data. A pragma's value can only be read back
+  through `transaction`, which runs on the companion sqlite3 connection.
 
 - **`min` resolves to raindrop's SQL aggregate, not `dart:math`'s.** The
   raindrop barrel exports it and silently wins. Caught by the analyzer only
