@@ -3,8 +3,24 @@
 // libs/zonai_schema/tool/generate_raindrop_vendor.dart) because it needs
 // `package:resqlite`, a git dependency that would block zonai_schema from
 // publishing. apps/zonai is a distributed CLI binary, never published, so
-// it's free to carry it directly. Re-sync by hand if raindrop_sqlite's
-// upstream version of this file changes.
+// it's free to carry it directly.
+//
+// ⚠ THIS COPY HAS DELIBERATELY DIVERGED AHEAD OF UPSTREAM. Do not re-sync by
+// overwriting it. As of 2026-08-13 the two differ by ~156 lines, and
+// everything below that upstream does not have is load-bearing for zonai:
+//
+//   * `open`'s `attach` parameter, applied to BOTH connections. Upstream has
+//     no concept of it. This is what puts `_log` and `_rate_limit` in files
+//     of their own; without it they silently return to `zonai.sqlite`.
+//   * `PRAGMA <schema>.journal_mode = WAL` on each attached database, which
+//     does not inherit `main`'s and otherwise sits in `delete` mode, making
+//     every `wal_checkpoint` against it a silent no-op.
+//   * `open`'s `maxBytes`, backing `logDatabaseMaxSize`.
+//
+// The tests that would catch losing any of this live in `apps/zonai`
+// (`log_database_split_test.dart`, `log_database_cap_test.dart`), so
+// raindrop's own suite stays green while the damage is done. If upstream
+// changes, MERGE its changes into this file -- do not copy it over.
 
 import 'dart:async';
 
