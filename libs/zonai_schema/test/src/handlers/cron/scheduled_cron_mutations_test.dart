@@ -33,9 +33,9 @@ class _FakeMessageIo implements MessageIo {
 
 void main() {
   test(
-    'a mutation queued inside a nested runWithParent is attached to the OUTER '
-    'request -- which is how a scheduled cron\'s delete is parked against a '
-    'response the host already answered at startup',
+    'a mutation queued inside a nested runWithParent is attached to the INNER '
+    'request, so a cron firing owns its own effects rather than inheriting '
+    'the scope that started the scheduler',
     () async {
       final io = _FakeMessageIo();
       final handler = MessageHandler<CronRequest>(
@@ -77,35 +77,31 @@ void main() {
 
       final parentId = (deletes.single['parent'] as Map)['id'];
 
-      // Positive control first: naming which id it actually is, so a future
-      // failure here reports a changed mechanism rather than just "not run.id".
       expect(
         parentId,
-        start.id,
+        run.id,
         reason:
-            'BUG: the inner runWithParent uses `includeIfAbsent`, so with '
-            '_mutateProvider already bound by the outer scope the inner '
-            'binding is skipped and the mutation inherits the OUTER parent. '
-            'The host keys _pendingMutations by that id and flushes it when '
-            'the matching response arrives -- which for StartCronsRequest '
-            'already happened at startup. Every later scheduled firing parks '
-            'a mutation there that nothing will ever flush.',
+            'the mutation belongs to the cron firing that queued it. The '
+            'inner runWithParent must REBIND _mutateProvider (override, not '
+            'includeIfAbsent) -- otherwise it inherits the outer scope and '
+            'the host parks the mutation under an id whose only response was '
+            'sent at startup, where nothing will ever flush it.',
       );
 
       expect(
         parentId,
-        isNot(run.id),
+        isNot(start.id),
         reason:
-            'the mutation belongs to the cron firing that queued it; this is '
-            'the assertion that should hold once the binding is fixed',
+            'inheriting the outer parent is the regression this file exists '
+            'to catch',
       );
     },
   );
 
   test(
-    'a timer created inside runWithParent still carries that scope when it '
-    'fires later -- which is what makes every scheduled firing nest inside '
-    'StartCronsRequest rather than standing alone',
+    'a firing from a timer created inside runWithParent still binds its own '
+    'parent -- the nesting is unavoidable (timers keep their creating zone), '
+    'so the rebinding is what makes scheduled crons work at all',
     () async {
       final io = _FakeMessageIo();
       final handler = MessageHandler<CronRequest>(
@@ -117,6 +113,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       final start = StartCronsRequest();
+      final run = RunCronJobRequest(name: '_delete_old_rate_limits');
       final fired = Completer<void>();
 
       // `_startCrons` calls `cron.schedule(...)` from inside this scope. The
@@ -125,15 +122,12 @@ void main() {
       // active on every later firing, long after CronsStarted was answered.
       await handler.runWithParent(start, () async {
         Timer(const Duration(milliseconds: 5), () async {
-          await handler.runWithParent(
-            RunCronJobRequest(name: '_delete_old_rate_limits'),
-            () async {
-              mutate.delete.many(
-                tableName: '_rate_limit',
-                where: Lt('timestamp', DateTime.utc(2020)),
-              );
-            },
-          );
+          await handler.runWithParent(run, () async {
+            mutate.delete.many(
+              tableName: '_rate_limit',
+              where: Lt('timestamp', DateTime.utc(2020)),
+            );
+          });
           fired.complete();
         });
       });
@@ -147,12 +141,13 @@ void main() {
       expect(deletes, hasLength(1));
       expect(
         (deletes.single['parent'] as Map)['id'],
-        start.id,
+        run.id,
         reason:
-            'a firing that happens minutes or hours after startup still '
-            'attaches its mutation to the startup request. This is why '
-            '_delete_old_rate_limits deleted nothing across 1,256 runs '
-            'against a 42-row table: the row count was never reached.',
+            'a firing long after startup is still inside the StartCronsRequest '
+            'zone, so this is the case that only passes because the binding is '
+            'an override. It is why _delete_old_rate_limits deleted nothing '
+            'across 1,256 runs against a 42-row table: the row count was never '
+            'reached, because the mutation was filed under the startup id.',
       );
     },
   );

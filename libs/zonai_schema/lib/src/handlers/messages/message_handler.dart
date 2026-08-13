@@ -239,6 +239,23 @@ class MessageHandler<R extends Request> {
   /// Side-effect [MutationRequest]s emitted during [body] use [parent.id] as
   /// their parent id so the host can commit them when the matching notification
   /// response arrives.
+  ///
+  /// The request-scoped bindings below are `override`, not `includeIfAbsent`,
+  /// and the difference is load-bearing. `includeIfAbsent` skips a ref the
+  /// zone chain already defines, so a *nested* `runWithParent` silently kept
+  /// the outer request's bindings — and a scheduled cron nests: `_startCrons`
+  /// runs inside `runWithParent(StartCronsRequest)`, `cron.schedule` registers
+  /// its timers there, and a Dart timer fires in the zone that created it. So
+  /// every firing, hours later, tagged its mutations with the startup
+  /// request's id. The host keys `_pendingMutations` by that id and flushes it
+  /// when the matching response arrives — which for `CronsStarted` had already
+  /// happened, once, at boot. The mutations were parked forever, at any row
+  /// count, without an error. Found via a production deployment whose
+  /// retention crons had run 1,269 times and deleted nothing
+  /// (see `test/src/handlers/cron/scheduled_cron_mutations_test.dart`).
+  ///
+  /// `_msg` and `_cron` stay in `includeIfAbsent`: they close over [reply] and
+  /// [sendRequest], not over [request], so rebinding them would be a no-op.
   Future<void> runWithParent(covariant Request request, Future<void> Function() body) {
     final pendingSideEffects = <Future<void>>[];
 
@@ -262,6 +279,8 @@ class MessageHandler<R extends Request> {
             sendRequest(RunCronJobRequest(name: name));
           }),
         ),
+      },
+      override: {
         _emailProvider.overrideWith(
           () => _Email(
             (email) {
