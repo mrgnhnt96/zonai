@@ -5,6 +5,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai_logger/zonai_logger.dart' as zonai_log;
 import 'package:zonai_schema/payloads.dart';
 
+import '../../deps/args.dart';
 import '../../deps/keyboard_input.dart';
 import '../../deps/kill.dart';
 import '../../deps/logger.dart';
@@ -15,7 +16,29 @@ import 'actions/project_init.dart';
 import 'components/dev_app.dart';
 import 'dev_form_options.dart';
 
+const _usage = '''
+Usage: zonai dev [options]
+
+Start the server and open the interactive development TUI.
+
+Options:
+  -h, --help            Show help information
+      --host=<address>  Bind address (default: zonai.yml host, then localhost)
+      --port=<number>   HTTP port (default: zonai.yml port, then 8080)
+      --flavor=<name>   Config flavor to load
+  -c, --config=<path>   Path to zonai.yml
+''';
+
 Future<int> dev() async {
+  // Before anything else: the next statements take over stdin, suspend the
+  // kill handler and hand the terminal to nocterm's alternate screen, so a
+  // `--help` that got this far would replace the user's shell with a running
+  // server rather than answer the question.
+  if (args.help) {
+    logger.info(_usage);
+    return 1;
+  }
+
   if (await ensureProjectInitialized() case final exitCode?) {
     return exitCode;
   }
@@ -71,4 +94,3 @@ Future<int> dev() async {
   }, values: {loggerProvider.overrideWith(() => tuiLogger)});
   return 0;
 }
-

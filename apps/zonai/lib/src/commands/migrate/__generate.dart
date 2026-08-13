@@ -1,24 +1,26 @@
 part of 'migrate.dart';
 
 const _generateUsage = '''
-Usage: zonai migrate generate [options]
+Usage: zonai db migrate generate [options]
+
+Diff the schemas against the database and write a new SQL migration.
 
 Options:
-  -h, --help      Show help information
-  -n, --name      Name for the migration
-  --dry-run       Show what would be generated without creating files
+  -h, --help          Show help information
+  -n, --name=<name>   Name for the migration (required)
+      --dry-run       Show what would be generated without writing files
+  -c, --config=<path> Path to zonai.yml
 ''';
 
 Future<int> _generate() async {
   if (args.help) {
-    print(_generateUsage);
+    logger.info(_generateUsage);
     return 1;
   }
 
-  final name = switch (args['name']) {
-    final String name => name,
-    _ => null,
-  };
+  // Read with the abbreviation declared: `-n` is parsed into `abbrs`, never
+  // into `values`, so the documented short form used to fail as "missing".
+  final name = args.getOrNull<String>('name', abbr: 'n');
 
   if (name == null) {
     logger.error('Missing required argument: --name');
@@ -27,7 +29,7 @@ Future<int> _generate() async {
 
   final exitCode = deps.migrate.run(
     name: name,
-    dryRun: args.getOrNull('dry-run'),
+    dryRun: args.getOrNull<bool>('dry-run'),
   );
   return exitCode;
 }

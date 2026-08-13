@@ -4,10 +4,31 @@ import 'dart:math';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 
 import '../../db_mutator/payloads/payloads.dart';
+import '../../deps/args.dart';
 import '../../deps/logger.dart';
 import '../../deps/zonai_db.dart';
 
+const _usage = '''
+Usage: zonai db test
+
+Run the end-to-end database smoke test against the local database: sign-up,
+sign-in, token refresh, admin auth, CRUD, streams and logout. Creates and
+deletes real records.
+
+Only available when running from source -- released binaries do not ship it.
+
+Options:
+  -h, --help      Show help information
+''';
+
 Future<int> test() async {
+  // This command writes to the database it is pointed at, so `--help` has to
+  // answer before the first sign-up.
+  if (args.help) {
+    logger.info(_usage);
+    return 1;
+  }
+
   logger.info('AUTHENTICATE');
   if (await _authenticate() case final int exitCode) {
     return exitCode;

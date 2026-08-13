@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:zonai_schema/zonai_schema.dart' hide logger;
 
 import '../../db_mutator/payloads/payloads.dart';
+import '../../deps/args.dart';
 import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/settings.dart';
@@ -15,7 +16,27 @@ const testImageBytes = [0xFF, 0xD8, 0xFF, 0xD9];
 /// Distinct bytes used to verify PATCH replaces the on-disk image.
 const updatedImageBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0xFF, 0xD9];
 
+const _usage = '''
+Usage: zonai db photos
+
+Run the end-to-end photo upload smoke test against the local database:
+upload, size and MIME enforcement, view, update, and delete. Creates and
+deletes real records and image files.
+
+Only available when running from source -- released binaries do not ship it.
+
+Options:
+  -h, --help      Show help information
+''';
+
 Future<int> photos() async {
+  // Same as `db test`: this signs a user up and writes image files before it
+  // would ever reach a usage string.
+  if (args.help) {
+    logger.info(_usage);
+    return 1;
+  }
+
   logger.info('SIGN UP');
   final (exitCode, email) = await _signUp();
   if (exitCode != null || email == null) {

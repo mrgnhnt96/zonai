@@ -23,7 +23,39 @@ import '../deps/revali.dart';
 import '../deps/rules.dart';
 import '../native/resqlite_native.dart';
 
+const _usage = '''
+Usage: zonai serve [options]
+
+Start the Zonai HTTP server.
+
+Options:
+  -h, --help              Show help information
+      --host=<address>    Bind address (default: zonai.yml host, then
+                          localhost)
+      --port=<number>     HTTP port (default: zonai.yml port, then 8080)
+      --flavor=<name>     Config flavor to load
+      --release           Production mode: no file watchers, no recompiling
+      --no-auto-migrate   Do not apply pending migrations on startup
+  -c, --config=<path>     Path to zonai.yml
+
+Keys while serving:
+  c   Recompile all workers
+  m   Generate and apply database migrations
+  p   Ping all workers and print their health
+  r   Restart the database connection (dev only)
+  q   Quit
+''';
+
 Future<int> serve() async {
+  // First statement in the command, deliberately: everything after it starts
+  // a server. `serve --help` on a production box used to boot a second one --
+  // binding the port, sweeping crons, and auto-applying pending migrations --
+  // for someone who only wanted to read the flags.
+  if (args.help) {
+    logger.info(_usage);
+    return 1;
+  }
+
   if (await ensureProjectInitialized() case final initExitCode?) {
     return initExitCode;
   }

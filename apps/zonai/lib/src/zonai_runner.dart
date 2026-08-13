@@ -28,6 +28,21 @@ Commands:
   ping        Ping worker executables
   rules       Inspect compiled rules
   ai          Install AI coding assistant reference files
+
+Global options (accepted by every command):
+  -h, --help                 Show help information
+  -c, --config=<path>        Path to zonai.yml (auto-detected when omitted)
+      --flavor=<name>        Config flavor to compile and load
+      --release              Production mode: no asserts, no file watchers
+      --log=<level>          verbose, trace, request, debug, info, warning
+                             or error (default: info)
+  -q, --quiet                Only print errors (same as --log error)
+  -L, --loud                 Print every internal log (same as --log verbose)
+      --no-version-check     Skip the CLI/project version check
+      --no-schema-version-check
+                             Skip the zonai_schema minimum-version check
+
+Run `zonai <command> --help` for a command's own options.
 ''';
 
 Future<int> run() async {
@@ -36,30 +51,33 @@ Future<int> run() async {
     return 1;
   }
 
-  if (await versions.assertVersion() case final exitCode?) {
-    return exitCode;
-  }
+  // `--help` must reach its command without anything happening on the way.
+  //
+  // Every step below can prompt, download a release, hit the network, write
+  // generated sources, compile a project binary, or re-exec into one -- all
+  // so the child process can print a usage string and exit. Asking a command
+  // how to use it is the one invocation guaranteed to have no side effects.
+  if (!args.help) {
+    if (await versions.assertVersion() case final exitCode?) {
+      return exitCode;
+    }
 
-  final isExplicitVersionCommand = switch (args.path) {
-    ['version', 'update' || 'check', ...] => true,
-    _ => false,
-  };
+    final isExplicitVersionCommand = switch (args.path) {
+      ['version', 'update' || 'check', ...] => true,
+      _ => false,
+    };
 
-  if (!isExplicitVersionCommand) {
-    await versions.checkForUpdate();
-  }
+    if (!isExplicitVersionCommand) {
+      await versions.checkForUpdate();
+    }
 
-  if (args.help && args.path.isEmpty) {
-    logger.info(_usage);
-    return 1;
-  }
+    if (await schemaVersionCheck.ensure() case final exitCode?) {
+      return exitCode;
+    }
 
-  if (await schemaVersionCheck.ensure() case final exitCode?) {
-    return exitCode;
-  }
-
-  if (await maybeReexecProjectRuntime() case final exitCode?) {
-    return exitCode;
+    if (await maybeReexecProjectRuntime() case final exitCode?) {
+      return exitCode;
+    }
   }
 
   switch (args.path) {

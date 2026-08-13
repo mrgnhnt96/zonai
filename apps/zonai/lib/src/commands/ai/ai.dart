@@ -21,12 +21,14 @@ Tools:
   cline      Cline (.clinerules)
 
 Options:
+  -h, --help   Show help information
   -f, --force  Overwrite existing files
-  -h, --help   Show this help
 ''';
 
 Future<int> ai(List<String> path) async {
-  if (args.help && path.isEmpty) {
+  // Not `&& path.isEmpty`: `zonai ai claude --help` used to write CLAUDE.md,
+  // and `zonai ai all --help` wrote every reference file in the project.
+  if (args.help) {
     logger.info(_usage);
     return 1;
   }

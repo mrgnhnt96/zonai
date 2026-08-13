@@ -18,12 +18,19 @@ Subcommands:
   table <name> <operation>  Show table access rules (e.g. read, create)
 
 Options:
-  --jwt=<token>   JWT bearer token to evaluate rules as that user
-  -h, --help      Show help information
+  -h, --help              Show help information
+      --jwt=<token>       JWT bearer token to evaluate rules as that user
+                          (omit to evaluate as an anonymous request)
+  -c, --config=<path>     Path to zonai.yml
+
+The rules worker must already be compiled (`zonai compile`); the server does
+not need to be running.
 ''';
 
 Future<int> rules(List<String> path) async {
-  if (args.help && path.isEmpty) {
+  // Not `&& path.isEmpty`: `rules list --help` and `rules table t read --help`
+  // used to spawn the rules worker and evaluate, ignoring the flag entirely.
+  if (args.help) {
     logger.info(_usage);
     return 1;
   }

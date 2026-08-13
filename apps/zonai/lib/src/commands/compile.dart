@@ -6,7 +6,27 @@ import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
 
 import '../../deps.dart';
 
+const _usage = '''
+Usage: zonai compile [options]
+
+Compile every worker executable into .zonai/executables/ and regenerate the
+project entry. Does not produce a deployment bundle -- use `zonai build`.
+
+Options:
+  -h, --help            Show help information
+      --flavor=<name>   Config flavor to compile with
+      --release         Compile without Dart asserts
+  -c, --config=<path>   Path to zonai.yml
+''';
+
 Future<int> compile([BuildSettings? buildSettings]) async {
+  // `zonai build` reaches this with its own [buildSettings] and has already
+  // handled `--help` itself, so only the bare `zonai compile` can be asking.
+  if (buildSettings == null && args.help) {
+    logger.info(_usage);
+    return 1;
+  }
+
   logger.info('Compiling all workers...');
 
   await Future.wait([
