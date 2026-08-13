@@ -54,7 +54,13 @@ tags = {
 }
 declared = {path: tag for path, tag in tags.items() if tag}
 
-expected = {".github/workflows/compile.yml", ".github/workflows/native-libs.yml"}
+expected = {
+    ".github/workflows/compile.yml",
+    ".github/workflows/native-libs.yml",
+    # cross-target-build restores the same libraries to generate the native
+    # byte bindings, which apps/zonai/lib/gen/ needs and a checkout lacks.
+    ".github/workflows/release.yml",
+}
 if set(declared) != expected:
     print(
         "NATIVE_LIBS_CACHE_TAG should be declared by exactly "

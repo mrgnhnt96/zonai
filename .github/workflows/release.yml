@@ -10,6 +10,14 @@ permissions:
   contents: write
   actions: read
 
+env:
+  # Third declarer of this string, after compile.yml and native-libs.yml --
+  # cross-target-build restores the same prebuilt libraries to generate the
+  # native byte bindings. check_workflows.sh asserts all three agree; it names
+  # exactly which files may declare it, so adding a fourth means updating that
+  # list too.
+  NATIVE_LIBS_CACHE_TAG: native-libs-cache
+
 jobs:
   package-fat-binary:
     name: Package fat binary (macOS + Linux)
@@ -278,6 +286,49 @@ jobs:
 
       - name: Get dependencies
         run: dart pub get
+
+      # `apps/zonai/lib/gen/` is gitignored and produced by compile.yml, so a
+      # plain checkout does not have it. This job needs it anyway, because
+      # `zonai build` links the smoke project against apps/zonai's own sources
+      # (resolveProjectLink's merged package_config), so the AOT compile reads
+      # those files directly -- it failed on a missing `kVersion` and missing
+      # `*_native.g.dart` byte bindings, which is what this step exists to
+      # prevent. Passed on v0.6.2 and broke here, so it is fragile rather than
+      # new: nothing pinned the requirement, it was just incidentally
+      # satisfied before.
+      - name: Generate lib/gen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Inlined from scripts.yaml's `version.gen` rather than shelled out,
+          # so this does not depend on sip being activated -- and deliberately
+          # NOT resolve_release_version.sh, which would *bump* the version
+          # (VERSION now equals the tag, so it would resolve to a new minor).
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          mkdir -p apps/zonai/lib/gen
+          echo "const kVersion = \"${VERSION}\";" > apps/zonai/lib/gen/version.dart
+          echo "kVersion = ${VERSION}"
+
+          # The native byte bindings, from the same cache release compile.yml
+          # reads. With the libraries present, ZONAI_SKIP_NATIVE_BUILD makes
+          # the gen scripts emit the .g.dart wrappers without rebuilding
+          # libsodium from source.
+          mkdir -p apps/zonai/lib/gen/native
+          archive="native-libs-macos-arm64.tar.gz"
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+          dart pub global activate sip_cli >/dev/null
+          export ZONAI_SKIP_NATIVE_BUILD=true
+          dart pub global run sip_cli:sip run resqlite gen
+          dart pub global run sip_cli:sip run argon2 gen
+          ls -la apps/zonai/lib/gen apps/zonai/lib/gen/native
 
       - name: Download the released macOS arm64 binary
         shell: bash
