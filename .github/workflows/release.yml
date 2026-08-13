@@ -21,8 +21,18 @@ jobs:
       contents: read
       actions: read
     steps:
+      # `submodules: recursive` is not optional here even though this job only
+      # runs a version check: the root pubspec declares `resolution: workspace`,
+      # so `dart pub get` resolves every member -- including apps/zonai, which
+      # depends on `resqlite` by path. Without the submodule that path has no
+      # pubspec and resolution fails outright ("No pubspec.yaml found for
+      # package resqlite"), before the check this job exists for ever runs.
+      # Cost a release on 2026-08-13, run 31746052351.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_PAT }}
 
       # The CLI cannot ship ahead of the zonai_schema floor it declares, and
       # the floor is only reachable if the PUBLISHED zonai_client admits it
