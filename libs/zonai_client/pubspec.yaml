@@ -11,7 +11,7 @@ environment:
 dependencies:
   file: ^7.0.1
   http: ^1.6.0
-  revali_client: ^2.0.4
+  revali_client: ^2.1.0
   # Spans both 0.1.x and 0.2.x on purpose. zonai_schema 0.2.0's breaking change
   # is `TableRateLimits.customPolicy`, which is server-side and which nothing
   # here references -- so a `^` pin would force consumers of this client onto
