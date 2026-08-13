@@ -144,6 +144,38 @@ final class InvalidColumnValueException extends CrudException {
 /// Thrown when too many mutating requests are already queued for the single
 /// SQLite writer. Mapped to HTTP 503 so clients can retry instead of waiting
 /// on a multi-second busy-timeout spin.
+/// Thrown when a write failed because the volume holding the database has no
+/// space left.
+///
+/// This exists because of what the raw failure looks like: SQLite reports
+/// "database or disk is full" or a bare "disk I/O error", which reaches an
+/// operator as a generic write failure on whichever request happened to be
+/// unlucky. Nothing in it says the disk is the problem, and nothing says what
+/// to do — a production deployment sat at 100% for thirteen days with its
+/// health check green, because a full volume does not stop a process, it only
+/// stops it writing.
+///
+/// The message names the remedy, because at zero bytes free the database
+/// cannot fix itself: reclaiming space needs a write, and that is the write
+/// being refused.
+final class DiskFullException implements Exception {
+  const DiskFullException({this.path, this.cause});
+
+  /// The database's location, when known — an operator needs to know which
+  /// volume to grow, not just that one is full.
+  final String? path;
+  final Object? cause;
+
+  @override
+  String toString() {
+    final where = path == null ? '' : ' holding $path';
+    return 'No space left on the volume$where. Writes are failing and the '
+        'database cannot reclaim space on its own, because reclaiming it '
+        'requires a write. Extend the volume, then let retention run and '
+        'vacuum to return the freed pages to the operating system.';
+  }
+}
+
 final class WriteBackpressureException implements Exception {
   const WriteBackpressureException();
 

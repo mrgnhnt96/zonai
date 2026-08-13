@@ -18,7 +18,8 @@ Object mapDatabaseError(
       error is CrudException ||
       error is PhotoException ||
       error is SchemaException ||
-      error is PermissionException) {
+      error is PermissionException ||
+      error is DiskFullException) {
     return error;
   }
 
@@ -29,6 +30,19 @@ Object mapDatabaseError(
   }
 
   final lower = message.toLowerCase();
+
+  // Checked before the constraint cases: a full volume can surface as a
+  // write failure on any statement, so it would otherwise be reported as
+  // whatever operation happened to be running when the disk ran out. The
+  // three spellings are SQLITE_FULL, the errno underneath it, and
+  // SQLITE_IOERR_WRITE, which is what a full disk usually looks like once
+  // the WAL cannot be extended.
+  if (lower.contains('database or disk is full') ||
+      lower.contains('no space left on device') ||
+      lower.contains('disk i/o error')) {
+    return DiskFullException(cause: error);
+  }
+
   if (lower.contains('foreign key constraint failed') ||
       lower.contains('foreign key')) {
     return ForeignKeyConstraintException(table: table);
