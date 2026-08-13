@@ -11,9 +11,19 @@ It assumes you already know what `zonai build` produces and what `--release` mea
 [Building for Production](/deployment/building-for-production), [Cross-Compilation](/deployment/cross-compilation),
 and [Running the Server](/deployment/running-the-server) first.
 
-Written against zonai 0.6.2. Project-linked builds (in-process ops/rules) landed in 0.6.1, and 0.6.2
-is the first version whose cross-compiled bundle is target-arch all the way through — on 0.6.1 the two
-`.aot` snapshots come out for the build host. See [step 3](#3-build-the-deploy-bundle).
+Written against zonai 0.6.2. Project-linked builds (in-process ops/rules) landed in 0.6.1.
+
+<Warning>
+
+**No released version cross-compiles the `.aot` snapshots correctly yet.** Through v0.6.2 inclusive,
+`zonai build` passes `buildSettings` to the `.exe` compile and not to the aot-snapshot one, so a
+cross-compiled bundle ships two host-arch `.aot` files inside an otherwise correct `linux/x64` image.
+It is fixed on `main` but not in any tag, and `lib/gen/version.dart` still reads `0.6.2` there — so
+`zonai version` prints the same string either way and **cannot** tell you which one you have. Until
+the next release, assume you have the bug and keep the arch check in
+[step 3](#3-build-the-deploy-bundle); it catches this exact case.
+
+</Warning>
 
 ## Do You Even Need Docker?
 
@@ -191,10 +201,25 @@ strings apps/server/build/.zonai/executables/db_config.exe | grep -c 'dev-jwt-se
 ```
 
 Every object file in the bundle should be `x86-64`, including the two `.aot` snapshots in
-`.zonai/executables/`. Before 0.6.2 they came out for the build host — `zonai build` passed
-`buildSettings` to the `.exe` compile and not to the aot-snapshot one — and a bundle carrying them
-deployed and served without complaint, so it's worth keeping this check in your script rather than
-trusting the build.
+`.zonai/executables/`. **On every released version through v0.6.2 they come out for the build host**
+— `zonai build` passes `buildSettings` to the `.exe` compile and not to the aot-snapshot one — and a
+bundle carrying them deploys and serves without complaint, so keep this check in your script rather
+than trusting the build.
+
+If your bundle has host-arch `.aot` files, recompile them from the generated sources with the target
+flags and the same `-D` defines, after `zonai build`:
+
+```sh
+for worker in rules operations; do
+  dart compile aot-snapshot --target-os linux --target-arch x64 \
+    "apps/server/.dart_tool/zonai/db_${worker}.dart" \
+    -o "apps/server/build/.zonai/executables/db_${worker}.aot"
+done
+```
+
+The `-D` defines matter: these snapshots are a second compile of the same sources as the `.exe`, so
+they need the same `.env`-derived defines or the in-process path reads different config than the
+worker path. The arch check above then passes for the right reason.
 
 ## 4. Dockerfile
 
@@ -312,16 +337,42 @@ ZONAI_PORT="${ZONAI_INTERNAL_PORT:-8081}"
 
 ./zonai serve --release --host 127.0.0.1 --port "$ZONAI_PORT" &
 ZONAI_PID=$!
-trap 'kill -TERM "$ZONAI_PID" 2>/dev/null || true' TERM INT
+GATEWAY_PID=""
+
+shutdown() {
+  kill -TERM "$ZONAI_PID" 2>/dev/null || true
+  [ -n "$GATEWAY_PID" ] && kill -TERM "$GATEWAY_PID" 2>/dev/null || true
+}
+trap shutdown TERM INT
 
 # Wait for zonai to actually answer before starting the public process,
 # which signs in at startup and would fail against a half-booted server.
+# Bounded, and gives up if the zonai process itself is gone.
+boot_deadline=$(( SECONDS + 120 ))
 until curl -fs "http://127.0.0.1:${ZONAI_PORT}/health" >/dev/null 2>&1; do
+  if ! kill -0 "$ZONAI_PID" 2>/dev/null; then
+    echo "zonai exited before it became healthy; exiting so Fly restarts" >&2
+    exit 1
+  fi
+  if [ "$SECONDS" -ge "$boot_deadline" ]; then
+    echo "zonai did not become healthy within 120s; exiting so Fly restarts" >&2
+    shutdown
+    exit 1
+  fi
   sleep 0.5
 done
 
 export ZONAI_BASE_URL="http://127.0.0.1:${ZONAI_PORT}"
-exec ./gateway
+
+./gateway &
+GATEWAY_PID=$!
+
+# Supervise both. Whichever dies first takes the machine down with it.
+status=0
+wait -n || status=$?
+echo "a supervised process exited (status ${status}); shutting down so Fly restarts" >&2
+shutdown
+exit 1
 ```
 
 Points that matter:
@@ -332,7 +383,30 @@ Points that matter:
   the only thing on a public port. See [Server Binding](/deployment/server-binding).
 - The health poll hits zonai's own built-in `GET /health`. Your public process's health path is
   whatever you gave it — the two are different endpoints on different ports.
-- `exec` on the last process makes it PID 1, so Fly's signals reach it.
+- **Neither process is `exec`'d.** The script stays alive as their parent so it can notice one dying.
+- `wait -n` needs bash, which is why the shebang is `bash` and not `sh`; the Debian image from
+  [step 4](#4-dockerfile) has bash 5.
+
+<Warning>
+
+**Don't `exec` the front-end process.** `exec ./gateway` is the tempting last line — it's the usual
+advice for signal delivery — but it replaces the shell, destroying the only process that knew
+`zonai serve` existed. The gateway inherits zonai as a child and never `wait()`s on it, so if zonai
+dies it becomes an unreaped **zombie** while the gateway keeps serving its public port perfectly
+happily and every proxied request fails against a backend that is no longer there. Nothing exits,
+nothing logs, and Fly never restarts the machine. This is not hypothetical — it produced a
+multi-hour production outage that reported itself healthy the entire time.
+
+The signal argument doesn't hold on Fly anyway: PID 1 in a Fly machine is Fly's own `init`, so your
+script is already a direct child of it and receives `SIGTERM` normally. The `trap` above forwards it
+to both children.
+
+The bounded boot loop matters for the same reason. An unbounded `until curl` means a zonai that dies
+*during* startup — an OOM mid-migration, a bad `.env`, a corrupt volume — leaves the loop spinning
+forever with the front-end process never started at all. Same silent hang, reached a different way,
+and worse: nothing is listening on the public port to even return a 500.
+
+</Warning>
 
 **If you have no front-end process:** drop the poll and run zonai in the foreground bound to the
 public port — `exec ./zonai serve --release --host 0.0.0.0 --port 8080`.
@@ -379,6 +453,73 @@ primary_region = "iad"
 `internal_port` must match whatever your public process listens on, and the check's `path` must be an
 endpoint *that* process serves (`/healthz` here). If zonai is the public process, use its built-in
 `/health` instead.
+
+### A Front-End Health Check Must Probe Zonai
+
+If your public process is a front end for zonai, its health endpoint has to actually *probe* zonai —
+`GET /health` on the internal port — and return non-2xx when that fails. The obvious handler:
+
+```dart no-analyze
+// in your gateway, not zonai — shelf shown here
+if (request.url.path == 'healthz') {
+  return Response.ok('ok');   // reports only that *this* process is alive
+}
+```
+
+satisfies the sentence above exactly and is a health check that **cannot fail**. It reports on the
+liveness of the process answering the question, which is never the process at risk. Paired with an
+unsupervised `zonai serve` ([step 7](#7-start-script)), Fly's check passes indefinitely on a machine
+whose entire reason for existing is dead.
+
+Fail closed instead:
+
+```dart no-analyze
+Future<Response> _healthz(String zonaiBaseUrl) async {
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
+  try {
+    final request = await client.getUrl(Uri.parse('$zonaiBaseUrl/health'));
+    final response = await request.close().timeout(const Duration(seconds: 3));
+    await response.drain<void>();
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Response.ok('ok');
+    }
+    return Response(503, body: 'zonai unhealthy: HTTP ${response.statusCode}');
+  } on Object catch (error) {
+    return Response(503, body: 'zonai unreachable: $error');
+  } finally {
+    client.close(force: true);
+  }
+}
+```
+
+Keep your timeout under the `[[http_service.checks]] timeout` (5s above) so you answer 503 yourself
+rather than having the edge time the check out with no detail about which component is down.
+
+Worth testing against a real loopback `HttpServer` and a genuinely closed port — a stubbed client
+won't reproduce connection-refused, which is the case that actually matters.
+
+### Sizing the Machine
+
+The `[[vm]]` block is not optional boilerplate. **Omit it and Fly gives you its 256MB default**,
+which leaves about 207MB usable after the kernel's share — under which the kernel OOM-kills
+`zonai serve` during ordinary work. Measured on a single-machine deployment with a small front-end
+process:
+
+| | |
+|---|---|
+| `zonai serve` RSS, idle | 69 MB |
+| `zonai serve` peak RSS (`VmHWM`), light traffic | 88 MB |
+| `zonai serve` anon-RSS at the moment of an OOM kill | 121 MB |
+| a small Dart front-end process, peak RSS | 12 MB |
+
+Treat `512mb` as a **floor**, not a default to shrink from — idle is only ~69MB, but the jump to
+121MB came from one admin creating a user. Workers are separate executables invoked per request, so
+per-request memory is real and additive; sizing from an idle measurement under-provisions. 1GB is a
+comfortable place to sit if you're not counting pennies.
+
+One debugging note: `zonai serve` reserves ~620MB of **virtual** address space at idle, so that is
+the `total-vm:` figure in any OOM message. It is harmless and it is not the number that matters —
+read `anon-rss:` instead, or you'll chase the wrong thing.
 
 The volume `destination` must match zonai's data directory — `/app/.zonai/data` when `WORKDIR` is
 `/app`, since the database lives at `.zonai/data` relative to the app directory.
