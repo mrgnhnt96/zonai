@@ -184,13 +184,20 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         .where(_whereFilter(where, table.name));
   }
 
-  /// Decodes API/wire values (e.g. [String] ids) before [Column.encode].
+  /// Turns an API/wire value (e.g. a [String] id) into the encoded operand
+  /// [UpdateableColumn] now expects.
+  ///
+  /// Its `value` is documented as "an encoded literal", so the caller has to
+  /// encode; it used to be encoded for us. Decode first so a wire-shaped value
+  /// becomes the column's Dart type, then encode that back to storage form --
+  /// a round-trip, but the two halves are not inverses for every column and
+  /// skipping either one binds the wrong shape.
   Object? _decodeUpdateWireValue(
     rd.Column<dynamic, dynamic> col,
     Object? value,
   ) {
     if (value == null) return null;
-    return col.decode(value);
+    return col.encode(col.decode(value));
   }
 
   UpdateableColumn? _convertUpdateValue(
