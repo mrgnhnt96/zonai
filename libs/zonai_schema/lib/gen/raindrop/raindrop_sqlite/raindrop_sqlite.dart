@@ -10,6 +10,9 @@ export 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' show Transacti
 
 export 'src/builders/builders.dart';
 export 'src/column_types/column_types.dart';
+export 'src/expressions/expressions.dart';
+// Stripped when vendored into zonai_schema: ResqliteDelegate needs
+// package:resqlite, a git dependency the vendored copy deliberately avoids.
 export 'src/sqlite_delegate.dart';
 export 'src/sqlite_dialect.dart';
 export 'src/sqlite_table.dart';

@@ -42,7 +42,7 @@ class ForeignKeyReference {
   ///
   /// Using a getter allows lazy resolution, which is necessary when tables
   /// reference each other.
-  final Column Function() referencedColumnGetter;
+  final Column<dynamic, Object?> Function() referencedColumnGetter;
 
   /// The action to take when the referenced row is deleted.
   final ReferentialAction? onDelete;
@@ -51,7 +51,7 @@ class ForeignKeyReference {
   final ReferentialAction? onUpdate;
 
   /// The referenced column.
-  Column get referencedColumn => referencedColumnGetter();
+  Column<dynamic, Object?> get referencedColumn => referencedColumnGetter();
 
   /// The name of the referenced table.
   String get referencedTable => referencedColumn.table.name;

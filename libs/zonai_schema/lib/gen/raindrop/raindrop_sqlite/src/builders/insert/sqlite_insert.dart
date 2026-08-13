@@ -10,7 +10,7 @@ import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 
 /// Adds `insertOrIgnore` for SQLite, which skips rows that would violate a
 /// constraint instead of failing.
-extension SQLiteInsertOrIgnore on RaindropExecutor<RaindropDelegate> {
+extension SQLiteInsertOrIgnore on RaindropExecutor<Delegate> {
   /// Like `insert`, but skips rows that would violate a constraint instead of
   /// failing.
   InsertValuesBuilder<Schema<R>, R, void> insertOrIgnore<R>({

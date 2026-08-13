@@ -8,11 +8,13 @@
 
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
+/// Whole numbers, stored as an INTEGER.
 extension IntColumnDefinition<R> on SchemaBuilder<R> {
+  /// An [int] column, optionally with a [defaultValue].
   ColumnType<W> integer<W extends int?>(
     String name,
     Field<R, W> field, {
-    String? defaultValue,
+    ColumnOr<int>? defaultValue,
   }) {
     return column<int, W>(
       name,

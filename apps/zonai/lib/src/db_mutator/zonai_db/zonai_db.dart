@@ -6,6 +6,8 @@ import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:file/file.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
+    show SQLiteInsertReturning, SQLiteDeleteReturning;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
     as raindrop
     show migrate;

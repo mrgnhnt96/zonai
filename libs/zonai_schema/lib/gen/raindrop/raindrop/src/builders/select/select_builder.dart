@@ -11,7 +11,7 @@ import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 /// Phantom type used as the schema slot in [SelectBuilder] before a
 /// concrete schema has been selected via `.from`.
 class NoSchema {
-  const NoSchema._();
+  const NoSchema._(); // coverage:ignore-line
 }
 
 /// {@template select_builder}

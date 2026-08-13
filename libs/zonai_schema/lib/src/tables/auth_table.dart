@@ -1,3 +1,9 @@
+// The narrow sqlite_dialect.dart, not the raindrop_sqlite.dart barrel: that
+// barrel unconditionally exports sqlite_delegate.dart (needs package:sqlite3),
+// and a `show` clause only filters NAMES -- the compiler still resolves every
+// file in the export chain. See issue #24 and zonai_schema.dart's comment.
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart'
+    show SQLiteDialect;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/zonai_schema.dart';
 
@@ -39,12 +45,12 @@ S authTable<S extends AuthTable<T>, T>(
   return rd.table(
     name,
     builder,
-    dialect: 'sqlite',
+    dialect: const SQLiteDialect(),
     extra: (table) {
       if (extra case final extra?) {
         extra.call(table);
 
-        for (final index in rd.TableMeta.getFor(table).indexes) {
+        for (final index in table.$.indexes) {
           if (index.columns.contains(table.id)) {
             if (index.isUnique) {
               continue;

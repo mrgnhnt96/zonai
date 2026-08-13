@@ -156,7 +156,7 @@ void main() {
       });
 
       tearDown(() async {
-        (memoryDb.delegate as SQLiteDelegate).dispose();
+        (memoryDb.delegate as SQLiteDelegate).close();
       });
 
       Future<void> expectSimulateMatchesReal(
@@ -290,7 +290,7 @@ void main() {
       });
 
       tearDown(() async {
-        (memoryDb.delegate as SQLiteDelegate).dispose();
+        (memoryDb.delegate as SQLiteDelegate).close();
       });
 
       Future<void> expectSimulateMatchesReal(

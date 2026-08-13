@@ -35,7 +35,7 @@ class DbOperations {
     }
 
     for (final schema in tables) {
-      final name = rd.TableMeta.getFor(schema).name;
+      final name = schema.$.name;
       map.putIfAbsent(name, () => defaultOperationsFor(schema));
     }
 

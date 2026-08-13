@@ -12,9 +12,10 @@ import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 /// A self-contained, renderable fragment of a SQL statement and the unit of
 /// extension for dialect authors.
 ///
-/// A clause renders through [RenderContext] mechanics only (identifier escaping and
-/// bind parameters), so the core clauses compose unchanged across dialects. To
-/// emit SQL the core doesn't model like `ON CONFLICT`, `OR IGNORE`, a
+/// A clause renders through [RenderContext] mechanics only (identifier
+/// escaping and bind parameters), so the core clauses compose unchanged
+/// across dialects. To emit SQL the core doesn't model like `ON CONFLICT`,
+/// `OR IGNORE`, a
 /// dialect-specific `LIMIT` you implement your own [Clause] and slot it into a
 /// statement with `withClause`:
 ///
@@ -30,6 +31,7 @@ import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 /// builder.withClause(InsertSlot.verb + 500, const _OrIgnore());
 /// ```
 /// {@endtemplate}
+// ignore: one_member_abstracts dialects subclass it to add their own clauses
 abstract class Clause {
   /// {@macro clause}
   const Clause();
@@ -37,7 +39,8 @@ abstract class Clause {
   /// Renders this clause to SQL text, recording any bind values on [context].
   ///
   /// [context] is the entire context a clause is given: use
-  /// [RenderContext.escapeName] for identifiers and [RenderContext.param] for values.
+  /// [RenderContext.escapeName] for identifiers and [RenderContext.param]
+  /// for values.
   ///
   /// Return an empty string to render nothing, which is how an optional clause
   /// (such as a `WHERE` with no filter) drops itself from the statement.
@@ -116,6 +119,9 @@ abstract final class SelectSlot {
 
   /// `GROUP BY ...`.
   static const int groupBy = 6000;
+
+  /// `HAVING ...`.
+  static const int having = 6500;
 
   /// `ORDER BY ...`.
   static const int orderBy = 7000;

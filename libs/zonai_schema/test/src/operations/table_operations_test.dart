@@ -518,7 +518,7 @@ void main() {
     });
 
     tearDown(() async {
-      (memoryDb.delegate as SQLiteDelegate).dispose();
+      (memoryDb.delegate as SQLiteDelegate).close();
     });
 
     test('insert with returning rows', () async {
@@ -784,7 +784,7 @@ void main() {
       });
 
       tearDown(() async {
-        (memoryDb.delegate as SQLiteDelegate).dispose();
+        (memoryDb.delegate as SQLiteDelegate).close();
       });
 
       test('ColumnUpdate dotted path sets nested key only', () async {
@@ -853,7 +853,7 @@ void main() {
       });
 
       tearDown(() async {
-        (memoryDb.delegate as SQLiteDelegate).dispose();
+        (memoryDb.delegate as SQLiteDelegate).close();
       });
 
       test(

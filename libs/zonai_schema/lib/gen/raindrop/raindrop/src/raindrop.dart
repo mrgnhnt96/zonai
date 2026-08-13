@@ -9,7 +9,7 @@
 import 'dart:async';
 
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
-import 'package:zonai_schema/gen/raindrop/raindrop/src/lock.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop/src/utils/lock.dart';
 
 part 'raindrop_executor.dart';
 

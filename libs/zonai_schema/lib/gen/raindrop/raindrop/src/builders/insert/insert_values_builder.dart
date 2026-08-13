@@ -36,15 +36,12 @@ class InsertWithValuesBuilder<S extends Schema<R>, R, V>
   InsertWithValuesBuilder(super.executor, {required super.config});
 
   @override
-  Query<V> compile() => Query<V>(
-        shape: config.get(#into)! as TableMeta,
+  Query<V> compile({bool qualified = false}) => Query<V>(
+        shape: config.into!,
         clauses: {
           InsertSlot.verb: const Keyword('INSERT'),
-          InsertSlot.body: InsertBodyClause(
-            config.get(#into)! as TableMeta,
-            config.get(#values)! as List<dynamic>,
-          ),
-          ...?config.get<Map<int, Clause>>(#extraClauses),
+          InsertSlot.body: InsertBodyClause(config.into!, config.values!),
+          ...?config.extraClauses,
         },
       );
 }

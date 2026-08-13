@@ -46,9 +46,8 @@ class MigrationChecksumMismatch implements Exception {
   final String actual;
 
   @override
-  String toString() =>
-      'MigrationChecksumMismatch: Migration "$tag" has been modified after '
-      'being applied. Expected checksum "$expected" but got "$actual".';
+  String toString() => '''
+MigrationChecksumMismatch: Migration "$tag" has been modified after being applied. Expected checksum "$expected" but got "$actual".''';
 }
 
 class _Migrator {
@@ -80,7 +79,7 @@ class _Migrator {
       final checksum = _calculateChecksum(migration.sql);
 
       await _db.transaction((tx) async {
-        final statements = _splitStatements(migration.sql);
+        final statements = _dialect.splitStatements(migration.sql);
         for (final statement in statements) {
           await tx.execute(statement);
         }
@@ -93,9 +92,6 @@ class _Migrator {
       });
     }
   }
-
-  List<String> _splitStatements(String sql) =>
-      sql.split(';').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
   String _calculateChecksum(String v) =>
       sha256.convert(utf8.encode(v)).toString().substring(0, 16);

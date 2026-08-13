@@ -36,3 +36,12 @@ class RenderContext {
     return placeholder;
   }
 }
+
+/// A [RenderContext] that inlines values instead of binding them.
+class LiteralRenderContext extends RenderContext {
+  /// {@macro render_context}
+  LiteralRenderContext(super.dialect);
+
+  @override
+  String param(Object? value) => dialect.escapeLiteral(value);
+}

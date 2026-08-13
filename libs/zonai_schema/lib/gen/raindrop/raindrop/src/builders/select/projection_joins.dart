@@ -24,9 +24,6 @@ import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 /// // SELECT "runs"."user_id", MIN("runs"."solve_ms"), "users"."display_name"
 /// // FROM "runs" INNER JOIN "users" ON ... GROUP BY "runs"."user_id"
 /// ```
-///
-/// A single extension covers every projection arity because `.join` does not
-/// change [V] — there is no per-arity machinery here.
 extension ProjectionJoins<S extends Schema<R>, R, V>
     on ProjectionFromBuilder<S, R, V> {
   /// Add an `INNER JOIN` against [table] without altering the projection.
@@ -50,14 +47,14 @@ extension ProjectionJoins<S extends Schema<R>, R, V>
   }) =>
       _withJoin(RightJoin<Schema<OR>, OR>(_table(table), on: on));
 
-  TableMeta<Schema<OR>, OR> _table<OR>(Schema<OR> table) =>
-      TableMeta.get(table)! as TableMeta<Schema<OR>, OR>;
+  TableMeta<Schema<OR>, OR> _table<OR>(Schema<OR> table) => table.$;
 
-  ProjectionFromBuilder<S, R, V> _withJoin(Join join) {
+  ProjectionFromBuilder<S, R, V> _withJoin(
+      Join<Schema<dynamic>, dynamic> join) {
     return ProjectionFromBuilder(
       executor,
       config: config.copyWith({
-        #joins: <Join>[...config.get(#joins) ?? [], join],
+        #joins: [...config.joins, join],
       }),
     );
   }

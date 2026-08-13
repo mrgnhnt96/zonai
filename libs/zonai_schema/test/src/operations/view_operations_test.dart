@@ -249,7 +249,7 @@ void main() {
       });
 
       tearDown(() async {
-        (memoryDb.delegate as SQLiteDelegate).dispose();
+        (memoryDb.delegate as SQLiteDelegate).close();
       });
 
       test('joins across both tables and returns real rows', () async {
@@ -279,7 +279,7 @@ void main() {
             for (final row in result.rows)
               Map.fromIterables(result.columns, row),
           ];
-          final table = rd.TableMeta.getFor(_postSummary);
+          final table = _postSummary.$;
           final reconstructed = asMaps.map(table.safeCreate).toList();
           expect(reconstructed, everyElement(isA<_PostSummary>()));
           expect(

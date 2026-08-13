@@ -40,7 +40,10 @@ typedef RowReader = V Function<V extends Object?>(ColumnType<V>? column);
 abstract class Schema<R> implements Selectable<R> {
   /// Every concrete schema must accept a [SchemaBuilder] for [R] and use it
   /// to register columns in its initializer list.
-  const Schema(SchemaBuilder<R> $);
+  Schema(SchemaBuilder<R> $) : $ = $.table;
+
+  /// The [TableMeta] backing this schema reference.
+  final TableMeta<Schema<R>, R> $;
 
   /// Construct a row instance from a typed [read] function.
   R fromRow(RowReader read);
@@ -51,11 +54,8 @@ abstract class Schema<R> implements Selectable<R> {
 
 /// Convenience accessors on a schema reference.
 extension SchemaX<S extends Schema<R>, R> on S {
-  /// The [TableMeta] backing this schema reference.
-  TableMeta<S, R> get $ => TableMeta.get(this)! as TableMeta<S, R>;
-
   /// Create an alias of this schema reference.
-  S as(String alias) => $.aliased(alias).schema;
+  S as(String alias) => $.aliased(alias).schema as S;
 }
 
 /// {@template schema_builder}
@@ -64,11 +64,9 @@ extension SchemaX<S extends Schema<R>, R> on S {
 /// this builder's table.
 /// {@endtemplate}
 class SchemaBuilder<R> {
-  /// Construct a builder for a specific [table]. Intended only for use by
-  /// [TableMeta] internally; users receive an instance via the schema's
-  /// constructor parameter.
+  /// Construct a builder for a specific [table].
   const SchemaBuilder(this.table);
 
   /// The table being built.
-  final TableMeta<dynamic, R> table;
+  final TableMeta<Schema<R>, R> table;
 }

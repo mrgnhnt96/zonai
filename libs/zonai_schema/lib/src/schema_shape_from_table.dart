@@ -1,6 +1,6 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/column_types/column_types.dart'
-    show BigIntTransformer, BooleanTransfomer, DateTimeTransfomer;
+    show BigIntTransformer, BooleanTransformer, DateTimeTransformer;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
 import 'package:zonai_schema/src/column_types/email_column.dart';
 import 'package:zonai_schema/src/column_types/enum_column.dart';
@@ -47,7 +47,12 @@ ColumnShape columnShapeFromColumn(rd.Column column) {
     isPrimaryKey: column.isPrimaryKey,
     autoIncrement: column.autoIncrement,
     sqlType: column.sqlType ?? 'TEXT',
-    defaultValue: column.defaultValue,
+    // defaultValue is now ColumnOr<V> rather than a raw SQL string. Render
+    // it through the column's own encoder so this metadata shows the value as
+    // it is actually stored (a dateTime default reads as epoch ms, not an
+    // ISO string). A SQL-expression default has no literal form, so it is
+    // omitted rather than stringified misleadingly.
+    defaultValue: _defaultLiteral(column),
     foreignKey: foreignKey,
     enumValues: enumValues,
     isSecret: isSecret,
@@ -135,13 +140,13 @@ _describeColumn(rd.Column column) {
       isSecret: false,
       isReadOnly: false,
     ),
-    BooleanTransfomer() => (
+    BooleanTransformer() => (
       kind: .boolean,
       enumValues: const [],
       isSecret: false,
       isReadOnly: false,
     ),
-    DateTimeTransfomer() => (
+    DateTimeTransformer() => (
       kind: .dateTime,
       enumValues: const [],
       isSecret: false,
@@ -187,7 +192,7 @@ ColumnShapeKind _kindFromTransformerRuntimeType(rd.Column column) {
     'BigIntTransfomer' => ColumnShapeKind.bigInt,
     'BlobTransformer' => ColumnShapeKind.blob,
     'BooleanTransformer' => ColumnShapeKind.boolean,
-    'DateTimeTransfomer' => ColumnShapeKind.dateTime,
+    'DateTimeTransformer' => ColumnShapeKind.dateTime,
     'MapTransformer' => ColumnShapeKind.map,
     'ListTransformer' => ColumnShapeKind.list,
     'PhotoTransformer' => ColumnShapeKind.photo,
@@ -204,4 +209,12 @@ ColumnShapeKind _kindFromSqlType(String? sqlType) {
     'TEXT' => ColumnShapeKind.text,
     _ => ColumnShapeKind.text,
   };
+}
+
+/// The stored literal for [column]'s default, or `null` when it has none or
+/// its default is a SQL expression rather than a value.
+String? _defaultLiteral(rd.Column<dynamic, dynamic> column) {
+  final value = column.defaultValue;
+  if (value == null || value is rd.SqlOperand) return null;
+  return '${column.encode(value)}';
 }

@@ -1,6 +1,6 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/ddl.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
-    show Column, Raindrop, TableMeta, ReferentialAction, Schema;
+    show Column, Raindrop, SqlOperand, TableMeta, ReferentialAction, Schema;
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
 
 /// Ensures framework-managed SQLite tables exist.
@@ -16,7 +16,7 @@ final class SqliteInternalTableSync {
     Raindrop db,
     S schema,
   ) async {
-    final meta = TableMeta.getFor(schema);
+    final meta = schema.$;
     final expected = [
       for (final c in meta.columns) _columnInfoFromRaindropColumn(c),
     ].toList();
@@ -49,7 +49,14 @@ final class SqliteInternalTableSync {
       isNullable: c.isNullable,
       primaryKey: c.isPrimaryKey,
       autoIncrement: c.autoIncrement,
-      defaultValue: c.defaultValue,
+      // ColumnOr<V> now, not a raw SQL string: encode it so the synced
+      // metadata carries the stored literal. A SQL-expression default has no
+      // literal form, so it is omitted.
+      defaultValue: switch (c.defaultValue) {
+        null => null,
+        final SqlOperand<dynamic> _ => null,
+        final value => '${c.encode(value)}',
+      },
       foreignKey: fkRef == null
           ? null
           : ForeignKeyInfo(

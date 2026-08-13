@@ -125,6 +125,24 @@ class Migrate {
       _running = Completer<int>();
       bool hasChanges = false;
 
+      // Upstream raindrop_cli writes every message with `stdout.writeln`, not
+      // `print` -- there are zero `print(` calls left in it. `runZoned`'s
+      // `print:` hook below therefore never fires, so the old approach of
+      // matching on 'Generated migration:' / 'No schema changes detected.'
+      // silently reported "No changes detected" for a run that had just
+      // written a migration. Ask the filesystem instead: it is the thing we
+      // actually care about, and it does not depend on upstream's wording.
+      //
+      // The `print:` hook is kept because it costs nothing and would start
+      // routing CLI output back into zonai's logger if upstream ever restores
+      // `print`. Until then two things remain broken and are NOT fixed here:
+      // CLI output bypasses zonai's logger entirely (it goes straight to the
+      // real stdout), and `--dry-run` writes no files, so it always reports
+      // "No changes detected" even when a migration would be generated.
+      // Both need a decision about capturing stdout (IOOverrides) rather than
+      // a wording tweak.
+      final before = _migrationFileNames();
+
       configureRaindropDartSdk();
 
       result = await runZoned(
@@ -141,20 +159,35 @@ class Migrate {
               settings.migrationsPath,
               '.raindrop-config-disabled.yaml',
             ),
-            '--dialect',
-            'sqlite',
+            '--driver',
+            'zonai_schema',
+            // Not the `raindrop_sqlite.dart` barrel: that exports
+            // sqlite_delegate.dart, which needs package:sqlite3. The
+            // introspection entrypoint runs inside the *user's* project, which
+            // has zonai_schema but deliberately not sqlite3 (issue #24), so the
+            // barrel fails to spawn there. The entrypoint only ever reads the
+            // driver's top-level `dialect`, and sqlite_dialect.dart provides it
+            // with no sqlite3 in its import graph.
+            '--driver-import',
+            'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart',
+            '--schema-package-prefix',
+            'package:zonai_schema/gen/raindrop/raindrop/',
+            // Symlinks resolved: upstream's SnapshotRunner._packageUri decides
+            // which package a schema file belongs to with `p.isWithin(<package
+            // rootUri>/lib, <schema path>)`, a pure string comparison. On macOS
+            // the system temp dir is /var/... while package_config.json's
+            // rootUri canonicalises to /private/var/..., so an uncanonicalised
+            // path never matches and every schema is rejected with "is not
+            // inside a package's lib/ directory". Real projects rarely sit
+            // behind a symlink, which is why this only ever showed up in tests.
             '--schemas',
-            settings.schemasPath,
+            _resolvedSchemasPath,
             '--out',
             settings.migrationsPath,
             'generate',
             if (dryRun case true) '--dry-run',
             '--name',
             name,
-            '--schema-package-prefix',
-            'package:zonai_schema/gen/raindrop/raindrop/',
-            '--table-class-name',
-            'TableMeta',
           ]);
 
           return exitCode;
@@ -191,6 +224,8 @@ class Migrate {
         return result;
       }
 
+      hasChanges |= !_setEquals(before, _migrationFileNames());
+
       switch (hasChanges) {
         case true:
           logger.info('Generated migrations');
@@ -204,6 +239,36 @@ class Migrate {
       _running = null;
     }
   }
+
+  /// [settings.schemasPath] with symlinks resolved. See its use site.
+  ///
+  /// Falls back to the raw path if resolution fails -- a broken symlink or a
+  /// race with a deleted directory should not take down migration generation
+  /// with a filesystem error instead of the real diagnostic.
+  String get _resolvedSchemasPath {
+    try {
+      return fs.directory(settings.schemasPath).resolveSymbolicLinksSync();
+    } on FileSystemException {
+      return settings.schemasPath;
+    }
+  }
+
+  /// The `*.sql` files currently in [settings.migrationsPath], by name.
+  ///
+  /// Empty when the directory does not exist yet, which is the first-run case.
+  Set<String> _migrationFileNames() {
+    final dir = fs.directory(settings.migrationsPath);
+    if (!dir.existsSync()) return const {};
+    return {
+      for (final entity in dir.listSync())
+        if (entity is File &&
+            fs.path.extension(entity.path).toLowerCase() == '.sql')
+          fs.path.basename(entity.path),
+    };
+  }
+
+  static bool _setEquals(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
 
   /// Applies pending `*.sql` files in [settings.migrationsPath] to the open DB.
   Future<int> applyPending() async {

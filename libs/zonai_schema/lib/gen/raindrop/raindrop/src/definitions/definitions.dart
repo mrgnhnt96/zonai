@@ -6,6 +6,7 @@
 //
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
+export 'check.dart';
 export 'column.dart';
 export 'column_types/column_types.dart';
 export 'foreign_key.dart';

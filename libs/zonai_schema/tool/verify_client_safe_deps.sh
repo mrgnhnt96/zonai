@@ -17,15 +17,36 @@
 # SQLiteDialect or a couple of pure-Dart transformer classes. So this script
 # does not just resolve dependencies: it writes a real schema file and runs
 # a script that imports it, the same way an end-user project would.
+#
+# TWO scenarios, because they fail differently and one does not imply the
+# other:
+#
+#   drift  -- client depends on sqlite3 ^3.0.0. Catches a regained regular
+#             (non-dev) 'sqlite3: <3.0.0' dep at version-solve time.
+#   bare   -- client depends on NO sqlite3 at all. Catches an internal file
+#             importing a barrel whose export chain reaches sqlite_delegate.dart.
+#
+# The 'drift' scenario alone reported success while three internal files
+# (tables/table.dart, tables/auth_table.dart, operations/table_operations.dart)
+# imported the wide raindrop_sqlite.dart barrel, because sqlite3 WAS resolvable
+# in that client -- just a different major. It takes the 'bare' scenario to
+# make an unresolvable import actually fail.
 set -euo pipefail
 
 schema_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-scratch_dir="$(mktemp -d)"
-trap 'rm -rf "$scratch_dir"' EXIT
 
-mkdir -p "$scratch_dir/lib/src/schemas" "$scratch_dir/bin"
+# $1 = scenario name, $2 = extra dependency lines (may be empty)
+run_scenario() {
+  local scenario="$1"
+  local extra_deps="$2"
+  local scratch_dir
+  scratch_dir="$(mktemp -d)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$scratch_dir'" RETURN
 
-cat > "$scratch_dir/pubspec.yaml" << EOF
+  mkdir -p "$scratch_dir/lib/src/schemas" "$scratch_dir/bin"
+
+  cat > "$scratch_dir/pubspec.yaml" << EOF
 name: zonai_schema_client_safe_check
 publish_to: none
 
@@ -35,14 +56,10 @@ environment:
 dependencies:
   zonai_schema:
     path: ${schema_dir}
-  # Simulates Drift (drift_flutter >=0.3.0 depends on sqlite3 ^3.0.0) -- the
-  # exact conflict from issue #24. If zonai_schema ever regains a regular
-  # (non-dev) dependency on 'sqlite3: <3.0.0', this line alone makes pub's
-  # version solver fail before the compile check below even runs.
-  sqlite3: ^3.0.0
+${extra_deps}
 EOF
 
-cat > "$scratch_dir/lib/src/schemas/users.dart" << 'EOF'
+  cat > "$scratch_dir/lib/src/schemas/users.dart" << 'DART'
 import 'package:zonai_schema/zonai_schema.dart';
 
 class User {
@@ -65,30 +82,41 @@ class UserSchema extends Table<User> {
 }
 
 final users = table('users', UserSchema.new);
-EOF
+DART
 
-cat > "$scratch_dir/bin/run.dart" << 'EOF'
+  cat > "$scratch_dir/bin/run.dart" << 'DART'
 import 'package:zonai_schema_client_safe_check/src/schemas/users.dart' as r0;
 
 void main() {
   print(r0.users);
 }
-EOF
+DART
 
-cd "$scratch_dir"
-if ! dart pub get > pub_get.log 2>&1; then
-  echo "zonai_schema failed to resolve for a client with NO sqlite3 dependency" >&2
-  echo "(e.g. a Flutter app also using Drift -- see issue #24). Output:" >&2
-  cat pub_get.log >&2
-  exit 1
-fi
+  cd "$scratch_dir"
+  if ! dart pub get > pub_get.log 2>&1; then
+    echo "[$scenario] zonai_schema failed to RESOLVE (see issue #24). Output:" >&2
+    cat pub_get.log >&2
+    return 1
+  fi
 
-if ! dart run bin/run.dart > run.log 2>&1; then
-  echo "zonai_schema resolved but a schema file importing zonai_schema.dart" >&2
-  echo "failed to run for a client with NO sqlite3 dependency (see issue #24)." >&2
-  echo "Output:" >&2
-  cat run.log >&2
-  exit 1
-fi
+  if ! dart run bin/run.dart > run.log 2>&1; then
+    echo "[$scenario] zonai_schema resolved but a schema file importing" >&2
+    echo "zonai_schema.dart failed to RUN (see issue #24). Output:" >&2
+    cat run.log >&2
+    return 1
+  fi
 
-echo "zonai_schema resolves and runs cleanly for a client with no sqlite3 dependency at all"
+  echo "[$scenario] ok"
+}
+
+# Simulates Drift (drift_flutter >=0.3.0 depends on sqlite3 ^3.0.0) -- the exact
+# conflict from issue #24. If zonai_schema ever regains a regular (non-dev)
+# dependency on 'sqlite3: <3.0.0', this makes pub's version solver fail.
+run_scenario drift '  sqlite3: ^3.0.0'
+
+# No sqlite3 anywhere in the client's tree. This is the scenario that actually
+# proves the export chains are clean: with sqlite3 unresolvable, any internal
+# file reaching sqlite_delegate.dart fails to compile.
+run_scenario bare ''
+
+echo "zonai_schema resolves and runs cleanly both alongside sqlite3 3.x and with no sqlite3 at all"

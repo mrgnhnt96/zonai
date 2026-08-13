@@ -6,29 +6,45 @@
 //
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
-import 'dart:isolate';
-
 import 'package:zonai_schema/gen/raindrop/raindrop/ddl.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart';
-
-void main(List<String> args, SendPort sendPort) => SQLiteDdlGenerator(sendPort);
 
 /// {@template sqlite_ddl_generator}
 /// DDL generator for SQLite.
 /// {@endtemplate}
 class SQLiteDdlGenerator extends DdlGenerator {
   /// {@macro sqlite_ddl_generator}
-  SQLiteDdlGenerator(super.sendPort) : super(dialect: const SQLiteDialect());
+  const SQLiteDdlGenerator() : super(dialect: const SQLiteDialect());
 
   @override
-  String createTable(String tableName, List<ColumnInfo> columns) {
-    final columnDefs = columns.map(_columnDefinition).join(',\n  ');
-    return 'CREATE TABLE ${escapeName(tableName)} (\n  $columnDefs\n);';
+  String generate(List<DiffOperation> operations) {
+    final altered = {
+      for (final op in operations)
+        if (op case final AlterTable alter) alter.tableName,
+    };
+    for (final op in operations) {
+      if (op case final AlterTable alter when _needsRebuild(alter)) {
+        for (final dependent in alter.referencedBy) {
+          if (altered.contains(dependent.table.name)) {
+            throw UnsupportedError(
+              '''
+Rebuilding "${alter.tableName}" must recreate "${dependent.table.name}", which is itself altered in this migration. Split the two changes into separate migrations.''',
+            );
+          }
+        }
+      }
+    }
+    return super.generate(operations);
   }
 
   @override
-  String renameTable(String oldName, String newName) {
-    return 'ALTER TABLE ${escapeName(oldName)} RENAME TO ${escapeName(newName)};';
+  String createTable(TableInfo table) {
+    final defs = [
+      ...table.columns.map(_columnDefinition),
+      for (final entry in table.checks.entries)
+        'CONSTRAINT ${escapeName(entry.key)} CHECK (${entry.value})',
+    ].join(',\n  ');
+    return 'CREATE TABLE ${escapeName(table.name)} (\n  $defs\n);';
   }
 
   @override
@@ -37,137 +53,11 @@ class SQLiteDdlGenerator extends DdlGenerator {
   }
 
   @override
-  String addColumn(String tableName, ColumnInfo column) {
-    final effective = _sqliteEffectiveColumnForAdd(tableName, column);
-    return 'ALTER TABLE ${escapeName(tableName)} ADD COLUMN ${_columnDefinition(effective)};';
-  }
-
-  @override
-  String renameColumn(String tableName, String oldName, String newName) {
-    return 'ALTER TABLE ${escapeName(tableName)} RENAME COLUMN ${escapeName(oldName)} TO ${escapeName(newName)};';
-  }
-
-  @override
-  String dropColumn(String tableName, String columnName) {
-    return 'ALTER TABLE ${escapeName(tableName)} DROP COLUMN ${escapeName(columnName)};';
-  }
-
-  @override
-  String generate(List<DiffOperation> operations) {
-    return super.generate(_batchAlterColumns(operations));
-  }
-
-  /// Consecutive [AlterColumn] ops on the same table become one rebuild.
-  List<DiffOperation> _batchAlterColumns(List<DiffOperation> operations) {
-    final batched = <DiffOperation>[];
-    var i = 0;
-    while (i < operations.length) {
-      final op = operations[i];
-      if (op is! AlterColumn) {
-        batched.add(op);
-        i++;
-        continue;
-      }
-
-      final tableName = op.tableName;
-      final group = <AlterColumn>[op];
-      i++;
-      while (i < operations.length) {
-        final next = operations[i];
-        if (next is! AlterColumn || next.tableName != tableName) break;
-        group.add(next);
-        i++;
-      }
-      batched.add(_mergeAlterColumnGroup(group));
-    }
-    return batched;
-  }
-
-  AlterColumn _mergeAlterColumnGroup(List<AlterColumn> group) {
-    if (group.length == 1) return group.single;
-    final head = group.first;
-    return AlterColumn(
-      head.tableName,
-      head.oldColumn,
-      head.newColumn,
-      group.last.tableColumns,
-      indexes: group.last.indexes,
-      companionAlters: group.sublist(1),
-    );
-  }
-
-  @override
-  String alterColumn(
-    String tableName,
-    ColumnInfo oldColumn,
-    ColumnInfo newColumn,
-    List<ColumnInfo> tableColumns, {
-    List<IndexInfo> indexes = const [],
-    List<AlterColumn> companionAlters = const [],
-  }) {
-    return _rebuildTableFromAlters([
-      AlterColumn(
-        tableName,
-        oldColumn,
-        newColumn,
-        tableColumns,
-        indexes: indexes,
-      ),
-      ...companionAlters,
-    ]);
-  }
-
-  /// Rebuilds [tableName] once, applying every nullable→NOT NULL backfill in
-  /// [alters] before a single `DROP TABLE` cycle.
-  String _rebuildTableFromAlters(List<AlterColumn> alters) {
-    assert(alters.isNotEmpty);
-    final tableName = alters.first.tableName;
-    assert(alters.every((a) => a.tableName == tableName));
-
-    final substantiveAlters = alters
-        .where((a) => !_isDefaultOnlyAlter(a.oldColumn, a.newColumn))
-        .toList();
-    if (substantiveAlters.isEmpty) {
-      return '';
-    }
-
-    final tableColumns = alters.last.tableColumns;
-    assert(tableColumns.isNotEmpty);
-
-    // SQLite has no ALTER COLUMN for type / nullability / default; rebuild.
-    final table = escapeName(tableName);
-    final temp = escapeName('${tableName}_raindrop_rebuild');
-    final defs = tableColumns.map(_columnDefinition).join(',\n  ');
-
-    final steps = <String>[];
-    for (final alter in substantiveAlters) {
-      if (alter.oldColumn.isNullable && !alter.newColumn.isNullable) {
-        final column = escapeName(alter.newColumn.name);
-        final backfillValue = _sqliteBackfillExpressionForNotNull(
-          tableName,
-          alter.newColumn,
-        );
-        steps.add(
-          'UPDATE $table SET $column = $backfillValue WHERE $column IS NULL;',
-        );
-      }
-    }
-
-    // DROP TABLE fails when foreign keys reference this table (or vice versa)
-    // unless enforcement is disabled for the rebuild.
-    steps.add('PRAGMA foreign_keys=OFF;');
-    final columnNames = tableColumns.map((c) => escapeName(c.name)).join(', ');
-    steps.addAll([
-      'CREATE TABLE $temp (\n  $defs\n);',
-      'INSERT INTO $temp ($columnNames) SELECT $columnNames FROM $table;',
-      'DROP TABLE $table;',
-      'ALTER TABLE $temp RENAME TO $table;',
-    ]);
-    for (final index in alters.last.indexes) {
-      steps.add(createIndex(index));
-    }
-    steps.add('PRAGMA foreign_keys=ON;');
-    return steps.join('\n');
+  String alterTable(AlterTable operation) {
+    final diff = TableDiff.of(operation);
+    return _isSimple(operation, diff)
+        ? _simpleAlter(operation, diff)
+        : _rebuild(operation, diff);
   }
 
   @override
@@ -175,8 +65,8 @@ class SQLiteDdlGenerator extends DdlGenerator {
     final unique = index.isUnique ? 'UNIQUE ' : '';
     final cols = index.columns.map(escapeName).join(', ');
     final where = index.where != null ? ' WHERE ${index.where}' : '';
-    return 'CREATE ${unique}INDEX ${escapeName(index.name)} '
-        'ON ${escapeName(index.tableName)} ($cols)$where;';
+    return '''
+CREATE ${unique}INDEX ${escapeName(index.name)} ON ${escapeName(index.tableName)} ($cols)$where;''';
   }
 
   @override
@@ -186,6 +76,195 @@ class SQLiteDdlGenerator extends DdlGenerator {
 
   @override
   String getColumnType(ColumnInfo column) => column.type;
+
+  /// Whether every change fits SQLite's ALTER whitelist.
+  bool _isSimple(AlterTable operation, TableDiff diff) {
+    if (diff.changesDefinitions) return false;
+
+    for (final column in diff.addedColumns) {
+      final plainAdd = !column.primaryKey &&
+          !column.autoIncrement &&
+          column.foreignKey == null &&
+          column.isNullable &&
+          column.defaultValue == null;
+      if (!plainAdd) return false;
+    }
+
+    for (final column in diff.droppedColumns) {
+      // DROP COLUMN is rejected for key columns, indexed columns, columns in
+      // a CHECK, and columns referenced from elsewhere.
+      if (column.primaryKey || column.foreignKey != null) return false;
+      final indexed = operation.oldIndexes
+          .any((index) => index.columns.contains(column.name));
+      if (indexed) return false;
+      if (operation.oldTable.checks.isNotEmpty) return false;
+      final referenced = operation.referencedBy.any(
+        (dependent) => dependent.table.columns.any(
+          (c) =>
+              c.foreignKey?.referencedTable == operation.tableName &&
+              c.foreignKey?.referencedColumn == column.name,
+        ),
+      );
+      if (referenced) return false;
+    }
+
+    return true;
+  }
+
+  String _simpleAlter(AlterTable operation, TableDiff diff) {
+    final table = escapeName(operation.tableName);
+    return [
+      ...operation.renamedColumns.entries.map(
+        (entry) => '''
+ALTER TABLE $table RENAME COLUMN ${escapeName(entry.key)} TO ${escapeName(entry.value)};''',
+      ),
+      for (final column in diff.droppedColumns)
+        'ALTER TABLE $table DROP COLUMN ${escapeName(column.name)};',
+      for (final column in diff.addedColumns)
+        'ALTER TABLE $table ADD COLUMN ${_columnDefinition(column)};',
+      for (final index in diff.droppedIndexes) dropIndex(index.name),
+      for (final index in diff.addedIndexes) createIndex(index),
+    ].join('\n');
+  }
+
+  String _rebuild(AlterTable operation, TableDiff diff) {
+    for (final column in diff.addedColumns) {
+      if (!column.isNullable && column.defaultValue == null) {
+        throw UnsupportedError(
+          '''
+Adding NOT NULL column "${column.name}" to "${operation.tableName}" without a default: existing rows have no value to backfill. Give the column a default, or write the migration by hand with `generate --empty`.''',
+        );
+      }
+    }
+
+    final rebuildSet = {
+      operation.tableName,
+      for (final dependent in operation.referencedBy) dependent.table.name,
+    };
+
+    final statements = <String>[
+      'PRAGMA defer_foreign_keys = ON;',
+      _createShadow(operation.newTable, rebuildSet),
+      _copyTarget(operation, diff),
+    ];
+
+    // Dependents, byte-identical apart from re-targeted references.
+    for (final dependent in operation.referencedBy) {
+      statements
+        ..add(_createShadow(dependent.table, rebuildSet))
+        ..add(_copyVerbatim(dependent.table));
+    }
+
+    // Drop originals, a table only once nothing left references it.
+    for (final name in _dropOrder(operation)) {
+      statements.add('DROP TABLE ${escapeName(name)};');
+    }
+
+    // Rename shadows into place and restore the indexes.
+    for (final name in rebuildSet) {
+      statements.add(
+        '''
+ALTER TABLE ${escapeName('__new_$name')} RENAME TO ${escapeName(name)};''',
+      );
+    }
+    statements.addAll([
+      for (final index in operation.newIndexes) createIndex(index),
+      for (final dependent in operation.referencedBy)
+        for (final index in dependent.indexes) createIndex(index),
+    ]);
+
+    return statements.join('\n');
+  }
+
+  /// `CREATE TABLE "__new_<t>"` with references into [rebuildSet] pointed at
+  /// their `__new_` names.
+  String _createShadow(TableInfo table, Set<String> rebuildSet) {
+    final defs = [
+      for (final column in table.columns)
+        _columnDefinition(
+          column.foreignKey != null &&
+                  rebuildSet.contains(column.foreignKey!.referencedTable)
+              ? ColumnInfo(
+                  name: column.name,
+                  type: column.type,
+                  isNullable: column.isNullable,
+                  primaryKey: column.primaryKey,
+                  autoIncrement: column.autoIncrement,
+                  defaultValue: column.defaultValue,
+                  foreignKey: ForeignKeyInfo(
+                    referencedTable:
+                        '__new_${column.foreignKey!.referencedTable}',
+                    referencedColumn: column.foreignKey!.referencedColumn,
+                    onDelete: column.foreignKey!.onDelete,
+                    onUpdate: column.foreignKey!.onUpdate,
+                  ),
+                )
+              : column,
+        ),
+      for (final entry in table.checks.entries)
+        'CONSTRAINT ${escapeName(entry.key)} CHECK (${entry.value})',
+    ].join(',\n  ');
+    return 'CREATE TABLE ${escapeName('__new_${table.name}')} (\n  $defs\n);';
+  }
+
+  /// Copies the target's rows into its shadow: renamed columns read from
+  /// their old name, added columns are omitted (their default applies),
+  /// dropped columns are omitted on purpose.
+  String _copyTarget(AlterTable operation, TableDiff diff) {
+    final oldNameOf = {
+      for (final entry in operation.renamedColumns.entries)
+        entry.value: entry.key,
+    };
+    final copied = [
+      for (final column in operation.newTable.columns)
+        if (operation.oldTable.column(oldNameOf[column.name] ?? column.name) !=
+            null)
+          column.name,
+    ];
+    final targets = copied.map(escapeName).join(', ');
+    final sources =
+        copied.map((name) => escapeName(oldNameOf[name] ?? name)).join(', ');
+    return '''
+INSERT INTO ${escapeName('__new_${operation.tableName}')} ($targets) SELECT $sources FROM ${escapeName(operation.tableName)};''';
+  }
+
+  String _copyVerbatim(TableInfo table) {
+    final columns = table.columns.map((c) => escapeName(c.name)).join(', ');
+    return '''
+INSERT INTO ${escapeName('__new_${table.name}')} ($columns) SELECT $columns FROM ${escapeName(table.name)};''';
+  }
+
+  /// Original tables in a safe drop order: a table is dropped only after
+  /// every rebuilt table referencing it is gone.
+  List<String> _dropOrder(AlterTable operation) {
+    final tables = {
+      operation.tableName: operation.newTable,
+      for (final dependent in operation.referencedBy)
+        dependent.table.name: dependent.table,
+    };
+
+    final remaining = {...tables.keys};
+    final order = <String>[];
+    while (remaining.isNotEmpty) {
+      final free = remaining.where((name) {
+        return !remaining.any((other) {
+          if (other == name) return false;
+          return tables[other]!.columns.any(
+                (column) => column.foreignKey?.referencedTable == name,
+              );
+        });
+      }).toList();
+      if (free.isEmpty) {
+        throw UnsupportedError(
+          '''
+Cyclic foreign keys among ${remaining.join(', ')}: no safe order to rebuild them. Write the migration by hand with `generate --empty`.''',
+        );
+      }
+      order.addAll(free);
+      remaining.removeAll(free);
+    }
+    return order;
+  }
 
   String _columnDefinition(ColumnInfo column) {
     final parts = <String>[
@@ -209,9 +288,9 @@ class SQLiteDdlGenerator extends DdlGenerator {
     }
 
     if (column.foreignKey case final fk?) {
-      parts.add(
-        'REFERENCES ${escapeName(fk.referencedTable)}(${escapeName(fk.referencedColumn)})',
-      );
+      final referencedTable = escapeName(fk.referencedTable);
+      final referencedColumn = escapeName(fk.referencedColumn);
+      parts.add('REFERENCES $referencedTable($referencedColumn)');
       if (fk.onDelete != null) parts.add('ON DELETE ${fk.onDelete}');
       if (fk.onUpdate != null) parts.add('ON UPDATE ${fk.onUpdate}');
     }
@@ -219,148 +298,7 @@ class SQLiteDdlGenerator extends DdlGenerator {
     return parts.join(' ');
   }
 
-  /// True when the only change is the SQL DEFAULT expression.
-  bool _isDefaultOnlyAlter(ColumnInfo oldColumn, ColumnInfo newColumn) {
-    return oldColumn.type == newColumn.type &&
-        oldColumn.isNullable == newColumn.isNullable &&
-        oldColumn.primaryKey == newColumn.primaryKey &&
-        oldColumn.autoIncrement == newColumn.autoIncrement &&
-        oldColumn.foreignKey == newColumn.foreignKey &&
-        oldColumn.defaultValue != newColumn.defaultValue;
-  }
-
-  /// Applies SQLite ADD COLUMN rules: NOT NULL requires a non-NULL DEFAULT when
-  /// rows may exist. Infers a constant DEFAULT from [ColumnInfo.type] when absent.
-  ColumnInfo _sqliteEffectiveColumnForAdd(String tableName, ColumnInfo column) {
-    if (column.isNullable ||
-        _sqliteDefaultExpressionIsNonNull(column.defaultValue)) {
-      return column;
-    }
-
-    final inferredExpr = _inferSqliteNotNullDefaultExpression(column);
-    if (inferredExpr == null) {
-      throw StateError(
-        'SQLite cannot ALTER TABLE ADD COLUMN "${column.name}" on "$tableName" '
-        'as NOT NULL without a non-NULL DEFAULT. No DEFAULT was given and the '
-        'type "${column.type}" is not supported for automatic inference; add an '
-        'explicit SQL default in your schema.',
-      );
-    }
-
-    warn(
-      'SQLite ADD COLUMN "${column.name}" on "$tableName": NOT NULL with no '
-      'DEFAULT; inferred constant DEFAULT $inferredExpr from SQL '
-      'type "${column.type}". ${_sqliteAddColumnConstantDefaultNote()} Prefer '
-      'setting an explicit literal DEFAULT or using a table-rebuild migration '
-      'if you need a non-constant default.',
-    );
-
-    return ColumnInfo(
-      name: column.name,
-      type: column.type,
-      isNullable: column.isNullable,
-      primaryKey: column.primaryKey,
-      autoIncrement: column.autoIncrement,
-      defaultValue: inferredExpr,
-      foreignKey: column.foreignKey,
-    );
-  }
-
-  String _sqliteAddColumnConstantDefaultNote() =>
-      'SQLite only accepts constant DEFAULT values on ADD COLUMN.';
-
-  /// SQL value expression for backfilling NULLs before NOT NULL rebuild.
-  String _sqliteBackfillExpressionForNotNull(
-    String tableName,
-    ColumnInfo column,
-  ) {
-    if (_sqliteDefaultExpressionIsNonNull(column.defaultValue)) {
-      return column.defaultValue!;
-    }
-
-    if (column.primaryKey && _sqliteTextAffinity(column.type)) {
-      warn(
-        'SQLite NOT NULL backfill for PRIMARY KEY "${column.name}" on '
-        '"$tableName": no explicit DEFAULT; using lower(hex(randomblob(8))) '
-        'per row. Set an explicit literal DEFAULT on the column if you need a '
-        'fixed sentinel instead.',
-      );
-      return 'lower(hex(randomblob(8)))';
-    }
-
-    final inferred = _inferSqliteNotNullDefaultExpression(column);
-    if (inferred == null) {
-      throw StateError(
-        'SQLite cannot set "${column.name}" on "$tableName" to NOT NULL: '
-        'existing NULL values need a backfill value but no DEFAULT is defined '
-        'and type "${column.type}" has no inferred constant. Add an explicit '
-        'SQL default on the column in your schema.',
-      );
-    }
-
-    warn(
-      'SQLite NOT NULL backfill for "${column.name}" on "$tableName": no '
-      'explicit DEFAULT; inferred constant $inferred from SQL type '
-      '"${column.type}". Prefer setting an explicit literal DEFAULT on the '
-      'column.',
-    );
-    return inferred;
-  }
-
-  /// Whether [defaultExpression] is present and not trivially SQL NULL.
-  bool _sqliteDefaultExpressionIsNonNull(String? defaultExpression) {
-    if (defaultExpression == null) return false;
-    var expr = defaultExpression.trim();
-    if (expr.isEmpty) return false;
-    while (expr.startsWith('(') && expr.endsWith(')')) {
-      expr = expr.substring(1, expr.length - 1).trim();
-    }
-    return expr.toUpperCase() != 'NULL';
-  }
-}
-
-/// SQL DEFAULT expression (without `DEFAULT` keyword), or null if unknown.
-String? _inferSqliteNotNullDefaultExpression(ColumnInfo column) {
-  final sqlType = column.type.trim().toUpperCase();
-
-  if (_sqliteBlobAffinity(sqlType)) {
-    return null;
-  }
-
-  if (_sqliteIntegerAffinity(sqlType)) {
-    return '0';
-  }
-
-  if (_sqliteRealAffinity(sqlType)) {
-    return '0.0';
-  }
-
-  if (_sqliteTextAffinity(sqlType)) {
-    return "''";
-  }
-
-  if (sqlType == 'NUMERIC' || sqlType == 'BOOLEAN' || sqlType == 'BOOL') {
-    return '0';
-  }
-
-  return null;
-}
-
-bool _sqliteBlobAffinity(String sqlType) {
-  final u = sqlType.toUpperCase();
-  return u == 'BLOB' || u.contains('BINARY');
-}
-
-/// INTEGER affinity (SQLite rules): type name contains "INT".
-bool _sqliteIntegerAffinity(String sqlType) =>
-    sqlType.toUpperCase().contains('INT');
-
-bool _sqliteRealAffinity(String sqlType) {
-  final u = sqlType.toUpperCase();
-  return u == 'REAL' || u.contains('FLOA') || u.contains('DOUB');
-}
-
-bool _sqliteTextAffinity(String sqlType) {
-  final u = sqlType.toUpperCase();
-  return u.contains('CHAR') || u == 'TEXT' || u == 'CLOB' || u == 'STRING';
+  /// Whether [operation] takes the rebuild path (vs the ALTER whitelist).
+  bool _needsRebuild(AlterTable operation) =>
+      !_isSimple(operation, TableDiff.of(operation));
 }

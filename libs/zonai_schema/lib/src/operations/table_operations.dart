@@ -2,6 +2,12 @@ import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
+// The narrow returning.dart, not the raindrop_sqlite.dart barrel: that barrel
+// unconditionally exports sqlite_delegate.dart (needs package:sqlite3), and a
+// `show` clause only filters NAMES -- the compiler still resolves every file in
+// the export chain. See issue #24 and zonai_schema.dart's comment.
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/builders/returning.dart'
+    show SQLiteInsertReturning;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/where_sql.dart';
@@ -38,7 +44,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
 
   final S schema;
 
-  rd.TableMeta<S, R> get table => rd.TableMeta.getFor(schema);
+  rd.TableMeta<S, R> get table => schema.$ as rd.TableMeta<S, R>;
 
   rd.Column<dynamic, dynamic> _requireColumn(String name) {
     for (final column in table.columns) {
@@ -78,7 +84,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
           inferredColumns.add(column.name);
         case UpdatedAtTransformer():
           inferredColumns.add(column.name);
-          updateables.add(UpdateableColumn(column, DateTime.now()));
+          updateables.add(UpdateableColumn(column, _nowFor(column)));
         case final UpdatedWhenTransformer t:
           inferredColumns.add(column.name);
           watchedUpdateColumns.add((column, t));
@@ -98,7 +104,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
       }
       for (final (column, transformer) in watchedUpdateColumns) {
         if (updatingColumns.contains(transformer.watchedColumn)) {
-          updateables.add(UpdateableColumn(column, DateTime.now()));
+          updateables.add(UpdateableColumn(column, _nowFor(column)));
         }
       }
     }
@@ -182,13 +188,33 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         .where(_whereFilter(where, table.name));
   }
 
-  /// Decodes API/wire values (e.g. [String] ids) before [Column.encode].
+  /// `now`, encoded the way [UpdateableColumn] expects, for a server-managed
+  /// timestamp column (`updatedAt`/`updatedWhen`).
+  ///
+  /// Same contract as [_decodeUpdateWireValue] -- `UpdateableColumn.value` is
+  /// "an encoded literal" -- but only the encode half applies here: this value
+  /// is server-generated, so it is already the column's Dart type and there is
+  /// no wire shape to decode first. Passing the bare [DateTime] bound it
+  /// straight into the statement's parameters, where it reached the IPC codec
+  /// and failed with "Don't know how to serialize DateTime" *after* the write
+  /// had been issued -- so the row was written and the reply was lost.
+  Object? _nowFor(rd.Column<dynamic, dynamic> column) =>
+      column.encode(DateTime.now());
+
+  /// Turns an API/wire value (e.g. a [String] id) into the encoded operand
+  /// [UpdateableColumn] now expects.
+  ///
+  /// Its `value` is documented as "an encoded literal", so the caller has to
+  /// encode; it used to be encoded for us. Decode first so a wire-shaped value
+  /// becomes the column's Dart type, then encode that back to storage form --
+  /// a round-trip, but the two halves are not inverses for every column and
+  /// skipping either one binds the wrong shape.
   Object? _decodeUpdateWireValue(
     rd.Column<dynamic, dynamic> col,
     Object? value,
   ) {
     if (value == null) return null;
-    return col.decode(value);
+    return col.encode(col.decode(value));
   }
 
   UpdateableColumn? _convertUpdateValue(
