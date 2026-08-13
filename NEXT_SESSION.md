@@ -100,7 +100,7 @@ only transaction that spans `main` and an attached DB is the purge pipeline,
 where it is harmless, and the request-path writes to both split tables are
 standalone statements.
 
-### 2. `max_page_count` on the log DB — the remaining half
+### 2. `max_page_count` on the log DB — prerequisite done, one decision left
 
 `journal_size_limit` is **resolved: deliberately not done.** Measuring it did
 not support the plan. With the limit at 32 KB and a 1.6 MB WAL, checkpoints at
@@ -111,15 +111,32 @@ wants pages returned for reuse rather than the file shrunk; `_vacuum` already
 uses TRUNCATE. The finding is recorded next to the `journal_mode` pragma that
 replaced it in `resqlite_delegate.dart`.
 
-`max_page_count` is now unblocked and verified safe by `45befd6` (it stops log
-writes and leaves application writes untouched). **It needs a decision before
-it can land**, not just code:
+**The safety prerequisite is done** (`b1e03b3`). A cap makes log inserts fail
+by design, so what happens to a failed insert had to stop being hypothetical.
+It was worse than "fire-and-forget", and needed measuring rather than reading:
+the callback's Future is discarded, `Logger._log`'s `try`/`catch` only guards
+a *synchronous* throw, so the error resurfaced as an **unhandled asynchronous
+error in the request's zone**, once per failed write, unhandleable where it
+happened. It now catches and reports one deduplicated line to stderr. Both
+halves of that dispatch are pinned in
+`apps/zonai/test/src/logger_async_callback_test.dart`.
 
-- What cap, and is it configurable in `zonai.yaml`?
-- What happens when it is hit. A log insert starts failing with `SQLITE_FULL`,
-  and the write path is `trace_id.dart`'s fire-and-forget callback. A cap that
-  can take down request handling is worse than the runaway table. This almost
-  certainly needs the log write to become explicitly non-fatal first.
+So the cap itself is now a small change. **What is left is one decision, and
+it is a product decision, not a technical one:**
+
+- **Default off, opt-in via `zonai.yaml`** — my recommendation. A cap that is
+  hit stops logging entirely, which removes observability at exactly the
+  moment something is going wrong. The disk-fill problem it was proposed for
+  is now addressed from three other directions (working retention, the
+  reclaim cron, `DiskFullException`), so a cap is a hard guarantee for people
+  who want one rather than something to impose on everyone.
+- **Default on at some size** — defensible if you would rather every
+  deployment have a ceiling. Needs a number that is generous enough not to
+  bite a busy server: 512 MB or 1 GB, not 64 MB.
+
+Whichever way, the cap is applied where the attach happens
+(`ResqliteDelegate.open`) and is verified safe by `45befd6`: it stops log
+writes and leaves application writes untouched.
 
 ### 3. Conditional VACUUM in the cleanup cron — ✅ DONE
 
