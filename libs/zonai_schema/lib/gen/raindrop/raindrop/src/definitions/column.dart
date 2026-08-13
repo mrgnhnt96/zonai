@@ -8,7 +8,6 @@
 
 import 'dart:async';
 
-import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// A column value of type [V], accepted directly or as a [Future].
@@ -54,7 +53,6 @@ class Column<R, V extends Object?> with SqlOperand<V> implements Selectable<V> {
 
   /// Reads this column's value from row [r] via the accessor given at
   /// construction, without any of its type data.
-  @internal
   // ignore: avoid_dynamic_calls we know the contract of the function
   dynamic readValueOf(Object? r) => _valueOf!(r as R) as dynamic;
 

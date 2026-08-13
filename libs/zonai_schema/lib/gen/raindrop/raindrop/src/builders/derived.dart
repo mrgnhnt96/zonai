@@ -6,7 +6,6 @@
 //
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
-import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/clause.dart';
 
@@ -36,7 +35,6 @@ extension DerivedWholeRow<S extends Schema<R>, R> on WholeRowFromBuilder<S, R> {
 ///
 /// Used by the generated `DerivedN` extensions, not meant to be called
 /// directly.
-@internal
 class PreparedDerived<V> {
   /// {@macro prepared_derived}
   const PreparedDerived(this.query, this.names, this.sources);
@@ -57,7 +55,6 @@ class PreparedDerived<V> {
 /// A bare expression does NOT, it renders as anonymous SQL, and the outer
 /// query then references a column that does not exist. So this does not merely
 /// record names, it **rewrites the projection** to emit them.
-@internal
 PreparedDerived<V> prepareDerived<V>(
   SelectFromBuilder<Schema<dynamic>, dynamic, V> builder,
 ) {
@@ -129,7 +126,6 @@ A derived table cannot project ${other.runtimeType}. Select columns or expressio
 /// Deterministic on purpose, a counter would make the same query render
 /// differently depending on what was built before it, which would make golden
 /// tests depend on execution order.
-@internal
 String defaultDerivedName(QueryConfig config) {
   final from = config.from;
   return from == null ? 'derived' : '${from.name}_d';
@@ -140,7 +136,6 @@ String defaultDerivedName(QueryConfig config) {
 /// [read] pulls this position out of the record row. The transformer is taken
 /// from whatever the projection selected, so reading the column decodes back to
 /// the domain type rather than the driver's form.
-@internal
 Column<R, W> derivedColumn<R, W>(
   SchemaBuilder<R> $,
   PreparedDerived<dynamic> prepared,

@@ -90,11 +90,9 @@ abstract class QueryBuilder<S, V> {
   QueryBuilder(this.executor, {required this.config});
 
   /// The executor being used to query the database with.
-  @internal
   final RaindropExecutor executor;
 
   /// The config of the query builder.
-  @internal
   final QueryConfig config;
 
   @override
@@ -163,7 +161,6 @@ mixin ToQuery<S, V> on QueryBuilder<S, V> implements Future<List<V>> {
   ///
   /// Exists because [compile] is test-visible only, and embedding is a library
   /// concern rather than a test one.
-  @internal
   Query<V> compileEmbedded({bool qualified = false}) =>
       compile(qualified: qualified);
 

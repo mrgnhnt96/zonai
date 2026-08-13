@@ -6,7 +6,6 @@
 //
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
-import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/clause.dart';
 
@@ -26,7 +25,6 @@ S table<S extends Schema<R>, R>(
 ///
 /// Used by the generated `DerivedN` extensions, not meant to be called
 /// directly.
-@internal
 S derivedTable<S extends Schema<R>, R>(
   String name,
   S Function(SchemaBuilder<R>) builder,
