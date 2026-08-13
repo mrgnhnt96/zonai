@@ -24,7 +24,7 @@ The `Jwt` object is passed to every rule and extension method. It contains all t
 
 Correct usage — a **separate** table, used only for accounts created via `zonai db admin add`:
 
-```dart
+```dart no-analyze
 final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
   // admin.canEdit defaults to true
 }
@@ -33,7 +33,10 @@ final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
 Lock down public self-registration on that table too, as defense in depth — `zonai db admin add` bypasses rules entirely (it writes directly, not through `/auth/sign-up`), so this doesn't block legitimate admin creation:
 
 ```dart
-class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
+import 'package:my_app/src/schemas/admins.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
+final class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
   AdminRowRules() : super(admins);
 
   @override
@@ -43,7 +46,7 @@ class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
 
 To create read-only admins (they can view but not mutate), override `canEdit` to return `false` on the same dedicated table:
 
-```dart
+```dart no-analyze
 final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
   @override
   bool get canEdit => false;
@@ -52,7 +55,7 @@ final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
 
 Then enforce it in your table rules (for whichever *other* tables the admin needs to manage — not the admin table itself):
 
-```dart
+```dart in:table-rules
 // Allow read for any admin; require canEdit for mutations
 @override Future<bool> canView(Jwt? jwt) async => jwt?.admin.isAdmin ?? false;
 @override Future<bool> canUpdate(Jwt? jwt) async => jwt?.admin.canEdit ?? false;
@@ -63,14 +66,18 @@ Then enforce it in your table rules (for whichever *other* tables the admin need
 
 Custom claims are added via `addClaims({required Jwt jwt})` in an auth table's `AuthOperations` class. They are available on the `jwt.claims` map:
 
-```dart
-// In AuthOperations:
+In the table's operations file:
+
+```dart in:auth-operations
 @override
 Future<Claims> addClaims({required Jwt jwt}) async {
   return Claims({'plan': 'pro', 'role': 'editor'});
 }
+```
 
-// In a rule:
+In a rule:
+
+```dart in:table-rules
 @override
 Future<bool> canCreate(Jwt? jwt) async {
   return jwt?.claims['plan'] == 'pro';
@@ -81,7 +88,7 @@ Future<bool> canCreate(Jwt? jwt) async {
 
 The `jwt` parameter is `Jwt?` (nullable). It is `null` when the request has no `Authorization` header. Always handle the null case:
 
-```dart
+```dart in:table-rules
 // Public endpoint — allow anyone
 @override
 Future<bool> canList(Jwt? jwt) async => true;
@@ -99,7 +106,7 @@ Future<bool> canDelete(Jwt? jwt) async => jwt?.admin.isAdmin ?? false;
 
 Extension hooks also receive `Jwt? jwt`. Use it for audit logging or to make decisions based on who triggered the mutation:
 
-```dart
+```dart in:extension-task
 @override
 Future<void> afterCreateSuccess(Task row, Jwt? jwt) async {
   logger.info('Task ${row.id} created by ${jwt?.userId ?? 'anonymous'}');

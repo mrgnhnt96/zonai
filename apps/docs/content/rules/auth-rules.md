@@ -61,7 +61,7 @@ Auth rules do not receive the account row or the submitted credentials — only 
 
 Every auth rule takes the authentication method being attempted:
 
-```dart
+```dart no-analyze
 enum AuthType { password, otp, magicLink }
 ```
 
@@ -73,7 +73,7 @@ This is what lets one rule allow password sign-in while refusing OTP, without to
 
 On `AuthTableRules`. Gates the authentication endpoints for the table as a whole. Defaults to `true`.
 
-```dart
+```dart in:auth-table-rules
 @override
 Future<bool> canAuthenticate(Jwt? jwt, AuthType authType) async {
   return authType == AuthType.password;  // password only
@@ -86,7 +86,7 @@ Future<bool> canAuthenticate(Jwt? jwt, AuthType authType) async {
 
 On `AuthRowRules`. Called before a new account row is created, and only when no matching row exists yet.
 
-```dart
+```dart in:auth-row-rules
 @override
 Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
   return jwt?.admin.isAdmin ?? false;  // invite-only
@@ -99,7 +99,7 @@ The default allows an admin unconditionally, and otherwise allows the attempt wh
 
 Called before a token is issued.
 
-```dart
+```dart in:auth-row-rules
 @override
 Future<bool> canSignIn(Jwt? jwt, AuthType authType) async {
   return authType != AuthType.otp;  // no OTP sign-in
@@ -112,7 +112,7 @@ Defaults to the same "is this method supported by the table" check as `canSignUp
 
 Called before a password reset email is sent.
 
-```dart
+```dart in:auth-row-rules
 @override
 Future<bool> canPasswordReset(Jwt? jwt, AuthType authType) async => false;
 ```
@@ -123,7 +123,7 @@ Defaults to `true` for `AuthType.password` when the table mixes in `PasswordAuth
 
 ## Common Patterns
 
-```dart
+```dart in:auth-row-rules
 // Invite-only: accounts can only be created by an admin
 @override
 Future<bool> canSignUp(Jwt? jwt, AuthType authType) async =>

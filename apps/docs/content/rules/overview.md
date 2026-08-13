@@ -48,7 +48,7 @@ If no rules file exists for a table, **all operations on that table are denied b
 
 Every rule method receives a `Jwt?` — nullable because the request may be unauthenticated:
 
-```dart
+```dart in:table-rules
 // Public endpoint — allow everyone
 @override
 Future<bool> canList(Jwt? jwt) async => true;

@@ -102,7 +102,7 @@ Only `_photos` can be overridden this way. Registering rules for any other inter
 
 File size and MIME type constraints are enforced **before** rules run — they are configured in `AppConfig.photos`. Your `canCreate` rule only sees uploads that have already passed the size and type checks.
 
-```dart
+```dart in:app-config
 photos: PhotosConfig(
   maxBytes: 5 * 1024 * 1024,
   allowedMimeTypes: [ImageMimeType.jpeg, ImageMimeType.png],

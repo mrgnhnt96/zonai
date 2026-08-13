@@ -23,6 +23,7 @@ sealed class Id implements z.Id {
     }
 
     return switch (parts[1]) {
+      AdminsId._suffix => AdminsId(json),
       ArticlesId._suffix => ArticlesId(json),
       CommentsId._suffix => CommentsId(json),
       EventsId._suffix => EventsId(json),
@@ -48,6 +49,14 @@ sealed class Id implements z.Id {
 
   @override
   int get hashCode => value.hashCode;
+}
+
+class AdminsId extends Id {
+  const AdminsId(super.value);
+
+  factory AdminsId.generate() => AdminsId(z.Id.generate(_suffix));
+
+  static const _suffix = 'ad';
 }
 
 class ArticlesId extends Id {

@@ -70,21 +70,27 @@ Two columns can't reflect the true post-write value in `after`, so don't gate a 
 
 Migrating is mechanical: add the `after` parameter, and use `before` wherever the old code used `row`. If your rule doesn't need to inspect the prospective post-write state, ignore `after` — behavior is unchanged.
 
-```dart
-// Before
-Future<bool> canUpdate(Jwt? jwt, Task row) async => jwt?.userId == row.createdBy.value;
+Before — the shape that no longer compiles:
 
-// After
-Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async => jwt?.userId == before.createdBy.value;
+```dart no-analyze
+Future<bool> canUpdate(Jwt? jwt, Task row) async => jwt?.userId == row.createdBy;
+```
+
+After:
+
+```dart in:row-rules
+@override
+Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async =>
+    jwt?.userId == before.createdBy;
 ```
 
 This unlocks gating on the transition itself, not just the current row — e.g. denying a write that would add a role the caller isn't allowed to grant:
 
 ```dart
 @override
-Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
-  if (after.roles.contains('admin') && !before.roles.contains('admin')) {
-    return jwt?.admin.isAdmin ?? false; // only an existing admin may grant admin
+Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async {
+  if (after.ownerId != before.ownerId) {
+    return jwt?.admin.isAdmin ?? false; // only an admin may reassign an owner
   }
   return jwt?.admin.canEdit ?? false;
 }
@@ -102,7 +108,7 @@ For large result sets, keep row rules fast — avoid database queries inside the
 
 ### Skipping per-row checks
 
-```dart
+```dart in:row-rules
 @override
 bool get requiresPerRowCheck => false; // public table: table rules are enough
 ```
@@ -111,17 +117,17 @@ Default is `true`. Use `false` only when every row that passes table rules is al
 
 ## Common Patterns
 
-```dart
+```dart in:row-rules
 // Owner-only update/delete
 @override
 Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async =>
-    jwt?.userId == before.authorId.value;
+    jwt?.userId == before.createdBy;
 
 // Admin bypass with owner fallback
 @override
 Future<bool> canDelete(Jwt? jwt, Task row) async {
   if (jwt?.admin.isAdmin ?? false) return true;
-  return jwt?.userId == row.authorId.value;
+  return jwt?.userId == row.createdBy;
 }
 
 // Public view always
@@ -133,7 +139,7 @@ Future<bool> canView(Jwt? jwt, Task row) async => true;
 
 Named operations that aren't create/update/delete/view — `TableOperations.custom(operation, ...)` — go through `customOperations`, keyed by the same operation name. An operation name that isn't a key in the map is denied, same as any unoverridden method above:
 
-```dart
+```dart in:row-rules
 @override
 Map<String, CustomRowOperationRule<Task>> get customOperations => {
   'archive': (jwt, before, after) async =>

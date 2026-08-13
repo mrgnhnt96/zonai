@@ -1100,7 +1100,7 @@
         {
           "h": "Common Patterns",
           "a": "common-patterns",
-          "b": "// Public read, authenticated write @override Future canList(Jwt? jwt) async => true; @override Future canView(Jwt? jwt) async => true; @override Future canCreate(Jwt? jwt) async => jwt != null; @override Future canUpdate(Jwt? jwt) async => jwt != null; @override Future canDelete(Jwt? jwt) async => jwt != null; // Admin-only @override Future canDelete(Jwt? jwt) async => jwt?.admin.isAdmin ?? false; // Fully public (no file needed — but explicit is fine too) @override Future canList(Jwt? jwt) async => true; // etc."
+          "b": "Public read, authenticated write: @override Future canList(Jwt? jwt) async => true; @override Future canView(Jwt? jwt) async => true; @override Future canCreate(Jwt? jwt) async => jwt != null; @override Future canUpdate(Jwt? jwt) async => jwt != null; @override Future canDelete(Jwt? jwt) async => jwt != null; Admin-only deletes, on top of the same reads: @override Future canDelete(Jwt? jwt) async => jwt?.admin.isAdmin ?? false; Fully public — no rules file is needed at all, but being explicit is fine: @override Future canList(Jwt? jwt) async => true; @override Future canView(Jwt? jwt) async => true;"
         },
         {
           "h": "Accessing Custom JWT Claims",
@@ -1146,7 +1146,7 @@
         {
           "h": "Common Patterns",
           "a": "common-patterns",
-          "b": "// Owner-only update/delete @override Future canUpdate(Jwt? jwt, Task before, Task after) async => jwt?.userId == before.authorId.value; // Admin bypass with owner fallback @override Future canDelete(Jwt? jwt, Task row) async { if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == row.authorId.value; } // Public view always @override Future canView(Jwt? jwt, Task row) async => true;"
+          "b": "// Owner-only update/delete @override Future canUpdate(Jwt? jwt, Task before, Task after) async => jwt?.userId == before.createdBy; // Admin bypass with owner fallback @override Future canDelete(Jwt? jwt, Task row) async { if (jwt?.admin.isAdmin ?? false) return true; return jwt?.userId == row.createdBy; } // Public view always @override Future canView(Jwt? jwt, Task row) async => true;"
         },
         {
           "h": "Custom Operations",
@@ -1264,7 +1264,7 @@
         {
           "h": "Custom Claims",
           "a": "custom-claims",
-          "b": "Custom claims are added via addClaims({required Jwt jwt}) in an auth table's AuthOperations class. They are available on the jwt.claims map: // In AuthOperations: @override Future addClaims({required Jwt jwt}) async { return Claims({'plan': 'pro', 'role': 'editor'}); } // In a rule: @override Future canCreate(Jwt? jwt) async { return jwt?.claims['plan'] == 'pro'; }"
+          "b": "Custom claims are added via addClaims({required Jwt jwt}) in an auth table's AuthOperations class. They are available on the jwt.claims map: In the table's operations file: @override Future addClaims({required Jwt jwt}) async { return Claims({'plan': 'pro', 'role': 'editor'}); } In a rule: @override Future canCreate(Jwt? jwt) async { return jwt?.claims['plan'] == 'pro'; }"
         },
         {
           "h": "Null Safety",

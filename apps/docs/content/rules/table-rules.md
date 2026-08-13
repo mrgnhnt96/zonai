@@ -52,27 +52,35 @@ For `view`, `update`, and `delete`: the table rule runs first, then row rules ru
 
 ## Common Patterns
 
-```dart
-// Public read, authenticated write
+Public read, authenticated write:
+
+```dart in:table-rules
 @override Future<bool> canList(Jwt? jwt) async => true;
 @override Future<bool> canView(Jwt? jwt) async => true;
 @override Future<bool> canCreate(Jwt? jwt) async => jwt != null;
 @override Future<bool> canUpdate(Jwt? jwt) async => jwt != null;
 @override Future<bool> canDelete(Jwt? jwt) async => jwt != null;
+```
 
-// Admin-only
-@override Future<bool> canDelete(Jwt? jwt) async => jwt?.admin.isAdmin ?? false;
+Admin-only deletes, on top of the same reads:
 
-// Fully public (no file needed — but explicit is fine too)
+```dart in:table-rules
+@override Future<bool> canDelete(Jwt? jwt) async =>
+    jwt?.admin.isAdmin ?? false;
+```
+
+Fully public — no rules file is needed at all, but being explicit is fine:
+
+```dart in:table-rules
 @override Future<bool> canList(Jwt? jwt) async => true;
-// etc.
+@override Future<bool> canView(Jwt? jwt) async => true;
 ```
 
 ## Accessing Custom JWT Claims
 
 Custom claims added via [Auth Operations](/operations/auth-operations) are available via `jwt?.claims`:
 
-```dart
+```dart in:table-rules
 @override
 Future<bool> canCreate(Jwt? jwt) async {
   return jwt?.claims['plan'] == 'pro';
@@ -85,7 +93,7 @@ See [JWT Claims](/rules/jwt-claims) for all available fields.
 
 Named operations that aren't create/update/delete/view/list/count — `TableOperations.custom(operation, ...)` — go through `customOperations`, not the methods above. An operation name that isn't a key in the map is denied, same as any unoverridden method:
 
-```dart
+```dart in:table-rules
 @override
 Map<String, CustomTableOperationRule> get customOperations => {
   'archive': (jwt) async => jwt?.admin.canEdit ?? false,
