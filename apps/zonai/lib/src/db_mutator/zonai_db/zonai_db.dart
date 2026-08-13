@@ -81,6 +81,7 @@ part 'parts/effects.dart';
 part 'parts/expand.dart';
 part 'parts/list.dart';
 part 'parts/photo.dart';
+part 'parts/purge.dart';
 part 'parts/read.dart';
 part 'parts/resolve_photos.dart';
 part 'parts/stream_list.dart';
@@ -329,6 +330,19 @@ class ZonaiDb {
   /// Returns the number of rows removed.
   Future<int> clearLogs({DateTime? before}) async {
     return await _runWrite(() => _clearLogs(before: before));
+  }
+
+  /// Bulk-deletes rows from one of the framework's own tables, returning how
+  /// many were removed. Serialized with other writes like any mutation.
+  ///
+  /// See [_purge] for why this may skip per-row rules, and which tables it
+  /// refuses.
+  Future<int> purge({
+    required String table,
+    required Where where,
+    required Jwt? jwt,
+  }) async {
+    return await _runWrite(() => _purge(table: table, where: where, jwt: jwt));
   }
 
   /// Rewrites the database file so space freed by deletes is returned to the

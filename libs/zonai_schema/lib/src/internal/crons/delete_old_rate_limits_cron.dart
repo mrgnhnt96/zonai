@@ -14,13 +14,13 @@ final class DeleteOldRateLimitsCron extends CronJob {
   Future<void> run() async {
     final cutoff = DateTime.now().subtract(maxWindowAge);
 
-    mutate.delete.many(
+    final removed = await mutate.purge(
       tableName: '_rate_limit',
       where: Lt('window_start', cutoff),
     );
 
     logger.info(
-      'Queued deletion of rate limits with window_start before $cutoff',
+      'Deleted $removed rate limits with window_start before $cutoff',
     );
   }
 }

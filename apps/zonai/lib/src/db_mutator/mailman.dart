@@ -338,6 +338,16 @@ class Mailman<S extends Request, R extends Response> {
         case final NativeLibraryRequest request:
           response = await _provideNativeLibrary(request);
 
+        case final PurgeRecordsRequest request:
+          response = PurgeRecordsResponse(
+            id: request.id,
+            rowsAffected: await zonaiDB.purge(
+              table: request.table,
+              where: request.where,
+              jwt: request.jwt,
+            ),
+          );
+
         case final Request request:
           if (this case Receivable(:final onRequest) when request is S) {
             response = await onRequest(request);

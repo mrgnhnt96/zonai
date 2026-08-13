@@ -12,9 +12,12 @@ final class DeleteExpiredJwtsCron extends CronJob {
   Future<void> run() async {
     final now = DateTime.now();
 
-    mutate.delete.many(tableName: '_jwt', where: Lt('expires_at', now));
+    final removed = await mutate.purge(
+      tableName: '_jwt',
+      where: Lt('expires_at', now),
+    );
 
-    logger.info('Queued deletion of JWTs expired before $now');
+    logger.info('Deleted $removed JWTs expired before $now');
   }
 }
 

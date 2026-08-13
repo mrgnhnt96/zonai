@@ -11,12 +11,12 @@ final class CleanupAuthChallengesCron extends CronJob {
   Future<void> run() async {
     final now = DateTime.now();
 
-    mutate.delete.many(
+    final removed = await mutate.purge(
       tableName: '_auth_challenges',
       where: Lt('expires_at', now),
     );
 
-    logger.info('Queued deletion of auth challenges expired before $now');
+    logger.info('Deleted $removed auth challenges expired before $now');
   }
 }
 

@@ -13,7 +13,7 @@ final class CleanupCronEntriesCron extends CronJob {
   Future<void> run() async {
     final cutoff = DateTime.now().subtract(retention);
 
-    mutate.delete.many(
+    final removed = await mutate.purge(
       tableName: '_cron_jobs',
       where: And([
         Lt('started', cutoff),
@@ -21,7 +21,7 @@ final class CleanupCronEntriesCron extends CronJob {
       ]),
     );
 
-    logger.info('Queued deletion of cron history older than $cutoff');
+    logger.info('Deleted $removed cron history entries older than $cutoff');
   }
 }
 

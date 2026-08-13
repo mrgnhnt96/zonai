@@ -10,9 +10,12 @@ final class CleanupLogsCron extends CronJob {
   Future<void> run() async {
     final cutoff = DateTime.now().subtract(retention);
 
-    mutate.delete.many(tableName: '_log', where: Lt('timestamp', cutoff));
+    final removed = await mutate.purge(
+      tableName: '_log',
+      where: Lt('timestamp', cutoff),
+    );
 
-    logger.info('Queued deletion of logs older than $cutoff');
+    logger.info('Deleted $removed log records older than $cutoff');
   }
 }
 

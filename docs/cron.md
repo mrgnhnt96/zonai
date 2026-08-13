@@ -118,7 +118,7 @@ Inside `run()`, Zonai exposes the same globals as the extension worker (from `pa
 | Global   | Purpose                                                                                |
 | -------- | -------------------------------------------------------------------------------------- |
 | `get`    | Read rows (`get.one`, `get.many`) with the same rules as the public API                |
-| `mutate` | Queue creates, updates, or deletes (`mutate.create`, `mutate.update`, `mutate.delete`) |
+| `mutate` | Queue creates, updates, or deletes (`mutate.create`, `mutate.update`, `mutate.delete`); `mutate.purge` bulk-deletes from internal tables and returns a count |
 | `email`  | Send custom or built-in transactional email                                            |
 | `logger` | Log at debug/info/warn/error (forwarded to the server console)                         |
 
@@ -127,6 +127,39 @@ Every cron run acts as **`CronJwt`**: an internal worker identity with admin edi
 **Reads** (`get`) run immediately and respect collection/row rules for `CronJwt`.
 
 **Writes** (`mutate`) are **queued** during `run()` and committed when the job finishes (`JobCompleted` or `JobFailed`). Each queued mutation goes through [rules](rules.md), [operations](operations.md), and [extensions](extensions.md) the same way as extension side effects (up to 10 chained iterations).
+
+Because they are queued rather than awaited, `mutate.create` / `mutate.update` / `mutate.delete` return `void`: a job cannot see how many rows it changed, or whether the write succeeded. Treat the log line you write at the end of `run()` as a record that the job *ran*, not that it *did* anything.
+
+> **Fixed in this release.** Queued mutations from **scheduled** runs were previously attached to the request that started the scheduler rather than to the firing that queued them, and were silently discarded — no error, no entry in `_cron_jobs.error`, at any row count. Manually-triggered runs were unaffected. If you have a scheduled job whose writes never appeared, this was why; it needs no change on your side beyond upgrading.
+
+### Bulk deletes on internal tables
+
+Zonai's own retention jobs (`_cleanup_logs`, `_delete_expired_jwts`, `_delete_old_rate_limits`, `_cleanup_auth_challenges`, `_cleanup_cron_entries`) do **not** use `mutate.delete`. They use `mutate.purge`, which issues a single `DELETE ... WHERE` and returns the number of rows removed:
+
+```dart in:cron-run
+final removed = await mutate.purge(
+  tableName: '_log',
+  where: Lt('timestamp', cutoff),
+);
+
+logger.info('Deleted $removed log records older than $cutoff');
+```
+
+`purge` deliberately skips work that `mutate.delete` performs:
+
+| | `mutate.delete` | `mutate.purge` |
+| --- | --- | --- |
+| Reads matching rows first | yes, unbounded | no |
+| Per-row rule checks | yes, one dispatch per row | **no** |
+| `before`/`after` extension hooks | yes | no |
+| Returns a row count | no (`void`) | yes (`Future<int>`) |
+
+Skipping per-row rules is why `purge` is **not** a general-purpose API. Two gates are enforced host-side, on the process that owns the database, not trusted from the caller:
+
+1. **The table must be one of Zonai's internal tables.** Application tables are never purgeable — their row rules are yours, and bypassing them would bypass your policy. `_photos` is excluded as well: deleting a photo row also deletes the file behind it, and a bulk statement has no per-row step to do that on, so purging it would orphan files. Use `_cleanup_unreferenced_photos` instead.
+2. **The caller must be an admin identity.** `CronJwt` satisfies this, so scheduled jobs need no special handling.
+
+Anything failing either gate is refused with a table-access error. Reach for `mutate.delete` for your own tables — including when deleting a lot of rows, where you should page the work yourself rather than issue one unbounded delete.
 
 Cron jobs do **not** invoke extension hooks for the cron tick itself — only for rows changed via `mutate`. You do not need a separate HTTP call or raw SQLite access for normal cleanup; use `get`/`mutate`/`email` unless you have a reason to bypass the API pipeline.
 
