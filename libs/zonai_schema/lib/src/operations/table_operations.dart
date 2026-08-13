@@ -84,7 +84,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
           inferredColumns.add(column.name);
         case UpdatedAtTransformer():
           inferredColumns.add(column.name);
-          updateables.add(UpdateableColumn(column, DateTime.now()));
+          updateables.add(UpdateableColumn(column, _nowFor(column)));
         case final UpdatedWhenTransformer t:
           inferredColumns.add(column.name);
           watchedUpdateColumns.add((column, t));
@@ -104,7 +104,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
       }
       for (final (column, transformer) in watchedUpdateColumns) {
         if (updatingColumns.contains(transformer.watchedColumn)) {
-          updateables.add(UpdateableColumn(column, DateTime.now()));
+          updateables.add(UpdateableColumn(column, _nowFor(column)));
         }
       }
     }
@@ -187,6 +187,19 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         .setAll(updateables)
         .where(_whereFilter(where, table.name));
   }
+
+  /// `now`, encoded the way [UpdateableColumn] expects, for a server-managed
+  /// timestamp column (`updatedAt`/`updatedWhen`).
+  ///
+  /// Same contract as [_decodeUpdateWireValue] -- `UpdateableColumn.value` is
+  /// "an encoded literal" -- but only the encode half applies here: this value
+  /// is server-generated, so it is already the column's Dart type and there is
+  /// no wire shape to decode first. Passing the bare [DateTime] bound it
+  /// straight into the statement's parameters, where it reached the IPC codec
+  /// and failed with "Don't know how to serialize DateTime" *after* the write
+  /// had been issued -- so the row was written and the reply was lost.
+  Object? _nowFor(rd.Column<dynamic, dynamic> column) =>
+      column.encode(DateTime.now());
 
   /// Turns an API/wire value (e.g. a [String] id) into the encoded operand
   /// [UpdateableColumn] now expects.
