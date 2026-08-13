@@ -16,7 +16,14 @@ Options:
   -y, --yes       Skip confirmation prompt
 ''';
 
-Future<int> clearDatabase() async {
+/// Asks [question] on stdout and returns whether the answer was affirmative.
+bool _confirmViaStdin(String question) {
+  stdout.write(question);
+  final line = stdin.readLineSync()?.trim().toLowerCase();
+  return line == 'y' || line == 'yes';
+}
+
+Future<int> clearDatabase({bool Function(String question)? confirm}) async {
   if (args.help) {
     logger.info(_usage);
     return 1;
@@ -34,10 +41,15 @@ Future<int> clearDatabase() async {
     return 0;
   }
 
-  if (args['yes'] != true && args['y'] != true) {
-    stdout.write('Delete ${dbFile.path}? [y/N]: ');
-    final line = stdin.readLineSync()?.trim().toLowerCase();
-    if (line != 'y' && line != 'yes') {
+  // Read through `getOrNull` with the abbreviation declared: `-y` is parsed
+  // into `abbrs`, not `values`, so `args['y']` never saw it and the
+  // documented short form prompted anyway.
+  if (args.getOrNull<bool>('yes', abbr: 'y') != true) {
+    final answered = (confirm ?? _confirmViaStdin)(
+      'Delete ${dbFile.path}? [y/N]: ',
+    );
+
+    if (!answered) {
       logger.info('Cancelled.');
       return 0;
     }

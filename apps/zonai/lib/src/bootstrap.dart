@@ -38,10 +38,15 @@ import 'package:zonai_logger/zonai_logger.dart';
 Future<void> runZonai(List<String> arguments) async {
   final parsed = Args.parse(arguments);
 
+  // `-q` and `-L` are parsed into `abbrs`, not `values`, so the abbreviations
+  // have to be declared here or only the long forms would ever be seen.
   final log = Logger(
     level:
         .fromString(parsed.getOrNull('log')) ??
-        switch ((parsed['quiet'], parsed['loud'])) {
+        switch ((
+          parsed.getOrNull<bool>('quiet', abbr: 'q'),
+          parsed.getOrNull<bool>('loud', abbr: 'L'),
+        )) {
           (true, _) => .error,
           (_, true) => .verbose,
           (_, _) => .info,
