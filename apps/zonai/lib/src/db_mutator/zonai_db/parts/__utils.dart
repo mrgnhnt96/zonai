@@ -7,6 +7,10 @@ extension UtilsX on ZonaiDb {
   /// through the attach, so it is not pre-created here.
   File get _logDbFile => __logDbFile ??= fs.file(settings.zonaiLogSqlitePath);
 
+  /// The `_rate_limit` table's own file. Created lazily, as above.
+  File get _rateLimitDbFile =>
+      __rateLimitDbFile ??= fs.file(settings.zonaiRateLimitSqlitePath);
+
   Future<T?> _dispatchRules<T extends RuleResponse>(RuleRequest request) async {
     if (HostWorkerRegistries.useInProcessRules) {
       final response = await HostWorkerRegistries.rules!.dispatch(request);
@@ -57,7 +61,10 @@ extension UtilsX on ZonaiDb {
     await ensureResqliteNativeInstalled();
     final delegate = await ResqliteDelegate.open(
       _dbFile.path,
-      attach: {kLogDbSchema: _logDbFile.path},
+      attach: {
+        kLogDbSchema: _logDbFile.path,
+        kRateLimitDbSchema: _rateLimitDbFile.path,
+      },
     );
     final db = Raindrop(delegate);
 
@@ -67,7 +74,7 @@ extension UtilsX on ZonaiDb {
         prefix: _prefix,
       );
       await InternalDbMigrate.apply(db);
-      await _ensureLogDatabase(db);
+      await _ensureDisposableTables(db);
       await _createInternalCollections(db);
 
       logger.verbose('Retrieving migrations', prefix: _prefix);
@@ -106,71 +113,72 @@ extension UtilsX on ZonaiDb {
     final sqlSync = SqliteInternalTableSync();
 
     for (final schema in InternalDbArtifacts.schemas) {
-      // `_log` lives in its own file and is created by [_ensureLogDatabase],
-      // which has already run. Letting it through here would create a *second*
-      // `_log` in `main` -- and `main` wins name resolution, so every write
-      // would silently go back to the shared file the split exists to empty.
-      if (schema.$.name == _logTableName) continue;
+      // Disposable tables live in their own files and were created by
+      // [_ensureDisposableTables], which has already run. Letting one through
+      // here would create a *second* copy in `main` -- and `main` wins name
+      // resolution, so every write would silently go back to the shared file
+      // the split exists to keep it out of.
+      if (_disposableTableSchemas.containsKey(schema.$.name)) continue;
       await sqlSync.ensureMatchingTable(db, schema);
     }
   }
 
-  /// Moves `_log` into its own database file, dropping whatever was in `main`.
+  /// Moves the disposable tables into their own database files, dropping
+  /// whatever was in `main`.
   ///
-  /// Deliberately not a data migration. The rows are logs: bounded-retention,
-  /// reconstructible-or-not-worth-reconstructing, and the deployments that
-  /// need this most are the ones holding millions of them on a volume with no
+  /// Deliberately not a data migration. These tables are disposable in the
+  /// literal sense -- log lines past their retention window, rate-limit
+  /// counters whose whole lifetime is one window -- and the deployments that
+  /// need this most are the ones holding millions of rows on a volume with no
   /// room to copy anything. Dropping is also what returns their pages to
-  /// `main`'s freelist, which is the first half of reclaiming that space --
-  /// the second half is a `VACUUM`, which `zonai db logs clear --vacuum`
-  /// still runs against `main` for exactly this reason.
+  /// `main`'s freelist, which is the first half of reclaiming that space; the
+  /// second is a `VACUUM`, which `zonai db logs clear --vacuum` still runs
+  /// against `main` for exactly this reason.
   ///
   /// Order matters and is the whole trick: the drop has to happen before the
-  /// create, because an unqualified `_log` resolves into the attached database
+  /// create, because an unqualified name resolves into an attached database
   /// only while `main` has no table by that name.
   ///
-  /// Idempotent -- on every open after the first, both statements are no-ops.
-  Future<void> _ensureLogDatabase(Raindrop db) async {
-    final hadMainLog = await _mainHasLogTable(db);
-    if (hadMainLog) {
-      // `warn`, not `info`: this happens once per database and it discards
-      // records. An operator who did not expect that should see it.
-      logger.warn(
-        'Moving "$_logTableName" into its own database file '
-        '(${_logDbFile.path}). Existing log records are dropped; run '
-        '`zonai db logs clear --vacuum` to return their disk space to the OS.',
-        prefix: _prefix,
-      );
-      // Drops the table's indexes with it.
-      await db.execute('DROP TABLE IF EXISTS "main"."$_logTableName"');
+  /// Idempotent -- on every open after the first, every statement is a no-op.
+  Future<void> _ensureDisposableTables(Raindrop db) async {
+    final sqlSync = SqliteInternalTableSync();
+
+    for (final schema in InternalDbArtifacts.schemas) {
+      final table = schema.$.name;
+      final sqliteSchema = _disposableTableSchemas[table];
+      if (sqliteSchema == null) continue;
+
+      if (await _mainHasTable(db, table)) {
+        // `warn`, not `info`: this happens once per database and it discards
+        // rows. An operator who did not expect that should see it.
+        logger.warn(
+          'Moving "$table" into its own database file. Existing rows are '
+          'dropped; run `zonai db logs clear --vacuum` to return their disk '
+          'space to the operating system.',
+          prefix: _prefix,
+        );
+        // Drops the table's indexes with it.
+        await db.execute('DROP TABLE IF EXISTS "main"."$table"');
+      }
+
+      await sqlSync.ensureMatchingTable(db, schema, sqliteSchema: sqliteSchema);
+
+      // Recreated here rather than left to the generated migrations: those
+      // ran against `main` and were dropped along with the table above.
+      // Without them the dashboard's level/timestamp queries, every retention
+      // cutoff, and the rate limiter's per-request bucket lookup all degrade
+      // to full scans -- of the two tables written most often.
+      for (final ddl in _disposableTableIndexes[table] ?? const <String>[]) {
+        await db.execute(ddl.replaceAll(r'$schema', sqliteSchema));
+      }
     }
-
-    await SqliteInternalTableSync().ensureMatchingTable(
-      db,
-      logs,
-      sqliteSchema: kLogDbSchema,
-    );
-
-    // Recreated here rather than left to the generated migrations: those ran
-    // against `main` and were dropped along with the table above. Without
-    // them the dashboard's level/timestamp queries and every retention
-    // cutoff degrade to a full scan of the one table that grows without
-    // bound.
-    await db.execute(
-      'CREATE UNIQUE INDEX IF NOT EXISTS "$kLogDbSchema"."log_id_unique" '
-      'ON "$_logTableName" ("id")',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS "$kLogDbSchema"."log_level_timestamp_index" '
-      'ON "$_logTableName" ("level", "timestamp")',
-    );
   }
 
-  Future<bool> _mainHasLogTable(Raindrop db) async {
+  Future<bool> _mainHasTable(Raindrop db, String table) async {
     final result = await db.execute(
       'SELECT 1 FROM "main".sqlite_master '
       "WHERE type = 'table' AND name = ? LIMIT 1",
-      [_logTableName],
+      [table],
     );
     return result.rows.isNotEmpty;
   }

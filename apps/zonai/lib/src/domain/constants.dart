@@ -11,3 +11,13 @@ const kIsCompiled = bool.fromEnvironment('__ZONAI_COMPILED__');
 /// attach itself, `VACUUM`, `wal_checkpoint`, and the DDL that creates the
 /// table there in the first place.
 const kLogDbSchema = 'logdb';
+
+/// SQLite schema name the rate-limit database is attached under.
+///
+/// Same reasoning as [kLogDbSchema], for the same reason: `_rate_limit` is
+/// disposable. Every request that reaches a limited operation reads it and
+/// writes it, so on the shared file that churn lands in the application
+/// database's WAL and competes with real writes for it -- for rows whose
+/// entire lifetime is one rate-limit window and which nobody would want back
+/// after a crash.
+const kRateLimitDbSchema = 'ratedb';

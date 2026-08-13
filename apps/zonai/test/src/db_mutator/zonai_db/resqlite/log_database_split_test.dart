@@ -373,6 +373,65 @@ CREATE TABLE "_log" (
     );
 
     test(
+      'splits "_rate_limit" into its own file the same way',
+      () async {
+        if (!rs.isInstalled) {
+          markTestSkipped('resqlite native library not found');
+          return;
+        }
+
+        // The mechanism is shared, so this asserts the parts a second table
+        // could get wrong independently: its own file, its own schema, and its
+        // own index -- which the rate limiter depends on for *correctness*, not
+        // just speed. It resolves the race between two concurrent requests
+        // missing the same bucket row by retrying on constraint violation 19,
+        // and without the unique index there is no violation to retry on.
+        await withScope(() async {
+          final zonaiDb = ZonaiDb();
+          try {
+            final db = await zonaiDb.open();
+
+            final inMain = await db.execute(
+              'SELECT 1 FROM "main".sqlite_master WHERE name = ?',
+              ['_rate_limit'],
+            );
+            expect(inMain.rows, isEmpty);
+
+            final inRateDb = await db.execute(
+              'SELECT name FROM "$kRateLimitDbSchema".sqlite_master '
+              "WHERE type IN ('table', 'index') ORDER BY name",
+            );
+            expect(
+              inRateDb.rows.map((r) => r.single).toList(),
+              containsAll(['_rate_limit', 'rate_limit_bucket_unique']),
+            );
+
+            await db.execute(
+              'INSERT INTO "_rate_limit" ("id", "client_ip", "table", '
+              '"operation", "count", "window_start") VALUES (?, ?, ?, ?, ?, ?)',
+              ['a', '1.2.3.4', 'widgets', 'read', 1, 0],
+            );
+            await expectLater(
+              db.execute(
+                'INSERT INTO "_rate_limit" ("id", "client_ip", "table", '
+                '"operation", "count", "window_start") VALUES (?, ?, ?, ?, ?, ?)',
+                ['b', '1.2.3.4', 'widgets', 'read', 1, 0],
+              ),
+              throwsA(anything),
+              reason:
+                  'the bucket index has to be enforcing in the new file too -- '
+                  "the rate limiter's duplicate-insert retry is what makes it "
+                  'correct under concurrency',
+            );
+          } finally {
+            await zonaiDb.dispose();
+          }
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    test(
       'opening twice is a no-op the second time',
       () async {
         if (!rs.isInstalled) {

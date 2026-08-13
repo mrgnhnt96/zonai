@@ -28,6 +28,8 @@ import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
 // logs_table.dart exports one of its own.
 import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
 import 'package:zonai_schema/src/internal/tables/photos_table.dart';
+import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart'
+    show rateLimits;
 import 'package:zonai/src/messengers/config_mailman.dart';
 import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
@@ -101,8 +103,49 @@ const _prefix = '[ZONAI_DB]';
 ///
 /// Always used unqualified in statements: it lives in the attached
 /// [kLogDbSchema] database, and an unqualified name resolves there because
-/// `main` no longer has a table by that name (see `_ensureLogDatabase`).
+/// `main` no longer has a table by that name (see `_ensureDisposableTables`).
 final _logTableName = logs.$.name;
+
+/// Internal tables that live in a database file of their own, and the schema
+/// each is attached under.
+///
+/// "Disposable" is the property that earns the split, and it is a real one
+/// rather than a tidiness argument: high churn, bounded retention, and
+/// nothing worth reconstructing after a crash. That combination is what makes
+/// `unlink` a legitimate recovery step, keeps `VACUUM`'s exclusive lock off
+/// application data, and makes a page cap expressible at all -- a cap bounds
+/// a *file*, so on the shared database it would be hit by whichever write
+/// arrived first, application inserts included.
+///
+/// `_auth_challenges` and `_cron_jobs` are the next candidates; see the
+/// "table groups" entry in todo.md for the general version, which would let a
+/// schema declare this instead of it being listed here.
+final _disposableTableSchemas = <String, String>{
+  logs.$.name: kLogDbSchema,
+  rateLimits.$.name: kRateLimitDbSchema,
+};
+
+/// Indexes to recreate in the attached file, keyed by table.
+///
+/// These exist in the generated migrations too, but those ran against `main`
+/// and were dropped along with the table when it moved. `$schema` is
+/// substituted with the attached schema name -- an index has to be created in
+/// the same database as its table.
+final _disposableTableIndexes = <String, List<String>>{
+  logs.$.name: [
+    'CREATE UNIQUE INDEX IF NOT EXISTS "\$schema"."log_id_unique" '
+        'ON "${logs.$.name}" ("id")',
+    'CREATE INDEX IF NOT EXISTS "\$schema"."log_level_timestamp_index" '
+        'ON "${logs.$.name}" ("level", "timestamp")',
+  ],
+  rateLimits.$.name: [
+    // The rate limiter depends on this one for correctness, not just speed:
+    // it retries an insert on constraint violation 19 to resolve the race
+    // between two concurrent requests both missing the same bucket row.
+    'CREATE UNIQUE INDEX IF NOT EXISTS "\$schema"."rate_limit_bucket_unique" '
+        'ON "${rateLimits.$.name}" ("client_ip", "table", "operation")',
+  ],
+};
 
 class ZonaiDb {
   ZonaiDb()
@@ -176,6 +219,7 @@ class ZonaiDb {
 
   File? __dbFile;
   File? __logDbFile;
+  File? __rateLimitDbFile;
 
   /// Closes the underlying [ResqliteDelegate] and clears the open [db].
   Future<void> close() async {
@@ -191,6 +235,7 @@ class ZonaiDb {
     await close();
     __dbFile = null;
     __logDbFile = null;
+    __rateLimitDbFile = null;
     _extensions.dispose();
     _rules.dispose();
     _operations.dispose();

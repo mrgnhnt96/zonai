@@ -111,19 +111,30 @@ See [Custom Templates](/email/custom-templates).
 ### Where logs are stored
 
 `_log` lives in its own database file, `zonai_log.sqlite`, alongside
-`zonai.sqlite` in the data directory. It is joined back onto the connection
-with SQLite's `ATTACH`, so nothing about querying it changes — the table API,
-the dashboard and `zonai db logs` all reach it by name as before.
+`zonai.sqlite` in the data directory. `_rate_limit` gets one too,
+`zonai_rate_limit.sqlite`. Both are joined back onto the connection with
+SQLite's `ATTACH`, so nothing about querying them changes — the table API, the
+dashboard and `zonai db logs` all reach them by name as before.
 
-Keeping it separate is what makes a runaway log table recoverable. Logs are
-disposable in a way application data is not, and on a shared file every
-recovery path competes with application writes for the same space: `VACUUM`
-takes its exclusive lock on your tables too, and a page cap bounds the *file*,
-so it would start failing application inserts rather than log inserts.
+These two tables are *disposable*: high churn, bounded retention, and nothing
+worth reconstructing after a crash. That is what earns them a file of their
+own, and it buys three things that are impossible on a shared database:
+
+- `VACUUM` takes its exclusive lock on the disposable data instead of on your
+  tables, which is what makes reclaiming space from a cron viable at all
+- deleting the file becomes a legitimate recovery step, and it is the only one
+  that does not require a write to the volume that has run out of room
+- a page cap becomes expressible, since a cap bounds a *file* — on a shared
+  database it would be hit by whichever write arrived first, application
+  inserts included
+
+`_rate_limit` gains one more: it is written on every request that reaches a
+limited operation, and that churn no longer competes for the application
+database's write-ahead log.
 
 Databases created before this change are moved on the next server start.
-**Existing log records are dropped rather than copied** — the deployments that
-need the split most hold millions of rows on volumes with no room to copy
+**Existing rows are dropped rather than copied** — the deployments that need
+the split most hold millions of them on volumes with no room to copy
 anything. Their pages return to `zonai.sqlite`'s freelist, so run
 `zonai db logs clear --vacuum` afterwards to hand that space back to the
 operating system.
@@ -169,8 +180,8 @@ written, but rows already on disk stay until they are cleared and vacuumed.
 
 ## db clear
 
-Delete the SQLite database files entirely — both `zonai.sqlite` and
-`zonai_log.sqlite`, along with their WAL sidecars:
+Delete the SQLite database files entirely — `zonai.sqlite`, `zonai_log.sqlite`
+and `zonai_rate_limit.sqlite`, along with their WAL sidecars:
 
 ```sh
 zonai db clear          # prompts for confirmation

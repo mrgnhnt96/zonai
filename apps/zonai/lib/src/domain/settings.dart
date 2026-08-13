@@ -273,6 +273,28 @@ class Settings {
   String get zonaiLogSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai_log.sqlite'));
 
+  /// The `_rate_limit` table's own database file, attached as `ratedb` (see
+  /// `kRateLimitDbSchema`).
+  ///
+  /// Disposable for the same reasons as the log database, plus one of its
+  /// own: this table is written on every request that reaches a limited
+  /// operation, so leaving it in the shared file puts per-request churn into
+  /// the application database's WAL, competing with writes that actually
+  /// matter.
+  String get zonaiRateLimitSqlitePath =>
+      fs.path.normalize(fs.path.join(dataPath, 'zonai_rate_limit.sqlite'));
+
+  /// Every SQLite file zonai owns, application database first.
+  ///
+  /// Anything that deletes, copies or measures "the database" needs all of
+  /// them; a list is how a future split stays automatically covered instead
+  /// of being remembered at each call site.
+  List<String> get zonaiSqlitePaths => [
+    zonaiSqlitePath,
+    zonaiLogSqlitePath,
+    zonaiRateLimitSqlitePath,
+  ];
+
   set version(String value) {
     final file = fs.file(path);
     if (!file.existsSync()) {
