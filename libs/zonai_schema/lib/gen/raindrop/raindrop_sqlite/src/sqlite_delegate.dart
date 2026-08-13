@@ -24,7 +24,13 @@ class SQLiteDelegate extends RaindropDelegate with _DatabaseDelegate {
   ///
   /// The database is held privately, so without this a caller holding only
   /// the delegate has no way to release the connection.
-  void close() => _database.close();
+  ///
+  /// Named `close()` but calls `dispose()`: this package is pinned to
+  /// sqlite3 2.x (see pubspec), which is where ResqliteDelegate's
+  /// `open.overrideForAll` lives, and 2.x spells this `dispose()`. The
+  /// method keeps the `close()` name because that is the API consumers
+  /// already hold.
+  void close() => _database.dispose();
 
   /// Serializes every top-level [execute]/[transaction] call against this
   /// connection.
@@ -122,7 +128,8 @@ mixin _DatabaseDelegate on Delegate {
         ),
       );
     } finally {
-      stmt.close();
+      // sqlite3 2.x API; 3.x renamed this to close(). See the pin in pubspec.
+      stmt.dispose();
     }
   }
 }

@@ -17,7 +17,8 @@ dependencies:
   riverpod: 3.2.1
   universal_web: ^1.1.1
   scoped_deps: ^0.2.1
-  sqlite3: ">=2.4.0 <4.0.0"
+  # Keep in sync with raindrop_sqlite — OpenDynamicLibrary was removed in 3.x.
+  sqlite3: ">=2.4.0 <3.0.0"
   zonai_schema:
     path: ../../libs/zonai_schema
   zonai_client:

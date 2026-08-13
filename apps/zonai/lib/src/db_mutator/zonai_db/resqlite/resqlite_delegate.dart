@@ -13,6 +13,7 @@ import 'hybrid_stream_engine.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_delegate.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart';
 import 'package:resqlite/resqlite.dart' as rs;
+import 'package:sqlite3/open.dart' as sqlite3_open;
 import 'package:sqlite3/sqlite3.dart';
 
 /// Routes statements to resqlite’s reader [rs.Database.select] vs writer
@@ -289,19 +290,37 @@ final class ResqliteDelegate extends RaindropDelegate {
     // see resqlite's `tool/build_native.dart`'s `_exportedSymbols`) means
     // both connections run the exact same code, eliminating the ABI
     // mismatch. Must happen before either connection is opened.
-    // Under sqlite3 2.x this was forced at runtime here with
-    // `open.overrideForAll(() => rs.installedNativeLibrary)`. sqlite3 3.x
-    // removed DynamicLibrary loading, so the same guarantee -- one SQLite
-    // in this process, never a second dlopen'd copy -- now comes from the
-    // build hook, declared by the app:
+    //
+    // This is why apps/zonai is pinned to sqlite3 2.x. 3.x removed
+    // DynamicLibrary loading (and with it `open.overrideForAll`), and its
+    // documented replacement --
     //
     //   user_defines:
     //     sqlite3:
     //       source: process
     //
-    // which resolves to LookupInProcess(). resqlite already dlopens its
-    // library with RTLD_GLOBAL on Linux/Android (see native_library.dart)
-    // so its symbols are visible for that lookup.
+    // -- is NOT the same guarantee, despite reading like it is. It resolves
+    // to LookupInProcess(), i.e. dlsym(RTLD_DEFAULT), which binds to
+    // whichever sqlite3 symbols are in the process *first*, in load order.
+    // Measured here on macOS: DYLD_PRINT_LIBRARIES shows
+    // /usr/lib/libsqlite3.dylib loaded as dyld image #103, pulled in
+    // transitively by the system frameworks the Dart runtime links, before
+    // main() runs. resqlite's dlopen happens later and can never outrank it,
+    // so package:sqlite3 binds to Apple's SQLite (3.51.0, sourceid suffix
+    // `aapl`) while resqlite keeps its own sqlite3mc (3.51.3) -- precisely
+    // the two-library configuration described above. resqlite's RTLD_GLOBAL
+    // dlopen does not help: a compiled probe that loaded nothing at all
+    // still ran package:sqlite3 fine, so the install contributes nothing to
+    // the binding.
+    //
+    // It also does not fail loudly -- resqlite exports the full standard
+    // sqlite3 C API, so every symbol resolves and only the segfault tells
+    // you. `process` guarantees *a* SQLite, not *ours*. Only an explicit
+    // DynamicLibrary handle gives "one SQLite in this process": the
+    // overrideForAll below, or (if 3.x ever becomes forced) bindings
+    // rewritten to DynamicLibrary.lookupFunction -- see
+    // docs/sqlite3-3x-migration.md.
+    sqlite3_open.open.overrideForAll(() => rs.installedNativeLibrary);
 
     // SQLite disables foreign key enforcement by default on every new
     // connection — it is not a database-level setting, so declaring `ON
@@ -330,7 +349,8 @@ final class ResqliteDelegate extends RaindropDelegate {
     _closed = true;
     _streams.close();
     await _database.close();
-    _rawReads.close();
+    // sqlite3 2.x API; 3.x renamed this to close(). See the pin in pubspec.
+    _rawReads.dispose();
   }
 
   Future<DatabaseResult> _executeRead(String query, List<Object?> values) =>

@@ -30,7 +30,12 @@ dependencies:
   revali_router: ^4.0.0
   revali_swagger_annotations: ^1.0.0
   scoped_deps: ^0.2.1
-  sqlite3: ">=2.4.0 <4.0.0"
+  # <3.0.0: ResqliteDelegate needs `open.overrideForAll` to point
+  # package:sqlite3 at resqlite's already-loaded library. 3.x removed it, and
+  # `source: process` is not a substitute -- it binds in load order, and on
+  # macOS Apple's libsqlite3 is already loaded before main(). See
+  # resqlite_delegate.dart's comment block.
+  sqlite3: ">=2.4.0 <3.0.0"
   watcher: ^1.2.1
   yaml: ^3.1.0
   yaml_edit: ^2.2.4
