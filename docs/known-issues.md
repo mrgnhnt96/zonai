@@ -316,20 +316,42 @@ throwing; a real (unpadded) token still decodes correctly. `dart
 test`/`dart analyze` clean across `libs/zonai_schema`, `apps/zonai`,
 `libs/zonai_client`.
 
-## 10. `POST /auth/reset-password` crashes with an uncaught scoping error whenever email isn't configured — not a graceful skip like the docs describe
+## 10. `POST /auth/reset-password` skips the send when email isn't configured and logs nothing — the docs promise a warning — fixed
+
+**Note on the original diagnosis (2026-08-12).** This entry used to read
+"crashes with an uncaught scoping error." **That crash no longer happens**,
+and had not since 2026-07-31: `9054cf0` ("fix: log denial of unregistered
+custom operation names") changed `zonai_schema`'s worker-side `logger` from
+`read(_loggerProvider)` to `read(_loggerProvider, orElse: _Logger._)` — a
+no-op fallback — as a side effect of unrelated work, and nothing recorded
+that it had closed this crash. The reproduction and the severity argument
+below still describe how this is reached and why it matters; the `Bad state:
+read(ScopedRef<_Logger>)` output does not. What survived the accidental fix
+was the other half of the same defect, and the half that was always the
+point: the warning `docs/email.md` promises still went nowhere.
 
 **Severity: breaks password reset outright for any app without SMTP configured**, which is presumably the common case for local dev and any fresh deployment before email is wired up — `docs/email.md` explicitly documents "If `AppConfig.email` is missing, send attempts are skipped and a warning is logged," which is not what actually happens. Found 2026-07-26 while adding a "forgot password" flow to `override_canvas`'s `apps/website`.
+
+Between `9054cf0` and the fix below, the failure was silence rather than a
+crash, which is harder to diagnose, not easier: every caller of
+`courier.send` is fire-and-forget (`reset_password.dart:72`,
+`magic_link.dart:92`, `verify_email.dart:80`, `otp.dart:69`), so an operator
+running without SMTP saw a password-reset request return normally, no email
+arrive, and nothing anywhere connecting the two.
 
 **Reproduction** (against a real compiled `apps/server` binary with no `AppConfig.email` set, which is this app's actual current config):
 
 ```
 curl -X POST /auth/reset-password -d '{"type":"sendResetPassword","table":"users","email":"real@example.com"}'
-# → empty response, connection dropped
 
-# server log:
+# as originally found (before 9054cf0): empty response, connection dropped, and
+# in the server log:
 Bad state: read(ScopedRef<_Logger>) was called in a scope which does not contain a corresponding value for the provided ref.
 Did you forget to call: runScoped(() {...}, values: {value})?
 Unhandled error while serving (process continues)
+
+# between 9054cf0 and this fix: normal success response, no email, and nothing
+# at all in the server log.
 ```
 
 A second identical request within 60 seconds gets a normal `{"error":"Must wait 60 seconds before sending a new code"}` — confirming the *first* request's core logic (creating the `authChallenges` row, rate-limit bookkeeping) succeeds; the crash happens strictly *after* that, in the code path that's supposed to just warn-and-skip the actual email send.
@@ -347,11 +369,41 @@ Future<void> _send(Email email) async {
   ...
 ```
 
-`logger` here is a `scoped_deps` reference requiring `runScoped(..., values: {loggerRef: ...})` to have been set up somewhere up the call stack in the *current* execution context — this works fine from other paths that already print to this same server's log (e.g. this session's own cron output, `[CRON] started: _delete_old_rate_limits`), so the scope itself is real and set up correctly for at least some worker/handler contexts. It is specifically **not** set up for whatever context invokes `courier.send` from `_sendResetPassword` (`apps/zonai/lib/src/db_mutator/zonai_db/parts/auth/reset_password.dart`) when reached via the real `/auth/reset-password` route — not isolated further than that (didn't trace which handler/worker owns this request path or where its `runScoped` wrapper should be, or already is, established).
+The original entry read this as a missing `runScoped` around the request path
+and did not isolate further. That was the wrong `logger`. `courier.dart`
+imported no logger at all — it imported `package:zonai_schema/zonai_schema.dart`,
+whose barrel re-exports `src/handlers/messages/message_handler.dart` under a
+`hide` clause covering `Request`, `Response`, `msg` and the native-library
+types but **not** `logger`. So this line resolved to `zonai_schema`'s
+worker-side `_Logger` (`libs/zonai_schema/lib/src/handlers/messages/deps/__log.dart`),
+which `MessageHandler.listen` scopes inside a worker process and nothing
+scopes on the host — hence the private `_Logger` in the original error text
+rather than `zonai_logger`'s `Logger`. `mailman.dart` and `zonai_db.dart`
+both already import that library `hide logger` for exactly this collision;
+`courier.dart` never got the same treatment. The request-path scope was
+never missing.
 
-**Not fixed here.** `apps/website`'s forgot-password UI was written against the correct client-side contract (`POST /auth/reset-password` then `POST /auth/confirm`, per `zonai_client`'s `Auth.sendResetPassword`/`Auth.confirm`) but the feature cannot actually be exercised end-to-end in this app until either this is fixed or real SMTP is configured (unconfirmed whether configuring email avoids this specific branch entirely, since the crash is *in* the missing-config branch specifically — if it's a wave-through-once-you-add-email bug, that would only mask it for configured deployments, not fix the "docs promise a graceful skip, code doesn't deliver one" gap for everyone else).
+**Fixed** (2026-08-12): `courier.dart` now imports the barrel `hide logger`
+plus `../deps/logger.dart`, so the call reaches `zonai_logger`'s `Logger`
+via `loggerProvider`. That provider reads with no `orElse`, so swapping the
+silent logger for it would otherwise risk trading the missing warning for a
+`StateError` on a future nobody awaits — `loggerProvider` was therefore
+added to `ZonaiDb._run`'s (and `_runStream`'s) `includeIfAbsent` set, which
+falls back to a default `Logger` (info level, warnings to stderr) rather
+than to silence or a crash if a caller registered none. The other route to
+`_send`, `mailman.dart`'s `SendEmailRequest` branch, is reached from a
+stdout listener registered in `_start`, which reads the same
+`loggerProvider` on its normal path before subscribing — so that scope is
+established by construction.
 
-**How to verify a fix**: repeat the exact reproduction above (no `AppConfig.email` set) and confirm the request returns whatever the *intended* success response is (the `sendResetPassword` client call is `Future<void>`, no body expected) with a real "warning logged" line in the server's own log instead of the scoping crash — then separately confirm the same call with a real, working SMTP config actually delivers the email.
+Regression coverage in `apps/zonai/test/src/email/courier_test.dart`
+asserts the warning **text** reaches a captured logger sink, not merely that
+the call does not throw: a no-op logger passes "does not throw" perfectly,
+which is how this survived from 2026-07-31.
+
+**Still open for `override_canvas`**: `apps/website`'s forgot-password UI was written against the correct client-side contract (`POST /auth/reset-password` then `POST /auth/confirm`, per `zonai_client`'s `Auth.sendResetPassword`/`Auth.confirm`). This entry claimed the feature could not be exercised end to end on the strength of the crash; the crash has been gone since 2026-07-31, so that claim is unverified rather than known-true. Whether the flow works today is a check for whoever has that repo.
+
+**How to verify a fix**: repeat the exact reproduction above (no `AppConfig.email` set) and confirm the request returns whatever the *intended* success response is (the `sendResetPassword` client call is `Future<void>`, no body expected) with a real "warning logged" line in the server's own log — then separately confirm the same call with a real, working SMTP config actually delivers the email.
 
 ## 9. `zonai serve` spontaneously dies after a short idle gap — not tied to any request, not a multi-instance artifact
 
