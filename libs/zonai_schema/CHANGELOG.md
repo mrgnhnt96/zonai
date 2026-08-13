@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.3.0
+
+**Scheduled cron jobs could not write to the database at all.** Every
+`mutate.create` / `mutate.update` / `mutate.delete` queued from a *scheduled*
+firing was silently discarded — no error, no entry in `_cron_jobs.error`, at
+any row count. Manually-triggered runs were unaffected, which is why this
+survived so long. If you have a scheduled job whose writes never appeared,
+this was it, and it needs no change on your side beyond upgrading.
+
+The cause: `runWithParent` bound its request-scoped providers with
+`includeIfAbsent`, which `scoped_deps` skips when the zone chain already
+defines the ref. A scheduled cron always nests — the scheduler starts inside
+`runWithParent(StartCronsRequest)` and a Dart timer fires in the zone that
+created it — so every firing tagged its mutations with the *startup* request's
+id. The host keys pending mutations by parent id and flushes on the matching
+response; `CronsStarted` was answered once, at boot, and everything filed
+afterwards was parked forever.
+
+Found via a production deployment whose `_log` table reached 4.6M rows and
+filled a 1GB volume while its retention cron reported success 13 times.
+
+### Breaking
+
+- **`revali_core` moves to `^3.0.0`** (was `^2.0.0`). If your project pins
+  `revali_core` 2.x, or a `revali_router` 4.x that requires it, resolution
+  will fail until you move up.
+
+- **Re-run `zonai compile` after upgrading.** This release changes the cron
+  IPC vocabulary, and the `.protocol` stamp will not catch a stale worker:
+  that stamp records the IPC *framing* version, not the message vocabulary. A
+  stale `.zonai/executables/*.exe` keeps the old code.
+
+### Added
+
+- `mutate.purge` — a bulk `DELETE` returning the number of rows removed. Skips
+  the read-back, the per-row rules dispatch and the extension hooks that
+  `mutate.delete` performs, none of which a retention sweep over millions of
+  rows can survive. Restricted to the framework's own tables and to admin
+  identities, enforced host-side rather than trusted from the caller. All five
+  internal retention crons now use it and report real counts.
+
+- `ReclaimLogSpaceRequest` / `ReclaimLogSpaceResponse` — a cron-to-host RPC
+  asking for the log database to be rewritten when enough of it is dead space
+  and the volume has room. `_cleanup_logs` calls it after purging, and treats
+  a host that does not recognise it as a degradation rather than a failure, so
+  a newer schema against an older CLI still runs retention.
+
+### Fixed
+
+- The internal retention crons (`_cleanup_logs`, `_delete_expired_jwts`,
+  `_delete_old_rate_limits`, `_cleanup_auth_challenges`,
+  `_cleanup_cron_entries`) now delete in bounded chunks and log what they
+  actually removed rather than that they queued something.
+
 ## 0.2.0
 
 **Custom operations work for the first time.** On 0.1.1 every request to

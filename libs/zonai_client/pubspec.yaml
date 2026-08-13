@@ -1,6 +1,6 @@
 name: zonai_client
 description: Generated HTTP client for the Zonai Revali server.
-version: 0.1.2
+version: 0.1.3
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 
 resolution: workspace
@@ -12,8 +12,11 @@ dependencies:
   file: ^7.0.1
   http: ^1.6.0
   revali_client: ^2.1.0
-  # Spans both 0.1.x and 0.2.x on purpose. zonai_schema 0.2.0's breaking change
-  # is `TableRateLimits.customPolicy`, which is server-side and which nothing
-  # here references -- so a `^` pin would force consumers of this client onto
-  # one schema minor for no reason of its own.
-  zonai_schema: ">=0.1.0 <0.3.0"
+  # Spans 0.1.x through 0.3.x on purpose. Every breaking change in those
+  # minors has been server-side -- `TableRateLimits.customPolicy` in 0.2.0,
+  # and 0.3.0's `revali_core` major plus new cron IPC vocabulary -- and this
+  # package references none of it. A `^` pin would force consumers of this
+  # client onto one schema minor for no reason of its own, and a constraint
+  # that lags is worse than useless: it silently pins them *below* a schema
+  # they explicitly asked for.
+  zonai_schema: ">=0.1.0 <0.4.0"

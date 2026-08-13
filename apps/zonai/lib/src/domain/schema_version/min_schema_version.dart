@@ -38,4 +38,4 @@
 /// `0.1.1` ships `DbRateLimits` asserting `request.customOperation!` non-null
 /// on a path the host deliberately sets to null, so every custom-operation
 /// request 500s before authorization (#27).
-const kMinSchemaVersion = '0.2.0';
+const kMinSchemaVersion = '0.3.0';
