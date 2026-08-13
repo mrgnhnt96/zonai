@@ -648,7 +648,24 @@ uses runtime-constructed (non-`const`) instances deliberately, since
 would accidentally pass via identity even with the bug still present.
 Confirmed via deliberate revert that these tests fail without the fix.
 
-## 1. `@BlackList()` generates no guard at all — every annotated controller is currently unprotected
+## 1. `@BlackList()` generates no guard at all — every annotated controller is currently unprotected — fixed
+
+> **Fixed, and re-verified 2026-08-13.** `BlackList` now
+> `implements LifecycleComponent`, and all five generated route files list
+> `guards: [BlackListGuard(di)]` — checked directly in
+> `apps/zonai/lib/gen/server/.revali/server/routes/` for `__auth_route`,
+> `__db_route`, `__email_route`, `__img_route` and `__r1_route`, which is the
+> verification this entry asked for.
+>
+> The gap that remained after the code fix was the one predicted below: no
+> test could catch a regression, because removing the `implements` clause
+> compiles cleanly and only stops producing generated output nobody reads.
+> `apps/server/test/lifecycle_component_wiring_test.dart` now pins it, and was
+> confirmed to fail with the clause removed rather than merely to pass with it
+> present. It does **not** assert that a blacklisted IP is rejected at
+> runtime — that needs a live server and a seeded `abusers` row.
+>
+> Original diagnosis kept below.
 
 **Severity: security.** Five controllers declare `@BlackList()` expecting
 IP-based abuse blocking, but the annotation is never actually wired up as a
