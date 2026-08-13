@@ -14,18 +14,160 @@ const kSwaggerJson = r'''{
     "version": "1.0.0"
   },
   "paths": {
-    "/email": {
-      "post": {
-        "operationId": "email_send",
+    "/auth": {
+      "delete": {
+        "operationId": "auth_logout",
         "tags": [
-          "email"
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      },
+      "post": {
+        "operationId": "auth_authenticate",
+        "tags": [
+          "auth"
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Email"
+                "$ref": "#/components/schemas/AuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin": {
+      "post": {
+        "operationId": "auth_adminAuthenticate",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/all": {
+      "delete": {
+        "operationId": "auth_logoutAll",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "/auth/confirm": {
+      "post": {
+        "operationId": "auth_confirm",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "auth_refreshToken",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "operationId": "auth_sendResetPassword",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordAuthBody"
               }
             }
           }
@@ -37,55 +179,92 @@ const kSwaggerJson = r'''{
         }
       }
     },
-    "/health": {
-      "get": {
-        "operationId": "root_health",
+    "/auth/sign-in": {
+      "post": {
+        "operationId": "auth_signIn",
         "tags": [
-          "root"
+          "auth"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sign-up": {
+      "post": {
+        "operationId": "auth_signUp",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify-email": {
+      "post": {
+        "operationId": "auth_sendVerifyEmail",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/VerifyEmailAuthBody"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "No content"
-          }
-        }
-      }
-    },
-    "/swagger.json": {
-      "get": {
-        "operationId": "root_swaggerJson",
-        "tags": [
-          "root"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringContent"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/swagger.yaml": {
-      "get": {
-        "operationId": "root_swaggerYaml",
-        "tags": [
-          "root"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StringContent"
-                }
-              }
-            }
           }
         }
       }
@@ -133,141 +312,6 @@ const kSwaggerJson = r'''{
         }
       }
     },
-    "/img/{id}": {
-      "get": {
-        "operationId": "photos_view",
-        "tags": [
-          "photos"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "integer",
-                    "format": "int64"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "operationId": "photos_update",
-        "tags": [
-          "photos"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "integer",
-                  "format": "int64"
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "No content"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "photos_delete",
-        "tags": [
-          "photos"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "No content"
-          }
-        }
-      }
-    },
-    "/img": {
-      "post": {
-        "operationId": "photos_create",
-        "tags": [
-          "photos"
-        ],
-        "parameters": [
-          {
-            "name": "meta",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/PhotoCreateMeta"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "integer",
-                  "format": "int64"
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/dashboard/metrics": {
       "get": {
         "operationId": "dashboard_metrics",
@@ -310,6 +354,27 @@ const kSwaggerJson = r'''{
       }
     },
     "/db": {
+      "delete": {
+        "operationId": "db_delete",
+        "tags": [
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DeleteOneBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      },
       "get": {
         "operationId": "db_get",
         "tags": [
@@ -325,35 +390,6 @@ const kSwaggerJson = r'''{
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "db_create",
-        "tags": [
-          "db"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateBody"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Success",
@@ -397,44 +433,21 @@ const kSwaggerJson = r'''{
           }
         }
       },
-      "delete": {
-        "operationId": "db_delete",
+      "post": {
+        "operationId": "db_create",
         "tags": [
           "db"
         ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/DeleteOneBody"
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBody"
+              }
             }
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "No content"
-          }
-        }
-      }
-    },
-    "/db/list": {
-      "get": {
-        "operationId": "db_list",
-        "tags": [
-          "db"
-        ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ListBody"
-            }
-          }
-        ],
+        },
         "responses": {
           "200": {
             "description": "Success",
@@ -477,189 +490,6 @@ const kSwaggerJson = r'''{
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/db/stream": {
-      "get": {
-        "operationId": "db_streamOne",
-        "tags": [
-          "db"
-        ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/StreamBody"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/db/stream/list": {
-      "get": {
-        "operationId": "db_streamList",
-        "tags": [
-          "db"
-        ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/StreamListBody"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/db/stream/count": {
-      "get": {
-        "operationId": "db_streamCount",
-        "tags": [
-          "db"
-        ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/StreamCountBody"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "integer",
-                  "format": "int64"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/db/many": {
-      "post": {
-        "operationId": "db_createMany",
-        "tags": [
-          "db"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateManyBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "patch": {
-        "operationId": "db_updateMany",
-        "tags": [
-          "db"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "db_deleteMany",
-        "tags": [
-          "db"
-        ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/DeleteBody"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "No content"
           }
         }
       }
@@ -749,18 +579,70 @@ const kSwaggerJson = r'''{
         }
       }
     },
-    "/auth": {
-      "post": {
-        "operationId": "auth_authenticate",
+    "/db/list": {
+      "get": {
+        "operationId": "db_list",
         "tags": [
-          "auth"
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ListBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/many": {
+      "delete": {
+        "operationId": "db_deleteMany",
+        "tags": [
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DeleteBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "db_updateMany",
+        "tags": [
+          "db"
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AuthBody"
+                "$ref": "#/components/schemas/UpdateBody"
               }
             }
           }
@@ -771,89 +653,158 @@ const kSwaggerJson = r'''{
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "nullable": true
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
                 }
               }
             }
           }
         }
       },
-      "delete": {
-        "operationId": "auth_logout",
-        "tags": [
-          "auth"
-        ],
-        "responses": {
-          "200": {
-            "description": "No content"
-          }
-        }
-      }
-    },
-    "/auth/refresh": {
       "post": {
-        "operationId": "auth_refreshToken",
+        "operationId": "db_createMany",
         "tags": [
-          "auth"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "nullable": true
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/reset-password": {
-      "post": {
-        "operationId": "auth_sendResetPassword",
-        "tags": [
-          "auth"
+          "db"
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ResetPasswordAuthBody"
+                "$ref": "#/components/schemas/CreateManyBody"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "No content"
-          }
-        }
-      }
-    },
-    "/auth/verify-email": {
-      "post": {
-        "operationId": "auth_sendVerifyEmail",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/VerifyEmailAuthBody"
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
                   }
-                ],
-                "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/stream": {
+      "get": {
+        "operationId": "db_streamOne",
+        "tags": [
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StreamBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/stream/count": {
+      "get": {
+        "operationId": "db_streamCount",
+        "tags": [
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StreamCountBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/db/stream/list": {
+      "get": {
+        "operationId": "db_streamList",
+        "tags": [
+          "db"
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StreamListBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/email": {
+      "post": {
+        "operationId": "email_send",
+        "tags": [
+          "email"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Email"
               }
             }
           }
@@ -865,82 +816,45 @@ const kSwaggerJson = r'''{
         }
       }
     },
-    "/auth/confirm": {
-      "post": {
-        "operationId": "auth_confirm",
+    "/health": {
+      "get": {
+        "operationId": "root_health",
         "tags": [
-          "auth"
+          "root"
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyAuthBody"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "nullable": true
-                }
-              }
-            }
+            "description": "No content"
           }
         }
       }
     },
-    "/auth/admin": {
+    "/img": {
       "post": {
-        "operationId": "auth_adminAuthenticate",
+        "operationId": "photos_create",
         "tags": [
-          "auth"
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "meta",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PhotoCreateMeta"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AdminAuthBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "nullable": true
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int64"
                 }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/sign-in": {
-      "post": {
-        "operationId": "auth_signIn",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignInAuthBody"
               }
             }
           }
@@ -960,46 +874,132 @@ const kSwaggerJson = r'''{
         }
       }
     },
-    "/auth/sign-up": {
-      "post": {
-        "operationId": "auth_signUp",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignUpAuthBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/all": {
+    "/img/{id}": {
       "delete": {
-        "operationId": "auth_logoutAll",
+        "operationId": "photos_delete",
         "tags": [
-          "auth"
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "No content"
+          }
+        }
+      },
+      "get": {
+        "operationId": "photos_view",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "photos_update",
+        "tags": [
+          "photos"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int64"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "/swagger.json": {
+      "get": {
+        "operationId": "root_swaggerJson",
+        "tags": [
+          "root"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringContent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger.yaml": {
+      "get": {
+        "operationId": "root_swaggerYaml",
+        "tags": [
+          "root"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringContent"
+                }
+              }
+            }
           }
         }
       }
@@ -1007,66 +1007,198 @@ const kSwaggerJson = r'''{
   },
   "components": {
     "schemas": {
-      "Email": {
-        "type": "object",
-        "properties": {
-          "to": {
-            "$ref": "#/components/schemas/EmailAddress"
-          },
-          "from": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EmailAddress"
-              }
-            ],
-            "nullable": true
-          },
-          "subject": {
-            "type": "string"
-          },
-          "template": {
-            "type": "string"
-          },
-          "variables": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "thread": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "to",
-          "subject",
-          "template",
-          "variables"
-        ]
-      },
-      "EmailAddress": {
-        "type": "object",
-        "properties": {
-          "address": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "address"
-        ]
-      },
-      "StringContent": {
+      "Add": {
         "type": "object",
         "properties": {
           "value": {
+            "nullable": true
+          }
+        }
+      },
+      "AddAll": {
+        "type": "object",
+        "properties": {
+          "values": {
+            "type": "array",
+            "items": {
+              "nullable": true
+            }
+          }
+        },
+        "required": [
+          "values"
+        ]
+      },
+      "AdminAuthBody": {
+        "type": "object",
+        "properties": {
+          "type": {
             "type": "string"
           }
         },
         "required": [
+          "type"
+        ]
+      },
+      "AdminSendResetPasswordAuthBody": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "email"
+        ]
+      },
+      "And": {
+        "type": "object",
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Where"
+            }
+          }
+        },
+        "required": [
+          "conditions"
+        ]
+      },
+      "AuthBody": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SendOtpAuthBody"
+          },
+          {
+            "$ref": "#/components/schemas/SendMagicLinkAuthBody"
+          },
+          {
+            "$ref": "#/components/schemas/SignInAuthBody"
+          },
+          {
+            "$ref": "#/components/schemas/SignUpAuthBody"
+          }
+        ]
+      },
+      "ColumnUpdate": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/UpdateValue"
+          }
+        },
+        "required": [
+          "column",
           "value"
+        ]
+      },
+      "ConfirmResetPasswordAuthBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "newPassword",
+          "type"
+        ]
+      },
+      "ConfirmVerifyEmailAuthBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "type"
+        ]
+      },
+      "Contains": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "column",
+          "value"
+        ]
+      },
+      "CountBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "table"
+        ]
+      },
+      "CreateBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "object": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "table",
+          "object"
+        ]
+      },
+      "CreateManyBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "table",
+          "objects"
         ]
       },
       "CronJobList": {
@@ -1083,15 +1215,66 @@ const kSwaggerJson = r'''{
           "names"
         ]
       },
-      "PhotoCreateMeta": {
+      "CustomBody": {
         "type": "object",
         "properties": {
           "table": {
             "type": "string"
+          },
+          "where": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Update"
+            }
           }
         },
         "required": [
-          "table"
+          "table",
+          "updates"
+        ]
+      },
+      "CustomOneBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Update"
+            }
+          }
+        },
+        "required": [
+          "table",
+          "updates"
         ]
       },
       "DashboardMetrics": {
@@ -1145,6 +1328,126 @@ const kSwaggerJson = r'''{
           "count"
         ]
       },
+      "Decrement": {
+        "type": "object"
+      },
+      "DeleteBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "$ref": "#/components/schemas/Where"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "required": [
+          "table",
+          "where"
+        ]
+      },
+      "DeleteOneBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "$ref": "#/components/schemas/Where"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "required": [
+          "table",
+          "where"
+        ]
+      },
+      "Email": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "$ref": "#/components/schemas/EmailAddress"
+          },
+          "from": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EmailAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "subject": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "thread": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "template",
+          "variables"
+        ]
+      },
+      "EmailAddress": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "address"
+        ]
+      },
+      "EndsWith": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "column",
+          "value"
+        ]
+      },
+      "Eq": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "column",
+          "value"
+        ]
+      },
       "GetBody": {
         "type": "object",
         "properties": {
@@ -1165,90 +1468,6 @@ const kSwaggerJson = r'''{
           "table",
           "where",
           "expand"
-        ]
-      },
-      "Where": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/Eq"
-          },
-          {
-            "$ref": "#/components/schemas/Null"
-          },
-          {
-            "$ref": "#/components/schemas/NotNull"
-          },
-          {
-            "$ref": "#/components/schemas/Gt"
-          },
-          {
-            "$ref": "#/components/schemas/Gte"
-          },
-          {
-            "$ref": "#/components/schemas/Lt"
-          },
-          {
-            "$ref": "#/components/schemas/Lte"
-          },
-          {
-            "$ref": "#/components/schemas/In"
-          },
-          {
-            "$ref": "#/components/schemas/NotIn"
-          },
-          {
-            "$ref": "#/components/schemas/And"
-          },
-          {
-            "$ref": "#/components/schemas/Or"
-          },
-          {
-            "$ref": "#/components/schemas/Contains"
-          },
-          {
-            "$ref": "#/components/schemas/StartsWith"
-          },
-          {
-            "$ref": "#/components/schemas/EndsWith"
-          },
-          {
-            "$ref": "#/components/schemas/NotContains"
-          }
-        ]
-      },
-      "Eq": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {}
-        },
-        "required": [
-          "column",
-          "value"
-        ]
-      },
-      "Null": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "column"
-        ]
-      },
-      "NotNull": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "column"
         ]
       },
       "Gt": {
@@ -1277,32 +1496,6 @@ const kSwaggerJson = r'''{
           "value"
         ]
       },
-      "Lt": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {}
-        },
-        "required": [
-          "column",
-          "value"
-        ]
-      },
-      "Lte": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {}
-        },
-        "required": [
-          "column",
-          "value"
-        ]
-      },
       "In": {
         "type": "object",
         "properties": {
@@ -1319,101 +1512,8 @@ const kSwaggerJson = r'''{
           "values"
         ]
       },
-      "NotIn": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "values": {
-            "type": "array",
-            "items": {}
-          }
-        },
-        "required": [
-          "column",
-          "values"
-        ]
-      },
-      "And": {
-        "type": "object",
-        "properties": {
-          "conditions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Where"
-            }
-          }
-        },
-        "required": [
-          "conditions"
-        ]
-      },
-      "Or": {
-        "type": "object",
-        "properties": {
-          "conditions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Where"
-            }
-          }
-        },
-        "required": [
-          "conditions"
-        ]
-      },
-      "Contains": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {}
-        },
-        "required": [
-          "column",
-          "value"
-        ]
-      },
-      "StartsWith": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {}
-        },
-        "required": [
-          "column",
-          "value"
-        ]
-      },
-      "EndsWith": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {}
-        },
-        "required": [
-          "column",
-          "value"
-        ]
-      },
-      "NotContains": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {}
-        },
-        "required": [
-          "column",
-          "value"
-        ]
+      "Increment": {
+        "type": "object"
       },
       "ListBody": {
         "type": "object",
@@ -1462,6 +1562,117 @@ const kSwaggerJson = r'''{
           "expand"
         ]
       },
+      "Literal": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "nullable": true
+          }
+        }
+      },
+      "Lt": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "column",
+          "value"
+        ]
+      },
+      "Lte": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "column",
+          "value"
+        ]
+      },
+      "NotContains": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "column",
+          "value"
+        ]
+      },
+      "NotIn": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "column",
+          "values"
+        ]
+      },
+      "NotNull": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "column"
+        ]
+      },
+      "Null": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "column"
+        ]
+      },
+      "ObjectUpdate": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "object"
+        ]
+      },
+      "Or": {
+        "type": "object",
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Where"
+            }
+          }
+        },
+        "required": [
+          "conditions"
+        ]
+      },
       "OrderByTerm": {
         "type": "object",
         "properties": {
@@ -1477,249 +1688,16 @@ const kSwaggerJson = r'''{
           "direction"
         ]
       },
-      "SortDirection": {
-        "type": "string",
-        "enum": [
-          "asc",
-          "desc"
-        ]
-      },
-      "CountBody": {
+      "PhotoCreateMeta": {
         "type": "object",
         "properties": {
           "table": {
             "type": "string"
-          },
-          "where": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Where"
-              }
-            ],
-            "nullable": true
           }
         },
         "required": [
           "table"
         ]
-      },
-      "StreamBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "$ref": "#/components/schemas/Where"
-          },
-          "expand": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "table",
-          "where",
-          "expand"
-        ]
-      },
-      "StreamListBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Where"
-              }
-            ],
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "offset": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "orderBy": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/OrderByTerm"
-            },
-            "nullable": true
-          },
-          "groupBy": {
-            "type": "string",
-            "nullable": true
-          },
-          "expand": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "table",
-          "expand"
-        ]
-      },
-      "StreamCountBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "$ref": "#/components/schemas/Where"
-          }
-        },
-        "required": [
-          "table",
-          "where"
-        ]
-      },
-      "CreateBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "object": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        },
-        "required": [
-          "table",
-          "object"
-        ]
-      },
-      "CreateManyBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "objects": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true
-            }
-          }
-        },
-        "required": [
-          "table",
-          "objects"
-        ]
-      },
-      "UpdateOneBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "$ref": "#/components/schemas/Where"
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "updates": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Update"
-            }
-          }
-        },
-        "required": [
-          "table",
-          "where",
-          "updates"
-        ]
-      },
-      "Update": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/ColumnUpdate"
-          },
-          {
-            "$ref": "#/components/schemas/ObjectUpdate"
-          }
-        ]
-      },
-      "ColumnUpdate": {
-        "type": "object",
-        "properties": {
-          "column": {
-            "type": "string"
-          },
-          "value": {
-            "$ref": "#/components/schemas/UpdateValue"
-          }
-        },
-        "required": [
-          "column",
-          "value"
-        ]
-      },
-      "UpdateValue": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/Literal"
-          },
-          {
-            "$ref": "#/components/schemas/Increment"
-          },
-          {
-            "$ref": "#/components/schemas/Decrement"
-          },
-          {
-            "$ref": "#/components/schemas/Add"
-          },
-          {
-            "$ref": "#/components/schemas/Remove"
-          },
-          {
-            "$ref": "#/components/schemas/AddAll"
-          },
-          {
-            "$ref": "#/components/schemas/RemoveAll"
-          }
-        ]
-      },
-      "Literal": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "nullable": true
-          }
-        }
-      },
-      "Increment": {
-        "type": "object"
-      },
-      "Decrement": {
-        "type": "object"
-      },
-      "Add": {
-        "type": "object",
-        "properties": {
-          "value": {
-            "nullable": true
-          }
-        }
       },
       "Remove": {
         "type": "object",
@@ -1728,20 +1706,6 @@ const kSwaggerJson = r'''{
             "nullable": true
           }
         }
-      },
-      "AddAll": {
-        "type": "object",
-        "properties": {
-          "values": {
-            "type": "array",
-            "items": {
-              "nullable": true
-            }
-          }
-        },
-        "required": [
-          "values"
-        ]
       },
       "RemoveAll": {
         "type": "object",
@@ -1757,161 +1721,38 @@ const kSwaggerJson = r'''{
           "values"
         ]
       },
-      "ObjectUpdate": {
-        "type": "object",
-        "properties": {
-          "object": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        },
-        "required": [
-          "object"
-        ]
-      },
-      "UpdateBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "$ref": "#/components/schemas/Where"
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "updates": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Update"
-            }
-          }
-        },
-        "required": [
-          "table",
-          "where",
-          "updates"
-        ]
-      },
-      "CustomOneBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Where"
-              }
-            ],
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "updates": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Update"
-            }
-          }
-        },
-        "required": [
-          "table",
-          "updates"
-        ]
-      },
-      "CustomBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Where"
-              }
-            ],
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "updates": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Update"
-            }
-          }
-        },
-        "required": [
-          "table",
-          "updates"
-        ]
-      },
-      "DeleteOneBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "$ref": "#/components/schemas/Where"
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          }
-        },
-        "required": [
-          "table",
-          "where"
-        ]
-      },
-      "DeleteBody": {
-        "type": "object",
-        "properties": {
-          "table": {
-            "type": "string"
-          },
-          "where": {
-            "$ref": "#/components/schemas/Where"
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          }
-        },
-        "required": [
-          "table",
-          "where"
-        ]
-      },
-      "AuthBody": {
+      "ResetPasswordAuthBody": {
         "oneOf": [
           {
-            "$ref": "#/components/schemas/SendOtpAuthBody"
+            "$ref": "#/components/schemas/SendResetPasswordAuthBody"
           },
           {
-            "$ref": "#/components/schemas/SendMagicLinkAuthBody"
-          },
-          {
-            "$ref": "#/components/schemas/SignInAuthBody"
-          },
-          {
-            "$ref": "#/components/schemas/SignUpAuthBody"
+            "$ref": "#/components/schemas/AdminSendResetPasswordAuthBody"
           }
+        ]
+      },
+      "SendMagicLinkAuthBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "table": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "table",
+          "type"
         ]
       },
       "SendOtpAuthBody": {
@@ -1938,28 +1779,23 @@ const kSwaggerJson = r'''{
           "type"
         ]
       },
-      "SendMagicLinkAuthBody": {
+      "SendResetPasswordAuthBody": {
         "type": "object",
         "properties": {
-          "email": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": true,
-            "nullable": true
-          },
           "table": {
             "type": "string"
           },
           "type": {
             "type": "string"
+          },
+          "email": {
+            "type": "string"
           }
         },
         "required": [
-          "email",
           "table",
-          "type"
+          "type",
+          "email"
         ]
       },
       "SignInAuthBody": {
@@ -2013,48 +1849,224 @@ const kSwaggerJson = r'''{
           "type"
         ]
       },
-      "ResetPasswordAuthBody": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/SendResetPasswordAuthBody"
-          },
-          {
-            "$ref": "#/components/schemas/AdminSendResetPasswordAuthBody"
-          }
+      "SortDirection": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
         ]
       },
-      "SendResetPasswordAuthBody": {
+      "StartsWith": {
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "string"
+          },
+          "value": {}
+        },
+        "required": [
+          "column",
+          "value"
+        ]
+      },
+      "StreamBody": {
         "type": "object",
         "properties": {
           "table": {
             "type": "string"
           },
-          "type": {
-            "type": "string"
+          "where": {
+            "$ref": "#/components/schemas/Where"
           },
-          "email": {
-            "type": "string"
+          "expand": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "table",
-          "type",
-          "email"
+          "where",
+          "expand"
         ]
       },
-      "AdminSendResetPasswordAuthBody": {
+      "StreamCountBody": {
         "type": "object",
         "properties": {
-          "type": {
+          "table": {
             "type": "string"
           },
-          "email": {
+          "where": {
+            "$ref": "#/components/schemas/Where"
+          }
+        },
+        "required": [
+          "table",
+          "where"
+        ]
+      },
+      "StreamListBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Where"
+              }
+            ],
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "orderBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderByTerm"
+            },
+            "nullable": true
+          },
+          "groupBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "expand": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "table",
+          "expand"
+        ]
+      },
+      "StringContent": {
+        "type": "object",
+        "properties": {
+          "value": {
             "type": "string"
           }
         },
         "required": [
-          "type",
-          "email"
+          "value"
+        ]
+      },
+      "Update": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ColumnUpdate"
+          },
+          {
+            "$ref": "#/components/schemas/ObjectUpdate"
+          }
+        ]
+      },
+      "UpdateBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "$ref": "#/components/schemas/Where"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Update"
+            }
+          }
+        },
+        "required": [
+          "table",
+          "where",
+          "updates"
+        ]
+      },
+      "UpdateOneBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "where": {
+            "$ref": "#/components/schemas/Where"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "updates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Update"
+            }
+          }
+        },
+        "required": [
+          "table",
+          "where",
+          "updates"
+        ]
+      },
+      "UpdateValue": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Literal"
+          },
+          {
+            "$ref": "#/components/schemas/Increment"
+          },
+          {
+            "$ref": "#/components/schemas/Decrement"
+          },
+          {
+            "$ref": "#/components/schemas/Add"
+          },
+          {
+            "$ref": "#/components/schemas/Remove"
+          },
+          {
+            "$ref": "#/components/schemas/AddAll"
+          },
+          {
+            "$ref": "#/components/schemas/RemoveAll"
+          }
+        ]
+      },
+      "VerifyAuthBody": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/VerifyOtpAuthBody"
+          },
+          {
+            "$ref": "#/components/schemas/VerifyMagicLinkAuthBody"
+          },
+          {
+            "$ref": "#/components/schemas/ConfirmResetPasswordAuthBody"
+          },
+          {
+            "$ref": "#/components/schemas/ConfirmVerifyEmailAuthBody"
+          }
         ]
       },
       "VerifyEmailAuthBody": {
@@ -2072,20 +2084,19 @@ const kSwaggerJson = r'''{
           "table"
         ]
       },
-      "VerifyAuthBody": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/VerifyOtpAuthBody"
+      "VerifyMagicLinkAuthBody": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string"
           },
-          {
-            "$ref": "#/components/schemas/VerifyMagicLinkAuthBody"
-          },
-          {
-            "$ref": "#/components/schemas/ConfirmResetPasswordAuthBody"
-          },
-          {
-            "$ref": "#/components/schemas/ConfirmVerifyEmailAuthBody"
+          "type": {
+            "type": "string"
           }
+        },
+        "required": [
+          "secret",
+          "type"
         ]
       },
       "VerifyOtpAuthBody": {
@@ -2107,64 +2118,53 @@ const kSwaggerJson = r'''{
           "type"
         ]
       },
-      "VerifyMagicLinkAuthBody": {
-        "type": "object",
-        "properties": {
-          "secret": {
-            "type": "string"
+      "Where": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Eq"
           },
-          "type": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "secret",
-          "type"
-        ]
-      },
-      "ConfirmResetPasswordAuthBody": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string"
+          {
+            "$ref": "#/components/schemas/Null"
           },
-          "newPassword": {
-            "type": "string"
+          {
+            "$ref": "#/components/schemas/NotNull"
           },
-          "type": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "token",
-          "newPassword",
-          "type"
-        ]
-      },
-      "ConfirmVerifyEmailAuthBody": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string"
+          {
+            "$ref": "#/components/schemas/Gt"
           },
-          "type": {
-            "type": "string"
+          {
+            "$ref": "#/components/schemas/Gte"
+          },
+          {
+            "$ref": "#/components/schemas/Lt"
+          },
+          {
+            "$ref": "#/components/schemas/Lte"
+          },
+          {
+            "$ref": "#/components/schemas/In"
+          },
+          {
+            "$ref": "#/components/schemas/NotIn"
+          },
+          {
+            "$ref": "#/components/schemas/And"
+          },
+          {
+            "$ref": "#/components/schemas/Or"
+          },
+          {
+            "$ref": "#/components/schemas/Contains"
+          },
+          {
+            "$ref": "#/components/schemas/StartsWith"
+          },
+          {
+            "$ref": "#/components/schemas/EndsWith"
+          },
+          {
+            "$ref": "#/components/schemas/NotContains"
           }
-        },
-        "required": [
-          "token",
-          "type"
-        ]
-      },
-      "AdminAuthBody": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "type"
         ]
       }
     }
@@ -2176,52 +2176,163 @@ info:
   title: API
   version: 1.0.0
 paths:
-  '/email':
-    post:
-      operationId: email_send
+  '/auth':
+    delete:
+      operationId: auth_logout
       tags:
-        - email
+        - auth
+      responses:
+        '200':
+          description: No content
+    post:
+      operationId: auth_authenticate
+      tags:
+        - auth
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Email'
-      responses:
-        '200':
-          description: No content
-  '/health':
-    get:
-      operationId: root_health
-      tags:
-        - root
-      responses:
-        '200':
-          description: No content
-  '/swagger.json':
-    get:
-      operationId: root_swaggerJson
-      tags:
-        - root
+              $ref: '#/components/schemas/AuthBody'
       responses:
         '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StringContent'
-  '/swagger.yaml':
-    get:
-      operationId: root_swaggerYaml
+                type: object
+                additionalProperties: true
+                nullable: true
+  '/auth/admin':
+    post:
+      operationId: auth_adminAuthenticate
       tags:
-        - root
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminAuthBody'
       responses:
         '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StringContent'
+                type: object
+                additionalProperties: true
+                nullable: true
+  '/auth/all':
+    delete:
+      operationId: auth_logoutAll
+      tags:
+        - auth
+      responses:
+        '200':
+          description: No content
+  '/auth/confirm':
+    post:
+      operationId: auth_confirm
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyAuthBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                nullable: true
+  '/auth/refresh':
+    post:
+      operationId: auth_refreshToken
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                nullable: true
+  '/auth/reset-password':
+    post:
+      operationId: auth_sendResetPassword
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordAuthBody'
+      responses:
+        '200':
+          description: No content
+  '/auth/sign-in':
+    post:
+      operationId: auth_signIn
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInAuthBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/auth/sign-up':
+    post:
+      operationId: auth_signUp
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpAuthBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/auth/verify-email':
+    post:
+      operationId: auth_sendVerifyEmail
+      tags:
+        - auth
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/VerifyEmailAuthBody'
+              nullable: true
+      responses:
+        '200':
+          description: No content
   '/crons/list':
     get:
       operationId: cron_list
@@ -2248,90 +2359,6 @@ paths:
       responses:
         '200':
           description: No content
-  '/img/{id}':
-    get:
-      operationId: photos_view
-      tags:
-        - photos
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: integer
-                  format: int64
-    patch:
-      operationId: photos_update
-      tags:
-        - photos
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                type: integer
-                format: int64
-      responses:
-        '200':
-          description: No content
-    delete:
-      operationId: photos_delete
-      tags:
-        - photos
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: No content
-  '/img':
-    post:
-      operationId: photos_create
-      tags:
-        - photos
-      parameters:
-        - name: meta
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/PhotoCreateMeta'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                type: integer
-                format: int64
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
   '/dashboard/metrics':
     get:
       operationId: dashboard_metrics
@@ -2359,6 +2386,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/DashboardMetrics'
   '/db':
+    delete:
+      operationId: db_delete
+      tags:
+        - db
+      parameters:
+        - name: body
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/DeleteOneBody'
+      responses:
+        '200':
+          description: No content
     get:
       operationId: db_get
       tags:
@@ -2369,24 +2409,6 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/GetBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-    post:
-      operationId: db_create
-      tags:
-        - db
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateBody'
       responses:
         '200':
           description: Success
@@ -2413,30 +2435,16 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-    delete:
-      operationId: db_delete
+    post:
+      operationId: db_create
       tags:
         - db
-      parameters:
-        - name: body
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/DeleteOneBody'
-      responses:
-        '200':
-          description: No content
-  '/db/list':
-    get:
-      operationId: db_list
-      tags:
-        - db
-      parameters:
-        - name: body
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/ListBody'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBody'
       responses:
         '200':
           description: Success
@@ -2464,119 +2472,6 @@ paths:
               schema:
                 type: integer
                 format: int64
-  '/db/stream':
-    get:
-      operationId: db_streamOne
-      tags:
-        - db
-      parameters:
-        - name: body
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/StreamBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-  '/db/stream/list':
-    get:
-      operationId: db_streamList
-      tags:
-        - db
-      parameters:
-        - name: body
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/StreamListBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  additionalProperties: true
-  '/db/stream/count':
-    get:
-      operationId: db_streamCount
-      tags:
-        - db
-      parameters:
-        - name: body
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/StreamCountBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: integer
-                format: int64
-  '/db/many':
-    post:
-      operationId: db_createMany
-      tags:
-        - db
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateManyBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  additionalProperties: true
-    patch:
-      operationId: db_updateMany
-      tags:
-        - db
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  additionalProperties: true
-    delete:
-      operationId: db_deleteMany
-      tags:
-        - db
-      parameters:
-        - name: body
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/DeleteBody'
-      responses:
-        '200':
-          description: No content
   '/db/custom/{operation}':
     patch:
       operationId: db_custom
@@ -2629,17 +2524,17 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
-  '/auth':
-    post:
-      operationId: auth_authenticate
+  '/db/list':
+    get:
+      operationId: db_list
       tags:
-        - auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuthBody'
+        - db
+      parameters:
+        - name: body
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/ListBody'
       responses:
         '200':
           description: Success
@@ -2648,19 +2543,71 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                nullable: true
+  '/db/many':
     delete:
-      operationId: auth_logout
+      operationId: db_deleteMany
       tags:
-        - auth
+        - db
+      parameters:
+        - name: body
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/DeleteBody'
       responses:
         '200':
           description: No content
-  '/auth/refresh':
-    post:
-      operationId: auth_refreshToken
+    patch:
+      operationId: db_updateMany
       tags:
-        - auth
+        - db
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+    post:
+      operationId: db_createMany
+      tags:
+        - db
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManyBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+  '/db/stream':
+    get:
+      operationId: db_streamOne
+      tags:
+        - db
+      parameters:
+        - name: body
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/StreamBody'
       responses:
         '200':
           description: Success
@@ -2669,48 +2616,88 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                nullable: true
-  '/auth/reset-password':
-    post:
-      operationId: auth_sendResetPassword
+  '/db/stream/count':
+    get:
+      operationId: db_streamCount
       tags:
-        - auth
+        - db
+      parameters:
+        - name: body
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/StreamCountBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int64
+  '/db/stream/list':
+    get:
+      operationId: db_streamList
+      tags:
+        - db
+      parameters:
+        - name: body
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/StreamListBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+  '/email':
+    post:
+      operationId: email_send
+      tags:
+        - email
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResetPasswordAuthBody'
+              $ref: '#/components/schemas/Email'
       responses:
         '200':
           description: No content
-  '/auth/verify-email':
-    post:
-      operationId: auth_sendVerifyEmail
+  '/health':
+    get:
+      operationId: root_health
       tags:
-        - auth
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              allOf:
-                - $ref: '#/components/schemas/VerifyEmailAuthBody'
-              nullable: true
+        - root
       responses:
         '200':
           description: No content
-  '/auth/confirm':
+  '/img':
     post:
-      operationId: auth_confirm
+      operationId: photos_create
       tags:
-        - auth
+        - photos
+      parameters:
+        - name: meta
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/PhotoCreateMeta'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VerifyAuthBody'
+              type: array
+              items:
+                type: integer
+                format: int64
       responses:
         '200':
           description: Success
@@ -2719,116 +2706,211 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-                nullable: true
-  '/auth/admin':
-    post:
-      operationId: auth_adminAuthenticate
-      tags:
-        - auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AdminAuthBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                nullable: true
-  '/auth/sign-in':
-    post:
-      operationId: auth_signIn
-      tags:
-        - auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SignInAuthBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-  '/auth/sign-up':
-    post:
-      operationId: auth_signUp
-      tags:
-        - auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SignUpAuthBody'
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-  '/auth/all':
+  '/img/{id}':
     delete:
-      operationId: auth_logoutAll
+      operationId: photos_delete
       tags:
-        - auth
+        - photos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: No content
+    get:
+      operationId: photos_view
+      tags:
+        - photos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                  format: int64
+    patch:
+      operationId: photos_update
+      tags:
+        - photos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: integer
+                format: int64
+      responses:
+        '200':
+          description: No content
+  '/swagger.json':
+    get:
+      operationId: root_swaggerJson
+      tags:
+        - root
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringContent'
+  '/swagger.yaml':
+    get:
+      operationId: root_swaggerYaml
+      tags:
+        - root
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringContent'
 components:
   schemas:
-    Email:
-      type: object
-      properties:
-        to:
-          $ref: '#/components/schemas/EmailAddress'
-        from:
-          allOf:
-            - $ref: '#/components/schemas/EmailAddress'
-          nullable: true
-        subject:
-          type: string
-        template:
-          type: string
-        variables:
-          type: object
-          additionalProperties: true
-        thread:
-          type: string
-          nullable: true
-      required:
-        - to
-        - subject
-        - template
-        - variables
-    EmailAddress:
-      type: object
-      properties:
-        address:
-          type: string
-        name:
-          type: string
-          nullable: true
-      required:
-        - address
-    StringContent:
+    Add:
       type: object
       properties:
         value:
+          nullable: true
+    AddAll:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            nullable: true
+      required:
+        - values
+    AdminAuthBody:
+      type: object
+      properties:
+        type:
           type: string
       required:
+        - type
+    AdminSendResetPasswordAuthBody:
+      type: object
+      properties:
+        type:
+          type: string
+        email:
+          type: string
+      required:
+        - type
+        - email
+    And:
+      type: object
+      properties:
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Where'
+      required:
+        - conditions
+    AuthBody:
+      oneOf:
+        - $ref: '#/components/schemas/SendOtpAuthBody'
+        - $ref: '#/components/schemas/SendMagicLinkAuthBody'
+        - $ref: '#/components/schemas/SignInAuthBody'
+        - $ref: '#/components/schemas/SignUpAuthBody'
+    ColumnUpdate:
+      type: object
+      properties:
+        column:
+          type: string
+        value:
+          $ref: '#/components/schemas/UpdateValue'
+      required:
+        - column
         - value
+    ConfirmResetPasswordAuthBody:
+      type: object
+      properties:
+        token:
+          type: string
+        newPassword:
+          type: string
+        type:
+          type: string
+      required:
+        - token
+        - newPassword
+        - type
+    ConfirmVerifyEmailAuthBody:
+      type: object
+      properties:
+        token:
+          type: string
+        type:
+          type: string
+      required:
+        - token
+        - type
+    Contains:
+      type: object
+      properties:
+        column:
+          type: string
+        value: {}
+      required:
+        - column
+        - value
+    CountBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
+      required:
+        - table
+    CreateBody:
+      type: object
+      properties:
+        table:
+          type: string
+        object:
+          type: object
+          additionalProperties: true
+      required:
+        - table
+        - object
+    CreateManyBody:
+      type: object
+      properties:
+        table:
+          type: string
+        objects:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required:
+        - table
+        - objects
     CronJobList:
       type: object
       properties:
@@ -2838,13 +2920,46 @@ components:
             type: string
       required:
         - names
-    PhotoCreateMeta:
+    CustomBody:
       type: object
       properties:
         table:
           type: string
+        where:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Update'
       required:
         - table
+        - updates
+    CustomOneBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Update'
+      required:
+        - table
+        - updates
     DashboardMetrics:
       type: object
       properties:
@@ -2882,6 +2997,88 @@ components:
       required:
         - hour
         - count
+    Decrement:
+      type: object
+    DeleteBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          $ref: '#/components/schemas/Where'
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+      required:
+        - table
+        - where
+    DeleteOneBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          $ref: '#/components/schemas/Where'
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+      required:
+        - table
+        - where
+    Email:
+      type: object
+      properties:
+        to:
+          $ref: '#/components/schemas/EmailAddress'
+        from:
+          allOf:
+            - $ref: '#/components/schemas/EmailAddress'
+          nullable: true
+        subject:
+          type: string
+        template:
+          type: string
+        variables:
+          type: object
+          additionalProperties: true
+        thread:
+          type: string
+          nullable: true
+      required:
+        - to
+        - subject
+        - template
+        - variables
+    EmailAddress:
+      type: object
+      properties:
+        address:
+          type: string
+        name:
+          type: string
+          nullable: true
+      required:
+        - address
+    EndsWith:
+      type: object
+      properties:
+        column:
+          type: string
+        value: {}
+      required:
+        - column
+        - value
+    Eq:
+      type: object
+      properties:
+        column:
+          type: string
+        value: {}
+      required:
+        - column
+        - value
     GetBody:
       type: object
       properties:
@@ -2897,46 +3094,6 @@ components:
         - table
         - where
         - expand
-    Where:
-      oneOf:
-        - $ref: '#/components/schemas/Eq'
-        - $ref: '#/components/schemas/Null'
-        - $ref: '#/components/schemas/NotNull'
-        - $ref: '#/components/schemas/Gt'
-        - $ref: '#/components/schemas/Gte'
-        - $ref: '#/components/schemas/Lt'
-        - $ref: '#/components/schemas/Lte'
-        - $ref: '#/components/schemas/In'
-        - $ref: '#/components/schemas/NotIn'
-        - $ref: '#/components/schemas/And'
-        - $ref: '#/components/schemas/Or'
-        - $ref: '#/components/schemas/Contains'
-        - $ref: '#/components/schemas/StartsWith'
-        - $ref: '#/components/schemas/EndsWith'
-        - $ref: '#/components/schemas/NotContains'
-    Eq:
-      type: object
-      properties:
-        column:
-          type: string
-        value: {}
-      required:
-        - column
-        - value
-    'Null':
-      type: object
-      properties:
-        column:
-          type: string
-      required:
-        - column
-    NotNull:
-      type: object
-      properties:
-        column:
-          type: string
-      required:
-        - column
     Gt:
       type: object
       properties:
@@ -2947,24 +3104,6 @@ components:
         - column
         - value
     Gte:
-      type: object
-      properties:
-        column:
-          type: string
-        value: {}
-      required:
-        - column
-        - value
-    Lt:
-      type: object
-      properties:
-        column:
-          type: string
-        value: {}
-      required:
-        - column
-        - value
-    Lte:
       type: object
       properties:
         column:
@@ -2984,71 +3123,8 @@ components:
       required:
         - column
         - values
-    NotIn:
+    Increment:
       type: object
-      properties:
-        column:
-          type: string
-        values:
-          type: array
-          items: {}
-      required:
-        - column
-        - values
-    And:
-      type: object
-      properties:
-        conditions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Where'
-      required:
-        - conditions
-    Or:
-      type: object
-      properties:
-        conditions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Where'
-      required:
-        - conditions
-    Contains:
-      type: object
-      properties:
-        column:
-          type: string
-        value: {}
-      required:
-        - column
-        - value
-    StartsWith:
-      type: object
-      properties:
-        column:
-          type: string
-        value: {}
-      required:
-        - column
-        - value
-    EndsWith:
-      type: object
-      properties:
-        column:
-          type: string
-        value: {}
-      required:
-        - column
-        - value
-    NotContains:
-      type: object
-      properties:
-        column:
-          type: string
-        value: {}
-      required:
-        - column
-        - value
     ListBody:
       type: object
       properties:
@@ -3081,6 +3157,80 @@ components:
       required:
         - table
         - expand
+    Literal:
+      type: object
+      properties:
+        value:
+          nullable: true
+    Lt:
+      type: object
+      properties:
+        column:
+          type: string
+        value: {}
+      required:
+        - column
+        - value
+    Lte:
+      type: object
+      properties:
+        column:
+          type: string
+        value: {}
+      required:
+        - column
+        - value
+    NotContains:
+      type: object
+      properties:
+        column:
+          type: string
+        value: {}
+      required:
+        - column
+        - value
+    NotIn:
+      type: object
+      properties:
+        column:
+          type: string
+        values:
+          type: array
+          items: {}
+      required:
+        - column
+        - values
+    NotNull:
+      type: object
+      properties:
+        column:
+          type: string
+      required:
+        - column
+    'Null':
+      type: object
+      properties:
+        column:
+          type: string
+      required:
+        - column
+    ObjectUpdate:
+      type: object
+      properties:
+        object:
+          type: object
+          additionalProperties: true
+      required:
+        - object
+    Or:
+      type: object
+      properties:
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Where'
+      required:
+        - conditions
     OrderByTerm:
       type: object
       properties:
@@ -3091,173 +3241,18 @@ components:
       required:
         - column
         - direction
-    SortDirection:
-      type: string
-      enum:
-        - asc
-        - desc
-    CountBody:
+    PhotoCreateMeta:
       type: object
       properties:
         table:
           type: string
-        where:
-          allOf:
-            - $ref: '#/components/schemas/Where'
-          nullable: true
       required:
         - table
-    StreamBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          $ref: '#/components/schemas/Where'
-        expand:
-          type: array
-          items:
-            type: string
-      required:
-        - table
-        - where
-        - expand
-    StreamListBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          allOf:
-            - $ref: '#/components/schemas/Where'
-          nullable: true
-        limit:
-          type: integer
-          format: int64
-          nullable: true
-        offset:
-          type: integer
-          format: int64
-          nullable: true
-        orderBy:
-          type: array
-          items:
-            $ref: '#/components/schemas/OrderByTerm'
-          nullable: true
-        groupBy:
-          type: string
-          nullable: true
-        expand:
-          type: array
-          items:
-            type: string
-      required:
-        - table
-        - expand
-    StreamCountBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          $ref: '#/components/schemas/Where'
-      required:
-        - table
-        - where
-    CreateBody:
-      type: object
-      properties:
-        table:
-          type: string
-        object:
-          type: object
-          additionalProperties: true
-      required:
-        - table
-        - object
-    CreateManyBody:
-      type: object
-      properties:
-        table:
-          type: string
-        objects:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-      required:
-        - table
-        - objects
-    UpdateOneBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          $ref: '#/components/schemas/Where'
-        limit:
-          type: integer
-          format: int64
-          nullable: true
-        updates:
-          type: array
-          items:
-            $ref: '#/components/schemas/Update'
-      required:
-        - table
-        - where
-        - updates
-    Update:
-      oneOf:
-        - $ref: '#/components/schemas/ColumnUpdate'
-        - $ref: '#/components/schemas/ObjectUpdate'
-    ColumnUpdate:
-      type: object
-      properties:
-        column:
-          type: string
-        value:
-          $ref: '#/components/schemas/UpdateValue'
-      required:
-        - column
-        - value
-    UpdateValue:
-      oneOf:
-        - $ref: '#/components/schemas/Literal'
-        - $ref: '#/components/schemas/Increment'
-        - $ref: '#/components/schemas/Decrement'
-        - $ref: '#/components/schemas/Add'
-        - $ref: '#/components/schemas/Remove'
-        - $ref: '#/components/schemas/AddAll'
-        - $ref: '#/components/schemas/RemoveAll'
-    Literal:
-      type: object
-      properties:
-        value:
-          nullable: true
-    Increment:
-      type: object
-    Decrement:
-      type: object
-    Add:
-      type: object
-      properties:
-        value:
-          nullable: true
     Remove:
       type: object
       properties:
         value:
           nullable: true
-    AddAll:
-      type: object
-      properties:
-        values:
-          type: array
-          items:
-            nullable: true
-      required:
-        - values
     RemoveAll:
       type: object
       properties:
@@ -3267,124 +3262,10 @@ components:
             nullable: true
       required:
         - values
-    ObjectUpdate:
-      type: object
-      properties:
-        object:
-          type: object
-          additionalProperties: true
-      required:
-        - object
-    UpdateBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          $ref: '#/components/schemas/Where'
-        limit:
-          type: integer
-          format: int64
-          nullable: true
-        updates:
-          type: array
-          items:
-            $ref: '#/components/schemas/Update'
-      required:
-        - table
-        - where
-        - updates
-    CustomOneBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          allOf:
-            - $ref: '#/components/schemas/Where'
-          nullable: true
-        limit:
-          type: integer
-          format: int64
-          nullable: true
-        updates:
-          type: array
-          items:
-            $ref: '#/components/schemas/Update'
-      required:
-        - table
-        - updates
-    CustomBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          allOf:
-            - $ref: '#/components/schemas/Where'
-          nullable: true
-        limit:
-          type: integer
-          format: int64
-          nullable: true
-        updates:
-          type: array
-          items:
-            $ref: '#/components/schemas/Update'
-      required:
-        - table
-        - updates
-    DeleteOneBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          $ref: '#/components/schemas/Where'
-        limit:
-          type: integer
-          format: int64
-          nullable: true
-      required:
-        - table
-        - where
-    DeleteBody:
-      type: object
-      properties:
-        table:
-          type: string
-        where:
-          $ref: '#/components/schemas/Where'
-        limit:
-          type: integer
-          format: int64
-          nullable: true
-      required:
-        - table
-        - where
-    AuthBody:
+    ResetPasswordAuthBody:
       oneOf:
-        - $ref: '#/components/schemas/SendOtpAuthBody'
-        - $ref: '#/components/schemas/SendMagicLinkAuthBody'
-        - $ref: '#/components/schemas/SignInAuthBody'
-        - $ref: '#/components/schemas/SignUpAuthBody'
-    SendOtpAuthBody:
-      type: object
-      properties:
-        email:
-          type: string
-        metadata:
-          type: object
-          additionalProperties: true
-          nullable: true
-        table:
-          type: string
-        type:
-          type: string
-      required:
-        - email
-        - table
-        - type
+        - $ref: '#/components/schemas/SendResetPasswordAuthBody'
+        - $ref: '#/components/schemas/AdminSendResetPasswordAuthBody'
     SendMagicLinkAuthBody:
       type: object
       properties:
@@ -3402,6 +3283,36 @@ components:
         - email
         - table
         - type
+    SendOtpAuthBody:
+      type: object
+      properties:
+        email:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        table:
+          type: string
+        type:
+          type: string
+      required:
+        - email
+        - table
+        - type
+    SendResetPasswordAuthBody:
+      type: object
+      properties:
+        table:
+          type: string
+        type:
+          type: string
+        email:
+          type: string
+      required:
+        - table
+        - type
+        - email
     SignInAuthBody:
       type: object
       properties:
@@ -3438,33 +3349,141 @@ components:
         - password
         - table
         - type
-    ResetPasswordAuthBody:
-      oneOf:
-        - $ref: '#/components/schemas/SendResetPasswordAuthBody'
-        - $ref: '#/components/schemas/AdminSendResetPasswordAuthBody'
-    SendResetPasswordAuthBody:
+    SortDirection:
+      type: string
+      enum:
+        - asc
+        - desc
+    StartsWith:
+      type: object
+      properties:
+        column:
+          type: string
+        value: {}
+      required:
+        - column
+        - value
+    StreamBody:
       type: object
       properties:
         table:
           type: string
-        type:
-          type: string
-        email:
-          type: string
+        where:
+          $ref: '#/components/schemas/Where'
+        expand:
+          type: array
+          items:
+            type: string
       required:
         - table
-        - type
-        - email
-    AdminSendResetPasswordAuthBody:
+        - where
+        - expand
+    StreamCountBody:
       type: object
       properties:
-        type:
+        table:
           type: string
-        email:
+        where:
+          $ref: '#/components/schemas/Where'
+      required:
+        - table
+        - where
+    StreamListBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          allOf:
+            - $ref: '#/components/schemas/Where'
+          nullable: true
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        offset:
+          type: integer
+          format: int64
+          nullable: true
+        orderBy:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderByTerm'
+          nullable: true
+        groupBy:
+          type: string
+          nullable: true
+        expand:
+          type: array
+          items:
+            type: string
+      required:
+        - table
+        - expand
+    StringContent:
+      type: object
+      properties:
+        value:
           type: string
       required:
-        - type
-        - email
+        - value
+    Update:
+      oneOf:
+        - $ref: '#/components/schemas/ColumnUpdate'
+        - $ref: '#/components/schemas/ObjectUpdate'
+    UpdateBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          $ref: '#/components/schemas/Where'
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Update'
+      required:
+        - table
+        - where
+        - updates
+    UpdateOneBody:
+      type: object
+      properties:
+        table:
+          type: string
+        where:
+          $ref: '#/components/schemas/Where'
+        limit:
+          type: integer
+          format: int64
+          nullable: true
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Update'
+      required:
+        - table
+        - where
+        - updates
+    UpdateValue:
+      oneOf:
+        - $ref: '#/components/schemas/Literal'
+        - $ref: '#/components/schemas/Increment'
+        - $ref: '#/components/schemas/Decrement'
+        - $ref: '#/components/schemas/Add'
+        - $ref: '#/components/schemas/Remove'
+        - $ref: '#/components/schemas/AddAll'
+        - $ref: '#/components/schemas/RemoveAll'
+    VerifyAuthBody:
+      oneOf:
+        - $ref: '#/components/schemas/VerifyOtpAuthBody'
+        - $ref: '#/components/schemas/VerifyMagicLinkAuthBody'
+        - $ref: '#/components/schemas/ConfirmResetPasswordAuthBody'
+        - $ref: '#/components/schemas/ConfirmVerifyEmailAuthBody'
     VerifyEmailAuthBody:
       type: object
       properties:
@@ -3475,12 +3494,16 @@ components:
       required:
         - email
         - table
-    VerifyAuthBody:
-      oneOf:
-        - $ref: '#/components/schemas/VerifyOtpAuthBody'
-        - $ref: '#/components/schemas/VerifyMagicLinkAuthBody'
-        - $ref: '#/components/schemas/ConfirmResetPasswordAuthBody'
-        - $ref: '#/components/schemas/ConfirmVerifyEmailAuthBody'
+    VerifyMagicLinkAuthBody:
+      type: object
+      properties:
+        secret:
+          type: string
+        type:
+          type: string
+      required:
+        - secret
+        - type
     VerifyOtpAuthBody:
       type: object
       properties:
@@ -3494,45 +3517,22 @@ components:
         - email
         - code
         - type
-    VerifyMagicLinkAuthBody:
-      type: object
-      properties:
-        secret:
-          type: string
-        type:
-          type: string
-      required:
-        - secret
-        - type
-    ConfirmResetPasswordAuthBody:
-      type: object
-      properties:
-        token:
-          type: string
-        newPassword:
-          type: string
-        type:
-          type: string
-      required:
-        - token
-        - newPassword
-        - type
-    ConfirmVerifyEmailAuthBody:
-      type: object
-      properties:
-        token:
-          type: string
-        type:
-          type: string
-      required:
-        - token
-        - type
-    AdminAuthBody:
-      type: object
-      properties:
-        type:
-          type: string
-      required:
-        - type
+    Where:
+      oneOf:
+        - $ref: '#/components/schemas/Eq'
+        - $ref: '#/components/schemas/Null'
+        - $ref: '#/components/schemas/NotNull'
+        - $ref: '#/components/schemas/Gt'
+        - $ref: '#/components/schemas/Gte'
+        - $ref: '#/components/schemas/Lt'
+        - $ref: '#/components/schemas/Lte'
+        - $ref: '#/components/schemas/In'
+        - $ref: '#/components/schemas/NotIn'
+        - $ref: '#/components/schemas/And'
+        - $ref: '#/components/schemas/Or'
+        - $ref: '#/components/schemas/Contains'
+        - $ref: '#/components/schemas/StartsWith'
+        - $ref: '#/components/schemas/EndsWith'
+        - $ref: '#/components/schemas/NotContains'
 ''';
 
