@@ -26,6 +26,7 @@ abstract base class Request {
       GetRecordRequest._path => GetRecordRequest.fromJson(json),
       CreateRecordRequest._path => CreateRecordRequest.fromJson(json),
       DeleteRecordRequest._path => DeleteRecordRequest.fromJson(json),
+      PurgeRecordsRequest._path => PurgeRecordsRequest.fromJson(json),
       UpdateRecordRequest._path => UpdateRecordRequest.fromJson(json),
       SendEmailRequest._path => SendEmailRequest.fromJson(json),
       SendBuiltInEmailRequest._path => SendBuiltInEmailRequest.fromJson(json),
@@ -248,6 +249,61 @@ final class DeleteRecordRequest extends MutationRequest {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'where': where.toJson(), 'limit': limit};
+  }
+}
+
+/// Bulk removal of rows from one of the framework's own tables, executed by
+/// the host as a single `DELETE ... WHERE`.
+///
+/// Deliberately **not** a [MutationRequest], and the two differences are the
+/// whole point:
+///
+/// * A [MutationRequest] is parked against its parent's id and replayed as a
+///   side effect, with `expectResponse: false` — the caller cannot learn what
+///   happened, or whether anything happened at all. This is answered directly
+///   with a [PurgeRecordsResponse] carrying the row count. Retention that
+///   cannot report what it deleted is indistinguishable from retention that
+///   never ran, which is precisely how a production `_log` reached 4,164,727
+///   rows while its nightly cron reported success (2026-08-13).
+/// * [DeleteRecordRequest] reads every matching row into memory, dispatches a
+///   row-rules check per row, sanitizes the set and hands it to `before`/
+///   `after` extensions. That is correct for author tables and hopeless at
+///   retention scale — the read alone is unbounded. A purge skips all of it.
+///
+/// Skipping row rules is only defensible because of what this may be pointed
+/// at: the host restricts [table] to the framework's own internal tables,
+/// which carry generated rules rather than author-supplied ones, and requires
+/// an admin identity on top ([CronJwt] qualifies). `_photos` is excluded even
+/// so — deleting a photo row also deletes a file, and that side effect only
+/// exists on the per-row path.
+final class PurgeRecordsRequest extends Request {
+  PurgeRecordsRequest({required this.table, required this.where, super.jwt})
+    : super(path: _path, id: Request.generateId());
+
+  PurgeRecordsRequest._({
+    required super.id,
+    required this.table,
+    required this.where,
+    super.jwt,
+  }) : super(path: _path);
+
+  factory PurgeRecordsRequest.fromJson(Map<String, dynamic> json) {
+    return PurgeRecordsRequest._(
+      id: json['id'] as String,
+      table: json['table'] as String,
+      where: Where.fromJson(json['where'] as Map<String, dynamic>),
+      jwt: Jwt.maybeFromJson(json['jwt']),
+    );
+  }
+
+  static const _path = '${Request.prefix}.purge_records';
+
+  final String table;
+  final Where where;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'table': table, 'where': where.toJson()};
   }
 }
 

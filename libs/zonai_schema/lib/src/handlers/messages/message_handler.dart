@@ -323,6 +323,28 @@ class MessageHandler<R extends Request> {
                 ),
               );
             },
+            // Awaited, not queued as a side effect: a purge is answered
+            // directly by the host rather than parked against `request`'s id
+            // and replayed when its response arrives. That difference is the
+            // point -- see [PurgeRecordsRequest].
+            purge: ({required tableName, required where}) async {
+              final result = await sendRequest(
+                PurgeRecordsRequest(
+                  table: tableName,
+                  where: where,
+                  jwt: request.jwt,
+                ),
+              );
+
+              if (result case PurgeRecordsResponse(:final rowsAffected)) {
+                return rowsAffected;
+              }
+
+              logger.error(
+                'Unexpected response to purge of "$tableName": ${result?.path}',
+              );
+              return 0;
+            },
           ),
         ),
       },

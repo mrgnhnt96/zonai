@@ -26,6 +26,7 @@ base class Response {
       PongResponse._path => PongResponse.fromJson(json),
       MessageErrorResponse._path => MessageErrorResponse.fromJson(json),
       GetRecordResponse._path => GetRecordResponse.fromJson(json),
+      PurgeRecordsResponse._path => PurgeRecordsResponse.fromJson(json),
       NativeLibraryResponse._path => NativeLibraryResponse.fromJson(json),
       _ when path.startsWith(CronResponse.prefix) => CronResponse.fromJson(
         json,
@@ -173,6 +174,34 @@ final class GetRecordResponse extends Response {
 
   @override
   Map<String, dynamic> toJson() => {...super.toJson(), 'records': records};
+}
+
+/// Reply to a [PurgeRecordsRequest]: how many rows the `DELETE` actually
+/// removed.
+///
+/// The count is the entire reason this response type exists. A cron that logs
+/// "queued deletion" has said nothing a reader can act on; one that logs
+/// "removed 0 rows" against a table it knows is oversized has reported a bug.
+final class PurgeRecordsResponse extends Response {
+  PurgeRecordsResponse({required super.id, required this.rowsAffected})
+    : super(path: _path, payload: {'rowsAffected': rowsAffected});
+
+  factory PurgeRecordsResponse.fromJson(Map<String, dynamic> json) {
+    return PurgeRecordsResponse(
+      id: json['id'] as String,
+      rowsAffected: json['rowsAffected'] as int,
+    );
+  }
+
+  static const _path = '${Response.prefix}.purge_records';
+
+  final int rowsAffected;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    ...super.toJson(),
+    'rowsAffected': rowsAffected,
+  };
 }
 
 /// Reply to a [NativeLibraryRequest]: the spawner's shared, on-disk install

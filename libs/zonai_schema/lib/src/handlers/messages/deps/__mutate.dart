@@ -8,10 +8,12 @@ class _Mutate {
     required _UpdateMany update,
     required _DeleteMany delete,
     required _CreateMany create,
+    required _PurgeMany purge,
   }) {
     this.update = _Update(update);
     this.delete = _Delete(delete);
     this.create = _Create(create);
+    this.purge = purge;
   }
   _Mutate._() {
     update = _Update(
@@ -19,12 +21,30 @@ class _Mutate {
     );
     delete = _Delete(({required String tableName, required where, limit}) {});
     create = _Create(({required String tableName, required objects}) {});
+    purge = ({required String tableName, required where}) async => 0;
   }
 
   late final _Update update;
   late final _Delete delete;
   late final _Create create;
+
+  /// Bulk-deletes rows from one of the framework's own tables and returns how
+  /// many were removed.
+  ///
+  /// Unlike [delete], this is awaited end to end: the host runs a single
+  /// `DELETE ... WHERE` and reports the row count back, so a caller can tell
+  /// "removed nothing" from "never ran". [delete] can do neither — it is
+  /// dispatched as a fire-and-forget side effect, which is why every internal
+  /// retention cron using it was silently failing.
+  ///
+  /// Restricted host-side to internal tables and to admin identities; see
+  /// [PurgeRecordsRequest] for why skipping the per-row rules walk is sound
+  /// there and nowhere else.
+  late final _PurgeMany purge;
 }
+
+typedef _PurgeMany =
+    Future<int> Function({required String tableName, required Where where});
 
 typedef _UpdateMany =
     void Function({
