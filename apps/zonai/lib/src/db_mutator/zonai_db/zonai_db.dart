@@ -523,6 +523,13 @@ class ZonaiDb {
           cleanUpProvider,
           executableStopProvider,
           externalIdpProvisioningGateProvider,
+          // Every DB operation funnels through here, including the four
+          // fire-and-forget email sends whose only signal to an operator is a
+          // log line. `logger` reads without an `orElse`, so a caller that
+          // registered no logger would trade the missing warning for a
+          // `StateError` on a future nobody awaits. Absent one, this falls
+          // back to a default `Logger` -- warnings still reach stderr.
+          loggerProvider,
         },
         override: {
           mutationsProvider.overrideWith(() => m),
@@ -601,6 +608,8 @@ class ZonaiDb {
           cleanUpProvider,
           executableStopProvider,
           externalIdpProvisioningGateProvider,
+          // Kept in step with [_run]'s set.
+          loggerProvider,
         },
         override: {
           mutationsProvider.overrideWith(() => m),

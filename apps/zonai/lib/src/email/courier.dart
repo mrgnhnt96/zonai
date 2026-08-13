@@ -4,9 +4,13 @@ import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:mailer/mailer.dart' as mailer;
 import 'package:mailer/mailer.dart';
-import 'package:zonai_schema/zonai_schema.dart';
+// `hide logger`: the barrel re-exports the worker-side `logger` from
+// `message_handler.dart`, which falls back to a no-op outside a worker scope.
+// Picking it up here made the missing-config warning below silent on the host.
+import 'package:zonai_schema/zonai_schema.dart' hide logger;
 import 'package:mailer/smtp_server.dart';
 
+import '../deps/logger.dart';
 import '../utils/email_template_render.dart';
 
 class Courier {
