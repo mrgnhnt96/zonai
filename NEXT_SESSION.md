@@ -100,43 +100,36 @@ only transaction that spans `main` and an attached DB is the purge pipeline,
 where it is harmless, and the request-path writes to both split tables are
 standalone statements.
 
-### 2. `max_page_count` on the log DB — prerequisite done, one decision left
+### 2. `max_page_count` on the log DB — ✅ DONE, opt-in
 
-`journal_size_limit` is **resolved: deliberately not done.** Measuring it did
-not support the plan. With the limit at 32 KB and a 1.6 MB WAL, checkpoints at
-PASSIVE, FULL *and* RESTART all reported full success (`[0, 399, 399]` — not
-busy, every frame copied) and left the file at full size. Only TRUNCATE shrank
-it, and TRUNCATE does that with or without a limit. `_purge` uses PASSIVE and
-wants pages returned for reuse rather than the file shrunk; `_vacuum` already
-uses TRUNCATE. The finding is recorded next to the `journal_mode` pragma that
-replaced it in `resqlite_delegate.dart`.
+Shipped as **`logDatabaseMaxSize` in `zonai.yaml`, off by default**. Reaching
+a ceiling stops log writes until retention frees space, which costs
+observability exactly when something is going wrong — so it is a guarantee
+available to people who want it, not one imposed on a deployment that never
+asked. Documented in the zonai.yaml reference with that reasoning, and
+cross-linked from the logs page.
 
-**The safety prerequisite is done** (`b1e03b3`). A cap makes log inserts fail
-by design, so what happens to a failed insert had to stop being hypothetical.
-It was worse than "fire-and-forget", and needed measuring rather than reading:
-the callback's Future is discarded, `Logger._log`'s `try`/`catch` only guards
-a *synchronous* throw, so the error resurfaced as an **unhandled asynchronous
-error in the request's zone**, once per failed write, unhandleable where it
-happened. It now catches and reports one deduplicated line to stderr. Both
-halves of that dispatch are pinned in
-`apps/zonai/test/src/logger_async_callback_test.dart`.
+`journal_size_limit` is **resolved: deliberately not done.** With the limit at
+32 KB and a 1.6 MB WAL, checkpoints at PASSIVE, FULL *and* RESTART all
+reported full success (`[0, 399, 399]`) and left the file at full size. Only
+TRUNCATE shrank it, and TRUNCATE does that with or without a limit. The
+finding is recorded next to the `journal_mode` pragma that replaced it.
 
-So the cap itself is now a small change. **What is left is one decision, and
-it is a product decision, not a technical one:**
+Two measurements shaped the rest, both worth not re-deriving:
 
-- **Default off, opt-in via `zonai.yaml`** — my recommendation. A cap that is
-  hit stops logging entirely, which removes observability at exactly the
-  moment something is going wrong. The disk-fill problem it was proposed for
-  is now addressed from three other directions (working retention, the
-  reclaim cron, `DiskFullException`), so a cap is a hard guarantee for people
-  who want one rather than something to impose on everyone.
-- **Default on at some size** — defensible if you would rather every
-  deployment have a ceiling. Needs a number that is generous enough not to
-  bite a busy server: 512 MB or 1 GB, not 64 MB.
-
-Whichever way, the cap is applied where the attach happens
-(`ResqliteDelegate.open`) and is verified safe by `45befd6`: it stops log
-writes and leaves application writes untouched.
+- **`max_page_count` is per-connection and not persisted.** Set on the writer,
+  a fresh handle and a later reopen both read the default 4294967294. So it
+  must be set on *both* connections — an `INSERT ... RETURNING` (what raindrop
+  emits) lands on the reads connection, a plain `INSERT` on the writer — and
+  removing the key lifts the cap on next start with nothing to reset. A test
+  pins the non-persistence so the day it changes is not the day someone cannot
+  work out why writes still fail.
+- **A failing log write was never silent, and never fatal either** (`b1e03b3`).
+  The callback's Future is discarded and `Logger._log`'s `try`/`catch` only
+  guards a synchronous throw, so the error resurfaced as an *unhandled
+  asynchronous error in the request's zone*, once per failed write. It now
+  catches and reports one deduplicated line to stderr. Both halves of that
+  dispatch are pinned in `logger_async_callback_test.dart`.
 
 ### 3. Conditional VACUUM in the cleanup cron — ✅ DONE
 
