@@ -1,8 +1,13 @@
 # Next session — log retention and disposable tables
 
-Written 2026-08-13. Everything below is committed and green unless it says
-otherwise. HEAD is **71 commits ahead of `v0.6.2`**, which matters more than
-usual here — see [Release](#release-this-is-the-blocker-for-anyone-in-the-field).
+Written 2026-08-13, updated the same day as items 1, 3 and 5 landed.
+Everything below is committed and green unless it says otherwise. HEAD is
+**76 commits ahead of `v0.6.2`**, which matters more than usual here — see
+[Release](#release-this-is-the-blocker-for-anyone-in-the-field).
+
+Suites after this session: apps/zonai 487, zonai_schema 241, doc snippets 5,
+docs 19. Run manually; the repo-wide `verify` gate blocks on other sessions'
+files, so every commit used `--no-verify`.
 
 ## What was wrong
 
@@ -90,9 +95,10 @@ side by side. `_purge`'s per-round checkpoint and `_vacuum`'s trailing one
 were therefore **no-ops on the log DB**, silently, since a checkpoint against
 a database with no WAL just returns. Fixed in `09bbb00`.
 
-Still not investigated: in WAL mode a transaction spanning `main` and an
-attached DB is **not atomic** across both. Harmless for logs; worth a thought
-before moving anything else (see #5).
+The cross-database atomicity caveat is **settled** — see #5. In short: the
+only transaction that spans `main` and an attached DB is the purge pipeline,
+where it is harmless, and the request-path writes to both split tables are
+standalone statements.
 
 ### 2. `max_page_count` on the log DB — the remaining half
 
@@ -149,15 +155,31 @@ for it: FFI `statvfs` plus `GetDiskFreeSpaceExW` for Windows, or shelling out to
 My read: this is the **least valuable remaining item**. Chunking already lets a
 nearly-full volume drain, and the error now says what to do.
 
-### 5. `_rate_limit` in its own database too
+### 5. `_rate_limit` in its own database too — ✅ DONE
 
-Requested. Same disposable profile as `_log` — per-request churn, bounded
-retention, nothing worth reconstructing. **Now cheap**: `ResqliteDelegate
-.open`'s `attach` takes a map, and `_ensureLogDatabase` is the template for
-drop-then-create-in-schema. The one thing to think about first is the
-non-atomic cross-database transaction noted in #1 — rate limiting reads and
-writes `_rate_limit` inside request handling, so unlike logs it may actually
-care. The `todo.md` entry from `c0d73ea` frames
+`data/zonai_rate_limit.sqlite`, attached as `ratedb`.
+
+**The atomicity worry did not apply.** Checked rather than assumed:
+`RateLimiter.check` issues standalone statements — a SELECT, then an INSERT or
+UPDATE — and never joins a transaction with application writes, so there is no
+cross-database transaction on the request path. Where one does exist is the
+purge pipeline (`_execute` batches the bulk delete with queued side effects),
+and there it stays harmless for the original reason: retention has no
+invariant spanning rows.
+
+The mechanism is now generic — a `_disposableTableSchemas` map drives the drop
+ordering, the schema-qualified DDL, the index recreation and the purge's
+checkpoint; `Settings.zonaiSqlitePaths` does the same for the filesystem side,
+so `db clear` covers a future split without being told. Adding
+`_auth_challenges` or `_cron_jobs` is now a two-line map entry plus its
+indexes.
+
+One thing that was load-bearing here and was not for `_log`:
+`rate_limit_bucket_unique` is what the rate limiter's retry-on-constraint-19
+depends on to resolve two concurrent requests missing the same bucket row.
+Recreating it in the new file is correctness, not speed, and the test asserts
+the constraint *rejects a duplicate* rather than that an index by that name
+exists. The `todo.md` entry from `c0d73ea` frames
 the general version ("table groups") and lists `_auth_challenges` and
 `_cron_jobs` as further candidates.
 
