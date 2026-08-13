@@ -53,6 +53,7 @@
 
 ### Auth
 
+- [ ] Consider letting sign-up and sign-in mean what they say. Today both `POST /auth/sign-up` and `POST /auth/sign-in` resolve through one `_authenticate` (`parts/auth/auth.dart`), which branches only on whether an auth record exists — so signing up an existing email signs it in, and the payload's intent is never read. Kept deliberately (see `docs/known-issues.md` #5, decided 2026-08-13): it is consistent with magic link and OTP creating on first use, and it makes a retried sign-up safe after a network timeout. Documented in `apps/docs/content/authentication/password-auth.md`. The cost is that **sign-up cannot tell a client an email is taken** — a wrong password returns the same `401` as a genuinely wrong sign-in — so any UI wanting "this address is registered, sign in instead" has to look the account up itself. If that becomes common, the alternative is sign-up 409ing on an existing record and sign-in 401ing on a missing one. **Breaking**, so it wants a major version and probably an opt-in first. Small to build: `SignUpAuthBody`/`SignInAuthBody` are already distinct types reaching distinct controller methods (`auth_password_body.dart:480,517`) and only collapse to one `PasswordAuthPayload` before the decision — thread the intent through and branch on it rather than on existence alone.
 - [ ] Add OAuth authentication (mixins)
 - [ ] Add email change
 - [ ] Add impersonate

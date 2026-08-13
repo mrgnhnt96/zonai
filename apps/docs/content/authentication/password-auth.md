@@ -44,6 +44,24 @@ The account starts unverified. Try sending the verification email in your `onSig
 
 </Info>
 
+### Signing up an email that already exists
+
+**Sign-up on an existing account signs that account in** — it does not return a conflict. Both endpoints resolve the same way: if no account exists for the email, one is created; if one does, the credentials are checked and a session is issued. This is the same behaviour [magic link](/authentication/magic-link-auth) and [OTP](/authentication/otp-auth) already have in the other direction.
+
+So, given an email that is already registered:
+
+| Password submitted | Result |
+|---|---|
+| Matches the account | `200` with that account and a fresh `accessToken` — **no second row, no `onSignUp` hook** |
+| Does not match | `401 Invalid password or email` |
+
+Two consequences worth designing around:
+
+- **A retried sign-up is safe.** A client that resends after a network timeout gets the original account back rather than an error, so it needs no "already exists" special case.
+- **It will not tell you an email is taken.** If your UI needs that — to say "this address is registered, sign in instead" — check for the account yourself rather than relying on sign-up to fail. A wrong password returns the same `401` as a genuinely wrong sign-in, so the response alone cannot distinguish "taken" from "bad credentials".
+
+This does not let anyone into an account whose password they do not have: a caller without the real password gets a normal `401`.
+
 ## Sign-In
 
 ```

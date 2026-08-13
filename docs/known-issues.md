@@ -549,7 +549,7 @@ return JwtConfigResponse(
 
 **How this was confirmed** (not just read from source, and not just theorized): built the vulnerable version first (`with AsAdmin` on a table with public sign-up), started a real compiled server, signed up a brand-new account via `/auth/sign-up`, and decoded its JWT — got `isAdmin: true`. Then rebuilt with a dedicated table instead, re-ran the same sign-up against the same server, and confirmed `isAdmin: false`; separately confirmed a direct `POST /auth/sign-up` attempt against the dedicated admin table (`table: "admins"`) is rejected with `403` once `canSignUp` is overridden. See `override_canvas/apps/server/test/integration/admin_security_integration_test.dart` for the regression tests this produced (regular sign-up/sign-in never get admin claims; self-registration on the admin table is rejected; a CLI-bootstrapped admin account signs in with real admin claims).
 
-## 5. `POST /auth/sign-up` on an existing email silently succeeds if the password happens to match — root cause isolated 2026-08-13, fix is a product decision
+## 5. `POST /auth/sign-up` on an existing email silently succeeds if the password happens to match — resolved 2026-08-13 as intended behavior, now documented
 
 > **Root cause found, and both hypotheses below were wrong.** There is no
 > `INSERT OR IGNORE`, no upsert, and no catch-and-refetch. Nothing swallows a
@@ -589,13 +589,25 @@ return JwtConfigResponse(
 > (`auth_password_body.dart:480,517`) reaching distinct controller methods;
 > both collapse to a `PasswordAuthPayload` before the decision is made.
 >
-> **Not fixed, deliberately.** Making `sign-up` reject an existing record
-> (409) and `sign-in` reject a missing one is a **breaking change to auth
-> semantics** — any client relying on sign-up being idempotent, or on it
-> doubling as sign-in, would start failing. That is a product decision, and
-> not one to make quietly in the same release as a database migration. The
-> work itself is small: thread the intent through and branch on it rather
-> than on existence alone.
+> **Decided 2026-08-13: this is the intended behavior, and it stays.** Sign-up
+> on an existing account signs that account in. It is consistent with what
+> magic link and OTP already do in the other direction (create on first use),
+> and it makes a retried sign-up safe for clients that resend after a network
+> timeout.
+>
+> So this stops being a defect and becomes an API contract — which means the
+> only real problem it ever had, "semantic surprise", is fixed by writing it
+> down. Documented in
+> `apps/docs/content/authentication/password-auth.md` → *Signing up an email
+> that already exists*, including the one thing a client author has to design
+> around: **sign-up will not tell you an email is taken**, and a wrong
+> password returns the same `401` as a genuinely wrong sign-in, so the
+> response cannot distinguish the two.
+>
+> Changing it later — sign-up 409s on an existing record, sign-in 401s on a
+> missing one — is on the backlog (`todo.md`, Auth). It would be a breaking
+> change, and the implementation is small: thread the intent through and
+> branch on it rather than on existence alone.
 >
 > Original investigation kept below.
 
