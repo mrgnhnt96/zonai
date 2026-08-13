@@ -1,5 +1,35 @@
 # Releasing
 
+## Rule zero: never dispatch `Release` while `Verify Release` is failing
+
+**If `verify-release.yml` is red for the commit you are about to release, you
+do not have a release candidate. You have a bug. Fix it and start again.**
+
+There is no version of "ship it anyway" that makes sense here. The point of
+shipping is that the product works; a release that fails its own verification
+is not early, it is wrong. Nothing about this repo's release is time-pressured
+— `Release` is `workflow_dispatch` precisely so a human can take as long as
+they need — so there is never a reason to walk past a red gate.
+
+`verify-release.yml` triggers automatically on a successful `Compile`. It runs
+without being asked, which means **the only way to skip it is to not look**.
+
+This was written on 2026-08-13, after exactly that. Verify Release ran on
+`fd0770c` at 22:09:35 and failed on three platforms — `TableMeta.get` not
+found on macos-arm64 and linux-x64, and a backslash-separated package import
+on Windows. `Release` was dispatched minutes later by someone who never opened
+it. v0.6.3 went out with those bugs in it.
+
+Before dispatching `Release`, check:
+
+```sh
+gh run list --workflow=verify-release.yml --limit 3 \
+  --json conclusion,headSha --jq '.[] | "\(.conclusion)\t\(.headSha[0:8])"'
+```
+
+The newest run must be `success`, **and its SHA must be the commit you are
+releasing**. A green run for a different commit tells you nothing.
+
 Three artifacts ship from this repo, and they are **not** independent:
 
 | Artifact       | Goes to  | Versioned by                    |
