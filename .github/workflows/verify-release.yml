@@ -63,13 +63,30 @@ jobs:
           run_id: ${{ github.event.workflow_run.id }}
           name: release-version
 
-      - name: Download release version files (latest successful compile)
+      # Every `workflow_dispatch` download in this file is pinned to
+      # `github.sha`, and this is the first of eight. The `workflow_run` paths
+      # are already safe because they pin `run_id` to the triggering compile;
+      # only the hand-triggered ones asked for "the newest successful Compile"
+      # and would take it from any commit, however old.
+      #
+      # That asymmetry is not cosmetic. This workflow is the release gate, and
+      # a gate that validates a different commit's binaries reports success
+      # about something nobody is shipping -- worse than no gate, because it
+      # is believed. release.yml had the identical bug and published v0.6.3
+      # from six-day-old artifacts.
+      #
+      # `if_no_artifact_found: fail` is the other half: without it a missing
+      # artifact is only a warning and the job continues against whatever
+      # happens to be in the workspace. Run Compile on the ref, then dispatch.
+      - name: Download release version files (this commit)
         if: github.event_name == 'workflow_dispatch'
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: release-version
 
       - name: Download artifact (triggering compile run)
@@ -88,6 +105,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: ${{ matrix.artifact_name }}
           path: build
 
@@ -172,6 +191,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: release-version
 
       - name: Download artifact (triggering compile run)
@@ -190,6 +211,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: ${{ matrix.artifact_name }}
           path: build
 
@@ -259,6 +282,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: release-version
 
       - name: Download artifact (triggering compile run)
@@ -277,6 +302,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: zonai-macos-arm64
           path: build
 
@@ -300,6 +327,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: native-libs-embedded-macos-arm64
           path: apps/zonai/lib/gen/native
 
@@ -452,6 +481,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: compile.yml
           workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
           name: ${{ matrix.artifact_name }}
           path: build/new
 
