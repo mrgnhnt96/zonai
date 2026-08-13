@@ -2255,22 +2255,22 @@
         {
           "h": "Quick Start",
           "a": "quick-start",
-          "b": "import 'package:zonai_client/zonai_client.dart'; // Singleton — memory storage, base URL from BASE_URL env var or http://localhost:8080 final client = ZonaiClient.instance; // Check that the server is reachable final healthy = await client.health(); // Query the database final page = await client.db.list(body: ListBody(table: 'posts'));"
+          "b": "import 'package:zonai_client/zonai_client.dart'; Future main() async { // Singleton — memory storage, base URL from BASE_URL env var or // http://localhost:8080 final client = ZonaiClient.instance; // Check that the server is reachable final healthy = await client.health(); // Query the database final page = await client.db.list( body: ListBody(table: 'posts'), fromJson: (row) => row, ); }"
         },
         {
           "h": "Configuration",
           "a": "configuration",
-          "b": "ZonaiClient accepts two optional parameters: Parameter Default Description baseUrl BASE_URL env var or http://localhost:8080 Server base URL storageDirectory _(none — memory storage)_ final client = ZonaiClient( baseUrl: 'https://api.example.com', storageDirectory: '/var/lib/myapp', ); The BASE_URL compile-time environment variable is read when no baseUrl is passed: dart run --define=BASE_URL=https://api.example.com lib/main.dart This --define flag belongs to dart run/dart compile and only affects how this client script reads BASE_URL — it's unrelated to the Zonai server's own env handling. To set BASE_URL for the server itself, see Environment Variables."
+          "b": "ZonaiClient accepts two optional parameters: Parameter Default Description baseUrl BASE_URL env var or http://localhost:8080 Server base URL storageDirectory _(none — memory storage)_ final client = ZonaiClient( baseUrl: Uri.parse('https://api.example.com'), storageDirectory: '/var/lib/myapp', ); The BASE_URL compile-time environment variable is read when no baseUrl is passed: dart run --define=BASE_URL=https://api.example.com lib/main.dart This --define flag belongs to dart run/dart compile and only affects how this client script reads BASE_URL — it's unrelated to the Zonai server's own env handling. To set BASE_URL for the server itself, see Environment Variables."
         },
         {
           "h": "Singleton vs. Explicit Instance",
           "a": "singleton-vs-explicit-instance",
-          "b": "ZonaiClient.instance is a lazy singleton backed by in-memory storage. It is convenient for applications that authenticate on every launch and do not need to persist tokens across restarts. For long-lived processes — CLI tools, background services — use an explicit instance with file-backed storage so the token survives restarts: final client = ZonaiClient( storageDirectory: Platform.environment['HOME']! + '/.myapp', );"
+          "b": "ZonaiClient.instance is a lazy singleton backed by in-memory storage. It is convenient for applications that authenticate on every launch and do not need to persist tokens across restarts. For long-lived processes — CLI tools, background services — use an explicit instance with file-backed storage so the token survives restarts: import 'dart:io'; import 'package:zonai_client/zonai_client.dart'; void main() { final client = ZonaiClient( storageDirectory: '${Platform.environment['HOME']}/.myapp', ); }"
         },
         {
           "h": "Direct Server Instantiation",
           "a": "direct-server-instantiation",
-          "b": "For full control over the HTTP client and storage, construct a Server directly and pass it to ZonaiClient.server. Import server.dart to access the Server class: import 'package:zonai_client/server.dart'; import 'package:zonai_client/zonai_client.dart'; final server = Server( baseUrl: Uri.parse('https://api.example.com'), storage: ZonaiStorage(directory: '/var/lib/myapp'), ); final client = ZonaiClient.server(server: server); This is also the pattern to use in tests — pass a ZonaiStorage.memory() to keep storage isolated between test cases."
+          "b": "For full control over the HTTP client and storage, construct a Server directly and pass it to ZonaiClient.server. Import server.dart to access the Server class: import 'package:zonai_client/server.dart'; import 'package:zonai_client/storage.dart'; import 'package:zonai_client/zonai_client.dart'; void main() { final server = Server( baseUrl: Uri.parse('https://api.example.com'), storage: ZonaiFileStorage(directory: '/var/lib/myapp'), ); final client = ZonaiClient.server(server: server); } This is also the pattern to use in tests — pass a ZonaiStorage.memory() to keep storage isolated between test cases."
         }
       ]
     },
@@ -2296,12 +2296,12 @@
         {
           "h": "Setting a Token Manually",
           "a": "setting-a-token-manually",
-          "b": "If you obtain a token outside of the client — for example from a native auth SDK or a server-side session — you can seed it directly into the server's storage before making requests: import 'package:zonai_client/server.dart'; import 'package:zonai_client/zonai_client.dart'; final server = Server( storage: ZonaiStorage(directory: '/var/lib/myapp'), ); await server.storage.save('token', ' '); final client = ZonaiClient.server(server: server);"
+          "b": "If you obtain a token outside of the client — for example from a native auth SDK or a server-side session — you can seed it directly into the server's storage before making requests: import 'package:zonai_client/server.dart'; import 'package:zonai_client/storage.dart'; import 'package:zonai_client/zonai_client.dart'; Future main() async { final server = Server( storage: ZonaiFileStorage(directory: '/var/lib/myapp'), ); await server.storage.save('token', ' '); final client = ZonaiClient.server(server: server); }"
         },
         {
           "h": "Unauthenticated Requests",
           "a": "unauthenticated-requests",
-          "b": "If no token is stored and a request reaches the interceptor without an Authorization header already present, the interceptor skips token injection and sends the request without authentication. This allows the same client instance to call both public endpoints (send OTP, health check) and authenticated endpoints after sign-in. To disable token storage entirely (e.g. for tests), use ZonaiStorage.none(): final server = Server(storage: ZonaiStorage.none()); final client = ZonaiClient.server(server: server); await client.health(); // no Authorization header added"
+          "b": "If no token is stored and a request reaches the interceptor without an Authorization header already present, the interceptor skips token injection and sends the request without authentication. This allows the same client instance to call both public endpoints (send OTP, health check) and authenticated endpoints after sign-in. To disable token storage entirely (e.g. for tests), use ZonaiStorage.none(): import 'package:zonai_client/server.dart'; import 'package:zonai_client/zonai_client.dart'; Future main() async { final server = Server(storage: ZonaiStorage.none()); final client = ZonaiClient.server(server: server); await client.health(); // no Authorization header added }"
         }
       ]
     },
@@ -2332,7 +2332,7 @@
         {
           "h": "Stream a count",
           "a": "stream-a-count",
-          "b": "client.db.listen .count(body: StreamCountBody(table: 'posts')) .listen((total) { // Called whenever the count changes }); Cancel the subscription when you no longer need updates: final sub = client.db.listen .list( body: StreamListBody(table: 'posts'), fromJson: (row) => row, ) .listen((_) {}); // Later: await sub.cancel();"
+          "b": "client.db.listen .count(body: StreamCountBody(table: 'posts', where: Eq('published', true))) .listen((total) { // Called whenever the count changes }); Cancel the subscription when you no longer need updates: final sub = client.db.listen .list( body: StreamListBody(table: 'posts'), fromJson: (row) => row, ) .listen((_) {}); // Later: await sub.cancel();"
         },
         {
           "h": "CRUD Operations",
@@ -2342,12 +2342,12 @@
         {
           "h": "Get a single record",
           "a": "get-a-single-record",
-          "b": "final record = await client.db.get( body: GetBody(table: 'posts', id: 'abc_ps'), ); // record is Map<String, Object?>"
+          "b": "final record = await client.db.get( body: GetBody(table: 'posts', where: Eq('id', 'abc_ps')), fromJson: (row) => row, ); // record is Map<String, Object?>"
         },
         {
           "h": "List records",
           "a": "list-records",
-          "b": "final page = await client.db.list( body: ListBody(table: 'posts', limit: 20), ); // page is Paginated<Map<String, Object?>>"
+          "b": "final page = await client.db.list( body: ListBody(table: 'posts', limit: 20), fromJson: (row) => row, ); // page is Paginated<Map<String, Object?>>"
         },
         {
           "h": "Count records",
@@ -2357,17 +2357,17 @@
         {
           "h": "Create a record",
           "a": "create-a-record",
-          "b": "final created = await client.db.create( body: CreateBody(table: 'posts', data: {'title': 'Hello'}), );"
+          "b": "final created = await client.db.create( body: CreateBody(table: 'posts', object: {'title': 'Hello'}), fromJson: (row) => row, );"
         },
         {
           "h": "Update records",
           "a": "update-records",
-          "b": "// Update many records matching a filter await client.db.update( body: UpdateBody(table: 'posts', data: {'published': true}, where: ...), ); // Update exactly one record by ID await client.db.updateOne( body: UpdateOneBody(table: 'posts', id: 'abc_ps', data: {'title': 'New title'}), );"
+          "b": "// Update every record matching a filter await client.db.updateMany( body: UpdateBody( table: 'posts', updates: [Update.column('published', UpdateValue.literal(true))], where: Eq('author_id', 'abc_au'), ), fromJson: (row) => row, ); // Update exactly one record await client.db.update( body: UpdateOneBody( table: 'posts', updates: [Update.column('title', UpdateValue.literal('New title'))], where: Eq('id', 'abc_ps'), ), fromJson: (row) => row, );"
         },
         {
           "h": "Delete records",
           "a": "delete-records",
-          "b": "// Delete many records matching a filter await client.db.delete( body: DeleteBody(table: 'posts', where: ...), ); // Delete exactly one record by ID await client.db.deleteOne( body: DeleteOneBody(table: 'posts', id: 'abc_ps'), );"
+          "b": "// Delete every record matching a filter await client.db.deleteMany( body: DeleteBody(table: 'posts', where: Eq('author_id', 'abc_au')), ); // Delete exactly one record await client.db.delete( body: DeleteOneBody(table: 'posts', where: Eq('id', 'abc_ps')), );"
         }
       ]
     },
@@ -2383,7 +2383,7 @@
         {
           "h": "Upload a Photo",
           "a": "upload-a-photo",
-          "b": "import 'dart:io'; final result = await client.photos.create( image: File('avatar.jpg').openRead(), meta: PhotoCreateMeta(table: 'users', column: 'avatarId'), ); final photoId = result['id'] as String; meta ties the photo to a specific table and column in your schema. See Photo Tables for how to define columns that accept photos."
+          "b": "Photo bodies are Stream<List >, so dart:io's File.openRead() is the usual source: final result = await client.photos.create( image: File('avatar.jpg').openRead(), meta: PhotoCreateMeta(table: 'users'), ); final photoId = result['id'] as String; meta ties the photo to a specific table and column in your schema. See Photo Tables for how to define columns that accept photos."
         },
         {
           "h": "Download a Photo",
@@ -2414,27 +2414,27 @@
         {
           "h": "Send a Generic Email",
           "a": "send-a-generic-email",
-          "b": "await client.email.send(body: Email( to: 'user@example.com', subject: 'Welcome', template: 'welcome', data: {'name': 'Alice'}, ));"
+          "b": "await client.email.send(body: Email( to: EmailAddress(address: 'user@example.com'), subject: 'Welcome', template: 'welcome', variables: {'name': 'Alice'}, ));"
         },
         {
           "h": "Send an OTP Code",
           "a": "send-an-otp-code",
-          "b": "await client.email.sendOtp(email: SendOtpEmail( to: 'user@example.com', otp: '123456', ));"
+          "b": "await client.email.sendOtp(email: SendOtpEmail( to: EmailAddress(address: 'user@example.com'), table: 'users', code: '123456', expiresIn: const Duration(minutes: 10), ));"
         },
         {
           "h": "Send a Magic Link",
           "a": "send-a-magic-link",
-          "b": "await client.email.sendMagicLink(email: SendMagicLinkEmail( to: 'user@example.com', link: 'https://myapp.com/verify?token=...', ));"
+          "b": "await client.email.sendMagicLink(email: SendMagicLinkEmail( to: EmailAddress(address: 'user@example.com'), table: 'users', magicLinkUrl: 'https://myapp.com/verify?token=abc', expiresIn: const Duration(minutes: 15), ));"
         },
         {
           "h": "Send a Verification Email",
           "a": "send-a-verification-email",
-          "b": "await client.email.sendVerifyEmail(email: SendVerifyEmailEmail( to: 'user@example.com', link: 'https://myapp.com/verify-email?token=...', ));"
+          "b": "await client.email.sendVerifyEmail(email: SendVerifyEmailEmail( to: EmailAddress(address: 'user@example.com'), table: 'users', verificationUrl: 'https://myapp.com/verify-email?token=abc', expiresIn: const Duration(hours: 24), ));"
         },
         {
           "h": "Send a Password Reset",
           "a": "send-a-password-reset",
-          "b": "await client.email.sendPasswordReset(email: SendResetPasswordEmail( to: 'user@example.com', link: 'https://myapp.com/reset-password', )); The email endpoints require the caller to be authenticated, except when the server is configured to allow unauthenticated email sends via rules. Ensure a valid token is stored before calling these methods."
+          "b": "await client.email.sendPasswordReset(email: SendResetPasswordEmail( to: EmailAddress(address: 'user@example.com'), table: 'users', passwordResetUrl: 'https://myapp.com/reset-password?token=abc', expiresIn: const Duration(hours: 1), )); The email endpoints require the caller to be authenticated, except when the server is configured to allow unauthenticated email sends via rules. Ensure a valid token is stored before calling these methods."
         }
       ]
     },
@@ -2445,12 +2445,12 @@
       "g": "Dart Client",
       "s": [
         {
-          "b": "ZonaiStorage is the persistence layer for the Dart client's access token. It implements the revali_client.Storage interface and is passed to the underlying Server on construction. Three factory variants cover the common use cases:"
+          "b": "ZonaiStorage provides the persistence used for the Dart client's access token. Its variants implement the revali_client.Storage interface and are passed to the underlying Server on construction. Three variants cover the common use cases. The file-backed one lives in package:zonai_client/storage.dart rather than the main library, so a browser build does not pull package:file into its graph:"
         },
         {
           "h": "File-Backed Storage",
           "a": "file-backed-storage",
-          "b": "ZonaiStorage(directory: '/var/lib/myapp') Reads and writes a zonai_storage.json file inside directory. The token survives process restarts, making this the right choice for: CLI tools that authenticate once and reuse the token across invocations Long-running background services Desktop or mobile applications where the platform provides a stable data directory The directory must already exist; the client will not create it automatically."
+          "b": "ZonaiFileStorage(directory: '/var/lib/myapp') It comes from package:zonai_client/storage.dart rather than the main library. The browser-safe variants below need no extra import: ZonaiStorage.memory() // browser-safe; file storage needs the other import Reads and writes a zonai_storage.json file inside directory. The token survives process restarts, making this the right choice for: CLI tools that authenticate once and reuse the token across invocations Long-running background services Desktop or mobile applications where the platform provides a stable data directory The directory must already exist; the client will not create it automatically."
         },
         {
           "h": "In-Memory Storage",
@@ -2465,7 +2465,7 @@
         {
           "h": "Passing a Custom Storage",
           "a": "passing-a-custom-storage",
-          "b": "ZonaiStorage implements revali_client.Storage. You can pass your own Storage implementation to Server if the built-in variants do not fit your needs (e.g., an encrypted keychain, a platform-specific secure store, or a test double): import 'package:zonai_client/server.dart'; import 'package:zonai_client/zonai_client.dart'; final server = Server(storage: MyCustomStorage()); final client = ZonaiClient.server(server: server);"
+          "b": "Each variant implements revali_client.Storage. You can pass your own Storage implementation to Server if the built-in variants do not fit your needs (e.g., an encrypted keychain, a platform-specific secure store, or a test double). Server comes from package:zonai_client/server.dart: final server = Server(storage: MyCustomStorage()); final client = ZonaiClient.server(server: server);"
         }
       ]
     },

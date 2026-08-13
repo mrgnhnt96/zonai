@@ -60,14 +60,17 @@ storage before making requests:
 
 ```dart
 import 'package:zonai_client/server.dart';
+import 'package:zonai_client/storage.dart';
 import 'package:zonai_client/zonai_client.dart';
 
-final server = Server(
-  storage: ZonaiStorage(directory: '/var/lib/myapp'),
-);
-await server.storage.save('token', '<your-access-token>');
+Future<void> main() async {
+  final server = Server(
+    storage: ZonaiFileStorage(directory: '/var/lib/myapp'),
+  );
+  await server.storage.save('token', '<your-access-token>');
 
-final client = ZonaiClient.server(server: server);
+  final client = ZonaiClient.server(server: server);
+}
 ```
 
 ## Unauthenticated Requests
@@ -81,7 +84,12 @@ endpoints after sign-in.
 To disable token storage entirely (e.g. for tests), use `ZonaiStorage.none()`:
 
 ```dart
-final server = Server(storage: ZonaiStorage.none());
-final client = ZonaiClient.server(server: server);
-await client.health(); // no Authorization header added
+import 'package:zonai_client/server.dart';
+import 'package:zonai_client/zonai_client.dart';
+
+Future<void> main() async {
+  final server = Server(storage: ZonaiStorage.none());
+  final client = ZonaiClient.server(server: server);
+  await client.health(); // no Authorization header added
+}
 ```

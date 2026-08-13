@@ -12,48 +12,56 @@ See [Email](/email/smtp-setup) for server-side SMTP configuration and
 
 ## Send a Generic Email
 
-```dart
+```dart in:client
 await client.email.send(body: Email(
-  to: 'user@example.com',
+  to: EmailAddress(address: 'user@example.com'),
   subject: 'Welcome',
   template: 'welcome',
-  data: {'name': 'Alice'},
+  variables: {'name': 'Alice'},
 ));
 ```
 
 ## Send an OTP Code
 
-```dart
+```dart in:client
 await client.email.sendOtp(email: SendOtpEmail(
-  to: 'user@example.com',
-  otp: '123456',
+  to: EmailAddress(address: 'user@example.com'),
+  table: 'users',
+  code: '123456',
+  expiresIn: const Duration(minutes: 10),
 ));
 ```
 
 ## Send a Magic Link
 
-```dart
+```dart in:client
 await client.email.sendMagicLink(email: SendMagicLinkEmail(
-  to: 'user@example.com',
-  link: 'https://myapp.com/verify?token=...',
+  to: EmailAddress(address: 'user@example.com'),
+  table: 'users',
+  magicLinkUrl: 'https://myapp.com/verify?token=abc',
+  expiresIn: const Duration(minutes: 15),
 ));
 ```
 
 ## Send a Verification Email
 
-```dart
+```dart in:client
 await client.email.sendVerifyEmail(email: SendVerifyEmailEmail(
-  to: 'user@example.com',
-  link: 'https://myapp.com/verify-email?token=...',
+  to: EmailAddress(address: 'user@example.com'),
+  table: 'users',
+  verificationUrl: 'https://myapp.com/verify-email?token=abc',
+  expiresIn: const Duration(hours: 24),
 ));
 ```
 
 ## Send a Password Reset
 
-```dart
+```dart in:client
 await client.email.sendPasswordReset(email: SendResetPasswordEmail(
-  to: 'user@example.com',
-  link: 'https://myapp.com/reset-password',
+  to: EmailAddress(address: 'user@example.com'),
+  table: 'users',
+  passwordResetUrl: 'https://myapp.com/reset-password?token=abc',
+  expiresIn: const Duration(hours: 1),
 ));
 ```
 

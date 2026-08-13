@@ -44,4 +44,6 @@ export 'package:zonai_schema/payloads.dart'
 
 export 'package:zonai_schema/src/types/paginated.dart' show Paginated;
 
+export 'src/utils/zonai_storage_memory.dart'
+    show ZonaiMemoryStorage, ZonaiNoStorage, ZonaiStorage;
 export 'src/zonai_client.dart';

@@ -13,5 +13,8 @@ dev_dependencies:
   test: ^1.26.0
   zonai:
     path: ../zonai
+  # For the dart-client docs' snippets, which the doc-snippet test analyzes.
+  zonai_client:
+    path: ../../libs/zonai_client
   zonai_schema:
     path: ../../libs/zonai_schema

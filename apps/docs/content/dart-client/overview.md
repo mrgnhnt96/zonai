@@ -30,14 +30,20 @@ dependencies:
 ```dart
 import 'package:zonai_client/zonai_client.dart';
 
-// Singleton — memory storage, base URL from BASE_URL env var or http://localhost:8080
-final client = ZonaiClient.instance;
+Future<void> main() async {
+  // Singleton — memory storage, base URL from BASE_URL env var or
+  // http://localhost:8080
+  final client = ZonaiClient.instance;
 
-// Check that the server is reachable
-final healthy = await client.health();
+  // Check that the server is reachable
+  final healthy = await client.health();
 
-// Query the database
-final page = await client.db.list(body: ListBody(table: 'posts'));
+  // Query the database
+  final page = await client.db.list(
+    body: ListBody(table: 'posts'),
+    fromJson: (row) => row,
+  );
+}
 ```
 
 ## Configuration
@@ -49,9 +55,9 @@ final page = await client.db.list(body: ListBody(table: 'posts'));
 | `baseUrl`          | `BASE_URL` env var or `http://localhost:8080` | Server base URL |
 | `storageDirectory` | _(none — memory storage)_                     |
 
-```dart
+```dart in:client
 final client = ZonaiClient(
-  baseUrl: 'https://api.example.com',
+  baseUrl: Uri.parse('https://api.example.com'),
   storageDirectory: '/var/lib/myapp',
 );
 ```
@@ -74,9 +80,15 @@ For long-lived processes — CLI tools, background services — use an explicit
 instance with file-backed storage so the token survives restarts:
 
 ```dart
-final client = ZonaiClient(
-  storageDirectory: Platform.environment['HOME']! + '/.myapp',
-);
+import 'dart:io';
+
+import 'package:zonai_client/zonai_client.dart';
+
+void main() {
+  final client = ZonaiClient(
+    storageDirectory: '${Platform.environment['HOME']}/.myapp',
+  );
+}
 ```
 
 ## Direct Server Instantiation
@@ -87,14 +99,17 @@ class:
 
 ```dart
 import 'package:zonai_client/server.dart';
+import 'package:zonai_client/storage.dart';
 import 'package:zonai_client/zonai_client.dart';
 
-final server = Server(
-  baseUrl: Uri.parse('https://api.example.com'),
-  storage: ZonaiStorage(directory: '/var/lib/myapp'),
-);
+void main() {
+  final server = Server(
+    baseUrl: Uri.parse('https://api.example.com'),
+    storage: ZonaiFileStorage(directory: '/var/lib/myapp'),
+  );
 
-final client = ZonaiClient.server(server: server);
+  final client = ZonaiClient.server(server: server);
+}
 ```
 
 This is also the pattern to use in tests — pass a `ZonaiStorage.memory()` to

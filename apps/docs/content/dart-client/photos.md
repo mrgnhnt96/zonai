@@ -8,12 +8,13 @@ Images are transferred as byte streams — no intermediate buffering required.
 
 ## Upload a Photo
 
-```dart
-import 'dart:io';
+Photo bodies are `Stream<List<int>>`, so `dart:io`'s `File.openRead()` is the
+usual source:
 
+```dart in:client
 final result = await client.photos.create(
   image: File('avatar.jpg').openRead(),
-  meta: PhotoCreateMeta(table: 'users', column: 'avatarId'),
+  meta: PhotoCreateMeta(table: 'users'),
 );
 
 final photoId = result['id'] as String;
@@ -27,7 +28,7 @@ final photoId = result['id'] as String;
 `get` returns a `Stream<List<int>>` so the bytes can be piped directly to a
 file or an HTTP response without loading the entire image into memory:
 
-```dart
+```dart in:client
 final stream = client.photos.get(id: photoId);
 
 // Write to a file
@@ -39,7 +40,7 @@ await file.openWrite().addStream(stream);
 
 Replace the image for an existing photo ID:
 
-```dart
+```dart in:client
 await client.photos.update(
   id: photoId,
   image: File('new_avatar.jpg').openRead(),
@@ -48,7 +49,7 @@ await client.photos.update(
 
 ## Delete a Photo
 
-```dart
+```dart in:client
 await client.photos.delete(id: photoId);
 ```
 

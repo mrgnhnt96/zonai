@@ -3,16 +3,25 @@ title: Storage
 description: ZonaiStorage variants — file-backed, in-memory, and no-op — and when to use each.
 ---
 
-`ZonaiStorage` is the persistence layer for the Dart client's access token.
-It implements the `revali_client.Storage` interface and is passed to the
-underlying `Server` on construction.
+`ZonaiStorage` provides the persistence used for the Dart client's access
+token. Its variants implement the `revali_client.Storage` interface and are
+passed to the underlying `Server` on construction.
 
-Three factory variants cover the common use cases:
+Three variants cover the common use cases. The file-backed one lives in
+`package:zonai_client/storage.dart` rather than the main library, so a browser
+build does not pull `package:file` into its graph:
 
 ## File-Backed Storage
 
-```dart
-ZonaiStorage(directory: '/var/lib/myapp')
+```dart in:client-expression
+ZonaiFileStorage(directory: '/var/lib/myapp')
+```
+
+It comes from `package:zonai_client/storage.dart` rather than the main
+library. The browser-safe variants below need no extra import:
+
+```dart in:client-expression
+ZonaiStorage.memory() // browser-safe; file storage needs the other import
 ```
 
 Reads and writes a `zonai_storage.json` file inside `directory`. The token
@@ -26,7 +35,7 @@ The directory must already exist; the client will not create it automatically.
 
 ## In-Memory Storage
 
-```dart
+```dart in:client-expression
 ZonaiStorage.memory()
 ```
 
@@ -42,7 +51,7 @@ Use in-memory storage when:
 
 ## No-Op Storage
 
-```dart
+```dart in:client-expression
 ZonaiStorage.none()
 ```
 
@@ -66,15 +75,12 @@ reads or writes during development.
 
 ## Passing a Custom Storage
 
-`ZonaiStorage` implements `revali_client.Storage`. You can pass your own
+Each variant implements `revali_client.Storage`. You can pass your own
 `Storage` implementation to `Server` if the built-in variants do not fit
 your needs (e.g., an encrypted keychain, a platform-specific secure store,
-or a test double):
+or a test double). `Server` comes from `package:zonai_client/server.dart`:
 
-```dart
-import 'package:zonai_client/server.dart';
-import 'package:zonai_client/zonai_client.dart';
-
+```dart in:client-custom-storage
 final server = Server(storage: MyCustomStorage());
 final client = ZonaiClient.server(server: server);
 ```

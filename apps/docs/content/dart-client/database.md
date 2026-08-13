@@ -24,7 +24,7 @@ the underlying SQLite result changes.
 
 ### Stream a single record
 
-```dart
+```dart in:client
 client.db.listen
     .one(
       body: StreamBody(
@@ -40,7 +40,7 @@ client.db.listen
 
 ### Stream a list
 
-```dart
+```dart in:client
 client.db.listen
     .list(
       body: StreamListBody(table: 'posts', limit: 20),
@@ -53,9 +53,9 @@ client.db.listen
 
 ### Stream a count
 
-```dart
+```dart in:client
 client.db.listen
-    .count(body: StreamCountBody(table: 'posts'))
+    .count(body: StreamCountBody(table: 'posts', where: Eq('published', true)))
     .listen((total) {
       // Called whenever the count changes
     });
@@ -63,7 +63,7 @@ client.db.listen
 
 Cancel the subscription when you no longer need updates:
 
-```dart
+```dart in:client
 final sub = client.db.listen
     .list(
       body: StreamListBody(table: 'posts'),
@@ -78,25 +78,27 @@ await sub.cancel();
 
 ### Get a single record
 
-```dart
+```dart in:client
 final record = await client.db.get(
-  body: GetBody(table: 'posts', id: 'abc_ps'),
+  body: GetBody(table: 'posts', where: Eq('id', 'abc_ps')),
+  fromJson: (row) => row,
 );
 // record is Map<String, Object?>
 ```
 
 ### List records
 
-```dart
+```dart in:client
 final page = await client.db.list(
   body: ListBody(table: 'posts', limit: 20),
+  fromJson: (row) => row,
 );
 // page is Paginated<Map<String, Object?>>
 ```
 
 ### Count records
 
-```dart
+```dart in:client
 final total = await client.db.count(
   body: CountBody(table: 'posts'),
 );
@@ -104,36 +106,47 @@ final total = await client.db.count(
 
 ### Create a record
 
-```dart
+```dart in:client
 final created = await client.db.create(
-  body: CreateBody(table: 'posts', data: {'title': 'Hello'}),
+  body: CreateBody(table: 'posts', object: {'title': 'Hello'}),
+  fromJson: (row) => row,
 );
 ```
 
 ### Update records
 
-```dart
-// Update many records matching a filter
-await client.db.update(
-  body: UpdateBody(table: 'posts', data: {'published': true}, where: ...),
+```dart in:client
+// Update every record matching a filter
+await client.db.updateMany(
+  body: UpdateBody(
+    table: 'posts',
+    updates: [Update.column('published', UpdateValue.literal(true))],
+    where: Eq('author_id', 'abc_au'),
+  ),
+  fromJson: (row) => row,
 );
 
-// Update exactly one record by ID
-await client.db.updateOne(
-  body: UpdateOneBody(table: 'posts', id: 'abc_ps', data: {'title': 'New title'}),
+// Update exactly one record
+await client.db.update(
+  body: UpdateOneBody(
+    table: 'posts',
+    updates: [Update.column('title', UpdateValue.literal('New title'))],
+    where: Eq('id', 'abc_ps'),
+  ),
+  fromJson: (row) => row,
 );
 ```
 
 ### Delete records
 
-```dart
-// Delete many records matching a filter
-await client.db.delete(
-  body: DeleteBody(table: 'posts', where: ...),
+```dart in:client
+// Delete every record matching a filter
+await client.db.deleteMany(
+  body: DeleteBody(table: 'posts', where: Eq('author_id', 'abc_au')),
 );
 
-// Delete exactly one record by ID
-await client.db.deleteOne(
-  body: DeleteOneBody(table: 'posts', id: 'abc_ps'),
+// Delete exactly one record
+await client.db.delete(
+  body: DeleteOneBody(table: 'posts', where: Eq('id', 'abc_ps')),
 );
 ```
