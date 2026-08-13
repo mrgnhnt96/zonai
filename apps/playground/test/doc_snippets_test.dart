@@ -300,7 +300,7 @@ String _resolve(String code) => code
     .replaceAllMapped(
       RegExp(r"package:my_app/src/schemas/(\w+)\.dart"),
       (m) => switch (m.group(1)!) {
-        'users' || 'items' || 'posts' || 'authors' || 'companies' =>
+        'users' || 'posts' || 'authors' || 'companies' =>
           'package:zonai_playground/src/schemas/${m.group(1)}.dart',
         final other => 'fixtures/$other.dart',
       },

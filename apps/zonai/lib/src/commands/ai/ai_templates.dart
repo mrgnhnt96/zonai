@@ -156,7 +156,7 @@ string.
 
 ### Auth tables
 
-```dart
+```dart in:schema-file
 final class UserTable extends AuthTable<User>
     with PasswordAuth, OtpAuth, MagicLinkAuth, AsAdmin {
   UserTable(super.$)
@@ -182,7 +182,7 @@ final class UserTable extends AuthTable<User>
   final IsVerifiedColumn isVerified;
   final PasswordColumn passwordHash;
   final DateTimeColumn createdAt;
-  final DateTimeColumn? updatedAt;
+  final ColumnType<DateTime?> updatedAt;
 }
 
 final users = authTable('users', UserTable.new);
@@ -293,7 +293,7 @@ ItemTableRules main() => ItemTableRules();
 
 ### Row rules (per-record)
 
-```dart
+```dart in:project-file
 class ItemRowRules extends RowRules<ItemTable, Item> {
   ItemRowRules() : super(items);
 
@@ -316,17 +316,25 @@ ItemRowRules main() => ItemRowRules();
 
 ### Auth rules
 
-```dart
+`user_table_rules.dart`:
+
+```dart in:project-file
 final class UserTableRules extends AuthTableRules<UserTable, User> {
   UserTableRules() : super(users);
   // canAuthenticate(Jwt? jwt, AuthType type) — default: true
 }
-UserTableRules main() => UserTableRules();
 
-class UserRowRules extends AuthRowRules<UserTable, User> {
+UserTableRules main() => UserTableRules();
+```
+
+`user_row_rules.dart`:
+
+```dart in:project-file
+final class UserRowRules extends AuthRowRules<UserTable, User> {
   UserRowRules() : super(users);
-  // canSignUp(Jwt? jwt, User user), canSignIn(...), canPasswordReset(...)
+  // canSignUp(Jwt? jwt, AuthType type), canSignIn(...), canPasswordReset(...)
 }
+
 UserRowRules main() => UserRowRules();
 ```
 
@@ -922,7 +930,7 @@ final items = table('items', ItemTable.new);
 
 ## Auth table
 
-```dart
+```dart no-analyze
 final class UserTable extends AuthTable<User>
     with PasswordAuth, OtpAuth, MagicLinkAuth, AsAdmin {
   UserTable(super.$)
@@ -1061,7 +1069,7 @@ UserOperations main() => UserOperations();
 
 Override `TableOperations` methods to customize SQL:
 
-```dart
+```dart no-analyze
 @override
 rd.ToQuery<PostTable, Post> custom(
   String operation, {
@@ -1126,7 +1134,7 @@ ItemTableRules main() => ItemTableRules();
 
 Receives the typed row so you can inspect column values:
 
-```dart
+```dart in:project-file
 class ItemRowRules extends RowRules<ItemTable, Item> {
   ItemRowRules() : super(items);
 
@@ -1149,18 +1157,26 @@ ItemRowRules main() => ItemRowRules();
 
 ## Auth collection rules
 
-```dart
+`user_table_rules.dart`:
+
+```dart in:project-file
 final class UserTableRules extends AuthTableRules<UserTable, User> {
   UserTableRules() : super(users);
   // canAuthenticate(Jwt? jwt, AuthType type) → bool — default: true
 }
-UserTableRules main() => UserTableRules();
 
-class UserRowRules extends AuthRowRules<UserTable, User> {
+UserTableRules main() => UserTableRules();
+```
+
+`user_row_rules.dart` — row CRUD defaults let a user view and modify their own
+row, with elevated access for admins:
+
+```dart in:project-file
+final class UserRowRules extends AuthRowRules<UserTable, User> {
   UserRowRules() : super(users);
-  // canSignUp(Jwt? jwt, User user), canSignIn(...), canPasswordReset(...)
-  // Row CRUD defaults: user can view/modify own row; admins have elevated access
+  // canSignUp(Jwt? jwt, AuthType type), canSignIn(...), canPasswordReset(...)
 }
+
 UserRowRules main() => UserRowRules();
 ```
 
@@ -1169,14 +1185,14 @@ UserRowRules main() => UserRowRules();
 `TableOperations.custom(operation, ...)` calls need a matching entry, keyed by
 the same operation name, on both table and row rules — otherwise they're denied:
 
-```dart
+```dart in:table-rules
 @override
 Map<String, CustomTableOperationRule> get customOperations => {
   'archive': (jwt) async => jwt?.admin.canEdit == true,
 };
 ```
 
-```dart
+```dart in:row-rules-item
 @override
 Map<String, CustomRowOperationRule<Item>> get customOperations => {
   'archive': (jwt, before, after) async => jwt?.admin.canEdit == true,
@@ -1470,7 +1486,7 @@ Throwing from an **after** hook fails after the DB change committed.
 
 ## Auth extension (`AuthExtension` mixin)
 
-```dart
+```dart in:project-file
 class UserExtensions extends Extension<User> with AuthExtension<User> {
   UserExtensions() : super(users);
 
@@ -1566,7 +1582,7 @@ Data policy methods (all default to 100 req/min):
 
 ## Auth collection
 
-```dart
+```dart in:project-file
 final class UserRateLimits extends AuthTableRateLimits<UserTable, User> {
   UserRateLimits() : super(users);
 
@@ -1589,7 +1605,7 @@ Auth policy methods: `signInPolicy`, `signUpPolicy`, `refreshTokenPolicy`,
 
 ## RateLimitPolicy
 
-```dart
+```dart in:expression
 const RateLimitPolicy(
   maxRequests: 10,               // requests allowed per window
   window: Duration(minutes: 15), // sliding window duration
@@ -1655,10 +1671,10 @@ Jobs can be triggered by `name` outside their schedule:
 
 ## Schedule examples
 
-```dart
-Schedule.parse('*/15 * * * *')  // every 15 minutes
-Schedule.parse('0 3 * * *')      // daily at 03:00
-Schedule.parse('0 0 * * 1')      // every Monday at midnight
+```dart in:expression
+Schedule.parse('*/15 * * * *'), // every 15 minutes
+Schedule.parse('0 3 * * *'),    // daily at 03:00
+Schedule.parse('0 0 * * 1'),    // every Monday at midnight
 ```
 
 Five-field cron: `minute hour day-of-month month day-of-week`.
@@ -1685,9 +1701,9 @@ Each queued mutation goes through rules, operations, and extensions normally.
 
 ## Catch-up example
 
-```dart
+```dart in:project-file
 final class PurgeExpiredJwtsJob extends CronJob {
-  const PurgeExpiredJwtsJob()
+  PurgeExpiredJwtsJob()
     : super(
         name: 'purge_expired_jwts',
         schedule: Schedule.parse('0 4 * * *'),
@@ -1698,13 +1714,12 @@ final class PurgeExpiredJwtsJob extends CronJob {
   Future<void> run() async {
     mutate.delete.many(
       tableName: 'jwts',
-      updates: [],
       where: Lt('expires_at', DateTime.now()),
     );
   }
 }
 
-PurgeExpiredJwtsJob main() => const PurgeExpiredJwtsJob();
+PurgeExpiredJwtsJob main() => PurgeExpiredJwtsJob();
 ```
 """;
 
