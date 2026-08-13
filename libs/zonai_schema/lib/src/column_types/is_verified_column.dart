@@ -4,7 +4,7 @@ extension IsVerifiedColumnDefinition<S> on SchemaBuilder<S> {
   ColumnType<W> isVerified<W extends bool?>(
     String name,
     Field<S, W> field, {
-    String? defaultValue,
+    ColumnOr<bool>? defaultValue,
   }) {
     return custom<bool, Object, W>(
       name,

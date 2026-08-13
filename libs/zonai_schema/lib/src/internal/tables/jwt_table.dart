@@ -28,7 +28,9 @@ class JwtTable extends Table<JwtEntry> {
       expiresAt = $.dateTime(
         'expires_at',
         (s) => s.expiresAt,
-        defaultValue: '0',
+        // Epoch: the same instant the old raw-SQL default '0' meant, now
+        // expressed as the DateTime the column actually stores.
+        defaultValue: DateTime.fromMillisecondsSinceEpoch(0),
       );
 
   final IdColumn<JwtId> id;

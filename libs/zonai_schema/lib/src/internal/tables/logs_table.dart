@@ -86,7 +86,7 @@ class LogsTable extends Table<LogEntry> {
       message = $.text('message', (s) => s.message),
       error = $.text('error', (s) => s.error),
       props = $.text('props', (s) => s.props),
-      isAdmin = $.boolean('is_admin', (s) => s.isAdmin, defaultValue: '0');
+      isAdmin = $.boolean('is_admin', (s) => s.isAdmin, defaultValue: false);
 
   @override
   LogEntry fromRow(RowReader read) {

@@ -11,12 +11,17 @@ import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 /// Booleans, stored as an INTEGER.
 extension BooleanColumnDefinition<R> on SchemaBuilder<R> {
   /// A [bool] column: `true` is stored as `1` and `false` as `0`.
-  ColumnType<W> boolean<W extends bool?>(String name, Field<R, W> field) {
+  ColumnType<W> boolean<W extends bool?>(
+    String name,
+    Field<R, W> field, {
+    ColumnOr<bool>? defaultValue,
+  }) {
     return custom<bool, int, W>(
       name,
       field,
       transformer: const BooleanTransformer(),
       sqlType: 'INTEGER',
+      defaultValue: defaultValue,
     );
   }
 }
