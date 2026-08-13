@@ -360,6 +360,32 @@ final class ResqliteDelegate extends RaindropDelegate {
       rawReads.execute('ATTACH DATABASE ? AS "$schema"', [file]);
     }
 
+    // An attached database keeps its *own* journal mode and defaults to
+    // `delete`, regardless of what `main` is in -- resqlite puts `main` in
+    // WAL, and measuring the pair showed `logdb` sitting in `delete` beside
+    // it. Everything downstream quietly assumed otherwise: `_purge`'s
+    // per-round `wal_checkpoint` and `_vacuum`'s trailing one are both no-ops
+    // against a database with no WAL, as is the size limit below. Nothing
+    // errors -- a checkpoint on a non-WAL database simply does nothing --
+    // which is why this had to be measured rather than reasoned about.
+    //
+    // WAL also stops a log write from taking a lock readers wait on, which is
+    // most of the point of moving the table out of the shared file.
+    //
+    // `PRAGMA journal_size_limit` was tried alongside this and deliberately
+    // left out. Measured on the real driver: after 300 padded inserts, a
+    // checkpoint at PASSIVE, FULL *and* RESTART reported full success
+    // (`[0, 399, 399]` -- not busy, every frame copied) and left the `-wal`
+    // at its full 1.6 MB with the limit set to 32 KB. Only TRUNCATE shrank
+    // it, and TRUNCATE does that regardless of any limit. So the pragma buys
+    // nothing on any path zonai takes: `_purge` checkpoints PASSIVE per round
+    // (which returns pages for reuse, exactly as its comment claims, and does
+    // not need the file to shrink) and `_vacuum` already uses TRUNCATE.
+    for (final schema in attach.keys) {
+      await db.execute('PRAGMA "$schema".journal_mode = WAL');
+      rawReads.execute('PRAGMA "$schema".journal_mode = WAL');
+    }
+
     final reads = SQLiteDelegate(rawReads);
     final streams = HybridStreamEngine(reads.execute);
     await db.bindWriteInvalidation(streams.onDependencyChanges);

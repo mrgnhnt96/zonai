@@ -144,6 +144,31 @@ void main() {
       expect(inLog.rows.single.single, 0);
     }, timeout: const Timeout(Duration(minutes: 2)));
 
+    test('the attached database is put into WAL mode -- it does not inherit '
+        "main's", () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
+
+      // Measured, not assumed: an attached database keeps its own journal
+      // mode and defaults to `delete` even when main is in WAL. That was
+      // the state before this was set, and nothing anywhere errored --
+      // `_purge`'s per-round `wal_checkpoint` and `_vacuum`'s trailing one
+      // are simply no-ops against a database with no WAL. A silent no-op in
+      // the two routines that exist to bound disk is worth a test.
+      //
+      // Read through `transaction`, which runs on the companion sqlite3
+      // connection: `PRAGMA` is not a read verb, so `execute` routes it to
+      // the writer, and the writer discards row data.
+      for (final schema in ['main', kLogDbSchema]) {
+        final mode = await delegate.transaction(
+          (tx) => tx.execute('PRAGMA "$schema".journal_mode', const []),
+        );
+        expect(mode.rows.single.single, 'wal', reason: schema);
+      }
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
     test(
       'a stream over a table in the attached database re-emits after a write',
       () async {
