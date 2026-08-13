@@ -80,6 +80,7 @@ void main() {
 
       var content = entity.readAsStringSync();
       content = _rewriteImports(content);
+      content = _stripInternalAnnotations(content);
       if (package == 'raindrop') {
         content = _renameTableClass(content);
       }
@@ -126,6 +127,72 @@ String _renameTableClass(String content) {
     RegExp(r'\bTable\b'),
     (match) => 'TableMeta',
   );
+}
+
+/// Every meta annotation this strips off can be dropped safely; the set is
+/// explicit so that one it does not know about breaks the import removal
+/// below loudly (a missing import fails `dart analyze lib/gen/raindrop`, the
+/// check that owns this file) rather than silently.
+const _metaAnnotations = {
+  'alwaysThrows',
+  'awaitNotRequired',
+  'doNotStore',
+  'doNotSubmit',
+  'experimental',
+  'factory',
+  'immutable',
+  'internal',
+  'isTest',
+  'isTestGroup',
+  'literal',
+  'mustBeConst',
+  'mustBeOverridden',
+  'mustCallSuper',
+  'nonVirtual',
+  'optionalTypeArgs',
+  'protected',
+  'redeclare',
+  'reopen',
+  'sealed',
+  'useResult',
+  'virtual',
+  'visibleForOverriding',
+  'visibleForTesting',
+};
+
+/// Drops `@internal`, which cannot survive the move into another package.
+///
+/// It means "private to package raindrop", and this is not package raindrop.
+/// It also lands under `lib/gen/` rather than `lib/src/`, so as far as the
+/// analyzer is concerned every vendored declaration is part of zonai_schema's
+/// public API -- which makes the annotation itself an error
+/// (`invalid_internal_annotation`), and makes the barrel re-exporting those
+/// declarations another one (`invalid_export_of_internal_element`). Upstream
+/// is right to mark them; the mark just does not travel. Nothing is lost by
+/// dropping it: what zonai_schema actually offers callers is decided by the
+/// `show`/`hide` clauses in `lib/zonai_schema.dart`, not by an annotation
+/// inside the vendored tree.
+///
+/// The `package:meta` import goes with it when no other meta annotation is
+/// left in the file, since an unused import is its own analyzer complaint.
+String _stripInternalAnnotations(String content) {
+  if (!content.contains('@internal')) return content;
+
+  var lines = content
+      .split('\n')
+      .where((line) => line.trim() != '@internal')
+      .toList();
+
+  final stillUsesMeta = _metaAnnotations.any(
+    (annotation) => RegExp('@$annotation\\b').hasMatch(lines.join('\n')),
+  );
+  if (!stillUsesMeta) {
+    lines = lines
+        .where((line) => line.trim() != "import 'package:meta/meta.dart';")
+        .toList();
+  }
+
+  return lines.join('\n');
 }
 
 /// The vendored barrel can't export the excluded `resqlite_delegate.dart`.
