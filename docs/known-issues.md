@@ -549,9 +549,57 @@ return JwtConfigResponse(
 
 **How this was confirmed** (not just read from source, and not just theorized): built the vulnerable version first (`with AsAdmin` on a table with public sign-up), started a real compiled server, signed up a brand-new account via `/auth/sign-up`, and decoded its JWT — got `isAdmin: true`. Then rebuilt with a dedicated table instead, re-ran the same sign-up against the same server, and confirmed `isAdmin: false`; separately confirmed a direct `POST /auth/sign-up` attempt against the dedicated admin table (`table: "admins"`) is rejected with `403` once `canSignUp` is overridden. See `override_canvas/apps/server/test/integration/admin_security_integration_test.dart` for the regression tests this produced (regular sign-up/sign-in never get admin claims; self-registration on the admin table is rejected; a CLI-bootstrapped admin account signs in with real admin claims).
 
-## 5. `POST /auth/sign-up` on an existing email silently succeeds if the password happens to match — not fixed, root cause not isolated
+## 5. `POST /auth/sign-up` on an existing email silently succeeds if the password happens to match — root cause isolated 2026-08-13, fix is a product decision
 
-**Severity: unclear, worth a closer look** — behavior confirmed via real `curl` calls against a live server (not from reading source), but the exact code path producing it wasn't found in the time spent looking (checked `_signUpWithPassword` in `apps/zonai/lib/src/db_mutator/zonai_db/parts/auth/password.dart` end to end — no explicit "check existing email" or "catch unique-violation, fall back" logic visible there; regular, non-auth `insert()` does not exhibit this — confirmed separately by creating duplicate rows on this session's own `organizations`/`client_apps` tables without issue elsewhere).
+> **Root cause found, and both hypotheses below were wrong.** There is no
+> `INSERT OR IGNORE`, no upsert, and no catch-and-refetch. Nothing swallows a
+> unique-index violation, because the `INSERT` is never attempted.
+>
+> `/auth/sign-up` and `/auth/sign-in` both funnel into `_authenticate`
+> (`parts/auth/auth.dart:50`), whose own doc comment states the design:
+>
+> ```
+> /// Signs in a user if the credentials are valid
+> ///
+> /// Signs up a user if the record does not exist
+> ```
+>
+> For password auth it delegates to `_authenticatePassword`
+> (`parts/auth/password.dart:4`), which branches on **one thing only** —
+> whether an auth record already exists:
+>
+> ```dart no-analyze
+> final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
+> if (!hasAuthRecord) {
+>   if (isAdmin) throw UserNotFoundAuthException(table: table);
+>   return await _signUpWithPassword(table, payload);
+> }
+> return await _signInWithPassword(table, payload);
+> ```
+>
+> The payload's *intent* is never consulted. That reproduces every observed
+> symptom exactly: the first call creates, the second with the same password
+> signs in and returns the same row with a fresh JWT, and the third with a
+> wrong password returns sign-in's own 401 "Invalid password or email" —
+> which is the tell, since that message belongs to sign-in and was reaching a
+> caller who asked to sign up.
+>
+> **The intent is available and discarded.** `SignUpAuthBody` and
+> `SignInAuthBody` are distinct types at the HTTP boundary
+> (`auth_password_body.dart:480,517`) reaching distinct controller methods;
+> both collapse to a `PasswordAuthPayload` before the decision is made.
+>
+> **Not fixed, deliberately.** Making `sign-up` reject an existing record
+> (409) and `sign-in` reject a missing one is a **breaking change to auth
+> semantics** — any client relying on sign-up being idempotent, or on it
+> doubling as sign-in, would start failing. That is a product decision, and
+> not one to make quietly in the same release as a database migration. The
+> work itself is small: thread the intent through and branch on it rather
+> than on existence alone.
+>
+> Original investigation kept below.
+
+Behavior confirmed via real `curl` calls against a live server (not from reading source), but the exact code path producing it wasn't found in the time spent looking (checked `_signUpWithPassword` in `apps/zonai/lib/src/db_mutator/zonai_db/parts/auth/password.dart` end to end — no explicit "check existing email" or "catch unique-violation, fall back" logic visible there; regular, non-auth `insert()` does not exhibit this — confirmed separately by creating duplicate rows on this session's own `organizations`/`client_apps` tables without issue elsewhere).
 
 **Reproduction:**
 
