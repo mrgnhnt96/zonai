@@ -11,10 +11,7 @@ import '../../deps/args.dart';
 import '../../deps/logger.dart';
 
 const _usage = '''
-Usage: zonai db [options]
-
-Options:
-  -h, --help      Show help information
+Usage: zonai db <subcommand> [options]
 
 Subcommands:
   migrate         Manage SQL migrations
@@ -23,8 +20,10 @@ Subcommands:
   email           Send test emails
   clear           Delete the local database file
 
-Commands:
-  help            Show help information
+Options:
+  -h, --help      Show help information
+
+Run `zonai db <subcommand> --help` for a subcommand's own options.
 ''';
 
 Future<int> db(List<String> path) async {

@@ -13,11 +13,11 @@ Admin sign-in requires an existing account; use this command to bootstrap
 the first admin or add additional admins from the CLI.
 
 Options:
-  -h, --help          Show help information
-  -e, --email         Admin email address (required)
-  -p, --password      Admin password (required)
-  -d, --data          JSON object of extra record fields (optional)
-  --no-verify         Do not mark the account as verified
+  -h, --help              Show help information
+  -e, --email=<address>   Admin email address (required)
+  -p, --password=<value>  Admin password (required)
+  -d, --data=<json>       JSON object of extra record fields (optional)
+      --no-verify         Do not mark the account as verified
 ''';
 
 Future<int> addAdmin() async {

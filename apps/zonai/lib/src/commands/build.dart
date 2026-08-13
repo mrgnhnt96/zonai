@@ -15,15 +15,26 @@ import 'package:zonai/src/domain/project/project_binary.dart';
 import 'package:zonai/src/domain/project/project_runtime.dart';
 
 const _usage = '''
-Usage: zonai build
+Usage: zonai build [options]
+
+Compile a self-contained deployment bundle into the build/ directory:
+workers, the project binary, SQL migrations, email templates and settings.
 
 Options:
-  -h, --help      Show help information
+  -h, --help            Show help information
+      --flavor=<name>   Config flavor to compile with
+      --release         Compile without Dart asserts (use for production)
+  -c, --config=<path>   Path to zonai.yml
+
+The build target OS and architecture come from buildSettings in zonai.yml,
+not from a flag.
 ''';
 
 Future<int> build() async {
+  // Ahead of the delete below: `build` clears the build directory before it
+  // does anything else.
   if (args.help) {
-    print(_usage);
+    logger.info(_usage);
     return 1;
   }
 

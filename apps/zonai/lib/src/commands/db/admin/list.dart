@@ -8,7 +8,7 @@ Usage: zonai db admin list [options]
 List every admin account. Never prints the password hash.
 
 Options:
-  -h, --help          Show help information
+  -h, --help              Show help information
 ''';
 
 Future<int> listAdmins() async {

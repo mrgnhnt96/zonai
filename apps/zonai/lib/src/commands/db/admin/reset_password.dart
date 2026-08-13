@@ -9,9 +9,9 @@ Reset an existing admin account's password. Use this to recover a
 deployment where an admin account exists but nobody has the password.
 
 Options:
-  -h, --help          Show help information
-  -e, --email         Admin email address (required)
-  -p, --password      New admin password (required)
+  -h, --help              Show help information
+  -e, --email=<address>   Admin email address (required)
+  -p, --password=<value>  New admin password (required)
 ''';
 
 Future<int> resetAdminPassword() async {

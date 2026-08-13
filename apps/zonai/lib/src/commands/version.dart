@@ -5,12 +5,16 @@ import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/versions.dart';
 
 const _usage = '''
-Usage: zonai version [options]
+Usage: zonai version [subcommand]
+
+With no subcommand, prints the installed version and whether ops/rules
+dispatch in-process or over worker IPC.
+
+Subcommands:
+  update          Download and install the latest version
+  check           Report whether a newer version is available
 
 Options:
-  update          Update to the latest version
-  check           Check for updates
-
   -h, --help      Show help information
 ''';
 

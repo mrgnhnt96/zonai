@@ -9,8 +9,8 @@ Remove an existing admin account. This makes `add` recoverable: an email
 freed this way can be re-added later.
 
 Options:
-  -h, --help          Show help information
-  -e, --email         Admin email address (required)
+  -h, --help              Show help information
+  -e, --email=<address>   Admin email address (required)
 ''';
 
 Future<int> removeAdmin() async {
