@@ -17,7 +17,7 @@ various `OMIT`/`ENABLE`), so the struct layouts differ and
 
 sqlite3 2.x avoids this with an explicit handle:
 
-```dart
+```dart no-analyze
 open.overrideForAll(() => rs.installedNativeLibrary);
 ```
 

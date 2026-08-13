@@ -131,9 +131,28 @@ void main() {
     );
   });
 
-  // Still to come: the gate that no fence escapes unchecked. It belongs with
-  // the sweep that tags the ~200 fragments, not ahead of it -- a guard whose
-  // only output is the work it is waiting on teaches everyone to ignore it.
+  test('no fence escapes unchecked', () {
+    // The gate the rest of this rests on. An untagged fragment used to be
+    // dropped on the floor, so ~200 fences were invisible while the suite
+    // reported green -- and that is exactly where the drift was found. A new
+    // fence now has to say where it belongs, or say out loud that it is not
+    // meant to compile.
+    final untagged = _collect(
+      root,
+    ).where((s) => !s.isCheckable && !s.skipped).toList();
+
+    expect(
+      untagged,
+      isEmpty,
+      reason:
+          'These fences are neither self-contained nor tagged:\n'
+          '  ${untagged.join('\n  ')}\n'
+          'Tag each one ```dart in:<scaffold> so it is analyzed inside the '
+          'code it belongs to -- see test/fixtures/doc_scaffolds/README.md -- '
+          'or ```dart no-analyze if it genuinely cannot compile, with the '
+          'reason in the prose beside it.',
+    );
+  });
 }
 
 /// A ```dart fence lifted out of a markdown file (or out of the markdown

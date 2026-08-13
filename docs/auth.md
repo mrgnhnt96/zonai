@@ -76,7 +76,7 @@ To set a new password while editing a row, click the **Replace password** icon n
 
 Only an **admin JWT with `canEdit: true`** can update a password column via the update API. Pass the new plain-text password as a string literal — Zonai hashes it automatically before writing to SQLite:
 
-```dart
+```dart no-analyze
 await zonaiDB.update(
   'users',
   UpdatePayload(

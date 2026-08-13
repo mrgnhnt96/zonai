@@ -19,7 +19,7 @@ Rate limits key on the client IP from Revali’s `@Ip()` / `request.ip`. Behind 
 
 In your config worker (`lib/src/config/db_config*.dart`), set `AppConfig.trustedProxy`:
 
-```dart
+```dart in:project-file
 AppConfig main() {
   return AppConfig(
     appName: 'My App',
@@ -105,7 +105,7 @@ Override the methods that correspond to the operations you want to customize. Ea
 
 ### Custom operations (`TableOperations.custom`)
 
-```dart
+```dart in:rate-limits
 @override
 Future<RateLimitPolicy?> customPolicy(String? operation) async {
   return switch (operation) {
@@ -143,11 +143,11 @@ Not every auth route is guarded today (for example `POST /auth/confirm` and `POS
 
 ## `RateLimitPolicy`
 
-```dart
+```dart in:expression
 const RateLimitPolicy(
-  maxRequests: 10,              // allowed requests per window
+  maxRequests: 10,               // allowed requests per window
   window: Duration(minutes: 15), // sliding window length
-);
+),
 ```
 
 - **`maxRequests`** — maximum number of requests allowed from one IP for this collection + operation within one window.
@@ -170,7 +170,7 @@ Example: if `ItemRateLimits` overrides only `getPolicy`, `limitPolicy`, and `cou
 
 From `apps/playground/lib/src/rate_limit/user_rate_limits.dart`:
 
-```dart
+```dart in:project-file
 final class UserRateLimits
     extends AuthTableRateLimits<UserTable, User> {
   UserRateLimits() : super(users);

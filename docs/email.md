@@ -124,7 +124,7 @@ These use typed helpers such as `SendVerifyEmailEmail` and `SendOtpEmail`, which
 
 Construct an `Email` and send it:
 
-```dart
+```dart no-analyze
 final message = Email(
   to: EmailAddress(address: 'user@example.com', name: 'Ada'),
   subject: 'Welcome',

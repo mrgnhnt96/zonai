@@ -1,13 +1,12 @@
 # Paying off the doc-snippet drift backlog (#26)
 
-**Status: done.** All 26 baselined examples were fixed and the baseline file is
-gone — there is no excuse list any more, and reintroducing one should be treated
-as a regression. The single example that is genuinely not meant to compile (a
-deliberately-elided sketch in `known-issues.md`) opts out at the fence instead,
-with ```dart no-analyze, which shows up in the diff of the doc that owns it.
+**Status: done, both phases.** Every ` ```dart ` fence in `docs/`,
+`apps/docs/content/**` and `ai_templates.dart` is now either analyzed or
+tagged `no-analyze` with its reason in the prose beside it, and a test fails
+if a new one is neither. There is no baseline and reintroducing one should be
+treated as a regression.
 
-This doc is kept as the record of what changed and why, plus the one phase that
-is still open.
+This doc is the record of what changed and why.
 
 ## The check
 
@@ -30,10 +29,10 @@ cd apps/playground && dart test test/doc_snippets_test.dart
   `apps/playground/test/fixtures/doc_snippets/X.dart` otherwise (`tasks`,
   `profiles`, `articles`), and rewrites `src/ids.dart` to the fixtures' own
   `ids.dart`.
-- The test fails if any self-contained snippet stops compiling, and separately
-  if one of the fixtures does. A snippet that is deliberately not compilable
-  tags its fence ```dart no-analyze and explains itself in the prose; that is
-  the only opt-out, and it should stay rare.
+- The test fails if any checked snippet stops compiling, and separately if one
+  of the fixtures or scaffolds does. A snippet that is deliberately not
+  compilable tags its fence ```dart no-analyze and explains itself in the
+  prose; that is the only opt-out, and it should stay rare.
 
 `docs/*.md`, `apps/docs/content/**` and `ai_templates.dart` all have verify
 rules pointing at this test, so a commit touching them runs it.
@@ -119,35 +118,77 @@ the snippet checks. This was found by hitting it — a doc comment in the `tasks
 fixture referenced `[Id]`, ambiguous between the fixture's `ids.dart` and
 `zonai_schema`, and the suite passed anyway.
 
-## Still open
+## Phase 2 — the fragments (done)
 
-### Phase 2 — the ~200 unchecked fragments
-
-Only 70 of 274 fences are checked. The rest are fragments: a bare `@override`
-member, a few loose statements. Compiling them means knowing which class or
-function body they belong in, which can't be inferred — so it needs an
-authoring convention, and that's a maintainer call rather than something to
-pick unilaterally. The usual shape is an info-string tag on the fence:
+Only 70 of 276 fences were self-contained. The rest are fragments — a bare
+`@override` member, a few loose statements, an argument list — and compiling
+one means knowing what it sits inside, which cannot be inferred. It is now
+declared on the fence:
 
 ````
-```dart in:TableRules<TaskTable, Task>
+```dart in:extension-user
 @override
-Future<bool> canCreate(Jwt? jwt) async => jwt != null;
+Future<void> onSignUp(User user, Jwt? jwt) async { ... }
 ```
 ````
 
-with `no-analyze` for the deliberately-partial ones. That half is already in
-use and needs no code — the extractor skips any fence carrying an info string,
-so `no-analyze` works today; only the `in:` form needs building. Tagging ~200
-fences is the bulk of the work; the extractor change is small. Worth agreeing
-the `in:` syntax before anyone starts.
+`in:<name>` resolves to `apps/playground/test/fixtures/doc_scaffolds/<name>.dart`,
+a real Dart file with a `// <<body>>` marker where the fragment is spliced.
+Each scaffold is also analyzed with an empty body, so a scaffold that rots
+against the API fails as itself rather than as a pile of unexplained drift in
+every doc spliced into it. See that directory's README for what belongs in one.
 
-This matters more than the fragment count suggests: several of the errors above
-sat in prose fragments right next to a checked snippet, and the auth-rules page
-was wrong in *every* fragment while its one self-contained example was the only
-thing the check could see.
+Three tests hold it together: every checkable snippet analyzes, every `in:` tag
+names a scaffold that exists (a typo would otherwise skip a fragment in
+silence), and no fence escapes unchecked.
 
-Two things the check will still never do, worth stating whenever it's cited as
-coverage: it doesn't look at fragments, and it doesn't know whether an example
-is *correct* — only that it compiles. Both bugs in the "found while verifying"
-note above compiled fine.
+### What tagging them found
+
+The premise held. Roughly a third of the newly-checked fragments did not
+compile, and the errors were not cosmetic:
+
+- **`ZonaiStorage` is not in the client's public API.** `1ce1a59` split
+  file-backed storage behind `package:zonai_client/storage.dart` and dropped
+  the export while doing it, taking the browser-safe factories with it. Three
+  pages taught it. Restored as an explicit `show`.
+- **auth-operations documented three getters that are async methods**, so
+  every override on that page conflicted with the real member.
+- **Essentially every dart-client example**: `fromJson` missing everywhere,
+  `updateOne`/`deleteOne` that do not exist, `CreateBody(data:)` for
+  `object:`, `String` where an `EmailAddress` goes, `PhotoCreateMeta(column:)`.
+- **`AuthExtension<UserTable, User>`** (it takes one argument) with an
+  `onSignUp` missing its `Jwt? jwt`, in the AI templates and two pages.
+- **`final DateTimeColumn? updatedAt;`** in the schema template every new
+  project's users table is copied from — `$.updatedAt` is always nullable, so
+  the file does not build.
+- **`CronJob(name: ...)`** on the catch-up page: `CronJob` is an abstract base
+  class and has never been constructible.
+- The ownership bug again, in three fragments beside the checked example it
+  had already been fixed in.
+
+Fences that held two things which cannot coexist in one file — an old
+signature next to its replacement, two classes with two `main`s, three
+alternative policies — were split, because each half is worth checking.
+
+### The one thing left visible rather than fixed
+
+The custom-operation example (`operations/overview.md` and the AI templates) is
+tagged `no-analyze` because it cannot be written against the public API at all:
+
+- `Where.sql(...)` is in `src/types/where_sql.dart`, which `zonai_schema.dart`
+  does not export.
+- A bare `table` inside a `TableOperations` subclass resolves to the top-level
+  `table()` function from `zonai_schema`, not the inherited getter. `this.table`
+  works.
+- `custom(...)` is declared to return `rd.ToQuery`, and an update with a
+  `where` is an `UpdateWhereBuilder`, which is not one.
+
+That is an API gap, not a typo, so it is left standing where someone can see
+it rather than quietly rewritten into something that compiles.
+
+## What this still does not do
+
+It does not know whether an example is *correct*, only that it compiles. The
+ownership check comparing an `Id` to a `String` compiled; so did the photo API
+documented under the wrong route. Both were found by reading the fragments the
+tagging forced open, not by the analyzer.

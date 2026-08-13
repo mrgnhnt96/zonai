@@ -205,7 +205,7 @@ outcome.
 (`test/src/domain/project/merged_package_config_test.dart`). Pure functions;
 `project_link.dart` is what calls them.
 
-```dart
+```dart no-analyze
 MergedPackageConfig mergePackageConfigs({projectConfig, projectConfigPath, zonaiConfig, zonaiConfigPath})
 MergedPackageConfig? writeMergedPackageConfig({projectConfigPath, zonaiConfigPath, outputPath})
 

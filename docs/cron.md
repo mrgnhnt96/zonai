@@ -82,13 +82,13 @@ Extend the abstract base class from `package:zonai_schema/zonai_schema.dart` (wh
 
 Build a schedule with the `Schedule` constructor or parse standard cron text:
 
-```dart
+```dart in:expression
 // Five-field cron: minute hour day month weekday
-Schedule.parse('*/15 * * * *')   // every 15 minutes
-Schedule.parse('0 3 * * *')        // daily at 03:00
+Schedule.parse('*/15 * * * *'), // every 15 minutes
+Schedule.parse('0 3 * * *'),    // daily at 03:00
 
 // Or explicit fields
-Schedule(minutes: [0, 30], hours: [9, 17], weekdays: [1, 2, 3, 4, 5])
+Schedule(minutes: [0, 30], hours: [9, 17], weekdays: [1, 2, 3, 4, 5]),
 ```
 
 The underlying package supports five- or six-field expressions (optional seconds). See the [`cron` package](https://pub.dev/packages/cron) for field syntax (`*`, lists, ranges, intervals).

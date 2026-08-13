@@ -135,7 +135,7 @@ Useful fields:
 
 Example — only the owner may update a row:
 
-```dart
+```dart in:row-rules-item
 @override
 Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async {
   if (jwt?.admin.canEdit case true) return true;
@@ -176,7 +176,7 @@ You cannot create auth collection rows through the generic DB API (`canCreate` o
 
 Declare authorization for each operation name on `customOperations`, on both table and row rules. An operation name that isn't a key in the map is **denied** — same fail-closed default as every method above.
 
-```dart
+```dart no-analyze
 final class TinTableRules extends TableRules<TinTable, Tin> {
   TinTableRules() : super(tins);
 
@@ -189,7 +189,7 @@ final class TinTableRules extends TableRules<TinTable, Tin> {
 }
 ```
 
-```dart
+```dart no-analyze
 class TinRowRules extends RowRules<TinTable, Tin> {
   TinRowRules() : super(tins);
 
@@ -237,7 +237,7 @@ Row CRUD defaults for auth collections allow users to view and modify **their ow
 
 Minimal auth setup (defaults only):
 
-```dart
+```dart in:project-file
 final class UserTableRules extends AuthTableRules<UserTable, User> {
   UserTableRules() : super(users);
 }
@@ -406,7 +406,7 @@ rulesPath: lib/src/rules
 
 From `apps/playground/lib/src/rules/item_table_rules.dart` and `item_row_rules.dart` — open access for development:
 
-```dart
+```dart in:project-file
 final class ItemTableRules extends TableRules<ItemTable, Item> {
   ItemTableRules() : super(items);
 
@@ -427,7 +427,7 @@ final class ItemTableRules extends TableRules<ItemTable, Item> {
 }
 ```
 
-```dart
+```dart in:project-file
 class ItemRowRules extends RowRules<ItemTable, Item> {
   ItemRowRules() : super(items);
 
@@ -435,7 +435,7 @@ class ItemRowRules extends RowRules<ItemTable, Item> {
   Future<bool> canView(Jwt? jwt, Item row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Item row) async => true;
+  Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async => true;
 
   @override
   Future<bool> canDelete(Jwt? jwt, Item row) async => true;

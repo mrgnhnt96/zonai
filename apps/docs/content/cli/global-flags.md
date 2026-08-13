@@ -15,7 +15,10 @@ These flags are accepted by all Zonai commands.
 | `--release` | — | Production mode: disable asserts, disable file watchers in `serve` |
 | `--quiet` | `-q` | Suppress all non-error output |
 | `--loud` | `-L` | Maximum verbosity — print all internal debug logs |
-| `--log <level>` | — | Set log level: `trace`, `debug`, `info`, `warn`, `error` |
+| `--log <level>` | — | Set log level: `verbose`, `trace`, `request`, `debug`, `info`, `warning`, `error` (or their first letter: `v t r d i w e`) |
+
+The level names are matched exactly. `--log warn` is **not** `warning`: an
+unrecognized name is ignored and the level falls back to `info`.
 
 ## --config Auto-Detection
 

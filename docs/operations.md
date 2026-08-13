@@ -58,7 +58,7 @@ import 'package:my_app/src/schemas/users.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class UserOperations extends TableOperations<UserTable, User>
-    with AuthOperations {
+    with AuthOperations<UserTable, User> {
   UserOperations() : super(users);
 
   @override
@@ -87,7 +87,7 @@ Define **at most one operations file per collection**. Each file’s `main()` mu
 
 Auth collections mix in **`AuthOperations`** to customize JWT claims and auth email link settings:
 
-```dart
+```dart in:project-file
 final class UserOperations extends TableOperations<UserTable, User>
     with AuthOperations {
   UserOperations() : super(users);
@@ -183,7 +183,7 @@ Password columns on auth collections receive special treatment during updates.
 
 Example — updating a user's password as an admin:
 
-```dart
+```dart no-analyze
 await zonaiDB.update(
   'users',
   UpdatePayload(
@@ -207,7 +207,7 @@ The value `'new-plain-text-password'` is hashed before the SQL `UPDATE` runs. Af
 
 Override **`custom`** to handle operation names that are not `create`, `update`, `delete`, `view`, or `list`:
 
-```dart
+```dart no-analyze
 @override
 rd.ToQuery<PostTable, Post> custom(
   String operation, {
@@ -229,7 +229,7 @@ The default implementation throws `UnimplementedError`. Custom operations must b
 
 Override **`insert`** when a column's real value must never come from the client — a server-generated API key, a computed size/checksum, anything you'd otherwise have to trust the caller to report honestly:
 
-```dart
+```dart no-analyze
 final class ClientAppOperations extends TableOperations<ClientAppTable, ClientApp> {
   ClientAppOperations() : super(clientApps);
 
@@ -244,7 +244,7 @@ final class ClientAppOperations extends TableOperations<ClientAppTable, ClientAp
 
 Use **`$.serverGenerated(name, field)`** for this column instead of `$.text`/a generic column. It behaves like a normal `TEXT` column (non-nullable end to end, no schema compromise), except `Table.safeCreate` fills in a blank placeholder (`''`) when the client's payload omits it — the same mechanism `$.password` already uses for the same reason. Unlike `$.password`, a `serverGenerated` column is **not** stripped from responses during sanitization (`_sanitize` type-checks specifically for `SecretTransformer`, which `ServerGeneratedTransformer` deliberately does not implement) — use it for values that should be visible to ordinary callers once set (an API key a dashboard needs to display), not secrets like passwords. The admin dashboard also marks it read-only, so the generic row editor shows the value without offering a raw text field to overwrite it.
 
-```dart
+```dart no-analyze
 apiKey = $.serverGenerated('api_key', (s) => s.apiKey),
 ```
 

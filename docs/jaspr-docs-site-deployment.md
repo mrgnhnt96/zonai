@@ -274,7 +274,7 @@ already-prefixed paths into `/repo/repo/`.
 **Client-rendered links are not covered by that rewrite**, since they do not
 exist at build time. Resolve them against the base at runtime:
 
-```dart
+```dart no-analyze
 Uri.parse(web.document.baseURI).resolve(path)
 ```
 

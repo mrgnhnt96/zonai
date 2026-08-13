@@ -82,7 +82,7 @@ Server binding is separate from **`AppConfig.baseUrl`** in your config worker (`
 
 If you change host or port, set `baseUrl` to the URL clients actually use:
 
-```dart
+```dart no-analyze
 AppConfig main() {
   return AppConfig(
     appName: 'My App',

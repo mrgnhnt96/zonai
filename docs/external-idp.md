@@ -115,7 +115,7 @@ AppConfig main() {
 
 Supabase signs project JWTs with HS256 using the project's JWT secret. Get it from the dashboard (Settings → API → JWT Settings).
 
-```dart
+```dart in:expression
 SharedSecretIdpConfig(
   issuer: 'https://YOUR_PROJECT_REF.supabase.co/auth/v1',
   audience: 'authenticated',
@@ -135,7 +135,7 @@ Notes:
 
 ### Auth0
 
-```dart
+```dart in:expression
 JwksIdpConfig(
   issuer: 'https://YOUR_TENANT.auth0.com/',
   audience: 'https://your-api.example/',
@@ -150,7 +150,7 @@ JwksIdpConfig(
 
 Anything that signs JWTs with HS256 and a shared secret you control:
 
-```dart
+```dart in:expression
 SharedSecretIdpConfig(
   issuer: 'https://internal-auth.your-company.example',
   audience: 'zonai-data-api',
@@ -163,7 +163,7 @@ SharedSecretIdpConfig(
 
 External tokens can be flagged as admin based on a configurable claim value. When `adminClaimPath` is unset (default), external tokens never derive admin status — use row-level rules on `authTable` for that decision instead.
 
-```dart
+```dart no-analyze
 SharedSecretIdpConfig(
   // ... required fields ...
   adminClaimPath: 'app_metadata.is_admin',  // dotted path into claims
@@ -218,7 +218,7 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
 
 **Rate limiting.** HTTP deployments rate-limit first-seen provisioning per **(auth-table, IP)** — defaulting to 30 attempts per hour. Tune this per auth table by overriding `AuthTableRateLimits.externalIdpProvisioningPolicy`:
 
-```dart
+```dart in:project-file
 final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
   UsersRateLimits() : super(users);
 

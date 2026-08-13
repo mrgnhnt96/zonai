@@ -189,7 +189,7 @@ SqliteException(1299): while selecting from statement, NOT NULL constraint faile
 
 **Root cause.** `libs/raindrop/packages/raindrop_sqlite/lib/src/sqlite_ddl.dart:153`, inside `_rebuildTableFromAlters`:
 
-```dart
+```dart no-analyze
 'INSERT INTO $temp SELECT * FROM $table;',
 ```
 
@@ -199,7 +199,7 @@ SqliteException(1299): while selecting from statement, NOT NULL constraint faile
 
 **Suggested fix**, in `_rebuildTableFromAlters` (`sqlite_ddl.dart`): build the `INSERT`/`SELECT` from `tableColumns` explicitly, the same list already used to build `defs`, instead of `SELECT *`:
 
-```dart
+```dart no-analyze
 final columnNames = tableColumns.map((c) => escapeName(c.name)).join(', ');
 steps.addAll([
   'CREATE TABLE $temp (\n  $defs\n);',
@@ -358,7 +358,7 @@ A second identical request within 60 seconds gets a normal `{"error":"Must wait 
 
 **Root cause**, `apps/zonai/lib/src/email/courier.dart`'s `_Send._send`:
 
-```dart
+```dart no-analyze
 Future<void> _send(Email email) async {
   final config = await configResolver.resolve();
   final emailConfig = config.email;
@@ -441,7 +441,7 @@ No stack trace, no earlier warning. `curl .../health` goes from `200` to connect
 **The reproduction, in two independent forms:**
 
 1. A row rule calling `get.*` to look up a *different* table, where the caller is itself in the middle of answering an incoming `RowRulesRequest`:
-   ```dart
+   ```dart no-analyze
    // OrganizationCollaboratorRowRules.canCreate
    Future<bool> canCreate(Jwt? jwt, OrganizationCollaborator row) async {
      final organization = await get.one(tableName: 'organizations', where: Eq('id', row.organizationId.value), jwt: CronJwt());
@@ -453,7 +453,7 @@ No stack trace, no earlier warning. `curl .../health` goes from `200` to connect
    [RULES_EXE]: Received response for unknown request: response/.row.can_access
    ```
 2. `AuthOperations.addClaims` calling `get.many` while answering an incoming `GetJwtConfigOperationRequest` (fired on every sign-up/sign-in/refresh):
-   ```dart
+   ```dart no-analyze
    @override
    Future<Claims> addClaims({required Jwt jwt}) async {
      final owned = await get.many(tableName: 'organizations', where: Eq('owner_id', jwt.userId.value), jwt: CronJwt());
@@ -524,7 +524,7 @@ A completely fresh, never-privileged, publicly-self-registered account gets full
 
 **Root cause.** `libs/zonai_schema/lib/src/handlers/operations/db_operations.dart`'s `_getJwtConfig`:
 
-```dart
+```dart no-analyze
 final admin = switch (ops?.schema) {
   final AsAdmin admin => admin,
   _ => null,
@@ -578,7 +578,7 @@ So a repeated sign-up to an already-registered email is **not** rejected outrigh
 
 **Root cause.** `libs/zonai_schema/lib/src/handlers/messages/deps/__get.dart`, `_Get`'s constructor:
 
-```dart
+```dart no-analyze
 _Get(this.many) {
   one = ({required String tableName, required where, offset, jwt}) async {
     final result = await many(
@@ -665,7 +665,7 @@ runtime/config issue, it cannot work as currently written.
 
 **Root cause.** `BlackList` (`apps/server/routes/components/black_list.dart`):
 
-```dart
+```dart no-analyze
 final class BlackList {
   const BlackList();
 
@@ -682,7 +682,7 @@ component/guard when its static type matches that marker — see
 package (pinned via this workspace's `pubspec_overrides.yaml`, currently
 `~/.pub-cache/git/revali-c89dd3ed.../constructs/revali_server/lib/converters/server_route_annotations.dart:158`):
 
-```dart
+```dart no-analyze
 OnMatch(
   classType: LifecycleComponent,
   package: 'revali_router_annotations',
@@ -776,7 +776,7 @@ shape"). `RuntimeSchemaLoader.load` (`libs/raindrop/packages/raindrop_cli/lib/sr
 `schemaDir` into `discoverSchemaVariables`, which then does
 (`libs/raindrop/packages/raindrop_cli/lib/src/runtime/schema_table_discovery.dart:49-54`):
 
-```dart
+```dart no-analyze
 final absRoot = p.normalize(p.absolute(packageRoot)); // apps/zonai only
 final collection = AnalysisContextCollection(includedPaths: [absRoot]);
 ...
@@ -794,7 +794,7 @@ for any table.
 **Suggested fix.** Include both roots (deduplicated) in
 `schema_table_discovery.dart`:
 
-```dart
+```dart no-analyze
 final absRoot = p.normalize(p.absolute(packageRoot));
 final absSchemaRoot = p.normalize(p.absolute(schemaDir));
 final includedPaths = {absRoot, absSchemaRoot}.toList();

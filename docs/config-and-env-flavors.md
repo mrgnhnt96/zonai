@@ -30,11 +30,8 @@ Only files with a `.dart` extension are considered.
 
 `AppConfig.jwtExpiresIn` sets the default access-token lifetime (**14 days** if omitted). Value is stored in JSON as seconds:
 
-```dart
-AppConfig(
-  // ...
-  jwtExpiresIn: const Duration(days: 7),
-);
+```dart in:app-config
+jwtExpiresIn: const Duration(days: 7),
 ```
 
 Per auth collection, override with `jwtExpiresIn` on `AuthOperations` (see **[operations.md](operations.md#auth-collections)**).
@@ -43,13 +40,10 @@ Per auth collection, override with `jwtExpiresIn` on `AuthOperations` (see **[op
 
 `AppConfig.trustedProxy` controls how the HTTP server resolves client IPs when you run behind a reverse proxy (rate limits, future abuse tracking, login emails). Defaults to no headers (TCP remote address only).
 
-```dart
-AppConfig(
-  // ...
-  trustedProxy: const TrustedProxyConfig(
-    headers: ['X-Forwarded-For', 'CF-Connecting-IP'],
-  ),
-);
+```dart in:app-config
+trustedProxy: const TrustedProxyConfig(
+  headers: ['X-Forwarded-For', 'CF-Connecting-IP'],
+),
 ```
 
 See **[rate-limiting.md](rate-limiting.md#client-ip)** for rightmost vs leftmost IP behavior.
@@ -200,10 +194,13 @@ Ops/rules are linked into the project binary by default. Set `ZONAI_FORCE_WORKER
 
 `lib/src/config/db_config.dart`:
 
-```dart
+```dart in:app-config
 email: EmailConfig(
+  host: 'smtp.gmail.com',
+  port: 587,
   username: 'app@example.com',
   password: const String.fromEnvironment('GMAIL_APP_PASSWORD'),
+  from: EmailAddress(address: 'app@example.com', name: 'My App'),
 ),
 ```
 

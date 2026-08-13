@@ -98,7 +98,7 @@ components so it is server-rendered once.
 
 ### Custom markdown components
 
-```dart
+```dart no-analyze
 final class CardGrid extends CustomComponentBase {
   const CardGrid();
   @override
@@ -182,7 +182,7 @@ section (~1200 chars) so the file stays one fast download.
 
 ### Anchor slugs
 
-```dart
+```dart no-analyze
 String anchorFor(String rawHeading) => rawHeading
     .toLowerCase().trim()
     .replaceAll(RegExp('[^a-z0-9 _-]'), '')

@@ -56,7 +56,7 @@ message-contract guard therefore goes inert — so closing linking would close
 the guard gap for free. **It would not.** The chain does not run through
 linking at all:
 
-```dart
+```dart no-analyze
 // project_runtime.dart:56
 Future<int?> maybeReexecProjectRuntime() async {
   if (HostWorkerRegistries.hasOperations) return null;

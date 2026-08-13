@@ -54,7 +54,7 @@ one file — `lib/src/navigation.dart` — and derive everything from it:
 That last one is the point. Before, adding a page and forgetting the sidebar
 produced an unreachable page and no error. Now it fails the build.
 
-```dart
+```dart no-analyze
 final class NavItem {
   const NavItem(this.title, this.href, {this.summary, this.badge});
   final String title;      // sidebar label — keep short, the column is ~17rem
@@ -101,7 +101,7 @@ for search results.
 Replace `jaspr_content`'s `Sidebar` with your own component built on
 `<details>`/`<summary>`, and mark the group containing the current route `open`:
 
-```dart
+```dart no-analyze
 details(
   classes: 'docs-sidebar-group',
   open: identical(group, activeGroup) ||
@@ -146,7 +146,7 @@ Four things that are easy to get wrong:
    backticks and links are parsed, so `## Prefer \`zonai_client\`` becomes
    `prefer-zonai_client`, not `prefer`. Reproduce it exactly:
 
-   ```dart
+   ```dart no-analyze
    rawHeading.toLowerCase().trim()
        .replaceAll(RegExp('[^a-z0-9 _-]'), '')
        .replaceAll(RegExp(r'\s'), '-');
@@ -295,7 +295,7 @@ dialog. Because the index loads asynchronously, that rebuild always came.
 
 Track it in state:
 
-```dart
+```dart no-analyze
 bool _open = false;   // should the dialog be rendered at all
 bool _shown = false;  // has showModal() promoted it to the top layer
 ```
