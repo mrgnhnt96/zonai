@@ -20,6 +20,7 @@ sealed class CronResponse extends Response {
       CronJobRunResponse._path => CronJobRunResponse.fromJson(json),
       CleanupUnreferencedPhotosResponse._path =>
         CleanupUnreferencedPhotosResponse.fromJson(json),
+      ReclaimLogSpaceResponse._path => ReclaimLogSpaceResponse.fromJson(json),
       ListCronJobsResponse._path => ListCronJobsResponse.fromJson(json),
       final path => throw ArgumentError('Invalid cron response path: $path'),
     };
@@ -214,6 +215,59 @@ final class CleanupUnreferencedPhotosResponse extends CronResponse {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'deletedCount': deletedCount};
+  }
+}
+
+/// Outcome of a [ReclaimLogSpaceRequest].
+///
+/// Carries the numbers rather than a rendered sentence so the cron can report
+/// them in its own voice. The operator-actionable warning for the one case
+/// that needs a human -- no room to rewrite -- is emitted host-side instead,
+/// deliberately: at that point writing to `_log` is exactly what may be
+/// failing, so a message that travels back to be logged into the database
+/// could be the one message that never lands.
+final class ReclaimLogSpaceResponse extends CronResponse {
+  ReclaimLogSpaceResponse({
+    required super.id,
+    required this.reclaimableBytes,
+    required this.reclaimedBytes,
+    required this.vacuumed,
+    required this.skipped,
+  }) : super(path: _path, payload: const {});
+
+  factory ReclaimLogSpaceResponse.fromJson(Map<String, dynamic> json) {
+    return ReclaimLogSpaceResponse(
+      id: json['id'],
+      reclaimableBytes: json['reclaimableBytes'] as int,
+      reclaimedBytes: json['reclaimedBytes'] as int,
+      vacuumed: json['vacuumed'] as bool,
+      skipped: json['skipped'] as String?,
+    );
+  }
+
+  static const _path = '${CronResponse.prefix}.reclaim_log_space';
+
+  /// Bytes sitting on the log database's freelist before this ran.
+  final int reclaimableBytes;
+
+  /// How much the file actually shrank. Zero when nothing was rewritten.
+  final int reclaimedBytes;
+
+  final bool vacuumed;
+
+  /// Why the rewrite did not happen, or `null` when nothing was in its way --
+  /// including when there was simply nothing worth reclaiming.
+  final String? skipped;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'reclaimableBytes': reclaimableBytes,
+      'reclaimedBytes': reclaimedBytes,
+      'vacuumed': vacuumed,
+      if (skipped != null) 'skipped': skipped,
+    };
   }
 }
 

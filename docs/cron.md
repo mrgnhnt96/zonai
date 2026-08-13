@@ -161,6 +161,21 @@ Skipping per-row rules is why `purge` is **not** a general-purpose API. Two gate
 
 Anything failing either gate is refused with a table-access error. Reach for `mutate.delete` for your own tables — including when deleting a lot of rows, where you should page the work yourself rather than issue one unbounded delete.
 
+### Reclaiming the disk a purge frees
+
+A `DELETE` — `purge` included — does not shrink the database file. SQLite moves the emptied pages onto a freelist and reuses them for later writes, so a deployment watching `df` sees retention run every night and the number never move. That is the shape of the incident this machinery exists for: 4.6M `_log` rows filled a 1GB volume while a retention job reported success.
+
+`_cleanup_logs` therefore finishes by asking the host to rewrite the log database, which is only safe to do from a cron because `_log` lives in its own file — a `VACUUM` on the shared database would hold an exclusive lock on application data for the whole rewrite.
+
+The host decides whether to actually do it, and both halves of the decision matter:
+
+- **Worth it?** A rewrite copies every live page and needs room for a second copy. Below roughly 16 MB on the freelist it costs more than it recovers, so it is skipped — quietly, because having nothing to reclaim is not a problem.
+- **Possible?** The rewrite needs free disk for the copy it builds, proportional to the rows that *survived* the purge, not to the file. A deployment that has already filled its volume fails this test — and that is the one case that says so out loud, naming the freelist size, the space required, the space available, and the remedy. At zero bytes free the database cannot fix itself: reclaiming space needs the write being refused.
+
+Free space is read by shelling out (`df`, or PowerShell on Windows) since Dart exposes no API for it. Where that cannot be answered, the rewrite goes ahead and lets the write decide — an unrecognised platform must not mean never reclaiming anything.
+
+Your own jobs get none of this automatically. `zonai db logs clear --vacuum` is the manual equivalent, and it rewrites both database files.
+
 Cron jobs do **not** invoke extension hooks for the cron tick itself — only for rows changed via `mutate`. You do not need a separate HTTP call or raw SQLite access for normal cleanup; use `get`/`mutate`/`email` unless you have a reason to bypass the API pipeline.
 
 Example — delete rows older than 30 days:

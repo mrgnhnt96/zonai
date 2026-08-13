@@ -37,6 +37,8 @@ import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwks_idp_verifier.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
+import 'package:zonai/src/utils/format_bytes.dart';
+import 'package:zonai/src/utils/free_disk_space.dart';
 import 'package:zonai/src/utils/photo_stream_utils.dart';
 import 'package:zonai/src/utils/shared_secret_idp_verifier.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
@@ -83,6 +85,7 @@ part 'parts/list.dart';
 part 'parts/photo.dart';
 part 'parts/purge.dart';
 part 'parts/read.dart';
+part 'parts/reclaim_log_space.dart';
 part 'parts/resolve_photos.dart';
 part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
@@ -363,6 +366,14 @@ class ZonaiDb {
   /// [kLogDbSchema] for the log database. See [_vacuum].
   Future<void> vacuum({String? schema}) async {
     return await _runWrite(() => _vacuum(schema: schema));
+  }
+
+  /// Rewrites the log database if enough of it is dead space and the volume
+  /// has room, reporting what it did either way. See [_reclaimLogSpace].
+  ///
+  /// Serialized like any other write: the rewrite takes an exclusive lock.
+  Future<LogSpaceReclamation> reclaimLogSpace() async {
+    return await _runWrite(() => _reclaimLogSpace());
   }
 
   Future<File> getPhoto(String id, {required String? token}) {

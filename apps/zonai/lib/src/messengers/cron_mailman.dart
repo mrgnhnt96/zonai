@@ -65,6 +65,16 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
           deletedCount: deletedCount,
         );
 
+      case ReclaimLogSpaceRequest(:final id):
+        final result = await zonaiDB.reclaimLogSpace();
+        return ReclaimLogSpaceResponse(
+          id: id,
+          reclaimableBytes: result.reclaimableBytes,
+          reclaimedBytes: result.reclaimedBytes,
+          vacuumed: result.vacuumed,
+          skipped: result.skipped,
+        );
+
       case final LastJobRunRequest request:
         final db = await zonaiDB.open();
 
@@ -142,6 +152,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
       case LastJobRunResponse():
       case ListCronJobsResponse():
       case CleanupUnreferencedPhotosResponse():
+      case ReclaimLogSpaceResponse():
         logger.warn(
           'Ignoring unexpected cron notification: ${response.runtimeType}',
         );

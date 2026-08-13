@@ -14,6 +14,7 @@ sealed class CronRequest extends Request {
       RunCronJobRequest._path => RunCronJobRequest.fromJson(json),
       CleanupUnreferencedPhotosRequest._path =>
         CleanupUnreferencedPhotosRequest.fromJson(json),
+      ReclaimLogSpaceRequest._path => ReclaimLogSpaceRequest.fromJson(json),
       ListCronJobsRequest._path => ListCronJobsRequest.fromJson(json),
       _ => throw ArgumentError('Invalid cron request path: ${json['path']}'),
     };
@@ -27,6 +28,9 @@ sealed class CronRequest extends Request {
       RunCronJobRequest._path => RunCronJobRequest.fromRequest(request),
       CleanupUnreferencedPhotosRequest._path =>
         CleanupUnreferencedPhotosRequest.fromRequest(request),
+      ReclaimLogSpaceRequest._path => ReclaimLogSpaceRequest.fromRequest(
+        request,
+      ),
       ListCronJobsRequest._path => ListCronJobsRequest.fromRequest(request),
       _ => throw ArgumentError('Invalid cron request path: ${request.path}'),
     };
@@ -131,6 +135,27 @@ final class CleanupUnreferencedPhotosRequest extends CronRequest {
   }
 
   static const _path = '${CronRequest.prefix}.cleanup_unreferenced_photos';
+}
+
+/// Asks the host to rewrite the log database when enough of it is dead space.
+///
+/// A host RPC rather than a `mutate.*` call because `VACUUM` is not a
+/// mutation the operations layer can express, and because the decision needs
+/// two things only the host has: the database's pragmas and the volume's free
+/// space.
+final class ReclaimLogSpaceRequest extends CronRequest {
+  ReclaimLogSpaceRequest() : super(path: _path, id: Request.generateId());
+  ReclaimLogSpaceRequest._({required super.id}) : super(path: _path);
+
+  factory ReclaimLogSpaceRequest.fromJson(Map<String, dynamic> json) {
+    return ReclaimLogSpaceRequest._(id: json['id']);
+  }
+
+  factory ReclaimLogSpaceRequest.fromRequest(UnknownRequest request) {
+    return ReclaimLogSpaceRequest._(id: request.id);
+  }
+
+  static const _path = '${CronRequest.prefix}.reclaim_log_space';
 }
 
 final class ListCronJobsRequest extends CronRequest {
