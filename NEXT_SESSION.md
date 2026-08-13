@@ -115,18 +115,31 @@ it can land**, not just code:
   can take down request handling is worse than the runaway table. This almost
   certainly needs the log write to become explicitly non-fatal first.
 
-### 3. Conditional VACUUM in the cleanup cron
+### 3. Conditional VACUUM in the cleanup cron — ✅ DONE
 
-Unblocked — the schema-scoped VACUUM is verified. Gate on
-`freelist_count * page_size` exceeding a threshold **and** enough free disk.
-When the headroom gate fails, that is the moment to emit the operator-actionable
-line: *"retention reclaimed nothing; N bytes are on the freelist; the rewrite
-needs M free and K are available — extend the volume."*
+`_cleanup_logs` now ends with a `ReclaimLogSpaceRequest` host RPC. Gated both
+ways: worth it (≥16 MB on the freelist, else a quiet skip) and possible (room
+for a copy of the pages that *survived* the purge). The headroom failure emits
+the operator-actionable line host-side — deliberately not through the
+response, since at that point writing to `_log` is what may be failing.
 
-Note `ZonaiDb.vacuum()` already exists (`zonai_db.dart`) and is reachable only
-from `zonai db logs clear --vacuum`.
+Half of #4 came with it: `freeDiskBytes` (`utils/free_disk_space.dart`) shells
+out to `df -Pk`, PowerShell on Windows. `-P` is load-bearing — without it a
+long device name wraps and a naive parse returns Used instead of Available.
+Parsing is separated and tested against captured output from both platforms.
+`null` means unknown, never zero, and unknown proceeds.
 
-### 4. Free-space awareness — half done
+### 4. Free-space awareness — the probe now exists
+
+`freeDiskBytes` landed with #3, so the "no API in Dart" problem is solved by
+shelling out rather than FFI. What remains of this item is only the
+*proactive* half: warning before 100% during ordinary operation rather than at
+the one moment a cron asks. Still the **least valuable** remaining item, for
+the reason the original entry gave — chunking already lets a nearly-full
+volume drain, `DiskFullException` says what to do once you are against the
+wall, and the retention cron now says it a night earlier.
+
+Original note kept below for the Windows/FFI options it weighed.
 
 `1854c1d` is **reactive**: it reports the wall once you are against it. The
 proactive half — warning before 100% — needs a real probe, and Dart has no API
