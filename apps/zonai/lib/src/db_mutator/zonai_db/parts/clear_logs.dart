@@ -12,7 +12,7 @@ extension _ClearLogsX on ZonaiDb {
   /// same number for free.
   Future<int> _clearLogs({DateTime? before}) async {
     final db = await open();
-    final table = logs.$?.name ?? '_log';
+    final table = _logTableName;
 
     final result = switch (before) {
       null => await db.execute('DELETE FROM "$table"'),
@@ -25,7 +25,7 @@ extension _ClearLogsX on ZonaiDb {
     return result.rowsAffected;
   }
 
-  /// Rewrites the database file, returning space freed by deletes to the OS.
+  /// Rewrites a database file, returning space freed by deletes to the OS.
   ///
   /// A `DELETE` only moves pages onto SQLite's freelist; the file itself never
   /// shrinks. `VACUUM` rebuilds it from the live pages only. The trailing
@@ -33,12 +33,23 @@ extension _ClearLogsX on ZonaiDb {
   /// pages sit in the `-wal` sidecar and the numbers an operator checks
   /// afterwards still do not move.
   ///
+  /// [schema] picks the file. `null` means `main`; [kLogDbSchema] means the
+  /// log database. This is what keeps the rewrite's exclusive lock off
+  /// application data when the thing being reclaimed is logs -- verified
+  /// against the real driver in `attached_log_db_contract_test.dart`, and the
+  /// reason vacuuming from a cron is viable at all.
+  ///
   /// Must not run inside a transaction -- SQLite rejects `VACUUM` there --
   /// which is why the caller reaches this through [ZonaiDb.vacuum] rather
   /// than folding it into another unit of work.
-  Future<void> _vacuum() async {
+  Future<void> _vacuum({String? schema}) async {
     final db = await open();
-    await db.execute('VACUUM');
-    await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+    if (schema == null) {
+      await db.execute('VACUUM');
+      await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      return;
+    }
+    await db.execute('VACUUM "$schema"');
+    await db.execute('PRAGMA "$schema".wal_checkpoint(TRUNCATE)');
   }
 }

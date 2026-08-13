@@ -12,6 +12,7 @@ import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/utils/args.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
@@ -233,6 +234,12 @@ void main() {
         expect(result.exitCode, 0);
         expect(result.prompts, hasLength(1));
         expect(db.vacuumCalled, isTrue);
+        // Both files, not just the log one. `_log` lives in its own database
+        // now, but a deployment upgraded from before the split has just had a
+        // multi-million-row `_log` dropped out of `main`, and those pages are
+        // on *main's* freelist -- vacuuming only the log file would reclaim
+        // nothing at all for exactly the case this command exists to rescue.
+        expect(db.vacuumedSchemas, [null, kLogDbSchema]);
         expect(result.output, contains('Reclaimed 7.9 MB'));
         expect(result.output, contains('9.0 MB -> 1.1 MB'));
       });

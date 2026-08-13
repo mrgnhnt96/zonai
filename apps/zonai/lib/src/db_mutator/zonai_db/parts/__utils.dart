@@ -3,6 +3,10 @@ part of zonai_db;
 extension UtilsX on ZonaiDb {
   File get _dbFile => __dbFile ??= fs.file(settings.zonaiSqlitePath);
 
+  /// The `_log` table's own file. Created by SQLite on the first write
+  /// through the attach, so it is not pre-created here.
+  File get _logDbFile => __logDbFile ??= fs.file(settings.zonaiLogSqlitePath);
+
   Future<T?> _dispatchRules<T extends RuleResponse>(RuleRequest request) async {
     if (HostWorkerRegistries.useInProcessRules) {
       final response = await HostWorkerRegistries.rules!.dispatch(request);
@@ -26,7 +30,6 @@ extension UtilsX on ZonaiDb {
     }
     return _operations.send<T>(request);
   }
-
 
   Future<Raindrop> open() async {
     if (this.db case final db?) {
@@ -52,7 +55,10 @@ extension UtilsX on ZonaiDb {
 
     logger.debug('Opening database: ${_dbFile.path}', prefix: _prefix);
     await ensureResqliteNativeInstalled();
-    final delegate = await ResqliteDelegate.open(_dbFile.path);
+    final delegate = await ResqliteDelegate.open(
+      _dbFile.path,
+      attach: {kLogDbSchema: _logDbFile.path},
+    );
     final db = Raindrop(delegate);
 
     try {
@@ -61,6 +67,7 @@ extension UtilsX on ZonaiDb {
         prefix: _prefix,
       );
       await InternalDbMigrate.apply(db);
+      await _ensureLogDatabase(db);
       await _createInternalCollections(db);
 
       logger.verbose('Retrieving migrations', prefix: _prefix);
@@ -99,8 +106,73 @@ extension UtilsX on ZonaiDb {
     final sqlSync = SqliteInternalTableSync();
 
     for (final schema in InternalDbArtifacts.schemas) {
+      // `_log` lives in its own file and is created by [_ensureLogDatabase],
+      // which has already run. Letting it through here would create a *second*
+      // `_log` in `main` -- and `main` wins name resolution, so every write
+      // would silently go back to the shared file the split exists to empty.
+      if (schema.$.name == _logTableName) continue;
       await sqlSync.ensureMatchingTable(db, schema);
     }
+  }
+
+  /// Moves `_log` into its own database file, dropping whatever was in `main`.
+  ///
+  /// Deliberately not a data migration. The rows are logs: bounded-retention,
+  /// reconstructible-or-not-worth-reconstructing, and the deployments that
+  /// need this most are the ones holding millions of them on a volume with no
+  /// room to copy anything. Dropping is also what returns their pages to
+  /// `main`'s freelist, which is the first half of reclaiming that space --
+  /// the second half is a `VACUUM`, which `zonai db logs clear --vacuum`
+  /// still runs against `main` for exactly this reason.
+  ///
+  /// Order matters and is the whole trick: the drop has to happen before the
+  /// create, because an unqualified `_log` resolves into the attached database
+  /// only while `main` has no table by that name.
+  ///
+  /// Idempotent -- on every open after the first, both statements are no-ops.
+  Future<void> _ensureLogDatabase(Raindrop db) async {
+    final hadMainLog = await _mainHasLogTable(db);
+    if (hadMainLog) {
+      // `warn`, not `info`: this happens once per database and it discards
+      // records. An operator who did not expect that should see it.
+      logger.warn(
+        'Moving "$_logTableName" into its own database file '
+        '(${_logDbFile.path}). Existing log records are dropped; run '
+        '`zonai db logs clear --vacuum` to return their disk space to the OS.',
+        prefix: _prefix,
+      );
+      // Drops the table's indexes with it.
+      await db.execute('DROP TABLE IF EXISTS "main"."$_logTableName"');
+    }
+
+    await SqliteInternalTableSync().ensureMatchingTable(
+      db,
+      logs,
+      sqliteSchema: kLogDbSchema,
+    );
+
+    // Recreated here rather than left to the generated migrations: those ran
+    // against `main` and were dropped along with the table above. Without
+    // them the dashboard's level/timestamp queries and every retention
+    // cutoff degrade to a full scan of the one table that grows without
+    // bound.
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "$kLogDbSchema"."log_id_unique" '
+      'ON "$_logTableName" ("id")',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS "$kLogDbSchema"."log_level_timestamp_index" '
+      'ON "$_logTableName" ("level", "timestamp")',
+    );
+  }
+
+  Future<bool> _mainHasLogTable(Raindrop db) async {
+    final result = await db.execute(
+      'SELECT 1 FROM "main".sqlite_master '
+      "WHERE type = 'table' AND name = ? LIMIT 1",
+      [_logTableName],
+    );
+    return result.rows.isNotEmpty;
   }
 
   Future<void> _requireTableAccess(
@@ -423,9 +495,7 @@ extension UtilsX on ZonaiDb {
         :final jwt,
       ) =>
         'list|$table|${jsonEncode(where?.toJson())}|$limit|$offset|'
-            '${jsonEncode([
-              for (final term in orderBy ?? const <OrderByTerm>[]) term.toJson(),
-            ])}|$groupBy|${_jwtCacheKey(jwt)}',
+            '${jsonEncode([for (final term in orderBy ?? const <OrderByTerm>[]) term.toJson()])}|$groupBy|${_jwtCacheKey(jwt)}',
       ReadOperationRequest(:final table, :final where, :final jwt) =>
         'read|$table|${jsonEncode(where.toJson())}|${_jwtCacheKey(jwt)}',
       _ => null,
@@ -480,7 +550,8 @@ extension UtilsX on ZonaiDb {
       for (final row in rows)
         {
           for (final MapEntry(:key, :value) in row.entries)
-            if (preserveSecrets || !meta.secretColumns.contains(key)) key: value,
+            if (preserveSecrets || !meta.secretColumns.contains(key))
+              key: value,
         },
     ];
     return _resolvePhotoFields(cleaned, meta.photoColumns);

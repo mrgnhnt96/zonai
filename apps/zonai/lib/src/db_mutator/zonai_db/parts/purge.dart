@@ -117,7 +117,16 @@ extension _PurgeX on ZonaiDb {
       // matters here -- the WAL is reused from the start instead of growing
       // for the whole backlog. That is what lets a nearly-full volume drain
       // at all, which one large transaction cannot do.
-      await db.execute('PRAGMA wal_checkpoint(PASSIVE)');
+      //
+      // Schema-qualified, because a WAL belongs to a *file*: `_log` lives in
+      // the attached log database, and an unqualified checkpoint would keep
+      // handing back `main`'s WAL while the one actually growing -- the only
+      // one this loop exists to bound -- was never touched.
+      await db.execute(
+        table == _logTableName
+            ? 'PRAGMA "$kLogDbSchema".wal_checkpoint(PASSIVE)'
+            : 'PRAGMA wal_checkpoint(PASSIVE)',
+      );
     }
 
     // Reaching here means every round was full. Either the table is being

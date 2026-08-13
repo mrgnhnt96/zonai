@@ -98,6 +98,12 @@ class FakeZonaiDb extends ZonaiDb {
   ({DateTime? before})? clearLogsCall;
   var vacuumCalled = false;
 
+  /// One entry per `vacuum` call, in order -- `null` for `main`, a schema
+  /// name for an attached database. `_log` lives in its own file now, so
+  /// "was a vacuum run" is no longer the same question as "was the right
+  /// file rewritten".
+  final vacuumedSchemas = <String?>[];
+
   /// Lets a test stand in for the side effect the real VACUUM has -- shrinking
   /// the file on disk -- so the reclaimed-bytes arithmetic can be asserted.
   void Function()? onVacuum;
@@ -110,8 +116,9 @@ class FakeZonaiDb extends ZonaiDb {
   }
 
   @override
-  Future<void> vacuum() async {
+  Future<void> vacuum({String? schema}) async {
     vacuumCalled = true;
+    vacuumedSchemas.add(schema);
     onVacuum?.call();
   }
 }

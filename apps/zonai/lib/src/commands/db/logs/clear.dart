@@ -1,12 +1,16 @@
 import 'dart:io';
 
 import 'package:clock/clock.dart';
+// Prefixed: `dart:io` above exports a `File` of its own, and `fs.file(...)`
+// returns this one.
+import 'package:file/file.dart' as pkg_file;
 
 import '../../../deps/args.dart';
 import '../../../deps/fs.dart';
 import '../../../deps/logger.dart';
 import '../../../deps/settings.dart';
 import '../../../deps/zonai_db.dart';
+import '../../../domain/constants.dart';
 import '../../../utils/format_bytes.dart';
 import '../../../utils/parse_duration.dart';
 
@@ -35,17 +39,22 @@ bool _confirmViaStdin(String question) {
   return line == 'y' || line == 'yes';
 }
 
+int _sizeOf(pkg_file.File file) => file.existsSync() ? file.lengthSync() : 0;
+
 /// Explains what a VACUUM is about to do before it does it.
 ///
 /// The rewrite is slow, needs room for a second copy of the database, and
 /// holds an exclusive lock throughout -- none of which is guessable from the
 /// flag name, and all of which matters on the multi-hundred-megabyte databases
 /// that need it most.
-String _vacuumWarning({required String path, required int size}) =>
+String _vacuumWarning({
+  required List<pkg_file.File> files,
+  required int size,
+}) =>
     '''
 --vacuum rewrites the entire database file.
 
-  Database   $path (${formatBytes(size)})
+  Databases  ${files.map((f) => '${f.path} (${formatBytes(_sizeOf(f))})').join('\n             ')}
   Disk       ~${formatBytes(size * 2)} free is needed -- SQLite builds a
              complete copy before swapping it in
   Time       proportional to the file size; a large database can take minutes
@@ -76,14 +85,24 @@ Future<int> clearLogs({bool Function(String question)? confirm}) async {
   }
 
   final vacuum = args.getOrNull<bool>('vacuum') == true;
-  final dbFile = fs.file(settings.zonaiSqlitePath);
-  final sizeBefore = dbFile.existsSync() ? dbFile.lengthSync() : 0;
+
+  // Both files, and in this order, deliberately. `_log` lives in its own
+  // database now, so that is where deletes free pages from here on -- but a
+  // database upgraded from before the split has just had a multi-million-row
+  // `_log` dropped out of `main`, and those pages are sitting on *main's*
+  // freelist. Vacuuming only the log file would reclaim nothing at all for
+  // exactly the deployment this command exists to rescue.
+  final dbFiles = [
+    fs.file(settings.zonaiSqlitePath),
+    fs.file(settings.zonaiLogSqlitePath),
+  ];
+  final sizeBefore = dbFiles.fold(0, (sum, f) => sum + _sizeOf(f));
 
   // Read through `getOrNull` with the abbreviation declared: `-f` is parsed
   // into `abbrs`, not `values`, so `args['f']` would silently never see it.
   if (vacuum && args.getOrNull<bool>('force', abbr: 'f') != true) {
     final answered = (confirm ?? _confirmViaStdin)(
-      _vacuumWarning(path: dbFile.path, size: sizeBefore),
+      _vacuumWarning(files: dbFiles, size: sizeBefore),
     );
 
     if (!answered) {
@@ -110,8 +129,9 @@ Future<int> clearLogs({bool Function(String question)? confirm}) async {
     }
 
     await zonaiDB.vacuum();
+    await zonaiDB.vacuum(schema: kLogDbSchema);
 
-    final sizeAfter = dbFile.existsSync() ? dbFile.lengthSync() : 0;
+    final sizeAfter = dbFiles.fold(0, (sum, f) => sum + _sizeOf(f));
     logger.info(
       'Reclaimed ${formatBytes(sizeBefore - sizeAfter)} '
       '(${formatBytes(sizeBefore)} -> ${formatBytes(sizeAfter)})',

@@ -252,13 +252,8 @@ DatabaseResult _fromWriteResult(rs.WriteResult wr) {
 /// worker isolates segfault on table scans under Dart 3.12 dynamic FFI until
 /// that native path is fixed upstream.
 final class ResqliteDelegate extends RaindropDelegate {
-  ResqliteDelegate._(
-    this._database,
-    this._reads,
-    this._rawReads,
-    this._streams,
-  )
-      : super(dialect: const SQLiteDialect());
+  ResqliteDelegate._(this._database, this._reads, this._rawReads, this._streams)
+    : super(dialect: const SQLiteDialect());
 
   final rs.Database _database;
   final SQLiteDelegate _reads;
@@ -271,7 +266,15 @@ final class ResqliteDelegate extends RaindropDelegate {
   var _closed = false;
 
   /// Opens a SQLite database file with resqlite (writer + sqlite3 reads).
-  static Future<ResqliteDelegate> open(String path) async {
+  ///
+  /// [attach] maps a schema name to the database file joined onto the
+  /// connection under it. An unqualified table name resolves into an attached
+  /// database when `main` has no table by that name, which is what lets a
+  /// table live in its own file without every caller learning where it went.
+  static Future<ResqliteDelegate> open(
+    String path, {
+    Map<String, String> attach = const {},
+  }) async {
     // `rawReads` below opens the *same file* through package:sqlite3, which
     // by default dlopens its own, separate copy of libsqlite3 (the system
     // one on Linux/macOS) rather than reusing resqlite's already-loaded,
@@ -339,6 +342,24 @@ final class ResqliteDelegate extends RaindropDelegate {
     await db.execute('PRAGMA foreign_keys = ON;');
     final rawReads = sqlite3.open(path);
     rawReads.execute('PRAGMA foreign_keys = ON;');
+
+    // Same trap as the pragma above, and the reason [attach] is a parameter
+    // of `open` rather than a statement a caller could run afterwards: an
+    // `ATTACH` is a write, so executing one through [execute] would land on
+    // `db` alone and every `SELECT` would be answered by a connection that
+    // has never heard of the schema. Rows would be written and then be
+    // unreadable -- worse than an outright failure, because nothing reports
+    // it. Pinned by `attached_log_db_contract_test.dart`, which asserts that
+    // asymmetry against the driver.
+    //
+    // The schema name is interpolated because SQLite does not accept a bound
+    // parameter there; it is framework-controlled, never author input. The
+    // file path is bound.
+    for (final MapEntry(key: schema, value: file) in attach.entries) {
+      await db.execute('ATTACH DATABASE ? AS "$schema"', [file]);
+      rawReads.execute('ATTACH DATABASE ? AS "$schema"', [file]);
+    }
+
     final reads = SQLiteDelegate(rawReads);
     final streams = HybridStreamEngine(reads.execute);
     await db.bindWriteInvalidation(streams.onDependencyChanges);
@@ -415,8 +436,7 @@ final class _ResqliteTransactionDelegate extends TransactionDelegate {
   @override
   Future<T> transaction<T>(
     Future<T> Function(TransactionDelegate delegate) transaction,
-  ) =>
-      _inner.transaction(transaction);
+  ) => _inner.transaction(transaction);
 
   @override
   Never rollback() => throw const TransactionRollback();

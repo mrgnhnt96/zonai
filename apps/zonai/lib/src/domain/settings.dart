@@ -256,6 +256,23 @@ class Settings {
   String get zonaiSqlitePath =>
       fs.path.normalize(fs.path.join(dataPath, 'zonai.sqlite'));
 
+  /// The `_log` table's own database file, attached onto both connections as
+  /// `logdb` (see `kLogDbSchema`).
+  ///
+  /// Logs are disposable in a way application data is not -- high churn,
+  /// bounded retention, nothing worth reconstructing -- and a separate file
+  /// is what makes that difference actionable: `unlink` becomes a recovery
+  /// option, `VACUUM` takes its exclusive lock on log data instead of on the
+  /// application's tables, and `PRAGMA max_page_count` becomes usable at all
+  /// (it bounds a *file*, so on a shared database the ceiling is hit by
+  /// whichever write arrives first, application inserts included).
+  ///
+  /// Motivating case, 2026-08-13: `_log` reached 4.6M rows and filled a 1GB
+  /// production volume, and every recovery path zonai ships needed a write
+  /// the full disk was denying.
+  String get zonaiLogSqlitePath =>
+      fs.path.normalize(fs.path.join(dataPath, 'zonai_log.sqlite'));
+
   set version(String value) {
     final file = fs.file(path);
     if (!file.existsSync()) {

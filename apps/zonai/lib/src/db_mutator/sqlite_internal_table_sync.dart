@@ -12,28 +12,54 @@ final class SqliteInternalTableSync {
 
   final SQLiteDialect dialect;
 
+  /// Creates [schema]'s table if it is missing.
+  ///
+  /// [sqliteSchema] names the attached database to create it in, for tables
+  /// that live in their own file (`_log`; see `kLogDbSchema`). It has to be
+  /// threaded through both statements rather than left to name resolution:
+  /// an unqualified `CREATE TABLE` always lands in `main`, and
+  /// `sqlite_master` is per-database, so an unqualified existence check would
+  /// look in the wrong file and then create the table in the wrong one.
   Future<void> ensureMatchingTable<S extends Schema<R>, R>(
     Raindrop db,
-    S schema,
-  ) async {
+    S schema, {
+    String? sqliteSchema,
+  }) async {
     final meta = schema.$;
     final expected = [
       for (final c in meta.columns) _columnInfoFromRaindropColumn(c),
     ].toList();
 
-    final exists = await _sqliteTableExists(db, meta.name);
+    final exists = await _sqliteTableExists(
+      db,
+      meta.name,
+      sqliteSchema: sqliteSchema,
+    );
     if (exists) {
       return;
     }
 
     await db.execute(
-      _sqliteCreateTableDdl(dialect, meta.name, expected, ifNotExists: true),
+      _sqliteCreateTableDdl(
+        dialect,
+        meta.name,
+        expected,
+        ifNotExists: true,
+        sqliteSchema: sqliteSchema,
+      ),
     );
   }
 
-  Future<bool> _sqliteTableExists(Raindrop db, String tableName) async {
+  Future<bool> _sqliteTableExists(
+    Raindrop db,
+    String tableName, {
+    String? sqliteSchema,
+  }) async {
+    final master = sqliteSchema == null
+        ? 'sqlite_master'
+        : '${dialect.escapeName(sqliteSchema)}.sqlite_master';
     final r = await db.execute(
-      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+      "SELECT 1 FROM $master WHERE type = 'table' AND name = ? LIMIT 1",
       [tableName],
     );
     return r.rows.isNotEmpty;
@@ -74,12 +100,16 @@ String _sqliteCreateTableDdl(
   String tableName,
   List<ColumnInfo> columns, {
   required bool ifNotExists,
+  String? sqliteSchema,
 }) {
   final defs = columns
       .map((c) => _sqliteColumnDefinition(dialect, c))
       .join(',\n  ');
   final op = ifNotExists ? 'CREATE TABLE IF NOT EXISTS' : 'CREATE TABLE';
-  return '$op ${dialect.escapeName(tableName)} (\n'
+  final qualified = sqliteSchema == null
+      ? dialect.escapeName(tableName)
+      : '${dialect.escapeName(sqliteSchema)}.${dialect.escapeName(tableName)}';
+  return '$op $qualified (\n'
       '  $defs\n'
       ');';
 }

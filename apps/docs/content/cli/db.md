@@ -108,6 +108,26 @@ See [Custom Templates](/email/custom-templates).
 
 ## db logs
 
+### Where logs are stored
+
+`_log` lives in its own database file, `zonai_log.sqlite`, alongside
+`zonai.sqlite` in the data directory. It is joined back onto the connection
+with SQLite's `ATTACH`, so nothing about querying it changes — the table API,
+the dashboard and `zonai db logs` all reach it by name as before.
+
+Keeping it separate is what makes a runaway log table recoverable. Logs are
+disposable in a way application data is not, and on a shared file every
+recovery path competes with application writes for the same space: `VACUUM`
+takes its exclusive lock on your tables too, and a page cap bounds the *file*,
+so it would start failing application inserts rather than log inserts.
+
+Databases created before this change are moved on the next server start.
+**Existing log records are dropped rather than copied** — the deployments that
+need the split most hold millions of rows on volumes with no room to copy
+anything. Their pages return to `zonai.sqlite`'s freelist, so run
+`zonai db logs clear --vacuum` afterwards to hand that space back to the
+operating system.
+
 ### clear
 
 Delete records from the `_log` table:
@@ -130,7 +150,10 @@ that removes millions of records can leave the file exactly as large as it
 was. `clear` says so when it happens.
 
 `--vacuum` rewrites the file from its live pages only and returns the
-difference to the operating system. It prompts first, because the rewrite:
+difference to the operating system. It rewrites **both** `zonai.sqlite` and
+`zonai_log.sqlite`: new log deletes free pages in the log file, but a database
+upgraded from before the split has its old `_log` pages on `zonai.sqlite`'s
+freelist. It prompts first, because the rewrite:
 
 - needs roughly **twice the current file size** free on disk, since SQLite
   builds a complete copy before swapping it in
@@ -146,7 +169,8 @@ written, but rows already on disk stay until they are cleared and vacuumed.
 
 ## db clear
 
-Delete the SQLite database file entirely:
+Delete the SQLite database files entirely — both `zonai.sqlite` and
+`zonai_log.sqlite`, along with their WAL sidecars:
 
 ```sh
 zonai db clear          # prompts for confirmation

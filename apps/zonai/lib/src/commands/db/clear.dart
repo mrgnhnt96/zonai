@@ -30,10 +30,16 @@ Future<int> clearDatabase({bool Function(String question)? confirm}) async {
   }
 
   final dbFile = fs.file(settings.zonaiSqlitePath);
+  // The log database is a second file (see `Settings.zonaiLogSqlitePath`).
+  // Leaving it behind would make `db clear` look like it cleared the
+  // database while every log record survived into the next open.
+  final logDbFile = fs.file(settings.zonaiLogSqlitePath);
   final targets = [
-    dbFile,
-    fs.file('${dbFile.path}-wal'),
-    fs.file('${dbFile.path}-shm'),
+    for (final file in [dbFile, logDbFile]) ...[
+      file,
+      fs.file('${file.path}-wal'),
+      fs.file('${file.path}-shm'),
+    ],
   ].where((f) => f.existsSync()).toList();
 
   if (targets.isEmpty) {

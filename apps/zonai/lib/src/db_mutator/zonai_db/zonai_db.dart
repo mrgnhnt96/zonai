@@ -94,6 +94,13 @@ typedef _CrudPaginatedResult = Paginated<_CrudResult>;
 
 const _prefix = '[ZONAI_DB]';
 
+/// The `_log` table's SQLite name.
+///
+/// Always used unqualified in statements: it lives in the attached
+/// [kLogDbSchema] database, and an unqualified name resolves there because
+/// `main` no longer has a table by that name (see `_ensureLogDatabase`).
+final _logTableName = logs.$.name;
+
 class ZonaiDb {
   ZonaiDb()
     : _extensions = MailmanPool(ExtensionsMailman.new),
@@ -165,6 +172,7 @@ class ZonaiDb {
   final Map<String, JwksIdpVerifier> _jwksVerifiers = {};
 
   File? __dbFile;
+  File? __logDbFile;
 
   /// Closes the underlying [ResqliteDelegate] and clears the open [db].
   Future<void> close() async {
@@ -179,6 +187,7 @@ class ZonaiDb {
   Future<void> dispose() async {
     await close();
     __dbFile = null;
+    __logDbFile = null;
     _extensions.dispose();
     _rules.dispose();
     _operations.dispose();
@@ -345,12 +354,15 @@ class ZonaiDb {
     return await _runWrite(() => _purge(table: table, where: where, jwt: jwt));
   }
 
-  /// Rewrites the database file so space freed by deletes is returned to the
+  /// Rewrites a database file so space freed by deletes is returned to the
   /// operating system. Serialized against other writes: the rewrite takes an
   /// exclusive lock for its duration, so letting it interleave would just
   /// push concurrent writers into SQLite's busy timeout.
-  Future<void> vacuum() async {
-    return await _runWrite(() => _vacuum());
+  ///
+  /// [schema] picks the file — `null` for the application database,
+  /// [kLogDbSchema] for the log database. See [_vacuum].
+  Future<void> vacuum({String? schema}) async {
+    return await _runWrite(() => _vacuum(schema: schema));
   }
 
   Future<File> getPhoto(String id, {required String? token}) {
