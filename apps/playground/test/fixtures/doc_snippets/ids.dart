@@ -24,6 +24,9 @@ sealed class Id implements z.Id {
 
     return switch (parts[1]) {
       ArticlesId._suffix => ArticlesId(json),
+      CommentsId._suffix => CommentsId(json),
+      EventsId._suffix => EventsId(json),
+      PurchasesId._suffix => PurchasesId(json),
       PostsId._suffix => PostsId(json),
       ProfilesId._suffix => ProfilesId(json),
       TasksId._suffix => TasksId(json),
@@ -53,6 +56,30 @@ class ArticlesId extends Id {
   factory ArticlesId.generate() => ArticlesId(z.Id.generate(_suffix));
 
   static const _suffix = 'ar';
+}
+
+class CommentsId extends Id {
+  const CommentsId(super.value);
+
+  factory CommentsId.generate() => CommentsId(z.Id.generate(_suffix));
+
+  static const _suffix = 'cm';
+}
+
+class EventsId extends Id {
+  const EventsId(super.value);
+
+  factory EventsId.generate() => EventsId(z.Id.generate(_suffix));
+
+  static const _suffix = 'ev';
+}
+
+class PurchasesId extends Id {
+  const PurchasesId(super.value);
+
+  factory PurchasesId.generate() => PurchasesId(z.Id.generate(_suffix));
+
+  static const _suffix = 'pu';
 }
 
 class PostsId extends Id {

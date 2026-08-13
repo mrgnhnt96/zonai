@@ -57,13 +57,19 @@ Note: `afterUpdateSuccess` receives **two** row parameters — the row **before*
 Mix in `AuthExtension` for auth table hooks:
 
 ```dart
-class UserExtensions extends Extension<User>
-    with AuthExtension<UserTable, User> {
+import 'package:my_app/src/schemas/users.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
+final class UserExtensions extends Extension<User>
+    with AuthExtension<User> {
   UserExtensions() : super(users);
 
   @override
-  Future<void> onSignUp(User user) async {
-    await email.send.verifyEmail(user);
+  Future<void> onSignUp(User user, Jwt? jwt) async {
+    email.send.verifyEmail(
+      EmailAddress(address: user.email),
+      table: 'users',
+    );
   }
 }
 ```

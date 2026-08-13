@@ -1523,7 +1523,7 @@
         {
           "h": "Auth Hooks",
           "a": "auth-hooks",
-          "b": "Mix in AuthExtension for auth table hooks: class UserExtensions extends Extension with AuthExtension<UserTable, User> { UserExtensions() : super(users); @override Future onSignUp(User user) async { await email.send.verifyEmail(user); } } Auth hooks: onSignUp(T user), onSignIn(T user), onRefresh(T user), onLogout(T user)."
+          "b": "Mix in AuthExtension for auth table hooks: import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class UserExtensions extends Extension with AuthExtension { UserExtensions() : super(users); @override Future onSignUp(User user, Jwt? jwt) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); } } Auth hooks: onSignUp(T user), onSignIn(T user), onRefresh(T user), onLogout(T user)."
         },
         {
           "h": "The 10-Mutation Chain Limit",
@@ -1551,7 +1551,7 @@
         {
           "h": "Hook Signatures",
           "a": "hook-signatures",
-          "b": "Future beforeCreate(T object, Jwt? jwt) Future afterCreateSuccess(T object, Jwt? jwt) Future afterCreateError(Object error, Jwt? jwt) The object in beforeCreate contains the data to be inserted (not yet in the database). The object in afterCreateSuccess is the committed row, including generated fields like id and createdAt."
+          "b": "Future beforeCreate(T object, Jwt? jwt); Future afterCreateSuccess(T object, Jwt? jwt); Future afterCreateError(Object error, Jwt? jwt); The object in beforeCreate contains the data to be inserted (not yet in the database). The object in afterCreateSuccess is the committed row, including generated fields like id and createdAt."
         },
         {
           "h": "beforeCreate",
@@ -1571,7 +1571,7 @@
         {
           "h": "Example",
           "a": "example",
-          "b": "class UserExtensions extends Extension with AuthExtension<UserTable, User> { UserExtensions() : super(users); @override Future onSignUp(User user) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); // Create a companion profile row mutate.create.one( tableName: 'profiles', object: {'user_id': user.id.value, 'displayName': user.email}, ); } } UserExtensions main() => UserExtensions();"
+          "b": "import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class UserExtensions extends Extension with AuthExtension { UserExtensions() : super(users); @override Future onSignUp(User user, Jwt? jwt) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); // Create a companion profile row mutate.create.one( tableName: 'profiles', object: {'user_id': user.id.value, 'displayName': user.email}, ); } } UserExtensions main() => UserExtensions();"
         }
       ]
     },
@@ -1584,7 +1584,7 @@
         {
           "h": "Hook Signatures",
           "a": "hook-signatures",
-          "b": "Future beforeUpdate(T object, Jwt? jwt) Future afterUpdateSuccess(T before, T after, Jwt? jwt) Future afterUpdateError(Object error, Jwt? jwt) beforeUpdate receives the row before the update is applied. afterUpdateSuccess receives two row parameters: the state before and the state after the update."
+          "b": "Future beforeUpdate(T object, Jwt? jwt); Future afterUpdateSuccess(T before, T after, Jwt? jwt); Future afterUpdateError(Object error, Jwt? jwt); beforeUpdate receives the row before the update is applied. afterUpdateSuccess receives two row parameters: the state before and the state after the update."
         },
         {
           "h": "beforeUpdate",
@@ -1594,7 +1594,7 @@
         {
           "h": "afterUpdateSuccess",
           "a": "afterupdatesuccess",
-          "b": "Runs after the UPDATE commits. Receives both the old and new row states: @override Future afterUpdateSuccess(User before, User after, Jwt? jwt) async { if (before.email != after.email) { // Email changed — require re-verification await mutate.update.one( table: 'users', updates: [Update.column('is_verified', UpdateValue.literal(false))], where: Eq('id', after.id.value), ); await email.send.verifyEmail(after); } } Use for: detecting field changes, notifying subscribers, resetting verification state."
+          "b": "Runs after the UPDATE commits. Receives both the old and new row states: @override Future afterUpdateSuccess(User before, User after, Jwt? jwt) async { if (before.email != after.email) { // Email changed — require re-verification mutate.update.one( table: 'users', updates: [Update.column('is_verified', UpdateValue.literal(false))], where: Eq('id', after.id.value), ); email.send.verifyEmail( EmailAddress(address: after.email), table: 'users', ); } } Use for: detecting field changes, notifying subscribers, resetting verification state."
         },
         {
           "h": "afterUpdateError",
@@ -1604,7 +1604,7 @@
         {
           "h": "Detecting Field Changes",
           "a": "detecting-field-changes",
-          "b": "Compare before. and after. in afterUpdateSuccess: if (before.status != after.status && after.status == 'published') { // Post was just published — send notifications }"
+          "b": "Compare before. and after. in afterUpdateSuccess: if (before.title != after.title) { // Title changed — reindex the post and notify subscribers }"
         }
       ]
     },
@@ -1617,7 +1617,7 @@
         {
           "h": "Hook Signatures",
           "a": "hook-signatures",
-          "b": "Future beforeDelete(T object, Jwt? jwt) Future afterDeleteSuccess(T object, Jwt? jwt) Future afterDeleteError(Object error, Jwt? jwt) object in all delete hooks is the row being (or that was) deleted."
+          "b": "Future beforeDelete(T object, Jwt? jwt); Future afterDeleteSuccess(T object, Jwt? jwt); Future afterDeleteError(Object error, Jwt? jwt); object in all delete hooks is the row being (or that was) deleted."
         },
         {
           "h": "beforeDelete",
@@ -1627,7 +1627,7 @@
         {
           "h": "afterDeleteSuccess",
           "a": "afterdeletesuccess",
-          "b": "Runs after the DELETE commits. The row is gone — this hook cannot undo the deletion. @override Future afterDeleteSuccess(Post post, Jwt? jwt) async { // Cascade: delete all comments on this post mutate.delete.many( tableName: 'comments', updates: [], where: Eq('post_id', post.id.value), ); } Each cascaded deletion goes through the full pipeline — row rules and extensions on comments also fire. Use for: cascading deletes, releasing associated resources (photos, uploads), notifying external systems."
+          "b": "Runs after the DELETE commits. The row is gone — this hook cannot undo the deletion. @override Future afterDeleteSuccess(Post post, Jwt? jwt) async { // Cascade: delete all comments on this post mutate.delete.many( tableName: 'comments', where: Eq('post_id', post.id.value), ); } Each cascaded deletion goes through the full pipeline — row rules and extensions on comments also fire. Use for: cascading deletes, releasing associated resources (photos, uploads), notifying external systems."
         },
         {
           "h": "afterDeleteError",
@@ -1637,7 +1637,7 @@
         {
           "h": "Example: Cascade Delete",
           "a": "example-cascade-delete",
-          "b": "class PostExtensions extends Extension { PostExtensions() : super(posts); @override Future afterDeleteSuccess(Post post, Jwt? jwt) async { // Delete comments first, which triggers CommentExtensions hooks await mutate.delete.many( table: 'comments', where: Eq('post_id', post.id.value), ); // Also delete the post's cover photo if one exists if (post.coverPhotoId != null) { mutate.delete.one( tableName: '_photos', updates: [], where: Eq('id', post.coverPhotoId), ); } } } PostExtensions main() => PostExtensions();"
+          "b": "import 'package:my_app/src/schemas/posts.dart'; import 'package:zonai_schema/zonai_schema.dart'; class PostExtensions extends Extension { PostExtensions() : super(posts); @override Future afterDeleteSuccess(Post post, Jwt? jwt) async { // Delete comments first, which triggers CommentExtensions hooks mutate.delete.many( tableName: 'comments', where: Eq('post_id', post.id.value), ); // Also delete the post's cover photo if one exists final photoId = post.photo; if (photoId != null) { mutate.delete.one( tableName: '_photos', where: Eq('id', photoId), ); } } } PostExtensions main() => PostExtensions();"
         }
       ]
     },
@@ -1735,7 +1735,7 @@
         {
           "h": "mutate.update",
           "a": "mutateupdate",
-          "b": "Update one or more rows: // Update one row (limit: 1 applied automatically) mutate.update.one( table: 'users', updates: [Update.column('last_signed_in_at', .literal(DateTime.now()))], where: Eq('id', user.id.value), ); // Update many rows mutate.update.many( tableName: 'posts', updates: [Update.column('author_name', .literal(user.displayName))], where: Eq('author_id', user.id.value), ); Note: update.one uses the named parameter table: while all other mutate methods use tableName:."
+          "b": "Update one or more rows: // Update one row (limit: 1 applied automatically) mutate.update.one( table: 'users', updates: [Update.column('last_signed_in_at', .literal(DateTime.now()))], where: Eq('id', user.id.value), ); // Update many rows mutate.update.many( tableName: 'posts', updates: [Update.column('author_name', .literal(user.name))], where: Eq('author_id', user.id.value), ); Note: update.one uses the named parameter table: while all other mutate methods use tableName:."
         },
         {
           "h": "mutate.delete",
@@ -1755,7 +1755,7 @@
         {
           "h": "Example: Audit Log",
           "a": "example-audit-log",
-          "b": "class PostExtensions extends Extension { PostExtensions() : super(posts); @override Future afterDeleteSuccess(Post post, Jwt? jwt) async { mutate.create.one( tableName: 'audit_log', object: { 'action': 'post_deleted', 'post_id': post.id.value, 'deleted_by': jwt?.userId, }, ); } } PostExtensions main() => PostExtensions();"
+          "b": "import 'package:my_app/src/schemas/posts.dart'; import 'package:zonai_schema/zonai_schema.dart'; class PostExtensions extends Extension { PostExtensions() : super(posts); @override Future afterDeleteSuccess(Post post, Jwt? jwt) async { mutate.create.one( tableName: 'audit_log', object: { 'action': 'post_deleted', 'post_id': post.id.value, 'deleted_by': jwt?.userId, }, ); } } PostExtensions main() => PostExtensions();"
         }
       ]
     },
@@ -1776,12 +1776,12 @@
         {
           "h": "Sending Custom Emails",
           "a": "sending-custom-emails",
-          "b": "Use email.send(Email(...)) to send a custom template: email.send(Email( to: EmailAddress(address: user.email), subject: 'Your order is confirmed', template: 'order_confirmation', variables: { 'orderId': order.id, 'total': order.total, 'items': order.lineItems, }, )); The template field is the filename (without .html) from emailTemplatesPath. See Custom Templates."
+          "b": "Use email.send(Email(...)) to send a custom template: email.send(Email( to: EmailAddress(address: user.email), subject: 'Your order is confirmed', template: 'order_confirmation', variables: { 'orderId': purchase.id, 'total': purchase.total, 'status': purchase.status, }, )); The template field is the filename (without .html) from emailTemplatesPath. See Custom Templates."
         },
         {
           "h": "Threading",
           "a": "threading",
-          "b": "Pass thread on multiple related emails (e.g. OTP resends) to group them in the user's inbox: email.send(Email( to: ..., subject: 'New sign-in code', template: 'otp_code', variables: {'otp': newCode}, thread: Email.createThread('otp:users:${user.email}', continueThread: true), ));"
+          "b": "Pass thread on multiple related emails (e.g. OTP resends) to group them in the user's inbox: email.send(Email( to: EmailAddress(address: user.email), subject: 'New sign-in code', template: 'otp_code', variables: {'otp': newCode}, thread: Email.createThread('otp:users:${user.email}', continueThread: true), ));"
         },
         {
           "h": "When Email Sends",
@@ -1791,7 +1791,7 @@
         {
           "h": "Example",
           "a": "example",
-          "b": "class UserExtensions extends Extension with AuthExtension<UserTable, User> { UserExtensions() : super(users); @override Future onSignUp(User user) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); } @override Future onSignIn(User user) async { email.send.loginNotice( EmailAddress(address: user.email), table: 'users', ); } } UserExtensions main() => UserExtensions();"
+          "b": "import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class UserExtensions extends Extension with AuthExtension { UserExtensions() : super(users); @override Future onSignUp(User user, Jwt? jwt) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); } @override Future onSignIn(User user, Jwt? jwt) async { email.send.loginNotice( EmailAddress(address: user.email), table: 'users', ); } } UserExtensions main() => UserExtensions();"
         }
       ]
     },
@@ -2075,7 +2075,7 @@
         {
           "h": "Sending a Custom Template",
           "a": "sending-a-custom-template",
-          "b": "Use email.send(Email(...)) from any extension hook or cron job: @override Future afterCreateSuccess(Order order, Jwt? jwt) async { final customer = await get.one( tableName: 'users', where: Eq('id', order.userId.value), ); if (customer == null) return; email.send(Email( to: EmailAddress(address: customer['email'] as String), subject: 'Order ${order.id} confirmed', template: 'order_confirmation', variables: { 'customerName': customer['name'], 'orderId': order.id.value, 'total': order.total, }, )); } The template field is the filename without .html."
+          "b": "Use email.send(Email(...)) from any extension hook or cron job: @override Future afterCreateSuccess(Purchase purchase, Jwt? jwt) async { final customer = await get.one( tableName: 'users', where: Eq('id', purchase.userId.value), ); if (customer == null) return; email.send(Email( to: EmailAddress(address: customer['email'] as String), subject: 'Order ${purchase.id} confirmed', template: 'order_confirmation', variables: { 'customerName': customer['name'], 'orderId': purchase.id.value, 'total': purchase.total, }, )); } The template field is the filename without .html."
         },
         {
           "h": "Live Reloading",

@@ -32,7 +32,7 @@ UserExtensions main() => UserExtensions();
 
 Fires after the sign-up INSERT commits and the new account row is fully created.
 
-```dart
+```dart in:extension-user
 @override
 Future<void> onSignUp(User user, Jwt? jwt) async {
   email.send.verifyEmail(
@@ -52,7 +52,7 @@ Future<void> onSignUp(User user, Jwt? jwt) async {
 
 Fires after credentials are validated and the JWT is about to be issued. Throwing here prevents the token from being returned to the client.
 
-```dart
+```dart in:extension-user
 @override
 Future<void> onSignIn(User user, Jwt? jwt) async {
   mutate.update.one(
@@ -69,7 +69,7 @@ Use for: recording last-login timestamp, sending login-notification emails, trig
 
 Fires when the client exchanges an existing token for a new one via `POST /auth/refresh`.
 
-```dart
+```dart in:extension-user
 @override
 Future<void> onRefresh(User user, Jwt? jwt) async {
   // Update last active timestamp
@@ -80,7 +80,7 @@ Future<void> onRefresh(User user, Jwt? jwt) async {
 
 Fires when the current session token is explicitly revoked via `DELETE /auth`. Also fires for each revoked session when `DELETE /auth/all` is called.
 
-```dart
+```dart in:extension-user
 @override
 Future<void> onLogout(User user, Jwt? jwt) async {
   // Revoke any push notification subscriptions for this user

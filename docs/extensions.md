@@ -96,6 +96,9 @@ gave `Extension` — and adds `onSignUp`, `onSignIn`, `onRefresh`, `onLogout`,
 `onPasswordReset` and `onExternalAuthFirstSeen`:
 
 ```dart
+import 'package:my_app/src/schemas/users.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
 class UserExtensions extends Extension<User> with AuthExtension<User> {
   UserExtensions() : super(users);
 }
@@ -172,14 +175,14 @@ The same globals are available inside [cron](cron.md) `run()` methods (using `Cr
 
 Example — after create, read the row back and patch a column:
 
-```dart
+```dart in:extension-item
 @override
 Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
-  final item = await get.one(collection: 'items', where: Eq('id', object.id));
+  final item = await get.one(tableName: 'items', where: Eq('id', object.id));
   if (item == null) return;
 
   mutate.update.one(
-    collection: 'items',
+    table: 'items',
     updates: [Update.column('body', .literal('Updated by extension'))],
     where: Eq('id', object.id),
   );

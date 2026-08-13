@@ -38,22 +38,22 @@ Use `email.send(Email(...))` from any extension hook or cron job:
 
 ```dart
 @override
-Future<void> afterCreateSuccess(Order order, Jwt? jwt) async {
+Future<void> afterCreateSuccess(Purchase purchase, Jwt? jwt) async {
   final customer = await get.one(
     tableName: 'users',
-    where: Eq('id', order.userId.value),
+    where: Eq('id', purchase.userId.value),
   );
 
   if (customer == null) return;
 
   email.send(Email(
     to: EmailAddress(address: customer['email'] as String),
-    subject: 'Order #${order.id} confirmed',
+    subject: 'Order #${purchase.id} confirmed',
     template: 'order_confirmation',
     variables: {
       'customerName': customer['name'],
-      'orderId': order.id.value,
-      'total': order.total,
+      'orderId': purchase.id.value,
+      'total': purchase.total,
     },
   ));
 }

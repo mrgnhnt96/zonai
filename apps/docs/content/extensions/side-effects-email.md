@@ -9,7 +9,7 @@ description: Sending transactional email from extensions and cron jobs.
 
 Each method sends one of the built-in templates. The first argument is an `EmailAddress`; `table` identifies which auth table the user belongs to:
 
-```dart
+```dart in:side-effects
 email.send.verifyEmail(
   EmailAddress(address: user.email),
   table: 'users',
@@ -47,15 +47,15 @@ All helpers accept an optional `variables` map to pass extra data to the templat
 
 Use `email.send(Email(...))` to send a custom template:
 
-```dart
+```dart in:side-effects
 email.send(Email(
   to: EmailAddress(address: user.email),
   subject: 'Your order is confirmed',
   template: 'order_confirmation',
   variables: {
-    'orderId': order.id,
-    'total': order.total,
-    'items': order.lineItems,
+    'orderId': purchase.id,
+    'total': purchase.total,
+    'status': purchase.status,
   },
 ));
 ```
@@ -66,9 +66,9 @@ The `template` field is the filename (without `.html`) from `emailTemplatesPath`
 
 Pass `thread` on multiple related emails (e.g. OTP resends) to group them in the user's inbox:
 
-```dart
+```dart in:side-effects
 email.send(Email(
-  to: ...,
+  to: EmailAddress(address: user.email),
   subject: 'New sign-in code',
   template: 'otp_code',
   variables: {'otp': newCode},
@@ -83,12 +83,15 @@ email.send(Email(
 ## Example
 
 ```dart
-class UserExtensions extends Extension<User>
-    with AuthExtension<UserTable, User> {
+import 'package:my_app/src/schemas/users.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
+final class UserExtensions extends Extension<User>
+    with AuthExtension<User> {
   UserExtensions() : super(users);
 
   @override
-  Future<void> onSignUp(User user) async {
+  Future<void> onSignUp(User user, Jwt? jwt) async {
     email.send.verifyEmail(
       EmailAddress(address: user.email),
       table: 'users',
@@ -96,7 +99,7 @@ class UserExtensions extends Extension<User>
   }
 
   @override
-  Future<void> onSignIn(User user) async {
+  Future<void> onSignIn(User user, Jwt? jwt) async {
     email.send.loginNotice(
       EmailAddress(address: user.email),
       table: 'users',

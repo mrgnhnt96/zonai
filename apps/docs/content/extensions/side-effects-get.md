@@ -9,7 +9,7 @@ description: Reading rows from any table inside an extension or cron job.
 
 Fetches a single row matching a condition. Returns `null` if no row matches:
 
-```dart
+```dart in:extension-comment
 @override
 Future<void> afterCreateSuccess(Comment comment, Jwt? jwt) async {
   final post = await get.one(
@@ -27,7 +27,7 @@ Future<void> afterCreateSuccess(Comment comment, Jwt? jwt) async {
 
 Fetches multiple rows. Returns an empty list if none match:
 
-```dart
+```dart in:extension-user
 @override
 Future<void> beforeDelete(User user, Jwt? jwt) async {
   final orders = await get.many(
@@ -48,7 +48,7 @@ Optional `limit` and `offset` parameters support pagination.
 
 `get.one` returns `Future<Map<String, Object?>?>` and `get.many` returns `Future<List<Map<String, Object?>>?>`. The results are untyped maps — access fields with `['fieldName']` notation, not dot-property access:
 
-```dart
+```dart in:side-effects
 final row = await get.one(tableName: 'users', where: Eq('id', userId));
 final email = row?['email'] as String?;
 ```

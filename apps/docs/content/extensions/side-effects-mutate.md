@@ -9,7 +9,7 @@ description: Queuing additional database writes inside an extension or cron job.
 
 Insert one or more rows into a table:
 
-```dart
+```dart in:side-effects
 // Insert one row
 mutate.create.one(
   tableName: 'audit_log',
@@ -32,7 +32,7 @@ mutate.create.many(
 
 Update one or more rows:
 
-```dart
+```dart in:side-effects
 // Update one row (limit: 1 applied automatically)
 mutate.update.one(
   table: 'users',
@@ -43,7 +43,7 @@ mutate.update.one(
 // Update many rows
 mutate.update.many(
   tableName: 'posts',
-  updates: [Update.column('author_name', .literal(user.displayName))],
+  updates: [Update.column('author_name', .literal(user.name))],
   where: Eq('author_id', user.id.value),
 );
 ```
@@ -54,7 +54,7 @@ Note: `update.one` uses the named parameter `table:` while all other mutate meth
 
 Delete one or more rows:
 
-```dart
+```dart in:side-effects
 // Delete one row
 mutate.delete.one(
   tableName: 'sessions',
@@ -82,6 +82,9 @@ A single request chain can trigger at most **10 side-effect mutations**. This pr
 ## Example: Audit Log
 
 ```dart
+import 'package:my_app/src/schemas/posts.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
 class PostExtensions extends Extension<Post> {
   PostExtensions() : super(posts);
 
