@@ -1,0 +1,7 @@
+# The doc-snippet scaffolds are written the way a reader's own project is --
+# they import `package:my_app/...`, which by definition does not resolve here.
+# `doc_snippets_test` rewrites those imports and analyzes every scaffold with an
+# empty body, so they are checked; they just cannot be checked in place.
+analyzer:
+  exclude:
+    - test/fixtures/doc_scaffolds/**

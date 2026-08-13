@@ -8,17 +8,29 @@
 // project. `docs_views_test.dart` pins the one string that drifted then; this
 // pins the *shape* of the bug by handing the snippets to the analyzer (#26).
 //
-// Only self-contained snippets (imports plus a top-level declaration) are
-// checked. The remaining ~200 fences are fragments -- a bare `@override`
-// member, a few statements -- which need a scaffold that says which class or
-// function body they belong in. Nothing here checks those, and nothing here
-// checks a snippet's *behavior*: it compiles or it doesn't.
+// Two kinds of fence are checked. A self-contained one (imports plus a
+// top-level declaration) is analyzed as written. A *fragment* -- a bare
+// `@override` member, a few loose statements -- names the surrounding code it
+// belongs in on its fence:
 //
-// There is no baseline: every self-contained snippet compiles, and the #26
-// backlog that once needed one is paid off. A snippet that is deliberately not
-// compilable opts out by tagging its fence -- ```dart no-analyze -- which is
-// visible in the diff of the doc that owns it, rather than as a hash in a list
-// somewhere else. Adding one should be rare and should say why in the prose.
+//     ```dart in:extension-user
+//     @override
+//     Future<void> onSignUp(User user, Jwt? jwt) async { ... }
+//     ```
+//
+// `in:<name>` resolves to test/fixtures/doc_scaffolds/<name>.dart, a real Dart
+// file with a `// <<body>>` marker where the fragment is spliced. The scaffolds
+// are analyzed empty as well, so one that rots against the API fails as itself
+// rather than as a pile of unexplained snippet errors.
+//
+// There is no baseline. A fence that is deliberately not compilable opts out
+// with ```dart no-analyze, which is visible in the diff of the doc that owns it
+// rather than as a hash in a list somewhere else, and should say why in the
+// prose beside it.
+//
+// What this still does not do: it does not know whether an example is
+// *correct*, only that it compiles. The ownership check comparing an `Id` to a
+// `String`, and the photo API documented under the wrong route, both compiled.
 import 'dart:convert';
 import 'dart:io';
 
@@ -30,20 +42,41 @@ void main() {
   final playground = p.join(root, 'apps', 'playground');
 
   test(
-    'every self-contained doc snippet analyzes',
+    'every checkable doc snippet analyzes',
     () async {
-      final snippets = _collect(root).where((s) => s.isSelfContained).toList();
+      // A fence naming a scaffold that does not exist is left to the test
+      // below, which says so in one line rather than as a crash here.
+      final scaffolds = _scaffoldNames(playground);
+      final snippets = _collect(root)
+          .where((s) => s.isCheckable)
+          .where((s) => s.scaffold == null || scaffolds.contains(s.scaffold))
+          .toList();
 
       expect(
         snippets,
         isNotEmpty,
         reason:
-            'Found no self-contained snippets at all -- the extractor stopped '
+            'Found no checkable snippets at all -- the extractor stopped '
             'matching the docs rather than the docs losing their examples.',
       );
 
       final analysis = await _analyze(snippets, playground);
       final failures = analysis.failures;
+
+      // Checked before the snippets, for the same reason as the fixtures: a
+      // scaffold that no longer compiles takes down every fragment spliced
+      // into it, and those failures would read as drift in a dozen docs at
+      // once rather than as one stale scaffold.
+      expect(
+        analysis.scaffoldErrors,
+        isEmpty,
+        reason:
+            'test/fixtures/doc_scaffolds no longer analyzes:\n'
+            '  ${analysis.scaffoldErrors.join('\n  ')}\n'
+            'Fix the scaffold against the real API. Nothing below this line '
+            'can be trusted while the surrounding code a fragment is spliced '
+            'into is itself broken.',
+      );
 
       // Checked before the snippets themselves: a broken fixture makes every
       // snippet importing it fail for a reason that has nothing to do with the
@@ -72,16 +105,61 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 5)),
   );
+
+  test('every in: tag names a scaffold that exists', () {
+    final scaffolds = _scaffoldNames(playground);
+    final unknown = <String>[];
+
+    for (final s in _collect(root)) {
+      if (s.scaffold case final name? when !scaffolds.contains(name)) {
+        unknown.add('$s -> in:$name');
+      }
+    }
+
+    expect(
+      unknown,
+      isEmpty,
+      reason:
+          'These fences name a scaffold that does not exist:\n'
+          '  ${unknown.join('\n  ')}\n'
+          'Available: ${(scaffolds.toList()..sort()).join(', ')}\n'
+          'Add the scaffold under test/fixtures/doc_scaffolds/ (a real Dart '
+          'file with a `// <<body>>` marker) or point the fence at one that '
+          'is already there. A typo here would otherwise skip the fragment '
+          'silently, which is the failure mode this whole test exists to '
+          'remove.',
+    );
+  });
+
+  // Still to come: the gate that no fence escapes unchecked. It belongs with
+  // the sweep that tags the ~200 fragments, not ahead of it -- a guard whose
+  // only output is the work it is waiting on teaches everyone to ignore it.
 }
 
 /// A ```dart fence lifted out of a markdown file (or out of the markdown
 /// embedded in `ai_templates.dart`'s string literals).
 class _Snippet {
-  _Snippet({required this.source, required this.line, required this.code});
+  _Snippet({
+    required this.source,
+    required this.line,
+    required this.code,
+    required this.info,
+  });
 
   final String source;
   final int line;
   final String code;
+
+  /// The fence's info string after the language -- `in:row-rules`,
+  /// `no-analyze`, or empty for a bare ```dart fence.
+  final String info;
+
+  /// The scaffold this fragment is spliced into, or null if it stands alone.
+  String? get scaffold =>
+      info.startsWith('in:') ? info.substring(3).trim() : null;
+
+  /// Opted out at the fence, with the reason in the prose beside it.
+  bool get skipped => info == 'no-analyze';
 
   bool get _hasImports =>
       code.contains(RegExp(r'^\s*import ', multiLine: true));
@@ -92,9 +170,11 @@ class _Snippet {
     multiLine: true,
   ).hasMatch(code);
 
-  /// Enough of a file to stand on its own. Anything else is a fragment whose
-  /// missing context we'd have to invent, which would test the invention.
+  /// Enough of a file to stand on its own.
   bool get isSelfContained => _hasImports && _hasTopLevelDecl;
+
+  /// Analyzable: either it stands alone, or its fence says what it belongs in.
+  bool get isCheckable => scaffold != null || (info.isEmpty && isSelfContained);
 
   @override
   String toString() => '$source:$line';
@@ -105,7 +185,13 @@ class _Snippet {
 /// They're written under the playground's `lib/` because the examples use the
 /// relative imports of a real zonai project (`../schemas/items.dart`,
 /// `../ids.dart`) -- imports that only resolve from inside one.
-Future<({Map<_Snippet, List<String>> failures, List<String> fixtureErrors})>
+Future<
+  ({
+    Map<_Snippet, List<String>> failures,
+    List<String> fixtureErrors,
+    List<String> scaffoldErrors,
+  })
+>
 _analyze(List<_Snippet> snippets, String playground) async {
   final dir = Directory(p.join(playground, 'lib', 'src', '__doc_snippets__'));
   if (dir.existsSync()) dir.deleteSync(recursive: true);
@@ -122,12 +208,35 @@ _analyze(List<_Snippet> snippets, String playground) async {
     }
 
     final byFile = <String, _Snippet>{};
+    // How many scaffold lines sit above the fragment in each generated file,
+    // so a reported line can be given back in the doc's own terms.
+    final offsets = <String, int>{};
+    // Each scaffold spliced with an empty body, analyzed alongside the
+    // snippets so scaffold rot is reported once, as itself.
+    final scaffoldFiles = <String, String>{};
+
     for (var i = 0; i < snippets.length; i++) {
+      final snippet = snippets[i];
       final name = 'snippet_$i.dart';
-      File(
-        p.join(dir.path, name),
-      ).writeAsStringSync(_resolve(snippets[i].code));
-      byFile[name] = snippets[i];
+
+      if (snippet.scaffold case final scaffold?) {
+        final template = _scaffold(playground, scaffold);
+        final (:code, :offset) = _splice(template, snippet.code);
+        File(p.join(dir.path, name)).writeAsStringSync(_resolve(code));
+        offsets[name] = offset;
+
+        final probe = 'scaffold_$scaffold.dart';
+        scaffoldFiles.putIfAbsent(probe, () {
+          File(
+            p.join(dir.path, probe),
+          ).writeAsStringSync(_resolve(_splice(template, '').code));
+          return scaffold;
+        });
+      } else {
+        File(p.join(dir.path, name)).writeAsStringSync(_resolve(snippet.code));
+      }
+
+      byFile[name] = snippet;
     }
 
     final result = await Process.run('dart', [
@@ -144,21 +253,36 @@ _analyze(List<_Snippet> snippets, String playground) async {
     // of resulting failures reads as doc drift rather than as one bad
     // stand-in.
     final fixtureErrors = <String>[];
+    final scaffoldErrors = <String>[];
     for (final line in const LineSplitter().convert(result.stdout as String)) {
       final parts = line.split('|');
       if (parts.length < 8) continue;
       if (parts[0] != 'ERROR') continue; // warnings/lints are not drift
-      final snippet = byFile[p.basename(parts[3])];
+      final file = p.basename(parts[3]);
+
+      if (scaffoldFiles[file] case final scaffold?) {
+        scaffoldErrors.add('$scaffold.dart: ${parts[2]}: ${parts[7]}');
+        continue;
+      }
+
+      final snippet = byFile[file];
       if (snippet == null) {
         final where = p.relative(parts[3], from: dir.path);
         fixtureErrors.add('$where:${parts[4]} ${parts[2]}: ${parts[7]}');
         continue;
       }
+
+      final reported = int.tryParse(parts[4]) ?? 0;
+      final within = reported - (offsets[file] ?? 0);
       failures
           .putIfAbsent(snippet, () => [])
-          .add('${parts[2]} (snippet line ${parts[4]}): ${parts[7]}');
+          .add('${parts[2]} (snippet line $within): ${parts[7]}');
     }
-    return (failures: failures, fixtureErrors: fixtureErrors);
+    return (
+      failures: failures,
+      fixtureErrors: fixtureErrors,
+      scaffoldErrors: scaffoldErrors,
+    );
   } finally {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   }
@@ -181,6 +305,44 @@ String _resolve(String code) => code
         final other => 'fixtures/$other.dart',
       },
     );
+
+/// The marker a scaffold puts where the fragment goes.
+const _bodyMarker = '// <<body>>';
+
+Directory _scaffoldDir(String playground) =>
+    Directory(p.join(playground, 'test', 'fixtures', 'doc_scaffolds'));
+
+Set<String> _scaffoldNames(String playground) {
+  final dir = _scaffoldDir(playground);
+  if (!dir.existsSync()) return const {};
+  return {
+    for (final f in dir.listSync().whereType<File>())
+      if (f.path.endsWith('.dart')) p.basenameWithoutExtension(f.path),
+  };
+}
+
+String _scaffold(String playground, String name) => File(
+  p.join(_scaffoldDir(playground).path, '$name.dart'),
+).readAsStringSync();
+
+/// Puts [body] where the scaffold's marker is, reporting how many lines ended
+/// up above it so an analyzer line can be translated back to the fence.
+({String code, int offset}) _splice(String template, String body) {
+  final lines = const LineSplitter().convert(template);
+  final at = lines.indexWhere((l) => l.trim() == _bodyMarker);
+
+  if (at < 0) {
+    throw StateError(
+      'Scaffold has no `$_bodyMarker` marker, so there is nowhere to put the '
+      'fragment.',
+    );
+  }
+
+  return (
+    code: [...lines.take(at), body, ...lines.skip(at + 1)].join('\n'),
+    offset: at,
+  );
+}
 
 Iterable<_Snippet> _collect(String root) sync* {
   for (final f in Directory(
@@ -221,15 +383,36 @@ List<_Snippet> _fences(String root, File file) {
   final out = <_Snippet>[];
 
   for (var i = 0; i < lines.length; i++) {
-    // Only bare ```dart -- an info string (```dart title="x") marks a fence
-    // the author has already annotated for some other purpose.
-    if (lines[i].trim() != '```dart') continue;
+    final fence = lines[i].trim();
+
+    // A ````-fenced block quotes a fence literally -- it is how a doc shows
+    // what a ```dart fence looks like. Reading the example inside one as a
+    // real snippet made this test try to analyze its own documentation.
+    if (RegExp(r'^`{4,}').hasMatch(fence)) {
+      final close = RegExp('^${fence.substring(0, 4)}`*\$');
+      var j = i + 1;
+      while (j < lines.length && !close.hasMatch(lines[j].trim())) {
+        j++;
+      }
+      i = j;
+      continue;
+    }
+
+    if (fence != '```dart' && !fence.startsWith('```dart ')) continue;
+
     final body = <String>[];
     var j = i + 1;
     for (; j < lines.length && lines[j].trim() != '```'; j++) {
       body.add(lines[j]);
     }
-    out.add(_Snippet(source: source, line: i + 1, code: body.join('\n')));
+    out.add(
+      _Snippet(
+        source: source,
+        line: i + 1,
+        code: body.join('\n'),
+        info: fence.substring('```dart'.length).trim(),
+      ),
+    );
     i = j;
   }
   return out;
