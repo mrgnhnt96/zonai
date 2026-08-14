@@ -18,7 +18,10 @@ Future<int> _run(Args args, {FakeZonaiDb? db}) {
       argsProvider.overrideWith(() => args),
       loggerProvider.overrideWith(() => Logger.print(level: .error)),
       settingsProvider.overrideWith(() => fakeSettings),
-      zonaiDbProvider.overrideWith(() => () => fakeDb),
+      zonaiDbProvider.overrideWith(
+        () =>
+            () => fakeDb,
+      ),
     },
   );
 }
@@ -35,29 +38,35 @@ void main() {
       expect(exitCode, 1);
     });
 
-    test('calls ZonaiDb.removeAdmin with the given email and succeeds', () async {
-      final db = newFakeZonaiDb();
-      final exitCode = await _run(
-        Args(args: {'email': 'a@example.com'}),
-        db: db,
-      );
-
-      expect(exitCode, 0);
-      expect(db.removeAdminCall, 'a@example.com');
-    });
-
-    test('fails when the underlying removal throws (e.g. no such admin)', () async {
-      final db = newFakeZonaiDb()
-        ..removeAdminError = StateError(
-          'No admin account with email "a@example.com" exists',
+    test(
+      'calls ZonaiDb.removeAdmin with the given email and succeeds',
+      () async {
+        final db = newFakeZonaiDb();
+        final exitCode = await _run(
+          Args(args: {'email': 'a@example.com'}),
+          db: db,
         );
 
-      final exitCode = await _run(
-        Args(args: {'email': 'a@example.com'}),
-        db: db,
-      );
+        expect(exitCode, 0);
+        expect(db.removeAdminCall, 'a@example.com');
+      },
+    );
 
-      expect(exitCode, 1);
-    });
+    test(
+      'fails when the underlying removal throws (e.g. no such admin)',
+      () async {
+        final db = newFakeZonaiDb()
+          ..removeAdminError = StateError(
+            'No admin account with email "a@example.com" exists',
+          );
+
+        final exitCode = await _run(
+          Args(args: {'email': 'a@example.com'}),
+          db: db,
+        );
+
+        expect(exitCode, 1);
+      },
+    );
   });
 }

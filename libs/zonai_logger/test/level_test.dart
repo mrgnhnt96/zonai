@@ -70,7 +70,11 @@ void main() {
       ];
 
       for (var i = 0; i < ordered.length - 1; i++) {
-        expect(ordered[i] < ordered[i + 1], isTrue, reason: '${ordered[i]} should be < ${ordered[i + 1]}');
+        expect(
+          ordered[i] < ordered[i + 1],
+          isTrue,
+          reason: '${ordered[i]} should be < ${ordered[i + 1]}',
+        );
       }
     });
   });

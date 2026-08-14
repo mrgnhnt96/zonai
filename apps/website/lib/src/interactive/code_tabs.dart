@@ -42,15 +42,19 @@ class CodeTabsState extends State<CodeTabs> {
     final index = _active.clamp(0, component.labels.length - 1);
 
     return div(classes: 'tabs', [
-      div(classes: 'tabs-rail', attributes: const {'role': 'tablist'}, [
-        for (final (i, label) in component.labels.indexed)
-          button(
-            classes: i == index ? 'tab tab-on' : 'tab',
-            onClick: () => setState(() => _active = i),
-            attributes: {'role': 'tab', 'aria-selected': '${i == index}'},
-            [.text(label)],
-          ),
-      ]),
+      div(
+        classes: 'tabs-rail',
+        attributes: const {'role': 'tablist'},
+        [
+          for (final (i, label) in component.labels.indexed)
+            button(
+              classes: i == index ? 'tab tab-on' : 'tab',
+              onClick: () => setState(() => _active = i),
+              attributes: {'role': 'tab', 'aria-selected': '${i == index}'},
+              [.text(label)],
+            ),
+        ],
+      ),
 
       div(classes: 'pane tabs-body', [
         div(classes: 'window-bar', [

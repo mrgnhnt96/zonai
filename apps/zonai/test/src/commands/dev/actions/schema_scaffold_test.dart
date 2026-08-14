@@ -5,7 +5,10 @@ import 'package:zonai/src/utils/schema_names.dart';
 void main() {
   group('appendUnionIdCase', () {
     test('inserts a switch case with consistent indentation', () {
-      final names = SchemaNames.fromEntityClass('Product', usedIdSuffixes: {'it'});
+      final names = SchemaNames.fromEntityClass(
+        'Product',
+        usedIdSuffixes: {'it'},
+      );
       const content = '''
     return switch (parts[1]) {
       ItemsId._suffix => ItemsId(json),
@@ -28,19 +31,25 @@ void main() {
   });
 
   group('scaffoldStandaloneIdClass', () {
-    test('compares against the generic z.Id interface, not the concrete class', () {
-      final names = SchemaNames.fromEntityClass('Recording', usedIdSuffixes: {});
+    test(
+      'compares against the generic z.Id interface, not the concrete class',
+      () {
+        final names = SchemaNames.fromEntityClass(
+          'Recording',
+          usedIdSuffixes: {},
+        );
 
-      final source = scaffoldStandaloneIdClass(names);
+        final source = scaffoldStandaloneIdClass(names);
 
-      // A concrete-type check here would make equality direction-dependent
-      // against other z.Id implementations (e.g. z.UnknownId from a JWT):
-      // `unknownId == recordingsId` would pass while
-      // `recordingsId == unknownId` failed, breaking ownership comparisons
-      // written as `row.ownerId == jwt.userId`.
-      expect(source, contains('other is z.Id && other.value == value'));
-      expect(source, isNot(contains('other is ${names.idClass} &&')));
-    });
+        // A concrete-type check here would make equality direction-dependent
+        // against other z.Id implementations (e.g. z.UnknownId from a JWT):
+        // `unknownId == recordingsId` would pass while
+        // `recordingsId == unknownId` failed, breaking ownership comparisons
+        // written as `row.ownerId == jwt.userId`.
+        expect(source, contains('other is z.Id && other.value == value'));
+        expect(source, isNot(contains('other is ${names.idClass} &&')));
+      },
+    );
   });
 
   group('scaffoldSchemaSource auth tables', () {

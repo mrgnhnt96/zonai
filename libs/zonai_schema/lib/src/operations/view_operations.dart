@@ -15,8 +15,7 @@ part of 'table_operations.dart';
 /// (`id`, `author_name`, ...), not `posts__id`/`authors__name`, or
 /// `Table.safeCreate`/`fromRow` can't reconstruct a row for rules to see.
 extension ViewColumnAlias on rd.Column<dynamic, dynamic> {
-  rd.Expression<dynamic> aliasedAs(String alias) =>
-      _AliasedColumn(this, alias);
+  rd.Expression<dynamic> aliasedAs(String alias) => _AliasedColumn(this, alias);
 }
 
 final class _AliasedColumn extends rd.Expression<dynamic> {
@@ -26,10 +25,8 @@ final class _AliasedColumn extends rd.Expression<dynamic> {
   final String _alias;
 
   @override
-  rd.SQL build() => rd.SQL([
-    _column,
-    rd.RawSQL('AS "${_alias.replaceAll('"', '""')}"'),
-  ]);
+  rd.SQL build() =>
+      rd.SQL([_column, rd.RawSQL('AS "${_alias.replaceAll('"', '""')}"')]);
 }
 
 /// The only thing a developer implements for a view — the query's shape.
@@ -132,17 +129,25 @@ final class ViewOperations<R> extends TableOperations<rd.Schema<R>, R> {
     PerformOperationRequest request,
   ) {
     final query = switch (request) {
-      ListOperationRequest(:final where, :final limit, :final offset, :final orderBy) =>
+      ListOperationRequest(
+        :final where,
+        :final limit,
+        :final offset,
+        :final orderBy,
+      ) =>
         compileList(
           where: where,
           limit: limit,
           offset: offset,
           orderBy: orderBy,
         ).compiled(),
-      ReadOperationRequest(:final where) =>
-        compileList(where: where, limit: 1).compiled(),
-      CountOperationRequest(:final where) =>
-        compileCount(where: where).compiled(),
+      ReadOperationRequest(:final where) => compileList(
+        where: where,
+        limit: 1,
+      ).compiled(),
+      CountOperationRequest(:final where) => compileCount(
+        where: where,
+      ).compiled(),
       _ => throw UnsupportedError(
         '"${this.table.name}" is a view; write operations are not supported.',
       ),
@@ -198,6 +203,5 @@ final class _UnqualifiedColumn extends rd.Expression<dynamic> {
   final String _name;
 
   @override
-  rd.SQL build() =>
-      rd.SQL([rd.RawSQL('"${_name.replaceAll('"', '""')}"')]);
+  rd.SQL build() => rd.SQL([rd.RawSQL('"${_name.replaceAll('"', '""')}"')]);
 }

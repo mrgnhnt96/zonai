@@ -87,11 +87,14 @@ void main() {
       },
     );
 
-    test('safeCreate uses empty string when required secret key is missing', () {
-      final row = rows.safeCreate({'id': 'id-1'});
+    test(
+      'safeCreate uses empty string when required secret key is missing',
+      () {
+        final row = rows.safeCreate({'id': 'id-1'});
 
-      expect(row.note, '');
-    });
+        expect(row.note, '');
+      },
+    );
   });
 
   group('server-generated columns', () {
@@ -103,16 +106,13 @@ void main() {
       rows = schema.$ as TableMeta<_GeneratedRowTable, _GeneratedRow>;
     });
 
-    test(
-      'safeCreate fills an absent required serverGenerated column so rules '
-      'can still build the row before an operations override supplies the '
-      'real value',
-      () {
-        final row = rows.safeCreate({'id': 'id-1'});
+    test('safeCreate fills an absent required serverGenerated column so rules '
+        'can still build the row before an operations override supplies the '
+        'real value', () {
+      final row = rows.safeCreate({'id': 'id-1'});
 
-        expect(row.apiKey, '');
-      },
-    );
+      expect(row.apiKey, '');
+    });
 
     test('safeCreate preserves a value if one is actually present', () {
       final row = rows.safeCreate({'id': 'id-1', 'api_key': 'oc_real_key'});
@@ -120,15 +120,12 @@ void main() {
       expect(row.apiKey, 'oc_real_key');
     });
 
-    test(
-      'unlike a secret column, a serverGenerated column is not a '
-      'SecretTransformer — sanitization (which type-checks specifically '
-      'for SecretTransformer, see apps/zonai db_operations._sanitize) '
-      'leaves it in place',
-      () {
-        final column = rows.columns.firstWhere((c) => c.name == 'api_key');
-        expect(column.transformer, isNot(isA<SecretTransformer>()));
-      },
-    );
+    test('unlike a secret column, a serverGenerated column is not a '
+        'SecretTransformer — sanitization (which type-checks specifically '
+        'for SecretTransformer, see apps/zonai db_operations._sanitize) '
+        'leaves it in place', () {
+      final column = rows.columns.firstWhere((c) => c.name == 'api_key');
+      expect(column.transformer, isNot(isA<SecretTransformer>()));
+    });
   });
 }

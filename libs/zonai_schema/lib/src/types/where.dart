@@ -37,7 +37,10 @@ sealed class Where {
       final entry = json.entries.single;
       final op = entry.value;
       if (op is Map) {
-        return _fromShorthand(entry.key.toString(), Map<Object?, Object?>.from(op));
+        return _fromShorthand(
+          entry.key.toString(),
+          Map<Object?, Object?>.from(op),
+        );
       }
     }
 
@@ -78,11 +81,7 @@ sealed class Where {
       'ends_with' => EndsWith(column, value as Object),
       'is_null' || 'null' => Null(column),
       'not_null' => NotNull(column),
-      _ => throw ArgumentError.value(
-        operator,
-        'type',
-        'Invalid where type',
-      ),
+      _ => throw ArgumentError.value(operator, 'type', 'Invalid where type'),
     };
   }
 

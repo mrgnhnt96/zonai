@@ -46,10 +46,7 @@ void main() {
 
     test('rejects stale JSON magic', () {
       final buffer = IpcFrameBuffer();
-      expect(
-        () => buffer.push(utf8Bytes('{"path":"request/ping"}\n')),
-        throwsFormatException,
-      );
+      expect(() => buffer.push(utf8Bytes('{"path":"request/ping"}\n')), throwsFormatException);
     });
 
     test('clear drops partial frames', () {

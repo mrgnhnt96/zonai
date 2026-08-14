@@ -1576,7 +1576,8 @@ class _DetailField extends StatelessComponent {
         div(classes: 'table-row-detail-label-row', [
           div(classes: 'table-row-detail-label-group', [
             span(classes: 'table-row-detail-label', [.text(label)]),
-            if (!readOnlyHint && !isPasswordColumn(shape)) _CopyFieldValueButton(label: label, text: _copyText(imageBaseUrl)),
+            if (!readOnlyHint && !isPasswordColumn(shape))
+              _CopyFieldValueButton(label: label, text: _copyText(imageBaseUrl)),
           ]),
         ]),
         _DetailFieldValue(rawValue: rawValue, shape: shape),

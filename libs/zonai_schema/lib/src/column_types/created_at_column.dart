@@ -1,10 +1,7 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 extension CreatedAtColumnDefinition<S> on SchemaBuilder<S> {
-  ColumnType<W> createdAt<W extends DateTime?>(
-    String name,
-    Field<S, W> field,
-  ) {
+  ColumnType<W> createdAt<W extends DateTime?>(String name, Field<S, W> field) {
     return custom<DateTime, int, W>(
       name,
       field,

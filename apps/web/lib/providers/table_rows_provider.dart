@@ -172,9 +172,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     }
 
     try {
-      final created = await ref.read(revaliServerProvider).db.create(
-        body: CreateBody(table: sqliteName, object: apiWireObject(object)),
-      );
+      final created = await ref
+          .read(revaliServerProvider)
+          .db
+          .create(
+            body: CreateBody(table: sqliteName, object: apiWireObject(object)),
+          );
       _invalidateTableAndForeignKeyLookups();
       return created;
     } catch (e) {
@@ -200,9 +203,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
     }
 
     try {
-      final updated = await ref.read(revaliServerProvider).db.update(
-        body: UpdateOneBody(table: sqliteName, where: where, updates: [ObjectUpdate(apiWireObject(changedFields))]),
-      );
+      final updated = await ref
+          .read(revaliServerProvider)
+          .db
+          .update(
+            body: UpdateOneBody(table: sqliteName, where: where, updates: [ObjectUpdate(apiWireObject(changedFields))]),
+          );
       _patchLocalRowIfPresent(
         originalRow: row,
         record: updated,
@@ -346,9 +352,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       ];
       if (values.isEmpty) return;
 
-      await ref.read(revaliServerProvider).db.deleteMany(
-        body: DeleteBody(table: data.sqliteName, where: In(pkName, values)),
-      );
+      await ref
+          .read(revaliServerProvider)
+          .db
+          .deleteMany(
+            body: DeleteBody(table: data.sqliteName, where: In(pkName, values)),
+          );
       return;
     }
 
@@ -359,9 +368,12 @@ class TableRowsNotifier extends AsyncNotifier<TableRowsData?> {
       if (where == null) {
         throw StateError('Cannot delete row: incomplete primary key.');
       }
-      await ref.read(revaliServerProvider).db.delete(
-        body: DeleteOneBody(table: data.sqliteName, where: where),
-      );
+      await ref
+          .read(revaliServerProvider)
+          .db
+          .delete(
+            body: DeleteOneBody(table: data.sqliteName, where: where),
+          );
     }
   }
 }
@@ -379,11 +391,7 @@ Future<TableRowsData> _loadTableRows({
     body: ListBody(table: sqliteName, where: where, limit: limit, offset: offset),
   );
 
-  final items = augmentPhotosRowItems(
-    sqliteName: sqliteName,
-    items: _parseListItems(data),
-    imageBaseUrl: imageBaseUrl,
-  );
+  final items = augmentPhotosRowItems(sqliteName: sqliteName, items: _parseListItems(data), imageBaseUrl: imageBaseUrl);
   final total = switch (data['total']) {
     final int t => t,
     final num t => t.toInt(),

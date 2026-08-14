@@ -58,8 +58,9 @@ Object mapDatabaseError(
   }
 
   if (message.contains('Unknown column on table')) {
-    final columnName = _parseQuoted(message, prefix: 'Unknown column on table "')
-        ?? _parseQuoted(message, prefix: 'column: ');
+    final columnName =
+        _parseQuoted(message, prefix: 'Unknown column on table "') ??
+        _parseQuoted(message, prefix: 'column: ');
     if (columnName != null) {
       return ColumnNotFoundException(table: table, columnName: columnName);
     }
@@ -77,10 +78,7 @@ Object mapWorkerError(
   required String? table,
 }) {
   final cause = error.cause ?? error.message;
-  return mapDatabaseError(
-    cause,
-    table: table ?? 'unknown',
-  );
+  return mapDatabaseError(cause, table: table ?? 'unknown');
 }
 
 SchemaException? tryParseSchemaException(String message) {
@@ -128,8 +126,8 @@ String? operationRequestTable(OperationRequest request) {
     GetMagicLinkConfigOperationRequest(:final table) => table,
     GetResetPasswordConfigOperationRequest(:final table) => table,
     GetVerifyEmailConfigOperationRequest(:final table) => table,
-    GetAllTableSchemaShapesRequest() || GetAdminTablesOperationRequest() =>
-      null,
+    GetAllTableSchemaShapesRequest() ||
+    GetAdminTablesOperationRequest() => null,
   };
 }
 

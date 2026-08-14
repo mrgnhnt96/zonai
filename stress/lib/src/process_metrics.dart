@@ -127,8 +127,7 @@ class LeakSummary {
       startRssKb: samples.first.rssKb,
       endRssKb: samples.last.rssKb,
       peakRssKb: samples.map((s) => s.rssKb).reduce((a, b) => a > b ? a : b),
-      durationMinutes:
-          samples.last.elapsed.inSeconds / 60.0,
+      durationMinutes: samples.last.elapsed.inSeconds / 60.0,
     );
   }
 

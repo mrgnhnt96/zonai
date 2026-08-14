@@ -38,7 +38,10 @@ Future<int> _run(Args args, {FakeZonaiDb? db, IOSink? stdout}) {
         () => Logger(level: .info, stdout: stdout, stderr: stdout),
       ),
       settingsProvider.overrideWith(() => fakeSettings),
-      zonaiDbProvider.overrideWith(() => () => fakeDb),
+      zonaiDbProvider.overrideWith(
+        () =>
+            () => fakeDb,
+      ),
     },
   );
 }
@@ -86,8 +89,7 @@ void main() {
     });
 
     test('fails when the underlying list throws', () async {
-      final db = newFakeZonaiDb()
-        ..listAdminsError = StateError('boom');
+      final db = newFakeZonaiDb()..listAdminsError = StateError('boom');
 
       final exitCode = await _run(Args(args: {}), db: db);
 

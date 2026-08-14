@@ -29,84 +29,82 @@ void main() {
     }
   });
 
-  Future<(ResqliteDelegate, Raindrop, Directory)> openPair(String prefix) async {
+  Future<(ResqliteDelegate, Raindrop, Directory)> openPair(
+    String prefix,
+  ) async {
     final dir = await Directory.systemTemp.createTemp(prefix);
     final delegate = await ResqliteDelegate.open('${dir.path}/main.sqlite');
     return (delegate, Raindrop(delegate), dir);
   }
 
-  test(
-    'a single ATTACH reaches only the write connection -- reads route to a '
-    'second connection that has never heard of the database',
-    () async {
-      if (!rs.isInstalled) {
-        markTestSkipped('resqlite native library not found');
-        return;
-      }
+  test('a single ATTACH reaches only the write connection -- reads route to a '
+      'second connection that has never heard of the database', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
 
-      final (delegate, db, dir) = await openPair('attach_resolve_');
-      try {
-        await db.execute('ATTACH DATABASE ? AS logdb', [
-          '${dir.path}/log.sqlite',
-        ]);
-        await db.execute(
-          'CREATE TABLE "logdb"."_log" ("id" INTEGER PRIMARY KEY, "m" TEXT)',
-        );
+    final (delegate, db, dir) = await openPair('attach_resolve_');
+    try {
+      await db.execute('ATTACH DATABASE ? AS logdb', [
+        '${dir.path}/log.sqlite',
+      ]);
+      await db.execute(
+        'CREATE TABLE "logdb"."_log" ("id" INTEGER PRIMARY KEY, "m" TEXT)',
+      );
 
-        // The write half works: an unqualified name does resolve into the
-        // attached database when main has no such table, which is the
-        // property that would make the split transparent.
-        await db.execute('INSERT INTO "_log" ("m") VALUES (?)', ['written']);
+      // The write half works: an unqualified name does resolve into the
+      // attached database when main has no such table, which is the
+      // property that would make the split transparent.
+      await db.execute('INSERT INTO "_log" ("m") VALUES (?)', ['written']);
 
-        // The read half does not. `ResqliteDelegate` opens the same file
-        // twice -- `rs.Database` for writes and a `package:sqlite3` handle
-        // for reads -- and routes by statement verb. An `ATTACH` is a write,
-        // so it lands on one connection and the SELECT is answered by the
-        // other, which has no `logdb` and therefore no `_log`.
-        //
-        // The delegate already carries this scar for `PRAGMA foreign_keys`,
-        // whose comment records that setting it on one connection "looked
-        // like it worked in isolation but did nothing for a real request".
-        // Same trap, different statement: the attach has to be part of
-        // opening *each* connection, not a statement executed once.
-        await expectLater(
-          db.execute('SELECT "m" FROM "_log"'),
-          throwsA(
-            predicate(
-              (e) => '$e'.contains('no such table'),
-              'fails with "no such table"',
-            ),
+      // The read half does not. `ResqliteDelegate` opens the same file
+      // twice -- `rs.Database` for writes and a `package:sqlite3` handle
+      // for reads -- and routes by statement verb. An `ATTACH` is a write,
+      // so it lands on one connection and the SELECT is answered by the
+      // other, which has no `logdb` and therefore no `_log`.
+      //
+      // The delegate already carries this scar for `PRAGMA foreign_keys`,
+      // whose comment records that setting it on one connection "looked
+      // like it worked in isolation but did nothing for a real request".
+      // Same trap, different statement: the attach has to be part of
+      // opening *each* connection, not a statement executed once.
+      await expectLater(
+        db.execute('SELECT "m" FROM "_log"'),
+        throwsA(
+          predicate(
+            (e) => '$e'.contains('no such table'),
+            'fails with "no such table"',
           ),
-          reason:
-              'if this ever starts passing, the driver has stopped splitting '
-              'reads and writes across connections -- which would change '
-              'where the attach belongs',
-        );
+        ),
+        reason:
+            'if this ever starts passing, the driver has stopped splitting '
+            'reads and writes across connections -- which would change '
+            'where the attach belongs',
+      );
 
-        // The row really did land in the other file, via the writer. Checked
-        // through a handle of its own: every read through the delegate goes
-        // to the connection that cannot see `logdb`, including this one, so
-        // there is no way to confirm it from inside.
-        final direct = sqlite3.open('${dir.path}/log.sqlite');
-        try {
-          expect(
-            direct.select('SELECT COUNT(*) AS c FROM "_log"').single['c'],
-            1,
-            reason:
-                'the write half of the split works -- which is what makes '
-                'this asymmetry dangerous rather than merely broken: log '
-                'rows would be written and then be unreadable',
-          );
-        } finally {
-          direct.dispose();
-        }
+      // The row really did land in the other file, via the writer. Checked
+      // through a handle of its own: every read through the delegate goes
+      // to the connection that cannot see `logdb`, including this one, so
+      // there is no way to confirm it from inside.
+      final direct = sqlite3.open('${dir.path}/log.sqlite');
+      try {
+        expect(
+          direct.select('SELECT COUNT(*) AS c FROM "_log"').single['c'],
+          1,
+          reason:
+              'the write half of the split works -- which is what makes '
+              'this asymmetry dangerous rather than merely broken: log '
+              'rows would be written and then be unreadable',
+        );
       } finally {
-        await delegate.close();
-        if (await dir.exists()) await dir.delete(recursive: true);
+        direct.dispose();
       }
-    },
-    timeout: const Timeout(Duration(minutes: 2)),
-  );
+    } finally {
+      await delegate.close();
+      if (await dir.exists()) await dir.delete(recursive: true);
+    }
+  }, timeout: const Timeout(Duration(minutes: 2)));
 
   test(
     'a page cap on the attached database stops log writes without touching '
@@ -175,45 +173,41 @@ void main() {
     timeout: const Timeout(Duration(minutes: 2)),
   );
 
-  test(
-    'VACUUM can target the attached database alone, so reclaiming log space '
-    'does not take an exclusive lock on application data',
-    () async {
-      if (!rs.isInstalled) {
-        markTestSkipped('resqlite native library not found');
-        return;
+  test('VACUUM can target the attached database alone, so reclaiming log space '
+      'does not take an exclusive lock on application data', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
+
+    final (delegate, db, dir) = await openPair('attach_vacuum_');
+    final logFile = File('${dir.path}/log.sqlite');
+    try {
+      await db.execute('ATTACH DATABASE ? AS logdb', [logFile.path]);
+      await db.execute(
+        'CREATE TABLE "logdb"."_log" ("id" INTEGER PRIMARY KEY, "m" TEXT)',
+      );
+
+      final padding = 'x' * 4000;
+      for (var i = 0; i < 500; i++) {
+        await db.execute('INSERT INTO "_log" ("m") VALUES (?)', [padding]);
       }
+      await db.execute('PRAGMA logdb.wal_checkpoint(TRUNCATE)');
+      final before = logFile.lengthSync();
+      expect(before, greaterThan(1024 * 1024));
 
-      final (delegate, db, dir) = await openPair('attach_vacuum_');
-      final logFile = File('${dir.path}/log.sqlite');
-      try {
-        await db.execute('ATTACH DATABASE ? AS logdb', [logFile.path]);
-        await db.execute(
-          'CREATE TABLE "logdb"."_log" ("id" INTEGER PRIMARY KEY, "m" TEXT)',
-        );
+      await db.execute('DELETE FROM "_log"');
+      await db.execute('VACUUM logdb');
+      await db.execute('PRAGMA logdb.wal_checkpoint(TRUNCATE)');
 
-        final padding = 'x' * 4000;
-        for (var i = 0; i < 500; i++) {
-          await db.execute('INSERT INTO "_log" ("m") VALUES (?)', [padding]);
-        }
-        await db.execute('PRAGMA logdb.wal_checkpoint(TRUNCATE)');
-        final before = logFile.lengthSync();
-        expect(before, greaterThan(1024 * 1024));
-
-        await db.execute('DELETE FROM "_log"');
-        await db.execute('VACUUM logdb');
-        await db.execute('PRAGMA logdb.wal_checkpoint(TRUNCATE)');
-
-        expect(
-          logFile.lengthSync(),
-          lessThan(before ~/ 2),
-          reason: 'a schema-qualified VACUUM must actually rewrite that file',
-        );
-      } finally {
-        await delegate.close();
-        if (await dir.exists()) await dir.delete(recursive: true);
-      }
-    },
-    timeout: const Timeout(Duration(minutes: 2)),
-  );
+      expect(
+        logFile.lengthSync(),
+        lessThan(before ~/ 2),
+        reason: 'a schema-qualified VACUUM must actually rewrite that file',
+      );
+    } finally {
+      await delegate.close();
+      if (await dir.exists()) await dir.delete(recursive: true);
+    }
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }

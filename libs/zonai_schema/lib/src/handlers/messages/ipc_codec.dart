@@ -30,9 +30,7 @@ abstract final class IpcCodec {
   static Uint8List encode(Map<String, dynamic> map) {
     final payload = msgpack.serialize(_jsonReady(map));
     if (payload.lengthInBytes > maxPayloadBytes) {
-      throw ArgumentError(
-        'IPC payload too large: ${payload.lengthInBytes} > $maxPayloadBytes',
-      );
+      throw ArgumentError('IPC payload too large: ${payload.lengthInBytes} > $maxPayloadBytes');
     }
 
     final frame = Uint8List(headerSize + payload.lengthInBytes);
@@ -91,11 +89,7 @@ final class IpcFrameBuffer {
         );
       }
 
-      final payloadLen = ByteData.sublistView(
-        _buf,
-        offset + 3,
-        offset + 7,
-      ).getUint32(0);
+      final payloadLen = ByteData.sublistView(_buf, offset + 3, offset + 7).getUint32(0);
       if (payloadLen > IpcCodec.maxPayloadBytes) {
         throw FormatException(
           'IPC payload length $payloadLen exceeds max ${IpcCodec.maxPayloadBytes}',
@@ -107,11 +101,7 @@ final class IpcFrameBuffer {
       final frameEnd = offset + IpcCodec.headerSize + payloadLen;
       if (_length < frameEnd) break;
 
-      final payload = Uint8List.sublistView(
-        _buf,
-        offset + IpcCodec.headerSize,
-        frameEnd,
-      );
+      final payload = Uint8List.sublistView(_buf, offset + IpcCodec.headerSize, frameEnd);
       out.add(IpcCodec.decodePayload(payload));
       offset = frameEnd;
     }
@@ -156,10 +146,7 @@ Map<String, dynamic> _asStringKeyedMap(Object? value) {
     return value.map((key, nested) => MapEntry(key, _deepConvert(nested)));
   }
   if (value is Map) {
-    return {
-      for (final entry in value.entries)
-        entry.key.toString(): _deepConvert(entry.value),
-    };
+    return {for (final entry in value.entries) entry.key.toString(): _deepConvert(entry.value)};
   }
   throw FormatException('IPC payload must be a map, got ${value.runtimeType}');
 }
@@ -185,8 +172,7 @@ Object? _jsonReady(Object? value) {
   }
   if (value is Map) {
     return <String, Object?>{
-      for (final entry in value.entries)
-        entry.key.toString(): _jsonReady(entry.value),
+      for (final entry in value.entries) entry.key.toString(): _jsonReady(entry.value),
     };
   }
   if (value is Iterable) {

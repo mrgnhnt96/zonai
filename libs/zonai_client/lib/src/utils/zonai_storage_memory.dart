@@ -30,7 +30,8 @@ final class ZonaiMemoryStorage implements Storage {
   Future<void> save(String key, Object? value) async => _data[key] = value;
 
   @override
-  Future<void> saveAll(Map<String, Object?> values) async => _data.addAll(values);
+  Future<void> saveAll(Map<String, Object?> values) async =>
+      _data.addAll(values);
 }
 
 final class ZonaiNoStorage implements Storage {

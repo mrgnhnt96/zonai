@@ -66,7 +66,8 @@ Directory _repoRoot() {
   exit(1);
 }
 
-String _render(String version) => '''
+String _render(String version) =>
+    '''
 // GENERATED FILE — DO NOT EDIT.
 //
 // Produced by `dart run tool/sync_version.dart` from the repository VERSION

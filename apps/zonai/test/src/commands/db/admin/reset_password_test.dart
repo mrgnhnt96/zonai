@@ -18,7 +18,10 @@ Future<int> _run(Args args, {FakeZonaiDb? db}) {
       argsProvider.overrideWith(() => args),
       loggerProvider.overrideWith(() => Logger.print(level: .error)),
       settingsProvider.overrideWith(() => fakeSettings),
-      zonaiDbProvider.overrideWith(() => () => fakeDb),
+      zonaiDbProvider.overrideWith(
+        () =>
+            () => fakeDb,
+      ),
     },
   );
 }
@@ -58,24 +61,27 @@ void main() {
       );
 
       expect(exitCode, 0);
-      expect(
-        db.resetAdminPasswordCall,
-        (email: 'a@example.com', newPassword: 'new-pass'),
-      );
+      expect(db.resetAdminPasswordCall, (
+        email: 'a@example.com',
+        newPassword: 'new-pass',
+      ));
     });
 
-    test('fails when the underlying reset throws (e.g. no such admin)', () async {
-      final db = newFakeZonaiDb()
-        ..resetAdminPasswordError = StateError(
-          'No admin account with email "a@example.com" exists',
+    test(
+      'fails when the underlying reset throws (e.g. no such admin)',
+      () async {
+        final db = newFakeZonaiDb()
+          ..resetAdminPasswordError = StateError(
+            'No admin account with email "a@example.com" exists',
+          );
+
+        final exitCode = await _run(
+          Args(args: {'email': 'a@example.com', 'password': 'new-pass'}),
+          db: db,
         );
 
-      final exitCode = await _run(
-        Args(args: {'email': 'a@example.com', 'password': 'new-pass'}),
-        db: db,
-      );
-
-      expect(exitCode, 1);
-    });
+        expect(exitCode, 1);
+      },
+    );
   });
 }

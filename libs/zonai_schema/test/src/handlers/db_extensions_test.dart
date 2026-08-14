@@ -11,7 +11,10 @@ void main() {
       extensions: [_UsersExtension(users), _ItemsExtension(items)],
     );
 
-    expect(dbExtensions.extensionsByTable.keys, containsAll(['users', 'items']));
+    expect(
+      dbExtensions.extensionsByTable.keys,
+      containsAll(['users', 'items']),
+    );
     expect(dbExtensions.extensionsByTable['users'], isA<_UsersExtension>());
     expect(dbExtensions.extensionsByTable['items'], isA<_ItemsExtension>());
   });

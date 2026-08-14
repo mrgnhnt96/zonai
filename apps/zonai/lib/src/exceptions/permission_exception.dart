@@ -12,8 +12,7 @@ final class TableAccessDeniedException extends PermissionException {
   });
 
   @override
-  String toString() =>
-      'Access denied: action "$operation" on table "$table"';
+  String toString() => 'Access denied: action "$operation" on table "$table"';
 }
 
 final class RowAccessDeniedException extends PermissionException {

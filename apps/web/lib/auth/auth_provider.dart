@@ -64,7 +64,9 @@ class AuthNotifier extends Notifier<bool> {
   }
 
   Future<void> verifyOtp({required String email, required String code}) async {
-    await _client.auth.confirm(body: AdminVerifyOtpAuthBody(email: email, code: code));
+    await _client.auth.confirm(
+      body: AdminVerifyOtpAuthBody(email: email, code: code),
+    );
     await signIn();
   }
 
@@ -101,7 +103,9 @@ class AuthNotifier extends Notifier<bool> {
   }
 
   Future<void> signInWithPassword({required String email, required String password}) async {
-    await _client.auth.admin.signIn(body: AdminSignInAuthBody(email: email, password: password));
+    await _client.auth.admin.signIn(
+      body: AdminSignInAuthBody(email: email, password: password),
+    );
     await signIn();
   }
 

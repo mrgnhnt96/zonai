@@ -57,8 +57,16 @@ const List<NavGroup> navigation = [
     summary: 'Install the CLI and get a server answering requests.',
     items: [
       NavItem('Installation', '/getting-started/installation', summary: 'Prerequisites and installing the zonai CLI.'),
-      NavItem('Quick Start', '/getting-started/quick-start', summary: 'Auth table, tasks table, migrate, serve — end to end.'),
-      NavItem('Project Structure', '/getting-started/project-structure', summary: 'Directory layout, naming conventions, what to commit.'),
+      NavItem(
+        'Quick Start',
+        '/getting-started/quick-start',
+        summary: 'Auth table, tasks table, migrate, serve — end to end.',
+      ),
+      NavItem(
+        'Project Structure',
+        '/getting-started/project-structure',
+        summary: 'Directory layout, naming conventions, what to commit.',
+      ),
     ],
   ),
   NavGroup(
@@ -66,9 +74,21 @@ const List<NavGroup> navigation = [
     icon: NavIcons.compass,
     summary: 'The model behind the framework — read this before going deep.',
     items: [
-      NavItem('How a Request is Processed', '/core-concepts/request-pipeline', summary: 'The ordered pipeline, and what runs in-process vs. in a worker.'),
-      NavItem('Workers', '/core-concepts/workers', summary: 'What workers are, when they run, and the pool/transport knobs.'),
-      NavItem('Config Flavors', '/core-concepts/config-flavors', summary: 'Selecting dev, staging and prod configuration.'),
+      NavItem(
+        'How a Request is Processed',
+        '/core-concepts/request-pipeline',
+        summary: 'The ordered pipeline, and what runs in-process vs. in a worker.',
+      ),
+      NavItem(
+        'Workers',
+        '/core-concepts/workers',
+        summary: 'What workers are, when they run, and the pool/transport knobs.',
+      ),
+      NavItem(
+        'Config Flavors',
+        '/core-concepts/config-flavors',
+        summary: 'Selecting dev, staging and prod configuration.',
+      ),
     ],
   ),
   NavGroup(
@@ -77,8 +97,16 @@ const List<NavGroup> navigation = [
     summary: 'Project settings, runtime config and secrets.',
     items: [
       NavItem('zonai.yaml Reference', '/configuration/zonai-yaml', summary: 'Every key in the project config file.'),
-      NavItem('App Config', '/configuration/app-config', summary: 'AppConfig — base URL, JWT secret, SMTP, photos, workers.'),
-      NavItem('Environment Variables', '/configuration/environment-variables', summary: 'Compile-time .env secrets and ZONAI_* runtime tuning.'),
+      NavItem(
+        'App Config',
+        '/configuration/app-config',
+        summary: 'AppConfig — base URL, JWT secret, SMTP, photos, workers.',
+      ),
+      NavItem(
+        'Environment Variables',
+        '/configuration/environment-variables',
+        summary: 'Compile-time .env secrets and ZONAI_* runtime tuning.',
+      ),
     ],
   ),
   NavGroup(
@@ -86,12 +114,28 @@ const List<NavGroup> navigation = [
     icon: NavIcons.table,
     summary: 'Define tables in Dart, then turn schema changes into SQL.',
     items: [
-      NavItem('Defining Tables', '/schemas/defining-tables', summary: 'Table and entity classes, column helpers, typed IDs.'),
-      NavItem('Auth Tables', '/schemas/auth-tables', summary: 'AuthTable plus the password, OTP and magic-link mixins.'),
+      NavItem(
+        'Defining Tables',
+        '/schemas/defining-tables',
+        summary: 'Table and entity classes, column helpers, typed IDs.',
+      ),
+      NavItem(
+        'Auth Tables',
+        '/schemas/auth-tables',
+        summary: 'AuthTable plus the password, OTP and magic-link mixins.',
+      ),
       NavItem('Photo Tables', '/schemas/photo-tables', summary: 'The built-in _photos table and photo columns.'),
-      NavItem('Migrations Overview', '/database/migrations-overview', summary: 'How a schema change becomes a migration.'),
+      NavItem(
+        'Migrations Overview',
+        '/database/migrations-overview',
+        summary: 'How a schema change becomes a migration.',
+      ),
       NavItem('Generating Migrations', '/database/generating-migrations', summary: 'zonai db migrate generate.'),
-      NavItem('Applying Migrations', '/database/applying-migrations', summary: 'Applying migrations, and auto-migrate on serve.'),
+      NavItem(
+        'Applying Migrations',
+        '/database/applying-migrations',
+        summary: 'Applying migrations, and auto-migrate on serve.',
+      ),
     ],
   ),
   NavGroup(
@@ -99,11 +143,32 @@ const List<NavGroup> navigation = [
     icon: NavIcons.bolt,
     summary: 'The HTTP surface every table gets for free — including live streams.',
     items: [
-      NavItem('Operations Overview', '/operations/overview', summary: 'Default vs. custom operations, and when to override the SQL.'),
-      NavItem('Default Operations', '/operations/default-operations', summary: 'CRUD endpoints, request/response JSON, where and order_by shapes.'),
-      NavItem('Live Queries', '/operations/streaming', badge: 'live', summary: 'db.listen and /db/stream* push updates as data changes.'),
-      NavItem('Auth Operations', '/operations/auth-operations', summary: 'Sign-up, sign-in, reset, OTP and magic-link routes.'),
-      NavItem('OpenAPI Specification', '/api/openapi-spec', summary: 'Fetch the live OpenAPI JSON from a running server.'),
+      NavItem(
+        'Operations Overview',
+        '/operations/overview',
+        summary: 'Default vs. custom operations, and when to override the SQL.',
+      ),
+      NavItem(
+        'Default Operations',
+        '/operations/default-operations',
+        summary: 'CRUD endpoints, request/response JSON, where and order_by shapes.',
+      ),
+      NavItem(
+        'Live Queries',
+        '/operations/streaming',
+        badge: 'live',
+        summary: 'db.listen and /db/stream* push updates as data changes.',
+      ),
+      NavItem(
+        'Auth Operations',
+        '/operations/auth-operations',
+        summary: 'Sign-up, sign-in, reset, OTP and magic-link routes.',
+      ),
+      NavItem(
+        'OpenAPI Specification',
+        '/api/openapi-spec',
+        summary: 'Fetch the live OpenAPI JSON from a running server.',
+      ),
     ],
   ),
   NavGroup(
@@ -111,10 +176,26 @@ const List<NavGroup> navigation = [
     icon: NavIcons.layout,
     summary: 'The admin UI every server serves at /_.',
     items: [
-      NavItem('Overview', '/dashboard/overview', summary: 'Reaching the dashboard, signing in, and exposing it safely.'),
-      NavItem('Metrics & Cron Jobs', '/dashboard/metrics', summary: 'Request volume, error rate, sessions, and manual job runs.'),
-      NavItem('Browsing & Editing Data', '/dashboard/table-editor', summary: 'Sort, filter and edit rows with typed column editors.'),
-      NavItem('Branding', '/dashboard/branding', summary: 'Replace the favicon and logo by dropping files into imagesPath.'),
+      NavItem(
+        'Overview',
+        '/dashboard/overview',
+        summary: 'Reaching the dashboard, signing in, and exposing it safely.',
+      ),
+      NavItem(
+        'Metrics & Cron Jobs',
+        '/dashboard/metrics',
+        summary: 'Request volume, error rate, sessions, and manual job runs.',
+      ),
+      NavItem(
+        'Browsing & Editing Data',
+        '/dashboard/table-editor',
+        summary: 'Sort, filter and edit rows with typed column editors.',
+      ),
+      NavItem(
+        'Branding',
+        '/dashboard/branding',
+        summary: 'Replace the favicon and logo by dropping files into imagesPath.',
+      ),
     ],
   ),
   NavGroup(
@@ -135,12 +216,28 @@ const List<NavGroup> navigation = [
     icon: NavIcons.key,
     summary: 'Password, OTP and magic-link sign-in, sessions and admins.',
     items: [
-      NavItem('Overview', '/authentication/overview', summary: 'The JWT model, multi-table auth, and the response shape.'),
-      NavItem('Password Auth', '/authentication/password-auth', summary: 'Email and password sign-in backed by Argon2id.'),
+      NavItem(
+        'Overview',
+        '/authentication/overview',
+        summary: 'The JWT model, multi-table auth, and the response shape.',
+      ),
+      NavItem(
+        'Password Auth',
+        '/authentication/password-auth',
+        summary: 'Email and password sign-in backed by Argon2id.',
+      ),
       NavItem('OTP Auth', '/authentication/otp-auth', summary: 'Emailed one-time passcodes.'),
-      NavItem('Magic Link Auth', '/authentication/magic-link-auth', summary: 'Passwordless sign-in over emailed links.'),
+      NavItem(
+        'Magic Link Auth',
+        '/authentication/magic-link-auth',
+        summary: 'Passwordless sign-in over emailed links.',
+      ),
       NavItem('Session Management', '/authentication/session-management', summary: 'Refresh, logout and JWT lifetime.'),
-      NavItem('Admin Accounts', '/authentication/admin-accounts', summary: 'zonai db admin, the AsAdmin trait, elevated claims.'),
+      NavItem(
+        'Admin Accounts',
+        '/authentication/admin-accounts',
+        summary: 'zonai db admin, the AsAdmin trait, elevated claims.',
+      ),
     ],
   ),
   NavGroup(
@@ -165,7 +262,11 @@ const List<NavGroup> navigation = [
     items: [
       NavItem('Overview', '/cron-jobs/overview', summary: 'How scheduled jobs are compiled and run.'),
       NavItem('Defining a Job', '/cron-jobs/defining-a-job'),
-      NavItem('Catch-Up Logic', '/cron-jobs/catch-up-logic', summary: 'What happens to jobs missed while the server was down.'),
+      NavItem(
+        'Catch-Up Logic',
+        '/cron-jobs/catch-up-logic',
+        summary: 'What happens to jobs missed while the server was down.',
+      ),
       NavItem('Side Effects', '/cron-jobs/side-effects'),
       NavItem('Running Manually', '/cron-jobs/running-manually'),
     ],
@@ -187,9 +288,17 @@ const List<NavGroup> navigation = [
     summary: 'Per-IP limits, applied before rules run.',
     items: [
       NavItem('Overview', '/rate-limiting/overview', summary: 'Where limits apply and what the defaults are.'),
-      NavItem('Configuring Policies', '/rate-limiting/configuring-policies', summary: 'Per-table and per-operation policy classes.'),
+      NavItem(
+        'Configuring Policies',
+        '/rate-limiting/configuring-policies',
+        summary: 'Per-table and per-operation policy classes.',
+      ),
       NavItem('Auth Rate Limits', '/rate-limiting/auth-rate-limits'),
-      NavItem('Trusted Proxies', '/rate-limiting/trusted-proxies', summary: 'Getting the real client IP behind a proxy.'),
+      NavItem(
+        'Trusted Proxies',
+        '/rate-limiting/trusted-proxies',
+        summary: 'Getting the real client IP behind a proxy.',
+      ),
     ],
   ),
   NavGroup(
@@ -227,10 +336,18 @@ const List<NavGroup> navigation = [
     icon: NavIcons.server,
     summary: 'Ship the binary and keep it running.',
     items: [
-      NavItem('Building for Production', '/deployment/building-for-production', summary: 'zonai build and what it produces.'),
+      NavItem(
+        'Building for Production',
+        '/deployment/building-for-production',
+        summary: 'zonai build and what it produces.',
+      ),
       NavItem('Running the Server', '/deployment/running-the-server'),
       NavItem('Server Binding', '/deployment/server-binding', summary: 'Host, port and listening on all interfaces.'),
-      NavItem('Environment & Secrets', '/deployment/environment-and-secrets', summary: 'Getting secrets into a compiled binary.'),
+      NavItem(
+        'Environment & Secrets',
+        '/deployment/environment-and-secrets',
+        summary: 'Getting secrets into a compiled binary.',
+      ),
       NavItem('Cross-Compilation', '/deployment/cross-compilation', summary: 'Building a Linux binary from macOS.'),
       NavItem('Deploying to Fly.io', '/deployment/fly-io', summary: 'A complete, worked deployment on Fly.io.'),
     ],
@@ -307,8 +424,7 @@ abstract final class NavIcons {
       '$_open<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/>'
       '<path d="M3 9h18"/><path d="M3 15h18"/></svg>';
 
-  static const bolt =
-      '$_open<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+  static const bolt = '$_open<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
 
   static const shield =
       '$_open<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>'
@@ -322,22 +438,19 @@ abstract final class NavIcons {
       '$_open<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/>'
       '<path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>';
 
-  static const clock =
-      '$_open<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+  static const clock = '$_open<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 
   static const mail =
       '$_open<rect width="20" height="16" x="2" y="4" rx="2"/>'
       '<path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
 
-  static const gauge =
-      '$_open<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>';
+  static const gauge = '$_open<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>';
 
   static const dart =
       '$_open<path d="M6 18 3.5 8.5 12 2l8.5 6.5L18 18Z"/><path d="M6 18h12"/>'
       '<path d="m12 2 6 16"/></svg>';
 
-  static const terminal =
-      '$_open<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>';
+  static const terminal = '$_open<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>';
 
   static const layout =
       '$_open<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>'

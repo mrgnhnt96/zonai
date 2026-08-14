@@ -6,7 +6,8 @@ import 'package:zonai_schema/zonai_schema.dart';
 import 'rate_limit.dart';
 
 /// Rate limits auth handlers that identify the collection from the Bearer token.
-final class AuthHeaderRateLimit extends RateLimit implements LifecycleComponent {
+final class AuthHeaderRateLimit extends RateLimit
+    implements LifecycleComponent {
   const AuthHeaderRateLimit(this.operation);
 
   final RateLimitOperation operation;

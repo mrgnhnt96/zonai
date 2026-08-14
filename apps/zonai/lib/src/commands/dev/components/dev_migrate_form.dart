@@ -55,10 +55,8 @@ class _DevMigrateFormState extends State<DevMigrateForm> {
 
   bool get _canSubmit => _controller.text.trim().isNotEmpty;
 
-  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
-    action: _focusedAction,
-    submitEnabled: _canSubmit,
-  );
+  DevFormAction get _effectiveFocusedAction =>
+      devFormEffectiveAction(action: _focusedAction, submitEnabled: _canSubmit);
 
   int get _focusedFieldIndex => _inputFocused ? 0 : 1;
 

@@ -15,70 +15,80 @@ const _features = <Feature>[
   (
     icon: 'routes',
     title: 'A REST API per table',
-    body: 'Create, read, list, count, update, delete and three live-stream routes, handled straight from your schema. '
+    body:
+        'Create, read, list, count, update, delete and three live-stream routes, handled straight from your schema. '
         'No handler code and no generation step.',
     link: null,
   ),
   (
     icon: 'key',
     title: 'Authentication included',
-    body: 'Password sign-up/sign-in, one-time passcodes, and magic links — each a single trait mixed into an auth '
+    body:
+        'Password sign-up/sign-in, one-time passcodes, and magic links — each a single trait mixed into an auth '
         'table. Sessions, refresh, and logout come with it.',
     link: Links.docs,
   ),
   (
     icon: 'shield',
     title: 'Rules before SQL',
-    body: 'Table and row rules are plain Dart returning true or false. They run ahead of the query, so a denial costs '
+    body:
+        'Table and row rules are plain Dart returning true or false. They run ahead of the query, so a denial costs '
         'a 403 and nothing else.',
     link: Links.rules,
   ),
   (
     icon: 'stream',
     title: 'Live query streams',
-    body: 'GET /db/stream, /db/stream/list and /db/stream/count push new payloads as SQLite changes. In Dart, that is '
+    body:
+        'GET /db/stream, /db/stream/list and /db/stream/count push new payloads as SQLite changes. In Dart, that is '
         'client.db.listen.',
     link: Links.streaming,
   ),
   (
     icon: 'gauge',
     title: 'Built-in admin dashboard',
-    body: 'Served at /_ from the same binary: browse and edit every table, watch requests and errors, check cron '
+    body:
+        'Served at /_ from the same binary: browse and edit every table, watch requests and errors, check cron '
         'status, and run the auth flows. Nothing extra to deploy.',
     link: null,
   ),
   (
     icon: 'dart',
     title: 'Generated Dart client',
-    body: 'zonai_client wraps auth, admin auth, db, photos, and email so your Flutter app never hand-rolls an HTTP '
+    body:
+        'zonai_client wraps auth, admin auth, db, photos, and email so your Flutter app never hand-rolls an HTTP '
         'call or a JSON map.',
     link: Links.client,
   ),
   (
     icon: 'mail',
     title: 'Transactional email',
-    body: 'SMTP-backed HTML templates with Mustache variables, sent from lifecycle hooks. Built-in templates for the '
+    body:
+        'SMTP-backed HTML templates with Mustache variables, sent from lifecycle hooks. Built-in templates for the '
         'auth flows, custom ones for everything else.',
     link: null,
   ),
   (
     icon: 'clock',
     title: 'Scheduled jobs',
-    body: 'Cron-syntax jobs compiled into their own worker, with the full database API and catch-up logic for runs '
+    body:
+        'Cron-syntax jobs compiled into their own worker, with the full database API and catch-up logic for runs '
         'missed while the server was down.',
     link: null,
   ),
   (
     icon: 'gauge',
     title: 'Per-IP rate limiting',
-    body: 'A policy class per table and operation, with dedicated buckets for the auth routes and trusted-proxy '
+    body:
+        'A policy class per table and operation, with dedicated buckets for the auth routes and trusted-proxy '
         'handling for real client IPs.',
     link: null,
   ),
   (
     icon: 'box',
     title: 'One binary to deploy',
-    body: './zonai build links your project into build/zonai. Cross-compile it, copy it to a host, run it. SQLite is '
+    body:
+        './zonai build links your project into build/zonai. Cross-compile it, copy it to a host, run it. SQLite is '
         'bundled; nothing else is required.',
     link: Links.deployment,
   ),

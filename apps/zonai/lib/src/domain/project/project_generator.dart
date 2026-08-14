@@ -7,8 +7,7 @@ import 'package:zonai/src/deps/logger.dart';
 class ProjectGenerator {
   const ProjectGenerator();
 
-  static String get executablePath =>
-      fs.path.join('.dart_tool', 'zonai', 'project_main.dart');
+  static String get executablePath => fs.path.join('.dart_tool', 'zonai', 'project_main.dart');
 
   Future<void> create() async {
     final outDir = fs.directory(fs.path.join('.dart_tool', 'zonai'));
@@ -24,17 +23,13 @@ class ProjectGenerator {
   String _source() {
     final b = StringBuffer();
     b.writeln("import 'package:zonai/src/bootstrap.dart';");
-    b.writeln(
-      "import 'package:zonai/src/db_mutator/host_worker_registries.dart';",
-    );
+    b.writeln("import 'package:zonai/src/db_mutator/host_worker_registries.dart';");
     b.writeln("import 'db_operations.dart' as ops;");
     b.writeln("import 'db_rules.dart' as rules;");
     b.writeln();
     b.writeln('Future<void> main(List<String> args) async {');
     b.writeln('  if (!HostWorkerRegistries.forceWorkers) {');
-    b.writeln(
-      '    HostWorkerRegistries.operations = ops.createDbOperations();',
-    );
+    b.writeln('    HostWorkerRegistries.operations = ops.createDbOperations();');
     b.writeln('    HostWorkerRegistries.rules = rules.createDbRules();');
     b.writeln('  }');
     b.writeln('  await runZonai(args);');

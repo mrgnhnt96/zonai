@@ -1,7 +1,8 @@
 /// Shared table definitions and database types for Zonai.
 library;
 
-export 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart' show SqlDialect;
+export 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart'
+    show SqlDialect;
 // `table` is hidden: zonai_schema's own `table()` helper (see
 // src/schemas/table.dart) is the developer-facing version -- the vendored
 // `TableMeta`/reflection API is internal. `Logger`/`migrate` are hidden

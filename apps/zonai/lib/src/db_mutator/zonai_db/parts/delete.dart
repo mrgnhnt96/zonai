@@ -63,7 +63,8 @@ extension _DeleteX on ZonaiDb {
         _throwDatabaseError(
           deleteError,
           table: table,
-          failure: ([cause]) => RecordDeleteFailedException(table: table, cause: cause),
+          failure: ([cause]) =>
+              RecordDeleteFailedException(table: table, cause: cause),
         );
       }
 
@@ -137,12 +138,16 @@ extension _DeleteX on ZonaiDb {
       readOperation.query,
       readOperation.values,
     ));
-    logger.trace('sql_execute_read', extra: {'rows': readResult?.rows.length ?? 0});
+    logger.trace(
+      'sql_execute_read',
+      extra: {'rows': readResult?.rows.length ?? 0},
+    );
     if (readError != null || readResult == null) {
       _throwDatabaseError(
         readError,
         table: table,
-        failure: ([cause]) => RecordReadFailedException(table: table, cause: cause),
+        failure: ([cause]) =>
+            RecordReadFailedException(table: table, cause: cause),
       );
     }
 

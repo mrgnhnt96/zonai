@@ -52,10 +52,8 @@ class _DevRulesFormState extends State<DevRulesForm> {
     }
   }
 
-  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
-    action: _focusedAction,
-    submitEnabled: true,
-  );
+  DevFormAction get _effectiveFocusedAction =>
+      devFormEffectiveAction(action: _focusedAction, submitEnabled: true);
 
   int get _focusedFieldIndex => _inputFocused ? 0 : 1;
 

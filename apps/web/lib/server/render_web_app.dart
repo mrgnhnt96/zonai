@@ -23,10 +23,7 @@ void ensureJasprInitialized() {
 
   // Script tag is declared in [buildWebAppDocument]; omit [clientId] to avoid a duplicate.
   Jaspr.initializeApp(
-    options: ServerOptions(
-      clients: defaultServerOptions.clients,
-      styles: defaultServerOptions.styles,
-    ),
+    options: ServerOptions(clients: defaultServerOptions.clients, styles: defaultServerOptions.styles),
   );
   _jasprInitialized = true;
 }

@@ -27,7 +27,8 @@ extension _CountX on ZonaiDb {
       _throwDatabaseError(
         error,
         table: table,
-        failure: ([cause]) => RecordCountFailedException(table: table, cause: cause),
+        failure: ([cause]) =>
+            RecordCountFailedException(table: table, cause: cause),
       );
     }
 
@@ -49,7 +50,8 @@ extension _CountX on ZonaiDb {
       _throwDatabaseError(
         error,
         table: table,
-        failure: ([cause]) => RecordCountFailedException(table: table, cause: cause),
+        failure: ([cause]) =>
+            RecordCountFailedException(table: table, cause: cause),
       );
     }
 

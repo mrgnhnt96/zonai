@@ -12,8 +12,30 @@ import '../ui.dart';
 /// Requests per hour over 24h. A single series, so magnitude is encoded by bar
 /// height only — every bar takes the same hue rather than double-encoding.
 const _buckets = <int>[
-  18, 12, 9, 7, 6, 8, 14, 26, 41, 58, 67, 72,
-  69, 74, 81, 77, 63, 55, 48, 39, 33, 28, 24, 21,
+  18,
+  12,
+  9,
+  7,
+  6,
+  8,
+  14,
+  26,
+  41,
+  58,
+  67,
+  72,
+  69,
+  74,
+  81,
+  77,
+  63,
+  55,
+  48,
+  39,
+  33,
+  28,
+  24,
+  21,
 ];
 
 /// (label, value, tone) — `tone` picks a reserved status color where it means
@@ -98,7 +120,8 @@ class AdminDashboard extends StatelessComponent {
                 classes: 'chart-plot',
                 attributes: const {
                   'role': 'img',
-                  'aria-label': 'Requests per hour over the last 24 hours, rising through the morning to a peak of '
+                  'aria-label':
+                      'Requests per hour over the last 24 hours, rising through the morning to a peak of '
                       '81 around midday, then tapering off overnight.',
                 },
                 [
@@ -300,7 +323,10 @@ class AdminDashboard extends StatelessComponent {
         gridTemplate: gridCols(4),
         gap: .all(24.px),
       ),
-      css('.dash-cap').styles(padding: .only(left: 15.px), raw: {'border-left': '2px solid var(--edge-2)'}),
+      css('.dash-cap').styles(
+        padding: .only(left: 15.px),
+        raw: {'border-left': '2px solid var(--edge-2)'},
+      ),
       css('.dash-cap h3').styles(
         margin: .only(bottom: 8.px),
         color: .variable('--fg'),

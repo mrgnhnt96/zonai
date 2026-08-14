@@ -9,7 +9,8 @@ sealed class AuthBody {
     // Tolerate clients that omit `type` but send email+password — previously
     // that fell through to ArgumentError / Null casts and surfaced as HTTP 500.
     final rawType = json['type'];
-    final type = rawType ??
+    final type =
+        rawType ??
         ((json['email'] is String && json['password'] is String)
             ? SignInAuthBody._type
             : null);

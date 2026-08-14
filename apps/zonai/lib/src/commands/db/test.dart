@@ -139,12 +139,18 @@ Future<int> test() async {
     logger.info('--------------------------------');
     logger.info('ADMIN UPDATE PASSWORD');
     const newPassword = 'new-password-456';
-    if (await _adminUpdatePassword(email: email, newPassword: newPassword, adminJwt: adminJwt) case final int exitCode) {
+    if (await _adminUpdatePassword(
+          email: email,
+          newPassword: newPassword,
+          adminJwt: adminJwt,
+        )
+        case final int exitCode) {
       return exitCode;
     }
 
     logger.info('VERIFY OLD PASSWORD REJECTED');
-    if (await _verifyPasswordRejected(email: email, password: 'test') case final int exitCode) {
+    if (await _verifyPasswordRejected(email: email, password: 'test')
+        case final int exitCode) {
       return exitCode;
     }
 
@@ -267,7 +273,10 @@ Future<(int?, String?)> _signUp() async {
   return (null, email);
 }
 
-Future<(int?, String?, String?)> _signIn(String email, [String password = 'test']) async {
+Future<(int?, String?, String?)> _signIn(
+  String email, [
+  String password = 'test',
+]) async {
   final result = await zonaiDB.authenticate(
     'users',
     SignInPasswordAuthPayload(email: email, password: password),
@@ -283,7 +292,10 @@ Future<int?> _adminUpdatePassword({
   required String newPassword,
   required String adminJwt,
 }) async {
-  final users = await zonaiDB.list('users', ListPayload(jwt: adminJwt, where: Eq('email', email), limit: 1));
+  final users = await zonaiDB.list(
+    'users',
+    ListPayload(jwt: adminJwt, where: Eq('email', email), limit: 1),
+  );
   final user = users.items.firstOrNull;
   if (user == null) {
     logger.error('User not found for email: $email');
@@ -304,7 +316,10 @@ Future<int?> _adminUpdatePassword({
   return null;
 }
 
-Future<int?> _verifyPasswordRejected({required String email, required String password}) async {
+Future<int?> _verifyPasswordRejected({
+  required String email,
+  required String password,
+}) async {
   try {
     await zonaiDB.authenticate(
       'users',

@@ -153,14 +153,15 @@ class DbRules {
 
     final op = request.classicOperation;
     if (op == null) {
-      final canAccess = switch (tableRules.customOperations[request.operation]) {
-        null => _denyUnregisteredCustomOperation(
-          table: request.table,
-          operation: request.operation,
-          scope: 'table',
-        ),
-        final rule => await rule(request.jwt),
-      };
+      final canAccess =
+          switch (tableRules.customOperations[request.operation]) {
+            null => _denyUnregisteredCustomOperation(
+              table: request.table,
+              operation: request.operation,
+              scope: 'table',
+            ),
+            final rule => await rule(request.jwt),
+          };
 
       final rowRules = rulesByTable[request.table]?.row;
       final skipRowChecks = rowRules != null && !rowRules.requiresPerRowCheck;
@@ -400,20 +401,20 @@ class DbRules {
       .create => rowRules.canCreate(request.jwt, object),
       null =>
         rowRules.customOperationCheck(
-          request.operation,
-          request.jwt,
-          object,
-          rowRules.table.safeCreate(
-            rowRules.table.simulateUpdate(request.data, request.updates),
-          ),
-        ) ??
-        Future.value(
-          _denyUnregisteredCustomOperation(
-            table: request.table,
-            operation: request.operation,
-            scope: 'row',
-          ),
-        ),
+              request.operation,
+              request.jwt,
+              object,
+              rowRules.table.safeCreate(
+                rowRules.table.simulateUpdate(request.data, request.updates),
+              ),
+            ) ??
+            Future.value(
+              _denyUnregisteredCustomOperation(
+                table: request.table,
+                operation: request.operation,
+                scope: 'row',
+              ),
+            ),
     };
 
     return RowRulesResponse(
@@ -462,20 +463,20 @@ class DbRules {
         .create => rowRules.canCreate(request.jwt, object),
         null =>
           rowRules.customOperationCheck(
-            request.operation,
-            request.jwt,
-            object,
-            rowRules.table.safeCreate(
-              rowRules.table.simulateUpdate(data, request.updates),
-            ),
-          ) ??
-          Future.value(
-            _denyUnregisteredCustomOperation(
-              table: request.table,
-              operation: request.operation,
-              scope: 'row',
-            ),
-          ),
+                request.operation,
+                request.jwt,
+                object,
+                rowRules.table.safeCreate(
+                  rowRules.table.simulateUpdate(data, request.updates),
+                ),
+              ) ??
+              Future.value(
+                _denyUnregisteredCustomOperation(
+                  table: request.table,
+                  operation: request.operation,
+                  scope: 'row',
+                ),
+              ),
       });
     }
 

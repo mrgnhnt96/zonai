@@ -32,28 +32,32 @@ class DocsSidebar extends StatelessComponent {
 
     return Component.fragment([
       Document.head(children: [Style(styles: _styles)]),
-      nav(classes: 'docs-sidebar', attributes: {'aria-label': 'Documentation'}, [
-        button(classes: 'sidebar-close', attributes: {'aria-label': 'Close navigation'}, [RawText(_closeIcon)]),
-        ul(classes: 'docs-sidebar-top', [
-          for (final item in topLevelNavigation) _link(item, route),
-        ]),
-        for (final group in navigation)
-          details(
-            classes: 'docs-sidebar-group',
-            // The active group is the only one open on load; on the landing
-            // page nothing is active, so open the first group as a starting
-            // point rather than presenting a fully collapsed menu.
-            open: identical(group, activeGroup) || (activeGroup == null && identical(group, navigation.first)),
-            [
-              summary(classes: 'docs-sidebar-summary', [
-                span(classes: 'docs-sidebar-icon', [RawText(group.icon)]),
-                span(classes: 'docs-sidebar-title', [Component.text(group.title)]),
-                span(classes: 'docs-sidebar-chevron', [RawText(_chevronIcon)]),
-              ]),
-              ul([for (final item in group.items) _link(item, route)]),
-            ],
-          ),
-      ]),
+      nav(
+        classes: 'docs-sidebar',
+        attributes: {'aria-label': 'Documentation'},
+        [
+          button(classes: 'sidebar-close', attributes: {'aria-label': 'Close navigation'}, [RawText(_closeIcon)]),
+          ul(classes: 'docs-sidebar-top', [
+            for (final item in topLevelNavigation) _link(item, route),
+          ]),
+          for (final group in navigation)
+            details(
+              classes: 'docs-sidebar-group',
+              // The active group is the only one open on load; on the landing
+              // page nothing is active, so open the first group as a starting
+              // point rather than presenting a fully collapsed menu.
+              open: identical(group, activeGroup) || (activeGroup == null && identical(group, navigation.first)),
+              [
+                summary(classes: 'docs-sidebar-summary', [
+                  span(classes: 'docs-sidebar-icon', [RawText(group.icon)]),
+                  span(classes: 'docs-sidebar-title', [Component.text(group.title)]),
+                  span(classes: 'docs-sidebar-chevron', [RawText(_chevronIcon)]),
+                ]),
+                ul([for (final item in group.items) _link(item, route)]),
+              ],
+            ),
+        ],
+      ),
     ]);
   }
 
@@ -151,7 +155,9 @@ List<StyleRule> get _styles => [
       css('& > ul').styles(
         margin: Margin.only(bottom: .5.rem, left: 1.0625.rem),
         padding: Padding.only(left: .5.rem),
-        border: Border.only(left: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)'))),
+        border: Border.only(
+          left: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)')),
+        ),
       ),
       css('&[open] .docs-sidebar-chevron svg').styles(transform: Transform.rotate(90.deg)),
     ]),
@@ -174,7 +180,9 @@ List<StyleRule> get _styles => [
       css('.docs-sidebar-title').styles(flex: Flex(grow: 1)),
       css('.docs-sidebar-chevron', [
         css('&').styles(display: Display.flex, opacity: .45),
-        css('svg').styles(transition: Transition('transform', duration: 150.ms, curve: Curve.easeInOut)),
+        css('svg').styles(
+          transition: Transition('transform', duration: 150.ms, curve: Curve.easeInOut),
+        ),
       ]),
     ]),
   ]),

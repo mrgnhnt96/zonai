@@ -4,11 +4,7 @@ import 'package:zonai_schema/payloads.dart';
 typedef ForeignKeyPickerOnSelect = void Function(String? id, {String? displayLabel});
 
 final class ForeignKeyPickerState {
-  const ForeignKeyPickerState({
-    required this.foreignKey,
-    required this.selectedId,
-    required this.onSelect,
-  });
+  const ForeignKeyPickerState({required this.foreignKey, required this.selectedId, required this.onSelect});
 
   final ForeignKeyShape foreignKey;
   final String? selectedId;

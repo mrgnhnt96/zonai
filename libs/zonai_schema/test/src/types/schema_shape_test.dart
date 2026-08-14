@@ -7,9 +7,7 @@ import 'package:zonai_schema/zonai_schema.dart' hide table;
 void main() {
   group('tableSchemaShapeFromTable', () {
     test('maps zonai column transformers to semantic kinds', () {
-      final shape = tableSchemaShapeFromTable(
-        _DemoTable.schemaTable.$,
-      );
+      final shape = tableSchemaShapeFromTable(_DemoTable.schemaTable.$);
 
       expect(shape.table, 'demo_rows');
       expect(shape.columnNamed('id')?.kind, ColumnShapeKind.id);
@@ -26,34 +24,26 @@ void main() {
     });
 
     test('maps photo transformer runtime type to photo kind', () {
-      final shape = tableSchemaShapeFromTable(
-        _PhotoDemoTable.schemaTable.$,
-      );
+      final shape = tableSchemaShapeFromTable(_PhotoDemoTable.schemaTable.$);
 
       expect(shape.columnNamed('image')?.kind, ColumnShapeKind.photo);
     });
 
     test('maps BigIntTransfomer columns to bigInt kind', () {
-      final shape = tableSchemaShapeFromTable(
-        _BigIntDemoTable.schemaTable.$,
-      );
+      final shape = tableSchemaShapeFromTable(_BigIntDemoTable.schemaTable.$);
 
       expect(shape.columnNamed('big_count')?.kind, ColumnShapeKind.bigInt);
       expect(shape.columnNamed('payload')?.kind, ColumnShapeKind.blob);
     });
 
     test('round-trips through json', () {
-      final shape = tableSchemaShapeFromTable(
-        _DemoTable.schemaTable.$,
-      );
+      final shape = tableSchemaShapeFromTable(_DemoTable.schemaTable.$);
       final restored = TableSchemaShape.fromJson(shape.toJson());
       expect(restored, shape);
     });
 
     test('isView defaults to false and can be set', () {
-      final table = tableSchemaShapeFromTable(
-        _DemoTable.schemaTable.$,
-      );
+      final table = tableSchemaShapeFromTable(_DemoTable.schemaTable.$);
       final view = tableSchemaShapeFromTable(
         _DemoTable.schemaTable.$,
         isView: true,

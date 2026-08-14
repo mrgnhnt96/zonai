@@ -91,7 +91,12 @@ void main() {
       expect(stdoutSink.text, isEmpty);
     });
 
-    for (final level in [Level.verbose, Level.trace, Level.request, Level.debug]) {
+    for (final level in [
+      Level.verbose,
+      Level.trace,
+      Level.request,
+      Level.debug,
+    ]) {
       test('$level routes to the stdout sink', () {
         switch (level) {
           case Level.verbose:
@@ -179,30 +184,36 @@ void main() {
       expect(callCount, 1);
     });
 
-    test('a throwing callback does not stop the sink write or other callbacks', () {
-      var secondCallbackRan = false;
-      logger.addCallback((_) => throw StateError('bad callback'));
-      logger.addCallback((_) => secondCallbackRan = true);
+    test(
+      'a throwing callback does not stop the sink write or other callbacks',
+      () {
+        var secondCallbackRan = false;
+        logger.addCallback((_) => throw StateError('bad callback'));
+        logger.addCallback((_) => secondCallbackRan = true);
 
-      // Level.error is the floor set in setUp, so error() still reaches the sink.
-      logger.error('still gets logged');
+        // Level.error is the floor set in setUp, so error() still reaches the sink.
+        logger.error('still gets logged');
 
-      expect(stderrSink.text, contains('still gets logged'));
-      expect(secondCallbackRan, isTrue);
-    });
+        expect(stderrSink.text, contains('still gets logged'));
+        expect(secondCallbackRan, isTrue);
+      },
+    );
 
-    test('error() delivers a callback even when its own emit would be filtered', () {
-      makeLogger(level: Level.request);
-      // error() always emits since error is the highest level, but confirm
-      // the callback path is exercised independently of the sink write.
-      LogDetails? received;
-      logger.addCallback((details) => received = details);
+    test(
+      'error() delivers a callback even when its own emit would be filtered',
+      () {
+        makeLogger(level: Level.request);
+        // error() always emits since error is the highest level, but confirm
+        // the callback path is exercised independently of the sink write.
+        LogDetails? received;
+        logger.addCallback((details) => received = details);
 
-      logger.error('boom', Exception('cause'));
+        logger.error('boom', Exception('cause'));
 
-      expect(received, isNotNull);
-      expect(received!.error, isA<Exception>());
-    });
+        expect(received, isNotNull);
+        expect(received!.error, isA<Exception>());
+      },
+    );
   });
 
   group('prefix', () {

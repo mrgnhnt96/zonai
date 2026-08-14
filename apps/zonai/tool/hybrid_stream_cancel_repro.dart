@@ -56,8 +56,12 @@ Future<void> main() async {
   final broken = await run(withFix: false);
   final fixed = await run(withFix: true);
 
-  print('Default asBroadcastStream() (no onCancel):   onCancel fired = $broken');
-  print('With onCancel: (sub) => sub.cancel():         onCancel fired = $fixed');
+  print(
+    'Default asBroadcastStream() (no onCancel):   onCancel fired = $broken',
+  );
+  print(
+    'With onCancel: (sub) => sub.cancel():         onCancel fired = $fixed',
+  );
   print('');
 
   if (!broken && fixed) {
@@ -68,8 +72,10 @@ Future<void> main() async {
       'for disconnected clients never get removed.',
     );
   } else {
-    print('UNEXPECTED: this environment/SDK version behaves differently '
-        'than documented -- re-investigate before trusting the analysis '
-        'above.');
+    print(
+      'UNEXPECTED: this environment/SDK version behaves differently '
+      'than documented -- re-investigate before trusting the analysis '
+      'above.',
+    );
   }
 }

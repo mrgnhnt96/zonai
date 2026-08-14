@@ -98,57 +98,54 @@ void main() {
     },
   );
 
-  test(
-    'a firing from a timer created inside runWithParent still binds its own '
-    'parent -- the nesting is unavoidable (timers keep their creating zone), '
-    'so the rebinding is what makes scheduled crons work at all',
-    () async {
-      final io = _FakeMessageIo();
-      final handler = MessageHandler<CronRequest>(
-        fromUnknownRequest: CronRequest.fromRequest,
-        onMessage: (request) async => null,
-        io: io,
-      );
-      unawaited(handler.listen());
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+  test('a firing from a timer created inside runWithParent still binds its own '
+      'parent -- the nesting is unavoidable (timers keep their creating zone), '
+      'so the rebinding is what makes scheduled crons work at all', () async {
+    final io = _FakeMessageIo();
+    final handler = MessageHandler<CronRequest>(
+      fromUnknownRequest: CronRequest.fromRequest,
+      onMessage: (request) async => null,
+      io: io,
+    );
+    unawaited(handler.listen());
+    await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      final start = StartCronsRequest();
-      final run = RunCronJobRequest(name: '_delete_old_rate_limits');
-      final fired = Completer<void>();
+    final start = StartCronsRequest();
+    final run = RunCronJobRequest(name: '_delete_old_rate_limits');
+    final fired = Completer<void>();
 
-      // `_startCrons` calls `cron.schedule(...)` from inside this scope. The
-      // `cron` package schedules with a Timer, and a Dart Timer runs its
-      // callback in the zone it was created in -- so the scope below is still
-      // active on every later firing, long after CronsStarted was answered.
-      await handler.runWithParent(start, () async {
-        Timer(const Duration(milliseconds: 5), () async {
-          await handler.runWithParent(run, () async {
-            mutate.delete.many(
-              tableName: '_rate_limit',
-              where: Lt('timestamp', DateTime.utc(2020)),
-            );
-          });
-          fired.complete();
+    // `_startCrons` calls `cron.schedule(...)` from inside this scope. The
+    // `cron` package schedules with a Timer, and a Dart Timer runs its
+    // callback in the zone it was created in -- so the scope below is still
+    // active on every later firing, long after CronsStarted was answered.
+    await handler.runWithParent(start, () async {
+      Timer(const Duration(milliseconds: 5), () async {
+        await handler.runWithParent(run, () async {
+          mutate.delete.many(
+            tableName: '_rate_limit',
+            where: Lt('timestamp', DateTime.utc(2020)),
+          );
         });
+        fired.complete();
       });
+    });
 
-      await fired.future;
+    await fired.future;
 
-      final deletes = io.sent
-          .where((m) => '${m['path']}'.endsWith('.delete_record'))
-          .toList();
+    final deletes = io.sent
+        .where((m) => '${m['path']}'.endsWith('.delete_record'))
+        .toList();
 
-      expect(deletes, hasLength(1));
-      expect(
-        (deletes.single['parent'] as Map)['id'],
-        run.id,
-        reason:
-            'a firing long after startup is still inside the StartCronsRequest '
-            'zone, so this is the case that only passes because the binding is '
-            'an override. It is why _delete_old_rate_limits deleted nothing '
-            'across 1,256 runs against a 42-row table: the row count was never '
-            'reached, because the mutation was filed under the startup id.',
-      );
-    },
-  );
+    expect(deletes, hasLength(1));
+    expect(
+      (deletes.single['parent'] as Map)['id'],
+      run.id,
+      reason:
+          'a firing long after startup is still inside the StartCronsRequest '
+          'zone, so this is the case that only passes because the binding is '
+          'an override. It is why _delete_old_rate_limits deleted nothing '
+          'across 1,256 runs against a 42-row table: the row count was never '
+          'reached, because the mutation was filed under the startup id.',
+    );
+  });
 }

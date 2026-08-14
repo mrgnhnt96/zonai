@@ -488,9 +488,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     int? limit,
   }) {
     if (limit == null) {
-      return db
-          .delete(from: schema)
-          .where(_whereFilter(where, table.name));
+      return db.delete(from: schema).where(_whereFilter(where, table.name));
     }
 
     // sqlite3mc amalgamation cannot parse `DELETE … LIMIT` unless lemon was

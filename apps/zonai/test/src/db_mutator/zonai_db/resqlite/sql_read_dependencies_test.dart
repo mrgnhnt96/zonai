@@ -7,8 +7,9 @@ Set<String> _tables(rs.TableDependencies deps) {
     rs.FixedTableDependencies(:final tables) => {
       for (final t in tables) t.table,
     },
-    rs.UnknownTableDependencies() =>
-      throw StateError('expected fixed dependencies, got unknown'),
+    rs.UnknownTableDependencies() => throw StateError(
+      'expected fixed dependencies, got unknown',
+    ),
   };
 }
 

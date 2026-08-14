@@ -28,42 +28,48 @@ final _settings = Settings(
 
 void main() {
   group('Revali.health', () {
-    test('reports healthy for the configured port, not the default 8080', () async {
-      final server = await HttpServer.bind('localhost', 0);
-      addTearDown(server.close);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
+    test(
+      'reports healthy for the configured port, not the default 8080',
+      () async {
+        final server = await HttpServer.bind('localhost', 0);
+        addTearDown(server.close);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
 
-      final isHealthy = await runScoped(
-        () => Revali().health(),
-        values: {
-          argsProvider.overrideWith(() => Args(args: {'port': server.port})),
-          settingsProvider.overrideWith(() => _settings),
-        },
-      );
+        final isHealthy = await runScoped(
+          () => Revali().health(),
+          values: {
+            argsProvider.overrideWith(() => Args(args: {'port': server.port})),
+            settingsProvider.overrideWith(() => _settings),
+          },
+        );
 
-      expect(isHealthy, isTrue);
-    });
+        expect(isHealthy, isTrue);
+      },
+    );
 
-    test('reports unhealthy when the configured port has nothing listening', () async {
-      // Grab a port the OS reports as free, then release it immediately --
-      // nothing in this test binds to it.
-      final probe = await HttpServer.bind('localhost', 0);
-      final freePort = probe.port;
-      await probe.close();
+    test(
+      'reports unhealthy when the configured port has nothing listening',
+      () async {
+        // Grab a port the OS reports as free, then release it immediately --
+        // nothing in this test binds to it.
+        final probe = await HttpServer.bind('localhost', 0);
+        final freePort = probe.port;
+        await probe.close();
 
-      final isHealthy = await runScoped(
-        () => Revali().health(),
-        values: {
-          argsProvider.overrideWith(() => Args(args: {'port': freePort})),
-          settingsProvider.overrideWith(() => _settings),
-        },
-      );
+        final isHealthy = await runScoped(
+          () => Revali().health(),
+          values: {
+            argsProvider.overrideWith(() => Args(args: {'port': freePort})),
+            settingsProvider.overrideWith(() => _settings),
+          },
+        );
 
-      expect(isHealthy, isFalse);
-    });
+        expect(isHealthy, isFalse);
+      },
+    );
   });
 }

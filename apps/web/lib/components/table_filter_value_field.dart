@@ -42,11 +42,13 @@ class TableFilterValueField extends StatefulComponent {
 
 class _TableFilterValueFieldState extends State<TableFilterValueField> {
   void _openFkPicker(ForeignKeyShape foreignKey) {
-    context.read(foreignKeyPickerProvider.notifier).open(
-      foreignKey: foreignKey,
-      selectedId: component.valueText.isEmpty ? null : component.valueText,
-      onSelect: (id, {displayLabel}) => component.onValueTextChanged(id ?? ''),
-    );
+    context
+        .read(foreignKeyPickerProvider.notifier)
+        .open(
+          foreignKey: foreignKey,
+          selectedId: component.valueText.isEmpty ? null : component.valueText,
+          onSelect: (id, {displayLabel}) => component.onValueTextChanged(id ?? ''),
+        );
   }
 
   @override

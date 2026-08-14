@@ -26,7 +26,10 @@ Future<void> main() async {
     final rows = await db.execute('SELECT name FROM t WHERE name = ?', ['a']);
     stdout.writeln('read OK: ${rows.rows}');
 
-    final stream = delegate.streamQuery('SELECT name FROM t ORDER BY id', const []);
+    final stream = delegate.streamQuery(
+      'SELECT name FROM t ORDER BY id',
+      const [],
+    );
     final emissions = <List<List<Object?>>>[];
     final done = Completer<void>();
     late final StreamSubscription<dynamic> sub;

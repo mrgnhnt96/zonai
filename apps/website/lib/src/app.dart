@@ -59,7 +59,8 @@ class ZonaiSite extends StatelessComponent {
         link(rel: 'preconnect', href: 'https://fonts.gstatic.com', attributes: const {'crossorigin': ''}),
         link(
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2'
+          href:
+              'https://fonts.googleapis.com/css2'
               '?family=Space+Grotesk:wght@500;600;700'
               '&family=Inter:wght@400;500;600'
               '&family=JetBrains+Mono:wght@400;500;600'
@@ -98,7 +99,9 @@ class ZonaiSite extends StatelessComponent {
         fontWeight: .w600,
         backgroundColor: .variable('--zon'),
       ),
-      css('&:focus').styles(position: .absolute(top: 12.px, left: 12.px)),
+      css('&:focus').styles(
+        position: .absolute(top: 12.px, left: 12.px),
+      ),
     ]),
   ];
 }

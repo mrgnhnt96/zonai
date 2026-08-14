@@ -38,7 +38,11 @@ class AuthAppShell extends StatelessComponent {
         hasBrandLogo: hasBrandLogo,
         initialAuthTypes: initialAuthTypes,
       ),
-      child: Component.fragment([const PageTitleHead(), AuthRouter(initialPath: initialPath), const AppTooltipOverlay()]),
+      child: Component.fragment([
+        const PageTitleHead(),
+        AuthRouter(initialPath: initialPath),
+        const AppTooltipOverlay(),
+      ]),
     );
   }
 

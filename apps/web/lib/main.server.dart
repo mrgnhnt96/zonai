@@ -37,9 +37,7 @@ void main() {
             clearAuthCookie(context);
           }
           final signedIn = ssrShowsSignedInShell(session, token);
-          final collectionActions = signedIn
-              ? await loadTableCollectionActions(authToken: token)
-              : const {};
+          final collectionActions = signedIn ? await loadTableCollectionActions(authToken: token) : const {};
           // Always load so sign-out after an authenticated refresh still has auth types.
           final authTypes = await loadSupportedAuthTypes();
           final appConfig = await loadAppConfig();

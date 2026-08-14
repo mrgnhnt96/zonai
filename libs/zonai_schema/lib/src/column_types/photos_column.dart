@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
-import 'package:zonai_schema/src/internal/tables/photos_table.dart' as photos_table;
+import 'package:zonai_schema/src/internal/tables/photos_table.dart'
+    as photos_table;
 
 extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
   ColumnType<W> photos<W extends List<photos_table.PhotoId>?>(
@@ -19,7 +20,8 @@ extension PhotosColumnDefinition<S> on SchemaBuilder<S> {
   }
 }
 
-class PhotosTransformer extends ColumnTransformer<List<photos_table.PhotoId>, String> {
+class PhotosTransformer
+    extends ColumnTransformer<List<photos_table.PhotoId>, String> {
   const PhotosTransformer();
 
   @override

@@ -42,10 +42,8 @@ class _DevAdminFormState extends State<DevAdminForm> {
 
   bool get _textFieldFocused => _fieldIndex >= 0 && !_actionsFocused;
 
-  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
-    action: _focusedAction,
-    submitEnabled: _canSubmit,
-  );
+  DevFormAction get _effectiveFocusedAction =>
+      devFormEffectiveAction(action: _focusedAction, submitEnabled: _canSubmit);
 
   int get _focusedFieldIndex {
     if (_actionsFocused) return _fieldCount;

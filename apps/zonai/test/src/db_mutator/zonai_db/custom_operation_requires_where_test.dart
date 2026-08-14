@@ -20,11 +20,10 @@ import '../../commands/db/admin/fake_zonai_db.dart' show fakeSettings;
 /// shape before any table/row rule dispatch, so this doesn't need a real
 /// database, compiled workers, or registered rules to exercise.
 void main() {
-  test(
-    'custom() with non-empty updates and no where is rejected before any '
-    'rule check runs',
-    () async {
-      await runScoped(() async {
+  test('custom() with non-empty updates and no where is rejected before any '
+      'rule check runs', () async {
+    await runScoped(
+      () async {
         final db = ZonaiDb();
         try {
           await expectLater(
@@ -40,28 +39,25 @@ void main() {
         } finally {
           await db.dispose();
         }
-      }, values: {
+      },
+      values: {
         settingsProvider.overrideWith(() => fakeSettings),
         fsProvider.overrideWith(LocalFileSystem.new),
         loggerProvider.overrideWith(() => Logger(level: .error)),
         cleanUpProvider,
         executableStopProvider,
-      });
-    },
-  );
+      },
+    );
+  });
 
-  test(
-    'custom() with no updates and no where (a table-scoped action) still '
-    'reaches the table rule check',
-    () async {
-      await runScoped(() async {
+  test('custom() with no updates and no where (a table-scoped action) still '
+      'reaches the table rule check', () async {
+    await runScoped(
+      () async {
         final db = ZonaiDb();
         try {
           await expectLater(
-            db.custom(
-              'tins',
-              const CustomPayload(operation: 'archive'),
-            ),
+            db.custom('tins', const CustomPayload(operation: 'archive')),
             // Table rules aren't registered for "tins" in this fake setup,
             // so this reaches (and fails at) rule dispatch -- proving it
             // got past the where/updates guard, not blocked by it.
@@ -70,13 +66,14 @@ void main() {
         } finally {
           await db.dispose();
         }
-      }, values: {
+      },
+      values: {
         settingsProvider.overrideWith(() => fakeSettings),
         fsProvider.overrideWith(LocalFileSystem.new),
         loggerProvider.overrideWith(() => Logger(level: .error)),
         cleanUpProvider,
         executableStopProvider,
-      });
-    },
-  );
+      },
+    );
+  });
 }

@@ -30,8 +30,7 @@ final class _AuthorTable extends Table<_Author> {
       name = $.text('name', (s) => s.name);
 
   @override
-  _Author fromRow(RowReader read) =>
-      _Author(id: read(id), name: read(name)!);
+  _Author fromRow(RowReader read) => _Author(id: read(id), name: read(name)!);
 
   final IdColumn<_AuthorId> id;
   final TextColumn name;
@@ -71,11 +70,8 @@ final class _PostTable extends Table<_Post> {
       title = $.text('title', (s) => s.title);
 
   @override
-  _Post fromRow(RowReader read) => _Post(
-    id: read(id),
-    authorId: read(authorId),
-    title: read(title)!,
-  );
+  _Post fromRow(RowReader read) =>
+      _Post(id: read(id), authorId: read(authorId), title: read(title)!);
 
   final IdColumn<_PostId> id;
   final IdColumn<_AuthorId> authorId;
@@ -119,7 +115,10 @@ final class _PostSummaryTable extends Table<_PostSummary> {
   final TextColumn authorName;
 }
 
-final _postSummary = sqliteTable('view_test_post_summary', _PostSummaryTable.new);
+final _postSummary = sqliteTable(
+  'view_test_post_summary',
+  _PostSummaryTable.new,
+);
 
 final class _PostSummaryQuery extends ViewQuery<_PostSummary> {
   @override
@@ -169,26 +168,35 @@ void main() {
       ops = _buildOps();
     });
 
-    test('compileList applies where/limit/offset/orderBy on top of query()', () {
-      final query = ops.compileList(
-        where: const Eq('title', 'hello'),
-        limit: 5,
-        offset: 2,
-        orderBy: const [OrderByTerm(column: 'title', direction: SortDirection.asc)],
-      ).compiled();
-      final (sql, values) = dialect.translate(query);
+    test(
+      'compileList applies where/limit/offset/orderBy on top of query()',
+      () {
+        final query = ops
+            .compileList(
+              where: const Eq('title', 'hello'),
+              limit: 5,
+              offset: 2,
+              orderBy: const [
+                OrderByTerm(column: 'title', direction: SortDirection.asc),
+              ],
+            )
+            .compiled();
+        final (sql, values) = dialect.translate(query);
 
-      expect(sql, contains('SELECT'));
-      expect(sql, contains('JOIN'));
-      expect(sql, contains(r'WHERE "title" = $1'));
-      expect(sql, contains('ORDER BY'));
-      expect(sql, contains('LIMIT 5'));
-      expect(sql, contains('OFFSET 2'));
-      expect(values, contains('hello'));
-    });
+        expect(sql, contains('SELECT'));
+        expect(sql, contains('JOIN'));
+        expect(sql, contains(r'WHERE "title" = $1'));
+        expect(sql, contains('ORDER BY'));
+        expect(sql, contains('LIMIT 5'));
+        expect(sql, contains('OFFSET 2'));
+        expect(values, contains('hello'));
+      },
+    );
 
     test('compileCount applies where on top of countQuery()', () {
-      final query = ops.compileCount(where: const Eq('title', 'hello')).compiled();
+      final query = ops
+          .compileCount(where: const Eq('title', 'hello'))
+          .compiled();
       final (sql, values) = dialect.translate(query);
 
       expect(sql, contains('COUNT'));
@@ -259,33 +267,26 @@ void main() {
         expect(rows.map((r) => r.$3), everyElement('Ada'));
       });
 
-      test(
-        'raw SQL result is keyed by the view\'s own column names, not '
-        'raindrop\'s default table__column join alias — required for '
-        'Table.safeCreate/fromRow to reconstruct a row for rules to see, '
-        'matching the real request-handling path (not raindrop\'s typed '
-        'await, which this test deliberately avoids)',
-        () async {
-          final (sql, values) = dialect.translate(
-            ops.compileList(orderBy: const []).compiled(),
-          );
-          final result = await memoryDb.execute(sql, values);
+      test('raw SQL result is keyed by the view\'s own column names, not '
+          'raindrop\'s default table__column join alias — required for '
+          'Table.safeCreate/fromRow to reconstruct a row for rules to see, '
+          'matching the real request-handling path (not raindrop\'s typed '
+          'await, which this test deliberately avoids)', () async {
+        final (sql, values) = dialect.translate(
+          ops.compileList(orderBy: const []).compiled(),
+        );
+        final result = await memoryDb.execute(sql, values);
 
-          expect(result.columns, ['id', 'title', 'author_name']);
+        expect(result.columns, ['id', 'title', 'author_name']);
 
-          final asMaps = [
-            for (final row in result.rows)
-              Map.fromIterables(result.columns, row),
-          ];
-          final table = _postSummary.$;
-          final reconstructed = asMaps.map(table.safeCreate).toList();
-          expect(reconstructed, everyElement(isA<_PostSummary>()));
-          expect(
-            reconstructed.map((r) => r.authorName),
-            everyElement('Ada'),
-          );
-        },
-      );
+        final asMaps = [
+          for (final row in result.rows) Map.fromIterables(result.columns, row),
+        ];
+        final table = _postSummary.$;
+        final reconstructed = asMaps.map(table.safeCreate).toList();
+        expect(reconstructed, everyElement(isA<_PostSummary>()));
+        expect(reconstructed.map((r) => r.authorName), everyElement('Ada'));
+      });
 
       test('where filters against the joined result', () async {
         final rows = await ops.compileList(
@@ -357,11 +358,13 @@ void main() {
   });
 }
 
-final class _TestViewTableRules extends ViewTableRules<_PostSummaryTable, _PostSummary> {
+final class _TestViewTableRules
+    extends ViewTableRules<_PostSummaryTable, _PostSummary> {
   const _TestViewTableRules(super.schema);
 }
 
-final class _TestViewRowRules extends ViewRowRules<_PostSummaryTable, _PostSummary> {
+final class _TestViewRowRules
+    extends ViewRowRules<_PostSummaryTable, _PostSummary> {
   const _TestViewRowRules(super.schema);
 }
 

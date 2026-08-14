@@ -105,11 +105,7 @@ final class SupabaseExternalIdp {
   /// verification attempt.
   static void _validateProjectRef(String projectRef) {
     if (projectRef.isEmpty) {
-      throw ArgumentError.value(
-        projectRef,
-        'projectRef',
-        'must not be empty',
-      );
+      throw ArgumentError.value(projectRef, 'projectRef', 'must not be empty');
     }
     final valid = RegExp(r'^[a-z0-9]+$');
     if (!valid.hasMatch(projectRef)) {

@@ -20,7 +20,12 @@ Future<List<Object?>> resolvePhotoDrafts({
     final value = asPhotoEditValue(resolved[i]);
     if (value == null) continue;
 
-    resolved[i] = await _resolvePhotoEditValue(client: client, sqliteName: sqliteName, value: value, config: photosConfig);
+    resolved[i] = await _resolvePhotoEditValue(
+      client: client,
+      sqliteName: sqliteName,
+      value: value,
+      config: photosConfig,
+    );
   }
 
   return resolved;
@@ -33,8 +38,12 @@ Future<Object?> _resolvePhotoEditValue({
   required PhotosConfig config,
 }) async {
   return switch (value) {
-    PhotoEditSingleValue(:final item) =>
-      await _resolveItem(client: client, sqliteName: sqliteName, item: item, config: config),
+    PhotoEditSingleValue(:final item) => await _resolveItem(
+      client: client,
+      sqliteName: sqliteName,
+      item: item,
+      config: config,
+    ),
     PhotoEditMultiValue(:final items) => [
       for (final item in items)
         if (await _resolveItem(client: client, sqliteName: sqliteName, item: item, config: config) case final id?) id,

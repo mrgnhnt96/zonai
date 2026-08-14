@@ -170,11 +170,7 @@ RequestSender deleteItem(Uri base) {
       deleteUri,
       body: {
         'table': 'items',
-        'where': {
-          'type': 'eq',
-          'column': 'id',
-          'value': id,
-        },
+        'where': {'type': 'eq', 'column': 'id', 'value': id},
       },
     );
   };

@@ -37,8 +37,9 @@ final class HybridStreamEngine {
   void onDependencyChanges(rs.TableDependencies changes) {
     if (_closed || _entries.isEmpty) return;
 
-    if (changes case rs.FixedTableDependencies(:final tables)
-        when tables.isEmpty) {
+    if (changes case rs.FixedTableDependencies(
+      :final tables,
+    ) when tables.isEmpty) {
       return;
     }
 
@@ -59,8 +60,8 @@ final class HybridStreamEngine {
                 for (final entry in entries) {
                   switch (entry.dependencies[dep.table]) {
                     case rs.TableColumnDependency(
-                        columns: final watchedColumns
-                      ):
+                      columns: final watchedColumns,
+                    ):
                       if (watchedColumns.intersection(columns).isNotEmpty) {
                         dirtyEntries.add(entry);
                       }
@@ -124,33 +125,35 @@ final class HybridStreamEngine {
 
     final subscriberStream = _subscribe(entry);
 
-    unawaited(Future.sync(() async {
-      try {
-        final initial = await _read(sql, params);
-        if (entry.subscribers.isEmpty) return;
+    unawaited(
+      Future.sync(() async {
+        try {
+          final initial = await _read(sql, params);
+          if (entry.subscribers.isEmpty) return;
 
-        entry.lastResult = initial;
-        _registerDependencies(entry, readDependenciesForStreamSql(sql));
-        // A brand-new subscriber has seen nothing yet, so the connect-time
-        // snapshot must always reach it -- even if a write's dependency
-        // change landed while this read was in flight. Skipping the emit
-        // here (as if `initial` were already-known state) silently drops
-        // the only copy of it a caller will ever get: a later requery that
-        // happens to read the same values back will treat them as
-        // unchanged and emit nothing at all.
-        entry.emit(initial);
+          entry.lastResult = initial;
+          _registerDependencies(entry, readDependenciesForStreamSql(sql));
+          // A brand-new subscriber has seen nothing yet, so the connect-time
+          // snapshot must always reach it -- even if a write's dependency
+          // change landed while this read was in flight. Skipping the emit
+          // here (as if `initial` were already-known state) silently drops
+          // the only copy of it a caller will ever get: a later requery that
+          // happens to read the same values back will treat them as
+          // unchanged and emit nothing at all.
+          entry.emit(initial);
 
-        if (entry.dirty) {
-          _requeryQueue.add(entry);
-          _flushQueue();
+          if (entry.dirty) {
+            _requeryQueue.add(entry);
+            _flushQueue();
+          }
+        } catch (e, stackTrace) {
+          entry.emitError(e, stackTrace);
+          _remove(entry);
+        } finally {
+          entry.inFlight = false;
         }
-      } catch (e, stackTrace) {
-        entry.emitError(e, stackTrace);
-        _remove(entry);
-      } finally {
-        entry.inFlight = false;
-      }
-    }));
+      }),
+    );
 
     return subscriberStream;
   }

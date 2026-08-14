@@ -32,9 +32,7 @@ Component buildWebAppDocument() {
           clearAuthCookie(context);
         }
         final signedIn = ssrShowsSignedInShell(session, token);
-        final collectionActions = signedIn
-            ? await loadTableCollectionActions(authToken: token)
-            : const {};
+        final collectionActions = signedIn ? await loadTableCollectionActions(authToken: token) : const {};
         final authTypes = await loadSupportedAuthTypes();
         final appConfig = await loadAppConfig();
         final hasBrandLogo = await loadHasBrandLogo();

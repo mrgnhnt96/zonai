@@ -6,11 +6,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 /// `sqlite_master` row — they're sourced from schema shapes, not the SQLite
 /// file, and never support create/update/delete.
 final class SqliteTableRef {
-  const SqliteTableRef({
-    required this.sqliteName,
-    required this.displayName,
-    this.isView = false,
-  });
+  const SqliteTableRef({required this.sqliteName, required this.displayName, this.isView = false});
 
   final String sqliteName;
   final String displayName;

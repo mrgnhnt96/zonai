@@ -10,11 +10,7 @@ RouterComponentBuilder routerErrorBuilder(String initialPath) {
     if (_isHydratingKnownPath(state.location, initialPath)) {
       return const Component.text('');
     }
-    return div([
-      Component.text('Page Not Found'),
-      br(),
-      Component.text(state.error?.toString() ?? 'page not found'),
-    ]);
+    return div([Component.text('Page Not Found'), br(), Component.text(state.error?.toString() ?? 'page not found')]);
   };
 }
 

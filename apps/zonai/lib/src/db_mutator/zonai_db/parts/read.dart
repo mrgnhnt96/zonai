@@ -25,13 +25,17 @@ extension _ReadX on ZonaiDb {
       logger.trace('sql_build');
 
       step = 'sql_execute';
-      final (error, result) = await _execute((operation.query, operation.values));
+      final (error, result) = await _execute((
+        operation.query,
+        operation.values,
+      ));
       logger.trace('sql_execute');
       if (error != null || result == null) {
         _throwDatabaseError(
           error,
           table: table,
-          failure: ([cause]) => RecordReadFailedException(table: table, cause: cause),
+          failure: ([cause]) =>
+              RecordReadFailedException(table: table, cause: cause),
         );
       }
 

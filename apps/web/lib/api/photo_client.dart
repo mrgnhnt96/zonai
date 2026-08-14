@@ -69,11 +69,7 @@ Future<void> patchPhoto({
 }) async {
   final resolved = resolveUploadMimeType(bytes: bytes, mimeType: mimeType, config: config);
 
-  await client.photos.update(
-    image: Stream.value(bytes),
-    id: id,
-    contentType: resolved.mimeType,
-  );
+  await client.photos.update(image: Stream.value(bytes), id: id, contentType: resolved.mimeType);
 }
 
 /// Deletes a photo. Failures are ignored (best-effort orphan cleanup).

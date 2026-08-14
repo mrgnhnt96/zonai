@@ -8,28 +8,40 @@ import '../theme.dart';
 import '../ui.dart';
 
 const _columns = <(String, List<(String, String)>)>[
-  ('Docs', [
-    ('Introduction', Links.docs),
-    ('Quick start', Links.quickStart),
-    ('Live queries', Links.streaming),
-    ('Request pipeline', Links.pipeline),
-    ('Deployment', Links.deployment),
-  ]),
-  ('Download', [
-    ('Get the CLI', '/#download'),
-    ('Latest release (v$zonaiVersion)', Links.release),
-    ('All releases', Links.allReleases),
-    ('Install guide', Links.installation),
-  ]),
-  ('Packages', [
-    ('zonai_client', Links.pubClient),
-    ('zonai_schema', Links.pubSchema),
-  ]),
-  ('Project', [
-    ('GitHub', Links.github),
-    ('Issues', Links.issues),
-    ('llms.txt', Links.llms),
-  ]),
+  (
+    'Docs',
+    [
+      ('Introduction', Links.docs),
+      ('Quick start', Links.quickStart),
+      ('Live queries', Links.streaming),
+      ('Request pipeline', Links.pipeline),
+      ('Deployment', Links.deployment),
+    ],
+  ),
+  (
+    'Download',
+    [
+      ('Get the CLI', '/#download'),
+      ('Latest release (v$zonaiVersion)', Links.release),
+      ('All releases', Links.allReleases),
+      ('Install guide', Links.installation),
+    ],
+  ),
+  (
+    'Packages',
+    [
+      ('zonai_client', Links.pubClient),
+      ('zonai_schema', Links.pubSchema),
+    ],
+  ),
+  (
+    'Project',
+    [
+      ('GitHub', Links.github),
+      ('Issues', Links.issues),
+      ('llms.txt', Links.llms),
+    ],
+  ),
 ];
 
 class SiteFooter extends StatelessComponent {
@@ -50,15 +62,19 @@ class SiteFooter extends StatelessComponent {
 
         div(classes: 'foot-cols', [
           for (final (heading, links) in _columns)
-            nav(classes: 'foot-col', attributes: {'aria-label': heading}, [
-              h4([.text(heading)]),
-              for (final (label, href) in links)
-                // Same-page anchors stay in this tab; everything else leaves.
-                if (href.startsWith('/'))
-                  a(href: href, [.text(label)])
-                else
-                  a(href: href, target: .blank, attributes: const {'rel': 'noopener'}, [.text(label)]),
-            ]),
+            nav(
+              classes: 'foot-col',
+              attributes: {'aria-label': heading},
+              [
+                h4([.text(heading)]),
+                for (final (label, href) in links)
+                  // Same-page anchors stay in this tab; everything else leaves.
+                  if (href.startsWith('/'))
+                    a(href: href, [.text(label)])
+                  else
+                    a(href: href, target: .blank, attributes: const {'rel': 'noopener'}, [.text(label)]),
+              ],
+            ),
         ]),
       ]),
 

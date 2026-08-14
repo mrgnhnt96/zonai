@@ -167,9 +167,7 @@ class _ForeignKeyPickerDialogState extends State<ForeignKeyPickerDialog> {
   void _confirmSelect(TableRowsData data, List<Object?> row) {
     final value = foreignKeyValueFromRow(data, component.foreignKey, row);
     final label = foreignKeyRowLabel(data, row);
-    _requestClose(
-      afterFade: () => component.onSelect(value, displayLabel: label.isEmpty ? null : label),
-    );
+    _requestClose(afterFade: () => component.onSelect(value, displayLabel: label.isEmpty ? null : label));
   }
 
   bool _rowIsSelected(TableRowsData data, List<Object?> row) {
@@ -615,10 +613,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
         Transition('transform', duration: _detailSheetDuration, curve: Curve.easeOut),
       ]),
     ),
-    css('.fk-picker-detail-sheet--open .fk-picker-detail-view').styles(
-      opacity: 1,
-      transform: Transform.none,
-    ),
+    css('.fk-picker-detail-sheet--open .fk-picker-detail-view').styles(opacity: 1, transform: Transform.none),
   ]),
   css.media(MediaQuery.all(maxWidth: 1024.px), [
     css('.fk-picker-backdrop').styles(padding: .all(ZonaiSpacing.s6)),
@@ -666,12 +661,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
       raw: const {'z-index': '1200', 'background': 'rgba(0, 0, 0, 0.45)', 'pointer-events': 'auto'},
     ),
     css('.fk-picker-detail-scrim--open').styles(opacity: 1),
-    css('.fk-picker-detail-sheet').styles(
-      display: .flex,
-      alignItems: .end,
-      justifyContent: .center,
-      padding: .zero,
-    ),
+    css('.fk-picker-detail-sheet').styles(display: .flex, alignItems: .end, justifyContent: .center, padding: .zero),
     css('.fk-picker-detail-sheet .fk-picker-detail-view').styles(
       width: .unset,
       maxWidth: .unset,
@@ -679,7 +669,9 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
       maxHeight: 75.vh,
       margin: .zero,
       radius: BorderRadius.only(topLeft: Radius.circular(16.px), topRight: Radius.circular(16.px)),
-      border: Border.only(top: BorderSide.solid(color: borderColor, width: 1.px)),
+      border: Border.only(
+        top: BorderSide.solid(color: borderColor, width: 1.px),
+      ),
       transform: Transform.translate(y: 100.percent),
       transition: Transition.combine([
         Transition('transform', duration: _detailSheetDuration, curve: Curve.easeOut),
@@ -687,10 +679,7 @@ List<StyleRule> get foreignKeyPickerDialogStyles => [
       ]),
       raw: const {'box-shadow': '0 -8px 32px rgb(15 23 42 / 0.22)'},
     ),
-    css('.fk-picker-detail-sheet--open .fk-picker-detail-view').styles(
-      opacity: 1,
-      transform: Transform.none,
-    ),
+    css('.fk-picker-detail-sheet--open .fk-picker-detail-view').styles(opacity: 1, transform: Transform.none),
     css('.fk-picker-detail-sheet .fk-picker-header').styles(
       backgroundColor: surfaceColor,
       padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s5),

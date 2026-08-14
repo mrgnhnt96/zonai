@@ -31,8 +31,10 @@ void main() {
         expect(cfg.issuer, 'https://abcdef.supabase.co/auth/v1');
         expect(cfg.audience, 'authenticated');
         expect(cfg.authTable, 'profiles');
-        expect(cfg.jwksUrl,
-            'https://abcdef.supabase.co/auth/v1/.well-known/jwks.json');
+        expect(
+          cfg.jwksUrl,
+          'https://abcdef.supabase.co/auth/v1/.well-known/jwks.json',
+        );
         expect(cfg.cacheTtl, const Duration(hours: 1));
         expect(cfg.fetchTimeout, const Duration(seconds: 2));
         expect(cfg.adminClaimPath, isNull);
@@ -216,14 +218,13 @@ void main() {
         // Supabase always emits a boolean, but defensive normalization
         // avoids surprises if a custom hook injects something else.
         expect(
-          SupabaseClaims.from({'sub': 'sub', 'is_anonymous': 'false'})
-              .isAnonymous,
+          SupabaseClaims.from({
+            'sub': 'sub',
+            'is_anonymous': 'false',
+          }).isAnonymous,
           isFalse,
         );
-        expect(
-          SupabaseClaims.from({'sub': 'sub'}).isAnonymous,
-          isFalse,
-        );
+        expect(SupabaseClaims.from({'sub': 'sub'}).isAnonymous, isFalse);
       });
 
       test('treats malformed metadata maps as null rather than throwing', () {

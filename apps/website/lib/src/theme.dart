@@ -74,7 +74,13 @@ const windowsDownload = (
 
 /// Per-platform builds, for when the universal file is more than you want.
 const downloads = <Download>[
-  (os: 'macOS', note: 'Apple Silicon (arm64)', size: '11.8 MiB', href: '$_assetBase/zonai-macos-arm64.zip', icon: 'apple'),
+  (
+    os: 'macOS',
+    note: 'Apple Silicon (arm64)',
+    size: '11.8 MiB',
+    href: '$_assetBase/zonai-macos-arm64.zip',
+    icon: 'apple',
+  ),
   (os: 'macOS', note: 'Intel (x64)', size: '12.5 MiB', href: '$_assetBase/zonai-macos-x64.zip', icon: 'apple'),
   (os: 'Linux', note: 'x64', size: '11.9 MiB', href: '$_assetBase/zonai-linux-x64.zip', icon: 'linux'),
   (os: 'Linux', note: 'arm64', size: '11.5 MiB', href: '$_assetBase/zonai-linux-arm64.zip', icon: 'linux'),
@@ -128,11 +134,13 @@ List<StyleRule> get globalStyles => [
 
   css('*, *::before, *::after').styles(boxSizing: .borderBox),
 
-  css('html').styles(raw: {
-    'scroll-behavior': 'smooth',
-    'scroll-padding-top': '96px',
-    '-webkit-text-size-adjust': '100%',
-  }),
+  css('html').styles(
+    raw: {
+      'scroll-behavior': 'smooth',
+      'scroll-padding-top': '96px',
+      '-webkit-text-size-adjust': '100%',
+    },
+  ),
 
   css('body').styles(
     margin: .zero,
@@ -260,12 +268,14 @@ List<StyleRule> get globalStyles => [
 
   // Respect users who would rather the page held still.
   css.media(MediaQuery.raw('(prefers-reduced-motion: reduce)'), [
-    css('*, *::before, *::after').styles(raw: {
-      'animation-duration': '0.001ms !important',
-      'animation-iteration-count': '1 !important',
-      'transition-duration': '0.001ms !important',
-      'scroll-behavior': 'auto !important',
-    }),
+    css('*, *::before, *::after').styles(
+      raw: {
+        'animation-duration': '0.001ms !important',
+        'animation-iteration-count': '1 !important',
+        'transition-duration': '0.001ms !important',
+        'scroll-behavior': 'auto !important',
+      },
+    ),
   ]),
 
   css.media(MediaQuery.screen(maxWidth: 640.px), [

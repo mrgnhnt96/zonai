@@ -37,12 +37,9 @@ void main(List<String> args) {
     exit(1);
   }
 
-  final files = contentDir
-      .listSync(recursive: true)
-      .whereType<File>()
-      .where((file) => file.path.endsWith('.md'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final files =
+      contentDir.listSync(recursive: true).whereType<File>().where((file) => file.path.endsWith('.md')).toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
 
   final documents = <Map<String, Object?>>[];
   final routes = <String>{};
@@ -252,11 +249,8 @@ List<Map<String, Object?>> _sectionsOf(String body) {
 /// and emphasis are parsed — so `## Prefer \`zonai_client\`` becomes
 /// `prefer-zonai_client`, not `prefer`. Matching that exactly is what lets a
 /// search result deep-link to the right heading.
-String _anchorFor(String rawHeading) => rawHeading
-    .toLowerCase()
-    .trim()
-    .replaceAll(RegExp('[^a-z0-9 _-]'), '')
-    .replaceAll(RegExp(r'\s'), '-');
+String _anchorFor(String rawHeading) =>
+    rawHeading.toLowerCase().trim().replaceAll(RegExp('[^a-z0-9 _-]'), '').replaceAll(RegExp(r'\s'), '-');
 
 /// Reduces markdown to searchable prose.
 String _plainText(String markdown) {

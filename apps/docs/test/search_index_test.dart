@@ -88,8 +88,10 @@ void main() {
 
     test('finds pages by CLI command', () {
       expect(top('zonai db migrate'), startsWith('/'));
-      expect(searchIndex(index, 'zonai db migrate').take(5).map((hit) => hit.href.split('#').first),
-          contains('/cli/db'));
+      expect(
+        searchIndex(index, 'zonai db migrate').take(5).map((hit) => hit.href.split('#').first),
+        contains('/cli/db'),
+      );
     });
 
     test('requires every token to match', () {

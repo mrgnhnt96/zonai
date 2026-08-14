@@ -5,11 +5,8 @@
 /// `test/search_index_test.dart`. Nothing here touches the DOM.
 library;
 
-List<String> tokenize(String query) => query
-    .toLowerCase()
-    .split(RegExp(r'\s+'))
-    .where((token) => token.isNotEmpty)
-    .toList();
+List<String> tokenize(String query) =>
+    query.toLowerCase().split(RegExp(r'\s+')).where((token) => token.isNotEmpty).toList();
 
 /// Ranks [index] against [query], best first.
 ///

@@ -316,12 +316,9 @@ class DashboardScreen extends StatelessComponent {
         minHeight: .zero,
         raw: const {'flex-basis': '420px'},
       ),
-      css('.dashboard-panel--tables').styles(
-        flex: Flex(grow: 999, shrink: 1),
-        minWidth: 280.px,
-        minHeight: .zero,
-        raw: const {'flex-basis': '0'},
-      ),
+      css(
+        '.dashboard-panel--tables',
+      ).styles(flex: Flex(grow: 999, shrink: 1), minWidth: 280.px, minHeight: .zero, raw: const {'flex-basis': '0'}),
       css(
         '.dashboard-panel-heading',
       ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, justifyContent: .spaceBetween),
@@ -540,21 +537,12 @@ class DashboardScreen extends StatelessComponent {
       css('.dashboard-table-name').styles(fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-table-meta').styles(fontSize: 0.75.rem, color: mutedColor),
       css.media(MediaQuery.all(maxWidth: 1024.px), [
-        css('.dashboard-panel--wide').styles(
-          flex: Flex(grow: 1, shrink: 1),
-          width: 100.percent,
-          minWidth: 100.percent,
-        ),
-        css('.dashboard-panel--errors').styles(
-          flex: Flex(grow: 1, shrink: 1),
-          width: 100.percent,
-          maxWidth: 100.percent,
-          minWidth: 100.percent,
-        ),
+        css('.dashboard-panel--wide').styles(flex: Flex(grow: 1, shrink: 1), width: 100.percent, minWidth: 100.percent),
+        css(
+          '.dashboard-panel--errors',
+        ).styles(flex: Flex(grow: 1, shrink: 1), width: 100.percent, maxWidth: 100.percent, minWidth: 100.percent),
       ]),
-      css.media(MediaQuery.all(maxWidth: 640.px), [
-        css('.dashboard-header').styles(display: .none),
-      ]),
+      css.media(MediaQuery.all(maxWidth: 640.px), [css('.dashboard-header').styles(display: .none)]),
     ]),
   ];
 }
@@ -575,12 +563,7 @@ class _StatCard extends StatelessComponent {
 }
 
 class _CronJobRow extends StatelessComponent {
-  const _CronJobRow({
-    required this.job,
-    required this.isSubmitting,
-    required this.showRun,
-    required this.onRun,
-  });
+  const _CronJobRow({required this.job, required this.isSubmitting, required this.showRun, required this.onRun});
 
   final CronJobSummary job;
   final bool isSubmitting;

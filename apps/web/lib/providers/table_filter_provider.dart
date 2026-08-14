@@ -112,11 +112,7 @@ class TableFilterNotifier extends Notifier<TableFilterState> {
     // so repeated build() calls (tableFocusProvider emitting same table) are stable.
     final where = _whereFromUrl();
     if (where == null) return const TableFilterState();
-    return TableFilterState(
-      appliedWhere: where,
-      draftRows: draftsFromWhere(where),
-      combine: combineFromWhere(where),
-    );
+    return TableFilterState(appliedWhere: where, draftRows: draftsFromWhere(where), combine: combineFromWhere(where));
   }
 
   void togglePanel() {

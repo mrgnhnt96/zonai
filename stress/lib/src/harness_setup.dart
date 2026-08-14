@@ -52,10 +52,14 @@ Future<void> ensureCompiledZonai(
 }
 
 Future<String?> _extractZonaiVersion(File zonaiExe) async {
-  final result = await Process.run(zonaiExe.path, ['version'], environment: {
-    // Avoid "new version available" noise affecting parsing.
-    'CI': '1',
-  });
+  final result = await Process.run(
+    zonaiExe.path,
+    ['version'],
+    environment: {
+      // Avoid "new version available" noise affecting parsing.
+      'CI': '1',
+    },
+  );
   final match = RegExp(
     r'Zonai: v([0-9][0-9.]*)',
   ).firstMatch('${result.stdout}\n${result.stderr}');
@@ -132,9 +136,7 @@ Future<void> ensureFixtureReady({
     );
   }
 
-  print(
-    'Built project binary at ${built.path} (${built.lengthSync()} bytes).',
-  );
+  print('Built project binary at ${built.path} (${built.lengthSync()} bytes).');
 }
 
 /// Writes gitignored [pubspec_overrides.yaml] so project-binary compile can
@@ -251,16 +253,15 @@ Future<Process> startServer({
     // Dev workflow: `dart run zonai serve` → JIT project_main (ops/rules
     // in-process, no AOT project binary). Matches day-to-day `zonai serve`
     // / the server `zonai dev` attaches to when not using a compiled CLI.
-    ServerMode.dev => Process.start(
-      Platform.resolvedExecutable,
-      ['run', 'zonai', ...serveArgs],
-      workingDirectory: fixtureDir.path,
-    ),
+    ServerMode.dev => Process.start(Platform.resolvedExecutable, [
+      'run',
+      'zonai',
+      ...serveArgs,
+    ], workingDirectory: fixtureDir.path),
     // Production artifact: project-linked `build/zonai serve --release`.
-    ServerMode.build => Process.start(
-      '${buildDir.path}/zonai',
-      [...serveArgs, '--release'],
-      workingDirectory: buildDir.path,
-    ),
+    ServerMode.build => Process.start('${buildDir.path}/zonai', [
+      ...serveArgs,
+      '--release',
+    ], workingDirectory: buildDir.path),
   };
 }

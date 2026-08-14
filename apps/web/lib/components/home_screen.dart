@@ -466,11 +466,7 @@ class HomeScreen extends StatelessComponent {
         display: .block,
         position: Position.absolute(left: 0.px, top: 0.px, bottom: 0.px),
         width: 0.percent,
-        raw: const {
-          'background-color': 'rgba(0, 0, 0, 0.28)',
-          'pointer-events': 'none',
-          'z-index': '0',
-        },
+        raw: const {'background-color': 'rgba(0, 0, 0, 0.28)', 'pointer-events': 'none', 'z-index': '0'},
       ),
       css('.rows-selection-delete__progress--resetting').styles(raw: const {'transition': 'width 75ms ease'}),
       css('.rows-selection-delete__label').styles(position: Position.relative(), raw: const {'z-index': '1'}),

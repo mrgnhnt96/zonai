@@ -91,19 +91,26 @@ final class SectionCards extends CustomComponentBase {
   Component apply(String name, Map<String, String> attributes, Component? child) {
     return Component.fragment([
       Document.head(children: [Style(styles: _styles)]),
-      div(classes: 'card-grid', attributes: {'data-columns': '3'}, [
-        for (final group in navigation)
-          a(classes: 'card', href: group.items.first.href, [
-            div(classes: 'card-head', [
-              span(classes: 'card-icon', [RawText(group.icon)]),
-              span(classes: 'card-title', [Component.text(group.title)]),
+      div(
+        classes: 'card-grid',
+        attributes: {'data-columns': '3'},
+        [
+          for (final group in navigation)
+            a(classes: 'card', href: group.items.first.href, [
+              div(classes: 'card-head', [
+                span(classes: 'card-icon', [RawText(group.icon)]),
+                span(classes: 'card-title', [Component.text(group.title)]),
+              ]),
+              if (group.summary case final summary?)
+                div(classes: 'card-body', [
+                  p([Component.text(summary)]),
+                ]),
+              div(classes: 'card-meta', [
+                Component.text('${group.items.length} ${group.items.length == 1 ? 'page' : 'pages'}'),
+              ]),
             ]),
-            if (group.summary case final summary?) div(classes: 'card-body', [p([Component.text(summary)])]),
-            div(classes: 'card-meta', [
-              Component.text('${group.items.length} ${group.items.length == 1 ? 'page' : 'pages'}'),
-            ]),
-          ]),
-      ]),
+        ],
+      ),
     ]);
   }
 }
@@ -187,7 +194,11 @@ List<StyleRule> get _styles => [
     ]),
 
     css('.card-body', [
-      css('&').styles(fontSize: .875.rem, opacity: .75, margin: Margin.only(top: .375.rem)),
+      css('&').styles(
+        fontSize: .875.rem,
+        opacity: .75,
+        margin: Margin.only(top: .375.rem),
+      ),
       css('p').styles(margin: Margin.zero),
       css('p + p').styles(margin: Margin.only(top: .5.rem)),
       css('code').styles(fontSize: .8125.rem),

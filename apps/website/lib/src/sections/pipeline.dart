@@ -39,7 +39,11 @@ class Pipeline extends StatelessComponent {
           for (final (index, (name, where, note)) in _stages.indexed) ...[
             div(classes: 'pipe-arrow', [
               span(classes: 'pipe-line', []),
-              span(classes: 'pipe-spark', styles: Styles(raw: {'animation-delay': '${index * 380}ms'}), []),
+              span(
+                classes: 'pipe-spark',
+                styles: Styles(raw: {'animation-delay': '${index * 380}ms'}),
+                [],
+              ),
             ]),
             div(classes: 'pipe-node', [
               span(classes: 'pipe-name', [.text(name)]),
@@ -50,7 +54,11 @@ class Pipeline extends StatelessComponent {
 
           div(classes: 'pipe-arrow', [
             span(classes: 'pipe-line', []),
-            span(classes: 'pipe-spark', styles: Styles(raw: {'animation-delay': '1900ms'}), []),
+            span(
+              classes: 'pipe-spark',
+              styles: Styles(raw: {'animation-delay': '1900ms'}),
+              [],
+            ),
           ]),
           div(classes: 'pipe-node pipe-edge', [
             span(classes: 'pipe-name', [.text('Response')]),

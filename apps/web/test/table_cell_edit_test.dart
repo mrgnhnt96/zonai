@@ -46,10 +46,7 @@ void main() {
         sqlType: 'INTEGER',
       );
 
-      expect(
-        () => parseEditValue(draftValue: null, textInput: '0014303072000', shape: shape),
-        throwsFormatException,
-      );
+      expect(() => parseEditValue(draftValue: null, textInput: '0014303072000', shape: shape), throwsFormatException);
     });
 
     test('map column parses JSON object', () {

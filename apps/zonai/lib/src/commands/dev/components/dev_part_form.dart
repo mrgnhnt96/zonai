@@ -185,10 +185,8 @@ class _DevPartFormState extends State<DevPartForm> {
     });
   }
 
-  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
-    action: _focusedAction,
-    submitEnabled: _canSubmit,
-  );
+  DevFormAction get _effectiveFocusedAction =>
+      devFormEffectiveAction(action: _focusedAction, submitEnabled: _canSubmit);
 
   void _activateAction() {
     switch (_effectiveFocusedAction) {

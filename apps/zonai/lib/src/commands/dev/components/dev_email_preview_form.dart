@@ -130,7 +130,7 @@ class _DevEmailPreviewFormState extends State<DevEmailPreviewForm> {
         _PreviewField.none => _PreviewField.template,
         _PreviewField.template => _PreviewField.variables,
         _PreviewField.variables =>
-            canPreview ? _PreviewField.preview : _PreviewField.template,
+          canPreview ? _PreviewField.preview : _PreviewField.template,
         _PreviewField.preview => _PreviewField.template,
       };
     });
@@ -141,9 +141,9 @@ class _DevEmailPreviewFormState extends State<DevEmailPreviewForm> {
     setState(() {
       _field = switch (_field) {
         _PreviewField.none =>
-            canPreview ? _PreviewField.preview : _PreviewField.variables,
+          canPreview ? _PreviewField.preview : _PreviewField.variables,
         _PreviewField.template =>
-            canPreview ? _PreviewField.preview : _PreviewField.variables,
+          canPreview ? _PreviewField.preview : _PreviewField.variables,
         _PreviewField.variables => _PreviewField.template,
         _PreviewField.preview => _PreviewField.variables,
       };

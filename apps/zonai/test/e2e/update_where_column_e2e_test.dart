@@ -137,7 +137,6 @@ void main() {
       );
     }
 
-
     /// The fixture's `users` rules deny `update` to a plain user token; the
     /// admin e2e test uses an admin for the same reason. This is about the
     /// where clause, not authorization, so every case runs as admin.
@@ -313,7 +312,11 @@ void main() {
           ),
         );
 
-        expect(updated, hasLength(1), reason: 'the control the report says works');
+        expect(
+          updated,
+          hasLength(1),
+          reason: 'the control the report says works',
+        );
       });
     }, timeout: const Timeout(Duration(minutes: 3)));
   });

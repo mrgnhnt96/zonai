@@ -277,7 +277,9 @@ String _formatMigrationsDart(List<({String tag, String sql})> migrations) {
   final buffer = StringBuffer()..writeln('$_migrationsDartHeader');
   buffer
     ..writeln()
-    ..writeln("import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';")
+    ..writeln(
+      "import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';",
+    )
     ..writeln()
     ..writeln(
       '/// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).',
@@ -357,10 +359,7 @@ List<({String importPath, String getter, String tableName})> _discoverTables(
     }
   }
 
-  scanDir(
-    Directory('${internalRoot.path}/tables'),
-    '$_importPrefix/tables/',
-  );
+  scanDir(Directory('${internalRoot.path}/tables'), '$_importPrefix/tables/');
   scanDir(internalRoot, '$_importPrefix/');
 
   tables.sort((a, b) => a.tableName.compareTo(b.tableName));

@@ -125,14 +125,17 @@ class _TopErrorsNotifier extends AsyncNotifier<List<TopError>> {
         ? And([Eq('level', 'error'), Gt('timestamp', since), Eq('is_admin', false)])
         : And([Eq('level', 'error'), Gt('timestamp', since)]);
 
-    final data = await ref.read(revaliServerProvider).db.list(
-      body: ListBody(
-        table: '_log',
-        where: where,
-        limit: 500,
-        orderBy: [const OrderByTerm(column: 'timestamp', direction: SortDirection.desc)],
-      ),
-    );
+    final data = await ref
+        .read(revaliServerProvider)
+        .db
+        .list(
+          body: ListBody(
+            table: '_log',
+            where: where,
+            limit: 500,
+            orderBy: [const OrderByTerm(column: 'timestamp', direction: SortDirection.desc)],
+          ),
+        );
 
     // Group by a concise error label; items are DESC by timestamp so first occurrence = most recent.
     final groups = <String, ({int count, DateTime lastSeen, String? detail})>{};

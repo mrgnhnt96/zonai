@@ -458,7 +458,10 @@ class DbOperations {
     );
   }
 
-  rd.Column? _isVerifiedColumn(rd.TableMeta table, {required String tableName}) {
+  rd.Column? _isVerifiedColumn(
+    rd.TableMeta table, {
+    required String tableName,
+  }) {
     return _tryFindColumn(
       table,
       (column) => column.transformer is IsVerifiedTransformer,

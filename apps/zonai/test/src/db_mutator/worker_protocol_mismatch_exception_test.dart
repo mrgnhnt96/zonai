@@ -8,7 +8,9 @@ void main() {
   group('WorkerProtocolMismatchException.forStamp', () {
     late MemoryFileSystem memoryFs;
 
-    Set<ScopedRef<dynamic>> overrides() => {fsProvider.overrideWith(() => memoryFs)};
+    Set<ScopedRef<dynamic>> overrides() => {
+      fsProvider.overrideWith(() => memoryFs),
+    };
 
     setUp(() {
       memoryFs = MemoryFileSystem();

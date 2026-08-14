@@ -150,11 +150,8 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 503,
         body: {'error': '$exception'},
       ),
-      ExpandedRecordReadFailedException() ||
-      StaleRowRulesRequestException() => .handled(
-        statusCode: 500,
-        body: {'error': 'Internal server error'},
-      ),
+      ExpandedRecordReadFailedException() || StaleRowRulesRequestException() =>
+        .handled(statusCode: 500, body: {'error': 'Internal server error'}),
     };
   }
 

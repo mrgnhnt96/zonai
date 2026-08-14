@@ -311,7 +311,9 @@ class Hero extends StatelessComponent {
       css('.hero .hero-title').styles(fontSize: 52.px),
     ]),
     css.media(MediaQuery.screen(maxWidth: 640.px), [
-      css('.hero').styles(padding: .only(top: 52.px, bottom: 24.px)),
+      css('.hero').styles(
+        padding: .only(top: 52.px, bottom: 24.px),
+      ),
       css('.hero .hero-title').styles(fontSize: 38.px),
       css('.hero .hero-lede').styles(fontSize: 16.px),
       css('.hero .hero-cta').styles(width: 100.percent, flexDirection: .column),

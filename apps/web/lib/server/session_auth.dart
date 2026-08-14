@@ -74,10 +74,7 @@ Future<SsrSession> resolveSsrSession(String? token) {
 Future<SsrSession> _resolveFromClaimsOnly(String token) async {
   try {
     final jwt = await zonaiDB.parseJwtClaimsOnly(token);
-    return SsrSession(
-      signedIn: jwt != null,
-      clearAuthCookie: false,
-    );
+    return SsrSession(signedIn: jwt != null, clearAuthCookie: false);
   } on InvalidJwtException {
     return const SsrSession(signedIn: false, clearAuthCookie: true);
   } on AuthException {

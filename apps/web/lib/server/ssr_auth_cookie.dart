@@ -9,12 +9,5 @@ import '../utils/zonai_cookie.dart';
 /// [ZonaiCookie.authToken] is not HttpOnly so the browser client can attach it
 /// to API requests; match that when expiring the cookie server-side.
 void clearAuthCookie(BuildContext context) {
-  context.setCookie(
-    ZonaiCookie.authToken.key,
-    '',
-    maxAge: 0,
-    path: '/',
-    httpOnly: false,
-    sameSite: SameSite.lax,
-  );
+  context.setCookie(ZonaiCookie.authToken.key, '', maxAge: 0, path: '/', httpOnly: false, sameSite: SameSite.lax);
 }

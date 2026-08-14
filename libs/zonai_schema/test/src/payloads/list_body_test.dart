@@ -38,11 +38,7 @@ void main() {
   });
 
   test('ListBody group_by survives Revali-style query coercion', () {
-    final original = ListBody(
-      table: 'tasks',
-      groupBy: 'status',
-      limit: 10,
-    );
+    final original = ListBody(table: 'tasks', groupBy: 'status', limit: 10);
 
     final parsed = ListBody.fromJson(
       coerce(jsonEncode(original.toJson())) as Map,

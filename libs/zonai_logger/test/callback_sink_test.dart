@@ -23,14 +23,17 @@ void main() {
       expect(received, ['a line']);
     });
 
-    test('add() decodes bytes with the sink encoding before invoking the callback', () {
-      final received = <Object?>[];
-      final sink = CallbackSink(callback: received.add);
+    test(
+      'add() decodes bytes with the sink encoding before invoking the callback',
+      () {
+        final received = <Object?>[];
+        final sink = CallbackSink(callback: received.add);
 
-      sink.add('hi'.codeUnits);
+        sink.add('hi'.codeUnits);
 
-      expect(received, ['hi']);
-    });
+        expect(received, ['hi']);
+      },
+    );
 
     test('writeAll() joins with the given separator', () {
       final received = <Object?>[];

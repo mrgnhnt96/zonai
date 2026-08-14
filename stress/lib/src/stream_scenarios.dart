@@ -149,7 +149,9 @@ Future<StreamWaveStats> runStreamWaves({
     switch (dropMode) {
       case DropMode.graceful:
         try {
-          await stream.subscription.cancel().timeout(const Duration(seconds: 5));
+          await stream.subscription.cancel().timeout(
+            const Duration(seconds: 5),
+          );
         } catch (_) {
           // Fall through to a forced close below either way.
         }

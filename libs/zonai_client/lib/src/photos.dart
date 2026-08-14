@@ -6,10 +6,7 @@ class Photos {
 
   final PhotosDataSource _photos;
 
-  Stream<List<int>> get({
-    required String id,
-    String? authorization,
-  }) {
+  Stream<List<int>> get({required String id, String? authorization}) {
     return _photos.view(id: id, authorization: authorization);
   }
 
@@ -33,17 +30,10 @@ class Photos {
     String? authorization,
     String? contentType,
   }) async {
-    await _photos.update(
-      image: image,
-      id: id,
-      authorization: authorization,
-    );
+    await _photos.update(image: image, id: id, authorization: authorization);
   }
 
-  Future<void> delete({
-    required String id,
-    String? authorization,
-  }) async {
+  Future<void> delete({required String id, String? authorization}) async {
     await _photos.delete(id: id, authorization: authorization);
   }
 }

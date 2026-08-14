@@ -45,7 +45,9 @@ void main() {
     test('returns null, not throw, for a payload segment that is not JSON', () {
       // Three dot-separated parts, valid base64url, but the decoded payload
       // isn't JSON at all.
-      final garbage = base64Url.encode(utf8.encode('not-json')).replaceAll('=', '');
+      final garbage = base64Url
+          .encode(utf8.encode('not-json'))
+          .replaceAll('=', '');
       final token = 'header.$garbage.signature';
 
       expect(() => Jwt.parse(token), returnsNormally);
@@ -53,11 +55,8 @@ void main() {
     });
 
     test('returns null, not throw, for JSON that is not a JWT object', () {
-      final token = 'header.${_encodeSegment([
-        'not',
-        'an',
-        'object',
-      ])}.signature';
+      final token =
+          'header.${_encodeSegment(['not', 'an', 'object'])}.signature';
 
       expect(() => Jwt.parse(token), returnsNormally);
       expect(Jwt.parse(token), isNull);

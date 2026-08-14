@@ -33,62 +33,59 @@ Future<void> _waitUntil(bool Function() done) async {
 }
 
 void main() {
-  test(
-    'a request that fails fromUnknownRequest replies with a '
-    'MessageErrorResponse instead of crashing the listen loop -- one bad '
-    'sender must not take down every other in-flight request',
-    () async {
-      final io = _FakeMessageIo();
-      final handler = MessageHandler<RuleRequest>(
-        fromUnknownRequest: RuleRequest.fromRequest,
-        onMessage: (request) async {
-          final request_ = request;
-          if (request_ is RowRulesRequest) {
-            return RowRulesResponse(
-              id: request_.id,
-              table: request_.table,
-              operation: request_.operation,
-              canPerform: true,
-            );
-          }
-          return null;
-        },
-        io: io,
-      );
+  test('a request that fails fromUnknownRequest replies with a '
+      'MessageErrorResponse instead of crashing the listen loop -- one bad '
+      'sender must not take down every other in-flight request', () async {
+    final io = _FakeMessageIo();
+    final handler = MessageHandler<RuleRequest>(
+      fromUnknownRequest: RuleRequest.fromRequest,
+      onMessage: (request) async {
+        final request_ = request;
+        if (request_ is RowRulesRequest) {
+          return RowRulesResponse(
+            id: request_.id,
+            table: request_.table,
+            operation: request_.operation,
+            canPerform: true,
+          );
+        }
+        return null;
+      },
+      io: io,
+    );
 
-      unawaited(handler.listen());
+    unawaited(handler.listen());
 
-      // Stale sender: an update-operation row rules request with no
-      // "updates" key -- throws StaleRowRulesRequestException inside
-      // fromUnknownRequest, before onMessage ever runs.
-      io.push({
-        'path': 'request/.row.can_access',
-        'id': 'req-1',
-        'table': 'items',
-        'operation': 'update',
-        'data': {'id': 1},
-      });
+    // Stale sender: an update-operation row rules request with no
+    // "updates" key -- throws StaleRowRulesRequestException inside
+    // fromUnknownRequest, before onMessage ever runs.
+    io.push({
+      'path': 'request/.row.can_access',
+      'id': 'req-1',
+      'table': 'items',
+      'operation': 'update',
+      'data': {'id': 1},
+    });
 
-      // A perfectly normal request right behind it, on the same worker.
-      io.push({
-        'path': 'request/.row.can_access',
-        'id': 'req-2',
-        'table': 'items',
-        'operation': 'view',
-        'data': {'id': 2},
-        'updates': <Object?>[],
-      });
+    // A perfectly normal request right behind it, on the same worker.
+    io.push({
+      'path': 'request/.row.can_access',
+      'id': 'req-2',
+      'table': 'items',
+      'operation': 'view',
+      'data': {'id': 2},
+      'updates': <Object?>[],
+    });
 
-      await _waitUntil(() => io.sent.length >= 2);
+    await _waitUntil(() => io.sent.length >= 2);
 
-      expect(io.sent[0]['path'], 'response/.error');
-      expect(io.sent[0]['id'], 'req-1');
+    expect(io.sent[0]['path'], 'response/.error');
+    expect(io.sent[0]['id'], 'req-1');
 
-      expect(io.sent[1]['path'], 'response/.row.can_access');
-      expect(io.sent[1]['id'], 'req-2');
-      expect(io.sent[1]['payload']?['canPerform'], isTrue);
+    expect(io.sent[1]['path'], 'response/.row.can_access');
+    expect(io.sent[1]['id'], 'req-2');
+    expect(io.sent[1]['payload']?['canPerform'], isTrue);
 
-      io.dispose();
-    },
-  );
+    io.dispose();
+  });
 }

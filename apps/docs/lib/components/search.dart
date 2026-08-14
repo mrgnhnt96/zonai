@@ -43,10 +43,10 @@ const _dialogId = 'docs-search-dialog';
 const _inputId = 'docs-search-input';
 
 class _DocsSearchState extends State<DocsSearch> {
-
   StreamSubscription<web.KeyboardEvent>? _shortcuts;
 
   bool _open = false;
+
   /// Whether [_dialogNode] has been promoted into the top layer.
   ///
   /// Tracked separately from [_open] because the `open` attribute has to be
@@ -139,11 +139,9 @@ class _DocsSearchState extends State<DocsSearch> {
     });
   }
 
-  web.HTMLDialogElement? get _dialogNode =>
-      web.document.getElementById(_dialogId) as web.HTMLDialogElement?;
+  web.HTMLDialogElement? get _dialogNode => web.document.getElementById(_dialogId) as web.HTMLDialogElement?;
 
-  web.HTMLInputElement? get _inputNode =>
-      web.document.getElementById(_inputId) as web.HTMLInputElement?;
+  web.HTMLInputElement? get _inputNode => web.document.getElementById(_inputId) as web.HTMLInputElement?;
 
   void _close() {
     if (!_open) return;
@@ -223,9 +221,7 @@ class _DocsSearchState extends State<DocsSearch> {
   void _scrollSelectedIntoView() {
     if (!kIsWeb) return;
     context.binding.addPostFrameCallback(() {
-      web.document
-          .querySelector('.search-hit[data-selected]')
-          ?.scrollIntoView({'block': 'nearest'}.jsify()!);
+      web.document.querySelector('.search-hit[data-selected]')?.scrollIntoView({'block': 'nearest'}.jsify()!);
     });
   }
 
@@ -365,8 +361,7 @@ class _DocsSearchState extends State<DocsSearch> {
                 div(classes: 'search-hit-heading', [
                   ..._highlight(hit.heading ?? hit.title, tokens),
                 ]),
-                if (hit.snippet.isNotEmpty)
-                  div(classes: 'search-hit-snippet', [..._highlight(hit.snippet, tokens)]),
+                if (hit.snippet.isNotEmpty) div(classes: 'search-hit-snippet', [..._highlight(hit.snippet, tokens)]),
               ],
             ),
           ]),
@@ -415,7 +410,6 @@ List<Component> _highlight(String source, List<String> tokens) {
   return parts;
 }
 
-
 const _searchIcon =
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" '
     'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
@@ -449,7 +443,10 @@ List<StyleRule> get _styles => [
     css.media(MediaQuery.all(minWidth: 640.px), [
       css('&').styles(width: 12.rem, justifyContent: JustifyContent.start),
       css('.search-trigger-label').styles(display: Display.block),
-      css('.search-trigger-keys').styles(display: Display.block, margin: Margin.only(left: Unit.auto)),
+      css('.search-trigger-keys').styles(
+        display: Display.block,
+        margin: Margin.only(left: Unit.auto),
+      ),
     ]),
   ]),
 
@@ -480,7 +477,9 @@ List<StyleRule> get _styles => [
       raw: {'backdrop-filter': 'blur(4px)'},
     ),
     css.media(MediaQuery.all(minWidth: 768.px), [
-      css('&').styles(padding: Padding.only(top: 6.rem, left: 1.rem, right: 1.rem, bottom: 3.rem)),
+      css('&').styles(
+        padding: Padding.only(top: 6.rem, left: 1.rem, right: 1.rem, bottom: 3.rem),
+      ),
     ]),
   ]),
 
@@ -506,7 +505,9 @@ List<StyleRule> get _styles => [
       gap: Gap.column(.75.rem),
       padding: Padding.symmetric(horizontal: 1.rem),
       height: 3.5.rem,
-      border: Border.only(bottom: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)'))),
+      border: Border.only(
+        bottom: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)')),
+      ),
     ),
     css('svg').styles(opacity: .5, flex: Flex(shrink: 0)),
     css('input', [
@@ -539,7 +540,10 @@ List<StyleRule> get _styles => [
   ]),
 
   css('.search-results', [
-    css('&').styles(overflow: Overflow.only(y: Overflow.auto), padding: Padding.all(.5.rem)),
+    css('&').styles(
+      overflow: Overflow.only(y: Overflow.auto),
+      padding: Padding.all(.5.rem),
+    ),
   ]),
 
   css('.search-empty', [
@@ -605,7 +609,9 @@ List<StyleRule> get _styles => [
       padding: Padding.symmetric(horizontal: 1.rem, vertical: .625.rem),
       fontSize: .6875.rem,
       opacity: .55,
-      border: Border.only(top: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)'))),
+      border: Border.only(
+        top: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)')),
+      ),
     ),
     css('kbd').styles(
       margin: Margin.only(right: .25.rem),

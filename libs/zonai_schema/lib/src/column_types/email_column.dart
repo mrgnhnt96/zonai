@@ -1,10 +1,7 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 extension EmailColumnDefinition<S> on SchemaBuilder<S> {
-  ColumnType<W> email<W extends String?>(
-    String name,
-    Field<S, W> field,
-  ) {
+  ColumnType<W> email<W extends String?>(String name, Field<S, W> field) {
     return custom<String, String, W>(
       name,
       field,

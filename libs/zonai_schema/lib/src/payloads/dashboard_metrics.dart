@@ -37,7 +37,9 @@ class DashboardMetrics {
       p95ResponseMs: json['p95_response_ms'] as int?,
       requestBuckets: [
         for (final bucket in json['request_buckets'] as List)
-          DashboardRequestBucket.fromJson(Map<String, dynamic>.from(bucket as Map)),
+          DashboardRequestBucket.fromJson(
+            Map<String, dynamic>.from(bucket as Map),
+          ),
       ],
     );
   }

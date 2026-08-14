@@ -409,6 +409,7 @@ class DevFormCard extends StatefulComponent {
   final String title;
   final String? subtitle;
   final Color accentColor;
+
   /// Index of the focused row in the scrollable form body.
   ///
   /// Field indices are `0` through [fields.length - 1]. When a [footer] is

@@ -15,8 +15,7 @@ void registerUnauthorizedHandler(UnauthorizedHandler? handler) {
 }
 
 /// HTTP status codes that mean the stored session is no longer valid.
-bool isUnauthorizedStatusCode(int statusCode) =>
-    statusCode == 401 || statusCode == 403;
+bool isUnauthorizedStatusCode(int statusCode) => statusCode == 401 || statusCode == 403;
 
 /// Shared Zonai HTTP client for the web app, using [appBaseUrlProvider] from config.
 ///

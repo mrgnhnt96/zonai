@@ -22,11 +22,8 @@ part 'request.dart';
 part 'response.dart';
 
 class MessageHandler<R extends Request> {
-  MessageHandler({
-    required this.onMessage,
-    required this.fromUnknownRequest,
-    MessageIo? io,
-  }) : io = io ?? StdioMessageIo();
+  MessageHandler({required this.onMessage, required this.fromUnknownRequest, MessageIo? io})
+    : io = io ?? StdioMessageIo();
 
   final Future<Response?> Function(R) onMessage;
   final MessageIo io;
@@ -172,9 +169,7 @@ class MessageHandler<R extends Request> {
             ),
             _nativeLibraryRequestProvider.overrideWith(
               () => _NativeLibrary((library) async {
-                final result = await sendRequest(
-                  NativeLibraryRequest(library: library),
-                );
+                final result = await sendRequest(NativeLibraryRequest(library: library));
 
                 if (result case NativeLibraryResponse(:final libraryPath)) {
                   return libraryPath;
@@ -348,20 +343,14 @@ class MessageHandler<R extends Request> {
             // point -- see [PurgeRecordsRequest].
             purge: ({required tableName, required where}) async {
               final result = await sendRequest(
-                PurgeRecordsRequest(
-                  table: tableName,
-                  where: where,
-                  jwt: request.jwt,
-                ),
+                PurgeRecordsRequest(table: tableName, where: where, jwt: request.jwt),
               );
 
               if (result case PurgeRecordsResponse(:final rowsAffected)) {
                 return rowsAffected;
               }
 
-              logger.error(
-                'Unexpected response to purge of "$tableName": ${result?.path}',
-              );
+              logger.error('Unexpected response to purge of "$tableName": ${result?.path}');
               return 0;
             },
           ),

@@ -45,7 +45,9 @@ Future<void> main(List<String> rawArgs) async {
 
   final baseUri = Uri.parse('http://localhost:${args.port}');
 
-  print('== zonai leak scan (drop=${args.drop.name}, mode=${args.mode.name}) ==');
+  print(
+    '== zonai leak scan (drop=${args.drop.name}, mode=${args.mode.name}) ==',
+  );
 
   await ensureCompiledZonai(
     zonaiExe,
@@ -73,8 +75,12 @@ Future<void> main(List<String> rawArgs) async {
   );
   final logSink = serverLog.openWrite();
   final logSubs = <StreamSubscription<String>>[
-    server.stdout.transform(const SystemEncoding().decoder).listen(logSink.write),
-    server.stderr.transform(const SystemEncoding().decoder).listen(logSink.write),
+    server.stdout
+        .transform(const SystemEncoding().decoder)
+        .listen(logSink.write),
+    server.stderr
+        .transform(const SystemEncoding().decoder)
+        .listen(logSink.write),
   ];
 
   try {
@@ -85,7 +91,9 @@ Future<void> main(List<String> rawArgs) async {
           : const Duration(seconds: 30),
     );
     if (!healthy) {
-      stderr.writeln('Server did not become healthy in time. See ${serverLog.path}');
+      stderr.writeln(
+        'Server did not become healthy in time. See ${serverLog.path}',
+      );
       exitCode = 1;
       return;
     }
@@ -192,7 +200,9 @@ Future<void> main(List<String> rawArgs) async {
       await logSink.close();
       print('Server stopped (exit $exited). Log at ${serverLog.path}');
     } else {
-      print('--keep-server set; server still running at $baseUri (pid ${server.pid}).');
+      print(
+        '--keep-server set; server still running at $baseUri (pid ${server.pid}).',
+      );
     }
   }
 }
@@ -201,7 +211,10 @@ Future<void> main(List<String> rawArgs) async {
 /// `/db/stream` (one) and `/db/stream/count` have real rows to query --
 /// `_streamOne` throws before ever reaching HybridStreamEngine if its
 /// `where` matches nothing.
-Future<List<String>> _seedAndCollectIds(Uri baseUri, {required int count}) async {
+Future<List<String>> _seedAndCollectIds(
+  Uri baseUri, {
+  required int count,
+}) async {
   final client = HttpClient();
   final ids = <String>[];
   try {
@@ -281,7 +294,9 @@ class _Args {
     final mode = switch (modeName) {
       'dev' || 'jit' => ServerMode.dev,
       'build' || 'release' => ServerMode.build,
-      _ => throw FormatException('Unknown --mode=$modeName (expected dev|build)'),
+      _ => throw FormatException(
+        'Unknown --mode=$modeName (expected dev|build)',
+      ),
     };
 
     final dropName = map['drop'] ?? 'abrupt';

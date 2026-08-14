@@ -9,20 +9,25 @@ void main() {
   group('protocol stamp', () {
     late MemoryFileSystem memoryFs;
 
-    Set<ScopedRef<dynamic>> overrides() => {fsProvider.overrideWith(() => memoryFs)};
+    Set<ScopedRef<dynamic>> overrides() => {
+      fsProvider.overrideWith(() => memoryFs),
+    };
 
     setUp(() {
       memoryFs = MemoryFileSystem();
     });
 
-    test('stamp path sits next to the executable, same name, .protocol extension', () {
-      runScoped(() {
-        expect(
-          protocolStampPathFor('/exes/db_config.exe'),
-          '/exes/db_config.protocol',
-        );
-      }, values: overrides());
-    });
+    test(
+      'stamp path sits next to the executable, same name, .protocol extension',
+      () {
+        runScoped(() {
+          expect(
+            protocolStampPathFor('/exes/db_config.exe'),
+            '/exes/db_config.protocol',
+          );
+        }, values: overrides());
+      },
+    );
 
     test('readProtocolStamp round-trips whatever writeProtocolStamp wrote', () {
       runScoped(() {
@@ -57,7 +62,9 @@ void main() {
   group('isProtocolStale', () {
     late MemoryFileSystem memoryFs;
 
-    Set<ScopedRef<dynamic>> overrides() => {fsProvider.overrideWith(() => memoryFs)};
+    Set<ScopedRef<dynamic>> overrides() => {
+      fsProvider.overrideWith(() => memoryFs),
+    };
 
     setUp(() {
       memoryFs = MemoryFileSystem();

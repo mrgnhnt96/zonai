@@ -30,14 +30,33 @@ void main() {
       ],
       components: [
         Callout(),
-        CodeBlock(grammars: {
-          for (final lang in const [
-            'sh', 'bash', 'json', 'yaml', 'sql', 'nginx', 'ini', 'html',
-            'dockerfile', 'typescript', 'text', 'rust', 'ruby', 'python',
-            'kotlin', 'javascript', 'java', 'go', 'css', 'toml',
-          ])
-            lang: '{"name":"$lang","scopeName":"source.$lang","patterns":[]}',
-        }),
+        CodeBlock(
+          grammars: {
+            for (final lang in const [
+              'sh',
+              'bash',
+              'json',
+              'yaml',
+              'sql',
+              'nginx',
+              'ini',
+              'html',
+              'dockerfile',
+              'typescript',
+              'text',
+              'rust',
+              'ruby',
+              'python',
+              'kotlin',
+              'javascript',
+              'java',
+              'go',
+              'css',
+              'toml',
+            ])
+              lang: '{"name":"$lang","scopeName":"source.$lang","patterns":[]}',
+          },
+        ),
         Image(zoom: true),
         const CardGrid(),
         const Card(),
@@ -102,8 +121,7 @@ final class ZonaiDocsLayout extends DocsLayout {
     if (pageData['image'] == null) {
       if (siteData['image'] case final String image) {
         final absolute = switch (siteData['url']) {
-          final String url when image.startsWith('/') =>
-            '${url.replaceAll(RegExp(r'/+$'), '')}$image',
+          final String url when image.startsWith('/') => '${url.replaceAll(RegExp(r'/+$'), '')}$image',
           _ => image,
         };
         yield meta(attributes: {'property': 'og:image'}, content: absolute);
@@ -132,11 +150,15 @@ final class ZonaiDocsLayout extends DocsLayout {
             div(classes: 'content-container', [
               div(classes: 'content-header', [
                 if (group != null)
-                  nav(classes: 'breadcrumbs', attributes: {'aria-label': 'Breadcrumb'}, [
-                    a(href: '/', [Component.text('Docs')]),
-                    span(classes: 'breadcrumb-sep', [Component.text('/')]),
-                    span([Component.text(group.title)]),
-                  ]),
+                  nav(
+                    classes: 'breadcrumbs',
+                    attributes: {'aria-label': 'Breadcrumb'},
+                    [
+                      a(href: '/', [Component.text('Docs')]),
+                      span(classes: 'breadcrumb-sep', [Component.text('/')]),
+                      span([Component.text(group.title)]),
+                    ],
+                  ),
                 if (pageData['title'] case final String title) h1([Component.text(title)]),
                 if (pageData['description'] case final String description) p([Component.text(description)]),
                 if (pageData['image'] case final String image) img(src: image, alt: pageData['imageAlt'] as String?),
@@ -172,20 +194,24 @@ final class _PageNav extends StatelessComponent {
     final (:previous, :next) = neighborsOf(route);
     if (previous == null && next == null) return const Component.empty();
 
-    return nav(classes: 'page-nav', attributes: {'aria-label': 'Pagination'}, [
-      if (previous != null)
-        a(classes: 'page-nav-link page-nav-prev', href: previous.href, [
-          span(classes: 'page-nav-label', [Component.text('Previous')]),
-          span(classes: 'page-nav-title', [Component.text(previous.title)]),
-        ])
-      else
-        span([]),
-      if (next != null)
-        a(classes: 'page-nav-link page-nav-next', href: next.href, [
-          span(classes: 'page-nav-label', [Component.text('Next')]),
-          span(classes: 'page-nav-title', [Component.text(next.title)]),
-        ]),
-    ]);
+    return nav(
+      classes: 'page-nav',
+      attributes: {'aria-label': 'Pagination'},
+      [
+        if (previous != null)
+          a(classes: 'page-nav-link page-nav-prev', href: previous.href, [
+            span(classes: 'page-nav-label', [Component.text('Previous')]),
+            span(classes: 'page-nav-title', [Component.text(previous.title)]),
+          ])
+        else
+          span([]),
+        if (next != null)
+          a(classes: 'page-nav-link page-nav-next', href: next.href, [
+            span(classes: 'page-nav-label', [Component.text('Next')]),
+            span(classes: 'page-nav-title', [Component.text(next.title)]),
+          ]),
+      ],
+    );
   }
 }
 
@@ -196,12 +222,13 @@ final class _GitHubLink extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     final url = switch (context.page.data.site['social']) {
-      final List social => social
-          .whereType<Map>()
-          .where((entry) => entry['name'] == 'GitHub')
-          .map((entry) => entry['url'])
-          .whereType<String>()
-          .firstOrNull,
+      final List social =>
+        social
+            .whereType<Map>()
+            .where((entry) => entry['name'] == 'GitHub')
+            .map((entry) => entry['url'])
+            .whereType<String>()
+            .firstOrNull,
       _ => null,
     };
     if (url == null) return const Component.empty();
@@ -271,7 +298,9 @@ List<StyleRule> get _styles => [
       justifyContent: JustifyContent.spaceBetween,
       margin: Margin.only(top: 3.rem),
       padding: Padding.only(top: 1.5.rem),
-      border: Border.only(top: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)'))),
+      border: Border.only(
+        top: BorderSide(width: 1.px, color: Color('color-mix(in srgb, currentColor 12%, transparent)')),
+      ),
     ),
     css('.page-nav-link', [
       css('&').styles(
@@ -290,9 +319,14 @@ List<StyleRule> get _styles => [
         border: Border.all(width: 1.px, color: Color('color-mix(in srgb, currentColor 28%, transparent)')),
         backgroundColor: Color('color-mix(in srgb, currentColor 4%, transparent)'),
       ),
-      css('.page-nav-label').styles(fontSize: .6875.rem, opacity: .55, textTransform: TextTransform.upperCase, letterSpacing: .04.em),
+      css(
+        '.page-nav-label',
+      ).styles(fontSize: .6875.rem, opacity: .55, textTransform: TextTransform.upperCase, letterSpacing: .04.em),
       css('.page-nav-title').styles(fontWeight: FontWeight.w600, fontSize: .9375.rem, color: ContentColors.primary),
     ]),
-    css('.page-nav-next').styles(textAlign: TextAlign.right, margin: Margin.only(left: Unit.auto)),
+    css('.page-nav-next').styles(
+      textAlign: TextAlign.right,
+      margin: Margin.only(left: Unit.auto),
+    ),
   ]),
 ];

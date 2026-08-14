@@ -105,7 +105,10 @@ class Jwt {
     // permanently, on every token the server actually issues.
     final normalized = switch (payload.length % 4) {
       0 => payload,
-      final remainder => payload.padRight(payload.length + (4 - remainder), '='),
+      final remainder => payload.padRight(
+        payload.length + (4 - remainder),
+        '=',
+      ),
     };
 
     // A malformed/corrupted/tampered token can fail at any of decode, utf8,

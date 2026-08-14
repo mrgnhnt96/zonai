@@ -40,9 +40,7 @@ Future<void> main() async {
     request.response.headers.set('Content-Type', 'text/plain');
     try {
       // Mirrors DefaultResponseHandler: await response.addStream(body).
-      await request.response.addStream(
-        body.map((s) => '$s\n'.codeUnits),
-      );
+      await request.response.addStream(body.map((s) => '$s\n'.codeUnits));
       stdout.writeln('[server] addStream completed normally (unexpected)');
     } catch (e) {
       stdout.writeln('[server] addStream threw: $e');
@@ -58,9 +56,7 @@ Future<void> main() async {
     tick++;
     if (source.isClosed) return;
     source.add('tick-$tick');
-    stdout.writeln(
-      '[source] pushed tick-$tick (isPaused=${source.isPaused})',
-    );
+    stdout.writeln('[source] pushed tick-$tick (isPaused=${source.isPaused})');
   });
 
   final socket = await Socket.connect(
@@ -68,7 +64,9 @@ Future<void> main() async {
     server.port,
     timeout: const Duration(seconds: 5),
   );
-  socket.write('GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n');
+  socket.write(
+    'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n',
+  );
   await socket.flush();
 
   // Wait until at least one tick has been read back, proving the stream is
@@ -92,7 +90,9 @@ Future<void> main() async {
 
   stdout.writeln('');
   stdout.writeln('=== RESULT ===');
-  stdout.writeln('source.onCancel fired from the disconnect alone: $sourceCancelled');
+  stdout.writeln(
+    'source.onCancel fired from the disconnect alone: $sourceCancelled',
+  );
   if (sourceCancelled) {
     stdout.writeln(
       'UNEXPECTED: the disconnect alone propagated back to the source '

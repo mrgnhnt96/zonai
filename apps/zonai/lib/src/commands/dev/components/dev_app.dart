@@ -386,8 +386,7 @@ class _DevAppState extends State<DevApp> {
   }
 
   bool _handleKey(KeyboardEvent event) {
-    if (event.isControlPressed &&
-        event.logicalKey == LogicalKey.keyC) {
+    if (event.isControlPressed && event.logicalKey == LogicalKey.keyC) {
       return _handleQuitKey();
     }
 

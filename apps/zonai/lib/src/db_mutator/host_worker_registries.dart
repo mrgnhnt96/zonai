@@ -28,11 +28,9 @@ abstract final class HostWorkerRegistries {
     return value == '1' || value == 'true';
   }
 
-  static bool get useInProcessOperations =>
-      !forceWorkers && operations != null;
+  static bool get useInProcessOperations => !forceWorkers && operations != null;
   static bool get useInProcessRules => !forceWorkers && rules != null;
-  static bool get useInProcessExtensions =>
-      !forceWorkers && extensions != null;
+  static bool get useInProcessExtensions => !forceWorkers && extensions != null;
 
   static bool get hasOperations => operations != null;
   static bool get hasRules => rules != null;

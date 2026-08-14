@@ -21,29 +21,26 @@ String _workspaceRoot() {
 }
 
 void main() {
-  test(
-    "docs/views.md doesn't reintroduce the raindrop import that collides "
-    "with zonai_schema's vendored re-export",
-    () {
-      final docs = File(
-        p.join(_workspaceRoot(), 'docs', 'views.md'),
-      ).readAsStringSync();
+  test("docs/views.md doesn't reintroduce the raindrop import that collides "
+      "with zonai_schema's vendored re-export", () {
+    final docs = File(
+      p.join(_workspaceRoot(), 'docs', 'views.md'),
+    ).readAsStringSync();
 
-      // zonai_schema.dart re-exports raindrop (hide table, Logger, migrate)
-      // as of v0.5.2 -- importing package:raindrop/raindrop.dart alongside
-      // it produces `ambiguous_import` for everything both export. The
-      // real example this doc mirrors,
-      // apps/playground/lib/src/operations/post_summary_operations.dart,
-      // only imports zonai_schema for exactly this reason. See issue #22.
-      expect(
-        docs.contains("import 'package:raindrop/raindrop.dart'"),
-        isFalse,
-        reason:
-            'docs/views.md should not tell readers to import raindrop '
-            'alongside zonai_schema -- see apps/playground/lib/src/'
-            'operations/post_summary_operations.dart for the pattern that '
-            "actually compiles.",
-      );
-    },
-  );
+    // zonai_schema.dart re-exports raindrop (hide table, Logger, migrate)
+    // as of v0.5.2 -- importing package:raindrop/raindrop.dart alongside
+    // it produces `ambiguous_import` for everything both export. The
+    // real example this doc mirrors,
+    // apps/playground/lib/src/operations/post_summary_operations.dart,
+    // only imports zonai_schema for exactly this reason. See issue #22.
+    expect(
+      docs.contains("import 'package:raindrop/raindrop.dart'"),
+      isFalse,
+      reason:
+          'docs/views.md should not tell readers to import raindrop '
+          'alongside zonai_schema -- see apps/playground/lib/src/'
+          'operations/post_summary_operations.dart for the pattern that '
+          "actually compiles.",
+    );
+  });
 }

@@ -31,10 +31,7 @@ class Db {
     );
   }
 
-  Future<int> count({
-    required CountBody body,
-    String? authorization,
-  }) async {
+  Future<int> count({required CountBody body, String? authorization}) async {
     return await _db.count(body: body, authorization: authorization);
   }
 

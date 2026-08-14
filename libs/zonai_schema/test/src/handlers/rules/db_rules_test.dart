@@ -147,7 +147,11 @@ void main() {
 
     test('table-level: a registered custom operation is dispatched', () async {
       final response = await dbRulesWithTable.dispatch(
-        TableRulesRequest(table: 'rules_items', operation: 'archive', jwt: null),
+        TableRulesRequest(
+          table: 'rules_items',
+          operation: 'archive',
+          jwt: null,
+        ),
       );
 
       expect(response, isA<TableRulesResponse>());
@@ -188,34 +192,40 @@ void main() {
       },
     );
 
-    test('row-level: a custom operation with no locking update is allowed', () async {
-      final response = await dbRulesWithTable.dispatch(
-        RowRulesRequest(
-          table: 'rules_items',
-          operation: 'archive',
-          data: {'id': 1, 'roles': '["member"]'},
-          updates: [Update.column('roles', const Add('editor'))],
-          jwt: null,
-        ),
-      );
+    test(
+      'row-level: a custom operation with no locking update is allowed',
+      () async {
+        final response = await dbRulesWithTable.dispatch(
+          RowRulesRequest(
+            table: 'rules_items',
+            operation: 'archive',
+            data: {'id': 1, 'roles': '["member"]'},
+            updates: [Update.column('roles', const Add('editor'))],
+            jwt: null,
+          ),
+        );
 
-      expect(response, isA<RowRulesResponse>());
-      expect((response as RowRulesResponse).canPerform, isTrue);
-    });
+        expect(response, isA<RowRulesResponse>());
+        expect((response as RowRulesResponse).canPerform, isTrue);
+      },
+    );
 
-    test('row-level: an unregistered custom operation name is denied', () async {
-      final response = await dbRulesWithTable.dispatch(
-        RowRulesRequest(
-          table: 'rules_items',
-          operation: 'unknown_op',
-          data: {'id': 1, 'roles': '["member"]'},
-          jwt: null,
-        ),
-      );
+    test(
+      'row-level: an unregistered custom operation name is denied',
+      () async {
+        final response = await dbRulesWithTable.dispatch(
+          RowRulesRequest(
+            table: 'rules_items',
+            operation: 'unknown_op',
+            data: {'id': 1, 'roles': '["member"]'},
+            jwt: null,
+          ),
+        );
 
-      expect(response, isA<RowRulesResponse>());
-      expect((response as RowRulesResponse).canPerform, isFalse);
-    });
+        expect(response, isA<RowRulesResponse>());
+        expect((response as RowRulesResponse).canPerform, isFalse);
+      },
+    );
 
     test('batch row-level: applies the custom rule per row', () async {
       final response = await dbRulesWithTable.dispatch(
@@ -226,9 +236,7 @@ void main() {
             {'id': 1, 'roles': '["member"]'},
             {'id': 2, 'roles': '["member"]'},
           ],
-          updates: [
-            Update.column('roles', const Add('locked')),
-          ],
+          updates: [Update.column('roles', const Add('locked'))],
           jwt: null,
         ),
       );
@@ -240,20 +248,18 @@ void main() {
       ]);
     });
 
-    test(
-      'DbRules.customTableOperationNames/customRowOperationNames expose the '
-      'registered names',
-      () {
-        expect(
-          dbRulesWithTable.customTableOperationNames('rules_items'),
-          {'archive'},
-        );
-        expect(
-          dbRulesWithTable.customRowOperationNames('rules_items'),
-          {'archive'},
-        );
-        expect(dbRulesWithTable.customTableOperationNames('unknown_table'), isEmpty);
-      },
-    );
+    test('DbRules.customTableOperationNames/customRowOperationNames expose the '
+        'registered names', () {
+      expect(dbRulesWithTable.customTableOperationNames('rules_items'), {
+        'archive',
+      });
+      expect(dbRulesWithTable.customRowOperationNames('rules_items'), {
+        'archive',
+      });
+      expect(
+        dbRulesWithTable.customTableOperationNames('unknown_table'),
+        isEmpty,
+      );
+    });
   });
 }

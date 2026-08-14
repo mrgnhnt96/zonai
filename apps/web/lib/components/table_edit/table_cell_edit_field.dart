@@ -69,18 +69,20 @@ class _TableCellEditFieldState extends State<TableCellEditField> {
 
   void _openFkPicker() {
     if (component.disabled || component.shape.foreignKey == null) return;
-    context.read(foreignKeyPickerProvider.notifier).open(
-      foreignKey: component.shape.foreignKey!,
-      selectedId: component.textValue.isEmpty ? null : component.textValue,
-      onSelect: (id, {displayLabel}) {
-        _fkSkipValidation = true;
-        _pickerDisplayLabel = displayLabel;
-        _debouncedValidateText = id ?? '';
-        _reportFkInvalid(false);
-        component.onTextChanged(id ?? '');
-        setState(() {});
-      },
-    );
+    context
+        .read(foreignKeyPickerProvider.notifier)
+        .open(
+          foreignKey: component.shape.foreignKey!,
+          selectedId: component.textValue.isEmpty ? null : component.textValue,
+          onSelect: (id, {displayLabel}) {
+            _fkSkipValidation = true;
+            _pickerDisplayLabel = displayLabel;
+            _debouncedValidateText = id ?? '';
+            _reportFkInvalid(false);
+            component.onTextChanged(id ?? '');
+            setState(() {});
+          },
+        );
   }
 
   void _onFkTextChanged(String text) {

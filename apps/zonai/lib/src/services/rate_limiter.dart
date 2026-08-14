@@ -23,8 +23,8 @@ final class RateLimiter {
 
   /// Non-null policies resolved from the worker, keyed by
   /// table+operation+custom operation name (`null` for every non-custom op).
-  final Map<(String, RateLimitOperation, String?), RateLimitPolicy>
-  _policies = {};
+  final Map<(String, RateLimitOperation, String?), RateLimitPolicy> _policies =
+      {};
 
   /// Whether [operationName] is a registered custom operation
   /// (`TableRules.customOperations`) for [table] — checked before the name

@@ -215,7 +215,9 @@ class CodeWindow extends StatelessComponent {
     css('.window-bar').styles(
       display: .flex,
       padding: .symmetric(vertical: 10.px, horizontal: 14.px),
-      border: .only(bottom: BorderSide.solid(color: .variable('--edge'), width: 1.px)),
+      border: .only(
+        bottom: BorderSide.solid(color: .variable('--edge'), width: 1.px),
+      ),
       alignItems: .center,
       gap: .all(12.px),
       backgroundColor: .variable('--slab'),

@@ -98,7 +98,10 @@ class LiveQueries extends StatelessComponent {
         gridTemplate: gridCols(3),
         gap: .all(28.px),
       ),
-      css('.live-note').styles(padding: .only(left: 16.px), raw: {'border-left': '2px solid var(--edge-2)'}),
+      css('.live-note').styles(
+        padding: .only(left: 16.px),
+        raw: {'border-left': '2px solid var(--edge-2)'},
+      ),
       css('.live-note h3').styles(
         margin: .only(bottom: 8.px),
         color: .variable('--fg'),

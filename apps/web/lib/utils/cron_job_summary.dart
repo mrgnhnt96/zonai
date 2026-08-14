@@ -1,11 +1,5 @@
 final class CronJobSummary {
-  const CronJobSummary({
-    required this.name,
-    this.lastStarted,
-    this.lastCompleted,
-    this.lastFailed,
-    this.lastError,
-  });
+  const CronJobSummary({required this.name, this.lastStarted, this.lastCompleted, this.lastFailed, this.lastError});
 
   final String name;
   final DateTime? lastStarted;
@@ -16,8 +10,7 @@ final class CronJobSummary {
   bool get hasRun => lastStarted != null;
   bool get succeeded => lastCompleted != null && lastFailed == null;
   bool get failed => lastFailed != null;
-  bool get inProgress =>
-      lastStarted != null && lastCompleted == null && lastFailed == null;
+  bool get inProgress => lastStarted != null && lastCompleted == null && lastFailed == null;
 
   Duration? get duration {
     if (lastCompleted == null || lastStarted == null) return null;
@@ -25,13 +18,8 @@ final class CronJobSummary {
   }
 }
 
-List<CronJobSummary> mergeCronJobSummaries(
-  List<String> names,
-  Map<String, CronJobSummary> historyByName,
-) {
-  final jobs = [
-    for (final name in names) historyByName[name] ?? CronJobSummary(name: name),
-  ];
+List<CronJobSummary> mergeCronJobSummaries(List<String> names, Map<String, CronJobSummary> historyByName) {
+  final jobs = [for (final name in names) historyByName[name] ?? CronJobSummary(name: name)];
   jobs.sort((a, b) => a.name.compareTo(b.name));
   return jobs;
 }

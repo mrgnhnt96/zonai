@@ -36,9 +36,10 @@ extension _ResetPasswordX on ZonaiDb {
       type: .passwordReset,
     );
 
-    final resetPassword = (await _dispatchOperation<ResetPasswordConfigResponse>(
-      GetResetPasswordConfigOperationRequest(table: table),
-    )).config;
+    final resetPassword =
+        (await _dispatchOperation<ResetPasswordConfigResponse>(
+          GetResetPasswordConfigOperationRequest(table: table),
+        )).config;
 
     final secret = switch (kIsCompiled) {
       false => 'dev-reset-password',

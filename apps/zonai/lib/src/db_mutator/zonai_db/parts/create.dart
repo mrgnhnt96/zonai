@@ -112,8 +112,7 @@ extension _CreateX on ZonaiDb {
     Map<String, dynamic> object,
   ) async {
     final passwordColumnName = await _cachedColumnName(table, .password);
-    if (passwordColumnName == null ||
-        !object.containsKey(passwordColumnName)) {
+    if (passwordColumnName == null || !object.containsKey(passwordColumnName)) {
       return false;
     }
 

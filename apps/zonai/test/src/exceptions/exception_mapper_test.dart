@@ -15,9 +15,7 @@ void main() {
 
     test('maps foreign key constraint failures', () {
       final mapped = mapDatabaseError(
-        StateError(
-          'SqliteException(787): FOREIGN KEY constraint failed',
-        ),
+        StateError('SqliteException(787): FOREIGN KEY constraint failed'),
         table: 'posts',
       );
 
@@ -55,18 +53,23 @@ void main() {
       expect(mapped, isA<TableNotRegisteredException>());
     });
     group('a full disk', () {
-      test('is recognised as SQLITE_FULL rather than the failing operation', () {
-        final mapped = mapDatabaseError(
-          StateError('SqliteException(13): database or disk is full'),
-          table: '_log',
-        );
+      test(
+        'is recognised as SQLITE_FULL rather than the failing operation',
+        () {
+          final mapped = mapDatabaseError(
+            StateError('SqliteException(13): database or disk is full'),
+            table: '_log',
+          );
 
-        expect(mapped, isA<DiskFullException>());
-      });
+          expect(mapped, isA<DiskFullException>());
+        },
+      );
 
       test('is recognised from the errno underneath it', () {
         final mapped = mapDatabaseError(
-          StateError('FileSystemException: No space left on device, errno = 28'),
+          StateError(
+            'FileSystemException: No space left on device, errno = 28',
+          ),
           table: '_log',
         );
 
@@ -97,24 +100,24 @@ void main() {
         expect(mapped, isA<DiskFullException>());
       });
 
-      test('says what to do, since the database cannot reclaim space itself', () {
-        final mapped = mapDatabaseError(
-          StateError('SqliteException(13): database or disk is full'),
-          table: '_log',
-        );
+      test(
+        'says what to do, since the database cannot reclaim space itself',
+        () {
+          final mapped = mapDatabaseError(
+            StateError('SqliteException(13): database or disk is full'),
+            table: '_log',
+          );
 
-        expect(
-          mapped.toString(),
-          allOf(
-            contains('Extend the volume'),
-            contains('requires a write'),
-          ),
-          reason:
-              'at zero bytes free every recovery path zonai has needs the '
-              'write that is being refused, so the message has to name the '
-              'one action that works',
-        );
-      });
+          expect(
+            mapped.toString(),
+            allOf(contains('Extend the volume'), contains('requires a write')),
+            reason:
+                'at zero bytes free every recovery path zonai has needs the '
+                'write that is being refused, so the message has to name the '
+                'one action that works',
+          );
+        },
+      );
 
       test('passes through unchanged when mapped a second time', () {
         const error = DiskFullException();

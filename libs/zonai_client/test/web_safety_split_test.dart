@@ -47,57 +47,51 @@ $useLine
 void main() {
   // `dart compile js` takes real compile time (~1-2s each); this file
   // deliberately does exactly two, one per invariant it checks.
-  test(
-    'importing only package:zonai_client/zonai_client.dart keeps package:file '
-    'out of a web build',
-    () async {
-      final deps = await _compileAndGetDeps(
-        importLine: "import 'package:zonai_client/zonai_client.dart';",
-        useLine: '''
+  test('importing only package:zonai_client/zonai_client.dart keeps package:file '
+      'out of a web build', () async {
+    final deps = await _compileAndGetDeps(
+      importLine: "import 'package:zonai_client/zonai_client.dart';",
+      useLine: '''
   final client = ZonaiClient(storage: ZonaiStorage.memory());
   client.health();
 ''',
-      );
+    );
 
-      expect(
-        deps,
-        isNot(contains('zonai_file_storage.dart')),
-        reason:
-            'lib/src/utils/zonai_file_storage.dart (ZonaiFileStorage, backed by '
-            'package:file/local.dart -> dart:io LocalFileSystem) must not be reachable '
-            'from a build that only imports the main barrel. See lib/storage.dart\'s '
-            'doc comment for why this split exists.',
-      );
-      expect(
-        RegExp(r'\.pub-cache/hosted/pub\.dev/file-').hasMatch(deps),
-        isFalse,
-        reason: 'package:file itself must not be pulled into a web build of the main barrel.',
-      );
-    },
-  );
+    expect(
+      deps,
+      isNot(contains('zonai_file_storage.dart')),
+      reason:
+          'lib/src/utils/zonai_file_storage.dart (ZonaiFileStorage, backed by '
+          'package:file/local.dart -> dart:io LocalFileSystem) must not be reachable '
+          'from a build that only imports the main barrel. See lib/storage.dart\'s '
+          'doc comment for why this split exists.',
+    );
+    expect(
+      RegExp(r'\.pub-cache/hosted/pub\.dev/file-').hasMatch(deps),
+      isFalse,
+      reason: 'package:file itself must not be pulled into a web build of the main barrel.',
+    );
+  });
 
   // Positive control: proves the check above is not vacuous by running the
   // exact same compile-and-inspect path against code that *should* pull
   // package:file in, and confirming it actually shows up.
-  test(
-    'positive control: importing package:zonai_client/storage.dart does pull '
-    'package:file in (proves the check above can fail)',
-    () async {
-      final deps = await _compileAndGetDeps(
-        importLine: '''
+  test('positive control: importing package:zonai_client/storage.dart does pull '
+      'package:file in (proves the check above can fail)', () async {
+    final deps = await _compileAndGetDeps(
+      importLine: '''
 import 'package:zonai_client/zonai_client.dart';
 import 'package:zonai_client/storage.dart';
 ''',
-        useLine: '''
+      useLine: '''
   final client = ZonaiClient(storage: ZonaiFileStorage(directory: '/tmp'));
   client.health();
 ''',
-      );
+    );
 
-      expect(deps, contains('zonai_file_storage.dart'));
-      expect(RegExp(r'\.pub-cache/hosted/pub\.dev/file-').hasMatch(deps), isTrue);
-    },
-  );
+    expect(deps, contains('zonai_file_storage.dart'));
+    expect(RegExp(r'\.pub-cache/hosted/pub\.dev/file-').hasMatch(deps), isTrue);
+  });
 }
 
 /// Walks up from the current working directory to the repo root (identified

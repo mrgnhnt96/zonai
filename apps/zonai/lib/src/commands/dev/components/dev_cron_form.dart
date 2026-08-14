@@ -60,10 +60,8 @@ class _DevCronFormState extends State<DevCronForm> {
 
   bool get _canSubmit => _jobs.isNotEmpty;
 
-  DevFormAction get _effectiveFocusedAction => devFormEffectiveAction(
-    action: _focusedAction,
-    submitEnabled: _canSubmit,
-  );
+  DevFormAction get _effectiveFocusedAction =>
+      devFormEffectiveAction(action: _focusedAction, submitEnabled: _canSubmit);
 
   int get _focusedFieldIndex => _actionsFocused ? 1 : 0;
 

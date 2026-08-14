@@ -123,10 +123,7 @@ String _rewriteImports(String content) {
 /// boundary matched so it never touches identifiers like `TableSnapshot` or
 /// the lowercase `table()` function.
 String _renameTableClass(String content) {
-  return content.replaceAllMapped(
-    RegExp(r'\bTable\b'),
-    (match) => 'TableMeta',
-  );
+  return content.replaceAllMapped(RegExp(r'\bTable\b'), (match) => 'TableMeta');
 }
 
 /// Every meta annotation this strips off can be dropped safely; the set is

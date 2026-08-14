@@ -11,9 +11,10 @@ class DbListen {
     required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async* {
-    yield* (await _db.streamOne(body: body, authorization: authorization)).map(
-      fromJson,
-    );
+    yield* (await _db.streamOne(
+      body: body,
+      authorization: authorization,
+    )).map(fromJson);
   }
 
   Stream<List<T>> list<T>({
@@ -21,9 +22,10 @@ class DbListen {
     required T Function(Map<String, Object?>) fromJson,
     String? authorization,
   }) async* {
-    yield* (await _db.streamList(body: body, authorization: authorization)).map(
-      (items) => items.map(fromJson).toList(),
-    );
+    yield* (await _db.streamList(
+      body: body,
+      authorization: authorization,
+    )).map((items) => items.map(fromJson).toList());
   }
 
   Stream<int> count({

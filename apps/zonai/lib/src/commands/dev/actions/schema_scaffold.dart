@@ -86,10 +86,7 @@ String appendUnionIdCase(String content, SchemaNames names) {
   final caseLine = '      ${names.idClass}._suffix => ${names.idClass}(json),';
   if (content.contains(caseLine)) return content;
 
-  return content.replaceFirst(
-    indentedFallback,
-    '$caseLine\n$indentedFallback',
-  );
+  return content.replaceFirst(indentedFallback, '$caseLine\n$indentedFallback');
 }
 
 String _scaffoldRegularTable(SchemaNames names) {

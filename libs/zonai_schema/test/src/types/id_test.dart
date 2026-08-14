@@ -22,7 +22,11 @@ void main() {
     test('two UnknownIds built from the same value are equal', () {
       final a = UnknownId(_runtimeValue('user_123'));
       final b = UnknownId(_runtimeValue('user_123'));
-      expect(identical(a, b), isFalse, reason: 'sanity check: must be distinct instances');
+      expect(
+        identical(a, b),
+        isFalse,
+        reason: 'sanity check: must be distinct instances',
+      );
       expect(a, b);
     });
 
@@ -40,13 +44,17 @@ void main() {
       );
     });
 
-    test('an UnknownId is comparable to any other Id subtype with the same value', () {
-      // PhotoId requires its value to end with its 'ph' suffix.
-      // ignore: unrelated_type_equality_checks
-      expect(
-        UnknownId(_runtimeValue('abc_ph')) == PhotoId(_runtimeValue('abc_ph')),
-        isTrue,
-      );
-    });
+    test(
+      'an UnknownId is comparable to any other Id subtype with the same value',
+      () {
+        // PhotoId requires its value to end with its 'ph' suffix.
+        // ignore: unrelated_type_equality_checks
+        expect(
+          UnknownId(_runtimeValue('abc_ph')) ==
+              PhotoId(_runtimeValue('abc_ph')),
+          isTrue,
+        );
+      },
+    );
   });
 }

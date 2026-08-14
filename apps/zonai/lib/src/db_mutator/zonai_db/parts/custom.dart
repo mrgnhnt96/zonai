@@ -15,11 +15,8 @@ extension _CustomX on ZonaiDb {
       logger.trace('jwt_extract');
 
       step = 'custom_operation';
-      final (
-        beforeObjects,
-        :readOperation,
-        :customOperation,
-      ) = await _customOperationBuild(table, payload, jwt);
+      final (beforeObjects, :readOperation, :customOperation) =
+          await _customOperationBuild(table, payload, jwt);
       logger.trace('sql_build');
 
       step = 'sql_execute_custom';
@@ -81,7 +78,12 @@ extension _CustomX on ZonaiDb {
       logger.trace('sanitize');
 
       step = 'ext_after';
-      await _postUpdate(table, jwt, before: beforeObjects, after: sanitizedUpdated);
+      await _postUpdate(
+        table,
+        jwt,
+        before: beforeObjects,
+        after: sanitizedUpdated,
+      );
       logger.trace('ext_after');
 
       step = 'effects';

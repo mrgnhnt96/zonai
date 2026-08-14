@@ -84,9 +84,11 @@ class LinkButton extends StatelessComponent {
           'box-shadow': '0 0 0 1px rgba(47,224,172,0.4), 0 10px 30px -12px var(--zon-glow)',
         },
       ),
-      css('&:hover').styles(raw: {
-        'box-shadow': '0 0 0 1px rgba(123,242,206,0.6), 0 16px 40px -14px rgba(47,224,172,0.55)',
-      }),
+      css('&:hover').styles(
+        raw: {
+          'box-shadow': '0 0 0 1px rgba(123,242,206,0.6), 0 16px 40px -14px rgba(47,224,172,0.55)',
+        },
+      ),
     ]),
 
     css('.btn-ghost', [
@@ -279,12 +281,14 @@ Component mono(String text) => code(classes: 'inline-code', [.text(text)]);
 
 @css
 List<StyleRule> get textStyles => [
-  css('.accent').styles(raw: {
-    'background': 'linear-gradient(120deg, var(--zon-soft), var(--zon) 45%, var(--sky))',
-    '-webkit-background-clip': 'text',
-    'background-clip': 'text',
-    'color': 'transparent',
-  }),
+  css('.accent').styles(
+    raw: {
+      'background': 'linear-gradient(120deg, var(--zon-soft), var(--zon) 45%, var(--sky))',
+      '-webkit-background-clip': 'text',
+      'background-clip': 'text',
+      'color': 'transparent',
+    },
+  ),
   css('.inline-code').styles(
     padding: .symmetric(vertical: 2.px, horizontal: 6.px),
     border: .all(color: .variable('--edge'), width: 1.px),
@@ -323,7 +327,8 @@ Component githubIcon([double size = 17]) => svg(
   attributes: const {'fill': 'currentColor', 'aria-hidden': 'true'},
   [
     path(
-      d: 'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 '
+      d:
+          'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 '
           '0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 '
           '1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 '
           '0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 '
@@ -355,7 +360,9 @@ List<StyleRule> get docsLinkStyles => [
       fontSize: 14.px,
       fontWeight: .w600,
     ),
-    css('svg').styles(transition: Transition('transform', duration: 160.ms, curve: .easeOut)),
+    css('svg').styles(
+      transition: Transition('transform', duration: 160.ms, curve: .easeOut),
+    ),
     css('&:hover svg').styles(transform: .translate(x: 3.px)),
   ]),
 ];

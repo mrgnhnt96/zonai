@@ -6,7 +6,10 @@ import 'package:zonai_schema/payloads.dart';
 
 void main() {
   test('StreamListBody round-trips through jsonEncode/jsonDecode', () {
-    final original = StreamListBody(table: 'contacts', where: Null('deleted_at'));
+    final original = StreamListBody(
+      table: 'contacts',
+      where: Null('deleted_at'),
+    );
 
     final decoded = jsonDecode(jsonEncode(original.toJson())) as Map;
     final parsed = StreamListBody.fromJson(Map<String, dynamic>.from(decoded));
@@ -17,7 +20,10 @@ void main() {
   });
 
   test('StreamListBody survives Revali-style query coercion', () {
-    final original = StreamListBody(table: 'contacts', where: Null('deleted_at'));
+    final original = StreamListBody(
+      table: 'contacts',
+      where: Null('deleted_at'),
+    );
 
     final parsed = StreamListBody.fromJson(
       Map<String, dynamic>.from(coerce(jsonEncode(original.toJson())) as Map),

@@ -73,10 +73,12 @@ class Honest extends StatelessComponent {
 
   @css
   static List<StyleRule> get styles => [
-    css('.honest').styles(raw: {
-      'background':
-          'linear-gradient(180deg, transparent, rgba(255,255,255,0.018) 22%, rgba(255,255,255,0.018) 78%, transparent)',
-    }),
+    css('.honest').styles(
+      raw: {
+        'background':
+            'linear-gradient(180deg, transparent, rgba(255,255,255,0.018) 22%, rgba(255,255,255,0.018) 78%, transparent)',
+      },
+    ),
     css('.honest-grid', [
       css('&').styles(
         display: .grid,

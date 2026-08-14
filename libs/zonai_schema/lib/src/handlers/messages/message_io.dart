@@ -92,9 +92,7 @@ final class SendPortMessageIo implements MessageIo {
 
   void _onMessage(dynamic raw) {
     if (raw is! Map) {
-      _controller.addError(
-        FormatException('Isolate IPC expected Map, got ${raw.runtimeType}'),
-      );
+      _controller.addError(FormatException('Isolate IPC expected Map, got ${raw.runtimeType}'));
       return;
     }
     _controller.add(coerceStringKeyedMap(raw));
@@ -117,9 +115,7 @@ final class SendPortMessageIo implements MessageIo {
 /// Deep-converts isolate maps so nested values match `fromJson` expectations
 /// (`Map<String, dynamic>`, not `Map<dynamic, dynamic>`).
 Map<String, dynamic> coerceStringKeyedMap(Map raw) {
-  return {
-    for (final entry in raw.entries) entry.key.toString(): _coerce(entry.value),
-  };
+  return {for (final entry in raw.entries) entry.key.toString(): _coerce(entry.value)};
 }
 
 Object? _coerce(Object? value) {

@@ -68,9 +68,13 @@ class SiteNavState extends State<SiteNav> {
           span(classes: 'brand-ver', [.text('v$zonaiVersion')]),
         ]),
 
-        nav(classes: 'nav-links', attributes: const {'aria-label': 'Sections'}, [
-          for (final (label, href) in _navLinks) a(href: href, onClick: () => _navigate(href), [.text(label)]),
-        ]),
+        nav(
+          classes: 'nav-links',
+          attributes: const {'aria-label': 'Sections'},
+          [
+            for (final (label, href) in _navLinks) a(href: href, onClick: () => _navigate(href), [.text(label)]),
+          ],
+        ),
 
         div(classes: 'nav-actions', [
           a(
@@ -200,7 +204,10 @@ class SiteNavState extends State<SiteNav> {
         fontWeight: .w500,
       ),
       css('.nav-docs:hover').styles(color: .variable('--fg'), backgroundColor: .rgba(255, 255, 255, 0.05)),
-      css('.nav .btn').styles(padding: .symmetric(vertical: 8.px, horizontal: 15.px), fontSize: 13.5.px),
+      css('.nav .btn').styles(
+        padding: .symmetric(vertical: 8.px, horizontal: 15.px),
+        fontSize: 13.5.px,
+      ),
 
       // Burger ----------------------------------------------------------------
       css('.nav-burger').styles(
@@ -265,7 +272,9 @@ class SiteNavState extends State<SiteNav> {
     css.media(MediaQuery.screen(maxWidth: 520.px), [
       css('.nav .brand-ver').styles(display: .none),
       css('.nav .btn-label').styles(raw: {'display': 'none'}),
-      css('.nav .btn').styles(padding: .symmetric(vertical: 8.px, horizontal: 11.px)),
+      css('.nav .btn').styles(
+        padding: .symmetric(vertical: 8.px, horizontal: 11.px),
+      ),
     ]),
   ];
 }
