@@ -846,7 +846,7 @@ Future<void> _concurrency(Api api, String phase) async {
     actual:
         '$failedCreates of $total creates and $failedReads of $readers reads '
         'answered 5xx',
-    expected: '0 of ${total + readers} answered 5xx',
+    expected: '0 of $total creates and 0 of $readers reads answered 5xx',
     why:
         'a 500 here is indistinguishable from a server fault -- the caller '
         'cannot tell it should back off, and any retry policy hammers a '
