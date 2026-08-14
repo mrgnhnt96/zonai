@@ -120,11 +120,29 @@ final class RateLimiter {
     // separate sqlite connection from writes) and then race each other's
     // INSERT. A single retry survived one collision but rethrew the second
     // one -- surfacing as an uncaught 500 rather than a 429 -- once enough
-    // requests raced the same bucket at once. `db.transaction` runs the
-    // whole select-then-insert-or-update on the single writer connection and
-    // holds the writer lock for the entire body, so no other `check()` call
-    // can interleave with it: the row this transaction reads is guaranteed
-    // to still be the row (or absence of one) it acts on.
+    // requests raced the same bucket at once. `db.transaction` runs the whole
+    // select-then-insert-or-update through resqlite's writer: Database
+    // .transaction is `writer.locked(() => writer.transaction(body))`
+    // (libs/resqlite/lib/src/database.dart:455), so the FIFO writer mutex
+    // spans the entire BEGIN IMMEDIATE -> body -> COMMIT rather than each
+    // statement. The row this transaction reads is guaranteed to still be the
+    // row (or absence of one) it acts on.
+    //
+    // THE SCOPE OF THAT GUARANTEE, because it is narrower than it looks and
+    // the difference is a future 500. The mutex belongs to one `Writer`, which
+    // belongs to one `ZonaiDb`, which is held in a TOP-LEVEL static -- and
+    // top-level statics in Dart are per-ISOLATE, not per-process (see
+    // `_db` in lib/src/deps/zonai_db.dart). So this serialises every
+    // `check()` that shares one isolate's `ZonaiDb`, which today is all of
+    // them: the only `Isolate.spawn*` in this package is mailman.dart's, and
+    // it spawns db WORKERS (ops/rules), never a second request handler. This
+    // code path runs on the main isolate and opens the database directly.
+    // Give the server a second isolate for throughput, or let a worker open
+    // its own ZonaiDb and touch _rate_limit, and there are two writers with
+    // two mutexes contending at the SQLite level -- where BEGIN IMMEDIATE
+    // yields SQLITE_BUSY rather than queueing, and the 500 comes back wearing
+    // a different hat. A retry loop would not save it either; the fix then is
+    // one writer, or an atomic upsert.
     return db.transaction((tx) async {
       final rows = await tx
           .select()
