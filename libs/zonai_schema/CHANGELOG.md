@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.1
+
+**`In` and `NotIn` where-clauses threw `ArgumentError` when sent between a
+worker and its host.** Anything that put one on the wire failed before the
+request was dispatched — including any rule, operation or cron that calls
+`get.*` with an `In`/`NotIn` filter.
+
+> **Re-run `zonai compile` after upgrading.** This changes code a worker
+> *dispatches*, and your `.zonai/executables/*.exe` keep the old copy until
+> they are rebuilt. The `.protocol` stamp will not catch it: that records the
+> IPC framing version, not what the messages contain.
+
+The cause: `serializeWhereValues` ended in `.cast<Object>()`, which returns a
+`CastList` rather than a plain `List`. Zonai has two worker transports — a
+process worker receives the message encoded as bytes, where any `List` works,
+and an **isolate** worker receives the object graph itself. An isolate message
+may only contain primitives plus *plain* `List`/`Map` instances, so a
+`CastList` is rejected as "a regular instance". Released binaries always use
+the isolate transport, so this only ever failed there.
+
+Only `In` and `NotIn` were affected; they are the only clauses whose
+serializer builds a collection.
+
 ## 0.3.0
 
 **Scheduled cron jobs could not write to the database at all.** Every
