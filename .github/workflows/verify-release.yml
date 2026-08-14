@@ -145,18 +145,23 @@ jobs:
           - os: ubuntu-latest
             artifact_name: zonai-linux-x64
             executable_name: zonai
+            target: linux-x64
           - os: ubuntu-24.04-arm
             artifact_name: zonai-linux-arm64
             executable_name: zonai
+            target: linux-arm64
           - os: macos-latest
             artifact_name: zonai-macos-arm64
             executable_name: zonai
+            target: macos-arm64
           - os: macos-15-intel
             artifact_name: zonai-macos-x64
             executable_name: zonai
+            target: macos-x64
           - os: windows-latest
             artifact_name: zonai-windows-x64
             executable_name: zonai.exe
+            target: windows-x64
 
     steps:
       - name: Checkout
@@ -232,6 +237,54 @@ jobs:
 
       - name: Get dependencies
         run: dart pub get
+
+      # `apps/zonai/lib/gen/native/*.g.dart` is gitignored and produced by
+      # compile.yml, so a plain checkout does not have it. This job needs it
+      # anyway, because `zonai build` links the smoke project against
+      # apps/zonai's own sources (resolveProjectLink's merged package_config),
+      # so the AOT compile reads those files directly. Without them all five
+      # platforms fail with "Error when reading '.../argon2_native.g.dart'"
+      # and "Undefined name 'resqliteNativeLibraryBytes'" -- observed on every
+      # matrix leg of run 31748784749.
+      #
+      # `version.dart` is NOT generated here: the `release-version` artifact
+      # already carries it (compile.yml uploads `VERSION` +
+      # `apps/zonai/lib/gen/version.dart`), which is why the failure named only
+      # the native bindings and never `kVersion`.
+      #
+      # Same shape as cross-target-build below, and pinned the same way -- the
+      # libraries come from the compile run being verified, so what gets
+      # embedded here is what that run embedded.
+      - name: Download embedded native libraries (triggering compile run)
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: native-libs-embedded-${{ matrix.target }}
+          path: apps/zonai/lib/gen/native
+
+      - name: Download embedded native libraries (latest successful compile)
+        if: github.event_name == 'workflow_dispatch'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: compile.yml
+          workflow_conclusion: success
+          commit: ${{ github.sha }}
+          if_no_artifact_found: fail
+          name: native-libs-embedded-${{ matrix.target }}
+          path: apps/zonai/lib/gen/native
+
+      # Formats the downloaded library bytes into the Dart constants the build
+      # embeds. No C toolchain runs here -- these scripts only read the file
+      # beside them and write the .g.dart, and they exit 1 if it is absent.
+      - name: Generate embedded native library sources
+        shell: bash
+        working-directory: apps/zonai
+        run: |
+          dart run tool/generate_resqlite_native.dart
+          dart run tool/generate_argon2_native.dart
 
       - name: Verify the build command
         shell: bash
