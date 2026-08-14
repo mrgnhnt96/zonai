@@ -3,7 +3,8 @@
 **READ THIS FIRST: `stream-zero-bytes`.** All three streaming routes return 200
 and headers and then **zero body bytes**. Reproduced independently on merged
 trunk, on both worker transports. Every real consumer of those routes is
-starved, not slow. It is filed, briefed, and a Crawler is on it — see
+starved, not slow. **Now fully diagnosed, and the fix is not ours to make** — it
+is a `flush()` that never runs inside revali_router. See
 [The streaming bug](#the-streaming-bug).
 
 
@@ -163,11 +164,50 @@ every run, gates nothing. **The test is shaped so a partial fix cannot fake a
 pass:** it mutates the watched row *before* checking for the initial snapshot, so
 delivering only the initial value still fails.
 
-**The blocker is a decision, not a diagnosis.** Does `/db/stream` emit an initial
-snapshot on subscribe, or only deltas? Flush per event or per batch? A fix that
-makes the assertion pass without that being decided deliberately is how this
-comes back. The leaf says so, and says that closing with a precise diagnosis and
-the semantics question named is a good outcome.
+### DIAGNOSED. Root cause found, and it is not ours to fix.
+
+`stream-zero-bytes` closed with a diagnosis and **zero code changes** — the right
+call, and what the brief asked for. Full writeup:
+`.showrunner/scratch/orchestrator-0814-stream-zero-bytes/DIAGNOSIS.md` (rescued
+into the main checkout; the worktree it was written in is disposable).
+
+**The chain, read end to end:**
+
+1. `apps/server/routes/controllers/db_controller.dart:121-145` — the three stream
+   handlers are plain `@Get()` returning a `Stream`, not annotated as SSE.
+2. Revali codegen emits `context.response.body = result.map(...)` — a plain
+   `Stream`, so it is handled by revali_router's **`DefaultResponseHandler`**, not
+   its `SseResponseHandler`.
+3. `revali_router-5.0.0/lib/src/response_handler/default_response_handler.dart:220-224`
+   does `await http.addStream(body); await complete();` — and `complete()` is what
+   calls `flush()`. **These routes wrap deliberately-never-completing live-query
+   streams, so `addStream()` never resolves and `flush()` never runs.**
+4. `dart:io`'s `HttpResponse` also buffers ~8KB before an implicit flush, which
+   small JSON rows never reach. So nothing escapes to the socket, ever.
+
+The access log confirms the shape: `[200] 0ms: GET /db/stream/list` logs
+essentially instantly — the *handler* returns as soon as it hands back a `Stream`
+— while the connection stays open underneath with nothing flowing.
+
+**Why zonai cannot fix it.** revali_router's `SseResponseHandler` *does* flush
+correctly per event, but nothing in the revali monorepo wires a usable `@Sse`
+annotation to it: `SseMethodAnnotation.fromAnnotation` is defined and **never
+called**. So there is no supported way to opt these routes onto the working path.
+revali_router is a pub.dev dependency with no path override. This mirrors the
+prior `HybridStreamEngine` / `asBroadcastStream` incident exactly: **fixable only
+on the revali side.**
+
+**The second defect is UNVERIFIED, and was reported as such.** The uncaught
+`Null`-to-`Map` cast on `/db/stream/list` could not be reproduced despite genuine
+attempts (create + patch + concurrent stream + early disconnect). It was reported
+unverified rather than given a fabricated line number — which is the correct
+handling, and means it is still open.
+
+**What is left here is upstream work, not a zonai leaf:** either get `@Sse` wired
+in revali, or get `DefaultResponseHandler` to flush per event for a body that is a
+never-completing stream. Until one of those lands, the three `knownFailure()`
+calls in `drive.dart::_streaming` are correct as they stand and should NOT be
+flipped to assertions.
 
 ## The rate-limiter fix, and how far its guarantee actually reaches
 
@@ -237,9 +277,12 @@ was not done, so it is a one-line follow-up rather than a question.
 
 ## What is left
 
-**In flight as this was written:** `stream-zero-bytes`, alone and deliberately so
-— the bug is about delivery *timing*, and a loaded machine makes "no bytes for 8s"
-ambiguous.
+Nothing in flight. Six leaves closed this session; `stream-zero-bytes` closed as a
+diagnosis with no code, so its branch is empty and there is nothing to integrate.
+
+**The one genuinely new piece of work this session created is UPSTREAM, in
+revali** — see [The streaming bug](#the-streaming-bug). It is not a zonai leaf and
+no Crawler here can close it.
 
 Still ready, in rough priority:
 
