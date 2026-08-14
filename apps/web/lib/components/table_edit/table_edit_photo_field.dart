@@ -95,7 +95,7 @@ class _TableEditPhotoFieldState extends State<TableEditPhotoField> {
 
   String? _previewSrc(PhotoEditItem item, String imageBaseUrl) {
     return switch (item) {
-      PhotoEditExistingItem(previewUrl: final previewUrl, id: final id)
+      PhotoEditExistingItem(previewUrl: final previewUrl)
           when previewUrl != null && previewUrl.isNotEmpty =>
         previewUrl,
       PhotoEditExistingItem(id: final id) => '$imageBaseUrl/img/$id',

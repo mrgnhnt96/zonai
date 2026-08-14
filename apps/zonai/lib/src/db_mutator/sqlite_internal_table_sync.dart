@@ -1,6 +1,6 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/ddl.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
-    show Column, Raindrop, SqlOperand, TableMeta, ReferentialAction, Schema;
+    show Column, Raindrop, SqlOperand, ReferentialAction, Schema;
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
 
 /// Ensures framework-managed SQLite tables exist.

@@ -11,10 +11,6 @@ extension _PhotoX on ZonaiDb {
       logger.trace('jwt_extract');
 
       final table = photos.$;
-      if (table == null) {
-        throw const PhotosTableNotFoundException();
-      }
-
       step = 'table_access';
       await _requireTableAccess(table.name, .view, jwt);
       logger.trace('table_access');
@@ -73,10 +69,6 @@ extension _PhotoX on ZonaiDb {
     logger.trace('jwt_extract');
 
     final table = photos.$;
-    if (table == null) {
-      throw const PhotosTableNotFoundException();
-    }
-
     await _requireTableAccess(table.name, .create, jwt);
     logger.trace('table_access');
 
@@ -178,9 +170,6 @@ extension _PhotoX on ZonaiDb {
   }) async {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
     final table = photos.$;
-    if (table == null) {
-      throw const PhotosTableNotFoundException();
-    }
     await _requireTableAccess(table.name, .update, jwt);
 
     final idOnly = id.split('.').first;
@@ -321,9 +310,6 @@ extension _PhotoX on ZonaiDb {
   }) async {
     final jwt = await _extractJwt(JwtPayload(jwt: token));
     final table = photos.$;
-    if (table == null) {
-      throw const PhotosTableNotFoundException();
-    }
     await _requireTableAccess(table.name, .delete, jwt);
 
     final idOnly = id.split('.').first;
