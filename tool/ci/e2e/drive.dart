@@ -767,13 +767,16 @@ Future<void> _signupBackfill(Api api, String phase) async {
 /// Concurrent traffic through one compiled binary: the fixture is named for the
 /// report that concurrent list/create interleaved badly.
 ///
-/// This suite found a live zonai bug on its first run (see the [Api.knownFailure]
-/// below), and the bug decides the suite's shape. It cannot gate on "no request
-/// fails", because whether one does is a race. What it CAN gate on, whatever
-/// the rate limiter did, is that the database agrees with the responses: the
-/// number of committed rows equals the number of creates that answered 2xx, no
-/// more and no less. A write that was reported and not committed, or committed
-/// and not reported, fails that regardless of how many requests were rejected.
+/// This suite found a live zonai bug on its first run -- a burst of concurrent
+/// creates raced the rate limiter's own counter row into 500s instead of
+/// 429s, now fixed (see the "never answers 5xx" assertion below, which used
+/// to be a knownFailure()). Whether any individual request is rejected is
+/// still a race, so this cannot gate on "every create succeeds". What it CAN
+/// gate on, whatever the rate limiter did, is that the database agrees with
+/// the responses: the number of committed rows equals the number of creates
+/// that answered 2xx, no more and no less. A write that was reported and not
+/// committed, or committed and not reported, fails that regardless of how
+/// many requests were rejected.
 Future<void> _concurrency(Api api, String phase) async {
   const total = 24;
   const readers = 8;
@@ -825,32 +828,29 @@ Future<void> _concurrency(Api api, String phase) async {
   final failedCreates = creates.where((r) => r.status >= 500).length;
   final failedReads = lists.where((r) => r.status >= 500).length;
 
-  api.knownFailure(
+  // Was a knownFailure() -- see git history on this line for the incident
+  // report -- until RateLimiter.check (apps/zonai/lib/src/services/
+  // rate_limiter.dart) stopped racing its own bucket row. It used to read
+  // the (client_ip, table, operation) counter row and INSERT it when
+  // absent, retrying ONCE on a unique-index conflict and rethrowing on the
+  // second one -- which surfaced as an uncaught 500, not the 429 rate
+  // limiting is supposed to produce, once enough concurrent requests raced
+  // the same bucket that a single retry could not observe the winner's row
+  // in time (reads and writes used separate sqlite connections). The fix
+  // wraps the whole read-then-write in `db.transaction`, which runs on the
+  // single writer connection and holds the writer lock for the entire body,
+  // so no two `check()` calls for any bucket can interleave at all -- no
+  // retry loop is needed because there is no longer a race to lose.
+  api.expect(
     'a burst of concurrent requests never answers 5xx',
     actual:
         '$failedCreates of $total creates and $failedReads of $readers reads '
         'answered 5xx',
     expected: '0 of ${total + readers} answered 5xx',
-    found:
-        'the first full run of this layer, 2026-08-14, macOS arm64, on both '
-        'the process and the isolate transport',
     why:
-        'RateLimiter._consume (apps/zonai/lib/src/services/rate_limiter.dart) '
-        'reads the (client_ip, table, operation) counter row and INSERTs it '
-        'when absent. Its own comment says concurrent requests can both miss '
-        'and race, and it retries ONCE -- `for (var attempt = 0; attempt < 2; '
-        'attempt++)`, rethrowing on the second conflict. One retry survives a '
-        'two-way race. It does not survive a wider one, and it does not '
-        'survive at all if the re-read still cannot see the winner\'s row, '
-        'since reads use a separate sqlite connection from writes. The losers '
-        'get "UNIQUE constraint failed: _rate_limit.client_ip, '
-        '_rate_limit.table, _rate_limit.operation" as an HTTP 500 -- not the '
-        '429 that rate limiting is supposed to produce, and not on a path the '
-        'caller did anything wrong on. Any cold (ip, table, operation) window '
-        'races, which includes every window after a rollover, so this is not '
-        'confined to a fresh database. It is a zonai bug, not a harness bug, '
-        'and fixing it is outside this leaf -- so it is reported on every run '
-        'rather than asserted away.',
+        'a 500 here is indistinguishable from a server fault -- the caller '
+        'cannot tell it should back off, and any retry policy hammers a '
+        'server that is already struggling.',
   );
 
   // -- what gates, whatever the race did ----------------------------------

@@ -1,5 +1,4 @@
 import 'package:clock/clock.dart';
-import 'package:resqlite/resqlite.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/host_worker_registries.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
@@ -94,6 +93,9 @@ final class RateLimiter {
     if (policy == null) {
       return true;
     }
+    // Captured by the transaction closure below; a non-final local loses its
+    // null-promotion once captured, even though it is never reassigned again.
+    final resolvedPolicy = policy;
 
     final db = await zonaiDB.open();
     final now = clock.now();
@@ -113,11 +115,18 @@ final class RateLimiter {
         ? table
         : '$table:$customOperation';
 
-    // Concurrent requests can both miss an existing row (reads use a separate
-    // sqlite connection from writes) and race on INSERT. Retry once when the
-    // unique bucket index rejects a duplicate insert.
-    for (var attempt = 0; attempt < 2; attempt++) {
-      final rows = await db
+    // The read-then-write below must be atomic: concurrent requests for the
+    // same bucket can both miss the row on a plain `db.select` (reads use a
+    // separate sqlite connection from writes) and then race each other's
+    // INSERT. A single retry survived one collision but rethrew the second
+    // one -- surfacing as an uncaught 500 rather than a 429 -- once enough
+    // requests raced the same bucket at once. `db.transaction` runs the
+    // whole select-then-insert-or-update on the single writer connection and
+    // holds the writer lock for the entire body, so no other `check()` call
+    // can interleave with it: the row this transaction reads is guaranteed
+    // to still be the row (or absence of one) it acts on.
+    return db.transaction((tx) async {
+      final rows = await tx
           .select()
           .from(rateLimitSchema)
           .where(
@@ -130,25 +139,19 @@ final class RateLimiter {
       final entry = rows.singleOrNull;
 
       if (entry == null) {
-        try {
-          await db.insert(into: rateLimitSchema).values([
-            rate_limit_table.RateLimitEntry(
-              clientIp: ipAddress,
-              table: bucketTable,
-              operation: operation,
-              windowStart: now,
-            ),
-          ]);
-
-          return true;
-        } on ResqliteQueryException catch (e) {
-          if (e.sqliteCode == 19 && attempt == 0) continue;
-          rethrow;
-        }
+        await tx.insert(into: rateLimitSchema).values([
+          rate_limit_table.RateLimitEntry(
+            clientIp: ipAddress,
+            table: bucketTable,
+            operation: operation,
+            windowStart: now,
+          ),
+        ]);
+        return true;
       }
 
-      if (now.difference(entry.windowStart) >= policy.window) {
-        await db
+      if (now.difference(entry.windowStart) >= resolvedPolicy.window) {
+        await tx
             .update(rateLimitSchema)
             .set(
               rateLimitSchema.windowStart.to(now),
@@ -158,18 +161,16 @@ final class RateLimiter {
         return true;
       }
 
-      if (entry.count >= policy.maxRequests) {
+      if (entry.count >= resolvedPolicy.maxRequests) {
         return false;
       }
 
-      await db
+      await tx
           .update(rateLimitSchema)
           .set(rateLimitSchema.count.to(entry.count + 1))
           .where(rateLimitSchema.id.equals(entry.id));
 
       return true;
-    }
-
-    throw StateError('Rate limit check failed after insert conflict retry');
+    });
   }
 }
