@@ -30,6 +30,48 @@ gh run list --workflow=verify-release.yml --limit 3 \
 The newest run must be `success`, **and its SHA must be the commit you are
 releasing**. A green run for a different commit tells you nothing.
 
+### The one exception, and what it costs to claim it
+
+`compat-check` is the single job that can be red for a reason the release does
+not own, because it is the only job whose subject is **the previously released
+binary** rather than the one being shipped. `verify-release.yml` downloads the
+newest CLI release and `verify_compat.sh` Phase 1 runs it — so a defect that
+shipped in the *last* release fails this gate forever, and shipping the fix is
+the only thing that can clear it.
+
+Claiming the exception takes all four of these, checked and written into the
+release notes. Anything less is Rule zero, and Rule zero has no exceptions:
+
+1. **`compat-check` is the only red job.** Every other failure is about the
+   candidate.
+2. **The failure is in Phase 1**, i.e. attributed to the old binary. Phase 3
+   is the new binary and is never excusable.
+3. **No real consumer can reach it.** Say why in one sentence, from the
+   constraint that protects them.
+4. **This release clears it.** If the next release would fail the same way,
+   nothing was fixed and this is not an exception, it is a habit.
+
+**Claimed once, on 2026-08-13, for the 0.6.2 → 0.7.0 release.** All five
+`compat-*` legs fail Phase 1 with `Member not found: 'TableMeta.get'` at
+`.dart_tool/raindrop/schema_snapshot_runner.dart:32`. That file is the
+**v0.6.2 binary's own** pre-migration raindrop_cli generator, emitted against
+the `zonai_schema` in this tree, whose vendored raindrop no longer has
+`TableMeta.get`. `apps/compat` depends on `zonai_schema` by `path:`, so Phase 1
+pairs an old CLI with a schema no consumer of that CLI can resolve: v0.6.2
+scaffolds a caret constraint from its own era, and `^0.1.x`/`^0.2.x` both
+exclude `0.3.0`. The skew is the fixture's, not the field's.
+
+`verify_compat.sh` already skips old-binary `compile`/`serve` for this exact
+class of skew — its comment says the monorepo schema "may speak a newer IPC
+than the previous release host" — and `db migrate generate` is the same
+problem one step earlier, in a step the skip does not cover.
+
+It clears itself: once v0.7.0 is the newest release, Phase 1 runs a
+post-migration binary against a schema of its own era. **If `compat-check` is
+still red on the release after v0.7.0, that self-clearing claim was wrong** —
+extend the Phase 1 skip, or give the fixture a published `zonai_schema` from
+the old binary's era, rather than claiming this a second time.
+
 Three artifacts ship from this repo, and they are **not** independent:
 
 | Artifact       | Goes to  | Versioned by                    |
