@@ -15,33 +15,54 @@ name: Test
 #
 # WHAT IS EXPECTED TO BE RED WHEN THIS LANDS, and why it is not being hidden:
 #
-#   static  -- NO LONGER EXPECTED RED. Both halves of the original prediction
-#              were superseded on 2026-08-14 and are recorded here rather than
-#              deleted, because each was wrong in a way worth not repeating:
+#   THE PATTERN, now that a runner has finally answered: every prediction below
+#   that was "measured green" was measured on a DEV MACHINE, and the two that
+#   mattered were both wrong. This file's first real run (2026-08-14, run
+#   31830243531) failed 12/12. A local measurement of a CI claim is a
+#   hypothesis. Nothing here counts as verified until a run id can be cited.
+#
+#   static  -- WAS "no longer expected red". It was red. The prediction was
+#              superseded twice, and both supersessions are kept rather than
+#              deleted, because the SECOND one repeated the mistake of the
+#              first with a different file:
 #                * the 388-file format drift was cleared (8dc4922) and the
 #                  check narrowed to what humans write (8f584b3);
 #                * "`dart analyze .` is clean" was true only of a DEV MACHINE.
 #                  Measured from a tree with no .dart_tool anywhere and root
-#                  `dart pub get` only -- i.e. what this runner actually has --
-#                  it was 226 errors, 224 of them merely unresolved imports in
-#                  the nine packages outside the pub workspace. It looked clean
-#                  locally purely because of leftover gitignored resolve state.
-#              scripts.yaml `test static` now resolves those packages before
-#              analyzing, so no step is needed here -- do not add one, it would
-#              be the second definition this file exists to avoid. Measured
-#              green end to end from that clean tree: exit 0 in 9.2s.
-#   e2e     -- LIVE. tool/ci/run_e2e.sh landed in bdaa61d, so this no longer
-#              exits 70; it compiles a binary per fixture and drives both
-#              worker transports (docs/testing-strategy.md Step 3). Run green
-#              against merged trunk 2026-08-14, both legs, including the
-#              concurrency fixture's "never answers 5xx" assertion that the
-#              rate-limiter fix (4beb750) exists to satisfy.
-#              This job is now the ONLY gate on tool/ci/e2e/*.dart: the local
+#                  `dart pub get` only, it was 226 errors, 224 of them merely
+#                  unresolved imports in the nine packages outside the pub
+#                  workspace. scripts.yaml `test static` now resolves those.
+#                * ...and that fix was declared complete while the SAME class
+#                  of machine-local state was still load-bearing one directory
+#                  over: apps/zonai/lib/gen is gitignored and tracked nowhere,
+#                  so the runner had none of it. 141 issues, 79 errors, 75 of
+#                  them nothing but the missing tree. "It looked clean locally
+#                  purely because of leftover gitignored state" was written
+#                  about .dart_tool and was simultaneously true of lib/gen.
+#              This job therefore now restores native libs, runs
+#              `bootstrap test` and writes the web-asset stub before analyzing.
+#              The older note here said "no step is needed -- do not add one":
+#              that was about not RESTATING what the suite is, which still
+#              holds (the check is still exactly `sip run test static`). It was
+#              never about prerequisites, which unit/cli/e2e all provision as
+#              steps in this file, and which cannot move into scripts.yaml
+#              anyway -- the native-libs restore needs `gh release download`
+#              and a token, and no laptop should build libsodium from C source
+#              to answer "does this analyze".
+#   e2e     -- WAS "LIVE ... this no longer exits 70". It exited 70, on all
+#              three OSes, before a single assertion ran: run_e2e.sh drives a
+#              REAL compiled binary and no step in this job built one. The
+#              local proof came from a tree that already had build/zonai. So
+#              between bdaa61d and 2026-08-14 this job ran ZERO e2e tests while
+#              being recorded, here and in .game_loop, as the gate that
+#              mattered. A `Build zonai` step now exists; the claim below is
+#              only true because of it.
+#              This job is the ONLY gate on tool/ci/e2e/*.dart: the local
 #              .game_loop rule for that path is `dart analyze` and nothing
 #              more, because compiling per fixture does not belong in a
-#              per-commit gate. If this job is dropped or made non-blocking,
-#              that file goes back to having no real check -- the two decisions
-#              are one decision.
+#              per-commit gate. If this job is dropped, made non-blocking, or
+#              loses its build step, that file goes back to having no real
+#              check -- those are all one decision.
 #   windows -- has never run. Path separators, line endings and process
 #              spawning are the likely first failures. Windows is a release
 #              target (zonai-windows-x64); a suite that has never run there is
