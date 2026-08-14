@@ -1,5 +1,3 @@
-import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd
-    show TableMeta;
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:test/test.dart';

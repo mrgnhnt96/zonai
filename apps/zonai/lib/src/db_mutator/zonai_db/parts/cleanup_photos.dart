@@ -89,10 +89,6 @@ extension _CleanupPhotosX on ZonaiDb {
 
   Future<void> _deletePhotoEntry(PhotoEntry photo, {required Jwt? jwt}) async {
     final table = photos.$;
-    if (table == null) {
-      throw const PhotosTableNotFoundException();
-    }
-
     final object = table.mapOut(photo);
 
     await _runExtension(

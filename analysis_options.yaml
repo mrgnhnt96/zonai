@@ -1,0 +1,19 @@
+analyzer:
+  exclude:
+    # Compiled/tool output. Never hand-written, regenerated on every build.
+    - "**/build/**"
+    - "**/.dart_tool/**"
+    # Checked-in generated code (vendored client SDKs, embedded server/web
+    # assets, OpenAPI specs). Marked "GENERATED CODE - DO NOT MODIFY BY HAND"
+    # at the files themselves; some entries are additionally gitignored.
+    - "**/lib/gen/**"
+    # Vendored forks of external OSS packages, not zonai's own code.
+    - "libs/raindrop/**"
+    - "libs/resqlite/**"
+    # zonai_stress_fixture added a `path:` dependency on apps/zonai (which
+    # declares `resolution: workspace`) in 87966a5. A workspace member can't
+    # be path-depended-on from a package outside its workspace, so `dart pub
+    # get` fails here on a clean checkout and every import is unresolved.
+    # Pre-existing pub-workspace-graph bug, unrelated to analysis config --
+    # tracked separately, not fixed here.
+    - "stress/fixture/**"

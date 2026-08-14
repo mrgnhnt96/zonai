@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd show TableMeta;
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/tables/table.dart' as zs;
 import 'package:zonai_schema/zonai_schema.dart' hide table;
