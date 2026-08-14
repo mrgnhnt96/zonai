@@ -606,9 +606,7 @@ Future<void> _customOperations(Api api) async {
       .cast<Map<String, Object?>>();
   api.expect(
     'PATCH /db/custom/restock/many applies to every row the where matches',
-    actual: {
-      for (final row in restockedRows) row['id']: row['quantity'],
-    },
+    actual: {for (final row in restockedRows) row['id']: row['quantity']},
     expected: {'wop1': 23, 'wop2': 15},
     why:
         'wop1 already carries the +10 from the single-row call above, so this '
@@ -675,11 +673,11 @@ Future<void> _streaming(Api api) async {
     'active': true,
   });
 
-  await _assertStreamNeverDelivers(
-    api,
-    '/db/stream',
-    {'table': 'widgets', 'where': _eq('id', 'wstream1'), 'expand': <String>[]},
-  );
+  await _assertStreamNeverDelivers(api, '/db/stream', {
+    'table': 'widgets',
+    'where': _eq('id', 'wstream1'),
+    'expand': <String>[],
+  });
   await _assertStreamNeverDelivers(api, '/db/stream/list', {
     'table': 'widgets',
     'expand': <String>[],
@@ -716,7 +714,8 @@ Future<void> _assertStreamNeverDelivers(
         ? 'no event within 8s (0 bytes past the response headers)'
         : 'an event arrived: ${jsonEncode(event)}',
     expected: 'an event arrived',
-    found: '2026-08-14, e2e-full-surface leaf (see this function\'s doc comment '
+    found:
+        '2026-08-14, e2e-full-surface leaf (see this function\'s doc comment '
         'for the full raw-socket reproduction)',
     why:
         "a stream test that only checks the first event is the one that "
@@ -1006,7 +1005,9 @@ Future<void> _authSurface(Api api) async {
   );
 
   // -- confirm: negative path only (see the doc comment above) -------------
-  final garbageToken = base64Encode(utf8.encode('not-a-real-secret:nobody@example.com'));
+  final garbageToken = base64Encode(
+    utf8.encode('not-a-real-secret:nobody@example.com'),
+  );
   final confirmBad = await api._sendRaw(
     'POST',
     '/auth/confirm',
@@ -1171,7 +1172,8 @@ Future<void> _operationalSurface(Api api) async {
   final metricsBody = metrics.data as Map?;
   api.expect(
     'the metrics body carries the fields the dashboard UI reads',
-    actual: metricsBody != null &&
+    actual:
+        metricsBody != null &&
         metricsBody.containsKey('request_count_24h') &&
         metricsBody.containsKey('active_sessions'),
     expected: true,
@@ -1199,7 +1201,11 @@ Future<void> _operationalSurface(Api api) async {
     '/crons/list',
     authorization: adminToken,
   );
-  api.expect('GET /crons/list answers 2xx for an admin', actual: cronList.status, expected: 200);
+  api.expect(
+    'GET /crons/list answers 2xx for an admin',
+    actual: cronList.status,
+    expected: 200,
+  );
   final cronNames = ((cronList.data as Map?)?['names'] as List?)
       ?.cast<String>();
   api.expect(
@@ -1313,7 +1319,8 @@ Future<void> _photoSurface(Api api) async {
     authorization: strangerToken,
   );
   final strangersPhotoId =
-      ((jsonDecode(utf8.decode(strangersPhoto.bytes)) as Map)['data'] as Map)['id']
+      ((jsonDecode(utf8.decode(strangersPhoto.bytes)) as Map)['data']
+              as Map)['id']
           as String;
 
   final strangerUpdateAttempt = await api.updatePhoto(
@@ -1334,8 +1341,15 @@ Future<void> _photoSurface(Api api) async {
     contentType: 'image/png',
     authorization: ownerToken,
   );
-  api.expect('PATCH /img/:id answers 2xx for the owner', actual: ownerUpdate.status, expected: 200);
-  final viewedAfterUpdate = await api.viewPhoto(photoId, authorization: ownerToken);
+  api.expect(
+    'PATCH /img/:id answers 2xx for the owner',
+    actual: ownerUpdate.status,
+    expected: 200,
+  );
+  final viewedAfterUpdate = await api.viewPhoto(
+    photoId,
+    authorization: ownerToken,
+  );
   api.expect(
     'the updated bytes are what a subsequent view returns',
     actual: _bytesEqual(viewedAfterUpdate.bytes, _kTestPng1x1Alt),
@@ -1353,9 +1367,16 @@ Future<void> _photoSurface(Api api) async {
   );
 
   final ownerDelete = await api.deletePhoto(photoId, authorization: ownerToken);
-  api.expect('DELETE /img/:id answers 2xx for the owner', actual: ownerDelete.status, expected: 200);
+  api.expect(
+    'DELETE /img/:id answers 2xx for the owner',
+    actual: ownerDelete.status,
+    expected: 200,
+  );
 
-  final viewAfterDelete = await api.viewPhoto(photoId, authorization: ownerToken);
+  final viewAfterDelete = await api.viewPhoto(
+    photoId,
+    authorization: ownerToken,
+  );
   api.expect(
     'the deleted photo is gone',
     actual: viewAfterDelete.status,
@@ -1368,7 +1389,10 @@ Future<void> _photoSurface(Api api) async {
   );
   api.expect(
     "deleting the owner's photo did not take the stranger's photo with it",
-    actual: [strangersPhotoStillThere.status, _bytesEqual(strangersPhotoStillThere.bytes, _kTestPng1x1)],
+    actual: [
+      strangersPhotoStillThere.status,
+      _bytesEqual(strangersPhotoStillThere.bytes, _kTestPng1x1),
+    ],
     expected: [200, true],
     why:
         "if delete's row scoping were wrong (matching on something broader "
@@ -2099,7 +2123,11 @@ class Api {
     final res = await _send(
       'PATCH',
       '/db/custom/$operation/many',
-      body: {'table': table, if (where != null) 'where': where, 'updates': updates},
+      body: {
+        'table': table,
+        if (where != null) 'where': where,
+        'updates': updates,
+      },
       authorization: authorization,
     );
     _requireOk(res, 'PATCH /db/custom/$operation/many table=$table');
@@ -2160,26 +2188,28 @@ class Api {
     }
 
     final events = StreamController<Object?>();
-    final sub = response.transform(utf8.decoder).listen(
-      (chunk) {
-        try {
-          final decoded = jsonDecode(chunk);
-          if (decoded case {'data': final data}) {
-            events.add(data);
-          }
-        } catch (_) {
-          // Mirrors the generated client: a chunk that is not one whole JSON
-          // value is dropped, not treated as fatal.
-        }
-      },
-      onDone: () {
-        if (!events.isClosed) events.close();
-      },
-      onError: (Object e, StackTrace st) {
-        if (!events.isClosed) events.addError(e, st);
-      },
-      cancelOnError: false,
-    );
+    final sub = response
+        .transform(utf8.decoder)
+        .listen(
+          (chunk) {
+            try {
+              final decoded = jsonDecode(chunk);
+              if (decoded case {'data': final data}) {
+                events.add(data);
+              }
+            } catch (_) {
+              // Mirrors the generated client: a chunk that is not one whole JSON
+              // value is dropped, not treated as fatal.
+            }
+          },
+          onDone: () {
+            if (!events.isClosed) events.close();
+          },
+          onError: (Object e, StackTrace st) {
+            if (!events.isClosed) events.addError(e, st);
+          },
+          cancelOnError: false,
+        );
     return StreamSession._(sub, events);
   }
 
@@ -2212,7 +2242,9 @@ class Api {
   }) => _sendBytes(
     'POST',
     '/img',
-    query: {'meta': {'table': table}},
+    query: {
+      'meta': {'table': table},
+    },
     bytes: bytes,
     contentType: contentType,
     authorization: authorization,
