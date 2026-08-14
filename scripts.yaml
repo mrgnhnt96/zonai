@@ -241,7 +241,50 @@ test:
   static:
     (description): L0 -- compiles, formats, and the shell embedded in scripts.yaml/workflows. Budget < 2 min.
     (command):
-      - dart analyze .
+      # Resolve, THEN analyze -- one command, because the resolve is a
+      # prerequisite of the analyze and not an independent check. Split across
+      # two list items they could be reordered, or the analyze could run on a
+      # tree the resolve failed to prepare and report 226 import errors instead
+      # of the one line saying why.
+      #
+      # `dart analyze .` walks INTO the nine tracked packages that are NOT
+      # members of the root pub workspace (`libs/**`, `support/**`, `apps/*` --
+      # note the shallow glob, so apps/zonai/tool/native/argon2_builder is out
+      # too). The root `dart pub get` therefore never resolves them and every
+      # cross-file import inside them reads as unresolved.
+      #
+      # MEASURED 2026-08-14 from a genuinely clean tree -- no .dart_tool
+      # anywhere, root `dart pub get` only, i.e. exactly what a CI runner has:
+      # 226 errors, 224 of which are nothing but unresolvedness (168 across
+      # e2e/*, 56 in stress/bin, 2 in argon2_builder). The loop below costs
+      # 4.2s against this target's < 2 min budget and takes the same analyze to
+      # exit 0. It is not an optimisation of a passing check -- without it the
+      # static job cannot pass on a fresh runner at all.
+      #
+      # A dev machine passes only because of leftover .dart_tool from some
+      # earlier `sip run test e2e` / `bootstrap test`. That state is gitignored,
+      # untracked and machine-local: any `git clean -xdf` destroys it, and no
+      # runner ever had it. A gate must not rest on it.
+      #
+      # Kept deliberately in step with the `resolve` check in .showrunner's
+      # config.json, which resolves the same set for the same reason -- plus
+      # argon2_builder, which that copy misses (it is the last 2 of the 226).
+      #
+      # stress/fixture is the one out-of-workspace package NOT listed, because
+      # it provably cannot be resolved: it path-depends on apps/zonai, whose
+      # transitive raindrop_cli asks for a hosted `raindrop ^0.0.1` that only
+      # the workspace's path entry satisfies, so pub fails version solving
+      # ("no versions of raindrop match ^0.0.1"). It stays excluded in
+      # analysis_options.yaml, which DOES suppress it -- see the note there.
+      - |
+        for d in e2e/*/ stress/ apps/zonai/tool/native/argon2_builder/; do
+          if ! (cd "$d" && dart pub get >/dev/null); then
+            echo "dart pub get failed in $d -- dart analyze . would report every" >&2
+            echo "import in it as unresolved. Fix the resolve, not the analyze." >&2
+            exit 1
+          fi
+        done
+        dart analyze .
       # Formats what HUMANS write, not `.`. Two things `.` sweeps in that must not
       # be reformatted: **/lib/gen/** (130 tracked generated files -- the next
       # generator run reverts any reformat, so the gate would flap forever), and
