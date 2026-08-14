@@ -719,11 +719,26 @@ jobs:
             echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
           fi
 
-      - name: Bootstrap lib/gen
-        shell: bash
-        env:
-          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
-        run: dart pub global run sip_cli:sip run bootstrap test
+      # NO `bootstrap test` STEP HERE, deliberately -- unlike unit and cli.
+      # `zonai compile` below is a SUPERSET of it (scripts.yaml: bootstrap test
+      # is version.gen + resqlite.gen + argon2.gen + server.copy-to-cli; zonai
+      # compile is all four plus raindrop.vendor, web.gen and the AOT build),
+      # which is why compile.yml has never carried one either.
+      #
+      # It was here, and it broke the macOS leg. Running both meant invoking
+      # revali codegen TWICE, and on the macOS runner the SECOND invocation
+      # fails where the first succeeds -- 2/2 across runs 31839671048 and
+      # 31842392052, Bootstrap green and Build zonai red on the same runner,
+      # same SDK, same revali pin, same source. ubuntu and windows run the
+      # identical two-invocation sequence and pass both, and run 31830243531
+      # (one invocation) passed codegen on macOS. So the trigger is the second
+      # invocation on that runner, not the platform and not the source.
+      #
+      # The underlying fragility is upstream and still live -- revali 3.2.0
+      # lib/server/utils/annotation_argument.dart:35-41 reads
+      # expression.staticType off an AST it does not always get resolved. See
+      # docs/revali-dot-shorthand-codegen.md. Dropping the redundant invocation
+      # removes this job's exposure to it; it does not fix it.
 
       # THIS JOB RAN ZERO E2E TESTS UNTIL THIS STEP EXISTED. `run_e2e.sh` drives
       # a REAL compiled binary and looks for one at build/zonai (build/zonai.exe
