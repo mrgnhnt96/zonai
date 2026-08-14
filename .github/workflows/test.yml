@@ -134,6 +134,70 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
+      # WHY A JOB THAT ONLY ANALYZES HAS TO BUILD ANYTHING: `dart analyze .`
+      # reads apps/zonai/lib/gen, which is gitignored (.gitignore:8) and tracked
+      # nowhere, so no runner has ever had it.
+      #
+      # MEASURED on the first real CI run this repo ever had (2026-08-14, run
+      # 31830243531): 141 issues, 79 of them errors, and 75 of those were
+      # nothing but the missing lib/gen -- 47 undefined_identifier,
+      # 26 uri_does_not_exist, 2 uri_has_not_been_generated. A dev machine
+      # passes only because an earlier `bootstrap test` left the tree behind.
+      #
+      # `test static` already says in scripts.yaml that a gate must not rest on
+      # machine-local state -- that was written about the .dart_tool half, which
+      # got fixed while this half did not. Same class of bug, same job.
+      #
+      # No matrix here (this job is ubuntu-only), so the artifact name is
+      # spelled out where `unit`/`cli`/`e2e` read it from matrix context.
+      - name: Install native build toolchain (Linux)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
+      - name: Download pre-built native libraries (cache release)
+        id: download-native-libs
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          archive="native-libs-linux-x64.tar.gz"
+          mkdir -p apps/zonai/lib/gen/native
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+      - name: Check downloaded native libraries
+        id: native-libs
+        shell: bash
+        run: |
+          if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
+             [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No native-libs-linux-x64.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source. Run the 'Native Libraries' workflow once to populate the cache."
+          fi
+
+      - name: Bootstrap lib/gen
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        run: dart pub global run sip_cli:sip run bootstrap test
+
+      # `bootstrap test` deliberately skips the web build, so lib/gen/web stays
+      # absent after it -- and apps/web/lib/server/render_web_app.dart imports
+      # `package:zonai/gen/web/web_assets.dart`. That was the 1 codegen error
+      # bootstrap alone did not clear. `--stub` writes exactly the two symbols
+      # that file uses (`lookupJasprWebAsset`, `JasprWebAsset`) with no jaspr
+      # build, which is all an analyze needs; a real `web.gen` would spend
+      # minutes producing asset bytes this job never reads.
+      - name: Generate web asset stub
+        run: cd apps/zonai && dart run tool/generate_web_assets.dart --stub
+
       - name: Static checks
         # `dart pub global run` rather than the `sip` stub, so the Windows legs
         # of the other jobs work under Git Bash (global stubs are .bat-only).
@@ -566,6 +630,24 @@ jobs:
         env:
           ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
         run: dart pub global run sip_cli:sip run bootstrap test
+
+      # THIS JOB RAN ZERO E2E TESTS UNTIL THIS STEP EXISTED. `run_e2e.sh` drives
+      # a REAL compiled binary and looks for one at build/zonai (build/zonai.exe
+      # on Windows, tool/ci/run_e2e.sh:125-143). Nothing here produced it, so on
+      # the first real CI run (2026-08-14, run 31830243531) all three legs exited
+      # 70 on `no compiled zonai binary at .../build/zonai` before a single
+      # assertion ran -- while test.yml's own comments, and the local
+      # .game_loop rule for tool/ci/e2e/**, both recorded this job as "the gate
+      # that matters" for the e2e driver. It gated nothing.
+      #
+      # Same invocation compile.yml uses to produce the release binary, so there
+      # is one way to build zonai on CI rather than two that can drift. It is
+      # also the expensive step in this job by a wide margin.
+      - name: Build zonai
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        run: dart pub global run sip_cli:sip run zonai compile
 
       - name: E2E tests
         shell: bash

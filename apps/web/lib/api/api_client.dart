@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:revali_client/revali_client.dart';
 import 'package:zonai_client/server.dart';
@@ -33,14 +35,23 @@ final zonaiClientProvider = Provider<ZonaiClient>((ref) {
 /// The underlying generated [Server], for endpoints without a [ZonaiClient] wrapper.
 final revaliServerProvider = Provider<Server>((ref) => ref.watch(zonaiClientProvider).server);
 
+// Returns `FutureOr<HttpResponse?>` rather than `void` because revali_client's
+// `HttpInterceptor` declares it that way on the git ref CI pins
+// (tool/ci/use_revali_git_overrides.sh), while the pub.dev release resolved
+// locally still declares `FutureOr<void>`. The wider return type is a valid
+// override of BOTH -- `void` is a top type, so `HttpResponse?` is a subtype of
+// it -- which is what lets one source tree analyze cleanly against either.
+// `null` means "carry on with what you were given"; neither hook substitutes a
+// response, they only observe.
 final class _UnauthorizedInterceptor implements HttpInterceptor {
   @override
-  void onRequest(HttpRequest request) {}
+  FutureOr<HttpResponse?> onRequest(HttpRequest request) => null;
 
   @override
-  void onResponse(HttpResponse response) {
+  FutureOr<HttpResponse?> onResponse(HttpResponse response) {
     if (isUnauthorizedStatusCode(response.statusCode)) {
       _unauthorizedHandler?.call();
     }
+    return null;
   }
 }
