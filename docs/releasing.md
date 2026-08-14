@@ -103,14 +103,32 @@ operations answered, and neither fell back to its process`) is **unproven**
 rather than merely unreported. This exception is being claimed over a real gap
 in coverage, not over noise.
 
-**If either is still red on the release after v0.7.0, these self-clearing
-claims were wrong.** Do not claim a third time — fix the fixtures:
+**Correction, written the moment v0.7.0 shipped: only compat self-clears.**
+The claim above said both would, and that was wrong about `cross-run` — the
+post-release `cross-run-linux-x64 (released)` failed identically, still
+reporting `Zonai: v0.6.1`. Compat compares against *the newest release*, so it
+moves on its own; `cross-run` reads a **hardcoded** version in
+`e2e/build_smoke/zonai.yaml`, which tracks nothing and moves only when someone
+moves it. "It self-clears" was reasoning by analogy from one gate to the other
+without checking where each got its version, which is the same mistake as
+assuming compat was the only such job in the first place.
+
+`e2e/build_smoke` is pinned to 0.7.0 as of that release, whose binary does
+carry the warning — a fix that did not exist until v0.7.0 was published, since
+no earlier release contained it.
+
+**If either is red on the next release, do not claim this a third time** — fix
+the fixtures:
 
 - Let `cross_target_build.sh` supply the target binary from the compile
-  artifact instead of downloading a release, so the gate tests the candidate.
-- Call `tool/ci/sync_playground_version.sh`. It already takes a fixture
-  directory and **nothing calls it**, which is why `e2e/build_smoke`'s pin sat
-  at 0.6.1 while the repo moved eleven versions past it.
+  artifact instead of downloading a release, so the gate tests the candidate
+  rather than whatever the fixture happens to name. This is the real fix: a
+  pin bumped by hand each release is a step somebody forgets, and forgetting
+  it is silent.
+- Call `tool/ci/sync_playground_version.sh` from the release flow. It already
+  takes a fixture directory and **nothing called it**, which is why
+  `e2e/build_smoke`'s pin sat at 0.6.1 while the repo moved eleven versions
+  past it.
 - For compat, extend the Phase 1 skip, or give the fixture a published
   `zonai_schema` from the old binary's era.
 
