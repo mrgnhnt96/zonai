@@ -10,6 +10,7 @@ import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import '../support/temp_directory.dart';
 
 /// Reproduces the "parallel /db/list requests intermittently 500" report:
 /// firing several list requests at once against a live server reliably
@@ -90,7 +91,7 @@ void main() {
     });
 
     tearDownAll(() {
-      projectRoot.deleteSync(recursive: true);
+      deleteTempDirectory(projectRoot);
     });
 
     test(

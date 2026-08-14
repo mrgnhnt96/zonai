@@ -8,6 +8,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import '../support/temp_directory.dart';
 
 /// End-to-end proof of the "ask your spawner for the native library"
 /// protocol added to fix cross-compiled workers embedding a wrong-platform
@@ -57,9 +58,7 @@ void main() {
     });
 
     tearDownAll(() {
-      if (tempDir.existsSync()) {
-        tempDir.deleteSync(recursive: true);
-      }
+      deleteTempDirectory(tempDir);
     });
 
     for (final library in NativeLibraryKind.values) {

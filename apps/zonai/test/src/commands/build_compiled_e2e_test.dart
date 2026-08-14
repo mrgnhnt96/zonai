@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:zonai/gen/version.dart';
 
 import '../../support/package_roots.dart';
+import '../../support/temp_directory.dart';
 
 /// End-to-end: a compiled `zonai` binary running `zonai build` against a
 /// project targeting its own platform must bundle a working copy of
@@ -55,7 +56,7 @@ void main() {
     });
 
     tearDownAll(() {
-      projectRoot.deleteSync(recursive: true);
+      deleteTempDirectory(projectRoot);
     });
 
     test(
