@@ -92,6 +92,56 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 15. An update that writes the column its own `where` matched on reported failure for a write that succeeded — fixed, and `PATCH /db` now 404s on no match
+
+**Fixed 2026-08-13** (`a16b499`). Reported from the field as *"`PATCH /db` 500s
+on any `where` that isn't on `id`; a plain `eq` on `place_id` is enough, while
+`list` accepts the same clause happily."* **That rule is wrong** — a non-id
+`where` works, and the read/write asymmetry does not exist: `list` and `update`
+build their clause through the same `_whereFilter`
+(`table_operations.dart:188` and `:441/458/493`), `Eq` renders
+`"t"."place_id" = ?` exactly as it renders `"t"."id" = ?`
+(`where_sql.dart:38`), SQLite accepts either in an UPDATE's WHERE, and 52
+existing tests already compile *and execute* `update(..., where: Eq('title',
+…))`. But the report was pointing at two real defects, and `id`-matched updates
+are immune to both, which is what made the pattern look like it did.
+
+**1. The read-back replayed the pre-update `where`.** `updateResult.rows` is
+always empty, so `_update` refetched — by re-running the read it had built
+*before* the write. An update that writes a column its `where` matched on moves
+the row out of its own clause: `WHERE status = 'open'` while setting `status =
+'closed'` matches nothing on the second pass. The write was already committed,
+so **the caller got a failure for an update that succeeded**, and a retry then
+matched nothing at all. `AfterUpdateExtensionRequest` also received a
+`before`/`after` pair of different lengths — its assert names this exactly.
+
+That assert is why the failure had two faces and never looked like one bug:
+under `dart test` (asserts on) it throws there; in a **compiled binary asserts
+are off**, so the empty result travelled on to `DbHandler.update` and 500'd
+there instead. Now keyed by the ids read before the write, so the read-back
+finds its rows whatever the update did to them. The same defect was on the
+`mutate.update` side-effect path — the one scheduled crons take — and was fixed
+with it.
+
+**2. Zero rows matched was a 500.** That is an ordinary outcome of a
+conditional update ("close it if it is still open"), and `StateError` left a
+caller unable to tell *the row is gone* from *zonai broke*.
+
+> ⚠️ **Behaviour change.** `PATCH /db` and `PATCH /db/custom/:operation` now
+> return **404** when no row matches, not 500. Any client treating 500 as
+> "not found" needs updating. `PATCH /db/many` is unaffected — it returns an
+> empty list, as it always did.
+
+**Coverage**: `apps/zonai/test/e2e/update_where_column_e2e_test.dart`, four
+cases against a real fixture project and a real database, asserted red first.
+The where-rewrite case reproduced the length assert *and* confirmed the write
+had landed anyway; the non-id-untouched and by-id cases passed before and
+after, which is what disproves the reported rule.
+
+**Not covered**: an update that rewrites the `id` column itself moves its rows
+out of the new clause too. Nothing does that, and a table whose ids are
+reassigned by an update has no stable way to be read back at all.
+
 ## 14. `ZONAI_FORCE_WORKERS=1` never starts under `dart run` — the health check gives up 20s before `revali dev` is ready — not fixed
 
 **Severity: the documented escape hatch is unusable in dev.** Compiled binaries
