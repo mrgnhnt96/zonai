@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:file/file.dart';
+import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 import 'package:raindrop_cli/src/cli/cli_runner.dart';
 import 'package:watcher/watcher.dart';
@@ -11,6 +12,7 @@ import '../deps/keyboard_input.dart';
 import '../deps/logger.dart';
 import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
+import '../utils/canonical_path.dart';
 import '../utils/dart_sdk.dart';
 import '../db_mutator/zonai_db/zonai_db.dart';
 import '../../zonai.dart';
@@ -147,48 +149,9 @@ class Migrate {
 
       result = await runZoned(
         () async {
-          final exitCode = await CliRunner().run([
-            // zonai fully drives dialect/schemas/out itself, so point
-            // --config at a path that can't exist. Otherwise raindrop_cli
-            // defaults to './raindrop.yaml' and would pick up an unrelated
-            // one sitting in the working directory (this monorepo's own
-            // apps/zonai/raindrop.yaml, for example), silently redirecting
-            // generated Dart output to wherever that file's "dart:" points.
-            '--config',
-            fs.path.join(
-              settings.migrationsPath,
-              '.raindrop-config-disabled.yaml',
-            ),
-            '--driver',
-            'zonai_schema',
-            // Not the `raindrop_sqlite.dart` barrel: that exports
-            // sqlite_delegate.dart, which needs package:sqlite3. The
-            // introspection entrypoint runs inside the *user's* project, which
-            // has zonai_schema but deliberately not sqlite3 (issue #24), so the
-            // barrel fails to spawn there. The entrypoint only ever reads the
-            // driver's top-level `dialect`, and sqlite_dialect.dart provides it
-            // with no sqlite3 in its import graph.
-            '--driver-import',
-            'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart',
-            '--schema-package-prefix',
-            'package:zonai_schema/gen/raindrop/raindrop/',
-            // Symlinks resolved: upstream's SnapshotRunner._packageUri decides
-            // which package a schema file belongs to with `p.isWithin(<package
-            // rootUri>/lib, <schema path>)`, a pure string comparison. On macOS
-            // the system temp dir is /var/... while package_config.json's
-            // rootUri canonicalises to /private/var/..., so an uncanonicalised
-            // path never matches and every schema is rejected with "is not
-            // inside a package's lib/ directory". Real projects rarely sit
-            // behind a symlink, which is why this only ever showed up in tests.
-            '--schemas',
-            _resolvedSchemasPath,
-            '--out',
-            settings.migrationsPath,
-            'generate',
-            if (dryRun case true) '--dry-run',
-            '--name',
-            name,
-          ]);
+          final exitCode = await CliRunner().run(
+            generateArgs(name: name, dryRun: dryRun ?? false),
+          );
 
           return exitCode;
         },
@@ -240,18 +203,56 @@ class Migrate {
     }
   }
 
-  /// [settings.schemasPath] with symlinks resolved. See its use site.
+  /// The argument vector handed to `raindrop_cli` to generate [name].
   ///
-  /// Falls back to the raw path if resolution fails -- a broken symlink or a
-  /// race with a deleted directory should not take down migration generation
-  /// with a filesystem error instead of the real diagnostic.
-  String get _resolvedSchemasPath {
-    try {
-      return fs.directory(settings.schemasPath).resolveSymbolicLinksSync();
-    } on FileSystemException {
-      return settings.schemasPath;
-    }
-  }
+  /// Extracted so the one property that cannot be checked by running this on
+  /// a developer's machine can be checked at all: `--config` and `--schemas`
+  /// have to be spelled the SAME way. Upstream's `SnapshotRunner.packageUri`
+  /// decides which package a schema file belongs to with
+  /// `p.isWithin(<package rootUri>/lib, <schema path>)`, a pure string
+  /// comparison, and it derives that package root by walking up from the
+  /// `--config` directory to `package_config.json`. Two spellings of one
+  /// directory therefore make every schema "not inside a package's lib/".
+  ///
+  /// Both go through [canonicalPath] for that reason. Resolving only
+  /// `--schemas` fixed macOS (`/var` vs `/private/var`) and broke Windows,
+  /// where the resolve expands a GitHub runner's 8.3 `C:\Users\RUNNER~1\...`
+  /// into `C:\Users\runneradmin\...` while `--config` stayed short — the same
+  /// bug the resolve was added to fix, in the other direction, on the host
+  /// that had never run the suite.
+  @visibleForTesting
+  List<String> generateArgs({required String name, required bool dryRun}) => [
+    // zonai fully drives dialect/schemas/out itself, so point --config at a
+    // path that can't exist. Otherwise raindrop_cli defaults to
+    // './raindrop.yaml' and would pick up an unrelated one sitting in the
+    // working directory (this monorepo's own apps/zonai/raindrop.yaml, for
+    // example), silently redirecting generated Dart output to wherever that
+    // file's "dart:" points.
+    '--config',
+    canonicalPath(
+      fs.path.join(settings.migrationsPath, '.raindrop-config-disabled.yaml'),
+    ),
+    '--driver',
+    'zonai_schema',
+    // Not the `raindrop_sqlite.dart` barrel: that exports
+    // sqlite_delegate.dart, which needs package:sqlite3. The introspection
+    // entrypoint runs inside the *user's* project, which has zonai_schema but
+    // deliberately not sqlite3 (issue #24), so the barrel fails to spawn
+    // there. The entrypoint only ever reads the driver's top-level `dialect`,
+    // and sqlite_dialect.dart provides it with no sqlite3 in its import graph.
+    '--driver-import',
+    'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart',
+    '--schema-package-prefix',
+    'package:zonai_schema/gen/raindrop/raindrop/',
+    '--schemas',
+    canonicalPath(settings.schemasPath),
+    '--out',
+    settings.migrationsPath,
+    'generate',
+    if (dryRun) '--dry-run',
+    '--name',
+    name,
+  ];
 
   /// The `*.sql` files currently in [settings.migrationsPath], by name.
   ///

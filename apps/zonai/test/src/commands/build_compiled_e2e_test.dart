@@ -77,8 +77,16 @@ void main() {
           reason: '${result.stderr}\n${result.stdout}',
         );
 
+        // `Settings.buildExecutablePath` names the bundled binary after the
+        // TARGET os, and `zonai build` here targets the host -- so on Windows
+        // the file to look for is `zonai.exe`. Hard-coding the posix name
+        // asserted the product had done something it never promised.
         final bundledExecutable = File(
-          p.join(projectRoot.path, 'build', 'zonai'),
+          p.join(
+            projectRoot.path,
+            'build',
+            Platform.isWindows ? 'zonai.exe' : 'zonai',
+          ),
         );
         expect(
           bundledExecutable.existsSync(),
