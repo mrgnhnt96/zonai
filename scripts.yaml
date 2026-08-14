@@ -242,7 +242,17 @@ test:
     (description): L0 -- compiles, formats, and the shell embedded in scripts.yaml/workflows. Budget < 2 min.
     (command):
       - dart analyze .
-      - dart format --output=none --set-exit-if-changed .
+      # Formats what HUMANS write, not `.`. Two things `.` sweeps in that must not
+      # be reformatted: **/lib/gen/** (130 tracked generated files -- the next
+      # generator run reverts any reformat, so the gate would flap forever), and
+      # libs/raindrop + libs/resqlite, which are SEPARATE GIT REPOS -- reformatting
+      # a vendored fork makes every future upstream sync conflict. Driving off
+      # `git ls-files` excludes the submodules by construction (they are gitlinks,
+      # not files) and gitignored generated trees too; the grep drops the tracked
+      # generated ones. One `dart format` invocation rather than `xargs`, because
+      # xargs may split the list and only the LAST batch's exit code would survive
+      # -- a gate that silently checks a subset is worse than none.
+      - dart format --output=none --set-exit-if-changed $(git ls-files '*.dart' | grep -v '/lib/gen/')
       - bash tool/ci/check_shell_syntax.sh
       - bash tool/ci/check_workflows.sh
   unit:
