@@ -17,9 +17,23 @@ Object serializeWhereValue(Object value) {
   return jsonDecode(jsonEncode(whereValueToJsonEncodable(value))) as Object;
 }
 
+/// The result must be a **plain** `List`, not a view.
+///
+/// `.cast<Object>()` returns a `CastList`, which is a regular instance rather
+/// than one of the types an isolate message may contain. `Mailman` sends to an
+/// isolate worker by handing the message graph straight to `SendPort.send`
+/// (the process transport encodes it to bytes first, which is why this only
+/// ever failed on one of the two), so a `CastList` anywhere inside it throws
+/// `ArgumentError: ... is a regular instance reachable via ...` before the
+/// request is ever dispatched.
+///
+/// This is the only [Where] serializer that builds a collection, so `In` and
+/// `NotIn` were the only clauses affected — and they failed on every released
+/// binary, since a release spawns the isolate transport.
 List<Object> serializeWhereValues(List<Object> values) {
-  return (jsonDecode(jsonEncode(whereValueToJsonEncodable(values))) as List)
-      .cast<Object>();
+  return List<Object>.from(
+    jsonDecode(jsonEncode(whereValueToJsonEncodable(values))) as List,
+  );
 }
 
 /// Converts a [Where] comparison value to its bound-parameter form for the DB driver.
