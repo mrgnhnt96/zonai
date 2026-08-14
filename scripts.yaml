@@ -227,6 +227,69 @@ playground:
     cd apps/playground || exit 1
     dart run zonai db logs clear --log verbose
 
+test:
+  (aliases): [t]
+  (description): >-
+    L0+L1+L2 -- what a contributor runs before pushing. Explicit suite lists
+    only, never `dart test --recursive`: that would sweep the submodules
+    and the e2e fixtures into a suite nobody owns, and their failures would
+    get normalised. A suite that isn't run here is skipped out loud below,
+    not silently.
+  (command):
+    - ${{ test.static }}
+    - ${{ test.unit }}
+  static:
+    (description): L0 -- compiles, formats, and the shell embedded in scripts.yaml/workflows. Budget < 2 min.
+    (command):
+      - dart analyze .
+      - dart format --output=none --set-exit-if-changed .
+      - bash tool/ci/check_shell_syntax.sh
+      - bash tool/ci/check_workflows.sh
+  unit:
+    (description): >-
+      L1 -- pure logic, no native build required. libs/resqlite and
+      libs/raindrop are deliberately excluded: see `test submodules` for
+      why they carry their own prerequisites. apps/zonai is excluded too:
+      see `test cli`, which needs `bootstrap test` first.
+    (command):
+      - cd libs/zonai_schema && dart test
+      - cd libs/zonai_client && dart test
+      - cd libs/zonai_logger && dart test
+      - cd apps/server && dart test
+      - cd apps/web && dart test
+      - cd apps/playground && dart test
+      - cd apps/docs && dart test
+  cli:
+    (description): >-
+      L2+L3 -- the CLI's own suite, including its compiled-binary e2e
+      tests. Needs `sip run bootstrap test` first so lib/gen exists; this
+      target does not run it for you, so it fails loudly rather than
+      passing against a stale or missing lib/gen.
+    (command): cd apps/zonai && dart test
+  e2e:
+    (description): >-
+      L3 -- drives the e2e/ fixture projects through a real compiled
+      binary. tool/ci/run_e2e.sh does not exist yet (see
+      docs/testing-strategy.md Step 3), so this fails loudly instead of
+      silently exiting 0 for a layer that runs nothing.
+    (command): |
+      echo "test e2e: not implemented yet -- tool/ci/run_e2e.sh does not exist. See docs/testing-strategy.md Step 3." >&2
+      exit 1
+  submodules:
+    (description): >-
+      Prerequisite-carrying suites, kept out of `unit` on purpose.
+      libs/resqlite needs its own native build first -- into its own
+      .dart_tool/lib, NOT the apps/zonai build path, which its test setup
+      does not check -- or its whole suite fails to load
+      ("Resqlite native library not loaded").
+    (command):
+      - cd libs/resqlite && dart run tool/build_native.dart --output .dart_tool/lib && dart test
+      - cd libs/raindrop/packages/raindrop && dart test
+      - cd libs/raindrop/packages/raindrop_cli && dart test
+      - cd libs/raindrop/packages/raindrop_sqlite && dart test
+      - cd libs/raindrop/packages/raindrop_test && dart test
+      - cd libs/raindrop/packages/raindrop_postgres && dart test
+
 bootstrap:
   test:
     (aliases): [tests, t]
