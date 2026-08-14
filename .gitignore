@@ -88,3 +88,9 @@ apps/server/lib/gen/
 # Transient output of apps/playground/test/doc_snippets_test.dart -- the test
 # deletes it, but an interrupted run can leave it behind.
 **/__doc_snippets__/
+
+# showrunner: per-agent orchestration state, not source
+.showrunner
+
+# showrunner Crawler worktrees
+.worktrees
