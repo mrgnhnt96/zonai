@@ -282,13 +282,22 @@ test:
     (command): cd apps/zonai && dart test
   e2e:
     (description): >-
-      L3 -- drives the e2e/ fixture projects through a real compiled
-      binary. tool/ci/run_e2e.sh does not exist yet (see
-      docs/testing-strategy.md Step 3), so this fails loudly instead of
-      silently exiting 0 for a layer that runs nothing.
-    (command): |
-      echo "test e2e: not implemented yet -- tool/ci/run_e2e.sh does not exist. See docs/testing-strategy.md Step 3." >&2
-      exit 1
+      L3 -- drives the e2e/ fixture projects through a real compiled binary
+      (init/compile -> migrate generate -> migrate apply -> serve -> HTTP
+      assertions -> restart -> re-assert), asserting on response bodies and
+      database contents rather than exit codes. Needs a compiled binary:
+      `sip run zonai compile` first, or ZONAI_E2E_BINARY=<path>. It resolves
+      one rather than building one, for the same reason `test cli` does not
+      run `bootstrap test` for you.
+
+      Each mutation fixture runs on BOTH Mailman transports. Not
+      linked-vs-forced-workers: e2e/* depend on zonai_schema and not on
+      zonai, so a bare CLI reports `Ops/rules: worker IPC` either way and
+      ZONAI_FORCE_WORKERS changes nothing there. The isolate transport is
+      the one 551081f and 02cfcef failed on, and run_e2e.sh asserts the
+      rules/operations workers really took it -- an unspawnable snapshot
+      falls back to the process transport with nothing but a log warning.
+    (command): bash tool/ci/run_e2e.sh
   submodules:
     (description): >-
       Prerequisite-carrying suites, kept out of `unit` on purpose.

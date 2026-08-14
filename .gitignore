@@ -70,6 +70,21 @@ e2e/build_smoke/.zonai/
 # miss it) and pub re-resolves against that anyway.
 e2e/build_smoke/pubspec.lock
 
+# tool/ci/run_e2e.sh does the same to every fixture it drives: it `rm -rf
+# .zonai` first so a stale bundle, a leftover migration or a previous run's
+# database can never satisfy an assertion the run was supposed to earn. That
+# makes .zonai/ generated output for all of them, not just build_smoke -- and
+# it now includes the per-mode serve logs the transport check reads.
+e2e/*/.zonai/
+# Same reasoning as build_smoke's, extended to the rest: run_e2e.sh runs
+# `dart pub get` in each fixture, and these projects are outside the workspace
+# on purpose -- that is what makes them resolve the way a user's project does.
+# The four committed locks were measured stale on 2026-08-14 (revali_core
+# 2.0.0 against 3.0.0, zonai_schema 0.0.0 against 0.3.1), so they were not
+# pinning a reviewed resolution; they were making every run of this layer dirty
+# the tree and inviting someone to commit the churn back.
+e2e/*/pubspec.lock
+
 # Runtime data (sqlite db, uploaded photos/recordings, the replay-viewer
 # static build) — never source, can get large (recordings/replay-viewer
 # especially), must never be committed.
