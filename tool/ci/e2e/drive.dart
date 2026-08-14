@@ -21,6 +21,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 Future<void> main(List<String> argv) async {
   final args = _parseArgs(argv);
@@ -552,6 +553,198 @@ Future<void> _crudMatrix(Api api, String phase) async {
         'This one proves the rule was consulted at all -- a rule stubbed to '
         'true passes the first and fails here.',
   );
+
+  await _customOperations(api);
+  await _streaming(api);
+}
+
+/// `PATCH /db/custom/:operation` and `.../many` -- a route with zero e2e
+/// coverage until this fixture's WidgetOperations.custom() (issue #25's
+/// design: string-keyed custom operations, an Update-typed result) started
+/// implementing `restock`. Deletes its own scratch rows at the end so the
+/// restart-durability check in `_crudMatrix`'s `verify` phase still sees
+/// only `['100']`.
+Future<void> _customOperations(Api api) async {
+  await api.create('widgets', {
+    'id': 'wop1',
+    'code': 'op1',
+    'status': 'closed',
+    'quantity': 3,
+    'weight': 1.0,
+    'active': true,
+  });
+  final restocked = await api.custom(
+    'widgets',
+    operation: 'restock',
+    where: _eq('id', 'wop1'),
+  );
+  api.expect(
+    "PATCH /db/custom/restock runs the SERVER's logic, not the client's",
+    actual: [restocked['quantity'], restocked['status']],
+    expected: [13, 'open'],
+    why:
+        'the request carried no `updates` for quantity or status. A custom '
+        'operation that just replayed `updates` (a plain PATCH by another '
+        'name) would have left both alone -- the whole point of a named '
+        'operation is that the server decides the effect, not the caller.',
+  );
+
+  await api.create('widgets', {
+    'id': 'wop2',
+    'code': 'op2',
+    'status': 'closed',
+    'quantity': 5,
+    'weight': 1.0,
+    'active': true,
+  });
+  final restockedMany = await api.customMany(
+    'widgets',
+    operation: 'restock',
+    where: _inOp('in', 'id', ['wop1', 'wop2']),
+  );
+  final restockedRows = (restockedMany['rows'] as List)
+      .cast<Map<String, Object?>>();
+  api.expect(
+    'PATCH /db/custom/restock/many applies to every row the where matches',
+    actual: {
+      for (final row in restockedRows) row['id']: row['quantity'],
+    },
+    expected: {'wop1': 23, 'wop2': 15},
+    why:
+        'wop1 already carries the +10 from the single-row call above, so this '
+        'also proves the operation composes rather than resetting state.',
+  );
+
+  final unknownOp = await api.customExpectingStatus(
+    'widgets',
+    operation: 'not-a-real-operation',
+    where: _eq('id', 'wop1'),
+    expectedStatus: 403,
+  );
+  api.expect(
+    'an operation name absent from customOperations is denied, not silently run',
+    actual: unknownOp['status'],
+    expected: 403,
+    why:
+        "the base TableOperations.custom() throws UnimplementedError for any "
+        'name it does not recognise, but the table-rule customOperations map '
+        'is consulted first -- an unregistered name never reaches that code '
+        'at all, and a 403 (not a 500) is what a caller sees.',
+  );
+
+  await api.deleteOne('widgets', where: _eq('id', 'wop1'));
+  await api.deleteOne('widgets', where: _eq('id', 'wop2'));
+}
+
+/// `GET /db/stream`, `/stream/list`, `/stream/count` -- open the connection,
+/// mutate through a SEPARATE connection, and look for the event.
+///
+/// This does not currently find one. A raw TCP probe against a live
+/// crud_matrix server (2026-08-14, captured under
+/// .showrunner/scratch/orchestrator-0814-e2e-full-surface/) received the 200
+/// response headers for `GET /db/stream` and then zero body bytes for 35s
+/// across three mutations to the exact row being watched -- not even the
+/// initial snapshot `_streamOne` reads (apps/zonai/lib/src/db_mutator/
+/// zonai_db/parts/stream_one.dart) before entering its `await for` loop. The
+/// server log shows `Streaming query: ...` (the subscription was set up) but
+/// never `Stream completed` and never an error -- `_stream()`'s underlying
+/// `_resqlite.streamQuery()` subscription (__utils.dart) appears to either
+/// never emit or emit into a buffer this app never flushes to the socket.
+/// `/stream/list` additionally throws an UNCAUGHT
+/// `type 'Null' is not a subtype of type 'Map<String, dynamic>' in type
+/// cast` server-side while processing (visible only in the server log, not
+/// over HTTP -- the connection just hangs the same way) -- a second, distinct
+/// defect on the same route.
+///
+/// `zonai_client`'s generated db_data_source_impl.dart assumes exactly one
+/// JSON value per received chunk with no cross-chunk buffering (see
+/// [Api.openStream]'s doc comment) -- if the server never flushes a chunk,
+/// every real consumer of these three routes is silently starved, not
+/// merely leaking. This is reported via [Api.knownFailure] (gates nothing,
+/// prints on every run) rather than fixed here: this leaf is about coverage,
+/// and a fix landing without anyone having decided the intended flush/buffer
+/// behavior would be a bigger, unreviewed change than "add the missing
+/// test". See docs/testing-strategy.md's note on knownFailure().
+Future<void> _streaming(Api api) async {
+  await api.create('widgets', {
+    'id': 'wstream1',
+    'code': 'strm',
+    'status': 'open',
+    'quantity': 1,
+    'weight': 1.0,
+    'active': true,
+  });
+
+  await _assertStreamNeverDelivers(
+    api,
+    '/db/stream',
+    {'table': 'widgets', 'where': _eq('id', 'wstream1'), 'expand': <String>[]},
+  );
+  await _assertStreamNeverDelivers(api, '/db/stream/list', {
+    'table': 'widgets',
+    'expand': <String>[],
+  });
+  await _assertStreamNeverDelivers(api, '/db/stream/count', {
+    'table': 'widgets',
+    'where': _eq('id', 'wstream1'),
+  });
+
+  await api.deleteOne('widgets', where: _eq('id', 'wstream1'));
+}
+
+Future<void> _assertStreamNeverDelivers(
+  Api api,
+  String path,
+  Map<String, Object?> body,
+) async {
+  final session = await api.openStream(path, body: body);
+
+  // The event this exists to catch: open, mutate elsewhere, expect the
+  // change to arrive. Mutating BEFORE checking for the initial snapshot so a
+  // fix that only delivers the initial value (and still never pushes
+  // updates) does not read as "now passes".
+  await api.patchOne(
+    'widgets',
+    where: _eq('id', 'wstream1'),
+    updates: [_columnUpdate('quantity', 2)],
+  );
+
+  final event = await api.nextStreamEvent(session);
+  api.knownFailure(
+    'GET $path delivers an event over HTTP',
+    actual: identical(event, Api.noStreamEvent)
+        ? 'no event within 8s (0 bytes past the response headers)'
+        : 'an event arrived: ${jsonEncode(event)}',
+    expected: 'an event arrived',
+    found: '2026-08-14, e2e-full-surface leaf (see this function\'s doc comment '
+        'for the full raw-socket reproduction)',
+    why:
+        "a stream test that only checks the first event is the one that "
+        'misses a leak -- this one does not even get that far, so the leak '
+        'question is moot until delivery works at all.',
+  );
+
+  // Close from the client side regardless of whether an event arrived --
+  // this is the trigger for the server's onCancel path (HybridStreamEngine /
+  // revali asBroadcastStream: two prior leaks in this repo both lived
+  // there). What this driver CAN assert afterward is that the server keeps
+  // answering unrelated requests normally; it CANNOT assert that the
+  // server-side subscription was actually torn down -- that needs a
+  // process-level probe (handle/memory count), which is what the leak-scan
+  // harness under stress/ is for, not an HTTP-only driver like this one.
+  await session.close();
+  final afterClose = await api.get('widgets', _eq('id', 'wstream1'));
+  api.expect(
+    'the server keeps answering ordinary requests after a stream client '
+    'disconnects, and the mutation the stream never saw is really there',
+    actual: afterClose['quantity'],
+    expected: 2,
+    why:
+        'the weakest thing this HTTP-only driver can assert about "did '
+        'closing the stream wedge the server" -- an actual leak/handle-'
+        'exhaustion check needs a process-level probe this driver does not '
+        'have (see the leak-scan harness under stress/).',
+  );
 }
 
 /// Sign-in over HTTP after a password edit, through a compiled binary.
@@ -695,7 +888,516 @@ Future<void> _adminPasswordUpdate(Api api, String phase) async {
       );
     },
   );
+
+  await _authSurface(api);
+  await _operationalSurface(api);
+  await _photoSurface(api);
 }
+
+/// Auth routes beyond sign-in/sign-up: refresh, reset-password, verify-email,
+/// confirm, admin sign-in, logout, logout-all, and the generic multiplexed
+/// `POST /auth`. Each gets its own scratch admin so none of these interfere
+/// with each other or with `_adminPasswordUpdate`'s own fixture state.
+///
+/// NOT covered, and why: `POST /auth/confirm`'s POSITIVE path for
+/// reset-password/verify-email (and `sendOtp`/`sendMagicLink` entirely) all
+/// require a secret this driver has no way to observe -- in a COMPILED
+/// binary (`kIsCompiled == true`, which is what this harness always runs)
+/// the secret is 32 random bytes embedded only in the body of an email
+/// `courier.send()` never delivers anywhere this driver can read (see
+/// apps/zonai/lib/src/db_mutator/zonai_db/parts/auth/reset_password.dart and
+/// verify_email.dart). What IS covered below is the send half (200, then a
+/// rate limit on a second send) and confirm's NEGATIVE path (a garbage
+/// token is rejected, not 500s).
+Future<void> _authSurface(Api api) async {
+  // -- refresh --------------------------------------------------------------
+  final refreshEmail = 'e2e-refresh@example.com';
+  final refreshSignUp = await api.signUp(
+    table: 'admins',
+    email: refreshEmail,
+    password: 'e2e-refresh-password-1',
+  );
+  final oldToken = refreshSignUp['accessToken'] as String;
+  final refreshRes = await api._sendRaw(
+    'POST',
+    '/auth/refresh',
+    authorization: oldToken,
+  );
+  api.expect(
+    'POST /auth/refresh answers 2xx for a live token',
+    actual: refreshRes.status >= 200 && refreshRes.status < 300,
+    expected: true,
+  );
+  final newToken = (refreshRes.data as Map?)?['accessToken'] as String?;
+  api.expect(
+    'refresh hands back a NEW access token',
+    actual: newToken != null && newToken != oldToken,
+    expected: true,
+  );
+  final oldTokenRefreshAgain = await api._sendRaw(
+    'POST',
+    '/auth/refresh',
+    authorization: oldToken,
+  );
+  api.expect(
+    'the OLD token is revoked once refreshed -- it cannot refresh again',
+    actual: oldTokenRefreshAgain.status,
+    expected: 401,
+    why:
+        'a refresh that left the old token alive would let a caller hold two '
+        'live sessions from one refresh call, which defeats the point of '
+        'rotating the token at all.',
+  );
+
+  // -- reset-password: send, then rate-limited on a second send ------------
+  final resetEmail = 'e2e-reset@example.com';
+  await api.signUp(
+    table: 'admins',
+    email: resetEmail,
+    password: 'e2e-reset-password-1',
+  );
+  final resetSend1 = await api._sendRaw(
+    'POST',
+    '/auth/reset-password',
+    body: {'type': 'sendResetPassword', 'table': 'admins', 'email': resetEmail},
+  );
+  api.expect(
+    'POST /auth/reset-password answers 2xx the first time',
+    actual: resetSend1.status >= 200 && resetSend1.status < 300,
+    expected: true,
+  );
+  final resetSend2 = await api._sendRaw(
+    'POST',
+    '/auth/reset-password',
+    body: {'type': 'sendResetPassword', 'table': 'admins', 'email': resetEmail},
+  );
+  api.expect(
+    'a second reset-password send inside the cooldown is rate-limited',
+    actual: resetSend2.status,
+    expected: 429,
+    why:
+        'without a cooldown a caller could re-trigger delivery (and burn '
+        "whatever the email provider bills per send) as fast as it can POST.",
+  );
+
+  // -- verify-email: send (requires an authenticated caller) ---------------
+  final verifyEmailAddr = 'e2e-verify@example.com';
+  final verifySignUp = await api.signUp(
+    table: 'admins',
+    email: verifyEmailAddr,
+    password: 'e2e-verify-password-1',
+  );
+  final verifySend = await api._sendRaw(
+    'POST',
+    '/auth/verify-email',
+    authorization: verifySignUp['accessToken'] as String,
+    body: {'table': 'admins', 'email': verifyEmailAddr},
+  );
+  api.expect(
+    'POST /auth/verify-email answers 2xx for an authenticated caller',
+    actual: verifySend.status >= 200 && verifySend.status < 300,
+    expected: true,
+  );
+  final verifySendUnauth = await api._sendRaw('POST', '/auth/verify-email');
+  api.expect(
+    'POST /auth/verify-email refuses an unauthenticated caller',
+    actual: verifySendUnauth.status >= 400,
+    expected: true,
+  );
+
+  // -- confirm: negative path only (see the doc comment above) -------------
+  final garbageToken = base64Encode(utf8.encode('not-a-real-secret:nobody@example.com'));
+  final confirmBad = await api._sendRaw(
+    'POST',
+    '/auth/confirm',
+    body: {
+      'type': 'confirmResetPassword',
+      'token': garbageToken,
+      'newPassword': 'whatever-new-password-1',
+    },
+  );
+  api.expect(
+    'POST /auth/confirm rejects a token it never issued',
+    actual: confirmBad.status >= 400 && confirmBad.status < 500,
+    expected: true,
+    why:
+        'a token this driver invented should never be treated as valid -- a '
+        '2xx here would mean anyone could reset any password by guessing.',
+  );
+
+  // -- admin sign-in via the dedicated /auth/admin route --------------------
+  final adminRouteEmail = 'e2e-admin-route@example.com';
+  const adminRoutePassword = 'e2e-admin-route-password-1';
+  await api.signUp(
+    table: 'admins',
+    email: adminRouteEmail,
+    password: adminRoutePassword,
+  );
+  final adminRouteSignIn = await api._sendRaw(
+    'POST',
+    '/auth/admin',
+    body: {
+      'type': 'adminSignIn',
+      'email': adminRouteEmail,
+      'password': adminRoutePassword,
+    },
+  );
+  api.expect(
+    'POST /auth/admin signs in independently of /auth/sign-in',
+    actual: (adminRouteSignIn.data as Map?)?['accessToken'] != null,
+    expected: true,
+  );
+
+  // -- logout / logout-all ---------------------------------------------------
+  final logoutEmail = 'e2e-logout@example.com';
+  final logoutSignUp = await api.signUp(
+    table: 'admins',
+    email: logoutEmail,
+    password: 'e2e-logout-password-1',
+  );
+  final logoutToken = logoutSignUp['accessToken'] as String;
+  final logoutRes = await api._sendRaw(
+    'DELETE',
+    '/auth',
+    authorization: logoutToken,
+  );
+  api.expect(
+    'DELETE /auth (logout) answers 2xx',
+    actual: logoutRes.status >= 200 && logoutRes.status < 300,
+    expected: true,
+  );
+  final refreshAfterLogout = await api._sendRaw(
+    'POST',
+    '/auth/refresh',
+    authorization: logoutToken,
+  );
+  api.expect(
+    'a logged-out token can no longer refresh',
+    actual: refreshAfterLogout.status,
+    expected: 401,
+  );
+
+  final logoutAllEmail = 'e2e-logout-all@example.com';
+  const logoutAllPassword = 'e2e-logout-all-password-1';
+  final logoutAllSession1 = await api.signUp(
+    table: 'admins',
+    email: logoutAllEmail,
+    password: logoutAllPassword,
+  );
+  final logoutAllSession2 = await api.signIn(
+    table: 'admins',
+    email: logoutAllEmail,
+    password: logoutAllPassword,
+  );
+  final logoutAllRes = await api._sendRaw(
+    'DELETE',
+    '/auth/all',
+    authorization: logoutAllSession1['accessToken'] as String,
+  );
+  api.expect(
+    'DELETE /auth/all answers 2xx',
+    actual: logoutAllRes.status >= 200 && logoutAllRes.status < 300,
+    expected: true,
+  );
+  final session2AfterLogoutAll = await api._sendRaw(
+    'POST',
+    '/auth/refresh',
+    authorization: logoutAllSession2['accessToken'] as String,
+  );
+  api.expect(
+    'logout-all revokes a DIFFERENT session for the same account too',
+    actual: session2AfterLogoutAll.status,
+    expected: 401,
+    why:
+        'logout-all that only touched the session that called it would be '
+        'indistinguishable from plain logout -- this is the one assertion '
+        'that tells them apart.',
+  );
+
+  // -- the generic, multiplexed POST /auth -----------------------------------
+  //
+  // A DIFFERENT controller method (AuthHandler.authenticate) from the one
+  // POST /auth/sign-in uses (AuthHandler.signIn) -- proven working above and
+  // below respectively does not prove this one parses the same body.
+  final genericEmail = 'e2e-generic-auth@example.com';
+  const genericPassword = 'e2e-generic-auth-password-1';
+  await api.signUp(
+    table: 'admins',
+    email: genericEmail,
+    password: genericPassword,
+  );
+  final genericSignIn = await api._sendRaw(
+    'POST',
+    '/auth',
+    body: {
+      'type': 'signIn',
+      'table': 'admins',
+      'email': genericEmail,
+      'password': genericPassword,
+    },
+  );
+  api.expect(
+    'POST /auth with type=signIn reaches the same result as /auth/sign-in',
+    actual: (genericSignIn.data as Map?)?['accessToken'] != null,
+    expected: true,
+  );
+}
+
+/// `GET /health`, `GET /dashboard/metrics`, `GET /crons/list`,
+/// `POST /crons/run`, `POST /email` -- all admin/operational surface, none
+/// of it table-scoped so none of it needs its own fixture rows.
+Future<void> _operationalSurface(Api api) async {
+  final health = await api._sendRaw('GET', '/health');
+  api.expect('GET /health answers 2xx', actual: health.status, expected: 200);
+
+  final adminEmail = 'e2e-ops-admin@example.com';
+  final adminSignUp = await api.signUp(
+    table: 'admins',
+    email: adminEmail,
+    password: 'e2e-ops-admin-password-1',
+  );
+  final adminToken = adminSignUp['accessToken'] as String;
+
+  final metrics = await api._sendRaw(
+    'GET',
+    '/dashboard/metrics',
+    authorization: adminToken,
+  );
+  api.expect(
+    'GET /dashboard/metrics answers 2xx for an admin',
+    actual: metrics.status,
+    expected: 200,
+  );
+  final metricsBody = metrics.data as Map?;
+  api.expect(
+    'the metrics body carries the fields the dashboard UI reads',
+    actual: metricsBody != null &&
+        metricsBody.containsKey('request_count_24h') &&
+        metricsBody.containsKey('active_sessions'),
+    expected: true,
+  );
+
+  final nonAdminEmail = 'e2e-ops-nonadmin@example.com';
+  final nonAdminSignUp = await api.signUp(
+    table: 'users',
+    email: nonAdminEmail,
+    password: 'e2e-ops-nonadmin-password-1',
+  );
+  final metricsAsNonAdmin = await api._sendRaw(
+    'GET',
+    '/dashboard/metrics',
+    authorization: nonAdminSignUp['accessToken'] as String,
+  );
+  api.expect(
+    'GET /dashboard/metrics is hidden from a non-admin, not just filtered',
+    actual: metricsAsNonAdmin.status,
+    expected: 403,
+  );
+
+  final cronList = await api._sendRaw(
+    'GET',
+    '/crons/list',
+    authorization: adminToken,
+  );
+  api.expect('GET /crons/list answers 2xx for an admin', actual: cronList.status, expected: 200);
+  final cronNames = ((cronList.data as Map?)?['names'] as List?)
+      ?.cast<String>();
+  api.expect(
+    'the internal cleanup crons every zonai app carries are listed',
+    actual: cronNames?.contains('_delete_expired_jwts'),
+    expected: true,
+    why:
+        'this fixture registers no crons of its own -- the built-in internal '
+        'ones (delete_expired_jwts, cleanup_logs, ...) are the only way to '
+        'exercise this route without adding a crons/ file just for the test.',
+  );
+
+  final cronListAsNonAdmin = await api._sendRaw(
+    'GET',
+    '/crons/list',
+    authorization: nonAdminSignUp['accessToken'] as String,
+  );
+  api.expect(
+    'GET /crons/list is hidden from a non-admin',
+    actual: cronListAsNonAdmin.status,
+    expected: 403,
+  );
+
+  final cronRun = await api._sendRaw(
+    'POST',
+    '/crons/run?name=_delete_expired_jwts',
+    authorization: adminToken,
+  );
+  api.expect(
+    'POST /crons/run answers 2xx for a real, internal cron name',
+    actual: cronRun.status >= 200 && cronRun.status < 300,
+    expected: true,
+  );
+
+  final emailSend = await api._sendRaw(
+    'POST',
+    '/email',
+    body: {
+      'to': {'address': 'e2e-email-recipient@example.com'},
+      'subject': 'e2e probe',
+      'template': 'otp_code',
+      'variables': {'otp': '000000'},
+    },
+  );
+  api.expect(
+    'POST /email answers 2xx for a real built-in template',
+    actual: emailSend.status >= 200 && emailSend.status < 300,
+    expected: true,
+    why:
+        'the payload shape matters here: `to` is a single object (not a '
+        'list) and `template` names a real template file -- either mistake '
+        'is a 500, which this assertion would also have caught.',
+  );
+}
+
+/// `GET/POST/PATCH/DELETE /img/:id` -- the internal `_photos` table's HTTP
+/// surface. Genuinely a different domain from `/db`: raw bytes in and out,
+/// not JSON, and ownership-based row rules (create needs any authenticated
+/// caller; update/delete need the owner or an admin) rather than this
+/// fixture's own table rules.
+///
+/// NOT covered: a restart-durability re-check in `verify` phase. The
+/// `_photos` table's id is server-generated (`Id.generate('ph')`, see
+/// apps/zonai/lib/src/db_mutator/zonai_db/parts/photo.dart) and returned
+/// only in the create response -- `verify` runs as a SEPARATE process
+/// against a SEPARATE drive.dart invocation with no way to recover that id,
+/// unlike this file's other fixtures which use client-supplied ids for
+/// exactly this reason.
+Future<void> _photoSurface(Api api) async {
+  final ownerSignUp = await api.signUp(
+    table: 'users',
+    email: 'e2e-photo-owner@example.com',
+    password: 'e2e-photo-owner-password-1',
+  );
+  final ownerToken = ownerSignUp['accessToken'] as String;
+  final strangerSignUp = await api.signUp(
+    table: 'users',
+    email: 'e2e-photo-stranger@example.com',
+    password: 'e2e-photo-stranger-password-1',
+  );
+  final strangerToken = strangerSignUp['accessToken'] as String;
+
+  final created = await api.createPhoto(
+    table: 'admins',
+    bytes: _kTestPng1x1,
+    contentType: 'image/png',
+    authorization: ownerToken,
+  );
+  api.expect('POST /img answers 2xx', actual: created.status, expected: 200);
+  final createdBody = jsonDecode(utf8.decode(created.bytes)) as Map;
+  final photoId = (createdBody['data'] as Map)['id'] as String;
+
+  final viewed = await api.viewPhoto(photoId, authorization: ownerToken);
+  api.expect(
+    'GET /img/:id answers 2xx with the exact bytes just uploaded',
+    actual: [viewed.status, _bytesEqual(viewed.bytes, _kTestPng1x1)],
+    expected: [200, true],
+  );
+  api.expect(
+    'the response is served with an image content-type, not a generic one',
+    actual: viewed.contentType,
+    expected: 'image/png',
+  );
+
+  // create a second photo owned by the stranger -- the "untouched" subject
+  // for the update/delete assertions below.
+  final strangersPhoto = await api.createPhoto(
+    table: 'admins',
+    bytes: _kTestPng1x1,
+    contentType: 'image/png',
+    authorization: strangerToken,
+  );
+  final strangersPhotoId =
+      ((jsonDecode(utf8.decode(strangersPhoto.bytes)) as Map)['data'] as Map)['id']
+          as String;
+
+  final strangerUpdateAttempt = await api.updatePhoto(
+    id: photoId,
+    bytes: _kTestPng1x1Alt,
+    contentType: 'image/png',
+    authorization: strangerToken,
+  );
+  api.expect(
+    "a non-owner cannot PATCH someone else's photo",
+    actual: strangerUpdateAttempt.status,
+    expected: 403,
+  );
+
+  final ownerUpdate = await api.updatePhoto(
+    id: photoId,
+    bytes: _kTestPng1x1Alt,
+    contentType: 'image/png',
+    authorization: ownerToken,
+  );
+  api.expect('PATCH /img/:id answers 2xx for the owner', actual: ownerUpdate.status, expected: 200);
+  final viewedAfterUpdate = await api.viewPhoto(photoId, authorization: ownerToken);
+  api.expect(
+    'the updated bytes are what a subsequent view returns',
+    actual: _bytesEqual(viewedAfterUpdate.bytes, _kTestPng1x1Alt),
+    expected: true,
+  );
+
+  final strangerDeleteAttempt = await api.deletePhoto(
+    photoId,
+    authorization: strangerToken,
+  );
+  api.expect(
+    "a non-owner cannot DELETE someone else's photo",
+    actual: strangerDeleteAttempt.status,
+    expected: 403,
+  );
+
+  final ownerDelete = await api.deletePhoto(photoId, authorization: ownerToken);
+  api.expect('DELETE /img/:id answers 2xx for the owner', actual: ownerDelete.status, expected: 200);
+
+  final viewAfterDelete = await api.viewPhoto(photoId, authorization: ownerToken);
+  api.expect(
+    'the deleted photo is gone',
+    actual: viewAfterDelete.status,
+    expected: 404,
+  );
+
+  final strangersPhotoStillThere = await api.viewPhoto(
+    strangersPhotoId,
+    authorization: strangerToken,
+  );
+  api.expect(
+    "deleting the owner's photo did not take the stranger's photo with it",
+    actual: [strangersPhotoStillThere.status, _bytesEqual(strangersPhotoStillThere.bytes, _kTestPng1x1)],
+    expected: [200, true],
+    why:
+        "if delete's row scoping were wrong (matching on something broader "
+        "than the one id), the stranger's unrelated photo would vanish too.",
+  );
+}
+
+bool _bytesEqual(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+/// A minimal valid 1x1 PNG (the server sniffs real image bytes, not just the
+/// declared content-type header, so an arbitrary byte string 400s).
+final _kTestPng1x1 = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY'
+  '42YAAAAASUVORK5CYII=',
+);
+
+/// A second, distinct valid 1x1 PNG (different pixel colour) -- for the
+/// update assertions, so "bytes changed" and "bytes are still a valid PNG"
+/// are both true without reusing the create fixture's bytes.
+final _kTestPng1x1Alt = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA'
+  '60e6kgAAAABJRU5ErkJggg==',
+);
 
 /// An extension's write must land. `onSignUp` backfills the matching invite's
 /// `user_id`; the report this fixture was built from was "onSignUp never
@@ -1344,6 +2046,237 @@ class Api {
     return {'status': res.status};
   }
 
+  Future<Map<String, Object?>> custom(
+    String table, {
+    required String operation,
+    required Map<String, Object?> where,
+    List<Map<String, Object?>> updates = const [],
+    String? authorization,
+  }) async {
+    final res = await _send(
+      'PATCH',
+      '/db/custom/$operation',
+      body: {'table': table, 'where': where, 'updates': updates},
+      authorization: authorization,
+    );
+    _requireOk(res, 'PATCH /db/custom/$operation table=$table');
+    return _asMap(res.data);
+  }
+
+  Future<Map<String, Object?>> customExpectingStatus(
+    String table, {
+    required String operation,
+    Map<String, Object?>? where,
+    bool many = false,
+    required int expectedStatus,
+    String? authorization,
+  }) async {
+    final res = await _send(
+      'PATCH',
+      '/db/custom/$operation${many ? '/many' : ''}',
+      body: {'table': table, if (where != null) 'where': where, 'updates': []},
+      authorization: authorization,
+    );
+    if (res.status != expectedStatus) {
+      fail(
+        'PATCH /db/custom/$operation table=$table answers $expectedStatus',
+        expected: expectedStatus,
+        actual: '${res.status}: ${res.body}',
+      );
+    }
+    return {'status': res.status, 'body': res.body};
+  }
+
+  /// Returns `{'rows': [...]}`, same shape as [patchMany] -- `/many` answers
+  /// with a list.
+  Future<Map<String, Object?>> customMany(
+    String table, {
+    required String operation,
+    Map<String, Object?>? where,
+    List<Map<String, Object?>> updates = const [],
+    String? authorization,
+  }) async {
+    final res = await _send(
+      'PATCH',
+      '/db/custom/$operation/many',
+      body: {'table': table, if (where != null) 'where': where, 'updates': updates},
+      authorization: authorization,
+    );
+    _requireOk(res, 'PATCH /db/custom/$operation/many table=$table');
+    final data = res.data;
+    if (data is! List) {
+      fail(
+        'PATCH /db/custom/$operation/many table=$table returns a list of rows',
+        expected: 'a list',
+        actual: res.body,
+      );
+    }
+    return {
+      'rows': [for (final row in data) _asMap(row)],
+    };
+  }
+
+  /// Sentinel [nextStreamEvent] returns instead of throwing on a timeout or a
+  /// stream that closed without producing anything -- both are legitimate
+  /// outcomes the streaming assertions below need to tell apart from "an
+  /// event with value null arrived".
+  static final Object noStreamEvent = Object();
+
+  /// Opens `GET <path>` with a JSON body (StreamBody/StreamListBody/
+  /// StreamCountBody all travel this way, not as query params) and decodes
+  /// each raw chunk the exact way the generated client does
+  /// (zonai_client's db_data_source_impl.dart: `response.transform(utf8
+  /// .decoder)`, one `jsonDecode` per chunk, no cross-chunk buffering, a
+  /// chunk that isn't one whole JSON value is dropped rather than fatal).
+  /// That is a real, load-bearing assumption of the shipped client -- testing
+  /// it the same way validates the actual contract rather than a more
+  /// forgiving one this driver could invent instead.
+  Future<StreamSession> openStream(
+    String path, {
+    required Map<String, Object?> body,
+    String? authorization,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final request = await _client.openUrl('GET', uri);
+    request.followRedirects = false;
+    if (authorization != null) {
+      final value = authorization.toLowerCase().startsWith('bearer ')
+          ? authorization
+          : 'Bearer $authorization';
+      request.headers.set(HttpHeaders.authorizationHeader, value);
+    }
+    final encoded = utf8.encode(jsonEncode(body));
+    request.headers.contentType = ContentType.json;
+    request.headers.contentLength = encoded.length;
+    request.add(encoded);
+    final response = await request.close();
+    if (response.statusCode != 200) {
+      final text = await response.transform(utf8.decoder).join();
+      fail(
+        'GET $path opens a stream',
+        expected: 200,
+        actual: '${response.statusCode}: $text',
+      );
+    }
+
+    final events = StreamController<Object?>();
+    final sub = response.transform(utf8.decoder).listen(
+      (chunk) {
+        try {
+          final decoded = jsonDecode(chunk);
+          if (decoded case {'data': final data}) {
+            events.add(data);
+          }
+        } catch (_) {
+          // Mirrors the generated client: a chunk that is not one whole JSON
+          // value is dropped, not treated as fatal.
+        }
+      },
+      onDone: () {
+        if (!events.isClosed) events.close();
+      },
+      onError: (Object e, StackTrace st) {
+        if (!events.isClosed) events.addError(e, st);
+      },
+      cancelOnError: false,
+    );
+    return StreamSession._(sub, events);
+  }
+
+  /// Waits up to [timeout] for the next event on [session]. Returns
+  /// [noStreamEvent] on a timeout or a cleanly-closed-with-nothing stream,
+  /// rather than throwing -- "nothing arrived" is exactly the outcome some
+  /// of the assertions below expect to observe.
+  Future<Object?> nextStreamEvent(
+    StreamSession session, {
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    try {
+      return await session.events.first.timeout(
+        timeout,
+        onTimeout: () => noStreamEvent,
+      );
+    } on StateError {
+      return noStreamEvent;
+    }
+  }
+
+  /// `POST /img` -- the meta travels as `?meta=<json>` (named after the
+  /// handler's parameter, not the `body` convention `/db` uses for its own
+  /// `@Query()` payloads), and the image is the raw request body, not JSON.
+  Future<_BytesRes> createPhoto({
+    required String table,
+    required List<int> bytes,
+    required String contentType,
+    String? authorization,
+  }) => _sendBytes(
+    'POST',
+    '/img',
+    query: {'meta': {'table': table}},
+    bytes: bytes,
+    contentType: contentType,
+    authorization: authorization,
+  );
+
+  Future<_BytesRes> updatePhoto({
+    required String id,
+    required List<int> bytes,
+    required String contentType,
+    String? authorization,
+  }) => _sendBytes(
+    'PATCH',
+    '/img/$id',
+    bytes: bytes,
+    contentType: contentType,
+    authorization: authorization,
+  );
+
+  Future<_BytesRes> viewPhoto(String id, {String? authorization}) =>
+      _sendBytes('GET', '/img/$id', authorization: authorization);
+
+  Future<_BytesRes> deletePhoto(String id, {String? authorization}) =>
+      _sendBytes('DELETE', '/img/$id', authorization: authorization);
+
+  Future<_BytesRes> _sendBytes(
+    String method,
+    String path, {
+    Map<String, Object?>? query,
+    List<int>? bytes,
+    String? contentType,
+    String? authorization,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path').replace(
+      queryParameters: query == null
+          ? null
+          : {
+              for (final entry in query.entries)
+                entry.key: jsonEncode(entry.value),
+            },
+    );
+    final request = await _client.openUrl(method, uri);
+    request.followRedirects = false;
+    if (authorization != null) {
+      final value = authorization.toLowerCase().startsWith('bearer ')
+          ? authorization
+          : 'Bearer $authorization';
+      request.headers.set(HttpHeaders.authorizationHeader, value);
+    }
+    if (bytes != null) {
+      if (contentType != null) request.headers.set('content-type', contentType);
+      request.headers.contentLength = bytes.length;
+      request.add(bytes);
+    }
+    final response = await request.close().timeout(const Duration(seconds: 60));
+    final body = await response
+        .fold<BytesBuilder>(BytesBuilder(), (b, chunk) => b..add(chunk))
+        .timeout(const Duration(seconds: 60));
+    return _BytesRes(
+      status: response.statusCode,
+      bytes: body.takeBytes(),
+      contentType: response.headers.contentType?.mimeType,
+    );
+  }
+
   Future<Map<String, Object?>> signUp({
     required String table,
     required String email,
@@ -1411,6 +2344,52 @@ class Api {
   }
 
   // -- transport ----------------------------------------------------------
+
+  /// A plain HTTP call for routes outside `/db`'s `{'body': jsonEncode(...)}`
+  /// query-param convention -- [path] may already carry its own query
+  /// string (`/crons/run?name=...`), and [body], when given, is sent
+  /// literally as the JSON request body rather than enveloped. Never throws
+  /// on a non-2xx: callers here are asserting on status codes directly,
+  /// including the negative-path ones.
+  Future<_Res> _sendRaw(
+    String method,
+    String path, {
+    Map<String, Object?>? body,
+    String? authorization,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final request = await _client.openUrl(method, uri);
+    request.followRedirects = false;
+    if (authorization != null) {
+      final value = authorization.toLowerCase().startsWith('bearer ')
+          ? authorization
+          : 'Bearer $authorization';
+      request.headers.set(HttpHeaders.authorizationHeader, value);
+    }
+    if (body != null) {
+      final encoded = utf8.encode(jsonEncode(body));
+      request.headers.contentType = ContentType.json;
+      request.headers.contentLength = encoded.length;
+      request.add(encoded);
+    }
+    final response = await request.close().timeout(const Duration(seconds: 60));
+    final text = await response
+        .transform(utf8.decoder)
+        .join()
+        .timeout(const Duration(seconds: 60));
+    Object? data;
+    if (text.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(text);
+        data = decoded is Map && decoded.containsKey('data')
+            ? decoded['data']
+            : decoded;
+      } catch (_) {
+        data = null;
+      }
+    }
+    return _Res(status: response.statusCode, body: text, data: data);
+  }
 
   void _requireOk(_Res res, String what) {
     if (res.status < 200 || res.status >= 300) {
@@ -1500,6 +2479,36 @@ class _Res {
   final int status;
   final String body;
   final Object? data;
+}
+
+class _BytesRes {
+  const _BytesRes({
+    required this.status,
+    required this.bytes,
+    required this.contentType,
+  });
+
+  final int status;
+  final List<int> bytes;
+  final String? contentType;
+}
+
+/// A live `GET`-with-body streaming connection opened by [Api.openStream].
+class StreamSession {
+  StreamSession._(this._subscription, this._events);
+
+  final StreamSubscription<void> _subscription;
+  final StreamController<Object?> _events;
+
+  Stream<Object?> get events => _events.stream;
+
+  /// Cancels the client-side subscription -- the trigger for the server's
+  /// `onCancel` path (see the HybridStreamEngine/revali `asBroadcastStream`
+  /// history this repo already has two leaks from).
+  Future<void> close() async {
+    await _subscription.cancel();
+    if (!_events.isClosed) await _events.close();
+  }
 }
 
 class ListResult {

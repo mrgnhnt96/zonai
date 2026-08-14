@@ -51,8 +51,11 @@ MAX_HORIZON_DAYS = 180
 # the file parses and type-checks, which is not why the rule exists. Deliberately generous -- a false
 # "real" is a missed nag, a false "exempt" is noise on a rule that is fine, and noise is what gets a
 # check ignored. `.sh` is in here because every shell entry point in tool/ci/ runs a real check or is
-# already documented as syntax-only in its own header.
-REAL = ["dart test", "flutter test", "dart run", "sip run", ".sh", "grep"]
+# already documented as syntax-only in its own header. `pub get` is here because it resolves
+# dependencies for real and fails for real (see "stress/fixture/pubspec.yaml" in verify.yaml, added
+# 2026-08-14 and flagged as a false "exempt" the same day this rule went in without it: version
+# solving failing is not analyze-only just because the command that provokes it is not `dart test`).
+REAL = ["dart test", "flutter test", "dart run", "sip run", ".sh", "grep", "pub get"]
 
 # Phrases that make a justification TIME-BOUND: each asserts something is broken on THIS MACHINE
 # RIGHT NOW. A claim in the present tense expires. Kept to the idiom this file actually uses for a
