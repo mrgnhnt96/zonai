@@ -432,22 +432,43 @@ jobs:
           mkdir -p test-logs
           dart pub global run sip_cli:sip run test docs 2>&1 | tee test-logs/docs.log
 
-      - name: Fail if apps/docs skipped a test
+      - name: Fail if apps/docs skipped its anchor test
         shell: bash
         # The whole reason this job exists. `dart test` exits 0 on a skip, so
-        # the exit code above cannot tell "the anchor test checked the built
-        # HTML" from "the anchor test found no build and reported nothing".
-        # Two checks rather than one: the skip counter proves no test opted
-        # out, and the summary string proves the suite got far enough to print
-        # a summary at all (dart test says "All other tests passed!" -- with
-        # the "other" -- exactly when something was skipped).
+        # the step above cannot tell "the anchor test checked the built HTML"
+        # from "the anchor test found no build and reported nothing".
+        #
+        # THE PRIMARY CHECK IS THE DIRECTORY, not the log. search_index_test.dart
+        # :138-142 skips on exactly one condition -- `Directory('build/jaspr')`
+        # not existing -- so its presence is direct, reporter-independent proof
+        # that the skip branch was not taken. Everything below it is a
+        # belt-and-braces grep that can go blind without warning.
+        #
+        # A PREVIOUS VERSION OF THIS STEP GREPPED FOR 'All tests passed!' AND
+        # COULD NEVER PASS. `sip` filters dart test's output and prints its own
+        # summary ("19 tests passed."), so that string appears zero times in a
+        # FULLY GREEN run -- which is what failed this job on 2026-08-14 (run
+        # 31830243531) with all 19 tests passing. That grep is deleted rather
+        # than corrected: it only duplicated the exit code, which `set -o
+        # pipefail` in the step above already propagates from sip.
+        #
+        # The skip grep below is kept but must match BOTH reporters, because
+        # `sip` is installed from --git-ref main with no pin and its output
+        # shape can change under us at any time. It is deliberately narrow: the
+        # jaspr builder prints its own unrelated "N skipped" lines into this
+        # same log, so a broad grep for "skipped" is a false positive waiting
+        # to happen.
         run: |
-          if grep -qE '[0-9]+ skipped tests?\.' test-logs/docs.log; then
-            echo "::error::apps/docs reported a skipped test. A skip here is not a pass -- the anchor test skips when apps/docs/build/jaspr is missing, which means the built HTML was never checked. See scripts.yaml test.docs."
+          if [ ! -d apps/docs/build/jaspr ]; then
+            echo "::error::apps/docs/build/jaspr does not exist, so search_index_test's anchor test called markTestSkipped and the built HTML was never checked. sip run test docs is supposed to build it first -- see scripts.yaml docs.build."
             exit 1
           fi
-          if ! grep -q 'All tests passed!' test-logs/docs.log; then
-            echo "::error::apps/docs did not report 'All tests passed!'. Either the suite did not finish or the reporter changed shape; read the log artifact before assuming this guard is wrong."
+          if grep -qE '[0-9]+ skipped tests?\.' test-logs/docs.log; then
+            echo "::error::apps/docs reported a skipped test (dart test reporter). A skip here is not a pass. Read the docs-test-log artifact."
+            exit 1
+          fi
+          if grep -qE 'Skipped:' test-logs/docs.log; then
+            echo "::error::apps/docs reported a skipped test (sip reporter). A skip here is not a pass. Read the docs-test-log artifact."
             exit 1
           fi
 
