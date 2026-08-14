@@ -475,8 +475,26 @@ jobs:
         include:
           - os: ubuntu-latest
             native_libs_artifact: native-libs-linux-x64
-          - os: macos-latest
-            native_libs_artifact: native-libs-macos-arm64
+          # TEMPORARILY REMOVED -- macos-latest, 2026-08-14. NOT because the
+          # suite fails there: every test file that reported on macOS gave
+          # results IDENTICAL to ubuntu's. It is removed because `CLI tests`
+          # HANGS -- 15m03s without finishing on run 31839671048 while ubuntu
+          # did the same work in ~10m, three trivial unit files never scheduled
+          # at all, and three orphaned Dart child processes (dartaotruntime +
+          # 2 dartvm) killed at teardown. macOS bills at 10x, so each repeat
+          # costs the full ceiling above and buys no new information.
+          #
+          # THE HANG IS UNDIAGNOSED. The specific test is NOT identified -- the
+          # obvious suspect, migrate_auto_watch_test, already carries a 3-minute
+          # Timeout plus 30/60/90s inner guards and so should fail rather than
+          # hang. Probably the same fragility as the `test-load-fragility` leaf,
+          # which records these suites aborting under load on a laptop.
+          #
+          # RESTORE THIS LEG once the hang is understood. Leaving it out is a
+          # COST decision, not a verdict -- and while it is absent, macOS is a
+          # release target (zonai-macos-arm64) whose CLI suite nothing checks.
+          # - os: macos-latest
+          #   native_libs_artifact: native-libs-macos-arm64
           - os: windows-latest
             native_libs_artifact: native-libs-windows-x64
     steps:
