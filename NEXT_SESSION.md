@@ -1,4 +1,11 @@
-# Next session — the release gate is in
+# Next session — the release gate is in, and streaming is dead
+
+**READ THIS FIRST: `stream-zero-bytes`.** All three streaming routes return 200
+and headers and then **zero body bytes**. Reproduced independently on merged
+trunk, on both worker transports. Every real consumer of those routes is
+starved, not slow. It is filed, briefed, and a Crawler is on it — see
+[The streaming bug](#the-streaming-bug).
+
 
 Written 2026-08-14 (second session that day). Everything below is committed,
 merged and green on trunk.
@@ -54,12 +61,21 @@ capability.
 **The out-of-workspace package set is nine, not seven.** `apps/*` in the root
 workspace is a *shallow* glob, so `apps/zonai/tool/native/argon2_builder` is
 outside the workspace too — it was the last 2 of the 226 errors a clean tree
-reports. `stress/fixture` is the ninth and is the one that genuinely cannot be
-resolved.
+reports. `stress/fixture` is the ninth, and it is now resolvable (below), so the
+`test static` loop covers it too.
 
 Both wrong claims were also sitting in `.showrunner/config.json`'s `resolve`
 check as its stated rationale. That copy has been corrected, and the check now
 resolves `argon2_builder` too.
+
+**And a correction to this session's own brief.** `e2e-full-surface` was told
+by-id variants were "the highest-value gap", naming `@Get(':id')`, `@Patch(':id')`,
+`@Delete(':id')` and `@Delete('all')`. It re-derived the routes from source and
+refuted that: **`db_controller` has no `:id` route at all** — get, patch and
+delete all take a where clause, not a path param. Those routes belong to
+`PhotosController` (`/img/:id`, binary blob storage with ownership row rules) and
+to `AuthController.logoutAll`. The real count is **~38 declared routes, not ~32**.
+The gap was real; the description of it was not.
 
 ## The release gate
 
@@ -114,6 +130,45 @@ commit does have a `Test` run and the gate is satisfiable in normal operation.
 `check_release_gates.sh: 12 checks passed (11 of them refusals)` and `ok: every
 release.yml job is gated behind release-gate`.
 
+## The streaming bug
+
+Found by `e2e-full-surface` while adding coverage — nobody was looking for it.
+This is the most severe thing the e2e layer has surfaced, worse than
+`ratelimit-500`, because a 500 at least tells the caller something happened.
+
+`GET /db/stream` returns 200 and the response headers, then **zero body bytes for
+35 seconds across three mutations to the exact row being watched** — not even the
+initial snapshot that `stream_one.dart` reads before entering its `await for`
+loop. The server log prints `Streaming query: ...`, so the subscription *is*
+established, but never `Stream completed` and never an error.
+
+**A second, distinct defect hides behind the same symptom.**
+`/db/stream/list` throws an uncaught `type 'Null' is not a subtype of type
+'Map<String, dynamic>'` server-side, visible only in the server log — over HTTP
+the connection just hangs identically. One symptom, two bugs.
+
+**Why it is worse than a leak.** `zonai_client`'s generated
+`db_data_source_impl.dart` assumes exactly one JSON value per received chunk with
+no cross-chunk buffering. If the server never flushes a chunk, every consumer is
+**starved** — and cannot distinguish that from a stream that simply has nothing
+to say.
+
+Reproduced by the orchestrator on merged trunk (`7590eaa`, freshly compiled
+binary): all three routes report `no event within 8s (0 bytes past the response
+headers)` on **both** transports, with the other 16 fixture legs green. So it is
+neither environment- nor transport-specific.
+
+Covered by `knownFailure()` in `tool/ci/e2e/drive.dart::_streaming` — reports
+every run, gates nothing. **The test is shaped so a partial fix cannot fake a
+pass:** it mutates the watched row *before* checking for the initial snapshot, so
+delivering only the initial value still fails.
+
+**The blocker is a decision, not a diagnosis.** Does `/db/stream` emit an initial
+snapshot on subscribe, or only deltas? Flush per event or per batch? A fix that
+makes the assertion pass without that being decided deliberately is how this
+comes back. The leaf says so, and says that closing with a precise diagnosis and
+the semantics question named is a good outcome.
+
 ## The rate-limiter fix, and how far its guarantee actually reaches
 
 `RateLimiter.check`'s one-shot insert-conflict retry is gone; the whole
@@ -155,27 +210,48 @@ writer, or an atomic upsert. This is written into the code comment too.
 own `setUpResqliteNative()` helper — an undeclared prerequisite inside resqlite's
 own suite, not fixable from `scripts.yaml`.
 
-**`stress/fixture` cannot resolve from a clean checkout** (`stress-pub-graph`,
-still ready). The mechanism recorded last time was wrong and is now corrected in
-`analysis_options.yaml`: pub does **not** refuse a path dep on a workspace member.
-It gets further and fails version solving on a transitive — `raindrop_cli`
-requires a hosted `raindrop ^0.0.1` that only the workspace's path entry
-satisfies. A reader chasing the old mechanism will not find it.
+**`stress/fixture` resolves now** (`stress-pub-graph`, merged `5b97344`). Two
+`dependency_overrides` were needed, not one: `raindrop`, because
+`zonai → raindrop_cli → raindrop ^0.0.1` is satisfiable only by the workspace's
+own path entry and is not published; and `zonai_schema`, because
+`zonai → zonai_web → zonai_client` pulls a *hosted* `zonai_schema` range that
+collides with the fixture's own path dep once outside the workspace. Both are
+mirrored into `harness_setup.dart`'s generated `pubspec_overrides.yaml`, which
+**replaces** `pubspec.yaml`'s `dependency_overrides` wholesale rather than merging
+— confirmed by testing, and the reason a single-sided fix looks right and fails.
+
+Proven from a genuinely clean state on merged trunk: `.dart_tool`, lock and
+overrides deleted, `dart pub get` exits 0.
+
+**`stress/`'s server still will not start**, on a pre-existing and unrelated
+defect the Crawler declined to touch: the local dev revali checkout's
+`revali_client` `HttpInterceptor` API has moved ahead of what
+`apps/web/lib/api/api_client.dart` and `libs/zonai_client/lib/src/utils/interceptor.dart`
+implement (`FutureOr<HttpResponse?>` vs `void`). The harness gets through pub get,
+migration generate+apply and `zonai compile` before hitting it. Not a pub-graph
+problem; worth its own leaf if anyone needs the stress harness end to end.
+
+**`analysis_options.yaml` still excludes `stress/fixture/**`.** Removing it is
+verified safe (`dart analyze .` exits 0, zero issues under `stress/fixture`) but
+was not done, so it is a one-line follow-up rather than a question.
 
 ## What is left
 
-**In flight as this was written** — two Crawlers, both headless, disjoint file
-sets:
+**In flight as this was written:** `stream-zero-bytes`, alone and deliberately so
+— the bug is about delivery *timing*, and a loaded machine makes "no bytes for 8s"
+ambiguous.
 
-- **`e2e-full-surface`** — the e2e layer drives 6 paths; zonai declares about 32
-  routes. All four verbs are covered, so this is a route gap: by-id variants,
-  custom operations, all three streaming routes, auth beyond sign-in/sign-up,
-  health/metrics/run.
-- **`stress-pub-graph`** — briefed with the corrected mechanism, since the one
-  recorded on the leaf was wrong.
+Still ready, in rough priority:
 
-Still ready: `e2e-crud-matrix` · `test-load-fragility` · `process-identity` ·
-`revali-core-bump`.
+1. **`e2e-crud-matrix`** — serialized (`native-build`). The fixture now carries
+   real custom-operation coverage, so this is narrower than when it was written.
+2. **`process-identity`** — a running zonai process cannot say which project it
+   belongs to. Still true and still costs time on every port conflict: the only
+   `claude -p` Crawler on the box mid-session belonged to another repo and could
+   be told apart only by the brief text in its command line.
+3. **`test-load-fragility`** — serialized. Confirmed live again this session:
+   integration had to be held twice while load average sat at 20.
+4. `stress-thresholds` (newly unblocked by `stress-pub-graph`) · `revali-core-bump`
 
 **And the thing that is not a leaf: CI has still never run.** Every gate added
 over these two sessions — `test.yml`, the static job, and now `release-gate` —
@@ -186,8 +262,35 @@ Crawler.
 
 ## Traps worth not rediscovering
 
-New this session, and the first two cost real work:
+New this session, and the first three cost real work:
 
+- **`verify.yaml`'s runner is not a YAML-aware shell.** Three failed attempts to
+  write one rule. It strips a *surrounding* double quote but does **not** unescape
+  what is inside, so `cd \"$d\"` reaches `sh` with literal quote characters in the
+  path. A **single**-quoted scalar keeps its quotes and gets exec'd as one
+  filename (`No such file or directory` naming the entire command). A `- |` block
+  scalar arrives as the literal string `|` and dies on a shell syntax error that
+  reads like a broken check rather than a malformed rule. **Write commands
+  double-quoted with no inner quotes at all.**
+- **Two Crawlers can independently produce the same fix and conflict on it.**
+  `check_verify_exemptions.sh` was corrected by `e2e-full-surface` and by the
+  orchestrator within the hour, because the misclassification blocked every commit
+  to every gated path tree-wide and so was hit from two unrelated directions.
+  Resolve by hand, then `showrunner integration-commit --crawler <name>` **and**
+  `game_loop attribute --merge <ref>` — the second is what stops the harness
+  reporting a sibling's files as unexplained. Order matters: attribute *after* the
+  branch has its commit, since attribution is recomputed from the ref.
+- **`showrunner close --proof` resolves relative paths against the MAIN checkout,
+  not the worktree.** A Crawler passing a relative path gets its staleness check
+  run against the main checkout's older, unrelated copy of that file, and is
+  refused with a confusing timestamp mismatch. Pass an absolute path.
+- **An exemption marker written to silence a false positive is worse than no
+  marker.** `check_verify_exemptions.sh` classed `dart pub get` as analyze-only,
+  because its `REAL` whitelist omitted it — so a rule that resolves a real
+  dependency graph was told to justify itself as a downgrade. The fix was to
+  correct the classifier, not to write `RECHECK never` on a check that is real.
+  Its own comment says it is tuned to avoid exactly this ("a false *exempt* is
+  noise on a rule that is fine, and noise is what gets a check ignored").
 - **A `claude -p` Crawler cannot be resumed.** One ended its turn with *"Rebuild
   is running in the background. I'll continue as soon as it completes"* — and
   died there, with uncommitted work in its worktree and a stale claim that
