@@ -258,6 +258,20 @@ test:
       - cd apps/server && dart test
       - cd apps/web && dart test
       - cd apps/playground && dart test
+  docs:
+    (description): >-
+      L1, but SEPARATE from `unit` because it carries a prerequisite the
+      others do not: apps/docs' `anchors` test calls markTestSkipped when
+      build/jaspr is absent. Run bare, it therefore reports green BY NOT
+      RUNNING -- and run against a STALE build it reports red, so the same
+      command gave three different answers depending on what happened to be
+      lying around. Measured 2026-08-13: skipped in a fresh worktree, failed
+      on the main checkout against a build from 14:18 that predated the day's
+      content changes. The jaspr build is slow, which is why this is its own
+      target rather than a line in `unit`; CI must run it, and must not treat
+      a skip here as a pass.
+    (command):
+      - ${{ docs.build }}
       - cd apps/docs && dart test
   cli:
     (description): >-
