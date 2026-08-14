@@ -212,6 +212,37 @@ Assert on **HTTP responses and database contents**, not on exit codes. The recur
 shape in this repo — `In`/`NotIn` and `CastList` failing to cross an isolate, leading-zero
 `Eq` — is invisible to anything that stops at "the command exited 0".
 
+#### Two constraints that decide whether this layer works at all
+
+**1. The response is not the database. Read both.**
+`a16b499` fixed an update that "read back by replaying its own `where`" instead of by id — so
+the write landed correctly and the *response* was wrong. A test asserting only on the PATCH
+response body would have passed a broken update; a test asserting only on the row would have
+missed the wrong response. Every mutation case needs three assertions: the response body, the
+row as it now exists (fetched independently, by id), and the rows that should **not** have
+changed. That third one is what catches a `where` clause matching too much — the failure mode
+a `DELETE` has and a `GET` does not.
+
+**2. In-repo fixtures do not reach the worker path, which is where these bugs lived.**
+This is the trap, and it is already recorded in `verify.yaml`: a project inside this monorepo
+always **links** zonai in-process, so ops and rules never reach Mailman at all. Both
+isolate-transport bugs — `551081f` (a `CastList` cannot cross an isolate) and `02cfcef` (the
+worker's own published copy of the serializer) — live *only* on the IPC path. An e2e fixture
+written the obvious way inside this repo would link, never serialize a message, and pass green
+against both. That is not a hypothetical: `02cfcef` needed a **second published release** after
+the CLI fix, precisely because the worker compiles its own copy and no CLI release can reach it.
+
+So every mutation fixture must run in **both** modes:
+
+| mode | how | what it exercises |
+|---|---|---|
+| linked (default in-repo) | as-is | the in-process dispatch most tests already cover |
+| forced workers | `ZONAI_FORCE_WORKERS=1` (`kForceWorkersEnv`, `host_worker_registries.dart`) | Mailman IPC — message serialization across the isolate boundary |
+
+A run that only does the first is the configuration in which every one of these bugs was
+already green. Treat "passes linked, fails forced" as the expected shape of a transport
+regression, and make the forced-workers run non-optional in CI.
+
 Add a sixth fixture, `crud_matrix`, covering every column type × every operator
 (`Eq`/`In`/`NotIn`/`Like`/ranges/null-handling) over HTTP through a compiled binary. Every
 one of the transport bugs above would have been caught by that single fixture, and each one
