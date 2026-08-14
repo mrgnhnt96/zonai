@@ -38,6 +38,45 @@ String? zonaiPackageConfigPath() {
   return null;
 }
 
+/// Generated files under `apps/zonai/lib/gen/` that a linked build compiles
+/// against, relative to the zonai package root.
+///
+/// Every one is gitignored and produced by `zonai compile`, so a *checkout* of
+/// zonai has sources without them. `gen/web` is absent on purpose: nothing
+/// imports it, so it is not part of what a linked build needs to compile.
+const _generatedSources = [
+  ['gen', 'version.dart'],
+  ['gen', 'native', 'resqlite_native.g.dart'],
+  ['gen', 'native', 'argon2_native.g.dart'],
+  ['gen', 'server', '.revali', 'server', 'server.dart'],
+  ['gen', 'server', 'lib', 'config', 'server_binding.dart'],
+];
+
+/// The first generated file a linked build would need and cannot find, or
+/// `null` when zonai's sources are complete enough to compile against.
+///
+/// Sources being *present* is not the same as being *buildable*, and the
+/// difference is invisible until `dart compile exe` fails: a zonai checkout
+/// that has not been built has `bin/zonai.dart` and a package config -- enough
+/// to merge -- but none of `lib/gen/`. Merging then hands the compiler an
+/// entry importing files that do not exist, with no fallback, where skipping
+/// the link would have run the project over worker IPC and worked.
+String? missingZonaiGeneratedSource() {
+  final entry = zonaiSourceEntrypoint();
+  if (entry == null) return null;
+
+  // `<root>/bin/zonai.dart` -> `<root>/lib`.
+  final packageRoot = File(entry).parent.parent.path;
+  for (final parts in _generatedSources) {
+    final path = [packageRoot, 'lib', ...parts].join(Platform.pathSeparator);
+    if (!File(path).existsSync()) {
+      return path;
+    }
+  }
+
+  return null;
+}
+
 /// Entrypoint for `dart run` subprocesses and snapshot re-exec.
 ///
 /// Kernel snapshots (`dart run zonai`) break resqlite [@Native] FFI after

@@ -152,6 +152,59 @@ void main() {
       );
       expect(_packageNames(fs, link.packageConfigPath!), contains('zonai'));
     });
+
+    test('skips when zonai\'s sources are present but not built', () {
+      // The failure this exists to prevent is not a wrong answer, it is a
+      // *hard* one: merging succeeds, the compile is told to use the merged
+      // graph, and `dart compile exe` then dies on an import of a file that
+      // was never generated -- with no fallback left, because the decision to
+      // link had already been made. Every Verify Release build-command leg
+      // failed exactly that way once linking started applying to projects
+      // with no zonai dependency.
+      final fs = MemoryFileSystem();
+      _writePackageConfig(fs, '/app', const ['zonai_schema']);
+      _writePackageConfig(fs, '/monorepo', const ['zonai']);
+
+      final link = _resolve(
+        fs,
+        '/app',
+        zonaiConfig: '/monorepo/.dart_tool/package_config.json',
+        missingGeneratedSource: '/monorepo/apps/zonai/lib/gen/version.dart',
+      );
+
+      expect(link.canLink, isFalse);
+      expect(
+        link.skipReason,
+        contains('/monorepo/apps/zonai/lib/gen/version.dart'),
+        reason: 'the skip must name the file, not just say "not built"',
+      );
+      expect(
+        link.skipReason,
+        contains('worker processes'),
+        reason: 'and must say what happens instead, like every other skip',
+      );
+    });
+
+    test('does not write a merged config when the sources are not built', () {
+      // Writing *is* the decision here (see resolveProjectLink's doc). A config
+      // left behind for a graph that cannot compile is a trap for the next run,
+      // which would find it and believe the link was resolved.
+      final fs = MemoryFileSystem();
+      _writePackageConfig(fs, '/app', const ['zonai_schema']);
+      _writePackageConfig(fs, '/monorepo', const ['zonai']);
+
+      _resolve(
+        fs,
+        '/app',
+        zonaiConfig: '/monorepo/.dart_tool/package_config.json',
+        missingGeneratedSource: '/monorepo/apps/zonai/lib/gen/version.dart',
+      );
+
+      expect(
+        fs.file('/app/.dart_tool/zonai/package_config.json').existsSync(),
+        isFalse,
+      );
+    });
   });
 
   group('projectPackageConfigPath', () {
@@ -179,11 +232,19 @@ ProjectLink _resolve(
   MemoryFileSystem fs,
   String projectRoot, {
   required String? zonaiConfig,
+  String? missingGeneratedSource,
 }) {
   return _run(
     fs,
     projectRoot,
-    () => resolveProjectLink(findZonaiPackageConfig: () => zonaiConfig),
+    // Injected in every case, including the ones not about it: the real
+    // implementation reads `dart:io`, so leaving it at its default would make
+    // each of these tests depend on whether the checkout running them happens
+    // to have been built.
+    () => resolveProjectLink(
+      findZonaiPackageConfig: () => zonaiConfig,
+      findMissingGeneratedSource: () => missingGeneratedSource,
+    ),
   );
 }
 

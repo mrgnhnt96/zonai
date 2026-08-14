@@ -221,6 +221,33 @@ jobs:
           retention-days: 10
           path: build/${{ matrix.output_name }}
 
+      # `zonai build` links a project against apps/zonai's OWN sources whenever
+      # they are on disk (resolveProjectLink's merged package_config), so the
+      # AOT compile reads apps/zonai/lib/gen/ straight out of the checkout.
+      # That directory is gitignored and produced by `zonai compile` above, so
+      # any job verifying `zonai build` from a plain checkout has no way to get
+      # it -- which is what broke all five build-command legs of Verify Release
+      # once linking started applying to projects with no zonai dependency.
+      #
+      # Only `server/` travels: `version.dart` is already in the release-version
+      # artifact, `native/` ships as native-libs-embedded-<target>, and nothing
+      # imports `gen/web`, which is the multi-megabyte half.
+      #
+      # include-hidden-files, because the entry point of the whole tree is
+      # `.revali/server/server.dart` -- without it the upload silently keeps
+      # only the visible files and the consumer fails on exactly the import it
+      # was given this artifact to satisfy.
+      - name: Upload generated server sources
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zonai-gen-server-${{ matrix.target }}
+          # See the retention note on "Upload release version files".
+          retention-days: 10
+          path: apps/zonai/lib/gen/server
+          include-hidden-files: true
+          if-no-files-found: error
+
       # The shared libraries this binary embedded, shipped as their own
       # release assets by release.yml. `dart compile exe --target-os` does not
       # cross-compile embedded native-library bytes, so a cross-target

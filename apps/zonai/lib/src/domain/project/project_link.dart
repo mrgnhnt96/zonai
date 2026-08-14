@@ -79,6 +79,7 @@ class ProjectLink {
 /// any scope exists), so an in-memory filesystem cannot reach it.
 ProjectLink resolveProjectLink({
   String? Function() findZonaiPackageConfig = zonaiPackageConfigPath,
+  String? Function() findMissingGeneratedSource = missingZonaiGeneratedSource,
 }) {
   if (HostWorkerRegistries.forceWorkers) {
     return const ProjectLink.skip('$kForceWorkersEnv is set');
@@ -102,6 +103,21 @@ ProjectLink resolveProjectLink({
       'package:zonai is not resolvable from this project, and zonai\'s own '
       'sources are not on disk beside this binary, so there is no package graph '
       'to merge with it -- ops and rules will run as worker processes',
+    );
+  }
+
+  // Present is not the same as buildable. `lib/gen/` is gitignored and written
+  // by `zonai compile`, so a zonai checkout that has not been built resolves
+  // and merges perfectly and then fails inside `dart compile exe` on an import
+  // that does not exist -- with no fallback, because the decision to link was
+  // already made. Skipping is the answer the rest of this function gives to
+  // "the graph cannot be formed"; an unbuildable graph is that same answer.
+  if (findMissingGeneratedSource() case final missing?) {
+    return ProjectLink.skip(
+      'zonai\'s sources are on disk but not built -- $missing is missing, and '
+      'a linked build compiles against it. Run `zonai compile` (or `sip run '
+      'bootstrap test`) in that checkout to generate it; ops and rules will '
+      'run as worker processes until then',
     );
   }
 
