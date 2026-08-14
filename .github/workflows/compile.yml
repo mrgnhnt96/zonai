@@ -229,22 +229,33 @@ jobs:
       # it -- which is what broke all five build-command legs of Verify Release
       # once linking started applying to projects with no zonai dependency.
       #
-      # Only `server/` travels: `version.dart` is already in the release-version
-      # artifact, `native/` ships as native-libs-embedded-<target>, and nothing
-      # imports `gen/web`, which is the multi-megabyte half.
+      # `server/` and `web/` travel; `version.dart` is already in the
+      # release-version artifact and `native/` ships as
+      # native-libs-embedded-<target>.
       #
-      # include-hidden-files, because the entry point of the whole tree is
+      # `web/` is here because it is imported from **apps/web**
+      # (`lib/server/render_web_app.dart`), not from apps/zonai -- a grep over
+      # apps/zonai and apps/server finds no importer and says, wrongly, that it
+      # is unused. It was left out on exactly that reasoning and the next
+      # Verify Release run failed on `lookupJasprWebAsset`.
+      #
+      # include-hidden-files, because the entry point of the server tree is
       # `.revali/server/server.dart` -- without it the upload silently keeps
       # only the visible files and the consumer fails on exactly the import it
       # was given this artifact to satisfy.
-      - name: Upload generated server sources
+      - name: Upload generated sources
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: zonai-gen-server-${{ matrix.target }}
+          name: zonai-gen-sources-${{ matrix.target }}
           # See the retention note on "Upload release version files".
           retention-days: 10
-          path: apps/zonai/lib/gen/server
+          # Two paths, so the artifact root is their common ancestor
+          # (apps/zonai/lib/gen) and the consumer restores both subtrees by
+          # unpacking there.
+          path: |
+            apps/zonai/lib/gen/server
+            apps/zonai/lib/gen/web
           include-hidden-files: true
           if-no-files-found: error
 

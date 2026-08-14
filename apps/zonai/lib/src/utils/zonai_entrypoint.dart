@@ -42,14 +42,20 @@ String? zonaiPackageConfigPath() {
 /// against, relative to the zonai package root.
 ///
 /// Every one is gitignored and produced by `zonai compile`, so a *checkout* of
-/// zonai has sources without them. `gen/web` is absent on purpose: nothing
-/// imports it, so it is not part of what a linked build needs to compile.
+/// zonai has sources without them.
+///
+/// `gen/web/web_assets.dart` is on this list for a reason worth keeping: its
+/// importer is **apps/web** (`lib/server/render_web_app.dart`), not apps/zonai,
+/// so grepping apps/zonai and apps/server for it finds nothing and suggests it
+/// is unused. It is not — a linked build pulls apps/web in too, and leaving it
+/// off this list cost a CI run.
 const _generatedSources = [
   ['gen', 'version.dart'],
   ['gen', 'native', 'resqlite_native.g.dart'],
   ['gen', 'native', 'argon2_native.g.dart'],
   ['gen', 'server', '.revali', 'server', 'server.dart'],
   ['gen', 'server', 'lib', 'config', 'server_binding.dart'],
+  ['gen', 'web', 'web_assets.dart'],
 ];
 
 /// The first generated file a linked build would need and cannot find, or

@@ -286,21 +286,21 @@ jobs:
           dart run tool/generate_resqlite_native.dart
           dart run tool/generate_argon2_native.dart
 
-      # The other half of lib/gen the linked build reads: revali's generated
-      # server, imported by db_mutator/revali.dart as
-      # `../../gen/server/.revali/server/server.dart`. Produced by `zonai
+      # The rest of lib/gen the linked build reads: revali's generated server
+      # (imported by db_mutator/revali.dart) and the embedded web assets
+      # (imported by apps/web's render_web_app.dart). Produced by `zonai
       # compile` in the run being verified rather than regenerated here, so
       # this exercises what that run actually built.
-      - name: Download generated server sources (triggering compile run)
+      - name: Download generated sources (triggering compile run)
         if: github.event_name == 'workflow_run'
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           run_id: ${{ github.event.workflow_run.id }}
-          name: zonai-gen-server-${{ matrix.target }}
-          path: apps/zonai/lib/gen/server
+          name: zonai-gen-sources-${{ matrix.target }}
+          path: apps/zonai/lib/gen
 
-      - name: Download generated server sources (latest successful compile)
+      - name: Download generated sources (latest successful compile)
         if: github.event_name == 'workflow_dispatch'
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -309,22 +309,32 @@ jobs:
           workflow_conclusion: success
           commit: ${{ github.sha }}
           if_no_artifact_found: fail
-          name: zonai-gen-server-${{ matrix.target }}
-          path: apps/zonai/lib/gen/server
+          name: zonai-gen-sources-${{ matrix.target }}
+          path: apps/zonai/lib/gen
 
-      # Names the file whose absence produced the original failure, so a
-      # silently-empty artifact fails here instead of inside an AOT compile.
-      - name: Check the generated server arrived
+      # Names both files whose absence has already cost a run, so a partial
+      # artifact fails here instead of inside an AOT compile: the hidden
+      # `.revali/` entry, and the web assets that were wrongly judged unused.
+      - name: Check the generated sources arrived
         shell: bash
         run: |
-          entry="apps/zonai/lib/gen/server/.revali/server/server.dart"
-          if [[ ! -f "${entry}" ]]; then
-            echo "missing ${entry} -- the zonai-gen-server artifact was empty" >&2
-            echo "(hidden files are the usual cause: .revali/ needs" >&2
+          status=0
+          for entry in \
+            "apps/zonai/lib/gen/server/.revali/server/server.dart" \
+            "apps/zonai/lib/gen/web/web_assets.dart"; do
+            if [[ -f "${entry}" ]]; then
+              echo "ok: ${entry}"
+            else
+              echo "missing ${entry}" >&2
+              status=1
+            fi
+          done
+          if [[ "${status}" -ne 0 ]]; then
+            echo "the zonai-gen-sources artifact was incomplete" >&2
+            echo "(hidden files are one cause: .revali/ needs" >&2
             echo " include-hidden-files on the upload in compile.yml)" >&2
             exit 1
           fi
-          echo "ok: ${entry}"
 
       - name: Verify the build command
         shell: bash
