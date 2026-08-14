@@ -13,6 +13,10 @@ import '../components/body_rate_limit.dart';
 // TODO: Tighten up the return types so that we don't need to dynamically access
 // the `accessToken` key
 
+// ! Spell the rate-limit operation out as `RateLimitOperation.x`, never as the
+// dot-shorthand `.x` -- revali's server generator cannot resolve a dot-shorthand
+// annotation argument. See docs/revali-dot-shorthand-codegen.md.
+
 @BlackList()
 @Controller('auth')
 class AuthController {
@@ -20,7 +24,7 @@ class AuthController {
 
   final AuthHandler authHandler;
 
-  @BodyRateLimit<AuthBody>(.authenticate)
+  @BodyRateLimit<AuthBody>(RateLimitOperation.authenticate)
   @Post()
   Future<Map<String, Object?>?> authenticate({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -37,7 +41,7 @@ class AuthController {
     return result;
   }
 
-  @AuthHeaderRateLimit(.refreshToken)
+  @AuthHeaderRateLimit(RateLimitOperation.refreshToken)
   @Post('refresh')
   Future<Map<String, Object?>?> refreshToken({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
@@ -50,7 +54,7 @@ class AuthController {
     return result;
   }
 
-  @BodyRateLimit<ResetPasswordAuthBody>(.sendResetPassword)
+  @BodyRateLimit<ResetPasswordAuthBody>(RateLimitOperation.sendResetPassword)
   @Post('reset-password')
   Future<void> sendResetPassword({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -62,7 +66,7 @@ class AuthController {
     );
   }
 
-  @BodyRateLimit<VerifyEmailAuthBody>(.sendVerifyEmail)
+  @BodyRateLimit<VerifyEmailAuthBody>(RateLimitOperation.sendVerifyEmail)
   @Post('verify-email')
   Future<void> sendVerifyEmail({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
@@ -95,7 +99,7 @@ class AuthController {
     return result;
   }
 
-  @BodyRateLimit<SignInAuthBody>(.signIn)
+  @BodyRateLimit<SignInAuthBody>(RateLimitOperation.signIn)
   @Post('sign-in')
   Future<Map<String, Object?>> signIn({
     @Body() required SignInAuthBody body,
@@ -108,7 +112,7 @@ class AuthController {
     return result;
   }
 
-  @BodyRateLimit<SignUpAuthBody>(.signUp)
+  @BodyRateLimit<SignUpAuthBody>(RateLimitOperation.signUp)
   @Post('sign-up')
   Future<Map<String, Object?>> signUp({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
