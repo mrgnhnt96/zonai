@@ -92,6 +92,29 @@ env:
   # costing many times their budget.
   NATIVE_LIBS_CACHE_TAG: native-libs-cache
 
+# THE CEILING ON EVERY JOB BELOW, and why it is not one number.
+#
+# GitHub's default job timeout is 360 MINUTES. Nothing in this file overrode it,
+# so a wedged job billed until someone noticed by hand -- and macOS bills at 10x,
+# Windows at 2x. cli (macos-latest) did exactly that on 2026-08-14 (run
+# 31839671048): its `CLI tests` step ran 15m03s without finishing, was cancelled
+# by a human, and the runner killed three orphaned Dart child processes
+# (dartaotruntime + 2 dartvm) at teardown. Unattended it would have billed ~3600
+# minutes for one job.
+#
+# Each ceiling is set from a MEASURED duration on that run, not a guess, and
+# every job is listed so a new one cannot inherit 360 by omission:
+#
+#   static 2.3m · docs 1.8m · unit 3.8m · submodules 3.0m   -> 10
+#   e2e 8.0m (passing, ubuntu)                              -> 15
+#   cli 11.6m ubuntu / 14.0m windows                        -> 20
+#
+# A ceiling is a BUDGET STOP, not a performance target. It bounds what a hang
+# COSTS; it does not diagnose one, and it cannot tell a hang from a slow runner.
+# Set too tight it manufactures a red that reads as a product regression -- which
+# is why cli and e2e are not 10. When a job starts timing out, read the step
+# durations before raising the number: the 15m03s above was a real defect, not a
+# tight budget, and raising the ceiling would have hidden it.
 jobs:
   # L0 -- compiles, formats, and the shell embedded in scripts.yaml/workflows.
   #
@@ -109,6 +132,7 @@ jobs:
   static:
     name: static
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -230,6 +254,7 @@ jobs:
   unit:
     name: unit (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     strategy:
       fail-fast: false
       matrix:
@@ -364,6 +389,7 @@ jobs:
   docs:
     name: docs
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -439,6 +465,10 @@ jobs:
   cli:
     name: cli (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # 20 rather than the 10 the short jobs take: MEASURED 11.6m (ubuntu) / 14.0m (windows) completing normally on run
+    # 31839671048, so a 10-minute ceiling would convert "503 passed, 4 failed"
+    # into a contentless timeout and still bill the 10 minutes.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -560,6 +590,10 @@ jobs:
   e2e:
     name: e2e (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # 15 rather than the 10 the short jobs take: MEASURED 8.0m (ubuntu, passing) on run 31839671048, and its dominant step
+    # is an AOT compile whose duration is variable -- 10 would be a coin flip and
+    # a timeout here would read as a product regression rather than a budget cut.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -691,6 +725,7 @@ jobs:
   submodules:
     name: submodules
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
