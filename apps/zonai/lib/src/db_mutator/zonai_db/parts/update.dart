@@ -15,7 +15,7 @@ extension _UpdateX on ZonaiDb {
       logger.trace('jwt_extract');
 
       step = 'update_operation';
-      final (beforeObjects, :readOperation, :updateOperation) =
+      final (beforeObjects, :refetchOperation, :updateOperation) =
           await _updateOperation(table, payload, jwt);
       logger.trace('sql_build');
 
@@ -43,11 +43,20 @@ extension _UpdateX on ZonaiDb {
         prefix: _prefix,
       );
 
-      // `updateResult.rows` always returns empty, need to refetch the records
+      // `updateResult.rows` always returns empty, need to refetch the records.
+      //
+      // Nothing matched, so there is nothing to read back and no `IN ()` to
+      // build. Returning empty here is what lets the caller say "not found"
+      // instead of reporting a failure -- see `DbHandler.update`.
+      if (refetchOperation == null) {
+        logger.trace('done', extra: {'rows': 0});
+        return const [];
+      }
+
       step = 'sql_execute_refetch';
       final (updatedError, updatedResult) = await _execute((
-        readOperation.query,
-        readOperation.values,
+        refetchOperation.query,
+        refetchOperation.values,
       ));
       logger.trace(
         'sql_execute_refetch',
@@ -156,10 +165,69 @@ extension _UpdateX on ZonaiDb {
     );
   }
 
+  /// The read-back for [_update], keyed by the rows the pre-update read found
+  /// rather than by [payload]'s `where`.
+  ///
+  /// Replaying the `where` after the write cannot see a row the update just
+  /// moved out of it -- `WHERE status = 'open'` while setting `status =
+  /// 'closed'` matches nothing on the second pass. The write had already
+  /// committed, so the caller got a failure for an update that succeeded, and
+  /// [AfterUpdateExtensionRequest] got a `before`/`after` pair of different
+  /// lengths (its assert names exactly this).
+  ///
+  /// `null` means the pre-update read matched nothing: no rows to read back,
+  /// and no `IN ()` to build, which is not valid SQL.
+  ///
+  /// Narrow remaining gap, deliberately not handled: an update that rewrites
+  /// the id column itself moves the rows out of *this* clause too. Nothing in
+  /// the codebase does that, and a table whose ids are reassigned by an update
+  /// has no stable way to be read back at all.
+  Future<PerformOperationResponse?> _refetchOperation(
+    String table,
+    UpdatePayload payload,
+    List<Map<String, Object?>> before,
+    Jwt? jwt,
+  ) async {
+    if (before.isEmpty) return null;
+
+    final idColumn = await _cachedColumnName(table, .id);
+    if (idColumn == null) {
+      // No id column to key on. Nothing in this repo's schemas is shaped that
+      // way; if one ever is, replaying the where is still better than no
+      // read-back, and it is correct whenever the update leaves the matched
+      // columns alone.
+      return _getOperation(
+        ListOperationRequest(
+          table: table,
+          where: payload.where,
+          limit: payload.limit,
+          offset: null,
+          jwt: jwt,
+        ),
+      );
+    }
+
+    final ids = [
+      for (final row in before)
+        if (row[idColumn] case final Object id) id,
+    ];
+    if (ids.isEmpty) return null;
+
+    return _getOperation(
+      ListOperationRequest(
+        table: table,
+        where: In(idColumn, ids),
+        limit: null,
+        offset: null,
+        jwt: jwt,
+      ),
+    );
+  }
+
   Future<
     (
       List<Map<String, Object?>>, {
-      PerformOperationResponse readOperation,
+      PerformOperationResponse? refetchOperation,
       PerformOperationResponse updateOperation,
     })
   >
@@ -253,9 +321,14 @@ extension _UpdateX on ZonaiDb {
       ),
     );
 
+    // Built from the rows just read, not from `payload.where` -- see
+    // [_refetchOperation]. Deliberately built *before* the write runs, so the
+    // ids it keys on are the ones the rules gate above actually admitted.
+    final refetch = await _refetchOperation(table, payload, objects, jwt);
+
     return (
       sanitizedBefore,
-      readOperation: readOperation,
+      refetchOperation: refetch,
       updateOperation: operation,
     );
   }

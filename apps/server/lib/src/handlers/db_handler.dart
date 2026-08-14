@@ -1,4 +1,5 @@
 import 'package:zonai/src/deps/zonai_db.dart';
+import 'package:zonai/src/exceptions/crud_exception.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 class DbHandler {
@@ -70,8 +71,13 @@ class DbHandler {
       ),
     );
 
+    // Nothing matched. That is an ordinary outcome of a conditional update
+    // ("close it if it is still open"), not a server fault -- `StateError`
+    // here reported it as a 500, so a caller could not tell "the row is gone"
+    // from "zonai broke". `RecordNotFoundException` is already mapped to 404
+    // by `exception_catcher.dart`.
     if (result.isEmpty) {
-      throw StateError('Update did not return a row');
+      throw RecordNotFoundException(table: body.table);
     }
     return result.first;
   }
@@ -107,8 +113,9 @@ class DbHandler {
       ),
     );
 
+    // Same reasoning as `update` above: no row matched is a 404, not a 500.
     if (result.isEmpty) {
-      throw StateError('Custom operation did not return a row');
+      throw RecordNotFoundException(table: body.table);
     }
     return result.first;
   }

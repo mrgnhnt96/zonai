@@ -619,7 +619,7 @@ extension UtilsX on ZonaiDb {
       case final UpdateRecordRequest mut:
         final (
           objects,
-          :readOperation,
+          :refetchOperation,
           :updateOperation,
         ) = await _updateOperation(
           mut.table,
@@ -627,7 +627,10 @@ extension UtilsX on ZonaiDb {
           mut.jwt,
         );
 
-        if (objects.isEmpty) {
+        // `refetchOperation` is null exactly when nothing matched, which
+        // `objects.isEmpty` already covers -- the check is here so the field
+        // below can stay non-nullable rather than defer the question.
+        if (objects.isEmpty || refetchOperation == null) {
           return [];
         }
 
@@ -638,7 +641,7 @@ extension UtilsX on ZonaiDb {
             request: mut,
             before: objects,
             operation: updateOperation,
-            readOperation: readOperation,
+            refetchOperation: refetchOperation,
           ),
         ];
 
@@ -762,11 +765,16 @@ extension UtilsX on ZonaiDb {
             } else {
               logger.error('(SIDE EFFECT) Unexpected error during create');
             }
-          case _UpdateSideEffect(:final readOperation):
-            // `updateResult.rows` always returns empty, need to refetch the records
+          case _UpdateSideEffect(:final refetchOperation):
+            // `updateResult.rows` always returns empty, need to refetch the
+            // records -- keyed by the ids read before the write, never by
+            // replaying the where. See `_refetchOperation`: a `mutate.update`
+            // that rewrites the column it matched on would otherwise read back
+            // nothing and hand `_postUpdate` a before/after pair of different
+            // lengths.
             final (_, updatedResult) = await _execute((
-              readOperation.query,
-              readOperation.values,
+              refetchOperation.query,
+              refetchOperation.values,
             ));
 
             final afterRows = updatedResult?.rows
@@ -845,12 +853,12 @@ class _CreateSideEffect extends _SideEffect {
 class _UpdateSideEffect extends _SideEffect {
   const _UpdateSideEffect({
     required this.request,
-    required this.readOperation,
+    required this.refetchOperation,
     required this.before,
     required super.operation,
   });
 
-  final PerformOperationResponse readOperation;
+  final PerformOperationResponse refetchOperation;
   final UpdateRecordRequest request;
   final List<Map<String, Object?>> before;
 }
