@@ -1,0 +1,603 @@
+name: Test
+
+# The first CI job that runs zonai's own tests. Before this file, exactly one
+# `dart test` existed across all six workflows -- deploy-docs.yml:95, scoped to
+# apps/docs. The 504-test suite covering the product had never executed on CI
+# hardware, and had never executed on Windows at all. See
+# docs/testing-strategy.md Step 4.
+#
+# One job per layer, matching the `test` targets in scripts.yaml exactly. The
+# jobs do NOT re-state what a suite is or which prerequisites it carries --
+# scripts.yaml owns that, so `sip run test unit` means the same thing on a
+# laptop and on a runner. A job here that inlined `dart test` paths would be a
+# second definition free to drift from the first, which is the failure mode the
+# entrypoints were added to close.
+#
+# WHAT IS EXPECTED TO BE RED WHEN THIS LANDS, and why it is not being hidden:
+#
+#   static  -- `dart format --set-exit-if-changed .` finds 388 files of
+#              pre-existing repo-wide drift (measured 2026-08-14 on this
+#              branch). `dart analyze .` is clean; the shell and workflow
+#              checks pass. The drift is owned by a separate change; this job
+#              is blocking anyway, see its own comment.
+#   e2e     -- `test e2e` exits 70 by design until tool/ci/run_e2e.sh exists
+#              (docs/testing-strategy.md Step 3). Wired now so it turns green
+#              the moment that script lands, rather than being added later by
+#              someone who has to rediscover all of this.
+#   windows -- has never run. Path separators, line endings and process
+#              spawning are the likely first failures. Windows is a release
+#              target (zonai-windows-x64); a suite that has never run there is
+#              the finding, so it is in the matrix rather than excluded.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  # `gh release download` for the native library cache, below.
+  contents: read
+
+concurrency:
+  # Superseded PR runs are cancelled; pushes to main are not, so every commit
+  # on the release branch keeps its own verdict.
+  group: test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # MUST match compile.yml's and native-libs.yml's copies -- check_workflows.sh
+  # asserts all three agree, and that this file is one of the four allowed to
+  # declare it. A mismatch raises no error anywhere: the download step below
+  # simply never finds the cache, `bootstrap test` rebuilds resqlite and
+  # libsodium from C source on every runner, and the jobs stay green while
+  # costing many times their budget.
+  NATIVE_LIBS_CACHE_TAG: native-libs-cache
+
+jobs:
+  # L0 -- compiles, formats, and the shell embedded in scripts.yaml/workflows.
+  #
+  # BLOCKING, and therefore red until the format drift is cleared. That is a
+  # deliberate choice over the alternative (split format into a non-blocking
+  # job now, flip it later): a non-blocking job is the one nobody ever flips,
+  # and splitting would mean defining "static minus format" here, which is the
+  # second definition this file exists to avoid. The drift has a named owner
+  # and a change in flight; a red X that clears itself is cheaper than a green
+  # tick that means nothing.
+  static:
+    name: static
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout zonai
+        uses: actions/checkout@v4
+        with:
+          # GITHUB_TOKEN cannot read private submodule repos; raindrop is
+          # private. The root pubspec is a workspace over libs/**, so a
+          # checkout without submodules cannot even `dart pub get`.
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Pin PUB_CACHE
+        shell: bash
+        # Dart's default cache is ~/.pub-cache on Unix but
+        # %LOCALAPPDATA%\Pub\Cache on Windows, so a single `~/.pub-cache` cache
+        # path silently caches nothing on the Windows legs. Pinning it makes
+        # one path correct everywhere.
+        run: echo "PUB_CACHE=${RUNNER_TEMP}/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pub-cache
+          # use_revali_git_overrides.sh pins the revali git refs, so a change
+          # to it invalidates a resolution the lock file alone would not.
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Configure revali git overrides
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Install sip
+        # Temporary: install from GitHub until a pub.dev release is pinned.
+        # Mirrors compile.yml.
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Static checks
+        # `dart pub global run` rather than the `sip` stub, so the Windows legs
+        # of the other jobs work under Git Bash (global stubs are .bat-only).
+        # Kept identical across jobs so the invocation is one thing to learn.
+        run: dart pub global run sip_cli:sip run test static
+
+  # L1 -- pure logic. Three platforms, because this is the cheapest place to
+  # find out that Windows disagrees about a path separator.
+  unit:
+    name: unit (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            native_libs_artifact: native-libs-linux-x64
+          - os: macos-latest
+            native_libs_artifact: native-libs-macos-arm64
+          - os: windows-latest
+            native_libs_artifact: native-libs-windows-x64
+    steps:
+      - name: Checkout zonai
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Configure raindrop sparse checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/setup_raindrop_submodule.ps1
+
+      - name: Pin PUB_CACHE
+        shell: bash
+        run: echo "PUB_CACHE=${RUNNER_TEMP}/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Install sip
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Install native build toolchain (Linux)
+        # argon2.gen compiles libsodium through autoconf/make; build-essential
+        # alone is not enough. Mirrors compile.yml, which records the finding.
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
+      - name: Download pre-built native libraries (cache release)
+        id: download-native-libs
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          archive="${{ matrix.native_libs_artifact }}.tar.gz"
+          mkdir -p apps/zonai/lib/gen/native
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          # Read through the shell: `D:\a\_temp` parses as a host:path remote
+          # spec in GNU tar, and --force-local does not exist in the bsdtar
+          # macOS ships. compile.yml carries the same line for the same reason.
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+      - name: Check downloaded native libraries
+        id: native-libs
+        shell: bash
+        run: |
+          # Presence only. Whether these are the RIGHT bytes is decided by
+          # native_build_stamp.dart's `check`, inside resqlite.gen/argon2.gen --
+          # a stamp mismatch falls back to building from source.
+          if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
+             [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source. Run the 'Native Libraries' workflow once to populate the cache."
+          fi
+
+      - name: Bootstrap lib/gen
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        # MEASURED 2026-08-14, and it contradicts `test unit`'s own description
+        # ("pure logic, no native build required"): with apps/zonai/lib/gen
+        # moved aside, `cd apps/server && dart test` fails 2 and `cd apps/web &&
+        # dart test` fails 1, because both import `package:zonai/...` and
+        # apps/zonai imports lib/gen (version.dart, gen/native/*.g.dart,
+        # gen/server). Restoring version.dart alone is not enough -- still 1
+        # failure in each. So `test unit` carries the same undeclared
+        # prerequisite `test cli` declares, and the description is stale.
+        # Filed rather than fixed here: scripts.yaml belongs to another change.
+        #
+        # Each consuming job bootstraps for itself rather than one bootstrap job
+        # publishing lib/gen as an artifact: artifact round-trips drop file
+        # modes (compile.yml records this, which is why it tars) and would need
+        # include-hidden-files for gen/server/.revali. With the cache release
+        # hit, the native build is skipped and this is cheap; the artifact
+        # version buys minutes at the price of a new way to be mysteriously red.
+        run: dart pub global run sip_cli:sip run bootstrap test
+
+      - name: Unit tests
+        shell: bash
+        run: dart pub global run sip_cli:sip run test unit
+
+  # L1, but separate from `unit` because a skip here reports as a pass.
+  #
+  # apps/docs' anchor test calls markTestSkipped when build/jaspr is absent, so
+  # a runner that does not build jaspr first gets `+18 ~1: All other tests
+  # passed!` and exit 0 -- green by not running. `sip run test docs` builds
+  # first (docs.build), which is why this is its own job rather than a line in
+  # `unit`, and why the guard step below exists. Measured bare in this worktree
+  # 2026-08-14: 18 passed, 1 skipped, exit 0.
+  #
+  # No bootstrap: apps/docs depends on jaspr only, not on package:zonai.
+  # deploy-docs.yml already builds and tests it on CI without one.
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout zonai
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Pin PUB_CACHE
+        shell: bash
+        run: echo "PUB_CACHE=${RUNNER_TEMP}/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Configure revali git overrides
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Install sip
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Docs tests
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-logs
+          dart pub global run sip_cli:sip run test docs 2>&1 | tee test-logs/docs.log
+
+      - name: Fail if apps/docs skipped a test
+        shell: bash
+        # The whole reason this job exists. `dart test` exits 0 on a skip, so
+        # the exit code above cannot tell "the anchor test checked the built
+        # HTML" from "the anchor test found no build and reported nothing".
+        # Two checks rather than one: the skip counter proves no test opted
+        # out, and the summary string proves the suite got far enough to print
+        # a summary at all (dart test says "All other tests passed!" -- with
+        # the "other" -- exactly when something was skipped).
+        run: |
+          if grep -qE '[0-9]+ skipped tests?\.' test-logs/docs.log; then
+            echo "::error::apps/docs reported a skipped test. A skip here is not a pass -- the anchor test skips when apps/docs/build/jaspr is missing, which means the built HTML was never checked. See scripts.yaml test.docs."
+            exit 1
+          fi
+          if ! grep -q 'All tests passed!' test-logs/docs.log; then
+            echo "::error::apps/docs did not report 'All tests passed!'. Either the suite did not finish or the reporter changed shape; read the log artifact before assuming this guard is wrong."
+            exit 1
+          fi
+
+      - name: Upload docs test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-test-log
+          retention-days: 10
+          path: test-logs/
+          if-no-files-found: warn
+
+  # L2+L3 -- the CLI's own suite, including its compiled-binary e2e tests.
+  # 504 tests, and the reason this workflow exists.
+  cli:
+    name: cli (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            native_libs_artifact: native-libs-linux-x64
+          - os: macos-latest
+            native_libs_artifact: native-libs-macos-arm64
+          - os: windows-latest
+            native_libs_artifact: native-libs-windows-x64
+    steps:
+      - name: Checkout zonai
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Configure raindrop sparse checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/setup_raindrop_submodule.ps1
+
+      - name: Pin PUB_CACHE
+        shell: bash
+        run: echo "PUB_CACHE=${RUNNER_TEMP}/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Install sip
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Install native build toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
+      - name: Download pre-built native libraries (cache release)
+        id: download-native-libs
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          archive="${{ matrix.native_libs_artifact }}.tar.gz"
+          mkdir -p apps/zonai/lib/gen/native
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+      - name: Check downloaded native libraries
+        id: native-libs
+        shell: bash
+        run: |
+          if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
+             [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
+          fi
+
+      - name: Bootstrap lib/gen
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        # scripts.yaml's `test cli` deliberately does NOT run this for you, so
+        # that a missing lib/gen fails loudly instead of the suite passing
+        # against a stale one. That means the job owes it.
+        run: dart pub global run sip_cli:sip run bootstrap test
+
+      - name: CLI tests
+        shell: bash
+        run: dart pub global run sip_cli:sip run test cli
+
+  # L3 -- drives the e2e/ fixture projects through a real compiled binary.
+  #
+  # `test e2e` exits 70 today: tool/ci/run_e2e.sh does not exist yet
+  # (docs/testing-strategy.md Step 3). The job is wired now so it goes green on
+  # the commit that adds that script, instead of the script landing with no
+  # runner and nobody noticing. Deleting this job to make the workflow green
+  # would remove the only pressure to finish the layer.
+  #
+  # Bootstrap here is the floor, not a claim of sufficiency: run_e2e.sh will
+  # need a compiled binary, and a compile needs lib/gen. Whatever else it needs
+  # (web assets, fixture setup) it must state and satisfy itself -- that rule
+  # is why `test cli` and `test submodules` are separate targets at all.
+  e2e:
+    name: e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            native_libs_artifact: native-libs-linux-x64
+          - os: macos-latest
+            native_libs_artifact: native-libs-macos-arm64
+          - os: windows-latest
+            native_libs_artifact: native-libs-windows-x64
+    steps:
+      - name: Checkout zonai
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Configure raindrop sparse checkout (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tool/setup_raindrop_submodule.ps1
+
+      - name: Pin PUB_CACHE
+        shell: bash
+        run: echo "PUB_CACHE=${RUNNER_TEMP}/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Install sip
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Install native build toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
+      - name: Download pre-built native libraries (cache release)
+        id: download-native-libs
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          archive="${{ matrix.native_libs_artifact }}.tar.gz"
+          mkdir -p apps/zonai/lib/gen/native
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+      - name: Check downloaded native libraries
+        id: native-libs
+        shell: bash
+        run: |
+          if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
+             [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
+          fi
+
+      - name: Bootstrap lib/gen
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        run: dart pub global run sip_cli:sip run bootstrap test
+
+      - name: E2E tests
+        shell: bash
+        run: dart pub global run sip_cli:sip run test e2e
+
+  # Prerequisite-carrying suites, kept out of `unit` on purpose. libs/resqlite
+  # needs its own native build into its own .dart_tool/lib -- NOT the
+  # apps/zonai path the cache release fills, which is why this job does not
+  # restore it and builds from source instead.
+  #
+  # EXPECTED RED: libs/resqlite was measured at 55/172 on trunk, 117 failures
+  # from an undeclared prerequisite inside its own suite. `test submodules`
+  # now satisfies that prerequisite; whether it clears all 117 is what this
+  # job is here to find out. libs/raindrop was measured at 755 passing across
+  # its 5 packages.
+  #
+  # ubuntu only, for now: it is the platform the submodules are developed on,
+  # and adding the other two before this one is green would just be three
+  # copies of the same unread failure.
+  submodules:
+    name: submodules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout zonai
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Pin PUB_CACHE
+        shell: bash
+        run: echo "PUB_CACHE=${RUNNER_TEMP}/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Configure revali git overrides
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Install sip
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Install native build toolchain (Linux)
+        # resqlite's own build, below, compiles SQLite from C source.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
+      - name: Submodule tests
+        shell: bash
+        run: dart pub global run sip_cli:sip run test submodules
