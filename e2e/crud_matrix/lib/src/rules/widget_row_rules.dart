@@ -23,4 +23,9 @@ class WidgetRowRules extends RowRules<WidgetTable, Widget> {
 
   @override
   Future<bool> canCreate(Jwt? jwt, Widget row) async => true;
+
+  @override
+  Map<String, CustomRowOperationRule<Widget>> get customOperations => {
+    'restock': (jwt, before, after) async => true,
+  };
 }

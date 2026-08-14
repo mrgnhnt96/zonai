@@ -20,4 +20,13 @@ final class WidgetTableRules extends TableRules<WidgetTable, Widget> {
 
   @override
   Future<bool> canCreate(Jwt? jwt) async => true;
+
+  /// `restock` is open to anyone, same as the rest of this fixture's table --
+  /// the base [customOperations] map defaults to `{}` (every named operation
+  /// denied), so a route that only had its [WidgetOperations.custom]
+  /// implemented and not this entry would 403 rather than run.
+  @override
+  Map<String, CustomTableOperationRule> get customOperations => {
+    'restock': (jwt) async => true,
+  };
 }
