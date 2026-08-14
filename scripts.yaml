@@ -270,14 +270,13 @@ test:
       # config.json, which resolves the same set for the same reason -- plus
       # argon2_builder, which that copy misses (it is the last 2 of the 226).
       #
-      # stress/fixture is the one out-of-workspace package NOT listed, because
-      # it provably cannot be resolved: it path-depends on apps/zonai, whose
-      # transitive raindrop_cli asks for a hosted `raindrop ^0.0.1` that only
-      # the workspace's path entry satisfies, so pub fails version solving
-      # ("no versions of raindrop match ^0.0.1"). It stays excluded in
-      # analysis_options.yaml, which DOES suppress it -- see the note there.
+      # stress/fixture/ joined this loop 2026-08-14: it used to provably fail
+      # here (transitive raindrop_cli -> `raindrop ^0.0.1`, only satisfiable
+      # inside the root pub workspace), fixed via `dependency_overrides` in
+      # stress/fixture/pubspec.yaml pinning `raindrop` and `zonai_schema` to
+      # their local paths -- see that file's comment for the full chain.
       - |
-        for d in e2e/*/ stress/ apps/zonai/tool/native/argon2_builder/; do
+        for d in e2e/*/ stress/ stress/fixture/ apps/zonai/tool/native/argon2_builder/; do
           if ! (cd "$d" && dart pub get >/dev/null); then
             echo "dart pub get failed in $d -- dart analyze . would report every" >&2
             echo "import in it as unresolved. Fix the resolve, not the analyze." >&2

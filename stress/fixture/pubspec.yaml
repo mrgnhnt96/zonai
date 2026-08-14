@@ -11,3 +11,27 @@ dependencies:
     path: ../../libs/zonai_schema
   # Keep in sync with raindrop_sqlite — OpenDynamicLibrary was removed in 3.x.
   sqlite3: ">=2.4.0 <3.0.0"
+
+# This fixture lives outside the root pub workspace on purpose (unlike
+# apps/zonai and libs/zonai_schema, which are workspace members): the dev
+# harness in stress/lib/src/harness_setup.dart runs `dart run zonai serve`
+# directly against it in dev mode, which needs `zonai` as a real dependency
+# rather than only a compiled binary the way e2e/*'s fixtures use it.
+#
+# Being outside the workspace means these two packages need forcing, or
+# `dart pub get` fails version solving:
+#   - raindrop: zonai (path) -> raindrop_cli (path) -> `raindrop: ^0.0.1`.
+#     That version exists only as libs/raindrop's own workspace member and
+#     is not published, so nothing outside the workspace can otherwise
+#     satisfy it. ("no versions of raindrop match ^0.0.1".)
+#   - zonai_schema: zonai (path) -> zonai_web (path) -> zonai_client (path)
+#     -> `zonai_schema: >=0.1.0 <0.4.0` (hosted, since zonai_client is a
+#     published package). That collides with this fixture's own `path:`
+#     dependency on zonai_schema above -- pub won't resolve the same
+#     package from two different sources without an override telling it
+#     which one wins.
+dependency_overrides:
+  raindrop:
+    path: ../../libs/raindrop/packages/raindrop
+  zonai_schema:
+    path: ../../libs/zonai_schema
