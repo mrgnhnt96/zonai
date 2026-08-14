@@ -1,0 +1,19 @@
+name: zonai_crud_matrix
+description: >
+  The sixth e2e fixture (docs/testing-strategy.md Step 3): every column type
+  crossed with every `Where` operator, driven over HTTP through a real
+  compiled binary by tool/ci/run_e2e.sh.
+
+  Shaped like every real zonai project -- a `zonai_schema` dependency and
+  nothing else -- for the reason build_smoke is: a project that also depends
+  on `zonai` links ops and rules in-process and never serializes a message,
+  which is the configuration in which both isolate-transport bugs (551081f,
+  02cfcef) were green.
+publish_to: none
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  zonai_schema:
+    path: ../../libs/zonai_schema
