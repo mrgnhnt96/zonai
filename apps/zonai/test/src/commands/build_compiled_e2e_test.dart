@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:zonai/gen/version.dart';
 
 import '../../support/package_roots.dart';
+import '../../support/temp_directory.dart';
 
 /// End-to-end: a compiled `zonai` binary running `zonai build` against a
 /// project targeting its own platform must bundle a working copy of
@@ -55,7 +56,7 @@ void main() {
     });
 
     tearDownAll(() {
-      projectRoot.deleteSync(recursive: true);
+      deleteTempDirectory(projectRoot);
     });
 
     test(
@@ -77,8 +78,16 @@ void main() {
           reason: '${result.stderr}\n${result.stdout}',
         );
 
+        // `Settings.buildExecutablePath` names the bundled binary after the
+        // TARGET os, and `zonai build` here targets the host -- so on Windows
+        // the file to look for is `zonai.exe`. Hard-coding the posix name
+        // asserted the product had done something it never promised.
         final bundledExecutable = File(
-          p.join(projectRoot.path, 'build', 'zonai'),
+          p.join(
+            projectRoot.path,
+            'build',
+            Platform.isWindows ? 'zonai.exe' : 'zonai',
+          ),
         );
         expect(
           bundledExecutable.existsSync(),

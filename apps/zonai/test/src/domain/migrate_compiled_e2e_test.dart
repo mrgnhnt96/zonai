@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:zonai/gen/version.dart';
 
 import '../../support/package_roots.dart';
+import '../../support/temp_directory.dart';
 
 /// End-to-end: compiled zonai generates migrations when raindrop_cli is not
 /// on disk (typical end-user project layout).
@@ -47,7 +48,7 @@ void main() {
     });
 
     tearDownAll(() {
-      projectRoot.deleteSync(recursive: true);
+      deleteTempDirectory(projectRoot);
     });
 
     test('generates SQL when raindrop_cli is not in package_config', () async {

@@ -11,6 +11,7 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
+import '../support/temp_directory.dart';
 
 /// Reproduces admin-UI password bugs on generic row save:
 ///
@@ -120,7 +121,7 @@ void main() {
     });
 
     tearDownAll(() {
-      projectRoot.deleteSync(recursive: true);
+      deleteTempDirectory(projectRoot);
     });
 
     test('admin can sign in with a new password after editing their own row '

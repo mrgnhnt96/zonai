@@ -186,7 +186,13 @@ class MessageContractHash {
       final root = base.resolve(rootUri.endsWith('/') ? rootUri : '$rootUri/');
       final lib = root.resolve(packageUri is String ? packageUri : 'lib/');
 
-      return fs.path.normalize(lib.toFilePath());
+      // `fs.path.fromUri`, not `Uri.toFilePath()`: the latter reads
+      // `Platform.isWindows` and knows nothing about the filesystem this is
+      // configured with, so on a Windows host it handed a `\`-separated path
+      // back into an `fs` whose context is posix -- every later `join` then
+      // pointed at a directory that does not exist, and the contract hash
+      // came out null.
+      return fs.path.normalize(fs.path.fromUri(lib));
     }
 
     return null;

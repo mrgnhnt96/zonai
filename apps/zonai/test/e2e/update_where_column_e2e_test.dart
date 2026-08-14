@@ -11,6 +11,7 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
+import '../support/temp_directory.dart';
 
 /// Checks a field report: "`PATCH /db` 500s on any `where` that isn't on `id`,
 /// while `list` accepts the same clause happily."
@@ -113,7 +114,7 @@ void main() {
     });
 
     tearDownAll(() {
-      projectRoot.deleteSync(recursive: true);
+      deleteTempDirectory(projectRoot);
     });
 
     Future<void> withDb(Future<void> Function(ZonaiDb db) body) async {

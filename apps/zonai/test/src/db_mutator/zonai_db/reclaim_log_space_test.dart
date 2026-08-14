@@ -256,7 +256,16 @@ class _FakeDf implements domain.Process {
   @override
   Future<io.ProcessResult> run(String command, List<String> arguments) async {
     if (availableKilobytes == null) {
-      return io.ProcessResult(0, 1, '', 'df: not found');
+      return io.ProcessResult(0, 1, '', '$command: not found');
+    }
+    // `freeDiskBytes` asks PowerShell on Windows and `df` everywhere else,
+    // and the two answer in shapes that do not overlap: a bare integer of
+    // BYTES versus a table of 1024-blocks. Answering every command with the
+    // `df` table made `int.tryParse` return null on Windows, which
+    // `freeDiskBytes` reports as "space unknown" -- so the guard under test
+    // was never reached and the rewrite it was supposed to refuse went ahead.
+    if (command == 'powershell') {
+      return io.ProcessResult(0, 0, '${availableKilobytes! * 1024}\n', '');
     }
     return io.ProcessResult(
       0,

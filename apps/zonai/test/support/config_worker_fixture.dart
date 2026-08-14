@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:zonai/gen/version.dart';
 
 import 'package_roots.dart';
+import 'temp_directory.dart';
 
 /// A throwaway project with a compiled `db_config.exe`, for tests that
 /// construct `ZonaiDb()` directly and need real JWT/config resolution.
@@ -113,6 +114,6 @@ AppConfig main() {
   }
 
   void tearDown() {
-    projectRoot.deleteSync(recursive: true);
+    deleteTempDirectory(projectRoot);
   }
 }
