@@ -30,10 +30,18 @@ name: Test
 #              analyzing, so no step is needed here -- do not add one, it would
 #              be the second definition this file exists to avoid. Measured
 #              green end to end from that clean tree: exit 0 in 9.2s.
-#   e2e     -- `test e2e` exits 70 by design until tool/ci/run_e2e.sh exists
-#              (docs/testing-strategy.md Step 3). Wired now so it turns green
-#              the moment that script lands, rather than being added later by
-#              someone who has to rediscover all of this.
+#   e2e     -- LIVE. tool/ci/run_e2e.sh landed in bdaa61d, so this no longer
+#              exits 70; it compiles a binary per fixture and drives both
+#              worker transports (docs/testing-strategy.md Step 3). Run green
+#              against merged trunk 2026-08-14, both legs, including the
+#              concurrency fixture's "never answers 5xx" assertion that the
+#              rate-limiter fix (4beb750) exists to satisfy.
+#              This job is now the ONLY gate on tool/ci/e2e/*.dart: the local
+#              .game_loop rule for that path is `dart analyze` and nothing
+#              more, because compiling per fixture does not belong in a
+#              per-commit gate. If this job is dropped or made non-blocking,
+#              that file goes back to having no real check -- the two decisions
+#              are one decision.
 #   windows -- has never run. Path separators, line endings and process
 #              spawning are the likely first failures. Windows is a release
 #              target (zonai-windows-x64); a suite that has never run there is
@@ -447,14 +455,21 @@ jobs:
 
   # L3 -- drives the e2e/ fixture projects through a real compiled binary.
   #
-  # `test e2e` exits 70 today: tool/ci/run_e2e.sh does not exist yet
-  # (docs/testing-strategy.md Step 3). The job is wired now so it goes green on
-  # the commit that adds that script, instead of the script landing with no
-  # runner and nobody noticing. Deleting this job to make the workflow green
-  # would remove the only pressure to finish the layer.
+  # tool/ci/run_e2e.sh landed in bdaa61d, so `test e2e` no longer exits 70 --
+  # this job now does the thing it was wired in advance to do
+  # (docs/testing-strategy.md Step 3). It found a live product bug on its first
+  # run: 21 of 24 concurrent creates answering HTTP 500 from the rate limiter,
+  # fixed in 4beb750 and now asserted here rather than reported.
   #
-  # Bootstrap here is the floor, not a claim of sufficiency: run_e2e.sh will
-  # need a compiled binary, and a compile needs lib/gen. Whatever else it needs
+  # This is the ONLY real gate on tool/ci/e2e/*.dart. The local .game_loop rule
+  # for that path runs `dart analyze` and nothing else, deliberately -- and an
+  # assertion that cannot pass analyzes perfectly clean, which is exactly the
+  # bug the second Crawler on that file found in the first one's work. So
+  # deleting this job, or making it non-blocking, silently removes the check on
+  # the code that checks everything else.
+  #
+  # Bootstrap here is the floor, not a claim of sufficiency: run_e2e.sh needs a
+  # compiled binary, and a compile needs lib/gen. Whatever else it needs
   # (web assets, fixture setup) it must state and satisfy itself -- that rule
   # is why `test cli` and `test submodules` are separate targets at all.
   e2e:
