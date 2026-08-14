@@ -60,6 +60,11 @@ expected = {
     # cross-target-build restores the same libraries to generate the native
     # byte bindings, which apps/zonai/lib/gen/ needs and a checkout lacks.
     ".github/workflows/release.yml",
+    # test.yml's unit/cli/e2e jobs run `bootstrap test`, which is resqlite.gen
+    # and argon2.gen -- the same compile-libsodium-from-source cost compile.yml
+    # restores this cache to avoid, now paid on three platforms per push
+    # instead of once per release.
+    ".github/workflows/test.yml",
 }
 if set(declared) != expected:
     print(
