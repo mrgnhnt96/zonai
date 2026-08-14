@@ -1,10 +1,28 @@
 name: Release
 
 on:
+  # The deliberate override, not the only door. `force` is what lets a dispatch
+  # publish past a gate that is not green -- and it is recorded in the job
+  # summary when it does, because an override that leaves no trace is how the
+  # next bumpy release happens. A dispatch of an already-green commit needs
+  # nothing; making `force` habitual would defeat it.
   workflow_dispatch:
-  # workflow_run:
-  #   workflows: [Verify Release]
-  #   types: [completed]
+    inputs:
+      force:
+        description: >-
+          Publish even if Test / Verify Release are not green for this commit.
+          Recorded loudly in the job summary.
+        type: boolean
+        default: false
+  # The happy path, restored. This was commented out, leaving workflow_dispatch
+  # as the only trigger -- so Verify Release ran BESIDE publication rather than
+  # before it, and nothing stopped a human dispatching Release while it was red
+  # or had never run. See docs/testing-strategy.md Step 5, and the release-gate
+  # job below, which is what actually enforces the ordering: this trigger only
+  # makes the correct order the default one.
+  workflow_run:
+    workflows: [Verify Release]
+    types: [completed]
 
 permissions:
   contents: write
@@ -19,8 +37,48 @@ env:
   NATIVE_LIBS_CACHE_TAG: native-libs-cache
 
 jobs:
+  # NOTHING IN THIS FILE MAY RUN BEFORE THIS JOB. It asks the one question the
+  # trigger cannot answer -- "are Test and Verify Release green for the exact
+  # commit I am about to publish?" -- by querying the runs API for that sha,
+  # rather than inferring it from `workflow_run` ordering, which is what
+  # produced the bug this closes.
+  #
+  # Every job below reaches it through `needs:` -- package-fat-binary directly,
+  # the rest transitively through it -- and a job that needs a failed job is
+  # skipped unless its `if:` uses a status function (`always()`, `failure()`,
+  # `cancelled()`). None of the conditions in this file do, so a refusal here
+  # skips the entire chain rather than merely failing beside it. Adding
+  # `always()` to any `if:` below would silently reopen the door.
+  release-gate:
+    name: Require green Test and Verify Release for this commit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # No submodules and no PAT: this job reads one script and the GitHub API.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check the release gates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The same sha the artifact downloads below pin themselves to. On the
+          # automatic path that is the commit Compile built and Verify Release
+          # verified -- NOT `github.sha`, which on a `workflow_run` event is the
+          # default branch head and may have moved since.
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          RELEASE_GATE_EVENT: ${{ github.event_name }}
+          RELEASE_GATE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          RELEASE_GATE_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # Empty on the workflow_run path, which carries no inputs -- and the
+          # script refuses to honour it there even if something sets it.
+          RELEASE_GATE_FORCE: ${{ inputs.force }}
+        run: bash tool/ci/check_release_gates.sh
+
   package-fat-binary:
     name: Package fat binary (macOS + Linux)
+    needs: release-gate
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
