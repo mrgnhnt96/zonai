@@ -8,15 +8,37 @@ extension _PasswordX on ZonaiDb {
   }) async {
     final hasAuthRecord = await _hasAuthRecord(table: table, payload: payload);
 
-    if (!hasAuthRecord) {
-      if (isAdmin) {
-        throw UserNotFoundAuthException(table: table);
-      }
-
-      return await _signUpWithPassword(table, payload);
+    if (hasAuthRecord) {
+      return await _signInWithPassword(table, payload);
     }
 
-    return await _signInWithPassword(table, payload);
+    // A sign-in must never provision the account it was handed. This used to
+    // fall straight through to [_signUpWithPassword] for every payload, so
+    // `/auth/sign-in` (and `/auth` with `type: signIn`, and admin sign-in —
+    // they all build a [SignInPasswordAuthPayload]) answered an unregistered
+    // address differently from a registered one:
+    //
+    //  * on a table carrying a required column that only a sign-up body
+    //    supplies — `name`, say — the insert cast null to String and the
+    //    endpoint answered 500, while a wrong password on a real account
+    //    answers 401. The status code alone told an unauthenticated caller
+    //    whether an address had an account;
+    //  * on a table with no such column it was worse than a leak: the
+    //    account was created and a valid session handed back.
+    //
+    // Both close by failing exactly as a wrong password does. The message is
+    // load-bearing too, not just the status: [UserNotFoundAuthException] also
+    // maps to 401, but renders a different body, which is the same oracle
+    // one layer down.
+    if (payload is SignInPasswordAuthPayload) {
+      throw const InvalidPasswordOrEmailException();
+    }
+
+    if (isAdmin) {
+      throw UserNotFoundAuthException(table: table);
+    }
+
+    return await _signUpWithPassword(table, payload);
   }
 
   Future<_AuthResult> _signInWithPassword(
@@ -49,8 +71,12 @@ extension _PasswordX on ZonaiDb {
       );
       logger.trace('password_verify', extra: {'match': user != null});
 
+      // Reached when the row exists but carries no usable password hash (an
+      // OTP- or magic-link-only account, say). Same reasoning as above: a
+      // distinct message here separates "this address exists but can't use a
+      // password" from "wrong password", so both answer identically.
       if (user == null) {
-        throw UserNotFoundAuthException(table: table);
+        throw const InvalidPasswordOrEmailException();
       }
 
       step = 'jwt_create';
