@@ -30,19 +30,36 @@ gh run list --workflow=verify-release.yml --limit 3 \
 The newest run must be `success`, **and its SHA must be the commit you are
 releasing**. A green run for a different commit tells you nothing.
 
-### The one exception, and what it costs to claim it
+### The exception, and what it costs to claim it
 
-`compat-check` is the single job that can be red for a reason the release does
-not own, because it is the only job whose subject is **the previously released
-binary** rather than the one being shipped. `verify-release.yml` downloads the
-newest CLI release and `verify_compat.sh` Phase 1 runs it — so a defect that
-shipped in the *last* release fails this gate forever, and shipping the fix is
-the only thing that can clear it.
+Some jobs here have **the previously released binary** as their subject rather
+than the one being shipped. A defect that shipped in the *last* release fails
+those forever, and shipping the fix is the only thing that can clear them.
+
+Two are known, and the second was found the first time this exception was
+claimed — the text below used to say `compat-check` was "the single job that
+can be red for a reason the release does not own", and that was wrong:
+
+- **`compat-check`** downloads the newest CLI release and `verify_compat.sh`
+  Phase 1 runs it.
+- **`cross-run-linux-x64`'s positive control.** Less obvious, because nothing
+  about the job says "previous release": for a **cross-target** build the
+  running binary cannot serve the target, so `zonai build` bundles a
+  *published* one (`build.dart:218`), fetched at the version in the **project's**
+  `zonai.yaml` — and `e2e/build_smoke/zonai.yaml` pins one. So the bundle under
+  test carries a released binary, and any check reading a string that binary
+  does not emit fails until a release ships one that does.
+
+Do not assume the list is complete. Ask of any red job: *whose binary is it
+actually running?*
 
 Claiming the exception takes all four of these, checked and written into the
 release notes. Anything less is Rule zero, and Rule zero has no exceptions:
 
-1. **`compat-check` is the only red job.** Every other failure is about the
+Claiming the exception takes all four of these, checked and written into the
+release notes. Anything less is Rule zero, and Rule zero has no exceptions:
+
+1. **Every red job is one of the two above.** Anything else is about the
    candidate.
 2. **The failure is in Phase 1**, i.e. attributed to the old binary. Phase 3
    is the new binary and is never excusable.
@@ -67,10 +84,35 @@ than the previous release host" — and `db migrate generate` is the same
 problem one step earlier, in a step the skip does not cover.
 
 It clears itself: once v0.7.0 is the newest release, Phase 1 runs a
-post-migration binary against a schema of its own era. **If `compat-check` is
-still red on the release after v0.7.0, that self-clearing claim was wrong** —
-extend the Phase 1 skip, or give the fixture a published `zonai_schema` from
-the old binary's era, rather than claiming this a second time.
+post-migration binary against a schema of its own era.
+
+**`cross-run-linux-x64`, same release, same reasoning.** Its positive control
+sabotages `.zonai/executables/db_rules.aot` and greps for the "would not spawn"
+warning; the bundle answers `Loading dynamic library failed … file too short`
+and falls back correctly, but emits no such warning. The warning landed in
+`9d2433b` on 2026-08-12, and the bundle reports `Zonai: v0.6.1` — it is running
+the released v0.6.1 binary, which cannot contain it. Bumping the fixture's pin
+does not help: it would name v0.7.0, which is not published while it is being
+verified, the same chicken-and-egg `cross_target_build.sh` already documents
+for native libraries.
+
+Be honest about what this costs, because it is more than compat's does. That
+control exists because *"the silence just checked is compatible with a tap that
+never fires"* — so while it is red, the job's own headline result (`rules and
+operations answered, and neither fell back to its process`) is **unproven**
+rather than merely unreported. This exception is being claimed over a real gap
+in coverage, not over noise.
+
+**If either is still red on the release after v0.7.0, these self-clearing
+claims were wrong.** Do not claim a third time — fix the fixtures:
+
+- Let `cross_target_build.sh` supply the target binary from the compile
+  artifact instead of downloading a release, so the gate tests the candidate.
+- Call `tool/ci/sync_playground_version.sh`. It already takes a fixture
+  directory and **nothing calls it**, which is why `e2e/build_smoke`'s pin sat
+  at 0.6.1 while the repo moved eleven versions past it.
+- For compat, extend the Phase 1 skip, or give the fixture a published
+  `zonai_schema` from the old binary's era.
 
 Three artifacts ship from this repo, and they are **not** independent:
 
