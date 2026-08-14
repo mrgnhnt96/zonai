@@ -53,6 +53,17 @@ class Logger {
 
   bool _emit(Level messageLevel) => messageLevel >= level;
 
+  /// Whether an error's stack trace is printed alongside it.
+  ///
+  /// A Dart frame stack is noise on a CLI error line, so a compiled binary
+  /// keeps it off at the default level. It used to be off *unconditionally*
+  /// there — `--log=debug` and `-L` bought nothing — which is how a 500 out
+  /// of a compiled `zonai serve` reached an operator as an error line and a
+  /// message line with no file, frame or line anywhere. Below [Level.info]
+  /// the operator has explicitly asked for detail, so give them the trace.
+  bool get _includeStackTrace =>
+      !const bool.fromEnvironment('__ZONAI_COMPILED__') || level < Level.info;
+
   void verbose(String message, {String? prefix}) =>
       _log(Level.verbose, message, _stdout, _dim, prefix: prefix);
 
@@ -103,8 +114,7 @@ class Logger {
 
     buffer.writeln(message);
 
-    if (stackTrace != null &&
-        !const bool.fromEnvironment('__ZONAI_COMPILED__')) {
+    if (stackTrace != null && _includeStackTrace) {
       buffer.writeln('---');
       buffer.writeln(stackTrace);
     }
