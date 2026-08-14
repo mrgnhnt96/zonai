@@ -1,26 +1,30 @@
-# Next session — three leaves closed, one waiting on you
+# Next session — the release gate is in
 
-Written 2026-08-14 (second session that day). HEAD is `1dde68c`, **7 commits past
-`eea8e74`**. Everything below is committed, merged and green on trunk unless it
-says otherwise.
+Written 2026-08-14 (second session that day). Everything below is committed,
+merged and green on trunk.
 
-**One thing needs you before anything else: `release-gate` is built, proven, and
-NOT merged.** You asked to review it before it lands. It sits on
-`showrunner/release-gate` (`6a4293e`). See [What is waiting on
-you](#what-is-waiting-on-you).
+**`release-gate` landed.** It was held for maintainer review, reviewed, and
+merged on the maintainer's instruction to decide it myself. The single largest
+risk reduction in `docs/testing-strategy.md` is now in place: `release.yml`
+cannot publish without green `Test` and `Verify Release` runs **for that exact
+SHA**. See [The release gate](#the-release-gate) for what it does and the three
+judgement calls baked into it.
 
 ## What shipped
 
 | Commit | What |
 | --- | --- |
+| `6a4293e` | **`release-gate`** — `release.yml` refuses to publish without green `Test` and `Verify Release` for that exact SHA |
 | `ca6e8bd` | **`ci-static-resolve`** — the static job resolves the out-of-workspace packages before analyzing them |
 | `4beb750` | **`ratelimit-500`** — the bucket read-then-write is serialized on the writer |
 | `38f9ace` | The concurrency assertion's `actual`/`expected` formats now match — it could never pass |
 | `95b5339` | What actually serializes that bucket, and how far the guarantee reaches |
 | `1dde68c` | The e2e CI job is live, and is the only real gate on the e2e driver |
 
-Merges: `919a2ae`, `41d7e3f`. Both integrated through `showrunner integrate`,
-with checks re-run on the **merged** result, not the branch.
+Merges: `919a2ae`, `41d7e3f`, `e0860ef`. All three integrated through
+`showrunner integrate`, with checks re-run on the **merged** result, not the
+branch — then each fix's own consumer exercised against merged trunk, because
+the harness is right that a branch proof does not transfer.
 
 ## Corrections to the previous handoff
 
@@ -57,12 +61,11 @@ Both wrong claims were also sitting in `.showrunner/config.json`'s `resolve`
 check as its stated rationale. That copy has been corrected, and the check now
 resolves `argon2_builder` too.
 
-## What is waiting on you
+## The release gate
 
-**`release-gate`, on `showrunner/release-gate` (`6a4293e`), +538 lines, not
-merged.** The premise held at source: `release.yml` was `workflow_dispatch:` only
-with its `workflow_run: [Verify Release]` trigger commented out, so verification
-ran beside publication.
+**Merged (`6a4293e`, +538 lines).** The premise held at source: `release.yml` was
+`workflow_dispatch:` only with its `workflow_run: [Verify Release]` trigger
+commented out, so verification ran beside publication.
 
 It adds `tool/ci/check_release_gates.sh` (queries the runs API by `head_sha`,
 refuses unless the latest `Test` and `Verify Release` runs for that exact commit
@@ -82,7 +85,9 @@ another commit's green runs, an older green behind a newer red, non-default
 branch, `force` off the dispatch path, non-sha. Three mutations of the script
 under test were each caught. No release was cut, dispatched or tagged.
 
-**Three judgement calls it flagged for you:**
+**Three judgement calls, reviewed and kept.** Each was flagged by the Crawler as
+a deliberate deviation; each was checked against the workflow triggers before
+merging, and none is hard to undo:
 
 1. It added a **default-branch check the plan did not ask for**, reasoning that
    uncommenting the auto trigger means a `Compile` dispatched on a feature branch
@@ -97,8 +102,17 @@ under test were each caught. No release was cut, dispatched or tagged.
    refused*. This is a real operational consequence for the next release, not
    just a code detail.
 
-`verify.yaml` rules for both scripts are already applied in the main checkout, so
-merging is the only remaining step.
+**Why the default-branch check is right, verified rather than assumed.**
+`compile.yml` is `workflow_dispatch:` **only**, and `verify-release.yml` triggers
+on `workflow_run: [Compile]`. So the whole release chain starts with a human
+dispatching Compile — and a Compile dispatched on a feature branch would, with
+the auto trigger restored, walk all the way to publication. The branch check is
+what closes that. `test.yml` triggers on `push: branches: [main]`, so a main
+commit does have a `Test` run and the gate is satisfiable in normal operation.
+
+`verify.yaml` rules for both scripts are applied. Re-proven on merged trunk:
+`check_release_gates.sh: 12 checks passed (11 of them refusals)` and `ok: every
+release.yml job is gated behind release-gate`.
 
 ## The rate-limiter fix, and how far its guarantee actually reaches
 
@@ -150,17 +164,25 @@ satisfies. A reader chasing the old mechanism will not find it.
 
 ## What is left
 
-Six leaves ready. `release-gate` aside, in rough priority:
+**In flight as this was written** — two Crawlers, both headless, disjoint file
+sets:
 
-1. **`e2e-full-surface`** — the e2e layer drives 6 paths; zonai declares about 32
-   routes. All four verbs are covered, so this is a route gap: by-id variants,
-   custom operations, all three streaming routes, auth beyond sign-in/sign-up,
-   health/metrics/run.
-2. **`ci-static-resolve` is closed but CI has still never run.** The static job is
-   proven green from a genuinely clean local tree; it has not executed on a real
-   runner. That is the next thing to actually observe.
-3. `e2e-crud-matrix` · `stress-pub-graph` · `test-load-fragility` ·
-   `process-identity` · `revali-core-bump`
+- **`e2e-full-surface`** — the e2e layer drives 6 paths; zonai declares about 32
+  routes. All four verbs are covered, so this is a route gap: by-id variants,
+  custom operations, all three streaming routes, auth beyond sign-in/sign-up,
+  health/metrics/run.
+- **`stress-pub-graph`** — briefed with the corrected mechanism, since the one
+  recorded on the leaf was wrong.
+
+Still ready: `e2e-crud-matrix` · `test-load-fragility` · `process-identity` ·
+`revali-core-bump`.
+
+**And the thing that is not a leaf: CI has still never run.** Every gate added
+over these two sessions — `test.yml`, the static job, and now `release-gate` —
+is proven from a local tree and has **never executed on a real runner**. The
+release gate in particular has been proven only against a stubbed `gh`. That is
+the next thing to *observe* rather than infer, and it needs a push, not a
+Crawler.
 
 ## Traps worth not rediscovering
 
