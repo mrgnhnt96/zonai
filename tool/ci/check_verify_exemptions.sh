@@ -52,7 +52,13 @@ MAX_HORIZON_DAYS = 180
 # "real" is a missed nag, a false "exempt" is noise on a rule that is fine, and noise is what gets a
 # check ignored. `.sh` is in here because every shell entry point in tool/ci/ runs a real check or is
 # already documented as syntax-only in its own header.
-REAL = ["dart test", "flutter test", "dart run", "sip run", ".sh", "grep"]
+# `dart pub get` added 2026-08-14: it resolves a real dependency graph and really fails when that
+# graph is broken -- which is not a type-check, and is the entire content of the stress/fixture
+# regression (transitive `raindrop ^0.0.1`, satisfiable only inside the root workspace). Calling it
+# analyze-only demanded a RECHECK marker on a rule that is not a downgrade at all, and a "RECHECK
+# never" written to silence a false positive is exactly the boilerplate that makes real markers
+# stop being read. This is the "false exempt is noise" case the paragraph above is about.
+REAL = ["dart test", "flutter test", "dart run", "sip run", "dart pub get", ".sh", "grep"]
 
 # Phrases that make a justification TIME-BOUND: each asserts something is broken on THIS MACHINE
 # RIGHT NOW. A claim in the present tense expires. Kept to the idiom this file actually uses for a
