@@ -77,10 +77,10 @@ packages:
     dependency: transitive
     description:
       name: revali_core
-      sha256: "72089a73b3d0139ef29c75be1884e801cd2121cc56d9c14184a8eb96f13420fe"
+      sha256: "64dab5faf6661357f746dd707cf138a2ff46aece8b703e595f2a90a82ebc3348"
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.0"
+    version: "2.0.0"
   scoped_deps:
     dependency: transitive
     description:
@@ -127,6 +127,6 @@ packages:
       path: "../../libs/zonai_schema"
       relative: true
     source: path
-    version: "0.3.1"
+    version: "0.0.0"
 sdks:
   dart: ">=3.12.0 <4.0.0"
