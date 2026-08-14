@@ -15,11 +15,21 @@ name: Test
 #
 # WHAT IS EXPECTED TO BE RED WHEN THIS LANDS, and why it is not being hidden:
 #
-#   static  -- `dart format --set-exit-if-changed .` finds 388 files of
-#              pre-existing repo-wide drift (measured 2026-08-14 on this
-#              branch). `dart analyze .` is clean; the shell and workflow
-#              checks pass. The drift is owned by a separate change; this job
-#              is blocking anyway, see its own comment.
+#   static  -- NO LONGER EXPECTED RED. Both halves of the original prediction
+#              were superseded on 2026-08-14 and are recorded here rather than
+#              deleted, because each was wrong in a way worth not repeating:
+#                * the 388-file format drift was cleared (8dc4922) and the
+#                  check narrowed to what humans write (8f584b3);
+#                * "`dart analyze .` is clean" was true only of a DEV MACHINE.
+#                  Measured from a tree with no .dart_tool anywhere and root
+#                  `dart pub get` only -- i.e. what this runner actually has --
+#                  it was 226 errors, 224 of them merely unresolved imports in
+#                  the nine packages outside the pub workspace. It looked clean
+#                  locally purely because of leftover gitignored resolve state.
+#              scripts.yaml `test static` now resolves those packages before
+#              analyzing, so no step is needed here -- do not add one, it would
+#              be the second definition this file exists to avoid. Measured
+#              green end to end from that clean tree: exit 0 in 9.2s.
 #   e2e     -- `test e2e` exits 70 by design until tool/ci/run_e2e.sh exists
 #              (docs/testing-strategy.md Step 3). Wired now so it turns green
 #              the moment that script lands, rather than being added later by
@@ -56,13 +66,17 @@ env:
 jobs:
   # L0 -- compiles, formats, and the shell embedded in scripts.yaml/workflows.
   #
-  # BLOCKING, and therefore red until the format drift is cleared. That is a
-  # deliberate choice over the alternative (split format into a non-blocking
-  # job now, flip it later): a non-blocking job is the one nobody ever flips,
-  # and splitting would mean defining "static minus format" here, which is the
-  # second definition this file exists to avoid. The drift has a named owner
-  # and a change in flight; a red X that clears itself is cheaper than a green
-  # tick that means nothing.
+  # BLOCKING, and now green rather than green-by-luck. It stays one job rather
+  # than splitting format (or the analyze) into a non-blocking sibling: a
+  # non-blocking job is the one nobody ever flips, and splitting would mean
+  # defining "static minus X" here, which is the second definition this file
+  # exists to avoid.
+  #
+  # The only step below that this job owes `test static` is the root
+  # `dart pub get`. The per-package resolves the analyze needs live in
+  # scripts.yaml, deliberately, so `sip run test static` means the same thing
+  # on a laptop and on this runner -- which is the whole point, since the
+  # laptop/runner divergence is exactly what hid the 226 errors.
   static:
     name: static
     runs-on: ubuntu-latest
