@@ -48,4 +48,6 @@ A framework that writes into your tables is one you have to trust. That trust is
 
 **Topics** are the right primitive for a true broadcast: one API call, no token list, no pruning, no restart-duplicate problem. When "notify everyone" comes up, the answer is topics rather than a bigger fan-out. They are deferred because they bring their own surface — subscribe, unsubscribe, per-topic auth.
 
-Also out of scope for now: APNs direct (`.p8`), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, payload localization, rich media attachments, and badge counts.
+**Payload localization is decided against, not deferred.** Zonai does not translate notification text. An app that needs per-locale copy builds the string before calling `push` — it already knows its user's locale, and having the framework re-derive it would mean reading columns the fan-out deliberately does not select (see [Sending](/push/sending)).
+
+Also out of scope for now: APNs direct (`.p8`), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts.

@@ -1553,12 +1553,12 @@
         {
           "h": "Side Effects API",
           "a": "side-effects-api",
-          "b": "Inside any hook you have access to: get — read rows from any table mutate — queue additional writes email — send transactional email See the Side Effects pages for details."
+          "b": "Inside any hook you have access to: get — read rows from any table mutate — queue additional writes email — send transactional email push — send a push notification to a queried set of devices See the Side Effects pages for details. push is the odd one out: it is awaited and returns a job id, and its fan-out outlives the request."
         },
         {
           "h": "Related",
           "a": "related",
-          "b": "Create Hooks Update Hooks Delete Hooks Auth Hooks Side Effects: get Side Effects: mutate Side Effects: email"
+          "b": "Create Hooks Update Hooks Delete Hooks Auth Hooks Side Effects: get Side Effects: mutate Side Effects: push Side Effects: email"
         }
       ]
     },
@@ -1812,6 +1812,42 @@
           "h": "Example",
           "a": "example",
           "b": "import 'package:my_app/src/schemas/users.dart'; import 'package:zonai_schema/zonai_schema.dart'; final class UserExtensions extends Extension with AuthExtension { UserExtensions() : super(users); @override Future onSignUp(User user, Jwt? jwt) async { email.send.verifyEmail( EmailAddress(address: user.email), table: 'users', ); } @override Future onSignIn(User user, Jwt? jwt) async { email.send.loginNotice( EmailAddress(address: user.email), table: 'users', ); } } UserExtensions main() => UserExtensions();"
+        }
+      ]
+    },
+    {
+      "u": "/extensions/side-effects-push",
+      "t": "Side Effects: push",
+      "d": "Sending push notifications from extension hooks and cron jobs.",
+      "g": "Extensions & Hooks",
+      "s": [
+        {
+          "b": "push sends a notification to every row of a table whose deviceToken column matches a query. AppConfig.push must be configured before anything is sent; without it the call throws. See Push Configuration. final job = await push( PushMessage( title: 'New reply', body: 'Someone replied to your post', collapseKey: 'post:${after.id}', data: {'postId': '${after.id}'}, ), table: 'device_tokens', column: 'token', where: In('user_id', recipientIds), );"
+        },
+        {
+          "h": "It is unlike the other side effects, in three ways",
+          "a": "it-is-unlike-the-other-side-effects-in-three-ways",
+          "b": "It is awaited. mutate queues a write and returns nothing; push returns a PushJobId. The wait is for the job row to be committed, not for the fan-out — a few milliseconds whether the recipient set is ten rows or a hundred thousand. The id is not a delivery receipt. It says the job was written down. Nothing here, and nothing FCM offers, tells you a notification reached a phone. See What the job id means. It outlives the request. A queued mutate is committed with the request. A fan-out keeps running long after the response was sent, and nothing about the request can stop it once it starts."
+        },
+        {
+          "h": "Call it from after hooks, never before",
+          "a": "call-it-from-after-hooks-never-before",
+          "b": "A before hook runs prior to the write. A notification announcing something that may not happen cannot be recalled — there is no unsend. Throwing from an after hook fails the request after the write has committed, and a job already enqueued still runs."
+        },
+        {
+          "h": "Recipients are a query, not a list",
+          "a": "recipients-are-a-query-not-a-list",
+          "b": "where is a predicate Zonai runs and pages, so a large recipient set is never materialized in memory. The column must be declared with $.deviceToken(...): the fan-out reads only the primary key and that column, and refuses any column that is not one. See Device Tokens."
+        },
+        {
+          "h": "Dead tokens are Zonai's job, not yours",
+          "a": "dead-tokens-are-zonais-job-not-yours",
+          "b": "When FCM reports a token permanently rejected, Zonai clears it and calls onPushRejected first — a hook on the extension for the table the token lives on, not something you request here. A timeout is not a dead token and never prunes. See Dead Tokens."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Push Overview Sending Delivery Guarantees Side Effects: email"
         }
       ]
     },
@@ -2169,7 +2205,7 @@
         {
           "h": "Not in v1",
           "a": "not-in-v1",
-          "b": "Topics are the right primitive for a true broadcast: one API call, no token list, no pruning, no restart-duplicate problem. When \"notify everyone\" comes up, the answer is topics rather than a bigger fan-out. They are deferred because they bring their own surface — subscribe, unsubscribe, per-topic auth. Also out of scope for now: APNs direct (.p8), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, payload localization, rich media attachments, and badge counts."
+          "b": "Topics are the right primitive for a true broadcast: one API call, no token list, no pruning, no restart-duplicate problem. When \"notify everyone\" comes up, the answer is topics rather than a bigger fan-out. They are deferred because they bring their own surface — subscribe, unsubscribe, per-topic auth. Payload localization is decided against, not deferred. Zonai does not translate notification text. An app that needs per-locale copy builds the string before calling push — it already knows its user's locale, and having the framework re-derive it would mean reading columns the fan-out deliberately does not select (see Sending). Also out of scope for now: APNs direct (.p8), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts."
         }
       ]
     },

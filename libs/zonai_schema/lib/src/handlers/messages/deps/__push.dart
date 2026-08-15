@@ -30,7 +30,12 @@ final _pushProvider = create<_Push>(_Push._);
 /// Call this from `after*` hooks, never `before*`: a `before` hook runs prior
 /// to the write, and a notification announcing something that may not happen
 /// cannot be recalled.
-_Push get push => read(_pushProvider);
+// `orElse` rather than a bare `read`, and it is not defensive padding: an
+// unbound `read` throws about `ScopedRef` and `runScoped`, which describes
+// this file's plumbing rather than the caller's mistake. Falling back to the
+// unavailable instance means the error an author actually sees names the two
+// places `push` can be called from.
+_Push get push => read(_pushProvider, orElse: _Push._);
 
 class _Push {
   _Push._() : _enqueue = _unavailable;

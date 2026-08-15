@@ -268,4 +268,6 @@ Enqueuing a job starts a drain immediately, so a notification does not wait for 
 
 **Topics** are the right primitive for a true broadcast — one API call, no token list, no pruning, no restart-duplicate problem. When "notify everyone" comes up, the answer is topics rather than a bigger fan-out. Deferred because they bring their own surface (subscribe, unsubscribe, per-topic auth).
 
-Also out of scope for now: APNs direct (`.p8`), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, payload localization, rich media, and badge counts.
+**Payload localization is decided against, not deferred.** Zonai does not translate notification text. Build the string before calling `push`: the app already knows its user's locale, and having the framework re-derive it would mean reading columns the fan-out deliberately does not select.
+
+Also out of scope for now: APNs direct (`.p8`), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media, and badge counts.

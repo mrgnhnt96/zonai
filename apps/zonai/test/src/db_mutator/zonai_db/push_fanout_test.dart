@@ -164,6 +164,15 @@ final class FakePushCourier implements PushCourier {
   /// *message* was wrong rather than the token.
   PushRejectionReason rejectWith = PushRejectionReason.unregistered;
 
+  /// Called with each message handed to the transport, so a test can assert
+  /// which notification a given job actually sent.
+  void Function(PushMessage message)? onMessage;
+
+  /// Runs while a batch is "in flight", before its outcomes are committed.
+  /// The stand-in for anything that writes to the table mid-batch — a device
+  /// re-registering being the one that matters.
+  Future<void> Function()? duringSend;
+
   /// Throws from `send` once this many tokens have been handed over — the
   /// stand-in for the process dying mid-fan-out.
   int? throwAfterTokens;
@@ -181,8 +190,11 @@ final class FakePushCourier implements PushCourier {
       throw throwWith ?? PushTransportException('fake transport died');
     }
 
+    onMessage?.call(message);
     sentBatches.add(List.of(tokens));
     _tokensSeen += tokens.length;
+
+    if (duringSend case final hook?) await hook();
 
     return [
       for (final token in tokens)
@@ -772,6 +784,226 @@ version: $kVersion
         isEmpty,
         reason: 'onPushRejected is for permanent rejections only',
       );
+    });
+  });
+
+  test(
+    'a device that re-registers mid-batch keeps its new token',
+    () async {
+      // The race the prune's token match exists for. Between reading a batch
+      // and committing it, the device wipes and registers again, writing a
+      // NEW token into the same row. FCM then rejects the OLD one — which is
+      // correct, it is dead — and a prune keyed on the primary key alone
+      // would clear the live registration that replaced it. The user stops
+      // receiving notifications, and nothing anywhere records why.
+      await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+        await seed(zonaiDb, count: 3);
+        courier.rejectTokens.add('tok-d000001');
+        courier.duringSend = () async {
+          final db = await zonaiDb.open();
+          await db.execute(
+            'UPDATE "device_tokens" SET "token" = ? WHERE "id" = ?',
+            ['tok-d000001-REREGISTERED', 'd000001'],
+          );
+        };
+
+        await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        final after = await rows(zonaiDb);
+        expect(
+          after[1].token,
+          'tok-d000001-REREGISTERED',
+          reason:
+              'the row was pruned on a token that is no longer in it — the '
+              'prune must match the token it was told about, not just the key',
+        );
+      });
+    },
+  );
+
+  test(
+    'deleteRow also refuses to delete a row that re-registered',
+    () async {
+      // The same race, with the destructive policy — where getting it wrong
+      // removes the row rather than a column.
+      await run(
+        _appConfigWith(
+          _pushConfig(onPermanentRejection: OnPermanentRejection.deleteRow),
+        ),
+        (zonaiDb) async {
+          await seed(zonaiDb, count: 3);
+          courier.rejectTokens.add('tok-d000001');
+          courier.duringSend = () async {
+            final db = await zonaiDb.open();
+            await db.execute(
+              'UPDATE "device_tokens" SET "token" = ? WHERE "id" = ?',
+              ['tok-d000001-REREGISTERED', 'd000001'],
+            );
+          };
+
+          await zonaiDb.enqueuePush(
+            message: message,
+            table: 'device_tokens',
+            column: 'token',
+            where: null,
+            jwt: CronJwt(),
+          );
+          await zonaiDb.drainPushJobs();
+
+          final after = await rows(zonaiDb);
+          expect(after, hasLength(3));
+          expect(after[1].token, 'tok-d000001-REREGISTERED');
+        },
+      );
+    },
+  );
+
+  test('several queued jobs all drain, none left behind', () async {
+    await run(_appConfigWith(_pushConfig(batchSize: 50)), (zonaiDb) async {
+      await seed(zonaiDb, count: 4);
+
+      final ids = <PushJobId>[];
+      for (var i = 0; i < 3; i++) {
+        final id = await zonaiDb.enqueuePush(
+          message: PushMessage(title: 'n$i', body: 'b$i'),
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        ids.add(id!);
+      }
+      await zonaiDb.drainPushJobs();
+
+      for (final id in ids) {
+        expect((await job(zonaiDb, id)).status, PushJobStatus.completed);
+      }
+      expect(
+        courier.allSentTokens,
+        hasLength(12),
+        reason:
+            '3 jobs x 4 recipients. Deliberately not asserting these land in '
+            'ONE pass: each enqueue kicks its own drain, so the split across '
+            'passes is timing. What must hold is that no job is skipped.',
+      );
+    });
+  });
+
+  test('each job sends its own message, not the first one enqueued', () async {
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 1);
+
+      final sentMessages = <String>[];
+      courier.onMessage = (m) => sentMessages.add(m.title);
+
+      for (final title in ['alpha', 'beta']) {
+        await zonaiDb.enqueuePush(
+          message: PushMessage(title: title, body: 'b'),
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+      }
+      await zonaiDb.drainPushJobs();
+
+      expect(
+        sentMessages,
+        ['alpha', 'beta'],
+        reason:
+            'the message is stored per job; a fan-out reading the wrong row '
+            "would send one notification's text under another's job",
+      );
+    });
+  });
+
+  test('a job whose token column vanishes fails rather than spinning', () async {
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 3);
+
+      // The schema moves out from under the job BEFORE it is enqueued, so
+      // this does not depend on winning a race with the enqueue-time drain
+      // kick — the drain fails on the same missing column whichever pass
+      // reaches it first. Enqueue still succeeds: its shape check reads the
+      // registered schema, which is exactly the drift being simulated.
+      final db = await zonaiDb.open();
+      await db.execute('DROP TABLE "device_tokens"');
+      await db.execute(
+        'CREATE TABLE "device_tokens" ("id" TEXT PRIMARY KEY, '
+        '"user_id" TEXT NOT NULL, "label" TEXT NOT NULL)',
+      );
+
+      final id = await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: null,
+        jwt: CronJwt(),
+      );
+
+      await zonaiDb.drainPushJobs();
+
+      // Nothing here can be retried into success, so it must fail loudly
+      // rather than be retried every minute forever.
+      final entry = await job(zonaiDb, id!);
+      expect(entry.status, PushJobStatus.failed);
+      expect(entry.error, isNotNull);
+      expect(courier.allSentTokens, isEmpty);
+    });
+  });
+
+  test('a failed job is not picked up again by the next drain', () async {
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 3);
+      courier.throwAfterTokens = 0;
+
+      await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: null,
+        jwt: CronJwt(),
+      );
+      await zonaiDb.drainPushJobs();
+
+      final sentAfterFirst = courier.allSentTokens.length;
+      await zonaiDb.drainPushJobs();
+      await zonaiDb.drainPushJobs();
+
+      expect(
+        courier.allSentTokens.length,
+        sentAfterFirst,
+        reason:
+            'a failed job that stayed in the pending set would be retried '
+            'once a minute forever, against whatever broke it',
+      );
+    });
+  });
+
+  test('an empty recipient set completes rather than hanging', () async {
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 3);
+
+      final id = await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: const Eq('user_id', 'nobody'),
+        jwt: CronJwt(),
+      );
+      await zonaiDb.drainPushJobs();
+
+      final entry = await job(zonaiDb, id!);
+      expect(entry.status, PushJobStatus.completed);
+      expect(entry.delivered, 0);
+      expect(courier.sentBatches, isEmpty);
     });
   });
 

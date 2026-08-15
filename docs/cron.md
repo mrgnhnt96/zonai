@@ -111,7 +111,7 @@ Cron jobs execute inside the **`db_crons` worker process**, not in HTTP handlers
 
 Overlapping runs: if a previous `run()` is still in progress when the next tick fires, the `cron` package delays the new run until the current one finishes.
 
-## Side effects: `get`, `mutate`, and `email`
+## Side effects: `get`, `mutate`, `email`, and `push`
 
 Inside `run()`, Zonai exposes the same globals as the extension worker (from `package:zonai_schema/zonai_schema.dart`):
 
@@ -120,6 +120,7 @@ Inside `run()`, Zonai exposes the same globals as the extension worker (from `pa
 | `get`    | Read rows (`get.one`, `get.many`) with the same rules as the public API                |
 | `mutate` | Queue creates, updates, or deletes (`mutate.create`, `mutate.update`, `mutate.delete`); `mutate.purge` bulk-deletes from internal tables and returns a count |
 | `email`  | Send custom or built-in transactional email                                            |
+| `push`   | Send a push notification to a queried set of devices; see [push.md](push.md)          |
 | `logger` | Log at debug/info/warn/error (forwarded to the server console)                         |
 
 Every cron run acts as **`CronJwt`**: an internal worker identity with admin edit access. Rules and row rules evaluate against that JWT — design maintenance jobs so collections your crons touch allow admin deletes/updates. `CronJwt` is **not** a user session token; HTTP clients cannot present it as a bearer token (see `CronJwt` in `package:zonai_schema`).
@@ -132,11 +133,13 @@ Every cron run acts as **`CronJwt`**: an internal worker identity with admin edi
 
 Because they are queued rather than awaited, `mutate.create` / `mutate.update` / `mutate.delete` return `void`: a job cannot see how many rows it changed, or whether the write succeeded. Treat the log line you write at the end of `run()` as a record that the job *ran*, not that it *did* anything.
 
+**`push` is neither queued nor immediate in the sense above.** It is awaited — it returns the id of a durably recorded job — but what it returns is a receipt for the *record*, not the send. The fan-out runs on the host afterwards and outlives the job that queued it, so a cron finishing is not a notification having gone out. Query `_push_jobs` with the id for progress and counts.
+
 > **Fixed in this release.** Queued mutations from **scheduled** runs were previously attached to the request that started the scheduler rather than to the firing that queued them, and were silently discarded — no error, no entry in `_cron_jobs.error`, at any row count. Manually-triggered runs were unaffected. If you have a scheduled job whose writes never appeared, this was why; it needs no change on your side beyond upgrading.
 
 ### Bulk deletes on internal tables
 
-Zonai's own retention jobs (`_cleanup_logs`, `_delete_expired_jwts`, `_delete_old_rate_limits`, `_cleanup_auth_challenges`, `_cleanup_cron_entries`) do **not** use `mutate.delete`. They use `mutate.purge`, which issues a single `DELETE ... WHERE` and returns the number of rows removed:
+Zonai's own retention jobs (`_cleanup_logs`, `_delete_expired_jwts`, `_delete_old_rate_limits`, `_cleanup_auth_challenges`, `_cleanup_cron_entries`, `_cleanup_push_jobs`) do **not** use `mutate.delete`. They use `mutate.purge`, which issues a single `DELETE ... WHERE` and returns the number of rows removed:
 
 ```dart in:cron-run
 final removed = await mutate.purge(
@@ -319,6 +322,7 @@ PurgeExpiredJwtsJob main() => PurgeExpiredJwtsJob();
 
 - **[config-and-env-flavors.md](config-and-env-flavors.md)** — worker executables and compile-time env
 - **[extensions.md](extensions.md)** — event-driven hooks around HTTP mutations (not scheduled)
+- **[push.md](push.md)** — push notifications, including the two internal crons that drain and retain `_push_jobs`
 - **[operations.md](operations.md)** — SQL generation for API requests
 - **[release-mode.md](release-mode.md)** — production builds without `--enable-asserts`
 - **`libs/zonai_schema/lib/src/types/cron_job.dart`** — `CronJob` definition

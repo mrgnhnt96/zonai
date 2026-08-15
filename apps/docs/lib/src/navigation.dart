@@ -253,6 +253,7 @@ const List<NavGroup> navigation = [
       NavItem('Side Effects: get', '/extensions/side-effects-get'),
       NavItem('Side Effects: mutate', '/extensions/side-effects-mutate'),
       NavItem('Side Effects: email', '/extensions/side-effects-email'),
+      NavItem('Side Effects: push', '/extensions/side-effects-push'),
     ],
   ),
   NavGroup(

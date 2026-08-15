@@ -236,7 +236,15 @@ No key material in a test fixture, a doc example, or a committed config.
 
 ### Out of scope for v1
 
-APNs direct (`.p8`) · web push · scheduled or delayed sends · delivery analytics · an in-app notification inbox · per-user preference storage · localization of payloads · rich media attachments · badge-count management.
+APNs direct (`.p8`) · web push · scheduled or delayed sends · delivery analytics · an in-app notification inbox · per-user preference storage · rich media attachments · badge-count management.
+
+### Decided against, rather than deferred
+
+**Localization of payloads.** Recorded 2026-08-15, after it was raised as the natural next feature and rejected. The app builds the string; Zonai sends it.
+
+The reasoning is not that it is hard, but that it is in the wrong place. Per-locale copy needs a locale on the recipient row and per-recipient rendering — and §2's projection deliberately reads only the primary key and the token, precisely so `push` cannot be turned into a way to read other columns. Localizing would mean widening that projection, trading the property that makes the feature safe for one the caller can already satisfy: an app knows its user's locale at the call site and can pass a finished `PushMessage`. Nothing is bought.
+
+This also settles the adjacent question of email-style templates, which was asked and answered the same day: a notification is two short strings (~500 bytes on the wire against FCM's 4 KB, against ~6.8 KB for a single real email template), so there is no document to assemble, and the one use case that would justify a rendering engine — per-recipient personalization — is the same one the projection rules out. The `Email` subclass idiom (`SendOtpEmail` and friends) is the right precedent for reusable message shapes, and it costs nothing.
 
 **v1 is: FCM, one checkpointed fan-out over a queried recipient set, with automatic pruning the developer can switch off.**
 

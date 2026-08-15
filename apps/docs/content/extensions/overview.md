@@ -86,8 +86,10 @@ Inside any hook you have access to:
 - `get` — read rows from any table
 - `mutate` — queue additional writes
 - `email` — send transactional email
+- `push` — send a push notification to a queried set of devices
 
-See the Side Effects pages for details.
+See the Side Effects pages for details. `push` is the odd one out: it is
+awaited and returns a job id, and its fan-out outlives the request.
 
 ## Related
 
@@ -97,4 +99,5 @@ See the Side Effects pages for details.
 - [Auth Hooks](/extensions/auth-hooks)
 - [Side Effects: get](/extensions/side-effects-get)
 - [Side Effects: mutate](/extensions/side-effects-mutate)
+- [Side Effects: push](/extensions/side-effects-push)
 - [Side Effects: email](/extensions/side-effects-email)
