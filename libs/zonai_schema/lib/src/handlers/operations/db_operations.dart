@@ -309,7 +309,20 @@ class DbOperations {
 
     final (sql, values) = TableTranslator(ops, dialect).translate(request);
 
-    return PerformOperationResponse(id: request.id, query: sql, values: values);
+    return PerformOperationResponse(
+      id: request.id,
+      query: sql,
+      values: values,
+      // Only a custom operation can write something the caller never sent, so
+      // only a custom operation has to tell the rules half what that is. Every
+      // other request already carries its own updates, and the row rule sees
+      // them directly.
+      updates: switch (request) {
+        CustomOperationRequest(:final operation, :final where, :final updates) =>
+          ops.customUpdates(operation, where: where, updates: updates),
+        _ => const [],
+      },
+    );
   }
 
   Future<PerformOperationResponse> _count(CountOperationRequest request) async {

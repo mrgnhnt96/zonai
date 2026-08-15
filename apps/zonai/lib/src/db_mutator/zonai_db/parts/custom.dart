@@ -168,19 +168,18 @@ extension _CustomX on ZonaiDb {
 
     final objects = readResult.rows.map((e) => e.toMap()).toList();
 
-    for (final row in objects) {
-      await _requireCustomRowAccess(
-        table,
-        payload.operation,
-        row,
-        jwt,
-        updates: payload.updates,
-      );
-    }
-    logger.trace('row_access');
-
-    final sanitizedBefore = await _sanitizeRows(table, objects, jwt: jwt);
-
+    // Resolved BEFORE the row checks, not after, and the order is the fix.
+    //
+    // A row rule decides whether the *resulting* row is allowed, and the
+    // resulting row is computed by replaying updates over the row that was
+    // read. For a custom operation those updates are the server's own — the
+    // caller may legitimately send none — so checking first meant every such
+    // rule adjudicated a row identical to `before`: a mutation the server was
+    // about to perform correctly, refused on the strength of a row that was
+    // never going to be written.
+    //
+    // Resolving early is safe because this only compiles the query. Nothing
+    // executes until the caller runs it, well after these checks pass.
     final customOperation = await _getOperation(
       CustomOperationRequest(
         table: table,
@@ -190,6 +189,21 @@ extension _CustomX on ZonaiDb {
         jwt: jwt,
       ),
     );
+
+    for (final row in objects) {
+      await _requireCustomRowAccess(
+        table,
+        payload.operation,
+        row,
+        jwt,
+        // `customUpdates` defaults to echoing the caller's updates, so an
+        // operation that only reshapes what it was handed is unchanged by this.
+        updates: customOperation.updates,
+      );
+    }
+    logger.trace('row_access');
+
+    final sanitizedBefore = await _sanitizeRows(table, objects, jwt: jwt);
 
     return (
       sanitizedBefore,

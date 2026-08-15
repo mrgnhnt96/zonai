@@ -516,6 +516,62 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     );
   }
 
+  /// What [custom] will actually write, for the row rule that has to authorize
+  /// it. Override this whenever [custom] writes anything the caller did not
+  /// send.
+  ///
+  /// A row rule exists to decide whether the **resulting** row is allowed, so
+  /// `canUpdate` and `customOperations` are handed a `before` and an `after`.
+  /// `after` is computed by replaying a `List<Update>` over `before`
+  /// (`TableUpdateSimulation.simulateUpdate`) — and for a custom operation the
+  /// only such list zonai has is the caller's. [custom] returns a whole query,
+  /// not a list of updates, so nothing else about it is introspectable: an
+  /// operation whose writes are the server's own idea is invisible to the rule
+  /// that guards it.
+  ///
+  /// The consequence is a trap with no local signal, because every part looks
+  /// right in isolation. Take a redemption counter incremented server-side:
+  ///
+  /// ```dart no-analyze
+  /// // The operation. The caller sends no updates at all -- the increment is
+  /// // the server's, and deliberately not the caller's to influence.
+  /// @override
+  /// ToQuery<Schema<Invite>, Invite> custom(String operation, {Where? where, List<Update> updates = const []}) =>
+  ///     operation == redeem ? _redeem(where) : super.custom(operation, where: where, updates: updates);
+  ///
+  /// // The rule. Correct as written, and it will refuse every redemption:
+  /// // `after` is a copy of `before`, so `useCount` never moved.
+  /// bool canRedeem(Jwt? jwt, Invite before, Invite after) =>
+  ///     after.useCount == before.useCount + 1;
+  /// ```
+  ///
+  /// Overriding this closes it, by telling the rules half what the operations
+  /// half is going to do:
+  ///
+  /// ```dart no-analyze
+  /// @override
+  /// List<Update> customUpdates(String operation, {Where? where, List<Update> updates = const []}) =>
+  ///     operation == redeem
+  ///         ? [ColumnUpdate(InviteColumns.useCount.name, const Increment())]
+  ///         : super.customUpdates(operation, where: where, updates: updates);
+  /// ```
+  ///
+  /// Declare the same [Update]s the query performs. They are simulated, never
+  /// executed — the query in [custom] remains the only thing that writes — so a
+  /// declaration that drifts from the query makes the rule adjudicate the wrong
+  /// row rather than corrupting one. Keeping them together in one `switch` on
+  /// [operation] is the cheapest way to keep them honest.
+  ///
+  /// The default returns the caller's [updates] unchanged, which is right for
+  /// an operation that only reshapes what it was handed. When it returns empty
+  /// for an operation that does write, the row rule is warned at evaluation
+  /// time rather than silently deciding on an unchanged row.
+  List<Update> customUpdates(
+    String operation, {
+    Where? where,
+    List<Update> updates = const [],
+  }) => updates;
+
   @override
   (String, List<Object?>) _translate(
     SqlDialect dialect,

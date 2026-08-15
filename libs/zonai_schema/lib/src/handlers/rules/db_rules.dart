@@ -8,6 +8,7 @@ import 'package:zonai_schema/src/rules/rules.dart';
 import 'package:zonai_schema/src/types/provisioning_jwt.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
 import 'package:zonai_schema/src/types/collection_actions.dart';
+import 'package:zonai_schema/src/update/update.dart';
 import 'package:zonai_schema/src/update/update_simulator.dart';
 
 class _Rules {
@@ -135,6 +136,41 @@ class DbRules {
       '— not a key in customOperations',
     );
     return false;
+  }
+
+  /// `table|operation` pairs already warned about by [_warnUndeclaredWrites].
+  final _warnedUndeclaredWrites = <String>{};
+
+  /// Warns when a custom operation's row rule is about to decide on an `after`
+  /// that cannot differ from `before`.
+  ///
+  /// With no updates from either side there is nothing to replay, so `after` is
+  /// a copy of `before` and a rule comparing them can only see a row that was
+  /// never going to be written. That is either fine — a custom operation that
+  /// writes nothing, so `before` really is the outcome — or it is the trap this
+  /// warning exists for: an operation whose writes are the server's own, and a
+  /// rule silently refusing every call.
+  ///
+  /// The two are indistinguishable from here, which is why this warns rather
+  /// than denies. Once per pair: it is a wiring mistake, not a per-request
+  /// event, and a rule evaluated on every redemption would otherwise flood a
+  /// log that someone has to keep reading.
+  void _warnUndeclaredWrites({
+    required String table,
+    required String operation,
+    required List<Update> updates,
+  }) {
+    if (updates.isNotEmpty) return;
+    if (!_warnedUndeclaredWrites.add('$table|$operation')) return;
+
+    logger.warn(
+      'Row rule for custom operation "$operation" on "$table" is deciding on '
+      'an unchanged row: no updates were supplied by the caller and none are '
+      'declared by the operation, so `after` equals `before`. If the operation '
+      'writes anything, override `customUpdates` on its TableOperations to '
+      'declare what — otherwise a rule that compares before and after will '
+      'refuse every call.',
+    );
   }
 
   Future<TableRulesResponse> _tableRules(TableRulesRequest request) async {
@@ -388,6 +424,14 @@ class DbRules {
 
     final object = rowRules.table.safeCreate(request.data);
 
+    if (op == null) {
+      _warnUndeclaredWrites(
+        table: request.table,
+        operation: request.operation,
+        updates: request.updates,
+      );
+    }
+
     final canPerform = await switch (op) {
       .view => rowRules.canView(request.jwt, object),
       .update => rowRules.canUpdate(
@@ -445,6 +489,14 @@ class DbRules {
     if (rowRules case AuthRowRules()
         when op == .create && request.jwt?.admin.isAdmin != true) {
       throw StateError('Cannot create auth rows, use the auth API instead');
+    }
+
+    if (op == null) {
+      _warnUndeclaredWrites(
+        table: request.table,
+        operation: request.operation,
+        updates: request.updates,
+      );
     }
 
     final canPerform = <bool>[];

@@ -205,7 +205,11 @@ class TinRowRules extends RowRules<TinTable, Tin> {
 }
 ```
 
-The row rule's `before`/`after` are the same shape as `canUpdate`'s — `after` is simulated from the operation's `updates` ahead of the write. A custom operation invoked with no `where` (a table-scoped action with no target row) only runs the table-level check — so `where` is **required** whenever `updates` is non-empty; omitting it would let the (deliberately permissive) table rule alone authorize a write across every row, skipping row rules entirely. A request that violates this is rejected outright.
+The row rule's `before`/`after` are the same shape as `canUpdate`'s — `after` is simulated from the operation's `updates` ahead of the write.
+
+> **The one way this bites.** "The operation's `updates`" means the ones on the request — the caller's. If your `custom()` writes something the caller never sent (a server-computed column, a self-referencing `use_count = use_count + 1`), Zonai has no way to see it: `custom()` returns a whole query, not a list of updates. `after` then comes back as a copy of `before`, and a rule comparing them refuses every call, permanently, with the rule and the SQL both correct. Declare those writes by overriding [`customUpdates`](operations.md#if-the-operation-writes-something-the-caller-didnt-send) on the same `TableOperations`. Zonai warns once per table/operation pair when a custom operation's row rule runs with nothing to simulate.
+
+A custom operation invoked with no `where` (a table-scoped action with no target row) only runs the table-level check — so `where` is **required** whenever `updates` is non-empty; omitting it would let the (deliberately permissive) table rule alone authorize a write across every row, skipping row rules entirely. A request that violates this is rejected outright.
 
 ## Auth collections
 

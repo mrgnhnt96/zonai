@@ -5,6 +5,7 @@ import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/operations/table_operations.dart';
 import 'package:zonai_schema/src/types/schema_shape.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
+import 'package:zonai_schema/src/update/update.dart';
 
 sealed class OperationResponse extends Response {
   const OperationResponse({
@@ -141,6 +142,7 @@ final class PerformOperationResponse extends OperationResponse {
     required super.id,
     required this.query,
     this.values = const [],
+    this.updates = const [],
   }) : super(path: _path, payload: const {});
 
   factory PerformOperationResponse.fromJson(Map<String, dynamic> json) {
@@ -151,6 +153,13 @@ final class PerformOperationResponse extends OperationResponse {
         final List<dynamic> v => List<Object?>.from(v),
         _ => const [],
       },
+      updates: switch (json['updates']) {
+        final List<dynamic> v => [
+          for (final update in v)
+            Update.fromJson(update as Map<String, dynamic>),
+        ],
+        _ => const [],
+      },
     );
   }
 
@@ -159,9 +168,27 @@ final class PerformOperationResponse extends OperationResponse {
   final String query;
   final List<Object?> values;
 
+  /// What [query] will write, for the row rule that has to authorize it —
+  /// `TableOperations.customUpdates`, which only a custom operation overrides.
+  ///
+  /// Empty for every built-in operation: their updates travel on the request
+  /// itself, and the rule check already has them. This exists because a custom
+  /// operation's writes are the server's own, so the rules half would otherwise
+  /// be adjudicating the caller's proposal instead of the resulting row.
+  ///
+  /// These are simulated, never executed. [query] is still the only thing that
+  /// writes.
+  final List<Update> updates;
+
   @override
   Map<String, dynamic> toJson() {
-    return {...super.toJson(), 'query': query, 'values': values};
+    return {
+      ...super.toJson(),
+      'query': query,
+      'values': values,
+      if (updates.isNotEmpty)
+        'updates': [for (final update in updates) update.toJson()],
+    };
   }
 
   @override

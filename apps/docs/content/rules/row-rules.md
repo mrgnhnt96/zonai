@@ -148,3 +148,5 @@ Map<String, CustomRowOperationRule<Task>> get customOperations => {
 ```
 
 `before`/`after` work exactly like `canUpdate`'s — `after` is simulated from the operation's `updates` ahead of the write, so a rule can gate on the transition itself (e.g. only an admin may set `status` to `'archived'`). Table rules need a matching entry too — see [Table Rules: Custom Operations](/rules/table-rules#custom-operations).
+
+Those `updates` are the ones on the request. If your `custom()` writes something the caller never sent — a server-computed column, a self-referencing `count = count + 1` — Zonai cannot see it, because `custom()` returns a whole query rather than a list of updates. `after` then arrives as a copy of `before`, and a rule comparing the two refuses every call while both the rule and the SQL look correct. Declare those writes by overriding `customUpdates` on the same `TableOperations`; Zonai warns once per table/operation pair when a custom operation's row rule runs with nothing to simulate.

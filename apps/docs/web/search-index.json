@@ -1166,7 +1166,7 @@
         {
           "h": "Custom Operations",
           "a": "custom-operations",
-          "b": "Named operations that aren't create/update/delete/view — TableOperations.custom(operation, ...) — go through customOperations, keyed by the same operation name. An operation name that isn't a key in the map is denied, same as any unoverridden method above: @override Map<String, CustomRowOperationRule > get customOperations => { 'archive': (jwt, before, after) async => jwt?.admin.canEdit ?? false, }; before/after work exactly like canUpdate's — after is simulated from the operation's updates ahead of the write, so a rule can gate on the transition itself (e.g. only an admin may set status to 'archived'). Table rules need a matching entry too — see Table Rules: Custom Operations."
+          "b": "Named operations that aren't create/update/delete/view — TableOperations.custom(operation, ...) — go through customOperations, keyed by the same operation name. An operation name that isn't a key in the map is denied, same as any unoverridden method above: @override Map<String, CustomRowOperationRule > get customOperations => { 'archive': (jwt, before, after) async => jwt?.admin.canEdit ?? false, }; before/after work exactly like canUpdate's — after is simulated from the operation's updates ahead of the write, so a rule can gate on the transition itself (e.g. only an admin may set status to 'archived'). Table rules need a matching entry too — see Table Rules: Custom Operations. Those updates are the ones on the request. If your custom() writes something the caller never sent — a server-computed column, a self-referencing count = count + 1 — Zonai cannot see it, because custom() returns a whole query rather than a list of updates. after then arrives as a copy of before, and a rule comparing the two refuses every call while both the rule and the SQL look correct. Declare those writes by overriding customUpdates on the same TableOperations; Zonai warns once per table/operation pair wh"
         }
       ]
     },
@@ -1939,7 +1939,7 @@
         {
           "h": "get",
           "a": "get",
-          "b": "Read rows from any table. Returns untyped maps: final expiredRows = await get.many( tableName: 'subscriptions', where: Lt('expires_at', DateTime.now()), limit: 100, ) ?? []; See Side Effects: get for full documentation."
+          "b": "Read rows from any table. Returns untyped maps: final expiredRows = await get.many( tableName: 'subscriptions', where: Lt('expires_at', DateTime.now()), limit: 100, ) ?? []; Reads carry the CronJwt system identity, the same as mutate below — you do not pass a JWT. Rules and row rules on the table you read are evaluated against it, so a table that denies anonymous reads still answers a cron. Passing an explicit jwt: overrides that when a job needs to read as someone else. See Side Effects: get for full documentation."
         },
         {
           "h": "mutate",

@@ -225,6 +225,40 @@ rd.ToQuery<PostTable, Post> custom(
 
 The default implementation throws `UnimplementedError`. Custom operations must be allowed in your **rules** for the collection (same as any other operation name) — table rules and row rules deny an operation name that isn't registered.
 
+### If the operation writes something the caller didn't send, declare it
+
+`archive` above passes the caller's `updates` straight through, so the row rule guarding it already sees the right `after`. The moment an operation writes something of its own, that stops being true — and it stops silently.
+
+`after` is computed by replaying a `List<Update>` over the row that was read. `custom()` returns a whole query, so nothing about it is introspectable; the only updates Zonai has are the ones on the request. An operation whose write is the server's own idea is therefore invisible to the rule that authorizes it, and a rule written to permit exactly the computed result will refuse **every** call:
+
+```dart no-analyze
+// The operation. A redeeming caller sends no updates at all -- the increment
+// is the server's, and deliberately not theirs to influence.
+@override
+rd.ToQuery<InviteTable, Invite> custom(String operation, {Where? where, List<Update> updates = const []}) =>
+    operation == 'redeem'
+        ? update([Update.column('use_count', const Increment())], where: where!).returning()
+        : super.custom(operation, where: where, updates: updates);
+
+// The rule. Correct as written -- and `after.useCount` never moves, so this
+// is a permanent 403 with nothing in the logs to say why.
+'redeem': (jwt, before, after) async => after.useCount == before.useCount + 1,
+```
+
+Override **`customUpdates`** to tell the rules half what the operations half is going to do:
+
+```dart no-analyze
+@override
+List<Update> customUpdates(String operation, {Where? where, List<Update> updates = const []}) =>
+    operation == 'redeem'
+        ? [Update.column('use_count', const Increment())]
+        : super.customUpdates(operation, where: where, updates: updates);
+```
+
+These updates are **simulated, never executed** — `custom()` remains the only thing that writes. Nothing checks that a declaration matches the query it describes, so a drifting declaration makes the rule adjudicate a row the database will never hold. Build both from one list, in one `switch`, and the question does not come up.
+
+The default returns the caller's `updates` unchanged, so an operation like `archive` needs nothing. When a custom operation's row rule runs with no updates from either side — meaning `after` is necessarily a copy of `before` — Zonai logs a warning once per table/operation pair naming `customUpdates`, rather than letting the rule quietly decide on an unchanged row.
+
 ## Overriding `insert` to fill in a server-generated value
 
 Override **`insert`** when a column's real value must never come from the client — a server-generated API key, a computed size/checksum, anything you'd otherwise have to trust the caller to report honestly:
