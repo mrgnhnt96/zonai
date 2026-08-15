@@ -637,22 +637,35 @@ Future<void> _customOperations(Api api) async {
 /// `GET /db/stream`, `/stream/list`, `/stream/count` -- open the connection,
 /// mutate through a SEPARATE connection, and look for the event.
 ///
-/// This does not currently find one. A raw TCP probe against a live
-/// crud_matrix server (2026-08-14, captured under
-/// .showrunner/scratch/orchestrator-0814-e2e-full-surface/) received the 200
-/// response headers for `GET /db/stream` and then zero body bytes for 35s
-/// across three mutations to the exact row being watched -- not even the
-/// initial snapshot `_streamOne` reads (apps/zonai/lib/src/db_mutator/
-/// zonai_db/parts/stream_one.dart) before entering its `await for` loop. The
-/// server log shows `Streaming query: ...` (the subscription was set up) but
-/// never `Stream completed` and never an error -- `_stream()`'s underlying
-/// `_resqlite.streamQuery()` subscription (__utils.dart) appears to either
-/// never emit or emit into a buffer this app never flushes to the socket.
-/// `/stream/list` additionally throws an UNCAUGHT
+/// THERE WERE TWO DEFECTS HERE, STACKED, AND ONLY THE FIRST IS FIXED.
+///
+/// Until 2026-08-14 a raw TCP probe against a live crud_matrix server
+/// received the 200 response headers for `GET /db/stream` and then zero body
+/// bytes for 35s across three mutations to the exact row being watched -- not
+/// even the initial snapshot. That was a flush defect, and it was NOT ours:
+/// a plain `@Get` returning a Stream is routed by revali codegen to
+/// revali_router's `DefaultResponseHandler`, which does
+/// `await http.addStream(body); await complete();` -- and `complete()` is
+/// what calls `flush()`. A live query deliberately never completes, so
+/// `addStream()` never resolved, `flush()` never ran, and dart:io held ~8KB
+/// of buffer that small JSON rows never filled. Annotating the three routes
+/// `@SSE` routes them to `SseRoute`/`SseResponseHandler`, which flushes after
+/// every event. The initial frame now arrives on all three, and that half is
+/// a gating assertion below.
+///
+/// The second defect is still open and is the reason the second assertion is
+/// a knownFailure: **no frame follows a mutation made after the stream
+/// opened**. The subscription is established (`Streaming query: SELECT ...`
+/// in the server log) and simply never re-emits, so these routes are
+/// currently a one-shot GET wearing a stream's clothes. That is a separate
+/// mechanism from the flush and was hidden behind it -- which is why the
+/// two assertions below are split. A single "an event arrived" check passes
+/// on today's build and tells you nothing.
+///
+/// One further symptom reported on `/stream/list` -- an UNCAUGHT
 /// `type 'Null' is not a subtype of type 'Map<String, dynamic>' in type
-/// cast` server-side while processing (visible only in the server log, not
-/// over HTTP -- the connection just hangs the same way) -- a second, distinct
-/// defect on the same route.
+/// cast`, visible only in the server log -- was never reproduced and is
+/// recorded as unverified rather than fixed.
 ///
 /// `zonai_client`'s generated db_data_source_impl.dart assumes exactly one
 /// JSON value per received chunk with no cross-chunk buffering (see
@@ -673,16 +686,16 @@ Future<void> _streaming(Api api) async {
     'active': true,
   });
 
-  await _assertStreamNeverDelivers(api, '/db/stream', {
+  await _assertStreamDelivers(api, '/db/stream', {
     'table': 'widgets',
     'where': _eq('id', 'wstream1'),
     'expand': <String>[],
   });
-  await _assertStreamNeverDelivers(api, '/db/stream/list', {
+  await _assertStreamDelivers(api, '/db/stream/list', {
     'table': 'widgets',
     'expand': <String>[],
   });
-  await _assertStreamNeverDelivers(api, '/db/stream/count', {
+  await _assertStreamDelivers(api, '/db/stream/count', {
     'table': 'widgets',
     'where': _eq('id', 'wstream1'),
   });
@@ -690,37 +703,66 @@ Future<void> _streaming(Api api) async {
   await api.deleteOne('widgets', where: _eq('id', 'wstream1'));
 }
 
-Future<void> _assertStreamNeverDelivers(
+Future<void> _assertStreamDelivers(
   Api api,
   String path,
   Map<String, Object?> body,
 ) async {
   final session = await api.openStream(path, body: body);
 
-  // The event this exists to catch: open, mutate elsewhere, expect the
-  // change to arrive. Mutating BEFORE checking for the initial snapshot so a
-  // fix that only delivers the initial value (and still never pushes
-  // updates) does not read as "now passes".
+  // Frame 1: the initial snapshot, BEFORE any mutation. Read it first, so
+  // the update below has something to be distinguished from -- the previous
+  // version of this probe mutated first and then read a single event, which
+  // could not tell an initial snapshot from a pushed update. Both were
+  // "an event arrived".
+  final initial = await api.nextStreamEvent(session);
+  api.expect(
+    'GET $path delivers an initial frame',
+    actual: !identical(initial, Api.noStreamEvent),
+    expected: true,
+    why:
+        'the route answered 200 and then zero body bytes until 2026-08-14: '
+        'a plain @Get returning a Stream routes to revali_router\'s '
+        'DefaultResponseHandler, whose flush() only runs after addStream() '
+        'resolves -- which never happens for a live query. @SSE routes it to '
+        'SseResponseHandler, which flushes per event.',
+  );
+
+  // Frame 2 is the one that matters. A fix that delivers only the initial
+  // snapshot and never pushes again would satisfy the assertion above and
+  // leave every live consumer just as stuck, so this mutates through a
+  // SEPARATE connection with the stream already open and drained.
   await api.patchOne(
     'widgets',
     where: _eq('id', 'wstream1'),
     updates: [_columnUpdate('quantity', 2)],
   );
 
-  final event = await api.nextStreamEvent(session);
+  final update = await api.nextStreamEvent(session);
   api.knownFailure(
-    'GET $path delivers an event over HTTP',
-    actual: identical(event, Api.noStreamEvent)
-        ? 'no event within 8s (0 bytes past the response headers)'
-        : 'an event arrived: ${jsonEncode(event)}',
-    expected: 'an event arrived',
+    'GET $path pushes a frame for a mutation made after the stream opened',
+    // Booleans, deliberately -- the previous version of this entry compared
+    // the string 'an event arrived' against 'an event arrived: {...}', which
+    // can never be equal, so it could never print NOW PASSES. It would have
+    // gone on reporting a fixed bug forever. An assertion that cannot flip is
+    // not a known failure, it is a permanent log line.
+    actual: !identical(update, Api.noStreamEvent),
+    expected: true,
     found:
-        '2026-08-14, e2e-full-surface leaf (see this function\'s doc comment '
-        'for the full raw-socket reproduction)',
+        '2026-08-14: the @SSE fix landed the initial frame (asserted above, '
+        'and gating), but no frame follows a later mutation. Distinct from '
+        'the flush defect and NOT explained by it -- the subscription is set '
+        'up (`Streaming query: SELECT ...` in the server log) and then never '
+        're-emits. Cause not yet established: `ResqliteDelegate.execute` '
+        'routes writes carrying RETURNING to the read connection, bypassing '
+        'the `bindWriteInvalidation` hook, but only `insert` uses RETURNING '
+        'and this probe mutates with an UPDATE -- so that path is a suspect, '
+        'not the answer.',
     why:
-        "a stream test that only checks the first event is the one that "
-        'misses a leak -- this one does not even get that far, so the leak '
-        'question is moot until delivery works at all.',
+        'this is what "live query" means, and the only assertion of the two '
+        'that a snapshot-only implementation fails. Gating on delivery alone '
+        'would let the route pass as a one-shot GET, which is exactly what '
+        'it currently is.',
   );
 
   // Close from the client side regardless of whether an event arrived --

@@ -127,8 +127,23 @@ class DbController {
     return await dbHandler.count(authorization, body);
   }
 
+  // ! `@SSE`, not `@Get`, on all three stream routes -- and the difference is
+  // the whole feature. A plain `@Get` returning a Stream is routed by revali
+  // codegen to revali_router's DefaultResponseHandler, which does
+  // `await http.addStream(body); await complete();` -- and `complete()` is
+  // what calls `flush()` (default_response_handler.dart:220-224, 88-89).
+  // These streams are live queries that deliberately never complete, so
+  // addStream() never resolves, flush() never runs, and dart:io buffers ~8KB
+  // that small JSON rows never reach. The client gets headers, then nothing,
+  // forever, with no error.
+  //
+  // `@SSE` routes them to SseRoute/SseResponseHandler instead, which flushes
+  // after every event (sse_response_handler.dart:87). Despite the name it
+  // does NOT emit SSE `data:` framing -- it detaches the socket and writes
+  // HTTP chunked encoding by hand, one chunk per event, which is the format
+  // zonai_client already reads.
   @BodyRateLimit<StreamBody>(RateLimitOperation.get)
-  @Get('stream')
+  @SSE('stream')
   Stream<Map<String, Object?>> streamOne({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Body() required StreamBody body,
@@ -137,7 +152,7 @@ class DbController {
   }
 
   @BodyRateLimit<StreamListBody>(RateLimitOperation.list)
-  @Get('stream/list')
+  @SSE('stream/list')
   Stream<List<Map<String, Object?>>> streamList({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Body() required StreamListBody body,
@@ -146,7 +161,7 @@ class DbController {
   }
 
   @BodyRateLimit<StreamCountBody>(RateLimitOperation.count)
-  @Get('stream/count')
+  @SSE('stream/count')
   Stream<int> streamCount({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
     @Body() required StreamCountBody body,
