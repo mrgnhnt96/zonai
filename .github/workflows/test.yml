@@ -68,18 +68,45 @@ name: Test
 #              target (zonai-windows-x64); a suite that has never run there is
 #              the finding, so it is in the matrix rather than excluded.
 
+# WHEN THIS RUNS, and why not on every push to main.
+#
+# This suite is expensive: the cli legs take 12-14 minutes, macOS bills at 10x
+# and Windows at 2x, so a full run is a meaningful bite out of the monthly
+# allowance. Running it on every main commit spent that on commits nobody was
+# waiting for -- docs edits, handoff notes, a submodule pin bump.
+#
+#   pull_request   -- where changes actually arrive, and the only place a
+#                     verdict changes what someone does next. GATED BY AUTHOR,
+#                     see the `if:` on every job below.
+#   workflow_run   -- the release chain. A release starts with a human
+#                     dispatching Compile, so hanging Test off Compile means
+#                     the suite runs for exactly the commit being released.
+#   workflow_dispatch -- run it by hand against any ref when you want to.
+#
+# NOT push:main, deliberately. That trigger used to be the ONLY thing producing
+# a Test run for a main commit, and tool/ci/check_release_gates.sh refuses to
+# publish without a green Test for that EXACT sha. Removing it without the
+# workflow_run line below would have made every release unpublishable, with the
+# gate reporting "Test: no run for <sha>".
+#
+# VERIFIED before relying on it, not assumed: a workflow_run-triggered run
+# reports the TRIGGERING run's head_sha, so the gate finds it. Measured against
+# real runs -- Verify Release 31765112689 (workflow_run) and the Compile
+# 31764664873 that triggered it both report head_sha ab56e63cdb03.
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [Compile]
+    types: [completed]
+  workflow_dispatch:
 
 permissions:
   # `gh release download` for the native library cache, below.
   contents: read
 
 concurrency:
-  # Superseded PR runs are cancelled; pushes to main are not, so every commit
-  # on the release branch keeps its own verdict.
+  # Superseded PR runs are cancelled; a release-chain run is not, so every
+  # commit being released keeps its own verdict.
   group: test-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -92,6 +119,32 @@ env:
   # costing many times their budget.
   NATIVE_LIBS_CACHE_TAG: native-libs-cache
 
+# WHO CAN SPEND THE ALLOWANCE. Every job below carries the same `if:`:
+#
+#   (pull_request AND the author is the repository owner)
+#   OR (workflow_run AND the Compile that triggered it SUCCEEDED)
+#   OR workflow_dispatch
+#
+# GitHub has no way to filter `on: pull_request` by author, so the filter has
+# to be a job-level condition. A job whose `if` is false is SKIPPED, and a
+# skipped job bills nothing -- an outside PR therefore costs a webhook and no
+# minutes. It is repeated on each job rather than factored into one gate job
+# other jobs `needs:`, so that no job can be added later that silently misses
+# it by forgetting the dependency.
+#
+# WHAT THIS MEANS FOR CONTRIBUTORS, out loud: a pull request from anyone other
+# than the owner runs NOTHING and reports no checks. That is the intent -- CI
+# minutes are the owner's to spend -- but it means an outside PR arrives
+# unverified, and reviewing one means running it yourself (workflow_dispatch on
+# a branch, or pushing it to a branch you own). If this repo ever takes regular
+# outside contributions, revisit this: the right shape then is usually
+# `github.event.pull_request.head.repo.full_name == github.repository`, which
+# runs for anyone who can push a branch here and skips forks.
+#
+# The workflow_run arm also checks the triggering run SUCCEEDED. `types:
+# [completed]` fires on failure too, and running a 14-minute suite against a
+# commit whose Compile just failed spends the budget to learn nothing.
+#
 # THE CEILING ON EVERY JOB BELOW, and why it is not one number.
 #
 # GitHub's default job timeout is 360 MINUTES. Nothing in this file overrode it,
@@ -131,6 +184,14 @@ jobs:
   # laptop/runner divergence is exactly what hid the 226 errors.
   static:
     name: static
+    # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
+    # job, which bills nothing.
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.user.login == github.repository_owner) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
@@ -253,6 +314,14 @@ jobs:
   # find out that Windows disagrees about a path separator.
   unit:
     name: unit (${{ matrix.os }})
+    # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
+    # job, which bills nothing.
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.user.login == github.repository_owner) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     strategy:
@@ -388,6 +457,14 @@ jobs:
   # deploy-docs.yml already builds and tests it on CI without one.
   docs:
     name: docs
+    # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
+    # job, which bills nothing.
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.user.login == github.repository_owner) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
@@ -485,6 +562,14 @@ jobs:
   # 504 tests, and the reason this workflow exists.
   cli:
     name: cli (${{ matrix.os }})
+    # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
+    # job, which bills nothing.
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.user.login == github.repository_owner) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     # 20 rather than the 10 the short jobs take: MEASURED 11.6m (ubuntu) / 14.0m (windows) completing normally on run
     # 31839671048, so a 10-minute ceiling would convert "503 passed, 4 failed"
@@ -628,6 +713,14 @@ jobs:
   # is why `test cli` and `test submodules` are separate targets at all.
   e2e:
     name: e2e (${{ matrix.os }})
+    # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
+    # job, which bills nothing.
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.user.login == github.repository_owner) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     # 15 rather than the 10 the short jobs take: MEASURED 8.0m (ubuntu, passing) on run 31839671048, and its dominant step
     # is an AOT compile whose duration is variable -- 10 would be a coin flip and
@@ -778,6 +871,14 @@ jobs:
   # copies of the same unread failure.
   submodules:
     name: submodules
+    # See "WHO CAN SPEND THE ALLOWANCE" above `jobs:`. A false `if` SKIPS the
+    # job, which bills nothing.
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.user.login == github.repository_owner) ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
