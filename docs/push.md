@@ -187,11 +187,12 @@ Verified against live FCM, not transcribed from its documentation:
 | Sent | HTTP | `error.status` | Result |
 |---|---|---|---|
 | A well-formed token FCM never issued | 404 | `NOT_FOUND` | pruned |
+| **A real app, uninstalled from a real device** | **404** | **`NOT_FOUND`** | **pruned** |
 | A malformed token | 400 | `INVALID_ARGUMENT` | pruned |
 | A key without FCM permission | 403 | `PERMISSION_DENIED` | job fails, **nothing pruned** |
 | No credentials | 401 | `UNAUTHENTICATED` | job fails, **nothing pruned** |
 
-`NOT_FOUND` is the one to notice. The documentation points you at `UNREGISTERED`, and anything unrecognised is treated as *transient* — so handling only the documented spelling would leave dead tokens retried forever and never pruned, which is the failure this whole section exists to prevent. Both are handled, and both are tested.
+`NOT_FOUND` is the one to notice, and the second row is why: an app was installed on a real device, issued a token, delivered to, then uninstalled — and the next send returned `NOT_FOUND`, not `UNREGISTERED`. Anything unrecognised is treated as *transient*, so handling only the documented spelling would leave dead tokens retried forever and pruned never. Both are handled, and both are tested.
 
 ### The hook
 

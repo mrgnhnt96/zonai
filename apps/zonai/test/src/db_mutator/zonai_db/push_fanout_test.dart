@@ -1231,15 +1231,23 @@ version: $kVersion
       });
     });
 
-    test("FCM's own UNREGISTERED is what clears the row", () async {
+    test("FCM's own NOT_FOUND is what clears the row", () async {
       final config = await boot();
       if (config == null) return;
 
       // Nothing here speaks the engine's vocabulary. The only input is the
-      // JSON body FCM documents for a dead token, and the row being cleared
-      // is downstream of parsing it correctly.
+      // JSON body FCM returns for a dead token, and the row being cleared is
+      // downstream of parsing it correctly.
+      //
+      // NOT_FOUND rather than UNREGISTERED, because that is what a real
+      // uninstall actually produces. Measured 2026-08-15 against live FCM: an
+      // app was installed on a physical device, issued a token, delivered to
+      // successfully, then uninstalled — and the very next send came back
+      // `404 NOT_FOUND`. The documentation points at `UNREGISTERED`, so a
+      // test written from the docs exercises a branch the pruning path does
+      // not take. Both are handled; this is the one that fires.
       fcm.replyFor = (token) =>
-          token == 'tok-d000002' ? errReply(404, 'UNREGISTERED') : okReply;
+          token == 'tok-d000002' ? errReply(404, 'NOT_FOUND') : okReply;
 
       await run(config, (zonaiDb) async {
         await seed(zonaiDb, count: 5);
