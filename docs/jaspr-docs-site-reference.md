@@ -20,6 +20,7 @@ apps/docs/
     main.client.dart             ClientApp (untouched)
     src/
       navigation.dart            THE information architecture
+      canonical.dart             route -> public URL (one definition of it)
       search_index.dart          index model + ranking (no DOM — testable)
     components/
       docs_sidebar.dart          collapsible <details> sidebar
@@ -27,11 +28,15 @@ apps/docs/
       cards.dart                 CardGrid / Card / SectionCards
   tool/
     build_search_index.dart      content/ -> web/search-index.json
+    build_sitemap.dart           content/ -> web/sitemap.xml
   test/
     navigation_test.dart
     search_index_test.dart
+    sitemap_test.dart
   web/
     search-index.json            generated, committed
+    sitemap.xml                  generated, committed
+    robots.txt                   static; points at the sitemap
     CNAME                        custom domain (see deployment doc)
 ```
 
@@ -214,6 +219,31 @@ body +12. Intro section (no heading) +14. Cap 3 hits/page, 24 total.
 
 ---
 
+## Crawlability
+
+Nothing on a statically-generated site enumerates its own pages at request
+time, and a crawler that only follows links has to walk the sidebar to reach
+all 81. `tool/build_sitemap.dart` writes `web/sitemap.xml` from the same
+`content/` walk the search index uses, and `web/robots.txt` points at it.
+
+The one detail that is easy to get wrong: **GitHub Pages serves
+`foo/index.html` at `/foo/` and 301-redirects `/foo` to it.** So the published
+URL of every page carries a trailing slash, while `page.url` and every href in
+`navigation.dart` do not. `lib/src/canonical.dart` is the single conversion
+between the two, shared by the sitemap and by the `<link rel="canonical">` /
+`og:url` tags in `ZonaiDocsLayout.buildHead` — if they disagreed, the site
+would be advertising a URL that redirects.
+
+Internal links still use the no-slash form and therefore take that redirect.
+Harmless for ranking, but it doubles the request count of a full crawl; fixing
+it means moving `navigation.dart` to trailing-slash hrefs, which the search
+index and its tests would have to follow.
+
+`sitemap_test.dart` fails if the committed sitemap goes stale — nothing visible
+breaks when it does, the pages just stop being crawled.
+
+---
+
 ## Deployment-shaped constraints
 
 Covered fully in
@@ -233,6 +263,8 @@ affect *code*:
 ```sh
 dart run tool/build_search_index.dart            # regenerate the index
 dart run tool/build_search_index.dart --check    # fail if stale (CI/tests)
+dart run tool/build_sitemap.dart                 # regenerate web/sitemap.xml
+dart run tool/build_sitemap.dart --check         # fail if stale
 dart run jaspr_cli:jaspr serve                   # http://localhost:8080
 dart run jaspr_cli:jaspr build                   # -> build/jaspr/
 dart analyze --fatal-infos

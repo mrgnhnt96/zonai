@@ -130,16 +130,23 @@ docs:
   index:
     (aliases): [search-index, si]
     (command): cd apps/docs && dart run tool/build_search_index.dart
+  # Same deal as the search index: committed so a clean checkout serves it, and
+  # regenerated on every build so a new page cannot ship unlisted.
+  sitemap:
+    (aliases): [map]
+    (command): cd apps/docs && dart run tool/build_sitemap.dart
   start:
     (aliases): [serve, dev]
     (bail):
     (command):
       - ${{ docs.index }}
+      - ${{ docs.sitemap }}
       - cd apps/docs && dart pub get && dart run jaspr_cli:jaspr serve
   build:
     (bail):
     (command):
       - ${{ docs.index }}
+      - ${{ docs.sitemap }}
       - cd apps/docs && dart pub get && dart run jaspr_cli:jaspr build
   test:
     (aliases): [t]

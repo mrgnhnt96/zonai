@@ -84,6 +84,12 @@ jobs:
         working-directory: apps/docs
         run: dart run tool/build_search_index.dart
 
+      # Same reasoning. A page missing from the sitemap breaks nothing a human
+      # would notice -- it just never gets crawled.
+      - name: Build the sitemap
+        working-directory: apps/docs
+        run: dart run tool/build_sitemap.dart
+
       - name: Build docs
         working-directory: apps/docs
         run: dart run jaspr_cli:jaspr build --verbose
@@ -104,6 +110,10 @@ jobs:
             echo "::error::CNAME missing or wrong: $(cat CNAME 2>/dev/null)"; exit 1; }
           test -s search-index.json || {
             echo "::error::search-index.json was not published"; exit 1; }
+          test -s sitemap.xml || {
+            echo "::error::sitemap.xml was not published"; exit 1; }
+          test -s robots.txt || {
+            echo "::error::robots.txt was not published"; exit 1; }
           pages=$(find . -name index.html | wc -l)
           [ "$pages" -ge 70 ] || {
             echo "::error::only $pages pages rendered; expected the full site"; exit 1; }

@@ -15,6 +15,7 @@ import 'components/cards.dart';
 import 'components/docs_sidebar.dart';
 import 'components/search.dart';
 import 'main.server.options.dart';
+import 'src/canonical.dart';
 import 'src/navigation.dart';
 
 void main() {
@@ -102,6 +103,20 @@ final class ZonaiDocsLayout extends DocsLayout {
 
     final pageData = page.data.page;
     final siteData = page.data.site;
+
+    // Every page is reachable at two URLs — GitHub Pages 301s `/foo` to
+    // `/foo/` — and the OG tags `jaspr_content` emits name neither. Without a
+    // canonical link a crawler has to pick one itself.
+    if (siteData['url'] case final String origin) {
+      final canonical = canonicalUrl(origin, page.url);
+      yield link(rel: 'canonical', href: canonical);
+      yield meta(attributes: {'property': 'og:url'}, content: canonical);
+    }
+    yield meta(attributes: {'property': 'og:type'}, content: 'article');
+    if (siteData['titleBase'] case final String siteName) {
+      yield meta(attributes: {'property': 'og:site_name'}, content: siteName);
+    }
+    yield meta(name: 'twitter:card', content: 'summary_large_image');
 
     if (pageData['description'] == null) {
       if (siteData['description'] case final String description) {
