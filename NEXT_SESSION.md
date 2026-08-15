@@ -1,5 +1,40 @@
 # Next session — the release gate is in, and streaming is dead
 
+> ## ⚠ SUPERSEDED IN ONE IMPORTANT WAY: CI HAS NOW RUN, AND IT FAILED 12/12
+>
+> This document repeatedly says "CI has never run" and treats that as the biggest
+> unverified thing. **That is now stale.** The other session pushed `ecc67ee`, the
+> `Test` workflow fired for the first and only time, and **every one of its 12 jobs
+> failed**. The successor orchestrator verified this against the live Actions API,
+> not from a report.
+>
+> **The finding that matters most, because two merged leaves collide:**
+> `check_release_gates.sh` requires `Test` to conclude *success* for the exact SHA.
+> The `submodules` job is documented in-workflow as **"EXPECTED RED"** (resqlite is
+> 55/172) and carries **no `continue-on-error`**. So `Test` concludes `failure`
+> permanently and by design — which means **the release gate now refuses every
+> release**. `release-gate` and the submodules job are each correct alone and
+> unshippable together. Neither had ever run on a runner, so nobody could have seen
+> it.
+>
+> Two more structural gaps, both of which mean a gate this document trusts is not
+> gating: the `static` job has **no `Bootstrap lib/gen` step** (unlike `unit`, `cli`
+> and `e2e`), and `lib/gen/` is gitignored — so on a fresh runner it analyses code
+> that does not exist and dies on ~50 `uri_does_not_exist` errors. And the `e2e` job
+> calls `sip run test e2e` with **no `zonai compile` step**, so it exits 70 on
+> "no compiled zonai binary" before the driver starts, on all three OSes — meaning
+> the job this document calls "the gate that matters" for `tool/ci/e2e/**` has never
+> run a single e2e test.
+>
+> It also found that the `HttpInterceptor` drift, filed below as a `stress/`-only
+> nuisance, is a hard error in the static gate. Its priority is understated here.
+>
+> **Full analysis lives in the successor session's transcript:**
+> `claude --resume a7793044-d36d-4e36-8b68-0a62297a8a20`
+>
+> Everything else in this document was verified and still stands.
+
+
 **READ THIS FIRST: `stream-zero-bytes`.** All three streaming routes return 200
 and headers and then **zero body bytes**. Reproduced independently on merged
 trunk, on both worker transports. Every real consumer of those routes is

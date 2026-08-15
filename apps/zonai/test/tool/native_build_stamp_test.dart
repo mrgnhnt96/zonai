@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../../tool/src/native_build_stamp.dart';
+import '../support/temp_directory.dart';
 
 /// This fingerprint is what stands between CI and embedding a native library
 /// built from sources that are no longer in the checkout. The bug it replaces
@@ -20,7 +21,7 @@ void main() {
     _write(root, 'builder.dart', 'void main() {}');
   });
 
-  tearDown(() => root.deleteSync(recursive: true));
+  tearDown(() => deleteTempDirectory(root));
 
   BuildInputs inputs({
     Map<String, String> facts = const {'target': 'linux-x64'},
@@ -97,7 +98,7 @@ void main() {
       final before = fingerprint();
 
       final moved = Directory.systemTemp.createTempSync('native_build_stamp_2');
-      addTearDown(() => moved.deleteSync(recursive: true));
+      addTearDown(() => deleteTempDirectory(moved));
       for (final relative in ['src/a.c', 'src/nested/b.h', 'builder.dart']) {
         _write(
           moved,

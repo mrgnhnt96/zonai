@@ -54,9 +54,9 @@ enum RateLimitOperation { get, list }
 void main() {
   late MemoryFileSystem memoryFs;
 
-  final settings = Settings(
+  Settings settingsAt(String basePath) => Settings(
     path: 'zonai.yaml',
-    basePath: '/project',
+    basePath: basePath,
     migrationsPath: '.zonai/migrations',
     dataPath: '.zonai/data',
     schemasPath: 'lib/src/schemas',
@@ -74,7 +74,7 @@ void main() {
 
   Set<ScopedRef<dynamic>> overrides() => {
     fsProvider.overrideWith(() => memoryFs),
-    settingsProvider.overrideWith(() => settings),
+    settingsProvider.overrideWith(() => settingsAt('/project')),
   };
 
   T scoped<T>(T Function() body) => runScoped(body, values: overrides());
@@ -142,6 +142,45 @@ void main() {
           ..writeAsStringSync('not json at all');
         expect(MessageContractHash().resolveSchemaLibRoot(), isNull);
       });
+    });
+
+    // The `file:` URI has to come back through the filesystem this is
+    // configured with, not through the host platform. `Uri.toFilePath()`
+    // reads `Platform.isWindows` and knows nothing about the injected
+    // filesystem, so on a Windows host it turned this suite's posix
+    // MemoryFileSystem paths into `\schema\lib\` and every later posix
+    // `join` looked somewhere that does not exist -- six failures in the
+    // `cli (windows-latest)` job. Asserted from the other side here, which
+    // is the same defect and fails on a posix host: a Windows-style
+    // filesystem must produce a Windows path whatever is running the test.
+    test('converts through the filesystem in use, not the host platform', () {
+      final windowsFs = MemoryFileSystem(style: FileSystemStyle.windows);
+      runScoped(
+        () {
+          fs.file(r'C:\project\.dart_tool\package_config.json')
+            ..createSync(recursive: true)
+            ..writeAsStringSync(
+              json.encode({
+                'configVersion': 2,
+                'packages': [
+                  {
+                    'name': 'zonai_schema',
+                    'rootUri': '../../schema',
+                    'packageUri': 'lib/',
+                  },
+                ],
+              }),
+            );
+          expect(
+            MessageContractHash().resolveSchemaLibRoot(),
+            r'C:\schema\lib',
+          );
+        },
+        values: {
+          fsProvider.overrideWith(() => windowsFs),
+          settingsProvider.overrideWith(() => settingsAt(r'C:\project')),
+        },
+      );
     });
   });
 

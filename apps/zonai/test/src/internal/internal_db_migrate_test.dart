@@ -6,10 +6,16 @@ import 'package:resqlite/resqlite.dart' as rs;
 import 'package:test/test.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
 
+import '../../support/temp_directory.dart';
+
 void main() {
   setUpAll(() {
-    final lib = File('lib/gen/native/libresqlite.dylib');
-    if (lib.existsSync()) {
+    // `defaultLibraryFileName`, not a hardcoded `.dylib`: the extension is
+    // per-platform (`.so` on Linux, `resqlite.dll` on Windows), so naming the
+    // macOS one meant the library was never installed off macOS and every test
+    // below died in `ResqliteDelegate.open` with "native library not loaded".
+    final lib = File('lib/gen/native/${rs.defaultLibraryFileName}');
+    if (lib.existsSync() && !rs.isInstalled) {
       rs.install(lib.absolute.path);
     }
   });
@@ -32,7 +38,7 @@ void main() {
     tearDown(() async {
       await delegate.close();
       if (tempDir.existsSync()) {
-        tempDir.deleteSync(recursive: true);
+        deleteTempDirectory(tempDir);
       }
     });
 

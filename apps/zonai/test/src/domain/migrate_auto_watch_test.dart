@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../../support/package_roots.dart';
+import '../../support/temp_directory.dart';
 
 /// Regression test for the dev-server's "auto migration" file watcher.
 ///
@@ -30,9 +31,7 @@ void main() {
     late Process harness;
 
     setUpAll(() async {
-      projectRoot = Directory.systemTemp.createTempSync(
-        'zonai_migrate_auto_watch_',
-      );
+      projectRoot = createCanonicalTempSync('zonai_migrate_auto_watch_');
       schemasDir = Directory(p.join(projectRoot.path, 'lib', 'src', 'schemas'))
         ..createSync(recursive: true);
       // `auto()` only runs its `initialize` migration when the migrations
@@ -99,7 +98,12 @@ dependencies:
 
     tearDownAll(() {
       harness.kill();
-      projectRoot.deleteSync(recursive: true);
+      // Not deleteSync: harness.kill() has just asked a child process to go
+      // away and Windows will not unlink a directory it still has a handle
+      // into, so this raced and failed teardown after every assertion passed
+      // ("The process cannot access the file because it is being used by
+      // another process", errno 32, run 31853443536).
+      deleteTempDirectory(projectRoot);
     });
 
     test(

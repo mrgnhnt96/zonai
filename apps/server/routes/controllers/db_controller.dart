@@ -3,11 +3,20 @@ import 'dart:io';
 import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_schema/zonai_schema.dart' show RateLimitOperation;
 
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
 import '../components/custom_body_rate_limit.dart';
 import '../components/query_rate_limit.dart';
+
+// ! Spell the rate-limit operation out as `RateLimitOperation.x`, never as the
+// dot-shorthand `.x`. Revali reads annotation arguments off an AST it does not
+// always get resolved (revali/lib/server/utils/annotation_argument.dart), and a
+// dot-shorthand is the one form that carries no fallback identifier -- when the
+// AST comes back unresolved it degrades to InvalidType and server generation
+// dies with "The argument expression has not been resolved yet". See
+// docs/revali-dot-shorthand-codegen.md.
 
 // Learn more about Controllers at https://www.revali.dev/constructs/revali_server/core/controllers
 @BlackList()
@@ -17,7 +26,7 @@ class DbController {
 
   final DbHandler dbHandler;
 
-  @QueryRateLimit<GetBody>(.get)
+  @QueryRateLimit<GetBody>(RateLimitOperation.get)
   @Get()
   Future<Map<String, Object?>> get({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -26,7 +35,7 @@ class DbController {
     return await dbHandler.get(authorization, body);
   }
 
-  @QueryRateLimit<ListBody>(.list)
+  @QueryRateLimit<ListBody>(RateLimitOperation.list)
   @Get('list')
   Future<Map<String, Object?>> list({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -35,7 +44,7 @@ class DbController {
     return (await dbHandler.list(authorization, body)).toJson();
   }
 
-  @BodyRateLimit<CreateBody>(.create)
+  @BodyRateLimit<CreateBody>(RateLimitOperation.create)
   @Post()
   Future<Map<String, Object?>> create({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -44,7 +53,7 @@ class DbController {
     return await dbHandler.create(authorization, body);
   }
 
-  @BodyRateLimit<CreateManyBody>(.create)
+  @BodyRateLimit<CreateManyBody>(RateLimitOperation.create)
   @Post('many')
   Future<List<Map<String, Object?>>> createMany({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -53,7 +62,7 @@ class DbController {
     return await dbHandler.createMany(authorization, body);
   }
 
-  @BodyRateLimit<UpdateOneBody>(.update)
+  @BodyRateLimit<UpdateOneBody>(RateLimitOperation.update)
   @Patch()
   Future<Map<String, Object?>> update({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -62,7 +71,7 @@ class DbController {
     return await dbHandler.update(authorization, body);
   }
 
-  @BodyRateLimit<UpdateBody>(.update)
+  @BodyRateLimit<UpdateBody>(RateLimitOperation.update)
   @Patch('many')
   Future<List<Map<String, Object?>>> updateMany({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -91,7 +100,7 @@ class DbController {
     return await dbHandler.customMany(authorization, operation, body);
   }
 
-  @BodyRateLimit<DeleteOneBody>(.delete)
+  @BodyRateLimit<DeleteOneBody>(RateLimitOperation.delete)
   @Delete()
   Future<void> delete({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -100,7 +109,7 @@ class DbController {
     await dbHandler.delete(authorization, body);
   }
 
-  @BodyRateLimit<DeleteBody>(.delete)
+  @BodyRateLimit<DeleteBody>(RateLimitOperation.delete)
   @Delete('many')
   Future<void> deleteMany({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -109,7 +118,7 @@ class DbController {
     await dbHandler.deleteMany(authorization, body);
   }
 
-  @QueryRateLimit<CountBody>(.count)
+  @QueryRateLimit<CountBody>(RateLimitOperation.count)
   @Get('count')
   Future<int> count({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -118,7 +127,7 @@ class DbController {
     return await dbHandler.count(authorization, body);
   }
 
-  @BodyRateLimit<StreamBody>(.get)
+  @BodyRateLimit<StreamBody>(RateLimitOperation.get)
   @Get('stream')
   Stream<Map<String, Object?>> streamOne({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -127,7 +136,7 @@ class DbController {
     return dbHandler.streamOne(authorization, body);
   }
 
-  @BodyRateLimit<StreamListBody>(.list)
+  @BodyRateLimit<StreamListBody>(RateLimitOperation.list)
   @Get('stream/list')
   Stream<List<Map<String, Object?>>> streamList({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -136,7 +145,7 @@ class DbController {
     return dbHandler.streamList(authorization, body);
   }
 
-  @BodyRateLimit<StreamCountBody>(.count)
+  @BodyRateLimit<StreamCountBody>(RateLimitOperation.count)
   @Get('stream/count')
   Stream<int> streamCount({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,

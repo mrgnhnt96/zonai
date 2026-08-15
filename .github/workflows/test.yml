@@ -15,33 +15,54 @@ name: Test
 #
 # WHAT IS EXPECTED TO BE RED WHEN THIS LANDS, and why it is not being hidden:
 #
-#   static  -- NO LONGER EXPECTED RED. Both halves of the original prediction
-#              were superseded on 2026-08-14 and are recorded here rather than
-#              deleted, because each was wrong in a way worth not repeating:
+#   THE PATTERN, now that a runner has finally answered: every prediction below
+#   that was "measured green" was measured on a DEV MACHINE, and the two that
+#   mattered were both wrong. This file's first real run (2026-08-14, run
+#   31830243531) failed 12/12. A local measurement of a CI claim is a
+#   hypothesis. Nothing here counts as verified until a run id can be cited.
+#
+#   static  -- WAS "no longer expected red". It was red. The prediction was
+#              superseded twice, and both supersessions are kept rather than
+#              deleted, because the SECOND one repeated the mistake of the
+#              first with a different file:
 #                * the 388-file format drift was cleared (8dc4922) and the
 #                  check narrowed to what humans write (8f584b3);
 #                * "`dart analyze .` is clean" was true only of a DEV MACHINE.
 #                  Measured from a tree with no .dart_tool anywhere and root
-#                  `dart pub get` only -- i.e. what this runner actually has --
-#                  it was 226 errors, 224 of them merely unresolved imports in
-#                  the nine packages outside the pub workspace. It looked clean
-#                  locally purely because of leftover gitignored resolve state.
-#              scripts.yaml `test static` now resolves those packages before
-#              analyzing, so no step is needed here -- do not add one, it would
-#              be the second definition this file exists to avoid. Measured
-#              green end to end from that clean tree: exit 0 in 9.2s.
-#   e2e     -- LIVE. tool/ci/run_e2e.sh landed in bdaa61d, so this no longer
-#              exits 70; it compiles a binary per fixture and drives both
-#              worker transports (docs/testing-strategy.md Step 3). Run green
-#              against merged trunk 2026-08-14, both legs, including the
-#              concurrency fixture's "never answers 5xx" assertion that the
-#              rate-limiter fix (4beb750) exists to satisfy.
-#              This job is now the ONLY gate on tool/ci/e2e/*.dart: the local
+#                  `dart pub get` only, it was 226 errors, 224 of them merely
+#                  unresolved imports in the nine packages outside the pub
+#                  workspace. scripts.yaml `test static` now resolves those.
+#                * ...and that fix was declared complete while the SAME class
+#                  of machine-local state was still load-bearing one directory
+#                  over: apps/zonai/lib/gen is gitignored and tracked nowhere,
+#                  so the runner had none of it. 141 issues, 79 errors, 75 of
+#                  them nothing but the missing tree. "It looked clean locally
+#                  purely because of leftover gitignored state" was written
+#                  about .dart_tool and was simultaneously true of lib/gen.
+#              This job therefore now restores native libs, runs
+#              `bootstrap test` and writes the web-asset stub before analyzing.
+#              The older note here said "no step is needed -- do not add one":
+#              that was about not RESTATING what the suite is, which still
+#              holds (the check is still exactly `sip run test static`). It was
+#              never about prerequisites, which unit/cli/e2e all provision as
+#              steps in this file, and which cannot move into scripts.yaml
+#              anyway -- the native-libs restore needs `gh release download`
+#              and a token, and no laptop should build libsodium from C source
+#              to answer "does this analyze".
+#   e2e     -- WAS "LIVE ... this no longer exits 70". It exited 70, on all
+#              three OSes, before a single assertion ran: run_e2e.sh drives a
+#              REAL compiled binary and no step in this job built one. The
+#              local proof came from a tree that already had build/zonai. So
+#              between bdaa61d and 2026-08-14 this job ran ZERO e2e tests while
+#              being recorded, here and in .game_loop, as the gate that
+#              mattered. A `Build zonai` step now exists; the claim below is
+#              only true because of it.
+#              This job is the ONLY gate on tool/ci/e2e/*.dart: the local
 #              .game_loop rule for that path is `dart analyze` and nothing
 #              more, because compiling per fixture does not belong in a
-#              per-commit gate. If this job is dropped or made non-blocking,
-#              that file goes back to having no real check -- the two decisions
-#              are one decision.
+#              per-commit gate. If this job is dropped, made non-blocking, or
+#              loses its build step, that file goes back to having no real
+#              check -- those are all one decision.
 #   windows -- has never run. Path separators, line endings and process
 #              spawning are the likely first failures. Windows is a release
 #              target (zonai-windows-x64); a suite that has never run there is
@@ -71,6 +92,29 @@ env:
   # costing many times their budget.
   NATIVE_LIBS_CACHE_TAG: native-libs-cache
 
+# THE CEILING ON EVERY JOB BELOW, and why it is not one number.
+#
+# GitHub's default job timeout is 360 MINUTES. Nothing in this file overrode it,
+# so a wedged job billed until someone noticed by hand -- and macOS bills at 10x,
+# Windows at 2x. cli (macos-latest) did exactly that on 2026-08-14 (run
+# 31839671048): its `CLI tests` step ran 15m03s without finishing, was cancelled
+# by a human, and the runner killed three orphaned Dart child processes
+# (dartaotruntime + 2 dartvm) at teardown. Unattended it would have billed ~3600
+# minutes for one job.
+#
+# Each ceiling is set from a MEASURED duration on that run, not a guess, and
+# every job is listed so a new one cannot inherit 360 by omission:
+#
+#   static 2.3m · docs 1.8m · unit 3.8m · submodules 3.0m   -> 10
+#   e2e 8.0m (passing, ubuntu)                              -> 15
+#   cli 11.6m ubuntu / 14.0m windows                        -> 20
+#
+# A ceiling is a BUDGET STOP, not a performance target. It bounds what a hang
+# COSTS; it does not diagnose one, and it cannot tell a hang from a slow runner.
+# Set too tight it manufactures a red that reads as a product regression -- which
+# is why cli and e2e are not 10. When a job starts timing out, read the step
+# durations before raising the number: the 15m03s above was a real defect, not a
+# tight budget, and raising the ceiling would have hidden it.
 jobs:
   # L0 -- compiles, formats, and the shell embedded in scripts.yaml/workflows.
   #
@@ -88,6 +132,7 @@ jobs:
   static:
     name: static
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -134,6 +179,70 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
+      # WHY A JOB THAT ONLY ANALYZES HAS TO BUILD ANYTHING: `dart analyze .`
+      # reads apps/zonai/lib/gen, which is gitignored (.gitignore:8) and tracked
+      # nowhere, so no runner has ever had it.
+      #
+      # MEASURED on the first real CI run this repo ever had (2026-08-14, run
+      # 31830243531): 141 issues, 79 of them errors, and 75 of those were
+      # nothing but the missing lib/gen -- 47 undefined_identifier,
+      # 26 uri_does_not_exist, 2 uri_has_not_been_generated. A dev machine
+      # passes only because an earlier `bootstrap test` left the tree behind.
+      #
+      # `test static` already says in scripts.yaml that a gate must not rest on
+      # machine-local state -- that was written about the .dart_tool half, which
+      # got fixed while this half did not. Same class of bug, same job.
+      #
+      # No matrix here (this job is ubuntu-only), so the artifact name is
+      # spelled out where `unit`/`cli`/`e2e` read it from matrix context.
+      - name: Install native build toolchain (Linux)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
+      - name: Download pre-built native libraries (cache release)
+        id: download-native-libs
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          archive="native-libs-linux-x64.tar.gz"
+          mkdir -p apps/zonai/lib/gen/native
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+      - name: Check downloaded native libraries
+        id: native-libs
+        shell: bash
+        run: |
+          if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
+             [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No native-libs-linux-x64.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source. Run the 'Native Libraries' workflow once to populate the cache."
+          fi
+
+      - name: Bootstrap lib/gen
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        run: dart pub global run sip_cli:sip run bootstrap test
+
+      # `bootstrap test` deliberately skips the web build, so lib/gen/web stays
+      # absent after it -- and apps/web/lib/server/render_web_app.dart imports
+      # `package:zonai/gen/web/web_assets.dart`. That was the 1 codegen error
+      # bootstrap alone did not clear. `--stub` writes exactly the two symbols
+      # that file uses (`lookupJasprWebAsset`, `JasprWebAsset`) with no jaspr
+      # build, which is all an analyze needs; a real `web.gen` would spend
+      # minutes producing asset bytes this job never reads.
+      - name: Generate web asset stub
+        run: cd apps/zonai && dart run tool/generate_web_assets.dart --stub
+
       - name: Static checks
         # `dart pub global run` rather than the `sip` stub, so the Windows legs
         # of the other jobs work under Git Bash (global stubs are .bat-only).
@@ -145,6 +254,7 @@ jobs:
   unit:
     name: unit (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     strategy:
       fail-fast: false
       matrix:
@@ -279,6 +389,7 @@ jobs:
   docs:
     name: docs
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4
@@ -321,22 +432,43 @@ jobs:
           mkdir -p test-logs
           dart pub global run sip_cli:sip run test docs 2>&1 | tee test-logs/docs.log
 
-      - name: Fail if apps/docs skipped a test
+      - name: Fail if apps/docs skipped its anchor test
         shell: bash
         # The whole reason this job exists. `dart test` exits 0 on a skip, so
-        # the exit code above cannot tell "the anchor test checked the built
-        # HTML" from "the anchor test found no build and reported nothing".
-        # Two checks rather than one: the skip counter proves no test opted
-        # out, and the summary string proves the suite got far enough to print
-        # a summary at all (dart test says "All other tests passed!" -- with
-        # the "other" -- exactly when something was skipped).
+        # the step above cannot tell "the anchor test checked the built HTML"
+        # from "the anchor test found no build and reported nothing".
+        #
+        # THE PRIMARY CHECK IS THE DIRECTORY, not the log. search_index_test.dart
+        # :138-142 skips on exactly one condition -- `Directory('build/jaspr')`
+        # not existing -- so its presence is direct, reporter-independent proof
+        # that the skip branch was not taken. Everything below it is a
+        # belt-and-braces grep that can go blind without warning.
+        #
+        # A PREVIOUS VERSION OF THIS STEP GREPPED FOR 'All tests passed!' AND
+        # COULD NEVER PASS. `sip` filters dart test's output and prints its own
+        # summary ("19 tests passed."), so that string appears zero times in a
+        # FULLY GREEN run -- which is what failed this job on 2026-08-14 (run
+        # 31830243531) with all 19 tests passing. That grep is deleted rather
+        # than corrected: it only duplicated the exit code, which `set -o
+        # pipefail` in the step above already propagates from sip.
+        #
+        # The skip grep below is kept but must match BOTH reporters, because
+        # `sip` is installed from --git-ref main with no pin and its output
+        # shape can change under us at any time. It is deliberately narrow: the
+        # jaspr builder prints its own unrelated "N skipped" lines into this
+        # same log, so a broad grep for "skipped" is a false positive waiting
+        # to happen.
         run: |
-          if grep -qE '[0-9]+ skipped tests?\.' test-logs/docs.log; then
-            echo "::error::apps/docs reported a skipped test. A skip here is not a pass -- the anchor test skips when apps/docs/build/jaspr is missing, which means the built HTML was never checked. See scripts.yaml test.docs."
+          if [ ! -d apps/docs/build/jaspr ]; then
+            echo "::error::apps/docs/build/jaspr does not exist, so search_index_test's anchor test called markTestSkipped and the built HTML was never checked. sip run test docs is supposed to build it first -- see scripts.yaml docs.build."
             exit 1
           fi
-          if ! grep -q 'All tests passed!' test-logs/docs.log; then
-            echo "::error::apps/docs did not report 'All tests passed!'. Either the suite did not finish or the reporter changed shape; read the log artifact before assuming this guard is wrong."
+          if grep -qE '[0-9]+ skipped tests?\.' test-logs/docs.log; then
+            echo "::error::apps/docs reported a skipped test (dart test reporter). A skip here is not a pass. Read the docs-test-log artifact."
+            exit 1
+          fi
+          if grep -qE 'Skipped:' test-logs/docs.log; then
+            echo "::error::apps/docs reported a skipped test (sip reporter). A skip here is not a pass. Read the docs-test-log artifact."
             exit 1
           fi
 
@@ -354,14 +486,36 @@ jobs:
   cli:
     name: cli (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # 20 rather than the 10 the short jobs take: MEASURED 11.6m (ubuntu) / 14.0m (windows) completing normally on run
+    # 31839671048, so a 10-minute ceiling would convert "503 passed, 4 failed"
+    # into a contentless timeout and still bill the 10 minutes.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             native_libs_artifact: native-libs-linux-x64
-          - os: macos-latest
-            native_libs_artifact: native-libs-macos-arm64
+          # TEMPORARILY REMOVED -- macos-latest, 2026-08-14. NOT because the
+          # suite fails there: every test file that reported on macOS gave
+          # results IDENTICAL to ubuntu's. It is removed because `CLI tests`
+          # HANGS -- 15m03s without finishing on run 31839671048 while ubuntu
+          # did the same work in ~10m, three trivial unit files never scheduled
+          # at all, and three orphaned Dart child processes (dartaotruntime +
+          # 2 dartvm) killed at teardown. macOS bills at 10x, so each repeat
+          # costs the full ceiling above and buys no new information.
+          #
+          # THE HANG IS UNDIAGNOSED. The specific test is NOT identified -- the
+          # obvious suspect, migrate_auto_watch_test, already carries a 3-minute
+          # Timeout plus 30/60/90s inner guards and so should fail rather than
+          # hang. Probably the same fragility as the `test-load-fragility` leaf,
+          # which records these suites aborting under load on a laptop.
+          #
+          # RESTORE THIS LEG once the hang is understood. Leaving it out is a
+          # COST decision, not a verdict -- and while it is absent, macOS is a
+          # release target (zonai-macos-arm64) whose CLI suite nothing checks.
+          # - os: macos-latest
+          #   native_libs_artifact: native-libs-macos-arm64
           - os: windows-latest
             native_libs_artifact: native-libs-windows-x64
     steps:
@@ -475,6 +629,10 @@ jobs:
   e2e:
     name: e2e (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # 15 rather than the 10 the short jobs take: MEASURED 8.0m (ubuntu, passing) on run 31839671048, and its dominant step
+    # is an AOT compile whose duration is variable -- 10 would be a coin flip and
+    # a timeout here would read as a product regression rather than a budget cut.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -561,11 +719,44 @@ jobs:
             echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
           fi
 
-      - name: Bootstrap lib/gen
+      # NO `bootstrap test` STEP HERE, deliberately -- unlike unit and cli.
+      # `zonai compile` below is a SUPERSET of it (scripts.yaml: bootstrap test
+      # is version.gen + resqlite.gen + argon2.gen + server.copy-to-cli; zonai
+      # compile is all four plus raindrop.vendor, web.gen and the AOT build),
+      # which is why compile.yml has never carried one either.
+      #
+      # It was here, and it broke the macOS leg. Running both meant invoking
+      # revali codegen TWICE, and on the macOS runner the SECOND invocation
+      # fails where the first succeeds -- 2/2 across runs 31839671048 and
+      # 31842392052, Bootstrap green and Build zonai red on the same runner,
+      # same SDK, same revali pin, same source. ubuntu and windows run the
+      # identical two-invocation sequence and pass both, and run 31830243531
+      # (one invocation) passed codegen on macOS. So the trigger is the second
+      # invocation on that runner, not the platform and not the source.
+      #
+      # The underlying fragility is upstream and still live -- revali 3.2.0
+      # lib/server/utils/annotation_argument.dart:35-41 reads
+      # expression.staticType off an AST it does not always get resolved. See
+      # docs/revali-dot-shorthand-codegen.md. Dropping the redundant invocation
+      # removes this job's exposure to it; it does not fix it.
+
+      # THIS JOB RAN ZERO E2E TESTS UNTIL THIS STEP EXISTED. `run_e2e.sh` drives
+      # a REAL compiled binary and looks for one at build/zonai (build/zonai.exe
+      # on Windows, tool/ci/run_e2e.sh:125-143). Nothing here produced it, so on
+      # the first real CI run (2026-08-14, run 31830243531) all three legs exited
+      # 70 on `no compiled zonai binary at .../build/zonai` before a single
+      # assertion ran -- while test.yml's own comments, and the local
+      # .game_loop rule for tool/ci/e2e/**, both recorded this job as "the gate
+      # that matters" for the e2e driver. It gated nothing.
+      #
+      # Same invocation compile.yml uses to produce the release binary, so there
+      # is one way to build zonai on CI rather than two that can drift. It is
+      # also the expensive step in this job by a wide margin.
+      - name: Build zonai
         shell: bash
         env:
           ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
-        run: dart pub global run sip_cli:sip run bootstrap test
+        run: dart pub global run sip_cli:sip run zonai compile
 
       - name: E2E tests
         shell: bash
@@ -588,6 +779,7 @@ jobs:
   submodules:
     name: submodules
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # budget stop -- see the ceiling note above `jobs:`
     steps:
       - name: Checkout zonai
         uses: actions/checkout@v4

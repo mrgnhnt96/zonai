@@ -10,6 +10,7 @@ import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import '../support/temp_directory.dart';
 
 /// Reproduces the "parallel /db/list requests intermittently 500" report:
 /// firing several list requests at once against a live server reliably
@@ -46,9 +47,7 @@ void main() {
         reason: 'fixture missing at ${fixtureRoot.path}',
       );
 
-      projectRoot = Directory.systemTemp.createTempSync(
-        'zonai_concurrency_e2e_',
-      );
+      projectRoot = createCanonicalTempSync('zonai_concurrency_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
       _copyTree(fixtureRoot, projectRoot);
       _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);
@@ -90,7 +89,7 @@ void main() {
     });
 
     tearDownAll(() {
-      projectRoot.deleteSync(recursive: true);
+      deleteTempDirectory(projectRoot);
     });
 
     test(

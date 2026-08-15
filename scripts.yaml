@@ -297,6 +297,15 @@ test:
       - dart format --output=none --set-exit-if-changed $(git ls-files '*.dart' | grep -v '/lib/gen/')
       - bash tool/ci/check_shell_syntax.sh
       - bash tool/ci/check_workflows.sh
+      # Lives in `static` rather than in .game_loop/verify.yaml, where the
+      # Crawler that found this proposed it: verify.yaml is gitignored, so a
+      # rule there cannot ride a branch and protects only the machine it was
+      # written on. The failure it prevents is one NO local check can see --
+      # revali's codegen aborts on a dot-shorthand annotation argument on a CI
+      # runner while every dev machine stays green (seven configurations tried,
+      # docs/revali-dot-shorthand-codegen.md). A guard against a CI-only
+      # failure belongs where CI runs it.
+      - bash tool/ci/check_dot_shorthand_annotations.sh
   unit:
     (description): >-
       L1 -- pure logic, no native build required. libs/resqlite and

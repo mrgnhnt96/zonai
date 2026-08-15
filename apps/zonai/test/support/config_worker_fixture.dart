@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:zonai/gen/version.dart';
 
 import 'package_roots.dart';
+import 'temp_directory.dart';
 
 /// A throwaway project with a compiled `db_config.exe`, for tests that
 /// construct `ZonaiDb()` directly and need real JWT/config resolution.
@@ -37,9 +38,7 @@ class ConfigWorkerFixture {
     required String passwordSecret,
     required String jwtSecret,
   }) async {
-    final projectRoot = Directory.systemTemp.createTempSync(
-      'zonai_${namePrefix}_',
-    );
+    final projectRoot = createCanonicalTempSync('zonai_${namePrefix}_');
 
     Directory(
       p.join(projectRoot.path, 'lib', 'src', 'config'),
@@ -113,6 +112,6 @@ AppConfig main() {
   }
 
   void tearDown() {
-    projectRoot.deleteSync(recursive: true);
+    deleteTempDirectory(projectRoot);
   }
 }

@@ -8,6 +8,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import '../support/temp_directory.dart';
 
 /// End-to-end proof of the "ask your spawner for the native library"
 /// protocol added to fix cross-compiled workers embedding a wrong-platform
@@ -35,9 +36,7 @@ void main() {
     setUpAll(() async {
       if (!_runningOnDartVm) return;
 
-      tempDir = Directory.systemTemp.createTempSync(
-        'zonai_native_library_probe_',
-      );
+      tempDir = createCanonicalTempSync('zonai_native_library_probe_');
       workerExePath = p.join(tempDir.path, 'native_library_probe');
 
       final zonaiPackageDir = Directory.current;
@@ -57,76 +56,90 @@ void main() {
     });
 
     tearDownAll(() {
-      if (tempDir.existsSync()) {
-        tempDir.deleteSync(recursive: true);
-      }
+      deleteTempDirectory(tempDir);
     });
 
     for (final library in NativeLibraryKind.values) {
-      test('a worker with no self-extraction fallback of its own resolves '
-          '${library.name} by asking its spawner, even after the shared '
-          'on-disk copy is deleted first', () async {
-        if (!_runningOnDartVm) return;
+      test(
+        'a worker with no self-extraction fallback of its own resolves '
+        '${library.name} by asking its spawner, even after the shared '
+        'on-disk copy is deleted first',
+        skip: Platform.isWindows
+            ? 'The premise is not constructible on Windows. This test deletes '
+                  'the shared on-disk library that THIS process has already '
+                  'loaded, and Windows will not unlink a loaded DLL -- not '
+                  'after a retry either, because the lock is held for the '
+                  'lifetime of the process rather than being a race (a 10x200ms '
+                  'retry still failed on run 31853443536 with errno 5). Deleting '
+                  'it is the whole setup: without that, the worker has a copy to '
+                  'find and the test asserts nothing. So this reports on Windows '
+                  'file locking rather than on zonai, exactly as the note on '
+                  'deleteTempDirectory reasons. The behaviour under test -- a '
+                  'worker resolving a native library by asking its spawner -- is '
+                  'not Windows-specific and is covered on ubuntu and macOS.'
+            : null,
+        () async {
+          if (!_runningOnDartVm) return;
 
-        await runMergedScopedFuture(() async {
-          // The dev-mode "shared install path" this test's own process
-          // (acting as the spawner, uncompiled -- kIsCompiled is false
-          // for `dart test`) resolves to for this library. Deleting it
-          // first proves recovery: if the worker silently trusted a
-          // stale/missing copy instead of asking, there would be nothing
-          // to recover from.
-          final sharedFile = File(
-            p.join(
-              Directory.current.path,
-              '.dart_tool',
-              'lib',
-              _devLibraryFileName(library),
-            ),
-          );
-          if (sharedFile.existsSync()) {
-            sharedFile.deleteSync();
-          }
-
-          final mailman = _ProbeMailman(workerExePath);
-          try {
-            final response = await mailman.send<NativeLibraryResponse>(
-              UnknownRequest(
-                path: 'request/.native_library_probe/${library.name}',
-                id: 'probe-${library.name}',
-                payload: const {},
+          await runMergedScopedFuture(() async {
+            // The dev-mode "shared install path" this test's own process
+            // (acting as the spawner, uncompiled -- kIsCompiled is false
+            // for `dart test`) resolves to for this library. Deleting it
+            // first proves recovery: if the worker silently trusted a
+            // stale/missing copy instead of asking, there would be nothing
+            // to recover from.
+            final sharedFile = File(
+              p.join(
+                Directory.current.path,
+                '.dart_tool',
+                'lib',
+                _devLibraryFileName(library),
               ),
             );
+            deleteFileWithRetry(sharedFile);
 
-            final resolvedFile = File(response.libraryPath);
-            expect(
-              resolvedFile.existsSync(),
-              isTrue,
-              reason:
-                  'spawner reported ${response.libraryPath}, which should '
-                  'have been (re-)extracted on disk',
-            );
-            expect(
-              resolvedFile.lengthSync(),
-              greaterThan(0),
-              reason: 'recovered native library file must not be empty',
-            );
+            final mailman = _ProbeMailman(workerExePath);
+            try {
+              final response = await mailman.send<NativeLibraryResponse>(
+                UnknownRequest(
+                  path: 'request/.native_library_probe/${library.name}',
+                  id: 'probe-${library.name}',
+                  payload: const {},
+                ),
+              );
 
-            // The spawner's own answer must have (re-)populated the
-            // shared path we deleted above -- proving real recovery, not
-            // just an isolated extraction to some other throwaway
-            // location.
-            expect(
-              sharedFile.existsSync(),
-              isTrue,
-              reason:
-                  'answering the request should (re-)populate the shared '
-                  'install path the deleted file used to occupy',
-            );
-          } finally {
-            await mailman.kill();
-          }
-        }, override: _scopeOverrides);
-      }, timeout: const Timeout(Duration(minutes: 1)));
+              final resolvedFile = File(response.libraryPath);
+              expect(
+                resolvedFile.existsSync(),
+                isTrue,
+                reason:
+                    'spawner reported ${response.libraryPath}, which should '
+                    'have been (re-)extracted on disk',
+              );
+              expect(
+                resolvedFile.lengthSync(),
+                greaterThan(0),
+                reason: 'recovered native library file must not be empty',
+              );
+
+              // The spawner's own answer must have (re-)populated the
+              // shared path we deleted above -- proving real recovery, not
+              // just an isolated extraction to some other throwaway
+              // location.
+              expect(
+                sharedFile.existsSync(),
+                isTrue,
+                reason:
+                    'answering the request should (re-)populate the shared '
+                    'install path the deleted file used to occupy',
+              );
+            } finally {
+              await mailman.kill();
+            }
+          }, override: _scopeOverrides);
+        },
+        timeout: const Timeout(Duration(minutes: 1)),
+      );
     }
   });
 }

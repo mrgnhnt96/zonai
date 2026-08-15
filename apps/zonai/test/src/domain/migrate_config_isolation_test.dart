@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../../support/package_roots.dart';
+import '../../support/temp_directory.dart';
 
 /// Regression test: [Migrate.run] must not let an unrelated `raindrop.yaml`
 /// sitting in the working directory hijack where generated Dart migrations
@@ -23,10 +24,10 @@ void main() {
   test(
     'ignores an unrelated raindrop.yaml in the working directory',
     () async {
-      final projectRoot = Directory.systemTemp.createTempSync(
+      final projectRoot = createCanonicalTempSync(
         'zonai_migrate_config_isolation_',
       );
-      addTearDown(() => projectRoot.deleteSync(recursive: true));
+      addTearDown(() => deleteTempDirectory(projectRoot));
 
       final schemasDir = Directory(
         p.join(projectRoot.path, 'lib', 'src', 'schemas'),

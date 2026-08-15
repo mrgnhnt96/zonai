@@ -107,6 +107,27 @@ fail() {
   for line in "$@"; do
     echo "  ${line}" >&2
   done
+
+  # The server log, INLINE, because naming its path is useless on a runner.
+  #
+  # This printed "server log: /d/a/zonai/zonai/e2e/.../serve-process-8759.log"
+  # and stopped. That file lives on a machine nobody can reach, is not an
+  # uploaded artifact, and is destroyed with the runner -- so a 500 from a
+  # Windows leg was undiagnosable from a developer's desk, which is exactly
+  # where the only Windows failures are. Measured on run 31853443536:
+  # "PATCH /img/:id answers 2xx for the owner, expected 200, actual 500" with
+  # no stack trace anywhere in the job output.
+  #
+  # Tail rather than the whole file: these logs carry every request, and the
+  # interesting part is always the end. If the crash is further back, raise
+  # the number -- do not go back to printing a path.
+  if [ -n "${serve_log:-}" ] && [ -f "${serve_log}" ]; then
+    echo "" >&2
+    echo "  ---- last 80 lines of ${serve_log} ----" >&2
+    tail -n 80 "${serve_log}" | sed 's/^/  | /' >&2
+    echo "  ---- end of server log ----" >&2
+  fi
+
   echo "" >&2
   exit 1
 }
