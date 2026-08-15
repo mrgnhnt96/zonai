@@ -1,5 +1,36 @@
 import 'dart:io';
 
+/// A fresh temp directory named the way the FILESYSTEM spells it.
+///
+/// `Directory.systemTemp.createTempSync` hands back whatever spelling `TEMP`
+/// is set to, and on a GitHub Windows runner that is the 8.3 short name
+/// `C:\Users\RUNNER~1\...` for a directory whose real name is
+/// `C:\Users\runneradmin\...`. macOS has the same hazard in a different
+/// costume: `/var/folders/...` is a symlink to `/private/var/folders/...`.
+///
+/// It matters because code downstream decides "is this file inside that
+/// package" with a string comparison. raindrop_cli's
+/// `SnapshotRunner.packageUri` does exactly that, and answers no for a schema
+/// that IS under `lib/` when the two sides are spelled differently:
+///
+///     Bad state: Schema file "C:\Users\runneradmin\...\lib\src\schemas\admins.dart"
+///     is not inside a package's lib/ directory, so it cannot be imported.
+///
+/// That failed six e2e suites in `cli (windows-latest)` on run 31850921551,
+/// all in `setUpAll`, after the same class of bug had already been fixed once
+/// for `--config`/`--schemas` in migrate.dart. The production side of it lives
+/// in `canonicalPath`; this is the test-harness side, and it is separate
+/// because these suites use `dart:io` directly rather than the injected
+/// filesystem.
+///
+/// `resolveSymbolicLinksSync` rather than `canonicalPath` because the
+/// directory has just been created and therefore exists — the ancestor-walking
+/// that `canonicalPath` does is only needed for a path that does not.
+Directory createCanonicalTempSync(String prefix) {
+  final created = Directory.systemTemp.createTempSync(prefix);
+  return Directory(created.resolveSymbolicLinksSync());
+}
+
 /// Removes [directory] and everything under it, at the end of a test.
 ///
 /// Plain `deleteSync(recursive: true)` is enough on macOS and Linux, where

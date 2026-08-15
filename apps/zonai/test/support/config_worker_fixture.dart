@@ -38,9 +38,7 @@ class ConfigWorkerFixture {
     required String passwordSecret,
     required String jwtSecret,
   }) async {
-    final projectRoot = Directory.systemTemp.createTempSync(
-      'zonai_${namePrefix}_',
-    );
+    final projectRoot = createCanonicalTempSync('zonai_${namePrefix}_');
 
     Directory(
       p.join(projectRoot.path, 'lib', 'src', 'config'),

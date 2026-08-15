@@ -57,9 +57,7 @@ void main() {
         reason: 'fixture missing at ${fixtureRoot.path}',
       );
 
-      projectRoot = Directory.systemTemp.createTempSync(
-        'zonai_admin_password_update_e2e_',
-      );
+      projectRoot = createCanonicalTempSync('zonai_admin_password_update_e2e_');
       final repoRoot = fixtureRoot.parent.parent;
       _copyTree(fixtureRoot, projectRoot);
       _rewritePubspecPaths(projectRoot: projectRoot, repoRoot: repoRoot);

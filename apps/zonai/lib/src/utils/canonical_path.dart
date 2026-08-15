@@ -44,9 +44,8 @@ String canonicalPath(String path) {
 String? _resolveOrNull(String path) {
   try {
     return switch (fs.typeSync(path)) {
-      FileSystemEntityType.directory => fs
-          .directory(path)
-          .resolveSymbolicLinksSync(),
+      FileSystemEntityType.directory =>
+        fs.directory(path).resolveSymbolicLinksSync(),
       FileSystemEntityType.file => fs.file(path).resolveSymbolicLinksSync(),
       _ => null,
     };

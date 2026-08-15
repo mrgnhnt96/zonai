@@ -36,9 +36,7 @@ void main() {
     setUpAll(() async {
       if (!_runningOnDartVm) return;
 
-      tempDir = Directory.systemTemp.createTempSync(
-        'zonai_native_library_probe_',
-      );
+      tempDir = createCanonicalTempSync('zonai_native_library_probe_');
       workerExePath = p.join(tempDir.path, 'native_library_probe');
 
       final zonaiPackageDir = Directory.current;

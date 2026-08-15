@@ -26,9 +26,9 @@ void main() {
     // hosts where a path and its resolved form are different strings for the
     // same directory, which is the condition this test is about.
     projectRoot = io.Directory.systemTemp.createTempSync('zonai_gen_args_');
-    io.File(p.join(projectRoot.path, 'zonai.yaml')).writeAsStringSync(
-      'name: test\n',
-    );
+    io.File(
+      p.join(projectRoot.path, 'zonai.yaml'),
+    ).writeAsStringSync('name: test\n');
     io.Directory(
       p.join(projectRoot.path, 'lib', 'src', 'schemas'),
     ).createSync(recursive: true);
