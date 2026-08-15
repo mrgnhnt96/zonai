@@ -49,3 +49,10 @@ Raising it makes a large fan-out faster and a crash more expensive, in exactly t
 ## Per flavor
 
 `AppConfig` is resolved per flavor, so a staging build can point at a different Firebase project — or at none, in which case staging enqueues nothing and says so in the log rather than sending production notifications from a test run.
+
+## Two `.p8` files that are not interchangeable
+
+For iOS, FCM needs an **APNs auth key** uploaded to the Firebase console. It is a `.p8` created under *Certificates, Identifiers & Profiles → Keys* with the Apple Push Notifications service capability enabled.
+
+An **App Store Connect API key** is also a `.p8`, is also downloaded from Apple, and conventionally lives in `~/.appstoreconnect/private_keys/AuthKey_XXXXXXXX.p8` — the same filename shape. It cannot sign an APNs request and cannot be uploaded as an APNs key. Having one is not having the other, and the resulting failure is silent in the direction that matters: Android keeps arriving, iOS never does.
+

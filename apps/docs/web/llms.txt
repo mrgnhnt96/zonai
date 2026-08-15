@@ -119,6 +119,7 @@ Firebase Cloud Messaging. Recipients are named by a **query over a `$.deviceToke
 - [Sending](https://docs.zonai.dev/push/sending): `PushMessage`, collapse keys, and what the job id does and does not promise.
 - [Dead Tokens](https://docs.zonai.dev/push/dead-tokens): Pruning policy, the hook, and why a timeout is not a death.
 - [Delivery Guarantees](https://docs.zonai.dev/push/delivery-guarantees): At-least-once, duplicates bounded by one batch, and the transient failures that are not retried across passes.
+- [Testing Push Locally](https://docs.zonai.dev/push/testing-locally): FCM has no sandbox; how to run the whole path against a local stand-in, and what that still cannot prove.
 
 ## Dart client
 
