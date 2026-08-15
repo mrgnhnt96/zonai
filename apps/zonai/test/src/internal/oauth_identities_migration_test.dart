@@ -78,9 +78,7 @@ void main() {
         );
         expect(
           applied.rows.map((row) => row[0]).toList(),
-          contains(
-            '0006_add_oauth_identities_table_and_oauth_state_challenge',
-          ),
+          contains('0006_add_oauth_identities_table_and_oauth_state_challenge'),
         );
 
         // The pre-existing row is untouched.

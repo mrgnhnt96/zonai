@@ -18,15 +18,17 @@ void main() {
   final staff = authTable('staff', _UserTable.new);
 
   group('.oauthStart', () {
-    test('resolves a real policy for a table with no rate limits at all',
-        () async {
-      final response = await DbRateLimits(rateLimits: []).dispatch(
-        RateLimitRequest(table: 'users', operation: .oauthStart),
-      );
+    test(
+      'resolves a real policy for a table with no rate limits at all',
+      () async {
+        final response = await DbRateLimits(
+          rateLimits: [],
+        ).dispatch(RateLimitRequest(table: 'users', operation: .oauthStart));
 
-      expect(response.policy, isNotNull, reason: 'null means UNLIMITED');
-      expect(response.policy, RateLimitPolicy.defaultPolicy);
-    });
+        expect(response.policy, isNotNull, reason: 'null means UNLIMITED');
+        expect(response.policy, RateLimitPolicy.defaultPolicy);
+      },
+    );
 
     test('honours a per-table override', () async {
       final response = await DbRateLimits(
@@ -61,9 +63,9 @@ void main() {
 
   group('.oauthCallback', () {
     test('resolves the fixed framework policy', () async {
-      final response = await DbRateLimits(rateLimits: []).dispatch(
-        RateLimitRequest(table: 'oauth', operation: .oauthCallback),
-      );
+      final response = await DbRateLimits(
+        rateLimits: [],
+      ).dispatch(RateLimitRequest(table: 'oauth', operation: .oauthCallback));
 
       expect(response.policy, isNotNull, reason: 'null means UNLIMITED');
       expect(response.policy, RateLimitPolicy.oauthCallback);
@@ -78,21 +80,23 @@ void main() {
       );
     });
 
-    test('ignores a table that happens to share the sentinel bucket name',
-        () async {
-      // `RateLimit.kOAuthCallbackBucket` is the literal 'oauth'. A project
-      // with a real auth collection called `oauth` must not have its own
-      // AuthTableRateLimits consulted for a callback that has nothing to do
-      // with it -- and, more sharply, must not be able to raise the limit for
-      // everyone else's callbacks by overriding its own table's policy.
-      final oauthNamedTable = authTable('oauth', _UserTable.new);
+    test(
+      'ignores a table that happens to share the sentinel bucket name',
+      () async {
+        // `RateLimit.kOAuthCallbackBucket` is the literal 'oauth'. A project
+        // with a real auth collection called `oauth` must not have its own
+        // AuthTableRateLimits consulted for a callback that has nothing to do
+        // with it -- and, more sharply, must not be able to raise the limit for
+        // everyone else's callbacks by overriding its own table's policy.
+        final oauthNamedTable = authTable('oauth', _UserTable.new);
 
-      final response = await DbRateLimits(
-        rateLimits: [_TightOAuthStart(oauthNamedTable)],
-      ).dispatch(RateLimitRequest(table: 'oauth', operation: .oauthCallback));
+        final response = await DbRateLimits(
+          rateLimits: [_TightOAuthStart(oauthNamedTable)],
+        ).dispatch(RateLimitRequest(table: 'oauth', operation: .oauthCallback));
 
-      expect(response.policy, RateLimitPolicy.oauthCallback);
-    });
+        expect(response.policy, RateLimitPolicy.oauthCallback);
+      },
+    );
 
     test('has no per-table override surface to begin with', () {
       // If someone later adds `oauthCallbackPolicy` to AuthTableRateLimits,
@@ -119,7 +123,9 @@ void main() {
         ).toJson();
 
         final response = await DbRateLimits(rateLimits: []).dispatch(
-          RateLimitRequest.fromRequest(Request.fromJson(wire) as UnknownRequest),
+          RateLimitRequest.fromRequest(
+            Request.fromJson(wire) as UnknownRequest,
+          ),
         );
 
         expect(response.policy, isNotNull);

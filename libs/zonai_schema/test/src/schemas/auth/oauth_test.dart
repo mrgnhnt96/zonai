@@ -9,7 +9,11 @@ class _UserId implements Id {
 }
 
 class _User {
-  const _User({required this.id, required this.email, required this.isVerified});
+  const _User({
+    required this.id,
+    required this.email,
+    required this.isVerified,
+  });
 
   final _UserId id;
   final String email;
@@ -54,7 +58,10 @@ final class _UserTable extends AuthTable<_User> with OAuth {
   final IsVerifiedColumn isVerified;
 
   @override
-  List<OAuthProvider> oauthProviders = [_provider('google'), _provider('github')];
+  List<OAuthProvider> oauthProviders = [
+    _provider('google'),
+    _provider('github'),
+  ];
 }
 
 void main() {
@@ -69,11 +76,14 @@ void main() {
     expect(users.authTypes, contains(AuthType.oauth));
   });
 
-  test('other auth flags stay false — the mixin is additive, not exclusive', () {
-    expect(users.supportsPassword, isFalse);
-    expect(users.supportsOtp, isFalse);
-    expect(users.supportsMagicLink, isFalse);
-  });
+  test(
+    'other auth flags stay false — the mixin is additive, not exclusive',
+    () {
+      expect(users.supportsPassword, isFalse);
+      expect(users.supportsOtp, isFalse);
+      expect(users.supportsMagicLink, isFalse);
+    },
+  );
 
   group('validateOAuthProviders', () {
     test('does not throw for a non-empty list of unique ids', () {

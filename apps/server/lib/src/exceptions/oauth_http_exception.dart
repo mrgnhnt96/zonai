@@ -34,7 +34,8 @@ final class OAuthProviderRejectedException extends OAuthHttpException {
   final String error;
 
   @override
-  String toString() => 'OAuth provider "$provider" rejected the request: $error';
+  String toString() =>
+      'OAuth provider "$provider" rejected the request: $error';
 }
 
 /// The callback arrived with neither a provider error nor a usable

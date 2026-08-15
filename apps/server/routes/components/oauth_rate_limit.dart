@@ -24,11 +24,7 @@ final class OAuthStartRateLimit extends RateLimit
     @Query('table') String table,
     @Ip() String ipAddress,
   ) async {
-    return await checkByTable(
-      table,
-      ipAddress,
-      RateLimitOperation.oauthStart,
-    );
+    return await checkByTable(table, ipAddress, RateLimitOperation.oauthStart);
   }
 }
 

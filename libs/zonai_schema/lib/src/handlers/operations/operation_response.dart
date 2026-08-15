@@ -381,6 +381,7 @@ final class OAuthProviderConfigResponse extends OperationResponse {
                 userInfo: raw['userInfo'] as String?,
                 issuer: raw['issuer'] as String?,
                 jwks: raw['jwks'] as String?,
+                responseMode: raw['responseMode'] as String?,
               ),
               scopes: [
                 for (final s in raw['scopes'] as List<dynamic>) s as String,
@@ -424,6 +425,7 @@ final class OAuthProviderConfigResponse extends OperationResponse {
                 'userInfo': p.endpoints.userInfo,
                 'issuer': p.endpoints.issuer,
                 'jwks': p.endpoints.jwks,
+                'responseMode': p.endpoints.responseMode,
                 'scopes': p.scopes,
                 'subject': p.claims.subject,
                 'email': p.claims.email,
@@ -447,6 +449,7 @@ final class OAuthProviderConfigResponse extends OperationResponse {
                 'userInfo': p.endpoints.userInfo,
                 'issuer': p.endpoints.issuer,
                 'jwks': p.endpoints.jwks,
+                'responseMode': p.endpoints.responseMode,
                 'scopes': p.scopes,
                 'subject': p.claims.subject,
                 'email': p.claims.email,

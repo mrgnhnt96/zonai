@@ -22,18 +22,20 @@ import '../routes/controllers/auth_controller.dart';
 /// which reads the generated route table when it is present.
 void main() {
   group('GET /auth/oauth/providers', () {
-    test('returns every (table, provider) pair when no table is given',
-        () async {
-      final controller = AuthController(authHandler: _StubAuthHandler());
+    test(
+      'returns every (table, provider) pair when no table is given',
+      () async {
+        final controller = AuthController(authHandler: _StubAuthHandler());
 
-      final result = await controller.oauthProviders();
+        final result = await controller.oauthProviders();
 
-      expect(result.map((e) => '${e['table']}/${e['id']}'), [
-        'users/google',
-        'users/apple',
-        'staff/google',
-      ]);
-    });
+        expect(result.map((e) => '${e['table']}/${e['id']}'), [
+          'users/google',
+          'users/apple',
+          'staff/google',
+        ]);
+      },
+    );
 
     test('narrows to one collection when ?table= is given', () async {
       final controller = AuthController(authHandler: _StubAuthHandler());
@@ -161,8 +163,7 @@ void main() {
       expect(response.headers.get(HttpHeaders.locationHeader), '/');
     });
 
-    test('hands the session over as X-Auth and the dashboard cookie',
-        () async {
+    test('hands the session over as X-Auth and the dashboard cookie', () async {
       final controller = AuthController(authHandler: _StubAuthHandler());
       final response = _response();
 
@@ -271,7 +272,9 @@ void main() {
       await expectLater(
         AuthController(authHandler: handler).oauthCallbackFormPost(
           provider: 'apple',
-          body: OAuthCallbackBody.fromJson({'error': 'user_cancelled_authorize'}),
+          body: OAuthCallbackBody.fromJson({
+            'error': 'user_cancelled_authorize',
+          }),
           response: _response(),
         ),
         throwsA(isA<Exception>()),
@@ -302,25 +305,27 @@ void main() {
       expect(response.headers.get('X-Auth'), 'the-jwt');
     });
 
-    test('does not redirect -- the native flow has nowhere to send a browser',
-        () async {
-      final controller = AuthController(authHandler: _StubAuthHandler());
-      final response = _response();
+    test(
+      'does not redirect -- the native flow has nowhere to send a browser',
+      () async {
+        final controller = AuthController(authHandler: _StubAuthHandler());
+        final response = _response();
 
-      await controller.oauth(
-        body: OAuthBody.code(
-          table: 'users',
-          provider: 'google',
-          code: 'c',
-          codeVerifier: 'v',
-          redirectUri: 'com.example.app:/cb',
-        ),
-        headers: response.headers as ResponseHeaders,
-      );
+        await controller.oauth(
+          body: OAuthBody.code(
+            table: 'users',
+            provider: 'google',
+            code: 'c',
+            codeVerifier: 'v',
+            redirectUri: 'com.example.app:/cb',
+          ),
+          headers: response.headers as ResponseHeaders,
+        );
 
-      expect(response.statusCode, 200);
-      expect(response.headers.get(HttpHeaders.locationHeader), isNull);
-    });
+        expect(response.statusCode, 200);
+        expect(response.headers.get(HttpHeaders.locationHeader), isNull);
+      },
+    );
   });
 }
 
@@ -415,11 +420,7 @@ class _StubAuthHandler extends AuthHandler {
         error: error,
       );
     }
-    return (
-      user: const {'id': 'u1'},
-      jwt: 'the-jwt',
-      redirectTo: redirectTo,
-    );
+    return (user: const {'id': 'u1'}, jwt: 'the-jwt', redirectTo: redirectTo);
   }
 
   @override

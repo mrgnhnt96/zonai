@@ -93,5 +93,46 @@ void main() {
 
       expect(Uri.parse(url).queryParameters['scope'], 'identify email');
     });
+
+    test('sends response_mode=form_post for Apple, which rejects the '
+        'request without it when name/email are in scope', () {
+      final provider = OAuthProvider.apple(
+        clientId: 'com.example.app',
+        teamId: 'TEAM',
+        keyId: 'KEY',
+        privateKey: 'pem',
+      );
+
+      final url = buildOAuthAuthorizationUrl(
+        provider: provider,
+        redirectUri: 'https://app.example/auth/oauth/callback/apple',
+        state: 's',
+        codeChallenge: 'c',
+        nonce: 'n',
+      );
+
+      expect(provider.scopes, contains('email'));
+      expect(Uri.parse(url).queryParameters['response_mode'], 'form_post');
+    });
+
+    test('omits response_mode for providers that do not set one', () {
+      final provider = OAuthProvider.google(
+        clientId: 'cid',
+        clientSecret: 'secret',
+      );
+
+      final url = buildOAuthAuthorizationUrl(
+        provider: provider,
+        redirectUri: 'https://app.example/auth/oauth/callback/google',
+        state: 's',
+        codeChallenge: 'c',
+        nonce: 'n',
+      );
+
+      expect(
+        Uri.parse(url).queryParameters.containsKey('response_mode'),
+        isFalse,
+      );
+    });
   });
 }

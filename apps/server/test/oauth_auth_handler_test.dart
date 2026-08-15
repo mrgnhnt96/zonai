@@ -15,21 +15,23 @@ void main() {
   const handler = AuthHandler();
 
   group('completeOAuth failure envelopes', () {
-    test('a provider error is rejected before any exchange is attempted',
-        () async {
-      // No zonaiDB in scope. If this ever reached the db mutator the test
-      // would die on a scoped-dep read instead of on the expected exception,
-      // which is the point: the throw happens first.
-      await expectLater(
-        handler.completeOAuth(
-          provider: 'google',
-          code: null,
-          state: null,
-          error: 'access_denied',
-        ),
-        throwsA(isA<OAuthProviderRejectedException>()),
-      );
-    });
+    test(
+      'a provider error is rejected before any exchange is attempted',
+      () async {
+        // No zonaiDB in scope. If this ever reached the db mutator the test
+        // would die on a scoped-dep read instead of on the expected exception,
+        // which is the point: the throw happens first.
+        await expectLater(
+          handler.completeOAuth(
+            provider: 'google',
+            code: null,
+            state: null,
+            error: 'access_denied',
+          ),
+          throwsA(isA<OAuthProviderRejectedException>()),
+        );
+      },
+    );
 
     test('a missing code is reported as a missing code', () async {
       await expectLater(
@@ -163,11 +165,7 @@ void main() {
   group('nativeOAuthPayloadFor', () {
     test('an idToken body becomes an idToken payload', () {
       final payload = nativeOAuthPayloadFor(
-        OAuthBody.idToken(
-          table: 'users',
-          provider: 'google',
-          idToken: 'a.b.c',
-        ),
+        OAuthBody.idToken(table: 'users', provider: 'google', idToken: 'a.b.c'),
       );
 
       expect(payload.provider, 'google');
@@ -289,10 +287,7 @@ void main() {
 
     test('matches the table exactly', () {
       expect(filterOAuthProviders(providers, 'user'), isEmpty);
-      expect(
-        filterOAuthProviders(providers, 'users').single['id'],
-        'google',
-      );
+      expect(filterOAuthProviders(providers, 'users').single['id'], 'google');
     });
   });
 }

@@ -207,6 +207,9 @@ sealed class OAuthProvider {
         token: 'https://appleid.apple.com/auth/token',
         issuer: 'https://appleid.apple.com',
         jwks: 'https://appleid.apple.com/auth/keys',
+        // Required whenever `name` or `email` is requested, which the default
+        // scopes above do. Apple rejects the authorization request without it.
+        responseMode: 'form_post',
       ),
       scopes: scopes,
       claims: const OAuthClaimMap(

@@ -12,6 +12,7 @@ final class OAuthEndpoints {
     this.userInfo,
     this.issuer,
     this.jwks,
+    this.responseMode,
   });
 
   /// Where the user is redirected to grant consent.
@@ -34,4 +35,18 @@ final class OAuthEndpoints {
   /// JWKS endpoint used to verify `id_token` signatures. Set only alongside
   /// [issuer].
   final String? jwks;
+
+  /// OAuth 2.0 `response_mode` sent on the authorization request, or null to
+  /// let the provider use its default (`query` for an authorization-code
+  /// flow).
+  ///
+  /// Apple requires `form_post` whenever `name` or `email` is in the
+  /// requested scopes — which its factory asks for by default — and rejects
+  /// the request outright without it. That is also why the callback is
+  /// reachable by POST as well as GET: with `form_post`, Apple delivers the
+  /// `code` and `state` as a form body rather than query parameters.
+  ///
+  /// Custom providers can set this for any provider with the same
+  /// requirement, so supporting one needs no change to zonai.
+  final String? responseMode;
 }

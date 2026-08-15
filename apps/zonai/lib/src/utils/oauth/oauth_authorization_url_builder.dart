@@ -29,6 +29,7 @@ String buildOAuthAuthorizationUrl({
       'code_challenge_method': 'S256',
     },
     if (provider.endpoints.issuer != null) 'nonce': nonce,
+    if (provider.endpoints.responseMode case final mode?) 'response_mode': mode,
   };
   return base.replace(queryParameters: params).toString();
 }

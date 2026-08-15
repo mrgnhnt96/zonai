@@ -144,10 +144,7 @@ void main() {
 
       expect(provider.endpoints.issuer, isNull);
       expect(provider.endpoints.jwks, isNull);
-      expect(
-        provider.endpoints.userInfo,
-        'https://api.github.com/user',
-      );
+      expect(provider.endpoints.userInfo, 'https://api.github.com/user');
       expect(provider.scopes, ['read:user', 'user:email']);
       expect(provider.claims.subject, 'id');
       expect(provider.claims.picture, 'avatar_url');
@@ -155,18 +152,21 @@ void main() {
   });
 
   group('OAuthProvider.microsoft', () {
-    test('defaults to the common multi-tenant endpoint with no fixed issuer', () {
-      final provider = OAuthProvider.microsoft(
-        clientId: 'cid',
-        clientSecret: 'secret',
-      );
+    test(
+      'defaults to the common multi-tenant endpoint with no fixed issuer',
+      () {
+        final provider = OAuthProvider.microsoft(
+          clientId: 'cid',
+          clientSecret: 'secret',
+        );
 
-      expect(
-        provider.endpoints.authorization,
-        'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-      );
-      expect(provider.endpoints.issuer, isNull);
-    });
+        expect(
+          provider.endpoints.authorization,
+          'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+        );
+        expect(provider.endpoints.issuer, isNull);
+      },
+    );
 
     test('a specific tenant resolves a concrete issuer', () {
       final provider = OAuthProvider.microsoft(
@@ -330,7 +330,9 @@ void main() {
         claims: const OAuthClaimMap(subject: 'sub', email: 'email'),
         clientId: 'cid',
         clientSecret: 'secret',
-        brand: const OAuthBrand(icon: OAuthIcon.url('https://acme.example/icon.svg')),
+        brand: const OAuthBrand(
+          icon: OAuthIcon.url('https://acme.example/icon.svg'),
+        ),
       );
 
       final public = provider.toPublic(table: 'users');
