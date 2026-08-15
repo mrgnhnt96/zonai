@@ -95,6 +95,25 @@ abstract final class AuthRoutes {
     return '$startPath${separator}redirect_to=${Uri.encodeQueryComponent(toUrlPath(oauthCallback))}';
   }
 
+  /// Full-page destination that begins [providerId]'s **admin** OAuth flow.
+  ///
+  /// Built from the provider id rather than [OAuthProviderPublic.startPath],
+  /// because that field is the *public* route
+  /// (`/auth/oauth/start/:provider?table=`) and this dashboard is the admin
+  /// sign-in. The public route mints a challenge flagged `isAdmin: false`,
+  /// whose callback auto-provisions a first-seen identity — and the admin
+  /// collection mixes in `AsAdmin`, so the row it would create signs in as a
+  /// full admin. `/auth/admin/oauth/start/:provider` resolves that collection
+  /// server-side and flags the challenge `isAdmin: true`, which is what makes
+  /// the callback refuse to provision.
+  ///
+  /// Carries no `table`: naming one is exactly the capability the admin route
+  /// withholds.
+  static String oauthAdminStartUrl(String providerId) {
+    return '/auth/admin/oauth/start/$providerId'
+        '?redirect_to=${Uri.encodeQueryComponent(toUrlPath(oauthCallback))}';
+  }
+
   static bool isSignInRoot(String path) {
     final normalized = normalizePath(path);
     return normalized == home || normalized == signIn;

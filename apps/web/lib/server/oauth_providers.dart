@@ -11,15 +11,33 @@ import 'package:zonai_schema/payloads.dart';
 /// other side of this call, so nothing reaching the dashboard carries a client
 /// secret or a token endpoint (design §2.4).
 ///
-/// Answers for **every** `OAuth`-enabled table, not just the `AsAdmin` one:
-/// that is what `ZonaiDb.oauthProviders` exposes. See `oauthProvidersProvider`
-/// consumers for how the sign-in screen uses the list.
+/// Narrowed to the `AsAdmin` collection's own providers.
+///
+/// `ZonaiDb.oauthProviders` answers for **every** `OAuth`-enabled table, which
+/// is right for a general consumer and wrong for this one: these tiles begin
+/// an *admin* sign-in via `/auth/admin/oauth/start/:provider`, a route that
+/// resolves the admin collection itself and therefore cannot serve a provider
+/// declared only on an app table. Listing one would render a button whose
+/// only outcome is a 404.
+///
+/// The `StateError` arm is the schema that declares no admin OAuth collection
+/// at all (`_adminCollectionFor`'s "no oauth sign-in is configured for
+/// admin"). Same stance as the [ExecutableUnavailableException] arm: an empty
+/// list, which `OAuthProviderButtons` already explains to the developer,
+/// rather than a 500 on the sign-in page.
 Future<List<OAuthProviderPublic>> loadOAuthProviders() {
   return runMergedScopedFuture(
     () async {
       try {
-        return await zonaiDB.oauthProviders();
+        final adminTable = await zonaiDB.adminOAuthTable();
+        final providers = await zonaiDB.oauthProviders();
+        return [
+          for (final provider in providers)
+            if (provider.table == adminTable) provider,
+        ];
       } on ExecutableUnavailableException {
+        return const [];
+      } on StateError {
         return const [];
       }
     },

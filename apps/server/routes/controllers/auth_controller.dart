@@ -204,6 +204,59 @@ class AuthController {
     _redirect(response, url);
   }
 
+  /// §3.1 step 1 for the admin dashboard: mint an **admin** challenge, 302 to
+  /// the provider.
+  ///
+  /// The `admin` path segment mirrors `@Post('admin')` above, and the reason
+  /// it exists is the same one: the collection is resolved server-side rather
+  /// than taken from the caller. [startOAuth] mints `isAdmin: false`, whose
+  /// callback auto-provisions a first-seen identity — and on a collection
+  /// that mixes in `AsAdmin` that provisioned row *is* an admin, because
+  /// `JwtConfig.isAdmin` comes from the mixin with no per-row predicate. See
+  /// [AuthHandler.startAdminOAuth].
+  ///
+  /// There is deliberately **no** admin callback route. The `isAdmin` flag
+  /// rides the `oauthState` challenge's metadata and is read back out by
+  /// `_completeOAuthCallback`, so the existing callback already distinguishes
+  /// an admin flow. A second callback route would be a second `redirect_uri`
+  /// to register with every provider, for no behavioural difference.
+  @swagger.ApiResponse(
+    302,
+    description:
+        "Redirect to the provider's "
+        'authorization endpoint. Carries `state` and `code_challenge` in the '
+        'Location header.',
+  )
+  @swagger.ApiResponse(
+    400,
+    description:
+        '`redirect_to` is neither a relative '
+        "path nor this app's own origin",
+  )
+  @swagger.ApiResponse(
+    404,
+    description:
+        'No admin collection is configured for OAuth sign-in, or it '
+        'has no such provider',
+  )
+  @swagger.ApiResponse(429, description: 'oauthStart rate limit exceeded')
+  @OAuthAdminStartRateLimit()
+  @Get('admin/oauth/start/:provider')
+  Future<void> startAdminOAuth({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Param() required String provider,
+    @Query('redirect_to') String? redirectTo,
+    required Response response,
+  }) async {
+    final url = await authHandler.startAdminOAuth(
+      provider: provider,
+      redirectTo: redirectTo,
+      authorization: authorization,
+    );
+
+    _redirect(response, url);
+  }
+
   /// §3.1 step 2, the shape every provider except Apple sends: a `GET` with
   /// `code`/`state` (or `error`) in the query string.
   @swagger.ApiResponse(

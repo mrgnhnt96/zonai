@@ -374,6 +374,17 @@ class ZonaiDb {
     return await _run(() => _adminCollectionFor(.password));
   }
 
+  /// The `AsAdmin` collection configured for `AuthType.oauth`, resolved the
+  /// same way [adminPasswordTable] resolves the password one.
+  ///
+  /// The dashboard sign-in screen needs this to tell an admin-table provider
+  /// apart from an app-table one: `ZonaiDb.oauthProviders` answers for
+  /// *every* `OAuth`-enabled table, and only the admin table's providers can
+  /// begin an admin sign-in.
+  Future<String> adminOAuthTable() async {
+    return await _run(() => _adminCollectionFor(.oauth));
+  }
+
   Future<Map<String, Object?>> createAdmin({
     required String email,
     required String password,

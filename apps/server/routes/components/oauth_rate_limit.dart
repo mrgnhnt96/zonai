@@ -28,6 +28,22 @@ final class OAuthStartRateLimit extends RateLimit
   }
 }
 
+/// Rate limits `GET /auth/admin/oauth/start/:provider` under
+/// [RateLimitOperation.oauthStart].
+///
+/// Not [OAuthStartRateLimit]: that one reads `@Query('table')`, and the admin
+/// start route deliberately has no `table` parameter — it resolves the
+/// `AsAdmin` collection server-side. See [RateLimit.kOAuthAdminStartBucket]
+/// for why this gets its own bucket instead of sharing the public one.
+final class OAuthAdminStartRateLimit extends RateLimit
+    implements LifecycleComponent {
+  const OAuthAdminStartRateLimit();
+
+  Future<GuardResult> check(@Ip() String ipAddress) async {
+    return await checkOAuthAdminStart(ipAddress);
+  }
+}
+
 /// Rate limits `GET`/`POST /auth/oauth/callback/:provider` under
 /// [RateLimitOperation.oauthCallback].
 ///

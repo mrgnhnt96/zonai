@@ -130,6 +130,71 @@ void main() {
     });
   });
 
+  group('GET /auth/admin/oauth/start/:provider', () {
+    test('302s to the provider authorization URL', () async {
+      final handler = _StubAuthHandler();
+      final controller = AuthController(authHandler: handler);
+      final response = _response();
+
+      await controller.startAdminOAuth(
+        authorization: null,
+        provider: 'google',
+        redirectTo: '/_/auth/oauth/callback',
+        response: response,
+      );
+
+      expect(response.statusCode, HttpStatus.found);
+      expect(
+        response.headers.get(HttpHeaders.locationHeader),
+        'https://provider.example/authorize?state=ADMIN',
+      );
+      expect(handler.adminStartCalls, [
+        (provider: 'google', redirectTo: '/_/auth/oauth/callback'),
+      ]);
+    });
+
+    test(
+      'reaches startAdminOAuth, never the table-taking startOAuth',
+      () async {
+        // The whole point of the route. `startOAuth` mints a challenge flagged
+        // `isAdmin: false`, whose callback auto-provisions a first-seen
+        // identity -- and the collection this route resolves mixes in
+        // `AsAdmin`, so a row provisioned there signs in as a full admin
+        // (`_getJwtConfig`: `isAdmin: admin != null`, no per-row predicate).
+        // Routing this to `startOAuth` with the admin table would reintroduce
+        // exactly that.
+        final handler = _StubAuthHandler();
+        final controller = AuthController(authHandler: handler);
+
+        await controller.startAdminOAuth(
+          authorization: null,
+          provider: 'google',
+          redirectTo: null,
+          response: _response(),
+        );
+
+        expect(handler.adminStartCalls, hasLength(1));
+        expect(handler.startCalls, isEmpty);
+      },
+    );
+
+    test('puts nothing in the response body and mints no session', () async {
+      final controller = AuthController(authHandler: _StubAuthHandler());
+      final response = _response();
+
+      await controller.startAdminOAuth(
+        authorization: null,
+        provider: 'google',
+        redirectTo: null,
+        response: response,
+      );
+
+      expect(response.body.isNull, isTrue);
+      expect(response.headers.get('X-Auth'), isNull);
+      expect(response.headers.get(HttpHeaders.setCookieHeader), isNull);
+    });
+  });
+
   group('GET /auth/oauth/callback/:provider', () {
     test('302s to the redirect_to recorded at start', () async {
       final controller = AuthController(authHandler: _StubAuthHandler());
@@ -332,6 +397,10 @@ void main() {
 ResponseImpl _response() => ResponseImpl(requestHeaders: HeadersImpl());
 
 typedef _StartCall = ({String table, String provider, String? redirectTo});
+
+/// No `table` field, because the route has no `table` parameter to record --
+/// withholding it is the capability difference between the two start routes.
+typedef _AdminStartCall = ({String provider, String? redirectTo});
 typedef _CompleteCall = ({
   String provider,
   String? code,
@@ -349,6 +418,7 @@ class _StubAuthHandler extends AuthHandler {
   _StubAuthHandler();
 
   final startCalls = <_StartCall>[];
+  final adminStartCalls = <_AdminStartCall>[];
   final completeCalls = <_CompleteCall>[];
 
   String? redirectTo = '/tables';
@@ -389,6 +459,16 @@ class _StubAuthHandler extends AuthHandler {
   }) async {
     startCalls.add((table: table, provider: provider, redirectTo: redirectTo));
     return 'https://provider.example/authorize?state=S';
+  }
+
+  @override
+  Future<String> startAdminOAuth({
+    required String provider,
+    String? redirectTo,
+    String? authorization,
+  }) async {
+    adminStartCalls.add((provider: provider, redirectTo: redirectTo));
+    return 'https://provider.example/authorize?state=ADMIN';
   }
 
   @override
