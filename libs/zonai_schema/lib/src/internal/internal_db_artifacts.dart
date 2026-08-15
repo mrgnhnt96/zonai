@@ -9,21 +9,16 @@
 //
 // Regenerate: dart run tool/generate_internal_db_artifacts.dart
 
+
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' show Schema;
-import 'package:zonai_schema/src/internal/tables/abusers_table.dart'
-    as _schema_abusers;
-import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart'
-    as _schema_authChallenges;
-import 'package:zonai_schema/src/internal/tables/crons_table.dart'
-    as _schema_crons;
-import 'package:zonai_schema/src/internal/tables/jwt_table.dart'
-    as _schema_jwts;
-import 'package:zonai_schema/src/internal/tables/logs_table.dart'
-    as _schema_logs;
-import 'package:zonai_schema/src/internal/tables/photos_table.dart'
-    as _schema_photos;
-import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart'
-    as _schema_rateLimits;
+import 'package:zonai_schema/src/internal/tables/abusers_table.dart' as _schema_abusers;
+import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart' as _schema_authChallenges;
+import 'package:zonai_schema/src/internal/tables/crons_table.dart' as _schema_crons;
+import 'package:zonai_schema/src/internal/tables/jwt_table.dart' as _schema_jwts;
+import 'package:zonai_schema/src/internal/tables/logs_table.dart' as _schema_logs;
+import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart' as _schema_oauthIdentities;
+import 'package:zonai_schema/src/internal/tables/photos_table.dart' as _schema_photos;
+import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart' as _schema_rateLimits;
 
 abstract final class InternalDbArtifacts {
   static const operations = <({String importPath, String alias})>[
@@ -51,6 +46,11 @@ abstract final class InternalDbArtifacts {
       importPath:
           'package:zonai_schema/src/internal/operations/log_operations.dart',
       alias: 'zonai_internal_log_operations',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/operations/oauth_identity_operations.dart',
+      alias: 'zonai_internal_oauth_identity_operations',
     ),
     (
       importPath:
@@ -91,7 +91,8 @@ abstract final class InternalDbArtifacts {
       alias: 'zonai_internal_auth_challenge_table_rules',
     ),
     (
-      importPath: 'package:zonai_schema/src/internal/rules/cron_row_rules.dart',
+      importPath:
+          'package:zonai_schema/src/internal/rules/cron_row_rules.dart',
       alias: 'zonai_internal_cron_row_rules',
     ),
     (
@@ -100,7 +101,8 @@ abstract final class InternalDbArtifacts {
       alias: 'zonai_internal_cron_table_rules',
     ),
     (
-      importPath: 'package:zonai_schema/src/internal/rules/jwt_row_rules.dart',
+      importPath:
+          'package:zonai_schema/src/internal/rules/jwt_row_rules.dart',
       alias: 'zonai_internal_jwt_row_rules',
     ),
     (
@@ -109,13 +111,24 @@ abstract final class InternalDbArtifacts {
       alias: 'zonai_internal_jwt_table_rules',
     ),
     (
-      importPath: 'package:zonai_schema/src/internal/rules/log_row_rules.dart',
+      importPath:
+          'package:zonai_schema/src/internal/rules/log_row_rules.dart',
       alias: 'zonai_internal_log_row_rules',
     ),
     (
       importPath:
           'package:zonai_schema/src/internal/rules/log_table_rules.dart',
       alias: 'zonai_internal_log_table_rules',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/rules/oauth_identity_row_rules.dart',
+      alias: 'zonai_internal_oauth_identity_row_rules',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/rules/oauth_identity_table_rules.dart',
+      alias: 'zonai_internal_oauth_identity_table_rules',
     ),
     (
       importPath:
@@ -149,9 +162,11 @@ abstract final class InternalDbArtifacts {
     ),
   ];
 
-  static const rateLimits = <({String importPath, String alias})>[];
+  static const rateLimits = <({String importPath, String alias})>[
+  ];
 
-  static const extensions = <({String importPath, String alias})>[];
+  static const extensions = <({String importPath, String alias})>[
+  ];
 
   static const crons = <({String importPath, String alias})>[
     (
@@ -189,7 +204,8 @@ abstract final class InternalDbArtifacts {
   /// Framework-managed tables (import path, top-level getter, table).
   static const tables = <({String importPath, String getter, String tableName})>[
     (
-      importPath: 'package:zonai_schema/src/internal/tables/abusers_table.dart',
+      importPath:
+          'package:zonai_schema/src/internal/tables/abusers_table.dart',
       getter: 'abusers',
       tableName: '_abusers',
     ),
@@ -200,22 +216,32 @@ abstract final class InternalDbArtifacts {
       tableName: '_auth_challenges',
     ),
     (
-      importPath: 'package:zonai_schema/src/internal/tables/crons_table.dart',
+      importPath:
+          'package:zonai_schema/src/internal/tables/crons_table.dart',
       getter: 'crons',
       tableName: '_cron_jobs',
     ),
     (
-      importPath: 'package:zonai_schema/src/internal/tables/jwt_table.dart',
+      importPath:
+          'package:zonai_schema/src/internal/tables/jwt_table.dart',
       getter: 'jwts',
       tableName: '_jwt',
     ),
     (
-      importPath: 'package:zonai_schema/src/internal/tables/logs_table.dart',
+      importPath:
+          'package:zonai_schema/src/internal/tables/logs_table.dart',
       getter: 'logs',
       tableName: '_log',
     ),
     (
-      importPath: 'package:zonai_schema/src/internal/tables/photos_table.dart',
+      importPath:
+          'package:zonai_schema/src/internal/tables/oauth_identity_table.dart',
+      getter: 'oauthIdentities',
+      tableName: '_oauth_identities',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/tables/photos_table.dart',
       getter: 'photos',
       tableName: '_photos',
     ),
@@ -234,18 +260,12 @@ abstract final class InternalDbArtifacts {
     _schema_crons.crons,
     _schema_jwts.jwts,
     _schema_logs.logs,
+    _schema_oauthIdentities.oauthIdentities,
     _schema_photos.photos,
     _schema_rateLimits.rateLimits,
   ];
 
   /// SQLite table names managed by the framework (not user schemas).
-  static const tableNames = {
-    '_abusers',
-    '_auth_challenges',
-    '_cron_jobs',
-    '_jwt',
-    '_log',
-    '_photos',
-    '_rate_limit',
-  };
+  static const tableNames = {'_abusers', '_auth_challenges', '_cron_jobs', '_jwt', '_log', '_oauth_identities', '_photos', '_rate_limit'};
 }
+

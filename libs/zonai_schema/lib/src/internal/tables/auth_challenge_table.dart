@@ -86,6 +86,23 @@ class AuthChallenge {
        canConsume = true,
        consumedAt = null;
 
+  /// `secretHash: sha256(state)`, `target`: provider id, `metadata`:
+  /// `{verifier, nonce, redirectTo}`. Caller supplies a 10-minute
+  /// [expiresAt] — see §4.1 of `docs/oauth-design.md`.
+  AuthChallenge.oauthState({
+    required this.id,
+    required this.expiresAt,
+    required this.secretHash,
+    required this.target,
+    required this.table,
+    this.metadata,
+  }) : userId = null,
+       allowedAttempts = 1,
+       type = .oauthState,
+       createdAt = .now(),
+       canConsume = true,
+       consumedAt = null;
+
   final AuthChallengeId id;
   final Id? userId;
   final DateTime expiresAt;
@@ -106,6 +123,12 @@ enum AuthChallengeType {
   verifyEmail,
   passwordReset,
   emailChange,
+
+  /// OAuth's `state` + PKCE verifier (§4.1 of `docs/oauth-design.md`).
+  /// `secretHash: sha256(state)`, `target`: provider id, `table`: auth
+  /// collection, `metadata`: `{verifier, nonce, redirectTo}`,
+  /// `allowedAttempts: 1`, 10-minute `expiresAt`.
+  oauthState,
 }
 
 class AuthChallengeId implements Id {

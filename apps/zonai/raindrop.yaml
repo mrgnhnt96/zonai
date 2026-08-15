@@ -1,5 +1,19 @@
 dialect: sqlite
 
+# Required by raindrop_cli since the 2026-08-15 sync (`RaindropConfig.load`
+# throws without it). `driver_import` points at zonai_schema's vendored copy
+# rather than the driver's own package, which is the case that field exists
+# for -- raindrop_sqlite is not a dependency here under its own name.
+driver: raindrop_sqlite
+driver_import: package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart
+
+# The generated snapshot/DDL entrypoints import `introspect.dart` and
+# `ddl.dart` from here. It must be zonai_schema's vendored raindrop, not the
+# submodule's: the tables under `schemas:` are built on the vendored copy, and
+# mixing the two gives `SQLiteDialect can't be assigned to SqlDialect` --
+# the same class from two packages.
+schema_package_prefix: package:zonai_schema/gen/raindrop/raindrop/
+
 # Migratable internal tables (_raindrop_migrations lives outside this dir).
 schemas: ../../libs/zonai_schema/lib/src/internal/tables
 
