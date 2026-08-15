@@ -159,6 +159,11 @@ final class FakePushCourier implements PushCourier {
   final Set<String> rejectTokens = {};
   final Set<String> failTokens = {};
 
+  /// Which permanent reason [rejectTokens] come back as. `unregistered` is
+  /// the ordinary case; `invalidArgument` is the one that can mean the
+  /// *message* was wrong rather than the token.
+  PushRejectionReason rejectWith = PushRejectionReason.unregistered;
+
   /// Throws from `send` once this many tokens have been handed over — the
   /// stand-in for the process dying mid-fan-out.
   int? throwAfterTokens;
@@ -182,10 +187,7 @@ final class FakePushCourier implements PushCourier {
     return [
       for (final token in tokens)
         if (rejectTokens.contains(token))
-          PushPermanentlyRejected(
-            token: token,
-            reason: PushRejectionReason.unregistered,
-          )
+          PushPermanentlyRejected(token: token, reason: rejectWith)
         else if (failTokens.contains(token))
           PushTransientlyFailed(token: token, detail: 'fake timeout')
         else
@@ -664,6 +666,77 @@ version: $kVersion
           },
         );
       }
+    },
+  );
+
+  test(
+    'a whole batch rejected as INVALID_ARGUMENT does not wipe the table',
+    () async {
+      // FCM returns INVALID_ARGUMENT for a bad *token* and for a bad
+      // *message* alike — an over-limit payload, a malformed data key. The
+      // second case fails identically for every recipient, so classifying it
+      // per-token prunes the entire batch because the author wrote one
+      // notification wrong. Under `deleteRow` that is the whole table.
+      //
+      // Every token being individually invalid at the same moment is not a
+      // real failure mode; one bad message is. Failing the job and saying so
+      // is the right answer in both readings.
+      await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
+        await seed(zonaiDb, count: 5);
+        courier.rejectTokens.addAll([
+          for (var i = 0; i < 5; i++) 'tok-d${i.toString().padLeft(6, '0')}',
+        ]);
+        courier.rejectWith = PushRejectionReason.invalidArgument;
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        final after = await rows(zonaiDb);
+        expect(
+          after.where((r) => r.token != null),
+          hasLength(5),
+          reason:
+              'one malformed message must not clear every recipient in the '
+              'batch — this is self-inflicted, silent, total data loss',
+        );
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.status, PushJobStatus.failed);
+        expect(entry.error, contains('INVALID_ARGUMENT'));
+      });
+    },
+  );
+
+  test(
+    'a whole batch that is genuinely UNREGISTERED still prunes',
+    () async {
+      // The guard above must stay narrow. An old cohort whose app was
+      // uninstalled really can be a full batch of dead tokens, and refusing
+      // to prune those would leave a table that never drains.
+      await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
+        await seed(zonaiDb, count: 5);
+        courier.rejectTokens.addAll([
+          for (var i = 0; i < 5; i++) 'tok-d${i.toString().padLeft(6, '0')}',
+        ]);
+
+        await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        final after = await rows(zonaiDb);
+        expect(after.where((r) => r.token != null), isEmpty);
+      });
     },
   );
 

@@ -138,6 +138,14 @@ Enqueuing *is* transactional — the job row is committed with your request. Sen
 | `collapseKey` | Replaces an earlier undelivered notification with the same key instead of stacking beside it. **Set this on anything sent from a fan-out** — see below. |
 | `data` | `Map<String, String>`. FCM's data values are strings; the type says so rather than letting a number become `"1"` silently on the device. |
 
+### Size
+
+A notification is two short strings. A realistic one — a 27-character title, an 81-character body, a collapse key and three data ids — is **about 500 bytes on the wire**, against FCM's 4 KB limit.
+
+`push` refuses a message that would not fit, at the call site, before a job exists. That check is not tidiness: FCM answers an over-limit payload with `INVALID_ARGUMENT`, which is *the same status it uses for a dead token*. Without the check, one oversized notification arrives at the fan-out looking exactly like every recipient unregistering at once — and would prune them all.
+
+You will hit the screen long before you hit the limit. iOS shows roughly four lines and Android roughly two when collapsed; a body past a couple of hundred characters is truncated where nobody can read it. Put detail in `data` and let the app fetch the rest.
+
 ### What the return value means
 
 `push` returns a `PushJobId` as soon as the job is **durably recorded**. That is a few milliseconds whether the set is ten recipients or a hundred thousand, which is what makes it safe to `await` inside a request-path hook.
@@ -250,6 +258,8 @@ Enqueuing a job starts a drain immediately, so a notification does not wait for 
 | `AppConfig.push is not configured` in the log, nothing sent | No `push:` in your `AppConfig` for this flavor. `push(...)` throws a `StateError` at the call site. |
 | `"…" is a text column, not a deviceToken column` | The column is declared with `$.text(...)`. Change it to `$.deviceToken(...)`; Zonai will not read a column it was not pointed at. |
 | `"…" has no primary key` | A fan-out cannot be checkpointed without one. |
+| `PushMessage is N bytes, over the …-byte budget` | The notification is too large for FCM. Shorten the body; the screen truncates it long before this anyway. |
+| `every recipient in a batch … INVALID_ARGUMENT` | Almost always a malformed message rather than N dead tokens. **Nothing was pruned** — the job failed instead. |
 | `FCM rejected the credentials (403)` | The service account lacks the `firebase.messaging` scope, or the key is for a different project. The job fails; **no tokens are pruned** — a credentials mistake must not clear a table. |
 | Android arrives, iOS does not | The APNs auth key is missing from the Firebase console. Sending is one integration; setup is two. |
 | `permanently_rejected` climbing steadily | Normal. It is the uninstall rate, and it is why pruning exists. |

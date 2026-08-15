@@ -52,6 +52,88 @@ void main() {
     });
   });
 
+  group('PushMessage size', () {
+    test('a realistic notification is nowhere near the limit', () {
+      const typical = PushMessage(
+        title: 'Morgan replied to your post',
+        body: 'That is exactly the failure mode I was worried about.',
+        collapseKey: 'post:evt_01HX9K2M',
+        data: {'postId': 'evt_01HX9K2M', 'causedById': 'usr_01HX9K2N'},
+      );
+
+      expect(typical.tooLargeReason, isNull);
+      expect(
+        utf8.encode(jsonEncode(typical.toJson())).length,
+        lessThan(500),
+        reason:
+            'the numbers are the argument against a template engine here: a '
+            'real email template in apps/playground is ~6.8 KB, an order of '
+            'magnitude more than an entire push payload',
+      );
+    });
+
+    test('an over-limit message is refused, and says why', () {
+      final huge = PushMessage(title: 'Digest', body: 'x' * 5000);
+
+      expect(
+        huge.tooLargeReason,
+        allOf(contains('bytes'), contains('Shorten the body')),
+        reason:
+            'FCM answers an over-limit payload with INVALID_ARGUMENT, the '
+            'same status a dead token gets — so an unchecked oversized '
+            'message reaches the fan-out looking exactly like every '
+            'recipient unregistering at once',
+      );
+    });
+
+    test(
+      'anything the budget accepts still fits FCM once the transport adds its parts',
+      () {
+        // The invariant the allowance exists for. Walk right up to the
+        // boundary: the largest message that passes the check must still be
+        // under the real limit after the transport wraps it with a
+        // registration token and the platform blocks a collapse key expands
+        // into. A budget that spent the whole 4096 would pass here and be
+        // rejected by FCM as INVALID_ARGUMENT — which prunes tokens.
+        for (final bodyLength in [1, 1000, 3000, 3500, 3560]) {
+          final message = PushMessage(
+            title: 'A notification title of a realistic length',
+            body: 'x' * bodyLength,
+            collapseKey: 'post:evt_01HX9K2M',
+            data: const {'postId': 'evt_01HX9K2M'},
+          );
+          if (message.tooLargeReason != null) continue;
+
+          final wire = utf8.encode(
+            jsonEncode({
+              'message': {
+                'token': 'f' * 200, // longer than any token seen in practice
+                'notification': {
+                  'title': message.title,
+                  'body': message.body,
+                },
+                'data': message.data,
+                'android': {'collapse_key': message.collapseKey},
+                'apns': {
+                  'headers': {'apns-collapse-id': message.collapseKey},
+                },
+              },
+            }),
+          ).length;
+
+          expect(
+            wire,
+            lessThanOrEqualTo(PushMessage.maxPayloadBytes),
+            reason:
+                'a body of $bodyLength passed tooLargeReason but renders to '
+                '$wire bytes on the wire, over the ${PushMessage.maxPayloadBytes}-byte '
+                'limit — the overhead allowance is too small',
+          );
+        }
+      },
+    );
+  });
+
   group('PushOutcome', () {
     test('each variant round trips as itself', () {
       final outcomes = <PushOutcome>[

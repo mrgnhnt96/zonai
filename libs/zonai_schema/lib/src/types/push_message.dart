@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:zonai_schema/src/types/id.dart';
 
 /// One notification, as it will be handed to every recipient of a fan-out.
@@ -56,6 +58,37 @@ class PushMessage {
     'collapseKey': ?collapseKey,
     'data': data,
   };
+
+  /// FCM's documented ceiling for a message payload.
+  ///
+  /// Not verified against a live endpoint — it is a documented figure, and
+  /// the reason the check below leaves headroom rather than sitting exactly
+  /// on it.
+  static const maxPayloadBytes = 4096;
+
+  /// Room left for the parts the transport adds per recipient: the
+  /// registration token (~163 bytes), the platform blocks a collapse key
+  /// expands into, and the JSON envelope around all of it.
+  static const _transportOverheadAllowance = 512;
+
+  /// Why this message is too large to send, or null when it fits.
+  ///
+  /// Checked at enqueue rather than at send, and that is the whole point.
+  /// FCM rejects an over-limit payload with `INVALID_ARGUMENT` — the same
+  /// status it uses for a dead token — so an oversized message arrives
+  /// looking exactly like every recipient's registration going bad at once.
+  /// Catching it here means the author is told at the call site, before a
+  /// job exists.
+  String? get tooLargeReason {
+    final size = utf8.encode(jsonEncode(toJson())).length;
+    final budget = maxPayloadBytes - _transportOverheadAllowance;
+    if (size <= budget) return null;
+
+    return 'PushMessage is $size bytes, over the $budget-byte budget '
+        '(FCM allows $maxPayloadBytes including the per-recipient token and '
+        'envelope). Shorten the body or move detail into the app: a '
+        'notification body is truncated on screen well before this anyway.';
+  }
 
   @override
   bool operator ==(Object other) {

@@ -66,7 +66,16 @@ extension _PushX on ZonaiDb {
       return null;
     }
 
-    // Gate two: the named column must actually be a `deviceToken` column.
+    // Gate two: the message has to be small enough to send. Checked before
+    // anything is written, because FCM answers an over-limit payload with
+    // `INVALID_ARGUMENT` -- the same status a dead token gets -- so a job
+    // that got this far would look exactly like every recipient
+    // unregistering at once.
+    if (message.tooLargeReason case final reason?) {
+      throw PushTargetException(reason);
+    }
+
+    // Gate three: the named column must actually be a `deviceToken` column.
     // This is what stops `push` being turned into a way to read a column the
     // caller could not otherwise read — the fan-out projects only the primary
     // key and this column, and this check is what makes "this column" mean
@@ -350,6 +359,40 @@ extension _PushX on ZonaiDb {
         // endpoint. The cursor stays exactly where it was, so the next drain
         // re-reads this batch rather than skipping past it.
         await _failPushJob(job, '$e');
+        break;
+      }
+
+      // FCM answers a bad *token* and a bad *message* with the same
+      // `INVALID_ARGUMENT`. The second fails identically for every recipient,
+      // so taking it at face value prunes the whole batch because the author
+      // wrote one notification wrong — under `deleteRow`, the whole table.
+      //
+      // Every token in a batch going individually bad at the same instant is
+      // not a real failure mode; one malformed message is. So a *unanimous*
+      // INVALID_ARGUMENT is read as a statement about the message: the job
+      // fails, the cursor stays put, and nothing is pruned. Both readings are
+      // served by that — if the tokens really were all bad, the operator is
+      // told rather than having the rows disappear.
+      //
+      // Deliberately narrow. Unanimous `UNREGISTERED` is left alone: an old
+      // cohort whose app was uninstalled genuinely is a full batch of dead
+      // tokens, and refusing to prune those leaves a table that never drains.
+      // And it needs more than one recipient to mean anything — at a batch of
+      // one there is nothing to be unanimous about, and the blast radius is
+      // the single token that ordinary pruning would clear anyway.
+      if (batch.length > 1 &&
+          outcomes.every(
+            (o) =>
+                o is PushPermanentlyRejected &&
+                o.reason == PushRejectionReason.invalidArgument,
+          )) {
+        await _failPushJob(
+          job,
+          'every recipient in a batch of ${batch.length} was rejected with '
+          'INVALID_ARGUMENT, which almost always means the message is '
+          'malformed rather than the tokens. Nothing was pruned. Check the '
+          "message's size and data keys.",
+        );
         break;
       }
 
