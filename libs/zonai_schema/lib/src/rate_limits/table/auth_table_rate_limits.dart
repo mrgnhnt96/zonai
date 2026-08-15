@@ -42,4 +42,13 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
   /// unbounded rows. Override to tighten or return `null` to disable.
   Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async =>
       .externalIdpProvisioning;
+
+  /// Throttles `GET /auth/oauth/start/:provider?table=` for this auth table,
+  /// keyed per client IP. Each accepted start writes an `oauthState`
+  /// challenge row, so this bounds how fast one client can fill that table.
+  /// Override to tighten or return `null` to disable.
+  ///
+  /// There is deliberately no matching `oauthCallbackPolicy`: the callback
+  /// has no table to attach one to — see [RateLimitOperation.oauthCallback].
+  Future<RateLimitPolicy?> oauthStartPolicy() async => .defaultPolicy;
 }

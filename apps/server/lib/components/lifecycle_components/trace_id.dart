@@ -59,6 +59,64 @@ String _errorSummary(Object error) => _errorSummaryFromText(
   fallback: error.runtimeType.toString(),
 );
 
+/// Query parameters whose *values* must never appear in a log line.
+///
+/// Every one of these is a live credential for the few minutes it exists: an
+/// OAuth authorization `code` can be exchanged for a session by anyone who
+/// reads it, `state` is the single-use handle that binds the exchange, and
+/// the token names are what a native client puts on the wire. Design §4
+/// item 7 -- "Secrets, codes, tokens and `state` never reach the logger" --
+/// is a property of *this* function, because [Trace] logs
+/// `context.request.uri` in full on every request.
+///
+/// That is not a hypothetical: `logger.request` fires at `Level.request`,
+/// which is below `info`, so it prints for anyone running the server at
+/// `--log verbose`, `--log trace` or `--log request` -- and
+/// `sip run playground serve` passes `--log verbose`. Without this,
+/// `GET /auth/oauth/callback/google?code=...&state=...` writes both values to
+/// the console. (It does *not* reach the `_log` table: the persistence
+/// callback drops anything below `info`. Console-only is still a leak --
+/// terminals get scrolled back, piped to files and pasted into issues.)
+const _redactedQueryParams = {
+  'code',
+  'state',
+  'id_token',
+  'access_token',
+  'refresh_token',
+  'token',
+  'secret',
+  'code_verifier',
+  'client_secret',
+};
+
+/// [uri] with the value of every [_redactedQueryParams] key replaced.
+///
+/// Keys are preserved so a log line still shows the *shape* of the request --
+/// which is the whole diagnostic value of logging the URI, and none of the
+/// risk. Unknown parameters are left alone; this is a denylist, and it is
+/// named as one so the next person adding a credential-bearing query
+/// parameter knows it must be added here too.
+String redactSensitiveQuery(Uri uri) {
+  if (uri.queryParameters.isEmpty) return uri.toString();
+  if (!uri.queryParameters.keys.any(_redactedQueryParams.contains)) {
+    return uri.toString();
+  }
+
+  // queryParametersAll, not queryParameters: a repeated key collapses to its
+  // last value in the latter, so rebuilding from it would silently drop
+  // duplicates from the logged shape.
+  return uri
+      .replace(
+        queryParameters: {
+          for (final entry in uri.queryParametersAll.entries)
+            entry.key: _redactedQueryParams.contains(entry.key)
+                ? ['<redacted>']
+                : entry.value,
+        },
+      )
+      .toString();
+}
+
 /// Returns true if the request was made by a human admin (not a cron worker).
 Future<bool> _isAdminRequest(Context context) async {
   final authorization = context.request.headers.get('authorization');
@@ -157,7 +215,8 @@ class Trace implements LifecycleComponent {
           stopwatch.stop();
           logger.request(
             '[${result.statusCode}] ${stopwatch.elapsedMilliseconds}ms: '
-            '${context.request.method} ${context.request.uri}',
+            '${context.request.method} '
+            '${redactSensitiveQuery(context.request.uri)}',
           );
           result.headers.add('x-trace-id', _trace.value);
           return result;

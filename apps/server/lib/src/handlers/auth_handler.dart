@@ -1,6 +1,7 @@
 import 'package:zonai/zonai.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai_schema/zonai_schema.dart';
+import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 
 class AuthHandler {
   const AuthHandler();
@@ -190,6 +191,97 @@ class AuthHandler {
     });
   }
 
+  // ---------------------------------------------------------------------
+  // OAuth (docs/oauth-design.md §3). Every method here is a thin adapter
+  // over `zonaiDB`'s OAuth entry points -- the flows themselves live in
+  // `parts/auth/oauth.dart`, and nothing below re-implements any of them.
+  // ---------------------------------------------------------------------
+
+  /// Every `(table, provider)` pair the schema declares, redacted by
+  /// `OAuthProvider.toPublic` (design §2.4), optionally narrowed to one
+  /// [table].
+  ///
+  /// Filtering here rather than at the operation: `ZonaiDb.oauthProviders`
+  /// answers for every `OAuth`-enabled table at once, which is what the
+  /// dashboard's sign-in screen wants, and `?table=` is the single-collection
+  /// view of the same list.
+  Future<List<Map<String, Object?>>> oauthProviders({String? table}) async {
+    return filterOAuthProviders(await zonaiDB.oauthProviders(), table);
+  }
+
+  /// §3.1 step 1. Returns the provider's authorization URL to redirect to.
+  Future<String> startOAuth({
+    required String table,
+    required String provider,
+    String? redirectTo,
+    String? authorization,
+  }) async {
+    final token = switch (authorization) {
+      null => null,
+      final String bearerToken => _parseBearerAuthorization(bearerToken),
+    };
+
+    return await zonaiDB.startOAuth(
+      table,
+      StartOAuthAuthPayload(
+        provider: provider,
+        redirectTo: redirectTo,
+        jwt: token,
+      ),
+    );
+  }
+
+  /// §3.1 step 2. Consumes the challenge, exchanges the code, resolves the
+  /// identity and mints the session.
+  ///
+  /// [error] is the provider's own RFC 6749 §4.1.2.1 rejection (the user hit
+  /// "cancel", the client is misconfigured). It arrives *instead of*
+  /// [code]/[state] and is surfaced as a 400 carrying the error code —
+  /// never [errorDescription] verbatim, which is provider-controlled text
+  /// that would be reflected into our response body.
+  Future<({Map<String, Object?> user, String jwt, String? redirectTo})>
+  completeOAuth({
+    required String provider,
+    required String? code,
+    required String? state,
+    String? error,
+  }) async {
+    if (error != null && error.isNotEmpty) {
+      throw OAuthProviderRejectedException(provider: provider, error: error);
+    }
+
+    // A callback with neither an error nor a usable code/state pair is a
+    // malformed request, not a failed sign-in: answer 400 rather than
+    // letting a null cast surface as a 500.
+    if (code == null || code.isEmpty || state == null || state.isEmpty) {
+      throw OAuthCallbackIncompleteException(
+        provider: provider,
+        hasCode: code != null && code.isNotEmpty,
+        hasState: state != null && state.isNotEmpty,
+      );
+    }
+
+    final result = await zonaiDB.completeOAuth(
+      CompleteOAuthAuthPayload(state: state, code: code),
+    );
+
+    return (user: result.user, jwt: result.jwt, redirectTo: result.redirectTo);
+  }
+
+  /// §3.2, the native / public-client flow. Routed through the same
+  /// `zonaiDB.authenticate` every other sign-in uses — `NativeOAuthAuthPayload`
+  /// is dispatched by `parts/auth/auth.dart`'s payload switch.
+  Future<Map<String, Object?>> oauthNative(OAuthBody body) async {
+    final result = await zonaiDB.authenticate(
+      body.table,
+      nativeOAuthPayloadFor(body),
+    );
+    if (result == null) {
+      throw StateError('OAuth sign-in did not produce a session');
+    }
+    return _sessionPayload(result.user, result.jwt);
+  }
+
   Map<String, Object?> _sessionPayload(
     Map<String, Object?> user,
     String accessToken,
@@ -213,4 +305,53 @@ class AuthHandler {
 
     return trimmed;
   }
+}
+
+// The two functions below are top-level and public on purpose. Everything
+// else `AuthHandler` does is one call into `zonaiDB`, which cannot be
+// constructed without the whole scoped-dep tree behind it (`settings`, `args`,
+// `fs`, a Mailman pool per worker). These two carry the only decisions this
+// file makes on its own, so they are lifted out where a test can reach them
+// without standing up a database.
+
+/// Narrows a `(table, provider)` list to one [table], or returns all of it
+/// when [table] is null.
+///
+/// `null` means "every collection", not "no collections": `?table=` is an
+/// optional filter on `GET /auth/oauth/providers`, and the dashboard's
+/// sign-in screen omits it deliberately to list every `OAuth`-enabled table
+/// at once.
+List<Map<String, Object?>> filterOAuthProviders(
+  List<OAuthProviderPublic> providers,
+  String? table,
+) {
+  return [
+    for (final provider in providers)
+      if (table == null || provider.table == table) provider.toJson(),
+  ];
+}
+
+/// Maps a `POST /auth/oauth` body onto the payload the db mutator dispatches
+/// on (design §3.2).
+///
+/// The two shapes are not interchangeable and the switch is exhaustive over a
+/// sealed type, so a third body shape added later cannot silently fall
+/// through to one of these.
+NativeOAuthAuthPayload nativeOAuthPayloadFor(OAuthBody body) {
+  return switch (body) {
+    OAuthIdTokenBody(:final provider, :final idToken) =>
+      NativeOAuthAuthPayload.idToken(provider: provider, idToken: idToken),
+    OAuthCodeBody(
+      :final provider,
+      :final code,
+      :final codeVerifier,
+      :final redirectUri,
+    ) =>
+      NativeOAuthAuthPayload.code(
+        provider: provider,
+        code: code,
+        codeVerifier: codeVerifier,
+        redirectUri: redirectUri,
+      ),
+  };
 }
