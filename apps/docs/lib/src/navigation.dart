@@ -232,6 +232,11 @@ const List<NavGroup> navigation = [
         '/authentication/magic-link-auth',
         summary: 'Passwordless sign-in over emailed links.',
       ),
+      NavItem(
+        'OAuth',
+        '/authentication/oauth',
+        summary: 'Sign in with Google, Apple, GitHub and other providers.',
+      ),
       NavItem('Session Management', '/authentication/session-management', summary: 'Refresh, logout and JWT lifetime.'),
       NavItem(
         'Admin Accounts',
