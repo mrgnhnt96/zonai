@@ -72,6 +72,28 @@ void main() {
     expect(robots.readAsStringSync(), contains('Sitemap: $_origin/sitemap.xml'));
   });
 
+  // zonai.dev links here 23 times; before the header's home link these 81 pages
+  // linked back zero times. Two hosts with a one-way edge do not read as one
+  // project, and the link lives in shared chrome -- exactly the kind of thing a
+  // layout refactor drops without any page looking broken.
+  test('every page links back to the marketing site', () {
+    final buildDir = Directory('build/jaspr');
+    if (!buildDir.existsSync()) {
+      markTestSkipped('No build/jaspr — run: dart run jaspr_cli:jaspr build');
+      return;
+    }
+
+    final missing = [
+      for (final location in locations)
+        if (!File('${buildDir.path}${location.substring(_origin.length)}index.html')
+            .readAsStringSync()
+            .contains('href="https://zonai.dev"'))
+          location,
+    ];
+
+    expect(missing, isEmpty);
+  });
+
   // The canonical tag is emitted by `ZonaiDocsLayout.buildHead` and the sitemap
   // by a standalone script; only the rendered HTML can show that they agree.
   // Two URLs for one page is what a crawler does when they do not.

@@ -70,6 +70,7 @@ void main() {
             logo: '/images/logo.svg',
             items: [
               const DocsSearch(),
+              const _HomeLink(),
               const _GitHubLink(),
               ThemeToggle(),
             ],
@@ -230,6 +231,35 @@ final class _PageNav extends StatelessComponent {
   }
 }
 
+/// A link from the docs back to the marketing site.
+///
+/// zonai.dev pointed at these docs 23 times; the docs pointed back at zonai.dev
+/// zero times, across all 81 pages. Two hosts with a one-way edge between them
+/// do not read as one project to a crawler, and a reader who lands on a docs
+/// page from a search result has no way home.
+///
+/// A plain `<a>`, not a router link: the whole point is an anchor that exists
+/// in the statically-generated HTML, before any JavaScript runs.
+final class _HomeLink extends StatelessComponent {
+  const _HomeLink();
+
+  @override
+  Component build(BuildContext context) {
+    if (context.page.data.site['home'] case final String url) {
+      return a(
+        classes: 'header-home-link',
+        href: url,
+        attributes: {'aria-label': 'Zonai home'},
+        [
+          RawText(_homeIcon),
+          span(classes: 'header-home-label', [Component.text('zonai.dev')]),
+        ],
+      );
+    }
+    return const Component.empty();
+  }
+}
+
 /// A compact repository link for the header.
 final class _GitHubLink extends StatelessComponent {
   const _GitHubLink();
@@ -257,6 +287,12 @@ final class _GitHubLink extends StatelessComponent {
   }
 }
 
+const _homeIcon =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '
+    'aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 '
+    '1-1V9.5"/></svg>';
+
 const _githubIcon =
     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" '
     'aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58 '
@@ -280,6 +316,27 @@ List<StyleRule> get _styles => [
     fontFamily: FontFamily.list([FontFamilies.monospace]),
     whiteSpace: WhiteSpace.noWrap,
   ),
+
+  css('.header-home-link', [
+    css('&').styles(
+      display: Display.flex,
+      alignItems: AlignItems.center,
+      gap: Gap.column(.4.rem),
+      padding: Padding.symmetric(horizontal: .625.rem, vertical: .5.rem),
+      radius: BorderRadius.circular(8.px),
+      color: Color('inherit'),
+      textDecoration: TextDecoration.none,
+      fontSize: .875.rem,
+      opacity: .8,
+      whiteSpace: WhiteSpace.noWrap,
+    ),
+    css('&:hover').styles(opacity: 1, backgroundColor: Color('color-mix(in srgb, currentColor 5%, transparent)')),
+    // The label goes, the anchor stays: hiding the link itself on a phone would
+    // drop the only edge back to zonai.dev from the markup a crawler reads.
+    css.media(MediaQuery.screen(maxWidth: 600.px), [
+      css('.header-home-label').styles(display: Display.none),
+    ]),
+  ]),
 
   css('.header-icon-link', [
     css('&').styles(

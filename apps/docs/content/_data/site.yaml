@@ -17,6 +17,10 @@ keywords:
 title: Zonai
 titleBase: Zonai
 url: https://docs.zonai.dev
+# The marketing site. Read by the header's home link -- these are two separate
+# hosts and two separate GitHub Pages sites, so nothing but an actual link ties
+# them together as one project for a crawler.
+home: https://zonai.dev
 social:
   - name: GitHub
     url: https://github.com/mrgnhnt96/zonai
