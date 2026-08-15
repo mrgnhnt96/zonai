@@ -303,6 +303,71 @@ void main() {
     });
   });
 
+  group('AppConfig.validate', () {
+    AppConfig configWith(PushConfig push) => AppConfig(
+      appName: 'app',
+      passwordSecret: 'p',
+      jwtSecret: 'j',
+      push: push,
+    );
+
+    test('refuses a batch size that would send to nobody', () {
+      // The worst shape a misconfiguration can take: `LIMIT 0` makes every
+      // job read an empty batch, mark itself completed and send nothing --
+      // no error, no log, and a jobs table full of rows that say they
+      // finished. PushConfig's own bound is an `assert`, and asserts are
+      // stripped from exactly the build where this would matter.
+      expect(
+        () => configWith(
+          const PushConfig(
+            projectId: 'p',
+            credentials: PushCredentials.inline('{}'),
+            batchSize: 0,
+          ),
+        ).validate(),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('push.batchSize'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses a concurrency or attempt count below one', () {
+      for (final push in [
+        const PushConfig(
+          projectId: 'p',
+          credentials: PushCredentials.inline('{}'),
+          concurrency: 0,
+        ),
+        const PushConfig(
+          projectId: 'p',
+          credentials: PushCredentials.inline('{}'),
+          maxAttemptsPerBatch: 0,
+        ),
+        const PushConfig(
+          projectId: '',
+          credentials: PushCredentials.inline('{}'),
+        ),
+      ]) {
+        expect(() => configWith(push).validate(), throwsStateError);
+      }
+    });
+
+    test('a project with no push config still validates', () {
+      expect(
+        const AppConfig(
+          appName: 'app',
+          passwordSecret: 'p',
+          jwtSecret: 'j',
+        ).validate,
+        returnsNormally,
+      );
+    });
+  });
+
   group('deviceToken columns', () {
     test('are recognised as ColumnShapeKind.deviceToken', () {
       final shape = tableSchemaShapeFromTable(_tokens.$);

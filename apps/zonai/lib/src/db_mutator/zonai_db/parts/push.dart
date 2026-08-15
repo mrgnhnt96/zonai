@@ -226,6 +226,23 @@ extension _PushX on ZonaiDb {
       transientlyFailed += result.transientlyFailed;
     }
 
+    // A job that advanced without finishing hit this pass's batch ceiling,
+    // which exists to stop one large fan-out starving the queue behind it --
+    // not to throttle it. Without this, a hundred-thousand-recipient job
+    // would advance 10,000 per pass and then wait for the next minute
+    // boundary, turning a bound meant to keep the queue fair into a silent
+    // rate limit of its own. Chaining another pass lets it continue at full
+    // speed while still yielding between passes, so a job enqueued a second
+    // ago gets its turn rather than queueing behind the whole fan-out.
+    if (jobsAdvanced > jobsCompleted) {
+      unawaited(
+        _drainPushJobs().catchError((Object e, StackTrace s) {
+          logger.error('Push drain continuation failed', e, s);
+          return _emptyDrain;
+        }),
+      );
+    }
+
     return (
       jobsAdvanced: jobsAdvanced,
       jobsCompleted: jobsCompleted,

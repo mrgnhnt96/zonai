@@ -401,6 +401,44 @@ version: $kVersion
     },
   );
 
+  test(
+    'a fan-out larger than one pass continues without waiting for the cron',
+    () async {
+      // 50 recipients at batchSize 2 is 25 batches, past the 20-batch ceiling
+      // one pass will commit. That ceiling exists so a large fan-out cannot
+      // starve the queue behind it — not to rate-limit it. Without a chained
+      // continuation the remaining recipients would sit until the next minute
+      // boundary, turning a fairness bound into a silent throttle.
+      await run(_appConfigWith(_pushConfig(batchSize: 2)), (zonaiDb) async {
+        await seed(zonaiDb, count: 50);
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+
+        // Drains chain, so awaiting one that was requested after the
+        // continuation was scheduled means the continuation has finished.
+        await zonaiDb.drainPushJobs();
+        await zonaiDb.drainPushJobs();
+
+        final entry = await job(zonaiDb, id!);
+        expect(
+          entry.status,
+          PushJobStatus.completed,
+          reason:
+              'the job passed the per-pass batch ceiling; nothing but the '
+              'continuation would have finished it before the cron ran',
+        );
+        expect(entry.delivered, 50);
+        expect(courier.allSentTokens.toSet(), hasLength(50));
+      });
+    },
+  );
+
   test('rows inserted mid-scan do not cause skips', () async {
     await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
       await seed(zonaiDb, count: 20);

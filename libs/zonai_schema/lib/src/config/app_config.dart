@@ -110,6 +110,32 @@ final class AppConfig {
       errors.add(
         'passwordSecret is empty — set the PASSWORD_SECRET environment variable',
       );
+    // `PushConfig`'s own bounds are `assert`s, and asserts are stripped from a
+    // release build -- which is exactly where this would matter. A
+    // `batchSize` of 0 makes every recipient query `LIMIT 0`, so every job
+    // reads an empty batch, is marked completed, and sends nothing. That is
+    // the worst shape a misconfiguration can take: no error, no log, and a
+    // jobs table full of rows that all say they finished.
+    if (push case final push?) {
+      if (push.projectId.isEmpty) {
+        errors.add('push.projectId is empty');
+      }
+      if (push.batchSize < 1) {
+        errors.add('push.batchSize must be at least 1 (got ${push.batchSize})');
+      }
+      if (push.concurrency < 1) {
+        errors.add(
+          'push.concurrency must be at least 1 (got ${push.concurrency})',
+        );
+      }
+      if (push.maxAttemptsPerBatch < 1) {
+        errors.add(
+          'push.maxAttemptsPerBatch must be at least 1 '
+          '(got ${push.maxAttemptsPerBatch})',
+        );
+      }
+    }
+
     if (errors.isNotEmpty) {
       throw StateError(
         'AppConfig has missing required fields:\n${errors.map((e) => '  - $e').join('\n')}',

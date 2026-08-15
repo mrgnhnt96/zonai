@@ -91,6 +91,12 @@ final class PushCredentialsInline extends PushCredentials {
 ///
 /// A project with no [PushConfig] logs a warning and enqueues nothing. A
 /// missing config must never throw; it must be loud.
+///
+/// **Bounds are checked by `AppConfig.validate`, not by an `assert` here.**
+/// An assert is stripped from a release build, which is the build where an
+/// out-of-range value actually costs something — and having both meant the
+/// real check could not be tested, because the assert refused the invalid
+/// value first. One gate, in the place that runs everywhere.
 class PushConfig {
   const PushConfig({
     required this.projectId,
@@ -99,9 +105,7 @@ class PushConfig {
     this.batchSize = defaultBatchSize,
     this.concurrency = defaultConcurrency,
     this.maxAttemptsPerBatch = defaultMaxAttemptsPerBatch,
-  }) : assert(batchSize > 0, 'batchSize must be positive'),
-       assert(concurrency > 0, 'concurrency must be positive'),
-       assert(maxAttemptsPerBatch > 0, 'maxAttemptsPerBatch must be positive');
+  });
 
   factory PushConfig.fromJson(Map<String, dynamic> json) => PushConfig(
     projectId: json['projectId'] as String,
