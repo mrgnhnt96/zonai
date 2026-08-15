@@ -318,7 +318,11 @@ class DbOperations {
       // other request already carries its own updates, and the row rule sees
       // them directly.
       updates: switch (request) {
-        CustomOperationRequest(:final operation, :final where, :final updates) =>
+        CustomOperationRequest(
+          :final operation,
+          :final where,
+          :final updates,
+        ) =>
           ops.customUpdates(operation, where: where, updates: updates),
         _ => const [],
       },

@@ -159,9 +159,7 @@ extension _CleanupPhotosX on ZonaiDb {
             where: And([
               if (idColumn != null && cursor != null) Gt(idColumn, cursor),
             ]),
-            orderBy: idColumn == null
-                ? null
-                : [OrderByTerm(column: idColumn)],
+            orderBy: idColumn == null ? null : [OrderByTerm(column: idColumn)],
             limit: idColumn == null ? null : _photoScanPageSize,
             offset: null,
             jwt: CronJwt(),
