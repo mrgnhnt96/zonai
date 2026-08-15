@@ -56,6 +56,7 @@ class AuthTypePickerScreen extends StatelessComponent {
       AuthType.password => 'Email & password',
       AuthType.otp => 'Email code',
       AuthType.magicLink => 'Magic link',
+      AuthType.oauth => 'Continue with a provider',
     };
   }
 
@@ -64,6 +65,7 @@ class AuthTypePickerScreen extends StatelessComponent {
       AuthType.password => 'Sign in with the email and password on your account.',
       AuthType.otp => 'We\'ll send a one-time code to your inbox.',
       AuthType.magicLink => 'We\'ll email you a secure link — no password needed.',
+      AuthType.oauth => 'Sign in with Google, GitHub, or another connected provider.',
     };
   }
 }

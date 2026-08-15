@@ -32,6 +32,8 @@ export 'src/update/update.dart';
 export 'src/types/auth_session.dart';
 export 'src/types/email.dart';
 export 'src/types/email_address.dart';
+export 'src/types/oauth/oauth_provider_kind.dart';
+export 'src/types/oauth/oauth_provider_public.dart';
 export 'src/types/supported_auths.dart';
 export 'src/types/order_by.dart';
 export 'src/types/where.dart';

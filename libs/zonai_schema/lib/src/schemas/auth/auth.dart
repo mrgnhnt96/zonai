@@ -30,3 +30,35 @@ base mixin MagicLinkAuth on Auth implements HasEmail {
   @nonVirtual
   bool get supportsMagicLink => true;
 }
+
+base mixin OAuth on Auth implements HasEmail {
+  /// Providers this collection can sign in with. Must be non-empty and
+  /// every [OAuthProvider.id] must be unique within the list — see
+  /// [validateOAuthProviders].
+  List<OAuthProvider> get oauthProviders;
+
+  @override
+  @nonVirtual
+  bool get supportsOAuth => true;
+
+  /// Throws a [StateError] if [oauthProviders] is empty or contains a
+  /// duplicate [OAuthProvider.id]. Each provider validates its own
+  /// credentials at construction; call this once at table-registration
+  /// time so a misconfigured provider *list* fails at boot too, not on
+  /// first sign-in.
+  @nonVirtual
+  void validateOAuthProviders() {
+    if (oauthProviders.isEmpty) {
+      throw StateError('$runtimeType.oauthProviders must not be empty');
+    }
+
+    final seen = <String>{};
+    for (final provider in oauthProviders) {
+      if (!seen.add(provider.id)) {
+        throw StateError(
+          '$runtimeType.oauthProviders has a duplicate id: "${provider.id}"',
+        );
+      }
+    }
+  }
+}
