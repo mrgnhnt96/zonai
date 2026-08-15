@@ -261,6 +261,14 @@ FCM has no sandbox. Every endpoint Google publishes delivers to a real device, s
 
 What this proves: that the request we build is one a correct FCM implementation accepts, and that an error body FCM documents produces the right outcome on the right row. What it cannot prove: **that Google behaves the way Google documents.** A stand-in written from the docs and code written from the same docs share any mistake in them silently. Do not read a green local run as "push is verified end to end".
 
+**Checking your credentials on their own.** Before a device is involved at all, `apps/zonai/tool/fcm_probe.dart` asks Google directly whether a service-account key works:
+
+```sh
+dart run tool/fcm_probe.dart /etc/my-app/fcm-service-account.json
+```
+
+It sends to a token FCM has never issued, so nothing reaches a phone and nothing is pruned — the *error* is the diagnosis. A permanent rejection means the credentials are good and FCM got as far as judging the token. A `403 PERMISSION_DENIED` means the service account lacks the Firebase Cloud Messaging API Admin role, or the key belongs to a different project than you think. That last case is the common one and it is hard to see any other way: a Play/`androidpublisher` service account (Play billing, RevenueCat) is a real key, in a real Google project, that simply is not the FCM one.
+
 **A real send.** The only thing that closes the gap above. You need a Firebase project, an app registered in it, and a service account with the **Firebase Cloud Messaging API Admin** role — note that an `androidpublisher` service account (the kind Play billing and RevenueCat use) is not that, and usually is not even in the same project. Then send to two devices: one with the app installed, one where it has been deliberately uninstalled. The uninstalled one must prune and the installed one must not. That single test is what validates the classification table this whole feature is built on.
 
 For iOS, add an **APNs auth key** to the Firebase console first. It is a `.p8` from Certificates, Identifiers & Profiles → Keys with the APNs capability enabled — *not* an App Store Connect API key, which is also a `.p8`, also lives in `~/.appstoreconnect/private_keys/`, and cannot sign an APNs request. Without the right one, FCM cannot reach iOS at all.

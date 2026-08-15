@@ -23,6 +23,20 @@ That the request you build is one a correct FCM implementation accepts, and that
 
 **That Google behaves the way Google documents.** A stand-in written from the documentation and code written from the same documentation share any mistake in it silently, and go green together. A local run is not "push is verified end to end", and reading it that way is how a wrong classification reaches production with a full test suite behind it.
 
+## Checking credentials before a device exists
+
+A local stand-in never touches your real key, so it cannot tell you whether that key works. Push credentials fail in three ways that look identical from the outside — wrong project, missing IAM role, FCM API not enabled — and all three arrive as "notifications just don't show up".
+
+Zonai ships a probe that asks Google directly:
+
+```sh
+dart run tool/fcm_probe.dart /etc/my-app/fcm-service-account.json
+```
+
+It sends to a token FCM has never issued. Nothing reaches a phone and nothing is pruned; the **error is the diagnosis**. A permanent rejection is the healthy answer — it means the credentials worked and FCM got as far as judging the token, which is the same path a real dead registration takes. A `403 PERMISSION_DENIED` means the service account lacks the **Firebase Cloud Messaging API Admin** role, or belongs to a different project than you think.
+
+That last case is the common one, and it is genuinely hard to spot any other way: a Play/`androidpublisher` service account — the kind Google Play billing and RevenueCat hand you — is a real key, in a real Google project, that simply is not the FCM one. It looks correct in every respect except the one that matters.
+
 ## A real send
 
 The only thing that closes the gap above, and the reason it is worth the setup.
