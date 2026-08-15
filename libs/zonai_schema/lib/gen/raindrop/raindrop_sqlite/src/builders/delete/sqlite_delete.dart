@@ -7,11 +7,25 @@
 // Regenerate: dart run tool/generate_raindrop_vendor.dart
 
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
+import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/builders/limited_write.dart';
 
-/// SQLite supports `LIMIT` on `DELETE`.
+/// SQLite supports capping a `DELETE`.
 extension SQLiteDeleteLimit<S extends Schema<R>, R, V>
     on DeleteWhereBuilder<S, R, V> {
   /// Cap how many rows the delete affects.
-  DeleteWhereBuilder<S, R, V> limit(int limit) =>
-      withClause(DeleteSlot.where + 1000, LimitClause(limit));
+  DeleteLimitedBuilder<S, R, V> limit(int limit) => withClause(
+        DeleteSlot.where,
+        (config) => LimitedWriteClause(
+          table: config.from!,
+          filter: config.where,
+          limit: limit,
+        ),
+        DeleteLimitedBuilder.new,
+      ).withClause(
+        // Past `RETURNING` at `where + 5000`: SQLite parses the bare
+        // `LIMIT` only there.
+        DeleteSlot.where + 10000,
+        (config) => LimitedWriteTailClause(limit),
+        DeleteLimitedBuilder.new,
+      );
 }

@@ -85,9 +85,9 @@ void main() {
 
     final missing = [
       for (final location in locations)
-        if (!File('${buildDir.path}${location.substring(_origin.length)}index.html')
-            .readAsStringSync()
-            .contains('href="https://zonai.dev"'))
+        if (!File(
+          '${buildDir.path}${location.substring(_origin.length)}index.html',
+        ).readAsStringSync().contains('href="https://zonai.dev"'))
           location,
     ];
 

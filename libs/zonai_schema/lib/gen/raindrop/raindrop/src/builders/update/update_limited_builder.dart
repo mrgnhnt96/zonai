@@ -8,31 +8,14 @@
 
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 
-/// {@template update_setting_builder}
-/// Start of every update builder, the user has to set what it wants to update
-/// first.
+/// {@template update_limited_builder}
+/// An update whose row cap is set: still awaitable and decoratable, no
+/// longer filterable.
 /// {@endtemplate}
-class UpdateSettingBuilder<S extends Schema<R>, R, V>
-    extends UpdateBuilder<S, R, V> {
-  /// {@macro update_setting_builder}
-  UpdateSettingBuilder(super.executor, {required super.config});
-}
-
-/// {@template update_where_builder}
-/// Update builder that can be filtered down or turned into a query.
-/// {@endtemplate}
-class UpdateWhereBuilder<S extends Schema<R>, R, V>
+class UpdateLimitedBuilder<S extends Schema<R>, R, V>
     extends UpdateBuilder<S, R, V> with ToQuery<S, V> {
-  /// {@macro update_where_builder}
-  UpdateWhereBuilder(super.executor, {required super.config});
-
-  /// Filter which rows the update applies to.
-  UpdateWhereBuilder<S, R, V> where(Filter where) {
-    return UpdateWhereBuilder(
-      executor,
-      config: config.copyWith({#where: where}),
-    );
-  }
+  /// {@macro update_limited_builder}
+  UpdateLimitedBuilder(super.executor, {required super.config});
 
   @override
   Query<V> compile({bool qualified = false}) => Query<V>(

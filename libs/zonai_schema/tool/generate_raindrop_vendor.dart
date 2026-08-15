@@ -81,9 +81,7 @@ void main() {
       var content = entity.readAsStringSync();
       content = _rewriteImports(content);
       content = _stripInternalAnnotations(content);
-      if (package == 'raindrop') {
-        content = _renameTableClass(content);
-      }
+      content = _renameTableClass(content);
       if (package == 'raindrop_sqlite' && relative == 'raindrop_sqlite.dart') {
         content = _dropResqliteDelegateExport(content);
       }
@@ -120,8 +118,16 @@ String _rewriteImports(String content) {
 /// zonai_schema's existing developer-facing `Table<T>` DSL class once both
 /// live in the same package, and doesn't read as a vendored-from-elsewhere
 /// type -- this is vendored source, not a re-exported dependency. Word-
-/// boundary matched so it never touches identifiers like `TableSnapshot` or
-/// the lowercase `table()` function.
+/// boundary matched so it never touches identifiers like `TableSnapshot`,
+/// `AlterTable`, SQL's uppercase `TABLE`, or the lowercase `table()`
+/// function.
+///
+/// Applied to EVERY vendored package, not just `raindrop`. It was once
+/// scoped to `raindrop` alone, on the assumption that only that package
+/// names the type; raindrop_sqlite's `LimitedWriteClause` broke that by
+/// declaring a `Table<Schema<dynamic>, dynamic>` field, and the vendored
+/// copy then referenced a class no file in the tree declares -- caught only
+/// at AOT compile, well past `dart analyze`.
 String _renameTableClass(String content) {
   return content.replaceAllMapped(RegExp(r'\bTable\b'), (match) => 'TableMeta');
 }
