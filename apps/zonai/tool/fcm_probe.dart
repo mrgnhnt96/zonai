@@ -196,8 +196,14 @@ Future<void> _raw({
     stdout
       ..writeln('--- what FCM actually said ---')
       ..writeln('HTTP         : ${response.statusCode}')
-      ..writeln('error.status : ${errorStatus ?? '(none — accepted)'}')
-      ..writeln('');
+      ..writeln('error.status : ${errorStatus ?? '(none — accepted)'}');
+    if (response.statusCode != 200) {
+      // The `details` array is where FCM puts `errorCode`, which is the only
+      // thing separating "your credentials are wrong" from "this platform's
+      // credentials are missing" — both of which arrive as a bare 401.
+      stdout.writeln('body         : ${response.body}');
+    }
+    stdout.writeln('');
   } catch (e) {
     stdout.writeln('raw probe failed: $e\n');
   } finally {

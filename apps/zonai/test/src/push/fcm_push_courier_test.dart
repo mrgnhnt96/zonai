@@ -95,6 +95,25 @@ http.Response _fcmError(int status, String errorStatus) => http.Response(
   status,
 );
 
+/// FCM's real shape for a platform-credential problem: a 401 whose meaning
+/// lives in `details[].errorCode` rather than in `status`.
+http.Response _thirdPartyAuthError() => http.Response(
+  jsonEncode({
+    'error': {
+      'code': 401,
+      'message': 'Invalid APNs credential.',
+      'status': 'UNAUTHENTICATED',
+      'details': [
+        {
+          '@type': 'type.googleapis.com/google.firebase.fcm.v1.FcmError',
+          'errorCode': 'THIRD_PARTY_AUTH_ERROR',
+        },
+      ],
+    },
+  }),
+  401,
+);
+
 PushConfig _config({required String privateKey}) => PushConfig(
   projectId: 'fixture-project',
   credentials: PushCredentials.inline(
@@ -410,6 +429,65 @@ void main() {
       expect(
         outcomes.firstWhere((o) => o.token == 'live'),
         isA<PushDelivered>(),
+      );
+    });
+
+    test('a missing APNs key fails one token, not the whole job', () async {
+      final privateKey = keyOrSkip();
+      if (privateKey == null) return;
+
+      // Measured against live FCM on 2026-08-15, with a control in the same
+      // minute: a bogus token returned 404 NOT_FOUND (so the service account
+      // was demonstrably valid) while an iOS token in a project with no APNs
+      // key uploaded returned this — 401, UNAUTHENTICATED, errorCode
+      // THIRD_PARTY_AUTH_ERROR, "Invalid APNs credential."
+      //
+      // Treating that as a caller-credentials failure fails the entire job,
+      // Android recipients in the same batch included, and retries forever
+      // while the log blames a service account that is fine. APNs keys
+      // expire and can be revoked, so this is reachable from a deployment
+      // that has been working for a year.
+      final outcomes = await sendWith(
+        (token) => token == 'ios-token'
+            ? _thirdPartyAuthError()
+            : http.Response('{}', 200),
+        tokens: ['android-token', 'ios-token'],
+        privateKey: privateKey,
+      );
+
+      expect(
+        outcomes.firstWhere((o) => o.token == 'android-token'),
+        isA<PushDelivered>(),
+        reason:
+            'the whole point: one platform being misconfigured must not stop '
+            'the other platform being notified',
+      );
+      expect(
+        outcomes.firstWhere((o) => o.token == 'ios-token'),
+        isA<PushTransientlyFailed>(),
+        reason:
+            'transient, never permanent. The device token is valid — it is '
+            'the project that is missing a key — so pruning here would clear '
+            'every iOS registration in the table over a lapsed credential, '
+            'irreversibly, at exactly the moment someone is fixing it',
+      );
+    });
+
+    test('a genuine credentials failure still throws', () async {
+      final privateKey = keyOrSkip();
+      if (privateKey == null) return;
+
+      // The narrowness check on the test above. A 401 WITHOUT the
+      // THIRD_PARTY_AUTH_ERROR detail is still about the caller, and must
+      // still fail the job rather than being written off per token — that is
+      // what stops a bad service account from being read as N dead devices.
+      await expectLater(
+        sendWith(
+          (_) => _fcmError(401, 'UNAUTHENTICATED'),
+          tokens: ['a', 'b'],
+          privateKey: privateKey,
+        ),
+        throwsA(isA<PushTransportException>()),
       );
     });
 

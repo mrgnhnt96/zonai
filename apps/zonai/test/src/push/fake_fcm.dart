@@ -61,14 +61,14 @@ import 'package:jose/jose.dart';
 }
 
 /// What [FakeFcm] decided to answer for one recipient token.
-typedef SendReply = ({int status, String? errorStatus});
+typedef SendReply = ({int status, String? errorStatus, String? errorCode});
 
 /// Delivered.
-const okReply = (status: 200, errorStatus: null);
+const okReply = (status: 200, errorStatus: null, errorCode: null);
 
 /// One of FCM's documented error statuses, with the HTTP code it arrives on.
-SendReply errReply(int status, String errorStatus) =>
-    (status: status, errorStatus: errorStatus);
+SendReply errReply(int status, String errorStatus, {String? errorCode}) =>
+    (status: status, errorStatus: errorStatus, errorCode: errorCode);
 
 /// The two endpoints FCM v1 needs, implemented for real and checking its side
 /// of the contract rather than rubber-stamping it.
@@ -213,7 +213,21 @@ class FakeFcm {
 
     if (reply.errorStatus case final status?) {
       return _json(request, reply.status, {
-        'error': {'code': reply.status, 'status': status, 'message': status},
+        'error': {
+          'code': reply.status,
+          'status': status,
+          'message': status,
+          // FCM puts the discriminating code here rather than in `status`,
+          // which is why a bad APNs key and a bad service account are
+          // indistinguishable without reading it.
+          if (reply.errorCode case final code?)
+            'details': [
+              {
+                '@type': 'type.googleapis.com/google.firebase.fcm.v1.FcmError',
+                'errorCode': code,
+              },
+            ],
+        },
       });
     }
 

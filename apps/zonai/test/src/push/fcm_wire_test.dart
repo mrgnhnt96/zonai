@@ -322,6 +322,43 @@ void main() {
       expect(outcomes[5], isA<PushDelivered>());
     });
 
+    test('a missing APNs key does not take the batch down with it', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      // Real FCM, 2026-08-15: an iOS token in a project with no APNs key
+      // uploaded answers 401 UNAUTHENTICATED with errorCode
+      // THIRD_PARTY_AUTH_ERROR, while a bogus token in the same minute
+      // answers 404 — so the caller's credentials were fine and only one
+      // platform was misconfigured.
+      fcm.replyFor = (token) => token == 'ios'
+          ? errReply(
+              401,
+              'UNAUTHENTICATED',
+              errorCode: 'THIRD_PARTY_AUTH_ERROR',
+            )
+          : okReply;
+
+      final outcomes = await courier.send(message, [
+        'android',
+        'ios',
+      ], config: config);
+
+      expect(
+        outcomes[0],
+        isA<PushDelivered>(),
+        reason: 'one broken platform must not stop the other being notified',
+      );
+      expect(
+        outcomes[1],
+        isA<PushTransientlyFailed>(),
+        reason:
+            'transient, never permanent — the device token is valid and it '
+            'is the project that is missing a key, so pruning would clear '
+            'every iOS registration over a lapsed credential',
+      );
+    });
+
     test('a 401 on send throws rather than blaming the tokens', () async {
       final config = await boot();
       if (config == null) return;

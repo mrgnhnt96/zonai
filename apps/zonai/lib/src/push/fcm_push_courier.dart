@@ -141,6 +141,35 @@ class FcmPushCourier implements PushCourier {
 
     final status = _errorStatus(response.body);
 
+    // A 401 that is about the *platform's* credentials rather than ours.
+    //
+    // Observed live on 2026-08-15 with a control in the same minute: a bogus
+    // token returned `404 NOT_FOUND` — so the service account was
+    // demonstrably valid — while an iOS token in a project with no APNs key
+    // uploaded returned `401 UNAUTHENTICATED`, "Invalid APNs credential.",
+    // `errorCode: THIRD_PARTY_AUTH_ERROR`.
+    //
+    // Throwing here would fail the whole job over one misconfigured
+    // platform, taking every Android recipient in the batch down with it,
+    // and retry forever while the log blamed a service account that is fine.
+    // APNs keys expire and can be revoked, so a deployment that has worked
+    // for a year can arrive here overnight.
+    //
+    // Transient rather than permanent, and that distinction is the important
+    // one: the device token is perfectly valid — it is the project that is
+    // missing a key — so pruning would clear every iOS registration in the
+    // table over a lapsed credential, irreversibly, at exactly the moment
+    // someone is fixing it.
+    if (_errorCode(response.body) == 'THIRD_PARTY_AUTH_ERROR') {
+      return PushTransientlyFailed(
+        token: token,
+        detail:
+            '${response.statusCode} THIRD_PARTY_AUTH_ERROR — the APNs key '
+            'for this project is missing, expired or revoked. Nothing is '
+            'wrong with this device token.',
+      );
+    }
+
     // Not about this token at all: the credentials are wrong or lack the
     // scope. Throwing fails the whole job and leaves the cursor where it is.
     // Classifying it per-token would prune every token in the batch over a
@@ -170,6 +199,32 @@ class FcmPushCourier implements PushCourier {
         detail: '${response.statusCode} ${other ?? 'unknown'}',
       ),
     };
+  }
+
+  /// FCM's `error.details[].errorCode`, or null when absent.
+  ///
+  /// Separate from [_errorStatus] because the two carry different things: a
+  /// bad APNs key and a bad service account are both `UNAUTHENTICATED`, and
+  /// only this tells them apart. One is a per-token problem and the other
+  /// fails the job, so reading the wrong field is the difference between a
+  /// misconfigured platform and a stalled queue.
+  String? _errorCode(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is! Map) return null;
+      final error = decoded['error'];
+      if (error is! Map) return null;
+      final details = error['details'];
+      if (details is! List) return null;
+      for (final detail in details) {
+        if (detail is Map && detail['errorCode'] is String) {
+          return detail['errorCode'] as String;
+        }
+      }
+      return null;
+    } on FormatException {
+      return null;
+    }
   }
 
   /// FCM's `error.status`, or null when the body is not the shape we expect.
