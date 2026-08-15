@@ -29,6 +29,7 @@ abstract final class PageTitle {
         .password => '$appName — Sign in',
         .otp => '$appName — Sign in with code',
         .magicLink => '$appName — Sign in with link',
+        .oauth => '$appName — Sign in',
         null => '$appName — Sign in',
       };
     }
@@ -65,6 +66,7 @@ abstract final class PageTitle {
         .password => 'Sign in to $appName with your email and password.',
         .otp => 'Sign in to $appName with a one-time code.',
         .magicLink => 'Sign in to $appName with a secure email link.',
+        .oauth => 'Sign in to $appName.',
         null => 'Sign in to $appName.',
       };
     }

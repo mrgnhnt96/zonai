@@ -19,6 +19,7 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
       .password => schema is PasswordAuth,
       .otp => schema is OtpAuth,
       .magicLink => schema is MagicLinkAuth,
+      .oauth => schema is OAuth,
     };
   }
 
@@ -27,6 +28,7 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
       .password => schema is PasswordAuth,
       .otp => schema is OtpAuth,
       .magicLink => schema is MagicLinkAuth,
+      .oauth => schema is OAuth,
     };
   }
 
@@ -35,6 +37,7 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
       .password => schema is PasswordAuth,
       .otp => false,
       .magicLink => false,
+      .oauth => false,
     };
   }
 

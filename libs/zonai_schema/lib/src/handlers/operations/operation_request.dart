@@ -194,6 +194,12 @@ sealed class AuthOperationPayload {
       .password => PasswordAuthOperationPayload.fromJson(json),
       .otp => OtpAuthOperationPayload.fromJson(json),
       .magicLink => MagicLinkAuthOperationPayload.fromJson(json),
+      // OAuth never round-trips through this wire payload: it resolves
+      // identity server-side against a redirect/code exchange, not a
+      // client-submitted AuthOperationPayload. See oauth-db-mutator.
+      .oauth => throw UnimplementedError(
+        'OAuth has no AuthOperationPayload — see oauth-db-mutator',
+      ),
     };
   }
 

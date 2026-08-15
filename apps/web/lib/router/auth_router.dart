@@ -170,6 +170,11 @@ class _SignInRootScreen extends StatelessComponent {
           AuthType.password => const PasswordSignInScreen(),
           AuthType.otp => otp_sign_in.OtpSignInScreen(),
           AuthType.magicLink => magic_link_sign_in.MagicLinkSignInScreen(),
+          // No OAuth sign-in screen or route exists yet — see
+          // oauth-dashboard-wiring.
+          AuthType.oauth => throw UnimplementedError(
+            'OAuth sign-in UI is not implemented yet — see oauth-dashboard-wiring',
+          ),
         };
       }
       return const _SignInLoading();
