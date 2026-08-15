@@ -122,6 +122,29 @@ void main() {
     return null;
   }
 
+  // A skip is not a pass, and `dart test` exits 0 on one. Without this, a
+  // runner without `openssl` on PATH — plausibly the Windows one — would go
+  // green having exercised none of the transport, and nothing would say so:
+  // the workflow's skip check is scoped to apps/docs.
+  //
+  // Locally a missing openssl stays a skip, because a red suite for a tool
+  // the developer does not need is worse than a stated gap. In CI it is a
+  // failure, because there the gap is invisible.
+  test('the signing key was actually generated (CI: skipping is failing)', () {
+    if (generatedKey != null) return;
+
+    final ci = io.Platform.environment['CI'];
+    if (ci == 'true' || ci == '1') {
+      fail(
+        'openssl is not on PATH, so every transport test below skipped and '
+        'this job proved nothing about push delivery. Install openssl on the '
+        'runner, or replace the key generation in this file.',
+      );
+    }
+
+    markTestSkipped('openssl is not on PATH (not CI, so this is a gap, not a failure)');
+  });
+
   group('access tokens', () {
     test('one token is minted for a whole batch, then reused', () async {
       final privateKey = keyOrSkip();
