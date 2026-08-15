@@ -2,6 +2,8 @@
 
 Zonai sends transactional email over **SMTP**. HTML bodies come from **Mustache** templates in your project; the runtime renders a template with variables, then delivers the message through the configured mail server.
 
+This page covers the in-app API. For getting a real provider, DNS, and credentials working end to end — including the port/TLS pairing that `port` and `ssl` below understate — see **[sending-email.md](sending-email.md)**.
+
 If `AppConfig.email` is missing, send attempts are skipped and a warning is logged — useful for local dev without SMTP credentials.
 
 ## SMTP configuration
@@ -32,7 +34,7 @@ AppConfig main() {
 | Field      | Purpose                                  |
 | ---------- | ---------------------------------------- |
 | `host`     | SMTP server hostname or IP               |
-| `port`     | SMTP port (587 for STARTTLS is common)   |
+| `port`     | SMTP port — paired with `ssl`, see [sending-email.md](sending-email.md#step-5--make-the-port-and-tls-mode-agree) |
 | `username` | SMTP auth username                       |
 | `password` | SMTP auth password                       |
 | `from`     | Default sender address and optional name |
@@ -182,6 +184,7 @@ If SMTP is misconfigured, check the server console for Courier warnings and veri
 
 ## See also
 
+- **[sending-email.md](sending-email.md)** — provider setup, DNS (SPF/DKIM/DMARC), credentials, and deliverability
 - **[config-and-env-flavors.md](config-and-env-flavors.md)** — flavors, env defines, and config worker compilation
 - **[server-binding.md](server-binding.md)** — `baseUrl` for links in auth emails
 - **[operations.md](operations.md#auth-collections)** — verify / magic-link / reset-password paths and expiry
