@@ -1,7 +1,22 @@
 name: zonai_client
-description: Generated HTTP client for the Zonai Revali server.
+# Says Dart, Flutter, auth, SQLite and live streams because those are what someone
+# types into pub.dev's search box. The old one-liner named Revali -- an internal
+# dependency nobody outside this repo has heard of -- and came in under the 60
+# characters pub.dev's scoring wants.
+description: >-
+  Typed Dart and Flutter client for a Zonai backend: auth, CRUD, file uploads,
+  and live SQLite query streams over HTTP.
 version: 0.1.3
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
+homepage: https://zonai.dev
+documentation: https://docs.zonai.dev/dart-client/overview
+issue_tracker: https://github.com/mrgnhnt96/zonai/issues
+topics:
+  - backend
+  - api-client
+  - sqlite
+  - streaming
+  - auth
 
 resolution: workspace
 

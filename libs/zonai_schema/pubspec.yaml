@@ -1,9 +1,20 @@
 name: zonai_schema
-description: >
-  Shared relational model for Zonai — Raindrop schemas, typed IDs, column
-  helpers, and anything else clients and services need to agree on the DB shape.
+# Named Raindrop, which is a private dependency -- so the sentence pub.dev showed
+# turned on a word no reader could resolve. This says what you author with it.
+description: >-
+  Define a Zonai backend in Dart: tables, access rules, rate limits, extensions
+  and the wire types the server and its clients agree on.
 version: 0.3.1
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_schema
+homepage: https://zonai.dev
+documentation: https://docs.zonai.dev/schemas/defining-tables
+issue_tracker: https://github.com/mrgnhnt96/zonai/issues
+topics:
+  - backend
+  - sqlite
+  - schema
+  - orm
+  - server
 resolution: workspace
 
 environment:
