@@ -133,6 +133,77 @@ class Auth {
     return _sessionFromRaw(raw);
   }
 
+  /// The public, redacted OAuth providers configured on the server
+  /// (`docs/oauth-design.md` §2.4). Pass [table] to narrow to one auth
+  /// collection; omit it to list every OAuth-enabled table at once.
+  Future<List<OAuthProviderPublic>> providers({String? table}) async {
+    final raw = await _auth.oauthProviders(table: table);
+    return raw.map(OAuthProviderPublic.fromJson).toList();
+  }
+
+  /// The URL to open in a browser / custom tab to start [provider]'s
+  /// server-driven redirect flow (design §3.1). Built from the base URL the
+  /// generated [Server] recorded at construction, not fetched: `GET
+  /// oauth/start/:provider` always redirects, so there is no response body
+  /// for a client to read a URL from.
+  Future<Uri> startUrl({
+    required String table,
+    required String provider,
+    String? redirectTo,
+  }) async {
+    final baseUrl = await _storage['__BASE_URL__'];
+    if (baseUrl is! String || baseUrl.isEmpty) {
+      throw StateError('Base URL not set');
+    }
+    return Uri.parse(baseUrl).replace(
+      path: '/auth/oauth/start/$provider',
+      queryParameters: {
+        'table': table,
+        if (redirectTo != null) 'redirect_to': redirectTo,
+      },
+    );
+  }
+
+  /// §3.2: exchange a PKCE `code` the app obtained itself (e.g. by driving
+  /// [startUrl] through its own in-app browser with a matching
+  /// `redirectUri`) for a session.
+  Future<AuthSession?> complete({
+    required String table,
+    required String provider,
+    required String code,
+    required String codeVerifier,
+    required String redirectUri,
+  }) async {
+    final raw = await _auth.oauth(
+      body: OAuthBody.code(
+        table: table,
+        provider: provider,
+        code: code,
+        codeVerifier: codeVerifier,
+        redirectUri: redirectUri,
+      ),
+    );
+    return _sessionFromRaw(raw);
+  }
+
+  /// §3.2, the primary path for a Flutter app that already ran the
+  /// provider's own SDK (`google_sign_in`, Sign in with Apple) and holds a
+  /// provider `idToken`.
+  Future<AuthSession?> signInWithIdToken({
+    required String table,
+    required String provider,
+    required String idToken,
+  }) async {
+    final raw = await _auth.oauth(
+      body: OAuthBody.idToken(
+        table: table,
+        provider: provider,
+        idToken: idToken,
+      ),
+    );
+    return _sessionFromRaw(raw);
+  }
+
   Future<void> logout({String? authorization}) async {
     await _auth.logout(authorization: authorization ?? '');
   }
