@@ -128,12 +128,21 @@ extension _PhotoX on ZonaiDb {
       }
 
       await file.parent.create(recursive: true);
-      await file.openWrite().addStream(
-        PhotoStreamUtils.limitedPhotoImageStream(
-          image: imageStream,
-          maxBytes: photosConfig.maxBytes,
-        ),
-      );
+      // The sink MUST be closed, not just awaited. `addStream` completes when
+      // the stream is drained and leaves the sink -- and the OS file handle --
+      // open. See the note on the same pattern in _updatePhoto, where the leak
+      // is not merely untidy but returns a 500 on Windows.
+      final sink = file.openWrite();
+      try {
+        await sink.addStream(
+          PhotoStreamUtils.limitedPhotoImageStream(
+            image: imageStream,
+            maxBytes: photosConfig.maxBytes,
+          ),
+        );
+      } finally {
+        await sink.close();
+      }
       logger.trace('file_write');
 
       await _postCreate(table.name, jwt, object: table.mapOut(insertedRow));
@@ -238,12 +247,28 @@ extension _PhotoX on ZonaiDb {
         await tempFile.delete();
       }
 
-      await tempFile.openWrite().addStream(
-        PhotoStreamUtils.limitedPhotoImageStream(
-          image: imageStream,
-          maxBytes: photosConfig.maxBytes,
-        ),
-      );
+      // CLOSE THE SINK. `addStream` completes when the stream is drained and
+      // leaves the sink open, so the OS file handle survives -- and the very
+      // next thing this method does is rename that file.
+      //
+      // POSIX renames a file with an open handle without complaint, so this
+      // read as correct on macOS and Linux for as long as the code existed.
+      // Windows refuses, and the exception surfaced as
+      // `[500] PATCH /img/:id` for the OWNER (the non-owner's 403 came from
+      // the rules check before any file work). Found by e2e (windows) on run
+      // 31855231392 -- the first Windows run this repo has ever had that got
+      // far enough to exercise it.
+      final sink = tempFile.openWrite();
+      try {
+        await sink.addStream(
+          PhotoStreamUtils.limitedPhotoImageStream(
+            image: imageStream,
+            maxBytes: photosConfig.maxBytes,
+          ),
+        );
+      } finally {
+        await sink.close();
+      }
 
       if (extensionChanged) {
         await tempFile.rename(newFile.path);
