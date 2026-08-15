@@ -649,8 +649,10 @@ AppConfig main() {
 
 `String.fromEnvironment(...)` values above are populated at **compile time**
 from `.env`/`.env.<flavor>` files and `--dart-define KEY=VALUE` flags passed
-to `zonai compile`/`zonai build` — see **Release & deployment** below. This
-is a separate mechanism from `buildSettings` in `zonai.yaml` (target
+to `zonai compile`/`zonai build` — see **Release & deployment** below. The
+`.env` file is found automatically; there is no `--dart-define-from-file`
+flag to point at it. This is a separate mechanism from `buildSettings` in
+`zonai.yaml` (target
 OS/arch only, for cross-compiling); `buildSettings` having no env/secret
 fields does not mean there's no way to inject secrets.
 
@@ -684,6 +686,15 @@ repeated `--dart-define KEY=VALUE` flags (override/add compile-time env
 values on top of the selected `.env` file — CLI wins on key collisions; use
 space-separated form, not `--dart-define=KEY=VALUE`, since a joined value
 containing its own `=` won't parse).
+
+There is **no `--dart-define-from-file`** flag and none is needed: `.env` /
+`.env.<flavor>` is read from the working directory automatically, so the env
+file never has to be named on the command line. It is `KEY=VALUE` lines, not
+JSON. Zonai's parser ignores unknown flags silently, so
+`zonai build --dart-define-from-file env.json` exits 0, warns about nothing
+and injects **zero** defines — every `String.fromEnvironment` then falls back
+to its default. To use a different file, name it `.env.<flavor>` and pass
+`--flavor <flavor>`.
 
 Cross-compile via `buildSettings` in `zonai.yaml` (unrelated to secrets/env
 values above — this only picks target OS/arch, it has no define/env field):
@@ -863,10 +874,11 @@ AppConfig main() {
 
 `String.fromEnvironment(...)` values above are populated at **compile time**
 from `.env`/`.env.<flavor>` files and `--dart-define KEY=VALUE` flags passed
-to `zonai compile`/`zonai build` — see `zonai-release.mdc`. This is separate
-from `buildSettings` above (target OS/arch only, for cross-compiling);
-`buildSettings` having no env/secret fields does not mean there's no way to
-inject secrets.
+to `zonai compile`/`zonai build` — see `zonai-release.mdc`. The `.env` file is
+found automatically; there is no `--dart-define-from-file` flag to point at
+it. This is separate from `buildSettings` above (target OS/arch only, for
+cross-compiling); `buildSettings` having no env/secret fields does not mean
+there's no way to inject secrets.
 """;
 
 const cursorSchemasMdc = r"""---
@@ -1724,7 +1736,7 @@ PurgeExpiredJwtsJob main() => PurgeExpiredJwtsJob();
 """;
 
 const cursorReleaseMdc = r"""---
-description: zonai release & deployment — build vs compile, --release/--flavor/--dart-define, cross-compiling via buildSettings
+description: zonai release & deployment — build vs compile, --release/--flavor/--dart-define (there is no --dart-define-from-file), cross-compiling via buildSettings
 globs: zonai.yaml
 alwaysApply: false
 ---
@@ -1752,6 +1764,31 @@ watchers/keyboard shortcuts during `serve`. `--flavor <name>` selects
 KEY=VALUE` flags override/add values on top of that file (CLI wins on key
 collisions) without editing it — use space-separated form, not
 `--dart-define=KEY=VALUE`.
+
+## No `--dart-define-from-file`
+
+That flag does not exist in zonai, and nothing replaces it, because the env
+file is never named on the command line: `.env` — or `.env.<flavor>` when
+`--flavor` is passed — is read from the working directory on every compile and
+turned into `-D` defines automatically.
+
+| Reaching for | Do this instead |
+| --- | --- |
+| `--dart-define-from-file=env.json` | Nothing — put the keys in `.env` |
+| A different file per environment | Name it `.env.<flavor>`, pass `--flavor <flavor>` |
+| A file elsewhere on disk | Run the command from that directory, or copy it to `.env` there |
+| One-off keys, no file | `--dart-define KEY=VALUE`, repeated |
+
+Two traps:
+
+- The file is **`KEY=VALUE` lines, not JSON** (`#` comments, quotes optional
+  around values with spaces). A JSON file will not load.
+- **Unknown flags are ignored, not rejected.** zonai's parser collects every
+  `--flag value` pair and commands read only the keys they know, so
+  `zonai build --dart-define-from-file env.json` exits 0, prints no warning
+  and injects nothing — every `String.fromEnvironment` silently falls back to
+  its `defaultValue` (`''` when there is none). Check the flag name first when
+  a build is missing values.
 
 ## Cross-compiling
 
