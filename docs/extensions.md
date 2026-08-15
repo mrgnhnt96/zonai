@@ -109,7 +109,7 @@ request is unauthenticated.
 
 ### Default email behavior
 
-Several hooks send email automatically when the schema implements **`HasEmail`**. For SMTP setup, template files, and variable reference, see **[email.md](email.md)**.
+Several hooks send email automatically when the schema implements **`HasEmail`**. For SMTP setup, template files, and variable reference, see **[email.md](email.md)**; for getting a real provider and domain delivering that mail, see **[sending-email.md](sending-email.md)**.
 
 | Hook / method        | Default email (if collection has email) |
 | -------------------- | --------------------------------------- |

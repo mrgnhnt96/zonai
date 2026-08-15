@@ -78,7 +78,7 @@ When you run `dart run zonai build`, your settings file is copied into the build
 
 ## Public URLs in app config (`baseUrl`)
 
-Server binding is separate from **`AppConfig.baseUrl`** in your config worker (`lib/src/config/db_config*.dart`). `baseUrl` is the public URL Zonai uses in emails and auth links (magic links, password reset, email verification). See **[email.md](email.md)** for template and SMTP setup.
+Server binding is separate from **`AppConfig.baseUrl`** in your config worker (`lib/src/config/db_config*.dart`). `baseUrl` is the public URL Zonai uses in emails and auth links (magic links, password reset, email verification). See **[email.md](email.md)** for template and SMTP setup, and **[sending-email.md](sending-email.md)** for getting a real provider and domain delivering that mail.
 
 If you change host or port, set `baseUrl` to the URL clients actually use:
 

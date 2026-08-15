@@ -210,7 +210,7 @@ final class PurgeOldLogsJob extends CronJob {
 PurgeOldLogsJob main() => PurgeOldLogsJob();
 ```
 
-For SMTP setup, template files, and `email.send.*` helpers, see **[email.md](email.md)**. For compile-time env passed into the cron worker executable, see **[config-and-env-flavors.md](config-and-env-flavors.md)**.
+For SMTP setup, template files, and `email.send.*` helpers, see **[email.md](email.md)**. For compile-time env passed into the cron worker executable, see **[config-and-env-flavors.md](config-and-env-flavors.md)**. For getting a real provider and domain delivering that mail, see **[sending-email.md](sending-email.md)**.
 
 ## Run history (`_cron_jobs`)
 

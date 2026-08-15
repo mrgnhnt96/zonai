@@ -236,3 +236,5 @@ dart run zonai serve --flavor dev
 - Do not commit `.env` files with real credentials; add them to `.gitignore`.
 - For production, prefer CI or deploy-time env injection: set variables in the environment that runs `dart run zonai build` (or `compile`), or maintain a `.env.prod` only on the build host.
 - Missing keys compile to empty strings unless you pass `defaultValue:` to `fromEnvironment`; validate required secrets in config `main()` if needed.
+
+For SMTP credentials specifically — provider setup, DNS, and verifying a define actually reached a compiled worker — see **[sending-email.md](sending-email.md)**.

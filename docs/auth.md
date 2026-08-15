@@ -130,5 +130,6 @@ See `resetPasswordConfig` in [operations.md](operations.md#auth-collections) and
 
 - **[extensions.md](extensions.md)** — `onSignUp`, `onSignIn`, `onRefresh`, `onLogout` hooks
 - **[email.md](email.md)** — SMTP setup, HTML templates, and transactional email
+- **[sending-email.md](sending-email.md)** — provider, DNS, and credentials for real mail delivery
 - **[rules.md](rules.md)** — auth collection and row rules
 - **[rate-limiting.md](rate-limiting.md)** — `refreshTokenPolicy()` and other auth limits

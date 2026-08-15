@@ -111,7 +111,7 @@ UserOperations main() => UserOperations();
 
 Access token lifetime defaults to **14 days** via `AppConfig.jwtExpiresIn`. Set `jwtExpiresIn` on the config worker to change the global default; override per collection with the `jwtExpiresIn` getter on `AuthOperations`.
 
-Auth emails use magic-link / reset / verify paths with `AppConfig.baseUrl` to build link URLs. See **[email.md](email.md)** for templates and SMTP configuration.
+Auth emails use magic-link / reset / verify paths with `AppConfig.baseUrl` to build link URLs. See **[email.md](email.md)** for templates and SMTP configuration, and **[sending-email.md](sending-email.md)** for getting a real provider and domain delivering those links.
 
 The framework also uses operations for auth-specific SQL (lookup by email, sign-up row shape, column name resolution for password/email/id fields). You normally only override the methods above unless you need custom query behavior via the standard CRUD helpers.
 
