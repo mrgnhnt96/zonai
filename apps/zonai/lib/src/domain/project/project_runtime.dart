@@ -102,11 +102,10 @@ Future<int?> maybeReexecProjectRuntime() async {
 
     final exe = settings.compiledProjectBinaryPath;
     logger.info('Starting project binary: $exe');
-    final child = await process.start(
-      exe,
-      [...args.original, ...identityArgs],
-      mode: ProcessStartMode.inheritStdio,
-    );
+    final child = await process.start(exe, [
+      ...args.original,
+      ...identityArgs,
+    ], mode: ProcessStartMode.inheritStdio);
     return child.exitCode;
   }
 

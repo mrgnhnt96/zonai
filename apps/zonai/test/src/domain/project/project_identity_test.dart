@@ -47,25 +47,22 @@ void main() {
       );
     });
 
-    test(
-      'falls back to the working directory when the args scope is absent, '
-      'rather than throwing',
-      () {
-        // THE REGRESSION. `settings` is `read(settingsProvider)`, and
-        // `Settings.load` reads the `args` scope to honour `--config`, so
-        // asking for the project root pulled a CLI-only dependency into every
-        // worker spawn. Any embedder driving Mailman outside the CLI died with
-        // `read(ScopedRef<Args>) was called in a scope which does not contain a
-        // corresponding value` -- caught by the native-library e2e test, which
-        // spawns a real worker with no args scope.
-        //
-        // Asserted with a control, so the test cannot pass for the wrong
-        // reason: reading `settings` here really does throw, and
-        // `projectRootForIdentity` really does survive it.
-        expect(() => settings, throwsA(isA<StateError>()));
-        expect(projectRootForIdentity(), io.Directory.current.path);
-      },
-    );
+    test('falls back to the working directory when the args scope is absent, '
+        'rather than throwing', () {
+      // THE REGRESSION. `settings` is `read(settingsProvider)`, and
+      // `Settings.load` reads the `args` scope to honour `--config`, so
+      // asking for the project root pulled a CLI-only dependency into every
+      // worker spawn. Any embedder driving Mailman outside the CLI died with
+      // `read(ScopedRef<Args>) was called in a scope which does not contain a
+      // corresponding value` -- caught by the native-library e2e test, which
+      // spawns a real worker with no args scope.
+      //
+      // Asserted with a control, so the test cannot pass for the wrong
+      // reason: reading `settings` here really does throw, and
+      // `projectRootForIdentity` really does survive it.
+      expect(() => settings, throwsA(isA<StateError>()));
+      expect(projectRootForIdentity(), io.Directory.current.path);
+    });
 
     test('a label must never break the thing it labels', () {
       // Same guarantee stated as the invariant rather than the incident: no
@@ -79,18 +76,13 @@ void main() {
 
   group('projectIdentityArgs', () {
     test('names the project, and the worker role when there is one', () {
-      runScoped(
-        () {
-          expect(projectIdentityArgs(), [
-            '--zonai-project=/projects/my_app',
-          ]);
-          expect(projectIdentityArgs(worker: 'CONFIG'), [
-            '--zonai-project=/projects/my_app',
-            '--zonai-worker=CONFIG',
-          ]);
-        },
-        values: _resolvableSettings('/projects/my_app'),
-      );
+      runScoped(() {
+        expect(projectIdentityArgs(), ['--zonai-project=/projects/my_app']);
+        expect(projectIdentityArgs(worker: 'CONFIG'), [
+          '--zonai-project=/projects/my_app',
+          '--zonai-worker=CONFIG',
+        ]);
+      }, values: _resolvableSettings('/projects/my_app'));
     });
 
     test('every flag is --key=value, so Args.parse leaves it inert', () {
