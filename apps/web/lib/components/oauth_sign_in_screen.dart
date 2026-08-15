@@ -15,8 +15,13 @@ import 'theme/theme_components.dart';
 ///
 /// A full-page assign, not [AppNavigation.goApp]: the very next hop is the
 /// provider's own domain, so there is no client-side route to push.
+///
+/// Deliberately [AuthRoutes.oauthAdminStartUrl] and not
+/// [AuthRoutes.oauthStartUrl]: this is the admin dashboard, and the public
+/// start route auto-provisions a first-seen identity into whatever `table` it
+/// is handed — which, for the `AsAdmin` collection, mints a full admin.
 void startOAuthFlow(OAuthProviderPublic provider) {
-  web.window.location.assign(AuthRoutes.oauthStartUrl(provider.startPath));
+  web.window.location.assign(AuthRoutes.oauthAdminStartUrl(provider.id));
 }
 
 /// One [OAuthProviderButton] per provider the schema declares.

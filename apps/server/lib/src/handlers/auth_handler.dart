@@ -231,6 +231,44 @@ class AuthHandler {
     );
   }
 
+  /// §3.1 step 1 for the **admin dashboard**, and the reason it is a separate
+  /// entry point rather than [startOAuth] with a `table`.
+  ///
+  /// [startOAuth] takes the collection from the caller and mints a challenge
+  /// flagged `isAdmin: false`, so its callback reaches
+  /// `_resolveOAuthSignIn`'s provisioning branch. Point that at a collection
+  /// that mixes in `AsAdmin` and the flow *creates* a row there — and
+  /// `JwtConfig.isAdmin` is derived from the mixin alone
+  /// (`db_operations.dart`'s `_getJwtConfig`: `isAdmin: admin != null`), with
+  /// no per-row predicate, so the row it just created signs in as a full
+  /// admin. `AuthRowRules.canSignUp` does not stop it either: its `.oauth`
+  /// arm is `schema is OAuth`, which an `AsAdmin` table satisfies.
+  ///
+  /// So this resolves the admin collection server-side — the caller cannot
+  /// name it — and `ZonaiDb.startAdminOAuth` flags the challenge
+  /// `isAdmin: true`, which the callback reads back out of the challenge
+  /// metadata and refuses to provision under. Same rule
+  /// [adminAuthenticate] and `sendAdminResetPassword` already enforce for
+  /// password, OTP and magic-link admin sign-in.
+  Future<String> startAdminOAuth({
+    required String provider,
+    String? redirectTo,
+    String? authorization,
+  }) async {
+    final token = switch (authorization) {
+      null => null,
+      final String bearerToken => _parseBearerAuthorization(bearerToken),
+    };
+
+    return await zonaiDB.startAdminOAuth(
+      StartOAuthAuthPayload(
+        provider: provider,
+        redirectTo: redirectTo,
+        jwt: token,
+      ),
+    );
+  }
+
   /// §3.1 step 2. Consumes the challenge, exchanges the code, resolves the
   /// identity and mints the session.
   ///
@@ -247,7 +285,26 @@ class AuthHandler {
     String? error,
   }) async {
     if (error != null && error.isNotEmpty) {
-      throw OAuthProviderRejectedException(provider: provider, error: error);
+      // The user pressing "Cancel" is the common case here, and it is a
+      // normal outcome rather than a client error. Recover the destination
+      // the flow recorded at start so the route can send the browser back to
+      // it; `abandonOAuth` also spends the challenge, which would otherwise
+      // stay live for its full TTL after the flow it belonged to ended.
+      //
+      // A callback with no usable `state` leaves [redirectTo] null and the
+      // route falls back to answering 400 -- there is no destination this
+      // server can justify, and the provider does not get to supply one.
+      final redirectTo = switch (state) {
+        null => null,
+        final String state when state.isEmpty => null,
+        final String state => await zonaiDB.abandonOAuth(state),
+      };
+
+      throw OAuthProviderRejectedException(
+        provider: provider,
+        error: error,
+        redirectTo: redirectTo,
+      );
     }
 
     // A callback with neither an error nor a usable code/state pair is a

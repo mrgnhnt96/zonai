@@ -85,5 +85,19 @@ void main() {
         '/auth/oauth/start/google?redirect_to=%2F_%2Fauth%2Foauth%2Fcallback',
       );
     });
+
+    test('oauthAdminStartUrl targets the admin route and names no table', () {
+      // The `admin` segment is the whole security difference. The public
+      // route takes the collection from `?table=` and mints a challenge
+      // flagged `isAdmin: false`, whose callback auto-provisions a
+      // first-seen identity -- into the `AsAdmin` collection, whose every
+      // row is an admin. The admin route resolves that collection itself,
+      // so there is no `table` for a caller to supply.
+      expect(
+        AuthRoutes.oauthAdminStartUrl('google'),
+        '/auth/admin/oauth/start/google?redirect_to=%2F_%2Fauth%2Foauth%2Fcallback',
+      );
+      expect(AuthRoutes.oauthAdminStartUrl('google'), isNot(contains('table=')));
+    });
   });
 }

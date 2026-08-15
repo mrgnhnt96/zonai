@@ -91,6 +91,27 @@ class RateLimit {
     );
   }
 
+  /// The one bucket every admin OAuth start from one client IP shares.
+  ///
+  /// `GET /auth/admin/oauth/start/:provider` carries no `table` — resolving
+  /// the admin collection server-side is the whole point of the route, so
+  /// there is no caller-supplied value to bucket by, exactly as for
+  /// [kOAuthCallbackBucket]. Deliberately its *own* constant rather than
+  /// reusing the public start route's per-table bucket: sharing one would
+  /// let unauthenticated traffic against an app table exhaust the budget for
+  /// admin sign-in, which is the one flow that must stay reachable.
+  static const kOAuthAdminStartBucket = 'oauth_admin';
+
+  /// Enforces [RateLimitOperation.oauthStart] under the fixed
+  /// [kOAuthAdminStartBucket] key.
+  Future<GuardResult> checkOAuthAdminStart(String ipAddress) async {
+    return await checkByTable(
+      kOAuthAdminStartBucket,
+      ipAddress,
+      RateLimitOperation.oauthStart,
+    );
+  }
+
   /// Validates [operation] against [table]'s registered custom operations
   /// before it's ever used as a rate-limit bucket dimension — an
   /// unvalidated, caller-supplied name would let a caller rotate it to dodge

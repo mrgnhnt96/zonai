@@ -209,6 +209,48 @@ extension _OAuthX on ZonaiDb {
     }
   }
 
+  /// Ends a flow the provider rejected (RFC 6749 §4.1.2.1 `error=`), and
+  /// returns the `redirect_to` recorded at start so the caller can send the
+  /// browser back where it came from.
+  ///
+  /// The user pressing "Cancel" is a normal outcome, not a malformed request,
+  /// but the destination still cannot be taken from the callback: it is read
+  /// back out of *our own* challenge row, where [_startOAuth] put it only
+  /// after [_isAllowedOAuthRedirect] approved it. Nothing the provider sends
+  /// influences where this points (design §4 item 5).
+  ///
+  /// Consumes the challenge for the same reason the success path consumes it
+  /// before exchanging: this `state` is spent either way, and leaving it
+  /// consumable would keep a live challenge around for its full TTL after the
+  /// flow it belonged to has ended.
+  ///
+  /// Returns `null` when no consumable challenge matches -- an unknown,
+  /// expired or already-consumed `state`, all indistinguishable on purpose.
+  /// The caller falls back to its own error handling rather than redirecting
+  /// somewhere it cannot justify.
+  Future<String?> _abandonOAuth(String state) async {
+    final db = await open();
+    final matches = await db
+        .select()
+        .from(authChallenges)
+        .where(
+          authChallenges.secretHash.equals(_sha256Hex(state)) &
+              authChallenges.type.equals(.oauthState) &
+              authChallenges.canConsume.isTrue(),
+        )
+        .limit(1);
+
+    final challenge = matches.singleOrNull;
+    if (challenge == null) {
+      return null;
+    }
+
+    await _consumeChallenge(challenge);
+
+    final redirectTo = (challenge.metadata ?? const {})['redirectTo'];
+    return redirectTo is String ? redirectTo : null;
+  }
+
   // ---------------------------------------------------------------------
   // §3.2 — native / public-client flow.
   // ---------------------------------------------------------------------

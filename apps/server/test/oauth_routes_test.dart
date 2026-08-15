@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:revali_router/revali_router.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/payloads.dart';
+import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 
 import '../routes/controllers/auth_controller.dart';
@@ -130,6 +131,71 @@ void main() {
     });
   });
 
+  group('GET /auth/admin/oauth/start/:provider', () {
+    test('302s to the provider authorization URL', () async {
+      final handler = _StubAuthHandler();
+      final controller = AuthController(authHandler: handler);
+      final response = _response();
+
+      await controller.startAdminOAuth(
+        authorization: null,
+        provider: 'google',
+        redirectTo: '/_/auth/oauth/callback',
+        response: response,
+      );
+
+      expect(response.statusCode, HttpStatus.found);
+      expect(
+        response.headers.get(HttpHeaders.locationHeader),
+        'https://provider.example/authorize?state=ADMIN',
+      );
+      expect(handler.adminStartCalls, [
+        (provider: 'google', redirectTo: '/_/auth/oauth/callback'),
+      ]);
+    });
+
+    test(
+      'reaches startAdminOAuth, never the table-taking startOAuth',
+      () async {
+        // The whole point of the route. `startOAuth` mints a challenge flagged
+        // `isAdmin: false`, whose callback auto-provisions a first-seen
+        // identity -- and the collection this route resolves mixes in
+        // `AsAdmin`, so a row provisioned there signs in as a full admin
+        // (`_getJwtConfig`: `isAdmin: admin != null`, no per-row predicate).
+        // Routing this to `startOAuth` with the admin table would reintroduce
+        // exactly that.
+        final handler = _StubAuthHandler();
+        final controller = AuthController(authHandler: handler);
+
+        await controller.startAdminOAuth(
+          authorization: null,
+          provider: 'google',
+          redirectTo: null,
+          response: _response(),
+        );
+
+        expect(handler.adminStartCalls, hasLength(1));
+        expect(handler.startCalls, isEmpty);
+      },
+    );
+
+    test('puts nothing in the response body and mints no session', () async {
+      final controller = AuthController(authHandler: _StubAuthHandler());
+      final response = _response();
+
+      await controller.startAdminOAuth(
+        authorization: null,
+        provider: 'google',
+        redirectTo: null,
+        response: response,
+      );
+
+      expect(response.body.isNull, isTrue);
+      expect(response.headers.get('X-Auth'), isNull);
+      expect(response.headers.get(HttpHeaders.setCookieHeader), isNull);
+    });
+  });
+
   group('GET /auth/oauth/callback/:provider', () {
     test('302s to the redirect_to recorded at start', () async {
       final controller = AuthController(authHandler: _StubAuthHandler());
@@ -205,6 +271,82 @@ void main() {
         isNot(contains('the-jwt')),
       );
     });
+
+    test('a cancelled sign-in returns the browser to the recorded '
+        'redirect_to, carrying the error code', () async {
+      // `access_denied` is the user pressing Cancel -- a normal outcome, and
+      // one that arrives mid-browser-redirect. A 400 JSON body is a dead end
+      // there: the dashboard's callback screen already renders human copy for
+      // this code and never got the chance to.
+      final handler = _StubAuthHandler()
+        ..abandonRedirectTo = '/_/auth/oauth/callback';
+      final controller = AuthController(authHandler: handler);
+      final response = _response();
+
+      await controller.oauthCallback(
+        provider: 'google',
+        code: null,
+        state: 'the-state',
+        error: 'access_denied',
+        response: response,
+      );
+
+      expect(response.statusCode, HttpStatus.found);
+      expect(
+        response.headers.get(HttpHeaders.locationHeader),
+        '/_/auth/oauth/callback?error=access_denied',
+      );
+      // Nothing was minted, so nothing is handed over.
+      expect(response.headers.get('X-Auth'), isNull);
+      expect(response.headers.get(HttpHeaders.setCookieHeader), isNull);
+    });
+
+    test('the cancelled-flow redirect target comes from the challenge, not '
+        'the callback', () async {
+      // The destination is read back out of our own challenge row, where the
+      // start route put it only after the open-redirect allowlist approved
+      // it. A forged `state` that matches nothing yields no destination.
+      final handler = _StubAuthHandler()..abandonRedirectTo = null;
+      final controller = AuthController(authHandler: handler);
+
+      await expectLater(
+        controller.oauthCallback(
+          provider: 'google',
+          code: null,
+          state: 'a-state-matching-no-challenge',
+          error: 'access_denied',
+          response: _response(),
+        ),
+        throwsA(isA<OAuthProviderRejectedException>()),
+      );
+    });
+
+    test(
+      'preserves the query string already on the recorded redirect_to',
+      () async {
+        final handler = _StubAuthHandler()
+          ..abandonRedirectTo = '/_/auth/oauth/callback?from=tiles';
+        final controller = AuthController(authHandler: handler);
+        final response = _response();
+
+        await controller.oauthCallback(
+          provider: 'google',
+          code: null,
+          state: 'the-state',
+          error: 'access_denied',
+          response: response,
+        );
+
+        final location = Uri.parse(
+          response.headers.get(HttpHeaders.locationHeader)!,
+        );
+        expect(location.path, '/_/auth/oauth/callback');
+        expect(location.queryParameters, {
+          'from': 'tiles',
+          'error': 'access_denied',
+        });
+      },
+    );
 
     test('passes the provider error through instead of exchanging', () async {
       final handler = _StubAuthHandler();
@@ -332,6 +474,10 @@ void main() {
 ResponseImpl _response() => ResponseImpl(requestHeaders: HeadersImpl());
 
 typedef _StartCall = ({String table, String provider, String? redirectTo});
+
+/// No `table` field, because the route has no `table` parameter to record --
+/// withholding it is the capability difference between the two start routes.
+typedef _AdminStartCall = ({String provider, String? redirectTo});
 typedef _CompleteCall = ({
   String provider,
   String? code,
@@ -349,9 +495,15 @@ class _StubAuthHandler extends AuthHandler {
   _StubAuthHandler();
 
   final startCalls = <_StartCall>[];
+  final adminStartCalls = <_AdminStartCall>[];
   final completeCalls = <_CompleteCall>[];
 
   String? redirectTo = '/tables';
+
+  /// What `ZonaiDb.abandonOAuth` would recover for the callback's `state`.
+  /// `null` stands for "no consumable challenge matched", which is what a
+  /// forged or replayed `state` produces.
+  String? abandonRedirectTo;
 
   @override
   Future<List<Map<String, Object?>>> oauthProviders({String? table}) async {
@@ -392,6 +544,16 @@ class _StubAuthHandler extends AuthHandler {
   }
 
   @override
+  Future<String> startAdminOAuth({
+    required String provider,
+    String? redirectTo,
+    String? authorization,
+  }) async {
+    adminStartCalls.add((provider: provider, redirectTo: redirectTo));
+    return 'https://provider.example/authorize?state=ADMIN';
+  }
+
+  @override
   Future<({Map<String, Object?> user, String jwt, String? redirectTo})>
   completeOAuth({
     required String provider,
@@ -405,14 +567,22 @@ class _StubAuthHandler extends AuthHandler {
       state: state,
       error: error,
     ));
+    // The provider-error arm is the one shape `super` cannot stand in for:
+    // it now reaches `zonaiDB.abandonOAuth` to recover the destination the
+    // flow recorded at start, and there is no database here. Throw the same
+    // exception the real handler would, with [abandonRedirectTo] standing in
+    // for what the challenge row held.
+    if (error != null && error.isNotEmpty) {
+      throw OAuthProviderRejectedException(
+        provider: provider,
+        error: error,
+        redirectTo: abandonRedirectTo,
+      );
+    }
     // Delegate the envelope decisions to the real implementation so a stub
     // cannot quietly accept a callback the production path would reject;
     // `super` throws before it reaches zonaiDB on every failure shape.
-    if (error != null && error.isNotEmpty ||
-        code == null ||
-        code.isEmpty ||
-        state == null ||
-        state.isEmpty) {
+    if (code == null || code.isEmpty || state == null || state.isEmpty) {
       return await super.completeOAuth(
         provider: provider,
         code: code,

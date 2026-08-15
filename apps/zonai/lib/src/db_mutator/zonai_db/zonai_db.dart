@@ -374,6 +374,17 @@ class ZonaiDb {
     return await _run(() => _adminCollectionFor(.password));
   }
 
+  /// The `AsAdmin` collection configured for `AuthType.oauth`, resolved the
+  /// same way [adminPasswordTable] resolves the password one.
+  ///
+  /// The dashboard sign-in screen needs this to tell an admin-table provider
+  /// apart from an app-table one: `ZonaiDb.oauthProviders` answers for
+  /// *every* `OAuth`-enabled table, and only the admin table's providers can
+  /// begin an admin sign-in.
+  Future<String> adminOAuthTable() async {
+    return await _run(() => _adminCollectionFor(.oauth));
+  }
+
   Future<Map<String, Object?>> createAdmin({
     required String email,
     required String password,
@@ -529,6 +540,12 @@ class ZonaiDb {
       final table = await _adminCollectionFor(.oauth);
       return await _startOAuth(table, payload, isAdmin: true);
     });
+  }
+
+  /// Ends a flow the provider rejected and returns the `redirect_to` recorded
+  /// at start, or `null` if no consumable challenge matches [state].
+  Future<String?> abandonOAuth(String state) async {
+    return await _run(() => _abandonOAuth(state));
   }
 
   /// §3.1 step 2: consumes the challenge, exchanges the code, resolves
