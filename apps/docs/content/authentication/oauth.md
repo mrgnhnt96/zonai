@@ -433,6 +433,30 @@ creating one — admin accounts are still created explicitly, via `zonai db
 admin add` or your own provisioning code, never as a side effect of someone
 signing in with the right Google account.
 
+> **That guarantee covers the admin entry point, not the table.** A JWT minted
+> for *any* row in an `AsAdmin` table carries `isAdmin: true`, and `canSignUp`
+> defaults to allowing sign-up for every auth type the table declares. So the
+> ordinary sign-in path aimed at that same table — `/auth/oauth/start/:provider?table=…`,
+> and equally password, OTP and magic-link sign-up — will still provision a new
+> row, and that row is an admin.
+>
+> This is not specific to OAuth; it is how `AsAdmin` has always behaved. If your
+> admin table is reachable by public sign-up, **override `canSignUp` on it**:
+>
+> ```dart no-analyze
+> class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
+>   const AdminRowRules(super.schema);
+>
+>   @override
+>   Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
+>     // Only an existing admin may create another one.
+>     return jwt?.admin.isAdmin == true;
+>   }
+> }
+> ```
+>
+> The safer shape is a dedicated admin table that no public sign-in path names.
+
 ## OAuth vs. External Identity Providers
 
 Both let a user sign in without a zonai password. The difference is who runs
