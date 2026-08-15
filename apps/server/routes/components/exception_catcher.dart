@@ -150,6 +150,15 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 503,
         body: {'error': '$exception'},
       ),
+      // 400, not 500: every case of this is the app pointing `push` at a
+      // collection or column that cannot be a recipient set. Reporting the
+      // message is the point -- "not a deviceToken column" tells an author
+      // exactly what to change, and "Internal server error" tells them
+      // nothing. The message names only schema shape, never row data.
+      PushTargetException() => .handled(
+        statusCode: 400,
+        body: {'error': '$exception'},
+      ),
       ExpandedRecordReadFailedException() || StaleRowRulesRequestException() =>
         .handled(statusCode: 500, body: {'error': 'Internal server error'}),
     };

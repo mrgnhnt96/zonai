@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:clock/clock.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:file/file.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
     show SQLiteInsertReturning, SQLiteDeleteReturning;
@@ -155,8 +156,16 @@ final _disposableTableIndexes = <String, List<String>>{
 };
 
 class ZonaiDb {
-  ZonaiDb()
-    : _extensions = MailmanPool(ExtensionsMailman.new),
+  /// [configResolver] replaces the config worker for tests.
+  ///
+  /// [_run] overrides `configResolverProvider` on every call, so a scope-level
+  /// override outside it is ignored — which meant that until this existed,
+  /// exercising anything that reads `AppConfig` required compiling a config
+  /// worker. That is the same missing seam `PushCourier` exists to avoid on
+  /// the transport side.
+  ZonaiDb({@visibleForTesting ConfigResolver? configResolver})
+    : _fixedConfigResolver = configResolver,
+      _extensions = MailmanPool(ExtensionsMailman.new),
       _rules = MailmanPool(RulesMailman.new),
       _operations = MailmanPool(OperationsMailman.new),
       _config = ConfigMailman(),
@@ -183,6 +192,9 @@ class ZonaiDb {
   final MailmanPool<OperationRequest, OperationResponse, OperationsMailman>
   _operations;
   final ConfigMailman _config;
+
+  /// Set only by tests; see the constructor.
+  final ConfigResolver? _fixedConfigResolver;
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
@@ -201,13 +213,12 @@ class ZonaiDb {
   /// entirely.
   bool? _hasProjectExtensions;
 
-  /// Whether a push drain is in flight.
+  /// The most recently started push drain, or null if none has run.
   ///
-  /// Two drains over the same job would read the same batch from the same
-  /// cursor and send it twice — and the enqueue-time kick and the every-minute
-  /// cron routinely arrive together. In-process is the right scope: only the
-  /// host drains this queue, and there is one host.
-  bool _pushDraining = false;
+  /// Each new drain awaits this one before starting, so passes serialize and
+  /// every caller gets a pass that began after their call. See
+  /// `_PushX._drainPushJobs`.
+  Future<_DrainPushResult>? _pushDrain;
 
   /// Serializes mutating work so concurrent creates don't pile into
   /// SQLite's 5s busy_timeout. Excess waiters fail fast with 503.
@@ -657,7 +668,7 @@ class ZonaiDb {
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(
-            () => ConfigResolver(mailman: _config),
+            () => _fixedConfigResolver ?? ConfigResolver(mailman: _config),
           ),
         },
       );
@@ -737,7 +748,7 @@ class ZonaiDb {
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(
-            () => ConfigResolver(mailman: _config),
+            () => _fixedConfigResolver ?? ConfigResolver(mailman: _config),
           ),
         },
       );

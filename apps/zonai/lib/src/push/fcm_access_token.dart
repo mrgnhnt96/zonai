@@ -70,7 +70,18 @@ class FcmAccessTokenCache {
   static const _refreshMargin = Duration(minutes: 5);
 
   String? _token;
-  DateTime? _expiresAt;
+
+  /// When the cached token stops being reusable — expiry pulled forward by
+  /// the refresh margin.
+  ///
+  /// Stored as the *refresh* instant rather than the expiry so the margin is
+  /// applied once, at mint time, where the token's actual lifetime is known.
+  /// Applying it at read time instead means a token whose lifetime is shorter
+  /// than the margin is never fresh, so every single call mints a new one —
+  /// a token endpoint hammered once per send, which is precisely the failure
+  /// caching exists to prevent, arrived at through caching.
+  DateTime? _refreshAt;
+
   Future<String>? _inFlight;
 
   /// A valid access token, minting one only when the cached one is missing or
@@ -83,9 +94,9 @@ class FcmAccessTokenCache {
   }
 
   bool get _isFresh {
-    final expiresAt = _expiresAt;
-    if (expiresAt == null) return false;
-    return clock.now().add(_refreshMargin).isBefore(expiresAt);
+    final refreshAt = _refreshAt;
+    if (refreshAt == null) return false;
+    return clock.now().isBefore(refreshAt);
   }
 
   Future<String> _mint() async {
@@ -141,7 +152,12 @@ class FcmAccessTokenCache {
     };
 
     _token = token;
-    _expiresAt = now.add(expiresIn);
+    // Never give back more than half the token's life: a lifetime shorter
+    // than the margin would otherwise leave nothing reusable at all.
+    final margin = expiresIn ~/ 2 < _refreshMargin
+        ? expiresIn ~/ 2
+        : _refreshMargin;
+    _refreshAt = now.add(expiresIn - margin);
     return token;
   }
 

@@ -144,19 +144,34 @@ extension _PushX on ZonaiDb {
 
   /// Advances every unfinished fan-out.
   ///
-  /// Serialized by [_pushDraining]: the enqueue-time kick and the cron can
-  /// arrive together, and two passes over the same job would read the same
-  /// batch from the same cursor and send it twice. The lock is in-process,
-  /// which is the right scope — the job table is only ever drained by the
-  /// host, and there is one host.
-  Future<_DrainPushResult> _drainPushJobs() async {
-    if (_pushDraining) return _emptyDrain;
-    _pushDraining = true;
-    try {
+  /// Passes are **chained**, not skipped. Two running at once would read the
+  /// same batch from the same cursor and send it twice, so they must
+  /// serialize — but a second caller that returned an immediate zero instead
+  /// of waiting would be lying twice over: it would report "nothing moved"
+  /// while a pass was moving things, and it would return before the job the
+  /// caller just enqueued had been looked at. Chaining means every caller
+  /// gets a pass that *started after their call*, which is the only answer
+  /// that means anything.
+  ///
+  /// In-process is the right scope for the chain: the job table is only ever
+  /// drained by the host, and there is one host.
+  Future<_DrainPushResult> _drainPushJobs() {
+    final previous = _pushDrain;
+
+    final next = () async {
+      if (previous != null) {
+        // A failed pass must not poison the queue for the next one. Its own
+        // caller already saw the error, and each job records its own failure
+        // on its own row.
+        try {
+          await previous;
+        } catch (_) {}
+      }
       return await _drainPushJobsLocked();
-    } finally {
-      _pushDraining = false;
-    }
+    }();
+
+    _pushDrain = next;
+    return next;
   }
 
   Future<_DrainPushResult> _drainPushJobsLocked() async {
@@ -698,18 +713,6 @@ extension _PushX on ZonaiDb {
       }
     });
   }
-}
-
-/// Raised when a `push` names something that cannot be a recipient set — a
-/// missing collection, a column that is not a `deviceToken` column, or a
-/// table with no primary key to page by.
-class PushTargetException implements Exception {
-  const PushTargetException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }
 
 /// Rejects an identifier that could break out of its quotes.
