@@ -8,6 +8,8 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
+import '../constants/spacing.dart';
+import 'oauth_sign_in_screen.dart';
 import 'theme/theme_components.dart';
 
 /// Shared layout for sign-in screens (centered auth page with branding).
@@ -38,13 +40,20 @@ class AuthTypePickerScreen extends StatelessComponent {
           const ZonaiPageSubtitle('Pick a sign-in method to continue.'),
           div(classes: ZonaiClasses.authMethods, [
             for (final authType in authTypes)
-              AuthMethodTile(
-                title: _titleFor(authType),
-                description: _descriptionFor(authType),
-                onSelect: () {
-                  context.goApp(AuthRoutes.forType(authType));
-                },
-              ),
+              // OAuth is a list of providers, not a single destination: a tile
+              // that only leads to another list of buttons would be a hop for
+              // nothing. The buttons render inline, under the same heading the
+              // tiles would have carried.
+              if (authType == AuthType.oauth)
+                OAuthMethodGroup(title: _titleFor(authType), description: _descriptionFor(authType))
+              else
+                AuthMethodTile(
+                  title: _titleFor(authType),
+                  description: _descriptionFor(authType),
+                  onSelect: () {
+                    context.goApp(AuthRoutes.forType(authType));
+                  },
+                ),
           ]),
         ],
       ),
@@ -65,9 +74,36 @@ class AuthTypePickerScreen extends StatelessComponent {
       AuthType.password => 'Sign in with the email and password on your account.',
       AuthType.otp => 'We\'ll send a one-time code to your inbox.',
       AuthType.magicLink => 'We\'ll email you a secure link — no password needed.',
-      AuthType.oauth => 'Sign in with Google, GitHub, or another connected provider.',
+      // Deliberately names no provider: which ones exist is the developer's
+      // `oauthProviders` list, and the buttons below say so themselves.
+      AuthType.oauth => 'Use an account you already have with one of these providers.',
     };
   }
+}
+
+/// The OAuth entry in the method list: a tile-shaped heading plus one button
+/// per provider from [oauthProvidersProvider].
+class OAuthMethodGroup extends StatelessComponent {
+  const OAuthMethodGroup({super.key, required this.title, required this.description});
+
+  final String title;
+  final String description;
+
+  @override
+  Component build(BuildContext context) {
+    return div(classes: 'z-auth-oauth-group', [
+      span(classes: ZonaiClasses.authMethodTitle, [.text(title)]),
+      span(classes: ZonaiClasses.authMethodDesc, [.text(description)]),
+      OAuthProviderButtons(onSelect: startOAuthFlow),
+    ]);
+  }
+
+  @css
+  static List<StyleRule> get styles => [
+    css(
+      '.z-auth-oauth-group',
+    ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4), width: 100.percent),
+  ];
 }
 
 /// Password sign-in form.

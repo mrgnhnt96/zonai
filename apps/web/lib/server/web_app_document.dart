@@ -7,6 +7,7 @@ import '../constants/theme.dart';
 import '../utils/zonai_cookie.dart';
 import 'app_config.dart';
 import 'brand_logo.dart';
+import 'oauth_providers.dart';
 import 'session_auth.dart';
 import 'ssr_auth_cookie.dart';
 import 'sqlite_table_names.dart';
@@ -34,6 +35,7 @@ Component buildWebAppDocument() {
         final signedIn = ssrShowsSignedInShell(session, token);
         final collectionActions = signedIn ? await loadTableCollectionActions(authToken: token) : const {};
         final authTypes = await loadSupportedAuthTypes();
+        final oauthProviders = await loadOAuthProviders();
         final appConfig = await loadAppConfig();
         final hasBrandLogo = await loadHasBrandLogo();
         final initialPath = AuthRoutes.fromUrlPath(context.url);
@@ -48,6 +50,7 @@ Component buildWebAppDocument() {
           initialSignedIn: signedIn,
           initialPath: initialPath,
           initialAuthTypes: authTypes,
+          initialOAuthProviders: oauthProviders,
         );
       },
     ),

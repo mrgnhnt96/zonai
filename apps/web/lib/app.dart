@@ -20,6 +20,7 @@ class App extends StatelessComponent {
     required this.initialSignedIn,
     required this.initialPath,
     required this.initialAuthTypes,
+    required this.initialOAuthProviders,
   }) : assert(initialSqliteNames.length == initialDisplayNames.length, 'SQLite names and display labels must align');
 
   final AppConfig appConfig;
@@ -32,6 +33,7 @@ class App extends StatelessComponent {
   final bool initialSignedIn;
   final String initialPath;
   final List<AuthType> initialAuthTypes;
+  final List<OAuthProviderPublic> initialOAuthProviders;
 
   @override
   Component build(BuildContext context) {
@@ -70,6 +72,7 @@ class App extends StatelessComponent {
         initialBaseUrl: appConfig.baseUrl,
         hasBrandLogo: hasBrandLogo,
         initialAuthTypeNames: [for (final type in initialAuthTypes) type.name],
+        initialOAuthProviders: [for (final provider in initialOAuthProviders) provider.toJson()],
         initialSqliteNames: initialSqliteNames,
         initialDisplayNames: initialDisplayNames,
         tablesLoadError: tablesLoadError,

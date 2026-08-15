@@ -8,6 +8,8 @@ import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
 import '../components/magic_link_sign_in_screen.dart' deferred as magic_link_sign_in;
 import '../components/magic_link_verify_screen.dart' deferred as magic_link_verify;
+import '../components/oauth_callback_screen.dart';
+import '../components/oauth_sign_in_screen.dart';
 import '../components/otp_sign_in_screen.dart' deferred as otp_sign_in;
 import '../components/reset_password_confirm_screen.dart' deferred as reset_password_confirm;
 import '../components/reset_password_request_screen.dart' deferred as reset_password_request;
@@ -105,6 +107,14 @@ final List<RouteBase> authRoutes = [
     builder: (_, _) => magic_link_verify.MagicLinkVerifyScreen(),
     load: magic_link_verify.loadLibrary,
   ),
+  // Not lazy: `AuthTypePickerScreen` already pulls the provider buttons (and
+  // their bundled brand marks) into the main auth chunk, so deferring the
+  // callback screen would split out a library whose weight is already loaded.
+  Route(
+    path: '${AuthRoutes.mountPath}${AuthRoutes.oauthCallback}',
+    name: 'oauth-callback',
+    builder: (_, _) => const OAuthCallbackScreen(),
+  ),
   Route.lazy(
     path: '${AuthRoutes.mountPath}${AuthRoutes.resetPasswordCallback}',
     name: 'reset-password-callback',
@@ -136,6 +146,7 @@ final List<RouteBase> authRoutes = [
         builder: (_, _) => magic_link_sign_in.MagicLinkSignInScreen(),
         load: magic_link_sign_in.loadLibrary,
       ),
+      Route(path: 'oauth', name: 'sign-in-oauth', builder: (_, _) => const OAuthSignInScreen()),
     ],
   ),
 ];
@@ -170,11 +181,7 @@ class _SignInRootScreen extends StatelessComponent {
           AuthType.password => const PasswordSignInScreen(),
           AuthType.otp => otp_sign_in.OtpSignInScreen(),
           AuthType.magicLink => magic_link_sign_in.MagicLinkSignInScreen(),
-          // No OAuth sign-in screen or route exists yet — see
-          // oauth-dashboard-wiring.
-          AuthType.oauth => throw UnimplementedError(
-            'OAuth sign-in UI is not implemented yet — see oauth-dashboard-wiring',
-          ),
+          AuthType.oauth => const OAuthSignInScreen(),
         };
       }
       return const _SignInLoading();
