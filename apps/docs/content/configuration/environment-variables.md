@@ -1,6 +1,6 @@
 ---
 title: Environment Variables
-description: Compile-time secrets via .env, plus optional runtime ZONAI_* tuning knobs.
+description: Compile-time secrets via .env (no --dart-define-from-file needed), plus optional runtime ZONAI_* tuning knobs.
 ---
 
 Zonai uses environment variables in **two** ways:
@@ -89,6 +89,22 @@ zonai build --dart-define BASE_URL=https://staging.example.com --dart-define FEA
 ```
 
 CLI defines are merged on top of the loaded `.env`/`.env.<flavor>` file and win on key collisions. Use space-separated form (`--dart-define KEY=VALUE`), not `--dart-define=KEY=VALUE` — a joined value that itself contains `=` won't parse correctly.
+
+## There Is No `--dart-define-from-file`
+
+If you are looking for Flutter's `--dart-define-from-file`, Zonai has no such flag and does not need one: **the env file is the default input, not something you point a flag at.** Every command that compiles — `zonai build`, `zonai compile`, and the worker rebuilds `zonai serve` / `zonai dev` trigger — reads `.env` (or `.env.<flavor>` when `--flavor` is passed) from the directory you run the command in, and turns each line into a `-D` define for `dart compile exe`.
+
+| Reaching for | Do this instead |
+|---|---|
+| `--dart-define-from-file=env.json` | Nothing — put the keys in `.env`, it is loaded automatically |
+| A different file per environment | Name it `.env.<flavor>` and pass `--flavor <flavor>` |
+| A file in a non-standard location | Run the command from that directory, or copy/symlink it to `.env` there |
+| One-off keys, no file | `--dart-define KEY=VALUE`, repeated per key |
+
+Two things this changes:
+
+- **The file is `KEY=VALUE` lines, not JSON.** `--dart-define-from-file` takes a `.json` (or `.env`) file; Zonai's loader is the [.env format above](#env-file-format) — one `KEY=VALUE` per line, `#` comments, optional quotes around values with spaces. A JSON file will not load as defines.
+- **Unknown flags are silently ignored.** Zonai's argument parser accepts any `--flag value` pair and drops the ones no command reads. `zonai build --dart-define-from-file env.json` therefore exits successfully, warns about nothing, and injects **zero** defines from that file — every `String.fromEnvironment` falls back to its `defaultValue` (an empty string when there isn't one). If defines appear to be missing from a build, check the flag name before anything else.
 
 ## What Goes in .env
 

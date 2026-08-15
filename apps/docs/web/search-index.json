@@ -437,6 +437,11 @@
           "b": "Pass one-off values without editing .env using --dart-define KEY=VALUE, repeated for each key: zonai build --dart-define BASE_URL=https://staging.example.com --dart-define FEATURE_X=on CLI defines are merged on top of the loaded .env/.env. file and win on key collisions. Use space-separated form (--dart-define KEY=VALUE), not --dart-define=KEY=VALUE — a joined value that itself contains = won't parse correctly."
         },
         {
+          "h": "There Is No --dart-define-from-file",
+          "a": "there-is-no---dart-define-from-file",
+          "b": "If you are looking for Flutter's --dart-define-from-file, Zonai has no such flag and does not need one: the env file is the default input, not something you point a flag at. Every command that compiles — zonai build, zonai compile, and the worker rebuilds zonai serve / zonai dev trigger — reads .env (or .env. when --flavor is passed) from the directory you run the command in, and turns each line into a -D define for dart compile exe. Reaching for Do this instead --dart-define-from-file=env.json Nothing — put the keys in .env, it is loaded automatically A different file per environment Name it .env. and pass --flavor A file in a non-standard location Run the command from that directory, or copy/symlink it to .env there One-off keys, no file --dart-define KEY=VALUE, repeated per key Two things this changes: The file is KEY=VALUE lines, not JSON. --dart-define-from-file takes a .json (or .env) file; Zonai's loader is the .env format above — one KEY=VALUE per line, comments, optional quotes around values with spaces. A JSON file will not load as defines. Unknown flags are silently ignored. Zonai's argument parser accepts any --flag value pair and drops the ones no command reads. zonai "
+        },
+        {
           "h": "What Goes in .env",
           "a": "what-goes-in-env",
           "b": "Always use String.fromEnvironment and .env: JWT_SECRET — JWT signing key PASSWORD_SECRET — password hashing key SMTP password and any API keys Hard-coding is fine: Feature flags Non-secret config values Public URLs in dev builds"
@@ -2558,7 +2563,7 @@
         {
           "h": "Flags",
           "a": "flags",
-          "b": "Flag Description --flavor Config flavor to compile with --release Compile without Dart asserts (recommended for production) -c, --config Path to a custom zonai.yaml"
+          "b": "Flag Description --flavor Config flavor to compile with — also selects .env. --release Compile without Dart asserts (recommended for production) --dart-define KEY=VALUE Override or add one compile-time define; repeat per key. Space-separated, not --dart-define=KEY=VALUE -c, --config Path to a custom zonai.yaml There is no --dart-define-from-file and none is needed: .env (or .env. ) is read from the project root automatically and compiled in. An unrecognized flag is silently ignored rather than rejected, so a wrong flag name builds cleanly with the defines missing. See Environment Variables."
         },
         {
           "h": "What's in build/",
@@ -2594,7 +2599,7 @@
         {
           "h": "Flags",
           "a": "flags",
-          "b": "Flag Description --flavor Config flavor to compile with --release Compile without Dart asserts -c, --config Path to a custom zonai.yaml"
+          "b": "Flag Description --flavor Config flavor to compile with — also selects .env. --release Compile without Dart asserts --dart-define KEY=VALUE Override or add one compile-time define; repeat per key. Space-separated, not --dart-define=KEY=VALUE -c, --config Path to a custom zonai.yaml There is no --dart-define-from-file — .env / .env. is loaded from the project root on its own. See Environment Variables."
         },
         {
           "h": "Workers Compiled",
@@ -2830,6 +2835,11 @@
           "h": "Flags",
           "a": "flags",
           "b": "Flag Short Description --help -h Print usage information for the current command --config -c Path to zonai.yaml; auto-detected if omitted --flavor — Config flavor to load (affects serve, compile, build) --release — Production mode: disable asserts, disable file watchers in serve --quiet -q Suppress all non-error output --loud -L Maximum verbosity — print all internal debug logs --log — Set log level: verbose, trace, request, debug, info, warning, error (or their first letter: v t r d i w e) The level names are matched exactly. --log warn is not warning: an unrecognized name is ignored and the level falls back to info."
+        },
+        {
+          "h": "Unrecognized Flags Are Ignored",
+          "a": "unrecognized-flags-are-ignored",
+          "b": "Zonai parses arguments generically — every --flag value pair is collected, and commands read the keys they know. A flag no command reads is not an error: it is dropped without a warning and the command succeeds. zonai build --dart-define-from-file env.json exits 0, injects nothing Nothing reads --dart-define-from-file (it doesn't exist — see Environment Variables), so that build silently ships without those values. When a flag appears to have had no effect, check its spelling against the command's --help first."
         },
         {
           "h": "--config Auto-Detection",

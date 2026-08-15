@@ -138,6 +138,11 @@ You can also pass keys on the command line instead of (or in addition to) `.env`
 `--dart-define KEY=VALUE`. Note the space — `--dart-define=KEY=VALUE` fails to parse, because
 argument splitting happens on every `=`. CLI defines win over matching `.env` keys.
 
+There is no `--dart-define-from-file`: the env file is found by name, never passed as a flag, and
+an unrecognized flag is ignored without a warning — so a build that names one succeeds with no
+defines at all. See
+[Environment Variables](/configuration/environment-variables#there-is-no---dart-define-from-file).
+
 ### Compile-Time vs Runtime Config
 
 Two different mechanisms, easy to conflate:

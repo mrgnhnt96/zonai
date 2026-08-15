@@ -13,9 +13,16 @@ zonai build [flags]
 
 | Flag | Description |
 |------|-------------|
-| `--flavor <name>` | Config flavor to compile with |
+| `--flavor <name>` | Config flavor to compile with — also selects `.env.<name>` |
 | `--release` | Compile without Dart asserts (recommended for production) |
+| `--dart-define KEY=VALUE` | Override or add one compile-time define; repeat per key. Space-separated, not `--dart-define=KEY=VALUE` |
 | `-c, --config <path>` | Path to a custom `zonai.yaml` |
+
+There is **no `--dart-define-from-file`** and none is needed: `.env` (or
+`.env.<flavor>`) is read from the project root automatically and compiled in.
+An unrecognized flag is silently ignored rather than rejected, so a wrong flag
+name builds cleanly with the defines missing. See
+[Environment Variables](/configuration/environment-variables#there-is-no---dart-define-from-file).
 
 ## What's in build/
 
