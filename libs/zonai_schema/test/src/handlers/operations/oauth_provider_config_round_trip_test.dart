@@ -74,13 +74,16 @@ void main() {
       expect(result.endpoints.responseMode, 'form_post');
     });
 
-    test('a provider with no response mode round trips as null, not "null"', () {
-      final google = OAuthProvider.google(
-        clientId: 'cid',
-        clientSecret: 'secret',
-      );
+    test(
+      'a provider with no response mode round trips as null, not "null"',
+      () {
+        final google = OAuthProvider.google(
+          clientId: 'cid',
+          clientSecret: 'secret',
+        );
 
-      expect(roundTrip(google)!.endpoints.responseMode, isNull);
-    });
+        expect(roundTrip(google)!.endpoints.responseMode, isNull);
+      },
+    );
   });
 }
