@@ -35,6 +35,27 @@ void main() {
       expect(ZonaiClient.instance, same(client));
       ZonaiClient.instance = previous;
     });
+
+    // OAuth types are re-exported from `package:zonai_schema/payloads.dart`
+    // via an explicit `show` list, the same shape that let a storage export
+    // go missing for two months (see the comment atop this file). Nothing
+    // else in this workspace imports the barrel the way a real consumer
+    // does, so an omission here fails only this compile.
+    test('OAuthProviderPublic and OAuthProviderKind are usable', () async {
+      final provider = OAuthProviderPublic.fromJson({
+        'id': 'google',
+        'displayName': 'Google',
+        'table': 'users',
+        'kind': 'google',
+        'iconUrl': null,
+        'iconSvg': null,
+        'background': null,
+        'foreground': null,
+        'startPath': '/auth/oauth/start/google?table=users',
+      });
+      expect(provider.kind, OAuthProviderKind.google);
+      expect(provider.toJson(), containsPair('id', 'google'));
+    });
   });
 
   // ---------------------------------------------------------------------

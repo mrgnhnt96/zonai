@@ -152,6 +152,87 @@ class AuthDataSourceImpl implements AuthDataSource {
   }
 
   @override
+  Future<void> oauthCallbackFormPost({
+    required String provider,
+    required OAuthCallbackBody body,
+  }) async {
+    await _client.request(
+      method: 'POST',
+      path: '/auth/oauth/callback/${provider}',
+      body: body,
+    );
+  }
+
+  @override
+  Future<Map<String, Object?>> oauth({required OAuthBody body}) async {
+    final response = await _client.request(
+      method: 'POST',
+      path: '/auth/oauth',
+      body: body,
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return data.map((key, value) => MapEntry((key as String), value));
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
+  Future<List<Map<String, Object?>>> oauthProviders({String? table}) async {
+    final response = await _client.request(
+      method: 'GET',
+      path: '/auth/oauth/providers',
+      query: {'table': table},
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final List data}) {
+      return data
+          .map(
+            (e) => (e as Map).map(
+              (key, value) => MapEntry((key as String), value),
+            ),
+          )
+          .toList();
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
+  Future<void> startOAuth({
+    required String provider,
+    required String table,
+    String? redirectTo,
+    String? authorization,
+  }) async {
+    await _client.request(
+      method: 'GET',
+      path: '/auth/oauth/start/${provider}',
+      headers: {'authorization': authorization},
+      query: {'table': table, 'redirect_to': redirectTo},
+    );
+  }
+
+  @override
+  Future<void> oauthCallback({
+    required String provider,
+    String? code,
+    String? state,
+    String? error,
+  }) async {
+    await _client.request(
+      method: 'GET',
+      path: '/auth/oauth/callback/${provider}',
+      query: {'code': code, 'state': state, 'error': error},
+    );
+  }
+
+  @override
   Future<void> logout({required String authorization}) async {
     await _client.request(
       method: 'DELETE',

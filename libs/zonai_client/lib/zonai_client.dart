@@ -25,6 +25,8 @@ export 'package:zonai_schema/payloads.dart'
         Email,
         GetBody,
         ListBody,
+        OAuthProviderKind,
+        OAuthProviderPublic,
         PhotoCreateMeta,
         ResetPasswordAuthBody,
         SendMagicLinkAuthBody,
