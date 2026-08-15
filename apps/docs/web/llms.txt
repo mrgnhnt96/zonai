@@ -109,6 +109,17 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 - [Custom Templates](https://docs.zonai.dev/email/custom-templates)
 - [Testing Email Locally](https://docs.zonai.dev/email/testing-locally)
 
+## Push notifications
+
+Firebase Cloud Messaging. Recipients are named by a **query over a `$.deviceToken` column**, never a list of tokens: `await push(message, table: 'device_tokens', column: 'token', where: In('user_id', ids))`. Returns a `PushJobId` as soon as the job is durably recorded — **not** a delivery receipt, and not awaitable to completion. Call from `after*` hooks only. Requires `AppConfig.push`; without it the call throws. Zonai clears tokens FCM reports dead (`onPermanentRejection`, default `clearColumn`) and fires `onPushRejected` first.
+
+- [Push Overview](https://docs.zonai.dev/push/overview): What Zonai owns, and why setup needs an APNs key even though you only integrate FCM.
+- [Device Tokens](https://docs.zonai.dev/push/device-tokens): The `$.deviceToken` column; it must be nullable and its table must have a primary key.
+- [Push Configuration](https://docs.zonai.dev/push/configuration): `PushConfig`, and why `.file` credentials beat `.inline` (rotation is a file copy, not a rebuild).
+- [Sending](https://docs.zonai.dev/push/sending): `PushMessage`, collapse keys, and what the job id does and does not promise.
+- [Dead Tokens](https://docs.zonai.dev/push/dead-tokens): Pruning policy, the hook, and why a timeout is not a death.
+- [Delivery Guarantees](https://docs.zonai.dev/push/delivery-guarantees): At-least-once, duplicates bounded by one batch, and the transient failures that are not retried across passes.
+
 ## Dart client
 
 - [Client Overview](https://docs.zonai.dev/dart-client/overview): Generated client install and `baseUrl` — prefer over hand-rolled HTTP.
