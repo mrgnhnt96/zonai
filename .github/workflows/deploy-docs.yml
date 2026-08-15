@@ -118,6 +118,42 @@ jobs:
           [ "$pages" -ge 70 ] || {
             echo "::error::only $pages pages rendered; expected the full site"; exit 1; }
 
+      # build_web_compilers emits packages/ -- 300 files, 6.2MB of dev-dependency
+      # READMEs and test-runner scaffolding, including crawlable HTML. Nothing in
+      # the published site references it, but robots.txt allows everything, so it
+      # was 300 indexable pages of noise on the docs domain (verified live:
+      # docs.zonai.dev/packages/test/dart.js served 200 before this landed).
+      #
+      # Guarded rather than deleted blind: this site HAS a client entrypoint (the
+      # ⌘K search), so if the bundle ever does start resolving through packages/,
+      # this must fail loudly instead of quietly shipping a broken search box.
+      - name: Prune unreferenced packages/ from the build
+        working-directory: apps/docs/build/jaspr
+        run: |
+          if [ ! -d packages ]; then
+            echo "No packages/ to prune."; exit 0
+          fi
+
+          # Captured to a variable rather than tested through a pipeline: `grep -q`
+          # exits on its first match and SIGPIPEs the upstream grep, so the
+          # pipeline's status answers a different question than the one asked.
+          # An empty result here means "nothing outside packages/ mentions it".
+          #
+          # The `(\./)?` is not decoration. GNU grep prefixes `./` when the search
+          # root is `.` and BSD grep does not, so an exclusion anchored on `^\./`
+          # matches nothing on macOS -- a self-reference inside packages/ would
+          # then block the prune forever, on a runner nobody reproduces locally.
+          refs=$(grep -rl 'packages/' --include='*.html' --include='*.js' . 2>/dev/null \
+                   | grep -Ev '^(\./)?packages/' || true)
+          if [ -n "$refs" ]; then
+            echo "::error::something published references packages/ -- pruning it would break the site"
+            echo "$refs"
+            exit 1
+          fi
+
+          echo "Pruning $(find packages -type f | wc -l) unreferenced files ($(du -sh packages | cut -f1))."
+          rm -rf packages
+
       - name: Publish to ${{ env.DOCS_REPOSITORY }}
         env:
           DEPLOY_KEY: ${{ secrets.DOCS_DEPLOY_KEY }}
