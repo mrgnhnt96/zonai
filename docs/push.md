@@ -251,6 +251,20 @@ Enqueuing a job starts a drain immediately, so a notification does not wait for 
 
 `_cleanup_push_jobs` runs nightly and purges *finished* jobs older than seven days. Running and pending jobs are never purged by age: a running job's row is its cursor, and deleting it would restart its fan-out from the top.
 
+## Testing it without sending real notifications
+
+FCM has no sandbox. Every endpoint Google publishes delivers to a real device, so there is no address you can point a staging deployment at and watch what happens. That leaves two honest options, and it is worth being clear about which one you are doing.
+
+**A local stand-in.** `FcmPushCourier` takes a `baseUri`, and a service-account key file's `token_uri` decides where the OAuth2 exchange goes. Point both at a local server and the entire path runs unmodified — a real signed assertion, a real token exchange, real HTTP, real classification, real pruning. Zonai's own suite does exactly this: `apps/zonai/test/src/push/fake_fcm.dart` is an `HttpServer` implementing both endpoints, and it holds only the **public** half of a generated keypair, so it verifies the assertion the way Google does rather than rubber-stamping it.
+
+`baseUri` is deliberately a constructor argument and **not** a `PushConfig` field. Config is parsed from yaml, and an endpoint override there would be a way to redirect production's notifications — access token and all — by editing a config file.
+
+What this proves: that the request we build is one a correct FCM implementation accepts, and that an error body FCM documents produces the right outcome on the right row. What it cannot prove: **that Google behaves the way Google documents.** A stand-in written from the docs and code written from the same docs share any mistake in them silently. Do not read a green local run as "push is verified end to end".
+
+**A real send.** The only thing that closes the gap above. You need a Firebase project, an app registered in it, and a service account with the **Firebase Cloud Messaging API Admin** role — note that an `androidpublisher` service account (the kind Play billing and RevenueCat use) is not that, and usually is not even in the same project. Then send to two devices: one with the app installed, one where it has been deliberately uninstalled. The uninstalled one must prune and the installed one must not. That single test is what validates the classification table this whole feature is built on.
+
+For iOS, add an **APNs auth key** to the Firebase console first. It is a `.p8` from Certificates, Identifiers & Profiles → Keys with the APNs capability enabled — *not* an App Store Connect API key, which is also a `.p8`, also lives in `~/.appstoreconnect/private_keys/`, and cannot sign an APNs request. Without the right one, FCM cannot reach iOS at all.
+
 ## Troubleshooting
 
 | Symptom | Cause |

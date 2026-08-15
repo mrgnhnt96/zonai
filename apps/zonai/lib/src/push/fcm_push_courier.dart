@@ -15,11 +15,35 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// supporting both would double the error-classification surface that
 /// [_classify] exists to get right.
 class FcmPushCourier implements PushCourier {
-  FcmPushCourier({required this.fileSystem, http.Client? client})
-    : _client = client ?? http.Client();
+  FcmPushCourier({
+    required this.fileSystem,
+    http.Client? client,
+    String baseUri = defaultBaseUri,
+  }) : _client = client ?? http.Client(),
+       // A trailing slash would produce `//v1/...`, which FCM 404s. Cheaper
+       // to absorb here than to make every caller spell it exactly right.
+       _baseUri = baseUri.endsWith('/')
+           ? baseUri.substring(0, baseUri.length - 1)
+           : baseUri;
+
+  static const defaultBaseUri = 'https://fcm.googleapis.com';
 
   final FileSystem fileSystem;
   final http.Client _client;
+
+  /// Where `messages:send` lives.
+  ///
+  /// Overridable because FCM has no sandbox. There is no address you can
+  /// point this at that accepts a send and does not deliver it to a real
+  /// device, so the only way to exercise the transport against a real socket
+  /// — real TCP, real headers, a real signed assertion someone else verifies
+  /// — is to stand up something local that speaks the same protocol.
+  ///
+  /// Deliberately a constructor argument rather than a [PushConfig] field:
+  /// config is parsed from user-supplied yaml, and an endpoint override there
+  /// would be a way to redirect production's notifications, access token and
+  /// all, by editing a config file.
+  final String _baseUri;
 
   /// Keyed by project id, because the cached token is scoped to the service
   /// account that minted it. A flavor switch mid-process must not reuse the
@@ -36,7 +60,7 @@ class FcmPushCourier implements PushCourier {
 
     final accessToken = await _accessTokenFor(config).get();
     final endpoint = Uri.parse(
-      'https://fcm.googleapis.com/v1/projects/${config.projectId}/messages:send',
+      '$_baseUri/v1/projects/${config.projectId}/messages:send',
     );
 
     // A bounded pool, not `Future.wait` over every token: FCM enforces
@@ -92,7 +116,10 @@ class FcmPushCourier implements PushCourier {
         body: jsonEncode({'message': _messageBody(message, token)}),
       );
     } on SocketException catch (e) {
-      return PushTransientlyFailed(token: token, detail: 'network: ${e.osError?.message ?? e.message}');
+      return PushTransientlyFailed(
+        token: token,
+        detail: 'network: ${e.osError?.message ?? e.message}',
+      );
     } on http.ClientException catch (e) {
       return PushTransientlyFailed(token: token, detail: 'http: ${e.message}');
     } on TimeoutException {

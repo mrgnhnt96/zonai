@@ -9,6 +9,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/host_worker_registries.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
+import 'package:zonai/src/push/fcm_push_courier.dart';
 import 'package:zonai/src/push/push_courier.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai_logger/zonai_logger.dart';
@@ -20,6 +21,7 @@ import 'package:zonai_schema/zonai_schema.dart' hide logger, Table;
 import 'package:zonai_schema/zonai_schema.dart' as schema show Table;
 
 import '../../../support/temp_directory.dart';
+import '../../push/fake_fcm.dart';
 
 /// The fan-out, driven end to end against a real database and a fake
 /// transport.
@@ -127,7 +129,14 @@ final class RecordingExtension extends Extension<DeviceToken> {
   RecordingExtension() : super(deviceTokens);
 
   final calls =
-      <({String id, String token, String? rowToken, PushRejectionReason reason})>[];
+      <
+        ({
+          String id,
+          String token,
+          String? rowToken,
+          PushRejectionReason reason,
+        })
+      >[];
 
   @override
   Future<void> onPushRejected(
@@ -207,9 +216,7 @@ final class FakePushCourier implements PushCourier {
     ];
   }
 
-  List<String> get allSentTokens => [
-    for (final batch in sentBatches) ...batch,
-  ];
+  List<String> get allSentTokens => [for (final batch in sentBatches) ...batch];
 
   @override
   Future<void> close() async {}
@@ -231,9 +238,14 @@ AppConfig _appConfigWith(PushConfig push) => AppConfig(
 PushConfig _pushConfig({
   OnPermanentRejection onPermanentRejection = OnPermanentRejection.clearColumn,
   int batchSize = 10,
+  // Ignored by `FakePushCourier`, which never parses them. The end-to-end
+  // group overrides both because a real `FcmPushCourier` does parse them, and
+  // signs an assertion with what it finds.
+  String projectId = 'fixture-project',
+  PushCredentials credentials = const PushCredentials.inline('{}'),
 }) => PushConfig(
-  projectId: 'fixture-project',
-  credentials: const PushCredentials.inline('{}'),
+  projectId: projectId,
+  credentials: credentials,
   onPermanentRejection: onPermanentRejection,
   batchSize: batchSize,
   concurrency: 2,
@@ -276,9 +288,19 @@ version: $kVersion
   late RecordingExtension extension;
   late FakePushCourier courier;
 
+  /// Bound in place of [courier] when set. The end-to-end group puts a real
+  /// [FcmPushCourier] here so the same engine runs against a real socket.
+  ///
+  /// Deliberately an override rather than a variable the scope reads
+  /// directly: several tests replace [courier] *after* `setUp` has run, and a
+  /// scope holding the old instance would quietly send to a courier nobody
+  /// configured — which is a green test asserting nothing.
+  PushCourier? overrideCourier;
+
   setUp(() {
     extension = RecordingExtension();
     courier = FakePushCourier();
+    overrideCourier = null;
 
     // The door `project_main` uses. Without these the host would go looking
     // for compiled worker executables that this fixture has no project to
@@ -300,7 +322,7 @@ version: $kVersion
         fsProvider.overrideWith(LocalFileSystem.new),
         loggerProvider.overrideWith(() => Logger(level: .error)),
         settingsProvider.overrideWith(() => settings),
-        pushCourierProvider.overrideWith(() => courier),
+        pushCourierProvider.overrideWith(() => overrideCourier ?? courier),
         processProvider,
         cleanUpProvider,
         executableStopProvider,
@@ -639,44 +661,41 @@ version: $kVersion
       for (final setting in OnPermanentRejection.values) {
         extension = RecordingExtension();
         courier = FakePushCourier()..rejectTokens.add('tok-d000001');
-        HostWorkerRegistries.extensions = DbExtensions(
-          extensions: [extension],
-        );
+        HostWorkerRegistries.extensions = DbExtensions(extensions: [extension]);
 
-        await run(
-          _appConfigWith(_pushConfig(onPermanentRejection: setting)),
-          (zonaiDb) async {
-            await seed(zonaiDb, count: 3);
+        await run(_appConfigWith(_pushConfig(onPermanentRejection: setting)), (
+          zonaiDb,
+        ) async {
+          await seed(zonaiDb, count: 3);
 
-            await zonaiDb.enqueuePush(
-              message: message,
-              table: 'device_tokens',
-              column: 'token',
-              where: null,
-              jwt: CronJwt(),
-            );
-            await zonaiDb.drainPushJobs();
+          await zonaiDb.enqueuePush(
+            message: message,
+            table: 'device_tokens',
+            column: 'token',
+            where: null,
+            jwt: CronJwt(),
+          );
+          await zonaiDb.drainPushJobs();
 
-            expect(
-              extension.calls,
-              hasLength(1),
-              reason:
-                  'the hook fires under $setting too — that is what makes '
-                  '`none` a usable choice rather than a silent one',
-            );
-            final call = extension.calls.single;
-            expect(call.id, 'd000001');
-            expect(call.token, 'tok-d000001');
-            expect(call.reason, PushRejectionReason.unregistered);
-            expect(
-              call.rowToken,
-              'tok-d000001',
-              reason:
-                  'the hook must see the row intact: under $setting the '
-                  'prune has not happened yet',
-            );
-          },
-        );
+          expect(
+            extension.calls,
+            hasLength(1),
+            reason:
+                'the hook fires under $setting too — that is what makes '
+                '`none` a usable choice rather than a silent one',
+          );
+          final call = extension.calls.single;
+          expect(call.id, 'd000001');
+          expect(call.token, 'tok-d000001');
+          expect(call.reason, PushRejectionReason.unregistered);
+          expect(
+            call.rowToken,
+            'tok-d000001',
+            reason:
+                'the hook must see the row intact: under $setting the '
+                'prune has not happened yet',
+          );
+        });
       }
     },
   );
@@ -725,39 +744,17 @@ version: $kVersion
     },
   );
 
-  test(
-    'a whole batch that is genuinely UNREGISTERED still prunes',
-    () async {
-      // The guard above must stay narrow. An old cohort whose app was
-      // uninstalled really can be a full batch of dead tokens, and refusing
-      // to prune those would leave a table that never drains.
-      await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
-        await seed(zonaiDb, count: 5);
-        courier.rejectTokens.addAll([
-          for (var i = 0; i < 5; i++) 'tok-d${i.toString().padLeft(6, '0')}',
-        ]);
+  test('a whole batch that is genuinely UNREGISTERED still prunes', () async {
+    // The guard above must stay narrow. An old cohort whose app was
+    // uninstalled really can be a full batch of dead tokens, and refusing
+    // to prune those would leave a table that never drains.
+    await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
+      await seed(zonaiDb, count: 5);
+      courier.rejectTokens.addAll([
+        for (var i = 0; i < 5; i++) 'tok-d${i.toString().padLeft(6, '0')}',
+      ]);
 
-        await zonaiDb.enqueuePush(
-          message: message,
-          table: 'device_tokens',
-          column: 'token',
-          where: null,
-          jwt: CronJwt(),
-        );
-        await zonaiDb.drainPushJobs();
-
-        final after = await rows(zonaiDb);
-        expect(after.where((r) => r.token != null), isEmpty);
-      });
-    },
-  );
-
-  test('a transient failure is counted, distinctly, and never prunes', () async {
-    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
-      await seed(zonaiDb, count: 3);
-      courier.failTokens.add('tok-d000001');
-
-      final id = await zonaiDb.enqueuePush(
+      await zonaiDb.enqueuePush(
         message: message,
         table: 'device_tokens',
         column: 'token',
@@ -766,37 +763,95 @@ version: $kVersion
       );
       await zonaiDb.drainPushJobs();
 
-      final entry = await job(zonaiDb, id!);
-      expect(entry.transientlyFailed, 1);
-      expect(entry.permanentlyRejected, 0);
-      expect(entry.delivered, 2);
-
       final after = await rows(zonaiDb);
-      expect(
-        after[1].token,
-        'tok-d000001',
-        reason:
-            'a token that timed out is not a token that is dead; collapsing '
-            'the two is what this feature exists to get right',
-      );
-      expect(
-        extension.calls,
-        isEmpty,
-        reason: 'onPushRejected is for permanent rejections only',
-      );
+      expect(after.where((r) => r.token != null), isEmpty);
     });
   });
 
   test(
-    'a device that re-registers mid-batch keeps its new token',
+    'a transient failure is counted, distinctly, and never prunes',
     () async {
-      // The race the prune's token match exists for. Between reading a batch
-      // and committing it, the device wipes and registers again, writing a
-      // NEW token into the same row. FCM then rejects the OLD one — which is
-      // correct, it is dead — and a prune keyed on the primary key alone
-      // would clear the live registration that replaced it. The user stops
-      // receiving notifications, and nothing anywhere records why.
       await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+        await seed(zonaiDb, count: 3);
+        courier.failTokens.add('tok-d000001');
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.transientlyFailed, 1);
+        expect(entry.permanentlyRejected, 0);
+        expect(entry.delivered, 2);
+
+        final after = await rows(zonaiDb);
+        expect(
+          after[1].token,
+          'tok-d000001',
+          reason:
+              'a token that timed out is not a token that is dead; collapsing '
+              'the two is what this feature exists to get right',
+        );
+        expect(
+          extension.calls,
+          isEmpty,
+          reason: 'onPushRejected is for permanent rejections only',
+        );
+      });
+    },
+  );
+
+  test('a device that re-registers mid-batch keeps its new token', () async {
+    // The race the prune's token match exists for. Between reading a batch
+    // and committing it, the device wipes and registers again, writing a
+    // NEW token into the same row. FCM then rejects the OLD one — which is
+    // correct, it is dead — and a prune keyed on the primary key alone
+    // would clear the live registration that replaced it. The user stops
+    // receiving notifications, and nothing anywhere records why.
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 3);
+      courier.rejectTokens.add('tok-d000001');
+      courier.duringSend = () async {
+        final db = await zonaiDb.open();
+        await db.execute(
+          'UPDATE "device_tokens" SET "token" = ? WHERE "id" = ?',
+          ['tok-d000001-REREGISTERED', 'd000001'],
+        );
+      };
+
+      await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: null,
+        jwt: CronJwt(),
+      );
+      await zonaiDb.drainPushJobs();
+
+      final after = await rows(zonaiDb);
+      expect(
+        after[1].token,
+        'tok-d000001-REREGISTERED',
+        reason:
+            'the row was pruned on a token that is no longer in it — the '
+            'prune must match the token it was told about, not just the key',
+      );
+    });
+  });
+
+  test('deleteRow also refuses to delete a row that re-registered', () async {
+    // The same race, with the destructive policy — where getting it wrong
+    // removes the row rather than a column.
+    await run(
+      _appConfigWith(
+        _pushConfig(onPermanentRejection: OnPermanentRejection.deleteRow),
+      ),
+      (zonaiDb) async {
         await seed(zonaiDb, count: 3);
         courier.rejectTokens.add('tok-d000001');
         courier.duringSend = () async {
@@ -817,53 +872,11 @@ version: $kVersion
         await zonaiDb.drainPushJobs();
 
         final after = await rows(zonaiDb);
-        expect(
-          after[1].token,
-          'tok-d000001-REREGISTERED',
-          reason:
-              'the row was pruned on a token that is no longer in it — the '
-              'prune must match the token it was told about, not just the key',
-        );
-      });
-    },
-  );
-
-  test(
-    'deleteRow also refuses to delete a row that re-registered',
-    () async {
-      // The same race, with the destructive policy — where getting it wrong
-      // removes the row rather than a column.
-      await run(
-        _appConfigWith(
-          _pushConfig(onPermanentRejection: OnPermanentRejection.deleteRow),
-        ),
-        (zonaiDb) async {
-          await seed(zonaiDb, count: 3);
-          courier.rejectTokens.add('tok-d000001');
-          courier.duringSend = () async {
-            final db = await zonaiDb.open();
-            await db.execute(
-              'UPDATE "device_tokens" SET "token" = ? WHERE "id" = ?',
-              ['tok-d000001-REREGISTERED', 'd000001'],
-            );
-          };
-
-          await zonaiDb.enqueuePush(
-            message: message,
-            table: 'device_tokens',
-            column: 'token',
-            where: null,
-            jwt: CronJwt(),
-          );
-          await zonaiDb.drainPushJobs();
-
-          final after = await rows(zonaiDb);
-          expect(after, hasLength(3));
-          expect(after[1].token, 'tok-d000001-REREGISTERED');
-        },
-      );
-    },
-  );
+        expect(after, hasLength(3));
+        expect(after[1].token, 'tok-d000001-REREGISTERED');
+      },
+    );
+  });
 
   test('several queued jobs all drain, none left behind', () async {
     await run(_appConfigWith(_pushConfig(batchSize: 50)), (zonaiDb) async {
@@ -924,40 +937,43 @@ version: $kVersion
     });
   });
 
-  test('a job whose token column vanishes fails rather than spinning', () async {
-    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
-      await seed(zonaiDb, count: 3);
+  test(
+    'a job whose token column vanishes fails rather than spinning',
+    () async {
+      await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+        await seed(zonaiDb, count: 3);
 
-      // The schema moves out from under the job BEFORE it is enqueued, so
-      // this does not depend on winning a race with the enqueue-time drain
-      // kick — the drain fails on the same missing column whichever pass
-      // reaches it first. Enqueue still succeeds: its shape check reads the
-      // registered schema, which is exactly the drift being simulated.
-      final db = await zonaiDb.open();
-      await db.execute('DROP TABLE "device_tokens"');
-      await db.execute(
-        'CREATE TABLE "device_tokens" ("id" TEXT PRIMARY KEY, '
-        '"user_id" TEXT NOT NULL, "label" TEXT NOT NULL)',
-      );
+        // The schema moves out from under the job BEFORE it is enqueued, so
+        // this does not depend on winning a race with the enqueue-time drain
+        // kick — the drain fails on the same missing column whichever pass
+        // reaches it first. Enqueue still succeeds: its shape check reads the
+        // registered schema, which is exactly the drift being simulated.
+        final db = await zonaiDb.open();
+        await db.execute('DROP TABLE "device_tokens"');
+        await db.execute(
+          'CREATE TABLE "device_tokens" ("id" TEXT PRIMARY KEY, '
+          '"user_id" TEXT NOT NULL, "label" TEXT NOT NULL)',
+        );
 
-      final id = await zonaiDb.enqueuePush(
-        message: message,
-        table: 'device_tokens',
-        column: 'token',
-        where: null,
-        jwt: CronJwt(),
-      );
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
 
-      await zonaiDb.drainPushJobs();
+        await zonaiDb.drainPushJobs();
 
-      // Nothing here can be retried into success, so it must fail loudly
-      // rather than be retried every minute forever.
-      final entry = await job(zonaiDb, id!);
-      expect(entry.status, PushJobStatus.failed);
-      expect(entry.error, isNotNull);
-      expect(courier.allSentTokens, isEmpty);
-    });
-  });
+        // Nothing here can be retried into success, so it must fail loudly
+        // rather than be retried every minute forever.
+        final entry = await job(zonaiDb, id!);
+        expect(entry.status, PushJobStatus.failed);
+        expect(entry.error, isNotNull);
+        expect(courier.allSentTokens, isEmpty);
+      });
+    },
+  );
 
   test('a failed job is not picked up again by the next drain', () async {
     await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
@@ -1050,33 +1066,32 @@ version: $kVersion
     });
   });
 
-  test('a missing AppConfig.push enqueues nothing and does not throw', () async {
-    await run(_appConfigWithoutPush, (zonaiDb) async {
-      await seed(zonaiDb, count: 3);
+  test(
+    'a missing AppConfig.push enqueues nothing and does not throw',
+    () async {
+      await run(_appConfigWithoutPush, (zonaiDb) async {
+        await seed(zonaiDb, count: 3);
 
-      final id = await zonaiDb.enqueuePush(
-        message: message,
-        table: 'device_tokens',
-        column: 'token',
-        where: null,
-        jwt: CronJwt(),
-      );
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
 
-      expect(
-        id,
-        isNull,
-        reason: 'a missing config must be loud, not fatal',
-      );
+        expect(id, isNull, reason: 'a missing config must be loud, not fatal');
 
-      final db = await zonaiDb.open();
-      final count = await db.execute('SELECT COUNT(*) FROM "_push_jobs"');
-      expect(count.rows.single.first, 0);
+        final db = await zonaiDb.open();
+        final count = await db.execute('SELECT COUNT(*) FROM "_push_jobs"');
+        expect(count.rows.single.first, 0);
 
-      final drained = await zonaiDb.drainPushJobs();
-      expect(drained.skipped, isNotNull);
-      expect(courier.allSentTokens, isEmpty);
-    });
-  });
+        final drained = await zonaiDb.drainPushJobs();
+        expect(drained.skipped, isNotNull);
+        expect(courier.allSentTokens, isEmpty);
+      });
+    },
+  );
 
   test('a column that is not a deviceToken column is refused', () async {
     await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
@@ -1125,5 +1140,242 @@ version: $kVersion
       );
     });
   });
-}
 
+  /// The engine and the real transport, running together for the first time.
+  ///
+  /// Everything above this point substitutes `PushCourier`, so the seam
+  /// between "the engine decided to prune" and "FCM said this token is dead"
+  /// has never been crossed by a test: the fake is *told* which tokens to
+  /// reject, in the engine's own vocabulary. Here FCM's own wire format is
+  /// what decides, and the engine has to read it correctly through
+  /// `FcmPushCourier` — a real OAuth2 exchange, a real signed assertion, a
+  /// real socket — before a single row is touched.
+  ///
+  /// That makes this the only place where a mistake in `_classify` shows up
+  /// as *the wrong row being cleared* rather than as a mismatched enum.
+  group('end to end, over a real socket', () {
+    late FakeFcm fcm;
+
+    /// Boots a fake FCM and points a real courier at it, returning the config
+    /// that names it. Null when there is no `openssl` to sign with.
+    Future<AppConfig?> boot({
+      OnPermanentRejection onPermanentRejection =
+          OnPermanentRejection.clearColumn,
+      int batchSize = 10,
+    }) async {
+      final keys = generateKeypair();
+      if (keys == null) {
+        markTestSkipped('openssl is not on PATH, so nothing could be signed');
+        return null;
+      }
+
+      fcm = await FakeFcm.start(publicKeyPem: keys.public);
+      final real = FcmPushCourier(
+        fileSystem: const LocalFileSystem(),
+        baseUri: fcm.baseUri,
+      );
+      overrideCourier = real;
+      addTearDown(() async {
+        await real.close();
+        await fcm.stop();
+      });
+
+      return _appConfigWith(
+        _pushConfig(
+          onPermanentRejection: onPermanentRejection,
+          batchSize: batchSize,
+          projectId: 'e2e-project',
+          credentials: PushCredentials.inline(
+            serviceAccountJson(
+              privateKey: keys.private,
+              tokenUri: fcm.tokenUri,
+              projectId: 'e2e-project',
+            ),
+          ),
+        ),
+      );
+    }
+
+    test('a fan-out reaches the wire and completes', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 5);
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(
+          fcm.sentTokens..sort(),
+          [for (var i = 0; i < 5; i++) 'tok-d${i.toString().padLeft(6, '0')}']
+            ..sort(),
+          reason: 'every seeded token should have reached the endpoint',
+        );
+        expect(
+          fcm.tokenRequests,
+          hasLength(1),
+          reason: 'one OAuth2 exchange serves the whole fan-out',
+        );
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.status, PushJobStatus.completed);
+        expect(entry.delivered, 5);
+        expect(entry.permanentlyRejected, 0);
+      });
+    });
+
+    test("FCM's own UNREGISTERED is what clears the row", () async {
+      final config = await boot();
+      if (config == null) return;
+
+      // Nothing here speaks the engine's vocabulary. The only input is the
+      // JSON body FCM documents for a dead token, and the row being cleared
+      // is downstream of parsing it correctly.
+      fcm.replyFor = (token) =>
+          token == 'tok-d000002' ? errReply(404, 'UNREGISTERED') : okReply;
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 5);
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        final after = await rows(zonaiDb);
+        expect(
+          after.firstWhere((r) => r.id == 'd000002').token,
+          isNull,
+          reason: 'the dead token is the one that gets cleared',
+        );
+        expect(
+          [
+            for (final r in after)
+              if (r.token != null) r.id,
+          ],
+          ['d000000', 'd000001', 'd000003', 'd000004'],
+          reason:
+              'and only that one — a classifier that widened its net would '
+              'show up here as live devices losing their registration',
+        );
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.delivered, 4);
+        expect(entry.permanentlyRejected, 1);
+      });
+    });
+
+    test('a transient wire failure counts, and never prunes', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      fcm.replyFor = (token) =>
+          token == 'tok-d000001' ? errReply(503, 'UNAVAILABLE') : okReply;
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 3);
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(
+          [for (final r in await rows(zonaiDb)) r.token],
+          isNot(contains(isNull)),
+          reason:
+              'a server having a bad minute is not a device that uninstalled '
+              'the app, and treating it as one costs that device every future '
+              'notification',
+        );
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.transientlyFailed, 1);
+        expect(entry.permanentlyRejected, 0);
+      });
+    });
+
+    test('bad credentials fail the job without blaming a device', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      // The token endpoint issues one value and the send endpoint demands
+      // another: a rotated or wrongly-scoped key, seen from the courier.
+      fcm.acceptedAccessToken = 'not-the-one-that-was-issued';
+      fcm.replyFor = (_) => okReply;
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 4);
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(
+          [for (final r in await rows(zonaiDb)) r.token],
+          isNot(contains(isNull)),
+          reason:
+              'this is the whole point of throwing on 401 rather than '
+              'classifying it: a config mistake must not cost every '
+              'recipient in the batch their registration',
+        );
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.status, PushJobStatus.failed);
+        expect(entry.error, isNotNull);
+      });
+    });
+
+    test('paging across batches reuses one access token', () async {
+      final config = await boot(batchSize: 4);
+      if (config == null) return;
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 10);
+
+        await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(fcm.sends, hasLength(10));
+        expect(
+          fcm.sentTokens.toSet(),
+          hasLength(10),
+          reason: 'the cursor advanced; no page was re-read',
+        );
+        expect(
+          fcm.tokenRequests,
+          hasLength(1),
+          reason:
+              'the cache lives on the courier, so a fan-out that outlives one '
+              'batch must not re-mint per batch',
+        );
+      });
+    });
+  });
+}
