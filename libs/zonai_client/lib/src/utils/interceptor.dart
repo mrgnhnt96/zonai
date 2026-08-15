@@ -20,12 +20,10 @@ class Interceptor implements HttpInterceptor {
 
   final Auth _auth;
 
-  // The `HttpResponse?` return type is required by revali_client on the git ref
-  // CI pins (tool/ci/use_revali_git_overrides.sh); the pub.dev release resolved
-  // locally still declares `FutureOr<void>`. The wider type is a valid override
-  // of both -- `void` is a top type -- so this file analyzes cleanly either way.
   // Both hooks return `null` throughout: they mutate the request and persist the
-  // token, but never substitute a response.
+  // token, but never substitute a response. Returning a response instead would
+  // answer the call without sending it (`onRequest`) or replace what arrived
+  // (`onResponse`) -- neither is what an auth round-trip wants.
   @override
   FutureOr<HttpResponse?> onRequest(HttpRequest request) async {
     if (request.headers['authorization'] case final authorization?

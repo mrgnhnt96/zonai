@@ -9,7 +9,7 @@ environment:
 
 dependencies:
   collection: ^1.19.0
-  revali_client: ^2.1.0
+  revali_client: ^3.0.0
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5
   path: ^1.9.1

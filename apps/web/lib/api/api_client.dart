@@ -35,14 +35,11 @@ final zonaiClientProvider = Provider<ZonaiClient>((ref) {
 /// The underlying generated [Server], for endpoints without a [ZonaiClient] wrapper.
 final revaliServerProvider = Provider<Server>((ref) => ref.watch(zonaiClientProvider).server);
 
-// Returns `FutureOr<HttpResponse?>` rather than `void` because revali_client's
-// `HttpInterceptor` declares it that way on the git ref CI pins
-// (tool/ci/use_revali_git_overrides.sh), while the pub.dev release resolved
-// locally still declares `FutureOr<void>`. The wider return type is a valid
-// override of BOTH -- `void` is a top type, so `HttpResponse?` is a subtype of
-// it -- which is what lets one source tree analyze cleanly against either.
 // `null` means "carry on with what you were given"; neither hook substitutes a
-// response, they only observe.
+// response, they only observe. `onResponse` deliberately still returns `null`
+// on a 401/403: signing the user out is a side effect, and swapping in a
+// different response here would hide the failure from the caller that has to
+// handle it.
 final class _UnauthorizedInterceptor implements HttpInterceptor {
   @override
   FutureOr<HttpResponse?> onRequest(HttpRequest request) => null;
