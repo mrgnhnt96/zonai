@@ -85,7 +85,7 @@ Two honest options:
 Zonai reads a flavor-specific `.env` file from your app root and turns every key into a compile-time `-D` define on each worker. See **[config-and-env-flavors.md](config-and-env-flavors.md#environment-files)** for the full mechanism — which file is loaded per `--flavor`, the file format, and which workers receive the defines. Two things worth restating here because they bite specifically on SMTP credentials:
 
 - **There is no fallback between env files.** `--flavor prod` loads `.env.prod` only; if it's missing, zonai compiles with *no* env defines at all, even if a plain `.env` exists. A missing `SMTP_HOST` then silently takes its `defaultValue` (or an empty string) rather than falling back to a different file.
-- **There is no `--dart-define-from-file` flag** — see **[config-and-env-flavors.md](config-and-env-flavors.md#there-is-no---dart-define-from-file)**. The `.env` file is the only mechanism; an invented flag is silently dropped and the build succeeds with zero defines injected.
+- **There is no `--dart-define-from-file` flag** — see **[config-and-env-flavors.md](config-and-env-flavors.md#there-is-no---dart-define-from-file)**. The env file is found by name and is never named on the command line, so no flag points at it, and an invented one such as `--dart-define-from-file env.json` is dropped without a warning: the build succeeds with zero defines injected. For one-off keys there *is* a repeatable `--dart-define KEY=VALUE`, which must be space-separated — `--dart-define=KEY=VALUE` fails to parse.
 
 ```env
 # apps/server/.env — gitignored, never committed
@@ -115,10 +115,12 @@ An empty `EmailConfig.host` (or an unset `AppConfig.email`) makes the whole chan
 
 | | Set where | Read how |
 |---|---|---|
-| **Compile-time** | `.env` at build | `String.fromEnvironment` in config, rules, extensions, operations, rate-limit Dart |
+| **Compile-time** | `.env` at build | `String.fromEnvironment` in config, rules, operations, extensions, rate-limit **and cron** Dart |
 | **Runtime** | your host's own secret store | `Platform.environment` in your own processes, outside zonai's compiled workers |
 
 SMTP credentials are compile-time. Setting a runtime secret on your host does nothing for them — the worker never reads the process environment. The compiled worker executables contain your secrets; treat `.zonai/executables/` and `build/` as sensitive.
+
+**Cron workers get the defines too**, which is worth stating because sending mail on a schedule is the most common reason to want SMTP credentials at all, and the worker table in [config-and-env-flavors.md](config-and-env-flavors.md#which-workers-receive-env-defines) does not list crons. `db_crons.exe` is compiled with the same `env.dartDefineArgs` as every other worker (`apps/zonai/lib/src/domain/cron/crons.dart:76`), so a `String.fromEnvironment('SMTP_HOST')` read from a cron resolves exactly as it does in config.
 
 ## Step 5 — Make the port and TLS mode agree
 
