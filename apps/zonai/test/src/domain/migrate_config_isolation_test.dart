@@ -27,7 +27,7 @@ void main() {
       final projectRoot = createCanonicalTempSync(
         'zonai_migrate_config_isolation_',
       );
-      addTearDown(() => projectRoot.deleteSync(recursive: true));
+      addTearDown(() => deleteTempDirectory(projectRoot));
 
       final schemasDir = Directory(
         p.join(projectRoot.path, 'lib', 'src', 'schemas'),

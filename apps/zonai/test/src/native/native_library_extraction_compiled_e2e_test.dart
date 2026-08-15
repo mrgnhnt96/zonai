@@ -8,6 +8,7 @@ import 'package:zonai/src/domain/arch.dart';
 import 'package:zonai/src/domain/target_os.dart';
 
 import '../../support/package_roots.dart';
+import '../../support/temp_directory.dart';
 
 /// End-to-end over the stamp guard in `_extractCompiledLibrary`, for both
 /// libraries that have one.
@@ -55,7 +56,7 @@ void main() {
 
   tearDownAll(() {
     if (!_runningOnDartVm) return;
-    workspace.deleteSync(recursive: true);
+    deleteTempDirectory(workspace);
   });
 
   for (final library in const ['resqlite', 'argon2']) {

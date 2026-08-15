@@ -9,6 +9,8 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
+import '../../../support/temp_directory.dart';
+
 /// `logDatabaseMaxSize` — the opt-in ceiling on the log database file.
 ///
 /// Only expressible because `_log` has a file of its own: `max_page_count`
@@ -34,7 +36,7 @@ void main() {
   });
 
   tearDown(() async {
-    if (projectRoot.existsSync()) projectRoot.deleteSync(recursive: true);
+    if (projectRoot.existsSync()) deleteTempDirectory(projectRoot);
   });
 
   Future<Settings> settingsWith(String yaml) async {

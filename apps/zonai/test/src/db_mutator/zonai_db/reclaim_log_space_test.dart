@@ -12,6 +12,8 @@ import 'package:zonai/src/domain/process.dart' as domain;
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
+import '../../../support/temp_directory.dart';
+
 /// The conditional rewrite at the end of `_cleanup_logs`.
 ///
 /// Deleting log rows only moves their pages to a freelist -- the file does
@@ -44,7 +46,7 @@ void main() {
   });
 
   tearDown(() async {
-    if (projectRoot.existsSync()) projectRoot.deleteSync(recursive: true);
+    if (projectRoot.existsSync()) deleteTempDirectory(projectRoot);
   });
 
   Future<T> withScope<T>(

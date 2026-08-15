@@ -14,6 +14,8 @@ import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
+import '../../../../support/temp_directory.dart';
+
 /// `_log` living in its own database file, end to end.
 ///
 /// `attached_log_db_contract_test.dart` is the sibling of this file and pins
@@ -46,7 +48,7 @@ void main() {
 
     tearDown(() async {
       await delegate.close();
-      if (dir.existsSync()) dir.deleteSync(recursive: true);
+      if (dir.existsSync()) deleteTempDirectory(dir);
     });
 
     test('a row written to the attached database can be read back through the '
@@ -236,7 +238,7 @@ void main() {
     });
 
     tearDown(() async {
-      if (projectRoot.existsSync()) projectRoot.deleteSync(recursive: true);
+      if (projectRoot.existsSync()) deleteTempDirectory(projectRoot);
     });
 
     /// Everything a [ZonaiDb] touches has to run inside this -- constructing

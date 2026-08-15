@@ -9,6 +9,8 @@ import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/migrate.dart';
 import 'package:zonai/src/domain/settings.dart';
 
+import '../../support/temp_directory.dart';
+
 /// The value of the option named [flag] in [args].
 String _valueOf(List<String> args, String flag) {
   final index = args.indexOf(flag);
@@ -35,7 +37,7 @@ void main() {
   });
 
   tearDown(() {
-    if (projectRoot.existsSync()) projectRoot.deleteSync(recursive: true);
+    if (projectRoot.existsSync()) deleteTempDirectory(projectRoot);
   });
 
   Future<List<String>> generateArgs() async {
