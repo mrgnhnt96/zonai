@@ -21,18 +21,15 @@ import 'package:zonai_schema/src/internal/crons/drain_push_jobs_cron.dart';
 /// Deleting that catch looks like removing dead defensive code, and nothing
 /// else in the suite goes red. That is what this file is for.
 ///
-/// **What this does NOT cover, deliberately.** The cron's three logging
-/// behaviours — silence on an empty queue, an info line carrying the counts
-/// when work happened, and a warning naming a `skipped` reason — are not
-/// asserted here. `MessageHandler.runWithParent` does not rebind
-/// `_loggerProvider`; that happens only on the real inbound-request path, so
-/// a log written in this harness goes nowhere and any assertion about log
-/// *content* would pass whether or not the line was produced. An earlier
-/// draft of this file asserted "an empty queue logs nothing" and passed
-/// vacuously for exactly that reason. Covering it honestly needs the cron
-/// driven through `db_crons` dispatch; until then the silence-on-empty-queue
-/// guard — the one whose correct behaviour is *absence*, and so the easiest
-/// to delete as a tidy-up — is genuinely unprotected.
+/// The logging behaviours are covered too, in the `logging` group, but only
+/// because those tests drive the cron the way production does. `_loggerProvider`
+/// is bound by the scope around the **listen loop**, not by `runWithParent`,
+/// so a cron invoked directly writes its logs nowhere. An earlier draft of
+/// this file did exactly that and its "an empty queue logs nothing" assertion
+/// passed **vacuously** — the captured list was empty in every case, so the
+/// one behaviour whose correctness *is* absence could not have failed. The
+/// group below feeds a real `RunCronJobRequest` in through `incoming`
+/// instead, which puts the cron inside `onMessage` where the logger is live.
 class _FakeMessageIo implements MessageIo {
   final _incoming = StreamController<Map<String, dynamic>>();
   final List<Map<String, dynamic>> sent = [];
@@ -164,6 +161,134 @@ void main() {
       ),
       completes,
     );
+  });
+
+  group('logging', () {
+    /// Drives the cron the way production does — an inbound
+    /// `RunCronJobRequest` dispatched through `onMessage` — so it runs inside
+    /// the listen-loop scope where `_loggerProvider` is bound and each log
+    /// line leaves as a `DebugResponse`.
+    Future<List<({String level, String message})>> logsFrom(
+      Map<String, dynamic> Function(String requestId) respond,
+    ) async {
+      final io = _FakeMessageIo();
+      final handler = MessageHandler<CronRequest>(
+        fromUnknownRequest: CronRequest.fromRequest,
+        onMessage: (request) async {
+          if (request is! RunCronJobRequest) return null;
+          await DrainPushJobsCron().run();
+          return CronJobRunResponse(
+            id: request.id,
+            name: request.name,
+            accepted: true,
+          );
+        },
+        io: io,
+      );
+      unawaited(handler.listen());
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      io.reply(RunCronJobRequest(name: '_drain_push_jobs').toJson());
+
+      final drain = await _awaitDrainRequest(io);
+      io.reply(respond(drain['id'] as String));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      return [
+        for (final message in io.sent)
+          if (message['path'] == 'response/.debug')
+            (
+              level: '${message['level']}',
+              message: '${(message['payload'] as Map)['message']}',
+            ),
+      ];
+    }
+
+    test('a drain that did something says what it did', () async {
+      final logs = await logsFrom(okResponse);
+
+      expect(logs, hasLength(1));
+      expect(logs.single.level, 'info');
+      // The counts are the whole value of the line: "advanced 2 jobs" alone
+      // cannot answer the question anyone actually arrives with, which is
+      // whether their notifications went out.
+      expect(logs.single.message, contains('2 push job(s)'));
+      expect(logs.single.message, contains('1 completed'));
+      expect(logs.single.message, contains('1250 sent'));
+      expect(logs.single.message, contains('7 permanently rejected'));
+      expect(logs.single.message, contains('3 transiently failed'));
+    });
+
+    test('an empty queue logs nothing at all', () async {
+      final logs = await logsFrom(
+        (id) => DrainPushJobsResponse(
+          id: id,
+          jobsAdvanced: 0,
+          jobsCompleted: 0,
+          sent: 0,
+          permanentlyRejected: 0,
+          transientlyFailed: 0,
+          skipped: null,
+        ).toJson(),
+      );
+
+      expect(
+        logs,
+        isEmpty,
+        reason:
+            'this fires every minute. A line per firing is 1,440 a day saying '
+            'nothing happened, and the cost is not disk — it is that the one '
+            'firing which did something stops standing out. This assertion is '
+            'only meaningful because the sibling test above proves a log DOES '
+            'reach this list when there is one to write',
+      );
+    });
+
+    test(
+      'a skip names its reason rather than reporting a quiet zero',
+      () async {
+        final logs = await logsFrom(
+          (id) => DrainPushJobsResponse(
+            id: id,
+            jobsAdvanced: 0,
+            jobsCompleted: 0,
+            sent: 0,
+            permanentlyRejected: 0,
+            transientlyFailed: 0,
+            skipped: 'AppConfig.push is not configured',
+          ).toJson(),
+        );
+
+        expect(logs, hasLength(1));
+        expect(logs.single.level, 'warn');
+        expect(
+          logs.single.message,
+          contains('AppConfig.push is not configured'),
+        );
+      },
+    );
+
+    test('an older host warns, and names the likely cause', () async {
+      final logs = await logsFrom(
+        (id) => MessageErrorResponse(
+          id: id,
+          message:
+              'Unhandled request DrainPushJobsRequest(request/.drain_push_jobs)',
+        ).toJson(),
+      );
+
+      expect(logs, hasLength(1));
+      expect(logs.single.level, 'warn');
+      expect(logs.single.message, contains('Could not drain push jobs'));
+      expect(
+        logs.single.message,
+        contains('predate push support'),
+        reason:
+            'the message has to name the likely cause. "Could not drain" '
+            'alone sends someone to look at the queue rather than at the '
+            'deployed binary version, which is where the answer is',
+      );
+    });
   });
 }
 
