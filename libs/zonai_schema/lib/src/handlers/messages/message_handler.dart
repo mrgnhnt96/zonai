@@ -151,7 +151,18 @@ class MessageHandler<R extends Request> {
                     where: where,
                     limit: limit,
                     offset: offset,
-                    jwt: jwt,
+                    // Falls back to the ambient request's identity so `get`
+                    // defaults the way `mutate` and `email` do.
+                    //
+                    // `orElse` is a guard, and named as one rather than dressed
+                    // up: every `get` reachable today runs inside a
+                    // `runWithParent`, so the ref is bound and the fallback is
+                    // dead. But this closure is *built* here, in the listen
+                    // scope, where it is not — and a bare `read` on an unbound
+                    // ref throws. Without the `orElse` a future caller in that
+                    // scope would take down the whole listen loop, which is a
+                    // steep price for a default.
+                    jwt: jwt ?? read(_ambientJwtProvider, orElse: () => null),
                   ),
                 );
 
@@ -276,6 +287,7 @@ class MessageHandler<R extends Request> {
         ),
       },
       override: {
+        _ambientJwtProvider.overrideWith(() => request.jwt),
         _emailProvider.overrideWith(
           () => _Email(
             (email) {

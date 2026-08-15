@@ -17,6 +17,8 @@ final expiredRows = await get.many(
 ) ?? [];
 ```
 
+Reads carry the CronJwt system identity, the same as `mutate` below — you do not pass a JWT. Rules and row rules on the table you read are evaluated against it, so a table that denies anonymous reads still answers a cron. Passing an explicit `jwt:` overrides that when a job needs to read as someone else.
+
 See [Side Effects: get](/extensions/side-effects-get) for full documentation.
 
 ## mutate

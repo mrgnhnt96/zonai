@@ -124,7 +124,9 @@ Inside `run()`, Zonai exposes the same globals as the extension worker (from `pa
 
 Every cron run acts as **`CronJwt`**: an internal worker identity with admin edit access. Rules and row rules evaluate against that JWT — design maintenance jobs so collections your crons touch allow admin deletes/updates. `CronJwt` is **not** a user session token; HTTP clients cannot present it as a bearer token (see `CronJwt` in `package:zonai_schema`).
 
-**Reads** (`get`) run immediately and respect collection/row rules for `CronJwt`.
+**Reads** (`get`) run immediately and respect collection/row rules for `CronJwt`. You do not pass the JWT yourself — `get.one` / `get.many` default to the identity of the run they are called from, exactly as `mutate` and `email` do. Passing an explicit `jwt:` still overrides that, so a job that deliberately reads as some other identity can.
+
+> **Fixed in this release.** This paragraph described the intended behaviour, not the behaviour. `get` did **not** inherit `CronJwt` — it was built once for the worker rather than per run, so a read with no explicit `jwt:` went out anonymous while a write from the same job went out as `CronJwt`. A cron that only wrote worked; a cron that read was denied by any rule requiring an identity, on every tick, with `Access denied: action <op> on table <name>` and nothing else to go on. If you worked around this by threading the JWT through your `get` calls by hand, that code still works and needs no change.
 
 **Writes** (`mutate`) are **queued** during `run()` and committed when the job finishes (`JobCompleted` or `JobFailed`). Each queued mutation goes through [rules](rules.md), [operations](operations.md), and [extensions](extensions.md) the same way as extension side effects (up to 10 chained iterations).
 
