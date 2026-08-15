@@ -1,7 +1,7 @@
 # Push notifications in Zonai core — design decisions
 
-**Status:** decided, not built. Implementation starts after the next release.
-**Date:** 2026-08-15 (revised)
+**Status:** **built.** v1 landed on `feat/push-notifications`; the user-facing guide is [push.md](push.md). See [What changed in the building](#16-what-changed-in-the-building) for where the code departs from the decisions below, and §15 for what the open questions turned out to be.
+**Date:** 2026-08-15 (revised); implemented 2026-08-15
 **Supersedes:** the design section of `i_lost_the_game/.agent-coordination/ZONAI_PUSH_HANDOFF.md`, which is correct about the goal and wrong about two mechanisms. See [Corrections to the brief](#13-corrections-to-the-brief).
 
 This is a decision record, not a tutorial. `docs/push.md` gets written with the code.
@@ -258,15 +258,49 @@ One further planning assumption:
 
 ---
 
-## 15. Open questions
+## 15. Open questions — answered
 
-1. **Batch size default.** It is simultaneously the memory bound, the checkpoint granularity and the crash blast radius. Measure before picking; do not inherit a number from another system.
-2. **Fan-out concurrency default.** Sequential is slow, fully concurrent trips FCM quota. Bounded pool; the bound lives in `PushConfig`. Measure.
-3. **Who drains the job queue?** An internal cron is the obvious answer and matches every other background job here. Confirm a cron can reach `push`'s machinery rather than assuming it — today's cron `get` defect (`1d95261`) was exactly a side effect that existed everywhere except where it was needed.
-4. **Retention on the jobs table.** It grows per send. It should join the existing retention crons and use `mutate.purge`, not `mutate.delete` — a lesson `_log` already paid for.
+1. **Batch size default: 500, and still unmeasured.** Shipped as a starting point chosen so that a crash duplicates a screenful rather than a mailing list. `docs/push.md` says out loud that it is not a measured optimum, which is the honest state — nobody has run a fan-out at a size where the three properties it controls pull against each other. **Still open as a measurement**, not as a decision.
+2. **Concurrency default: 8, likewise unmeasured.** A bounded worker pool, the bound in `PushConfig`, exactly as sketched. The pool is written as N workers pulling from a shared index rather than `Future.wait` over chunks, so a slow send does not hold up the batch behind it.
+3. **Who drains the queue: both, and that is the answer.** The cron alone was wrong. `_drain_push_jobs` runs every minute, but enqueuing also kicks a drain immediately — otherwise every notification waits up to a minute for a timer, which is not a notification service. The cron's real job is **resume**: a fan-out whose drain died mid-batch, or one enqueued by a process that has since restarted. The question's caution was well aimed and the answer is the reverse of what it expected: the cron is the fallback, not the mechanism.
+
+   Passes are chained rather than skipped, so two callers arriving together serialize instead of one getting a misleading zero. Confirmed by running it, not by assuming: `push_fanout_test.dart` drives enqueue and drain against a real database.
+4. **Retention: `_cleanup_push_jobs`, nightly, seven days, via `mutate.purge`.** Longer than `_cleanup_logs`' four days on purpose — the reason to read a job row is a complaint that a notification did or did not arrive, and those reach a developer days later rather than hours.
+
+   One thing the question did not anticipate: the purge has to filter on **status**, not only age. A running job's row *is* its cursor, so purging one by age would restart its fan-out from the top and re-notify everyone it had already reached — retention silently causing the exact duplicate the checkpoint exists to prevent.
+
+---
+
+## 16. What changed in the building
+
+Every decision above survived. These are the places the code says more than the design did, and one place it says something different.
+
+**`push` takes a `column`, not just a `table`.** §2's example named only the table, which quietly assumed a table has one `deviceToken` column. Nothing enforces that, and picking "the first one found" would be a silent choice about which device a notification went to. The column is now named at the call site and validated against `schemaShapes()`.
+
+**The recipient query is built host-side, not through the operations worker.** The operations layer's `list()` selects whole rows, and §2's projection is a security property rather than an optimisation — so the fan-out renders the caller's `Where` to SQL itself (`WhereX.sql`) and selects exactly two columns. The `where` is still parameterized; the identifiers are resolved through `schemaShapes()` before reaching a statement.
+
+**The prune matches on the token as well as the key.** Not in the design, and a real gap: between reading a batch and committing it, a device can re-register and write a *new* token into the same row. Clearing by primary key alone would delete a live registration because a dead one used to be there.
+
+**Counts resume from the job row.** The first implementation restarted them at zero on a resumed pass, so a job that sent 400 yesterday and 100 today reported 100. Found by the crash-resume test, which is the assertion §12 said the whole checkpointing design exists for — it earned its place immediately.
+
+**The access-token refresh margin is applied at mint time, capped at half the lifetime.** Subtracting a five-minute margin from expiry at *read* time means a token with a shorter lifetime than the margin is never fresh, so every call mints a new one — the token endpoint hammered once per send, arrived at through the code that exists to prevent exactly that. Also found by a test.
+
+**`PushTargetException` is a `SchemaException`.** `ZonaiDb._run` wraps anything it does not recognise in an opaque `StateError`, so a purpose-built exception type would have reached the author as "Failed to run database operation". Being part of the sealed hierarchy also forced the HTTP mapping to be chosen rather than defaulted (400).
+
+**A transient failure inside a committed batch is not retried by a later pass.** This follows from batch-level checkpointing and was not stated. Retries happen *within* a batch; once the cursor moves past a batch, a recipient counted in `transiently_failed` did not get the message and will not be tried again. It is on the job row, and `docs/push.md` says so rather than leaving it to be discovered.
+
+### Two things that had to be fixed to get here
+
+**`raindrop.yaml` had been broken since `e4867b8`.** The 2026-08-15 raindrop sync made `driver` a required field, so `--migrate` threw before generating anything. It also needed `driver_import` and `schema_package_prefix` pointing at zonai_schema's *vendored* raindrop: the submodule's copy and the vendored one are two different `SqlDialect` types, and the generated snapshot entrypoint mixes them otherwise.
+
+**`ZonaiDb` had no config seam.** `_run` rebinds `configResolverProvider` on every call, so a scope-level override is replaced before anything reads it — meaning any test touching `AppConfig` had to compile a config worker. Now injectable, `@visibleForTesting`.
 
 ---
 
 ## Related work this design turned up
 
-**`_cleanupUnreferencedPhotos` materialises every photo row** (`await db.select().from(photos)`, no limit, then a per-row walk). Same shape as the `_cleanup_logs` defect fixed in `df76021`, in an internal cron that ships today. Unrelated to push; found while reading the precedent. Worth its own fix.
+**~~`_cleanupUnreferencedPhotos` materialises every photo row~~ — fixed before this was built.** The claim was true when written and was fixed in `2df7be7` ("page the photo-cleanup scans instead of reading both tables whole"), which landed on `main` first. Both scans are keyset-paged now.
+
+Struck through rather than deleted, because the design leans on it twice: §4 says "follow the photo pattern's structure, not its implementation", and that instruction is now wrong in a way that matters — the current implementation *is* the pattern to follow, and the fan-out's paging is modelled on it directly.
+
+**The `/db/stream*` claim in §14 was not re-checked.** It asserts that as of `6a6f0d0` the stream routes deliver an initial frame and never push another. Confirming or refuting it needs a running server, and nothing in push depends on the answer, so this implementation neither verified nor relied on it. Anyone quoting §14's conclusion — that push is *more* load-bearing than the brief assumed — should re-establish that first; it may have been fixed in the interval.

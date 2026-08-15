@@ -186,6 +186,11 @@ abstract final class InternalDbArtifacts {
     ),
     (
       importPath:
+          'package:zonai_schema/src/internal/crons/cleanup_push_jobs_cron.dart',
+      alias: 'zonai_internal_cleanup_push_jobs_cron',
+    ),
+    (
+      importPath:
           'package:zonai_schema/src/internal/crons/cleanup_unreferenced_photos_cron.dart',
       alias: 'zonai_internal_cleanup_unreferenced_photos_cron',
     ),
