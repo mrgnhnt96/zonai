@@ -339,6 +339,19 @@ class Mailman<S extends Request, R extends Response> {
         case final NativeLibraryRequest request:
           response = await _provideNativeLibrary(request);
 
+        case final EnqueuePushRequest request:
+          final jobId = await zonaiDB.enqueuePush(
+            message: request.message,
+            table: request.table,
+            column: request.column,
+            where: request.where,
+            jwt: request.jwt,
+          );
+          response = EnqueuePushResponse(
+            id: request.id,
+            jobId: jobId?.value,
+          );
+
         case final PurgeRecordsRequest request:
           response = PurgeRecordsResponse(
             id: request.id,

@@ -65,6 +65,12 @@ extension TableWhereOperatorX on TableWhereOperator {
 List<TableWhereOperator> operatorsForColumn(ColumnShape shape) {
   return switch (shape.kind) {
     .text || .email || .id => const [.eq, .contains, .startsWith, .endsWith, .notContains, .null_, .notNull],
+    // A device token is opaque: no prefix, suffix or substring of one means
+    // anything, so offering `starts with` would invite filters that can only
+    // ever match by accident. Equality is for finding one known token;
+    // `is null` / `is not null` is the filter that actually gets used, since
+    // a null token is what pruning leaves behind.
+    .deviceToken => const [.eq, .null_, .notNull],
     .integer ||
     .real ||
     .bigInt ||

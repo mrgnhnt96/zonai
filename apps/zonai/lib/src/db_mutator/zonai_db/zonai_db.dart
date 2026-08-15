@@ -28,6 +28,12 @@ import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
 // logs_table.dart exports one of its own.
 import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
 import 'package:zonai_schema/src/internal/tables/photos_table.dart';
+import 'package:zonai_schema/src/internal/tables/push_jobs_table.dart';
+import 'package:zonai/src/push/push_courier.dart';
+// `WhereX.sql` renders a caller's predicate to a parameterized SQL fragment.
+// The push fan-out needs it to splice the caller's `where` into a projection
+// it builds itself -- see `parts/push.dart`. Not re-exported by the barrel.
+import 'package:zonai_schema/src/types/where_sql.dart';
 import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart'
     show rateLimits;
 import 'package:zonai/src/messengers/config_mailman.dart';
@@ -86,6 +92,7 @@ part 'parts/expand.dart';
 part 'parts/list.dart';
 part 'parts/photo.dart';
 part 'parts/purge.dart';
+part 'parts/push.dart';
 part 'parts/read.dart';
 part 'parts/reclaim_log_space.dart';
 part 'parts/resolve_photos.dart';
@@ -193,6 +200,14 @@ class ZonaiDb {
   /// internal extensions), create/update/delete skip the extensions worker
   /// entirely.
   bool? _hasProjectExtensions;
+
+  /// Whether a push drain is in flight.
+  ///
+  /// Two drains over the same job would read the same batch from the same
+  /// cursor and send it twice — and the enqueue-time kick and the every-minute
+  /// cron routinely arrive together. In-process is the right scope: only the
+  /// host drains this queue, and there is one host.
+  bool _pushDraining = false;
 
   /// Serializes mutating work so concurrent creates don't pile into
   /// SQLite's 5s busy_timeout. Excess waiters fail fast with 503.
@@ -455,6 +470,30 @@ class ZonaiDb {
 
   Future<int> cleanupUnreferencedPhotos() async {
     return await _run(_cleanupUnreferencedPhotos);
+  }
+
+  /// Records a push fan-out, returning its id — or null when the project has
+  /// no `AppConfig.push`.
+  Future<PushJobId?> enqueuePush({
+    required PushMessage message,
+    required String table,
+    required String column,
+    required Where? where,
+    required Jwt? jwt,
+  }) async {
+    return await _run(
+      () => _enqueuePush(
+        message: message,
+        table: table,
+        column: column,
+        where: where,
+        jwt: jwt,
+      ),
+    );
+  }
+
+  Future<_DrainPushResult> drainPushJobs() async {
+    return await _run(_drainPushJobs);
   }
 
   Future<DashboardMetrics> dashboardMetrics({

@@ -33,6 +33,10 @@ class DbCrons {
             throw Exception(
               '$ReclaimLogSpaceRequest should not be called from main thread',
             );
+          case DrainPushJobsRequest():
+            throw Exception(
+              '$DrainPushJobsRequest should not be called from main thread',
+            );
           case ListCronJobsRequest():
             return ListCronJobsResponse(
               id: request.id,

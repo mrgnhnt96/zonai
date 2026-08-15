@@ -15,6 +15,7 @@ sealed class CronRequest extends Request {
       CleanupUnreferencedPhotosRequest._path =>
         CleanupUnreferencedPhotosRequest.fromJson(json),
       ReclaimLogSpaceRequest._path => ReclaimLogSpaceRequest.fromJson(json),
+      DrainPushJobsRequest._path => DrainPushJobsRequest.fromJson(json),
       ListCronJobsRequest._path => ListCronJobsRequest.fromJson(json),
       _ => throw ArgumentError('Invalid cron request path: ${json['path']}'),
     };
@@ -31,6 +32,7 @@ sealed class CronRequest extends Request {
       ReclaimLogSpaceRequest._path => ReclaimLogSpaceRequest.fromRequest(
         request,
       ),
+      DrainPushJobsRequest._path => DrainPushJobsRequest.fromRequest(request),
       ListCronJobsRequest._path => ListCronJobsRequest.fromRequest(request),
       _ => throw ArgumentError('Invalid cron request path: ${request.path}'),
     };
@@ -156,6 +158,32 @@ final class ReclaimLogSpaceRequest extends CronRequest {
   }
 
   static const _path = '${CronRequest.prefix}.reclaim_log_space';
+}
+
+/// Asks the host to advance every unfinished push fan-out.
+///
+/// A host RPC rather than anything the worker could do itself: the fan-out
+/// reads a token column the worker has no privileged access to, talks to FCM,
+/// and commits its cursor and outcomes in one transaction. All three live
+/// host-side.
+///
+/// This is what actually drains the queue `push` writes to. Recorded as its
+/// own request rather than assumed reachable — the design flagged that today's
+/// cron `get` defect (`1d95261`) was exactly a side effect that existed
+/// everywhere except where it was needed.
+final class DrainPushJobsRequest extends CronRequest {
+  DrainPushJobsRequest() : super(path: _path, id: Request.generateId());
+  DrainPushJobsRequest._({required super.id}) : super(path: _path);
+
+  factory DrainPushJobsRequest.fromJson(Map<String, dynamic> json) {
+    return DrainPushJobsRequest._(id: json['id']);
+  }
+
+  factory DrainPushJobsRequest.fromRequest(UnknownRequest request) {
+    return DrainPushJobsRequest._(id: request.id);
+  }
+
+  static const _path = '${CronRequest.prefix}.drain_push_jobs';
 }
 
 final class ListCronJobsRequest extends CronRequest {

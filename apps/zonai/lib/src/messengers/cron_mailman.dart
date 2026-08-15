@@ -75,6 +75,18 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
           skipped: result.skipped,
         );
 
+      case DrainPushJobsRequest(:final id):
+        final result = await zonaiDB.drainPushJobs();
+        return DrainPushJobsResponse(
+          id: id,
+          jobsAdvanced: result.jobsAdvanced,
+          jobsCompleted: result.jobsCompleted,
+          sent: result.sent,
+          permanentlyRejected: result.permanentlyRejected,
+          transientlyFailed: result.transientlyFailed,
+          skipped: result.skipped,
+        );
+
       case final LastJobRunRequest request:
         final db = await zonaiDB.open();
 
@@ -153,6 +165,7 @@ class CronMailman extends Mailman<CronRequest, CronResponse> with Receivable {
       case ListCronJobsResponse():
       case CleanupUnreferencedPhotosResponse():
       case ReclaimLogSpaceResponse():
+      case DrainPushJobsResponse():
         logger.warn(
           'Ignoring unexpected cron notification: ${response.runtimeType}',
         );

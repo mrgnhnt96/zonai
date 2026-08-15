@@ -21,6 +21,7 @@ sealed class CronResponse extends Response {
       CleanupUnreferencedPhotosResponse._path =>
         CleanupUnreferencedPhotosResponse.fromJson(json),
       ReclaimLogSpaceResponse._path => ReclaimLogSpaceResponse.fromJson(json),
+      DrainPushJobsResponse._path => DrainPushJobsResponse.fromJson(json),
       ListCronJobsResponse._path => ListCronJobsResponse.fromJson(json),
       final path => throw ArgumentError('Invalid cron response path: $path'),
     };
@@ -215,6 +216,65 @@ final class CleanupUnreferencedPhotosResponse extends CronResponse {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'deletedCount': deletedCount};
+  }
+}
+
+/// Outcome of a [DrainPushJobsRequest].
+///
+/// Reports what moved, not a total: a drain that says "3 jobs" has said
+/// nothing about whether any notification went out. `sent` is the count of
+/// recipients this pass actually reached FCM for, and it is the number that
+/// distinguishes a drain doing its job from one spinning on an empty queue.
+final class DrainPushJobsResponse extends CronResponse {
+  DrainPushJobsResponse({
+    required super.id,
+    required this.jobsAdvanced,
+    required this.jobsCompleted,
+    required this.sent,
+    required this.permanentlyRejected,
+    required this.transientlyFailed,
+    this.skipped,
+  }) : super(path: _path, payload: const {});
+
+  factory DrainPushJobsResponse.fromJson(Map<String, dynamic> json) {
+    return DrainPushJobsResponse(
+      id: json['id'],
+      jobsAdvanced: json['jobsAdvanced'] as int,
+      jobsCompleted: json['jobsCompleted'] as int,
+      sent: json['sent'] as int,
+      permanentlyRejected: json['permanentlyRejected'] as int,
+      transientlyFailed: json['transientlyFailed'] as int,
+      skipped: json['skipped'] as String?,
+    );
+  }
+
+  static const _path = '${CronResponse.prefix}.drain_push_jobs';
+
+  /// Jobs that committed at least one batch this pass.
+  final int jobsAdvanced;
+
+  /// Jobs that reached the end of their recipient set this pass.
+  final int jobsCompleted;
+
+  final int sent;
+  final int permanentlyRejected;
+  final int transientlyFailed;
+
+  /// Why nothing ran, when nothing did — a missing `AppConfig.push` being
+  /// the case worth naming rather than reporting as a quiet zero.
+  final String? skipped;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'jobsAdvanced': jobsAdvanced,
+      'jobsCompleted': jobsCompleted,
+      'sent': sent,
+      'permanentlyRejected': permanentlyRejected,
+      'transientlyFailed': transientlyFailed,
+      'skipped': skipped,
+    };
   }
 }
 
