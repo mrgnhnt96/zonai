@@ -105,4 +105,20 @@ CREATE TABLE IF NOT EXISTS "_abusers" (
 ALTER TABLE "_log" ADD COLUMN "props" TEXT;'''),
   const Migration('0005_internal_add_log_is_admin', '''
 ALTER TABLE "_log" ADD COLUMN "is_admin" INTEGER NOT NULL DEFAULT 0;'''),
+  const Migration(
+    '0006_add_oauth_identities_table_and_oauth_state_challenge',
+    '''
+CREATE TABLE IF NOT EXISTS "_oauth_identities" (
+  "id" TEXT PRIMARY KEY,
+  "table" TEXT NOT NULL,
+  "user_id" TEXT NOT NULL,
+  "provider" TEXT NOT NULL,
+  "subject" TEXT NOT NULL,
+  "email" TEXT,
+  "created_at" INTEGER NOT NULL,
+  "last_login_at" INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "oauth_identities_lookup_unique" ON "_oauth_identities" ("table", "provider", "subject");''',
+  ),
 ];

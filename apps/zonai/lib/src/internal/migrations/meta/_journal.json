@@ -43,6 +43,13 @@
       "when": 1749340800001,
       "tag": "0005_internal_add_log_is_admin",
       "snapshotId": "c2d3e4f5-a6b7-8901-bcde-f12345678901"
+    },
+    {
+      "idx": 6,
+      "version": "1",
+      "when": 1786810907139,
+      "tag": "0006_add_oauth_identities_table_and_oauth_state_challenge",
+      "snapshotId": "1299d0e6-09d6-4457-909d-8c1e2a628e62"
     }
   ]
 }
