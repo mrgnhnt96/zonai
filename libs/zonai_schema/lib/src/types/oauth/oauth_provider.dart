@@ -61,6 +61,68 @@ sealed class OAuthProvider {
     );
   }
 
+  /// Reassembles an [OAuthProvider] from its already-derived fields, for
+  /// the internal operations-worker → `ZonaiDb` runtime boundary
+  /// (`GetOAuthProviderConfigRequest` in `zonai_schema`'s `db_operations.dart`).
+  ///
+  /// A schema's `oauthProviders` list only exists inside the worker process
+  /// that holds the compiled schema; `ZonaiDb` resolves one provider by
+  /// `(table, id)` over that operations channel and gets back flattened
+  /// fields, not the original object. Re-deriving via the named factories
+  /// (`OAuthProvider.microsoft(...)`, etc.) would silently drop
+  /// caller-specific choices those factories bake into [endpoints] from
+  /// non-stored parameters (Microsoft's `tenant`, say) — so this takes
+  /// [endpoints]/[claims]/[brand] as already-resolved values instead of
+  /// re-deriving them, and is package-private-by-convention: only the
+  /// matching decode site in `zonai`'s runtime should call it.
+  static OAuthProvider fromConfig({
+    required OAuthProviderKind kind,
+    required String id,
+    required String displayName,
+    required OAuthBrand brand,
+    required OAuthEndpoints endpoints,
+    required List<String> scopes,
+    required OAuthClaimMap claims,
+    required bool usesPkce,
+    required OAuthLinking linking,
+    required String clientId,
+    String? clientSecret,
+    String? teamId,
+    String? keyId,
+    String? privateKey,
+  }) {
+    if (kind == OAuthProviderKind.custom) {
+      return CustomOAuthProvider._(
+        id: id,
+        displayName: displayName,
+        brand: brand,
+        endpoints: endpoints,
+        scopes: scopes,
+        claims: claims,
+        clientId: clientId,
+        clientSecret: clientSecret ?? '',
+        usesPkce: usesPkce,
+        linking: linking,
+      );
+    }
+    return BuiltInOAuthProvider._(
+      kind: kind,
+      id: id,
+      displayName: displayName,
+      brand: brand,
+      endpoints: endpoints,
+      scopes: scopes,
+      claims: claims,
+      usesPkce: usesPkce,
+      clientId: clientId,
+      clientSecret: clientSecret,
+      teamId: teamId,
+      keyId: keyId,
+      privateKey: privateKey,
+      linking: linking,
+    );
+  }
+
   // ---------------------------------------------------------------------
   // Built-in factories. Pure: no network, no runtime dependency, nothing
   // beyond what each provider publishes today. Endpoint/scope/claim
@@ -247,8 +309,7 @@ sealed class OAuthProvider {
         issuer: isMultiTenant
             ? null
             : 'https://login.microsoftonline.com/$tenant/v2.0',
-        jwks:
-            'https://login.microsoftonline.com/$tenant/discovery/v2.0/keys',
+        jwks: 'https://login.microsoftonline.com/$tenant/discovery/v2.0/keys',
       ),
       scopes: scopes,
       claims: const OAuthClaimMap(subject: 'sub', email: 'email', name: 'name'),

@@ -39,6 +39,10 @@ sealed class OperationRequest extends Request {
       ),
       GetAdminTablesOperationRequest._path =>
         GetAdminTablesOperationRequest.fromRequest(request),
+      GetOAuthProvidersOperationRequest._path =>
+        GetOAuthProvidersOperationRequest.fromRequest(request),
+      GetOAuthProviderConfigRequest._path =>
+        GetOAuthProviderConfigRequest.fromRequest(request),
       GetMagicLinkConfigOperationRequest._path =>
         GetMagicLinkConfigOperationRequest.fromRequest(request),
       GetResetPasswordConfigOperationRequest._path =>
@@ -321,6 +325,62 @@ final class GetAdminTablesOperationRequest extends OperationRequest {
 
   factory GetAdminTablesOperationRequest.fromRequest(UnknownRequest request) {
     return GetAdminTablesOperationRequest._(id: request.id);
+  }
+}
+
+/// Sibling of [GetAdminTablesOperationRequest]: every `(table,
+/// OAuthProviderPublic)` pair across every table whose schema mixes in
+/// `OAuth`, redacted the same way `OAuthProvider.toPublic()` is — the
+/// dashboard and Dart client resolve providers to sign in with through this,
+/// never through [GetOAuthProviderConfigRequest].
+final class GetOAuthProvidersOperationRequest extends OperationRequest {
+  GetOAuthProvidersOperationRequest()
+    : super(path: _path, id: Request.generateId(), jwt: null);
+  GetOAuthProvidersOperationRequest._({required super.id})
+    : super(path: _path, jwt: null);
+
+  static const _path = '${Request.prefix}.auth.get_oauth_providers';
+
+  factory GetOAuthProvidersOperationRequest.fromRequest(
+    UnknownRequest request,
+  ) {
+    return GetOAuthProvidersOperationRequest._(id: request.id);
+  }
+}
+
+/// Internal-only counterpart of [GetOAuthProvidersOperationRequest]: resolves
+/// one provider's full, unredacted configuration (client secret, Apple
+/// signing key, endpoints) for [table]/[providerId] so `ZonaiDb`'s OAuth flow
+/// (`parts/auth/oauth.dart`) can build the authorization URL and exchange
+/// codes. Never leaves the operations-worker ↔ `ZonaiDb` boundary — the
+/// dashboard/client only ever see [GetOAuthProvidersOperationRequest]'s
+/// redacted [OAuthProviderPublic] view.
+final class GetOAuthProviderConfigRequest extends OperationRequest {
+  GetOAuthProviderConfigRequest({required this.table, required this.providerId})
+    : super(path: _path, id: Request.generateId(), jwt: null);
+
+  GetOAuthProviderConfigRequest._({
+    required super.id,
+    required this.table,
+    required this.providerId,
+  }) : super(path: _path, jwt: null);
+
+  factory GetOAuthProviderConfigRequest.fromRequest(UnknownRequest request) {
+    return GetOAuthProviderConfigRequest._(
+      id: request.id,
+      table: request.payload['table'] as String,
+      providerId: request.payload['providerId'] as String,
+    );
+  }
+
+  static const _path = '${Request.prefix}.auth.get_oauth_provider_config';
+
+  final String table;
+  final String providerId;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'table': table, 'providerId': providerId};
   }
 }
 

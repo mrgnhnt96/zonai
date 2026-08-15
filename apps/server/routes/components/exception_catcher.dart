@@ -62,6 +62,14 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 403,
         body: {'error': '$exception'},
       ),
+      OAuthProviderNotFoundException() => .handled(
+        statusCode: 404,
+        body: {'error': '$exception'},
+      ),
+      OAuthRedirectNotAllowedException() => .handled(
+        statusCode: 400,
+        body: {'error': '$exception'},
+      ),
     };
   }
 

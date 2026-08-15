@@ -40,6 +40,20 @@ final class OAuthProviderPublic {
   /// flow, e.g. `'/auth/oauth/start/google?table=users'`.
   final String startPath;
 
+  factory OAuthProviderPublic.fromJson(Map<String, Object?> json) {
+    return OAuthProviderPublic(
+      id: json['id'] as String,
+      displayName: json['displayName'] as String,
+      table: json['table'] as String,
+      kind: OAuthProviderKind.values.byName(json['kind'] as String),
+      iconUrl: json['iconUrl'] as String?,
+      iconSvg: json['iconSvg'] as String?,
+      background: json['background'] as String?,
+      foreground: json['foreground'] as String?,
+      startPath: json['startPath'] as String,
+    );
+  }
+
   Map<String, Object?> toJson() => {
     'id': id,
     'displayName': displayName,

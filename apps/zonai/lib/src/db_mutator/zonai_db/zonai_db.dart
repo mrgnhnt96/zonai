@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:clock/clock.dart';
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:file/file.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
     show SQLiteInsertReturning, SQLiteDeleteReturning;
@@ -24,6 +25,7 @@ import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
 import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart';
 import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
+import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart';
 // `show logs`: this file already has a `Level` in scope from the logger, and
 // logs_table.dart exports one of its own.
 import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
@@ -41,6 +43,16 @@ import 'package:zonai/src/utils/jwks_idp_verifier.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
 import 'package:zonai/src/utils/format_bytes.dart';
 import 'package:zonai/src/utils/free_disk_space.dart';
+import 'package:zonai/src/utils/oauth/apple_client_secret_signer.dart';
+import 'package:zonai/src/utils/oauth/github_email_resolver.dart';
+import 'package:zonai/src/utils/oauth/oauth_authorization_url_builder.dart';
+import 'package:zonai/src/utils/oauth/oauth_exception.dart';
+import 'package:zonai/src/utils/oauth/oauth_id_token_verifier.dart';
+import 'package:zonai/src/utils/oauth/oauth_identity.dart' as oauth_claims;
+import 'package:zonai/src/utils/oauth/oauth_pkce.dart';
+import 'package:zonai/src/utils/oauth/oauth_provider_credentials.dart';
+import 'package:zonai/src/utils/oauth/oauth_token_exchange_client.dart';
+import 'package:zonai/src/utils/oauth/oauth_userinfo_client.dart';
 import 'package:zonai/src/utils/photo_stream_utils.dart';
 import 'package:zonai/src/utils/shared_secret_idp_verifier.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
@@ -68,6 +80,7 @@ part 'parts/auth/challenge.dart';
 part 'parts/auth/external_idp.dart';
 part 'parts/auth/logout.dart';
 part 'parts/auth/magic_link.dart';
+part 'parts/auth/oauth.dart';
 part 'parts/auth/otp.dart';
 part 'parts/auth/password.dart';
 part 'parts/auth/reset_password.dart';
@@ -217,6 +230,13 @@ class ZonaiDb {
   /// lazily by [_jwksVerifierFor]; disposed in [dispose].
   final Map<String, JwksIdpVerifier> _jwksVerifiers = {};
 
+  /// Shared across every Apple token exchange this [ZonaiDb] performs, so
+  /// the signed client-secret JWT is cached (per team/key/client) instead
+  /// of freshly ES256-signed on every request -- see
+  /// [AppleClientSecretSigner]'s own caching doc.
+  final AppleClientSecretSigner _appleClientSecretSigner =
+      AppleClientSecretSigner();
+
   File? __dbFile;
   File? __logDbFile;
   File? __rateLimitDbFile;
@@ -338,6 +358,10 @@ class ZonaiDb {
         case VerifyEmailAuthPayload():
           await _verifyEmail(payload);
           return null;
+        case CompleteOAuthAuthPayload():
+          throw ArgumentError(
+            'Call completeOAuth instead of confirmAuth to complete an OAuth flow',
+          );
       }
     });
   }
@@ -482,6 +506,37 @@ class ZonaiDb {
 
   Future<List<AuthType>> adminSupportedAuthTypes() async {
     return await _run(_adminSupportedAuthTypes);
+  }
+
+  /// Every `(table, OAuthProviderPublic)` pair across every `OAuth`-enabled
+  /// table -- what the dashboard and Dart client list sign-in buttons from.
+  Future<List<OAuthProviderPublic>> oauthProviders() async {
+    return await _run(_oauthProviders);
+  }
+
+  /// §3.1 step 1: mints the `oauthState` challenge and returns the
+  /// authorization URL to redirect the user to.
+  Future<String> startOAuth(String table, StartOAuthAuthPayload payload) async {
+    return await _run(() => _startOAuth(table, payload));
+  }
+
+  /// Admin-dashboard counterpart of [startOAuth]: resolves the `AsAdmin`
+  /// table configured for `AuthType.oauth` the same way
+  /// [sendAdminResetPassword] resolves one for password reset, and flags the
+  /// minted challenge so its callback never auto-provisions a new admin.
+  Future<String> startAdminOAuth(StartOAuthAuthPayload payload) async {
+    return await _run(() async {
+      final table = await _adminCollectionFor(.oauth);
+      return await _startOAuth(table, payload, isAdmin: true);
+    });
+  }
+
+  /// §3.1 step 2: consumes the challenge, exchanges the code, resolves
+  /// identity, and mints the session.
+  Future<_OAuthCallbackResult> completeOAuth(
+    CompleteOAuthAuthPayload payload,
+  ) async {
+    return await _run(() => _completeOAuthCallback(payload));
   }
 
   Future<Map<String, TableSchemaShape>> schemaShapes() async {

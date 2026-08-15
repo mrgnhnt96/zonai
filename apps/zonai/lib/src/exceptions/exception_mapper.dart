@@ -126,8 +126,10 @@ String? operationRequestTable(OperationRequest request) {
     GetMagicLinkConfigOperationRequest(:final table) => table,
     GetResetPasswordConfigOperationRequest(:final table) => table,
     GetVerifyEmailConfigOperationRequest(:final table) => table,
+    GetOAuthProviderConfigRequest(:final table) => table,
     GetAllTableSchemaShapesRequest() ||
-    GetAdminTablesOperationRequest() => null,
+    GetAdminTablesOperationRequest() ||
+    GetOAuthProvidersOperationRequest() => null,
   };
 }
 

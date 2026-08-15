@@ -3,6 +3,13 @@ import 'dart:convert';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 import 'package:zonai_schema/src/operations/table_operations.dart';
+import 'package:zonai_schema/src/types/oauth/oauth_brand.dart';
+import 'package:zonai_schema/src/types/oauth/oauth_claim_map.dart';
+import 'package:zonai_schema/src/types/oauth/oauth_endpoints.dart';
+import 'package:zonai_schema/src/types/oauth/oauth_linking.dart';
+import 'package:zonai_schema/src/types/oauth/oauth_provider.dart';
+import 'package:zonai_schema/src/types/oauth/oauth_provider_kind.dart';
+import 'package:zonai_schema/src/types/oauth/oauth_provider_public.dart';
 import 'package:zonai_schema/src/types/schema_shape.dart';
 import 'package:zonai_schema/src/types/supported_auths.dart';
 import 'package:zonai_schema/src/update/update.dart';
@@ -36,6 +43,10 @@ sealed class OperationResponse extends Response {
         json,
       ),
       AdminTablesResponse._path => AdminTablesResponse.fromJson(json),
+      OAuthProvidersResponse._path => OAuthProvidersResponse.fromJson(json),
+      OAuthProviderConfigResponse._path => OAuthProviderConfigResponse.fromJson(
+        json,
+      ),
       MagicLinkConfigResponse._path => MagicLinkConfigResponse.fromJson(json),
       ResetPasswordConfigResponse._path => ResetPasswordConfigResponse.fromJson(
         json,
@@ -306,6 +317,148 @@ final class AdminTablesResponse extends OperationResponse {
             },
           )
           .toList(),
+    };
+  }
+}
+
+/// Reply to [GetOAuthProvidersOperationRequest]: every `(table,
+/// OAuthProviderPublic)` pair across every OAuth-enabled table, already
+/// redacted via [OAuthProvider.toPublic] — this is the shape the dashboard
+/// and Dart client see.
+final class OAuthProvidersResponse extends OperationResponse {
+  const OAuthProvidersResponse({required super.id, required this.providers})
+    : super(path: _path, payload: const {});
+
+  factory OAuthProvidersResponse.fromJson(Map<String, dynamic> json) {
+    return OAuthProvidersResponse(
+      id: json['id'] as String,
+      providers: [
+        for (final p in json['providers'] as List<dynamic>)
+          OAuthProviderPublic.fromJson(p as Map<String, dynamic>),
+      ],
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_oauth_providers';
+
+  final List<OAuthProviderPublic> providers;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'providers': providers.map((p) => p.toJson()).toList(),
+    };
+  }
+}
+
+/// Reply to [GetOAuthProviderConfigRequest]: the full, unredacted
+/// configuration for one provider — client secret / Apple signing key
+/// included — or [provider] null when [GetOAuthProviderConfigRequest.table]
+/// doesn't mix in `OAuth` or has no provider matching
+/// [GetOAuthProviderConfigRequest.providerId].
+///
+/// Never routed anywhere the dashboard or Dart client can see it; only
+/// `ZonaiDb`'s OAuth flow (`parts/auth/oauth.dart`) dispatches this request.
+final class OAuthProviderConfigResponse extends OperationResponse {
+  const OAuthProviderConfigResponse({required super.id, required this.provider})
+    : super(path: _path, payload: const {});
+
+  factory OAuthProviderConfigResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['provider'] as Map<String, dynamic>?;
+    return OAuthProviderConfigResponse(
+      id: json['id'] as String,
+      provider: raw == null
+          ? null
+          : OAuthProvider.fromConfig(
+              kind: OAuthProviderKind.values.byName(raw['kind'] as String),
+              id: raw['id'] as String,
+              displayName: raw['displayName'] as String,
+              brand: const OAuthBrand(),
+              endpoints: OAuthEndpoints(
+                authorization: raw['authorization'] as String,
+                token: raw['token'] as String,
+                userInfo: raw['userInfo'] as String?,
+                issuer: raw['issuer'] as String?,
+                jwks: raw['jwks'] as String?,
+              ),
+              scopes: [
+                for (final s in raw['scopes'] as List<dynamic>) s as String,
+              ],
+              claims: OAuthClaimMap(
+                subject: raw['subject'] as String,
+                email: raw['email'] as String,
+                emailVerified: raw['emailVerified'] as String?,
+                name: raw['name'] as String?,
+                picture: raw['picture'] as String?,
+              ),
+              usesPkce: raw['usesPkce'] as bool,
+              linking: OAuthLinking.values.byName(raw['linking'] as String),
+              clientId: raw['clientId'] as String,
+              clientSecret: raw['clientSecret'] as String?,
+              teamId: raw['teamId'] as String?,
+              keyId: raw['keyId'] as String?,
+              privateKey: raw['privateKey'] as String?,
+            ),
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_oauth_provider_config';
+
+  final OAuthProvider? provider;
+
+  @override
+  Map<String, dynamic> toJson() {
+    final provider = this.provider;
+    return {
+      ...super.toJson(),
+      'provider': provider == null
+          ? null
+          : switch (provider) {
+              BuiltInOAuthProvider p => {
+                'kind': p.kind.name,
+                'id': p.id,
+                'displayName': p.displayName,
+                'authorization': p.endpoints.authorization,
+                'token': p.endpoints.token,
+                'userInfo': p.endpoints.userInfo,
+                'issuer': p.endpoints.issuer,
+                'jwks': p.endpoints.jwks,
+                'scopes': p.scopes,
+                'subject': p.claims.subject,
+                'email': p.claims.email,
+                'emailVerified': p.claims.emailVerified,
+                'name': p.claims.name,
+                'picture': p.claims.picture,
+                'usesPkce': p.usesPkce,
+                'linking': p.linking.name,
+                'clientId': p.clientId,
+                'clientSecret': p.clientSecret,
+                'teamId': p.teamId,
+                'keyId': p.keyId,
+                'privateKey': p.privateKey,
+              },
+              CustomOAuthProvider p => {
+                'kind': OAuthProviderKind.custom.name,
+                'id': p.id,
+                'displayName': p.displayName,
+                'authorization': p.endpoints.authorization,
+                'token': p.endpoints.token,
+                'userInfo': p.endpoints.userInfo,
+                'issuer': p.endpoints.issuer,
+                'jwks': p.endpoints.jwks,
+                'scopes': p.scopes,
+                'subject': p.claims.subject,
+                'email': p.claims.email,
+                'emailVerified': p.claims.emailVerified,
+                'name': p.claims.name,
+                'picture': p.claims.picture,
+                'usesPkce': p.usesPkce,
+                'linking': p.linking.name,
+                'clientId': p.clientId,
+                'clientSecret': p.clientSecret,
+              },
+            },
     };
   }
 }

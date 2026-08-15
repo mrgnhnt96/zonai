@@ -74,6 +74,10 @@ class DbOperations {
         return await _sanitize(request);
       case final GetAdminTablesOperationRequest request:
         return await _getAdminTables(request);
+      case final GetOAuthProvidersOperationRequest request:
+        return await _getOAuthProviders(request);
+      case final GetOAuthProviderConfigRequest request:
+        return await _getOAuthProviderConfig(request);
       case final GetMagicLinkConfigOperationRequest request:
         return await _getMagicLinkConfig(request);
       case final GetResetPasswordConfigOperationRequest request:
@@ -94,6 +98,51 @@ class DbOperations {
     }
 
     return AdminTablesResponse(id: request.id, tables: tables);
+  }
+
+  /// Every `(table, OAuthProviderPublic)` pair across every table whose
+  /// schema mixes in `OAuth` — sibling of [_getAdminTables]. Validates each
+  /// table's provider list on the way past
+  /// ([OAuth.validateOAuthProviders]) so a duplicate id or an emptied-out
+  /// list surfaces the moment providers are listed rather than on first
+  /// sign-in.
+  Future<OAuthProvidersResponse> _getOAuthProviders(
+    GetOAuthProvidersOperationRequest request,
+  ) async {
+    final providers = <OAuthProviderPublic>[];
+    for (final op in operationsByTable.values) {
+      if (op.schema case final OAuth oauth) {
+        oauth.validateOAuthProviders();
+        for (final provider in oauth.oauthProviders) {
+          providers.add(provider.toPublic(table: op.table.name));
+        }
+      }
+    }
+
+    return OAuthProvidersResponse(id: request.id, providers: providers);
+  }
+
+  /// Resolves one provider's full, unredacted configuration for
+  /// [GetOAuthProviderConfigRequest.table] /
+  /// [GetOAuthProviderConfigRequest.providerId] — internal-only counterpart
+  /// of [_getOAuthProviders], consumed by `ZonaiDb`'s OAuth flow to build
+  /// authorization URLs and exchange codes. `provider: null` when the table
+  /// isn't OAuth-enabled or no provider on it matches the requested id.
+  Future<OAuthProviderConfigResponse> _getOAuthProviderConfig(
+    GetOAuthProviderConfigRequest request,
+  ) async {
+    final ops = operationsByTable[request.table];
+    if (ops?.schema case final OAuth oauth) {
+      for (final provider in oauth.oauthProviders) {
+        if (provider.id == request.providerId) {
+          return OAuthProviderConfigResponse(
+            id: request.id,
+            provider: provider,
+          );
+        }
+      }
+    }
+    return OAuthProviderConfigResponse(id: request.id, provider: null);
   }
 
   Never _failMissingTable(String tableName) {

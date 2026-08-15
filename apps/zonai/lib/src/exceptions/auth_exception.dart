@@ -157,3 +157,33 @@ final class ExternalIdpProvisioningRejectedException extends AuthException {
   String toString() =>
       'External-IdP first-seen provisioning rejected for table: $table';
 }
+
+/// Thrown when a `/auth/oauth/start/:provider` request names a [provider]
+/// that isn't in [table]'s `oauthProviders`, or a table that doesn't mix in
+/// `OAuth` at all.
+final class OAuthProviderNotFoundException extends AuthException {
+  const OAuthProviderNotFoundException({
+    required this.table,
+    required this.provider,
+  });
+
+  final String table;
+  final String provider;
+
+  @override
+  String toString() =>
+      'No OAuth provider "$provider" configured for table: $table';
+}
+
+/// Thrown when a `redirect_to` supplied to `startOAuth` is neither a
+/// relative path nor the app's own [AppConfig.baseUrl] origin — the
+/// open-redirect rejection design §4 item 5 requires (see
+/// `parts/auth/oauth.dart`'s `_isAllowedOAuthRedirect`).
+final class OAuthRedirectNotAllowedException extends AuthException {
+  const OAuthRedirectNotAllowedException({required this.redirectTo});
+
+  final String redirectTo;
+
+  @override
+  String toString() => 'redirect_to is not allowed: $redirectTo';
+}

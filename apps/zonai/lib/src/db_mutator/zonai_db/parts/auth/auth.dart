@@ -69,6 +69,19 @@ extension _AuthX on ZonaiDb {
         await _sendResetPassword(table, payload, isAdmin: isAdmin);
         return null;
 
+      case final NativeOAuthAuthPayload payload:
+        return await _nativeOAuth(table, payload, isAdmin: isAdmin);
+
+      case StartOAuthAuthPayload():
+        throw ArgumentError(
+          'Call startOAuth instead of authenticate to begin an OAuth flow',
+        );
+
+      case CompleteOAuthAuthPayload():
+        throw ArgumentError(
+          'Call completeOAuth instead of authenticate to complete an OAuth flow',
+        );
+
       case VerifyOtpAuthPayload():
       case VerifyMagicLinkAuthPayload():
       case ConfirmResetPasswordAuthPayload():

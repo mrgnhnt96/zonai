@@ -113,6 +113,12 @@ extension _AuthUtilsX on ZonaiDb {
           VerifyEmailAuthPayload() => throw ArgumentError(
             'Cannot get auth record for verify email payload',
           ),
+          StartOAuthAuthPayload() ||
+          CompleteOAuthAuthPayload() ||
+          NativeOAuthAuthPayload() => throw ArgumentError(
+            'Cannot get auth record for OAuth payloads — resolve identity '
+            'via _oauth_identities / _authRecord instead',
+          ),
         },
       ),
     );
@@ -272,6 +278,9 @@ extension _AuthUtilsX on ZonaiDb {
           VerifyMagicLinkAuthPayload() => .magicLink,
           ResetPasswordAuthPayload() => .password,
           ConfirmResetPasswordAuthPayload() => .password,
+          StartOAuthAuthPayload() ||
+          CompleteOAuthAuthPayload() ||
+          NativeOAuthAuthPayload() => .oauth,
         },
       ),
     );
