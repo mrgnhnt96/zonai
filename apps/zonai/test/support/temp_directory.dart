@@ -31,6 +31,38 @@ Directory createCanonicalTempSync(String prefix) {
   return Directory(created.resolveSymbolicLinksSync());
 }
 
+/// Deletes [file], waiting out a Windows handle that is about to close.
+///
+/// Windows refuses to unlink a file any process still has open, and a loaded
+/// DLL is open by definition. A test that spawns a worker, lets it load
+/// `resqlite.dll`, and then deletes that DLL to prove the worker re-requests
+/// it, races the worker's exit:
+///
+///     PathAccessException: Cannot delete file, path =
+///       'D:\a\zonai\zonai\apps\zonai\.dart_tool\lib\resqlite.dll'
+///       (OS Error: Access is denied, errno = 5)
+///
+/// Two tests in `cli (windows-latest)` failed exactly that way on run
+/// 31852302306.
+///
+/// Unlike [deleteTempDirectory] this does NOT give up quietly on Windows. The
+/// deletion is the PREMISE of those tests -- if the library is still there,
+/// the worker has no reason to request it and a pass would mean nothing. So a
+/// lock that outlives the retries is a real failure and is allowed to throw.
+void deleteFileWithRetry(File file) {
+  if (!file.existsSync()) return;
+
+  for (var attempt = 0; ; attempt++) {
+    try {
+      file.deleteSync();
+      return;
+    } on FileSystemException {
+      if (!Platform.isWindows || attempt >= 9) rethrow;
+      sleep(const Duration(milliseconds: 200));
+    }
+  }
+}
+
 /// Removes [directory] and everything under it, at the end of a test.
 ///
 /// Plain `deleteSync(recursive: true)` is enough on macOS and Linux, where

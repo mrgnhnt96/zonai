@@ -32,7 +32,7 @@ void main() {
 
       zonaiPackageDir = Directory(zonaiPackageRootFromConfig());
 
-      projectRoot = Directory.systemTemp.createTempSync('zonai_build_e2e_');
+      projectRoot = createCanonicalTempSync('zonai_build_e2e_');
       executablePath = p.join(projectRoot.path, 'zonai');
 
       await _bootstrapEndUserProject(

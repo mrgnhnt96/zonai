@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../../support/package_roots.dart';
+import '../../support/temp_directory.dart';
 
 /// Regression test for the dev-server's "auto migration" file watcher.
 ///
@@ -30,9 +31,7 @@ void main() {
     late Process harness;
 
     setUpAll(() async {
-      projectRoot = Directory.systemTemp.createTempSync(
-        'zonai_migrate_auto_watch_',
-      );
+      projectRoot = createCanonicalTempSync('zonai_migrate_auto_watch_');
       schemasDir = Directory(p.join(projectRoot.path, 'lib', 'src', 'schemas'))
         ..createSync(recursive: true);
       // `auto()` only runs its `initialize` migration when the migrations

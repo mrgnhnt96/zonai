@@ -80,9 +80,7 @@ void main() {
               _devLibraryFileName(library),
             ),
           );
-          if (sharedFile.existsSync()) {
-            sharedFile.deleteSync();
-          }
+          deleteFileWithRetry(sharedFile);
 
           final mailman = _ProbeMailman(workerExePath);
           try {

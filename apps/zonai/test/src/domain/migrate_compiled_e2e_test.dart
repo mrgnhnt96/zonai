@@ -24,7 +24,7 @@ void main() {
 
       zonaiPackageDir = Directory(zonaiPackageRootFromConfig());
 
-      projectRoot = Directory.systemTemp.createTempSync('zonai_migrate_e2e_');
+      projectRoot = createCanonicalTempSync('zonai_migrate_e2e_');
       executablePath = p.join(projectRoot.path, 'zonai-test');
 
       await _bootstrapEndUserProject(
