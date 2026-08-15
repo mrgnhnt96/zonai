@@ -30,6 +30,7 @@ abstract base class Request {
       UpdateRecordRequest._path => UpdateRecordRequest.fromJson(json),
       SendEmailRequest._path => SendEmailRequest.fromJson(json),
       SendBuiltInEmailRequest._path => SendBuiltInEmailRequest.fromJson(json),
+      EnqueuePushRequest._path => EnqueuePushRequest.fromJson(json),
       NativeLibraryRequest._path => NativeLibraryRequest.fromJson(json),
       _ when path.startsWith(CronRequest.prefix) => CronRequest.fromJson(json),
       _ => UnknownRequest(
@@ -399,6 +400,78 @@ final class UpdateRecordRequest extends MutationRequest {
       'limit': limit,
       'updates': updates.map((update) => update.toJson()).toList(),
       'offset': offset,
+    };
+  }
+}
+
+/// Asks the host to durably record a push fan-out and hand back its id.
+///
+/// Deliberately **not** a [MutationRequest]. A mutation is parked against its
+/// parent's id and replayed with `expectResponse: false`, so the caller learns
+/// nothing — and `push` has to return the id of the row it just wrote. This is
+/// answered directly, like [PurgeRecordsRequest], and for the same reason: the
+/// answer is the point.
+///
+/// What the host does with it is *record the job*, not run it. The reply
+/// resolves as soon as the row is committed, which is a few milliseconds
+/// whether the recipient set is ten rows or a hundred thousand — that is what
+/// makes `await push(...)` safe on a request path.
+final class EnqueuePushRequest extends Request {
+  EnqueuePushRequest({
+    required this.message,
+    required this.table,
+    required this.column,
+    required this.where,
+    super.jwt,
+  }) : super(path: _path, id: Request.generateId());
+
+  EnqueuePushRequest._({
+    required super.id,
+    required this.message,
+    required this.table,
+    required this.column,
+    required this.where,
+    super.jwt,
+  }) : super(path: _path);
+
+  factory EnqueuePushRequest.fromJson(Map<String, dynamic> json) {
+    return EnqueuePushRequest._(
+      id: json['id'] as String,
+      message: PushMessage.fromJson(
+        Map<String, dynamic>.from(json['message'] as Map),
+      ),
+      table: json['table'] as String,
+      column: json['column'] as String,
+      where: switch (json['where']) {
+        final Map map => Where.fromJson(map),
+        _ => null,
+      },
+      jwt: Jwt.maybeFromJson(json['jwt']),
+    );
+  }
+
+  static const _path = '${Request.prefix}.enqueue_push';
+
+  final PushMessage message;
+
+  /// The app table the recipient tokens live on.
+  final String table;
+
+  /// The `deviceToken` column on [table]. The host refuses anything that is
+  /// not one, so this cannot be pointed at an arbitrary column to read it.
+  final String column;
+
+  /// Narrows the recipient set. `null` means every row with a non-null token.
+  final Where? where;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+      'message': message.toJson(),
+      'table': table,
+      'column': column,
+      'where': ?where?.toJson(),
     };
   }
 }

@@ -1,6 +1,7 @@
 import 'package:zonai_schema/src/config/email_config.dart';
 import 'package:zonai_schema/src/config/external_idp_config.dart';
 import 'package:zonai_schema/src/config/photos_config.dart';
+import 'package:zonai_schema/src/config/push_config.dart';
 import 'package:zonai_schema/src/config/trusted_proxy_config.dart';
 import 'package:zonai_schema/src/types/image_mime_type.dart';
 
@@ -20,6 +21,7 @@ final class AppConfig {
     this.previousJwtSecrets = const [],
     this.baseUrl = 'http://localhost:8080',
     this.email,
+    this.push,
     this.jwtExpiresIn = const Duration(days: 14),
     this.photos = const PhotosConfig(
       maxBytes: 5 * 1024 * 1024, // 5MB
@@ -36,6 +38,9 @@ final class AppConfig {
     previousPasswordSecrets: _stringList(json['previousPasswordSecrets']),
     previousJwtSecrets: _stringList(json['previousJwtSecrets']),
     email: json['email'] != null ? EmailConfig.fromJson(json['email']) : null,
+    push: json['push'] != null
+        ? PushConfig.fromJson(Map<String, dynamic>.from(json['push'] as Map))
+        : null,
     baseUrl: json['baseUrl'] as String? ?? 'http://localhost:8080',
     jwtExpiresIn: json['jwtExpiresIn'] == null
         ? const Duration(days: 14)
@@ -60,6 +65,12 @@ final class AppConfig {
   final List<String> previousJwtSecrets;
 
   final EmailConfig? email;
+
+  /// Push delivery, or `null` when the project sends none.
+  ///
+  /// Nullable exactly like [email]: a project with no push config logs a
+  /// warning and enqueues nothing rather than throwing.
+  final PushConfig? push;
 
   /// The base URL of the app.
   ///
@@ -113,6 +124,7 @@ final class AppConfig {
     'previousPasswordSecrets': previousPasswordSecrets,
     'previousJwtSecrets': previousJwtSecrets,
     'email': email?.toJson(),
+    'push': push?.toJson(),
     'baseUrl': baseUrl,
     'jwtExpiresIn': jwtExpiresIn.inSeconds,
     'trustedProxy': trustedProxy.toJson(),
