@@ -71,4 +71,31 @@ void main() {
     expect(robots.existsSync(), isTrue);
     expect(robots.readAsStringSync(), contains('Sitemap: $_origin/sitemap.xml'));
   });
+
+  // The canonical tag is emitted by `ZonaiDocsLayout.buildHead` and the sitemap
+  // by a standalone script; only the rendered HTML can show that they agree.
+  // Two URLs for one page is what a crawler does when they do not.
+  test('every sitemap URL renders a page whose canonical matches it', () {
+    final buildDir = Directory('build/jaspr');
+    if (!buildDir.existsSync()) {
+      markTestSkipped('No build/jaspr — run: dart run jaspr_cli:jaspr build');
+      return;
+    }
+
+    final canonical = RegExp(r'<link href="([^"]+)" rel="canonical"\s*/?>');
+    final problems = <String>[];
+
+    for (final location in locations) {
+      final route = location.substring(_origin.length);
+      final page = File('${buildDir.path}${route}index.html');
+      if (!page.existsSync()) {
+        problems.add('$location — no rendered page at ${page.path}');
+        continue;
+      }
+      final found = canonical.firstMatch(page.readAsStringSync())?.group(1);
+      if (found != location) problems.add('$location — page declares canonical ${found ?? '(none)'}');
+    }
+
+    expect(problems, isEmpty);
+  });
 }
