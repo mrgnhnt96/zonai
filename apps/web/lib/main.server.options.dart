@@ -13,6 +13,8 @@ import 'package:zonai_web/components/table_edit/table_edit_enum_multi_select.dar
     as _table_edit_enum_multi_select;
 import 'package:zonai_web/components/table_edit/table_edit_styles.dart'
     as _table_edit_styles;
+import 'package:zonai_web/components/theme/oauth_button.dart' as _oauth_button;
+import 'package:zonai_web/components/theme/oauth_icon.dart' as _oauth_icon;
 import 'package:zonai_web/components/theme/ui_styles.dart' as _ui_styles;
 import 'package:zonai_web/components/theme/zonai_boolean_check.dart'
     as _zonai_boolean_check;
@@ -87,6 +89,8 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._table_edit_datetime_field.tableEditDatetimeStyles,
     ..._table_edit_enum_multi_select.tableEditEnumMultiSelectStyles,
     ..._table_edit_styles.tableEditSharedStyles,
+    ..._oauth_button.oauthButtonStyles,
+    ..._oauth_icon.oauthIconStyles,
     ..._ui_styles.zonaiUiStyles,
     ..._zonai_boolean_check.zonaiBooleanCheckStyles,
     ..._zonai_enum_chip.zonaiEnumChipStyles,

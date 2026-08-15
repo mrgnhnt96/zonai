@@ -601,6 +601,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.8.2"
+  jaspr_test:
+    dependency: transitive
+    description:
+      name: jaspr_test
+      sha256: "2d8903b08a4d2c1921eb284a0f0cb12537506e4d8c9be80f38e49554dc480c9c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.23.1"
   jose:
     dependency: transitive
     description:
