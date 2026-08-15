@@ -180,6 +180,19 @@ When FCM says a token is dead — the app was uninstalled, or the registration r
 
 **Only a permanent rejection prunes.** A timeout, a `503`, or a quota rejection is a transient failure: it is counted on the job row and retried within the batch, and it never touches the row. A token that timed out is not a token that is dead, and keeping those two apart is most of why this feature is in the framework rather than in your hook.
 
+### What FCM actually returns
+
+Verified against live FCM, not transcribed from its documentation:
+
+| Sent | HTTP | `error.status` | Result |
+|---|---|---|---|
+| A well-formed token FCM never issued | 404 | `NOT_FOUND` | pruned |
+| A malformed token | 400 | `INVALID_ARGUMENT` | pruned |
+| A key without FCM permission | 403 | `PERMISSION_DENIED` | job fails, **nothing pruned** |
+| No credentials | 401 | `UNAUTHENTICATED` | job fails, **nothing pruned** |
+
+`NOT_FOUND` is the one to notice. The documentation points you at `UNREGISTERED`, and anything unrecognised is treated as *transient* — so handling only the documented spelling would leave dead tokens retried forever and never pruned, which is the failure this whole section exists to prevent. Both are handled, and both are tested.
+
 ### The hook
 
 ```dart in:push-device-tokens
