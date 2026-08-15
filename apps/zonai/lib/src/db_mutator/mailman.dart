@@ -8,6 +8,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/src/db_mutator/worker_transport.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/deps/courier.dart';
+import 'package:zonai/src/domain/project/project_identity.dart';
 import 'package:zonai/src/messengers/config_mailman.dart';
 import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
@@ -575,7 +576,13 @@ class Mailman<S extends Request, R extends Response> {
 
     _stderrBuffer.clear();
     _stdoutFrames.clear();
-    final p = _process = await process.start(executablePath, []);
+    // Purely so a human can attribute this PID to a project from outside --
+    // see project_identity.dart for why argv is the channel and why it can
+    // never throw. Inert to the worker: generated `main()`s take no
+    // parameters (see rule_generator.dart/operation_generator.dart).
+    final p = _process = await process.start(executablePath, [
+      ...projectIdentityArgs(worker: debugName),
+    ]);
     p.stderr
         .transform(utf8.decoder)
         .listen(_stderrBuffer.write, onError: _onStreamError);

@@ -10,6 +10,7 @@ import 'package:zonai/src/deps/process.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/operations/operation_generator.dart';
+import 'package:zonai/src/domain/project/project_identity.dart';
 import 'package:zonai/src/domain/project/project_binary.dart';
 import 'package:zonai/src/domain/project/project_generator.dart';
 import 'package:zonai/src/domain/project/project_link.dart';
@@ -88,13 +89,24 @@ Future<int?> maybeReexecProjectRuntime() async {
 
   logOverriddenPackages(link);
 
+  // Both spawns below carry a path that is identical across every zonai
+  // project on a machine (`.zonai/zonai`, `dart run
+  // .dart_tool/zonai/project_main.dart`), so this is what makes the
+  // re-exec'd long-lived server attributable from outside. See
+  // project_identity.dart for why it is appended rather than prepended.
+  final identityArgs = projectIdentityArgs();
+
   if (args.release) {
     final code = await ProjectBinary().compile(link: link);
     if (code != 0) return code;
 
     final exe = settings.compiledProjectBinaryPath;
     logger.info('Starting project binary: $exe');
-    final child = await process.start(exe, args.original, mode: ProcessStartMode.inheritStdio);
+    final child = await process.start(
+      exe,
+      [...args.original, ...identityArgs],
+      mode: ProcessStartMode.inheritStdio,
+    );
     return child.exitCode;
   }
 
@@ -106,6 +118,7 @@ Future<int?> maybeReexecProjectRuntime() async {
     if (link.packageConfigPath case final packages?) '--packages=$packages',
     entry,
     ...args.original,
+    ...identityArgs,
   ], mode: ProcessStartMode.inheritStdio);
   return child.exitCode;
 }
