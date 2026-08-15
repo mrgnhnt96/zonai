@@ -129,13 +129,17 @@ Place `.env` files in your **app root** (same directory as `zonai.yaml`, where y
 
 ### Which file is loaded
 
-| `--flavor` | Files checked (in order) | Result                                                     |
-| ---------- | ------------------------ | ---------------------------------------------------------- |
-| omitted    | `.env` only              | Use `.env` if it exists; otherwise no env vars             |
-| `dev`      | `.env.dev`, then `.env`  | Use `.env.dev` if it exists; otherwise fall back to `.env` |
-| `prod`     | `.env.prod`, then `.env` | Same pattern for any flavor name                           |
+| `--flavor` | File loaded    | Result                                          |
+| ---------- | -------------- | ----------------------------------------------- |
+| omitted    | `.env` only    | Use `.env` if it exists; otherwise no env vars  |
+| `dev`      | `.env.dev` only| Use `.env.dev` if it exists; otherwise none     |
+| `prod`     | `.env.prod` only | Same pattern for any flavor name              |
 
-If you pass `--flavor dev` but `.env.dev` is missing, Zonai logs a warning and falls back to `.env` when that file exists. If neither file exists, compilation proceeds with no env defines (unless your Dart code supplies `defaultValue` on `fromEnvironment`).
+Exactly one file is loaded — **there is no fallback**. If you pass `--flavor dev` but `.env.dev` is missing, Zonai logs a warning (`No flavor-specific .env file found for flavor: dev`) and compiles with **no env defines at all**, even when `.env` exists (`Env.env` in `apps/zonai/lib/src/domain/env.dart`). Every `String.fromEnvironment` then silently takes its `defaultValue`, or an empty string when it has none.
+
+### There is no `--dart-define-from-file`
+
+The env file is found by name, never named on the command line, so no flag points at it. To use a different file, name it `.env.<flavor>` and pass `--flavor <flavor>`; for one-off keys use repeated `--dart-define KEY=VALUE` (space-separated — `--dart-define=KEY=VALUE` fails to parse). Note that `Args.parse` accepts any `--flag value` pair and commands read only the keys they know, so an invented flag such as `--dart-define-from-file env.json` is dropped without a warning and the build succeeds with zero defines injected.
 
 ### File format
 
@@ -217,12 +221,12 @@ After compile, the password is embedded in `db_config.exe`; changing `.env` has 
 
 ### Flavor + env together
 
-`--flavor` selects **both** the config Dart file (when multiple exist) **and** the env file (`.env.<flavor>` with `.env` fallback). Keep flavor names aligned across config filenames and env files:
+`--flavor` selects **both** the config Dart file (when multiple exist) **and** the env file (`.env.<flavor>`, with no fallback to `.env`). Keep flavor names aligned across config filenames and env files:
 
 ```bash
 dart run zonai serve --flavor dev
 # → db_config.dev.dart (or matching flavor name)
-# → .env.dev, else .env
+# → .env.dev only — `.env` is not read
 ```
 
 ### Production and secrets
