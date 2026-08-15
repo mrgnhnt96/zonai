@@ -134,6 +134,220 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/auth/oauth": {
+      "post": {
+        "operationId": "auth_oauth",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/callback/{provider}": {
+      "get": {
+        "operationId": "auth_oauthCallback",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Session minted; redirect to the `redirect_to` recorded at start"
+          },
+          "400": {
+            "description": "Provider returned `error`, or the callback carried no usable `code`/`state`"
+          },
+          "401": {
+            "description": "Unknown, replayed or expired `state`"
+          },
+          "429": {
+            "description": "oauthCallback rate limit exceeded"
+          }
+        }
+      },
+      "post": {
+        "operationId": "auth_oauthCallbackFormPost",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthCallbackBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "Session minted; redirect to the `redirect_to` recorded at start"
+          },
+          "400": {
+            "description": "Provider returned `error`, or the callback carried no usable `code`/`state`"
+          },
+          "401": {
+            "description": "Unknown, replayed or expired `state`"
+          },
+          "429": {
+            "description": "oauthCallback rate limit exceeded"
+          }
+        }
+      }
+    },
+    "/auth/oauth/providers": {
+      "get": {
+        "operationId": "auth_oauthProviders",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/start/{provider}": {
+      "get": {
+        "operationId": "auth_startOAuth",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider's authorization endpoint. Carries `state` and `code_challenge` in the Location header."
+          },
+          "400": {
+            "description": "`redirect_to` is neither a relative path nor this app's own origin"
+          },
+          "404": {
+            "description": "No such provider on that table"
+          },
+          "429": {
+            "description": "oauthStart rate limit exceeded"
+          }
+        }
+      }
+    },
     "/auth/refresh": {
       "post": {
         "operationId": "auth_refreshToken",
@@ -1647,6 +1861,95 @@ const kSwaggerJson = r'''{
           "column"
         ]
       },
+      "OAuthBody": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/OAuthIdTokenBody"
+          },
+          {
+            "$ref": "#/components/schemas/OAuthCodeBody"
+          }
+        ]
+      },
+      "OAuthCallbackBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "errorDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "user": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "OAuthCodeBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "codeVerifier": {
+            "type": "string"
+          },
+          "redirectUri": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "codeVerifier",
+          "redirectUri",
+          "table",
+          "provider",
+          "type"
+        ]
+      },
+      "OAuthIdTokenBody": {
+        "type": "object",
+        "properties": {
+          "idToken": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "idToken",
+          "table",
+          "provider",
+          "type"
+        ]
+      },
       "ObjectUpdate": {
         "type": "object",
         "properties": {
@@ -2251,6 +2554,141 @@ paths:
                 type: object
                 additionalProperties: true
                 nullable: true
+  '/auth/oauth':
+    post:
+      operationId: auth_oauth
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/auth/oauth/callback/{provider}':
+    get:
+      operationId: auth_oauthCallback
+      tags:
+        - auth
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '302':
+          description: Session minted; redirect to the `redirect_to` recorded at start
+        '400':
+          description: Provider returned `error`, or the callback carried no usable `code`/`state`
+        '401':
+          description: Unknown, replayed or expired `state`
+        '429':
+          description: oauthCallback rate limit exceeded
+    post:
+      operationId: auth_oauthCallbackFormPost
+      tags:
+        - auth
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthCallbackBody'
+      responses:
+        '302':
+          description: Session minted; redirect to the `redirect_to` recorded at start
+        '400':
+          description: Provider returned `error`, or the callback carried no usable `code`/`state`
+        '401':
+          description: Unknown, replayed or expired `state`
+        '429':
+          description: oauthCallback rate limit exceeded
+  '/auth/oauth/providers':
+    get:
+      operationId: auth_oauthProviders
+      tags:
+        - auth
+      parameters:
+        - name: table
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+  '/auth/oauth/start/{provider}':
+    get:
+      operationId: auth_startOAuth
+      tags:
+        - auth
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: redirect_to
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '302':
+          description: Redirect to the provider's authorization endpoint. Carries `state` and `code_challenge` in the Location header.
+        '400':
+          description: '`redirect_to` is neither a relative path nor this app''s own origin'
+        '404':
+          description: No such provider on that table
+        '429':
+          description: oauthStart rate limit exceeded
   '/auth/refresh':
     post:
       operationId: auth_refreshToken
@@ -3214,6 +3652,66 @@ components:
           type: string
       required:
         - column
+    OAuthBody:
+      oneOf:
+        - $ref: '#/components/schemas/OAuthIdTokenBody'
+        - $ref: '#/components/schemas/OAuthCodeBody'
+    OAuthCallbackBody:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        errorDescription:
+          type: string
+          nullable: true
+        user:
+          type: string
+          nullable: true
+    OAuthCodeBody:
+      type: object
+      properties:
+        code:
+          type: string
+        codeVerifier:
+          type: string
+        redirectUri:
+          type: string
+        table:
+          type: string
+        provider:
+          type: string
+        type:
+          type: string
+      required:
+        - code
+        - codeVerifier
+        - redirectUri
+        - table
+        - provider
+        - type
+    OAuthIdTokenBody:
+      type: object
+      properties:
+        idToken:
+          type: string
+        table:
+          type: string
+        provider:
+          type: string
+        type:
+          type: string
+      required:
+        - idToken
+        - table
+        - provider
+        - type
     ObjectUpdate:
       type: object
       properties:

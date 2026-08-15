@@ -1,6 +1,7 @@
 import 'package:revali_router/revali_router.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
+import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 
 final class Exceptions implements LifecycleComponent {
   const Exceptions();
@@ -70,6 +71,19 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 400,
         body: {'error': '$exception'},
       ),
+    };
+  }
+
+  /// Both members are malformed-callback shapes decided before anything is
+  /// consumed or exchanged, so both are 400. Their `toString`s carry only
+  /// the provider id and, for the incomplete case, *which* field was absent
+  /// — never a `code` or a `state` (design §4 item 7).
+  ExceptionCatcherResult<OAuthHttpException> onOAuthHttpException(
+    OAuthHttpException exception,
+  ) {
+    return switch (exception) {
+      OAuthProviderRejectedException() || OAuthCallbackIncompleteException() =>
+        .handled(statusCode: 400, body: {'error': '$exception'}),
     };
   }
 

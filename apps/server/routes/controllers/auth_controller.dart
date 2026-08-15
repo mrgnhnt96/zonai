@@ -1,14 +1,19 @@
 // ! All `authorization` headers MUST have the same parameter name "authorization" so
 // that we can properly inject the token into the request on the client side
-import 'dart:io' show HttpHeaders;
+import 'dart:io' show HttpHeaders, HttpStatus;
 
 import 'package:revali_router/revali_router.dart';
+import 'package:revali_swagger_annotations/revali_swagger_annotations.dart'
+    as swagger;
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart';
+
+import 'package:zonai_web/utils/zonai_cookie.dart';
 
 import '../components/auth_header_rate_limit.dart';
 import '../components/black_list.dart';
 import '../components/body_rate_limit.dart';
+import '../components/oauth_rate_limit.dart';
 
 // TODO: Tighten up the return types so that we don't need to dynamically access
 // the `accessToken` key
@@ -126,6 +131,176 @@ class AuthController {
     return result;
   }
 
+  // -----------------------------------------------------------------------
+  // OAuth (docs/oauth-design.md §3). Path parameters are `:provider` in the
+  // route string plus `@Param() required String provider` in the signature --
+  // the same shape `PhotosController.view` (`@Get(':id')`) and
+  // `DbController.custom` (`@Patch('custom/:operation')`) already serve on,
+  // confirmed against `.revali/server/routes/__img_route.dart` rather than
+  // assumed.
+  //
+  // The three redirect-flow routes return `Future<void>` and write the 302
+  // through the injected `Response`. A non-void return would have revali's
+  // generated handler assign `context.response.body = {'data': result}`
+  // after the method ran, which is the one thing a redirect must not carry.
+  // -----------------------------------------------------------------------
+
+  /// The public, redacted provider list (design §2.4).
+  ///
+  /// `table` is an optional *filter*, not a required argument: the dashboard
+  /// sign-in screen lists every `OAuth`-enabled collection at once, and a
+  /// single-collection consumer passes `?table=`. Nothing here is
+  /// authenticated because nothing here is a secret -- `toPublic()` is the
+  /// redaction gate, asserted by `zonai_schema`'s own tests.
+  @Get('oauth/providers')
+  Future<List<Map<String, Object?>>> oauthProviders({
+    @Query('table') String? table,
+  }) async {
+    return await authHandler.oauthProviders(table: table);
+  }
+
+  /// §3.1 step 1: mint the `oauthState` challenge, 302 to the provider.
+  ///
+  // The 302 is written at runtime through `Response`, so revali's generated
+  // spec would otherwise advertise the default 200. These are documentation
+  // only -- `@StatusCode` would ALSO emit `context.response..statusCode = n`
+  // into the generated handler, which is a second, static writer of the one
+  // thing these routes set dynamically.
+  @swagger.ApiResponse(
+    302,
+    description:
+        "Redirect to the provider's "
+        'authorization endpoint. Carries `state` and `code_challenge` in the '
+        'Location header.',
+  )
+  @swagger.ApiResponse(
+    400,
+    description:
+        '`redirect_to` is neither a relative '
+        "path nor this app's own origin",
+  )
+  @swagger.ApiResponse(404, description: 'No such provider on that table')
+  @swagger.ApiResponse(429, description: 'oauthStart rate limit exceeded')
+  @OAuthStartRateLimit()
+  @Get('oauth/start/:provider')
+  Future<void> startOAuth({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Param() required String provider,
+    @Query('table') required String table,
+    @Query('redirect_to') String? redirectTo,
+    required Response response,
+  }) async {
+    final url = await authHandler.startOAuth(
+      table: table,
+      provider: provider,
+      redirectTo: redirectTo,
+      authorization: authorization,
+    );
+
+    // The authorization URL carries `state` and `code_challenge`, so it is
+    // itself sensitive -- it goes in the `Location` header and nowhere else.
+    // Notably not into the response body, which an error page or a proxy log
+    // would then hold a copy of.
+    _redirect(response, url);
+  }
+
+  /// §3.1 step 2, the shape every provider except Apple sends: a `GET` with
+  /// `code`/`state` (or `error`) in the query string.
+  @swagger.ApiResponse(
+    302,
+    description:
+        'Session minted; redirect to the '
+        '`redirect_to` recorded at start',
+  )
+  @swagger.ApiResponse(
+    400,
+    description:
+        'Provider returned `error`, or the '
+        'callback carried no usable `code`/`state`',
+  )
+  @swagger.ApiResponse(401, description: 'Unknown, replayed or expired `state`')
+  @swagger.ApiResponse(429, description: 'oauthCallback rate limit exceeded')
+  @OAuthCallbackRateLimit()
+  @Get('oauth/callback/:provider')
+  Future<void> oauthCallback({
+    @Param() required String provider,
+    @Query('code') String? code,
+    @Query('state') String? state,
+    @Query('error') String? error,
+    required Response response,
+  }) async {
+    await _completeOAuth(
+      authHandler,
+      response,
+      provider: provider,
+      code: code,
+      state: state,
+      error: error,
+    );
+  }
+
+  /// §3.1 step 2 over `form_post`.
+  ///
+  /// Sign in with Apple posts the callback as
+  /// `application/x-www-form-urlencoded` instead of redirecting with a query
+  /// string whenever `name` or `email` scope was requested -- and `name email`
+  /// is `OAuthProvider.apple`'s own default. Identical handling, different
+  /// transport; see [OAuthCallbackBody].
+  ///
+  // The generated spec declares this body as `application/json` because that
+  // is revali_swagger's only request-body content type and there is no
+  // annotation to widen it. The runtime is not so narrow: revali's payload
+  // resolver switches on the request's actual mime type
+  // (`payload_impl.dart`'s `resolve`), and
+  // `application/x-www-form-urlencoded` resolves to the same map shape
+  // `OAuthCallbackBody.fromJson` reads. The spec is narrower than the route,
+  // not wrong about it.
+  @swagger.ApiResponse(
+    302,
+    description:
+        'Session minted; redirect to the '
+        '`redirect_to` recorded at start',
+  )
+  @swagger.ApiResponse(
+    400,
+    description:
+        'Provider returned `error`, or the '
+        'callback carried no usable `code`/`state`',
+  )
+  @swagger.ApiResponse(401, description: 'Unknown, replayed or expired `state`')
+  @swagger.ApiResponse(429, description: 'oauthCallback rate limit exceeded')
+  @OAuthCallbackRateLimit()
+  @Post('oauth/callback/:provider')
+  Future<void> oauthCallbackFormPost({
+    @Param() required String provider,
+    @Body() required OAuthCallbackBody body,
+    required Response response,
+  }) async {
+    await _completeOAuth(
+      authHandler,
+      response,
+      provider: provider,
+      code: body.code,
+      state: body.state,
+      error: body.error,
+    );
+  }
+
+  /// §3.2, the native / public-client flow. Returns `{accessToken, user}` and
+  /// sets `X-Auth` exactly like every other session-minting route above.
+  @BodyRateLimit<OAuthBody>(RateLimitOperation.authenticate)
+  @Post('oauth')
+  Future<Map<String, Object?>> oauth({
+    @Body() required OAuthBody body,
+    required ResponseHeaders headers,
+  }) async {
+    final result = await authHandler.oauthNative(body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
+  }
+
   @Delete()
   Future<void> logout({
     @Header(HttpHeaders.authorizationHeader) required String authorization,
@@ -139,4 +314,69 @@ class AuthController {
   }) async {
     await authHandler.logoutAll(authorization);
   }
+}
+
+// ! Everything below is a TOP-LEVEL function, not a private method on
+// AuthController. Revali's generator walks a @Controller's methods to build
+// routes; a helper sitting among them is one refactor away from someone
+// giving it an annotation, and it would read as a route in the generated
+// output before anyone noticed. Nothing outside a @Controller class is
+// scanned, so out here it cannot become one by accident.
+
+/// Where a callback lands when the flow carried no `redirect_to`.
+///
+/// Root rather than the dashboard's `/_` mount: this server also fronts
+/// non-dashboard apps, and sending an app's users into the admin UI because
+/// they omitted a parameter is a worse default than sending them home.
+const _kDefaultOAuthRedirect = '/';
+
+Future<void> _completeOAuth(
+  AuthHandler authHandler,
+  Response response, {
+  required String provider,
+  required String? code,
+  required String? state,
+  required String? error,
+}) async {
+  final result = await authHandler.completeOAuth(
+    provider: provider,
+    code: code,
+    state: state,
+    error: error,
+  );
+
+  _redirect(
+    response,
+    result.redirectTo ?? _kDefaultOAuthRedirect,
+    accessToken: result.jwt,
+  );
+}
+
+/// Writes a 302 to [location], optionally handing the freshly minted session
+/// to the browser on the way.
+///
+/// [accessToken] goes into two places and neither of them is the URL. A token
+/// in a `Location` query string is written to every proxy log, browser
+/// history entry and `Referer` header between here and the destination.
+///
+/// - `X-Auth`, matching every other session-minting route on this controller.
+///   A browser following the redirect cannot read it; a programmatic client
+///   that follows redirects itself can, and so can a test.
+/// - the `zonai_auth_token` cookie, whose attributes are copied from
+///   `CookieStorage.write` so a session minted here is indistinguishable from
+///   one the dashboard wrote itself after a password sign-in (design §3.1
+///   step 2). Not `HttpOnly`, deliberately and documented on [ZonaiCookie]:
+///   the dashboard's own client reads it back to attach to API calls.
+void _redirect(Response response, String location, {String? accessToken}) {
+  response.statusCode = HttpStatus.found;
+  response.headers.add(HttpHeaders.locationHeader, location);
+
+  if (accessToken == null) return;
+
+  response.headers.add('X-Auth', accessToken);
+  response.headers.add(
+    HttpHeaders.setCookieHeader,
+    '${ZonaiCookie.authToken.key}=${Uri.encodeComponent(accessToken)}; '
+    'Path=/; Max-Age=${ZonaiCookie.authToken.maxAge.inSeconds}; SameSite=Lax',
+  );
 }

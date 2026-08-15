@@ -31,6 +31,7 @@ class RateLimit {
       StreamListBody(:final table) => table,
       SendResetPasswordAuthBody(:final table) => table,
       VerifyEmailAuthBody(:final table) => table,
+      OAuthBody(:final table) => table,
       _ => throw ArgumentError(
         'Unexpected query body type for rate limit: ${body.runtimeType}',
       ),
@@ -63,6 +64,31 @@ class RateLimit {
       true => const .pass(),
       false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
     };
+  }
+
+  /// The one bucket every OAuth callback from one client IP shares.
+  ///
+  /// A constant, not the `:provider` path segment and not a table, because
+  /// `GET|POST /auth/oauth/callback/:provider` carries neither. `state` is
+  /// the only thing that identifies the flow and it cannot be resolved to a
+  /// table without consuming the challenge, which happens in the db mutator
+  /// long after this guard has run. A caller-supplied bucket dimension would
+  /// be rotatable — the bypass [checkCustomOperation] exists to close.
+  ///
+  /// Colliding with a real table of this name is harmless: the unique index
+  /// behind the counter is `(clientIp, table, operation)`, and no other
+  /// operation is ever recorded under [RateLimitOperation.oauthCallback].
+  static const kOAuthCallbackBucket = 'oauth';
+
+  /// Enforces [RateLimitOperation.oauthCallback] under the fixed
+  /// [kOAuthCallbackBucket] key. Policy is framework-level and not
+  /// overridable per table — see that enum value.
+  Future<GuardResult> checkOAuthCallback(String ipAddress) async {
+    return await checkByTable(
+      kOAuthCallbackBucket,
+      ipAddress,
+      RateLimitOperation.oauthCallback,
+    );
   }
 
   /// Validates [operation] against [table]'s registered custom operations

@@ -137,6 +137,17 @@ class DbRateLimits {
         null => defaults.auth.externalIdpProvisioningPolicy(),
         final a => a.externalIdpProvisioningPolicy(),
       },
+      .oauthStart => switch (bucket?.auth) {
+        null => defaults.auth.oauthStartPolicy(),
+        final a => a.oauthStartPolicy(),
+      },
+      // Deliberately does NOT consult `bucket`. The callback carries no
+      // table, so `request.table` here is the fixed sentinel
+      // `RateLimit.kOAuthCallbackBucket`, not an auth collection -- reading
+      // an override off whatever table happens to share that name would
+      // apply one tenant's policy to every tenant's callbacks. See
+      // RateLimitOperation.oauthCallback.
+      .oauthCallback => defaults.auth.oauthCallbackPolicy(),
       .custom => switch (bucket?.tableRateLimits) {
         null => defaults.tableRateLimits.customPolicy(request.customOperation),
         final c => c.customPolicy(request.customOperation),
@@ -208,4 +219,10 @@ final class _DefaultAuthTableRateLimits {
 
   Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async =>
       .externalIdpProvisioning;
+
+  Future<RateLimitPolicy?> oauthStartPolicy() async => .defaultPolicy;
+
+  /// Only here, not on [AuthTableRateLimits]: the OAuth callback has no
+  /// table, so there is nothing for a developer to hang an override off.
+  Future<RateLimitPolicy?> oauthCallbackPolicy() async => .oauthCallback;
 }

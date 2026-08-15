@@ -15,6 +15,17 @@ final class RateLimitPolicy {
     window: Duration(hours: 1),
   );
 
+  /// Fixed policy for `RateLimitOperation.oauthCallback`. Tighter than
+  /// [defaultPolicy] because each accepted callback costs an outbound token
+  /// exchange (and possibly a userinfo call) against the provider before it
+  /// can be rejected — but not as tight as [externalIdpProvisioning],
+  /// because this counter is shared by every OAuth flow arriving from one
+  /// IP rather than per table, so a NAT'd office has to fit under it.
+  static const oauthCallback = RateLimitPolicy(
+    maxRequests: 60,
+    window: Duration(minutes: 1),
+  );
+
   factory RateLimitPolicy.fromJson(Map<String, dynamic> json) {
     return RateLimitPolicy(
       maxRequests: json['maxRequests'] as int,
