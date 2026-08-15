@@ -98,7 +98,12 @@ dependencies:
 
     tearDownAll(() {
       harness.kill();
-      projectRoot.deleteSync(recursive: true);
+      // Not deleteSync: harness.kill() has just asked a child process to go
+      // away and Windows will not unlink a directory it still has a handle
+      // into, so this raced and failed teardown after every assertion passed
+      // ("The process cannot access the file because it is being used by
+      // another process", errno 32, run 31853443536).
+      deleteTempDirectory(projectRoot);
     });
 
     test(
