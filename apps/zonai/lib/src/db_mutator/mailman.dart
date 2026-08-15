@@ -575,7 +575,17 @@ class Mailman<S extends Request, R extends Response> {
 
     _stderrBuffer.clear();
     _stdoutFrames.clear();
-    final p = _process = await process.start(executablePath, []);
+    // Argv is the only thing `ps`/Activity Monitor show for these workers,
+    // and the executable path alone (`.zonai/executables/db_config.exe`) is
+    // identical across every zonai project on a machine -- there is nothing
+    // else outside the process that says which project a given worker PID
+    // belongs to. The worker's generated `main()` takes no arguments (or
+    // ignores them -- see rule_generator.dart/operation_generator.dart), so
+    // this is inert to the worker itself and purely for outside attribution.
+    final p = _process = await process.start(executablePath, [
+      '--zonai-project=${settings.basePath ?? io.Directory.current.path}',
+      '--zonai-worker=$debugName',
+    ]);
     p.stderr
         .transform(utf8.decoder)
         .listen(_stderrBuffer.write, onError: _onStreamError);

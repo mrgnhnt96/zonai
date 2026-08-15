@@ -88,13 +88,30 @@ Future<int?> maybeReexecProjectRuntime() async {
 
   logOverriddenPackages(link);
 
+  // Appended, not prepended: `Args.parse` treats leading bare words as the
+  // command path and stops at the first `-`-prefixed token, so putting this
+  // after the user's own args never gets mistaken for part of `serve --port
+  // 7717`. It is otherwise inert -- `Args` only surfaces keys someone reads
+  // by name, so an unrecognized one just sits unused -- and it is what makes
+  // the re-exec'd long-lived server attributable from outside: both spawns
+  // below carry a generic path (`.zonai/zonai`, `dart run
+  // .dart_tool/zonai/project_main.dart`) that is identical across every
+  // zonai project on a machine.
+  final identityArgs = [
+    '--zonai-project=${settings.basePath ?? fs.currentDirectory.path}',
+  ];
+
   if (args.release) {
     final code = await ProjectBinary().compile(link: link);
     if (code != 0) return code;
 
     final exe = settings.compiledProjectBinaryPath;
     logger.info('Starting project binary: $exe');
-    final child = await process.start(exe, args.original, mode: ProcessStartMode.inheritStdio);
+    final child = await process.start(
+      exe,
+      [...args.original, ...identityArgs],
+      mode: ProcessStartMode.inheritStdio,
+    );
     return child.exitCode;
   }
 
@@ -106,6 +123,7 @@ Future<int?> maybeReexecProjectRuntime() async {
     if (link.packageConfigPath case final packages?) '--packages=$packages',
     entry,
     ...args.original,
+    ...identityArgs,
   ], mode: ProcessStartMode.inheritStdio);
   return child.exitCode;
 }
