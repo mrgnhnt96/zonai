@@ -99,6 +99,11 @@ zonai.sqlite*
 
 # machine-local hook config (absolute paths)
 .claude/settings.local.json
+
+# Session handoff and delegation write-ups. The rest of .claude/ IS tracked on
+# purpose (skills, settings), so this needs saying explicitly: these are notes
+# one session leaves for another, not project history.
+.claude/handoff/
 apps/server/lib/gen/
 # Transient output of apps/playground/test/doc_snippets_test.dart -- the test
 # deletes it, but an interrupted run can leave it behind.
