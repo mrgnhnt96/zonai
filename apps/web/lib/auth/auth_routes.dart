@@ -10,6 +10,13 @@ abstract final class AuthRoutes {
   static const resetPasswordRequest = '/auth/reset-password/request';
   static const verifyEmailCallback = '/auth/verify-email';
 
+  /// Where the server's OAuth callback sends the browser back to.
+  ///
+  /// Distinct from the server's own `/auth/oauth/callback/:provider` route:
+  /// this one lives under [mountPath] (`/_/auth/oauth/callback`), so the two
+  /// never collide even though the tails match.
+  static const oauthCallback = '/auth/oauth/callback';
+
   /// Base path for the web app and Jaspr asset URL stripping.
   static const mountPath = '/_';
 
@@ -47,7 +54,8 @@ abstract final class AuthRoutes {
         normalized == magicLinkCallback ||
         normalized == resetPasswordCallback ||
         normalized == resetPasswordRequest ||
-        normalized == verifyEmailCallback;
+        normalized == verifyEmailCallback ||
+        normalized == oauthCallback;
   }
 
   static bool isVerifyEmailCallbackPath(String path) {
@@ -70,6 +78,23 @@ abstract final class AuthRoutes {
     return normalizePath(path) == resetPasswordRequest;
   }
 
+  static bool isOAuthCallbackPath(String path) {
+    return normalizePath(path) == oauthCallback;
+  }
+
+  /// Full-page destination that begins [startPath]'s OAuth flow.
+  ///
+  /// [startPath] is [OAuthProviderPublic.startPath] — a *server* route
+  /// (`/auth/oauth/start/:provider?table=`), deliberately outside [mountPath]:
+  /// the browser leaves the dashboard SPA entirely, visits the provider, and
+  /// only comes back once the server has minted the session. `redirect_to` is
+  /// the mounted [oauthCallback] URL, a relative path, which is the shape the
+  /// server's own open-redirect allowlist accepts (design §4 item 5).
+  static String oauthStartUrl(String startPath) {
+    final separator = startPath.contains('?') ? '&' : '?';
+    return '$startPath${separator}redirect_to=${Uri.encodeQueryComponent(toUrlPath(oauthCallback))}';
+  }
+
   static bool isSignInRoot(String path) {
     final normalized = normalizePath(path);
     return normalized == home || normalized == signIn;
@@ -84,7 +109,10 @@ abstract final class AuthRoutes {
       return authTypes.length > 1 ? signIn : null;
     }
 
-    if (isResetPasswordCallbackPath(path) || isMagicLinkCallbackPath(path) || isVerifyEmailCallbackPath(path)) {
+    if (isResetPasswordCallbackPath(path) ||
+        isMagicLinkCallbackPath(path) ||
+        isVerifyEmailCallbackPath(path) ||
+        isOAuthCallbackPath(path)) {
       if (authTypes.length > 1) {
         return signIn;
       }

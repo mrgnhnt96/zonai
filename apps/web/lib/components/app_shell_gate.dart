@@ -17,6 +17,7 @@ class AppShellGate extends StatelessComponent {
     required this.initialBaseUrl,
     required this.hasBrandLogo,
     required this.initialAuthTypeNames,
+    required this.initialOAuthProviders,
     required this.initialSqliteNames,
     required this.initialDisplayNames,
     this.tablesLoadError,
@@ -31,6 +32,7 @@ class AppShellGate extends StatelessComponent {
   final String initialBaseUrl;
   final bool hasBrandLogo;
   final List<String> initialAuthTypeNames;
+  final List<Map<String, Object?>> initialOAuthProviders;
   final List<String> initialSqliteNames;
   final List<String> initialDisplayNames;
   final String? tablesLoadError;
@@ -61,6 +63,7 @@ class AppShellGate extends StatelessComponent {
       initialBaseUrl: initialBaseUrl,
       hasBrandLogo: hasBrandLogo,
       initialAuthTypeNames: initialAuthTypeNames,
+      initialOAuthProviders: initialOAuthProviders,
     );
   }
 }

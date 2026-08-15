@@ -3,6 +3,7 @@ import 'package:zonai_schema/payloads.dart';
 
 import '../auth/auth_provider.dart';
 import '../auth/auth_route_provider.dart';
+import '../auth/oauth_providers_provider.dart';
 import '../auth/supported_auth_types_provider.dart';
 import '../providers/app_base_url_provider.dart';
 import '../providers/app_name_provider.dart';
@@ -20,6 +21,7 @@ List<Override> appShellOverrides({
   bool hasBrandLogo = false,
   PhotosConfig? initialPhotosConfig,
   required List<AuthType> initialAuthTypes,
+  List<OAuthProviderPublic> initialOAuthProviders = const [],
   SqliteTablesSnapshot? tables,
   Map<String, TableSchemaShape>? schemaShapes,
   Map<String, TableCollectionActions>? collectionActions,
@@ -32,6 +34,7 @@ List<Override> appShellOverrides({
     authProvider.overrideWith(() => AuthNotifier(initialSignedIn: initialSignedIn)),
     authRouteProvider.overrideWith(() => AuthRouteNotifier(initialPath: initialPath)),
     supportedAuthTypesProvider.overrideWithValue(initialAuthTypes),
+    oauthProvidersProvider.overrideWithValue(initialOAuthProviders),
     appNameProvider.overrideWithValue(initialAppName),
     hasBrandLogoProvider.overrideWithValue(hasBrandLogo),
     appBaseUrlProvider.overrideWithValue(initialBaseUrl),

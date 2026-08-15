@@ -18,6 +18,7 @@ class AuthAppShell extends StatelessComponent {
     required this.initialBaseUrl,
     required this.hasBrandLogo,
     required this.initialAuthTypeNames,
+    required this.initialOAuthProviders,
   });
 
   final String initialPath;
@@ -26,9 +27,17 @@ class AuthAppShell extends StatelessComponent {
   final bool hasBrandLogo;
   final List<String> initialAuthTypeNames;
 
+  /// `OAuthProviderPublic.toJson()` per provider.
+  ///
+  /// Serialized rather than typed because this is a `@client` boundary: the
+  /// list is embedded in the pre-rendered markup and decoded again at
+  /// hydration, so both renders see the same providers and the tree matches.
+  final List<Map<String, Object?>> initialOAuthProviders;
+
   @override
   Component build(BuildContext context) {
     final initialAuthTypes = [for (final name in initialAuthTypeNames) AuthType.values.byName(name)];
+    final providers = [for (final json in initialOAuthProviders) OAuthProviderPublic.fromJson(json)];
     return ProviderScope(
       overrides: appShellOverrides(
         initialSignedIn: false,
@@ -37,6 +46,7 @@ class AuthAppShell extends StatelessComponent {
         initialBaseUrl: initialBaseUrl,
         hasBrandLogo: hasBrandLogo,
         initialAuthTypes: initialAuthTypes,
+        initialOAuthProviders: providers,
       ),
       child: Component.fragment([
         const PageTitleHead(),

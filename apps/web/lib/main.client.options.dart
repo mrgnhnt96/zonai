@@ -37,6 +37,9 @@ ClientOptions get defaultClientOptions => ClientOptions(
         hasBrandLogo: p['hasBrandLogo'] as bool,
         initialAuthTypeNames: (p['initialAuthTypeNames'] as List<Object?>)
             .cast<String>(),
+        initialOAuthProviders: (p['initialOAuthProviders'] as List<Object?>)
+            .map((i) => (i as Map<String, Object?>))
+            .toList(),
       ),
       loader: _auth_app_shell.loadLibrary,
     ),
