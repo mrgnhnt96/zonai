@@ -73,6 +73,17 @@ void main() {
       expect(top('live queries'), '/operations/streaming');
     });
 
+    test('finds the flag zonai does not have', () {
+      // An agent reaching for Flutter's --dart-define-from-file searches for
+      // it verbatim. Finding nothing reads as "undocumented", and the guess
+      // that follows is accepted silently by the CLI and injects no defines --
+      // so the page saying the flag does not exist has to be reachable by the
+      // flag's own name.
+      expect(top('--dart-define-from-file'), '/configuration/environment-variables');
+      expect(top('dart-define-from-file'), '/configuration/environment-variables');
+      expect(top('dart define from file'), '/configuration/environment-variables');
+    });
+
     test('ranks the page about a topic above pages that mention it', () {
       expect(top('rate limit'), '/rate-limiting/overview');
       expect(top('migrations'), '/database/migrations-overview');

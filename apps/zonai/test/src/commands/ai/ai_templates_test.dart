@@ -29,4 +29,32 @@ void main() {
       );
     }
   });
+
+  test('AI templates answer --dart-define-from-file, the flag zonai does '
+      'not have', () {
+    // An agent looking for Flutter's --dart-define-from-file finds nothing in
+    // zonai and has no way to tell "absent because unsupported" from "absent
+    // because undocumented" -- and the parser accepts the flag silently
+    // (Args.parse keeps every --flag value pair; only `dart-define` is ever
+    // read, in Env._cliDefines), so guessing it produces a clean build with
+    // zero defines. The term has to appear in the templates for the answer to
+    // be findable at all.
+    for (final entry in {
+      'claudeMd': claudeMd,
+      'copilotMd': copilotMd,
+      'windsurfRules': windsurfRules,
+      'clineRules': clineRules,
+      'zonai-overview.mdc': cursorOverviewMdc,
+      'zonai-release.mdc': cursorReleaseMdc,
+    }.entries) {
+      expect(
+        entry.value,
+        contains('--dart-define-from-file'),
+        reason:
+            '${entry.key} documents compile-time env defines, so it has to '
+            'say that --dart-define-from-file does not exist and that .env '
+            'is loaded without being named.',
+      );
+    }
+  });
 }
