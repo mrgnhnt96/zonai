@@ -54,5 +54,9 @@ Raising it makes a large fan-out faster and a crash more expensive, in exactly t
 
 For iOS, FCM needs an **APNs auth key** uploaded to the Firebase console. It is a `.p8` created under *Certificates, Identifiers & Profiles → Keys* with the Apple Push Notifications service capability enabled.
 
-An **App Store Connect API key** is also a `.p8`, is also downloaded from Apple, and conventionally lives in `~/.appstoreconnect/private_keys/AuthKey_XXXXXXXX.p8` — the same filename shape. It cannot sign an APNs request and cannot be uploaded as an APNs key. Having one is not having the other, and the resulting failure is silent in the direction that matters: Android keeps arriving, iOS never does.
+Uploading it is a **console-only** step. The Firebase Management API has no APNs endpoints at all — the only APNs references in Google's API surface are `ApnsConfig`, which is per-message send options, not credentials. So this one part of setup cannot be scripted, cannot be put in Terraform, and cannot be done by CI: someone opens Project settings → Cloud Messaging and uploads the file, along with its **Key ID** and your **Team ID**.
+
+Which makes the next point sharper than it looks. An **App Store Connect API key** is also a `.p8`, is also downloaded from Apple, and conventionally lives in `~/.appstoreconnect/private_keys/AuthKey_XXXXXXXX.p8` — the same filename shape. It cannot sign an APNs request and cannot be uploaded as an APNs key. Having one is not having the other, and the resulting failure is silent in the direction that matters: Android keeps arriving, iOS never does.
+
+A `.p8` also carries **no key ID inside it** — the file is an unadorned PKCS#8 private key, byte-indistinguishable from any other. The filename is the only record of which key it is, so a renamed or re-downloaded file can leave you entering a Key ID that belongs to a different key entirely. The console accepts the pair without complaint and iOS delivery simply never works.
 
