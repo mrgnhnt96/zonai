@@ -8,7 +8,7 @@ environment:
 
 dependencies:
   archive: ^4.0.7
-  nocterm: ^0.7.0
+  nocterm: ^0.8.0
   argon2: ^1.0.1
   async: ^2.13.1
   clock: ^1.1.2

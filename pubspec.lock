@@ -749,10 +749,10 @@ packages:
     dependency: transitive
     description:
       name: nocterm
-      sha256: c1154818e1757f6ac6b3f6dfa32a2429c587cb72a6fb34cfd61a31b7e3049397
+      sha256: "240efc18c483f1d727bb7cdf8712f703e1fc8f8ae59fe9547b5b63b08ec0c0dc"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.0"
+    version: "0.8.0"
   node_preamble:
     dependency: transitive
     description:
