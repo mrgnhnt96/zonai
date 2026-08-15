@@ -22,7 +22,7 @@ final class User {
 }
 
 final class UserTable extends AuthTable<User>
-    with PasswordAuth, OtpAuth, MagicLinkAuth, AsAdmin {
+    with PasswordAuth, OtpAuth, MagicLinkAuth, OAuth, AsAdmin {
   UserTable(super.$)
     : id = $.id(
         'id',
@@ -57,6 +57,18 @@ final class UserTable extends AuthTable<User>
   final IsVerifiedColumn isVerified;
   final PasswordColumn passwordHash;
   final ColumnType<DateTime?> updatedAt;
+
+  @override
+  List<OAuthProvider> get oauthProviders => [
+    OAuthProvider.google(
+      clientId: const String.fromEnvironment('GOOGLE_CLIENT_ID'),
+      clientSecret: const String.fromEnvironment('GOOGLE_CLIENT_SECRET'),
+    ),
+    OAuthProvider.github(
+      clientId: const String.fromEnvironment('GITHUB_CLIENT_ID'),
+      clientSecret: const String.fromEnvironment('GITHUB_CLIENT_SECRET'),
+    ),
+  ];
 }
 
 final users = authTable('users', UserTable.new);

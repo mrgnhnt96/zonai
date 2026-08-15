@@ -106,6 +106,9 @@
     <loc>https://docs.zonai.dev/authentication/magic-link-auth/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/authentication/oauth/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/authentication/session-management/</loc>
   </url>
   <url>
