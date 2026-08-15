@@ -10,5 +10,5 @@ export 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 export 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/clause.dart';
 export 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/clauses.dart';
+export 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/extras.dart';
 export 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/render_context.dart';
-export 'package:zonai_schema/gen/raindrop/raindrop/src/rendering/with_clause.dart';
