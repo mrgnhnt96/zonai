@@ -6,7 +6,7 @@ name: zonai_client
 description: >-
   Typed Dart and Flutter client for a Zonai backend: auth, CRUD, file uploads,
   and live SQLite query streams over HTTP.
-version: 0.1.3
+version: 0.2.0
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 homepage: https://zonai.dev
 documentation: https://docs.zonai.dev/dart-client/overview
