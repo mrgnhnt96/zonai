@@ -270,12 +270,23 @@ void main() {
 
       fcm.replyFor = (token) => switch (token) {
         'gone' => errReply(404, 'UNREGISTERED'),
+        // Both 404 spellings, on purpose: a live probe against real FCM
+        // returned NOT_FOUND — not UNREGISTERED — for a token it had never
+        // issued, so this is the one the pruning path actually meets.
+        'never-issued' => errReply(404, 'NOT_FOUND'),
         'malformed' => errReply(400, 'INVALID_ARGUMENT'),
         'flaky' => errReply(503, 'UNAVAILABLE'),
         _ => okReply,
       };
 
-      final tokens = ['good', 'gone', 'malformed', 'flaky', 'also-good'];
+      final tokens = [
+        'good',
+        'gone',
+        'never-issued',
+        'malformed',
+        'flaky',
+        'also-good',
+      ];
       final outcomes = await courier.send(message, tokens, config: config);
 
       // Alignment is the contract: the engine prunes by position, so an
@@ -295,11 +306,20 @@ void main() {
         isA<PushPermanentlyRejected>().having(
           (o) => o.reason,
           'reason',
+          PushRejectionReason.unregistered,
+        ),
+        reason: 'NOT_FOUND prunes exactly as UNREGISTERED does',
+      );
+      expect(
+        outcomes[3],
+        isA<PushPermanentlyRejected>().having(
+          (o) => o.reason,
+          'reason',
           PushRejectionReason.invalidArgument,
         ),
       );
-      expect(outcomes[3], isA<PushTransientlyFailed>());
-      expect(outcomes[4], isA<PushDelivered>());
+      expect(outcomes[4], isA<PushTransientlyFailed>());
+      expect(outcomes[5], isA<PushDelivered>());
     });
 
     test('a 401 on send throws rather than blaming the tokens', () async {

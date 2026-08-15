@@ -376,6 +376,43 @@ void main() {
       expect(outcomes.firstWhere((o) => o.token == 'live'), isA<PushDelivered>());
     });
 
+    test('NOT_FOUND is permanent too — it is what FCM really sends', () async {
+      final privateKey = keyOrSkip();
+      if (privateKey == null) return;
+
+      // Added after a live probe against real FCM, which returned
+      //     HTTP 404 / error.status NOT_FOUND
+      // for a well-formed token it had never issued — *not* the
+      // `UNREGISTERED` the documentation leads you to, and which every test
+      // here used until now.
+      //
+      // The stake is not cosmetic. `_classify` sends anything unrecognised
+      // to the transient branch, so had this status not been handled, a dead
+      // token would be retried forever and never pruned — precisely the
+      // failure pruning exists to prevent, reached by following the docs
+      // correctly. Nothing but a real send could have surfaced it, and this
+      // test is what stops it being removed as redundant later.
+      final outcomes = await sendWith(
+        (token) => token == 'never-issued'
+            ? _fcmError(404, 'NOT_FOUND')
+            : http.Response('{}', 200),
+        tokens: ['live', 'never-issued'],
+        privateKey: privateKey,
+      );
+
+      final gone = outcomes.firstWhere((o) => o.token == 'never-issued');
+      expect(gone, isA<PushPermanentlyRejected>());
+      expect(
+        (gone as PushPermanentlyRejected).reason,
+        PushRejectionReason.unregistered,
+        reason: 'NOT_FOUND and UNREGISTERED mean the same thing to a caller',
+      );
+      expect(
+        outcomes.firstWhere((o) => o.token == 'live'),
+        isA<PushDelivered>(),
+      );
+    });
+
     test('INVALID_ARGUMENT is permanent', () async {
       final privateKey = keyOrSkip();
       if (privateKey == null) return;

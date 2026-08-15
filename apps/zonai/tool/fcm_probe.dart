@@ -25,6 +25,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file/local.dart';
+import 'package:http/http.dart' as http;
+import 'package:zonai/src/push/fcm_access_token.dart';
 import 'package:zonai/src/push/fcm_push_courier.dart';
 import 'package:zonai/src/push/push_courier.dart';
 import 'package:zonai_schema/zonai_schema.dart';
@@ -60,12 +62,16 @@ Future<void> main(List<String> args) async {
   }
 
   final projectId = args.length > 1 ? args[1] : key['project_id'] as String?;
+  final token = args.length > 2 ? args[2] : _neverIssued;
 
   stdout
     ..writeln('type          : ${key['type']}')
     ..writeln('key project   : ${key['project_id']}')
     ..writeln('client_email  : ${key['client_email']}')
     ..writeln('sending to    : $projectId')
+    ..writeln(
+      'token         : ${token.length > 40 ? token.substring(0, 40) : token}',
+    )
     ..writeln('');
 
   if (projectId == null) {
@@ -74,6 +80,12 @@ Future<void> main(List<String> args) async {
     );
     exit(65);
   }
+
+  // Ground truth first, before our own classification gets a say. The whole
+  // value of talking to real FCM is learning what it *actually* returns; a
+  // run that only prints our enum can agree with a mistake in `_classify`
+  // and look like confirmation of it.
+  await _raw(path: path, projectId: projectId, token: token);
 
   final courier = FcmPushCourier(fileSystem: const LocalFileSystem());
   final config = PushConfig(
@@ -85,7 +97,7 @@ Future<void> main(List<String> args) async {
   try {
     final outcomes = await courier.send(
       const PushMessage(title: 'zonai probe', body: 'never delivered'),
-      const [_neverIssued],
+      [token],
       config: config,
     );
 
@@ -130,5 +142,65 @@ Future<void> main(List<String> args) async {
     exitCode = 1;
   } finally {
     await courier.close();
+  }
+}
+
+/// Asks FCM directly and prints the untouched HTTP status and `error.status`.
+///
+/// This is the only output in the file that is not filtered through zonai's
+/// own reading of the reply, which is exactly why it exists: the
+/// classification table was written from documentation, and the point of
+/// reaching real FCM is to check the documentation, not to re-print our
+/// agreement with it.
+Future<void> _raw({
+  required String path,
+  required String projectId,
+  required String token,
+}) async {
+  final client = http.Client();
+  try {
+    final cache = FcmAccessTokenCache(
+      serviceAccount: ServiceAccount.fromJson(
+        jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>,
+      ),
+      client: client,
+    );
+    final accessToken = await cache.get();
+
+    final response = await client.post(
+      Uri.parse(
+        'https://fcm.googleapis.com/v1/projects/$projectId/messages:send',
+      ),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'message': {
+          'token': token,
+          'notification': {'title': 'zonai probe', 'body': 'never delivered'},
+        },
+      }),
+    );
+
+    String? errorStatus;
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded['error'] is Map) {
+        errorStatus = (decoded['error'] as Map)['status'] as String?;
+      }
+    } on FormatException {
+      // Left null; the status code below is still the useful half.
+    }
+
+    stdout
+      ..writeln('--- what FCM actually said ---')
+      ..writeln('HTTP         : ${response.statusCode}')
+      ..writeln('error.status : ${errorStatus ?? '(none — accepted)'}')
+      ..writeln('');
+  } catch (e) {
+    stdout.writeln('raw probe failed: $e\n');
+  } finally {
+    client.close();
   }
 }
