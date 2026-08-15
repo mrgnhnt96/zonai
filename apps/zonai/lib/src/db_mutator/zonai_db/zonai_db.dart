@@ -542,6 +542,12 @@ class ZonaiDb {
     });
   }
 
+  /// Ends a flow the provider rejected and returns the `redirect_to` recorded
+  /// at start, or `null` if no consumable challenge matches [state].
+  Future<String?> abandonOAuth(String state) async {
+    return await _run(() => _abandonOAuth(state));
+  }
+
   /// §3.1 step 2: consumes the challenge, exchanges the code, resolves
   /// identity, and mints the session.
   Future<_OAuthCallbackResult> completeOAuth(

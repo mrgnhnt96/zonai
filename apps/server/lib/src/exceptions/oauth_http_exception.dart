@@ -28,10 +28,21 @@ final class OAuthProviderRejectedException extends OAuthHttpException {
   const OAuthProviderRejectedException({
     required this.provider,
     required this.error,
+    this.redirectTo,
   });
 
   final String provider;
   final String error;
+
+  /// Where the flow said to land when it started, recovered from *our own*
+  /// challenge row by `ZonaiDb.abandonOAuth` — never a value the provider
+  /// supplied, and only ever one `_isAllowedOAuthRedirect` already approved
+  /// (design §4 item 5).
+  ///
+  /// `null` when the callback carried no usable `state`, or none matched a
+  /// consumable challenge. There is then no destination this server can
+  /// justify, and the route answers 400 instead of guessing.
+  final String? redirectTo;
 
   @override
   String toString() =>

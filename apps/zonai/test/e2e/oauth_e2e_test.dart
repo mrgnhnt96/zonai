@@ -653,6 +653,50 @@ void main() {
       });
     });
 
+    test('abandonOAuth recovers the recorded redirect_to and spends the '
+        'challenge', () async {
+      if (!_runningOnDartVm) return;
+      await withDb((db) async {
+        final url = await db.startOAuth(
+          'users',
+          const StartOAuthAuthPayload(
+            provider: 'stub-verified',
+            redirectTo: '/_/auth/oauth/callback',
+          ),
+        );
+        final state = Uri.parse(url).queryParameters['state']!;
+
+        // The destination comes back out of our own challenge row -- this is
+        // what lets a cancelled sign-in return the browser to the app
+        // instead of dead-ending on a 400.
+        expect(await db.abandonOAuth(state), '/_/auth/oauth/callback');
+
+        // Spent, exactly like the success path spends it. A second call
+        // finds no consumable row, and so would a replay of the real
+        // callback.
+        expect(await db.abandonOAuth(state), isNull);
+        await expectLater(
+          db.completeOAuth(
+            CompleteOAuthAuthPayload(
+              state: state,
+              code: OAuthStubServer.code(sub: 'cancelled', email: null),
+            ),
+          ),
+          throwsA(isA<InvalidOrExpiredCodeException>()),
+        );
+      });
+    });
+
+    test(
+      'abandonOAuth returns null for a state matching no challenge',
+      () async {
+        if (!_runningOnDartVm) return;
+        await withDb((db) async {
+          expect(await db.abandonOAuth('never-minted-anywhere'), isNull);
+        });
+      },
+    );
+
     test('native admin sign-in never auto-provisions', () async {
       if (!_runningOnDartVm) return;
       await withDb((db) async {

@@ -285,7 +285,26 @@ class AuthHandler {
     String? error,
   }) async {
     if (error != null && error.isNotEmpty) {
-      throw OAuthProviderRejectedException(provider: provider, error: error);
+      // The user pressing "Cancel" is the common case here, and it is a
+      // normal outcome rather than a client error. Recover the destination
+      // the flow recorded at start so the route can send the browser back to
+      // it; `abandonOAuth` also spends the challenge, which would otherwise
+      // stay live for its full TTL after the flow it belonged to ended.
+      //
+      // A callback with no usable `state` leaves [redirectTo] null and the
+      // route falls back to answering 400 -- there is no destination this
+      // server can justify, and the provider does not get to supply one.
+      final redirectTo = switch (state) {
+        null => null,
+        final String state when state.isEmpty => null,
+        final String state => await zonaiDB.abandonOAuth(state),
+      };
+
+      throw OAuthProviderRejectedException(
+        provider: provider,
+        error: error,
+        redirectTo: redirectTo,
+      );
     }
 
     // A callback with neither an error nor a usable code/state pair is a

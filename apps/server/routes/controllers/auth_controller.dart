@@ -5,6 +5,7 @@ import 'dart:io' show HttpHeaders, HttpStatus;
 import 'package:revali_router/revali_router.dart';
 import 'package:revali_swagger_annotations/revali_swagger_annotations.dart'
     as swagger;
+import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
@@ -391,18 +392,56 @@ Future<void> _completeOAuth(
   required String? state,
   required String? error,
 }) async {
-  final result = await authHandler.completeOAuth(
-    provider: provider,
-    code: code,
-    state: state,
-    error: error,
-  );
+  final ({Map<String, Object?> user, String jwt, String? redirectTo}) result;
+  try {
+    result = await authHandler.completeOAuth(
+      provider: provider,
+      code: code,
+      state: state,
+      error: error,
+    );
+  } on OAuthProviderRejectedException catch (rejected) {
+    // A provider `error=` is usually the user pressing Cancel, which is a
+    // normal outcome mid-browser-redirect rather than a client error. The
+    // 400 this used to answer unconditionally is a dead end for a browser:
+    // the dashboard's own callback screen already renders human copy for
+    // `access_denied` and never got the chance to.
+    //
+    // Only redirect to a destination the *start* recorded and
+    // `_isAllowedOAuthRedirect` already approved -- so this cannot become an
+    // open redirect via a forged `state`. With no such destination there is
+    // nowhere defensible to send anyone, and the 400 stands.
+    if (rejected.redirectTo case final target?) {
+      _redirectWithError(response, target, rejected.error);
+      return;
+    }
+    rethrow;
+  }
 
   _redirect(
     response,
     result.redirectTo ?? _kDefaultOAuthRedirect,
     accessToken: result.jwt,
   );
+}
+
+/// 302s to [location] carrying the provider's short error *code* as `?error=`.
+///
+/// The code only -- never `error_description`, which is provider-controlled
+/// free text (design §4 item 7, and the same stance `OAuthProviderRejected
+/// Exception` takes). It goes through [Uri]'s query encoding rather than
+/// string concatenation, so a provider cannot smuggle extra parameters into a
+/// URL we assembled.
+///
+/// No session is handed over: nothing was minted, and there is nothing to
+/// hand.
+void _redirectWithError(Response response, String location, String error) {
+  final target = Uri.parse(location);
+  final withError = target.replace(
+    queryParameters: {...target.queryParameters, 'error': error},
+  );
+
+  _redirect(response, withError.toString());
 }
 
 /// Writes a 302 to [location], optionally handing the freshly minted session
