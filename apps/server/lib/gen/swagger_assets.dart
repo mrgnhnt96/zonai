@@ -918,6 +918,36 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/dashboard/push/test": {
+      "post": {
+        "operationId": "push_sendTest",
+        "tags": [
+          "push"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushTestSendBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTestSendResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/storage": {
       "get": {
         "operationId": "dashboard_storage",
@@ -2153,6 +2183,13 @@ const kSwaggerJson = r'''{
           "where"
         ]
       },
+      "DevicePlatform": {
+        "type": "string",
+        "enum": [
+          "ios",
+          "android"
+        ]
+      },
       "Email": {
         "type": "object",
         "properties": {
@@ -2638,6 +2675,87 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "table"
+        ]
+      },
+      "PushRejectionReason": {
+        "type": "string",
+        "enum": [
+          "unregistered",
+          "invalidArgument"
+        ]
+      },
+      "PushTestSendBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "column": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "platform": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DevicePlatform"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "table",
+          "column",
+          "token",
+          "title",
+          "body"
+        ]
+      },
+      "PushTestSendResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/PushTestSendStatus"
+          },
+          "token": {
+            "type": "string"
+          },
+          "transport": {
+            "type": "string"
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PushRejectionReason"
+              }
+            ],
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status",
+          "token",
+          "transport"
+        ]
+      },
+      "PushTestSendStatus": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "rejected",
+          "failed"
         ]
       },
       "Remove": {
@@ -3765,6 +3883,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DashboardMetrics'
+  '/dashboard/push/test':
+    post:
+      operationId: push_sendTest
+      tags:
+        - push
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushTestSendBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushTestSendResult'
   '/dashboard/storage':
     get:
       operationId: dashboard_storage
@@ -4560,6 +4696,11 @@ components:
       required:
         - table
         - where
+    DevicePlatform:
+      type: string
+      enum:
+        - ios
+        - android
     Email:
       type: object
       properties:
@@ -4889,6 +5030,60 @@ components:
           type: string
       required:
         - table
+    PushRejectionReason:
+      type: string
+      enum:
+        - unregistered
+        - invalidArgument
+    PushTestSendBody:
+      type: object
+      properties:
+        table:
+          type: string
+        column:
+          type: string
+        token:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        platform:
+          allOf:
+            - $ref: '#/components/schemas/DevicePlatform'
+          nullable: true
+      required:
+        - table
+        - column
+        - token
+        - title
+        - body
+    PushTestSendResult:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/PushTestSendStatus'
+        token:
+          type: string
+        transport:
+          type: string
+        reason:
+          allOf:
+            - $ref: '#/components/schemas/PushRejectionReason'
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+      required:
+        - status
+        - token
+        - transport
+    PushTestSendStatus:
+      type: string
+      enum:
+        - accepted
+        - rejected
+        - failed
     Remove:
       type: object
       properties:

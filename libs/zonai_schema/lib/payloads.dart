@@ -7,6 +7,7 @@
 library;
 
 export 'src/config/app_config.dart';
+export 'src/config/apns_config.dart' show DevicePlatform;
 export 'src/config/photos_config.dart';
 export 'src/types/image_mime_type.dart';
 export 'src/payloads/admin_invite_body.dart';
@@ -27,6 +28,8 @@ export 'src/types/collection_actions.dart';
 export 'src/types/schema_shape.dart';
 export 'src/schema_cell_display.dart';
 export 'src/payloads/maintenance_actions.dart';
+export 'src/payloads/push_test_send.dart';
+export 'src/types/push_outcome.dart';
 export 'src/payloads/storage_metrics.dart';
 export 'src/utils/format_bytes.dart';
 export 'src/payloads/stream_body.dart';
