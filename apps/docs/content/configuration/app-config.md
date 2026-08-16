@@ -34,10 +34,12 @@ The public-facing URL of the server. Used to build links in auth emails (passwor
 ### JWT Lifetime
 
 ```dart in:app-config
-jwtExpiresIn: const Duration(days: 14),  // default: 14 days
+jwtExpiresIn: const Duration(hours: 24),  // default: 24 hours
 ```
 
 Global token lifetime for all auth tables. To override per auth table, set `jwtExpiresIn` on the table's `AuthOperations` class — see [Auth Operations](/operations/auth-operations).
+
+Because there is no separate refresh token — `/auth/refresh` needs a token that has not yet expired — this value is also the idle timeout. Shortening it below a few hours will sign users out unless your client refreshes on a timer.
 
 ### Secret Rotation
 

@@ -211,6 +211,12 @@ class ZonaiDb {
   _sanitizeMetaCache = {};
   final Map<String, String?> _columnNameCache = {};
 
+  /// Schema-derived admin powers per auth table, consulted by `_validateJwt`
+  /// on every authenticated request. Safe to cache for the process lifetime:
+  /// `AsAdmin` is declared in source, so changing it means a recompile and a
+  /// restart.
+  final Map<String, ({bool isAdmin, bool canEdit})> _adminStatusCache = {};
+
   /// Lazily detected: when the project has no extension Dart files (and no
   /// internal extensions), create/update/delete skip the extensions worker
   /// entirely.
@@ -274,6 +280,7 @@ class ZonaiDb {
     _operationCache.clear();
     _sanitizeMetaCache.clear();
     _columnNameCache.clear();
+    _adminStatusCache.clear();
     _hasProjectExtensions = null;
     for (final verifier in _jwksVerifiers.values) {
       verifier.dispose();

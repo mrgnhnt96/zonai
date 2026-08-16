@@ -22,7 +22,7 @@ final class AppConfig {
     this.baseUrl = 'http://localhost:8080',
     this.email,
     this.push,
-    this.jwtExpiresIn = const Duration(days: 14),
+    this.jwtExpiresIn = const Duration(hours: 24),
     this.photos = const PhotosConfig(
       maxBytes: 5 * 1024 * 1024, // 5MB
       allowedMimeTypes: ImageMimeType.defaultAllowed,
@@ -43,7 +43,7 @@ final class AppConfig {
         : null,
     baseUrl: json['baseUrl'] as String? ?? 'http://localhost:8080',
     jwtExpiresIn: json['jwtExpiresIn'] == null
-        ? const Duration(days: 14)
+        ? const Duration(hours: 24)
         : Duration(seconds: json['jwtExpiresIn'] as int),
     trustedProxy: TrustedProxyConfig.fromJson(
       json['trustedProxy'] as Map<String, dynamic>?,
@@ -79,7 +79,17 @@ final class AppConfig {
 
   /// Default lifetime for issued access tokens (JWTs).
   ///
-  /// Defaults to 14 days. Auth tables may override via `jwtExpiresIn`.
+  /// Defaults to 24 hours. Auth tables may override via `jwtExpiresIn`.
+  ///
+  /// It was 14 days, which is a long time to be unable to withdraw a session.
+  /// It is not shorter than a day because Zonai has no refresh-token flow:
+  /// `/auth/refresh` needs a token that is still valid, and the Dart client
+  /// does not refresh on its own, so the lifetime *is* the idle timeout. An
+  /// hour-long default would sign users out hourly.
+  ///
+  /// Note that expiry is not what bounds an admin grant. Admin is re-derived
+  /// from the schema on every request (see `_validateJwt`), so a demotion is
+  /// effective immediately regardless of this value.
   final Duration jwtExpiresIn;
 
   final PhotosConfig photos;
@@ -102,14 +112,28 @@ final class AppConfig {
   void validate() {
     final errors = <String>[];
     if (appName.isEmpty) errors.add('appName is empty');
-    if (jwtSecret.isEmpty)
+    errors.addAll(_secretErrors(jwtSecret, 'jwtSecret', 'JWT_SECRET'));
+    errors.addAll(
+      _secretErrors(passwordSecret, 'passwordSecret', 'PASSWORD_SECRET'),
+    );
+
+    // Reusing one value for both means a leak of either is a leak of both, and
+    // it lets a password-hash pepper be used to mint tokens.
+    if (jwtSecret.isNotEmpty && jwtSecret == passwordSecret) {
+      errors.add('jwtSecret and passwordSecret must not be the same value');
+    }
+
+    // Rotation that retires a secret to itself retires nothing: the "old"
+    // value is still the one signing new credentials.
+    if (previousJwtSecrets.contains(jwtSecret)) {
+      errors.add('previousJwtSecrets must not contain the active jwtSecret');
+    }
+    if (previousPasswordSecrets.contains(passwordSecret)) {
       errors.add(
-        'jwtSecret is empty — set the JWT_SECRET environment variable',
+        'previousPasswordSecrets must not contain the active passwordSecret',
       );
-    if (passwordSecret.isEmpty)
-      errors.add(
-        'passwordSecret is empty — set the PASSWORD_SECRET environment variable',
-      );
+    }
+
     // `PushConfig`'s own bounds are `assert`s, and asserts are stripped from a
     // release build -- which is exactly where this would matter. A
     // `batchSize` of 0 makes every recipient query `LIMIT 0`, so every job
@@ -181,6 +205,140 @@ final class AppConfig {
     'trustedProxy': trustedProxy.toJson(),
     'externalIdps': externalIdps.map((idp) => idp.toJson()).toList(),
   };
+
+  /// Returns a copy with any secret the process environment supplies taking
+  /// precedence over the one compiled in.
+  ///
+  /// Zonai bakes `.env` into the binary as `-D` defines (see
+  /// `apps/zonai/lib/src/domain/env.dart`), so a compiled artifact carries its
+  /// production signing key in plain text — `strings` on the binary is enough
+  /// to recover it, and anyone who can read the artifact can then mint tokens.
+  /// Reading the same names back from the real environment at process start
+  /// lets a deployment ship a binary that contains no secret at all and inject
+  /// them the way every other runtime does.
+  ///
+  /// [environment] is passed in rather than read from `Platform.environment`
+  /// so this file stays free of `dart:io` (`zonai_schema` is also compiled for
+  /// the web dashboard). Callers on the server pass `Platform.environment`.
+  ///
+  /// Empty and whitespace-only values are ignored: an unset variable that some
+  /// shell wrapper expanded to `''` must not blank out a working config, it
+  /// must leave it alone.
+  AppConfig withSecretsFromEnvironment(Map<String, String> environment) {
+    String pick(String name, String fallback) {
+      final value = environment[name]?.trim();
+      return (value == null || value.isEmpty) ? fallback : value;
+    }
+
+    List<String> pickList(String name, List<String> fallback) {
+      final raw = environment[name]?.trim();
+      if (raw == null || raw.isEmpty) return fallback;
+      final parts = [
+        for (final part in raw.split(','))
+          if (part.trim().isNotEmpty) part.trim(),
+      ];
+      return parts.isEmpty ? fallback : parts;
+    }
+
+    return AppConfig(
+      appName: appName,
+      passwordSecret: pick('PASSWORD_SECRET', passwordSecret),
+      jwtSecret: pick('JWT_SECRET', jwtSecret),
+      previousPasswordSecrets: pickList(
+        'PREVIOUS_PASSWORD_SECRETS',
+        previousPasswordSecrets,
+      ),
+      previousJwtSecrets: pickList('PREVIOUS_JWT_SECRETS', previousJwtSecrets),
+      baseUrl: baseUrl,
+      email: email,
+      push: push,
+      jwtExpiresIn: jwtExpiresIn,
+      photos: photos,
+      trustedProxy: trustedProxy,
+      externalIdps: externalIdps,
+    );
+  }
+
+  /// Shortest accepted secret. HS256's key is 256 bits, and a secret shorter
+  /// than its own MAC output is the weakest link in the signature.
+  static const minSecretLength = 32;
+
+  /// Distinct characters a secret must contain.
+  ///
+  /// Length alone passes `aaaaaaaa...`; 32 bytes of hex has 16 possible
+  /// characters and in practice uses nearly all of them, so this rejects
+  /// padded placeholders without rejecting anything a generator produces.
+  static const _minDistinctCharacters = 8;
+
+  /// Values seen in this project's own scaffolds, docs and deployments, plus
+  /// the obvious guesses. Compared against the whole secret, lowercased.
+  ///
+  /// `'jwt'` is not hypothetical: it was the live signing key in
+  /// `apps/playground`, and guessing it was enough to mint an admin token.
+  static const _blockedSecrets = {
+    'admin',
+    'change-me',
+    'change-me-jwt-secret',
+    'change-me-password-secret',
+    'changeme',
+    'dev',
+    'dev-secret',
+    'jwt',
+    'jwt-secret',
+    'jwtsecret',
+    'password',
+    'password-secret',
+    'secret',
+    'test',
+    'test-secret',
+    'unconfigured',
+    'zonai',
+  };
+
+  /// Substrings that only ever appear in a value nobody replaced.
+  static const _blockedFragments = {
+    'change-me',
+    'changeme',
+    'replace-with',
+    'replace-me',
+    'replacewith',
+    'placeholder',
+    'your-secret',
+    'insert-secret',
+  };
+
+  static List<String> _secretErrors(String value, String field, String envVar) {
+    if (value.isEmpty) {
+      return ['$field is empty — set the $envVar environment variable'];
+    }
+
+    final lowered = value.toLowerCase();
+
+    if (_blockedSecrets.contains(lowered) ||
+        _blockedFragments.any(lowered.contains)) {
+      return [
+        '$field is a placeholder or well-known value — anyone can guess it. '
+            'Set $envVar to a random secret '
+            '(`openssl rand -base64 48`).',
+      ];
+    }
+
+    final errors = <String>[];
+    if (value.length < minSecretLength) {
+      errors.add(
+        '$field is ${value.length} characters; at least $minSecretLength are '
+        'required (HS256 signs with a 256-bit key). Set $envVar to a random '
+        'secret (`openssl rand -base64 48`).',
+      );
+    }
+    if (value.split('').toSet().length < _minDistinctCharacters) {
+      errors.add(
+        '$field uses too few distinct characters to be random. Set $envVar to '
+        'a random secret (`openssl rand -base64 48`).',
+      );
+    }
+    return errors;
+  }
 
   static List<String> _stringList(Object? value) {
     if (value == null) return const [];

@@ -104,22 +104,25 @@ void main() {
           );
           if (message.tooLargeReason != null) continue;
 
-          final wire = utf8.encode(
-            jsonEncode({
-              'message': {
-                'token': 'f' * 200, // longer than any token seen in practice
-                'notification': {
-                  'title': message.title,
-                  'body': message.body,
-                },
-                'data': message.data,
-                'android': {'collapse_key': message.collapseKey},
-                'apns': {
-                  'headers': {'apns-collapse-id': message.collapseKey},
-                },
-              },
-            }),
-          ).length;
+          final wire = utf8
+              .encode(
+                jsonEncode({
+                  'message': {
+                    'token':
+                        'f' * 200, // longer than any token seen in practice
+                    'notification': {
+                      'title': message.title,
+                      'body': message.body,
+                    },
+                    'data': message.data,
+                    'android': {'collapse_key': message.collapseKey},
+                    'apns': {
+                      'headers': {'apns-collapse-id': message.collapseKey},
+                    },
+                  },
+                }),
+              )
+              .length;
 
           expect(
             wire,
@@ -231,8 +234,8 @@ void main() {
     test('carries push through a round trip', () {
       final original = AppConfig(
         appName: 'app',
-        passwordSecret: 'p',
-        jwtSecret: 'j',
+        passwordSecret: _passwordSecret,
+        jwtSecret: _jwtSecret,
         push: const PushConfig(
           projectId: 'proj',
           credentials: PushCredentials.file('/keys/sa.json'),
@@ -249,8 +252,8 @@ void main() {
     test('a project with no push config decodes as null, not a default', () {
       const original = AppConfig(
         appName: 'app',
-        passwordSecret: 'p',
-        jwtSecret: 'j',
+        passwordSecret: _passwordSecret,
+        jwtSecret: _jwtSecret,
       );
 
       final restored = AppConfig.fromJson(_roundTrip(original.toJson()));
@@ -309,8 +312,7 @@ void main() {
       );
 
       final restored =
-          Request.fromJson(_roundTrip(original.toJson()))
-              as EnqueuePushRequest;
+          Request.fromJson(_roundTrip(original.toJson())) as EnqueuePushRequest;
 
       // An empty `And([])` renders as `WHERE ()`, which is a syntax error,
       // and "every row with a token" is a meaningful, different thing.
@@ -388,8 +390,8 @@ void main() {
   group('AppConfig.validate', () {
     AppConfig configWith(PushConfig push) => AppConfig(
       appName: 'app',
-      passwordSecret: 'p',
-      jwtSecret: 'j',
+      passwordSecret: _passwordSecret,
+      jwtSecret: _jwtSecret,
       push: push,
     );
 
@@ -442,8 +444,8 @@ void main() {
       expect(
         const AppConfig(
           appName: 'app',
-          passwordSecret: 'p',
-          jwtSecret: 'j',
+          passwordSecret: _passwordSecret,
+          jwtSecret: _jwtSecret,
         ).validate,
         returnsNormally,
       );
@@ -508,3 +510,9 @@ final class _TokensTable extends Table<_TokenRow> {
 }
 
 final _tokens = table('device_tokens', _TokensTable.new);
+
+/// Real-shaped secrets: `AppConfig.validate()` rejects short and low-entropy
+/// values, and these tests are about push, so a secret complaint here would be
+/// noise reported as a push failure.
+const _jwtSecret = 'push-wire-test-jwt-Qm3xR9vB2wLpZ4dHnT6yUsA8';
+const _passwordSecret = 'push-wire-test-pw-Kf7YbQ5nTz9KwMr2VxHd4Cs';

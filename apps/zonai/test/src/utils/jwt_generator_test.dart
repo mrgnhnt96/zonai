@@ -28,7 +28,7 @@ String _manualJwt({
 }
 
 void main() {
-  const pepper = 'test-jwt-pepper';
+  const pepper = 'test-jwt-pepper-FlKE4k114F5I3XDPAdliKX6gRqv9u7G';
   late JwtGenerator jwt;
 
   setUp(() => jwt = JwtGenerator(jwtSecret: pepper));

@@ -48,9 +48,9 @@ extension _OtpX on ZonaiDb {
     await _expireOldChallenges(table: table, email: payload.email, type: .otp);
 
     final expiresIn = const Duration(minutes: 10);
-    final otp = switch (kIsCompiled) {
-      false => '123456',
-      true => Random.secure().nextInt(1000000).toString().padLeft(6, '0'),
+    final otp = switch (_insecureTestMode()) {
+      true => kInsecureTestOtp,
+      false => Random.secure().nextInt(1000000).toString().padLeft(6, '0'),
     };
     final hashedOtp = await _hashPassword.hash(password: otp);
 
