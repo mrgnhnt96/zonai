@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:revali_router/revali_router.dart';
 import 'package:zonai_server/src/handlers/dashboard_handler.dart';
 import 'package:zonai_schema/src/payloads/dashboard_metrics.dart';
+import 'package:zonai_schema/src/payloads/storage_metrics.dart';
 
 @Controller('dashboard')
 class DashboardController {
@@ -21,5 +22,12 @@ class DashboardController {
       since: since,
       excludeAdmin: excludeAdmin,
     );
+  }
+
+  @Get('storage')
+  Future<StorageMetrics> storage({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+  }) {
+    return dashboardHandler.storage(authorization);
   }
 }

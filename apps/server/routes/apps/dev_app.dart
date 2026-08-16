@@ -13,6 +13,7 @@ import 'package:zonai_server/src/handlers/cron_handler.dart';
 import 'package:zonai_server/src/handlers/dashboard_handler.dart';
 import 'package:zonai_server/src/handlers/db_handler.dart';
 import 'package:zonai_server/src/handlers/email_handler.dart';
+import 'package:zonai_server/src/handlers/maintenance_handler.dart';
 import 'package:zonai_server/src/handlers/photo_handler.dart';
 
 import '../components/exception_catcher.dart';
@@ -172,6 +173,7 @@ final class DevApp extends AppConfig {
     di.registerFactory(AuthHandler.new);
     di.registerFactory(DashboardHandler.new);
     di.registerFactory(CronHandler.new);
+    di.registerFactory(MaintenanceHandler.new);
     di.registerFactory(EmailHandler.new);
     di.registerFactory(PhotoHandler.new);
   }

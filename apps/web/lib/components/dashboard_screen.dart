@@ -1,12 +1,16 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+// `show`: payloads.dart also exports a `DashboardMetrics`, and this file means
+// the provider's one.
+import 'package:zonai_schema/payloads.dart' show formatBytes;
 
 import '../auth/auth_routes.dart';
 import '../constants/button_sizes.dart';
 import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/maintenance_provider.dart';
 import '../utils/cron_job_summary.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
@@ -92,6 +96,11 @@ class DashboardScreen extends StatelessComponent {
               _StatCard(label: 'p95 Response', value: statsData != null ? _fmtMs(statsData.p95ResponseMs) : '—'),
               _StatCard(label: 'Active Sessions', value: statsData != null ? _fmtNum(statsData.activeSessions) : '—'),
             ]),
+            // Storage at a glance, linking to the Maintenance screen that
+            // breaks it down. Deliberately three numbers and a link: the
+            // collection behind them is expensive, and the dashboard is
+            // read-only by contract.
+            const _StorageStrip(),
             // Requests graph + Top errors
             div(classes: 'dashboard-row', [
               div(classes: 'dashboard-panel dashboard-panel--wide', [
@@ -323,6 +332,32 @@ class DashboardScreen extends StatelessComponent {
         '.dashboard-panel-heading',
       ).styles(display: .flex, flexDirection: FlexDirection.row, alignItems: .center, justifyContent: .spaceBetween),
       css('.dashboard-refresh-icon').styles(width: 1.em, height: 1.em, display: .block),
+      // Compact storage strip, linking to the Maintenance screen.
+      css('.dashboard-storage-strip', [
+        css('&').styles(
+          display: .flex,
+          flexDirection: FlexDirection.row,
+          flexWrap: .wrap,
+          alignItems: .center,
+          gap: Gap.all(ZonaiSpacing.s6),
+          padding: .symmetric(vertical: ZonaiSpacing.s5, horizontal: ZonaiSpacing.s8),
+          backgroundColor: surfaceColor,
+          border: .all(color: borderColor, width: 1.px, style: .solid),
+          radius: .all(Radius.circular(12.px)),
+          fontSize: 0.8125.rem,
+          color: mutedColor,
+          textDecoration: const TextDecoration(line: TextDecorationLine.none),
+        ),
+        css('&:hover').styles(border: .all(color: primaryColor, width: 1.px, style: .solid)),
+        css('.dashboard-storage-strip-label').styles(
+          fontSize: 0.6875.rem,
+          fontWeight: .w600,
+          letterSpacing: 0.04.rem,
+          textTransform: .upperCase,
+        ),
+        css('.dashboard-storage-strip-value').styles(color: fgColor, fontWeight: .w600),
+        css('.dashboard-storage-strip-more').styles(margin: .only(left: .auto), color: primaryColor, fontWeight: .w600),
+      ]),
       css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
         flex: Flex(grow: 1, shrink: 0),
@@ -545,6 +580,35 @@ class DashboardScreen extends StatelessComponent {
       css.media(MediaQuery.all(maxWidth: 640.px), [css('.dashboard-header').styles(display: .none)]),
     ]),
   ];
+}
+
+/// Total DB / photos / free, linking to the Maintenance screen.
+class _StorageStrip extends StatelessComponent {
+  const _StorageStrip();
+
+  @override
+  Component build(BuildContext context) {
+    final isClient = context.binding.isClient;
+    final storage = isClient ? context.watch(storageMetricsProvider).value : null;
+
+    return a(href: AuthRoutes.toUrlPath(AuthRoutes.maintenance), classes: 'dashboard-storage-strip', [
+      span(classes: 'dashboard-storage-strip-label', [.text('Storage')]),
+      span(classes: 'dashboard-storage-strip-value', [
+        .text(storage == null ? '—' : formatBytes(storage.totalDatabaseBytes)),
+      ]),
+      span([.text('databases')]),
+      span(classes: 'dashboard-storage-strip-value', [
+        .text(storage == null ? '—' : formatBytes(storage.photosBytes)),
+      ]),
+      span([.text('photos')]),
+      // Unknown free space is a word, not a zero — see [formatOptionalBytes].
+      span(classes: 'dashboard-storage-strip-value', [
+        .text(storage == null ? '—' : formatOptionalBytes(storage.freeDiskBytes)),
+      ]),
+      span([.text('free')]),
+      span(classes: 'dashboard-storage-strip-more', [.text('Maintenance →')]),
+    ]);
+  }
 }
 
 class _StatCard extends StatelessComponent {

@@ -5,6 +5,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/web.dart' as web;
 
+import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import '../constants/theme.dart';
 import '../providers/app_name_provider.dart';
@@ -86,6 +87,11 @@ class HomeSidebar extends StatelessComponent {
             child: .text(collapsed ? '›' : '‹'),
           ),
         ]),
+        // Screen navigation. Before this existed the Dashboard was reachable
+        // only by clicking the brand above, which is not a control anyone
+        // reads as navigation — so a second screen needed a place to be
+        // linked from, and the first one needed to become discoverable.
+        _SidebarNav(collapsed: collapsed),
         div(classes: 'home-sidebar-panels', [
           _SidebarListArea(
             regionClass: 'home-sidebar-body',
@@ -268,6 +274,39 @@ class HomeSidebar extends StatelessComponent {
         '&--collapsed .home-sidebar-expand-only',
       ).styles(raw: const {'max-width': '0', 'opacity': '0', 'pointer-events': 'none'}),
       css('.home-sidebar-toggle').styles(flex: Flex(grow: 0, shrink: 0), fontWeight: .w600),
+      css('.home-sidebar-nav').styles(
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s1),
+        padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s2),
+      ),
+      css('.home-sidebar-nav-item', [
+        css('&').styles(
+          display: .flex,
+          flexDirection: FlexDirection.row,
+          alignItems: .center,
+          gap: Gap.all(ZonaiSpacing.s4),
+          padding: .symmetric(vertical: ZonaiSpacing.s3, horizontal: ZonaiSpacing.s3),
+          radius: .all(Radius.circular(6.px)),
+          fontSize: 0.8125.rem,
+          fontWeight: .w500,
+          color: mutedColor,
+          textDecoration: const TextDecoration(line: TextDecorationLine.none),
+          whiteSpace: .noWrap,
+          overflow: Overflow.hidden,
+        ),
+        css('&:hover').styles(backgroundColor: hoverColor, color: fgColor),
+        css('.home-sidebar-nav-icon').styles(
+          flex: Flex(grow: 0, shrink: 0),
+          width: 16.px,
+          textAlign: .center,
+          fontSize: 0.875.rem,
+        ),
+      ]),
+      css(
+        '.home-sidebar-nav-item--active',
+      ).styles(backgroundColor: selectedBgColor, color: fgColor, fontWeight: .w600),
+      css('&--collapsed .home-sidebar-nav').styles(padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: ZonaiSpacing.s2)),
       css('.home-sidebar-body').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,
@@ -800,6 +839,55 @@ class _RailTableButton extends StatelessComponent {
       events: appTooltipEvents(context, text: table.displayName, placement: AppTooltipPlacement.rightCenter),
       onClick: onSelect,
       child: .text(label),
+    );
+  }
+}
+
+/// Links to the app's screens, as opposed to its tables.
+///
+/// The active item is decided from [authRouteProvider], the same normalized
+/// app path the auth guards and page titles read, so it stays correct for a
+/// direct load as well as a client-side navigation.
+class _SidebarNav extends StatelessComponent {
+  const _SidebarNav({required this.collapsed});
+
+  final bool collapsed;
+
+  @override
+  Component build(BuildContext context) {
+    final path = context.watch(authRouteProvider);
+
+    return nav(classes: 'home-sidebar-nav', [
+      _navItem(context, route: AuthRoutes.home, icon: '◫', label: 'Dashboard', active: path == AuthRoutes.home),
+      _navItem(
+        context,
+        route: AuthRoutes.maintenance,
+        icon: '⚙',
+        label: 'Maintenance',
+        active: path == AuthRoutes.maintenance,
+      ),
+    ]);
+  }
+
+  Component _navItem(
+    BuildContext context, {
+    required String route,
+    required String icon,
+    required String label,
+    required bool active,
+  }) {
+    return a(
+      href: AuthRoutes.toUrlPath(route),
+      classes: 'home-sidebar-nav-item${active ? ' home-sidebar-nav-item--active' : ''}',
+      attributes: active ? {'aria-current': 'page'} : null,
+      // Collapsed to a 52px rail the label cannot fit in, so the name has to
+      // come from somewhere; the tooltip is the same affordance the collapsed
+      // table rail uses.
+      events: collapsed ? appTooltipEvents(context, text: label, placement: AppTooltipPlacement.rightCenter) : null,
+      [
+        span(classes: 'home-sidebar-nav-icon', [.text(icon)]),
+        span(classes: 'home-sidebar-expand-only', [.text(label)]),
+      ],
     );
   }
 }

@@ -46,7 +46,6 @@ import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwks_idp_verifier.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
-import 'package:zonai/src/utils/format_bytes.dart';
 import 'package:zonai/src/utils/free_disk_space.dart';
 import 'package:zonai/src/utils/photo_stream_utils.dart';
 import 'package:zonai/src/utils/shared_secret_idp_verifier.dart';
@@ -97,6 +96,7 @@ part 'parts/push.dart';
 part 'parts/read.dart';
 part 'parts/reclaim_log_space.dart';
 part 'parts/resolve_photos.dart';
+part 'parts/storage_metrics.dart';
 part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
@@ -528,6 +528,15 @@ class ZonaiDb {
       () =>
           _dashboardMetrics(jwt: jwt, since: since, excludeAdmin: excludeAdmin),
     );
+  }
+
+  /// How much space zonai is using, and how much is left.
+  ///
+  /// Not folded into [dashboardMetrics]: this shells out to `df`, walks the
+  /// photos directory and makes two pragma round trips per database file, and
+  /// the dashboard polls its metrics on a timer.
+  Future<StorageMetrics> storageMetrics({required Jwt jwt}) async {
+    return await _run(() => _storageMetrics(jwt: jwt));
   }
 
   Future<void> runCronJob({required Jwt jwt, required String name}) async {
