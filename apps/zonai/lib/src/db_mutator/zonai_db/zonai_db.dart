@@ -201,7 +201,10 @@ class ZonaiDb {
   /// Host-side caches so repeated list/get calls avoid Mailman IPC after the
   /// first resolve. Cleared implicitly when this [ZonaiDb] is disposed (new
   /// process / worker recompile restarts the server).
-  final Map<String, TableRulesResponse> _tableAccessCache = {};
+  /// Table-rule verdicts with the time each was decided, so
+  /// [UtilsX._cachedTableRules] can expire one instead of serving it forever.
+  final Map<String, ({TableRulesResponse response, DateTime at})>
+  _tableAccessCache = {};
   final Map<String, bool> _skipRowChecks = {};
   final Map<String, PerformOperationResponse> _operationCache = {};
   final Map<String, ({List<String> secretColumns, List<String> photoColumns})>

@@ -156,11 +156,15 @@ extension _DeleteX on ZonaiDb {
         throw RecordNotFoundException(table: table);
       }
 
+      // Nothing matched, so nothing is authorized: `In(id, [])` renders as
+      // `1 = 0`. `_delete` returns early on the empty object list and never
+      // runs this, but a delete built from a read that found nothing should
+      // not be capable of removing anything if it ever were run.
       final deleteOperation = await _getOperation(
         DeleteOperationRequest(
           table: table,
-          where: payload.where,
-          limit: payload.limit,
+          where: await _authorizedRowsWhere(table, const []),
+          limit: null,
           jwt: jwt,
         ),
       );
@@ -204,11 +208,16 @@ extension _DeleteX on ZonaiDb {
       logger.trace('photo_file_delete');
     }
 
+    // Keyed to the rows just read and authorized, NOT to `payload.where` --
+    // and with no `limit`, because the id set already *is* the limit. The
+    // caller's `limit` selected which rows to authorize (via the ordered read
+    // above); re-applying it to an unordered `pk IN (SELECT … LIMIT n)` is
+    // what let a `deleteOne` authorize the newest row and delete the oldest.
     final deleteOperation = await _getOperation(
       DeleteOperationRequest(
         table: table,
-        where: payload.where,
-        limit: payload.limit,
+        where: await _authorizedRowsWhere(table, rows),
+        limit: null,
         jwt: jwt,
       ),
     );

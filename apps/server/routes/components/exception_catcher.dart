@@ -146,6 +146,19 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 400,
         body: {'error': '$exception'},
       ),
+      // All 400: each names something wrong with the *request* -- a filter on
+      // a column that may not be filtered, an operation named after a classic
+      // verb, an operation the table does not implement. Reporting the message
+      // is safe here for the same reason it is for the cases above: each one
+      // describes schema shape or the caller's own input, never row data. A
+      // secret column's name is not a secret; its value is, and that is what
+      // refusing the filter protects.
+      SecretColumnFilterException() ||
+      CustomOperationNameCollisionException() ||
+      CustomOperationNotImplementedException() => .handled(
+        statusCode: 400,
+        body: {'error': '$exception'},
+      ),
       DatabaseNotOpenException() => .handled(
         statusCode: 503,
         body: {'error': '$exception'},
