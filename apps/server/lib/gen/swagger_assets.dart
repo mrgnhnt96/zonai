@@ -89,6 +89,47 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/auth/admin/oauth/start/{provider}": {
+      "get": {
+        "operationId": "auth_startAdminOAuth",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider's authorization endpoint. Carries `state` and `code_challenge` in the Location header."
+          },
+          "400": {
+            "description": "`redirect_to` is neither a relative path nor this app's own origin"
+          },
+          "404": {
+            "description": "No admin collection is configured for OAuth sign-in, or it has no such provider"
+          },
+          "429": {
+            "description": "oauthStart rate limit exceeded"
+          }
+        }
+      }
+    },
     "/auth/all": {
       "delete": {
         "operationId": "auth_logoutAll",
@@ -2526,6 +2567,32 @@ paths:
                 type: object
                 additionalProperties: true
                 nullable: true
+  '/auth/admin/oauth/start/{provider}':
+    get:
+      operationId: auth_startAdminOAuth
+      tags:
+        - auth
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: redirect_to
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '302':
+          description: Redirect to the provider's authorization endpoint. Carries `state` and `code_challenge` in the Location header.
+        '400':
+          description: '`redirect_to` is neither a relative path nor this app''s own origin'
+        '404':
+          description: No admin collection is configured for OAuth sign-in, or it has no such provider
+        '429':
+          description: oauthStart rate limit exceeded
   '/auth/all':
     delete:
       operationId: auth_logoutAll
