@@ -9,8 +9,9 @@ import 'package:zonai_schema/zonai_schema.dart';
 AppConfig main() {
   return const AppConfig(
     appName: 'Zonai Build Smoke',
-    passwordSecret: 'build-smoke-password-pepper',
-    jwtSecret: 'build-smoke-jwt-secret',
+    passwordSecret:
+        'build-smoke-password-pepper-hAxdYZJQbJiPoUORYnjP6jBkWpLCSrOi',
+    jwtSecret: 'build-smoke-jwt-secret-jkVId7MNsmPtRPvInzI4B71BGG0lOZmu',
     baseUrl: 'http://localhost:8080',
   );
 }

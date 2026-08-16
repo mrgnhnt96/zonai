@@ -114,6 +114,8 @@ class ConfigGenerator {
 
   String _dbConfigDartSource(({String alias, String importPath}) entry) {
     final b = StringBuffer();
+    b.writeln("import 'dart:io' show Platform;");
+    b.writeln();
     b.writeln(
       "import 'package:zonai_schema/src/handlers/config/db_config.dart' as db_config;",
     );
@@ -159,8 +161,15 @@ class ConfigGenerator {
     );
     b.writeln('    );');
     b.writeln('  }');
-    b.writeln('  value.validate();');
-    b.writeln('  return value;');
+    // The process environment wins over the compile-time `-D` define, so a
+    // deployment can ship a binary with no secret baked into it at all. See
+    // `AppConfig.withSecretsFromEnvironment`. Applied before `validate()` so
+    // the strength check runs against the secret actually in use.
+    b.writeln(
+      '  final config = value.withSecretsFromEnvironment(Platform.environment);',
+    );
+    b.writeln('  config.validate();');
+    b.writeln('  return config;');
     b.writeln('}');
     return b.toString();
   }

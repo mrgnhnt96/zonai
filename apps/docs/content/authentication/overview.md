@@ -63,7 +63,7 @@ See [Auth Tables](/schemas/auth-tables) for how to add them to a table.
 
 ## Token Lifetime
 
-Tokens expire after 14 days by default. This is configured globally via `AppConfig.jwtExpiresIn`, and can be overridden per auth table in its `AuthOperations` class. After expiry, requests with the token return `401 Unauthorized`. See [Session Management](/authentication/session-management) for how to refresh tokens.
+Tokens expire after 24 hours by default. This is configured globally via `AppConfig.jwtExpiresIn`, and can be overridden per auth table in its `AuthOperations` class. After expiry, requests with the token return `401 Unauthorized`. See [Session Management](/authentication/session-management) for how to refresh tokens.
 
 ## Token Revocation
 

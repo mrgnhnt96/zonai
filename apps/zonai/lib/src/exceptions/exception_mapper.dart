@@ -122,6 +122,7 @@ String? operationRequestTable(OperationRequest request) {
     ViewAuthOperationRequest(:final table) => table,
     CreateAuthOperationRequest(:final table) => table,
     GetJwtConfigOperationRequest(:final table) => table,
+    GetTableAdminStatusRequest(:final table) => table,
     SanitizeOperationRequest(:final table) => table,
     GetMagicLinkConfigOperationRequest(:final table) => table,
     GetResetPasswordConfigOperationRequest(:final table) => table,
