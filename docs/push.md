@@ -69,6 +69,60 @@ You *can* put the token column on `users`. Prefer not to:
 
 The default (`clearColumn`) exists partly because nothing stops you doing this, and a destructive default cannot be justified when the framework cannot tell the two table shapes apart.
 
+### Recording which platform a token belongs to
+
+One row per device is the shape everything below assumes. A person with a phone and a tablet has two rows; replacing an app means a new token and, usually, a new row.
+
+An FCM token and an APNs token are both opaque strings, and **nothing about the value says which service issued it.** Zonai will not guess from the shape — that works until an SDK changes its format, and then it fails silently, per device, in production. So the app records it:
+
+```dart in:push-device-tokens
+final class DeviceTokenTable extends Table<DeviceToken> {
+  DeviceTokenTable(super.$)
+    : id = $.id(
+        'id',
+        (s) => s.id,
+        fromString: UsersId.new,
+        generate: UsersId.generate,
+      ),
+      userId = $.text('user_id', (s) => s.userId),
+      token = $.deviceToken('token', (s) => s.token),
+      platform = $.text('platform', (s) => s.platform);
+
+  @override
+  DeviceToken fromRow(RowReader read) => DeviceToken(
+    id: read(id),
+    userId: read(userId),
+    token: read(token),
+    platform: read(platform),
+  );
+
+  final IdColumn<UsersId> id;
+  final TextColumn userId;
+  final ColumnType<String?> token;
+  final TextColumn platform;
+}
+```
+
+Store `'ios'` or `'android'`. Case does not matter, and `apple`, `iphone` and `ipad` are accepted too — that column is written by client code Zonai does not control, and case is the first thing to vary.
+
+Then name it when you send:
+
+```dart no-analyze
+await push(
+  message,
+  table: 'device_tokens',
+  column: 'token',
+  platformColumn: 'platform',
+  where: In('user_id', recipientIds),
+);
+```
+
+**It is optional, and omitting it is a complete setup.** A project with only FCM configured needs nothing here — every recipient goes to FCM, which is what happened before platforms existed. Naming the column is what unlocks sending to iOS without Firebase.
+
+The reason it is opt-in rather than automatic: the fan-out reads **exactly the columns you name and nothing else**. That narrowness is what stops `push` from reading a table it was pointed at. Widening it by one column is a decision worth making on purpose.
+
+A row whose platform is unrecognised — or null — goes to FCM, and a row that cannot be routed at all is reported as a transient failure rather than pruned. A misconfiguration must never cost a valid registration.
+
 ## Step 2 — Configure it
 
 `AppConfig.push` is nullable, exactly like `AppConfig.email`. A project without it logs a warning and enqueues nothing.

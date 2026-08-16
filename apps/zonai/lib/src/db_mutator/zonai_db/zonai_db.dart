@@ -491,6 +491,7 @@ class ZonaiDb {
     required String column,
     required Where? where,
     required Jwt? jwt,
+    String? platformColumn,
   }) async {
     return await _run(
       () => _enqueuePush(
@@ -499,6 +500,7 @@ class ZonaiDb {
         column: column,
         where: where,
         jwt: jwt,
+        platformColumn: platformColumn,
       ),
     );
   }

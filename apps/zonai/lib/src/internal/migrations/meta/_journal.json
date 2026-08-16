@@ -50,6 +50,13 @@
       "when": 1786782370137,
       "tag": "0006_internal_push_jobs",
       "snapshotId": "402da8af-ddc3-45d3-97ca-962d41e06c9e"
+    },
+    {
+      "idx": 7,
+      "version": "1",
+      "when": 1786820000000,
+      "tag": "0007_internal_push_jobs_platform",
+      "snapshotId": "b7f1c2d3-4e5a-6b7c-8d9e-0f1234567890"
     }
   ]
 }

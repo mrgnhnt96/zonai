@@ -422,6 +422,7 @@ final class EnqueuePushRequest extends Request {
     required this.table,
     required this.column,
     required this.where,
+    this.platformColumn,
     super.jwt,
   }) : super(path: _path, id: Request.generateId());
 
@@ -431,6 +432,7 @@ final class EnqueuePushRequest extends Request {
     required this.table,
     required this.column,
     required this.where,
+    this.platformColumn,
     super.jwt,
   }) : super(path: _path);
 
@@ -442,6 +444,7 @@ final class EnqueuePushRequest extends Request {
       ),
       table: json['table'] as String,
       column: json['column'] as String,
+      platformColumn: json['platformColumn'] as String?,
       where: switch (json['where']) {
         final Map map => Where.fromJson(map),
         _ => null,
@@ -461,6 +464,10 @@ final class EnqueuePushRequest extends Request {
   /// not one, so this cannot be pointed at an arbitrary column to read it.
   final String column;
 
+  /// The column holding each row's `DevicePlatform`, or null when the app did
+  /// not name one — in which case every recipient goes through FCM.
+  final String? platformColumn;
+
   /// Narrows the recipient set. `null` means every row with a non-null token.
   final Where? where;
 
@@ -471,6 +478,7 @@ final class EnqueuePushRequest extends Request {
       'message': message.toJson(),
       'table': table,
       'column': column,
+      'platformColumn': ?platformColumn,
       'where': ?where?.toJson(),
     };
   }

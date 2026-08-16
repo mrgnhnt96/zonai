@@ -312,12 +312,19 @@ class MessageHandler<R extends Request> {
         // queued mutation cannot report anything. The wait is for the *write*,
         // not the fan-out -- see [EnqueuePushRequest].
         _pushProvider.overrideWith(
-          () => _Push((message, {required table, required column, where}) async {
+          () => _Push((
+            message, {
+            required table,
+            required column,
+            platformColumn,
+            where,
+          }) async {
             final result = await sendRequest(
               EnqueuePushRequest(
                 message: message,
                 table: table,
                 column: column,
+                platformColumn: platformColumn,
                 where: where,
                 jwt: request.jwt,
               ),

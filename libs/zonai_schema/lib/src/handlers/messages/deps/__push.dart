@@ -5,6 +5,7 @@ typedef _EnqueuePushFn =
       PushMessage message, {
       required String table,
       required String column,
+      String? platformColumn,
       Where? where,
     });
 
@@ -23,9 +24,20 @@ final _pushProvider = create<_Push>(_Push._);
 ///   PushMessage(title: 'Reply', body: 'Someone replied to you'),
 ///   table: 'device_tokens',
 ///   column: 'token',
+///   platformColumn: 'platform',
 ///   where: In('user_id', recipientIds),
 /// );
 /// ```
+///
+/// [platformColumn] names a column holding each row's `DevicePlatform`
+/// (`ios` or `android`). Give it and iOS recipients go to APNs directly when
+/// `AppConfig.push.apns` is set; omit it and every recipient goes through
+/// FCM, which is what happens today and stays correct.
+///
+/// It is optional rather than required because a token column alone is a
+/// complete, working setup for an FCM-only app — and because the recipient
+/// projection reads exactly the columns named here and nothing else, so
+/// widening it is the caller's decision to make explicitly.
 ///
 /// Call this from `after*` hooks, never `before*`: a `before` hook runs prior
 /// to the write, and a notification announcing something that may not happen
@@ -48,6 +60,7 @@ class _Push {
     PushMessage message, {
     required String table,
     required String column,
+    String? platformColumn,
     Where? where,
   }) async {
     throw StateError(
@@ -60,6 +73,13 @@ class _Push {
     PushMessage message, {
     required String table,
     required String column,
+    String? platformColumn,
     Where? where,
-  }) => _enqueue(message, table: table, column: column, where: where);
+  }) => _enqueue(
+    message,
+    table: table,
+    column: column,
+    platformColumn: platformColumn,
+    where: where,
+  );
 }

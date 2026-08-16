@@ -22,6 +22,7 @@ class PushJobEntry {
     required this.message,
     required this.targetTable,
     required this.targetColumn,
+    required this.platformColumn,
     required this.whereJson,
     required this.cursor,
     required this.status,
@@ -38,6 +39,7 @@ class PushJobEntry {
     required this.targetTable,
     required this.targetColumn,
     required Where? where,
+    this.platformColumn,
   }) : id = PushJobId.generate(),
        message = jsonEncode(message.toJson()),
        whereJson = where == null ? null : jsonEncode(where.toJson()),
@@ -58,6 +60,15 @@ class PushJobEntry {
 
   final String targetTable;
   final String targetColumn;
+
+  /// The column holding each row's `DevicePlatform`, when the app named one.
+  ///
+  /// Stored on the job rather than resolved at drain time because a fan-out
+  /// outlives the request that started it: a job resumed after a restart has
+  /// only this row to work from, and routing every recipient to FCM because
+  /// the column name was forgotten would deliver iOS notifications through a
+  /// transport the app may not even have configured.
+  final String? platformColumn;
 
   /// The caller's `Where`, JSON-encoded, or null for "every row with a
   /// non-null token".
@@ -103,6 +114,7 @@ class PushJobsTable extends Table<PushJobEntry> {
       message = $.text('message', (s) => s.message),
       targetTable = $.text('target_table', (s) => s.targetTable),
       targetColumn = $.text('target_column', (s) => s.targetColumn),
+      platformColumn = $.text('platform_column', (s) => s.platformColumn),
       whereJson = $.text('where_json', (s) => s.whereJson),
       cursor = $.text('cursor', (s) => s.cursor),
       status = $.enumerator('status', PushJobStatus.values, (s) => s.status),
@@ -128,6 +140,7 @@ class PushJobsTable extends Table<PushJobEntry> {
       message: read(message),
       targetTable: read(targetTable),
       targetColumn: read(targetColumn),
+      platformColumn: read(platformColumn),
       whereJson: read(whereJson),
       cursor: read(cursor),
       status: read(status),
@@ -144,6 +157,7 @@ class PushJobsTable extends Table<PushJobEntry> {
   final TextColumn message;
   final TextColumn targetTable;
   final TextColumn targetColumn;
+  final ColumnType<String?> platformColumn;
   final ColumnType<String?> whereJson;
   final ColumnType<String?> cursor;
   final EnumColumn<PushJobStatus> status;

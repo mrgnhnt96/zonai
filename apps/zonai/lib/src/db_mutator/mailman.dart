@@ -344,6 +344,7 @@ class Mailman<S extends Request, R extends Response> {
             message: request.message,
             table: request.table,
             column: request.column,
+            platformColumn: request.platformColumn,
             where: request.where,
             jwt: request.jwt,
           );

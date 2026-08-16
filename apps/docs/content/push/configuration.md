@@ -50,6 +50,40 @@ Raising it makes a large fan-out faster and a crash more expensive, in exactly t
 
 `AppConfig` is resolved per flavor, so a staging build can point at a different Firebase project — or at none, in which case staging enqueues nothing and says so in the log rather than sending production notifications from a test run.
 
+## Reaching iOS without Firebase
+
+FCM delivers to iOS by proxying to APNs with a key you upload to its console. Zonai can skip that and talk to Apple directly:
+
+```dart no-analyze
+push: PushConfig(
+  // Android still goes through FCM — on Android, FCM *is* the transport.
+  projectId: 'my-firebase-project',
+  credentials: PushCredentials.file('/etc/my-app/fcm-service-account.json'),
+
+  // iOS goes straight to Apple.
+  apns: ApnsConfig(
+    credentials: ApnsCredentials.file('/etc/my-app/AuthKey_ABCD123456.p8'),
+    keyId: 'ABCD123456',
+    teamId: 'U2G2XV3688',
+    bundleId: 'com.example.myapp',
+  ),
+),
+```
+
+Both halves are optional and at least one is required. An iOS-only app omits `projectId` and `credentials` entirely and needs **no Firebase project at all**. Setting one FCM field without the other is refused rather than treated as "FCM is off", because that would silently drop every Android recipient.
+
+Recipients are routed by the `platform` column — see [Device Tokens](/push/device-tokens). An app can move iOS between the two transports by changing config alone: the device token is the same string either way, so there is no migration and no row to rewrite.
+
+### What direct APNs buys
+
+- **No console step.** The APNs key upload below has no API; going direct removes it.
+- **One less failure mode.** `THIRD_PARTY_AUTH_ERROR` — FCM's answer when its APNs key lapses — cannot happen when there is no proxy.
+- **A sandbox.** `useSandbox: true` sends to `api.sandbox.push.apple.com`, which FCM has no equivalent of. Development-build tokens live only there, and production tokens only in production; the symptom of mixing them is `BadDeviceToken` on a token that is perfectly valid.
+
+### `bundleId` is not cosmetic
+
+It becomes the `apns-topic` header, and one key can serve every app on a team, so it is the only thing saying which app a notification is for. Get it wrong and Apple answers `DeviceTokenNotForTopic` for **every** recipient at once. Zonai treats that as a transient failure naming the config field, precisely because a uniform config fault must never be read as every device being dead.
+
 ## Two `.p8` files that are not interchangeable
 
 For iOS, FCM needs an **APNs auth key** uploaded to the Firebase console. It is a `.p8` created under *Certificates, Identifiers & Profiles → Keys* with the Apple Push Notifications service capability enabled.

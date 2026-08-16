@@ -258,8 +258,23 @@ class FcmPushCourier implements PushCourier {
   }
 
   FcmAccessTokenCache _accessTokenFor(PushConfig config) {
-    return _tokens[config.projectId] ??= FcmAccessTokenCache(
-      serviceAccount: _serviceAccount(config.credentials),
+    // Both halves are nullable because an iOS-only app talking to APNs
+    // directly has no Firebase project at all. Reaching here without them
+    // means the engine routed a recipient to the wrong courier, so the
+    // message names that rather than reporting a missing field.
+    final projectId = config.projectId;
+    final credentials = config.credentials;
+    if (projectId == null || credentials == null) {
+      throw PushTransportException(
+        'FcmPushCourier was asked to send with no FCM configuration '
+        '(AppConfig.push.projectId and .credentials). An Android recipient '
+        'cannot be delivered without it; an iOS one should have been routed '
+        'to APNs.',
+      );
+    }
+
+    return _tokens[projectId] ??= FcmAccessTokenCache(
+      serviceAccount: _serviceAccount(credentials),
       client: _client,
     );
   }

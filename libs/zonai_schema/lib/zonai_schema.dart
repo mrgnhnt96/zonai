@@ -55,6 +55,7 @@ export 'src/exceptions/schema_exception.dart';
 export 'src/config/email_config.dart';
 export 'src/config/external_idp_config.dart';
 export 'src/config/photos_config.dart';
+export 'src/config/apns_config.dart';
 export 'src/config/push_config.dart';
 export 'src/config/supabase_external_idp.dart';
 export 'src/config/trusted_proxy_config.dart';

@@ -49,6 +49,7 @@ extension _PushX on ZonaiDb {
     required String column,
     required Where? where,
     required Jwt? jwt,
+    String? platformColumn,
   }) async {
     // Gate one: an admin identity. `CronJwt` qualifies, so a scheduled job
     // needs no special-casing. Enforced here, host-side, rather than trusted
@@ -87,6 +88,7 @@ extension _PushX on ZonaiDb {
       targetTable: table,
       targetColumn: column,
       where: where,
+      platformColumn: platformColumn,
     );
 
     final db = await open();
@@ -351,7 +353,7 @@ extension _PushX on ZonaiDb {
       try {
         outcomes = await _sendPushBatch(
           message: message,
-          tokens: [for (final row in batch) row.token],
+          recipients: batch,
           config: config,
         );
       } on PushTransportException catch (e) {
@@ -400,7 +402,8 @@ extension _PushX on ZonaiDb {
         for (final outcome in outcomes) outcome.token: outcome,
       };
 
-      final rejected = <({String primaryKey, String token, PushRejectionReason reason})>[];
+      final rejected =
+          <({String primaryKey, String token, PushRejectionReason reason})>[];
       for (final row in batch) {
         switch (byToken[row.token]) {
           case PushDelivered():
@@ -486,7 +489,8 @@ extension _PushX on ZonaiDb {
   /// scan and — worse — silently skips or repeats rows when the table is
   /// written to mid-scan, which it will be: devices register while a fan-out
   /// is running.
-  Future<List<({String primaryKey, String token})>> _pushRecipientBatch({
+  Future<List<({String primaryKey, String token, DevicePlatform? platform})>>
+  _pushRecipientBatch({
     required PushJobEntry job,
     required ({String primaryKey, String tokenColumn}) target,
     required String? after,
@@ -496,9 +500,20 @@ extension _PushX on ZonaiDb {
     final pk = _escapeIdentifier(target.primaryKey);
     final tokenColumn = _escapeIdentifier(target.tokenColumn);
 
+    // Exactly the columns the app named, and nothing else. The platform
+    // column joins the projection only when `push` was given one — widening
+    // it is the caller's explicit decision, never something inferred.
+    final platformColumn = job.platformColumn;
+    final platformSelect = platformColumn == null
+        ? ''
+        : ', "${_escapeIdentifier(platformColumn)}" AS platform';
+
     final values = <Object?>[];
     final buffer = StringBuffer()
-      ..write('SELECT "$pk" AS pk, "$tokenColumn" AS token FROM "$table" ')
+      ..write(
+        'SELECT "$pk" AS pk, "$tokenColumn" AS token$platformSelect '
+        'FROM "$table" ',
+      )
       ..write('WHERE "$tokenColumn" IS NOT NULL AND "$tokenColumn" != \'\'');
 
     if (job.where case final where?) {
@@ -523,9 +538,21 @@ extension _PushX on ZonaiDb {
 
     return [
       for (final row in result.rows)
-        if (row.toMap() case {'pk': final Object pk, 'token': final String token}
-            when token.isNotEmpty)
-          (primaryKey: '$pk', token: token),
+        if (row.toMap() case {
+          'pk': final Object pk,
+          'token': final String token,
+        } when token.isNotEmpty)
+          (
+            primaryKey: '$pk',
+            token: token,
+            // `tryParse` rather than a throw: an unexpected string in one row
+            // is that row's problem, and a fan-out must not fail everyone
+            // else's notification over it. Null lands in the unroutable
+            // group below, which reports rather than guesses.
+            platform: platformColumn == null
+                ? null
+                : DevicePlatform.tryParse(row.toMap()['platform'] as String?),
+          ),
     ];
   }
 
@@ -535,6 +562,92 @@ extension _PushX on ZonaiDb {
   /// already succeeded would be a duplicate this layer can avoid for free,
   /// unlike the crash-resume duplicate it cannot.
   Future<List<PushOutcome>> _sendPushBatch({
+    required PushMessage message,
+    required List<({String primaryKey, String token, DevicePlatform? platform})>
+    recipients,
+    required PushConfig config,
+  }) async {
+    // One batch can contain both platforms, so it is split by transport and
+    // each group sent separately. The order of `recipients` is restored at
+    // the end: the engine prunes by position, so an outcome landing one slot
+    // over clears the wrong device's row.
+    final byTransport = <PushCourier, List<String>>{};
+    final settled = <String, PushOutcome>{};
+
+    for (final recipient in recipients) {
+      final courier = _courierFor(recipient.platform, config);
+      if (courier == null) {
+        // Transient, never a prune: the token is fine and the *config* is
+        // not, so the next drain delivers once the missing transport is
+        // configured. Pruning here would clear a whole platform's
+        // registrations over a deployment mistake.
+        settled[recipient.token] = PushTransientlyFailed(
+          token: recipient.token,
+          detail: _unroutableReason(recipient.platform, config),
+        );
+        continue;
+      }
+      byTransport.putIfAbsent(courier, () => []).add(recipient.token);
+    }
+
+    for (final entry in byTransport.entries) {
+      final outcomes = await _sendViaCourier(
+        courier: entry.key,
+        message: message,
+        tokens: entry.value,
+        config: config,
+      );
+      for (final outcome in outcomes) {
+        settled[outcome.token] = outcome;
+      }
+    }
+
+    return [
+      for (final recipient in recipients)
+        settled[recipient.token] ??
+            PushTransientlyFailed(
+              token: recipient.token,
+              detail: 'no outcome recorded',
+            ),
+    ];
+  }
+
+  /// Which transport a recipient belongs to, or null when none can carry it.
+  ///
+  /// With no platform column the answer is always FCM, which is what every
+  /// existing deployment does and stays correct.
+  PushCourier? _courierFor(DevicePlatform? platform, PushConfig config) {
+    return switch (platform) {
+      // iOS prefers APNs when it is configured. An app can move between the
+      // two by changing config alone — no token migration, no row rewrite,
+      // because the device token is the same string either way.
+      DevicePlatform.ios =>
+        config.hasApns ? apnsCourier : (config.hasFcm ? pushCourier : null),
+      DevicePlatform.android => config.hasFcm ? pushCourier : null,
+      // No platform column, or a value nothing recognised. FCM is the only
+      // safe default: it is where every recipient went before platforms
+      // existed, and an APNs send to an FCM token fails per-device.
+      null => config.hasFcm ? pushCourier : null,
+    };
+  }
+
+  String _unroutableReason(DevicePlatform? platform, PushConfig config) {
+    return switch (platform) {
+      DevicePlatform.android =>
+        'this recipient is Android and AppConfig.push has no FCM '
+            'configuration (projectId + credentials)',
+      DevicePlatform.ios =>
+        'this recipient is iOS and AppConfig.push has neither apns nor FCM '
+            'configured',
+      null =>
+        'this recipient has no recognised platform and AppConfig.push has no '
+            'FCM configuration to fall back on',
+    };
+  }
+
+  /// The retry loop for one transport's share of a batch.
+  Future<List<PushOutcome>> _sendViaCourier({
+    required PushCourier courier,
     required PushMessage message,
     required List<String> tokens,
     required PushConfig config,
@@ -550,11 +663,7 @@ extension _PushX on ZonaiDb {
         await Future<void>.delayed(Duration(seconds: 1 << attempt));
       }
 
-      final outcomes = await pushCourier.send(
-        message,
-        pending,
-        config: config,
-      );
+      final outcomes = await courier.send(message, pending, config: config);
 
       final retry = <String>[];
       for (final outcome in outcomes) {
@@ -609,9 +718,7 @@ extension _PushX on ZonaiDb {
       await _runExtension(
         PushRejectedExtensionRequest(
           table: job.targetTable,
-          object: {
-            for (final entry in row.entries) entry.key: entry.value,
-          },
+          object: {for (final entry in row.entries) entry.key: entry.value},
           token: token,
           reason: reason,
           jwt: CronJwt(),
@@ -631,7 +738,9 @@ extension _PushX on ZonaiDb {
     required PushJobEntry job,
     required ({String primaryKey, String tokenColumn}) target,
     required String cursor,
-    required List<({String primaryKey, String token, PushRejectionReason reason})>
+    required List<
+      ({String primaryKey, String token, PushRejectionReason reason})
+    >
     rejected,
     required int delivered,
     required int permanentlyRejected,
@@ -677,7 +786,9 @@ extension _PushX on ZonaiDb {
   List<(String, List<Object?>)> _pruneStatements({
     required PushJobEntry job,
     required ({String primaryKey, String tokenColumn}) target,
-    required List<({String primaryKey, String token, PushRejectionReason reason})>
+    required List<
+      ({String primaryKey, String token, PushRejectionReason reason})
+    >
     rejected,
     required PushConfig config,
   }) {

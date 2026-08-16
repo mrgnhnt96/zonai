@@ -1,3 +1,5 @@
+import 'package:zonai_schema/src/config/apns_config.dart';
+
 /// What Zonai does to a row whose token FCM permanently rejected.
 ///
 /// The hook fires under all three, including [none] — that is what makes
@@ -38,9 +40,7 @@ sealed class PushCredentials {
 
   factory PushCredentials.fromJson(Map<String, dynamic> json) {
     return switch (json['type']) {
-      PushCredentialsFile._type => PushCredentialsFile(
-        json['path'] as String,
-      ),
+      PushCredentialsFile._type => PushCredentialsFile(json['path'] as String),
       PushCredentialsInline._type => PushCredentialsInline(
         json['json'] as String,
       ),
@@ -99,8 +99,9 @@ final class PushCredentialsInline extends PushCredentials {
 /// value first. One gate, in the place that runs everywhere.
 class PushConfig {
   const PushConfig({
-    required this.projectId,
-    required this.credentials,
+    this.projectId,
+    this.credentials,
+    this.apns,
     this.onPermanentRejection = OnPermanentRejection.clearColumn,
     this.batchSize = defaultBatchSize,
     this.concurrency = defaultConcurrency,
@@ -108,10 +109,19 @@ class PushConfig {
   });
 
   factory PushConfig.fromJson(Map<String, dynamic> json) => PushConfig(
-    projectId: json['projectId'] as String,
-    credentials: PushCredentials.fromJson(
-      Map<String, dynamic>.from(json['credentials'] as Map),
-    ),
+    projectId: json['projectId'] as String?,
+    credentials: switch (json['credentials']) {
+      final Map<dynamic, dynamic> raw => PushCredentials.fromJson(
+        Map<String, dynamic>.from(raw),
+      ),
+      _ => null,
+    },
+    apns: switch (json['apns']) {
+      final Map<dynamic, dynamic> raw => ApnsConfig.fromJson(
+        Map<String, dynamic>.from(raw),
+      ),
+      _ => null,
+    },
     onPermanentRejection: switch (json['onPermanentRejection']) {
       null => OnPermanentRejection.clearColumn,
       final String value => OnPermanentRejection.fromJson(value),
@@ -151,9 +161,31 @@ class PushConfig {
 
   /// The Firebase project the messages are sent through
   /// (`/v1/projects/{projectId}/messages:send`).
-  final String projectId;
+  ///
+  /// Null for an iOS-only app talking to APNs directly — there is no Firebase
+  /// project in that arrangement at all, so requiring one would be requiring
+  /// a fiction.
+  final String? projectId;
 
-  final PushCredentials credentials;
+  final PushCredentials? credentials;
+
+  /// Set to reach iOS devices through APNs directly, with no Firebase in the
+  /// path. Android always goes through FCM, because on Android FCM *is* the
+  /// transport.
+  ///
+  /// With both this and [credentials] set, each recipient is routed by its
+  /// `DevicePlatform`. With only this set, the app is iOS-only.
+  final ApnsConfig? apns;
+
+  /// Whether FCM is usable — both halves of its configuration present.
+  ///
+  /// A partially-configured FCM (a project id and no key, say) is a mistake
+  /// rather than a choice, and `AppConfig.validate` refuses it rather than
+  /// letting it look like "FCM is off".
+  bool get hasFcm => projectId != null && credentials != null;
+
+  /// Whether APNs is usable.
+  bool get hasApns => apns != null;
 
   final OnPermanentRejection onPermanentRejection;
 
@@ -162,8 +194,9 @@ class PushConfig {
   final int maxAttemptsPerBatch;
 
   Map<String, dynamic> toJson() => {
-    'projectId': projectId,
-    'credentials': credentials.toJson(),
+    if (projectId case final id?) 'projectId': id,
+    if (credentials case final creds?) 'credentials': creds.toJson(),
+    if (apns case final apns?) 'apns': apns.toJson(),
     'onPermanentRejection': onPermanentRejection.toJson(),
     'batchSize': batchSize,
     'concurrency': concurrency,

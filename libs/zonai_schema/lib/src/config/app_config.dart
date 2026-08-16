@@ -117,8 +117,33 @@ final class AppConfig {
     // the worst shape a misconfiguration can take: no error, no log, and a
     // jobs table full of rows that all say they finished.
     if (push case final push?) {
-      if (push.projectId.isEmpty) {
+      // At least one transport, or the config is a statement of intent with
+      // no way to act on it: `push()` would enqueue jobs that can never be
+      // delivered, and the queue would fill silently.
+      if (!push.hasFcm && !push.hasApns) {
+        errors.add(
+          'push is configured with neither FCM (projectId + credentials) nor '
+          'APNs (apns) — nothing could be sent',
+        );
+      }
+      // A half-configured FCM is a mistake, never a choice. Left to itself it
+      // reads as "FCM is off", so an Android recipient would be dropped
+      // rather than reported.
+      if (push.projectId != null && push.credentials == null) {
+        errors.add('push.projectId is set but push.credentials is missing');
+      }
+      if (push.credentials != null && push.projectId == null) {
+        errors.add('push.credentials is set but push.projectId is missing');
+      }
+      if (push.projectId case final id? when id.isEmpty) {
         errors.add('push.projectId is empty');
+      }
+      if (push.apns case final apns?) {
+        if (apns.keyId.isEmpty) errors.add('push.apns.keyId is empty');
+        if (apns.teamId.isEmpty) errors.add('push.apns.teamId is empty');
+        // Without a topic APNs refuses every send, and the error names the
+        // header rather than the config field, so it is worth catching here.
+        if (apns.bundleId.isEmpty) errors.add('push.apns.bundleId is empty');
       }
       if (push.batchSize < 1) {
         errors.add('push.batchSize must be at least 1 (got ${push.batchSize})');

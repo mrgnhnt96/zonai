@@ -69,11 +69,17 @@ final class DeviceToken {
     required this.userId,
     required this.token,
     required this.label,
+    this.platform,
   });
 
   final DeviceTokenId id;
   final String userId;
   final String? token;
+
+  /// Which transport this device's token belongs to. Null on rows seeded by
+  /// the tests that predate platform routing, which is the shape every
+  /// existing deployment has.
+  final String? platform;
 
   /// A column the fan-out must never read. Its value is a canary: if it ever
   /// reaches the courier or an outcome, the projection has widened.
@@ -90,7 +96,8 @@ final class DeviceTokenTable extends schema.Table<DeviceToken> {
       ),
       userId = $.text('user_id', (s) => s.userId),
       token = $.deviceToken('token', (s) => s.token),
-      label = $.text('label', (s) => s.label);
+      label = $.text('label', (s) => s.label),
+      platform = $.text('platform', (s) => s.platform);
 
   @override
   DeviceToken fromRow(RowReader read) => DeviceToken(
@@ -98,12 +105,14 @@ final class DeviceTokenTable extends schema.Table<DeviceToken> {
     userId: read(userId),
     token: read(token),
     label: read(label),
+    platform: read(platform),
   );
 
   final IdColumn<DeviceTokenId> id;
   final TextColumn userId;
   final ColumnType<String?> token;
   final TextColumn label;
+  final ColumnType<String?> platform;
 }
 
 final deviceTokens = table('device_tokens', DeviceTokenTable.new);
@@ -297,10 +306,16 @@ version: $kVersion
   /// configured — which is a green test asserting nothing.
   PushCourier? overrideCourier;
 
+  /// Bound as the APNs transport. Separate from [overrideCourier] so a test
+  /// can watch the two independently — which is what makes "iOS went direct
+  /// and Android went through FCM" an observation rather than an inference.
+  FakePushCourier? overrideApnsCourier;
+
   setUp(() {
     extension = RecordingExtension();
     courier = FakePushCourier();
     overrideCourier = null;
+    overrideApnsCourier = null;
 
     // The door `project_main` uses. Without these the host would go looking
     // for compiled worker executables that this fixture has no project to
@@ -323,6 +338,9 @@ version: $kVersion
         loggerProvider.overrideWith(() => Logger(level: .error)),
         settingsProvider.overrideWith(() => settings),
         pushCourierProvider.overrideWith(() => overrideCourier ?? courier),
+        apnsCourierProvider.overrideWith(
+          () => overrideApnsCourier ?? FakePushCourier(),
+        ),
         processProvider,
         cleanUpProvider,
         executableStopProvider,
@@ -336,22 +354,30 @@ version: $kVersion
   /// Ids are zero-padded so lexicographic order matches insertion order —
   /// which is the order a keyset cursor over the primary key walks, and
   /// therefore the order the assertions below can predict.
-  Future<void> seed(ZonaiDb zonaiDb, {required int count}) async {
+  Future<void> seed(
+    ZonaiDb zonaiDb, {
+    required int count,
+
+    /// Platform value per row index, when the test cares. Null leaves the
+    /// column empty, which is the shape of every table that predates routing.
+    String? Function(int index)? platformAt,
+  }) async {
     final db = await zonaiDb.open();
     await db.execute('DROP TABLE IF EXISTS "device_tokens"');
     await db.execute(
       'CREATE TABLE "device_tokens" ('
       '"id" TEXT PRIMARY KEY, "user_id" TEXT NOT NULL, '
-      '"token" TEXT, "label" TEXT NOT NULL)',
+      '"token" TEXT, "label" TEXT NOT NULL, "platform" TEXT)',
     );
     await db.execute('DELETE FROM "_push_jobs"');
 
     for (var i = 0; i < count; i++) {
       final id = 'd${i.toString().padLeft(6, '0')}';
       await db.execute(
-        'INSERT INTO "device_tokens" ("id", "user_id", "token", "label") '
-        'VALUES (?, ?, ?, ?)',
-        [id, 'u${i % 3}', 'tok-$id', 'secret-label-$id'],
+        'INSERT INTO "device_tokens" '
+        '("id", "user_id", "token", "label", "platform") '
+        'VALUES (?, ?, ?, ?, ?)',
+        [id, 'u${i % 3}', 'tok-$id', 'secret-label-$id', platformAt?.call(i)],
       );
     }
   }
@@ -1385,5 +1411,208 @@ version: $kVersion
         );
       });
     });
+  });
+
+  /// Which transport each recipient actually reached.
+  ///
+  /// The whole point of the platform column: one fan-out, one job, two
+  /// services. Asserted by giving the two couriers separate fakes and
+  /// checking which one saw which token — inferring it from a count would
+  /// pass just as well if everything went to one of them.
+  group('platform routing', () {
+    late FakePushCourier apns;
+
+    setUp(() {
+      apns = FakePushCourier();
+      overrideApnsCourier = apns;
+    });
+
+    PushConfig withApns({bool fcm = true}) => PushConfig(
+      projectId: fcm ? 'fixture-project' : null,
+      credentials: fcm ? const PushCredentials.inline('{}') : null,
+      apns: const ApnsConfig(
+        credentials: ApnsCredentials.inline('-----BEGIN PRIVATE KEY-----'),
+        keyId: 'LALL9GMRMP',
+        teamId: 'TEAMID1234',
+        bundleId: 'dev.zonai.pushProbe',
+      ),
+      batchSize: 10,
+      concurrency: 2,
+      maxAttemptsPerBatch: 1,
+    );
+
+    test('iOS goes to APNs and Android goes to FCM, in one job', () async {
+      await run(_appConfigWith(withApns()), (zonaiDb) async {
+        await seed(
+          zonaiDb,
+          count: 4,
+          platformAt: (i) => i.isEven ? 'ios' : 'android',
+        );
+
+        await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(apns.allSentTokens..sort(), [
+          'tok-d000000',
+          'tok-d000002',
+        ], reason: 'the even rows were seeded ios');
+        expect(
+          courier.allSentTokens..sort(),
+          ['tok-d000001', 'tok-d000003'],
+          reason:
+              'and the odd ones android — one batch, split by platform, '
+              'neither transport seeing the other\'s tokens',
+        );
+      });
+    });
+
+    test('iOS falls back to FCM when APNs is not configured', () async {
+      // The migration path, and the reason the device token is the same
+      // string either way: an app can adopt direct APNs by changing config
+      // alone, with no token migration and no row rewrite.
+      await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
+        await seed(zonaiDb, count: 2, platformAt: (_) => 'ios');
+
+        await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(apns.allSentTokens, isEmpty);
+        expect(courier.allSentTokens, hasLength(2));
+      });
+    });
+
+    test(
+      'a job with no platform column still sends everything to FCM',
+      () async {
+        // Every deployment that exists today. Routing must be additive: naming
+        // no platform column has to behave exactly as it did before one was
+        // possible.
+        await run(_appConfigWith(withApns()), (zonaiDb) async {
+          await seed(zonaiDb, count: 3, platformAt: (_) => 'ios');
+
+          await zonaiDb.enqueuePush(
+            message: message,
+            table: 'device_tokens',
+            column: 'token',
+            where: null,
+            jwt: CronJwt(),
+          );
+          await zonaiDb.drainPushJobs();
+
+          expect(
+            apns.allSentTokens,
+            isEmpty,
+            reason:
+                'the rows say ios, but the job was never told to read that '
+                'column — the projection reads what it was named and nothing '
+                'else, so this must not silently widen',
+          );
+          expect(courier.allSentTokens, hasLength(3));
+        });
+      },
+    );
+
+    test(
+      'an unrecognised platform value falls back rather than failing',
+      () async {
+        await run(_appConfigWith(withApns()), (zonaiDb) async {
+          await seed(zonaiDb, count: 2, platformAt: (_) => 'windows-phone');
+
+          final id = await zonaiDb.enqueuePush(
+            message: message,
+            table: 'device_tokens',
+            column: 'token',
+            platformColumn: 'platform',
+            where: null,
+            jwt: CronJwt(),
+          );
+          await zonaiDb.drainPushJobs();
+
+          expect(
+            courier.allSentTokens,
+            hasLength(2),
+            reason:
+                'a value nothing recognises is one row\'s problem. FCM is the '
+                'safe default because it is where every recipient went before '
+                'platforms existed',
+          );
+          expect((await job(zonaiDb, id!)).delivered, 2);
+        });
+      },
+    );
+
+    test('iOS aliases are accepted, because client code writes them', () async {
+      await run(_appConfigWith(withApns()), (zonaiDb) async {
+        await seed(
+          zonaiDb,
+          count: 3,
+          platformAt: (i) => ['iOS', 'apple', 'IPAD'][i],
+        );
+
+        await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(
+          apns.allSentTokens,
+          hasLength(3),
+          reason:
+              'this column is written by app code Zonai does not control, '
+              'and case is the first thing to vary',
+        );
+      });
+    });
+
+    test(
+      'an Android recipient with no FCM config is reported, not pruned',
+      () async {
+        // The iOS-only deployment. An Android row in that table is a mistake,
+        // but it is a *config* mistake — the token is valid, so clearing it
+        // would destroy a registration that becomes deliverable the moment
+        // someone adds the missing configuration.
+        await run(_appConfigWith(withApns(fcm: false)), (zonaiDb) async {
+          await seed(zonaiDb, count: 2, platformAt: (_) => 'android');
+
+          final id = await zonaiDb.enqueuePush(
+            message: message,
+            table: 'device_tokens',
+            column: 'token',
+            platformColumn: 'platform',
+            where: null,
+            jwt: CronJwt(),
+          );
+          await zonaiDb.drainPushJobs();
+
+          final entry = await job(zonaiDb, id!);
+          expect(entry.transientlyFailed, 2);
+          expect(entry.permanentlyRejected, 0);
+          expect(
+            [for (final r in await rows(zonaiDb)) r.token],
+            isNot(contains(isNull)),
+            reason: 'nothing was pruned over a missing config',
+          );
+        });
+      },
+    );
   });
 }

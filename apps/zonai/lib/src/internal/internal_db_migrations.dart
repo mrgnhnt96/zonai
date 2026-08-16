@@ -120,5 +120,7 @@ CREATE TABLE IF NOT EXISTS "_push_jobs" (
 CREATE UNIQUE INDEX IF NOT EXISTS "push_job_id_unique" ON "_push_jobs" ("id");
 
 CREATE INDEX IF NOT EXISTS "push_job_status_created_index" ON "_push_jobs" ("status", "created_at");'''),
+  const Migration('0007_internal_push_jobs_platform', '''
+ALTER TABLE "_push_jobs" ADD COLUMN "platform_column" TEXT;'''),
 ];
 
