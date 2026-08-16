@@ -6,6 +6,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../auth/auth_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
+import '../components/admin_invite_accept_screen.dart';
 import '../components/magic_link_sign_in_screen.dart' deferred as magic_link_sign_in;
 import '../components/magic_link_verify_screen.dart' deferred as magic_link_verify;
 import '../components/oauth_callback_screen.dart';
@@ -114,6 +115,14 @@ final List<RouteBase> authRoutes = [
     path: '${AuthRoutes.mountPath}${AuthRoutes.oauthCallback}',
     name: 'oauth-callback',
     builder: (_, _) => const OAuthCallbackScreen(),
+  ),
+  // Not lazy, for the reason the OAuth callback above is not: the acceptance
+  // screen's weight is the provider buttons and their brand marks, which the
+  // auth chunk already carries.
+  Route(
+    path: '${AuthRoutes.mountPath}${AuthRoutes.adminInviteAccept}',
+    name: 'admin-invite-accept',
+    builder: (_, _) => const AdminInviteAcceptScreen(),
   ),
   Route.lazy(
     path: '${AuthRoutes.mountPath}${AuthRoutes.resetPasswordCallback}',
