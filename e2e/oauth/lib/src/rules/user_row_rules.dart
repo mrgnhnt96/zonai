@@ -5,4 +5,8 @@ UserRowRules main() => UserRowRules();
 
 final class UserRowRules extends AuthRowRules<UserTable, User> {
   UserRowRules() : super(users);
+
+  /// See `UserTableRules.canList` -- opened for the same reason.
+  @override
+  Future<bool> canView(Jwt? jwt, User row) async => true;
 }
