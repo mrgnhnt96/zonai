@@ -169,6 +169,48 @@ void main() {
       });
     });
 
+    test('startOAuth derives redirect_uri from AppConfig.baseUrl, never '
+        'from the request (design §4 item 4)', () async {
+      if (!_runningOnDartVm) return;
+      await withDb((db) async {
+        // The verification gate found this requirement had NO falsifying
+        // test: hardcoding _oauthRedirectUri to an attacker domain left all
+        // 46 e2e and server tests green. The guarantee was real in the
+        // source and unproven, so a regression would have shipped silently.
+        // This asserts the actual outbound value.
+        final url = await db.startOAuth(
+          'users',
+          const StartOAuthAuthPayload(provider: 'stub-verified'),
+        );
+
+        expect(
+          Uri.parse(url).queryParameters['redirect_uri'],
+          'http://localhost:8080/auth/oauth/callback/stub-verified',
+          reason:
+              'redirect_uri must be {AppConfig.baseUrl}/auth/oauth/callback/'
+              '{provider}. A value from anywhere else -- especially anything '
+              'a caller could influence -- sends the authorization code to a '
+              'host the project did not register with the provider.',
+        );
+      });
+    });
+
+    test('the admin start path derives the same redirect_uri', () async {
+      if (!_runningOnDartVm) return;
+      await withDb((db) async {
+        // Both call sites, because only one of them being right is exactly
+        // the shape of regression this pins.
+        final url = await db.startAdminOAuth(
+          const StartOAuthAuthPayload(provider: 'stub-verified'),
+        );
+
+        expect(
+          Uri.parse(url).queryParameters['redirect_uri'],
+          'http://localhost:8080/auth/oauth/callback/stub-verified',
+        );
+      });
+    });
+
     test('startOAuth rejects an unknown provider id', () async {
       if (!_runningOnDartVm) return;
       await withDb((db) async {

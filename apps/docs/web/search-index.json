@@ -511,12 +511,12 @@
         {
           "h": "Auth Mixins",
           "a": "auth-mixins",
-          "b": "Mixin Sign-in Method Docs PasswordAuth Email + password Password Auth OtpAuth One-time passcode via email OTP Auth MagicLinkAuth Single-use emailed link Magic Link Auth A table can use multiple mixins simultaneously: final class UserTable extends AuthTable with PasswordAuth, OtpAuth, MagicLinkAuth { // ... }"
+          "b": "Mixin Sign-in Method Docs PasswordAuth Email + password Password Auth OtpAuth One-time passcode via email OTP Auth MagicLinkAuth Single-use emailed link Magic Link Auth OAuth Google, Apple, GitHub and others OAuth A table can use multiple mixins simultaneously: final class UserTable extends AuthTable with PasswordAuth, OtpAuth, MagicLinkAuth, OAuth { // ... } OAuth is the one mixin with a member you must override — oauthProviders, returning the providers the table accepts. Leaving it out is a compile error."
         },
         {
           "h": "Built-in Fields",
           "a": "built-in-fields",
-          "b": "All auth tables automatically get these columns — you declare them in the class but do not need to define the underlying SQL: Column Method Type Notes email $.email(...) TEXT UNIQUE NOT NULL The user's identity isVerified $.isVerified(...) BOOL NOT NULL false after sign-up PasswordAuth adds: Column Method Type Notes password $.password(...) TEXT Argon2id hash — never returned in responses OtpAuth and MagicLinkAuth add no persistent columns — their tokens are transient."
+          "b": "All auth tables automatically get these columns — you declare them in the class but do not need to define the underlying SQL: Column Method Type Notes email $.email(...) TEXT UNIQUE NOT NULL The user's identity isVerified $.isVerified(...) BOOL NOT NULL false after sign-up PasswordAuth adds: Column Method Type Notes password $.password(...) TEXT Argon2id hash — never returned in responses OtpAuth and MagicLinkAuth add no persistent columns — their tokens are transient. OAuth adds no columns to your table either. The link between a provider account and a row lives in zonai's internal _oauth_identities table, so one user can sign in with several providers without you modelling it."
         },
         {
           "h": "Auth Endpoints",

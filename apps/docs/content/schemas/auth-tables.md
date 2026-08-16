@@ -18,15 +18,19 @@ Auth tables still get normal CRUD **and** live streams (`/db/stream*`). After si
 | `PasswordAuth` | Email + password | [Password Auth](/authentication/password-auth) |
 | `OtpAuth` | One-time passcode via email | [OTP Auth](/authentication/otp-auth) |
 | `MagicLinkAuth` | Single-use emailed link | [Magic Link Auth](/authentication/magic-link-auth) |
+| `OAuth` | Google, Apple, GitHub and others | [OAuth](/authentication/oauth) |
 
 A table can use multiple mixins simultaneously:
 
 ```dart no-analyze
 final class UserTable extends AuthTable<User>
-    with PasswordAuth, OtpAuth, MagicLinkAuth {
+    with PasswordAuth, OtpAuth, MagicLinkAuth, OAuth {
   // ...
 }
 ```
+
+`OAuth` is the one mixin with a member you must override — `oauthProviders`,
+returning the providers the table accepts. Leaving it out is a compile error.
 
 ## Built-in Fields
 
@@ -44,6 +48,10 @@ All auth tables automatically get these columns — you declare them in the clas
 | `password` | `$.password(...)` | TEXT | Argon2id hash — never returned in responses |
 
 `OtpAuth` and `MagicLinkAuth` add no persistent columns — their tokens are transient.
+
+`OAuth` adds no columns to your table either. The link between a provider
+account and a row lives in zonai's internal `_oauth_identities` table, so one
+user can sign in with several providers without you modelling it.
 
 ## Auth Endpoints
 
