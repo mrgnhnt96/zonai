@@ -4,6 +4,10 @@
 > test and the live test all landed, and `docs/oauth.md` no longer lists it.
 > Kept for the reasoning, and because §2c/§3 describe how to re-run the live
 > check. Section 5 records what the live run actually observed.
+>
+> **Items 1 and 2 are closed too** (§6). `docs/oauth.md`'s "Still open" list
+> is now empty. What remains in §4 is entirely decisions for a human — none
+> of it is unfinished engineering.
 
 Branch `feat/oauth`, worktree `.claude/worktrees/gleaming-tinkering-kernighan`.
 Written 2026-08-16, at 53 commits ahead of `origin/main`, tree clean, static +
@@ -200,3 +204,89 @@ Not needed in the end. GitHub was the provider item 3 is about, and its
 account exhibited the exact condition under test, so a second provider would
 have added a userinfo-contract check without touching the branch in question.
 The gcloud path in §2c still works if someone wants that check later.
+
+---
+
+## 6. The other two items, closed (commit `25a866e`)
+
+§4 listed items 1 and 2 as deliberately out of scope. Picking them up
+afterwards, both proved cheaper than `docs/oauth.md` claimed — and item 1's
+diagnosis there was wrong in a way worth keeping on the record.
+
+### Item 2 — live-network JWKS
+
+The stated objection was that an honest test needs a real issuer or a trusted
+TLS certificate. The `live` tag built for item 3 supplies exactly that, so the
+objection had already been retired without anyone noticing.
+
+`jwks_idp_verifier_live_test.dart` verifies a genuine Google-signed `id_token`
+from `gcloud auth print-identity-token` against Google's live JWKS. The token's
+`iss` is `https://accounts.google.com` — the exact issuer `OAuthProvider.google`
+declares — so the config is built through the production `oauthJwksConfig`
+helper rather than by hand. Its `aud` is the gcloud CLI's own public client id,
+so that is what the provider is constructed with; gcloud is a legitimate Google
+OAuth client.
+
+The case a mock structurally cannot make: `_refreshCache` skips key entries
+`jose` cannot parse, silently. A test that authors its own JWKS only ever
+writes shapes `jose` just produced, so an issuer publishing something `jose`
+rejected would empty the key store and fail every sign-in with a bare
+`InvalidJwtException`. The live test asserts every key Google actually
+publishes parses.
+
+### Item 1 — server log output
+
+`docs/oauth.md` said the admin-invite suite already did this and that closing
+the item meant giving the OAuth e2e a live server of its own. **Both halves
+were wrong.** That suite has driven a real OAuth start→callback over a live
+server all along. What it lacked was a working log capture.
+
+`TraceId` re-overrides `loggerProvider` for the duration of every request with
+`Logger.print(...)`, which writes through `PrintSink` → `dart:core`'s `print`,
+discarding the `IOSink` the harness injected. `capturedLogOutput` therefore
+only ever held the startup lines emitted before the first request — 178 bytes
+of config-executable chatter, against which every `isNot(contains(...))`
+passes for free. The pre-existing invite-token log assertion had been vacuous
+since the day it was written.
+
+`print` is zone-scoped, so the fix is to capture the zone, not the sink.
+
+### Controls
+
+Every claim above was checked by making it fail first:
+
+- disabling `redactSensitiveQuery` in the embedded mirror turns **both** log
+  tests red — the new one and the invite-token one that previously could not
+  fail;
+- disabling the JWKS signature check turns exactly one live test red;
+- that second control also caught a defect in the new test itself:
+  `expectLater` prints the actual value on failure, and the actual value was
+  the decoded claim map carrying a real `sub` and email. `outcomeOf()` now
+  collapses success to a fixed marker, and a re-run confirmed the failure
+  output no longer contains the address. **This is the §3 rule catching a
+  violation authored by the very test written to honour it** — the reason to
+  run a control is that it inspects things assertions do not.
+
+### Re-running
+
+    cd apps/zonai && dart test -P live     # 5 tests: real GitHub + real Google
+
+Both live suites skip loudly by default and name the preset in the skip reason.
+
+### What is left, and why none of it is engineering
+
+- `feat/oauth` is **56 commits, local only, no PR**. Pushing is the human's
+  call and has never been given.
+- `.game_loop/verify.yaml` still has no rule for `apps/web/**`, and now none
+  for the two new test paths either — `verify` reports them NOT CHECKED. The
+  write guard refuses the edit as project policy, correctly; it needs
+  `game_loop authorize`. The YAML is at the bottom of
+  `docs/admin-invite-design.md`.
+- `showrunner status` still shows 2 stale claims and `oauth-admin-add` parked
+  though it landed. `reap` checks liveness by bare pid — verify with
+  `ps -o lstart=` before ever running `--apply`.
+- A worktree-local `.game_loop` state home was found holding an orphaned,
+  still-active mandate for work that landed hours earlier; the real state home
+  is the main checkout. The orphan was cleared. Worth knowing that invoking
+  `game_loop` from inside a worktree reads a different state directory than
+  the hooks do.
