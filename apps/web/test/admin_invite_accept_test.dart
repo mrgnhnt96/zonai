@@ -63,7 +63,10 @@ void main() {
       final chosen = <String>[];
       tester.pumpComponent(
         _scoped(
-          child: AdminInviteAcceptView(token: 'invite-token', onSelectProvider: (p) => chosen.add(p.id)),
+          child: AdminInviteAcceptView(
+            token: 'invite-token',
+            onSelectProvider: (provider) => chosen.add(provider.id),
+          ),
           authTypes: const [AuthType.oauth],
           providers: [
             _provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google),

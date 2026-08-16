@@ -55,10 +55,15 @@ Authorization: Bearer <admin-token>
 ```
 
 zonai emails a link to `{baseUrl}/_/admin/invite?token=…` that expires in seven
-days. Opening it offers exactly the sign-in methods your admin table declares: a
-provider button for an `OAuth` table, a set-password form for `PasswordAuth`, a
-code or link for `OtpAuth` and `MagicLinkAuth`. The invite belongs to the table,
-not to OAuth.
+days. Opening it shows the sign-in methods your admin table declares.
+
+> **Only OAuth tables can accept an invite today.** Acceptance is implemented
+> for `OAuth` and nothing else, so an admin table that offers only
+> `PasswordAuth`, `OtpAuth` or `MagicLinkAuth` cannot use invites yet — the
+> acceptance screen says so and points at `zonai db admin add` rather than
+> showing a form that has nothing behind it. Use the CLI for those tables. The
+> invite is a property of the admin table rather than of OAuth, so the other
+> three are a gap to be filled, not a decision.
 
 **No admin row exists until the invite is accepted.** That is deliberate: an
 unaccepted invite is a pending record, not an account, so a mistyped address

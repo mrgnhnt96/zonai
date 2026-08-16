@@ -151,3 +151,60 @@ end.
 | `.game_loop/verify.yaml` in the main checkout carries rules for push-notification probe files absent from this branch, failing `check_verify_exemptions.sh` | Only fires for leaves touching `e2e/**`; do not bypass the gate — report and park |
 | `apps/zonai/lib/gen` in a spawned worktree is a snapshot of another branch, and `analysis_options.yaml` hides it from `dart analyze` | Regenerate in-tree; only `dart test` catches a stale mirror |
 | `revali dev --generate-only` has failed in some worktrees | Reported by one crawler, refuted by another; if it fails, say so rather than working around it |
+
+---
+
+## 7. Implementation status
+
+Landed and tested: the runtime (`inviteAdmin`, `revokeAdminInvite`,
+`listAdminInvites`, `startAdminInviteOAuth`, invite-bound provisioning, session
+revocation on remove); the HTTP surface (`GET /admin/members`, `POST
+/admin/invites`, `DELETE /admin/invites/:email`, `DELETE /admin/members/:email`,
+rate limited); the `admin_invite` email template; the Admins screen and the
+`/_/admin/invite` acceptance screen; runtime e2e and real-HTTP e2e, the latter
+including the non-admin refusal that §4 item 1 needs.
+
+Two gaps are open, both found by the leaves that hit them rather than by review.
+
+**§3.3 is not built.** Acceptance is OAuth-only. `_findLiveAdminInvite` has
+exactly two callers, both in `parts/auth/oauth.dart`, and
+`auth_controller.dart` says the same about itself in its own doc comment. So an
+admin table offering only `PasswordAuth`, `OtpAuth` or `MagicLinkAuth` cannot
+use invites at all. The acceptance screen handles this the right way round — it
+explains the situation and points at `zonai db admin add` instead of rendering a
+form that posts nowhere — but the flow §3.3 describes does not exist. Filling it
+needs a non-OAuth consumption path in the db mutator first; the screen and the
+route are the easy half.
+
+**Nothing can ask whether an invite token is live without consuming it.** The
+acceptance screen can refuse a *missing* token itself, but an expired, revoked
+or forged one is only rejected by `GET
+/auth/admin/invite/oauth/start/:provider`, as a raw 401 — by which point the
+browser has left the SPA, so the invitee gets a server error page instead of the
+screen's plain explanation. This is the first thing a mistyped or stale link
+does, on a flow whose whole job is welcoming someone.
+
+A `GET /auth/admin/invite?token=` probe returning `{table, authTypes}` would fix
+it. It must not distinguish "no such invite" from "expired" — that difference is
+an oracle for which addresses have invites pending, which is the same reason
+`DELETE /admin/invites/:email` answers identically either way.
+
+### Owed to `.game_loop/verify.yaml`
+
+`apps/web` grew from a handful of components to a 259-test suite during this
+campaign, and `verify.yaml` still covers it with one single-file `dart analyze`.
+Every `apps/web` path this campaign touched therefore committed as NOT CHECKED.
+`dart analyze` cannot see any of what matters here: the Admins screen compiles
+perfectly well with the wrong button enabled, and both §4 item 6 refusals are
+held up by component tests alone — dropping the `refusal != null` guard fails
+exactly those two tests and nothing else.
+
+`.game_loop` is gitignored and belongs to the main checkout, so this cannot ride
+the branch and is left for whoever owns that tree:
+
+```yaml
+"apps/web/lib/**":
+  - "cd apps/web && dart test"
+"apps/web/test/**":
+  - "cd apps/web && dart test"
+```
