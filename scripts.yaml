@@ -313,6 +313,16 @@ test:
       # docs/revali-dot-shorthand-codegen.md). A guard against a CI-only
       # failure belongs where CI runs it.
       - bash tool/ci/check_dot_shorthand_annotations.sh
+      # apps/zonai/lib/gen/server is a gitignored COPY of apps/server that
+      # `zonai compile` embeds, so nothing in git keeps it honest -- and
+      # analysis_options.yaml excludes **/lib/gen/**, so `dart analyze` is
+      # structurally blind to it. A stale copy surfaces only as `dart test`
+      # failing to LOAD, with errors naming types the developer just added and
+      # did nothing wrong with; it has cost four separate debugging sessions,
+      # including every fresh git worktree, which gets the copy injected from
+      # whatever branch the main checkout is on. Lives in `static` rather than
+      # verify.yaml because verify.yaml is gitignored and cannot ride a branch.
+      - cd apps/zonai && dart run tool/server_mirror_check.dart
   unit:
     (description): >-
       L1 -- pure logic, no native build required. libs/resqlite and
