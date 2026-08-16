@@ -189,6 +189,29 @@ it. It must not distinguish "no such invite" from "expired" — that difference 
 an oracle for which addresses have invites pending, which is the same reason
 `DELETE /admin/invites/:email` answers identically either way.
 
+### Seeing the screens
+
+Both dashboard screens render to standalone HTML without booting zonai:
+
+```
+cd apps/web && dart run tool/render_admin_screens.dart <out-dir>
+cd apps/web && dart run tool/render_oauth_screens.dart <out-dir>
+```
+
+Five cases each in dark and light, chosen to show the decisions rather than the
+happy path: the Admins screen with a pending invite and Remove disabled on your
+own account; the sole admin, where Remove is disabled for the other half of §4
+item 6; acceptance on a Google-only table; acceptance on a password-only table,
+which explains itself and points at the CLI; and a link with no token.
+
+The member and provider lists are supplied directly rather than fetched, so this
+is not a substitute for running the binary. Everything downstream of them is the
+real component tree, through the same `renderComponent` entry point
+`main.server.dart` uses — which is what makes the output worth checking rather
+than just looking at. Grepping the two acceptance renders for the raw token
+returns zero hits in both branches, so "the token is never rendered" is
+observed, not just intended.
+
 ### Owed to `.game_loop/verify.yaml`
 
 `apps/web` grew from a handful of components to a 259-test suite during this
