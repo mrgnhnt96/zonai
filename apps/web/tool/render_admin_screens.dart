@@ -123,6 +123,7 @@ Future<void> _renderAccept({
   required String? token,
   required String outPath,
   AdminInviteStatus? status,
+  List<ColumnShape> fields = const [],
 }) async {
   final response = await renderComponent(
     Document(
@@ -148,8 +149,18 @@ Future<void> _renderAccept({
             // member list is: this renders the screen, not the round trip.
             // Defaulting to "live with these methods" keeps every pre-existing
             // case rendering exactly what it did before the probe landed.
-            status: status ?? AdminInviteLive(table: 'staff', authTypes: authTypes),
+            status:
+                status ??
+                AdminInviteLive(
+                  table: 'staff',
+                  authTypes: authTypes,
+                  fields: fields,
+                ),
             onSelectProvider: (_) {},
+            // Renders the form; never submits it. These pages are static
+            // output, so an acceptance that actually ran would be a round
+            // trip this tool has no server for.
+            onAccept: ({String? password, Map<String, dynamic>? values}) async {},
           ),
         ]),
       ),
@@ -157,6 +168,17 @@ Future<void> _renderAccept({
   );
   await _write(outPath, response);
 }
+
+/// The non-nullable column the reference schema has beyond email and password.
+/// Acceptance cannot create the row without it, so the form has to ask.
+const _requiredName = ColumnShape(
+  name: 'name',
+  kind: ColumnShapeKind.text,
+  isNullable: false,
+  isPrimaryKey: false,
+  autoIncrement: false,
+  sqlType: 'TEXT',
+);
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty) {
@@ -205,14 +227,39 @@ Future<void> main(List<String> args) async {
     outPath: '$out/admin-invite-accept-oauth.html',
   );
 
-  // The same link on a password-only admin table. Acceptance is not built for
-  // anything but OAuth (design §3.3), so this explains that and points at the
-  // CLI rather than rendering a form that posts nowhere.
+  // The same link on a password-only admin table (design §3.3). A real
+  // set-password form now, where this case used to be an explanation pointing
+  // at `zonai db admin add`. Carries a required `name`, because the reference
+  // schema has one and a form that asked only for a password is precisely the
+  // shape that failed on the insert.
   await _renderAccept(
     authTypes: const [AuthType.password],
     providers: const [],
     token: 'invite-token',
-    outPath: '$out/admin-invite-accept-unsupported.html',
+    fields: [_requiredName],
+    outPath: '$out/admin-invite-accept-password.html',
+  );
+
+  // An OTP admin table: nothing to fill in but the columns the row needs, and
+  // an accept button. No password field, because there is no password column
+  // to put one in -- the runtime refuses a password sent to such a table.
+  await _renderAccept(
+    authTypes: const [AuthType.otp],
+    providers: const [],
+    token: 'invite-token',
+    fields: [_requiredName],
+    outPath: '$out/admin-invite-accept-otp.html',
+  );
+
+  // A table offering both. The direct form leads and the provider buttons sit
+  // under it -- one invite, two ways to accept, neither hidden behind the
+  // other.
+  await _renderAccept(
+    authTypes: const [AuthType.password, AuthType.oauth],
+    providers: [_google],
+    token: 'invite-token',
+    fields: [_requiredName],
+    outPath: '$out/admin-invite-accept-both.html',
   );
 
   // A link with no token at all -- a truncated copy-paste, which is the most
