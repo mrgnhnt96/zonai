@@ -43,6 +43,11 @@ class Server {
     storage: storage,
   );
 
+  late final MaintenanceDataSource maintenance = MaintenanceDataSourceImpl(
+    client: client,
+    storage: storage,
+  );
+
   late final DbDataSource db = DbDataSourceImpl(
     client: client,
     storage: storage,
