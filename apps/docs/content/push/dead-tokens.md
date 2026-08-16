@@ -46,6 +46,25 @@ Verified against live FCM rather than taken from the documentation:
 
 Note also that `INVALID_ARGUMENT` is what FCM returns for a bad **message**, not only a bad token. That ambiguity is why a batch in which *every* recipient comes back `INVALID_ARGUMENT` fails the job instead of pruning: hundreds of simultaneous dead tokens is vanishingly unlikely, one malformed notification is not.
 
+### What APNs returns
+
+When iOS goes direct, Apple answers with a `reason` string rather than a status, and the same status carries both kinds of problem — `400` is a malformed token *and* a malformed payload. So the reason is what Zonai reads.
+
+| `reason` | Result |
+|---|---|
+| `Unregistered`, `BadDeviceToken` | pruned |
+| `PayloadTooLarge`, `BadCollapseId`, `MissingTopic`, `TopicDisallowed` | pruned as a bad message |
+| **`DeviceTokenNotForTopic`** | **transient, never pruned** |
+| `TooManyRequests`, `ServiceUnavailable`, `InternalServerError` | transient |
+| `InvalidProviderToken`, `ExpiredProviderToken` | job fails, **nothing pruned** |
+| anything unrecognised | transient |
+
+`DeviceTokenNotForTopic` is the one to understand. Measured against live APNs: a topic your team does not own answers `TopicDisallowed`, while a topic it *does* own paired with a token from a different app answers this. So it means your **`bundleId` disagrees with the app** — a config fault, and a uniform one. Every iOS recipient returns it at once, so reading it as "these devices are dead" would empty your table over a typo. Zonai counts it transient and names the field.
+
+The rest of this table is transcribed from Apple's documentation and has *not* all been observed. The FCM table above was written the same way and was wrong three times, so anything unrecognised is treated as transient on purpose: an unknown reason costs a retry, and guessing permanent costs a device that never hears from your app again.
+
+## Credentials are never a token's fault
+
 A `401` or `403` is usually neither. It is a statement about your credentials, not about any token, so the job fails and **nothing is pruned** — classifying it per-token would clear every token in the batch over a config mistake.
 
 **The exception is `THIRD_PARTY_AUTH_ERROR`**, and it is worth understanding because it looks identical from the status alone. FCM returns `401 UNAUTHENTICATED` with that `errorCode` when *your project's APNs key* is missing, expired or revoked — the caller's credentials are fine and only one platform is broken. Zonai reads `error.details[].errorCode` to tell the two apart.

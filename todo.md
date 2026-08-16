@@ -38,6 +38,10 @@ If the draft-release proposal above lands, this gets easier still: a draft is in
 
   **Not verified: that the notification reaches the screen — and the reason is now known rather than guessed.** The iOS *simulator* issues a real APNs device token and Apple returns HTTP 200 for sends to it, but nothing arrives. That had two candidate explanations, and a `simctl push` to the same app discriminated them: the local notification fired `didReceiveRemoteNotification` immediately. **So the app-side handling is correct, and APNs simply does not route real remote pushes to a simulator** — it accepts them and drops them.
 
+  **And that blocks the FCM route too, which changes what to do next.** FCM reaches iOS *by proxying to APNs*, so a Firebase-delivered iOS notification ends up at the same simulator APNs declines to route to. Uploading the APNs key to the Firebase console — the step with no API — would therefore not enable verification either; it only matters for production use of the FCM route. (Inference from the proxy architecture, not separately observed: with no key uploaded, FCM answers `THIRD_PARTY_AUTH_ERROR` long before routing is reached.)
+
+  So there is exactly **one** thing standing between here and a verified iOS delivery on either transport, and it is a physical iPhone.
+
   That makes a **physical iPhone the only way to observe iOS delivery**; `Morgans iPhone` was `unavailable` to `devicectl` throughout. It is a five-minute test once a device is attached: install the probe, read `ZONAI_APNS_NATIVE_TOKEN` from the log, run `tool/apns_probe.dart`, watch the banner. Until then iOS delivery stays unclaimed — Android's equivalent was proved by watching the notification *land*, and "Apple accepted it" is strictly weaker.
 
   A live matrix also produced a second finding worth keeping: a topic the team does not own answers `TopicDisallowed`, while a topic it owns with a token from another app answers `DeviceTokenNotForTopic`. The latter had been mapped to a permanent rejection, which would have pruned every iOS registration in one drain on a mistyped `bundleId`. Now transient.
