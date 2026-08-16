@@ -20,6 +20,11 @@ import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/zonai_db/concurrency_gate.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
+// The extra-column rules `zonai db admin add` already applies. Imported here
+// so invite acceptance asks for exactly the set that command asks for -- two
+// implementations of "what does an admin row need" is how the CLI and the
+// invite screen end up disagreeing about a required column.
+import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
 import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
@@ -530,9 +535,14 @@ class ZonaiDb {
   Future<_AuthResult> acceptAdminInvite({
     required String token,
     String? password,
+    Map<String, dynamic>? object,
   }) async {
     return await _run(
-      () => _acceptAdminInvite(token: token, password: password),
+      () => _acceptAdminInvite(
+        token: token,
+        password: password,
+        object: object,
+      ),
     );
   }
 

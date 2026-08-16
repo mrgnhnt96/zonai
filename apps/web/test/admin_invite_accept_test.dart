@@ -34,14 +34,28 @@ OAuthProviderPublic _provider({required String id, required String displayName, 
 }
 
 /// "The probe came back and the invite is good, on a table declaring these."
-AdminInviteStatus _live(List<AuthType> authTypes) {
-  return AdminInviteLive(table: 'staff', authTypes: authTypes);
+AdminInviteStatus _live(List<AuthType> authTypes, {List<ColumnShape> fields = const []}) {
+  return AdminInviteLive(table: 'staff', authTypes: authTypes, fields: fields);
+}
+
+/// A required, non-nullable text column -- `name` on the reference schema,
+/// and the reason acceptance needs more than a password: the insert cannot
+/// invent a value the schema will not accept as null.
+ColumnShape _requiredText(String name) {
+  return ColumnShape(
+    name: name,
+    kind: ColumnShapeKind.text,
+    isNullable: false,
+    isPrimaryKey: false,
+    autoIncrement: false,
+    sqlType: 'TEXT',
+  );
 }
 
 /// For the view tests that are not about acceptance. Deliberately not a
 /// success: a test that reaches this without meaning to has done nothing
 /// observable, rather than silently "passing" an acceptance it never wired.
-Future<void> _ignoreAccept({String? password}) async {
+Future<void> _ignoreAccept({String? password, Map<String, dynamic>? values}) async {
   throw StateError('onAccept was not expected in this test');
 }
 
@@ -81,7 +95,7 @@ Component _scoped({
       // Same default, same reason: an accept the test did not wire must not
       // look like one that succeeded.
       adminInviteAcceptProvider.overrideWithValue(
-        accept ?? (_, {password}) async => throw StateError('accept was not expected in this test'),
+        accept ?? (_, {password, values}) async => throw StateError('accept was not expected in this test'),
       ),
     ],
     child: child,
@@ -215,7 +229,7 @@ void main() {
             token: 'invite-token',
             status: _live(const [AuthType.password]),
             onSelectProvider: (_) {},
-            onAccept: ({String? password}) async {
+            onAccept: ({String? password, Map<String, dynamic>? values}) async {
               calls++;
               sent = password;
             },
@@ -241,7 +255,7 @@ void main() {
             token: 'invite-token',
             status: _live(const [AuthType.password]),
             onSelectProvider: (_) {},
-            onAccept: ({String? password}) async => calls++,
+            onAccept: ({String? password, Map<String, dynamic>? values}) async => calls++,
           ),
           authTypes: const [AuthType.password],
         ),
@@ -255,6 +269,59 @@ void main() {
       expect(find.textContaining('do not match'), findsOneComponent);
     });
 
+    testComponents('asks for the columns the account cannot be created without', (tester) async {
+      // Without this the screen collects a password, posts it, and the insert
+      // fails on a non-nullable column -- which is what it did before the
+      // probe started reporting `fields`.
+      var sent = <String, dynamic>{};
+
+      tester.pumpComponent(
+        _scoped(
+          child: AdminInviteAcceptView(
+            token: 'invite-token',
+            status: _live(const [AuthType.password], fields: [_requiredText('name')]),
+            onSelectProvider: (_) {},
+            onAccept: ({String? password, Map<String, dynamic>? values}) async {
+              sent = values ?? {};
+            },
+          ),
+          authTypes: const [AuthType.password],
+        ),
+      );
+
+      expect(find.text('name'), findsOneComponent);
+
+      await _type(tester, 'admin-invite-field-name', 'Grace Hopper');
+      await _type(tester, 'admin-invite-password', 'pw-1');
+      await _type(tester, 'admin-invite-password-confirm', 'pw-1');
+      await tester.click(find.componentWithText(button, 'Accept invitation'));
+
+      expect(sent, {'name': 'Grace Hopper'});
+    });
+
+    testComponents('a required column left blank is refused without a request', (tester) async {
+      var calls = 0;
+
+      tester.pumpComponent(
+        _scoped(
+          child: AdminInviteAcceptView(
+            token: 'invite-token',
+            status: _live(const [AuthType.password], fields: [_requiredText('name')]),
+            onSelectProvider: (_) {},
+            onAccept: ({String? password, Map<String, dynamic>? values}) async => calls++,
+          ),
+          authTypes: const [AuthType.password],
+        ),
+      );
+
+      await _type(tester, 'admin-invite-password', 'pw-1');
+      await _type(tester, 'admin-invite-password-confirm', 'pw-1');
+      await tester.click(find.componentWithText(button, 'Accept invitation'));
+
+      expect(calls, 0, reason: 'a blank required column must not spend the token');
+      expect(find.textContaining('name is required'), findsOneComponent);
+    });
+
     testComponents("a refusal is shown, in the server's own words", (tester) async {
       // Not paraphrased into a house sentence. The runtime's refusals here
       // name the thing to do about them -- which provider route to use, that
@@ -265,7 +332,7 @@ void main() {
             token: 'invite-token',
             status: _live(const [AuthType.otp]),
             onSelectProvider: (_) {},
-            onAccept: ({String? password}) async {
+            onAccept: ({String? password, Map<String, dynamic>? values}) async {
               throw StateError('Admin table "staff" has no password sign-in configured');
             },
           ),

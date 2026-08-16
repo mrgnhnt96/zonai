@@ -51,7 +51,11 @@ class AdminInviteBody {
 /// answers which before the screen asks; the runtime re-checks regardless,
 /// because that probe is a convenience and not a gate.
 class AdminInviteAcceptBody {
-  const AdminInviteAcceptBody({required this.token, this.password});
+  const AdminInviteAcceptBody({
+    required this.token,
+    this.password,
+    this.object,
+  });
 
   factory AdminInviteAcceptBody.fromJson(Map<String, dynamic> json) {
     final token = json['token'];
@@ -81,9 +85,21 @@ class AdminInviteAcceptBody {
     // two that differ for no reason the caller can act on.
     final trimmed = password as String?;
 
+    final object = json['object'];
+    if (object != null && object is! Map) {
+      throw ArgumentError.value(
+        object.runtimeType,
+        'object',
+        '"object" must be a JSON object when present',
+      );
+    }
+
     return AdminInviteAcceptBody(
       token: token,
       password: (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+      object: object == null
+          ? null
+          : (object as Map).map((key, value) => MapEntry('$key', value)),
     );
   }
 
@@ -95,9 +111,21 @@ class AdminInviteAcceptBody {
   /// with one.
   final String? password;
 
+  /// Values for the columns the admin table needs beyond email and password
+  /// — `name` on the reference schema. `GET /auth/admin/invite?token=` lists
+  /// which, as `fields`, so the screen can ask before submitting rather than
+  /// discovering it from a failed insert.
+  ///
+  /// A caller cannot use this to write columns the schema does not offer for
+  /// creation: the server intersects it with the same editable set
+  /// `zonai db admin add` resolves, so an `is_admin`-flavoured extra field
+  /// smuggled in here has nowhere to land.
+  final Map<String, dynamic>? object;
+
   Map<String, dynamic> toJson() => {
     'token': token,
     if (password != null) 'password': password,
+    if (object != null) 'object': object,
   };
 
   /// Neither secret, ever. Design §4 item 8 keeps the raw token out of logs

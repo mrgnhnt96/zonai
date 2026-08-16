@@ -26,7 +26,11 @@ final class AdminInviteChecking extends AdminInviteStatus {
 
 /// The token names an invite that can still be accepted.
 final class AdminInviteLive extends AdminInviteStatus {
-  const AdminInviteLive({required this.table, required this.authTypes});
+  const AdminInviteLive({
+    required this.table,
+    required this.authTypes,
+    this.fields = const [],
+  });
 
   /// The `AsAdmin` collection the invite is for.
   final String table;
@@ -34,6 +38,14 @@ final class AdminInviteLive extends AdminInviteStatus {
   /// The sign-in methods **that table** declares — not the union across every
   /// admin table, which is what `adminSupportedAuthTypes` answers.
   final List<AuthType> authTypes;
+
+  /// The columns the invitee has to fill in beyond email and password —
+  /// `name` on the reference schema.
+  ///
+  /// Empty is the normal case and means the account needs nothing else. It is
+  /// also what an older server sends, which is why acceptance without them
+  /// still works: the field list grows the form, it does not gate it.
+  final List<ColumnShape> fields;
 }
 
 /// The token names nothing that can be accepted, and the screen is not told
@@ -72,5 +84,25 @@ AdminInviteStatus parseAdminInviteStatus(Map<String, Object?> data) {
     }
   }
 
-  return AdminInviteLive(table: table, authTypes: authTypes);
+  // Unparseable field metadata degrades to "no extra fields" rather than to
+  // an error page, on the same principle as the auth types above: a link that
+  // is perfectly good must not be refused because a newer server described a
+  // column in a way this build does not recognise. The server re-checks what
+  // is required regardless, so the worst case is a refusal that names the
+  // column instead of a form that asked for it.
+  final fields = <ColumnShape>[];
+  if (data['fields'] case final List raw) {
+    for (final entry in raw) {
+      if (entry is! Map) continue;
+      try {
+        fields.add(
+          ColumnShape.fromJson(entry.map((k, v) => MapEntry('$k', v))),
+        );
+      } catch (_) {
+        continue;
+      }
+    }
+  }
+
+  return AdminInviteLive(table: table, authTypes: authTypes, fields: fields);
 }

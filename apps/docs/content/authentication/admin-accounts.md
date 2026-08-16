@@ -54,25 +54,53 @@ Authorization: Bearer <admin-token>
 { "email": "colleague@example.com" }
 ```
 
-zonai emails a link to `{baseUrl}/_/admin/invite?token=…` that expires in seven
-days. Opening it shows the sign-in methods your admin table declares.
+From a shell — including before any admin exists, when there is no session to
+send one with:
 
-> **Only OAuth tables can accept an invite today.** Acceptance is implemented
-> for `OAuth` and nothing else, so an admin table that offers only
-> `PasswordAuth`, `OtpAuth` or `MagicLinkAuth` cannot use invites yet — the
-> acceptance screen says so and points at `zonai db admin add` rather than
-> showing a form that has nothing behind it. Use the CLI for those tables. The
-> invite is a property of the admin table rather than of OAuth, so the other
-> three are a gap to be filled, not a decision.
+```
+zonai db admin invite --email colleague@example.com
+zonai db admin invites          # what is still outstanding
+zonai db admin revoke-invite --email colleague@example.com
+```
+
+zonai emails a link to `{baseUrl}/_/admin/invite?token=…` that expires in seven
+days. Opening it shows the sign-in methods your admin table declares, and the
+screen checks the link is still good before offering anything — an expired or
+withdrawn link gets a plain explanation rather than an error page.
+
+What that screen offers depends on the table:
+
+- **OAuth** — a button per provider. Signing in accepts the invite.
+- **Password** — a set-password form. Choosing a password creates the account
+  and signs you in.
+- **OTP or magic link** — an *Accept invitation* button, with nothing to fill
+  in. You will sign in with a code or a link from then on.
+
+If your admin table has columns beyond email and password that cannot be empty
+— a `name`, say — the acceptance form asks for those too. It is the same set
+`zonai db admin add --data` requires.
+
+> **A table that declares OAuth and nothing else can only be accepted through a
+> provider**, and the direct path refuses it with a `409`. That is not an
+> omission: possession of the invite link proves control of the invited mailbox,
+> while an OAuth acceptance additionally has the provider vouch that the account
+> signing in owns that address. A table offering only OAuth has chosen the
+> stronger check, so zonai will not quietly accept the weaker one on its behalf.
 
 **No admin row exists until the invite is accepted.** That is deliberate: an
 unaccepted invite is a pending record, not an account, so a mistyped address
 never becomes a half-real admin you have to remember to clean up. The row is
 created, the invite consumed, and the session issued in the same step.
 
-Acceptance is bound to the address you invited. The identity that signs in must
-carry a **verified** email equal to it — a different Google account following the
-same link is refused and the invite stays usable for the person it was meant for.
+Acceptance is always for the address you invited — it is read from the invite,
+and no request can name a different one. On the OAuth path there is a second
+check on top: the identity signing in must carry a **verified** email equal to
+it, so a different Google account following the same link is refused and the
+invite stays usable for the person it was meant for.
+
+**A refused acceptance costs nothing.** Every refusal happens before the invite
+is consumed, so a mistyped password or a blank required field can simply be
+tried again rather than needing a fresh invite.
 
 This is the one place zonai will provision an admin from an external identity
 provider. Ordinary OAuth sign-in never creates an admin row, because a provider
@@ -88,8 +116,19 @@ admin one.
 | `DELETE` | `/admin/invites/:email` | Revoke a pending invite — the link stops working |
 | `DELETE` | `/admin/members/:email` | Remove an admin and revoke their sessions |
 
-Every route needs an admin token **for that admin table**; anything else is a
-`403`. Revoking is idempotent and answers the same way for an address that was
+Two more are reachable **without** a session, because the invitee has none and
+the token in their link is the authorization:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/auth/admin/invite?token=` | Is this link still good? Answers without spending it |
+| `POST` | `/auth/admin/invite/accept` | Accept directly — password, OTP or magic-link tables |
+
+Neither distinguishes an expired invite from one that never existed, for the
+same reason revoking does not.
+
+Every `/admin/*` route needs an admin token **for that admin table**; anything
+else is a `403`. Revoking is idempotent and answers the same way for an address that was
 never invited, so it cannot be used to discover who has an invite pending.
 
 Two removals are refused on purpose, and your dashboard should present them as

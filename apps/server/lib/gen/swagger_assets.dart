@@ -1514,6 +1514,11 @@ const kSwaggerJson = r'''{
           "password": {
             "type": "string",
             "nullable": true
+          },
+          "object": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "required": [
@@ -3688,6 +3693,10 @@ components:
           type: string
         password:
           type: string
+          nullable: true
+        object:
+          type: object
+          additionalProperties: true
           nullable: true
       required:
         - token

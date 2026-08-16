@@ -10,6 +10,7 @@ import '../auth/auth_provider.dart';
 import '../auth/auth_routes.dart';
 import '../providers/admin_invite_probe_provider.dart';
 import '../utils/admin_invite_status.dart';
+import '../utils/table_cell_edit.dart';
 import 'oauth_sign_in_screen.dart';
 import 'sign_in_screen.dart';
 import 'theme/theme_components.dart';
@@ -100,9 +101,13 @@ class AdminInviteAcceptScreenState extends State<AdminInviteAcceptScreen> {
         if (token == null) return;
         startAdminInviteOAuthFlow(provider: provider, token: token);
       },
-      onAccept: ({password}) async {
+      onAccept: ({password, values}) async {
         if (token == null) return;
-        await context.read(adminInviteAcceptProvider)(token, password: password);
+        await context.read(adminInviteAcceptProvider)(
+          token,
+          password: password,
+          values: values,
+        );
         // The token is already stored by the client's X-Auth interceptor;
         // this is what makes the app *notice*, and it is what navigates to
         // the dashboard. Same call `signInWithPassword` makes after its own
@@ -148,7 +153,8 @@ class AdminInviteAcceptView extends StatelessComponent {
   /// Never called for a collection that declares OAuth and nothing else — the
   /// form that would call it is not rendered there, and the runtime refuses
   /// that combination regardless.
-  final Future<void> Function({String? password}) onAccept;
+  final Future<void> Function({String? password, Map<String, dynamic>? values})
+  onAccept;
 
   @override
   Component build(BuildContext context) {
@@ -230,6 +236,7 @@ class AdminInviteAcceptView extends StatelessComponent {
             AdminInviteAcceptForm(
               needsPassword: authTypes.contains(AuthType.password),
               methods: direct,
+              fields: (status as AdminInviteLive).fields,
               onAccept: onAccept,
             ),
           if (direct.isNotEmpty && hasOAuth)
@@ -275,6 +282,7 @@ class AdminInviteAcceptForm extends StatefulComponent {
     super.key,
     required this.needsPassword,
     required this.methods,
+    required this.fields,
     required this.onAccept,
   });
 
@@ -286,7 +294,13 @@ class AdminInviteAcceptForm extends StatefulComponent {
   /// tells someone how they will sign in next time.
   final List<AuthType> methods;
 
-  final Future<void> Function({String? password}) onAccept;
+  /// Columns the account needs beyond email and password. Rendered as text
+  /// inputs in the order the schema declares them, which is the order the
+  /// dashboard's own create form uses.
+  final List<ColumnShape> fields;
+
+  final Future<void> Function({String? password, Map<String, dynamic>? values})
+  onAccept;
 
   @override
   State<AdminInviteAcceptForm> createState() => AdminInviteAcceptFormState();
@@ -295,14 +309,30 @@ class AdminInviteAcceptForm extends StatefulComponent {
 class AdminInviteAcceptFormState extends State<AdminInviteAcceptForm> {
   String _password = '';
   String _confirm = '';
+  final Map<String, String> _values = {};
   bool _submitting = false;
   String? _error;
+
+  /// Fields the schema will not accept as empty.
+  ///
+  /// [isCreateFieldRequired] is the dashboard's own create-form rule, reused
+  /// rather than re-derived. It is safe to apply here because the server has
+  /// already narrowed the list to admin-creatable columns, so the only
+  /// question left is the one this asks: non-nullable, and not a kind that
+  /// has a sensible empty value.
+  Iterable<ColumnShape> get _requiredFields =>
+      component.fields.where(isCreateFieldRequired);
 
   /// Checked here only to spare a round trip and to say *which* rule was
   /// missed. The server enforces the password rules regardless — this is a
   /// convenience, and treating it as the gate is how a rule ends up living
   /// only in the browser.
   String? get _localRefusal {
+    for (final field in _requiredFields) {
+      if ((_values[field.name] ?? '').trim().isEmpty) {
+        return '${columnShapeHeaderLabel(field)} is required.';
+      }
+    }
     if (!component.needsPassword) return null;
     if (_password.isEmpty) return 'Choose a password to finish setting up your account.';
     if (_password != _confirm) return 'The two passwords do not match.';
@@ -325,6 +355,13 @@ class AdminInviteAcceptFormState extends State<AdminInviteAcceptForm> {
     try {
       await component.onAccept(
         password: component.needsPassword ? _password : null,
+        // Only what was actually typed. Sending empty strings for untouched
+        // optional columns would write "" over a column whose default is the
+        // better answer.
+        values: {
+          for (final entry in _values.entries)
+            if (entry.value.trim().isNotEmpty) entry.key: entry.value.trim(),
+        },
       );
       // Deliberately no success state and no `_submitting = false`. A
       // successful acceptance navigates away, and re-enabling the button in
@@ -349,6 +386,14 @@ class AdminInviteAcceptFormState extends State<AdminInviteAcceptForm> {
     return Component.fragment([
       if (_error case final message?)
         ZonaiErrorAlert(title: 'Could not accept the invitation', body: message),
+      for (final field in component.fields)
+        ZonaiTextField(
+          id: 'admin-invite-field-${field.name}',
+          fieldLabel: columnShapeHeaderLabel(field),
+          value: _values[field.name] ?? '',
+          disabled: _submitting,
+          onInput: (value) => setState(() => _values[field.name] = value),
+        ),
       if (component.needsPassword) ...[
         ZonaiTextField(
           id: 'admin-invite-password',

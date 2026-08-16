@@ -324,6 +324,11 @@ class AuthHandler {
       // Names, not indices: an `AuthType` gaining a value must not silently
       // renumber what an older dashboard reads.
       'authTypes': [for (final type in invite.authTypes) type.name],
+      // The columns acceptance needs filled in beyond email and password.
+      // Schema metadata, not secrets -- the same shapes the dashboard's own
+      // create form renders, and `isSecret`/`isReadOnly` columns are already
+      // excluded upstream by `adminExtraCreateFields`.
+      'fields': [for (final field in invite.fields) field.toJson()],
     };
   }
 
@@ -357,6 +362,7 @@ class AuthHandler {
     final result = await zonaiDB.acceptAdminInvite(
       token: body.token,
       password: body.password,
+      object: body.object,
     );
     return _sessionPayload(result.user, result.jwt);
   }

@@ -1588,12 +1588,12 @@
         {
           "h": "Inviting an Admin",
           "a": "inviting-an-admin",
-          "b": "zonai db admin add needs a shell in your project directory. Inviting is how an admin who already has a dashboard adds a colleague without one — and how you add someone to a table whose only sign-in method belongs to somebody else, such as a Google-only admin table. An existing admin sends the invite from the Admins screen, or directly: POST /admin/invites Authorization: Bearer { \"email\": \"colleague@example.com\" } zonai emails a link to {baseUrl}/_/admin/invite?token=… that expires in seven days. Opening it shows the sign-in methods your admin table declares. Only OAuth tables can accept an invite today. Acceptance is implemented for OAuth and nothing else, so an admin table that offers only PasswordAuth, OtpAuth or MagicLinkAuth cannot use invites yet — the acceptance screen says so and points at zonai db admin add rather than showing a form that has nothing behind it. Use the CLI for those tables. The invite is a property of the admin table rather than of OAuth, so the other three are a gap to be filled, not a decision. No admin row exists until the invite is accepted. That is deliberate: an unaccepted invite is a pending record, not an account, so a mistyped address never becomes"
+          "b": "zonai db admin add needs a shell in your project directory. Inviting is how an admin who already has a dashboard adds a colleague without one — and how you add someone to a table whose only sign-in method belongs to somebody else, such as a Google-only admin table. An existing admin sends the invite from the Admins screen, or directly: POST /admin/invites Authorization: Bearer { \"email\": \"colleague@example.com\" } From a shell — including before any admin exists, when there is no session to send one with: zonai db admin invite --email colleague@example.com zonai db admin invites what is still outstanding zonai db admin revoke-invite --email colleague@example.com zonai emails a link to {baseUrl}/_/admin/invite?token=… that expires in seven days. Opening it shows the sign-in methods your admin table declares, and the screen checks the link is still good before offering anything — an expired or withdrawn link gets a plain explanation rather than an error page. What that screen offers depends on the table: OAuth — a button per provider. Signing in accepts the invite. Password — a set-password form. Choosing a password creates the account and signs you in. OTP or magic link — an Accept i"
         },
         {
           "h": "Managing invites and admins",
           "a": "managing-invites-and-admins",
-          "b": "Method Path Description GET /admin/members Current admins and pending invites, in one response POST /admin/invites Invite an address DELETE /admin/invites/:email Revoke a pending invite — the link stops working DELETE /admin/members/:email Remove an admin and revoke their sessions Every route needs an admin token for that admin table; anything else is a 403. Revoking is idempotent and answers the same way for an address that was never invited, so it cannot be used to discover who has an invite pending. Two removals are refused on purpose, and your dashboard should present them as rules rather than as errors: An admin cannot remove themselves (403). The last admin cannot be removed at all (409). A dashboard that can lock everyone out of itself is a bug. Removing an admin revokes their existing sessions, so a token issued before the removal stops working immediately rather than lasting until it expires. Invites are rate limited per admin table and client IP, and repeat invites to one address are limited to one a minute. The raw invite token exists only in the email: it is stored hashed, is single-use, and appears in no response body, log line, or error message."
+          "b": "Method Path Description GET /admin/members Current admins and pending invites, in one response POST /admin/invites Invite an address DELETE /admin/invites/:email Revoke a pending invite — the link stops working DELETE /admin/members/:email Remove an admin and revoke their sessions Two more are reachable without a session, because the invitee has none and the token in their link is the authorization: Method Path Description GET /auth/admin/invite?token= Is this link still good? Answers without spending it POST /auth/admin/invite/accept Accept directly — password, OTP or magic-link tables Neither distinguishes an expired invite from one that never existed, for the same reason revoking does not. Every /admin/ route needs an admin token for that admin table; anything else is a 403. Revoking is idempotent and answers the same way for an address that was never invited, so it cannot be used to discover who has an invite pending. Two removals are refused on purpose, and your dashboard should present them as rules rather than as errors: An admin cannot remove themselves (403). The last admin cannot be removed at all (409). A dashboard that can lock everyone out of itself is a bug. Removing "
         },
         {
           "h": "Listing Admin Accounts",
@@ -2757,6 +2757,21 @@
           "h": "add",
           "a": "add",
           "b": "Create an admin account in an auth table: zonai db admin add --email admin@example.com --password secret123 zonai db admin add -e admin@example.com -p secret123 --data '{\"name\":\"Admin\"}' Flag Short Description --email -e Admin email address (required) --password -p Admin password (required) --data -d Extra JSON fields to merge into the row --no-verify — Skip email verification for this account"
+        },
+        {
+          "h": "invite",
+          "a": "invite",
+          "b": "Email an invite instead of creating the account outright. No admin row exists until the invitee opens the link and proves they own the address, so this is what to reach for when the address belongs to someone else: zonai db admin invite --email colleague@example.com Flag Short Description --email -e Address to invite (required) Needs email sending configured — the link exists only in the email. The invite is good for seven days. Unlike the dashboard's invite, this needs no admin session, which is the point: it works before any admin exists. That also means it is attributed to nobody, and it does not apply the one-minute resend limit the HTTP route does."
+        },
+        {
+          "h": "invites",
+          "a": "invites",
+          "b": "List invites that are still outstanding — neither accepted, revoked nor expired. Never prints the token: zonai db admin invites"
+        },
+        {
+          "h": "revoke-invite",
+          "a": "revoke-invite",
+          "b": "Cancel an outstanding invite. The link stops working immediately: zonai db admin revoke-invite --email colleague@example.com Flag Short Description --email -e Address whose invite to cancel (required) Succeeds whether or not an invite was pending, so a typo here does not become a second thing to diagnose."
         },
         {
           "h": "list",

@@ -49,8 +49,15 @@ Future<void> acceptAdminInvite({
   required Server server,
   required String token,
   String? password,
+  Map<String, dynamic>? values,
 }) async {
   await server.auth.acceptAdminInvite(
-    body: AdminInviteAcceptBody(token: token, password: password),
+    body: AdminInviteAcceptBody(
+      token: token,
+      password: password,
+      // Empty means "nothing extra to set", which is the ordinary case; the
+      // wire field is omitted entirely rather than sent as `{}`.
+      object: (values == null || values.isEmpty) ? null : values,
+    ),
   );
 }

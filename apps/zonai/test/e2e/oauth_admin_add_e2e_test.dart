@@ -157,6 +157,47 @@ void main() {
       });
     });
 
+    test('an OAuth-only admin table refuses direct invite acceptance of a '
+        'LIVE invite, and names the route that works', () async {
+      if (!_runningOnDartVm) return;
+      await withDb((db) async {
+        // Design §3.3's boundary. Direct acceptance is authorized by the
+        // invite token alone; §3.2's OAuth path additionally has a provider
+        // vouch that the identity signing in owns the invited address. A
+        // table offering nothing but OAuth has chosen the stronger claim, so
+        // the weaker door is refused rather than quietly opened.
+        //
+        // The invite has to be REAL for this to prove anything: an unknown
+        // token is refused as unknown, several checks earlier, and a test
+        // written that way would still pass with the OAuth-only check
+        // deleted. `inviteAdminFromCli` is what makes a live one reachable
+        // here -- there is no admin session on this fixture to issue one
+        // with, which is the same bootstrap problem it exists to solve.
+        final email = 'invited-${clock.now().microsecondsSinceEpoch}@example.com';
+        await db.inviteAdminFromCli(email: email);
+
+        // Live, and it is this table's.
+        final described = await db.describeAdminInvite(token: 'dev-admin-invite');
+        expect(described, isNotNull);
+        expect(described!.authTypes, [AuthType.oauth]);
+
+        await expectLater(
+          db.acceptAdminInvite(token: 'dev-admin-invite', password: 'pw'),
+          throwsA(isA<AdminInviteRequiresOAuthException>()),
+        );
+
+        // Refused before anything was created, and -- the part that would
+        // hurt most to get wrong -- before the invite was spent. The invitee
+        // must still be able to accept it the way this table intends.
+        expect((await db.listAdmins()).where((a) => a['email'] == email), isEmpty);
+        expect(
+          await db.describeAdminInvite(token: 'dev-admin-invite'),
+          isNotNull,
+          reason: 'a refused direct acceptance must leave the OAuth path open',
+        );
+      });
+    });
+
     test('createAdmin with no password creates a verified, password-less row '
         'that a subsequent OAuth sign-in with the same verified email links '
         'to and signs in', () async {
@@ -237,6 +278,11 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
     mutationsProvider,
     cleanUpProvider,
     executableStopProvider,
+    // Needed since this file exercises `inviteAdminFromCli`, which mails the
+    // invite. No email is configured on this fixture, so `Courier._send`
+    // returns early and the call is a silent no-op -- but the provider still
+    // has to be in scope to be read.
+    courierProvider,
     if (appConfig != null)
       configResolverProvider.overrideWith(
         () => ConfigResolver.fixed(appConfig),

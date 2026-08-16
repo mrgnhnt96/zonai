@@ -72,6 +72,42 @@ class FakeZonaiDb extends ZonaiDb {
   Object? createAdminError;
   Map<String, Object?> createAdminResult = const {};
 
+  Object? inviteAdminFromCliError;
+  Map<String, Object?> inviteAdminFromCliResult = const {};
+
+  Object? listAdminInvitesFromCliError;
+  List<Map<String, Object?>> listAdminInvitesFromCliResult = const [];
+
+  Object? revokeAdminInviteFromCliError;
+
+  /// Set once the matching command runs, so a test can assert the address
+  /// reached the runtime rather than only that the command exited 0.
+  String? inviteAdminFromCliCall;
+  String? revokeAdminInviteFromCliCall;
+  var listAdminInvitesFromCliCalled = false;
+
+  @override
+  Future<Map<String, Object?>> inviteAdminFromCli({
+    required String email,
+  }) async {
+    inviteAdminFromCliCall = email;
+    if (inviteAdminFromCliError case final error?) throw error;
+    return inviteAdminFromCliResult;
+  }
+
+  @override
+  Future<List<Map<String, Object?>>> listAdminInvitesFromCli() async {
+    listAdminInvitesFromCliCalled = true;
+    if (listAdminInvitesFromCliError case final error?) throw error;
+    return listAdminInvitesFromCliResult;
+  }
+
+  @override
+  Future<void> revokeAdminInviteFromCli({required String email}) async {
+    revokeAdminInviteFromCliCall = email;
+    if (revokeAdminInviteFromCliError case final error?) throw error;
+  }
+
   ({String email, String newPassword})? resetAdminPasswordCall;
   String? removeAdminCall;
   var listAdminsCalled = false;

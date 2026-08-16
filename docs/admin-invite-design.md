@@ -1,6 +1,6 @@
 # Admin invites — design and build plan
 
-Status: **plan**, not yet implemented. Branch: `feat/oauth`.
+Status: **built**. Branch: `feat/oauth`. §7 records what landed and what did not.
 
 Today an admin account can only be created from the CLI (`zonai db admin add`). The
 dashboard shows an `Admin` badge and nothing else: `createAdmin`, `listAdmins` and
@@ -82,11 +82,17 @@ authorization that lifts it, for that email only.
 ### 3.3 Accept — password / OTP / magic-link tables
 
 The same link, resolving to whatever the table supports: a set-password form for
-`PasswordAuth` (the `reset-password/confirm` screen shape), or a code/link send for
-`OtpAuth` / `MagicLinkAuth`. Same ending: row created, invite consumed, signed in.
+`PasswordAuth`, or a bare accept for `OtpAuth` / `MagicLinkAuth` — no second code is sent,
+because the invite link was already mailed to that address and holding it is the same proof
+a magic link accepts. Same ending: row created, invite consumed, signed in.
+
+Plus whatever columns the row cannot be created without (`name` on the reference schema),
+which the probe reports as `fields` so the screen can ask before submitting rather than
+discovering them from a failed insert.
 
 Do not special-case OAuth so hard that the other three become impossible — the invite is a
-property of the admin table, not of OAuth.
+property of the admin table, not of OAuth. The converse holds too: a table that declares
+**only** OAuth is refused here rather than accepted on the weaker claim (see §7).
 
 ### 3.4 Revoke and remove
 
@@ -164,30 +170,50 @@ rate limited); the `admin_invite` email template; the Admins screen and the
 `/_/admin/invite` acceptance screen; runtime e2e and real-HTTP e2e, the latter
 including the non-admin refusal that §4 item 1 needs.
 
-Two gaps are open, both found by the leaves that hit them rather than by review.
+Both gaps this section used to list are now closed.
 
-**§3.3 is not built.** Acceptance is OAuth-only. `_findLiveAdminInvite` has
-exactly two callers, both in `parts/auth/oauth.dart`, and
-`auth_controller.dart` says the same about itself in its own doc comment. So an
-admin table offering only `PasswordAuth`, `OtpAuth` or `MagicLinkAuth` cannot
-use invites at all. The acceptance screen handles this the right way round — it
-explains the situation and points at `zonai db admin add` instead of rendering a
-form that posts nowhere — but the flow §3.3 describes does not exist. Filling it
-needs a non-OAuth consumption path in the db mutator first; the screen and the
-route are the easy half.
+**§3.3 is built.** `ZonaiDb.acceptAdminInvite` resolves the invite, creates the
+row in the invite's *own* table, consumes the challenge and mints the session —
+the same ending `_provisionInvitedAdmin` reaches for OAuth. `POST
+/auth/admin/invite/accept` carries the token in the body rather than the query
+string, because a query string reaches request logs, browser history and the
+`Referer` of whatever renders next; `redactSensitiveQuery` is a mitigation for
+the routes that have no choice, not a licence to put a credential there. The
+acceptance screen renders a set-password form for `PasswordAuth` and a bare
+*Accept invitation* button for `OtpAuth`/`MagicLinkAuth`.
 
-**Nothing can ask whether an invite token is live without consuming it.** The
-acceptance screen can refuse a *missing* token itself, but an expired, revoked
-or forged one is only rejected by `GET
-/auth/admin/invite/oauth/start/:provider`, as a raw 401 — by which point the
-browser has left the SPA, so the invitee gets a server error page instead of the
-screen's plain explanation. This is the first thing a mistyped or stale link
-does, on a flow whose whole job is welcoming someone.
+Direct acceptance is authorized by the token **alone**, which is strictly weaker
+than §3.2 — there a provider additionally vouches that the identity signing in
+owns the invited address. So a table declaring OAuth and nothing else is refused
+(`AdminInviteRequiresOAuthException`, 409) rather than offered a cheaper door.
+Where the claim *is* right, it is the same one `MagicLinkAuth` already accepts:
+the token was mailed to `target` and nowhere else.
 
-A `GET /auth/admin/invite?token=` probe returning `{table, authTypes}` would fix
-it. It must not distinguish "no such invite" from "expired" — that difference is
-an oracle for which addresses have invites pending, which is the same reason
-`DELETE /admin/invites/:email` answers identically either way.
+Acceptance also collects the columns the row cannot be created without. The
+reference schema's `User.name` is non-nullable, so a form that asked only for a
+password produced a cast failure from the insert — the probe now reports those
+columns as `fields`, resolved through the same `adminExtraCreateFields` helper
+`zonai db admin add` uses, so the two surfaces cannot disagree about what an
+admin row needs.
+
+**The liveness probe exists.** `GET /auth/admin/invite?token=` answers
+`{live, table, authTypes, fields}` without consuming anything, and answers
+identically for expired, revoked, spent, forged and unknown tokens — in all
+three layers independently (the runtime collapses them to one `null` and probes
+every admin table regardless of what matched, so query count is not a side
+channel; the handler maps that null to one shared const; the browser's parser
+fails closed).
+
+### The bootstrap gap, also closed
+
+**Issuing an invite needed an admin session, so the first admin could not be
+invited.** Closed by `zonai db admin invite` / `invites` / `revoke-invite`,
+which go through `*FromCli` entry points taking no JWT. Deliberately separate
+methods rather than a nullable `jwt`: a null meaning "root" on a method the HTTP
+layer also calls is one missing argument away from an unauthenticated invite
+route. CLI invites are attributed to nobody — an empty metadata map, not a
+placeholder id — and skip the one-minute resend throttle, which is not a
+boundary against a shell that can already write the table.
 
 ### Seeing the screens
 

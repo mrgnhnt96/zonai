@@ -12,7 +12,18 @@ const _adminInviteExpiresIn = Duration(days: 7);
 /// — a forged or leaked token must not become a way to learn which address
 /// it was issued for. Same reasoning that keeps the token's hash out of
 /// [_listAdminInvites].
-typedef AdminInviteDescription = ({String table, List<AuthType> authTypes});
+///
+/// `fields` is the columns the accepting invitee has to fill in beyond email
+/// and password — `name` on the reference schema. Without them the acceptance
+/// screen would collect a password, post it, and get a cast failure from the
+/// insert, because a non-nullable column with no value is not something the
+/// server can invent. They are schema shapes, not secrets: the same metadata
+/// the dashboard's create form already renders.
+typedef AdminInviteDescription = ({
+  String table,
+  List<AuthType> authTypes,
+  List<ColumnShape> fields,
+});
 
 extension _InviteAdminX on ZonaiDb {
   /// Caller's JWT must be admin *on the resolved `AsAdmin` table* -- not
@@ -232,7 +243,28 @@ extension _InviteAdminX on ZonaiDb {
   }) async {
     final resolved = await _resolveAdminInvite(token: token);
     if (resolved == null) return null;
-    return (table: resolved.table, authTypes: resolved.authTypes);
+    return (
+      table: resolved.table,
+      authTypes: resolved.authTypes,
+      fields: await _adminInviteFields(resolved.table),
+    );
+  }
+
+  /// The columns an accepting invitee must supply, beyond the email the
+  /// invite already carries and the password the table may want.
+  ///
+  /// The same set `zonai db admin add` asks for through `--data`, resolved
+  /// the same way, so the two surfaces cannot drift into disagreeing about
+  /// what an admin row needs.
+  Future<List<ColumnShape>> _adminInviteFields(String table) async {
+    final shapes = await _dispatchOperation<AllTableSchemaShapesResponse>(
+      GetAllTableSchemaShapesRequest(),
+    );
+
+    final shape = shapes.shapes[table];
+    if (shape == null) return const [];
+
+    return adminExtraCreateFields(shape.columns);
   }
 
   /// The lookup behind both [_describeAdminInvite] and [_acceptAdminInvite]:
@@ -296,6 +328,7 @@ extension _InviteAdminX on ZonaiDb {
   Future<_AuthResult> _acceptAdminInvite({
     required String token,
     String? password,
+    Map<String, dynamic>? object,
   }) async {
     final resolved = await _resolveAdminInvite(token: token);
     if (resolved == null) {
@@ -326,6 +359,16 @@ extension _InviteAdminX on ZonaiDb {
       );
     }
 
+    // Whatever the table needs beyond email and password -- `name` on the
+    // reference schema. Resolved through the same helper `zonai db admin
+    // add` uses, so a missing one is the same named refusal there and here
+    // rather than a cast failure from the insert. The probe reports this set
+    // so the screen can ask for it before submitting.
+    final resolvedObject = resolveAdminCreateObject(
+      extraFields: await _adminInviteFields(table),
+      data: object,
+    );
+
     // `target` is already lowercased at issue time (`_inviteAdmin`), and it
     // -- not anything the caller sent -- is the address the row gets. The
     // request carries no email field at all, so there is nothing to
@@ -334,6 +377,7 @@ extension _InviteAdminX on ZonaiDb {
       inTable: table,
       email: invite.target,
       password: password,
+      object: resolvedObject.isEmpty ? null : resolvedObject,
     );
 
     await _consumeChallenge(invite);

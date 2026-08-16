@@ -47,6 +47,51 @@ zonai db admin add -e admin@example.com -p secret123 --data '{"name":"Admin"}'
 | `--data` | `-d` | Extra JSON fields to merge into the row |
 | `--no-verify` | — | Skip email verification for this account |
 
+### invite
+
+Email an invite instead of creating the account outright. **No admin row exists
+until the invitee opens the link and proves they own the address**, so this is
+what to reach for when the address belongs to someone else:
+
+```sh
+zonai db admin invite --email colleague@example.com
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--email` | `-e` | Address to invite (required) |
+
+Needs email sending configured — the link exists only in the email. The invite
+is good for seven days.
+
+Unlike the dashboard's invite, this needs no admin session, which is the point:
+it works before any admin exists. That also means it is attributed to nobody,
+and it does not apply the one-minute resend limit the HTTP route does.
+
+### invites
+
+List invites that are still outstanding — neither accepted, revoked nor expired.
+Never prints the token:
+
+```sh
+zonai db admin invites
+```
+
+### revoke-invite
+
+Cancel an outstanding invite. The link stops working immediately:
+
+```sh
+zonai db admin revoke-invite --email colleague@example.com
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--email` | `-e` | Address whose invite to cancel (required) |
+
+Succeeds whether or not an invite was pending, so a typo here does not become a
+second thing to diagnose.
+
 ### list
 
 List every admin account (id, email, and any other non-secret columns — never the password hash):
