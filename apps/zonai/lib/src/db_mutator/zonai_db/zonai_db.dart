@@ -538,11 +538,8 @@ class ZonaiDb {
     Map<String, dynamic>? object,
   }) async {
     return await _run(
-      () => _acceptAdminInvite(
-        token: token,
-        password: password,
-        object: object,
-      ),
+      () =>
+          _acceptAdminInvite(token: token, password: password, object: object),
     );
   }
 

@@ -303,7 +303,9 @@ class AuthHandler {
   Future<Map<String, Object?>> adminInviteStatus({
     required String token,
   }) async {
-    return adminInviteStatusBody(await zonaiDB.describeAdminInvite(token: token));
+    return adminInviteStatusBody(
+      await zonaiDB.describeAdminInvite(token: token),
+    );
   }
 
   /// The probe's answer as a function of the runtime's, split out from

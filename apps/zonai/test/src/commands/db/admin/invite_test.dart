@@ -19,11 +19,7 @@ import 'fake_zonai_db.dart';
 /// what these assert is that each command reaches the right one with the
 /// right address, since calling the JWT-checked sibling would fail exactly
 /// where it is needed most.
-Future<int> _run(
-  Future<int> Function() command,
-  Args args, {
-  FakeZonaiDb? db,
-}) {
+Future<int> _run(Future<int> Function() command, Args args, {FakeZonaiDb? db}) {
   final fakeDb = db ?? newFakeZonaiDb();
   return runScoped(
     command,
@@ -79,21 +75,23 @@ void main() {
       expect(db.inviteAdminFromCliCall, 'grace@example.com');
     });
 
-    test('reports a failure as a non-zero exit rather than a sent invite',
-        () async {
-      final db = newFakeZonaiDb()
-        ..inviteAdminFromCliError = StateError(
-          'An admin account with email "grace@example.com" already exists',
+    test(
+      'reports a failure as a non-zero exit rather than a sent invite',
+      () async {
+        final db = newFakeZonaiDb()
+          ..inviteAdminFromCliError = StateError(
+            'An admin account with email "grace@example.com" already exists',
+          );
+
+        final exitCode = await _run(
+          inviteAdmin,
+          Args(args: {'email': 'grace@example.com'}),
+          db: db,
         );
 
-      final exitCode = await _run(
-        inviteAdmin,
-        Args(args: {'email': 'grace@example.com'}),
-        db: db,
-      );
-
-      expect(exitCode, 1);
-    });
+        expect(exitCode, 1);
+      },
+    );
   });
 
   group('listAdminInvites', () {

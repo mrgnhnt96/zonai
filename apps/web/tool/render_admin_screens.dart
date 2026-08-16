@@ -149,13 +149,7 @@ Future<void> _renderAccept({
             // member list is: this renders the screen, not the round trip.
             // Defaulting to "live with these methods" keeps every pre-existing
             // case rendering exactly what it did before the probe landed.
-            status:
-                status ??
-                AdminInviteLive(
-                  table: 'staff',
-                  authTypes: authTypes,
-                  fields: fields,
-                ),
+            status: status ?? AdminInviteLive(table: 'staff', authTypes: authTypes, fields: fields),
             onSelectProvider: (_) {},
             // Renders the form; never submits it. These pages are static
             // output, so an acceptance that actually ran would be a round

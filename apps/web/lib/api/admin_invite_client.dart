@@ -20,10 +20,7 @@ import '../utils/admin_invite_status.dart';
 /// this screen is to offer the accept path anyway, and offering it on a link
 /// we could not check is how someone ends up back at the raw 401 this probe
 /// exists to replace.
-Future<AdminInviteStatus> fetchAdminInviteStatus({
-  required Server server,
-  required String token,
-}) async {
+Future<AdminInviteStatus> fetchAdminInviteStatus({required Server server, required String token}) async {
   try {
     return parseAdminInviteStatus(await server.auth.adminInviteStatus(token: token));
   } catch (_) {

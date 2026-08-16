@@ -152,7 +152,11 @@ void main() {
 
     /// Signs up an admin, then invites [invitee]. Returns the inviter's JWT
     /// so the caller can check the pending list afterwards.
-    Future<String> inviteFrom(ZonaiDb db, String inviter, String invitee) async {
+    Future<String> inviteFrom(
+      ZonaiDb db,
+      String inviter,
+      String invitee,
+    ) async {
       final jwt = await signUpAdmin(db, inviter, 'inviter-pw-1');
       await db.inviteAdmin(email: invitee, jwt: jwt);
       return jwt;
@@ -216,7 +220,11 @@ void main() {
       await withDb((db) async {
         final unique = DateTime.now().microsecondsSinceEpoch;
         final inviteeEmail = 'accept-signin-$unique@example.com';
-        await inviteFrom(db, 'accept-signin-inv-$unique@example.com', inviteeEmail);
+        await inviteFrom(
+          db,
+          'accept-signin-inv-$unique@example.com',
+          inviteeEmail,
+        );
 
         await db.acceptAdminInvite(
           token: inviteToken,
@@ -342,7 +350,11 @@ void main() {
       await withDb((db) async {
         final unique = DateTime.now().microsecondsSinceEpoch;
         final inviteeEmail = 'accept-twice-$unique@example.com';
-        await inviteFrom(db, 'accept-twice-inv-$unique@example.com', inviteeEmail);
+        await inviteFrom(
+          db,
+          'accept-twice-inv-$unique@example.com',
+          inviteeEmail,
+        );
 
         await db.acceptAdminInvite(
           token: inviteToken,

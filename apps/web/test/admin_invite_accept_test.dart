@@ -64,11 +64,7 @@ Future<void> _ignoreAccept({String? password, Map<String, dynamic>? values}) asy
 /// rather than dispatching a real DOM event.
 Future<void> _type(ComponentTester tester, String fieldId, String value) async {
   final field =
-      find
-              .byComponentPredicate((c) => c is ZonaiTextField && c.id == fieldId)
-              .evaluate()
-              .single
-              .component
+      find.byComponentPredicate((c) => c is ZonaiTextField && c.id == fieldId).evaluate().single.component
           as ZonaiTextField;
 
   field.onInput(value);
@@ -483,7 +479,12 @@ void main() {
       // distinction back that the endpoint went to trouble to remove.
       tester.pumpComponent(
         _scoped(
-          child: const AdminInviteAcceptView(token: 'tok_stale', status: AdminInviteUnusable(), onSelectProvider: _ignore, onAccept: _ignoreAccept),
+          child: const AdminInviteAcceptView(
+            token: 'tok_stale',
+            status: AdminInviteUnusable(),
+            onSelectProvider: _ignore,
+            onAccept: _ignoreAccept,
+          ),
           authTypes: const [AuthType.oauth],
           providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
         ),
@@ -512,28 +513,33 @@ void main() {
       expect(find.textContaining('Sign in with'), findsNothing);
     });
 
-    testComponents('a server render offers nothing and asks nothing', (tester) async {
-      // `isClient: false` is SSR. The probe needs a session-less round trip
-      // the server render has no business making, and a render that guessed
-      // "live" would paint buttons the client then has to take away.
-      var asked = 0;
-      tester.pumpComponent(
-        _scoped(
-          child: const AdminInviteAcceptScreen(),
-          authTypes: const [AuthType.oauth],
-          providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
-          probe: (_) async {
-            asked++;
-            return _live(const [AuthType.oauth]);
-          },
-        ),
-      );
-      await pumpEventQueue();
+    testComponents(
+      'a server render offers nothing and asks nothing',
+      (tester) async {
+        // `isClient: false` is SSR. The probe needs a session-less round trip
+        // the server render has no business making, and a render that guessed
+        // "live" would paint buttons the client then has to take away.
+        var asked = 0;
+        tester.pumpComponent(
+          _scoped(
+            child: const AdminInviteAcceptScreen(),
+            authTypes: const [AuthType.oauth],
+            providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
+            probe: (_) async {
+              asked++;
+              return _live(const [AuthType.oauth]);
+            },
+          ),
+        );
+        await pumpEventQueue();
 
-      expect(asked, 0);
-      expect(find.text('Checking your invitation'), findsOneComponent);
-      expect(find.textContaining('Sign in with'), findsNothing);
-    }, url: '/_/admin/invite?token=tok_ssr', isClient: false);
+        expect(asked, 0);
+        expect(find.text('Checking your invitation'), findsOneComponent);
+        expect(find.textContaining('Sign in with'), findsNothing);
+      },
+      url: '/_/admin/invite?token=tok_ssr',
+      isClient: false,
+    );
   });
 
   group('the probe response', () {

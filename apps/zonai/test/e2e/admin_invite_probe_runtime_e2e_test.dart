@@ -189,7 +189,10 @@ void main() {
         // A probe is a read. Asking twice must not spend the invite, and the
         // invite must still be pending afterwards -- otherwise the screen
         // would burn the link it is trying to explain.
-        expect(await db.describeAdminInvite(token: 'dev-admin-invite'), isNotNull);
+        expect(
+          await db.describeAdminInvite(token: 'dev-admin-invite'),
+          isNotNull,
+        );
         expect(
           (await db.listAdminInvites(
             jwt: inviterJwt,
@@ -210,26 +213,35 @@ void main() {
     // of nothing.
     // -----------------------------------------------------------------
 
-    test('a revoked token and an unknown token are indistinguishable', () async {
-      if (!_runningOnDartVm) return;
-      await withDb((db) async {
-        final unique = DateTime.now().microsecondsSinceEpoch;
-        final inviterEmail = 'probe-revoked-inviter-$unique@example.com';
-        final inviterJwt = await signUpAdmin(db, inviterEmail, 'inviter-pw-1');
-        final inviteeEmail = 'probe-revoked-invitee-$unique@example.com';
+    test(
+      'a revoked token and an unknown token are indistinguishable',
+      () async {
+        if (!_runningOnDartVm) return;
+        await withDb((db) async {
+          final unique = DateTime.now().microsecondsSinceEpoch;
+          final inviterEmail = 'probe-revoked-inviter-$unique@example.com';
+          final inviterJwt = await signUpAdmin(
+            db,
+            inviterEmail,
+            'inviter-pw-1',
+          );
+          final inviteeEmail = 'probe-revoked-invitee-$unique@example.com';
 
-        await db.inviteAdmin(email: inviteeEmail, jwt: inviterJwt);
-        await db.revokeAdminInvite(email: inviteeEmail, jwt: inviterJwt);
+          await db.inviteAdmin(email: inviteeEmail, jwt: inviterJwt);
+          await db.revokeAdminInvite(email: inviteeEmail, jwt: inviterJwt);
 
-        final revoked = await db.describeAdminInvite(token: 'dev-admin-invite');
-        final unknown = await db.describeAdminInvite(
-          token: 'no-such-token-$unique',
-        );
+          final revoked = await db.describeAdminInvite(
+            token: 'dev-admin-invite',
+          );
+          final unknown = await db.describeAdminInvite(
+            token: 'no-such-token-$unique',
+          );
 
-        expect(revoked, unknown);
-        expect(revoked, isNull);
-      });
-    });
+          expect(revoked, unknown);
+          expect(revoked, isNull);
+        });
+      },
+    );
 
     test('a forged token and an empty one are indistinguishable from each '
         'other and from an unknown one', () async {
@@ -262,46 +274,53 @@ void main() {
     // reused rather than rediscovered.
     // -----------------------------------------------------------------
 
-    test('an expired token and an unknown token are indistinguishable', () async {
-      if (!_runningOnDartVm) return;
-      final unique = DateTime.now().microsecondsSinceEpoch;
-      final mintedAt = DateTime.now().toUtc().subtract(const Duration(days: 8));
+    test(
+      'an expired token and an unknown token are indistinguishable',
+      () async {
+        if (!_runningOnDartVm) return;
+        final unique = DateTime.now().microsecondsSinceEpoch;
+        final mintedAt = DateTime.now().toUtc().subtract(
+          const Duration(days: 8),
+        );
 
-      await withDb((db) async {
-        await withClock(Clock.fixed(mintedAt), () async {
-          final inviterEmail = 'probe-expired-inviter-$unique@example.com';
-          final inviterJwt = await signUpAdmin(
-            db,
-            inviterEmail,
-            'inviter-pw-1',
+        await withDb((db) async {
+          await withClock(Clock.fixed(mintedAt), () async {
+            final inviterEmail = 'probe-expired-inviter-$unique@example.com';
+            final inviterJwt = await signUpAdmin(
+              db,
+              inviterEmail,
+              'inviter-pw-1',
+            );
+            await db.inviteAdmin(
+              email: 'probe-expired-invitee-$unique@example.com',
+              jwt: inviterJwt,
+            );
+          });
+
+          // Back on the real clock: the row is real, unrevoked, and 1 day past
+          // its 7-day expiry.
+          final expired = await db.describeAdminInvite(
+            token: 'dev-admin-invite',
           );
-          await db.inviteAdmin(
-            email: 'probe-expired-invitee-$unique@example.com',
-            jwt: inviterJwt,
+          final unknown = await db.describeAdminInvite(
+            token: 'no-such-token-$unique',
           );
+
+          // The assertion this whole file exists for. Compared to each other,
+          // not each to `isNull` -- the requirement is that they are the SAME
+          // answer, and only an equality can fail when they stop being.
+          expect(
+            expired,
+            unknown,
+            reason:
+                'design §7: an expired invite and an unknown one must be '
+                'indistinguishable, or this probe becomes an oracle for '
+                'which addresses have invites pending',
+          );
+          expect(expired, isNull);
         });
-
-        // Back on the real clock: the row is real, unrevoked, and 1 day past
-        // its 7-day expiry.
-        final expired = await db.describeAdminInvite(token: 'dev-admin-invite');
-        final unknown = await db.describeAdminInvite(
-          token: 'no-such-token-$unique',
-        );
-
-        // The assertion this whole file exists for. Compared to each other,
-        // not each to `isNull` -- the requirement is that they are the SAME
-        // answer, and only an equality can fail when they stop being.
-        expect(
-          expired,
-          unknown,
-          reason:
-              'design §7: an expired invite and an unknown one must be '
-              'indistinguishable, or this probe becomes an oracle for '
-              'which addresses have invites pending',
-        );
-        expect(expired, isNull);
-      });
-    });
+      },
+    );
   });
 }
 

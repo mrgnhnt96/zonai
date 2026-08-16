@@ -172,10 +172,7 @@ void main() {
       expect(removeButtons, hasLength(2));
       // Exactly one of the two: yours. The other admin is removable.
       expect(removeButtons.where((control) => control.disabled), hasLength(1));
-      expect(
-        removeButtons.onlyWhere((control) => control.disabled).attributes?['title'],
-        contains('your own account'),
-      );
+      expect(removeButtons.onlyWhere((control) => control.disabled).attributes?['title'], contains('your own account'));
 
       // Not a hover-only explanation -- the reason is readable next to the
       // control, before anyone tries.

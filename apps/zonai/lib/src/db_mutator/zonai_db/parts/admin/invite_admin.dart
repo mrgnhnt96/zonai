@@ -288,10 +288,7 @@ extension _InviteAdminX on ZonaiDb {
     ({String table, List<AuthType> authTypes, AuthChallenge invite})? found;
 
     for (final (tableName, authTypes) in authTables.tables) {
-      final invite = await _findLiveAdminInvite(
-        token: token,
-        table: tableName,
-      );
+      final invite = await _findLiveAdminInvite(token: token, table: tableName);
       if (invite == null) continue;
       if (invite.expiresAt.isBefore(now)) continue;
       found ??= (table: tableName, authTypes: authTypes, invite: invite);
@@ -347,16 +344,10 @@ extension _InviteAdminX on ZonaiDb {
 
     final supportsPassword = authTypes.contains(AuthType.password);
     if (supportsPassword && (password == null || password.isEmpty)) {
-      throw AdminInvitePasswordMismatchException(
-        table: table,
-        required: true,
-      );
+      throw AdminInvitePasswordMismatchException(table: table, required: true);
     }
     if (!supportsPassword && password != null) {
-      throw AdminInvitePasswordMismatchException(
-        table: table,
-        required: false,
-      );
+      throw AdminInvitePasswordMismatchException(table: table, required: false);
     }
 
     // Whatever the table needs beyond email and password -- `name` on the

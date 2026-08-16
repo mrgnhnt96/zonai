@@ -173,11 +173,14 @@ void main() {
         // deleted. `inviteAdminFromCli` is what makes a live one reachable
         // here -- there is no admin session on this fixture to issue one
         // with, which is the same bootstrap problem it exists to solve.
-        final email = 'invited-${clock.now().microsecondsSinceEpoch}@example.com';
+        final email =
+            'invited-${clock.now().microsecondsSinceEpoch}@example.com';
         await db.inviteAdminFromCli(email: email);
 
         // Live, and it is this table's.
-        final described = await db.describeAdminInvite(token: 'dev-admin-invite');
+        final described = await db.describeAdminInvite(
+          token: 'dev-admin-invite',
+        );
         expect(described, isNotNull);
         expect(described!.authTypes, [AuthType.oauth]);
 
@@ -189,7 +192,10 @@ void main() {
         // Refused before anything was created, and -- the part that would
         // hurt most to get wrong -- before the invite was spent. The invitee
         // must still be able to accept it the way this table intends.
-        expect((await db.listAdmins()).where((a) => a['email'] == email), isEmpty);
+        expect(
+          (await db.listAdmins()).where((a) => a['email'] == email),
+          isEmpty,
+        );
         expect(
           await db.describeAdminInvite(token: 'dev-admin-invite'),
           isNotNull,

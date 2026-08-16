@@ -457,10 +457,7 @@ void main() {
               'oracle for which addresses have invites pending',
         );
         expect(other.bodyBytes, revoked.bodyBytes, reason: other.body);
-        expect(
-          other.headers['content-type'],
-          revoked.headers['content-type'],
-        );
+        expect(other.headers['content-type'], revoked.headers['content-type']);
       }
 
       // And the shared answer says nothing about why.

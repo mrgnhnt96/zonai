@@ -103,11 +103,7 @@ class AdminInviteAcceptScreenState extends State<AdminInviteAcceptScreen> {
       },
       onAccept: ({password, values}) async {
         if (token == null) return;
-        await context.read(adminInviteAcceptProvider)(
-          token,
-          password: password,
-          values: values,
-        );
+        await context.read(adminInviteAcceptProvider)(token, password: password, values: values);
         // The token is already stored by the client's X-Auth interceptor;
         // this is what makes the app *notice*, and it is what navigates to
         // the dashboard. Same call `signInWithPassword` makes after its own
@@ -153,8 +149,7 @@ class AdminInviteAcceptView extends StatelessComponent {
   /// Never called for a collection that declares OAuth and nothing else — the
   /// form that would call it is not rendered there, and the runtime refuses
   /// that combination regardless.
-  final Future<void> Function({String? password, Map<String, dynamic>? values})
-  onAccept;
+  final Future<void> Function({String? password, Map<String, dynamic>? values}) onAccept;
 
   @override
   Component build(BuildContext context) {
@@ -239,8 +234,7 @@ class AdminInviteAcceptView extends StatelessComponent {
               fields: (status as AdminInviteLive).fields,
               onAccept: onAccept,
             ),
-          if (direct.isNotEmpty && hasOAuth)
-            p(classes: 'z-admins-note', [.text('Or accept with a provider:')]),
+          if (direct.isNotEmpty && hasOAuth) p(classes: 'z-admins-note', [.text('Or accept with a provider:')]),
           if (hasOAuth) OAuthProviderButtons(onSelect: onSelectProvider),
         ],
       ),
@@ -299,8 +293,7 @@ class AdminInviteAcceptForm extends StatefulComponent {
   /// dashboard's own create form uses.
   final List<ColumnShape> fields;
 
-  final Future<void> Function({String? password, Map<String, dynamic>? values})
-  onAccept;
+  final Future<void> Function({String? password, Map<String, dynamic>? values}) onAccept;
 
   @override
   State<AdminInviteAcceptForm> createState() => AdminInviteAcceptFormState();
@@ -320,8 +313,7 @@ class AdminInviteAcceptFormState extends State<AdminInviteAcceptForm> {
   /// already narrowed the list to admin-creatable columns, so the only
   /// question left is the one this asks: non-nullable, and not a kind that
   /// has a sensible empty value.
-  Iterable<ColumnShape> get _requiredFields =>
-      component.fields.where(isCreateFieldRequired);
+  Iterable<ColumnShape> get _requiredFields => component.fields.where(isCreateFieldRequired);
 
   /// Checked here only to spare a round trip and to say *which* rule was
   /// missed. The server enforces the password rules regardless — this is a
@@ -384,8 +376,7 @@ class AdminInviteAcceptFormState extends State<AdminInviteAcceptForm> {
   @override
   Component build(BuildContext context) {
     return Component.fragment([
-      if (_error case final message?)
-        ZonaiErrorAlert(title: 'Could not accept the invitation', body: message),
+      if (_error case final message?) ZonaiErrorAlert(title: 'Could not accept the invitation', body: message),
       for (final field in component.fields)
         ZonaiTextField(
           id: 'admin-invite-field-${field.name}',

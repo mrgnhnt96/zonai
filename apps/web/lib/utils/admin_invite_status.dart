@@ -26,11 +26,7 @@ final class AdminInviteChecking extends AdminInviteStatus {
 
 /// The token names an invite that can still be accepted.
 final class AdminInviteLive extends AdminInviteStatus {
-  const AdminInviteLive({
-    required this.table,
-    required this.authTypes,
-    this.fields = const [],
-  });
+  const AdminInviteLive({required this.table, required this.authTypes, this.fields = const []});
 
   /// The `AsAdmin` collection the invite is for.
   final String table;
@@ -95,9 +91,7 @@ AdminInviteStatus parseAdminInviteStatus(Map<String, Object?> data) {
     for (final entry in raw) {
       if (entry is! Map) continue;
       try {
-        fields.add(
-          ColumnShape.fromJson(entry.map((k, v) => MapEntry('$k', v))),
-        );
+        fields.add(ColumnShape.fromJson(entry.map((k, v) => MapEntry('$k', v))));
       } catch (_) {
         continue;
       }
