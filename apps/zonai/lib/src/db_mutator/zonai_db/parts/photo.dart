@@ -1,5 +1,45 @@
 part of zonai_db;
 
+/// Resolves [relativePath] against [imagesPath] and refuses anything that
+/// lands outside it.
+///
+/// The check this replaces read
+/// `if (fs.path.isWithin(settings.imagesPath, relativePath)) throw ...`, which
+/// was wrong twice over and therefore dead:
+///
+///   * `relativePath` is RELATIVE (`posts/<id>.jpg`) and `imagesPath` is the
+///     resolved images root, so `isWithin` was comparing a relative path
+///     against an absolute one — `false` for every input this code can
+///     produce, traversal included. Measured, not reasoned: with
+///     `imagesPath = /srv/app/.zonai/data/images`, `isWithin` answers `false`
+///     for `posts/x.jpg`, for `../escape.jpg` and for `../../../etc/passwd`
+///     alike.
+///   * the sense was inverted. Had the arguments been right it would have
+///     thrown on the legitimate case and admitted the escape.
+///
+/// Containment is a property of the RESOLVED path, so that is what gets
+/// checked. Both sides go through the same `absolute`/`normalize` pair because
+/// `imagesPath` is only absolute when a `zonai.yaml` was found — `isWithin`
+/// with one relative side is the bug above all over again.
+///
+/// This does NOT follow symlinks: a symlink inside the images root pointing
+/// out of it still resolves as contained. The paths this guards are generated
+/// by [_PhotoX._createPhoto] from a registered table name and a fresh id, so
+/// the escape it defends against is a hostile `table`, not a planted link.
+@visibleForTesting
+File resolvePhotoFile(FileSystem fs, String imagesPath, String relativePath) {
+  final file = fs.file(fs.path.join(imagesPath, relativePath));
+
+  final root = fs.path.normalize(fs.path.absolute(imagesPath));
+  final resolved = fs.path.normalize(fs.path.absolute(file.path));
+
+  if (!fs.path.isWithin(root, resolved)) {
+    throw InvalidPhotoPathException(path: relativePath);
+  }
+
+  return file;
+}
+
 extension _PhotoX on ZonaiDb {
   Future<File> _getPhoto(String id, {required String? token}) async {
     logger.setTraceProps({'op': 'photo_get'});
@@ -41,7 +81,7 @@ extension _PhotoX on ZonaiDb {
       logger.trace('row_access');
 
       step = 'file_check';
-      final file = fs.file(fs.path.join(settings.imagesPath, photo.path));
+      final file = resolvePhotoFile(fs, settings.imagesPath, photo.path);
       logger.trace('file_check', extra: {'exists': file.existsSync()});
 
       if (!file.existsSync()) {
@@ -94,10 +134,7 @@ extension _PhotoX on ZonaiDb {
     final relativePath = fs.path.normalize(
       fs.path.join(meta.table, '$id.${imageType.fileExtension}'),
     );
-    final file = fs.file(fs.path.join(settings.imagesPath, relativePath));
-    if (fs.path.isWithin(settings.imagesPath, relativePath)) {
-      throw InvalidPhotoPathException(path: relativePath);
-    }
+    final file = resolvePhotoFile(fs, settings.imagesPath, relativePath);
     if (file.existsSync()) {
       throw PhotoFileAlreadyExistsException(path: file.path);
     }
@@ -214,7 +251,7 @@ extension _PhotoX on ZonaiDb {
       }
     }
 
-    final oldFile = fs.file(fs.path.join(settings.imagesPath, photo.path));
+    final oldFile = resolvePhotoFile(fs, settings.imagesPath, photo.path);
     if (!oldFile.existsSync()) {
       throw const PhotoFileNotFoundException();
     }
@@ -222,7 +259,7 @@ extension _PhotoX on ZonaiDb {
     final newRelativePath = fs.path.normalize(
       fs.path.join(photo.table, '${photo.id.value}.${imageType.fileExtension}'),
     );
-    final newFile = fs.file(fs.path.join(settings.imagesPath, newRelativePath));
+    final newFile = resolvePhotoFile(fs, settings.imagesPath, newRelativePath);
     final extensionChanged = imageType.fileExtension != photo.extension;
 
     if (extensionChanged && newFile.existsSync()) {
