@@ -11,9 +11,10 @@ const defaultServerPort = 8080;
 ///
 /// Any other host is returned as the single candidate it is — including
 /// `127.0.0.1`, which is what `ServerBinding.host` now answers for the
-/// default. A concrete address is taken at its word rather than widened,
-/// since widening it would probe an interface the caller did not ask about;
-/// the consequence is spelled out in the body.
+/// default. A concrete address is taken at its word rather than widened: the
+/// caller binds and probes the same value, so there is nothing to reconcile,
+/// and probing a sibling loopback would only invite a false "healthy" from
+/// an unrelated process holding it.
 List<String> serverHealthHosts(String host) {
   // A wildcard is an address to LISTEN on and never one to connect to:
   // Windows refuses `connect()` to the unspecified address outright, so the
@@ -29,15 +30,21 @@ List<String> serverHealthHosts(String host) {
   // answers `127.0.0.1` -- so the wildcard case is now reached by an explicit
   // `host:` in the project config, not by the default.
   //
-  // That narrowing is load-bearing and is NOT fixed here, because widening
-  // the probe and widening the bind are the same argument and this file only
-  // gets a vote on one of them: `127.0.0.1` matches neither the `localhost`
-  // case nor a wildcard, so it falls through to the single-candidate return
-  // below and a server listening on `::1` is missed. `Revali.health()` passes
-  // `ServerBinding.host` straight in, which is why
-  // `revali_health_test.dart`'s "configured port, not the default 8080" case
-  // fails on a host whose `localhost` resolves to IPv6 first -- macOS does.
-  // The probe reports a listening server as down.
+  // The narrowing that follows is deliberate. `127.0.0.1` matches neither the
+  // `localhost` case nor a wildcard, so it falls through to the
+  // single-candidate return below and `::1` is never probed.
+  //
+  // That is correct, and widening it would be the bug. `Revali.health()`
+  // dials `ServerBinding.host`, which is the same value the server binds, so
+  // the two agree by construction and there is nothing to reconcile. Probing
+  // the sibling loopback as well would only add a way to answer "healthy"
+  // because some *other* process holds `::1`.
+  //
+  // What made this look like a defect was a test binding `localhost` and
+  // expecting the probe to find it: `bind('localhost')` takes whichever
+  // family the resolver puts first (`::1` on macOS) while the probe correctly
+  // dialled `127.0.0.1`. That was a mismatch the test invented and production
+  // does not have; it now binds `ServerBinding.host` too.
   if (host == 'localhost' || _wildcardHosts.contains(host)) {
     return ['[::1]', '127.0.0.1', 'localhost'];
   }
