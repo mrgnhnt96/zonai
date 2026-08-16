@@ -1,0 +1,25 @@
+# Tests that talk to a real third-party provider.
+#
+# `live`-tagged tests are SKIPPED by default and run only under the `live`
+# preset:
+#
+#     dart test -P live
+#
+# Skipped rather than merely excluded, so a run that does not include them
+# says so out loud instead of quietly reporting a smaller green suite.
+#
+# The gate matters in CI specifically: GitHub Actions sets `GITHUB_TOKEN` in
+# every job, so a test guarded only by "is the env var present" would run
+# there against the Actions token — a different identity with different
+# scopes, failing for reasons that have nothing to do with the code. The tag
+# is what keeps it off CI; the env-var check inside the test is what keeps it
+# from failing confusingly on a developer machine that has no token.
+tags:
+  live:
+    skip: "talks to a real provider over the network; run with: dart test -P live"
+
+presets:
+  live:
+    tags:
+      live:
+        skip: false

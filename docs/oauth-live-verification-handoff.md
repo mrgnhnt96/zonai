@@ -1,5 +1,10 @@
 # OAuth item 3 + live provider verification — handoff
 
+> **Status: done** (2026-08-16). Item 3 is closed — the seam, the offline
+> test and the live test all landed, and `docs/oauth.md` no longer lists it.
+> Kept for the reasoning, and because §2c/§3 describe how to re-run the live
+> check. Section 5 records what the live run actually observed.
+
 Branch `feat/oauth`, worktree `.claude/worktrees/gleaming-tinkering-kernighan`.
 Written 2026-08-16, at 53 commits ahead of `origin/main`, tree clean, static +
 unit + `apps/zonai` (669) + `apps/web` (273) all green.
@@ -150,3 +155,48 @@ commit message, a doc, or a log line.
   `_LiveServer`. Item 2 (live-network JWKS) is best left documented: an honest
   test needs a real issuer or a trusted TLS cert, and the alternative is
   lowering the `https` check the verifier exists to enforce.
+
+
+---
+
+## 5. What the live run observed
+
+Run against the real `api.github.com` with a classic PAT, read-only, on
+2026-08-16.
+
+The account under test turned out to be a genuine instance of the case rather
+than a contrived one:
+
+- `GET /user` returned **`email: null`** — the primary address is private,
+  which is GitHub's own default.
+- `GET /user/emails` returned four addresses, exactly one of them
+  `primary: true, verified: true`, with `visibility: "private"` on that one.
+- `id` came back as a JSON **integer**, confirming why a strict-string subject
+  extractor breaks every GitHub sign-in.
+
+`resolveIdentityFromTokens` against that account resolved the email, marked it
+verified, and produced a numeric subject.
+
+**Both controls were run rather than assumed.** With the fallback branch
+disabled, the offline test fails on exactly the one case that pins the
+behaviour (the other three correctly still pass), and the live test fails with
+`Expected: not null / Actual: <null>` — which also proves independently that
+real GitHub returns no email here, and that the fallback is what supplies it.
+
+Addresses were never printed: the assertions are on shape, and the captured
+evidence file redacts every local-part.
+
+### Re-running it
+
+    cd apps/zonai && dart test -P live
+
+Skipped by default, and skipped loudly when `GITHUB_TOKEN` is absent. The tag
+is what keeps it off CI — GitHub Actions sets `GITHUB_TOKEN` in every job, so
+an env-var check alone would have run it there against a different identity.
+
+### Google
+
+Not needed in the end. GitHub was the provider item 3 is about, and its
+account exhibited the exact condition under test, so a second provider would
+have added a userinfo-contract check without touching the branch in question.
+The gcloud path in §2c still works if someone wants that check later.

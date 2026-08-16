@@ -164,14 +164,20 @@ case-insensitively, and a mismatch leaves the invite unconsumed rather than
 burning it. Everything else about admin OAuth still refuses to provision.
 See [`docs/admin-invite-design.md`](admin-invite-design.md).
 
-Two gaps the runtime author disclosed rather than papered over (from the
-commit that landed this): live-network OIDC `id_token` verification isn't
-exercised end-to-end because `JwksIdpVerifier` rightly demands `https` and a
-local stub server could only pass by weakening that check; GitHub's
-null-email branch is unreachable from a stub because the built-in factory
-hardcodes `github.com`. Both are unit-tested instead (`github_email_resolver`
-has its own test; the id_token verifier is exercised via the OIDC stub
-provider, not GitHub's literal host).
+One gap the runtime author disclosed rather than papered over remains:
+live-network OIDC `id_token` verification isn't exercised end-to-end, because
+`JwksIdpVerifier` rightly demands `https` and a local stub server could only
+pass by weakening that check. It is unit-tested instead, via the OIDC stub
+provider.
+
+The second disclosed gap — GitHub's null-email branch — is closed. It was
+never really "unreachable from a stub"; it was unreachable *at all*, because
+the resolver was constructed inline at the call site with no seam, so nothing
+could substitute it. `github_null_email_fallback_test.dart` now covers the
+branch with the transport faked, and
+`github_null_email_fallback_live_test.dart` covers it against the real
+`api.github.com`. Both fail when the branch is removed — checked by removing
+it, not assumed.
 
 ## Implementation status
 
@@ -199,12 +205,22 @@ As of this page, landed and tested:
 
 **Still open:**
 
-- §4 item 7 has no OAuth-specific assertion. Secrets, codes and `state` are
-  handled by the same request and error pipeline external-idp and password
-  auth already run through, but nothing tests that directly for OAuth.
-- The two disclosed coverage gaps above (live-network JWKS verification,
-  GitHub's null-email branch), which are unit-tested rather than exercised
-  end-to-end.
+- **No test inspects a live server's log output for an OAuth `code`, `state`
+  or client secret.** §4 item 7 is better covered than this section used to
+  claim — `trace_query_redaction_test.dart` asserts an OAuth callback loses
+  its `code` and `state`, `oauth_routes_test.dart` asserts the providers route
+  carries no secret-shaped field, and `oauth_e2e_test.dart` asserts the
+  redacted listing and that `code_verifier` never reaches the start URL. What
+  is missing is the end of the chain: the redaction *function* is proven and
+  the response *surfaces* are proven, but nothing checks what the process
+  actually logged. The admin-invite suite does exactly that
+  (`_LiveServer.capturedLogOutput`); the OAuth e2e drives `ZonaiDb` directly
+  and has no server process to read. Closing this means giving the OAuth e2e a
+  live server, not writing another assertion.
+- **Live-network JWKS verification**, per the paragraph above. Best left
+  documented: an honest test needs a real issuer or a trusted TLS certificate,
+  and the alternative is lowering the `https` check the verifier exists to
+  enforce.
 
 The route paths and payload shapes were fixed before the routes existed —
 `OAuthProviderPublic.startPath` bakes in `/auth/oauth/start/:id?table=:table`,

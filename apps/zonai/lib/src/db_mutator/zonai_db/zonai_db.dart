@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:clock/clock.dart';
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:file/file.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
     show SQLiteInsertReturning, SQLiteDeleteReturning;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart'
@@ -242,6 +243,62 @@ class ZonaiDb {
   /// [AppleClientSecretSigner]'s own caching doc.
   final AppleClientSecretSigner _appleClientSecretSigner =
       AppleClientSecretSigner();
+
+  /// GitHub's private-primary-email fallback, held as a field for the same
+  /// reason [_appleClientSecretSigner] is: it is the seam a test substitutes
+  /// at.
+  ///
+  /// It used to be constructed inline at the one call site, which made the
+  /// fallback branch unreachable from any test — the class takes an
+  /// `http.Client` precisely so it can be faked, and the caller passed none.
+  /// The branch is not defensive code: `GET /user` really does return
+  /// `email: null` whenever the account's primary address is private, which
+  /// is GitHub's own default.
+  ///
+  /// Deliberately NOT reachable from a stub provider. The gate on the branch
+  /// is `provider is BuiltInOAuthProvider && kind == github`, and
+  /// `OAuthProvider.github()` hardcodes its endpoints so a developer cannot
+  /// misconfigure them — widening that factory to serve a test would invert
+  /// the guarantee it exists for. In-process substitution is the seam;
+  /// `github_email_resolver_live_test.dart` covers what a fake cannot, which
+  /// is whether our idea of GitHub's response is right.
+  @visibleForTesting
+  GitHubEmailResolver githubEmailResolver = GitHubEmailResolver();
+
+  /// The provider `userInfo` call, held here for the same reason and fixed in
+  /// the same change: it was `OAuthUserInfoClient()` constructed inline inside
+  /// `_identityFromTokens`, which is the step immediately before the GitHub
+  /// fallback. Leaving it inline would have made the fallback substitutable
+  /// but still unreachable, since nothing could produce the `email: null`
+  /// response that triggers it without calling api.github.com for real.
+  @visibleForTesting
+  OAuthUserInfoClient oauthUserInfoClient = OAuthUserInfoClient();
+
+  /// `_identityFromTokens`, reachable from a test.
+  ///
+  /// The GitHub fallback lives inside that method, and every public route to
+  /// it goes through a real token exchange against the provider's own
+  /// hardcoded endpoints — so without this the branch could only be exercised
+  /// by talking to github.com, or by widening `OAuthProvider.github()` to
+  /// accept endpoint overrides, which would undo the reason built-in
+  /// factories exist.
+  ///
+  /// Not a general-purpose API: it skips the challenge/state handling every
+  /// real caller does first, which is exactly why it is only for tests.
+  @visibleForTesting
+  Future<oauth_claims.OAuthIdentity> resolveIdentityFromTokens({
+    required OAuthProvider provider,
+    String? idToken,
+    String? accessToken,
+    String? expectedNonce,
+  }) async {
+    return await _identityFromTokens(
+      provider: provider,
+      idToken: idToken,
+      accessToken: accessToken,
+      expectedNonce: expectedNonce,
+    );
+  }
 
   File? __dbFile;
   File? __logDbFile;

@@ -693,7 +693,7 @@ extension _OAuthX on ZonaiDb {
         expectedNonce: expectedNonce,
       );
     } else if (accessToken != null) {
-      claims = await OAuthUserInfoClient().fetch(
+      claims = await oauthUserInfoClient.fetch(
         provider: provider,
         accessToken: accessToken,
       );
@@ -712,9 +712,7 @@ extension _OAuthX on ZonaiDb {
         identity.email == null &&
         provider is BuiltInOAuthProvider &&
         provider.kind == OAuthProviderKind.github) {
-      final email = await GitHubEmailResolver().primaryVerifiedEmail(
-        accessToken,
-      );
+      final email = await githubEmailResolver.primaryVerifiedEmail(accessToken);
       if (email != null) {
         identity = oauth_claims.OAuthIdentity(
           subject: identity.subject,
