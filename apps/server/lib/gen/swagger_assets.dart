@@ -1893,6 +1893,32 @@ const kSwaggerJson = r'''{
           "updates"
         ]
       },
+      "DashboardDrainRun": {
+        "type": "object",
+        "properties": {
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "failedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "startedAt"
+        ]
+      },
       "DashboardMetrics": {
         "type": "object",
         "properties": {
@@ -1918,13 +1944,108 @@ const kSwaggerJson = r'''{
             "items": {
               "$ref": "#/components/schemas/DashboardRequestBucket"
             }
+          },
+          "pushQueue": {
+            "$ref": "#/components/schemas/DashboardPushQueue"
+          },
+          "sessions": {
+            "$ref": "#/components/schemas/DashboardSessions"
           }
         },
         "required": [
           "requestCount24h",
           "errorCount24h",
           "activeSessions",
-          "requestBuckets"
+          "requestBuckets",
+          "pushQueue",
+          "sessions"
+        ]
+      },
+      "DashboardPushFailure": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "delivered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "delivered",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "DashboardPushQueue": {
+        "type": "object",
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "delivered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "permanentlyRejected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "transientlyFailed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failedJobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardPushFailure"
+            }
+          },
+          "lastDrain": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DashboardDrainRun"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "pending",
+          "running",
+          "completed",
+          "failed",
+          "delivered",
+          "permanentlyRejected",
+          "transientlyFailed",
+          "failedJobs"
         ]
       },
       "DashboardRequestBucket": {
@@ -1942,6 +2063,51 @@ const kSwaggerJson = r'''{
         "required": [
           "hour",
           "count"
+        ]
+      },
+      "DashboardSessionUser": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "sessionCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "userId",
+          "sessionCount"
+        ]
+      },
+      "DashboardSessions": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expiringWithinHour": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "distinctUsers": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "topUsers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardSessionUser"
+            }
+          }
+        },
+        "required": [
+          "active",
+          "expiringWithinHour",
+          "distinctUsers",
+          "topUsers"
         ]
       },
       "Decrement": {
@@ -4207,6 +4373,25 @@ components:
       required:
         - table
         - updates
+    DashboardDrainRun:
+      type: object
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        failedAt:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+      required:
+        - startedAt
     DashboardMetrics:
       type: object
       properties:
@@ -4227,11 +4412,80 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DashboardRequestBucket'
+        pushQueue:
+          $ref: '#/components/schemas/DashboardPushQueue'
+        sessions:
+          $ref: '#/components/schemas/DashboardSessions'
       required:
         - requestCount24h
         - errorCount24h
         - activeSessions
         - requestBuckets
+        - pushQueue
+        - sessions
+    DashboardPushFailure:
+      type: object
+      properties:
+        id:
+          type: string
+        error:
+          type: string
+          nullable: true
+        delivered:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - delivered
+        - createdAt
+        - updatedAt
+    DashboardPushQueue:
+      type: object
+      properties:
+        pending:
+          type: integer
+          format: int64
+        running:
+          type: integer
+          format: int64
+        completed:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        delivered:
+          type: integer
+          format: int64
+        permanentlyRejected:
+          type: integer
+          format: int64
+        transientlyFailed:
+          type: integer
+          format: int64
+        failedJobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardPushFailure'
+        lastDrain:
+          allOf:
+            - $ref: '#/components/schemas/DashboardDrainRun'
+          nullable: true
+      required:
+        - pending
+        - running
+        - completed
+        - failed
+        - delivered
+        - permanentlyRejected
+        - transientlyFailed
+        - failedJobs
     DashboardRequestBucket:
       type: object
       properties:
@@ -4244,6 +4498,38 @@ components:
       required:
         - hour
         - count
+    DashboardSessionUser:
+      type: object
+      properties:
+        userId:
+          type: string
+        sessionCount:
+          type: integer
+          format: int64
+      required:
+        - userId
+        - sessionCount
+    DashboardSessions:
+      type: object
+      properties:
+        active:
+          type: integer
+          format: int64
+        expiringWithinHour:
+          type: integer
+          format: int64
+        distinctUsers:
+          type: integer
+          format: int64
+        topUsers:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardSessionUser'
+      required:
+        - active
+        - expiringWithinHour
+        - distinctUsers
+        - topUsers
     Decrement:
       type: object
     DeleteBody:
