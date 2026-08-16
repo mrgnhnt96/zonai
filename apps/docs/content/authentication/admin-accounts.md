@@ -38,6 +38,70 @@ from one of the table's configured providers — see [OAuth: Signing into the
 dashboard with OAuth](/authentication/oauth#signing-into-the-dashboard-with-oauth)
 for the end-to-end walkthrough.
 
+## Inviting an Admin
+
+`zonai db admin add` needs a shell in your project directory. Inviting is how an
+admin who already has a dashboard adds a colleague without one — and how you add
+someone to a table whose only sign-in method belongs to somebody else, such as a
+Google-only admin table.
+
+An existing admin sends the invite from the **Admins** screen, or directly:
+
+```
+POST /admin/invites
+Authorization: Bearer <admin-token>
+
+{ "email": "colleague@example.com" }
+```
+
+zonai emails a link to `{baseUrl}/_/admin/invite?token=…` that expires in seven
+days. Opening it offers exactly the sign-in methods your admin table declares: a
+provider button for an `OAuth` table, a set-password form for `PasswordAuth`, a
+code or link for `OtpAuth` and `MagicLinkAuth`. The invite belongs to the table,
+not to OAuth.
+
+**No admin row exists until the invite is accepted.** That is deliberate: an
+unaccepted invite is a pending record, not an account, so a mistyped address
+never becomes a half-real admin you have to remember to clean up. The row is
+created, the invite consumed, and the session issued in the same step.
+
+Acceptance is bound to the address you invited. The identity that signs in must
+carry a **verified** email equal to it — a different Google account following the
+same link is refused and the invite stays usable for the person it was meant for.
+
+This is the one place zonai will provision an admin from an external identity
+provider. Ordinary OAuth sign-in never creates an admin row, because a provider
+that lets anyone register an account would otherwise be a way to register an
+admin one.
+
+### Managing invites and admins
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/members` | Current admins and pending invites, in one response |
+| `POST` | `/admin/invites` | Invite an address |
+| `DELETE` | `/admin/invites/:email` | Revoke a pending invite — the link stops working |
+| `DELETE` | `/admin/members/:email` | Remove an admin and revoke their sessions |
+
+Every route needs an admin token **for that admin table**; anything else is a
+`403`. Revoking is idempotent and answers the same way for an address that was
+never invited, so it cannot be used to discover who has an invite pending.
+
+Two removals are refused on purpose, and your dashboard should present them as
+rules rather than as errors:
+
+- An admin cannot remove **themselves** (`403`).
+- The **last** admin cannot be removed at all (`409`). A dashboard that can lock
+  everyone out of itself is a bug.
+
+Removing an admin revokes their existing sessions, so a token issued before the
+removal stops working immediately rather than lasting until it expires.
+
+Invites are rate limited per admin table and client IP, and repeat invites to one
+address are limited to one a minute. The raw invite token exists only in the
+email: it is stored hashed, is single-use, and appears in no response body, log
+line, or error message.
+
 ## Listing Admin Accounts
 
 ```

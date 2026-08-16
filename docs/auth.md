@@ -133,3 +133,4 @@ See `resetPasswordConfig` in [operations.md](operations.md#auth-collections) and
 - **[sending-email.md](sending-email.md)** — provider, DNS, and credentials for real mail delivery
 - **[rules.md](rules.md)** — auth collection and row rules
 - **[rate-limiting.md](rate-limiting.md)** — `refreshTokenPolicy()` and other auth limits
+- **[admin-invite-design.md](admin-invite-design.md)** — inviting someone to an admin table, and why no admin row exists until the invite is accepted

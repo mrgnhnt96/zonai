@@ -146,7 +146,7 @@ subject)` — the lookup key identity resolution's step 1 hits.
 | 5 | `redirect_to` must be relative or an allowlisted origin — open-redirect rejection is a test | `'startOAuth rejects an open-redirect redirect_to'` (`OAuthRedirectNotAllowedException`) |
 | 6 | Account linking by email requires `email_verified == true` | `'byVerifiedEmail linking connects a new subject to an existing row ...'`, `'byVerifiedEmail rejects linking an unverified email -- provisions a ...'`, `'OAuthLinking.always links even an unverified email -- the ...'` |
 | 7 | Secrets, codes, tokens and `state` never reach the logger, error messages or the swagger surface | Not covered by a dedicated OAuth test yet — inherited from the same request/error pipeline external-idp and password auth already run through. Worth a direct assertion once the HTTP surface (below) lands. |
-| 8 | `RateLimitOperation.oauthStart` / `.oauthCallback` exist and are enforced | **Not yet implemented** — see Implementation status |
+| 8 | `RateLimitOperation.oauthStart` / `.oauthCallback` exist and are enforced | Both are declared in `libs/zonai_schema/lib/src/types/rate_limit_operation.dart` and applied by `apps/server/routes/components/oauth_rate_limit.dart` on every `/auth/oauth/*` route |
 | 9 | `toPublic()` leaks nothing | `'oauthProviders lists every provider, redacted -- no secret ever ...'` |
 | 10 | A provider with empty `clientId`/`clientSecret` fails at boot, not on first sign-in | Each built-in factory calls `_requireNonEmpty` at construction (`ArgumentError`); `validateOAuthProviders()` (empty list / duplicate id) runs on every `_getOAuthProviders` call — see `libs/zonai_schema/test/src/schemas/auth/oauth_test.dart` |
 
@@ -155,6 +155,14 @@ includes oauth'`, `'startAdminOAuth resolves the AsAdmin+OAuth table, and its
 callback ...'`, `'native admin sign-in never auto-provisions'` — an admin
 table's first-seen native sign-in is rejected rather than silently creating
 an admin row.
+
+**Admin invites are the one exception, and they are narrow.** An accepted
+invite is the authorization that lifts that refusal, for the invited address
+only: `_provisionInvitedAdmin` (`oauth.dart`) creates the row only when the
+provider's email is verified and equals the invite's target
+case-insensitively, and a mismatch leaves the invite unconsumed rather than
+burning it. Everything else about admin OAuth still refuses to provision.
+See [`docs/admin-invite-design.md`](admin-invite-design.md).
 
 Two gaps the runtime author disclosed rather than papered over (from the
 commit that landed this): live-network OIDC `id_token` verification isn't
@@ -174,35 +182,35 @@ As of this page, landed and tested:
 - `_oauth_identities` + `oauthState` challenge type (Wave 1/L2).
 - PKCE, authorization-URL building, token exchange, userinfo, Apple ES256
   signing, GitHub's email fallback (Wave 1/L3).
-- Dashboard provider icons and the sign-in button component in isolation
-  (Wave 1/L4) — built, not yet wired into a live sign-in screen (next point).
+- Dashboard provider icons and the sign-in button component (Wave 1/L4).
 - The full flow runtime on `ZonaiDb` — `startOAuth`, `startAdminOAuth`,
   `completeOAuth`, the native path, identity resolution, linking,
   provisioning — plus the 20-case e2e suite (Wave 2/L5).
+- **HTTP routes** (Wave 3). `AuthController` serves `oauth/providers`,
+  `oauth/start/:provider`, `oauth/callback/:provider`, the native path, and
+  the two admin entrypoints `admin/oauth/start/:provider` and
+  `admin/invite/oauth/start/:provider`. `RateLimitOperation.oauthStart` and
+  `.oauthCallback` are declared and applied — §4 item 8 above is closed.
+- **Dashboard wiring** (Wave 3). `auth_router.dart` renders
+  `OAuthSignInScreen` for `AuthType.oauth`; the `UnimplementedError` this
+  section used to describe is gone.
+- **`zonai_client` bindings** (Wave 3). `Auth.providers`, `.startUrl`,
+  `.complete` and `.signInWithIdToken` wrap the redirect and native flows.
 
-**Not yet landed on this branch:**
+**Still open:**
 
-- **HTTP routes.** `AuthController` (`apps/server/routes/controllers/auth_controller.dart`)
-  has no `/auth/oauth/*` endpoints yet, and no `RateLimitOperation.oauthStart`
-  / `.oauthCallback` exist — §4 item 8 above is open. `ZonaiDb`'s OAuth
-  methods are real and tested against the operations-worker boundary, but
-  nothing routes an incoming HTTP request to them yet.
-- **Dashboard wiring.** `apps/web/lib/router/auth_router.dart`'s single-auth-type
-  branch throws `UnimplementedError('OAuth sign-in UI is not implemented yet
-  ...')` for `AuthType.oauth` today. The icon/button components exist and are
-  tested in isolation; nothing renders them on a real sign-in screen yet.
-- **`zonai_client` bindings.** No OAuth methods exist on the Dart client —
-  the native flow above has a server-side implementation with no typed
-  client wrapper around it yet.
+- §4 item 7 has no OAuth-specific assertion. Secrets, codes and `state` are
+  handled by the same request and error pipeline external-idp and password
+  auth already run through, but nothing tests that directly for OAuth.
+- The two disclosed coverage gaps above (live-network JWKS verification,
+  GitHub's null-email branch), which are unit-tested rather than exercised
+  end-to-end.
 
-These three are the original design's Wave 3 (`oauth-http-surface`,
-`oauth-dashboard-wiring`, `oauth-dart-client`). The route paths and payload
-shapes they'll wire up are already fixed by what's shipped —
+The route paths and payload shapes were fixed before the routes existed —
 `OAuthProviderPublic.startPath` bakes in `/auth/oauth/start/:id?table=:table`,
 and `OAuthProviderNotFoundException`'s message cites
-`/auth/oauth/start/:provider` — so the public docs page describes that
-contract as the target API. Treat this section, not that page, as the source
-of truth for what actually responds on a running server today.
+`/auth/oauth/start/:provider` — so the public docs page and the server now
+describe the same contract.
 
 ## See also
 
@@ -213,3 +221,6 @@ of truth for what actually responds on a running server today.
 - [Authentication → OAuth](../apps/docs/content/authentication/oauth.md) —
   the developer-facing page: the mixin, provider walkthroughs, custom
   providers, account linking.
+- [`docs/admin-invite-design.md`](admin-invite-design.md) — how someone is
+  added to an admin table whose only sign-in method they do not control yet,
+  and the one case where an OAuth callback may provision an admin row.
