@@ -44,11 +44,8 @@ class _InviteTable extends Table<_Invite> {
       maxUses = $.integer('max_uses', (s) => s.maxUses);
 
   @override
-  _Invite fromRow(RowReader read) => _Invite(
-    id: read(id),
-    useCount: read(useCount)!,
-    maxUses: read(maxUses)!,
-  );
+  _Invite fromRow(RowReader read) =>
+      _Invite(id: read(id), useCount: read(useCount)!, maxUses: read(maxUses)!);
 
   final ColumnType<int?> id;
   final ColumnType<int> useCount;
@@ -119,10 +116,8 @@ final class _SilentOperations extends TableOperations<_InviteTable, _Invite> {
     String operation, {
     Where? where,
     List<Update> updates = const [],
-  }) => update(
-    _redeemUpdates(),
-    where: where ?? const Eq('id', -1),
-  ).returning();
+  }) =>
+      update(_redeemUpdates(), where: where ?? const Eq('id', -1)).returning();
 }
 
 /// Permits the computed result and denies anything else -- the shape the report
@@ -134,7 +129,8 @@ class _InviteRowRules extends RowRules<_InviteTable, _Invite> {
   @override
   Map<String, CustomRowOperationRule<_Invite>> get customOperations => {
     _redeem: (jwt, before, after) async =>
-        after.useCount == before.useCount + 1 && after.useCount <= before.maxUses,
+        after.useCount == before.useCount + 1 &&
+        after.useCount <= before.maxUses,
   };
 }
 
@@ -177,32 +173,34 @@ void main() {
       );
     });
 
-    test('they survive the JSON round trip -- the two halves are separate '
-        'workers, so anything that does not serialize is lost in transit',
-        () async {
-      final response = await _resolve(
-        ops,
-        CustomOperationRequest(
-          table: 'custom_op_invites',
-          operation: _redeem,
-          where: const Eq('id', 1),
-          updates: const [],
-          jwt: null,
-        ),
-      );
+    test(
+      'they survive the JSON round trip -- the two halves are separate '
+      'workers, so anything that does not serialize is lost in transit',
+      () async {
+        final response = await _resolve(
+          ops,
+          CustomOperationRequest(
+            table: 'custom_op_invites',
+            operation: _redeem,
+            where: const Eq('id', 1),
+            updates: const [],
+            jwt: null,
+          ),
+        );
 
-      final revived = PerformOperationResponse.fromJson(response.toJson());
+        final revived = PerformOperationResponse.fromJson(response.toJson());
 
-      expect(revived.updates, hasLength(1));
-      expect(
-        (revived.updates.single as ColumnUpdate).value,
-        isA<Increment>(),
-        reason:
-            'the declaration is only useful on the far side of the wire; a '
-            'field that survives in-process and not over IPC would pass every '
-            'unit test here and fail in every real server',
-      );
-    });
+        expect(revived.updates, hasLength(1));
+        expect(
+          (revived.updates.single as ColumnUpdate).value,
+          isA<Increment>(),
+          reason:
+              'the declaration is only useful on the far side of the wire; a '
+              'field that survives in-process and not over IPC would pass every '
+              'unit test here and fail in every real server',
+        );
+      },
+    );
 
     test('a built-in operation declares nothing -- its updates already travel '
         'on the request', () async {
@@ -244,111 +242,120 @@ void main() {
     });
   });
 
-  group('the row rule then adjudicates the row that will actually be written',
-      () {
-    late DbRules rules;
-    late DbOperations ops;
+  group(
+    'the row rule then adjudicates the row that will actually be written',
+    () {
+      late DbRules rules;
+      late DbOperations ops;
 
-    setUp(() {
-      rules = DbRules(rules: [_InviteRowRules(invites)]);
-      ops = DbOperations(operations: [_InviteOperations()], tables: [invites]);
-    });
+      setUp(() {
+        rules = DbRules(rules: [_InviteRowRules(invites)]);
+        ops = DbOperations(
+          operations: [_InviteOperations()],
+          tables: [invites],
+        );
+      });
 
-    Future<bool> canRedeem(Map<String, Object?> row) async {
-      final operation = await _resolve(
-        ops,
-        CustomOperationRequest(
-          table: 'custom_op_invites',
-          operation: _redeem,
-          where: const Eq('id', 1),
-          updates: const [],
-          jwt: null,
-        ),
+      Future<bool> canRedeem(Map<String, Object?> row) async {
+        final operation = await _resolve(
+          ops,
+          CustomOperationRequest(
+            table: 'custom_op_invites',
+            operation: _redeem,
+            where: const Eq('id', 1),
+            updates: const [],
+            jwt: null,
+          ),
+        );
+
+        final response = await rules.dispatch(
+          RowRulesRequest(
+            table: 'custom_op_invites',
+            operation: _redeem,
+            data: row,
+            // The connective tissue, and the whole fix: what the operation says
+            // it will write, not what the caller proposed. `ZonaiDb.custom`
+            // resolves the operation before the row checks for exactly this.
+            updates: operation.updates,
+            jwt: null,
+          ),
+        );
+
+        return (response! as RowRulesResponse).canPerform;
+      }
+
+      test('a redemption within the use limit is PERMITTED -- the 403 that '
+          'started this report', () async {
+        expect(
+          await canRedeem({'id': 1, 'use_count': 0, 'max_uses': 1}),
+          isTrue,
+          reason:
+              'before the fix `after` was a copy of `before`, so use_count read '
+              '0 where the rule required 1, and every redemption was refused',
+        );
+      });
+
+      test(
+        'a redemption that would exceed the use limit is still DENIED -- the '
+        'rule is being evaluated, not bypassed',
+        () async {
+          expect(
+            await canRedeem({'id': 1, 'use_count': 1, 'max_uses': 1}),
+            isFalse,
+            reason:
+                'a fix that made every custom operation pass would satisfy the '
+                'test above and be strictly worse than the bug',
+          );
+        },
       );
-
-      final response = await rules.dispatch(
-        RowRulesRequest(
-          table: 'custom_op_invites',
-          operation: _redeem,
-          data: row,
-          // The connective tissue, and the whole fix: what the operation says
-          // it will write, not what the caller proposed. `ZonaiDb.custom`
-          // resolves the operation before the row checks for exactly this.
-          updates: operation.updates,
-          jwt: null,
-        ),
-      );
-
-      return (response! as RowRulesResponse).canPerform;
-    }
-
-    test('a redemption within the use limit is PERMITTED -- the 403 that '
-        'started this report', () async {
-      expect(
-        await canRedeem({'id': 1, 'use_count': 0, 'max_uses': 1}),
-        isTrue,
-        reason:
-            'before the fix `after` was a copy of `before`, so use_count read '
-            '0 where the rule required 1, and every redemption was refused',
-      );
-    });
-
-    test('a redemption that would exceed the use limit is still DENIED -- the '
-        'rule is being evaluated, not bypassed', () async {
-      expect(
-        await canRedeem({'id': 1, 'use_count': 1, 'max_uses': 1}),
-        isFalse,
-        reason:
-            'a fix that made every custom operation pass would satisfy the '
-            'test above and be strictly worse than the bug',
-      );
-    });
-
-  });
+    },
+  );
 
   group('an operation that writes without declaring it', () {
-    test('is warned about rather than silently deciding on an unchanged row',
-        () async {
-      final ops = DbOperations(
-        operations: [_SilentOperations()],
-        tables: [invites],
-      );
+    test(
+      'is warned about rather than silently deciding on an unchanged row',
+      () async {
+        final ops = DbOperations(
+          operations: [_SilentOperations()],
+          tables: [invites],
+        );
 
-      final operation = await _resolve(
-        ops,
-        CustomOperationRequest(
-          table: 'custom_op_invites',
-          operation: _redeem,
-          where: const Eq('id', 1),
-          updates: const [],
-          jwt: null,
-        ),
-      );
+        final operation = await _resolve(
+          ops,
+          CustomOperationRequest(
+            table: 'custom_op_invites',
+            operation: _redeem,
+            where: const Eq('id', 1),
+            updates: const [],
+            jwt: null,
+          ),
+        );
 
-      expect(
-        operation.updates,
-        isEmpty,
-        reason: 'nothing declared, and nothing sent by the caller',
-      );
+        expect(
+          operation.updates,
+          isEmpty,
+          reason: 'nothing declared, and nothing sent by the caller',
+        );
 
-      final rules = DbRules(rules: [_InviteRowRules(invites)]);
-      final response = await rules.dispatch(
-        RowRulesRequest(
-          table: 'custom_op_invites',
-          operation: _redeem,
-          data: {'id': 1, 'use_count': 0, 'max_uses': 1},
-          updates: operation.updates,
-          jwt: null,
-        ),
-      );
+        final rules = DbRules(rules: [_InviteRowRules(invites)]);
+        final response = await rules.dispatch(
+          RowRulesRequest(
+            table: 'custom_op_invites',
+            operation: _redeem,
+            data: {'id': 1, 'use_count': 0, 'max_uses': 1},
+            updates: operation.updates,
+            jwt: null,
+          ),
+        );
 
-      // The denial itself is correct and unavoidable: with nothing to replay,
-      // `after` genuinely equals `before`, and this rule genuinely rejects
-      // that row. What changed is that it is no longer silent -- a warning
-      // naming the table, the operation and `customUpdates` is emitted once
-      // per pair. This asserts the deny; the warning is verified by reading
-      // the log, which this suite has no transport for.
-      expect((response! as RowRulesResponse).canPerform, isFalse);
-    });
+        // The denial itself is correct and unavoidable: with nothing to replay,
+        // `after` genuinely equals `before`, and this rule genuinely rejects
+        // that row. What changed is that it is no longer silent -- a warning
+        // naming the table, the operation and `customUpdates` is emitted once
+        // per pair. This asserts the deny; the warning is verified by reading
+        // the log, which this suite has no transport for.
+        expect((response! as RowRulesResponse).canPerform, isFalse);
+      },
+    );
   });
 }

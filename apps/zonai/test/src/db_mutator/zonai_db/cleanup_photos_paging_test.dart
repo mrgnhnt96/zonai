@@ -101,11 +101,10 @@ AppConfig main() {
 }
 ''');
 
-    final pubGet = await io.Process.run(
-      io.Platform.resolvedExecutable,
-      const ['pub', 'get'],
-      workingDirectory: projectRoot.path,
-    );
+    final pubGet = await io.Process.run(io.Platform.resolvedExecutable, const [
+      'pub',
+      'get',
+    ], workingDirectory: projectRoot.path);
     if (pubGet.exitCode != 0) {
       throw StateError('dart pub get failed:\n${pubGet.stderr}');
     }
