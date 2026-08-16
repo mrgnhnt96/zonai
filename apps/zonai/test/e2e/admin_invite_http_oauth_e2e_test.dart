@@ -408,6 +408,119 @@ void main() {
     });
 
     // -----------------------------------------------------------------
+    // Design §7: `GET /auth/admin/invite?token=`, the liveness probe. Runs
+    // here, straight after the revoked test, because that test leaves the
+    // fixed dev token resolving to a REVOKED challenge and no live one --
+    // which is exactly the state the first of these two needs.
+    //
+    // Byte-identity is asserted over a real socket, by comparing two
+    // responses to each other. Not two separate "is it a 200 with
+    // live:false" assertions: those would both still pass if one branch
+    // grew a distinguishing field, and a distinguishing field is the
+    // entire failure mode.
+    //
+    // What is NOT here: an EXPIRED invite. Expiring one needs a fake clock
+    // at mint time, and the mint happens inside the live server's own
+    // zone, which a `withClock` in this isolate does not reach -- the same
+    // reason this file's doc comment already gives for leaving natural
+    // expiry to `admin_invite_runtime_e2e_test.dart`.
+    // `admin_invite_probe_runtime_e2e_test.dart` proves expired-vs-unknown
+    // with a controlled clock at the layer that actually makes the
+    // distinction, and `apps/server/test/oauth_routes_test.dart` proves
+    // the HTTP body is one constant for every null the runtime returns.
+    // Between them the chain is covered; this test covers the socket.
+    // -----------------------------------------------------------------
+
+    test('every token the server will not accept gets a byte-identical '
+        'answer -- revoked, unknown and forged alike', () async {
+      if (!_runningOnDartVm) return;
+
+      // Revoked: the invite the previous test issued and then revoked.
+      final revoked = await client.get(
+        server.uri('/auth/admin/invite', {'token': 'dev-admin-invite'}),
+      );
+      final unknown = await client.get(
+        server.uri('/auth/admin/invite', {'token': 'no-such-token-$unique'}),
+      );
+      final forged = await client.get(
+        server.uri('/auth/admin/invite', {'token': 'a' * 64}),
+      );
+
+      expect(revoked.statusCode, 200, reason: revoked.body);
+
+      for (final other in [unknown, forged]) {
+        expect(
+          other.statusCode,
+          revoked.statusCode,
+          reason:
+              'design §7: a status that told these apart would be an '
+              'oracle for which addresses have invites pending',
+        );
+        expect(other.bodyBytes, revoked.bodyBytes, reason: other.body);
+        expect(
+          other.headers['content-type'],
+          revoked.headers['content-type'],
+        );
+      }
+
+      // And the shared answer says nothing about why.
+      expect(_asMap(revoked)['live'], isFalse);
+      expect(_asMap(revoked).keys, ['live']);
+    });
+
+    test('a live token names its admin table and that table\'s auth types, '
+        'and never the invited email', () async {
+      if (!_runningOnDartVm) return;
+
+      final probeInvitee = 'http-probe-$unique@example.com';
+      final invite = await client.post(
+        server.uri('/admin/invites'),
+        headers: {
+          'content-type': 'application/json',
+          'authorization': 'Bearer $adminJwt',
+        },
+        body: jsonEncode({'email': probeInvitee}),
+      );
+      expect(invite.statusCode, 200, reason: invite.body);
+
+      // Unauthenticated on purpose: the invitee has no session, which is
+      // the whole point. The token in the query string is the
+      // authorization, exactly as it is for the start route.
+      final probe = await client.get(
+        server.uri('/auth/admin/invite', {'token': 'dev-admin-invite'}),
+      );
+      expect(probe.statusCode, 200, reason: probe.body);
+
+      final body = _asMap(probe);
+      expect(body['live'], isTrue);
+      expect(body['table'], 'users');
+      expect(body['authTypes'], containsAll(<String>['oauth', 'password']));
+
+      // Design §4 item 8 and the §7 oracle rule, checked against the raw
+      // bytes rather than against the parsed keys -- a leak added anywhere
+      // in the envelope fails this.
+      expect(probe.body, isNot(contains(probeInvitee)));
+      expect(probe.body, isNot(contains('dev-admin-invite')));
+
+      // A read, not a spend: the invite is still pending afterwards.
+      final members = await _getMembers(client, server, adminJwt);
+      expect(
+        (members['invites']! as List).cast<Map<String, dynamic>>().where(
+          (i) => i['email'] == probeInvitee,
+        ),
+        hasLength(1),
+        reason: 'the probe must not consume the invite it describes',
+      );
+
+      // Leave no live invite behind: the tests below rely on the fixed dev
+      // token resolving to their own.
+      await client.send(
+        http.Request('DELETE', server.uri('/admin/invites/$probeInvitee'))
+          ..headers['authorization'] = 'Bearer $adminJwt',
+      );
+    });
+
+    // -----------------------------------------------------------------
     // brief "resends rather than duplicating": the immediate re-invite is
     // rate-limited (429), live, over the real route. The eventual
     // isResend:true transition after the one-minute window is already

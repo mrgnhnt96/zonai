@@ -1,4 +1,8 @@
 import 'package:zonai/zonai.dart';
+// `AdminInviteDescription`, the record `ZonaiDb.describeAdminInvite` answers
+// with. `deps/zonai_db.dart` imports the library without re-exporting it, so
+// the name is not in scope from that import alone.
+import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
@@ -285,6 +289,56 @@ class AuthHandler {
   /// row is the point. The invite token rides the challenge metadata and is
   /// what lifts that refusal, for the invited address only (design §3.2
   /// step 4).
+  /// The liveness probe behind `GET /auth/admin/invite?token=` (design §7).
+  ///
+  /// The body shape is decided here rather than in the controller because it
+  /// is the *same* body for every unusable token, and that sameness is the
+  /// security property — see [kAdminInviteUnusableBody]. A route that built
+  /// its own answer per branch is exactly how the two cases drift apart.
+  ///
+  /// `{live: true, table, authTypes}` for an invite that can still be
+  /// accepted; [kAdminInviteUnusableBody] for anything else. Never the
+  /// invited email and never the token: the caller supplied the token, and
+  /// the email is what a forged one must not be able to discover.
+  Future<Map<String, Object?>> adminInviteStatus({
+    required String token,
+  }) async {
+    return adminInviteStatusBody(await zonaiDB.describeAdminInvite(token: token));
+  }
+
+  /// The probe's answer as a function of the runtime's, split out from
+  /// [adminInviteStatus] so the mapping is falsifiable without a database.
+  ///
+  /// The runtime already collapses expired, revoked, spent, forged and
+  /// unknown into one `null` (`_describeAdminInvite` explains why). This is
+  /// the other half of that guarantee: **one `null` in, one shared constant
+  /// out**, so there is no branch here for a reason to be attached to.
+  static Map<String, Object?> adminInviteStatusBody(
+    AdminInviteDescription? invite,
+  ) {
+    if (invite == null) return kAdminInviteUnusableBody;
+
+    return {
+      'live': true,
+      'table': invite.table,
+      // Names, not indices: an `AuthType` gaining a value must not silently
+      // renumber what an older dashboard reads.
+      'authTypes': [for (final type in invite.authTypes) type.name],
+    };
+  }
+
+  /// The one answer every unusable invite token gets.
+  ///
+  /// Expired, revoked, already accepted, forged, truncated — one body, one
+  /// status, no reason attached. If "expired" and "no such invite" differed
+  /// by so much as an error code, this route would be an oracle for which
+  /// addresses have invites pending, which is the same thing
+  /// `DELETE /admin/invites/:email` answers identically to avoid.
+  ///
+  /// A const so there is literally one object to return; a per-branch map
+  /// literal is how a stray field gets added to one branch and not the other.
+  static const kAdminInviteUnusableBody = <String, Object?>{'live': false};
+
   Future<String> startAdminInviteOAuth({
     required String provider,
     required String inviteToken,

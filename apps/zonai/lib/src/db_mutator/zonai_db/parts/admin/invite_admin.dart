@@ -3,6 +3,17 @@ part of zonai_db;
 /// Design §2: 7 days.
 const _adminInviteExpiresIn = Duration(days: 7);
 
+/// Everything [ZonaiDb.describeAdminInvite] is allowed to say about a live
+/// invite: which `AsAdmin` table it is for, and the sign-in methods that
+/// table declares.
+///
+/// A record rather than a map because the shape is the guarantee. The
+/// invited email is deliberately absent and there is no field to put it in
+/// — a forged or leaked token must not become a way to learn which address
+/// it was issued for. Same reasoning that keeps the token's hash out of
+/// [_listAdminInvites].
+typedef AdminInviteDescription = ({String table, List<AuthType> authTypes});
+
 extension _InviteAdminX on ZonaiDb {
   /// Caller's JWT must be admin *on the resolved `AsAdmin` table* -- not
   /// merely `isAdmin` against some other collection a multi-admin-table
@@ -129,6 +140,56 @@ extension _InviteAdminX on ZonaiDb {
       'expiresAt': expiresAt.toIso8601String(),
       'isResend': lastInvite != null,
     };
+  }
+
+  /// Describes an invite **without consuming it** — the read-only lookup the
+  /// acceptance screen needs so a stale link can be explained in its own
+  /// words instead of as a raw 401 from
+  /// `GET /auth/admin/invite/oauth/start/:provider` (design §7).
+  ///
+  /// Unauthenticated by necessity: the invitee has no session, which is the
+  /// entire point of an invite. [token] is the authorization, exactly as it
+  /// is for [_startAdminInviteOAuth].
+  ///
+  /// **Null is the answer for every unusable token, and they must stay
+  /// indistinguishable.** Expired, revoked, already-consumed, forged,
+  /// truncated — one `null`, no reason attached. A caller that could tell
+  /// "expired" from "no such invite" could walk an address list and learn
+  /// which addresses have invites pending, which is the same oracle
+  /// `_revokeAdminInvite` answers identically to close.
+  ///
+  /// That is also why every configured admin table is probed even once a
+  /// match is in hand: the number of queries this makes is a function of how
+  /// many admin tables exist, never of what the token turned out to be.
+  ///
+  /// [_findLiveAdminInvite] needs a table and a probe has none, so the tables
+  /// come from `GetAdminTablesOperationRequest` the way
+  /// [_adminSupportedAuthTypes] enumerates them. The `authTypes` returned are
+  /// the matched table's own, not the union across every admin table —
+  /// design §3.3's non-OAuth acceptance is not built, and reporting the real
+  /// set regardless is what lets it be built on top of this contract later
+  /// without changing it.
+  Future<AdminInviteDescription?> _describeAdminInvite({
+    required String token,
+  }) async {
+    final authTables = await _dispatchOperation<AdminTablesResponse>(
+      GetAdminTablesOperationRequest(),
+    );
+
+    final now = clock.now();
+    AdminInviteDescription? found;
+
+    for (final (tableName, authTypes) in authTables.tables) {
+      final invite = await _findLiveAdminInvite(
+        token: token,
+        table: tableName,
+      );
+      if (invite == null) continue;
+      if (invite.expiresAt.isBefore(now)) continue;
+      found ??= (table: tableName, authTypes: authTypes);
+    }
+
+    return found;
   }
 
   Future<void> _revokeAdminInvite({
