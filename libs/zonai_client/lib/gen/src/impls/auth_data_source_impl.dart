@@ -233,6 +233,19 @@ class AuthDataSourceImpl implements AuthDataSource {
   }
 
   @override
+  Future<void> startAdminInviteOAuth({
+    required String provider,
+    required String token,
+    String? redirectTo,
+  }) async {
+    await _client.request(
+      method: 'GET',
+      path: '/auth/admin/invite/oauth/start/${provider}',
+      query: {'token': token, 'redirect_to': redirectTo},
+    );
+  }
+
+  @override
   Future<void> oauthCallback({
     required String provider,
     String? code,

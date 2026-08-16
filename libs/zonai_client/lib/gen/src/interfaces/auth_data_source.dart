@@ -42,6 +42,11 @@ abstract interface class AuthDataSource {
     String? redirectTo,
     String? authorization,
   });
+  Future<void> startAdminInviteOAuth({
+    required String provider,
+    required String token,
+    String? redirectTo,
+  });
   Future<void> oauthCallback({
     required String provider,
     String? code,

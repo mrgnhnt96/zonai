@@ -48,6 +48,11 @@ class Server {
     storage: storage,
   );
 
+  late final AdminDataSource admin = AdminDataSourceImpl(
+    client: client,
+    storage: storage,
+  );
+
   late final AuthDataSource auth = AuthDataSourceImpl(
     client: client,
     storage: storage,
