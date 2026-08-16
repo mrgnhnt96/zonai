@@ -129,6 +129,13 @@ enum AuthChallengeType {
   /// collection, `metadata`: `{verifier, nonce, redirectTo}`,
   /// `allowedAttempts: 1`, 10-minute `expiresAt`.
   oauthState,
+
+  /// A pending admin invite (`docs/admin-invite-design.md` §2). `target`:
+  /// the invited email, lowercased. `table`: the `AsAdmin` collection.
+  /// `secretHash: sha256(token)`. `userId: null` -- there is no row until
+  /// acceptance. `metadata: {invitedBy, invitedByEmail}`.
+  /// `allowedAttempts: 1`, 7-day `expiresAt`.
+  adminInvite,
 }
 
 class AuthChallengeId implements Id {

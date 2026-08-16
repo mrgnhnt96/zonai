@@ -38,21 +38,31 @@ extension _LogoutX on ZonaiDb {
       throw const InvalidJwtException();
     }
 
-    final db = await open();
+    final revoked = await _revokeAllSessions(appJwt.userId);
 
-    final results = await db
-        .delete(from: jwts)
-        .where(jwts.userId.equals(appJwt.userId))
-        .returning();
-
-    if (results.isEmpty) {
+    if (revoked == 0) {
       logger.verbose('No JWT records found', prefix: _prefix);
       return;
     }
 
     logger.verbose(
-      'Logged out all: ${appJwt.userId} (${results.length})',
+      'Logged out all: ${appJwt.userId} ($revoked)',
       prefix: _prefix,
     );
+  }
+
+  /// Deletes every `_jwt` row for [userId] -- the same revocation [_logoutAll]
+  /// performs for a self-service "log out everywhere", reused by admin
+  /// removal (design §3.4) so an admin removed while signed in can't keep a
+  /// working JWT until it expires.
+  Future<int> _revokeAllSessions(UnknownId userId) async {
+    final db = await open();
+
+    final results = await db
+        .delete(from: jwts)
+        .where(jwts.userId.equals(userId))
+        .returning();
+
+    return results.length;
   }
 }

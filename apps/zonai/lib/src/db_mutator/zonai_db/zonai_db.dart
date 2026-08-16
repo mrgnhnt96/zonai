@@ -72,6 +72,7 @@ import '../sqlite_internal_table_sync.dart';
 part 'parts/__auth_utils.dart';
 part 'parts/__utils.dart';
 part 'parts/admin/create_admin.dart';
+part 'parts/admin/invite_admin.dart';
 part 'parts/admin/list_admins.dart';
 part 'parts/admin/remove_admin.dart';
 part 'parts/admin/reset_admin_password.dart';
@@ -420,12 +421,63 @@ class ZonaiDb {
     );
   }
 
-  Future<Map<String, Object?>> removeAdmin({required String email}) async {
-    return await _run(() => _removeAdmin(email: email));
+  /// [actingAdmin] is the signed-in caller for a dashboard-driven removal --
+  /// omit it for the trusted CLI path (`zonai db admin remove`), which has
+  /// no caller to check for self-removal against. Always revokes the
+  /// removed admin's sessions (design §3.4) and always refuses to remove the
+  /// table's last admin, regardless of caller (design §4 item 6).
+  Future<Map<String, Object?>> removeAdmin({
+    required String email,
+    Jwt? actingAdmin,
+  }) async {
+    return await _run(
+      () => _removeAdmin(email: email, actingAdmin: actingAdmin),
+    );
   }
 
   Future<List<Map<String, Object?>>> listAdmins() async {
     return await _run(() => _listAdmins());
+  }
+
+  /// Design §3.1: refuses when [jwt] isn't admin on the resolved `AsAdmin`
+  /// table, when an admin already exists for [email], and resends (rather
+  /// than duplicates) a still-live invite.
+  Future<Map<String, Object?>> inviteAdmin({
+    required String email,
+    required String jwt,
+  }) async {
+    return await _run(() => _inviteAdmin(email: email, jwt: jwt));
+  }
+
+  /// Design §3.4: sets `canConsume = false` on the live invite for [email],
+  /// if any -- the link stops working.
+  Future<void> revokeAdminInvite({
+    required String email,
+    required String jwt,
+  }) async {
+    return await _run(() => _revokeAdminInvite(email: email, jwt: jwt));
+  }
+
+  /// Pending invites for the resolved `AsAdmin` table: unconsumed and
+  /// unexpired, never the secret hash.
+  Future<List<Map<String, Object?>>> listAdminInvites({
+    required String jwt,
+  }) async {
+    return await _run(() => _listAdminInvites(jwt: jwt));
+  }
+
+  /// Design §3.2 step 3: [startAdminOAuth]'s invite-bound counterpart --
+  /// mints the same `oauthState` challenge but carries [inviteToken] in its
+  /// metadata, so [completeOAuth] knows to attempt invite-bound provisioning
+  /// (the one path an `isAdmin` callback is allowed to provision) instead of
+  /// refusing outright.
+  Future<String> startAdminInviteOAuth({
+    required String inviteToken,
+    required StartOAuthAuthPayload payload,
+  }) async {
+    return await _run(
+      () => _startAdminInviteOAuth(inviteToken: inviteToken, payload: payload),
+    );
   }
 
   /// Deletes log rows, optionally only those recorded before [before].

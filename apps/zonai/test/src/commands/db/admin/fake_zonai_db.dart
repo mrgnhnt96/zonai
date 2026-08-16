@@ -7,7 +7,8 @@ import 'package:zonai/src/deps/executable_stop.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/settings.dart';
-import 'package:zonai_schema/zonai_schema.dart' show AuthType, TableSchemaShape;
+import 'package:zonai_schema/zonai_schema.dart'
+    show AuthType, Jwt, TableSchemaShape;
 
 /// Minimal settings [ZonaiDb]'s constructor needs to exist (it eagerly builds
 /// a `MailmanPool` per worker kind, each of which reads a compiled-executable
@@ -124,7 +125,10 @@ class FakeZonaiDb extends ZonaiDb {
   }
 
   @override
-  Future<Map<String, Object?>> removeAdmin({required String email}) async {
+  Future<Map<String, Object?>> removeAdmin({
+    required String email,
+    Jwt? actingAdmin,
+  }) async {
     removeAdminCall = email;
     if (removeAdminError case final error?) throw error;
     return removeAdminResult;

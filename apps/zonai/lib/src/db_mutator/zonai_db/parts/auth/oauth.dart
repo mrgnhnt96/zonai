@@ -39,6 +39,7 @@ extension _OAuthX on ZonaiDb {
     String table,
     StartOAuthAuthPayload payload, {
     bool isAdmin = false,
+    String? inviteToken,
   }) async {
     logger.setTraceProps({
       'op': 'oauth_start',
@@ -90,6 +91,7 @@ extension _OAuthX on ZonaiDb {
             'nonce': nonce,
             'isAdmin': isAdmin,
             if (redirectTo != null) 'redirectTo': redirectTo,
+            if (inviteToken != null) 'inviteToken': inviteToken,
           },
         ),
       ]);
@@ -110,6 +112,34 @@ extension _OAuthX on ZonaiDb {
       logger.trace('FAILED at $step: ${e.runtimeType}');
       rethrow;
     }
+  }
+
+  /// Admin-invite counterpart of [_startOAuth] (design §3.2 step 3): resolves
+  /// the `AsAdmin` table configured for `AuthType.oauth` the same way
+  /// [ZonaiDb.startAdminOAuth] does, fails fast when [inviteToken] doesn't
+  /// name a live invite rather than deferring every error to the callback,
+  /// and carries the token into the minted `oauthState` challenge's metadata
+  /// so [_completeOAuthCallback] knows an invite is in play.
+  Future<String> _startAdminInviteOAuth({
+    required String inviteToken,
+    required StartOAuthAuthPayload payload,
+  }) async {
+    final table = await _adminCollectionFor(.oauth);
+
+    final invite = await _findLiveAdminInvite(token: inviteToken, table: table);
+    if (invite == null) {
+      throw const InvalidOrExpiredCodeException(codeType: 'admin invite');
+    }
+    if (invite.expiresAt.isBefore(clock.now())) {
+      throw const CodeExpiredException(codeType: 'admin invite');
+    }
+
+    return await _startOAuth(
+      table,
+      payload,
+      isAdmin: true,
+      inviteToken: inviteToken,
+    );
   }
 
   // ---------------------------------------------------------------------
@@ -163,6 +193,7 @@ extension _OAuthX on ZonaiDb {
       final nonce = metadata['nonce'];
       final redirectTo = metadata['redirectTo'];
       final isAdmin = metadata['isAdmin'] == true;
+      final inviteToken = metadata['inviteToken'];
       if (verifier is! String || nonce is! String) {
         throw const InvalidOrExpiredCodeException(codeType: 'OAuth state');
       }
@@ -195,6 +226,7 @@ extension _OAuthX on ZonaiDb {
         identity: identity,
         isAdmin: isAdmin,
         payload: payload,
+        inviteToken: inviteToken is String ? inviteToken : null,
       );
       logger.trace('done');
 
@@ -338,6 +370,7 @@ extension _OAuthX on ZonaiDb {
     required oauth_claims.OAuthIdentity identity,
     required bool isAdmin,
     required AuthPayload payload,
+    String? inviteToken,
   }) async {
     final db = await open();
 
@@ -424,8 +457,18 @@ extension _OAuthX on ZonaiDb {
     }
 
     // 3. Still nothing -> provision. Admin sign-in never auto-provisions,
-    // same rule password/OTP/magic-link admin flows enforce.
+    // same rule password/OTP/magic-link admin flows enforce -- unless an
+    // accepted admin invite authorizes it for this exact email (design
+    // §3.2): the one place isAdmin provisioning is allowed.
     if (isAdmin) {
+      if (inviteToken != null) {
+        return await _provisionInvitedAdmin(
+          table: table,
+          provider: provider,
+          identity: identity,
+          inviteToken: inviteToken,
+        );
+      }
       throw UserNotFoundAuthException(table: table);
     }
 
@@ -523,6 +566,68 @@ extension _OAuthX on ZonaiDb {
 
     await _executeEffects();
     return (user: user, jwt: token);
+  }
+
+  /// Design §3.2 steps 4-5: the one place an `isAdmin` OAuth callback is
+  /// allowed to provision. Re-validates the invite against the database at
+  /// callback time (not the snapshot [ZonaiDb.startAdminInviteOAuth] saw) so
+  /// a revoke or expiry that happened mid-flow still lands (design §4 item
+  /// 5). Consumption only happens on the match branch below -- a mismatch
+  /// throws before either [_provisionOAuthUser] or [_consumeChallenge] run,
+  /// so it creates nothing and leaves the invite usable (design §4 item 3).
+  Future<_AuthResult> _provisionInvitedAdmin({
+    required String table,
+    required OAuthProvider provider,
+    required oauth_claims.OAuthIdentity identity,
+    required String inviteToken,
+  }) async {
+    final invite = await _findLiveAdminInvite(token: inviteToken, table: table);
+    if (invite == null) {
+      throw const InvalidOrExpiredCodeException(codeType: 'admin invite');
+    }
+    if (invite.expiresAt.isBefore(clock.now())) {
+      throw const CodeExpiredException(codeType: 'admin invite');
+    }
+
+    final email = identity.email;
+    if (email == null ||
+        identity.emailVerified != true ||
+        email.toLowerCase() != invite.target) {
+      throw const AdminInviteEmailMismatchException();
+    }
+
+    final result = await _provisionOAuthUser(
+      table: table,
+      provider: provider,
+      identity: identity,
+    );
+
+    await _consumeChallenge(invite);
+
+    return result;
+  }
+
+  /// Looks up a live `adminInvite` challenge by its raw [token] -- the same
+  /// exact-hash-match pattern used for `oauthState` above (design §2:
+  /// `secretHash: sha256(token)`). Callers still check
+  /// [AuthChallenge.expiresAt] themselves; `canConsume` alone doesn't rule
+  /// out an expired-but-not-yet-swept row.
+  Future<AuthChallenge?> _findLiveAdminInvite({
+    required String token,
+    required String table,
+  }) async {
+    final db = await open();
+    final matches = await db
+        .select()
+        .from(authChallenges)
+        .where(
+          authChallenges.secretHash.equals(_sha256Hex(token)) &
+              authChallenges.type.equals(.adminInvite) &
+              authChallenges.table.equals(table) &
+              authChallenges.canConsume.isTrue(),
+        )
+        .limit(1);
+    return matches.singleOrNull;
   }
 
   // ---------------------------------------------------------------------

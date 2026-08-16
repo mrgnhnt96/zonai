@@ -71,6 +71,18 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 400,
         body: {'error': '$exception'},
       ),
+      AdminInviteEmailMismatchException() => .handled(
+        statusCode: 403,
+        body: {'error': '$exception'},
+      ),
+      CannotRemoveSelfAsAdminException() => .handled(
+        statusCode: 403,
+        body: {'error': '$exception'},
+      ),
+      LastAdminCannotBeRemovedException() => .handled(
+        statusCode: 409,
+        body: {'error': '$exception'},
+      ),
     };
   }
 
