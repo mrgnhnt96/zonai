@@ -139,6 +139,43 @@ class SendVerifyEmailEmail extends Email {
   }
 }
 
+class SendAdminInviteEmail extends Email {
+  SendAdminInviteEmail({
+    required super.to,
+    required String table,
+    super.from,
+    bool isResend = false,
+    required String inviteUrl,
+    required Duration expiresIn,
+    String? invitedByEmail,
+    Map<String, dynamic>? variables,
+    String subject = "You've been invited as an admin",
+  }) : super(
+         subject: subject,
+         template: 'admin_invite',
+         thread: Email.createThread(
+           'admin-invite:$table:${to.address.toLowerCase()}',
+           continueThread: isResend,
+         ),
+         variables: {
+           ...?variables,
+           'inviteUrl': inviteUrl,
+           'email': to.address,
+           'expiresIn': _formatExpiresIn(expiresIn),
+           if (invitedByEmail != null) 'invitedByEmail': invitedByEmail,
+         },
+       );
+
+  static String _formatExpiresIn(Duration expiresIn) {
+    if (expiresIn.inDays >= 1 && expiresIn.inHours % 24 == 0) {
+      final days = expiresIn.inDays;
+      return days == 1 ? '1 day' : '$days days';
+    }
+    final hours = expiresIn.inHours;
+    return hours == 1 ? '1 hour' : '$hours hours';
+  }
+}
+
 class SendResetPasswordEmail extends Email {
   SendResetPasswordEmail({
     required super.to,

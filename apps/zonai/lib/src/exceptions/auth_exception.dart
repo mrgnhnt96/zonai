@@ -187,3 +187,38 @@ final class OAuthRedirectNotAllowedException extends AuthException {
   @override
   String toString() => 'redirect_to is not allowed: $redirectTo';
 }
+
+/// Thrown when an admin invite is accepted by a provider identity whose
+/// verified email doesn't match the invite's `target` (design §3.2 step 4).
+/// The invite stays unconsumed and no admin row is created -- a different
+/// account must not be able to burn someone else's invite.
+final class AdminInviteEmailMismatchException extends AuthException {
+  const AdminInviteEmailMismatchException();
+
+  @override
+  String toString() =>
+      "The signed-in account's verified email does not match the invited "
+      'address';
+}
+
+/// Thrown when removing an admin would leave the `AsAdmin` table with zero
+/// rows (design §4 item 6) -- a dashboard that can lock every admin out is a
+/// bug, not a feature.
+final class LastAdminCannotBeRemovedException extends AuthException {
+  const LastAdminCannotBeRemovedException({required this.table});
+
+  final String table;
+
+  @override
+  String toString() => 'Cannot remove the last admin account on "$table"';
+}
+
+/// Thrown when an admin tries to remove their own account (design §4 item
+/// 6) -- self-removal while signed in is indistinguishable from an accident
+/// with no recovery path.
+final class CannotRemoveSelfAsAdminException extends AuthException {
+  const CannotRemoveSelfAsAdminException();
+
+  @override
+  String toString() => 'An admin cannot remove their own account';
+}

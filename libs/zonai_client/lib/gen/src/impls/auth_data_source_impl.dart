@@ -219,6 +219,20 @@ class AuthDataSourceImpl implements AuthDataSource {
   }
 
   @override
+  Future<void> startAdminOAuth({
+    required String provider,
+    String? redirectTo,
+    String? authorization,
+  }) async {
+    await _client.request(
+      method: 'GET',
+      path: '/auth/admin/oauth/start/${provider}',
+      headers: {'authorization': authorization},
+      query: {'redirect_to': redirectTo},
+    );
+  }
+
+  @override
   Future<void> oauthCallback({
     required String provider,
     String? code,
