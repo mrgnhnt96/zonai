@@ -233,6 +233,25 @@ class AuthDataSourceImpl implements AuthDataSource {
   }
 
   @override
+  Future<Map<String, Object?>> adminInviteStatus({
+    required String token,
+  }) async {
+    final response = await _client.request(
+      method: 'GET',
+      path: '/auth/admin/invite',
+      query: {'token': token},
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return data.map((key, value) => MapEntry((key as String), value));
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
   Future<void> startAdminInviteOAuth({
     required String provider,
     required String token,

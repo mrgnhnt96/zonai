@@ -32,6 +32,7 @@ import 'package:zonai_web/constants/theme.dart' hide styles;
 import 'package:zonai_web/constants/theme.dart' as theme show styles;
 import 'package:zonai_web/providers/app_name_provider.dart';
 import 'package:zonai_web/providers/brand_logo_provider.dart';
+import 'package:zonai_web/utils/admin_invite_status.dart';
 import 'package:zonai_web/utils/admin_members.dart';
 
 /// Fixed so a re-render produces byte-identical output. A screenshot that
@@ -121,6 +122,7 @@ Future<void> _renderAccept({
   required List<OAuthProviderPublic> providers,
   required String? token,
   required String outPath,
+  AdminInviteStatus? status,
 }) async {
   final response = await renderComponent(
     Document(
@@ -139,7 +141,17 @@ Future<void> _renderAccept({
           appNameProvider.overrideWithValue('Banana'),
           hasBrandLogoProvider.overrideWithValue(false),
         ],
-        child: div(classes: 'app-root', [AdminInviteAcceptView(token: token, onSelectProvider: (_) {})]),
+        child: div(classes: 'app-root', [
+          AdminInviteAcceptView(
+            token: token,
+            // The probe's verdict is supplied here for the same reason the
+            // member list is: this renders the screen, not the round trip.
+            // Defaulting to "live with these methods" keeps every pre-existing
+            // case rendering exactly what it did before the probe landed.
+            status: status ?? AdminInviteLive(table: 'staff', authTypes: authTypes),
+            onSelectProvider: (_) {},
+          ),
+        ]),
       ),
     ),
   );
@@ -210,5 +222,31 @@ Future<void> main(List<String> args) async {
     providers: [_google, _github],
     token: null,
     outPath: '$out/admin-invite-accept-no-token.html',
+  );
+
+  // A token the server will not accept -- opened a week late, revoked, or
+  // guessed. This is the state design §7 exists for: before the liveness
+  // probe, reaching it meant leaving the SPA and landing on a raw 401 from
+  // `/auth/admin/invite/oauth/start/:provider`. Note what is absent as much
+  // as what is present: no provider button, no retry, and no word about
+  // WHICH of the reasons applies -- the server does not say, on purpose.
+  await _renderAccept(
+    authTypes: const [AuthType.oauth],
+    providers: [_google],
+    token: 'invite-token',
+    status: const AdminInviteUnusable(),
+    outPath: '$out/admin-invite-accept-expired.html',
+  );
+
+  // The moment before that answer arrives. Worth capturing because it is what
+  // SSR renders for every visitor: if this state offered the sign-in buttons,
+  // the probe would be decorative -- someone with a dead link would click
+  // through to the 401 before the check ever came back.
+  await _renderAccept(
+    authTypes: const [AuthType.oauth],
+    providers: [_google],
+    token: 'invite-token',
+    status: const AdminInviteChecking(),
+    outPath: '$out/admin-invite-accept-checking.html',
   );
 }

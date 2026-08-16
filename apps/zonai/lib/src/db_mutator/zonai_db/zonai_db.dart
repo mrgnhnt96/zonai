@@ -466,6 +466,27 @@ class ZonaiDb {
     return await _run(() => _listAdminInvites(jwt: jwt));
   }
 
+  /// Describes the invite [token] names **without consuming it**, or null
+  /// when it names none that can still be used (design §7).
+  ///
+  /// The liveness probe the acceptance screen asks before it offers anything:
+  /// [startAdminInviteOAuth] is the only other thing that can judge a token,
+  /// and by the time it answers the browser has already left the dashboard.
+  ///
+  /// Unauthenticated on purpose — the invitee has no session, and the token
+  /// is the authorization.
+  ///
+  /// Null covers expired, revoked, spent, forged and truncated alike, and
+  /// telling them apart is not an omission to be fixed later: a probe that
+  /// distinguished "expired" from "no such invite" would answer, for any
+  /// address someone cared to try, whether that address has an invite
+  /// pending. See [_describeAdminInvite].
+  Future<AdminInviteDescription?> describeAdminInvite({
+    required String token,
+  }) async {
+    return await _run(() => _describeAdminInvite(token: token));
+  }
+
   /// Design §3.2 step 3: [startAdminOAuth]'s invite-bound counterpart --
   /// mints the same `oauthState` challenge but carries [inviteToken] in its
   /// metadata, so [completeOAuth] knows to attempt invite-bound provisioning

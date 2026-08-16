@@ -42,6 +42,7 @@ abstract interface class AuthDataSource {
     String? redirectTo,
     String? authorization,
   });
+  Future<Map<String, Object?>> adminInviteStatus({required String token});
   Future<void> startAdminInviteOAuth({
     required String provider,
     required String token,

@@ -258,6 +258,52 @@ class AuthController {
     _redirect(response, url);
   }
 
+  /// Is this invite link still good? Answered **without consuming it**
+  /// (`docs/admin-invite-design.md` §7).
+  ///
+  /// The `/_/admin/invite?token=…` screen asks this before it offers
+  /// anything, so a link opened a week too late gets that screen's own plain
+  /// explanation. Without it the only thing that can judge a token is
+  /// [startAdminInviteOAuth] below, and by the time that answers the browser
+  /// has left the SPA — so a stale invite's first impression is a raw 401
+  /// error page, on the one flow whose entire job is welcoming someone.
+  ///
+  /// Unauthenticated for the same reason [startAdminInviteOAuth] is: the
+  /// invitee has no session, and the token is the authorization. It carries
+  /// [OAuthInviteStartRateLimit] rather than a limit of its own — a new
+  /// `RateLimitOperation` value would be a breaking change to the worker
+  /// protocol (`min_schema_version.dart`), and sharing the invite-acceptance
+  /// bucket with the start route it precedes is the right grouping anyway:
+  /// the two are one visit.
+  ///
+  /// **200 either way, and the same body for every unusable token.** Not a
+  /// 404 for "no such invite" and a 200 for "expired" — that difference is
+  /// an oracle for which addresses have invites pending. The single answer
+  /// is [AuthHandler.kAdminInviteUnusableBody]; the reason it is a constant
+  /// there rather than a literal here is that a literal is how the two
+  /// branches drift apart.
+  ///
+  /// `token` is redacted in the request log by `redactSensitiveQuery`, which
+  /// already covers that parameter name — the same coverage
+  /// [startAdminInviteOAuth] relies on, pinned by
+  /// `trace_query_redaction_test.dart`.
+  @swagger.ApiResponse(
+    200,
+    description:
+        '`{live: true, table, authTypes}` when the token names an invite '
+        'that can still be accepted, and `{live: false}` for every token '
+        'that cannot -- expired, revoked, already accepted or unknown '
+        'alike, deliberately indistinguishable. Never the invited email.',
+  )
+  @swagger.ApiResponse(429, description: 'oauthInviteStart rate limit exceeded')
+  @OAuthInviteStartRateLimit()
+  @Get('admin/invite')
+  Future<Map<String, Object?>> adminInviteStatus({
+    @Query('token') required String token,
+  }) async {
+    return await authHandler.adminInviteStatus(token: token);
+  }
+
   /// Admin-invite acceptance over OAuth: mint an **invite-bound** challenge,
   /// 302 to the provider (`docs/admin-invite-design.md` §3.2 step 3).
   ///

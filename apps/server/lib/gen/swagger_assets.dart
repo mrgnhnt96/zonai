@@ -186,6 +186,32 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/auth/admin/invite": {
+      "get": {
+        "operationId": "auth_adminInviteStatus",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`{live: true, table, authTypes}` when the token names an invite that can still be accepted, and `{live: false}` for every token that cannot -- expired, revoked, already accepted or unknown alike, deliberately indistinguishable. Never the invited email."
+          },
+          "429": {
+            "description": "oauthInviteStart rate limit exceeded"
+          }
+        }
+      }
+    },
     "/auth/admin/invite/oauth/start/{provider}": {
       "get": {
         "operationId": "auth_startAdminInviteOAuth",
@@ -2787,6 +2813,22 @@ paths:
                 type: object
                 additionalProperties: true
                 nullable: true
+  '/auth/admin/invite':
+    get:
+      operationId: auth_adminInviteStatus
+      tags:
+        - auth
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: '`{live: true, table, authTypes}` when the token names an invite that can still be accepted, and `{live: false}` for every token that cannot -- expired, revoked, already accepted or unknown alike, deliberately indistinguishable. Never the invited email.'
+        '429':
+          description: oauthInviteStart rate limit exceeded
   '/auth/admin/invite/oauth/start/{provider}':
     get:
       operationId: auth_startAdminInviteOAuth
