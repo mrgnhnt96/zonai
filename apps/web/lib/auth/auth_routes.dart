@@ -5,6 +5,7 @@ abstract final class AuthRoutes {
   static const home = '/';
   static const signIn = '/sign-in';
   static const tables = '/tables';
+  static const maintenance = '/maintenance';
   static const magicLinkCallback = '/auth/magic-link';
   static const resetPasswordCallback = '/auth/reset-password';
   static const resetPasswordRequest = '/auth/reset-password/request';

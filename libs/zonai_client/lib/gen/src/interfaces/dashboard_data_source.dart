@@ -8,4 +8,5 @@ abstract interface class DashboardDataSource {
     bool? excludeAdmin,
     String? authorization,
   });
+  Future<StorageMetrics> storage({String? authorization});
 }

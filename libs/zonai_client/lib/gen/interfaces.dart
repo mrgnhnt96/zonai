@@ -10,6 +10,7 @@ import 'package:zonai_schema/src/payloads/delete_body.dart';
 import 'package:zonai_schema/src/payloads/get_body.dart';
 import 'package:zonai_schema/src/payloads/list_body.dart';
 import 'package:zonai_schema/src/payloads/photo_bodies.dart';
+import 'package:zonai_schema/src/payloads/storage_metrics.dart';
 import 'package:zonai_schema/src/payloads/stream_body.dart';
 import 'package:zonai_schema/src/payloads/stream_count_body.dart';
 import 'package:zonai_schema/src/payloads/stream_list_body.dart';

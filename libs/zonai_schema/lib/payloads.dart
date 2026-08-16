@@ -24,6 +24,8 @@ export 'src/types/column_shape_kind.dart';
 export 'src/types/collection_actions.dart';
 export 'src/types/schema_shape.dart';
 export 'src/schema_cell_display.dart';
+export 'src/payloads/storage_metrics.dart';
+export 'src/utils/format_bytes.dart';
 export 'src/payloads/stream_body.dart';
 export 'src/payloads/stream_count_body.dart';
 export 'src/payloads/stream_list_body.dart';

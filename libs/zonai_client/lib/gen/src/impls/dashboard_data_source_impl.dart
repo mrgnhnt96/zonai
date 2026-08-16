@@ -32,4 +32,21 @@ class DashboardDataSourceImpl implements DashboardDataSource {
 
     throw Exception('Invalid response');
   }
+
+  @override
+  Future<StorageMetrics> storage({String? authorization}) async {
+    final response = await _client.request(
+      method: 'GET',
+      path: '/dashboard/storage',
+      headers: {'authorization': authorization},
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return StorageMetrics.fromJson(Map.from((data as Map)));
+    }
+
+    throw Exception('Invalid response');
+  }
 }
