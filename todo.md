@@ -44,6 +44,14 @@ If the draft-release proposal above lands, this gets easier still: a draft is in
 
   **So both transports now reach "accepted" against the real service**, and both are blocked on the same last thing.
 
+  **And the whole engine has now run live, with nothing faked.** A temporary edit to the end-to-end group — connect override removed so `_connectOverTls` reaches Apple, real `.p8`, topic `com.lostthegame.app`, `useSandbox: true`, the one seeded row carrying the real device token — produced:
+
+  ```
+  LIVE status=completed delivered=1 rejected=0 transient=0 error=null
+  ```
+
+  `push()` → `_push_jobs` row → cron drain → `ApnsPushCourier` → TLS with ALPN `h2` → `api.sandbox.push.apple.com` → 200 → job completed. Reverted immediately; the committed test uses `FakeApns`, because a suite that needs a private key and the network is not a suite. (`game_loop effector --prove push-engine-live-to-apple`.)
+
   **And that blocks the FCM route too, which changes what to do next.** FCM reaches iOS *by proxying to APNs*, so a Firebase-delivered iOS notification ends up at the same simulator APNs declines to route to. Uploading the APNs key to the Firebase console — the step with no API — would therefore not enable verification either; it only matters for production use of the FCM route. (Inference from the proxy architecture, not separately observed: with no key uploaded, FCM answers `THIRD_PARTY_AUTH_ERROR` long before routing is reached.)
 
   So there is exactly **one** thing standing between here and a verified iOS delivery on either transport, and it is a physical iPhone.
