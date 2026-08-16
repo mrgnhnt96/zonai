@@ -19,6 +19,20 @@ enum RateLimitOperation {
   adminAuthenticate,
   adminSignIn,
 
+  /// `POST /admin/invites` (admin-invite design §4 item 9).
+  ///
+  /// Bucketed per auth table, resolved from the caller's *admin* Bearer token
+  /// rather than from anything in the request — so the bucket dimension is
+  /// not caller-supplied and cannot be rotated. Override with
+  /// `AuthTableRateLimits.adminInvitePolicy`.
+  ///
+  /// This is a second, independent limit rather than the only one. The db
+  /// mutator already refuses a repeat invite to the *same address* inside a
+  /// minute (`_inviteAdmin`'s `AuthRateLimitException`), which bounds
+  /// mail-bombing one inbox but not an authenticated admin walking an address
+  /// list — every address is a fresh counter there. This bounds the latter.
+  adminInvite,
+
   /// Named custom operations (`TableOperations.custom`). The specific
   /// operation name travels separately — see [RateLimitRequest.customOperation].
   custom,

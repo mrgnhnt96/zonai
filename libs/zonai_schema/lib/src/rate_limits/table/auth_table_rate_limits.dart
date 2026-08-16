@@ -36,6 +36,16 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
 
   Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
 
+  /// Throttles `POST /admin/invites` for this auth table, keyed per client IP.
+  /// Each accepted invite writes an `adminInvite` challenge row and sends an
+  /// email, so this bounds how fast one signed-in admin can do either.
+  /// Override to tighten or return `null` to disable.
+  ///
+  /// Returning `null` does not leave invites unlimited: `_inviteAdmin` still
+  /// refuses a repeat to the same address inside a minute. It does remove the
+  /// only bound on inviting *many different* addresses quickly.
+  Future<RateLimitPolicy?> adminInvitePolicy() async => .defaultPolicy;
+
   /// Throttles `onExternalAuthFirstSeen` hook invocations for this auth
   /// table, keyed per client IP. Bounds the abuse vector where a
   /// compromised external IdP mints unique `sub` claims to provision

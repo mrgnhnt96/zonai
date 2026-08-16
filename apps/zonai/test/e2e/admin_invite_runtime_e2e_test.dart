@@ -138,7 +138,11 @@ void main() {
       }, override: _e2eScopeOverrides(settings, appConfig: appConfig));
     }
 
-    Future<String> signUpAdmin(ZonaiDb db, String email, String password) async {
+    Future<String> signUpAdmin(
+      ZonaiDb db,
+      String email,
+      String password,
+    ) async {
       final result = await db.authenticate(
         'users',
         SignUpPasswordAuthPayload(
@@ -212,18 +216,23 @@ void main() {
         );
 
         // Neither mismatch created a row or consumed the invite.
-        final usersAfterMismatches = await db.list('users', ListPayload(where: null));
+        final usersAfterMismatches = await db.list(
+          'users',
+          ListPayload(where: null),
+        );
         expect(
           usersAfterMismatches.items.where((u) => u['email'] == inviteeEmail),
           isEmpty,
-          reason: 'a mismatched acceptance must create nothing (design §4 '
+          reason:
+              'a mismatched acceptance must create nothing (design §4 '
               'item 3)',
         );
         final stillPending = await db.listAdminInvites(jwt: inviterJwt);
         expect(
           stillPending.where((i) => i['email'] == inviteeEmail),
           hasLength(1),
-          reason: 'a mismatched acceptance must leave the invite usable '
+          reason:
+              'a mismatched acceptance must leave the invite usable '
               '(design §4 item 3)',
         );
 
@@ -246,7 +255,10 @@ void main() {
         expect(result.user['email'], inviteeEmail);
         expect(result.jwt, isNotEmpty);
 
-        final usersAfterMatch = await db.list('users', ListPayload(where: null));
+        final usersAfterMatch = await db.list(
+          'users',
+          ListPayload(where: null),
+        );
         expect(
           usersAfterMatch.items.where((u) => u['email'] == inviteeEmail),
           hasLength(1),
@@ -330,7 +342,11 @@ void main() {
       await withDb((db) async {
         await withClock(Clock.fixed(mintedAt), () async {
           final inviterEmail = 'expire-inviter-$unique@example.com';
-          final inviterJwt = await signUpAdmin(db, inviterEmail, 'inviter-pw-1');
+          final inviterJwt = await signUpAdmin(
+            db,
+            inviterEmail,
+            'inviter-pw-1',
+          );
           await db.inviteAdmin(
             email: 'expire-invitee-$unique@example.com',
             jwt: inviterJwt,
@@ -379,19 +395,22 @@ void main() {
       });
     });
 
-    test('inviteAdmin refuses when an admin already exists for that email', () async {
-      if (!_runningOnDartVm) return;
-      await withDb((db) async {
-        final unique = DateTime.now().microsecondsSinceEpoch;
-        final email = 'exists-$unique@example.com';
-        final jwt = await signUpAdmin(db, email, 'exists-pw-1');
+    test(
+      'inviteAdmin refuses when an admin already exists for that email',
+      () async {
+        if (!_runningOnDartVm) return;
+        await withDb((db) async {
+          final unique = DateTime.now().microsecondsSinceEpoch;
+          final email = 'exists-$unique@example.com';
+          final jwt = await signUpAdmin(db, email, 'exists-pw-1');
 
-        await expectLater(
-          db.inviteAdmin(email: email, jwt: jwt),
-          throwsA(isA<StateError>()),
-        );
-      });
-    });
+          await expectLater(
+            db.inviteAdmin(email: email, jwt: jwt),
+            throwsA(isA<StateError>()),
+          );
+        });
+      },
+    );
 
     test('inviteAdmin rate-limits issuance and resends rather than '
         'duplicating a still-live invite', () async {
@@ -422,19 +441,23 @@ void main() {
           );
         });
 
-        await withClock(Clock.fixed(t0.add(const Duration(minutes: 2))), () async {
-          final second = await db.inviteAdmin(
-            email: inviteeEmail,
-            jwt: inviterJwt,
-          );
-          expect(second['isResend'], isTrue);
-        });
+        await withClock(
+          Clock.fixed(t0.add(const Duration(minutes: 2))),
+          () async {
+            final second = await db.inviteAdmin(
+              email: inviteeEmail,
+              jwt: inviterJwt,
+            );
+            expect(second['isResend'], isTrue);
+          },
+        );
 
         final pending = await db.listAdminInvites(jwt: inviterJwt);
         expect(
           pending.where((i) => i['email'] == inviteeEmail),
           hasLength(1),
-          reason: 'a resend must not leave two pending invites for the same '
+          reason:
+              'a resend must not leave two pending invites for the same '
               'email',
         );
       });
@@ -466,14 +489,16 @@ void main() {
         await expectLater(
           db.removeAdmin(email: soleEmail, actingAdmin: soleJwt),
           throwsA(isA<CannotRemoveSelfAsAdminException>()),
-          reason: 'self-removal must be refused even before the last-admin '
+          reason:
+              'self-removal must be refused even before the last-admin '
               'check would also refuse it',
         );
 
         await expectLater(
           db.removeAdmin(email: soleEmail),
           throwsA(isA<LastAdminCannotBeRemovedException>()),
-          reason: 'the last admin must be unremovable regardless of caller '
+          reason:
+              'the last admin must be unremovable regardless of caller '
               '-- this call has no acting admin at all (the trusted CLI '
               'path)',
         );
@@ -502,7 +527,11 @@ void main() {
       await withDb((db) async {
         final unique = DateTime.now().microsecondsSinceEpoch;
         final keeperEmail = 'sess-keeper-$unique@example.com';
-        final keeperJwtToken = await signUpAdmin(db, keeperEmail, 'keeper-pw-1');
+        final keeperJwtToken = await signUpAdmin(
+          db,
+          keeperEmail,
+          'keeper-pw-1',
+        );
         final keeperJwt = await db.parseJwt(keeperJwtToken);
 
         final targetEmail = 'sess-target-$unique@example.com';
@@ -515,7 +544,8 @@ void main() {
         await expectLater(
           db.parseJwt(targetToken),
           throwsA(isA<JwtRecordNotFoundException>()),
-          reason: 'a removed admin must not keep a working JWT until it '
+          reason:
+              'a removed admin must not keep a working JWT until it '
               'expires (design §3.4 / §4 item 7)',
         );
       });

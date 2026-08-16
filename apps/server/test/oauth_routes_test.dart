@@ -196,6 +196,96 @@ void main() {
     });
   });
 
+  group('GET /auth/admin/invite/oauth/start/:provider', () {
+    test('302s to the provider authorization URL', () async {
+      final handler = _StubAuthHandler();
+      final controller = AuthController(authHandler: handler);
+      final response = _response();
+
+      await controller.startAdminInviteOAuth(
+        provider: 'google',
+        token: 'the-invite-token',
+        redirectTo: '/_/admin/invite',
+        response: response,
+      );
+
+      expect(response.statusCode, HttpStatus.found);
+      expect(
+        response.headers.get(HttpHeaders.locationHeader),
+        'https://provider.example/authorize?state=INVITE',
+      );
+      expect(handler.inviteStartCalls, [
+        (
+          provider: 'google',
+          inviteToken: 'the-invite-token',
+          redirectTo: '/_/admin/invite',
+        ),
+      ]);
+    });
+
+    test(
+      'reaches startAdminInviteOAuth, never startAdminOAuth or startOAuth',
+      () async {
+        // The three are not interchangeable. `startOAuth` mints
+        // `isAdmin: false`, whose callback auto-provisions any first-seen
+        // identity on the named table -- on an `AsAdmin` collection that is a
+        // full admin for anyone who can reach the route. `startAdminOAuth`
+        // mints `isAdmin: true`, whose callback refuses to provision at all,
+        // so an invitee would be turned away at the moment of acceptance.
+        // Only the invite-bound one carries the token that lifts that refusal
+        // for the invited address (admin-invite design §3.2 steps 3-5).
+        final handler = _StubAuthHandler();
+
+        await AuthController(authHandler: handler).startAdminInviteOAuth(
+          provider: 'google',
+          token: 'the-invite-token',
+          redirectTo: null,
+          response: _response(),
+        );
+
+        expect(handler.inviteStartCalls, hasLength(1));
+        expect(handler.adminStartCalls, isEmpty);
+        expect(handler.startCalls, isEmpty);
+      },
+    );
+
+    test('the invite token reaches no response surface', () async {
+      // Design §4 item 8. The token is the whole authorization for accepting
+      // an admin invite; a copy in a body, a header or a redirect URL is a
+      // copy in a proxy log, a browser history entry and a Referer header.
+      final controller = AuthController(authHandler: _StubAuthHandler());
+      final response = _response();
+
+      await controller.startAdminInviteOAuth(
+        provider: 'google',
+        token: 'the-invite-token',
+        redirectTo: null,
+        response: response,
+      );
+
+      expect(response.body.isNull, isTrue);
+      expect(
+        response.headers.get(HttpHeaders.locationHeader),
+        isNot(contains('the-invite-token')),
+      );
+    });
+
+    test('mints no session -- acceptance happens at the callback', () async {
+      final controller = AuthController(authHandler: _StubAuthHandler());
+      final response = _response();
+
+      await controller.startAdminInviteOAuth(
+        provider: 'google',
+        token: 'the-invite-token',
+        redirectTo: null,
+        response: response,
+      );
+
+      expect(response.headers.get('X-Auth'), isNull);
+      expect(response.headers.get(HttpHeaders.setCookieHeader), isNull);
+    });
+  });
+
   group('GET /auth/oauth/callback/:provider', () {
     test('302s to the redirect_to recorded at start', () async {
       final controller = AuthController(authHandler: _StubAuthHandler());
@@ -478,6 +568,15 @@ typedef _StartCall = ({String table, String provider, String? redirectTo});
 /// No `table` field, because the route has no `table` parameter to record --
 /// withholding it is the capability difference between the two start routes.
 typedef _AdminStartCall = ({String provider, String? redirectTo});
+
+/// Carries the invite token, which is the only authorization this flow has --
+/// recorded so a route that dropped it, or passed the `redirect_to` in its
+/// place, is visible rather than merely producing a 401 later.
+typedef _InviteStartCall = ({
+  String provider,
+  String inviteToken,
+  String? redirectTo,
+});
 typedef _CompleteCall = ({
   String provider,
   String? code,
@@ -496,6 +595,7 @@ class _StubAuthHandler extends AuthHandler {
 
   final startCalls = <_StartCall>[];
   final adminStartCalls = <_AdminStartCall>[];
+  final inviteStartCalls = <_InviteStartCall>[];
   final completeCalls = <_CompleteCall>[];
 
   String? redirectTo = '/tables';
@@ -551,6 +651,20 @@ class _StubAuthHandler extends AuthHandler {
   }) async {
     adminStartCalls.add((provider: provider, redirectTo: redirectTo));
     return 'https://provider.example/authorize?state=ADMIN';
+  }
+
+  @override
+  Future<String> startAdminInviteOAuth({
+    required String provider,
+    required String inviteToken,
+    String? redirectTo,
+  }) async {
+    inviteStartCalls.add((
+      provider: provider,
+      inviteToken: inviteToken,
+      redirectTo: redirectTo,
+    ));
+    return 'https://provider.example/authorize?state=INVITE';
   }
 
   @override

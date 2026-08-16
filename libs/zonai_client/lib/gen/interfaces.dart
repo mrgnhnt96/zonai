@@ -1,4 +1,5 @@
 import 'package:revali_client/revali_client.dart';
+import 'package:zonai_schema/src/payloads/admin_invite_body.dart';
 import 'package:zonai_schema/src/payloads/auth_password_body.dart';
 import 'package:zonai_schema/src/payloads/count_body.dart';
 import 'package:zonai_schema/src/payloads/create_body.dart';
@@ -19,6 +20,7 @@ import 'package:zonai_schema/src/types/email.dart';
 
 export 'package:revali_client/src/storage.dart';
 
+part 'src/interfaces/admin_data_source.dart';
 part 'src/interfaces/auth_data_source.dart';
 part 'src/interfaces/cron_data_source.dart';
 part 'src/interfaces/dashboard_data_source.dart';
