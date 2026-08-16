@@ -6,6 +6,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/web.dart' as web;
 import 'package:zonai_schema/payloads.dart';
 
+import '../auth/auth_provider.dart';
 import '../auth/auth_routes.dart';
 import '../providers/admin_invite_probe_provider.dart';
 import '../utils/admin_invite_status.dart';
@@ -99,6 +100,16 @@ class AdminInviteAcceptScreenState extends State<AdminInviteAcceptScreen> {
         if (token == null) return;
         startAdminInviteOAuthFlow(provider: provider, token: token);
       },
+      onAccept: ({password}) async {
+        if (token == null) return;
+        await context.read(adminInviteAcceptProvider)(token, password: password);
+        // The token is already stored by the client's X-Auth interceptor;
+        // this is what makes the app *notice*, and it is what navigates to
+        // the dashboard. Same call `signInWithPassword` makes after its own
+        // request, so an invited admin lands exactly where a returning one
+        // does.
+        await context.read(authProvider.notifier).signIn();
+      },
     );
   }
 }
@@ -116,6 +127,7 @@ class AdminInviteAcceptView extends StatelessComponent {
     super.key,
     required this.token,
     required this.onSelectProvider,
+    required this.onAccept,
     this.status = const AdminInviteChecking(),
   });
 
@@ -129,6 +141,14 @@ class AdminInviteAcceptView extends StatelessComponent {
   final AdminInviteStatus status;
 
   final void Function(OAuthProviderPublic provider) onSelectProvider;
+
+  /// Accepts the invite directly (design §3.3). Completes when the account
+  /// exists and the session is stored, or throws with something to show.
+  ///
+  /// Never called for a collection that declares OAuth and nothing else — the
+  /// form that would call it is not rendered there, and the runtime refuses
+  /// that combination regardless.
+  final Future<void> Function({String? password}) onAccept;
 
   @override
   Component build(BuildContext context) {
@@ -185,35 +205,36 @@ class AdminInviteAcceptView extends StatelessComponent {
       );
     }
 
-    if (!authTypes.contains(AuthType.oauth)) {
-      return _InviteMessage(
-        title: 'This invite has to be accepted by an administrator',
-        body:
-            'Admin accounts here sign in with ${_methodsSentence(authTypes)}, and accepting an '
-            'invite that way is not available in the browser yet — only a provider sign-in is. '
-            'Ask whoever invited you to create the account directly with "zonai db admin add"; '
-            'your invite link cannot finish on its own.',
-      );
-    }
+    final direct = _otherMethods(authTypes);
+    final hasOAuth = authTypes.contains(AuthType.oauth);
 
     return SignInScreen(
       tagline: 'Accept your admin invite',
       child: AuthFormCard(
         children: [
           const ZonaiPageTitle('Accept your invite'),
-          const ZonaiPageSubtitle(
-            'Continue with the account this invitation was sent to. The address on the account '
-            'has to match the invited one — signing in with a different account will not accept '
-            'the invite.',
+          ZonaiPageSubtitle(
+            hasOAuth
+                // The address check is real and only on the provider path, so
+                // it is only promised there. Saying it unconditionally would
+                // describe the direct path as doing something it does not:
+                // there, the token *is* the proof of the address, because it
+                // was mailed to that address and nowhere else.
+                ? 'Continue with the account this invitation was sent to. The address on the '
+                      'account has to match the invited one — signing in with a different account '
+                      'will not accept the invite.'
+                : 'Accepting creates your admin account for the address this invitation was sent '
+                      'to, and signs you in.',
           ),
-          OAuthProviderButtons(onSelect: onSelectProvider),
-          if (_otherMethods(authTypes) case final others when others.isNotEmpty)
-            p(classes: 'z-admins-note', [
-              .text(
-                'This dashboard also allows ${_methodsSentence(others)}, but an invite can only '
-                'be accepted with a provider today.',
-              ),
-            ]),
+          if (direct.isNotEmpty)
+            AdminInviteAcceptForm(
+              needsPassword: authTypes.contains(AuthType.password),
+              methods: direct,
+              onAccept: onAccept,
+            ),
+          if (direct.isNotEmpty && hasOAuth)
+            p(classes: 'z-admins-note', [.text('Or accept with a provider:')]),
+          if (hasOAuth) OAuthProviderButtons(onSelect: onSelectProvider),
         ],
       ),
     );
@@ -240,6 +261,127 @@ class AdminInviteAcceptView extends StatelessComponent {
       AuthType.magicLink => 'a magic link',
       AuthType.oauth => 'a provider account',
     };
+  }
+}
+
+/// The direct-acceptance form (design §3.3): set a password if the collection
+/// signs in with one, then accept.
+///
+/// **No email field.** The address is the invite's, read server-side from the
+/// challenge row — a field here would be one the invitee could disagree with,
+/// on the one decision they must not get to make.
+class AdminInviteAcceptForm extends StatefulComponent {
+  const AdminInviteAcceptForm({
+    super.key,
+    required this.needsPassword,
+    required this.methods,
+    required this.onAccept,
+  });
+
+  /// True when the collection declares `PasswordAuth`. The server decides this
+  /// too and refuses a mismatch either way; this only decides what to show.
+  final bool needsPassword;
+
+  /// The non-OAuth methods the collection declares, for the sentence that
+  /// tells someone how they will sign in next time.
+  final List<AuthType> methods;
+
+  final Future<void> Function({String? password}) onAccept;
+
+  @override
+  State<AdminInviteAcceptForm> createState() => AdminInviteAcceptFormState();
+}
+
+class AdminInviteAcceptFormState extends State<AdminInviteAcceptForm> {
+  String _password = '';
+  String _confirm = '';
+  bool _submitting = false;
+  String? _error;
+
+  /// Checked here only to spare a round trip and to say *which* rule was
+  /// missed. The server enforces the password rules regardless — this is a
+  /// convenience, and treating it as the gate is how a rule ends up living
+  /// only in the browser.
+  String? get _localRefusal {
+    if (!component.needsPassword) return null;
+    if (_password.isEmpty) return 'Choose a password to finish setting up your account.';
+    if (_password != _confirm) return 'The two passwords do not match.';
+    return null;
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+
+    if (_localRefusal case final refusal?) {
+      setState(() => _error = refusal);
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      await component.onAccept(
+        password: component.needsPassword ? _password : null,
+      );
+      // Deliberately no success state and no `_submitting = false`. A
+      // successful acceptance navigates away, and re-enabling the button in
+      // the frames before that lands invites a second submit on a token that
+      // is now spent -- which would answer with the "no longer usable" screen
+      // on an acceptance that in fact worked.
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        // The server's own message. Its refusals here are written for this
+        // reader -- "this table accepts invites through a provider only",
+        // "requires a password" -- and paraphrasing them into one house
+        // sentence is how the actionable half gets lost.
+        _error = '$error';
+      });
+    }
+  }
+
+  @override
+  Component build(BuildContext context) {
+    return Component.fragment([
+      if (_error case final message?)
+        ZonaiErrorAlert(title: 'Could not accept the invitation', body: message),
+      if (component.needsPassword) ...[
+        ZonaiTextField(
+          id: 'admin-invite-password',
+          fieldLabel: 'Choose a password',
+          value: _password,
+          type: InputType.password,
+          autocomplete: 'new-password',
+          disabled: _submitting,
+          onInput: (value) => setState(() => _password = value),
+        ),
+        ZonaiTextField(
+          id: 'admin-invite-password-confirm',
+          fieldLabel: 'Confirm password',
+          value: _confirm,
+          type: InputType.password,
+          autocomplete: 'new-password',
+          disabled: _submitting,
+          onInput: (value) => setState(() => _confirm = value),
+        ),
+      ] else
+        p(classes: 'z-admins-note', [
+          .text(
+            'You will sign in with ${AdminInviteAcceptView._methodsSentence(component.methods)} '
+            'from now on, at the address this invitation was sent to.',
+          ),
+        ]),
+      ZonaiButton(
+        fullWidth: true,
+        disabled: _submitting,
+        onClick: _submit,
+        child: .text(_submitting ? 'Accepting…' : 'Accept invitation'),
+      ),
+    ]);
   }
 }
 

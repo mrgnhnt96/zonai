@@ -161,10 +161,18 @@ server:
     (bail):
     (command):
       - test -f apps/server/.revali/server/server.dart || (echo "Revali server generation failed" && exit 1)
+      # Before the copy, not after. Regenerating swagger into apps/server
+      # *after* apps/zonai/lib/gen/server has already been copied leaves the
+      # embedded mirror holding the previous surface, so the binary serves a
+      # swagger doc that is one route change behind and a single run of this
+      # target never converges -- you need two. Caught by
+      # `apps/zonai/tool/server_mirror_check.dart`, which reported exactly
+      # `lib/gen/swagger_assets.dart differs` the first time a route was
+      # added after that check existed.
+      - cd apps/server && dart run tool/generate_swagger_assets.dart
       - rm -rf apps/zonai/lib/gen/server
       - mkdir -p apps/zonai/lib/gen
       - cp -r apps/server apps/zonai/lib/gen
-      - cd apps/server && dart run tool/generate_swagger_assets.dart
       - |
         cd apps/zonai/lib/gen/server || exit 1
         rm -f pubspec.yaml

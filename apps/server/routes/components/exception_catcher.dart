@@ -75,6 +75,21 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 403,
         body: {'error': '$exception'},
       ),
+      // Not 403: the invite is valid and the caller is not forbidden from
+      // accepting it -- they are at the wrong door. 409 is the same "your
+      // request conflicts with how this resource works" the OAuth-only table
+      // is stating, and the message names the route that does work.
+      AdminInviteRequiresOAuthException() => .handled(
+        statusCode: 409,
+        body: {'error': '$exception'},
+      ),
+      // 400 rather than 422: a password sent to a table that takes none (or
+      // omitted from one that requires it) is a malformed request for this
+      // endpoint, not a well-formed one carrying an unprocessable value.
+      AdminInvitePasswordMismatchException() => .handled(
+        statusCode: 400,
+        body: {'error': '$exception'},
+      ),
       CannotRemoveSelfAsAdminException() => .handled(
         statusCode: 403,
         body: {'error': '$exception'},

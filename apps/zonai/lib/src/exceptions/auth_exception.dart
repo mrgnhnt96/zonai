@@ -201,6 +201,58 @@ final class AdminInviteEmailMismatchException extends AuthException {
       'address';
 }
 
+/// Thrown when an invite is accepted through the direct path (design §3.3)
+/// but the admin table declares OAuth and nothing else.
+///
+/// Not a refusal of the invite -- the invite is fine and stays unconsumed.
+/// The acceptance screen has provider buttons for exactly this table, and
+/// the OAuth path is the only one that can prove the accepting identity
+/// owns the invited address (design §3.2 step 4). Accepting directly would
+/// create an admin row on nothing but possession of the token, which is a
+/// weaker claim than that table has chosen to accept.
+final class AdminInviteRequiresOAuthException extends AuthException {
+  const AdminInviteRequiresOAuthException({required this.table});
+
+  final String table;
+
+  @override
+  String toString() =>
+      'Admin table "$table" accepts invites through an OAuth provider only; '
+      'accept this invite by signing in with one of its providers';
+}
+
+/// Thrown when a direct acceptance omits a password an admin table with
+/// `PasswordAuth` needs, or supplies one to a table that has no password
+/// column to put it in.
+///
+/// The same pair of rules `_createAdmin` enforces for `zonai db admin add`,
+/// as an [AuthException] rather than an `ArgumentError` because this pair is
+/// reachable over HTTP, where an `ArgumentError` is a 500 and a lie about
+/// whose mistake it was.
+final class AdminInvitePasswordMismatchException extends AuthException {
+  const AdminInvitePasswordMismatchException({
+    required this.table,
+    required this.required,
+  });
+
+  final String table;
+
+  /// True when a password was needed and absent; false when one was supplied
+  /// to a table that takes none.
+  final bool required;
+
+  @override
+  String toString() => switch (required) {
+    true =>
+      'Admin table "$table" supports password sign-in and requires a '
+          'password to accept an invite',
+    false =>
+      'Admin table "$table" has no password sign-in configured; accept this '
+          'invite without a password -- the account signs in through its '
+          'other configured auth type',
+  };
+}
+
 /// Thrown when removing an admin would leave the `AsAdmin` table with zero
 /// rows (design §4 item 6) -- a dashboard that can lock every admin out is a
 /// bug, not a feature.

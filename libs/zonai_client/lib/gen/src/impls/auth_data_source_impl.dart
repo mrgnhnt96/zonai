@@ -152,6 +152,25 @@ class AuthDataSourceImpl implements AuthDataSource {
   }
 
   @override
+  Future<Map<String, Object?>> acceptAdminInvite({
+    required AdminInviteAcceptBody body,
+  }) async {
+    final response = await _client.request(
+      method: 'POST',
+      path: '/auth/admin/invite/accept',
+      body: body,
+    );
+
+    final _body = await response.transform(utf8.decoder).join();
+
+    if (jsonDecode(_body) case {'data': final Map data}) {
+      return data.map((key, value) => MapEntry((key as String), value));
+    }
+
+    throw Exception('Invalid response');
+  }
+
+  @override
   Future<void> oauthCallbackFormPost({
     required String provider,
     required OAuthCallbackBody body,

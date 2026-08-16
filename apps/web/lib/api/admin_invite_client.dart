@@ -1,4 +1,5 @@
 import 'package:zonai_client/server.dart';
+import 'package:zonai_schema/payloads.dart';
 
 import '../utils/admin_invite_status.dart';
 
@@ -28,4 +29,28 @@ Future<AdminInviteStatus> fetchAdminInviteStatus({
   } catch (_) {
     return const AdminInviteUnusable();
   }
+}
+
+/// Accepts the invite directly — creating the admin account and signing in —
+/// for tables whose sign-in is a password, an OTP or a magic link rather than
+/// a provider (design §3.3).
+///
+/// **Errors are not swallowed here, unlike [fetchAdminInviteStatus].** A probe
+/// that cannot reach the server has a safe answer available: treat the link as
+/// unusable and explain. An acceptance does not — the request may well have
+/// created the account before the connection dropped, so the only honest thing
+/// is to let the failure reach the caller and be shown.
+///
+/// The session lands without being handled here. `Interceptor.onResponse`
+/// stores any `X-Auth` a response carries, so the token this route returns is
+/// already the client's by the time this future completes; the caller's job is
+/// only to tell `authProvider` to notice.
+Future<void> acceptAdminInvite({
+  required Server server,
+  required String token,
+  String? password,
+}) async {
+  await server.auth.acceptAdminInvite(
+    body: AdminInviteAcceptBody(token: token, password: password),
+  );
 }

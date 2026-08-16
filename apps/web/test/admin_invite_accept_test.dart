@@ -7,6 +7,7 @@ import 'package:zonai_web/auth/auth_routes.dart';
 import 'package:zonai_web/auth/oauth_providers_provider.dart';
 import 'package:zonai_web/auth/supported_auth_types_provider.dart';
 import 'package:zonai_web/components/admin_invite_accept_screen.dart';
+import 'package:zonai_web/components/theme/theme_components.dart';
 import 'package:zonai_web/providers/admin_invite_probe_provider.dart';
 import 'package:zonai_web/providers/app_name_provider.dart';
 import 'package:zonai_web/providers/brand_logo_provider.dart';
@@ -37,11 +38,35 @@ AdminInviteStatus _live(List<AuthType> authTypes) {
   return AdminInviteLive(table: 'staff', authTypes: authTypes);
 }
 
+/// For the view tests that are not about acceptance. Deliberately not a
+/// success: a test that reaches this without meaning to has done nothing
+/// observable, rather than silently "passing" an acceptance it never wired.
+Future<void> _ignoreAccept({String? password}) async {
+  throw StateError('onAccept was not expected in this test');
+}
+
+/// Types into the [ZonaiTextField] with [fieldId] by driving its `onInput`,
+/// the same way `admins_screen_test.dart` drives a button through `onClick`
+/// rather than dispatching a real DOM event.
+Future<void> _type(ComponentTester tester, String fieldId, String value) async {
+  final field =
+      find
+              .byComponentPredicate((c) => c is ZonaiTextField && c.id == fieldId)
+              .evaluate()
+              .single
+              .component
+          as ZonaiTextField;
+
+  field.onInput(value);
+  await tester.pump();
+}
+
 Component _scoped({
   required Component child,
   required List<AuthType> authTypes,
   List<OAuthProviderPublic> providers = const [],
   AdminInviteProbe? probe,
+  AdminInviteAccept? accept,
 }) {
   return ProviderScope(
     overrides: [
@@ -53,6 +78,11 @@ Component _scoped({
       // say so, so a missing override can never quietly hand a wired screen
       // the sign-in buttons.
       adminInviteProbeProvider.overrideWithValue(probe ?? (_) async => const AdminInviteUnusable()),
+      // Same default, same reason: an accept the test did not wire must not
+      // look like one that succeeded.
+      adminInviteAcceptProvider.overrideWithValue(
+        accept ?? (_, {password}) async => throw StateError('accept was not expected in this test'),
+      ),
     ],
     child: child,
   );
@@ -67,6 +97,7 @@ void main() {
             token: 'invite-token',
             status: _live(const [AuthType.oauth]),
             onSelectProvider: (_) {},
+            onAccept: _ignoreAccept,
           ),
           authTypes: const [AuthType.oauth],
           providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
@@ -87,6 +118,7 @@ void main() {
             token: 'invite-token',
             status: _live(const [AuthType.oauth]),
             onSelectProvider: (provider) => chosen.add(provider.id),
+            onAccept: _ignoreAccept,
           ),
           authTypes: const [AuthType.oauth],
           providers: [
@@ -127,45 +159,123 @@ void main() {
   });
 
   group('a password admin table', () {
-    testComponents('says what it can and cannot do, and offers no provider', (tester) async {
-      // Design §3.3 wants a set-password form here. There is no route to post
-      // one to: `startAdminInviteOAuth` is the only acceptance entry point the
-      // db mutator exposes (`auth_controller.dart` says so itself). A form
-      // that submitted nowhere would look exactly like the feature, so this
-      // says what is true and names the path that does work.
-      //
-      // The probe reports the table's real `authTypes` regardless of whether
-      // acceptance is built for them -- that is what lets §3.3 be built on
-      // top of this contract later without changing it.
+    testComponents('offers a set-password form, and no provider button', (tester) async {
+      // Design §3.3, the half that was documented as unbuilt until the accept
+      // route existed: the same link resolves to a set-password form on a
+      // `PasswordAuth` table instead of an explanation and a CLI command.
       tester.pumpComponent(
         _scoped(
           child: AdminInviteAcceptView(
             token: 'invite-token',
             status: _live(const [AuthType.password]),
             onSelectProvider: (_) {},
+            onAccept: _ignoreAccept,
           ),
           authTypes: const [AuthType.password],
         ),
       );
 
-      expect(find.textContaining('an email and password'), findsOneComponent);
-      expect(find.textContaining('zonai db admin add'), findsOneComponent);
+      expect(find.text('Choose a password'), findsOneComponent);
+      expect(find.text('Confirm password'), findsOneComponent);
+      expect(find.text('Accept invitation'), findsOneComponent);
       expect(find.textContaining('Sign in with'), findsNothing);
+      // The screen no longer sends anyone to the CLI for this case, because
+      // the case now works in the browser.
+      expect(find.textContaining('zonai db admin add'), findsNothing);
     });
 
-    testComponents('names every method the table declares', (tester) async {
+    testComponents('asks for no password when the table has none to set', (tester) async {
+      // OTP and magic-link admin tables have no password column. A form that
+      // asked for one would be collecting a value with nowhere to go, and the
+      // runtime refuses a password sent to such a table outright.
       tester.pumpComponent(
         _scoped(
           child: AdminInviteAcceptView(
             token: 'invite-token',
-            status: _live(const [AuthType.password, AuthType.otp, AuthType.magicLink]),
+            status: _live(const [AuthType.otp, AuthType.magicLink]),
             onSelectProvider: (_) {},
+            onAccept: _ignoreAccept,
           ),
-          authTypes: const [AuthType.password, AuthType.otp, AuthType.magicLink],
+          authTypes: const [AuthType.otp, AuthType.magicLink],
         ),
       );
 
-      expect(find.textContaining('an email and password, a one-time email code or a magic link'), findsOneComponent);
+      expect(find.text('Choose a password'), findsNothing);
+      expect(find.text('Accept invitation'), findsOneComponent);
+      expect(find.textContaining('a one-time email code or a magic link'), findsOneComponent);
+    });
+
+    testComponents('accepting hands the password to its caller', (tester) async {
+      String? sent;
+      var calls = 0;
+
+      tester.pumpComponent(
+        _scoped(
+          child: AdminInviteAcceptView(
+            token: 'invite-token',
+            status: _live(const [AuthType.password]),
+            onSelectProvider: (_) {},
+            onAccept: ({String? password}) async {
+              calls++;
+              sent = password;
+            },
+          ),
+          authTypes: const [AuthType.password],
+        ),
+      );
+
+      await _type(tester, 'admin-invite-password', 'correct horse battery');
+      await _type(tester, 'admin-invite-password-confirm', 'correct horse battery');
+      await tester.click(find.componentWithText(button, 'Accept invitation'));
+
+      expect(calls, 1);
+      expect(sent, 'correct horse battery');
+    });
+
+    testComponents('mismatched passwords are refused without a request', (tester) async {
+      var calls = 0;
+
+      tester.pumpComponent(
+        _scoped(
+          child: AdminInviteAcceptView(
+            token: 'invite-token',
+            status: _live(const [AuthType.password]),
+            onSelectProvider: (_) {},
+            onAccept: ({String? password}) async => calls++,
+          ),
+          authTypes: const [AuthType.password],
+        ),
+      );
+
+      await _type(tester, 'admin-invite-password', 'one thing');
+      await _type(tester, 'admin-invite-password-confirm', 'another thing');
+      await tester.click(find.componentWithText(button, 'Accept invitation'));
+
+      expect(calls, 0, reason: 'a local rule must not spend the token to learn it was broken');
+      expect(find.textContaining('do not match'), findsOneComponent);
+    });
+
+    testComponents("a refusal is shown, in the server's own words", (tester) async {
+      // Not paraphrased into a house sentence. The runtime's refusals here
+      // name the thing to do about them -- which provider route to use, that
+      // a password is required -- and that is the actionable half.
+      tester.pumpComponent(
+        _scoped(
+          child: AdminInviteAcceptView(
+            token: 'invite-token',
+            status: _live(const [AuthType.otp]),
+            onSelectProvider: (_) {},
+            onAccept: ({String? password}) async {
+              throw StateError('Admin table "staff" has no password sign-in configured');
+            },
+          ),
+          authTypes: const [AuthType.otp],
+        ),
+      );
+
+      await tester.click(find.componentWithText(button, 'Accept invitation'));
+
+      expect(find.textContaining('has no password sign-in configured'), findsOneComponent);
     });
 
     testComponents('a table that also allows OAuth still gets its buttons', (tester) async {
@@ -178,6 +288,7 @@ void main() {
             token: 'invite-token',
             status: _live(const [AuthType.password, AuthType.oauth]),
             onSelectProvider: (_) {},
+            onAccept: _ignoreAccept,
           ),
           authTypes: const [AuthType.password, AuthType.oauth],
           providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
@@ -185,7 +296,8 @@ void main() {
       );
 
       expect(find.text('Sign in with Google'), findsOneComponent);
-      expect(find.textContaining('only be accepted with a provider today'), findsOneComponent);
+      expect(find.text('Choose a password'), findsOneComponent);
+      expect(find.textContaining('Or accept with a provider'), findsOneComponent);
     });
 
     testComponents('the methods come from the probe, not from the union across every admin table', (tester) async {
@@ -200,6 +312,7 @@ void main() {
             token: 'invite-token',
             status: _live(const [AuthType.password]),
             onSelectProvider: (_) {},
+            onAccept: _ignoreAccept,
           ),
           authTypes: const [AuthType.password, AuthType.oauth],
           providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
@@ -207,7 +320,7 @@ void main() {
       );
 
       expect(find.textContaining('Sign in with'), findsNothing);
-      expect(find.textContaining('zonai db admin add'), findsOneComponent);
+      expect(find.text('Choose a password'), findsOneComponent);
     });
   });
 
@@ -215,7 +328,7 @@ void main() {
     testComponents('a missing token gets an explanation and no way to guess further', (tester) async {
       tester.pumpComponent(
         _scoped(
-          child: const AdminInviteAcceptView(token: null, onSelectProvider: _ignore),
+          child: const AdminInviteAcceptView(token: null, onSelectProvider: _ignore, onAccept: _ignoreAccept),
           authTypes: const [AuthType.oauth],
           providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
         ),
@@ -259,6 +372,7 @@ void main() {
             token: 'invite-token',
             status: _live(const []),
             onSelectProvider: (_) {},
+            onAccept: _ignoreAccept,
           ),
           authTypes: const [],
         ),
@@ -302,7 +416,7 @@ void main() {
       // distinction back that the endpoint went to trouble to remove.
       tester.pumpComponent(
         _scoped(
-          child: const AdminInviteAcceptView(token: 'tok_stale', status: AdminInviteUnusable(), onSelectProvider: _ignore),
+          child: const AdminInviteAcceptView(token: 'tok_stale', status: AdminInviteUnusable(), onSelectProvider: _ignore, onAccept: _ignoreAccept),
           authTypes: const [AuthType.oauth],
           providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
         ),
@@ -321,7 +435,7 @@ void main() {
       // someone with a dead link would click through before it came back.
       tester.pumpComponent(
         _scoped(
-          child: const AdminInviteAcceptView(token: 'tok_pending', onSelectProvider: _ignore),
+          child: const AdminInviteAcceptView(token: 'tok_pending', onSelectProvider: _ignore, onAccept: _ignoreAccept),
           authTypes: const [AuthType.oauth],
           providers: [_provider(id: 'google', displayName: 'Google', kind: OAuthProviderKind.google)],
         ),

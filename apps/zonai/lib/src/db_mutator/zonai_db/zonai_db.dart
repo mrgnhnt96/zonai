@@ -449,6 +449,21 @@ class ZonaiDb {
     return await _run(() => _inviteAdmin(email: email, jwt: jwt));
   }
 
+  /// The same invite as [inviteAdmin], issued from `zonai db admin invite`
+  /// where there is no session to check and none is wanted — see
+  /// [_inviteAdminFromCli] for why that is a separate entry point and not a
+  /// nullable `jwt`.
+  ///
+  /// The pairing worth knowing: `admin add` creates an admin outright and is
+  /// how the first one exists at all; this creates nothing until the invitee
+  /// proves the address, so it is the one to reach for when the address
+  /// belongs to someone else.
+  Future<Map<String, Object?>> inviteAdminFromCli({
+    required String email,
+  }) async {
+    return await _run(() => _inviteAdminFromCli(email: email));
+  }
+
   /// Design §3.4: sets `canConsume = false` on the live invite for [email],
   /// if any -- the link stops working.
   Future<void> revokeAdminInvite({
@@ -464,6 +479,18 @@ class ZonaiDb {
     required String jwt,
   }) async {
     return await _run(() => _listAdminInvites(jwt: jwt));
+  }
+
+  /// [listAdminInvites] from `zonai db admin invites`, with no session to
+  /// check — see [inviteAdminFromCli].
+  Future<List<Map<String, Object?>>> listAdminInvitesFromCli() async {
+    return await _run(_listAdminInvitesFromCli);
+  }
+
+  /// [revokeAdminInvite] from `zonai db admin revoke-invite`, with no
+  /// session to check — see [inviteAdminFromCli].
+  Future<void> revokeAdminInviteFromCli({required String email}) async {
+    return await _run(() => _revokeAdminInviteFromCli(email: email));
   }
 
   /// Describes the invite [token] names **without consuming it**, or null
@@ -485,6 +512,28 @@ class ZonaiDb {
     required String token,
   }) async {
     return await _run(() => _describeAdminInvite(token: token));
+  }
+
+  /// Design §3.3: accepts the invite [token] names directly — creating the
+  /// admin row, consuming the invite and returning a session — for admin
+  /// tables that sign in with a password, an OTP or a magic link.
+  ///
+  /// [password] is required exactly when the invite's table declares
+  /// `PasswordAuth`, and refused otherwise; [describeAdminInvite] is how the
+  /// acceptance screen knows which before asking.
+  ///
+  /// Not a second way onto an OAuth-only table. Possession of the token
+  /// proves control of the invited mailbox and nothing more, where
+  /// [startAdminInviteOAuth]'s path additionally has a provider vouch that
+  /// the identity signing in owns that address — so this refuses a table
+  /// that declares OAuth alone rather than offering it a weaker door.
+  Future<_AuthResult> acceptAdminInvite({
+    required String token,
+    String? password,
+  }) async {
+    return await _run(
+      () => _acceptAdminInvite(token: token, password: password),
+    );
   }
 
   /// Design §3.2 step 3: [startAdminOAuth]'s invite-bound counterpart --

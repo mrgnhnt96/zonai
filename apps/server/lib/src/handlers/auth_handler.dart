@@ -339,6 +339,28 @@ class AuthHandler {
   /// literal is how a stray field gets added to one branch and not the other.
   static const kAdminInviteUnusableBody = <String, Object?>{'live': false};
 
+  /// Design §3.3: accept an invite directly, on an admin table that signs in
+  /// with a password, an OTP or a magic link rather than a provider.
+  ///
+  /// Returns the same session payload [signIn] does, because the invitee is
+  /// signed in as a result — the acceptance *is* their first sign-in, and a
+  /// screen that created the account and then asked them to log in would be
+  /// asking them to prove the thing they just proved.
+  ///
+  /// Nothing here decides whether a password is owed or whether the table
+  /// even accepts this route; `ZonaiDb.acceptAdminInvite` does, so that the
+  /// CLI and any future caller get the same refusals. Passing the body
+  /// through unexamined is the point.
+  Future<Map<String, Object?>> acceptAdminInvite(
+    AdminInviteAcceptBody body,
+  ) async {
+    final result = await zonaiDB.acceptAdminInvite(
+      token: body.token,
+      password: body.password,
+    );
+    return _sessionPayload(result.user, result.jwt);
+  }
+
   Future<String> startAdminInviteOAuth({
     required String provider,
     required String inviteToken,

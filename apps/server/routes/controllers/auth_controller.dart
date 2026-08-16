@@ -324,10 +324,10 @@ class AuthController {
   /// `Trace.wrap` runs it over every request line including 4xx ones. Pinned
   /// by `trace_query_redaction_test.dart`, not assumed.
   ///
-  /// Only OAuth. Design §3.3 wants the same link to resolve to a set-password
-  /// or code-send flow on `PasswordAuth`/`OtpAuth`/`MagicLinkAuth` admin
-  /// tables, but `startAdminInviteOAuth` is the only acceptance entry point
-  /// the db mutator exposes today — there is nothing here to route those to.
+  /// The OAuth half of acceptance. [acceptAdminInvite] below is design §3.3's
+  /// other half, for admin tables that sign in with a password, an OTP or a
+  /// magic link; the acceptance screen picks between them from the
+  /// `authTypes` [adminInviteStatus] reports.
   @swagger.ApiResponse(
     302,
     description:
@@ -367,6 +367,64 @@ class AuthController {
     );
 
     _redirect(response, url);
+  }
+
+  /// Design §3.3: accept an admin invite directly — create the row, consume
+  /// the invite and sign in — on a table whose sign-in is a password, an OTP
+  /// or a magic link rather than a provider.
+  ///
+  /// Unauthenticated, like the two routes above it and for the same reason:
+  /// the invitee has no session, and the token is the authorization. Here
+  /// that token is all the authorization there is, which is why the runtime
+  /// refuses this route for a table declaring OAuth alone — there, a provider
+  /// additionally vouches that the identity signing in owns the invited
+  /// address, and this path cannot make that claim.
+  ///
+  /// A `POST`, not the `GET` its sibling is, because it creates an admin
+  /// account. The token rides the **body** for the same reason: a query
+  /// string reaches request logs, browser history and any `Referer` sent from
+  /// the resulting page, and `redactSensitiveQuery` covering the parameter
+  /// name is a mitigation for the routes that have no choice, not a licence
+  /// to put a credential there when there is one.
+  ///
+  /// The response is the ordinary session payload with `X-Auth`, identical to
+  /// `sign-in` — the invitee ends up signed in as the admin they just became.
+  @swagger.ApiResponse(
+    200,
+    description:
+        'Admin account created, invite consumed, session minted. Same body '
+        'as `POST /auth/sign-in`, with the access token also in `X-Auth`.',
+  )
+  @swagger.ApiResponse(
+    400,
+    description:
+        'The table requires a password and none was sent, or one was sent '
+        'to a table that has no password sign-in',
+  )
+  @swagger.ApiResponse(
+    401,
+    description:
+        'The token names no invite that can still be accepted -- expired, '
+        'revoked, already accepted or unknown alike',
+  )
+  @swagger.ApiResponse(
+    409,
+    description:
+        "The invite's admin table accepts invites through an OAuth provider "
+        'only; use `GET admin/invite/oauth/start/:provider`',
+  )
+  @swagger.ApiResponse(429, description: 'oauthInviteStart rate limit exceeded')
+  @OAuthInviteStartRateLimit()
+  @Post('admin/invite/accept')
+  Future<Map<String, Object?>> acceptAdminInvite({
+    @Body() required AdminInviteAcceptBody body,
+    required ResponseHeaders headers,
+  }) async {
+    final result = await authHandler.acceptAdminInvite(body);
+    if (result case {'accessToken': final String accessToken}) {
+      headers.add('X-Auth', accessToken);
+    }
+    return result;
   }
 
   /// §3.1 step 2, the shape every provider except Apple sends: a `GET` with

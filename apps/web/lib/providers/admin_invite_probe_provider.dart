@@ -20,3 +20,20 @@ typedef AdminInviteProbe = Future<AdminInviteStatus> Function(String token);
 final adminInviteProbeProvider = Provider<AdminInviteProbe>((ref) {
   return (token) => fetchAdminInviteStatus(server: ref.read(revaliServerProvider), token: token);
 });
+
+/// Accepts the invite directly (design §3.3), completing when the account
+/// exists and the session token has been stored.
+typedef AdminInviteAccept =
+    Future<void> Function(String token, {String? password});
+
+/// The other round trip the acceptance screen makes, overridable for the same
+/// reason [adminInviteProbeProvider] is: the behaviours worth testing — that a
+/// refusal is shown rather than swallowed, that a password-less table is not
+/// asked for one — are only observable on the wired screen.
+final adminInviteAcceptProvider = Provider<AdminInviteAccept>((ref) {
+  return (token, {password}) => acceptAdminInvite(
+    server: ref.read(revaliServerProvider),
+    token: token,
+    password: password,
+  );
+});

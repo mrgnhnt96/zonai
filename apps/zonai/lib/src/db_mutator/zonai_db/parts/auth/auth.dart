@@ -180,6 +180,30 @@ extension _AuthX on ZonaiDb {
     return authTables.tables.first;
   }
 
+  /// The auth types a *named* `AsAdmin` table declares.
+  ///
+  /// [_adminTable] answers for the first configured one and
+  /// [_adminSupportedAuthTypes] answers for the union across all of them;
+  /// neither is right for a caller that already knows which table it is
+  /// acting on, such as an invite being accepted in the table it was issued
+  /// for.
+  ///
+  /// Throws when [table] is not an admin table at all, rather than returning
+  /// an empty list -- an empty list reads as "supports nothing", which a
+  /// caller checking `contains(AuthType.password)` would silently treat as a
+  /// passwordless table.
+  Future<List<AuthType>> _adminTableAuthTypes(String table) async {
+    final authTables = await _dispatchOperation<AdminTablesResponse>(
+      GetAdminTablesOperationRequest(),
+    );
+
+    for (final (tableName, authTypes) in authTables.tables) {
+      if (tableName == table) return authTypes;
+    }
+
+    throw StateError('"$table" is not a configured admin table');
+  }
+
   Future<List<AuthType>> _adminSupportedAuthTypes() async {
     final authTables = await _dispatchOperation<AdminTablesResponse>(
       GetAdminTablesOperationRequest(),

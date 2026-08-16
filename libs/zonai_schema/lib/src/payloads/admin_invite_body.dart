@@ -34,3 +34,77 @@ class AdminInviteBody {
 
   Map<String, dynamic> toJson() => {'email': email};
 }
+
+/// Request body for `POST /auth/admin/invite/accept` — direct acceptance on
+/// an admin table that signs in with a password, an OTP or a magic link
+/// (design §3.3), rather than through a provider.
+///
+/// Carries **no email and no table**, for the same reason [AdminInviteBody]
+/// carries no table: both are properties of the invite the token names, read
+/// server-side from the challenge row. A request that could state them could
+/// also disagree with them, and the disagreement would have to be resolved in
+/// favour of the record anyway — so the field that decides who becomes an
+/// admin is the one field the invitee cannot choose.
+///
+/// [password] is required exactly when the invite's table declares
+/// `PasswordAuth`, and refused otherwise. `GET /auth/admin/invite?token=`
+/// answers which before the screen asks; the runtime re-checks regardless,
+/// because that probe is a convenience and not a gate.
+class AdminInviteAcceptBody {
+  const AdminInviteAcceptBody({required this.token, this.password});
+
+  factory AdminInviteAcceptBody.fromJson(Map<String, dynamic> json) {
+    final token = json['token'];
+    if (token is! String || token.isEmpty) {
+      throw ArgumentError.value(
+        // Never `json['token']` itself: `ArgumentError.value` prints the
+        // value, and design §4 item 8 keeps the raw token out of error
+        // messages. The type is all a caller needs to fix the call.
+        token.runtimeType,
+        'token',
+        'POST /auth/admin/invite/accept requires a non-empty "token"',
+      );
+    }
+
+    final password = json['password'];
+    if (password != null && password is! String) {
+      throw ArgumentError.value(
+        password.runtimeType,
+        'password',
+        '"password" must be a string when present',
+      );
+    }
+
+    // A blank password is normalized to absent so that "the field was left
+    // empty" and "the field was not sent" reach the runtime as one case, and
+    // get the single "this table requires a password" refusal rather than
+    // two that differ for no reason the caller can act on.
+    final trimmed = password as String?;
+
+    return AdminInviteAcceptBody(
+      token: token,
+      password: (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+    );
+  }
+
+  /// The raw token from the emailed link, hashed server-side and compared
+  /// against `AuthChallenge.secretHash`.
+  final String token;
+
+  /// The password to set on the new admin account, for tables that sign in
+  /// with one.
+  final String? password;
+
+  Map<String, dynamic> toJson() => {
+    'token': token,
+    if (password != null) 'password': password,
+  };
+
+  /// Neither secret, ever. Design §4 item 8 keeps the raw token out of logs
+  /// and error messages, and a body that a 4xx path stringifies is exactly
+  /// how one gets there — the password rides on the same footing.
+  @override
+  String toString() =>
+      'AdminInviteAcceptBody(token: <redacted>, '
+      'password: ${password == null ? 'null' : '<redacted>'})';
+}

@@ -212,6 +212,41 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/auth/admin/invite/accept": {
+      "post": {
+        "operationId": "auth_acceptAdminInvite",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminInviteAcceptBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin account created, invite consumed, session minted. Same body as `POST /auth/sign-in`, with the access token also in `X-Auth`."
+          },
+          "400": {
+            "description": "The table requires a password and none was sent, or one was sent to a table that has no password sign-in"
+          },
+          "401": {
+            "description": "The token names no invite that can still be accepted -- expired, revoked, already accepted or unknown alike"
+          },
+          "409": {
+            "description": "The invite's admin table accepts invites through an OAuth provider only; use `GET admin/invite/oauth/start/:provider`"
+          },
+          "429": {
+            "description": "oauthInviteStart rate limit exceeded"
+          }
+        }
+      }
+    },
     "/auth/admin/invite/oauth/start/{provider}": {
       "get": {
         "operationId": "auth_startAdminInviteOAuth",
@@ -1468,6 +1503,21 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "type"
+        ]
+      },
+      "AdminInviteAcceptBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "token"
         ]
       },
       "AdminInviteBody": {
@@ -2829,6 +2879,28 @@ paths:
           description: '`{live: true, table, authTypes}` when the token names an invite that can still be accepted, and `{live: false}` for every token that cannot -- expired, revoked, already accepted or unknown alike, deliberately indistinguishable. Never the invited email.'
         '429':
           description: oauthInviteStart rate limit exceeded
+  '/auth/admin/invite/accept':
+    post:
+      operationId: auth_acceptAdminInvite
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminInviteAcceptBody'
+      responses:
+        '200':
+          description: Admin account created, invite consumed, session minted. Same body as `POST /auth/sign-in`, with the access token also in `X-Auth`.
+        '400':
+          description: The table requires a password and none was sent, or one was sent to a table that has no password sign-in
+        '401':
+          description: The token names no invite that can still be accepted -- expired, revoked, already accepted or unknown alike
+        '409':
+          description: The invite's admin table accepts invites through an OAuth provider only; use `GET admin/invite/oauth/start/:provider`
+        '429':
+          description: oauthInviteStart rate limit exceeded
   '/auth/admin/invite/oauth/start/{provider}':
     get:
       operationId: auth_startAdminInviteOAuth
@@ -3609,6 +3681,16 @@ components:
           type: string
       required:
         - type
+    AdminInviteAcceptBody:
+      type: object
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          nullable: true
+      required:
+        - token
     AdminInviteBody:
       type: object
       properties:

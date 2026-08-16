@@ -1,13 +1,24 @@
 part of zonai_db;
 
 extension _CreateAdminX on ZonaiDb {
+  /// Creates an admin row in [table], or in the first configured `AsAdmin`
+  /// table when none is named — which is what `zonai db admin add` wants,
+  /// having nothing else to go on.
+  ///
+  /// [_acceptAdminInvite] names one: an invite belongs to the table it was
+  /// issued for, and the two stop being the same table the moment a project
+  /// declares a second `AsAdmin` collection.
   Future<Map<String, Object?>> _createAdmin({
     required String email,
+    String? inTable,
     String? password,
     Map<String, dynamic>? object,
     bool verified = true,
   }) async {
-    final (table, authTypes) = await _adminTable();
+    final (table, authTypes) = switch (inTable) {
+      null => await _adminTable(),
+      final named => (named, await _adminTableAuthTypes(named)),
+    };
     final supportsPassword = authTypes.contains(AuthType.password);
 
     if (supportsPassword && password == null) {

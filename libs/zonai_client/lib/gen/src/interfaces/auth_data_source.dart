@@ -25,6 +25,9 @@ abstract interface class AuthDataSource {
     required SignUpAuthBody body,
     String? authorization,
   });
+  Future<Map<String, Object?>> acceptAdminInvite({
+    required AdminInviteAcceptBody body,
+  });
   Future<void> oauthCallbackFormPost({
     required String provider,
     required OAuthCallbackBody body,
