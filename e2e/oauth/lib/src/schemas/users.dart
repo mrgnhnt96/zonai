@@ -14,6 +14,7 @@ final class User {
     required this.email,
     required this.isVerified,
     required this.name,
+    required this.passwordHash,
     required this.createdAt,
     this.updatedAt,
   });
@@ -22,11 +23,16 @@ final class User {
   final String email;
   final bool isVerified;
   final String name;
+  final String passwordHash;
   final DateTime createdAt;
   final DateTime? updatedAt;
 }
 
-final class UserTable extends AuthTable<User> with OAuth, AsAdmin {
+// `with PasswordAuth, OAuth, AsAdmin` -- the exact combination design §2.1
+// uses as its developer-facing example, so a password-authenticated user can
+// be the target of an OAuth-linking test (design §3.3 / brief case 3).
+final class UserTable extends AuthTable<User>
+    with PasswordAuth, OAuth, AsAdmin {
   UserTable(super.$)
     : id = $.id(
         'id',
@@ -37,6 +43,7 @@ final class UserTable extends AuthTable<User> with OAuth, AsAdmin {
       email = $.email('email', (s) => s.email),
       isVerified = $.isVerified('is_verified', (s) => s.isVerified),
       name = $.text('name', (s) => s.name),
+      passwordHash = $.password('password', (s) => s.passwordHash),
       createdAt = $.createdAt('created_at', (s) => s.createdAt),
       updatedAt = $.updatedAt('updated_at', (s) => s.updatedAt);
 
@@ -47,6 +54,7 @@ final class UserTable extends AuthTable<User> with OAuth, AsAdmin {
       email: read(email),
       isVerified: read(isVerified),
       name: read(name),
+      passwordHash: read(passwordHash),
       createdAt: read(createdAt),
       updatedAt: read(updatedAt),
     );
@@ -56,6 +64,7 @@ final class UserTable extends AuthTable<User> with OAuth, AsAdmin {
   final EmailColumn email;
   final IsVerifiedColumn isVerified;
   final TextColumn name;
+  final PasswordColumn passwordHash;
   final DateTimeColumn createdAt;
   final ColumnType<DateTime?> updatedAt;
 

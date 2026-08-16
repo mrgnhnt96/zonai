@@ -11,6 +11,7 @@ import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 import '../support/oauth_stub_server.dart';
@@ -23,9 +24,9 @@ import '../support/temp_directory.dart';
 ///
 /// Modeled on `external_auth_provisioning_e2e_test.dart`: a real compiled
 /// `e2e/oauth` fixture project (`UserTable extends AuthTable<User> with
-/// OAuth, AsAdmin`), a real sqlite database, real `AuthExtensionRequest
-/// .onExternalAuthFirstSeen` dispatch -- only the provider's HTTP endpoints
-/// are stubbed.
+/// PasswordAuth, OAuth, AsAdmin`), a real sqlite database, real
+/// `AuthExtensionRequest.onExternalAuthFirstSeen` dispatch -- only the
+/// provider's HTTP endpoints are stubbed.
 void main() {
   group('oauth e2e', () {
     late Directory projectRoot;
@@ -255,7 +256,8 @@ void main() {
     });
 
     test('returning sign-in reuses the existing (table, provider, subject) '
-        'identity rather than re-provisioning', () async {
+        'identity rather than re-provisioning -- proven against the '
+        'database, not just the response', () async {
       if (!_runningOnDartVm) return;
       final sub = 'returning-${DateTime.now().microsecondsSinceEpoch}';
       await withDb((db) async {
@@ -288,6 +290,30 @@ void main() {
         );
 
         expect(second.user['id'], first.user['id']);
+
+        // The response agreeing with itself isn't proof -- a bug that
+        // provisioned a second row but happened to echo the first row's id
+        // back would pass the assertion above. Query `_oauth_identities`
+        // directly: exactly one row for this (table, provider, subject).
+        final conn = await db.open();
+        final identityRows = await conn
+            .select()
+            .from(oauthIdentities)
+            .where(
+              oauthIdentities.table.equals('users') &
+                  oauthIdentities.provider.equals('stub-verified') &
+                  oauthIdentities.subject.equals(sub),
+            );
+        expect(identityRows, hasLength(1));
+
+        final userRows = await db.list('users', ListPayload(where: null));
+        expect(
+          userRows.items.where((u) => u['id'] == sub),
+          hasLength(1),
+          reason:
+              'a second callback for the same subject must not leave a '
+              'second users row behind either',
+        );
       });
     });
 
@@ -328,6 +354,80 @@ void main() {
         expect(second.user['id'], first.user['id']);
       });
     });
+
+    test(
+      'byVerifiedEmail linking connects an OAuth identity to an existing '
+      'password-authenticated user, who can then sign in either way',
+      () async {
+        if (!_runningOnDartVm) return;
+        final email =
+            'password-link-${DateTime.now().microsecondsSinceEpoch}'
+            '@example.com';
+        const password = 'a-strong-enough-password-1';
+        await withDb((db) async {
+          final signUp = await db.authenticate(
+            'users',
+            SignUpPasswordAuthPayload(
+              email: email,
+              password: password,
+              object: const {'name': 'Password User'},
+            ),
+          );
+          expect(signUp, isNotNull);
+          final passwordUserId = signUp!.user['id'];
+
+          final url = await db.startOAuth(
+            'users',
+            const StartOAuthAuthPayload(provider: 'stub-verified'),
+          );
+          final state = Uri.parse(url).queryParameters['state']!;
+          final sub =
+              'password-link-sub-${DateTime.now().microsecondsSinceEpoch}';
+          final oauthResult = await db.completeOAuth(
+            CompleteOAuthAuthPayload(
+              state: state,
+              code: OAuthStubServer.code(
+                sub: sub,
+                email: email,
+                emailVerified: true,
+              ),
+            ),
+          );
+
+          // Linked onto the row password sign-up created -- not a second row.
+          expect(oauthResult.user['id'], passwordUserId);
+
+          final conn = await db.open();
+          final identityRows = await conn
+              .select()
+              .from(oauthIdentities)
+              .where(
+                oauthIdentities.table.equals('users') &
+                    oauthIdentities.provider.equals('stub-verified') &
+                    oauthIdentities.subject.equals(sub),
+              );
+          expect(identityRows, hasLength(1));
+          expect(identityRows.single.userId.value, passwordUserId);
+
+          final userRows = await db.list('users', ListPayload(where: null));
+          expect(
+            userRows.items.where((u) => u['email'] == email),
+            hasLength(1),
+            reason:
+                'linking must not leave a second row behind for the same '
+                'email',
+          );
+
+          // The same account, reachable the other way too: the original
+          // password still signs in, against the identical user id.
+          final passwordSignIn = await db.authenticate(
+            'users',
+            SignInPasswordAuthPayload(email: email, password: password),
+          );
+          expect(passwordSignIn!.user['id'], passwordUserId);
+        });
+      },
+    );
 
     test('byVerifiedEmail rejects linking an unverified email -- provisions a '
         'distinct row instead of taking over the existing one', () async {
@@ -597,6 +697,67 @@ void main() {
         expect(result!.user['id'], sub);
       });
     });
+
+    test(
+      'an OAuth-minted session behaves like any other: authenticated '
+      'reads succeed, refresh rotates the token, and logout revokes it',
+      () async {
+        // Design §3.4: "Refresh, logout, logoutAll ... therefore all work for
+        // OAuth sessions with no extra code" -- this is the test that proves
+        // that claim rather than just repeating it.
+        if (!_runningOnDartVm) return;
+        final sub = 'session-${DateTime.now().microsecondsSinceEpoch}';
+        await withDb((db) async {
+          final url = await db.startOAuth(
+            'users',
+            const StartOAuthAuthPayload(provider: 'stub-verified'),
+          );
+          final state = Uri.parse(url).queryParameters['state']!;
+          final signIn = await db.completeOAuth(
+            CompleteOAuthAuthPayload(
+              state: state,
+              code: OAuthStubServer.code(
+                sub: sub,
+                email: '$sub@example.com',
+                emailVerified: true,
+              ),
+            ),
+          );
+          final firstJwt = signIn.jwt;
+
+          // An authenticated request succeeds: the token resolves to the
+          // signed-in row (mirrors external_auth_provisioning_e2e_test's
+          // `parseJwt` proxy for "a request came in with this bearer token").
+          final parsed = await db.parseJwt(firstJwt);
+          expect(parsed, isNotNull);
+          expect(parsed!.user['id'], sub);
+
+          // Refresh mints a new token and retires the old one -- the old
+          // token must stop working, not just "also still work".
+          final refreshed = await db.refreshToken(firstJwt);
+          expect(refreshed, isNotNull);
+          expect(refreshed!.user['id'], sub);
+          final secondJwt = refreshed.jwt;
+          expect(secondJwt, isNot(firstJwt));
+
+          await expectLater(
+            db.parseJwt(firstJwt),
+            throwsA(isA<JwtRecordNotFoundException>()),
+            reason: 'refresh must retire the token it replaces',
+          );
+          expect((await db.parseJwt(secondJwt))!.user['id'], sub);
+
+          // Logout revokes the current token -- a request bearing it must be
+          // rejected afterward, not merely "no longer refreshable".
+          await db.logout(secondJwt);
+          await expectLater(
+            db.parseJwt(secondJwt),
+            throwsA(isA<JwtRecordNotFoundException>()),
+            reason: 'logout must revoke the session, not just no-op',
+          );
+        });
+      },
+    );
 
     test('native flow: an idToken payload routes to id_token verification, '
         'not the userinfo/code path', () async {

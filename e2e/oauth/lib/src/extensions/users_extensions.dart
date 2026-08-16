@@ -19,6 +19,13 @@ final class UsersExtensions extends Extension<User> with AuthExtension<User> {
   @override
   Future<void> onSignIn(User user, Jwt? jwt) async {}
 
+  // Same gap, different hook: the default `onSignUp` sends a `verifyEmail`
+  // built-in email. `PasswordAuth` sign-up (added so the OAuth-linking test
+  // can target a password-authenticated user -- design §3.3) would hit it
+  // otherwise.
+  @override
+  Future<void> onSignUp(User user, Jwt? jwt) async {}
+
   @override
   Future<void> onExternalAuthFirstSeen(Map<String, Object?> claims) async {
     final sub = claims['sub'] as String;
@@ -30,6 +37,12 @@ final class UsersExtensions extends Extension<User> with AuthExtension<User> {
         'email': email,
         'is_verified': claims['email_verified'] as bool? ?? false,
         'name': claims['name'] as String? ?? 'OAuth User',
+        // `PasswordAuth`'s column is NOT NULL, but a row provisioned through
+        // OAuth was never given a password. Fill it with an unusable
+        // placeholder -- long enough that no real sign-in attempt could ever
+        // match it -- rather than leaving password sign-in half-wired for
+        // this row.
+        'password': 'oauth-only-no-password-$sub',
       },
     );
   }
