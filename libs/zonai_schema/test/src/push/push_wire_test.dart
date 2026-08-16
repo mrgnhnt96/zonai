@@ -104,22 +104,25 @@ void main() {
           );
           if (message.tooLargeReason != null) continue;
 
-          final wire = utf8.encode(
-            jsonEncode({
-              'message': {
-                'token': 'f' * 200, // longer than any token seen in practice
-                'notification': {
-                  'title': message.title,
-                  'body': message.body,
-                },
-                'data': message.data,
-                'android': {'collapse_key': message.collapseKey},
-                'apns': {
-                  'headers': {'apns-collapse-id': message.collapseKey},
-                },
-              },
-            }),
-          ).length;
+          final wire = utf8
+              .encode(
+                jsonEncode({
+                  'message': {
+                    'token':
+                        'f' * 200, // longer than any token seen in practice
+                    'notification': {
+                      'title': message.title,
+                      'body': message.body,
+                    },
+                    'data': message.data,
+                    'android': {'collapse_key': message.collapseKey},
+                    'apns': {
+                      'headers': {'apns-collapse-id': message.collapseKey},
+                    },
+                  },
+                }),
+              )
+              .length;
 
           expect(
             wire,
@@ -185,6 +188,165 @@ void main() {
 
       expect(rejected, isA<PushPermanentlyRejected>());
       expect(rejected, isNot(isA<PushTransientlyFailed>()));
+    });
+
+    test("a rejection carries the provider's own words across the wire", () {
+      // `reason` has two values because two is all the fan-out's prune
+      // decision needs. But APNs answers `Unregistered` for an uninstalled app
+      // and `BadDeviceToken` for a valid token issued by the *other*
+      // environment, and both land on `unregistered`. Only one of those is a
+      // device that is really gone; the other is `ApnsConfig.useSandbox` set
+      // wrong. The detail is what lets a human tell them apart, and it has to
+      // survive IPC to reach one.
+      final restored = PushOutcome.fromJson(
+        _roundTrip(
+          const PushPermanentlyRejected(
+            token: 't',
+            reason: PushRejectionReason.unregistered,
+            detail: '400 BadDeviceToken',
+          ).toJson(),
+        ),
+      );
+
+      expect(restored, isA<PushPermanentlyRejected>());
+      expect(
+        (restored as PushPermanentlyRejected).detail,
+        '400 BadDeviceToken',
+      );
+      expect(restored.reason, PushRejectionReason.unregistered);
+    });
+
+    test('a rejection with no detail decodes as null, not ""', () {
+      // Additive and optional: a courier that sets no detail is not wrong, and
+      // an empty string would render as a blank reason in the dashboard rather
+      // than as "none recorded".
+      final json = const PushPermanentlyRejected(
+        token: 't',
+        reason: PushRejectionReason.invalidArgument,
+      ).toJson();
+
+      expect(json.containsKey('detail'), isFalse);
+
+      final restored =
+          PushOutcome.fromJson(_roundTrip(json)) as PushPermanentlyRejected;
+      expect(restored.detail, isNull);
+    });
+  });
+
+  group('PushTestSendBody', () {
+    test('survives a JSON round trip', () {
+      const original = PushTestSendBody(
+        table: 'users',
+        column: 'deviceToken',
+        token: 'tok-1',
+        title: 'Test notification',
+        body: 'Sent from the dashboard',
+        platform: DevicePlatform.ios,
+      );
+
+      final restored = PushTestSendBody.fromJson(_roundTrip(original.toJson()));
+
+      expect(restored.table, original.table);
+      expect(restored.column, original.column);
+      expect(restored.token, original.token);
+      expect(restored.title, original.title);
+      expect(restored.body, original.body);
+      expect(restored.platform, DevicePlatform.ios);
+    });
+
+    test('an absent platform stays absent and decodes as null', () {
+      const original = PushTestSendBody(
+        table: 'users',
+        column: 'deviceToken',
+        token: 'tok-1',
+        title: 't',
+        body: 'b',
+      );
+
+      final json = original.toJson();
+      expect(json.containsKey('platform'), isFalse);
+
+      // Null means "FCM", exactly as it does for a fan-out with no platform
+      // column. It must not decode into a default of `ios`.
+      expect(PushTestSendBody.fromJson(_roundTrip(json)).platform, isNull);
+    });
+  });
+
+  group('PushTestSendResult', () {
+    test('each status round trips, detail and all', () {
+      const results = <PushTestSendResult>[
+        PushTestSendResult(
+          status: PushTestSendStatus.accepted,
+          token: 'tok-a',
+          transport: 'fcm',
+        ),
+        PushTestSendResult(
+          status: PushTestSendStatus.rejected,
+          token: 'tok-b',
+          transport: 'apns',
+          reason: PushRejectionReason.unregistered,
+          detail: '400 BadDeviceToken',
+        ),
+        PushTestSendResult(
+          status: PushTestSendStatus.failed,
+          token: 'tok-c',
+          transport: 'none',
+          detail: 'AppConfig.push is not configured',
+        ),
+      ];
+
+      for (final original in results) {
+        final restored = PushTestSendResult.fromJson(
+          _roundTrip(original.toJson()),
+        );
+
+        expect(restored.status, original.status);
+        expect(restored.token, original.token);
+        expect(restored.transport, original.transport);
+        expect(restored.reason, original.reason);
+        expect(restored.detail, original.detail);
+      }
+    });
+
+    test('reads an outcome without losing the reason', () {
+      final result = PushTestSendResult.fromOutcome(
+        const PushPermanentlyRejected(
+          token: 'tok',
+          reason: PushRejectionReason.unregistered,
+          detail: '400 BadDeviceToken',
+        ),
+        transport: 'apns',
+      );
+
+      expect(result.status, PushTestSendStatus.rejected);
+      expect(result.detail, '400 BadDeviceToken');
+      expect(result.reason, PushRejectionReason.unregistered);
+      expect(result.transport, 'apns');
+    });
+
+    test('a transient failure is reported as failed, not rejected', () {
+      // The distinction the whole outcome type exists to protect: a timeout is
+      // not a dead token. Collapsing them would have the panel tell an
+      // operator to re-register a device whose network hiccuped.
+      final result = PushTestSendResult.fromOutcome(
+        const PushTransientlyFailed(token: 'tok', detail: '503 UNAVAILABLE'),
+        transport: 'fcm',
+      );
+
+      expect(result.status, PushTestSendStatus.failed);
+      expect(result.reason, isNull);
+      expect(result.detail, '503 UNAVAILABLE');
+    });
+
+    test('an acceptance carries no reason and no detail', () {
+      final result = PushTestSendResult.fromOutcome(
+        const PushDelivered(token: 'tok'),
+        transport: 'fcm',
+      );
+
+      expect(result.status, PushTestSendStatus.accepted);
+      expect(result.reason, isNull);
+      expect(result.detail, isNull);
     });
   });
 
@@ -309,8 +471,7 @@ void main() {
       );
 
       final restored =
-          Request.fromJson(_roundTrip(original.toJson()))
-              as EnqueuePushRequest;
+          Request.fromJson(_roundTrip(original.toJson())) as EnqueuePushRequest;
 
       // An empty `And([])` renders as `WHERE ()`, which is a syntax error,
       // and "every row with a token" is a meaningful, different thing.

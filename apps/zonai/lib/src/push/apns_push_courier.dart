@@ -208,9 +208,14 @@ class ApnsPushCourier implements PushCourier {
 
     return switch (reason) {
       // The device token is not, and will never be, valid for this app.
+      // `BadDeviceToken` is carried through verbatim for a reason: it is the
+      // symptom of a sandbox/production mismatch, where the token is valid and
+      // the environment is wrong. Reported as bare "unregistered" it reads as
+      // "this device is gone", and the operator goes looking at the device.
       'BadDeviceToken' || 'Unregistered' => PushPermanentlyRejected(
         token: token,
         reason: PushRejectionReason.unregistered,
+        detail: '$status $reason',
       ),
 
       // Looks per-token and is not. Measured live on 2026-08-15: with one
@@ -242,6 +247,7 @@ class ApnsPushCourier implements PushCourier {
       'TopicDisallowed' => PushPermanentlyRejected(
         token: token,
         reason: PushRejectionReason.invalidArgument,
+        detail: '$status $reason',
       ),
 
       // About the caller, never about one token — so the job fails and the

@@ -30,6 +30,7 @@ sealed class PushOutcome {
       PushPermanentlyRejected._type => PushPermanentlyRejected(
         token: json['token'] as String,
         reason: PushRejectionReason.fromJson(json['reason'] as String),
+        detail: json['detail'] as String?,
       ),
       PushTransientlyFailed._type => PushTransientlyFailed(
         token: json['token'] as String,
@@ -63,9 +64,32 @@ final class PushDelivered extends PushOutcome {
 /// FCM will never accept this token again. The `onPushRejected` hook fires,
 /// and then the token is pruned according to `PushConfig`.
 final class PushPermanentlyRejected extends PushOutcome {
-  const PushPermanentlyRejected({required super.token, required this.reason});
+  const PushPermanentlyRejected({
+    required super.token,
+    required this.reason,
+    this.detail,
+  });
 
   final PushRejectionReason reason;
+
+  /// What the provider actually said, in its own words.
+  ///
+  /// [reason] has two values because two is all the *fan-out* needs: prune, or
+  /// prune. But the two are reached from provider reasons that mean very
+  /// different things to a person, and collapsing them loses the difference at
+  /// the courier boundary where it is still known. APNs answers `Unregistered`
+  /// for an app that was uninstalled and `BadDeviceToken` for a token that is
+  /// perfectly valid but was issued by the *other* environment — a sandbox
+  /// build's token sent to production, or the reverse (see `ApnsConfig.useSandbox`).
+  /// Both map to [PushRejectionReason.unregistered] and both prune correctly;
+  /// only the first is a device that is really gone, and only the second is a
+  /// deployment mistake somebody can fix. An operator told "rejected" cannot
+  /// tell which they are looking at.
+  ///
+  /// Nullable, and never load-bearing: nothing branches on it, the fan-out does
+  /// not read it, and a courier that does not set it is not wrong. It exists so
+  /// the string survives as far as a human.
+  final String? detail;
 
   static const _type = 'permanently_rejected';
 
@@ -74,6 +98,7 @@ final class PushPermanentlyRejected extends PushOutcome {
     'type': _type,
     'token': token,
     'reason': reason.toJson(),
+    'detail': ?detail,
   };
 }
 

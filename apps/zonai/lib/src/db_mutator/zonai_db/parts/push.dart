@@ -109,6 +109,116 @@ extension _PushX on ZonaiDb {
     return entry.id;
   }
 
+  /// Sends one notification to one token and reports what came back.
+  ///
+  /// Deliberately not an `enqueuePush` with a narrow `where`, which is the
+  /// obvious way to build this and is wrong three times over — see
+  /// `PushTestSendBody`'s header for the full argument. In short: the drain
+  /// reports pass-wide totals that cannot be attributed to one job, a rejected
+  /// token would be **pruned** (its column cleared, or its row deleted) by a
+  /// button labelled "send a test", and the app's `onPushRejected` hook would
+  /// fire for a send the app never made.
+  ///
+  /// So this reuses the transport and nothing else. The courier, the config,
+  /// the platform routing and the outcome classification are all exactly the
+  /// ones the fan-out uses — a test that exercised a different transport would
+  /// be testing the wrong thing — while the job row, the cursor, the prune and
+  /// the hook are all absent. It writes nothing at all.
+  Future<PushTestSendResult> _sendTestPush({
+    required PushMessage message,
+    required String table,
+    required String column,
+    required String token,
+    required DevicePlatform? platform,
+    required Jwt? jwt,
+  }) async {
+    // Same gate as `_enqueuePush`, and enforced host-side for the same reason:
+    // the request arrives over IPC and the caller's word is not the check.
+    if (jwt?.admin.isAdmin != true) {
+      throw TableAccessDeniedException(table: table, operation: 'push');
+    }
+
+    if (token.trim().isEmpty) {
+      throw PushTargetException('A device token is required');
+    }
+
+    if (message.tooLargeReason case final reason?) {
+      throw PushTargetException(reason);
+    }
+
+    // The column must really be a `deviceToken` column. Nothing is read from
+    // the table here, so this is not protecting a projection the way the
+    // fan-out's copy is — it is what keeps the endpoint tied to a project that
+    // has push modelled at all, rather than a general "POST a string to APNs".
+    await _resolveDeviceTokenTarget(table: table, column: column);
+
+    final config = (await configResolver.resolve()).push;
+    if (config == null) {
+      return PushTestSendResult(
+        status: PushTestSendStatus.failed,
+        token: token,
+        transport: 'none',
+        detail:
+            'AppConfig.push is not configured, so there is no transport to '
+            'send through. Nothing was sent.',
+      );
+    }
+
+    final courier = _courierFor(platform, config);
+    if (courier == null) {
+      return PushTestSendResult(
+        status: PushTestSendStatus.failed,
+        token: token,
+        transport: 'none',
+        detail: _unroutableReason(platform, config),
+      );
+    }
+
+    // Identity, not a re-derivation of `_courierFor`'s conditions: a second
+    // copy of that switch would drift the moment the routing changes, and this
+    // cannot. `read` memoizes per scope (`late final _value`), so the provider
+    // hands back the same instance every time — the same assumption the
+    // fan-out already rests on when it uses a courier as a `Map` key.
+    final transport = identical(courier, apnsCourier) ? 'apns' : 'fcm';
+
+    final List<PushOutcome> outcomes;
+    try {
+      // `courier.send` directly rather than `_sendViaCourier`: that wrapper
+      // retries a transient failure up to `maxAttemptsPerBatch` times with
+      // exponential backoff, which is right for a fan-out nobody is watching
+      // and wrong for a panel somebody is. An operator waiting on a spinner
+      // wants the first answer the transport gave, not a verdict reached
+      // fifteen seconds later having hidden the timeouts on the way.
+      outcomes = await courier.send(message, [token], config: config);
+    } on PushTransportException catch (e) {
+      // Not about this token: bad credentials, an unreachable auth endpoint.
+      // The fan-out treats this as a job-level failure; here it is simply the
+      // answer, and it is the most useful one the panel can give — a whole
+      // deployment's push is broken, not one device.
+      return PushTestSendResult(
+        status: PushTestSendStatus.failed,
+        token: token,
+        transport: transport,
+        detail: '$e',
+      );
+    }
+
+    // A courier is required to answer for every token it was given, but an
+    // empty list is a contract violation rather than a crash: reporting it is
+    // strictly better than a range error, and "no outcome" is a real, if rare,
+    // thing for the operator to see.
+    if (outcomes.isEmpty) {
+      return PushTestSendResult(
+        status: PushTestSendStatus.failed,
+        token: token,
+        transport: transport,
+        detail: 'the $transport transport returned no outcome for this token',
+      );
+    }
+
+    return PushTestSendResult.fromOutcome(outcomes.first, transport: transport);
+  }
+
   /// Where a job's recipients live, verified.
   ///
   /// Throws rather than returning null for every failure: each of these is a

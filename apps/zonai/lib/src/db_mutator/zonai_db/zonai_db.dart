@@ -509,6 +509,33 @@ class ZonaiDb {
     return await _run(_drainPushJobs);
   }
 
+  /// Sends one notification to one token, synchronously, and reports what the
+  /// provider said about that recipient.
+  ///
+  /// The dashboard's test-send verb. Uses the same courier and config the
+  /// fan-out uses and writes nothing — no job row, no prune, no
+  /// `onPushRejected`. See [_sendTestPush] for why this is not an
+  /// [enqueuePush] with a narrow `where`.
+  Future<PushTestSendResult> sendTestPush({
+    required PushMessage message,
+    required String table,
+    required String column,
+    required String token,
+    required DevicePlatform? platform,
+    required Jwt? jwt,
+  }) async {
+    return await _run(
+      () => _sendTestPush(
+        message: message,
+        table: table,
+        column: column,
+        token: token,
+        platform: platform,
+        jwt: jwt,
+      ),
+    );
+  }
+
   Future<DashboardMetrics> dashboardMetrics({
     required Jwt jwt,
     int? since,
