@@ -63,6 +63,30 @@ final class CleanupOutcome {
   final bool isSkip;
 }
 
+/// The reclaim card's whole disclosure, lock first.
+///
+/// Reclaim is the one cleanup action with no typed confirmation, because it
+/// destroys nothing — so this sentence is the entire thing standing between
+/// an operator and the consequence. That puts two demands on it.
+///
+/// The lock leads. It is the only effect of pressing the button that cannot
+/// be undone by waiting, and the reassurance either side of it — what gets
+/// rewritten, what is not touched — is exactly the sort of thing that, read
+/// first, makes a warning read last.
+///
+/// The size travels with it. The stall scales with the file, so "locks a
+/// 20 KB file" and "locks a 3 GB file" are one sentence describing opposite
+/// decisions, and an operator cannot weigh a duration nobody quotes. Before
+/// the storage report lands [bytes] is null and the parenthetical is simply
+/// absent: the sentence still reads correctly, and "(unknown)" would draw the
+/// eye to the one part that does not matter yet.
+String describeReclaimLock({required String file, required int? bytes}) {
+  final size = bytes == null ? '' : ' (${formatBytes(bytes)})';
+  return 'Locks $file$size while it rewrites; log writes block until it finishes. '
+      'Space freed by deleted rows then goes back to the operating system. '
+      'The application database is not touched.';
+}
+
 /// Rows removed, said plainly — including when the answer is none.
 ///
 /// "Nothing to delete" rather than "0 rows deleted": a purge that matched

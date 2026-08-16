@@ -117,6 +117,61 @@ void main() {
     });
   });
 
+  group('describeReclaimLock', () {
+    // Reclaim is the only cleanup action with no typed confirmation, so this
+    // string is the entire disclosure. These pin the two properties that make
+    // it one.
+    test('the lock is the first thing said, not the last', () {
+      final text = describeReclaimLock(file: 'zonai_log.sqlite', bytes: 20520);
+
+      expect(
+        text.indexOf('Locks'),
+        lessThan(text.indexOf('not touched')),
+        reason: 'reassurance read first is what makes a warning read last',
+      );
+      expect(
+        text.toLowerCase().indexOf('lock'),
+        lessThan(20),
+        reason: 'the stall has to be in the first clause, not the third sentence',
+      );
+    });
+
+    test('names the stall, not just the lock', () {
+      // "takes an exclusive lock" describes a mechanism. An operator is
+      // deciding whether to cause an outage, and needs the consequence.
+      expect(
+        describeReclaimLock(file: 'zonai_log.sqlite', bytes: 20520),
+        contains('log writes block'),
+      );
+    });
+
+    test('carries the size, because the stall scales with it', () {
+      expect(
+        describeReclaimLock(file: 'zonai_log.sqlite', bytes: 3200000000),
+        contains('3.2 GB'),
+        reason: 'locking 20 KB and locking 3.2 GB are opposite decisions',
+      );
+    });
+
+    test('an unknown size is absent rather than the word unknown', () {
+      final text = describeReclaimLock(file: 'zonai_log.sqlite', bytes: null);
+
+      expect(text, isNot(contains('unknown')));
+      expect(text, isNot(contains('()')));
+      // The sentence still has to read correctly without it.
+      expect(text, startsWith('Locks zonai_log.sqlite while it rewrites'));
+    });
+
+    test('names the file the report gave, not a hardcoded one', () {
+      // A deployment that renamed its log database must not be told the
+      // reclaim locks a file that does not exist there.
+      expect(
+        describeReclaimLock(file: 'custom_log.sqlite', bytes: 1000),
+        contains('custom_log.sqlite'),
+      );
+    });
+  });
+
   group('describeRowsPurged', () {
     test('a real count is exact', () {
       // "some rows" is not something an operator can compare against the row

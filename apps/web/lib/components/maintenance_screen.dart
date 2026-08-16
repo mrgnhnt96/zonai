@@ -133,7 +133,10 @@ class MaintenanceScreen extends StatelessComponent {
             ],
             if (isClient) ...[
               p(classes: 'maintenance-section-label', [.text('Cleanup')]),
-              _CleanupSection(logDatabaseName: _logDatabaseName(data)),
+              _CleanupSection(
+                logDatabaseName: _logDatabaseFile(data)?.name ?? 'zonai_log.sqlite',
+                logDatabaseBytes: _logDatabaseFile(data)?.sizeBytes,
+              ),
             ],
           ]),
         ]),
@@ -311,17 +314,16 @@ class _StatCard extends StatelessComponent {
   }
 }
 
-/// The log database's filename, taken from the storage report when it has
-/// loaded.
+/// The log database as the storage report describes it, or `null` before the
+/// report arrives.
 ///
-/// Read from the report rather than hardcoded so the reclaim button names the
-/// file it will actually lock on this deployment. The fallback is only for the
-/// moment before the report arrives.
-String _logDatabaseName(StorageMetrics? data) {
+/// Read from the report rather than hardcoded so the reclaim card names — and
+/// sizes — the file it will actually lock on this deployment.
+StorageDatabaseFile? _logDatabaseFile(StorageMetrics? data) {
   for (final db in data?.databases ?? const <StorageDatabaseFile>[]) {
-    if (db.name.contains('log')) return db.name;
+    if (db.name.contains('log')) return db;
   }
-  return 'zonai_log.sqlite';
+  return null;
 }
 
 /// The destructive half of the Maintenance screen.
@@ -331,9 +333,16 @@ String _logDatabaseName(StorageMetrics? data) {
 /// outcome — a purge that removed four million rows and one that matched
 /// nothing both finish successfully, and only the number tells them apart.
 class _CleanupSection extends StatefulComponent {
-  const _CleanupSection({required this.logDatabaseName});
+  const _CleanupSection({required this.logDatabaseName, this.logDatabaseBytes});
 
   final String logDatabaseName;
+
+  /// Size of the file the reclaim locks, or `null` before the storage report
+  /// arrives.
+  ///
+  /// The stall this action causes scales with it, and "locks a 20 KB file" and
+  /// "locks a 3 GB file" are the same sentence describing opposite decisions.
+  final int? logDatabaseBytes;
 
   @override
   State<_CleanupSection> createState() => _CleanupSectionState();
@@ -379,14 +388,13 @@ class _CleanupSectionState extends State<_CleanupSection> {
     return div(classes: 'maintenance-cleanup', [
       _CleanupCard(
         title: 'Reclaim log space',
-        // The lock is the thing to know before pressing it, so it is in the
-        // description rather than in a tooltip. Safe here precisely because
-        // the log database is a file of its own -- that is why it was split
-        // out -- so the rewrite never touches application data.
-        description:
-            'Rewrites ${component.logDatabaseName} so space freed by deleted rows goes back to '
-            'the operating system. Takes an exclusive lock on that file for the duration; '
-            'the application database is not touched.',
+        // Lock first, and sized -- see [describeReclaimLock], which owns the
+        // wording so it can be tested. Safe from data loss precisely because
+        // the log database is a file of its own; that is why it was split out.
+        description: describeReclaimLock(
+          file: component.logDatabaseName,
+          bytes: component.logDatabaseBytes,
+        ),
         action: CleanupAction.reclaimLogSpace,
         state: state,
         // Not destructive: it moves no rows, it only rewrites the file around
