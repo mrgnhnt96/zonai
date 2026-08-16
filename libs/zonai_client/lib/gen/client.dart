@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart';
 import 'package:revali_client/revali_client.dart';
+import 'package:zonai_schema/src/payloads/admin_invite_body.dart';
 import 'package:zonai_schema/src/payloads/auth_password_body.dart';
 import 'package:zonai_schema/src/payloads/count_body.dart';
 import 'package:zonai_schema/src/payloads/create_body.dart';
@@ -21,6 +22,7 @@ import 'package:zonai_schema/src/types/email.dart';
 
 import 'interfaces.dart';
 
+part 'src/impls/admin_data_source_impl.dart';
 part 'src/impls/auth_data_source_impl.dart';
 part 'src/impls/cron_data_source_impl.dart';
 part 'src/impls/dashboard_data_source_impl.dart';
