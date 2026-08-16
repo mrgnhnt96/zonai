@@ -312,6 +312,106 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/dashboard/maintenance/cleanup-photos": {
+      "post": {
+        "operationId": "maintenance_cleanupPhotos",
+        "tags": [
+          "maintenance"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoCleanupResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/maintenance/purge-logs": {
+      "post": {
+        "operationId": "maintenance_purgeLogs",
+        "tags": [
+          "maintenance"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurgeLogsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRowsResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/maintenance/purge-table": {
+      "post": {
+        "operationId": "maintenance_purgeTable",
+        "tags": [
+          "maintenance"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurgeTableBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRowsResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/maintenance/reclaim-log-space": {
+      "post": {
+        "operationId": "maintenance_reclaimLogSpace",
+        "tags": [
+          "maintenance"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogSpaceReclamationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/metrics": {
       "get": {
         "operationId": "dashboard_metrics",
@@ -346,6 +446,26 @@ const kSwaggerJson = r'''{
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DashboardMetrics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/storage": {
+      "get": {
+        "operationId": "dashboard_storage",
+        "tags": [
+          "dashboard"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageMetrics"
                 }
               }
             }
@@ -1570,6 +1690,31 @@ const kSwaggerJson = r'''{
           }
         }
       },
+      "LogSpaceReclamationResult": {
+        "type": "object",
+        "properties": {
+          "reclaimableBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reclaimedBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "vacuumed": {
+            "type": "boolean"
+          },
+          "skipped": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "reclaimableBytes",
+          "reclaimedBytes",
+          "vacuumed"
+        ]
+      },
       "Lt": {
         "type": "object",
         "properties": {
@@ -1594,6 +1739,18 @@ const kSwaggerJson = r'''{
         "required": [
           "column",
           "value"
+        ]
+      },
+      "MaintenanceRowsResult": {
+        "type": "object",
+        "properties": {
+          "rowsAffected": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "rowsAffected"
         ]
       },
       "NotContains": {
@@ -1688,7 +1845,40 @@ const kSwaggerJson = r'''{
           "direction"
         ]
       },
+      "PhotoCleanupResult": {
+        "type": "object",
+        "properties": {
+          "deletedCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "deletedCount"
+        ]
+      },
       "PhotoCreateMeta": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "table"
+        ]
+      },
+      "PurgeLogsBody": {
+        "type": "object",
+        "properties": {
+          "olderThanDays": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "PurgeTableBody": {
         "type": "object",
         "properties": {
           "table": {
@@ -1867,6 +2057,93 @@ const kSwaggerJson = r'''{
         "required": [
           "column",
           "value"
+        ]
+      },
+      "StorageDatabaseFile": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "walBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reclaimableBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "capBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "sizeBytes",
+          "walBytes"
+        ]
+      },
+      "StorageMetrics": {
+        "type": "object",
+        "properties": {
+          "databases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageDatabaseFile"
+            }
+          },
+          "photosBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "photosFileCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageTableRows"
+            }
+          },
+          "freeDiskBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "required": [
+          "databases",
+          "photosBytes",
+          "photosFileCount",
+          "tables"
+        ]
+      },
+      "StorageTableRows": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "rowCount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "required": [
+          "table"
         ]
       },
       "StreamBody": {
@@ -2359,6 +2636,66 @@ paths:
       responses:
         '200':
           description: No content
+  '/dashboard/maintenance/cleanup-photos':
+    post:
+      operationId: maintenance_cleanupPhotos
+      tags:
+        - maintenance
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoCleanupResult'
+  '/dashboard/maintenance/purge-logs':
+    post:
+      operationId: maintenance_purgeLogs
+      tags:
+        - maintenance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurgeLogsBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRowsResult'
+  '/dashboard/maintenance/purge-table':
+    post:
+      operationId: maintenance_purgeTable
+      tags:
+        - maintenance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurgeTableBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceRowsResult'
+  '/dashboard/maintenance/reclaim-log-space':
+    post:
+      operationId: maintenance_reclaimLogSpace
+      tags:
+        - maintenance
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogSpaceReclamationResult'
   '/dashboard/metrics':
     get:
       operationId: dashboard_metrics
@@ -2385,6 +2722,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DashboardMetrics'
+  '/dashboard/storage':
+    get:
+      operationId: dashboard_storage
+      tags:
+        - dashboard
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageMetrics'
   '/db':
     delete:
       operationId: db_delete
@@ -3162,6 +3511,24 @@ components:
       properties:
         value:
           nullable: true
+    LogSpaceReclamationResult:
+      type: object
+      properties:
+        reclaimableBytes:
+          type: integer
+          format: int64
+        reclaimedBytes:
+          type: integer
+          format: int64
+        vacuumed:
+          type: boolean
+        skipped:
+          type: string
+          nullable: true
+      required:
+        - reclaimableBytes
+        - reclaimedBytes
+        - vacuumed
     Lt:
       type: object
       properties:
@@ -3180,6 +3547,14 @@ components:
       required:
         - column
         - value
+    MaintenanceRowsResult:
+      type: object
+      properties:
+        rowsAffected:
+          type: integer
+          format: int64
+      required:
+        - rowsAffected
     NotContains:
       type: object
       properties:
@@ -3241,7 +3616,29 @@ components:
       required:
         - column
         - direction
+    PhotoCleanupResult:
+      type: object
+      properties:
+        deletedCount:
+          type: integer
+          format: int64
+      required:
+        - deletedCount
     PhotoCreateMeta:
+      type: object
+      properties:
+        table:
+          type: string
+      required:
+        - table
+    PurgeLogsBody:
+      type: object
+      properties:
+        olderThanDays:
+          type: integer
+          format: int64
+          nullable: true
+    PurgeTableBody:
       type: object
       properties:
         table:
@@ -3363,6 +3760,69 @@ components:
       required:
         - column
         - value
+    StorageDatabaseFile:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        walBytes:
+          type: integer
+          format: int64
+        reclaimableBytes:
+          type: integer
+          format: int64
+          nullable: true
+        capBytes:
+          type: integer
+          format: int64
+          nullable: true
+      required:
+        - name
+        - path
+        - sizeBytes
+        - walBytes
+    StorageMetrics:
+      type: object
+      properties:
+        databases:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageDatabaseFile'
+        photosBytes:
+          type: integer
+          format: int64
+        photosFileCount:
+          type: integer
+          format: int64
+        tables:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageTableRows'
+        freeDiskBytes:
+          type: integer
+          format: int64
+          nullable: true
+      required:
+        - databases
+        - photosBytes
+        - photosFileCount
+        - tables
+    StorageTableRows:
+      type: object
+      properties:
+        table:
+          type: string
+        rowCount:
+          type: integer
+          format: int64
+          nullable: true
+      required:
+        - table
     StreamBody:
       type: object
       properties:
