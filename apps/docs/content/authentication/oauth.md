@@ -61,6 +61,24 @@ for how `.env` and `String.fromEnvironment` fit together. The `const` is
 load-bearing there too — without it you get the runtime default (`''`)
 instead of the value baked in at compile time.
 
+An empty `clientId` or `clientSecret` is rejected at construction, so a
+project whose defines are missing fails at start-up with a message naming the
+provider rather than at some user's first sign-in. That is deliberate — but it
+also means a checkout that has not configured OAuth yet will not boot at all.
+If you need the table to come up regardless (a shared fixture, a CI job that
+never signs in), give the define a `defaultValue`, as
+`apps/playground` does:
+
+```dart no-analyze
+clientId: const String.fromEnvironment(
+  'GOOGLE_CLIENT_ID',
+  defaultValue: 'placeholder-not-a-real-client-id',
+),
+```
+
+Omit `defaultValue` in a real project. A placeholder that reaches production
+turns a loud start-up failure into a sign-in that fails at Google.
+
 Each provider is one of two shapes:
 
 - **Built-in** — produced only by the eight named factories below

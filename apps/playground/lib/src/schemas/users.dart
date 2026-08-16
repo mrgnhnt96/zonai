@@ -58,15 +58,32 @@ final class UserTable extends AuthTable<User>
   final PasswordColumn passwordHash;
   final ColumnType<DateTime?> updatedAt;
 
+  // The built-in factories reject empty credentials at construction, so the
+  // bare `String.fromEnvironment(...)` the docs show would stop this fixture
+  // booting on any machine that has not configured OAuth -- which is every
+  // machine that just cloned the repo. `defaultValue` keeps the playground
+  // runnable; a real project omits it and lets the boot fail loudly instead.
   @override
   List<OAuthProvider> get oauthProviders => [
     OAuthProvider.google(
-      clientId: const String.fromEnvironment('GOOGLE_CLIENT_ID'),
-      clientSecret: const String.fromEnvironment('GOOGLE_CLIENT_SECRET'),
+      clientId: const String.fromEnvironment(
+        'GOOGLE_CLIENT_ID',
+        defaultValue: 'playground-google-client-id',
+      ),
+      clientSecret: const String.fromEnvironment(
+        'GOOGLE_CLIENT_SECRET',
+        defaultValue: 'playground-google-client-secret',
+      ),
     ),
     OAuthProvider.github(
-      clientId: const String.fromEnvironment('GITHUB_CLIENT_ID'),
-      clientSecret: const String.fromEnvironment('GITHUB_CLIENT_SECRET'),
+      clientId: const String.fromEnvironment(
+        'GITHUB_CLIENT_ID',
+        defaultValue: 'playground-github-client-id',
+      ),
+      clientSecret: const String.fromEnvironment(
+        'GITHUB_CLIENT_SECRET',
+        defaultValue: 'playground-github-client-secret',
+      ),
     ),
   ];
 }
