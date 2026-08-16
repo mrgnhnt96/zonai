@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' as io;
 
 import 'package:file/local.dart';
+import 'package:path/path.dart' as p;
 import 'package:resqlite/resqlite.dart' as rs;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
@@ -308,6 +309,89 @@ void main() {
         await zonaiDb.dispose();
       }
     });
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('reports an absolute path even when the project configures a relative '
+      'one', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
+
+    // The case every other test here misses, and the reason this one exists:
+    // they all call `Settings.load(projectRoot.path)` with an absolute temp
+    // directory, so the paths are already absolute before the collector sees
+    // them and an assertion on absoluteness passes without proving anything.
+    //
+    // Production is the opposite. `Settings.load()` takes no basePath, joins
+    // onto null, and hands the collector `.zonai/data/zonai.sqlite`. Observed
+    // live on the dev server as `../playground/.zonai/data/zonai.sqlite` --
+    // resolvable only against the server's working directory, which is
+    // precisely what the operator reading the field does not have.
+    final originalCwd = io.Directory.current;
+    try {
+      io.Directory.current = projectRoot;
+
+      final relativeSettings = await runMergedScopedFuture(
+        () async => Settings.load(),
+        override: {fsProvider.overrideWith(LocalFileSystem.new)},
+      );
+      await runMergedScopedFuture(
+        () async {
+          // Checked inside the scope, because reading the paths needs `fs`.
+          expect(
+            relativeSettings.zonaiSqlitePaths.every(p.isRelative),
+            isTrue,
+            reason:
+                'the premise of this test: settings loaded without a basePath '
+                'are relative, so the collector really is handed a relative '
+                'path. If this ever fails the test below proves nothing.',
+          );
+
+          final zonaiDb = ZonaiDb();
+          try {
+            await zonaiDb.open();
+            final metrics = await zonaiDb.storageMetrics(
+              jwt: jwt(isAdmin: true),
+            );
+
+            for (final db in metrics.databases) {
+              expect(
+                p.isAbsolute(db.path),
+                isTrue,
+                reason:
+                    '${db.name} arrived as "${db.path}"; a relative path '
+                    'resolves against the reader\'s cwd, not the server\'s',
+              );
+              expect(
+                p.basename(db.path),
+                db.name,
+                reason: 'absolutising must not change which file is described',
+              );
+            }
+          } finally {
+            await zonaiDb.dispose();
+          }
+        },
+        override: {
+          fsProvider.overrideWith(LocalFileSystem.new),
+          loggerProvider.overrideWith(
+            () => Logger(
+              level: .warning,
+              stdout: io.IOSink(_NullSink()),
+              stderr: io.IOSink(_NullSink()),
+            ),
+          ),
+          settingsProvider.overrideWith(() => relativeSettings),
+          processProvider,
+          cleanUpProvider,
+          executableStopProvider,
+          migrateProvider,
+        },
+      );
+    } finally {
+      io.Directory.current = originalCwd;
+    }
   }, timeout: const Timeout(Duration(minutes: 3)));
 }
 

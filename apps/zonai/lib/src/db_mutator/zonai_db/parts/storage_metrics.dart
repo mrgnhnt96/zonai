@@ -47,7 +47,12 @@ extension _StorageMetricsX on ZonaiDb {
 
     return StorageDatabaseFile(
       name: fs.path.basename(path),
-      path: path,
+      // Absolute, because the payload promises absolute and because the
+      // configured value is not one: `Settings.load()` joins onto a null
+      // basePath in production, so this arrives as `.zonai/data/zonai.sqlite`
+      // -- a path that only resolves if you already know the server's working
+      // directory, which is exactly what an operator reading it does not.
+      path: file.absolute.path,
       sizeBytes: file.existsSync() ? file.lengthSync() : 0,
       walBytes: wal.existsSync() ? wal.lengthSync() : 0,
       // Both halves or neither: a page size without a freelist count says
