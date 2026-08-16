@@ -688,6 +688,68 @@ void main() {
         );
       },
     );
+
+    // -----------------------------------------------------------------
+    // brief case 9: the OAuth `code`, `state` and client secret in no log
+    // line either (docs/oauth.md §4 item 7).
+    //
+    // The redaction *function* is unit-tested and the response *surfaces*
+    // are asserted elsewhere; this is the end of that chain -- what the
+    // process, running at `Logger(level: .verbose)`, actually wrote. A
+    // redaction that is correct but never reached would pass every other
+    // test in the repo and fail this one.
+    // -----------------------------------------------------------------
+
+    test('no OAuth code, state or client secret reaches the server process '
+        'log output', () async {
+      if (!_runningOnDartVm) return;
+
+      final log = server.capturedLogOutput;
+
+      // Guards the assertion against passing because the log is empty or
+      // because no exchange ever happened -- both would make every
+      // `isNot(contains(...))` below vacuously true.
+      expect(
+        log,
+        isNotEmpty,
+        reason:
+            'nothing was logged at all -- the assertions below would be '
+            'vacuous',
+      );
+      expect(
+        _oauthSecretsOnTheWire,
+        isNotEmpty,
+        reason: 'no OAuth exchange was recorded -- nothing to look for',
+      );
+
+      for (final secret in _oauthSecretsOnTheWire) {
+        expect(
+          log,
+          isNot(contains(secret)),
+          // The value itself is a test-fixture code/state, so naming its
+          // length rather than the value keeps the habit right for the
+          // real ones.
+          reason:
+              'an OAuth code or state (${secret.length} chars) reached the '
+              'log -- a redirect URI or a request line is being logged '
+              'unredacted',
+        );
+      }
+
+      // The client secret never leaves the server, so it appearing here
+      // means a provider config was dumped rather than a request echoed --
+      // a different bug from the two above, and a worse one.
+      for (final clientSecret in const [
+        'stub-client-secret',
+        'stub-oidc-client-secret',
+      ]) {
+        expect(
+          log,
+          isNot(contains(clientSecret)),
+          reason: '$clientSecret (e2e/oauth fixture) reached the log',
+        );
+      }
+    });
   });
 }
 
@@ -731,6 +793,15 @@ Future<Map<String, dynamic>> _getMembers(
   return _asMap(response);
 }
 
+/// Every OAuth `code` and `state` this file actually put on the wire.
+///
+/// Recorded rather than re-derived: `state` is minted by the server and only
+/// ever appears in a redirect `Location`, so the log assertion at the end of
+/// the group has no other way to know what to look for. Accumulating across
+/// the whole group means that assertion checks every exchange the file
+/// performed, not just one it re-staged for itself.
+final _oauthSecretsOnTheWire = <String>[];
+
 /// Drives `GET /auth/admin/invite/oauth/start/:provider` (without following
 /// its redirect) to recover `state`, then `GET /auth/oauth/callback/:provider`
 /// with [code] and that `state`. Returns the callback's raw response --
@@ -759,13 +830,14 @@ Future<http.Response> _acceptInvite(
   expect(location, isNotNull);
   final state = Uri.parse(location!).queryParameters['state'];
   expect(state, isNotNull, reason: 'no state in $location');
+  _oauthSecretsOnTheWire.addAll([code, state!]);
 
   final callback = await client.send(
     http.Request(
       'GET',
       server.uri('/auth/oauth/callback/$provider', {
         'code': code,
-        'state': state!,
+        'state': state,
       }),
     )..followRedirects = false,
   );
@@ -805,46 +877,75 @@ class _LiveServer {
     logController.stream.transform(utf8.decoder).listen(logBuffer.write);
     final captureSink = IOSink(logController.sink);
 
-    final httpServer = await runMergedScopedFuture(
-      () => gen_server.createServer(null, const []),
-      override: {
-        // The four this file actually needs to control.
-        argsProvider.overrideWith(
-          () => Args.parse(const ['--host=127.0.0.1', '--port=0']),
-        ),
-        fsProvider.overrideWith(LocalFileSystem.new),
-        loggerProvider.overrideWith(
-          () =>
-              Logger(level: .verbose, stdout: captureSink, stderr: captureSink),
-        ),
-        settingsProvider.overrideWith(() => settings),
-        // Everything else, at its production default -- mirrors
-        // `apps/zonai/lib/src/bootstrap.dart`'s `runZonai` registration set,
-        // since that is the only place this exact list is proven correct.
-        envProvider,
-        courierProvider,
-        processProvider,
-        cleanUpProvider,
-        mutationsProvider,
-        keyboardInputProvider,
-        messageContractHashProvider,
-        migrateProvider,
-        extensionsProvider,
-        executableStopProvider,
-        rulesProvider,
-        rateLimitsProvider,
-        cronsProvider,
-        rateLimiterProvider,
-        configProvider,
-        configResolverProvider,
-        killProvider,
-        stdinProvider,
-        operationsProvider,
-        revaliProvider,
-        zonaiDbProvider,
-        versionsProvider,
-        schemaVersionCheckProvider,
-      },
+    // Overriding `loggerProvider` below is NOT enough to see request logging,
+    // and for a long time this class quietly proved nothing because of it.
+    //
+    // `TraceId`'s lifecycle component re-overrides `loggerProvider` for the
+    // duration of every request with `Logger.print(...)`
+    // (`components/lifecycle_components/trace_id.dart`), which writes through
+    // `PrintSink` -> Dart's `print`. The injected `captureSink` is discarded
+    // at that point, so `capturedLogOutput` only ever held the handful of
+    // startup lines emitted before the first request -- 178 bytes of config-
+    // executable chatter, against which any `isNot(contains(...))` passes for
+    // free.
+    //
+    // `print` is zone-scoped, so capturing the zone is what actually works.
+    // The server's request loop is started inside `createServer` and inherits
+    // this zone, so every later request logs through here. The line is still
+    // forwarded to the parent zone: swallowing it would make a failing run
+    // harder to read, and the buffer is for asserting on, not for hiding
+    // output.
+    final httpServer = await runZoned(
+      () => runMergedScopedFuture(
+        () => gen_server.createServer(null, const []),
+        override: {
+          // The four this file actually needs to control.
+          argsProvider.overrideWith(
+            () => Args.parse(const ['--host=127.0.0.1', '--port=0']),
+          ),
+          fsProvider.overrideWith(LocalFileSystem.new),
+          loggerProvider.overrideWith(
+            () => Logger(
+              level: .verbose,
+              stdout: captureSink,
+              stderr: captureSink,
+            ),
+          ),
+          settingsProvider.overrideWith(() => settings),
+          // Everything else, at its production default -- mirrors
+          // `apps/zonai/lib/src/bootstrap.dart`'s `runZonai` registration set,
+          // since that is the only place this exact list is proven correct.
+          envProvider,
+          courierProvider,
+          processProvider,
+          cleanUpProvider,
+          mutationsProvider,
+          keyboardInputProvider,
+          messageContractHashProvider,
+          migrateProvider,
+          extensionsProvider,
+          executableStopProvider,
+          rulesProvider,
+          rateLimitsProvider,
+          cronsProvider,
+          rateLimiterProvider,
+          configProvider,
+          configResolverProvider,
+          killProvider,
+          stdinProvider,
+          operationsProvider,
+          revaliProvider,
+          zonaiDbProvider,
+          versionsProvider,
+          schemaVersionCheckProvider,
+        },
+      ),
+      zoneSpecification: ZoneSpecification(
+        print: (self, parent, zone, line) {
+          logBuffer.writeln(line);
+          parent.print(zone, line);
+        },
+      ),
     );
 
     return _LiveServer._(httpServer, logBuffer);

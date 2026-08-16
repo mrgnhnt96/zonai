@@ -203,24 +203,60 @@ As of this page, landed and tested:
 - **`zonai_client` bindings** (Wave 3). `Auth.providers`, `.startUrl`,
   `.complete` and `.signInWithIdToken` wrap the redirect and native flows.
 
-**Still open:**
+**Still open:** nothing.
 
-- **No test inspects a live server's log output for an OAuth `code`, `state`
-  or client secret.** §4 item 7 is better covered than this section used to
-  claim — `trace_query_redaction_test.dart` asserts an OAuth callback loses
-  its `code` and `state`, `oauth_routes_test.dart` asserts the providers route
-  carries no secret-shaped field, and `oauth_e2e_test.dart` asserts the
-  redacted listing and that `code_verifier` never reaches the start URL. What
-  is missing is the end of the chain: the redaction *function* is proven and
-  the response *surfaces* are proven, but nothing checks what the process
-  actually logged. The admin-invite suite does exactly that
-  (`_LiveServer.capturedLogOutput`); the OAuth e2e drives `ZonaiDb` directly
-  and has no server process to read. Closing this means giving the OAuth e2e a
-  live server, not writing another assertion.
-- **Live-network JWKS verification**, per the paragraph above. Best left
-  documented: an honest test needs a real issuer or a trusted TLS certificate,
-  and the alternative is lowering the `https` check the verifier exists to
-  enforce.
+**Closed since:**
+
+- **A live server's log output is now inspected for the OAuth `code`,
+  `state` and client secret.** §4 item 7's chain ends here:
+  `trace_query_redaction_test.dart` proves the redaction *function*,
+  `oauth_routes_test.dart` and `oauth_e2e_test.dart` prove the response
+  *surfaces*, and `admin_invite_http_oauth_e2e_test.dart` now proves what the
+  process, at `Logger(level: .verbose)`, actually wrote.
+
+  **This section's own premise was wrong, and the error is worth recording.**
+  It claimed the admin-invite suite "does exactly that
+  (`_LiveServer.capturedLogOutput`)" and that closing the item meant giving
+  the OAuth e2e a live server. In fact the admin-invite suite has driven a
+  real OAuth start→callback over a live server all along — what it did not
+  have was a working log capture. `TraceId` re-overrides `loggerProvider` for
+  the duration of every request with `Logger.print(...)`, which writes through
+  `PrintSink` → Dart's `print`, discarding the `IOSink` the harness injected.
+  `capturedLogOutput` therefore only ever held the startup lines emitted
+  before the first request: 178 bytes of config-executable chatter, against
+  which every `isNot(contains(...))` passed for free. The pre-existing
+  "the raw invite token never reaches the server process log output" test had
+  been vacuous since the day it was written.
+
+  The fix is to capture the *zone* rather than the sink, since `print` is
+  zone-scoped. With that in place, disabling `redactSensitiveQuery` turns both
+  log tests red — the new one on the OAuth `code`/`state`, and the invite-token
+  one that previously could not fail. That control is the only reason either
+  is worth anything, and it is why the new test also asserts the buffer is
+  non-empty and that an exchange was actually recorded: an empty buffer is
+  precisely how this failed before.
+
+- **Live-network JWKS verification.** This section used to argue it was best
+  left documented, because an honest test needs a real issuer or a trusted TLS
+  certificate and the alternative is lowering the `https` check the verifier
+  exists to enforce. The `live` tag added for the GitHub fallback removed that
+  objection: `jwks_idp_verifier_live_test.dart` verifies a genuine
+  Google-signed `id_token` — minted by `gcloud auth print-identity-token`,
+  `iss: https://accounts.google.com`, the exact issuer `OAuthProvider.google`
+  declares — against Google's live JWKS over real TLS, through the production
+  `oauthJwksConfig` helper. No `https` check was lowered.
+
+  The case a mock can never make: `_refreshCache` skips key entries `jose`
+  cannot parse, and that `continue` is silent. A test that authors its own
+  JWKS only ever writes shapes `jose` just produced, so an issuer publishing
+  something `jose` rejected would empty the key store and fail every sign-in
+  with a bare `InvalidJwtException`. The live test asserts every key Google
+  actually publishes parses.
+
+  Two negative controls keep it honest — a wrong `aud` and a one-character
+  signature flip must both be rejected — and disabling the signature check
+  turns exactly one test red, which is how the credential leak described in
+  the file's `outcomeOf` helper was found and closed.
 
 The route paths and payload shapes were fixed before the routes existed —
 `OAuthProviderPublic.startPath` bakes in `/auth/oauth/start/:id?table=:table`,
