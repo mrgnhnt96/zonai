@@ -269,6 +269,40 @@ class AuthHandler {
     );
   }
 
+  /// Admin-invite acceptance over OAuth (`docs/admin-invite-design.md` §3.2
+  /// step 3), and [startAdminOAuth]'s counterpart for someone who is *not* an
+  /// admin yet.
+  ///
+  /// Deliberately unauthenticated: the invitee has no session, and if they
+  /// had an admin one they would not need an invite. [inviteToken] is the
+  /// authorization, and `ZonaiDb.startAdminInviteOAuth` refuses up front when
+  /// it names no live invite rather than deferring every failure to the
+  /// callback.
+  ///
+  /// This is not [startAdminOAuth] with a token bolted on. That one mints a
+  /// challenge whose callback refuses to provision an `isAdmin` row at all —
+  /// correct for admin *sign-in*, and exactly wrong here, where creating the
+  /// row is the point. The invite token rides the challenge metadata and is
+  /// what lifts that refusal, for the invited address only (design §3.2
+  /// step 4).
+  Future<String> startAdminInviteOAuth({
+    required String provider,
+    required String inviteToken,
+    String? redirectTo,
+  }) async {
+    return await zonaiDB.startAdminInviteOAuth(
+      inviteToken: inviteToken,
+      payload: StartOAuthAuthPayload(
+        provider: provider,
+        redirectTo: redirectTo,
+        // No caller session to carry. An invitee signing in from the invite
+        // link has none, and `_startAdminInviteOAuth` authorizes on the
+        // invite token instead.
+        jwt: null,
+      ),
+    );
+  }
+
   /// §3.1 step 2. Consumes the challenge, exchanges the code, resolves the
   /// identity and mints the session.
   ///

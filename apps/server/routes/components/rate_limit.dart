@@ -112,6 +112,30 @@ class RateLimit {
     );
   }
 
+  /// The one bucket every admin-invite OAuth start from one client IP shares.
+  ///
+  /// `GET /auth/admin/invite/oauth/start/:provider` carries no `table` — the
+  /// invite names the collection, server-side — so there is no
+  /// caller-supplied value to bucket by, exactly as for
+  /// [kOAuthAdminStartBucket]. Not `token`: that is caller-supplied and
+  /// rotatable, and bucketing on it would hand a fresh counter to every
+  /// guess, which is precisely the enumeration this bounds.
+  ///
+  /// Its own constant rather than sharing [kOAuthAdminStartBucket]: this
+  /// route is reachable by anyone holding an invite link, and admin sign-in
+  /// must not be starved by traffic against it.
+  static const kOAuthInviteStartBucket = 'oauth_admin_invite';
+
+  /// Enforces [RateLimitOperation.oauthStart] under the fixed
+  /// [kOAuthInviteStartBucket] key.
+  Future<GuardResult> checkOAuthInviteStart(String ipAddress) async {
+    return await checkByTable(
+      kOAuthInviteStartBucket,
+      ipAddress,
+      RateLimitOperation.oauthStart,
+    );
+  }
+
   /// Validates [operation] against [table]'s registered custom operations
   /// before it's ever used as a rate-limit bucket dimension — an
   /// unvalidated, caller-supplied name would let a caller rotate it to dodge

@@ -98,6 +98,29 @@ void main() {
       expect(result, contains('table=users'));
     });
 
+    test('an admin invite acceptance loses its token', () {
+      // `GET /auth/admin/invite/oauth/start/:provider?token=` is the one route
+      // that carries a raw admin-invite token in a query string, and the
+      // admin-invite design's §4 item 8 is the same requirement in different
+      // words: "the token never reaches a log". Checked here rather than
+      // assumed from `token` already being in the denylist -- that list is
+      // where the property lives, and this is the route that now depends on
+      // it.
+      final result = redactSensitiveQuery(
+        Uri.parse(
+          '/auth/admin/invite/oauth/start/google'
+          '?token=a1b2c3d4e5f6&redirect_to=%2F_%2Fadmin%2Finvite',
+        ),
+      );
+
+      expect(result, isNot(contains('a1b2c3d4e5f6')));
+      // The shape survives: which route was hit, with which parameters
+      // present, is the whole diagnostic value and none of the risk.
+      expect(result, contains('/auth/admin/invite/oauth/start/google'));
+      expect(result, contains('token='));
+      expect(result, contains('redirect_to='));
+    });
+
     test('an absolute URI keeps its origin', () {
       final result = redactSensitiveQuery(
         Uri.parse('https://api.example.com:8080/auth/oauth/callback/g?code=S'),

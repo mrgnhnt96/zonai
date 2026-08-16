@@ -1,7 +1,11 @@
 import 'package:test/test.dart';
 import 'package:zonai/src/db_mutator/payloads/payloads.dart';
+// `AuthType` comes from here too -- `payloads.dart` exports
+// `types/supported_auths.dart`. Importing `zonai_schema.dart` for it as well
+// is the `unnecessary_import` this package's analyze was failing on, and the
+// wrong half to keep: the main library pulls in Raindrop column builders and
+// native SQLite, which `payloads.dart`'s own doc says to avoid.
 import 'package:zonai_schema/payloads.dart';
-import 'package:zonai_schema/zonai_schema.dart' show AuthType;
 import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 

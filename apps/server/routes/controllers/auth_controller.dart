@@ -258,6 +258,71 @@ class AuthController {
     _redirect(response, url);
   }
 
+  /// Admin-invite acceptance over OAuth: mint an **invite-bound** challenge,
+  /// 302 to the provider (`docs/admin-invite-design.md` §3.2 step 3).
+  ///
+  /// The browser reaches this from the `/_/admin/invite?token=…` screen the
+  /// invite email links to, so it is a `GET` that redirects, exactly like the
+  /// two start routes above — and unauthenticated, because the invitee has no
+  /// session yet. `token` is the authorization.
+  ///
+  /// There is no matching callback route, for the same reason
+  /// [startAdminOAuth] has none: the invite rides the `oauthState`
+  /// challenge's metadata and `_completeOAuthCallback` reads it back out, so
+  /// the existing `/auth/oauth/callback/:provider` already distinguishes this
+  /// flow. A second callback would be a second `redirect_uri` to register with
+  /// every provider for no behavioural difference.
+  ///
+  /// `token` in a query string is logged only as `token=<redacted>`:
+  /// `redactSensitiveQuery` already covers that parameter name, and
+  /// `Trace.wrap` runs it over every request line including 4xx ones. Pinned
+  /// by `trace_query_redaction_test.dart`, not assumed.
+  ///
+  /// Only OAuth. Design §3.3 wants the same link to resolve to a set-password
+  /// or code-send flow on `PasswordAuth`/`OtpAuth`/`MagicLinkAuth` admin
+  /// tables, but `startAdminInviteOAuth` is the only acceptance entry point
+  /// the db mutator exposes today — there is nothing here to route those to.
+  @swagger.ApiResponse(
+    302,
+    description:
+        "Redirect to the provider's "
+        'authorization endpoint. Carries `state` and `code_challenge` in the '
+        'Location header.',
+  )
+  @swagger.ApiResponse(
+    400,
+    description:
+        '`redirect_to` is neither a relative '
+        "path nor this app's own origin",
+  )
+  @swagger.ApiResponse(
+    401,
+    description: 'The invite token names no live invite, or it has expired',
+  )
+  @swagger.ApiResponse(
+    404,
+    description:
+        'No admin collection is configured for OAuth sign-in, or it '
+        'has no such provider',
+  )
+  @swagger.ApiResponse(429, description: 'oauthStart rate limit exceeded')
+  @OAuthInviteStartRateLimit()
+  @Get('admin/invite/oauth/start/:provider')
+  Future<void> startAdminInviteOAuth({
+    @Param() required String provider,
+    @Query('token') required String token,
+    @Query('redirect_to') String? redirectTo,
+    required Response response,
+  }) async {
+    final url = await authHandler.startAdminInviteOAuth(
+      provider: provider,
+      inviteToken: token,
+      redirectTo: redirectTo,
+    );
+
+    _redirect(response, url);
+  }
+
   /// §3.1 step 2, the shape every provider except Apple sends: a `GET` with
   /// `code`/`state` (or `error`) in the query string.
   @swagger.ApiResponse(

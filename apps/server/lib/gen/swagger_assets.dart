@@ -14,6 +14,103 @@ const kSwaggerJson = r'''{
     "version": "1.0.0"
   },
   "paths": {
+    "/admin/invites": {
+      "post": {
+        "operationId": "admin_invite",
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminInviteBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{email, table, expiresAt, isResend}`"
+          },
+          "403": {
+            "description": "No Bearer token, or one that is not an admin for the resolved `AsAdmin` table"
+          },
+          "429": {
+            "description": "adminInvite rate limit exceeded, or this address was already invited within the last minute"
+          }
+        }
+      }
+    },
+    "/admin/invites/{email}": {
+      "delete": {
+        "operationId": "admin_revokeInvite",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "No Bearer token, or one that is not an admin for the resolved `AsAdmin` table"
+          }
+        }
+      }
+    },
+    "/admin/members": {
+      "get": {
+        "operationId": "admin_members",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "`{admins: [...], invites: [{email, invitedAt, expiresAt, invitedByEmail}]}`"
+          },
+          "403": {
+            "description": "No Bearer token, or one that is not an admin for the resolved `AsAdmin` table"
+          }
+        }
+      }
+    },
+    "/admin/members/{email}": {
+      "delete": {
+        "operationId": "admin_removeMember",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The removed admin row, sanitized"
+          },
+          "403": {
+            "description": "No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an admin removing themselves"
+          },
+          "409": {
+            "description": "That is the table's last admin"
+          }
+        }
+      }
+    },
     "/auth": {
       "delete": {
         "operationId": "auth_logout",
@@ -85,6 +182,58 @@ const kSwaggerJson = r'''{
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/auth/admin/invite/oauth/start/{provider}": {
+      "get": {
+        "operationId": "auth_startAdminInviteOAuth",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider's authorization endpoint. Carries `state` and `code_challenge` in the Location header."
+          },
+          "400": {
+            "description": "`redirect_to` is neither a relative path nor this app's own origin"
+          },
+          "401": {
+            "description": "The invite token names no live invite, or it has expired"
+          },
+          "404": {
+            "description": "No admin collection is configured for OAuth sign-in, or it has no such provider"
+          },
+          "429": {
+            "description": "oauthStart rate limit exceeded"
           }
         }
       }
@@ -1293,6 +1442,17 @@ const kSwaggerJson = r'''{
         },
         "required": [
           "type"
+        ]
+      },
+      "AdminInviteBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
         ]
       },
       "AdminSendResetPasswordAuthBody": {
@@ -2520,6 +2680,66 @@ info:
   title: API
   version: 1.0.0
 paths:
+  '/admin/invites':
+    post:
+      operationId: admin_invite
+      tags:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminInviteBody'
+      responses:
+        '200':
+          description: '`{email, table, expiresAt, isResend}`'
+        '403':
+          description: No Bearer token, or one that is not an admin for the resolved `AsAdmin` table
+        '429':
+          description: adminInvite rate limit exceeded, or this address was already invited within the last minute
+  '/admin/invites/{email}':
+    delete:
+      operationId: admin_revokeInvite
+      tags:
+        - admin
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '403':
+          description: No Bearer token, or one that is not an admin for the resolved `AsAdmin` table
+  '/admin/members':
+    get:
+      operationId: admin_members
+      tags:
+        - admin
+      responses:
+        '200':
+          description: '`{admins: [...], invites: [{email, invitedAt, expiresAt, invitedByEmail}]}`'
+        '403':
+          description: No Bearer token, or one that is not an admin for the resolved `AsAdmin` table
+  '/admin/members/{email}':
+    delete:
+      operationId: admin_removeMember
+      tags:
+        - admin
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The removed admin row, sanitized
+        '403':
+          description: No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an admin removing themselves
+        '409':
+          description: That is the table's last admin
   '/auth':
     delete:
       operationId: auth_logout
@@ -2567,6 +2787,39 @@ paths:
                 type: object
                 additionalProperties: true
                 nullable: true
+  '/auth/admin/invite/oauth/start/{provider}':
+    get:
+      operationId: auth_startAdminInviteOAuth
+      tags:
+        - auth
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: redirect_to
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '302':
+          description: Redirect to the provider's authorization endpoint. Carries `state` and `code_challenge` in the Location header.
+        '400':
+          description: '`redirect_to` is neither a relative path nor this app''s own origin'
+        '401':
+          description: The invite token names no live invite, or it has expired
+        '404':
+          description: No admin collection is configured for OAuth sign-in, or it has no such provider
+        '429':
+          description: oauthStart rate limit exceeded
   '/auth/admin/oauth/start/{provider}':
     get:
       operationId: auth_startAdminOAuth
@@ -3314,6 +3567,13 @@ components:
           type: string
       required:
         - type
+    AdminInviteBody:
+      type: object
+      properties:
+        email:
+          type: string
+      required:
+        - email
     AdminSendResetPasswordAuthBody:
       type: object
       properties:

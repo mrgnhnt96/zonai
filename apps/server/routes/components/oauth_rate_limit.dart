@@ -44,6 +44,23 @@ final class OAuthAdminStartRateLimit extends RateLimit
   }
 }
 
+/// Rate limits `GET /auth/admin/invite/oauth/start/:provider?token=` under
+/// [RateLimitOperation.oauthStart].
+///
+/// Its own bucket rather than [OAuthAdminStartRateLimit]'s, for the reason
+/// that one is not [OAuthStartRateLimit]'s: the invite-acceptance route is
+/// reachable by anyone holding an invite link, and sharing a budget with
+/// admin sign-in would let traffic against it exhaust the one flow that must
+/// stay reachable. See [RateLimit.kOAuthInviteStartBucket].
+final class OAuthInviteStartRateLimit extends RateLimit
+    implements LifecycleComponent {
+  const OAuthInviteStartRateLimit();
+
+  Future<GuardResult> check(@Ip() String ipAddress) async {
+    return await checkOAuthInviteStart(ipAddress);
+  }
+}
+
 /// Rate limits `GET`/`POST /auth/oauth/callback/:provider` under
 /// [RateLimitOperation.oauthCallback].
 ///

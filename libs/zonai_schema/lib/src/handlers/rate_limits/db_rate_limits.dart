@@ -133,6 +133,10 @@ class DbRateLimits {
         null => defaults.auth.adminSignInPolicy(),
         final a => a.adminSignInPolicy(),
       },
+      .adminInvite => switch (bucket?.auth) {
+        null => defaults.auth.adminInvitePolicy(),
+        final a => a.adminInvitePolicy(),
+      },
       .externalIdpProvisioning => switch (bucket?.auth) {
         null => defaults.auth.externalIdpProvisioningPolicy(),
         final a => a.externalIdpProvisioningPolicy(),
@@ -216,6 +220,8 @@ final class _DefaultAuthTableRateLimits {
   Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
 
   Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
+
+  Future<RateLimitPolicy?> adminInvitePolicy() async => .defaultPolicy;
 
   Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async =>
       .externalIdpProvisioning;
