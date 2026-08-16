@@ -1,5 +1,29 @@
 part of zonai_db;
 
+/// Whether [sql] is a statement that modifies data.
+///
+/// Used to decide whether a custom operation needs row rules run over it, for
+/// the case where nothing else says so: a `custom` override returns an opaque
+/// query, and `customUpdates` — the declaration that would have said — is
+/// documented as easy to forget and defaults to echoing the caller's updates.
+///
+/// Reads the leading keyword only, and treats anything it does not recognise
+/// as a write. Guessing "read" for an unfamiliar statement is the answer that
+/// skips the check.
+bool _statementWrites(String sql) {
+  final trimmed = sql.trimLeft();
+  if (trimmed.isEmpty) return false;
+
+  // `WITH` is deliberately absent: a common table expression is a perfectly
+  // ordinary way to spell `WITH x AS (…) DELETE FROM …`, so its leading
+  // keyword says nothing about whether the statement writes.
+  final keyword = trimmed.split(RegExp(r'[\s(;]')).first.toUpperCase();
+  return switch (keyword) {
+    'SELECT' || 'VALUES' || 'EXPLAIN' => false,
+    _ => true,
+  };
+}
+
 extension _CustomX on ZonaiDb {
   Future<_CrudListResult> _custom(String table, CustomPayload payload) async {
     logger.setTraceProps({
@@ -112,6 +136,21 @@ extension _CustomX on ZonaiDb {
       );
     }
 
+    // A custom operation may not be named after a classic verb. Such a name
+    // resolves to the built-in rule (`RuleRequest.classicOperation`), so the
+    // call would be adjudicated by `canUpdate`/`canView`/... while the author's
+    // `customOperations['update']` entry sat unread. `DbRules` refuses to
+    // register the collision; refusing it here too means a caller cannot reach
+    // the ambiguity from the wire even on a table that registered no rule of
+    // that name at all -- which is the shape that used to 500.
+    if (TableOperation.fromString(payload.operation) != null ||
+        RowOperation.fromString(payload.operation) != null) {
+      throw CustomOperationNameCollisionException(
+        table: table,
+        operation: payload.operation,
+      );
+    }
+
     await _requireCustomTableAccess(table, payload.operation, jwt);
     logger.trace('table_access');
 
@@ -127,6 +166,24 @@ extension _CustomX on ZonaiDb {
           jwt: jwt,
         ),
       );
+
+      // The guard at the top of this method catches a *caller* who sent
+      // updates without a `where`. It cannot catch the more dangerous shape:
+      // an operation whose writes are the server's own, which the caller
+      // invokes with no updates and no `where` at all. That reached here with
+      // row rules never consulted -- the permissive table rule alone
+      // authorizing a write across the whole table.
+      //
+      // The compiled statement is the one thing that cannot lie about whether
+      // it writes, so it is what gets asked. `customUpdates` is consulted too,
+      // for an operation that declares writes it performs some other way.
+      if (customOperation.updates.isNotEmpty ||
+          _statementWrites(customOperation.query)) {
+        throw CustomOperationRequiresWhereException(
+          table: table,
+          operation: payload.operation,
+        );
+      }
 
       return (
         const <Map<String, Object?>>[],
@@ -180,11 +237,18 @@ extension _CustomX on ZonaiDb {
     //
     // Resolving early is safe because this only compiles the query. Nothing
     // executes until the caller runs it, well after these checks pass.
+    //
+    // Built against the ids just read rather than `payload.where`, for the
+    // reason given in [_authorizedRowsWhere]: the rows checked below are the
+    // rows this statement must be able to touch, and no others. The two clauses
+    // select the same set here, so an operation reading its `where` sees the
+    // same rows -- it just can no longer widen between the read and the write.
+    final authorizedWhere = await _authorizedRowsWhere(table, objects);
     final customOperation = await _getOperation(
       CustomOperationRequest(
         table: table,
         operation: payload.operation,
-        where: payload.where,
+        where: authorizedWhere,
         updates: payload.updates,
         jwt: jwt,
       ),

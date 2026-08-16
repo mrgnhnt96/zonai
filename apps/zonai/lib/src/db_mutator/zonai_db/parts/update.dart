@@ -312,10 +312,14 @@ extension _UpdateX on ZonaiDb {
       }
     }
 
+    // Keyed to the rows the row checks above admitted, NOT to `payload.where`.
+    // `UpdateOne` reads with `LIMIT 1`, so exactly one row is adjudicated --
+    // while the UPDATE built from the raw `where` carried no limit and wrote
+    // every match. See [_authorizedRowsWhere].
     final operation = await _getOperation(
       UpdateOperationRequest(
         table: table,
-        where: payload.where,
+        where: await _authorizedRowsWhere(table, objects),
         updates: updates,
         jwt: jwt,
       ),

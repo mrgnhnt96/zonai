@@ -1,5 +1,6 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/sqlite_dialect.dart';
+import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart';
@@ -103,7 +104,39 @@ class DbRules {
       }
     }
 
+    for (final MapEntry(key: table, value: bucket) in rules.entries) {
+      _assertNoClassicNameCollision(table, bucket);
+    }
+
     return _rulesByTable = rules;
+  }
+
+  /// Refuses a `customOperations` entry named after a classic verb.
+  ///
+  /// [RuleRequest.classicOperation] resolves an operation name to the built-in
+  /// [TableOperation]/[RowOperation] whenever one matches, and both [_tableRules]
+  /// and [_rowRules] branch on that first. So a rule registered under
+  /// `customOperations['update']` is never reached — `canUpdate` decides the
+  /// call instead — and nothing said so: the author reads a rule that is in the
+  /// map, is never consulted, and denies nothing.
+  ///
+  /// Raised at map-construction time rather than per request, so it surfaces
+  /// when the worker starts rather than on the first call that needed it.
+  void _assertNoClassicNameCollision(String table, _Rules bucket) {
+    final names = <String>{
+      ...?bucket.tableRules?.customOperations.keys,
+      ...?bucket.row?.customOperationNames,
+    };
+
+    for (final name in names) {
+      if (TableOperation.fromString(name) != null ||
+          RowOperation.fromString(name) != null) {
+        throw CustomOperationNameCollisionException(
+          table: table,
+          operation: name,
+        );
+      }
+    }
   }
 
   /// Registered custom operation names for [table]'s table-level rules —
