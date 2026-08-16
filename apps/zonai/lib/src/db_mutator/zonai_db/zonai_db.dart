@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:clock/clock.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:file/file.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/raindrop_sqlite.dart'
     show SQLiteInsertReturning, SQLiteDeleteReturning;
@@ -28,6 +29,12 @@ import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
 // logs_table.dart exports one of its own.
 import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
 import 'package:zonai_schema/src/internal/tables/photos_table.dart';
+import 'package:zonai_schema/src/internal/tables/push_jobs_table.dart';
+import 'package:zonai/src/push/push_courier.dart';
+// `WhereX.sql` renders a caller's predicate to a parameterized SQL fragment.
+// The push fan-out needs it to splice the caller's `where` into a projection
+// it builds itself -- see `parts/push.dart`. Not re-exported by the barrel.
+import 'package:zonai_schema/src/types/where_sql.dart';
 import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart'
     show rateLimits;
 import 'package:zonai/src/messengers/config_mailman.dart';
@@ -86,6 +93,7 @@ part 'parts/expand.dart';
 part 'parts/list.dart';
 part 'parts/photo.dart';
 part 'parts/purge.dart';
+part 'parts/push.dart';
 part 'parts/read.dart';
 part 'parts/reclaim_log_space.dart';
 part 'parts/resolve_photos.dart';
@@ -148,8 +156,16 @@ final _disposableTableIndexes = <String, List<String>>{
 };
 
 class ZonaiDb {
-  ZonaiDb()
-    : _extensions = MailmanPool(ExtensionsMailman.new),
+  /// [configResolver] replaces the config worker for tests.
+  ///
+  /// [_run] overrides `configResolverProvider` on every call, so a scope-level
+  /// override outside it is ignored — which meant that until this existed,
+  /// exercising anything that reads `AppConfig` required compiling a config
+  /// worker. That is the same missing seam `PushCourier` exists to avoid on
+  /// the transport side.
+  ZonaiDb({@visibleForTesting ConfigResolver? configResolver})
+    : _fixedConfigResolver = configResolver,
+      _extensions = MailmanPool(ExtensionsMailman.new),
       _rules = MailmanPool(RulesMailman.new),
       _operations = MailmanPool(OperationsMailman.new),
       _config = ConfigMailman(),
@@ -176,6 +192,9 @@ class ZonaiDb {
   final MailmanPool<OperationRequest, OperationResponse, OperationsMailman>
   _operations;
   final ConfigMailman _config;
+
+  /// Set only by tests; see the constructor.
+  final ConfigResolver? _fixedConfigResolver;
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
@@ -193,6 +212,13 @@ class ZonaiDb {
   /// internal extensions), create/update/delete skip the extensions worker
   /// entirely.
   bool? _hasProjectExtensions;
+
+  /// The most recently started push drain, or null if none has run.
+  ///
+  /// Each new drain awaits this one before starting, so passes serialize and
+  /// every caller gets a pass that began after their call. See
+  /// `_PushX._drainPushJobs`.
+  Future<_DrainPushResult>? _pushDrain;
 
   /// Serializes mutating work so concurrent creates don't pile into
   /// SQLite's 5s busy_timeout. Excess waiters fail fast with 503.
@@ -457,6 +483,32 @@ class ZonaiDb {
     return await _run(_cleanupUnreferencedPhotos);
   }
 
+  /// Records a push fan-out, returning its id — or null when the project has
+  /// no `AppConfig.push`.
+  Future<PushJobId?> enqueuePush({
+    required PushMessage message,
+    required String table,
+    required String column,
+    required Where? where,
+    required Jwt? jwt,
+    String? platformColumn,
+  }) async {
+    return await _run(
+      () => _enqueuePush(
+        message: message,
+        table: table,
+        column: column,
+        where: where,
+        jwt: jwt,
+        platformColumn: platformColumn,
+      ),
+    );
+  }
+
+  Future<_DrainPushResult> drainPushJobs() async {
+    return await _run(_drainPushJobs);
+  }
+
   Future<DashboardMetrics> dashboardMetrics({
     required Jwt jwt,
     int? since,
@@ -618,7 +670,7 @@ class ZonaiDb {
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(
-            () => ConfigResolver(mailman: _config),
+            () => _fixedConfigResolver ?? ConfigResolver(mailman: _config),
           ),
         },
       );
@@ -698,7 +750,7 @@ class ZonaiDb {
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(
-            () => ConfigResolver(mailman: _config),
+            () => _fixedConfigResolver ?? ConfigResolver(mailman: _config),
           ),
         },
       );

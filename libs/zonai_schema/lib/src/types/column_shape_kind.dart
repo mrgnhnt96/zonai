@@ -12,6 +12,7 @@ enum ColumnShapeKind {
   id,
   photo,
   photos,
+  deviceToken,
   isVerified,
   enum_,
   enumList,

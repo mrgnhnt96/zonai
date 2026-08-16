@@ -1,5 +1,6 @@
 // dart format width=150
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
+import 'package:zonai_schema/src/types/push_outcome.dart';
 
 sealed class ExtensionRequest extends Request {
   const ExtensionRequest({required super.path, required super.id, required super.jwt});
@@ -12,6 +13,7 @@ sealed class ExtensionRequest extends Request {
       DeleteExtensionRequest._path => DeleteExtensionRequest.fromRequest(request),
       ErrorExtensionRequest._path => ErrorExtensionRequest.fromRequest(request),
       AuthExtensionRequest._path => AuthExtensionRequest.fromRequest(request),
+      PushRejectedExtensionRequest._path => PushRejectedExtensionRequest.fromRequest(request),
       _ => throw ArgumentError('Invalid extension request path: ${request.path}'),
     };
   }
@@ -70,6 +72,51 @@ final class AuthExtensionRequest extends ExtensionRequest {
   @override
   Map<String, dynamic> toJson() {
     return {...super.toJson(), 'table': table, 'object': object, 'step': step.name};
+  }
+}
+
+/// Tells the app that FCM has permanently rejected [token], **before** Zonai
+/// prunes it.
+///
+/// Before, not after, so [object] is still the intact row when the app sees
+/// it — a hook handed a row Zonai had already cleared could not tell which
+/// user it belonged to. It is dispatched under all three
+/// `OnPermanentRejection` settings, including `none`; that is what makes
+/// `none` a usable choice rather than a silent one.
+final class PushRejectedExtensionRequest extends ExtensionRequest {
+  PushRejectedExtensionRequest({required this.table, required this.object, required this.token, required this.reason, required super.jwt})
+    : super(path: _path, id: Request.generateId());
+
+  PushRejectedExtensionRequest._({
+    required super.id,
+    required this.table,
+    required this.object,
+    required this.token,
+    required this.reason,
+    required super.jwt,
+  }) : super(path: _path);
+
+  factory PushRejectedExtensionRequest.fromRequest(UnknownRequest request) {
+    return PushRejectedExtensionRequest._(
+      id: request.id,
+      table: request.payload['table'] as String,
+      object: Map<String, dynamic>.from(request.payload['object'] as Map),
+      token: request.payload['token'] as String,
+      reason: PushRejectionReason.fromJson(request.payload['reason'] as String),
+      jwt: request.jwt,
+    );
+  }
+
+  static const _path = '${Request.prefix}.extension.push_rejected';
+
+  final String table;
+  final Map<String, dynamic> object;
+  final String token;
+  final PushRejectionReason reason;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'table': table, 'object': object, 'token': token, 'reason': reason.toJson()};
   }
 }
 

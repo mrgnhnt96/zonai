@@ -1,6 +1,7 @@
 import 'package:zonai_schema/src/config/email_config.dart';
 import 'package:zonai_schema/src/config/external_idp_config.dart';
 import 'package:zonai_schema/src/config/photos_config.dart';
+import 'package:zonai_schema/src/config/push_config.dart';
 import 'package:zonai_schema/src/config/trusted_proxy_config.dart';
 import 'package:zonai_schema/src/types/image_mime_type.dart';
 
@@ -20,6 +21,7 @@ final class AppConfig {
     this.previousJwtSecrets = const [],
     this.baseUrl = 'http://localhost:8080',
     this.email,
+    this.push,
     this.jwtExpiresIn = const Duration(days: 14),
     this.photos = const PhotosConfig(
       maxBytes: 5 * 1024 * 1024, // 5MB
@@ -36,6 +38,9 @@ final class AppConfig {
     previousPasswordSecrets: _stringList(json['previousPasswordSecrets']),
     previousJwtSecrets: _stringList(json['previousJwtSecrets']),
     email: json['email'] != null ? EmailConfig.fromJson(json['email']) : null,
+    push: json['push'] != null
+        ? PushConfig.fromJson(Map<String, dynamic>.from(json['push'] as Map))
+        : null,
     baseUrl: json['baseUrl'] as String? ?? 'http://localhost:8080',
     jwtExpiresIn: json['jwtExpiresIn'] == null
         ? const Duration(days: 14)
@@ -60,6 +65,12 @@ final class AppConfig {
   final List<String> previousJwtSecrets;
 
   final EmailConfig? email;
+
+  /// Push delivery, or `null` when the project sends none.
+  ///
+  /// Nullable exactly like [email]: a project with no push config logs a
+  /// warning and enqueues nothing rather than throwing.
+  final PushConfig? push;
 
   /// The base URL of the app.
   ///
@@ -99,6 +110,57 @@ final class AppConfig {
       errors.add(
         'passwordSecret is empty — set the PASSWORD_SECRET environment variable',
       );
+    // `PushConfig`'s own bounds are `assert`s, and asserts are stripped from a
+    // release build -- which is exactly where this would matter. A
+    // `batchSize` of 0 makes every recipient query `LIMIT 0`, so every job
+    // reads an empty batch, is marked completed, and sends nothing. That is
+    // the worst shape a misconfiguration can take: no error, no log, and a
+    // jobs table full of rows that all say they finished.
+    if (push case final push?) {
+      // At least one transport, or the config is a statement of intent with
+      // no way to act on it: `push()` would enqueue jobs that can never be
+      // delivered, and the queue would fill silently.
+      if (!push.hasFcm && !push.hasApns) {
+        errors.add(
+          'push is configured with neither FCM (projectId + credentials) nor '
+          'APNs (apns) — nothing could be sent',
+        );
+      }
+      // A half-configured FCM is a mistake, never a choice. Left to itself it
+      // reads as "FCM is off", so an Android recipient would be dropped
+      // rather than reported.
+      if (push.projectId != null && push.credentials == null) {
+        errors.add('push.projectId is set but push.credentials is missing');
+      }
+      if (push.credentials != null && push.projectId == null) {
+        errors.add('push.credentials is set but push.projectId is missing');
+      }
+      if (push.projectId case final id? when id.isEmpty) {
+        errors.add('push.projectId is empty');
+      }
+      if (push.apns case final apns?) {
+        if (apns.keyId.isEmpty) errors.add('push.apns.keyId is empty');
+        if (apns.teamId.isEmpty) errors.add('push.apns.teamId is empty');
+        // Without a topic APNs refuses every send, and the error names the
+        // header rather than the config field, so it is worth catching here.
+        if (apns.bundleId.isEmpty) errors.add('push.apns.bundleId is empty');
+      }
+      if (push.batchSize < 1) {
+        errors.add('push.batchSize must be at least 1 (got ${push.batchSize})');
+      }
+      if (push.concurrency < 1) {
+        errors.add(
+          'push.concurrency must be at least 1 (got ${push.concurrency})',
+        );
+      }
+      if (push.maxAttemptsPerBatch < 1) {
+        errors.add(
+          'push.maxAttemptsPerBatch must be at least 1 '
+          '(got ${push.maxAttemptsPerBatch})',
+        );
+      }
+    }
+
     if (errors.isNotEmpty) {
       throw StateError(
         'AppConfig has missing required fields:\n${errors.map((e) => '  - $e').join('\n')}',
@@ -113,6 +175,7 @@ final class AppConfig {
     'previousPasswordSecrets': previousPasswordSecrets,
     'previousJwtSecrets': previousJwtSecrets,
     'email': email?.toJson(),
+    'push': push?.toJson(),
     'baseUrl': baseUrl,
     'jwtExpiresIn': jwtExpiresIn.inSeconds,
     'trustedProxy': trustedProxy.toJson(),

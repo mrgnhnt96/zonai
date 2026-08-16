@@ -43,6 +43,20 @@
       "when": 1749340800001,
       "tag": "0005_internal_add_log_is_admin",
       "snapshotId": "c2d3e4f5-a6b7-8901-bcde-f12345678901"
+    },
+    {
+      "idx": 6,
+      "version": "1",
+      "when": 1786782370137,
+      "tag": "0006_internal_push_jobs",
+      "snapshotId": "402da8af-ddc3-45d3-97ca-962d41e06c9e"
+    },
+    {
+      "idx": 7,
+      "version": "1",
+      "when": 1786844500437,
+      "tag": "0007_push_jobs_platform",
+      "snapshotId": "edb3c0fd-995d-4f18-bcd8-74e1e71d3696"
     }
   ]
 }

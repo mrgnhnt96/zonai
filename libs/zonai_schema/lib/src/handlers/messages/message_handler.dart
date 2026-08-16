@@ -17,6 +17,7 @@ part 'deps/__log.dart';
 part 'deps/__mutate.dart';
 part 'deps/__native_library.dart';
 part 'deps/__notify.dart';
+part 'deps/__push.dart';
 part 'deps/__cron.dart';
 part 'request.dart';
 part 'response.dart';
@@ -305,6 +306,44 @@ class MessageHandler<R extends Request> {
               );
             },
           ),
+        ),
+        // Awaited by its caller rather than queued as a side effect: `push`
+        // hands back the id of the job row the host just committed, and a
+        // queued mutation cannot report anything. The wait is for the *write*,
+        // not the fan-out -- see [EnqueuePushRequest].
+        _pushProvider.overrideWith(
+          () => _Push((
+            message, {
+            required table,
+            required column,
+            platformColumn,
+            where,
+          }) async {
+            final result = await sendRequest(
+              EnqueuePushRequest(
+                message: message,
+                table: table,
+                column: column,
+                platformColumn: platformColumn,
+                where: where,
+                jwt: request.jwt,
+              ),
+            );
+
+            if (result case EnqueuePushResponse(:final jobId)) {
+              if (jobId == null) {
+                throw StateError(
+                  'Cannot send a push notification: AppConfig.push is not '
+                  'configured for this flavor',
+                );
+              }
+              return PushJobId(jobId);
+            }
+
+            throw StateError(
+              'Unexpected response to push enqueue: ${result?.path}',
+            );
+          }),
         ),
         _mutateProvider.overrideWith(
           () => _Mutate(

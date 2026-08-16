@@ -2,6 +2,7 @@ import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/column_types/column_types.dart'
     show BigIntTransformer, BooleanTransformer, DateTimeTransformer;
 import 'package:zonai_schema/src/column_types/created_at_column.dart';
+import 'package:zonai_schema/src/column_types/device_token_column.dart';
 import 'package:zonai_schema/src/column_types/email_column.dart';
 import 'package:zonai_schema/src/column_types/enum_column.dart';
 import 'package:zonai_schema/src/column_types/enum_list_column.dart';
@@ -79,6 +80,12 @@ _describeColumn(rd.Column column) {
     ),
     PhotosTransformer() => (
       kind: .photos,
+      enumValues: const [],
+      isSecret: false,
+      isReadOnly: false,
+    ),
+    DeviceTokenTransformer() => (
+      kind: .deviceToken,
       enumValues: const [],
       isSecret: false,
       isReadOnly: false,
@@ -200,6 +207,7 @@ ColumnShapeKind _kindFromTransformerRuntimeType(rd.Column column) {
     'ListTransformer' => ColumnShapeKind.list,
     'PhotoTransformer' => ColumnShapeKind.photo,
     'PhotosTransformer' => ColumnShapeKind.photos,
+    'DeviceTokenTransformer' => ColumnShapeKind.deviceToken,
     _ => _kindFromSqlType(column.sqlType),
   };
 }

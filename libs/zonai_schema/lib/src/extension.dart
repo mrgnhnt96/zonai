@@ -3,6 +3,7 @@ import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/schemas/auth_table.dart';
 import 'package:zonai_schema/src/types/email_address.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
+import 'package:zonai_schema/src/types/push_outcome.dart';
 
 abstract class Extension<T> {
   Extension(this.schema);
@@ -34,6 +35,25 @@ abstract class Extension<T> {
   Future<void> beforeUpdate(T row, Jwt? jwt) async {}
   Future<void> afterUpdateSuccess(T before, T after, Jwt? jwt) async {}
   Future<void> afterUpdateError(Object error, Jwt? jwt) async {}
+
+  /// Called when FCM permanently rejects a device token stored on this
+  /// collection — the app was uninstalled, or the registration rotated.
+  ///
+  /// Fires **before** Zonai prunes, so [row] is still intact: under
+  /// `OnPermanentRejection.clearColumn` the token column has not been nulled
+  /// yet, and under `deleteRow` the row still exists. It fires under all
+  /// three settings, `none` included, so switching Zonai's pruning off leaves
+  /// the app informed rather than blind.
+  ///
+  /// Only permanent rejections reach here. A timeout or a `5xx` is a
+  /// transient failure — it is counted on the job row and retried, and it
+  /// never calls this.
+  Future<void> onPushRejected(
+    T row,
+    String token,
+    PushRejectionReason reason,
+    Jwt? jwt,
+  ) async {}
 
   Future<void> beforeDelete(T row, Jwt? jwt) async {}
   Future<void> afterDeleteSuccess(T row, Jwt? jwt) async {}

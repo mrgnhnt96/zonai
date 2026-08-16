@@ -253,6 +253,7 @@ const List<NavGroup> navigation = [
       NavItem('Side Effects: get', '/extensions/side-effects-get'),
       NavItem('Side Effects: mutate', '/extensions/side-effects-mutate'),
       NavItem('Side Effects: email', '/extensions/side-effects-email'),
+      NavItem('Side Effects: push', '/extensions/side-effects-push'),
     ],
   ),
   NavGroup(
@@ -280,6 +281,40 @@ const List<NavGroup> navigation = [
       NavItem('Built-in Templates', '/email/built-in-templates', summary: 'The templates auth ships with.'),
       NavItem('Custom Templates', '/email/custom-templates'),
       NavItem('Testing Locally', '/email/testing-locally', summary: 'Catch outgoing mail during development.'),
+    ],
+  ),
+  NavGroup(
+    'Push Notifications',
+    icon: NavIcons.bell,
+    summary: 'Checkpointed FCM fan-outs over a queried recipient set.',
+    items: [
+      NavItem(
+        'Overview',
+        '/push/overview',
+        summary: 'What Zonai owns, and what setup actually costs.',
+      ),
+      NavItem(
+        'Device Tokens',
+        '/push/device-tokens',
+        summary: 'The column type that makes recipients findable.',
+      ),
+      NavItem('Configuration', '/push/configuration', summary: 'Credentials, batching, and pruning policy.'),
+      NavItem('Sending', '/push/sending', summary: 'Naming a recipient set, and what the job id means.'),
+      NavItem(
+        'Dead Tokens',
+        '/push/dead-tokens',
+        summary: 'Pruning, the hook, and why timeouts are not deaths.',
+      ),
+      NavItem(
+        'Delivery Guarantees',
+        '/push/delivery-guarantees',
+        summary: 'At-least-once, and where the duplicates come from.',
+      ),
+      NavItem(
+        'Testing Locally',
+        '/push/testing-locally',
+        summary: 'FCM has no sandbox, and what a stand-in cannot prove.',
+      ),
     ],
   ),
   NavGroup(
@@ -443,6 +478,10 @@ abstract final class NavIcons {
   static const mail =
       '$_open<rect width="20" height="16" x="2" y="4" rx="2"/>'
       '<path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
+
+  static const bell =
+      '$_open<path d="M10.268 21a2 2 0 0 0 3.464 0"/>'
+      '<path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>';
 
   static const gauge = '$_open<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>';
 

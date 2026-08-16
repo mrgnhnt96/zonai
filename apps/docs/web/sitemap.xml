@@ -136,6 +136,9 @@
     <loc>https://docs.zonai.dev/extensions/side-effects-email/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/extensions/side-effects-push/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/cron-jobs/overview/</loc>
   </url>
   <url>
@@ -161,6 +164,27 @@
   </url>
   <url>
     <loc>https://docs.zonai.dev/email/testing-locally/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/push/overview/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/push/device-tokens/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/push/configuration/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/push/sending/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/push/dead-tokens/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/push/delivery-guarantees/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/push/testing-locally/</loc>
   </url>
   <url>
     <loc>https://docs.zonai.dev/rate-limiting/overview/</loc>

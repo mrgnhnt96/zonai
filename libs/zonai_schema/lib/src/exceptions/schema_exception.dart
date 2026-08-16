@@ -2,6 +2,24 @@ sealed class SchemaException implements Exception {
   const SchemaException();
 }
 
+/// Thrown when a `push` names something that cannot be a recipient set.
+///
+/// A [SchemaException] rather than an exception of its own, because every
+/// case is a statement about the *shape* of the named collection: it does not
+/// exist, the named column does not exist, the named column is not a
+/// `deviceToken` column, or the table has no primary key to page by. Being
+/// one also means it survives `ZonaiDb._run`, which wraps anything it does
+/// not recognise in an opaque `StateError` — and an app author who pointed
+/// `push` at the wrong column deserves to be told which column.
+final class PushTargetException extends SchemaException {
+  const PushTargetException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 final class ColumnNotExpandableException extends SchemaException {
   const ColumnNotExpandableException({
     required this.table,
