@@ -38,7 +38,7 @@ Verified against live FCM rather than taken from the documentation:
 | A well-formed token FCM never issued | 404 | `NOT_FOUND` | pruned |
 | **A real app, uninstalled from a real device** | **404** | **`NOT_FOUND`** | **pruned** |
 | A malformed token | 400 | `INVALID_ARGUMENT` | pruned |
-| An iOS token with no APNs key uploaded | 401 | `UNAUTHENTICATED` + `THIRD_PARTY_AUTH_ERROR` | transient, **not** pruned |
+| An iOS token whose app has no usable APNs credential | 401 | `UNAUTHENTICATED` + `THIRD_PARTY_AUTH_ERROR` | transient, **not** pruned |
 | A key without FCM permission | 403 | `PERMISSION_DENIED` | job fails, **nothing pruned** |
 | No credentials at all | 401 | `UNAUTHENTICATED` | job fails, **nothing pruned** |
 
@@ -67,7 +67,9 @@ The rest of this table is transcribed from Apple's documentation and has *not* a
 
 A `401` or `403` is usually neither. It is a statement about your credentials, not about any token, so the job fails and **nothing is pruned** — classifying it per-token would clear every token in the batch over a config mistake.
 
-**The exception is `THIRD_PARTY_AUTH_ERROR`**, and it is worth understanding because it looks identical from the status alone. FCM returns `401 UNAUTHENTICATED` with that `errorCode` when *your project's APNs key* is missing, expired or revoked — the caller's credentials are fine and only one platform is broken. Zonai reads `error.details[].errorCode` to tell the two apart.
+**The exception is `THIRD_PARTY_AUTH_ERROR`**, and it is worth understanding because it looks identical from the status alone. FCM returns `401 UNAUTHENTICATED` with that `errorCode` when it cannot obtain a usable APNs credential **for that app** — the caller's credentials are fine and only one platform is broken. Zonai reads `error.details[].errorCode` to tell the two apart.
+
+Measured, because the obvious reading is too narrow: the same project and key answered `401` for an app whose bundle id was not a registered App ID, and `200` for one that was. So a missing or expired key is only one cause; an unregistered or non-push-enabled bundle produces it just as well. Check both before assuming the key.
 
 Those recipients are counted as **transient failures**: the batch keeps going, every Android recipient is still delivered to, and the job does not fail. And they are never pruned — the device token is perfectly valid, so clearing it would delete every iOS registration you have over a lapsed credential, irreversibly, at the exact moment someone is renewing it. Once the key is uploaded, the next fan-out reaches them.
 

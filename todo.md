@@ -38,6 +38,12 @@ If the draft-release proposal above lands, this gets easier still: a draft is in
 
   **Not verified: that the notification reaches the screen — and the reason is now known rather than guessed.** The iOS *simulator* issues a real APNs device token and Apple returns HTTP 200 for sends to it, but nothing arrives. That had two candidate explanations, and a `simctl push` to the same app discriminated them: the local notification fired `didReceiveRemoteNotification` immediately. **So the app-side handling is correct, and APNs simply does not route real remote pushes to a simulator** — it accepts them and drops them.
 
+  **CORRECTION, same day: FCM->iOS was already configured, and I reported otherwise.** A controlled comparison — one service account, one project, one minute — settles it: an iOS FCM token whose app bundle is `dev.zonai.pushProbe` (never registered as an App ID) returns `401 THIRD_PARTY_AUTH_ERROR`, while one whose bundle is `com.lostthegame.app` (registered and push-enabled) returns **`200` accepted**. FCM cannot accept an iOS send without a usable APNs credential, so a key was already uploaded to `i-lost-the-game-13e86` and the console step I kept naming was never needed.
+
+  It also means `THIRD_PARTY_AUTH_ERROR` was documented too narrowly: it means FCM could not obtain a usable APNs credential **for that app**, and an unregistered bundle produces it exactly as well as a missing key. The fix built on that diagnosis is unaffected — if anything more clearly right, since the condition is per-app configuration and must therefore be transient, must not prune, and must not fail the job.
+
+  **So both transports now reach "accepted" against the real service**, and both are blocked on the same last thing.
+
   **And that blocks the FCM route too, which changes what to do next.** FCM reaches iOS *by proxying to APNs*, so a Firebase-delivered iOS notification ends up at the same simulator APNs declines to route to. Uploading the APNs key to the Firebase console — the step with no API — would therefore not enable verification either; it only matters for production use of the FCM route. (Inference from the proxy architecture, not separately observed: with no key uploaded, FCM answers `THIRD_PARTY_AUTH_ERROR` long before routing is reached.)
 
   So there is exactly **one** thing standing between here and a verified iOS delivery on either transport, and it is a physical iPhone.

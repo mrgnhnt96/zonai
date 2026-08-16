@@ -243,7 +243,7 @@ Verified against live FCM, not transcribed from its documentation:
 | A well-formed token FCM never issued | 404 | `NOT_FOUND` | pruned |
 | **A real app, uninstalled from a real device** | **404** | **`NOT_FOUND`** | **pruned** |
 | A malformed token | 400 | `INVALID_ARGUMENT` | pruned |
-| An iOS token with no APNs key uploaded | 401 | `UNAUTHENTICATED` + `THIRD_PARTY_AUTH_ERROR` | transient, **not** pruned |
+| An iOS token whose app has no usable APNs credential | 401 | `UNAUTHENTICATED` + `THIRD_PARTY_AUTH_ERROR` | transient, **not** pruned |
 | A key without FCM permission | 403 | `PERMISSION_DENIED` | job fails, **nothing pruned** |
 | No credentials | 401 | `UNAUTHENTICATED` | job fails, **nothing pruned** |
 
@@ -352,7 +352,7 @@ For iOS, add an **APNs auth key** to the Firebase console first. It is a `.p8` f
 | `PushMessage is N bytes, over the …-byte budget` | The notification is too large for FCM. Shorten the body; the screen truncates it long before this anyway. |
 | `every recipient in a batch … INVALID_ARGUMENT` | Almost always a malformed message rather than N dead tokens. **Nothing was pruned** — the job failed instead. |
 | `FCM rejected the credentials (403)` | The service account lacks the `firebase.messaging` scope, or the key is for a different project. The job fails; **no tokens are pruned** — a credentials mistake must not clear a table. |
-| Android arrives, iOS does not | The APNs auth key is missing, expired or revoked in the Firebase console. FCM answers `401 UNAUTHENTICATED` with `errorCode: THIRD_PARTY_AUTH_ERROR` for those recipients only — counted as *transient*, never pruned, and the rest of the batch still delivers. Sending is one integration; setup is two. |
+| Android arrives, iOS does not | FCM has no usable APNs credential **for that app** — the key is missing, expired or revoked, *or* the bundle id is not a registered, push-enabled App ID. Either way it answers `401 UNAUTHENTICATED` with `errorCode: THIRD_PARTY_AUTH_ERROR` for those recipients only — counted as *transient*, never pruned, and the rest of the batch still delivers. Sending is one integration; setup is two. |
 | `permanently_rejected` climbing steadily | Normal. It is the uninstall rate, and it is why pruning exists. |
 
 ## Not in v1
