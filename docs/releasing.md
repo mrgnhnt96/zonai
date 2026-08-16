@@ -218,3 +218,26 @@ value the host sends and an old worker throws on.
 
 Nothing enforces that pairing. The check above only asks whether the floor is
 *reachable*, never whether it is *correct*.
+
+### Owed by OAuth and admin invites
+
+The floor on this branch is `0.3.0` and is already too low. OAuth and admin
+invites add `AuthType.oauth` and `RateLimitOperation.oauthStart` /
+`.oauthCallback` / `.adminInvite` — vocabulary the host sends and an older
+worker decodes with `Enum.values.byName`, which throws on a name it does not
+have. Same failure as `RateLimitOperation.custom`.
+
+That makes the next schema release a `0.4.0`, and `0.4.0` is exactly what the
+**published** `zonai_client` excludes: it declares `zonai_schema: ">=0.1.0
+<0.4.0"`. So steps 1–3 above are all load-bearing here, and step 2 is not
+optional even though `zonai_client` itself does not touch OAuth.
+
+Half of this is self-enforcing and half is not, which is worth knowing before
+you rely on the wrong half:
+
+- Bumping the schema to `0.4.0` without widening the constraint **in this
+  repo** fails at `dart pub get` in the root — it is a pub workspace, so
+  version solving refuses. You cannot miss it.
+- Widening it here and not publishing `zonai_client` fails **nowhere local**.
+  The repo resolves happily; consumers who use both packages simply cannot
+  upgrade. Only `verify_release_coupling.dart`, which reads pub.dev, sees it.
