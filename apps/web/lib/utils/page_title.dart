@@ -14,6 +14,14 @@ abstract final class PageTitle {
       return '$appName — Verify email';
     }
 
+    // Carries no invite token, and cannot: `path` has already been through
+    // `AuthRoutes.normalizePath`, which keeps only the path. A title is copied
+    // into the history entry and into every screenshot of the tab, so the
+    // token staying out of it is not incidental.
+    if (AuthRoutes.isAdminInviteAcceptPath(path)) {
+      return '$appName — Admin invitation';
+    }
+
     if (!signedIn) {
       if (AuthRoutes.isMagicLinkCallbackPath(path)) {
         return '$appName — Sign in';
@@ -34,6 +42,10 @@ abstract final class PageTitle {
       };
     }
 
+    if (AuthRoutes.isAdminsPath(path)) {
+      return '$appName — Admins';
+    }
+
     if (tableDisplayName != null) {
       return '$tableDisplayName — $appName';
     }
@@ -49,6 +61,10 @@ abstract final class PageTitle {
   }) {
     if (AuthRoutes.isVerifyEmailCallbackPath(path)) {
       return 'Verify your email address for $appName.';
+    }
+
+    if (AuthRoutes.isAdminInviteAcceptPath(path)) {
+      return 'Accept an invitation to administer $appName.';
     }
 
     if (!signedIn) {
@@ -69,6 +85,10 @@ abstract final class PageTitle {
         .oauth => 'Sign in to $appName.',
         null => 'Sign in to $appName.',
       };
+    }
+
+    if (AuthRoutes.isAdminsPath(path)) {
+      return 'Manage who can administer $appName.';
     }
 
     if (tableDisplayName != null) {

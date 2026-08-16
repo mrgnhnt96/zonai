@@ -4,6 +4,8 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import '../auth/auth_provider.dart';
+import '../auth/auth_route_provider.dart';
+import '../auth/auth_routes.dart';
 import '../constants/button_sizes.dart';
 import '../constants/theme.dart';
 import '../providers/home_ui_provider.dart';
@@ -251,6 +253,21 @@ class _HomeSettingsOverlayState extends State<HomeSettingsOverlay> {
               span(classes: 'home-settings-action-label', [.text('Appearance')]),
               const ThemeToggle(),
             ]),
+            // The Admins screen hangs off the account panel rather than the
+            // table sidebar because it is not a table: it manages who may sign
+            // in at all. Shown only to an admin session, which is also the only
+            // kind `GET /admin/members` answers — offering it to anyone else
+            // would be a link to a 403.
+            if (sessionUser?.isAdmin == true)
+              ZonaiButton(
+                variant: ZonaiButtonVariant.secondary,
+                fullWidth: true,
+                onClick: () {
+                  close();
+                  context.goApp(AuthRoutes.admins);
+                },
+                child: .text('Admins'),
+              ),
             ZonaiButton(
               variant: ZonaiButtonVariant.secondary,
               fullWidth: true,

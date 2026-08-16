@@ -5,6 +5,17 @@ abstract final class AuthRoutes {
   static const home = '/';
   static const signIn = '/sign-in';
   static const tables = '/tables';
+
+  /// The signed-in Admins screen: current admins and pending invites.
+  static const admins = '/admins';
+
+  /// Where the invite email's link lands (`{baseUrl}/_/admin/invite?token=…`,
+  /// built in `invite_admin.dart`).
+  ///
+  /// Reached by someone with **no session at all** — that is the whole point
+  /// of an invite — so it is an [isPublicAuthPath] and lives in [authRoutes],
+  /// not [homeRoutes].
+  static const adminInviteAccept = '/admin/invite';
   static const magicLinkCallback = '/auth/magic-link';
   static const resetPasswordCallback = '/auth/reset-password';
   static const resetPasswordRequest = '/auth/reset-password/request';
@@ -62,8 +73,28 @@ abstract final class AuthRoutes {
     return normalizePath(path) == verifyEmailCallback;
   }
 
+  static bool isAdminsPath(String path) {
+    return normalizePath(path) == admins;
+  }
+
+  /// True for the invite acceptance page, with or without its `?token=`.
+  ///
+  /// [normalizePath] parses and keeps only the path, so the token never
+  /// reaches this comparison — which is what lets every caller here treat the
+  /// route as a plain constant and keeps the token out of everything derived
+  /// from a path (page titles, redirect targets, back links).
+  static bool isAdminInviteAcceptPath(String path) {
+    return normalizePath(path) == adminInviteAccept;
+  }
+
+  /// Paths an unauthenticated visitor is allowed to stay on.
+  ///
+  /// [adminInviteAccept] is deliberately **not** in [isSignInPath]: that set
+  /// is what `AuthNotifier` and `HomeRouter` bounce a *signed-in* user away
+  /// from, and it drives [backPath]. Being public and being a sign-in page are
+  /// two different things, and this route is only the first.
   static bool isPublicAuthPath(String path) {
-    return isSignInPath(path) || isVerifyEmailCallbackPath(path);
+    return isSignInPath(path) || isVerifyEmailCallbackPath(path) || isAdminInviteAcceptPath(path);
   }
 
   static bool isMagicLinkCallbackPath(String path) {
@@ -112,6 +143,28 @@ abstract final class AuthRoutes {
   static String oauthAdminStartUrl(String providerId) {
     return '/auth/admin/oauth/start/$providerId'
         '?redirect_to=${Uri.encodeQueryComponent(toUrlPath(oauthCallback))}';
+  }
+
+  /// Full-page destination that accepts an admin invite through [providerId]
+  /// (`docs/admin-invite-design.md` §3.2 step 3).
+  ///
+  /// A third start route, and the distinction from [oauthAdminStartUrl] is the
+  /// whole point: that one requires an admin Bearer token and refuses to
+  /// provision, because a stranger arriving at an `AsAdmin` collection must
+  /// not become an admin by signing in. This one is unauthenticated — the
+  /// invitee has no session yet — and [inviteToken] *is* the authorization.
+  /// The server checks the token names a live invite before it mints anything,
+  /// then requires the provider's verified email to equal the invited address
+  /// at callback.
+  ///
+  /// The token rides in the query string because that is where
+  /// `GET /auth/admin/invite/oauth/start/:provider` reads it, and it is the
+  /// only place this app ever puts it: not in the page title, not in a link's
+  /// text, not in any state that outlives the navigation.
+  static String oauthInviteStartUrl(String providerId, String inviteToken) {
+    return '/auth/admin/invite/oauth/start/$providerId'
+        '?token=${Uri.encodeQueryComponent(inviteToken)}'
+        '&redirect_to=${Uri.encodeQueryComponent(toUrlPath(oauthCallback))}';
   }
 
   static bool isSignInRoot(String path) {
