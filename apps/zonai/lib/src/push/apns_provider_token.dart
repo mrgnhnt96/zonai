@@ -78,7 +78,22 @@ class ApnsProviderToken {
       ..setProtectedHeader('kid', keyId)
       ..addRecipient(key, algorithm: 'ES256');
 
-    final token = builder.build().toCompactSerialization();
+    final String token;
+    try {
+      token = builder.build().toCompactSerialization();
+    } on TypeError catch (e) {
+      // `JsonWebKey.fromPem` happily parses an RSA key, and the mismatch only
+      // surfaces here, as a cast error naming two classes an app author has
+      // no reason to have heard of. Pointing `ApnsConfig.credentials` at an
+      // FCM service-account key is an easy mistake — both are PEM, both are
+      // "the push key" — so it is worth saying which one is which.
+      throw PushTransportException(
+        'APNs auth key is not an EC P-256 key, so it cannot sign the ES256 '
+        'token Apple requires. An FCM service-account key (RSA) is the usual '
+        'mix-up; the APNs key is the .p8 from Apple. ($e)',
+      );
+    }
+
     _token = token;
     _mintedAt = now;
     return token;

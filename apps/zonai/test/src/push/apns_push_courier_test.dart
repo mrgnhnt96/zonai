@@ -23,45 +23,6 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 import 'fake_apns.dart';
 
-/// A P-256 keypair in the shape Apple hands out: PKCS#8, no password.
-({String private, String public})? _generateEcKeypair() {
-  final dir = io.Directory.systemTemp.createTempSync('zonai_apns');
-  try {
-    final privatePath = '${dir.path}/key.p8';
-    final publicPath = '${dir.path}/pub.pem';
-
-    final gen = io.Process.runSync('openssl', [
-      'genpkey',
-      '-algorithm',
-      'EC',
-      '-pkeyopt',
-      'ec_paramgen_curve:P-256',
-      '-out',
-      privatePath,
-    ]);
-    if (gen.exitCode != 0) return null;
-
-    final pub = io.Process.runSync('openssl', [
-      'ec',
-      '-in',
-      privatePath,
-      '-pubout',
-      '-out',
-      publicPath,
-    ]);
-    if (pub.exitCode != 0) return null;
-
-    return (
-      private: io.File(privatePath).readAsStringSync(),
-      public: io.File(publicPath).readAsStringSync(),
-    );
-  } on io.ProcessException {
-    return null;
-  } finally {
-    dir.deleteSync(recursive: true);
-  }
-}
-
 /// Verifies an ES256 compact JWS against a public PEM, the way Apple does.
 ///
 /// The signature is raw `r||s`; openssl wants DER, so it is re-encoded here.
@@ -128,7 +89,7 @@ void main() {
   late ({String private, String public})? keys;
 
   setUpAll(() {
-    keys = _generateEcKeypair();
+    keys = generateEcKeypair();
   });
 
   test('a keypair was actually generated (CI: skipping is failing)', () {

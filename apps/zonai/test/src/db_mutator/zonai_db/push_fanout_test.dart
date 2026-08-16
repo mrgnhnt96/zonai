@@ -21,6 +21,10 @@ import 'package:zonai_schema/zonai_schema.dart' hide logger, Table;
 import 'package:zonai_schema/zonai_schema.dart' as schema show Table;
 
 import '../../../support/temp_directory.dart';
+import 'package:http2/http2.dart' show ClientTransportConnection;
+import 'package:zonai/src/push/apns_push_courier.dart';
+
+import '../../push/fake_apns.dart';
 import '../../push/fake_fcm.dart';
 
 /// The fan-out, driven end to end against a real database and a fake
@@ -309,7 +313,7 @@ version: $kVersion
   /// Bound as the APNs transport. Separate from [overrideCourier] so a test
   /// can watch the two independently — which is what makes "iOS went direct
   /// and Android went through FCM" an observation rather than an inference.
-  FakePushCourier? overrideApnsCourier;
+  PushCourier? overrideApnsCourier;
 
   setUp(() {
     extension = RecordingExtension();
@@ -1614,5 +1618,195 @@ version: $kVersion
         });
       },
     );
+  });
+
+  /// The engine driving the **real** APNs transport over a real HTTP/2
+  /// socket.
+  ///
+  /// The routing group above proves which courier each recipient reaches; the
+  /// APNs courier's own tests prove the protocol. Neither runs the two
+  /// together, so nothing yet shows an iOS recipient going from `push` to a
+  /// pruned row through code that speaks HTTP/2 — which is the only path a
+  /// production iOS send actually takes.
+  group('end to end over APNs, no Firebase', () {
+    late FakeApns fake;
+
+    Future<AppConfig?> boot({
+      OnPermanentRejection onPermanentRejection =
+          OnPermanentRejection.clearColumn,
+    }) async {
+      // EC, not the RSA keypair FCM's fake uses: Apple signs ES256.
+      final keys = generateEcKeypair();
+      if (keys == null) {
+        markTestSkipped('openssl is not on PATH, so nothing could be signed');
+        return null;
+      }
+
+      fake = await FakeApns.start();
+      final real = ApnsPushCourier(
+        fileSystem: const LocalFileSystem(),
+        connect: (_) async => ClientTransportConnection.viaSocket(
+          await io.Socket.connect(io.InternetAddress.loopbackIPv4, fake.port),
+        ),
+      );
+      overrideApnsCourier = real;
+      addTearDown(() async {
+        await real.close();
+        await fake.stop();
+      });
+
+      return _appConfigWith(
+        PushConfig(
+          // No projectId, no credentials: an iOS-only deployment with no
+          // Firebase project in existence. If anything in the engine still
+          // reaches for FCM, it fails here rather than silently working.
+          apns: ApnsConfig(
+            credentials: ApnsCredentials.inline(keys.private),
+            keyId: 'LALL9GMRMP',
+            teamId: 'TEAMID1234',
+            bundleId: 'dev.zonai.pushProbe',
+          ),
+          onPermanentRejection: onPermanentRejection,
+          batchSize: 10,
+          concurrency: 2,
+          maxAttemptsPerBatch: 1,
+        ),
+      );
+    }
+
+    test('an iOS fan-out completes with no FCM configured at all', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 4, platformAt: (_) => 'ios');
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(
+          fake.sentTokens..sort(),
+          [for (var i = 0; i < 4; i++) 'tok-d${i.toString().padLeft(6, '0')}']
+            ..sort(),
+        );
+        expect(
+          fake.authorizations.toSet(),
+          hasLength(1),
+          reason: 'one provider token for the whole fan-out',
+        );
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.status, PushJobStatus.completed);
+        expect(entry.delivered, 4);
+      });
+    });
+
+    test("Apple's own Unregistered is what clears the row", () async {
+      final config = await boot();
+      if (config == null) return;
+
+      // Nothing here speaks the engine's vocabulary. The only input is the
+      // status and reason Apple documents for a dead token; the row being
+      // cleared is downstream of parsing it correctly, over HTTP/2.
+      fake.replyFor = (token) =>
+          token == 'tok-d000002' ? apnsError(410, 'Unregistered') : apnsOk;
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 4, platformAt: (_) => 'ios');
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        final after = await rows(zonaiDb);
+        expect(after.firstWhere((r) => r.id == 'd000002').token, isNull);
+        expect(
+          [
+            for (final r in after)
+              if (r.token != null) r.id,
+          ],
+          ['d000000', 'd000001', 'd000003'],
+          reason: 'and only that one',
+        );
+
+        final entry = await job(zonaiDb, id!);
+        expect(entry.delivered, 3);
+        expect(entry.permanentlyRejected, 1);
+      });
+    });
+
+    test('a wrong bundleId costs nobody their registration', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      // Measured against real Apple: this is what a `bundleId` that
+      // disagrees with the app returns, for *every* recipient at once. The
+      // engine must count it and move on, because pruning here empties the
+      // table over a yaml typo.
+      fake.replyFor = (_) => apnsError(400, 'DeviceTokenNotForTopic');
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 3, platformAt: (_) => 'ios');
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(
+          [for (final r in await rows(zonaiDb)) r.token],
+          isNot(contains(isNull)),
+          reason: 'every token survived a config mistake',
+        );
+        final entry = await job(zonaiDb, id!);
+        expect(entry.transientlyFailed, 3);
+        expect(entry.permanentlyRejected, 0);
+      });
+    });
+
+    test('a bad provider token fails the job, pruning nothing', () async {
+      final config = await boot();
+      if (config == null) return;
+      fake.replyFor = (_) => apnsError(403, 'InvalidProviderToken');
+
+      await run(config, (zonaiDb) async {
+        await seed(zonaiDb, count: 3, platformAt: (_) => 'ios');
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect([
+          for (final r in await rows(zonaiDb)) r.token,
+        ], isNot(contains(isNull)));
+        final entry = await job(zonaiDb, id!);
+        expect(entry.status, PushJobStatus.failed);
+        expect(entry.error, isNotNull);
+      });
+    });
   });
 }

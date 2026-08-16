@@ -14,6 +14,51 @@ import 'dart:io' as io;
 
 import 'package:http2/http2.dart';
 
+/// A P-256 keypair in the shape Apple hands out: PKCS#8, no password.
+///
+/// Deliberately **not** the RSA generator in `fake_fcm.dart`. Apple signs
+/// with ES256 and Google with RS256, and handing one an algorithm's key of
+/// the other kind fails deep inside `jose` as a raw cast error.
+///
+/// Returns null when `openssl` is not on PATH; callers skip rather than fail.
+({String private, String public})? generateEcKeypair() {
+  final dir = io.Directory.systemTemp.createTempSync('zonai_apns_keys');
+  try {
+    final privatePath = '${dir.path}/key.p8';
+    final publicPath = '${dir.path}/pub.pem';
+
+    final gen = io.Process.runSync('openssl', [
+      'genpkey',
+      '-algorithm',
+      'EC',
+      '-pkeyopt',
+      'ec_paramgen_curve:P-256',
+      '-out',
+      privatePath,
+    ]);
+    if (gen.exitCode != 0) return null;
+
+    final pub = io.Process.runSync('openssl', [
+      'ec',
+      '-in',
+      privatePath,
+      '-pubout',
+      '-out',
+      publicPath,
+    ]);
+    if (pub.exitCode != 0) return null;
+
+    return (
+      private: io.File(privatePath).readAsStringSync(),
+      public: io.File(publicPath).readAsStringSync(),
+    );
+  } on io.ProcessException {
+    return null;
+  } finally {
+    dir.deleteSync(recursive: true);
+  }
+}
+
 /// What [FakeApns] answers for one device token.
 typedef ApnsReply = ({int status, String? reason});
 
