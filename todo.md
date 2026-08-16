@@ -38,6 +38,14 @@ If the draft-release proposal above lands, this gets easier still: a draft is in
 
   **Not verified: that the notification reaches the screen — and the reason is now known rather than guessed.** The iOS *simulator* issues a real APNs device token and Apple returns HTTP 200 for sends to it, but nothing arrives. That had two candidate explanations, and a `simctl push` to the same app discriminated them: the local notification fired `didReceiveRemoteNotification` immediately. **So the app-side handling is correct, and APNs simply does not route real remote pushes to a simulator** — it accepts them and drops them.
 
+  **CLOSED — iOS delivery observed on a physical device, 2026-08-15.** iPhone 16 Pro, release build signed by team `U2G2XV3688`, bundle `com.lostthegame.app`. The app registered with APNs **natively in `AppDelegate`, with no Firebase involved**, and Apple issued a 32-byte device token (pulled off the app container over USB rather than transcribed). zonai's `ApnsPushCourier` signed an ES256 provider token with the real `.p8` and POSTed over HTTP/2 to `api.sandbox.push.apple.com`; Apple answered **HTTP 200**, and the notification **arrived on the phone**.
+
+  That 200 is a narrow result rather than a generic success: in the same session a wrong team answered `403 InvalidProviderToken`, an unregistered bundle `TopicDisallowed`, and a token from another app `DeviceTokenNotForTopic`.
+
+  One behaviour worth recording because it looked like a failure first: delivery was observed only with the app **backgrounded**. With it frontmost the app recorded no receipt — ordinary iOS behaviour for an alert push, since `willPresent` is foreground-only and the process had been suspended, not a defect. Morgan pointed it out.
+
+  **So both transports are now proven to a real device**: Android through FCM, and iOS through APNs with no Firebase in the path. (`game_loop effector --prove ios-push-delivered-to-device`.)
+
   **CORRECTION, same day: FCM->iOS was already configured, and I reported otherwise.** A controlled comparison — one service account, one project, one minute — settles it: an iOS FCM token whose app bundle is `dev.zonai.pushProbe` (never registered as an App ID) returns `401 THIRD_PARTY_AUTH_ERROR`, while one whose bundle is `com.lostthegame.app` (registered and push-enabled) returns **`200` accepted**. FCM cannot accept an iOS send without a usable APNs credential, so a key was already uploaded to `i-lost-the-game-13e86` and the console step I kept naming was never needed.
 
   It also means `THIRD_PARTY_AUTH_ERROR` was documented too narrowly: it means FCM could not obtain a usable APNs credential **for that app**, and an unregistered bundle produces it exactly as well as a missing key. The fix built on that diagnosis is unaffected — if anything more clearly right, since the condition is per-app configuration and must therefore be transient, must not prune, and must not fail the job.
