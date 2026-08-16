@@ -60,12 +60,9 @@ extension _MagicLinkX on ZonaiDb {
 
     final appConfig = await configResolver.resolve();
 
-    final secret = switch (kIsCompiled) {
-      false => 'dev-magic-link',
-      true => List.generate(
-        32,
-        (_) => Random.secure().nextInt(256),
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(),
+    final secret = switch (_insecureTestMode()) {
+      true => kInsecureTestMagicLinkSecret,
+      false => _randomChallengeSecret(),
     };
     final hashedSecret = await _hashPassword.hash(password: secret);
 

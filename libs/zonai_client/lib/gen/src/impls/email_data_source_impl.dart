@@ -12,7 +12,12 @@ class EmailDataSourceImpl implements EmailDataSource {
   final Storage _storage;
 
   @override
-  Future<void> send({required Email body}) async {
-    await _client.request(method: 'POST', path: '/email', body: body);
+  Future<void> send({required Email body, String? authorization}) async {
+    await _client.request(
+      method: 'POST',
+      path: '/email',
+      headers: {'authorization': authorization},
+      body: body,
+    );
   }
 }

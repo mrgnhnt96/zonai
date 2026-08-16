@@ -32,9 +32,9 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
 
   Future<RateLimitPolicy?> logoutAllPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
+  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .adminAuth;
 
-  Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
+  Future<RateLimitPolicy?> adminSignInPolicy() async => .adminAuth;
 
   /// Throttles `onExternalAuthFirstSeen` hook invocations for this auth
   /// table, keyed per client IP. Bounds the abuse vector where a

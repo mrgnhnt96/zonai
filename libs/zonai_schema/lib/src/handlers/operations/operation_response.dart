@@ -36,6 +36,7 @@ sealed class OperationResponse extends Response {
         json,
       ),
       AdminTablesResponse._path => AdminTablesResponse.fromJson(json),
+      TableAdminStatusResponse._path => TableAdminStatusResponse.fromJson(json),
       MagicLinkConfigResponse._path => MagicLinkConfigResponse.fromJson(json),
       ResetPasswordConfigResponse._path => ResetPasswordConfigResponse.fromJson(
         json,
@@ -307,6 +308,37 @@ final class AdminTablesResponse extends OperationResponse {
           )
           .toList(),
     };
+  }
+}
+
+/// The admin powers the schema grants tokens issued for one table.
+///
+/// [isAdmin] is false for a table that is not registered at all, so a token
+/// naming a table this deployment does not know gets no powers rather than
+/// keeping whatever its claim asserted.
+final class TableAdminStatusResponse extends OperationResponse {
+  const TableAdminStatusResponse({
+    required super.id,
+    required this.isAdmin,
+    required this.canEdit,
+  }) : super(path: _path, payload: const {});
+
+  factory TableAdminStatusResponse.fromJson(Map<String, dynamic> json) {
+    return TableAdminStatusResponse(
+      id: json['id'] as String,
+      isAdmin: json['isAdmin'] as bool,
+      canEdit: json['canEdit'] as bool,
+    );
+  }
+
+  static const _path = '${Response.prefix}.auth.get_table_admin_status';
+
+  final bool isAdmin;
+  final bool canEdit;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'isAdmin': isAdmin, 'canEdit': canEdit};
   }
 }
 

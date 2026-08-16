@@ -121,8 +121,8 @@ void main() {
   });
 }
 
-const _jwtSecret = 'test-jwt-pepper';
-const _passwordSecret = 'test-password-pepper';
+const _jwtSecret = 'test-jwt-pepper-FlKE4k114F5I3XDPAdliKX6gRqv9u7G';
+const _passwordSecret = 'test-password-pepper-97i8yJxnqfGV8neFCbVEk79VyRv7mBw';
 
 /// Matches [JwtGenerator]'s HS256 segments (same base64url / padding rules).
 String _manualJwt({

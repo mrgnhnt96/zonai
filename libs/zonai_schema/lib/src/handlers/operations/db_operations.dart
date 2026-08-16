@@ -74,6 +74,8 @@ class DbOperations {
         return await _sanitize(request);
       case final GetAdminTablesOperationRequest request:
         return await _getAdminTables(request);
+      case final GetTableAdminStatusRequest request:
+        return await _getTableAdminStatus(request);
       case final GetMagicLinkConfigOperationRequest request:
         return await _getMagicLinkConfig(request);
       case final GetResetPasswordConfigOperationRequest request:
@@ -94,6 +96,27 @@ class DbOperations {
     }
 
     return AdminTablesResponse(id: request.id, tables: tables);
+  }
+
+  /// The authoritative answer to "is a token for this table an admin token".
+  ///
+  /// Same derivation [_getJwtConfig] uses when minting, minus `addClaims`, so
+  /// the host can ask it on every request without running project code. An
+  /// unregistered table is not an error here -- it answers "no powers" -- since
+  /// the caller is validating an attacker-supplied token, not serving a query.
+  Future<TableAdminStatusResponse> _getTableAdminStatus(
+    GetTableAdminStatusRequest request,
+  ) async {
+    final admin = switch (operationsByTable[request.table]?.schema) {
+      final AsAdmin admin => admin,
+      _ => null,
+    };
+
+    return TableAdminStatusResponse(
+      id: request.id,
+      isAdmin: admin != null,
+      canEdit: admin?.canEdit ?? false,
+    );
   }
 
   Never _failMissingTable(String tableName) {

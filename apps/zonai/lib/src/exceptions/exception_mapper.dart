@@ -107,6 +107,40 @@ SchemaException? tryParseSchemaException(String message) {
     );
   }
 
+  // Thrown inside the operations worker (`TableOperations._validateWhere`),
+  // so like the cases above it arrives here as message text. Without this it
+  // degraded to a bare StateError and the caller got a 500 -- an "internal
+  // error" for a request the server deliberately refused.
+  final secretColumnFilter = RegExp(
+    r'Column "([^"]+)" on "([^"]+)" is a secret column',
+  );
+  if (secretColumnFilter.firstMatch(message) case final match?) {
+    return SecretColumnFilterException(
+      table: match.group(2)!,
+      columnName: match.group(1)!,
+    );
+  }
+
+  final customOperationCollision = RegExp(
+    r'Custom operation "([^"]+)" on "([^"]+)" is named after a classic',
+  );
+  if (customOperationCollision.firstMatch(message) case final match?) {
+    return CustomOperationNameCollisionException(
+      table: match.group(2)!,
+      operation: match.group(1)!,
+    );
+  }
+
+  final customOperationUnimplemented = RegExp(
+    r'Custom operation "([^"]+)" is not implemented for table "([^"]+)"',
+  );
+  if (customOperationUnimplemented.firstMatch(message) case final match?) {
+    return CustomOperationNotImplementedException(
+      table: match.group(2)!,
+      operation: match.group(1)!,
+    );
+  }
+
   if (message == 'Database is not open') {
     return const DatabaseNotOpenException();
   }
@@ -122,6 +156,7 @@ String? operationRequestTable(OperationRequest request) {
     ViewAuthOperationRequest(:final table) => table,
     CreateAuthOperationRequest(:final table) => table,
     GetJwtConfigOperationRequest(:final table) => table,
+    GetTableAdminStatusRequest(:final table) => table,
     SanitizeOperationRequest(:final table) => table,
     GetMagicLinkConfigOperationRequest(:final table) => table,
     GetResetPasswordConfigOperationRequest(:final table) => table,

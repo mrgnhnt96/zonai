@@ -24,7 +24,31 @@ When Zonai compiles workers or the project binary, it reads your `.env` file and
 
 This is an implementation detail, not a CLI flag — `zonai compile` and `zonai build` do not read `-D`/`--define` themselves. To override a value, edit `.env` (or `.env.<flavor>`, see below) or use `--dart-define` (see [CLI Overrides](#cli-overrides)).
 
-Changing a secret requires recompiling and redeploying (`zonai build` / `compile`).
+Changing a secret this way requires recompiling and redeploying (`zonai build` / `compile`).
+
+### Overriding a baked-in secret at runtime
+
+`JWT_SECRET`, `PASSWORD_SECRET`, `PREVIOUS_JWT_SECRETS` and `PREVIOUS_PASSWORD_SECRETS` are also read from the **process environment** when the server starts, and the process environment wins over the compiled-in value. An empty or whitespace-only value is ignored rather than applied, so a wrapper script that expands an unset variable cannot blank out a working config. The two `PREVIOUS_*` variables take a comma-separated list.
+
+This matters because a compiled binary contains its defines in plain text — `strings` on the artifact recovers the signing key, and anyone who can read the artifact can then mint tokens for any user. Leaving the secrets out of `.env` entirely and injecting them through the environment ships a binary that contains no secret at all:
+
+```bash
+JWT_SECRET="$(openssl rand -base64 48)" \
+PASSWORD_SECRET="$(openssl rand -base64 48)" \
+  ./zonai serve --release
+```
+
+### Secret requirements
+
+`AppConfig.validate()` runs at startup and **fails the process** — it does not warn — if either secret is:
+
+- empty
+- a placeholder or well-known value (`change-me-*`, `jwt`, `password`, `secret`, `unconfigured`, …)
+- shorter than 32 characters (HS256 signs with a 256-bit key)
+- built from fewer than 8 distinct characters
+- the same value as the other secret, or listed in its own `previous*Secrets`
+
+`openssl rand -base64 48` produces something acceptable.
 
 ## Runtime tuning (`ZONAI_*`)
 
@@ -36,6 +60,7 @@ These are read from the process environment at serve time. They are **not** load
 | `ZONAI_WORKER_TRANSPORT` | `auto`, `process`, `isolate` | `auto` | How Mailman talks to ops/rules workers when workers are used (`auto` prefers isolate/SendPort when a snapshot exists, else process MessagePack) |
 | `ZONAI_WORKER_POOL_SIZE` | positive int | `1` | Number of OS processes per Mailman pool (ops/rules/extensions). Higher may help concurrent writes; often hurts pure list |
 | `ZONAI_HTTP_WORKERS` | positive int | `1` | HTTP accept isolates. **`>1` currently regresses list throughput** against one SQLite file — keep `1` unless you know you need otherwise |
+| `ZONAI_INSECURE_TEST_MODE` | any value except `0`/`false`/`no`/`off` | unset | Makes emailed auth challenges predictable for automated tests: the OTP is always `123456` and each link carries a fixed secret. `zonai serve` **refuses to start** while this is set, and every challenge issued under it logs an error. Anyone who knows a user's email address can sign in as them, so it is only for a harness that drives `ZonaiDb` directly |
 
 Example:
 
@@ -126,6 +151,8 @@ Commit a `.env.example` file with placeholder values so teammates know what vari
 
 ```bash
 # .env.example — commit this; do NOT commit .env
+# Generate each with: openssl rand -base64 48
+# These exact values are rejected at startup, which is the point of an example.
 JWT_SECRET=replace-with-random-32-char-string
 PASSWORD_SECRET=replace-with-different-random-string
 SMTP_HOST=smtp.sendgrid.net

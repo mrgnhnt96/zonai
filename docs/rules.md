@@ -233,9 +233,28 @@ Default: returns `true` for all auth types.
 
 Defaults:
 
-- **`canSignUp`** — allowed for admin tokens; otherwise allowed when the schema implements the matching auth mixin (`PasswordAuth`, `OtpAuth`, or `MagicLinkAuth`).
+- **`canSignUp`** — allowed for admin tokens; **denied outright when the schema carries `AsAdmin`** (see below); otherwise allowed when the schema implements the matching auth mixin (`PasswordAuth`, `OtpAuth`, or `MagicLinkAuth`).
 - **`canSignIn`** — allowed when the schema supports the requested auth type.
 - **`canPasswordReset`** — allowed for password auth only.
+
+#### Sign-up is closed by default on an `AsAdmin` table
+
+`AsAdmin` is a per-**table** switch, not a per-row one: every JWT the table issues carries `admin.isAdmin`, however that row came to exist. Combined with an anonymous `POST /auth/sign-up`, an `AsAdmin` table with open registration makes **every registrant an admin** — see [known-issues.md §6](known-issues.md), where that was confirmed against a running server.
+
+`AuthRowRules.canSignUp` therefore returns `false` on an `AsAdmin` schema unless the caller already holds an admin token. `zonai db admin create` is unaffected: it writes through the operations worker and never consults rules.
+
+An app that genuinely wants open registration on an admin table opts back in, and the override is where a reviewer will look for it:
+
+```dart in:project-file
+final class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
+  AdminRowRules() : super(admins);
+
+  // Deliberate: this table is AsAdmin, so anyone who signs up becomes an
+  // admin. Fine for a demo, never for production.
+  @override
+  Future<bool> canSignUp(Jwt? jwt, AuthType authType) async => true;
+}
+```
 
 Row CRUD defaults for auth collections allow users to view and modify **their own row** (`row.id` matches `jwt.userId`), plus admin overrides.
 
@@ -408,26 +427,26 @@ rulesPath: lib/src/rules
 
 ## Minimal example
 
-From `apps/playground/lib/src/rules/item_table_rules.dart` and `item_row_rules.dart` — open access for development:
+From `apps/playground/lib/src/rules/item_table_rules.dart` and `item_row_rules.dart` — public to read, signed-in to write:
 
 ```dart in:project-file
 final class ItemTableRules extends TableRules<ItemTable, Item> {
   ItemTableRules() : super(items);
 
   @override
-  Future<bool> canCreate(Jwt? jwt) async => true;
-
-  @override
-  Future<bool> canUpdate(Jwt? jwt) async => true;
-
-  @override
-  Future<bool> canDelete(Jwt? jwt) async => true;
-
-  @override
   Future<bool> canView(Jwt? jwt) async => true;
 
   @override
   Future<bool> canList(Jwt? jwt) async => true;
+
+  @override
+  Future<bool> canCreate(Jwt? jwt) async => jwt != null;
+
+  @override
+  Future<bool> canUpdate(Jwt? jwt) async => jwt != null;
+
+  @override
+  Future<bool> canDelete(Jwt? jwt) async => jwt != null;
 }
 ```
 
@@ -439,17 +458,19 @@ class ItemRowRules extends RowRules<ItemTable, Item> {
   Future<bool> canView(Jwt? jwt, Item row) async => true;
 
   @override
-  Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async => true;
+  Future<bool> canCreate(Jwt? jwt, Item row) async => jwt != null;
 
   @override
-  Future<bool> canDelete(Jwt? jwt, Item row) async => true;
+  Future<bool> canUpdate(Jwt? jwt, Item before, Item after) async => jwt != null;
 
   @override
-  Future<bool> canCreate(Jwt? jwt, Item row) async => true;
+  Future<bool> canDelete(Jwt? jwt, Item row) async => jwt != null;
 }
 ```
 
-Tighten these overrides for production — the playground values are intentionally permissive.
+`items` has no owner column, so `jwt != null` is as narrow as this table can get. A collection that carries one wants the ownership test instead — `apps/playground/lib/src/rules/post_row_rules.dart` compares `row.authorId` against `jwt.userId` and falls back to `jwt.admin.canEdit`, and `company_row_rules.dart` leaves the write methods unoverridden so they keep `BaseRowRules`' admin-only default.
+
+Note that `canUpdate` tests `before`, never `after`: `after` is the caller's proposed row, so an ownership check against it would let anyone claim a row by asserting they own it.
 
 ## See also
 

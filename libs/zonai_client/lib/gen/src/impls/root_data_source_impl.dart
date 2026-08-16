@@ -35,20 +35,22 @@ class RootDataSourceImpl implements RootDataSource {
   }
 
   @override
-  Future<String> swaggerJson() async {
+  Future<String> swaggerJson({String? authorization}) async {
     final response = await _client.request(
       method: 'GET',
       path: '/swagger.json',
+      headers: {'authorization': authorization},
     );
 
     return await response.transform(utf8.decoder).join();
   }
 
   @override
-  Future<String> swaggerYaml() async {
+  Future<String> swaggerYaml({String? authorization}) async {
     final response = await _client.request(
       method: 'GET',
       path: '/swagger.yaml',
+      headers: {'authorization': authorization},
     );
 
     return await response.transform(utf8.decoder).join();

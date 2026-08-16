@@ -206,9 +206,41 @@ extension UtilsX on ZonaiDb {
       throw TableAccessDeniedException(table: table, operation: operation.name);
     }
 
-    if (tableRules.skipRowChecks) {
-      _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = true;
+    // Assigned either way. Setting it only when true meant the flag latched:
+    // once any operation reported "row checks unnecessary", every later
+    // operation for that table and token skipped row rules too, including ones
+    // whose own verdict said otherwise.
+    _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = tableRules.skipRowChecks;
+  }
+
+  /// How long a table-rule verdict may be reused before it is asked again.
+  ///
+  /// The cache had no expiry: a verdict decided on the first request stood for
+  /// the life of the process. That is only sound for a rule that is a pure
+  /// function of the token, and rules are not required to be — one reading the
+  /// clock (an out-of-hours embargo), or the database (a `banned` flag, a
+  /// revoked membership row), was answered from a decision made before the
+  /// change and kept answering that way until a redeploy.
+  ///
+  /// Short enough that a revocation takes effect on a human timescale, long
+  /// enough that a burst of requests from one caller still collapses to a
+  /// single rules round trip -- which is what the cache is for.
+  static const _tableAccessCacheTtl = Duration(seconds: 5);
+
+  /// [_tableAccessCache] lookup honouring [_tableAccessCacheTtl].
+  TableRulesResponse? _cachedTableRules(String cacheKey) {
+    final cached = _tableAccessCache[cacheKey];
+    if (cached == null) return null;
+
+    if (clock.now().difference(cached.at) >= _tableAccessCacheTtl) {
+      _tableAccessCache.remove(cacheKey);
+      return null;
     }
+    return cached.response;
+  }
+
+  void _cacheTableRules(String cacheKey, TableRulesResponse response) {
+    _tableAccessCache[cacheKey] = (response: response, at: clock.now());
   }
 
   Future<TableRulesResponse> _tableRules(
@@ -217,8 +249,7 @@ extension UtilsX on ZonaiDb {
     Jwt? jwt,
   ) async {
     final cacheKey = '$table|${operation.name}|${_jwtCacheKey(jwt)}';
-    final cached = _tableAccessCache[cacheKey];
-    if (cached != null) {
+    if (_cachedTableRules(cacheKey) case final cached?) {
       return cached;
     }
 
@@ -234,7 +265,7 @@ extension UtilsX on ZonaiDb {
           operation: operation.name,
           canAccess: false,
         );
-    _tableAccessCache[cacheKey] = response;
+    _cacheTableRules(cacheKey, response);
     return response;
   }
 
@@ -256,9 +287,8 @@ extension UtilsX on ZonaiDb {
       throw TableAccessDeniedException(table: table, operation: operation);
     }
 
-    if (tableRules.skipRowChecks) {
-      _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = true;
-    }
+    // See [_requireTableAccess] for why this is assigned rather than only set.
+    _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = tableRules.skipRowChecks;
   }
 
   Future<TableRulesResponse> _customTableRules(
@@ -267,8 +297,7 @@ extension UtilsX on ZonaiDb {
     Jwt? jwt,
   ) async {
     final cacheKey = '$table|$operation|${_jwtCacheKey(jwt)}';
-    final cached = _tableAccessCache[cacheKey];
-    if (cached != null) {
+    if (_cachedTableRules(cacheKey) case final cached?) {
       return cached;
     }
 
@@ -284,7 +313,7 @@ extension UtilsX on ZonaiDb {
           operation: operation,
           canAccess: false,
         );
-    _tableAccessCache[cacheKey] = response;
+    _cacheTableRules(cacheKey, response);
     return response;
   }
 
@@ -386,6 +415,101 @@ extension UtilsX on ZonaiDb {
         );
       }
     }
+  }
+
+  /// [rows] reduced to the ones [jwt] may perform [operation] on.
+  ///
+  /// The filtering counterpart to [_requireRowsAccess], for the streams. A
+  /// one-shot read can fail the whole call when any row is denied, because the
+  /// caller asked one question and gets one answer. A stream cannot: it is a
+  /// long-lived subscription over a result set the caller does not control, so
+  /// a row arriving that this caller may not see is an ordinary event, not an
+  /// error. Tearing the stream down would also hand back a signal of its own --
+  /// "something you cannot see just changed".
+  ///
+  /// Fails closed on a malformed or missing response, exactly as
+  /// [_requireRowsAccess] does: no verdict means no rows.
+  Future<List<Map<String, dynamic>>> _filterRowsAccess(
+    String table,
+    RowOperation operation,
+    List<Map<String, dynamic>> rows,
+    Jwt? jwt, {
+    List<Update> updates = const [],
+  }) async {
+    if (rows.isEmpty) return const [];
+    if (_skipRowChecks['$table|${_jwtCacheKey(jwt)}'] == true) return rows;
+
+    final response = await _dispatchRules<BatchRowRulesResponse>(
+      BatchRowRulesRequest(
+        table: table,
+        operation: operation.name,
+        rows: rows,
+        updates: updates,
+        jwt: jwt,
+      ),
+    );
+
+    final allowed = response?.canPerform;
+    if (allowed == null || allowed.length != rows.length) {
+      return const [];
+    }
+
+    return [
+      for (final (index, row) in rows.indexed)
+        if (allowed[index]) row,
+    ];
+  }
+
+  /// A `where` matching exactly [authorized] and nothing else.
+  ///
+  /// Every mutating path here reads the rows it is about to change, runs row
+  /// rules over that set, and then issues the write. The write used to replay
+  /// the caller's `where` — which is a *different question* than the one the
+  /// rules answered, and the two came apart in both directions:
+  ///
+  ///  - `PATCH /db` reads with `LIMIT 1` (one row authorized) and the `UPDATE`
+  ///    it then issued carried no limit at all, so every row matching the
+  ///    `where` was written. One row checked, three rewritten.
+  ///  - `DELETE /db` authorized the newest row (the pre-read orders by
+  ///    `created_at DESC LIMIT 1`) while the delete's `LIMIT 1` subquery had no
+  ///    `ORDER BY`, so it removed whichever row SQLite reached first.
+  ///
+  /// Keying the write to the ids that were actually adjudicated closes both,
+  /// and closes the race between the two statements as well: a row inserted
+  /// after the read can no longer match a write authorized before it existed.
+  ///
+  /// Refuses rather than falling back when the rows cannot be identified. A
+  /// fallback here would be the unconstrained write this exists to prevent, and
+  /// it would take effect exactly on the tables nobody checked.
+  Future<Where> _authorizedRowsWhere(
+    String table,
+    List<Map<String, Object?>> authorized,
+  ) async {
+    final idColumn = await _cachedColumnName(table, .id);
+    if (idColumn == null) {
+      throw StateError(
+        'Cannot constrain a write on "$table" to the rows its rules '
+        'authorized: the table has no id column to key them by.',
+      );
+    }
+
+    final ids = [
+      for (final row in authorized)
+        if (row[idColumn] case final Object id) id,
+    ];
+
+    if (ids.length != authorized.length) {
+      throw StateError(
+        'Cannot constrain a write on "$table" to the rows its rules '
+        'authorized: ${authorized.length - ids.length} of '
+        '${authorized.length} rows have no "$idColumn" value.',
+      );
+    }
+
+    // An empty set renders as `1 = 0` (see `WhereSql`), so a write authorized
+    // against no rows matches no rows -- rather than degenerating into a
+    // clause that matches all of them.
+    return In(idColumn, ids);
   }
 
   /// Custom-operation counterpart of [_requireRowAccess] — [operation] is an
@@ -518,9 +642,22 @@ extension UtilsX on ZonaiDb {
     };
   }
 
+  /// Identity of a [jwt] for caching purposes: two tokens share a key only if
+  /// every input a rule can read is the same.
+  ///
+  /// It used to be `userId|isAdmin|canEdit`, which is not the whole token. Two
+  /// consequences, both silent:
+  ///
+  ///  - `claims` was ignored, so a rule reading `jwt.claims['role']` was
+  ///    decided once and that verdict served every later token for the same
+  ///    user — a claim revoked between two requests kept working.
+  ///  - `table` was ignored, so in an app with more than one auth collection,
+  ///    user `1` of `admins` and user `1` of `customers` collided outright and
+  ///    got each other's decisions.
   String _jwtCacheKey(Jwt? jwt) {
     if (jwt == null) return '';
-    return '${jwt.userId.value}|${jwt.admin.isAdmin}|${jwt.admin.canEdit}';
+    return '${jwt.table}|${jwt.userId.value}|${jwt.admin.isAdmin}'
+        '|${jwt.admin.canEdit}|${jsonEncode(jwt.claims)}';
   }
 
   Never _throwDatabaseError(
@@ -539,9 +676,6 @@ extension UtilsX on ZonaiDb {
     );
   }
 
-  bool _preserveSecretsForJwt(Jwt? jwt) =>
-      jwt?.admin.isAdmin == true || jwt?.admin.canEdit == true;
-
   Future<Map<String, Object?>> _sanitizeRow(
     String table,
     Map<String, Object?> row, {
@@ -551,6 +685,19 @@ extension UtilsX on ZonaiDb {
     return rows.single;
   }
 
+  /// Strips every secret column from [rows] before they reach a client.
+  ///
+  /// [jwt] no longer buys an exemption. It used to: an admin (or any token with
+  /// `canEdit`) was handed the raw column, on the reasoning that the admin edit
+  /// UI needs to see what it is editing. It does not — a `PasswordColumn` holds
+  /// an Argon2 hash, which no UI can render or round-trip, and `/db/list` as an
+  /// admin-flagged reader put that hash in the response body. An offline
+  /// cracking target is worth more to an attacker than the account it came
+  /// from, because people reuse passwords across systems this one never sees.
+  ///
+  /// The metadata round trip below still passes `preserveSecrets: true`, but it
+  /// sends an empty object: it asks which columns are secret, it does not ask
+  /// for their values.
   Future<List<Map<String, Object?>>> _sanitizeRows(
     String table,
     List<Map<String, Object?>> rows, {
@@ -560,14 +707,12 @@ extension UtilsX on ZonaiDb {
       return const [];
     }
 
-    final preserveSecrets = _preserveSecretsForJwt(jwt);
     final meta = await _sanitizeMetaFor(table);
     final cleaned = <Map<String, Object?>>[
       for (final row in rows)
         {
           for (final MapEntry(:key, :value) in row.entries)
-            if (preserveSecrets || !meta.secretColumns.contains(key))
-              key: value,
+            if (!meta.secretColumns.contains(key)) key: value,
         },
     ];
     return _resolvePhotoFields(cleaned, meta.photoColumns);

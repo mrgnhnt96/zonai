@@ -1,6 +1,9 @@
 /// Source files written when initializing a new Zonai project.
 library;
 
+import 'dart:convert';
+import 'dart:math';
+
 const initIdsDart = '''
 import 'package:zonai_schema/zonai_schema.dart' as z;
 
@@ -107,14 +110,32 @@ final class AdminTable extends AuthTable<Admin> with PasswordAuth, AsAdmin {
 final admins = authTable('admins', AdminTable.new);
 ''';
 
-const initDbConfigDart = '''
+/// A cryptographically random 48-byte secret, base64url-encoded.
+///
+/// Scaffolds used to ship `'change-me-jwt-secret'`, and a placeholder that
+/// works is a placeholder nobody replaces — a guessable HS256 key lets anyone
+/// mint a token for any user. Generating a real one costs nothing and means
+/// the default is safe even when it is never touched. `AppConfig.validate()`
+/// now refuses the old placeholders outright, so this is also the only
+/// scaffold that would still start.
+String generateSecret() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(48, (_) => random.nextInt(256));
+  return base64Url.encode(bytes).replaceAll('=', '');
+}
+
+String initDbConfigDart() =>
+    '''
 import 'package:zonai_schema/zonai_schema.dart';
 
 AppConfig main() {
   return AppConfig(
     appName: 'My App',
-    passwordSecret: 'change-me-password-secret',
-    jwtSecret: 'change-me-jwt-secret',
+    // Generated for this project. Rotate by setting PASSWORD_SECRET /
+    // JWT_SECRET in the environment — those win over the values here, so a
+    // deployed binary need not contain a secret at all.
+    passwordSecret: '${generateSecret()}',
+    jwtSecret: '${generateSecret()}',
     baseUrl: 'http://localhost:8080',
     email: EmailConfig(
       host: 'smtp.example.com',

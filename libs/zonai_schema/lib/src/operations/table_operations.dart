@@ -10,6 +10,9 @@ import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/src/builders/returning
     show SQLiteInsertReturning;
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
 import 'package:zonai_schema/src/table_extensions.dart';
+// Not in the zonai_schema barrel -- imported directly, as db_operations.dart
+// does, so a secret column is recognizable here.
+import 'package:zonai_schema/src/transformers/secret_transformer.dart';
 import 'package:zonai_schema/src/types/where_sql.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
@@ -53,6 +56,54 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     throw ColumnNotFoundException(table: table.name, columnName: name);
   }
 
+  /// Every column a caller may filter, sort or group on, checked against this
+  /// table's schema before any of it reaches SQL.
+  ///
+  /// Two things go wrong without it, and they are different problems that this
+  /// one check happens to close together:
+  ///
+  ///  - An unknown name was interpolated straight into the statement with only
+  ///    `"` → `""` escaping (`WhereSql._col`), so a bogus column produced a
+  ///    SQL error surfacing as a 500 — and a `?` inside an identifier desynced
+  ///    the parameter binding downstream. Resolving the name against the schema
+  ///    means only real identifiers are ever quoted into a statement, and the
+  ///    caller gets a 400 naming the column instead.
+  ///  - A secret column was filterable even though its value is stripped from
+  ///    every response, which is a blind oracle rather than a leak — see
+  ///    [SecretColumnFilterException].
+  rd.Column<dynamic, dynamic> _requireFilterableColumn(String name) {
+    final column = _requireColumn(name);
+    if (column.transformer is SecretTransformer) {
+      throw SecretColumnFilterException(table: table.name, columnName: name);
+    }
+    return column;
+  }
+
+  /// Validates every column [where] references, at any nesting depth.
+  void _validateWhere(Where? where) {
+    if (where == null) return;
+    switch (where) {
+      case Eq(:final column) ||
+          Null(:final column) ||
+          NotNull(:final column) ||
+          Gt(:final column) ||
+          Lt(:final column) ||
+          Gte(:final column) ||
+          Lte(:final column) ||
+          In(:final column) ||
+          NotIn(:final column) ||
+          Contains(:final column) ||
+          StartsWith(:final column) ||
+          EndsWith(:final column) ||
+          NotContains(:final column):
+        _requireFilterableColumn(column);
+      case And(:final conditions) || Or(:final conditions):
+        for (final condition in conditions) {
+          _validateWhere(condition);
+        }
+    }
+  }
+
   static rd.Raindrop? __db;
   static rd.Raindrop get _db => __db ??= rd.Raindrop(FalseDelegate());
 
@@ -73,6 +124,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     List<Update> updates, {
     required Where where,
   }) {
+    _validateWhere(where);
     final updateables = <Updateable<dynamic>>[];
 
     final inferredColumns = <String>{};
@@ -430,6 +482,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
   }
 
   rd.SelectFromBuilder<rd.Schema<R>, R, int> count({Where? where}) {
+    _validateWhere(where);
     final pkColumn = table.columns.firstWhere((c) => c.isPrimaryKey);
     final counting = _CountColumn(pkColumn);
 
@@ -452,10 +505,19 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     List<OrderByTerm>? orderBy,
     Selectable<dynamic>? groupBy,
   }) {
+    _validateWhere(where);
     var builder = db.select().from(schema);
 
     if (where != null) {
       builder = builder.where(_whereFilter(where, table.name));
+    }
+
+    // A caller-supplied sort is as much of an oracle as a filter: ordering by
+    // a password hash leaks its relative position one page at a time, and the
+    // rows come back in full. Only the caller's terms are checked -- the
+    // default below is the schema's own choice, not the caller's.
+    for (final term in orderBy ?? const <OrderByTerm>[]) {
+      _requireFilterableColumn(term.column);
     }
 
     final resolvedOrderBy = orderBy ?? _defaultOrderByFor(table);
@@ -487,6 +549,7 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     Where where, {
     int? limit,
   }) {
+    _validateWhere(where);
     if (limit == null) {
       return db.delete(from: schema).where(_whereFilter(where, table.name));
     }
@@ -501,8 +564,25 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
         '"${_escapeIdent(table.name)}"."${_escapeIdent(pkColumn.name)}"';
     final tableRef = '"${_escapeIdent(table.name)}"';
     final (innerWhereSql, params) = where.sql(table.name);
+
+    // `LIMIT n` with no `ORDER BY` picks n arbitrary rows. The caller that
+    // asked for a limited delete already read the rows it meant to remove --
+    // through [list], which orders by [_defaultOrderByFor] -- so an unordered
+    // subquery here selects a *different* n than the one that was authorized:
+    // a `deleteOne` authorized the newest row and removed the oldest. Ordering
+    // both the same way is what makes the two agree.
+    final orderBy = _defaultOrderByFor(table);
+    final orderBySql = orderBy == null || orderBy.isEmpty
+        ? ''
+        : ' ORDER BY ${[
+            for (final term in orderBy)
+              '"${_escapeIdent(table.name)}"."${_escapeIdent(term.column)}" '
+                  '${term.direction == SortDirection.asc ? 'ASC' : 'DESC'}',
+          ].join(', ')}';
+
     final rewritten =
-        '$pkRef IN (SELECT $pkRef FROM $tableRef WHERE $innerWhereSql LIMIT $limit)';
+        '$pkRef IN (SELECT $pkRef FROM $tableRef WHERE $innerWhereSql'
+        '$orderBySql LIMIT $limit)';
     return db.delete(from: schema).where(_sqlWithParams(rewritten, params));
   }
 
@@ -572,6 +652,28 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     List<Update> updates = const [],
   }) => updates;
 
+  /// [custom], with the caller's `where` validated first and the default
+  /// implementation's [UnimplementedError] reported as a client error.
+  ///
+  /// A name no `custom` override handles is a caller naming an operation that
+  /// does not exist; letting the raw [UnimplementedError] escape made that a
+  /// 500, which reads as a server fault and tells the caller nothing.
+  Query<dynamic> _customQuery(
+    String operation, {
+    Where? where,
+    List<Update> updates = const [],
+  }) {
+    _validateWhere(where);
+    try {
+      return custom(operation, where: where, updates: updates).compiled();
+    } on UnimplementedError {
+      throw CustomOperationNotImplementedException(
+        table: table.name,
+        operation: operation,
+      );
+    }
+  }
+
   @override
   (String, List<Object?>) _translate(
     SqlDialect dialect,
@@ -614,10 +716,12 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
           limit: limit,
           offset: offset,
           orderBy: orderBy,
-          groupBy: groupBy != null ? table[groupBy] : null,
+          groupBy: groupBy != null
+              ? table[_requireFilterableColumn(groupBy).name]
+              : null,
         ).compiled(),
       CustomOperationRequest(:final where, :final operation, :final updates) =>
-        custom(operation, where: where, updates: updates).compiled(),
+        _customQuery(operation, where: where, updates: updates),
       PerformOperationRequest(:final operation) => throw StateError(
         'Invalid operation: $operation',
       ),
@@ -831,16 +935,56 @@ SQL _whereFilter(Where where, String? tableName) {
   return _sqlWithParams(sql, params);
 }
 
+/// Splits [sql] at its bind placeholders and interleaves [params].
+///
+/// Scans for `?` rather than `split('?')`, because a `?` is only a placeholder
+/// where SQL would read it as one. Splitting on every `?` counted the ones
+/// inside quoted identifiers and string literals too, so a column named `a?b`
+/// produced one more chunk than there were parameters and shifted every
+/// binding after it by one — values landing against the wrong columns, which
+/// is a silently wrong answer rather than an error.
 SQL _sqlWithParams(String sql, List<Object?> params) {
-  final parts = sql.split('?');
   final chunks = <Object?>[];
-  for (var i = 0; i < parts.length; i++) {
+  final buffer = StringBuffer();
+  var next = 0;
+
+  void flush() {
     // trimRight: raindrop adds a separator space between chunks, so trailing
     // spaces in RawSQL parts would produce double-spaces before parameters.
-    final part = parts[i].trimRight();
+    final part = buffer.toString().trimRight();
     if (part.isNotEmpty) chunks.add(RawSQL(part));
-    if (i < params.length) chunks.add(params[i]);
+    buffer.clear();
   }
+
+  for (var i = 0; i < sql.length; i++) {
+    final char = sql[i];
+
+    // A quoted region -- `"ident"`, `'literal'` or `` `ident` `` -- is copied
+    // through verbatim, doubled quotes (the escape form) included.
+    if (char == '"' || char == "'" || char == '`') {
+      buffer.write(char);
+      for (i++; i < sql.length; i++) {
+        buffer.write(sql[i]);
+        if (sql[i] != char) continue;
+        if (i + 1 < sql.length && sql[i + 1] == char) {
+          buffer.write(sql[++i]);
+          continue;
+        }
+        break;
+      }
+      continue;
+    }
+
+    if (char == '?' && next < params.length) {
+      flush();
+      chunks.add(params[next++]);
+      continue;
+    }
+
+    buffer.write(char);
+  }
+
+  flush();
   return SQL(chunks);
 }
 

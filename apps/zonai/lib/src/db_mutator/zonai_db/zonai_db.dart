@@ -201,12 +201,21 @@ class ZonaiDb {
   /// Host-side caches so repeated list/get calls avoid Mailman IPC after the
   /// first resolve. Cleared implicitly when this [ZonaiDb] is disposed (new
   /// process / worker recompile restarts the server).
-  final Map<String, TableRulesResponse> _tableAccessCache = {};
+  /// Table-rule verdicts with the time each was decided, so
+  /// [UtilsX._cachedTableRules] can expire one instead of serving it forever.
+  final Map<String, ({TableRulesResponse response, DateTime at})>
+  _tableAccessCache = {};
   final Map<String, bool> _skipRowChecks = {};
   final Map<String, PerformOperationResponse> _operationCache = {};
   final Map<String, ({List<String> secretColumns, List<String> photoColumns})>
   _sanitizeMetaCache = {};
   final Map<String, String?> _columnNameCache = {};
+
+  /// Schema-derived admin powers per auth table, consulted by `_validateJwt`
+  /// on every authenticated request. Safe to cache for the process lifetime:
+  /// `AsAdmin` is declared in source, so changing it means a recompile and a
+  /// restart.
+  final Map<String, ({bool isAdmin, bool canEdit})> _adminStatusCache = {};
 
   /// Lazily detected: when the project has no extension Dart files (and no
   /// internal extensions), create/update/delete skip the extensions worker
@@ -271,6 +280,7 @@ class ZonaiDb {
     _operationCache.clear();
     _sanitizeMetaCache.clear();
     _columnNameCache.clear();
+    _adminStatusCache.clear();
     _hasProjectExtensions = null;
     for (final verifier in _jwksVerifiers.values) {
       verifier.dispose();
