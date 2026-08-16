@@ -18,11 +18,25 @@ Flags:
 | Flag | Short | Required | Description |
 |------|-------|----------|-------------|
 | `--email` | `-e` | Yes | Email address for the account |
-| `--password` | `-p` | Yes | Initial password |
+| `--password` | `-p` | Only if the admin table supports password sign-in | Initial password. Omit it entirely on an OAuth-only table — supplying one there is an error, not a silent no-op |
 | `--data` | `-d` | No | Extra JSON fields to set on the row (e.g. `--data '{"name":"Admin"}'`) |
 | `--no-verify` | | No | Create the account with `isVerified = false` (default: verified) |
 
 Accounts are created with `isVerified = true` by default so they can sign in immediately.
+
+`admin add` resolves the auth types your `AsAdmin` table actually mixes in and
+adapts to them — it never assumes password sign-in is configured. If your
+admin table mixes in `OAuth` instead of (or in addition to) `PasswordAuth`,
+omit `--password`:
+
+```
+zonai db admin add --email admin@example.com
+```
+
+The account signs in the first time its email matches a verified identity
+from one of the table's configured providers — see [OAuth: Signing into the
+dashboard with OAuth](/authentication/oauth#signing-into-the-dashboard-with-oauth)
+for the end-to-end walkthrough.
 
 ## Listing Admin Accounts
 
@@ -41,6 +55,11 @@ zonai db admin remove --email admin@example.com
 Makes `add` recoverable — a removed email can be re-added later. There is no `--force` on `add` itself; removing first is the deliberate, distinct step.
 
 ## Signing In as an Admin
+
+This section covers password sign-in. An admin table configured with `OAuth`
+instead signs in through the provider flow described in [OAuth: Signing into
+the dashboard with OAuth](/authentication/oauth#signing-into-the-dashboard-with-oauth) —
+the elevated JWT claims below are the same either way.
 
 Admin accounts sign in through a dedicated endpoint:
 

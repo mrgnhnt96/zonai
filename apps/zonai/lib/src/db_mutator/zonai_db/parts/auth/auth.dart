@@ -162,6 +162,24 @@ extension _AuthX on ZonaiDb {
     return (user: user, jwt: token);
   }
 
+  /// The configured `AsAdmin` table and the auth types it supports,
+  /// resolved once regardless of sign-in method -- `admin add` and its
+  /// siblings need to know what an admin table actually supports before
+  /// assuming it takes a password (design: oauth-admin-add).
+  Future<(String table, List<AuthType> authTypes)> _adminTable() async {
+    final authTables = await _dispatchOperation<AdminTablesResponse>(
+      GetAdminTablesOperationRequest(),
+    );
+
+    if (authTables.tables.isEmpty) {
+      throw StateError(
+        'No admin table is configured (mix AsAdmin into an auth table)',
+      );
+    }
+
+    return authTables.tables.first;
+  }
+
   Future<List<AuthType>> _adminSupportedAuthTypes() async {
     final authTables = await _dispatchOperation<AdminTablesResponse>(
       GetAdminTablesOperationRequest(),

@@ -2,7 +2,7 @@ part of zonai_db;
 
 extension _RemoveAdminX on ZonaiDb {
   Future<Map<String, Object?>> _removeAdmin({required String email}) async {
-    final table = await _adminCollectionFor(.password);
+    final (table, _) = await _adminTable();
 
     final user = await _authRecord(table: table, email: email, sanitize: false);
     if (user == null) {

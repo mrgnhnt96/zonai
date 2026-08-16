@@ -448,8 +448,39 @@ password auth — no separate admin OAuth pipeline. One deliberate difference
 from the regular flow: **admin sign-in never auto-provisions.** A subject
 that doesn't already match an admin row is rejected rather than silently
 creating one — admin accounts are still created explicitly, via `zonai db
-admin add` or your own provisioning code, never as a side effect of someone
-signing in with the right Google account.
+admin add`, never as a side effect of someone signing in with the right
+Google account.
+
+### Gmail-only admin walkthrough
+
+`admin add` doesn't require a password — it only requires one when the
+admin table actually mixes in `PasswordAuth`. On a table configured like the
+one above (`OAuth, AsAdmin`, no `PasswordAuth`), a supplied `--password`
+is rejected as an error rather than silently ignored, so this is the whole
+flow:
+
+1. Create the row, email only:
+
+   ```
+   zonai db admin add --email operator@example.com
+   ```
+
+   The account is created `isVerified = true` (unless you pass
+   `--no-verify`) with no password credential at all — there is no password
+   column on this table to fill in.
+
+2. The operator visits the dashboard and signs in with Google using
+   `operator@example.com`.
+
+3. `startAdminOAuth` / `completeOAuth` resolve the identity: no
+   `(table, provider, subject)` row exists yet, but the provider asserts a
+   *verified* email matching the row created in step 1, so the identity
+   links to it (`OAuthLinking.byVerifiedEmail`, the default) instead of
+   being rejected as unprovisioned. The operator is signed in, and every
+   Google sign-in after the first reuses the linked identity directly.
+
+No password ever exists for this account — the more secure configuration
+the CLI used to be unable to serve.
 
 > **That guarantee covers the admin entry point, not the table.** A JWT minted
 > for *any* row in an `AsAdmin` table carries `isAdmin: true`, and `canSignUp`

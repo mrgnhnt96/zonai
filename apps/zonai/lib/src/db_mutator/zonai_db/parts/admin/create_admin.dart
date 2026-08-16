@@ -3,18 +3,41 @@ part of zonai_db;
 extension _CreateAdminX on ZonaiDb {
   Future<Map<String, Object?>> _createAdmin({
     required String email,
-    required String password,
+    String? password,
     Map<String, dynamic>? object,
     bool verified = true,
   }) async {
-    final table = await _adminCollectionFor(.password);
+    final (table, authTypes) = await _adminTable();
+    final supportsPassword = authTypes.contains(AuthType.password);
 
-    final payload = PasswordAuthPayload(email: email, password: password);
-    if (await _hasAuthRecord(table: table, payload: payload)) {
+    if (supportsPassword && password == null) {
+      throw ArgumentError(
+        'Admin table "$table" supports password sign-in and requires a '
+        'password',
+      );
+    }
+    if (!supportsPassword && password != null) {
+      throw ArgumentError(
+        'Admin table "$table" has no password sign-in configured; omit '
+        'the password -- this account signs in through its other '
+        'configured auth type instead',
+      );
+    }
+
+    // Only used to look up an existing record by email (_hasAuthRecord
+    // never reads the password itself); a placeholder is fine when the
+    // table has no password to check.
+    final dedupPayload = PasswordAuthPayload(
+      email: email,
+      password: password ?? '',
+    );
+    if (await _hasAuthRecord(table: table, payload: dedupPayload)) {
       throw StateError('An account with email "$email" already exists');
     }
 
-    final hashedPassword = await _hashPassword.hash(password: password);
+    final hashedPassword = password == null
+        ? null
+        : await _hashPassword.hash(password: password);
 
     final operation = await _getOperation(
       CreateAuthOperationRequest(

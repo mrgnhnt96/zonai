@@ -110,9 +110,10 @@ Object? parseAdminExtraFieldValue(String raw, ColumnShape shape) {
   };
 }
 
-/// Resolves schema metadata for the password-auth admin collection.
+/// Resolves schema metadata for the configured admin collection, whatever
+/// auth type(s) it supports.
 Future<TableSchemaShape> resolveAdminTableShape(ZonaiDb db) async {
-  final table = await db.adminPasswordTable();
+  final (table, _) = await db.adminTable();
   final shapes = await db.schemaShapes();
   final shape = shapes[table];
   if (shape == null) {

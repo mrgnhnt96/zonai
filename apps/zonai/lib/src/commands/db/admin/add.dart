@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:zonai_schema/zonai_schema.dart' show AuthType;
+
 import '../../../deps/args.dart';
 import '../../../deps/logger.dart';
 import '../../../deps/zonai_db.dart';
@@ -12,10 +14,15 @@ Create an admin account in the configured admin auth collection.
 Admin sign-in requires an existing account; use this command to bootstrap
 the first admin or add additional admins from the CLI.
 
+`--password` is required only when the admin table supports password
+sign-in. On an OAuth-only admin table, omit it -- the account signs in the
+first time its email matches a verified provider identity.
+
 Options:
   -h, --help              Show help information
   -e, --email=<address>   Admin email address (required)
-  -p, --password=<value>  Admin password (required)
+  -p, --password=<value>  Admin password (required if the admin table
+                           supports password sign-in; an error otherwise)
   -d, --data=<json>       JSON object of extra record fields (optional)
       --no-verify         Do not mark the account as verified
 ''';
@@ -34,11 +41,6 @@ Future<int> addAdmin() async {
   }
 
   final password = args.getOrNull<String>('password', abbr: 'p');
-  if (password == null || password.isEmpty) {
-    logger.error('Missing required option: --password');
-    logger.info(_usage);
-    return 1;
-  }
 
   Map<String, dynamic>? object;
   if (args.getOrNull<String>('data', abbr: 'd') case final raw?) {
@@ -51,6 +53,28 @@ Future<int> addAdmin() async {
   final verified = args.getOrNull<bool>('no-verify') != true;
 
   try {
+    final (table, authTypes) = await zonaiDB.adminTable();
+    final supportsPassword = authTypes.contains(AuthType.password);
+
+    if (supportsPassword && (password == null || password.isEmpty)) {
+      logger.error(
+        'Missing required option: --password (admin table "$table" '
+        'supports password sign-in)',
+      );
+      logger.info(_usage);
+      return 1;
+    }
+
+    if (!supportsPassword && password != null) {
+      logger.error(
+        'Admin table "$table" has no password sign-in configured; omit '
+        '--password -- this account signs in through its other configured '
+        'auth type instead',
+      );
+      logger.info(_usage);
+      return 1;
+    }
+
     final tableShape = await resolveAdminTableShape(zonaiDB);
     final extraFields = adminExtraCreateFields(tableShape.columns);
     final resolvedObject = resolveAdminCreateObject(

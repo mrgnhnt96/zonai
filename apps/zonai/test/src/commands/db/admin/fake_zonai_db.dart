@@ -7,6 +7,7 @@ import 'package:zonai/src/deps/executable_stop.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/settings.dart';
+import 'package:zonai_schema/zonai_schema.dart' show AuthType, TableSchemaShape;
 
 /// Minimal settings [ZonaiDb]'s constructor needs to exist (it eagerly builds
 /// a `MailmanPool` per worker kind, each of which reads a compiled-executable
@@ -61,9 +62,56 @@ class FakeZonaiDb extends ZonaiDb {
   Object? listAdminsError;
   List<Map<String, Object?>> listAdminsResult = const [];
 
+  Object? adminTableError;
+  (String, List<AuthType>) adminTableResult = (
+    'users',
+    const [AuthType.password],
+  );
+
+  Object? createAdminError;
+  Map<String, Object?> createAdminResult = const {};
+
   ({String email, String newPassword})? resetAdminPasswordCall;
   String? removeAdminCall;
   var listAdminsCalled = false;
+  var adminTableCalled = false;
+  ({
+    String email,
+    String? password,
+    Map<String, dynamic>? object,
+    bool verified,
+  })?
+  createAdminCall;
+
+  @override
+  Future<(String, List<AuthType>)> adminTable() async {
+    adminTableCalled = true;
+    if (adminTableError case final error?) throw error;
+    return adminTableResult;
+  }
+
+  @override
+  Future<Map<String, TableSchemaShape>> schemaShapes() async {
+    final (table, _) = adminTableResult;
+    return {table: TableSchemaShape(table: table, columns: const [])};
+  }
+
+  @override
+  Future<Map<String, Object?>> createAdmin({
+    required String email,
+    String? password,
+    Map<String, dynamic>? object,
+    bool verified = true,
+  }) async {
+    createAdminCall = (
+      email: email,
+      password: password,
+      object: object,
+      verified: verified,
+    );
+    if (createAdminError case final error?) throw error;
+    return createAdminResult;
+  }
 
   @override
   Future<Map<String, Object?>> resetAdminPassword({

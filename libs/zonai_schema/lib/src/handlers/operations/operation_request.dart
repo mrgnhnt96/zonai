@@ -276,9 +276,13 @@ final class MagicLinkAuthOperationPayload extends AuthOperationPayload {
 }
 
 final class PasswordAuthOperationPayload extends AuthOperationPayload {
+  /// [passwordHash] is `null` when the target table doesn't mix in
+  /// `PasswordAuth` -- the operation handler only writes a password column
+  /// when the table's schema has one, so a null hash is simply dropped
+  /// rather than reaching SQL. See `_createAdmin` (oauth-admin-add).
   const PasswordAuthOperationPayload.save({
     required this.email,
-    required String this.passwordHash,
+    required this.passwordHash,
     required this.object,
   }) : super(authType: .password);
 

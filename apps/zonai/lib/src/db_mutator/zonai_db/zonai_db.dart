@@ -385,9 +385,19 @@ class ZonaiDb {
     return await _run(() => _adminCollectionFor(.oauth));
   }
 
+  /// The configured `AsAdmin` table and the auth types it actually
+  /// supports -- unlike [adminPasswordTable]/[adminOAuthTable], this
+  /// doesn't assume a particular sign-in method is configured. `admin add`
+  /// (and its siblings that don't care about sign-in method) use this to
+  /// decide what an admin account creation needs, e.g. whether a password
+  /// is required.
+  Future<(String table, List<AuthType> authTypes)> adminTable() async {
+    return await _run(_adminTable);
+  }
+
   Future<Map<String, Object?>> createAdmin({
     required String email,
-    required String password,
+    String? password,
     Map<String, dynamic>? object,
     bool verified = true,
   }) async {

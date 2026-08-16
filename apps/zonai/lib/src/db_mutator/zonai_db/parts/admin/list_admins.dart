@@ -2,7 +2,7 @@ part of zonai_db;
 
 extension _ListAdminsX on ZonaiDb {
   Future<List<Map<String, Object?>>> _listAdmins() async {
-    final table = await _adminCollectionFor(.password);
+    final (table, _) = await _adminTable();
 
     final operation = await _dispatchOperation<PerformOperationResponse>(
       ListOperationRequest(

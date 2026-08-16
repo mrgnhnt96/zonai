@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:file/local.dart';
 import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
@@ -505,6 +506,72 @@ void main() {
         },
       );
     }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test(
+      'ZonaiDb.createAdmin (what `zonai db admin add` calls) still requires '
+      'and hashes a password on this PasswordAuth-only admin table -- '
+      'oauth-admin-add generalized admin table resolution beyond '
+      "password-only, this pins that the password path itself didn't move",
+      () async {
+        if (!_runningOnDartVm) {
+          return;
+        }
+
+        late ZonaiDb db;
+        await runMergedScopedFuture(
+          () async {
+            db = ZonaiDb();
+            try {
+              final email =
+                  'created-via-create-admin-${clock.now().microsecondsSinceEpoch}@example.com';
+              const password = 'created-via-create-admin-password-1';
+
+              await expectLater(
+                db.createAdmin(email: email, password: null),
+                throwsA(isA<StateError>()),
+                reason:
+                    'this admin table supports password sign-in, so '
+                    'omitting --password must still fail',
+              );
+
+              final created = await db.createAdmin(
+                email: email,
+                password: password,
+              );
+              expect(created['email'], email);
+              expect(
+                created['is_verified'],
+                _truthy,
+                reason: 'createAdmin defaults verified: true',
+              );
+
+              final signIn = await db.authenticate(
+                'admins',
+                PasswordAuthPayload(email: email, password: password),
+              );
+              expect(
+                signIn,
+                isNotNull,
+                reason:
+                    'the password ZonaiDb.createAdmin hashed at create '
+                    'time must work for sign-in, unchanged from before '
+                    'admin table resolution stopped assuming .password',
+              );
+            } finally {
+              await db.dispose();
+            }
+          },
+          override: {
+            ..._e2eScopeOverrides(settings, appConfig: appConfig),
+            zonaiDbProvider.overrideWith(
+              () =>
+                  () => db,
+            ),
+          },
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
   });
 }
 
