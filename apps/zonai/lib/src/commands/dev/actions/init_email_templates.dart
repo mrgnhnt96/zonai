@@ -6,6 +6,7 @@ const initEmailTemplates = <String, String>{
   'password_reset': _passwordReset,
   'confirm_change_email': _confirmChangeEmail,
   'login_notice': _loginNotice,
+  'admin_invite': _adminInvite,
 };
 
 const _verifyEmail = '''
@@ -62,5 +63,14 @@ const _loginNotice = '''
 <html lang="en"><body style="font-family:sans-serif;color:#0f172a">
 <p>Hi{{#name}} {{name}}{{/name}},</p>
 <p>A new sign-in to {{appName}} was detected for {{email}} at {{signedInAt}}.</p>
+</body></html>
+''';
+
+const _adminInvite = '''
+<!doctype html>
+<html lang="en"><body style="font-family:sans-serif;color:#0f172a">
+<p>{{#invitedByEmail}}{{invitedByEmail}} has invited you{{/invitedByEmail}}{{^invitedByEmail}}You've been invited{{/invitedByEmail}} to become an admin for {{appName}}, using <strong>{{email}}</strong>.</p>
+<p><a href="{{inviteUrl}}">Accept invite</a></p>
+<p>This link expires in {{expiresIn}}. If you weren't expecting this, you can safely ignore this email -- the invite will expire on its own.</p>
 </body></html>
 ''';

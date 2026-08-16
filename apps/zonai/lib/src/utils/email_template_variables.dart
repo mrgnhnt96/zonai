@@ -7,6 +7,8 @@ Map<String, String> defaultEmailTemplateVariables() {
     'magicLinkUrl': 'https://example.com/magic',
     'passwordResetUrl': 'https://example.com/reset',
     'confirmChangeEmailUrl': 'https://example.com/confirm-email',
+    'inviteUrl': 'https://example.com/admin/invite',
+    'invitedByEmail': 'admin@example.com',
     'otp': '123456',
     'expiresIn': '1 hour',
     'currentEmail': 'user@example.com',
