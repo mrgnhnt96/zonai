@@ -54,27 +54,30 @@ void main() {
   /// table alone, the first time an operator picked it out of the dropdown.
   /// `rowid` is the tempting alternative and is the wrong answer — it is in no
   /// generated schema at all.
-  test('every purgeable table has the `id` column the endpoint predicates on', () {
-    final columnsByTable = {
-      for (final schema in InternalDbArtifacts.schemas)
-        schema.$.name: schema.$.columns.map((c) => c.name).toSet(),
-    };
+  test(
+    'every purgeable table has the `id` column the endpoint predicates on',
+    () {
+      final columnsByTable = {
+        for (final schema in InternalDbArtifacts.schemas)
+          schema.$.name: schema.$.columns.map((c) => c.name).toSet(),
+      };
 
-    // A typo'd or renamed table would otherwise make the loop below vacuous.
-    expect(
-      columnsByTable.keys,
-      containsAll(kPurgeableTableNames),
-      reason: 'every purgeable table must have a schema to check',
-    );
-
-    for (final table in kPurgeableTableNames) {
+      // A typo'd or renamed table would otherwise make the loop below vacuous.
       expect(
-        columnsByTable[table],
-        contains('id'),
-        reason:
-            '$table is offered in the purge dropdown, and the endpoint empties '
-            'it with NotNull("id")',
+        columnsByTable.keys,
+        containsAll(kPurgeableTableNames),
+        reason: 'every purgeable table must have a schema to check',
       );
-    }
-  });
+
+      for (final table in kPurgeableTableNames) {
+        expect(
+          columnsByTable[table],
+          contains('id'),
+          reason:
+              '$table is offered in the purge dropdown, and the endpoint empties '
+              'it with NotNull("id")',
+        );
+      }
+    },
+  );
 }

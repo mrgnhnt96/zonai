@@ -348,15 +348,18 @@ class DashboardScreen extends StatelessComponent {
           color: mutedColor,
           textDecoration: const TextDecoration(line: TextDecorationLine.none),
         ),
-        css('&:hover').styles(border: .all(color: primaryColor, width: 1.px, style: .solid)),
-        css('.dashboard-storage-strip-label').styles(
-          fontSize: 0.6875.rem,
-          fontWeight: .w600,
-          letterSpacing: 0.04.rem,
-          textTransform: .upperCase,
+        css('&:hover').styles(
+          border: .all(color: primaryColor, width: 1.px, style: .solid),
         ),
+        css(
+          '.dashboard-storage-strip-label',
+        ).styles(fontSize: 0.6875.rem, fontWeight: .w600, letterSpacing: 0.04.rem, textTransform: .upperCase),
         css('.dashboard-storage-strip-value').styles(color: fgColor, fontWeight: .w600),
-        css('.dashboard-storage-strip-more').styles(margin: .only(left: .auto), color: primaryColor, fontWeight: .w600),
+        css('.dashboard-storage-strip-more').styles(
+          margin: .only(left: .auto),
+          color: primaryColor,
+          fontWeight: .w600,
+        ),
       ]),
       css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
@@ -597,9 +600,7 @@ class _StorageStrip extends StatelessComponent {
         .text(storage == null ? '—' : formatBytes(storage.totalDatabaseBytes)),
       ]),
       span([.text('databases')]),
-      span(classes: 'dashboard-storage-strip-value', [
-        .text(storage == null ? '—' : formatBytes(storage.photosBytes)),
-      ]),
+      span(classes: 'dashboard-storage-strip-value', [.text(storage == null ? '—' : formatBytes(storage.photosBytes))]),
       span([.text('photos')]),
       // Unknown free space is a word, not a zero — see [formatOptionalBytes].
       span(classes: 'dashboard-storage-strip-value', [

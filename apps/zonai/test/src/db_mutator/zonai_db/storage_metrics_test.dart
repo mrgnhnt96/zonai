@@ -88,173 +88,190 @@ void main() {
     admin: (isAdmin: isAdmin, canEdit: isAdmin ? true : null),
   );
 
-  test('refuses a caller who is not an admin', () async {
-    if (!rs.isInstalled) {
-      markTestSkipped('resqlite native library not found');
-      return;
-    }
-
-    await withScope(() async {
-      final zonaiDb = ZonaiDb();
-      try {
-        await zonaiDb.open();
-
-        // Every path, size and internal row count on the host is operator
-        // information. The endpoint gates it the same way, but the engine
-        // refusing on its own is what makes that gate a second lock rather
-        // than the only one.
-        await expectLater(
-          zonaiDb.storageMetrics(jwt: jwt(isAdmin: false)),
-          throwsA(isA<TableAccessDeniedException>()),
-        );
-      } finally {
-        await zonaiDb.dispose();
+  test(
+    'refuses a caller who is not an admin',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
       }
-    });
-  }, timeout: const Timeout(Duration(minutes: 3)));
 
-  test('measures every database file zonai owns, against a real database', () async {
-    if (!rs.isInstalled) {
-      markTestSkipped('resqlite native library not found');
-      return;
-    }
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          await zonaiDb.open();
 
-    await withScope(() async {
-      final zonaiDb = ZonaiDb();
-      try {
-        await zonaiDb.open();
-
-        final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
-
-        expect(
-          metrics.databases.map((d) => d.name),
-          ['zonai.sqlite', 'zonai_log.sqlite', 'zonai_rate_limit.sqlite'],
-          reason: 'application database first, matching zonaiSqlitePaths',
-        );
-
-        for (final db in metrics.databases) {
-          expect(
-            db.sizeBytes,
-            greaterThan(0),
-            reason: '${db.name} is open, so it exists and has pages',
+          // Every path, size and internal row count on the host is operator
+          // information. The endpoint gates it the same way, but the engine
+          // refusing on its own is what makes that gate a second lock rather
+          // than the only one.
+          await expectLater(
+            zonaiDb.storageMetrics(jwt: jwt(isAdmin: false)),
+            throwsA(isA<TableAccessDeniedException>()),
           );
+        } finally {
+          await zonaiDb.dispose();
+        }
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
+    'measures every database file zonai owns, against a real database',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
+
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          await zonaiDb.open();
+
+          final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
+
           expect(
-            db.reclaimableBytes,
+            metrics.databases.map((d) => d.name),
+            ['zonai.sqlite', 'zonai_log.sqlite', 'zonai_rate_limit.sqlite'],
+            reason: 'application database first, matching zonaiSqlitePaths',
+          );
+
+          for (final db in metrics.databases) {
+            expect(
+              db.sizeBytes,
+              greaterThan(0),
+              reason: '${db.name} is open, so it exists and has pages',
+            );
+            expect(
+              db.reclaimableBytes,
+              isNotNull,
+              reason:
+                  'the pragmas are readable on an attached schema -- a null here '
+                  'would mean the storage panel silently shows "unknown" for a '
+                  'file it can actually measure',
+            );
+            // Against the file *plus its WAL*, not the file alone.
+            // `freelist_count` describes the logical database, and on a database
+            // this new almost all of it is still in the uncheckpointed WAL --
+            // measured here as a 4 KB main file next to a 288 KB sidecar, with
+            // 28 KB on the freelist. Comparing against `sizeBytes` alone reads
+            // as a bug in the collector and is not one.
+            expect(
+              db.reclaimableBytes,
+              lessThanOrEqualTo(db.sizeBytes + db.walBytes),
+            );
+          }
+
+          expect(
+            metrics.totalDatabaseBytes,
+            greaterThanOrEqualTo(
+              metrics.databases.fold<int>(0, (sum, d) => sum + d.sizeBytes),
+            ),
+            reason: 'the total counts the WAL sidecars too',
+          );
+        } finally {
+          await zonaiDb.dispose();
+        }
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
+    'separates reclaimable bytes from the total once rows are deleted',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
+
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          final db = await zonaiDb.open();
+          final padding = 'x' * 4000;
+          for (var i = 0; i < 5000; i++) {
+            await db.execute(
+              'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
+              '"trace_id") VALUES (?, ?, ?, ?, ?)',
+              ['id$i', 'info', padding, i, 't'],
+            );
+          }
+          await db.execute('DELETE FROM "_log"', const []);
+
+          final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
+          final log = metrics.databases.firstWhere(
+            (d) => d.name == 'zonai_log.sqlite',
+          );
+
+          // The deletion moved pages to the freelist; it did not shrink the
+          // file. That gap is the entire reason this screen reports two numbers.
+          expect(log.sizeBytes, greaterThan(16 * 1024 * 1024));
+          expect(
+            log.reclaimableBytes,
             isNotNull,
-            reason:
-                'the pragmas are readable on an attached schema -- a null here '
-                'would mean the storage panel silently shows "unknown" for a '
-                'file it can actually measure',
+            reason: 'unknown here would hide the dead space entirely',
           );
-          // Against the file *plus its WAL*, not the file alone.
-          // `freelist_count` describes the logical database, and on a database
-          // this new almost all of it is still in the uncheckpointed WAL --
-          // measured here as a 4 KB main file next to a 288 KB sidecar, with
-          // 28 KB on the freelist. Comparing against `sizeBytes` alone reads
-          // as a bug in the collector and is not one.
           expect(
-            db.reclaimableBytes,
-            lessThanOrEqualTo(db.sizeBytes + db.walBytes),
+            log.reclaimableBytes!,
+            greaterThan(log.sizeBytes ~/ 2),
+            reason:
+                'most of the file is dead after deleting every row, and a UI '
+                'showing only the total would report it as space in use',
           );
+        } finally {
+          await zonaiDb.dispose();
         }
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
 
-        expect(
-          metrics.totalDatabaseBytes,
-          greaterThanOrEqualTo(
-            metrics.databases.fold<int>(0, (sum, d) => sum + d.sizeBytes),
-          ),
-          reason: 'the total counts the WAL sidecars too',
-        );
-      } finally {
-        await zonaiDb.dispose();
+  test(
+    'counts every internal table, including the ones the dashboard hides',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
       }
-    });
-  }, timeout: const Timeout(Duration(minutes: 3)));
 
-  test('separates reclaimable bytes from the total once rows are deleted', () async {
-    if (!rs.isInstalled) {
-      markTestSkipped('resqlite native library not found');
-      return;
-    }
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          final db = await zonaiDb.open();
+          for (var i = 0; i < 3; i++) {
+            await db.execute(
+              'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
+              '"trace_id") VALUES (?, ?, ?, ?, ?)',
+              ['id$i', 'info', 'hello', i, 't'],
+            );
+          }
 
-    await withScope(() async {
-      final zonaiDb = ZonaiDb();
-      try {
-        final db = await zonaiDb.open();
-        final padding = 'x' * 4000;
-        for (var i = 0; i < 5000; i++) {
-          await db.execute(
-            'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
-            '"trace_id") VALUES (?, ?, ?, ?, ?)',
-            ['id$i', 'info', padding, i, 't'],
+          final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
+
+          expect(
+            metrics.tables.map((t) => t.table).toSet(),
+            InternalDbArtifacts.tableNames,
+            reason:
+                'the dashboard filters _-prefixed tables out, which is why _log '
+                'reaching 4.6M rows was invisible until the disk was gone -- '
+                'this screen is where that becomes visible',
           );
-        }
-        await db.execute('DELETE FROM "_log"', const []);
-
-        final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
-        final log = metrics.databases.firstWhere(
-          (d) => d.name == 'zonai_log.sqlite',
-        );
-
-        // The deletion moved pages to the freelist; it did not shrink the
-        // file. That gap is the entire reason this screen reports two numbers.
-        expect(log.sizeBytes, greaterThan(16 * 1024 * 1024));
-        expect(
-          log.reclaimableBytes,
-          isNotNull,
-          reason: 'unknown here would hide the dead space entirely',
-        );
-        expect(
-          log.reclaimableBytes!,
-          greaterThan(log.sizeBytes ~/ 2),
-          reason:
-              'most of the file is dead after deleting every row, and a UI '
-              'showing only the total would report it as space in use',
-        );
-      } finally {
-        await zonaiDb.dispose();
-      }
-    });
-  }, timeout: const Timeout(Duration(minutes: 5)));
-
-  test('counts every internal table, including the ones the dashboard hides', () async {
-    if (!rs.isInstalled) {
-      markTestSkipped('resqlite native library not found');
-      return;
-    }
-
-    await withScope(() async {
-      final zonaiDb = ZonaiDb();
-      try {
-        final db = await zonaiDb.open();
-        for (var i = 0; i < 3; i++) {
-          await db.execute(
-            'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
-            '"trace_id") VALUES (?, ?, ?, ?, ?)',
-            ['id$i', 'info', 'hello', i, 't'],
+          expect(
+            metrics.tables.firstWhere((t) => t.table == '_log').rowCount,
+            3,
+            reason:
+                '_log lives in an attached file and still has to be counted',
           );
+        } finally {
+          await zonaiDb.dispose();
         }
-
-        final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
-
-        expect(
-          metrics.tables.map((t) => t.table).toSet(),
-          InternalDbArtifacts.tableNames,
-          reason:
-              'the dashboard filters _-prefixed tables out, which is why _log '
-              'reaching 4.6M rows was invisible until the disk was gone -- '
-              'this screen is where that becomes visible',
-        );
-        expect(
-          metrics.tables.firstWhere((t) => t.table == '_log').rowCount,
-          3,
-          reason: '_log lives in an attached file and still has to be counted',
-        );
-      } finally {
-        await zonaiDb.dispose();
-      }
-    });
-  }, timeout: const Timeout(Duration(minutes: 3)));
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 
   test('reports free disk space as unknown rather than zero when df cannot be '
       'read', () async {
@@ -287,29 +304,33 @@ void main() {
     });
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  test('survives a project that has never stored a photo', () async {
-    if (!rs.isInstalled) {
-      markTestSkipped('resqlite native library not found');
-      return;
-    }
-
-    await withScope(() async {
-      final zonaiDb = ZonaiDb();
-      try {
-        await zonaiDb.open();
-        expect(io.Directory(settings.imagesPath).existsSync(), isFalse);
-
-        final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
-
-        // A missing images directory is the normal state of a deployment that
-        // has not accepted an upload, not a fault to report.
-        expect(metrics.photosBytes, 0);
-        expect(metrics.photosFileCount, 0);
-      } finally {
-        await zonaiDb.dispose();
+  test(
+    'survives a project that has never stored a photo',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
       }
-    });
-  }, timeout: const Timeout(Duration(minutes: 3)));
+
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          await zonaiDb.open();
+          expect(io.Directory(settings.imagesPath).existsSync(), isFalse);
+
+          final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
+
+          // A missing images directory is the normal state of a deployment that
+          // has not accepted an upload, not a fault to report.
+          expect(metrics.photosBytes, 0);
+          expect(metrics.photosFileCount, 0);
+        } finally {
+          await zonaiDb.dispose();
+        }
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 
   test('reports an absolute path even when the project configures a relative '
       'one', () async {

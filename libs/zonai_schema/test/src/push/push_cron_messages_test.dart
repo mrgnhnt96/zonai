@@ -109,10 +109,9 @@ void main() {
 
     test('_push_jobs is a registered internal table', () {
       expect(InternalDbArtifacts.tableNames, contains('_push_jobs'));
-      expect(
-        [for (final t in InternalDbArtifacts.tables) t.tableName],
-        contains('_push_jobs'),
-      );
+      expect([
+        for (final t in InternalDbArtifacts.tables) t.tableName,
+      ], contains('_push_jobs'));
     });
 
     test('_push_jobs is purgeable, so retention can actually drain it', () {

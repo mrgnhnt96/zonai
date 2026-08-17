@@ -34,39 +34,44 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.3.0`. The floor first moved to `0.2.0` -- the first release
-/// where custom operations work at all, since `0.1.1` ships `DbRateLimits`
-/// asserting `request.customOperation!` non-null on a path the host
-/// deliberately sets to null, so every custom-operation request 500s before
-/// authorization (#27).
+/// Currently `0.4.0` -- the floor two separate pieces of vocabulary both
+/// require, which is why it moved once and not twice.
 ///
-/// ## Owed by OAuth and admin invites
+/// **Push.** The host enqueues through `EnqueuePushRequest` and expects
+/// `MessageHandler`'s push provider to answer it; `0.3.1` has neither, and its
+/// internal artifacts declare no `_push_jobs` table and none of the drain or
+/// cleanup crons that drive it. A project left on `0.3.x` compiles executables
+/// that cannot service a send this CLI will make.
 ///
-/// This floor is now **too low for the branch it sits on**, and cannot be
-/// fixed here: the version it must name is not published yet.
-///
-/// OAuth and admin invites add vocabulary the host sends and an older worker
-/// cannot parse -- `AuthType.oauth`, and `RateLimitOperation.oauthStart` /
-/// `.oauthCallback` / `.adminInvite`. Both are decoded with
-/// `Enum.values.byName` (`handlers/rules/rule_request.dart`,
+/// **OAuth and admin invites.** These add `AuthType.oauth` and
+/// `RateLimitOperation.oauthStart` / `.oauthCallback` / `.adminInvite`, all
+/// decoded with `Enum.values.byName` (`handlers/rules/rule_request.dart`,
 /// `handlers/rate_limits/rate_limit_request.dart`), which throws on a name it
 /// does not have. That is the same failure `RateLimitOperation.custom` caused
 /// and the reason this floor exists at all.
 ///
-/// So the release that carries OAuth owes three steps in order, not one:
+/// The floor first moved to `0.2.0` -- the first release where custom
+/// operations work at all, since `0.1.1` ships `DbRateLimits` asserting
+/// `request.customOperation!` non-null on a path the host deliberately sets to
+/// null, so every custom-operation request 500s before authorization (#27).
+///
+/// ## The three steps this bump owed, and where they stand
+///
+/// Raising the floor was never a one-line change; it is the third step of
+/// three, and the first two are what make it safe:
 ///
 /// 1. `zonai_schema` goes to `0.4.0` -- adding to an enum consumers switch
 ///    over exhaustively is breaking before 1.0.
 /// 2. **`zonai_client` must be published with a widened constraint.** Its
-///    published pubspec declares `zonai_schema: ">=0.1.0 <0.4.0"`, which
+///    published pubspec declared `zonai_schema: ">=0.1.0 <0.4.0"`, which
 ///    excludes exactly that release. Widening it in this repo reaches nobody
 ///    until the client itself is published.
-/// 3. Only then raise this floor to `0.4.0`, and re-run
+/// 3. Only then raise this floor, and re-run
 ///    `tool/verify_release_coupling.dart`.
 ///
 /// Step 1 cannot be forgotten: this is a pub workspace, so bumping
-/// `zonai_schema` to `0.4.0` while `zonai_client` still says `<0.4.0` fails
-/// at `dart pub get` in the repo root, before any test runs --
+/// `zonai_schema` to `0.4.0` while `zonai_client` still says `<0.4.0` fails at
+/// `dart pub get` in the repo root, before any test runs --
 /// > Because zonai_client depends on zonai_schema >=0.1.0 <0.4.0 and
 /// > zonai_workspace depends on zonai_schema, version solving failed.
 ///
@@ -78,4 +83,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.3.0';
+const kMinSchemaVersion = '0.4.0';

@@ -33,9 +33,7 @@ final class DrainPushJobsCron extends CronJob {
     // have yet. Compare `_cleanup_logs`, which learned the same lesson.
     final DrainPushJobsResponse result;
     try {
-      result = await msg.request<DrainPushJobsResponse>(
-        DrainPushJobsRequest(),
-      );
+      result = await msg.request<DrainPushJobsResponse>(DrainPushJobsRequest());
     } catch (e) {
       logger.warn(
         'Could not drain push jobs: $e. If this persists, the zonai binary '

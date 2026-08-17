@@ -24,32 +24,34 @@ void main() {
       addTearDown(socket.destroy);
     });
 
-    test('the default binding is NOT reachable on a non-loopback address',
-        () async {
-      // The property that actually matters, and the one the previous default
-      // silently lost. Asserting the address string alone would keep passing
-      // if the rewrite came back somewhere else in the chain.
-      final server = await HttpServer.bind(ServerBinding.host, 0);
-      addTearDown(server.close);
+    test(
+      'the default binding is NOT reachable on a non-loopback address',
+      () async {
+        // The property that actually matters, and the one the previous default
+        // silently lost. Asserting the address string alone would keep passing
+        // if the rewrite came back somewhere else in the chain.
+        final server = await HttpServer.bind(ServerBinding.host, 0);
+        addTearDown(server.close);
 
-      final external = await _firstNonLoopbackIPv4();
-      if (external == null) {
-        // Nothing to prove it against on a machine with no external IPv4.
-        return;
-      }
+        final external = await _firstNonLoopbackIPv4();
+        if (external == null) {
+          // Nothing to prove it against on a machine with no external IPv4.
+          return;
+        }
 
-      await expectLater(
-        Socket.connect(
-          external,
-          server.port,
-        ).timeout(const Duration(seconds: 2)),
-        throwsA(isA<Exception>()),
-        reason:
-            'a server bound to loopback must refuse connections addressed to '
-            'this machine\'s LAN address -- if this passes, the bind is '
-            'exposing the network again',
-      );
-    });
+        await expectLater(
+          Socket.connect(
+            external,
+            server.port,
+          ).timeout(const Duration(seconds: 2)),
+          throwsA(isA<Exception>()),
+          reason:
+              'a server bound to loopback must refuse connections addressed to '
+              'this machine\'s LAN address -- if this passes, the bind is '
+              'exposing the network again',
+        );
+      },
+    );
   });
 }
 

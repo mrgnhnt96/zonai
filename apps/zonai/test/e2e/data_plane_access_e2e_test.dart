@@ -365,7 +365,10 @@ void main() {
         // stream opens; the row rule allows nothing to an anon caller.
         final anonSeen = <Map<String, Object?>>[];
         final anonSub = db
-            .streamList('notes', ListPayload(where: const Eq('title', 'secret')))
+            .streamList(
+              'notes',
+              ListPayload(where: const Eq('title', 'secret')),
+            )
             .listen(anonSeen.addAll, onError: (Object _) {});
 
         // And the owner's subscription, as the positive control: the fix must
@@ -422,15 +425,15 @@ void main() {
   });
 }
 
-const _f2List = 'GET /db/list never serializes a password column, not even to '
+const _f2List =
+    'GET /db/list never serializes a password column, not even to '
     'an admin (F-2)';
 const _f2Patch = 'the PATCH /db response never echoes a password column (F-2)';
 const _g4Oracle =
     'a where on a secret column is refused, closing the prefix oracle (G-4)';
 const _g7UnknownColumn =
     'a where on an unregistered column is a 400, not a 500 (G-7)';
-const _g2Update =
-    'an update writes only the rows its rules authorized (G-2)';
+const _g2Update = 'an update writes only the rows its rules authorized (G-2)';
 const _g2Delete =
     'a limited delete removes the row it authorized, not another (G-2)';
 const _g1Stream =

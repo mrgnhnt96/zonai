@@ -98,7 +98,10 @@ extension _StorageMetricsX on ZonaiDb {
   /// answers `null` — unknown — rather than `0`.
   Future<int?> _tableRowCount(Raindrop db, String table) async {
     try {
-      final result = await db.execute('SELECT COUNT(*) FROM "$table"', const []);
+      final result = await db.execute(
+        'SELECT COUNT(*) FROM "$table"',
+        const [],
+      );
       return _sqlInt(result.rows.firstOrNull?.firstOrNull);
     } catch (_) {
       return null;

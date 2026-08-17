@@ -37,10 +37,7 @@ final class Exceptions implements LifecycleComponent {
   /// that throws converts a deliberate 403 into a 500 -- turning the fix into
   /// a worse leak than the one it replaced.
   static void _serverSide(Object exception) {
-    final log = read(
-      loggerProvider,
-      orElse: () => Logger.print(level: .info),
-    );
+    final log = read(loggerProvider, orElse: () => Logger.print(level: .info));
     log.warn('Suppressed detail in client response: $exception');
   }
 

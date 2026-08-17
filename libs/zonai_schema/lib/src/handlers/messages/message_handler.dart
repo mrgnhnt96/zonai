@@ -312,13 +312,7 @@ class MessageHandler<R extends Request> {
         // queued mutation cannot report anything. The wait is for the *write*,
         // not the fan-out -- see [EnqueuePushRequest].
         _pushProvider.overrideWith(
-          () => _Push((
-            message, {
-            required table,
-            required column,
-            platformColumn,
-            where,
-          }) async {
+          () => _Push((message, {required table, required column, platformColumn, where}) async {
             final result = await sendRequest(
               EnqueuePushRequest(
                 message: message,
@@ -340,9 +334,7 @@ class MessageHandler<R extends Request> {
               return PushJobId(jobId);
             }
 
-            throw StateError(
-              'Unexpected response to push enqueue: ${result?.path}',
-            );
+            throw StateError('Unexpected response to push enqueue: ${result?.path}');
           }),
         ),
         _mutateProvider.overrideWith(

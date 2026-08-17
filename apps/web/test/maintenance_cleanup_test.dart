@@ -70,12 +70,7 @@ void main() {
         ),
       );
       final nothingToDo = describeReclamation(
-        const LogSpaceReclamationResult(
-          reclaimableBytes: 1024,
-          reclaimedBytes: 0,
-          vacuumed: false,
-          skipped: null,
-        ),
+        const LogSpaceReclamationResult(reclaimableBytes: 1024, reclaimedBytes: 0, vacuumed: false, skipped: null),
       );
 
       // Both reclaimed zero bytes and neither threw. This is the exact pair
@@ -139,10 +134,7 @@ void main() {
     test('names the stall, not just the lock', () {
       // "takes an exclusive lock" describes a mechanism. An operator is
       // deciding whether to cause an outage, and needs the consequence.
-      expect(
-        describeReclaimLock(file: 'zonai_log.sqlite', bytes: 20520),
-        contains('log writes block'),
-      );
+      expect(describeReclaimLock(file: 'zonai_log.sqlite', bytes: 20520), contains('log writes block'));
     });
 
     test('carries the size, because the stall scales with it', () {
@@ -165,10 +157,7 @@ void main() {
     test('names the file the report gave, not a hardcoded one', () {
       // A deployment that renamed its log database must not be told the
       // reclaim locks a file that does not exist there.
-      expect(
-        describeReclaimLock(file: 'custom_log.sqlite', bytes: 1000),
-        contains('custom_log.sqlite'),
-      );
+      expect(describeReclaimLock(file: 'custom_log.sqlite', bytes: 1000), contains('custom_log.sqlite'));
     });
   });
 

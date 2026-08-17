@@ -64,11 +64,7 @@ class MaintenanceScreen extends StatelessComponent {
                   attributes: {'aria-label': 'Refresh storage'},
                   events: storage.isLoading
                       ? null
-                      : appTooltipEvents(
-                          context,
-                          text: 'Refresh storage',
-                          placement: AppTooltipPlacement.belowLeft,
-                        ),
+                      : appTooltipEvents(context, text: 'Refresh storage', placement: AppTooltipPlacement.belowLeft),
                   onClick: () => context.read(storageMetricsProvider.notifier).refresh(),
                   child: .text('⟳'),
                 ),
@@ -110,8 +106,7 @@ class MaintenanceScreen extends StatelessComponent {
                     div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Loading...')])
                   else
                     div(classes: 'maintenance-files', [
-                      for (final file in data?.databases ?? const <StorageDatabaseFile>[])
-                        _DatabaseFileRow(file: file),
+                      for (final file in data?.databases ?? const <StorageDatabaseFile>[]) _DatabaseFileRow(file: file),
                     ]),
                 ]),
                 div(classes: 'dashboard-panel dashboard-panel--tables', [
@@ -166,11 +161,9 @@ class MaintenanceScreen extends StatelessComponent {
       textTransform: .upperCase,
       color: mutedColor,
     ),
-    css('.maintenance-files').styles(
-      display: .flex,
-      flexDirection: FlexDirection.column,
-      gap: Gap.all(ZonaiSpacing.s5),
-    ),
+    css(
+      '.maintenance-files',
+    ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s5)),
     css('.maintenance-file', [
       css('&').styles(
         display: .flex,
@@ -237,11 +230,9 @@ class MaintenanceScreen extends StatelessComponent {
       ),
       css('.maintenance-cleanup-title').styles(margin: .zero, fontSize: 0.8125.rem, fontWeight: .w600, color: fgColor),
       css('.maintenance-cleanup-desc').styles(margin: .zero, fontSize: 0.75.rem, color: mutedColor),
-      css('.maintenance-cleanup-control').styles(
-        display: .flex,
-        flexDirection: FlexDirection.column,
-        gap: Gap.all(ZonaiSpacing.s2),
-      ),
+      css(
+        '.maintenance-cleanup-control',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
       css('.maintenance-cleanup-label').styles(fontSize: 0.75.rem, fontWeight: .w600, color: fgColor),
       css('.maintenance-cleanup-invalid').styles(fontSize: 0.6875.rem, raw: const {'color': 'var(--zonai-error)'}),
       css('.maintenance-cleanup-actions').styles(
@@ -257,10 +248,7 @@ class MaintenanceScreen extends StatelessComponent {
       css('.maintenance-cleanup-outcome').styles(margin: .zero, fontSize: 0.75.rem, color: fgColor),
       // A skip is neither success nor failure -- it is the case where the
       // operator has to go and do something about the disk.
-      css('.maintenance-cleanup-outcome--skip').styles(
-        fontWeight: .w600,
-        raw: const {'color': 'var(--zonai-error)'},
-      ),
+      css('.maintenance-cleanup-outcome--skip').styles(fontWeight: .w600, raw: const {'color': 'var(--zonai-error)'}),
     ]),
     css('.maintenance-cleanup-note').styles(margin: .zero, fontSize: 0.75.rem, color: mutedColor),
   ];
@@ -303,14 +291,10 @@ class _StatCard extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return div(
-      classes: 'dashboard-stat-card',
-      events: hint == null ? null : appTooltipEvents(context, text: hint!),
-      [
-        span(classes: 'dashboard-stat-label', [.text(label)]),
-        span(classes: 'dashboard-stat-value', [.text(value)]),
-      ],
-    );
+    return div(classes: 'dashboard-stat-card', events: hint == null ? null : appTooltipEvents(context, text: hint!), [
+      span(classes: 'dashboard-stat-label', [.text(label)]),
+      span(classes: 'dashboard-stat-value', [.text(value)]),
+    ]);
   }
 }
 
@@ -391,10 +375,7 @@ class _CleanupSectionState extends State<_CleanupSection> {
         // Lock first, and sized -- see [describeReclaimLock], which owns the
         // wording so it can be tested. Safe from data loss precisely because
         // the log database is a file of its own; that is why it was split out.
-        description: describeReclaimLock(
-          file: component.logDatabaseName,
-          bytes: component.logDatabaseBytes,
-        ),
+        description: describeReclaimLock(file: component.logDatabaseName, bytes: component.logDatabaseBytes),
         action: CleanupAction.reclaimLogSpace,
         state: state,
         // Not destructive: it moves no rows, it only rewrites the file around
@@ -541,7 +522,8 @@ class _CleanupCard extends StatelessComponent {
   @override
   Component build(BuildContext context) {
     final isRunning = state.running == action;
-    final confirmed = confirmPhrase == null || cleanupConfirmMatches(typed: confirmValue ?? '', expected: confirmPhrase!);
+    final confirmed =
+        confirmPhrase == null || cleanupConfirmMatches(typed: confirmValue ?? '', expected: confirmPhrase!);
 
     // Disabled while *any* action runs, not just this one: these all serialize
     // against writes in the engine, so a second click only queues a wait.
@@ -574,7 +556,8 @@ class _CleanupCard extends StatelessComponent {
       ]),
       if (outcome != null)
         p(
-          classes: 'maintenance-cleanup-outcome'
+          classes:
+              'maintenance-cleanup-outcome'
               '${outcome.isSkip ? ' maintenance-cleanup-outcome--skip' : ''}',
           // A skip is not a failure and not a success, so it is announced
           // rather than left for a sighted reader to notice the colour of.

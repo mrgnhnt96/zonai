@@ -32,20 +32,28 @@ void main() {
   );
 
   Future<void> expectRefused(_StubZonaiDb db, String? authorization) async {
-    await runScoped(() async {
-      await expectLater(
-        const DashboardHandler().storage(authorization),
-        throwsA(isA<TableAccessDeniedException>()),
-      );
-      expect(
-        db.collected,
-        isFalse,
-        reason:
-            'the refusal has to come before the collection -- `df` and a '
-            'recursive directory walk are not work an unauthorized caller '
-            'should be able to ask for',
-      );
-    }, values: {zonaiDbProvider.overrideWith(() => () => db)});
+    await runScoped(
+      () async {
+        await expectLater(
+          const DashboardHandler().storage(authorization),
+          throwsA(isA<TableAccessDeniedException>()),
+        );
+        expect(
+          db.collected,
+          isFalse,
+          reason:
+              'the refusal has to come before the collection -- `df` and a '
+              'recursive directory walk are not work an unauthorized caller '
+              'should be able to ask for',
+        );
+      },
+      values: {
+        zonaiDbProvider.overrideWith(
+          () =>
+              () => db,
+        ),
+      },
+    );
   }
 
   test('refuses a signed-in caller who is not an admin', () async {
@@ -68,15 +76,24 @@ void main() {
   test('lets an admin through to the collection', () async {
     final db = _StubZonaiDb(jwt: jwtWith(isAdmin: true));
 
-    await runScoped(() async {
-      await const DashboardHandler().storage('Bearer admin-token');
-      expect(
-        db.collected,
-        isTrue,
-        reason: 'a gate that refuses everyone would pass the tests above for '
-            'the wrong reason',
-      );
-    }, values: {zonaiDbProvider.overrideWith(() => () => db)});
+    await runScoped(
+      () async {
+        await const DashboardHandler().storage('Bearer admin-token');
+        expect(
+          db.collected,
+          isTrue,
+          reason:
+              'a gate that refuses everyone would pass the tests above for '
+              'the wrong reason',
+        );
+      },
+      values: {
+        zonaiDbProvider.overrideWith(
+          () =>
+              () => db,
+        ),
+      },
+    );
   });
 }
 

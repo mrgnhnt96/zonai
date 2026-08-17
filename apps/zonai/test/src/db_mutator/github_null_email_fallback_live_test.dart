@@ -79,49 +79,51 @@ void main() {
       );
     }
 
-    test('resolves a real private primary address through GET /user/emails',
-        () async {
-      if (token == null || token.isEmpty) return;
+    test(
+      'resolves a real private primary address through GET /user/emails',
+      () async {
+        if (token == null || token.isEmpty) return;
 
-      final db = newDb();
-      final github = OAuthProvider.github(
-        // Never sent: `GET /user` and `/user/emails` authorize on the bearer
-        // token alone. Present because the factory requires them, and the
-        // provider is what carries the `kind` the fallback is gated on.
-        clientId: 'unused-for-userinfo',
-        clientSecret: 'unused-for-userinfo',
-      );
+        final db = newDb();
+        final github = OAuthProvider.github(
+          // Never sent: `GET /user` and `/user/emails` authorize on the bearer
+          // token alone. Present because the factory requires them, and the
+          // provider is what carries the `kind` the fallback is gated on.
+          clientId: 'unused-for-userinfo',
+          clientSecret: 'unused-for-userinfo',
+        );
 
-      final identity = await db.resolveIdentityFromTokens(
-        provider: github,
-        accessToken: token,
-      );
+        final identity = await db.resolveIdentityFromTokens(
+          provider: github,
+          accessToken: token,
+        );
 
-      // The fallback ran. `GET /user` returned `email: null` for this account
-      // (private primary), so anything non-null here came from
-      // `GET /user/emails` -- there is no other source in this path.
-      expect(
-        identity.email,
-        isNotNull,
-        reason:
-            'GET /user returns email:null for a private primary, so a null '
-            'here means the fallback did not run against real GitHub',
-      );
-      expect(identity.email, contains('@'));
+        // The fallback ran. `GET /user` returned `email: null` for this account
+        // (private primary), so anything non-null here came from
+        // `GET /user/emails` -- there is no other source in this path.
+        expect(
+          identity.email,
+          isNotNull,
+          reason:
+              'GET /user returns email:null for a private primary, so a null '
+              'here means the fallback did not run against real GitHub',
+        );
+        expect(identity.email, contains('@'));
 
-      // The half that would silently break linking: `/user/emails` only
-      // yields an address it reports as verified, so the identity must say so
-      // -- `OAuthLinking.byVerifiedEmail` refuses to link on anything else.
-      expect(identity.emailVerified, isTrue);
+        // The half that would silently break linking: `/user/emails` only
+        // yields an address it reports as verified, so the identity must say so
+        // -- `OAuthLinking.byVerifiedEmail` refuses to link on anything else.
+        expect(identity.emailVerified, isTrue);
 
-      // GitHub's `id` is a JSON integer, not a string. A strict-string
-      // subject extractor breaks every GitHub sign-in, and this is the
-      // assertion that would have caught it against the real payload.
-      expect(identity.subject, isNotEmpty);
-      expect(int.tryParse(identity.subject), isNotNull);
+        // GitHub's `id` is a JSON integer, not a string. A strict-string
+        // subject extractor breaks every GitHub sign-in, and this is the
+        // assertion that would have caught it against the real payload.
+        expect(identity.subject, isNotEmpty);
+        expect(int.tryParse(identity.subject), isNotNull);
 
-      // Nothing above printed the address, and nothing below may either.
-      // `identity.toString()` is not asserted on for that reason.
-    });
+        // Nothing above printed the address, and nothing below may either.
+        // `identity.toString()` is not asserted on for that reason.
+      },
+    );
   });
 }

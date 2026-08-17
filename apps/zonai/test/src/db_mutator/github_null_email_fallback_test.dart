@@ -77,10 +77,9 @@ void main() {
       required http.Client emails,
     }) {
       return runScoped(
-        () =>
-            ZonaiDb()
-              ..oauthUserInfoClient = OAuthUserInfoClient(httpClient: userInfo)
-              ..githubEmailResolver = GitHubEmailResolver(httpClient: emails),
+        () => ZonaiDb()
+          ..oauthUserInfoClient = OAuthUserInfoClient(httpClient: userInfo)
+          ..githubEmailResolver = GitHubEmailResolver(httpClient: emails),
         values: {
           settingsProvider.overrideWith(() => fakeSettings),
           fsProvider.overrideWith(LocalFileSystem.new),
@@ -100,7 +99,11 @@ void main() {
       final db = dbWith(
         userInfo: userInfoReturning(null),
         emails: emailsReturning(const [
-          {'email': 'secondary@example.com', 'primary': false, 'verified': true},
+          {
+            'email': 'secondary@example.com',
+            'primary': false,
+            'verified': true,
+          },
           {'email': 'primary@example.com', 'primary': true, 'verified': true},
         ]),
       );
@@ -128,7 +131,11 @@ void main() {
           // Primary but unverified: the exact pair the resolver must refuse,
           // since treating it as verified would let an unverified address
           // link to an existing account.
-          {'email': 'unverified@example.com', 'primary': true, 'verified': false},
+          {
+            'email': 'unverified@example.com',
+            'primary': true,
+            'verified': false,
+          },
         ]),
       );
 
@@ -141,25 +148,27 @@ void main() {
       expect(identity.emailVerified, isNot(isTrue));
     });
 
-    test('a public email is used as-is and /user/emails is never called',
-        () async {
-      final db = dbWith(
-        userInfo: userInfoReturning('public@example.com'),
-        // Fails the test if the fallback fires when it should not: the branch
-        // is guarded on `identity.email == null`, and a fallback that ran
-        // anyway would spend a second API call on every GitHub sign-in.
-        emails: MockClient((req) async {
-          fail('/user/emails must not be called when GET /user has an email');
-        }),
-      );
+    test(
+      'a public email is used as-is and /user/emails is never called',
+      () async {
+        final db = dbWith(
+          userInfo: userInfoReturning('public@example.com'),
+          // Fails the test if the fallback fires when it should not: the branch
+          // is guarded on `identity.email == null`, and a fallback that ran
+          // anyway would spend a second API call on every GitHub sign-in.
+          emails: MockClient((req) async {
+            fail('/user/emails must not be called when GET /user has an email');
+          }),
+        );
 
-      final identity = await db.resolveIdentityFromTokens(
-        provider: github,
-        accessToken: 'gho_abc',
-      );
+        final identity = await db.resolveIdentityFromTokens(
+          provider: github,
+          accessToken: 'gho_abc',
+        );
 
-      expect(identity.email, 'public@example.com');
-    });
+        expect(identity.email, 'public@example.com');
+      },
+    );
 
     test('the fallback is GitHub-only -- another provider with a null email '
         'does not reach it', () async {

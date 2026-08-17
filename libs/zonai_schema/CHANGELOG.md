@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.4.0
+
+> **Re-run `zonai compile` after upgrading, and use it with Zonai CLI v0.8.0 or
+> newer.** This release adds message vocabulary a worker *dispatches*, and your
+> `.zonai/executables/*.exe` keep the old copy until they are rebuilt. The
+> `.protocol` stamp will not catch it: that records the IPC framing version, not
+> what the messages contain.
+
+**Push notifications.** `push(...)` is now available inside rules, operations
+and crons, and hands the fan-out to a checkpointed job table rather than doing it
+inline — so a large send survives a restart and cannot block the request that
+started it.
+
+- `PushMessage`, `PushJobId`, and the `PushOutcome` result types
+  (`PushDelivered`, `PushPermanentlyRejected` with a `PushRejectionReason`,
+  `PushTransientlyFailed`).
+- `PushConfig` and `ApnsConfig` on `AppConfig.push`, with `PushCredentials` /
+  `ApnsCredentials` in file or inline form, and `OnPermanentRejection` deciding
+  what happens to a token Apple or Google has rejected for good.
+- A `deviceToken` column type (`ColumnShapeKind.deviceToken`), and a declared
+  platform column (`DevicePlatform`) that routes each row to APNs or FCM — so
+  iOS is reachable without Firebase in the middle.
+- The internal `_push_jobs` table and its drain/cleanup crons.
+
+**Behaviour changes, no API change:**
+
+- **The default JWT lifetime is now 24 hours, was 14 days.** Zonai has no
+  refresh-token flow, so the lifetime *is* the idle timeout — the old default
+  meant a session could not be withdrawn for a fortnight. Set `jwtExpiresIn` on
+  `AppConfig`, or per auth table, to choose your own.
+- **Admin auth is throttled far below the generic limit**:
+  `adminAuthenticatePolicy` and `adminSignInPolicy` now default to
+  `RateLimitPolicy.adminAuth` (10 requests / 15 minutes) instead of
+  `defaultPolicy` (100 / minute). The only honest traffic these endpoints see is
+  a human typing a password.
+- **`AppConfig.validate` rejects weak and reused secrets**: a short or
+  placeholder `jwtSecret` / `passwordSecret`, the two being equal, and either
+  appearing in its own `previous*Secrets` list. A project that was relying on a
+  throwaway secret will now fail to start, which is the point.
+- **`where` clauses are checked against the table**: filtering on a column that
+  is not on the table, or on a secret column such as a password, is refused
+  rather than interpolated. This applies to `update` and `delete` too.
+
+**Also added:** storage and maintenance payloads behind the dashboard's
+Maintenance screen (`storage_metrics.dart`, `maintenance_actions.dart`,
+`formatBytes`), richer `SchemaException` variants, extension request/response
+vocabulary, and detection of custom-operation name collisions.
+
 ## 0.3.1
 
 **`In` and `NotIn` where-clauses threw `ArgumentError` when sent between a

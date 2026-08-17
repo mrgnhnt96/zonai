@@ -6,7 +6,7 @@ name: zonai_client
 description: >-
   Typed Dart and Flutter client for a Zonai backend: auth, CRUD, file uploads,
   and live SQLite query streams over HTTP.
-version: 0.2.0
+version: 0.2.1
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 homepage: https://zonai.dev
 documentation: https://docs.zonai.dev/dart-client/overview
@@ -34,7 +34,7 @@ dependencies:
   # client onto one schema minor for no reason of its own, and a constraint
   # that lags is worse than useless: it silently pins them *below* a schema
   # they explicitly asked for.
-  zonai_schema: ">=0.1.0 <0.4.0"
+  zonai_schema: ">=0.1.0 <0.5.0"
 
 dev_dependencies:
   analyzer: ">=8.0.0 <13.0.0"
