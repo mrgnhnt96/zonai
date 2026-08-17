@@ -1,3 +1,9 @@
+## 0.2.1
+
+- Widen the `zonai_schema` constraint to `>=0.1.0 <0.5.0` so consumers can move to `zonai_schema` 0.4.0. The published 0.2.0 declares `<0.4.0`, which excludes it — anyone using this client alongside `zonai_schema` is pinned below 0.4.0 regardless of what they ask for, and 0.4.0 is the release carrying push notifications and the tightened auth defaults that Zonai CLI v0.8.0 requires. Nothing here references what changed in 0.4.0 (push vocabulary and rate-limit defaults, both server-side), so this spans the minors rather than pinning to the newest.
+- The generated client gains `MaintenanceDataSource` — `purgeLogs`, `purgeTable`, `cleanupPhotos` and `reclaimLogSpace`, reachable as `client.maintenance` — and `DashboardDataSource.storage()`, which back the dashboard's new Maintenance screen.
+- `EmailDataSource.send`, `RootDataSource.swaggerJson` and `RootDataSource.swaggerYaml` now take an optional `authorization` argument, because the server no longer serves those unauthenticated. Additive for callers; if you implement or mock any of these interfaces yourself, you will need to add the parameter and the new members.
+
 ## 0.2.0
 
 - **Breaking:** require `revali_client` `^3.0.0` (was `^2.1.0`). This is breaking for you only if you pass your own interceptor to `ZonaiClient(extraInterceptors: [...])`, because `HttpInterceptor.onRequest` and `onResponse` now return `FutureOr<HttpResponse?>` instead of `void`. The migration is mechanical: change the return type and `return null`, which means "carry on". Returning a response instead is the new capability — from `onRequest` it answers the call without sending anything, and from `onResponse` it substitutes what arrived, which is what makes retries, caching and circuit breaking expressible at all. Callers who pass no interceptor of their own are unaffected; this package's own X-Auth interceptor already returned `null` throughout.

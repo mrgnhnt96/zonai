@@ -34,8 +34,10 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.2.0`: the first release where custom operations work at all.
-/// `0.1.1` ships `DbRateLimits` asserting `request.customOperation!` non-null
-/// on a path the host deliberately sets to null, so every custom-operation
-/// request 500s before authorization (#27).
-const kMinSchemaVersion = '0.3.0';
+/// Currently `0.4.0`: the first release carrying the push vocabulary this CLI
+/// dispatches. The host enqueues through `EnqueuePushRequest` and expects
+/// `MessageHandler`'s push provider to answer it; `0.3.1` has neither, and its
+/// internal artifacts declare no `_push_jobs` table and none of the drain or
+/// cleanup crons that drive it. A project left on `0.3.x` therefore compiles
+/// executables that cannot service a send this CLI will make.
+const kMinSchemaVersion = '0.4.0';
