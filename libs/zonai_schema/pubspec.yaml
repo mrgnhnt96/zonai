@@ -30,7 +30,7 @@ dependencies:
   scoped_deps: ^0.2.1
 
 dev_dependencies:
-  revali_router: ^5.0.0
+  revali_router: ^5.1.1
   test: ^1.26.2
   # test/src/schemas/auth/oauth_mixin_compile_test.dart imports it. Resolving
   # inside this workspace it was satisfied transitively and nothing complained;

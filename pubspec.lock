@@ -965,10 +965,10 @@ packages:
     dependency: transitive
     description:
       name: revali_core
-      sha256: "54c2879de619bd0b73efc953c58dfc9ef1231f1bb8806e3197acb81647fca219"
+      sha256: "9f922d6ca8c3c6d88194b7cdad1b939656edc622b6ef7927d035371bf67910b9"
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.0"
+    version: "3.2.0"
   revali_docker:
     dependency: transitive
     description:
@@ -981,10 +981,10 @@ packages:
     dependency: transitive
     description:
       name: revali_router
-      sha256: "3a979acd25fe523348ffa5742b2a81029451aa80e34a50be8de7a8879aad4eab"
+      sha256: "5cfbc138c87231bf9ea0443da3a267c9f929b222b21747c5f8b7900afed08962"
       url: "https://pub.dev"
     source: hosted
-    version: "5.1.0"
+    version: "5.1.1"
   revali_swagger:
     dependency: transitive
     description:
