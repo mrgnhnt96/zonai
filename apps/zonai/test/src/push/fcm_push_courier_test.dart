@@ -79,8 +79,9 @@ class _FakeClient extends http.BaseClient {
   int get tokenRequests =>
       requests.where((r) => r.request.url.path.endsWith('/token')).length;
 
-  int get sendRequests =>
-      requests.where((r) => r.request.url.path.endsWith('messages:send')).length;
+  int get sendRequests => requests
+      .where((r) => r.request.url.path.endsWith('messages:send'))
+      .length;
 }
 
 http.Response _tokenResponse({int expiresIn = 3600}) => http.Response(
@@ -161,7 +162,9 @@ void main() {
       );
     }
 
-    markTestSkipped('openssl is not on PATH (not CI, so this is a gap, not a failure)');
+    markTestSkipped(
+      'openssl is not on PATH (not CI, so this is a gap, not a failure)',
+    );
   });
 
   group('access tokens', () {
@@ -236,7 +239,9 @@ void main() {
       final privateKey = keyOrSkip();
       if (privateKey == null) return;
 
-      final client = _FakeClient((request, _) => _tokenResponse(expiresIn: 3600));
+      final client = _FakeClient(
+        (request, _) => _tokenResponse(expiresIn: 3600),
+      );
       final serviceAccount = ServiceAccount.fromJson(
         jsonDecode(_serviceAccountJson(privateKey: privateKey))
             as Map<String, dynamic>,
@@ -254,9 +259,12 @@ void main() {
       });
       expect(client.tokenRequests, 1);
 
-      await withClock(Clock.fixed(start.add(const Duration(hours: 2))), () async {
-        await cache.get();
-      });
+      await withClock(
+        Clock.fixed(start.add(const Duration(hours: 2))),
+        () async {
+          await cache.get();
+        },
+      );
       expect(client.tokenRequests, 2);
     });
 
@@ -300,7 +308,9 @@ void main() {
       final privateKey = keyOrSkip();
       if (privateKey == null) return;
 
-      final client = _FakeClient((request, _) => _tokenResponse(expiresIn: 3600));
+      final client = _FakeClient(
+        (request, _) => _tokenResponse(expiresIn: 3600),
+      );
       final serviceAccount = ServiceAccount.fromJson(
         jsonDecode(_serviceAccountJson(privateKey: privateKey))
             as Map<String, dynamic>,
@@ -392,7 +402,10 @@ void main() {
         (dead as PushPermanentlyRejected).reason,
         PushRejectionReason.unregistered,
       );
-      expect(outcomes.firstWhere((o) => o.token == 'live'), isA<PushDelivered>());
+      expect(
+        outcomes.firstWhere((o) => o.token == 'live'),
+        isA<PushDelivered>(),
+      );
     });
 
     test('NOT_FOUND is permanent too — it is what FCM really sends', () async {
@@ -654,10 +667,7 @@ void main() {
         return http.Response('{}', 200);
       });
 
-      await FcmPushCourier(
-        fileSystem: MemoryFileSystem(),
-        client: client,
-      ).send(
+      await FcmPushCourier(fileSystem: MemoryFileSystem(), client: client).send(
         const PushMessage(
           title: 'a',
           body: 'b',
@@ -670,10 +680,7 @@ void main() {
       final message =
           (jsonDecode(client.requests.last.body) as Map)['message']
               as Map<String, dynamic>;
-      expect(message['data'], {
-        'lossEventId': 'evt_1',
-        'causedById': 'usr_2',
-      });
+      expect(message['data'], {'lossEventId': 'evt_1', 'causedById': 'usr_2'});
     });
   });
 
@@ -714,17 +721,15 @@ void main() {
         return http.Response('{}', 200);
       });
 
-      final outcomes = await FcmPushCourier(
-        fileSystem: fs,
-        client: client,
-      ).send(
-        const PushMessage(title: 'a', body: 'b'),
-        ['t'],
-        config: PushConfig(
-          projectId: 'fixture-project',
-          credentials: const PushCredentials.file('/keys/sa.json'),
-        ),
-      );
+      final outcomes = await FcmPushCourier(fileSystem: fs, client: client)
+          .send(
+            const PushMessage(title: 'a', body: 'b'),
+            ['t'],
+            config: PushConfig(
+              projectId: 'fixture-project',
+              credentials: const PushCredentials.file('/keys/sa.json'),
+            ),
+          );
 
       expect(outcomes.single, isA<PushDelivered>());
     });

@@ -53,10 +53,12 @@ void main() {
         expect(EmailHandler.withinRateLimit('10.0.0.1'), isFalse);
       });
 
-      withClock(Clock.fixed(start.add(const Duration(minutes: 1, seconds: 1))),
-          () {
-        expect(EmailHandler.withinRateLimit('10.0.0.1'), isTrue);
-      });
+      withClock(
+        Clock.fixed(start.add(const Duration(minutes: 1, seconds: 1))),
+        () {
+          expect(EmailHandler.withinRateLimit('10.0.0.1'), isTrue);
+        },
+      );
     });
   });
 

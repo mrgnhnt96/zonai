@@ -43,6 +43,5 @@ class PushTransportException implements Exception {
   final Object? cause;
 
   @override
-  String toString() =>
-      cause == null ? message : '$message: $cause';
+  String toString() => cause == null ? message : '$message: $cause';
 }

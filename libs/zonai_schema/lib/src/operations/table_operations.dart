@@ -574,11 +574,8 @@ abstract base class TableOperations<S extends rd.Schema<R>, R>
     final orderBy = _defaultOrderByFor(table);
     final orderBySql = orderBy == null || orderBy.isEmpty
         ? ''
-        : ' ORDER BY ${[
-            for (final term in orderBy)
-              '"${_escapeIdent(table.name)}"."${_escapeIdent(term.column)}" '
-                  '${term.direction == SortDirection.asc ? 'ASC' : 'DESC'}',
-          ].join(', ')}';
+        : ' ORDER BY ${[for (final term in orderBy) '"${_escapeIdent(table.name)}"."${_escapeIdent(term.column)}" '
+                '${term.direction == SortDirection.asc ? 'ASC' : 'DESC'}'].join(', ')}';
 
     final rewritten =
         '$pkRef IN (SELECT $pkRef FROM $tableRef WHERE $innerWhereSql'

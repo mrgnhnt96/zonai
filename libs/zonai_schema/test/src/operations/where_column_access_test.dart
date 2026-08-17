@@ -57,7 +57,8 @@ class _AccountTable extends Table<_AccountRow> {
 
 final accounts = sqliteTable('accounts', _AccountTable.new);
 
-final class _AccountOperations extends TableOperations<_AccountTable, _AccountRow> {
+final class _AccountOperations
+    extends TableOperations<_AccountTable, _AccountRow> {
   _AccountOperations() : super(accounts);
 }
 
@@ -112,15 +113,18 @@ void main() {
       );
     });
 
-    test('an injection-shaped name is refused rather than escaped into SQL', () {
-      // Previously this was quoted in and produced a 500 from SQLite. The
-      // point is not that the escaping was wrong -- it is that a name nobody
-      // checked reached the statement at all.
-      expect(
-        () => ops.list(where: const Eq('id" FROM "accounts" --', 'x')),
-        throwsA(isA<ColumnNotFoundException>()),
-      );
-    });
+    test(
+      'an injection-shaped name is refused rather than escaped into SQL',
+      () {
+        // Previously this was quoted in and produced a 500 from SQLite. The
+        // point is not that the escaping was wrong -- it is that a name nobody
+        // checked reached the statement at all.
+        expect(
+          () => ops.list(where: const Eq('id" FROM "accounts" --', 'x')),
+          throwsA(isA<ColumnNotFoundException>()),
+        );
+      },
+    );
   });
 
   group('secret columns cannot be filtered on', () {
@@ -195,10 +199,7 @@ void main() {
       // every binding after the identifier by one.
       final query = ops
           .list(
-            where: const And([
-              Eq('odd?column', 'ODD'),
-              Eq('email', 'a@b.c'),
-            ]),
+            where: const And([Eq('odd?column', 'ODD'), Eq('email', 'a@b.c')]),
           )
           .compiled();
       final (sql, values) = dialect.translate(query);
@@ -206,7 +207,8 @@ void main() {
       expect(
         values,
         ['ODD', 'a@b.c'],
-        reason: 'both values bind, in order, with none consumed by the '
+        reason:
+            'both values bind, in order, with none consumed by the '
             'identifier\'s own question mark',
       );
       expect(sql, contains('"odd?column"'));

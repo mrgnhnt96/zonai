@@ -348,10 +348,7 @@ class Mailman<S extends Request, R extends Response> {
             where: request.where,
             jwt: request.jwt,
           );
-          response = EnqueuePushResponse(
-            id: request.id,
-            jobId: jobId?.value,
-          );
+          response = EnqueuePushResponse(id: request.id, jobId: jobId?.value);
 
         case final PurgeRecordsRequest request:
           response = PurgeRecordsResponse(

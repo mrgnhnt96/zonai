@@ -29,8 +29,10 @@ void main() {
 
     test('rejects a nested path and a Windows separator', () {
       expect(isValidEmailTemplateName('sub/dir/template'), isFalse);
-      expect(isValidEmailTemplateName(r'..\..\windows\system32\config'),
-          isFalse);
+      expect(
+        isValidEmailTemplateName(r'..\..\windows\system32\config'),
+        isFalse,
+      );
     });
 
     test('rejects an empty name', () {
@@ -45,10 +47,8 @@ void main() {
       memoryFs = MemoryFileSystem.test();
     });
 
-    T withFs<T>(T Function() body) => runScoped(
-          body,
-          values: {fsProvider.overrideWith(() => memoryFs)},
-        );
+    T withFs<T>(T Function() body) =>
+        runScoped(body, values: {fsProvider.overrideWith(() => memoryFs)});
 
     test('renders a template that lives inside the templates dir', () {
       withFs(() {
@@ -85,7 +85,8 @@ void main() {
             emailTemplatesPath: '/templates',
           ),
           throwsA(isA<InvalidEmailTemplateNameException>()),
-          reason: 'traversal out of the templates dir must be refused, not '
+          reason:
+              'traversal out of the templates dir must be refused, not '
               'quietly rewritten',
         );
       });

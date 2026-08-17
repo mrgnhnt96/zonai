@@ -23,7 +23,8 @@ void main() {
       expect(
         const Cors(),
         isA<LifecycleComponent>(),
-        reason: 'without this the annotation is inert and every response '
+        reason:
+            'without this the annotation is inert and every response '
             'keeps the reflected origin and credentials header',
       );
     });
@@ -55,7 +56,8 @@ void main() {
       expect(
         decision.allowOrigin,
         isNull,
-        reason: 'emitting no Allow-Origin is what makes the browser refuse '
+        reason:
+            'emitting no Allow-Origin is what makes the browser refuse '
             'to hand the response to the page',
       );
       expect(decision.allowCredentials, isFalse);

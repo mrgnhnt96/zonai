@@ -296,17 +296,14 @@ class HomeSidebar extends StatelessComponent {
           overflow: Overflow.hidden,
         ),
         css('&:hover').styles(backgroundColor: hoverColor, color: fgColor),
-        css('.home-sidebar-nav-icon').styles(
-          flex: Flex(grow: 0, shrink: 0),
-          width: 16.px,
-          textAlign: .center,
-          fontSize: 0.875.rem,
-        ),
+        css(
+          '.home-sidebar-nav-icon',
+        ).styles(flex: Flex(grow: 0, shrink: 0), width: 16.px, textAlign: .center, fontSize: 0.875.rem),
       ]),
-      css(
-        '.home-sidebar-nav-item--active',
-      ).styles(backgroundColor: selectedBgColor, color: fgColor, fontWeight: .w600),
-      css('&--collapsed .home-sidebar-nav').styles(padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: ZonaiSpacing.s2)),
+      css('.home-sidebar-nav-item--active').styles(backgroundColor: selectedBgColor, color: fgColor, fontWeight: .w600),
+      css('&--collapsed .home-sidebar-nav').styles(
+        padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: ZonaiSpacing.s2),
+      ),
       css('.home-sidebar-body').styles(
         flex: Flex(grow: 1, shrink: 1),
         display: .flex,

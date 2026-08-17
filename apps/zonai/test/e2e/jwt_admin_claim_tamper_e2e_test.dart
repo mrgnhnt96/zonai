@@ -517,11 +517,7 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
     loggerProvider.overrideWith(
       () => logs == null
           ? Logger(level: .error)
-          : Logger(
-              level: .warning,
-              stdout: IOSink(logs),
-              stderr: IOSink(logs),
-            ),
+          : Logger(level: .warning, stdout: IOSink(logs), stderr: IOSink(logs)),
     ),
     settingsProvider.overrideWith(() => settings),
     processProvider,
