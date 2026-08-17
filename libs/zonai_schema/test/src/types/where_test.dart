@@ -115,4 +115,28 @@ void main() {
       );
     });
   });
+
+  // `Null` and `NotNull` cannot be exported from `zonai_client`'s barrel: an
+  // explicit import outranks the implicit `dart:core` one, so every `Null` a
+  // consumer wrote would mean the where clause. These factories are how the two
+  // clauses stay constructible while the two names stay unexported, so they are
+  // load-bearing for the client barrel rather than sugar.
+  group('Where.isNull / Where.isNotNull', () {
+    test('isNull builds a Null clause', () {
+      const where = Where.isNull('deleted_at');
+      expect(where, isA<Null>());
+      expect(where.toJson(), {'type': 'is_null', 'column': 'deleted_at'});
+    });
+
+    test('isNotNull builds a NotNull clause', () {
+      const where = Where.isNotNull('deleted_at');
+      expect(where, isA<NotNull>());
+      expect(where.toJson(), {'type': 'not_null', 'column': 'deleted_at'});
+    });
+
+    test('both round-trip through fromJson', () {
+      expectRoundTrip(const Where.isNull('a'));
+      expectRoundTrip(const Where.isNotNull('b'));
+    });
+  });
 }

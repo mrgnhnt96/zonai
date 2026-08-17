@@ -3,7 +3,11 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/dart/ast/ast.dart';
+// `hide Literal`: the analyzer's AST declares its own `Literal`, which collides
+// with the `UpdateValue` variant the barrel exports. Only this file hits it --
+// it is the one place that imports both -- and the sweep below needs just the
+// three *Declaration nodes.
+import 'package:analyzer/dart/ast/ast.dart' hide Literal;
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 // The historical incident (see project memory `project-zonai-client-storage-export`):
@@ -55,6 +59,132 @@ void main() {
       });
       expect(provider.kind, OAuthProviderKind.google);
       expect(provider.toJson(), containsPair('id', 'google'));
+    });
+
+    // The group-2 sweep below only walks zonai_client's OWN lib/src, so it is
+    // blind to the `show` list on the `package:zonai_schema/payloads.dart`
+    // re-export: a name dropped from there breaks every consumer and fails
+    // nothing here. That is the exact failure shape described atop this file.
+    // These tests therefore *use* each symbol, so an omission fails the
+    // compile rather than an assertion.
+    //
+    // A generated typed client (docs/typed-client-design.md §5.4) returns and
+    // consumes this whole vocabulary, which is why it has to be nameable.
+    test('every Where variant is constructible through the barrel', () {
+      // `Null` / `NotNull` are deliberately NOT exported -- they would shadow
+      // dart:core's `Null` in every consumer library. The redirecting factories
+      // are what keep those two clauses reachable anyway; that they appear here
+      // and the class names do not is the whole point.
+      final List<Where> clauses = [
+        const Eq('a', 1),
+        const Gt('a', 1),
+        const Gte('a', 1),
+        const Lt('a', 1),
+        const Lte('a', 1),
+        const In('a', <Object>['x']),
+        const NotIn('a', <Object>['x']),
+        const And(<Where>[Eq('a', 1)]),
+        const Or(<Where>[Eq('a', 1)]),
+        const Contains('a', 'x'),
+        const NotContains('a', 'x'),
+        const StartsWith('a', 'x'),
+        const EndsWith('a', 'x'),
+        const Where.isNull('a'),
+        const Where.isNotNull('a'),
+      ];
+
+      expect(clauses.map((c) => c.toJson()['type']).toList(), [
+        'eq',
+        'gt',
+        'gte',
+        'lt',
+        'lte',
+        'in',
+        'not_in',
+        'and',
+        'or',
+        'contains',
+        'not_contains',
+        'starts_with',
+        'ends_with',
+        'is_null',
+        'not_null',
+      ]);
+
+      // Every clause survives the wire, reached only through the barrel.
+      for (final clause in clauses) {
+        expect(Where.fromJson(clause.toJson()).toJson(), clause.toJson());
+      }
+    });
+
+    test('OrderByTerm and both SortDirections are usable', () {
+      const OrderByTerm ascending = OrderByTerm(column: 'created_at', direction: SortDirection.asc);
+      const OrderByTerm descending = OrderByTerm(
+        column: 'created_at',
+        direction: SortDirection.desc,
+      );
+
+      // `asc` is the default, so it is omitted from the wire form.
+      expect(ascending.toJson(), {'column': 'created_at'});
+      expect(descending.toJson(), {'column': 'created_at', 'direction': 'desc'});
+    });
+
+    test('Update and every UpdateValue variant are constructible', () {
+      final List<UpdateValue> values = [
+        const Literal(5),
+        const Increment(),
+        const Decrement(),
+        const Add('x'),
+        const Remove('x'),
+        const AddAll(<Object?>['x']),
+        const RemoveAll(<Object?>['x']),
+      ];
+
+      expect(values.map((v) => v.toJson()['type']).toList(), [
+        'literal',
+        'increment',
+        'decrement',
+        'add',
+        'remove',
+        'add_all',
+        'remove_all',
+      ]);
+
+      // Each one wrapped the way a generated client would wrap it.
+      for (final value in values) {
+        final Update update = Update.column('count', value);
+        expect(update, isA<ColumnUpdate>());
+        expect(update.toJson(), {'type': 'column', 'column': 'count', 'value': value.toJson()});
+      }
+
+      final Update object = Update.object({'title': 'hello'});
+      expect(object, isA<ObjectUpdate>());
+      expect(object.toJson(), {
+        'type': 'object',
+        'object': {'title': 'hello'},
+      });
+    });
+
+    test('the five client types reachable from ZonaiClient are nameable', () {
+      // Memory storage, not `ZonaiStorage.none()`: constructing a client writes
+      // through to storage, and the no-op one asserts on save.
+      final client = ZonaiClient(storage: ZonaiStorage.memory());
+
+      // The point of this test is the *type annotations*, not the values: each
+      // one is a name a generated `PostsApi` must be able to write down. Before
+      // these were exported, every line here needed an implementation import
+      // (package:zonai_client/src/db.dart) that no consumer should ever write.
+      final Db db = client.db;
+      final DbListen listen = db.listen;
+      final Emails emails = client.email;
+      final Photos photos = client.photos;
+      final AdminAuth admin = client.auth.admin;
+
+      expect(db, isNotNull);
+      expect(listen, isNotNull);
+      expect(emails, isNotNull);
+      expect(photos, isNotNull);
+      expect(admin, isNotNull);
     });
   });
 
@@ -148,22 +278,6 @@ const _exclusions = <String, String>{
   // consumer an Interceptor instance, so there is nothing for a consumer to
   // need a type name for.
   'Interceptor': 'internal HttpInterceptor wiring, never handed to a consumer',
-
-  // --- Confirmed gap, found by this sweep on 2026-08-13. NOT fixed here. ---
-  // Each of these is the concrete type of a *public* field/getter reachable
-  // from ZonaiClient (client.db, client.email, client.photos, client.auth.admin,
-  // client.db.listen), but none is exported from lib/zonai_client.dart. A
-  // consumer can call methods on client.db through inference, but cannot write
-  // `Db db = client.db;` or pass one as a typed parameter without an
-  // implementation import (package:zonai_client/src/db.dart), which is exactly
-  // the kind of barrel gap this leaf exists to catch. Left as a documented,
-  // reproducible gap rather than silently fixed, since exporting new names is
-  // an API-design decision, not a test-writing one. See this leaf's close report.
-  'Db': 'GAP -- reachable via client.db but its type is not exported (unfixed)',
-  'Emails': 'GAP -- reachable via client.email but its type is not exported (unfixed)',
-  'Photos': 'GAP -- reachable via client.photos but its type is not exported (unfixed)',
-  'AdminAuth': 'GAP -- reachable via client.auth.admin but its type is not exported (unfixed)',
-  'DbListen': 'GAP -- reachable via client.db.listen but its type is not exported (unfixed)',
 };
 
 /// Walks up from this test file looking for the package root (identified by
