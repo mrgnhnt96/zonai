@@ -24,6 +24,37 @@ started it.
   iOS is reachable without Firebase in the middle.
 - The internal `_push_jobs` table and its drain/cleanup crons.
 
+**OAuth, and admin invites.** Sign-in through a provider is now first-class.
+Add the mixin and list your providers:
+
+```dart
+class Users extends AuthTable with PasswordAuth, OAuth, AsAdmin {
+  @override
+  List<OAuthProvider> get oauthProviders => [OAuthProvider.google(...)];
+}
+```
+
+- `OAuthProvider`, with built-in factories named by `OAuthProviderKind` (Google,
+  Apple, GitHub, Microsoft, Facebook, Discord, GitLab, LinkedIn) and
+  `OAuthProvider.custom(...)` for anything else.
+- `OAuthEndpoints`, `OAuthClaimMap`, `OAuthLinking`, `OAuthBrand`, `OAuthIcon`
+  and `OAuthProviderPublic` — the last being what the dashboard is given, so a
+  client secret never leaves the server.
+- `oauth_body` and `admin_invite_body` payloads, the internal
+  `_oauth_identities` and `_auth_challenges` tables and their rules, and
+  `AuthTable.supportsOAuth`.
+
+**Breaking: two enums gained values.** Before 1.0 that is breaking, and it is
+also exactly why `kMinSchemaVersion` moved to 0.4.0 — both are decoded with
+`Enum.values.byName`, which throws on a name it does not have, so a v0.8.0 CLI
+sending one to an older schema fails at the worker rather than degrading.
+
+- `AuthType` is now `{ password, otp, magicLink, oauth }`.
+- `RateLimitOperation` gained `adminInvite`, `oauthStart` and `oauthCallback`.
+
+An exhaustive `switch` over either in your own code will stop compiling until
+you handle the new values.
+
 **Behaviour changes, no API change:**
 
 - **The default JWT lifetime is now 24 hours, was 14 days.** Zonai has no
