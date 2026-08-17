@@ -55,6 +55,9 @@
     <loc>https://docs.zonai.dev/operations/default-operations/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/operations/views/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/operations/streaming/</loc>
   </url>
   <url>
@@ -107,6 +110,12 @@
   </url>
   <url>
     <loc>https://docs.zonai.dev/authentication/oauth/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/authentication/external-idp/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/authentication/external-idp-supabase/</loc>
   </url>
   <url>
     <loc>https://docs.zonai.dev/authentication/session-management/</loc>
@@ -236,6 +245,9 @@
   </url>
   <url>
     <loc>https://docs.zonai.dev/cli/rules/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/cli/ping/</loc>
   </url>
   <url>
     <loc>https://docs.zonai.dev/cli/ai/</loc>

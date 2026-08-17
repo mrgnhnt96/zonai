@@ -154,6 +154,11 @@ const List<NavGroup> navigation = [
         summary: 'CRUD endpoints, request/response JSON, where and order_by shapes.',
       ),
       NavItem(
+        'Views',
+        '/operations/views',
+        summary: 'A read-only collection defined by a join, served over the same /db surface.',
+      ),
+      NavItem(
         'Live Queries',
         '/operations/streaming',
         badge: 'live',
@@ -236,6 +241,16 @@ const List<NavGroup> navigation = [
         'OAuth',
         '/authentication/oauth',
         summary: 'Sign in with Google, Apple, GitHub and other providers.',
+      ),
+      NavItem(
+        'External Identity Providers',
+        '/authentication/external-idp',
+        summary: 'Trust a JWT another IdP minted, and map its users onto an auth collection.',
+      ),
+      NavItem(
+        'Supabase Auth as an IdP',
+        '/authentication/external-idp-supabase',
+        summary: 'Which of Supabase\'s two key models you have, and the claims it sends.',
       ),
       NavItem('Session Management', '/authentication/session-management', summary: 'Refresh, logout and JWT lifetime.'),
       NavItem(
@@ -369,6 +384,7 @@ const List<NavGroup> navigation = [
       NavItem('zonai compile', '/cli/compile'),
       NavItem('zonai db', '/cli/db', summary: 'Migrations, admins, photos and logs.'),
       NavItem('zonai rules', '/cli/rules'),
+      NavItem('zonai ping', '/cli/ping', summary: 'Check that every compiled worker starts and answers.'),
       NavItem('zonai ai', '/cli/ai', summary: 'Install project-local assistant rules.'),
       NavItem('zonai version', '/cli/version'),
       NavItem('Upgrading Zonai', '/cli/upgrading', summary: 'Moving between releases, including breaking upgrades.'),

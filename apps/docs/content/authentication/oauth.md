@@ -516,7 +516,7 @@ the OAuth handshake:
 | Who talks to the provider | zonai — authorization redirect, code exchange, token verification | Your existing IdP (Supabase Auth, Auth0, Clerk, ...); zonai only verifies the JWT it hands you |
 | Setup | Register an app in each provider's console; declare `oauthProviders` | Point `AppConfig.externalIdps` at your IdP's issuer + JWKS or shared secret |
 | Best for | Greenfield apps where zonai owns auth end-to-end and you want "Sign in with Google" directly | Apps that already have an IdP for something zonai can't replicate (phone+SMS OTP, enterprise SSO, an existing user base) |
-| Session | A zonai JWT, revocable via the `_jwt` table like any other session | A zonai JWT is still minted on first-seen provisioning, but the *inbound* IdP token itself can't be revoked by zonai — it's not zonai's token |
+| Session | A zonai JWT, revocable via the `_jwt` table like any other session | No zonai token is issued at all — the client keeps presenting the IdP's, and zonai verifies it per request. Nothing to revoke through `_jwt`, because it isn't zonai's token |
 
 If you're unsure: this page is the greenfield choice — a new app that wants
 provider sign-in without operating a separate identity service. Reach for

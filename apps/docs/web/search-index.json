@@ -826,6 +826,62 @@
       ]
     },
     {
+      "u": "/operations/views",
+      "t": "Views (Read-Only Collections)",
+      "d": "A read-only collection defined by a join, served over the same /db surface.",
+      "g": "Querying Data",
+      "s": [
+        {
+          "b": "A view is a collection defined by a query instead of a table — typically a join or a projection across collections you already have. It is served over the same /db surface as everything else and goes through the same rules, with one difference that never varies: there is no write path, ever. Request A view GET /db, GET /db/list, GET /db/count Filtered, sorted and paginated exactly like a real collection. POST, PATCH, DELETE /db 403, from the rules layer, before any SQL is built. Views are a zonai_schema concept and nothing else. There is no CREATE VIEW in your migrations, no schema change, and no new zonai.yaml key — a view is one operations file plus two rules files."
+        },
+        {
+          "h": "The schema lives in the operations file",
+          "a": "the-schema-lives-in-the-operations-file",
+          "b": "This is the part that looks wrong until you know why, so it comes first: a view's table(...) declaration goes under operationsPath, never under schemasPath. A view needs the full Table machinery, because that is what gives rules a typed row to check and what reconstructs rows from raw SQL results. But two independent scanners look for exactly that shape, and both only ever look inside schemasPath: raindrop's migration generator, which finds any top-level variable whose static type extends Schema — regardless of what function produced it; Zonai's own tooling, which scans for table(...) / authTable(...) calls. If either found a view, zonai compile would try to generate a CREATE TABLE for a query with no backing table. operationsPath is never handed to the migration generator and never scanned for schemas, so putting the declaration there makes that impossible by construction rather than by convention. A separate views/ directory would only prevent it by everyone remembering. It has a second payoff: the shape (which columns exist) and the mapping (which source column feeds each one, through which join) sit in one file, where the fact that they must agree is visible."
+        },
+        {
+          "h": "Writing the view",
+          "a": "writing-the-view",
+          "b": "Import only zonai_schema — it already re-exports raindrop's query builder (.select, .from, .join, count). Adding package:raindrop/raindrop.dart alongside it produces ambiguous_import, because both packages export Table and table. import 'package:my_app/src/ids.dart'; import 'package:my_app/src/schemas/authors.dart'; import 'package:my_app/src/schemas/posts.dart'; import 'package:zonai_schema/zonai_schema.dart'; ViewOperations main() => ViewOperations(postSummary, PostSummaryQuery()); final class PostSummary { const PostSummary({ required this.id, required this.title, required this.authorName, }); final PostsId id; final String title; final String authorName; } final class PostSummaryTable extends Table { PostSummaryTable(super.$) : id = $.id( 'id', (s) => s.id, fromString: PostsId.new, generate: PostsId.generate, ), title = $.text('title', (s) => s.title), authorName = $.text('author_name', (s) => s.authorName); @override PostSummary fromRow(RowReader read) => PostSummary( id: read(id), title: read(title)!, authorName: read(authorName)!, ); final IdColumn id; final TextColumn title; final TextColumn authorName; } final postSummary = table('post_summary', PostSummaryTable.new); fina"
+        },
+        {
+          "h": "Three rules for query() and countQuery()",
+          "a": "three-rules-for-query-and-countquery",
+          "b": "Alias every selected column with .aliasedAs(...), matching the view schema's column name exactly. Not optional and not cosmetic: the moment a query has a join, raindrop auto-qualifies every projected column as \"table__column\". Without .aliasedAs('author_name') there is no author_name in the result at all, and the row cannot be reconstructed. Never call .where, .limit, .offset or .orderBy. ViewOperations applies those on top of your query for every request, the same way list() does for a real collection. A view does not get to opt out of them. countQuery() must mirror query()'s joins, projecting count(...) instead of the column list — the same relationship a table's count() has to its list(). Joins that disagree make a count that does not describe the list."
+        },
+        {
+          "h": "Filtering and sorting have a sharp edge",
+          "a": "filtering-and-sorting-have-a-sharp-edge",
+          "b": "A caller's where and orderBy name columns as your query() selects them. ORDER BY can refer to a SELECT alias; WHERE generally cannot, because it is evaluated before the projection. So a column that callers need to filter on should be exposed under its natural source name, not a renamed alias that only makes sense in the output. The default sort has a related trap. With no orderBy, the fallback is an unqualified column reference — no table prefix — because a view has no single FROM target to qualify against. If two joined tables share a column name that lands in the default-sort candidates (id, most often), that reference is ambiguous and the query fails. Pass an explicit orderBy, or orderBy: [] to opt out of the default entirely, rather than relying on the fallback."
+        },
+        {
+          "h": "Writing the rules",
+          "a": "writing-the-rules",
+          "b": "Two files under rulesPath, keyed by the view's table name, exactly like any other collection. They extend ViewTableRules / ViewRowRules, which hard-deny canCreate, canUpdate and canDelete — including for an admin token, which the ordinary base classes grant by default. Only reads are yours to decide. import 'package:zonai_schema/zonai_schema.dart'; import '../operations/post_summary_operations.dart'; PostSummaryTableRules main() => PostSummaryTableRules(); final class PostSummaryTableRules extends ViewTableRules<PostSummaryTable, PostSummary> { PostSummaryTableRules() : super(postSummary); @override Future canView(Jwt? jwt) async => true; @override Future canList(Jwt? jwt) async => true; } import 'package:zonai_schema/zonai_schema.dart'; import '../operations/post_summary_operations.dart'; PostSummaryRowRules main() => PostSummaryRowRules(); final class PostSummaryRowRules extends ViewRowRules<PostSummaryTable, PostSummary> { PostSummaryRowRules() : super(postSummary); @override Future canView(Jwt? jwt, PostSummary row) async => true; } The schema is imported from the operations file that declares it — the one place it exists. Write access is denied twice. Rules refuse it before an"
+        },
+        {
+          "h": "What you cannot override",
+          "a": "what-you-cannot-override",
+          "b": "ViewOperations is final. You construct it; you do not extend it. That is the same guarantee stated in the type system: the class that layers where/limit/offset/orderBy onto your query is also the class that must ensure every read goes through that logic and every write is refused. Neither survives a subclass overriding list() or insert(). list() and count() are themselves overridden to throw, pointing at compileList / compileCount — the entry points the framework actually calls for GET /db, GET /db/list and GET /db/count against a view. So everything you write for a view is: the schema, two ViewQuery methods, and two rules files. Pagination, filtering, sort, write rejection and rules enforcement are handled once, centrally, for every view."
+        },
+        {
+          "h": "Layout",
+          "a": "layout",
+          "b": "lib/src/operations/ post_summary_operations.dart schema + ViewOperations + ViewQuery, one file lib/src/rules/ post_summary_table_rules.dart post_summary_row_rules.dart Nothing for a view goes under schemasPath. No zonai.yaml key changes: schemasPath: lib/src/schemas scanned for migrations — a view must never be here operationsPath: lib/src/operations the view's schema and query both live here rulesPath: lib/src/rules its two rules files"
+        },
+        {
+          "h": "Reading it",
+          "a": "reading-it",
+          "b": "curl -G 'localhost:8080/db/list' --data-urlencode 'body={\"table\":\"post_summary\"}' Joined rows — id, title, author_name — filtered, sorted and paginated like any collection's list endpoint, while POST, PATCH and DELETE against post_summary all return 403."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Default Operations — the request and response shapes a view answers with. Rules Overview — the deny-by-default model these rules classes plug into. Defining Tables — the Table machinery a view's schema reuses."
+        }
+      ]
+    },
+    {
       "u": "/operations/streaming",
       "t": "Streaming (Live Queries)",
       "d": "db.listen and /db/stream* push updates as data changes.",
@@ -1539,12 +1595,119 @@
         {
           "h": "OAuth vs. External Identity Providers",
           "a": "oauth-vs-external-identity-providers",
-          "b": "Both let a user sign in without a zonai password. The difference is who runs the OAuth handshake: OAuth (this page) External IdP Who talks to the provider zonai — authorization redirect, code exchange, token verification Your existing IdP (Supabase Auth, Auth0, Clerk, ...); zonai only verifies the JWT it hands you Setup Register an app in each provider's console; declare oauthProviders Point AppConfig.externalIdps at your IdP's issuer + JWKS or shared secret Best for Greenfield apps where zonai owns auth end-to-end and you want \"Sign in with Google\" directly Apps that already have an IdP for something zonai can't replicate (phone+SMS OTP, enterprise SSO, an existing user base) Session A zonai JWT, revocable via the _jwt table like any other session A zonai JWT is still minted on first-seen provisioning, but the inbound IdP token itself can't be revoked by zonai — it's not zonai's token If you're unsure: this page is the greenfield choice — a new app that wants provider sign-in without operating a separate identity service. Reach for External Identity Providers when that separate identity service already exists and you'd rather not duplicate it."
+          "b": "Both let a user sign in without a zonai password. The difference is who runs the OAuth handshake: OAuth (this page) External IdP Who talks to the provider zonai — authorization redirect, code exchange, token verification Your existing IdP (Supabase Auth, Auth0, Clerk, ...); zonai only verifies the JWT it hands you Setup Register an app in each provider's console; declare oauthProviders Point AppConfig.externalIdps at your IdP's issuer + JWKS or shared secret Best for Greenfield apps where zonai owns auth end-to-end and you want \"Sign in with Google\" directly Apps that already have an IdP for something zonai can't replicate (phone+SMS OTP, enterprise SSO, an existing user base) Session A zonai JWT, revocable via the _jwt table like any other session No zonai token is issued at all — the client keeps presenting the IdP's, and zonai verifies it per request. Nothing to revoke through _jwt, because it isn't zonai's token If you're unsure: this page is the greenfield choice — a new app that wants provider sign-in without operating a separate identity service. Reach for External Identity Providers when that separate identity service already exists and you'd rather not duplicate it."
         },
         {
           "h": "See also",
           "a": "see-also",
           "b": "External Identity Providers — trusting an existing IdP's JWT instead of running OAuth yourself. Auth Tables — AuthTable, the other auth mixins, and column setup. Admin Accounts — AsAdmin, elevated JWT claims, the CLI for creating admins. Environment Variables — how .env and String.fromEnvironment fit together for provider credentials. Authentication Overview — the JWT model every auth method, including OAuth, shares."
+        }
+      ]
+    },
+    {
+      "u": "/authentication/external-idp",
+      "t": "External Identity Providers",
+      "d": "Trust a JWT another IdP minted, and map its users onto an auth collection.",
+      "g": "Authentication",
+      "s": [
+        {
+          "b": "Zonai can accept JWTs it did not mint. Point AppConfig.externalIdps at an issuer and tokens from that IdP are verified on arrival and mapped onto a row in one of your auth collections — so a project keeps its existing identity stack and uses Zonai for data, rules, extensions and live streams. Trust is opt-in per issuer. externalIdps is empty by default, and while it is empty Zonai trusts only its own tokens. There is no \"accept any valid JWT\" mode, and no way to reach one by accident."
+        },
+        {
+          "h": "When this is the right tool",
+          "a": "when-this-is-the-right-tool",
+          "b": "Reach for it when an identity stack already exists and duplicating it would be the mistake: an IdP does something Zonai's built-in auth does not — phone/SMS OTP, enterprise SSO, an unusual social provider; several services already share an IdP and Zonai is joining them; there is an existing user base you are not going to migrate. For a greenfield app, password / OTP / magic link is simpler, and OAuth covers \"Sign in with Google\" without a second identity service. The distinction that matters: OAuth is Zonai running the handshake; this is Zonai trusting the result of someone else's. OAuth vs. External Identity Providers compares them directly."
+        },
+        {
+          "h": "How a request is verified",
+          "a": "how-a-request-is-verified",
+          "b": "There is no sign-in call and no token exchange. The client sends the IdP's own token on every request, exactly where a Zonai token would go, and the pipeline resolves it: 1. The payload is base64-decoded without verifying anything to read its iss. That value selects a configured IdP and nothing else — no decision rests on it. 2. If no iss matches, the token is not an external one and normal handling continues. An unknown issuer is not an error. 3. The matched config's secret or JWKS keys verify the signature, algorithm, aud, exp and nbf. A token that matches an issuer but fails any of these is rejected outright — it never falls through to being treated as a Zonai token. 4. The verified sub is looked up against the id column of the configured authTable. A missing row goes to provisioning; a still-missing row fails with UserNotFoundAuthException. 5. A Jwt is assembled in memory from the claims and the row, and the request proceeds through rules like any other. Two consequences worth holding on to: Nothing is minted. That Jwt exists for the life of the request. The client keeps presenting the IdP's token, which is why there is no refresh endpoint on this path. Revocation is the IdP's "
+        },
+        {
+          "h": "Configuring an issuer",
+          "a": "configuring-an-issuer",
+          "b": "Each entry is one of two variants, chosen by how the IdP signs: Variant Use it when Verifies with SharedSecretIdpConfig The IdP signs with a symmetric HMAC secret — HS256. A secret you hold. JwksIdpConfig The IdP publishes public keys at a JWKS endpoint — RS256/384/512, ES256/384/512. Keys fetched at runtime. No secret in your config. Prefer JWKS when the IdP offers it: there is no shared secret to leak, and key rotation happens without a redeploy. Covers Auth0, Clerk, Cognito, Firebase Auth, Okta and any OIDC-compliant provider. externalIdps: const [ JwksIdpConfig( issuer: 'https://YOUR_TENANT.auth0.com/', audience: 'https://your-api.example/', authTable: 'users', jwksUrl: 'https://YOUR_TENANT.auth0.com/.well-known/jwks.json', ), ], The HMAC form, for an IdP that offers nothing else: SharedSecretIdpConfig( issuer: 'https://internal-auth.your-company.example', audience: 'zonai-data-api', authTable: 'employees', secret: const String.fromEnvironment('INTERNAL_IDP_JWT_SECRET'), ), The const on String.fromEnvironment is load-bearing. Without it the call runs at runtime and returns the default empty string instead of the value baked in at compile time, and the symptom is every token fai"
+        },
+        {
+          "h": "Fields",
+          "a": "fields",
+          "b": "Field Variant issuer both The iss incoming tokens must declare exactly. Trailing slashes and subdomains count. audience both The aud incoming tokens must declare exactly. A list containing the value is accepted. authTable both The auth collection these users map into. sub is looked up against its id column. secret shared secret The HMAC secret. Inject it; never commit it. jwksUrl JWKS The IdP's JWKS endpoint, usually discoverable from ${issuer}/.well-known/openid-configuration. cacheTtl JWKS How long a fetched key set is reused. Default 1 hour. fetchTimeout JWKS How long a cold-cache fetch may take. Default 2 seconds. adminClaimPath, adminClaimEquals both See Admin claims. Multiple IdPs can be configured at once — end users from one, staff from another — and each is matched by its own iss. Order the list with the busiest issuer first; matching is a linear scan. The JWKS key set is cached by URL for the life of the process, so a verifier outlives a single request. Without that, every token would trigger a fresh fetch."
+        },
+        {
+          "h": "Required claims",
+          "a": "required-claims",
+          "b": "Claim iss required Must match a configured issuer exactly. aud required Must match that IdP's audience. String or list. sub required The row id in authTable. Empty or non-string is rejected. exp required Zonai rejects a token with no exp, though the JWT spec permits its absence. nbf optional Honoured when present. The algorithm must match the variant: HS256 for a shared secret, one of the RS/ES family for JWKS. Anything else — alg=none included — is refused before the signature check runs."
+        },
+        {
+          "h": "Admin claims",
+          "a": "admin-claims",
+          "b": "An external token can carry admin status, but only if you say which claim means it. adminClaimPath is a dotted path into the verified claims and adminClaimEquals is compared to the value at that path with ==: adminClaimPath: 'app_metadata.is_admin', // dotted path into claims adminClaimEquals: true, // compared with == 'role' reads claims['role'] — the common Auth0 shape. 'app_metadata.is_admin' reads claims['app_metadata']['is_admin'] — the common Supabase shape. Booleans, strings and numbers all compare. When it matches, the request's Jwt carries (isAdmin: true, canEdit: true). When adminClaimPath is unset — the default — an external token never derives admin status from its claims, and the decision belongs to a row rule reading the user's own row instead. Only where the IdP controls the claim. Put the flag somewhere the user cannot write. On Supabase that means app_metadata, never user_metadata; on any IdP it means a namespace the end user has no API for. Equality only. A list-membership claim — Cognito's cognito:groups, for instance — cannot be expressed here. Derive admin from the row in a rule instead."
+        },
+        {
+          "h": "Provisioning users",
+          "a": "provisioning-users",
+          "b": "A verified token whose sub has no row is the interesting case, because the signature is valid and the user is real; there is simply nothing to attach them to. Zonai calls the auth collection's onExternalAuthFirstSeen hook, and the row it creates is used immediately: @override Future onExternalAuthFirstSeen(Map<String, Object?> claims) async { mutate.create.one( tableName: tableName, object: <String, dynamic>{ 'id': claims['sub'] as String, 'email': claims['email'] as String?, // … map the rest of the claims onto this collection's columns }, ); } id must be the sub, or the next request from the same user provisions all over again. Mutations here flush inline, not after the request transaction, so the auth pipeline can re-fetch the row and carry on within the same request. The hook runs under a ProvisioningJwt scoped to that one auth table. It can insert the row your normal row rules would refuse from an end user, and it cannot touch any other collection — a mutation aimed elsewhere is rejected with an error saying so. A buggy provisioning hook is contained by construction rather than by review. Not implementing it is a valid choice. The default is a no-op, and an unknown sub then fa"
+        },
+        {
+          "h": "First-seen provisioning is rate limited",
+          "a": "first-seen-provisioning-is-rate-limited",
+          "b": "Provisioning is the one path where an inbound token creates a row, so it is throttled per auth table, per client IP — 30 attempts per hour by default. The vector it bounds is a compromised or over-permissive IdP minting unique sub claims to fill a table. final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> { UsersRateLimits() : super(users); @override Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async { return const RateLimitPolicy(maxRequests: 10, window: Duration(hours: 1)); } } Returning null disables it. Once a sub is provisioned, that user's requests never touch this limit again — it applies to first sight only. See Configuring Policies."
+        },
+        {
+          "h": "What this does not give you",
+          "a": "what-this-does-not-give-you",
+          "b": "Token revocation. External tokens are not recorded in _jwt. Short TTLs at the IdP are the mitigation. List-membership admin claims. Equality only; use a row rule. A Zonai session. No refresh, no logout — the IdP owns the session's lifetime, and Session Management describes the other path."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Supabase Auth — the walkthrough, including which of the two variants your project needs. OAuth — when you want Zonai to run the handshake itself. Row Rules — where authorization for externally-authenticated users belongs. JWT Claims — what rules can read off a resolved token."
+        }
+      ]
+    },
+    {
+      "u": "/authentication/external-idp-supabase",
+      "t": "Supabase Auth as an IdP",
+      "d": "Which of Supabase's two key models you have, and the claims it sends.",
+      "g": "Authentication",
+      "s": [
+        {
+          "b": "Supabase Auth is the most common reason to reach for external identity providers: a project already has phone/SMS OTP, social logins and anonymous sessions working there, and wants Zonai for the data layer rather than a second identity stack. Zonai ships a SupabaseExternalIdp helper so you configure a project ref rather than transcribing three URLs."
+        },
+        {
+          "h": "First, find out which key model your project has",
+          "a": "first-find-out-which-key-model-your-project-has",
+          "b": "Supabase moved to asymmetric JWTs (ECC P-256, RS256, ES256) in late 2025. Projects created after that default to it; older projects keep a legacy HS256 shared secret until they rotate. The two need different config, and picking wrong fails every token. The fastest check does not involve the dashboard at all: https:// .supabase.co/auth/v1/.well-known/jwks.json A {\"keys\":[...]} body means asymmetric is active — use SupabaseExternalIdp.jwks. A 404, or a body with no keys, means legacy-only — use SupabaseExternalIdp.sharedSecret. In the dashboard the same answer lives under Project Settings → API → JWT Keys: What the page shows Use A Current Key of ECC (P-256), RS256, ES256 or similar SupabaseExternalIdp.jwks Only \"Legacy HS256 (Shared Secret)\", no asymmetric Current Key SupabaseExternalIdp.sharedSecret Both, mid-rotation SupabaseExternalIdp.jwks Mid-rotation resolves to JWKS because new tokens are already signed with the asymmetric key; the legacy entry only verifies tokens minted before the rotation, and those age out on their own TTL."
+        },
+        {
+          "h": "Asymmetric (JWKS)",
+          "a": "asymmetric-jwks",
+          "b": "externalIdps: [ SupabaseExternalIdp.jwks( projectRef: 'abcdefghijklmnopqrst', authTable: 'profiles', adminClaimPath: 'app_metadata.is_admin', adminClaimEquals: true, ), ], No secret appears anywhere in that config, which is the reason to prefer it. The helper derives the rest: issuer → https:// .supabase.co/auth/v1 jwksUrl → /.well-known/jwks.json audience → authenticated, which is Supabase's aud for both verified and anonymous sessions cacheTtl (1 hour) and fetchTimeout (2 seconds) carry the same defaults as any JwksIdpConfig, and audience is only worth overriding if a JWT hook mints a non-standard aud. projectRef is the ref, not the URL — abcdefghijklmnopqrst, not https://abcdefghijklmnopqrst.supabase.co. The helper validates it as lowercase alphanumeric and throws at startup rather than at the first auth request, because pasting the whole URL is the mistake everyone makes once."
+        },
+        {
+          "h": "Legacy HS256 (shared secret)",
+          "a": "legacy-hs256-shared-secret",
+          "b": "externalIdps: [ SupabaseExternalIdp.sharedSecret( projectRef: 'abcdefghijklmnopqrst', authTable: 'profiles', secret: const String.fromEnvironment('SUPABASE_JWT_SECRET'), ), ], The secret is under Project Settings → API → JWT Keys → Legacy HS256 (Shared Secret) → Reveal. Put it in .env beside zonai.yaml (or the flavor equivalent — .env.dev, .env.prod): SUPABASE_JWT_SECRET= zonai compile passes each entry to dart compile exe as a -D define, baking it into the worker binary. Config Flavors covers the lookup rules and per-flavor overrides. The const is load-bearing. The helper takes a plain String, so a non-const String.fromEnvironment compiles — and then returns the runtime default of '' instead of the injected value, so every token fails verification against a config that reads as correct."
+        },
+        {
+          "h": "The claims you get",
+          "a": "the-claims-you-get",
+          "b": "A verified Supabase session carries, alongside the standard iss/aud/exp/iat: { \"sub\": \"9d3a8e98-91f5-41eb-b04b-222eb6720c86\", \"aud\": \"authenticated\", \"role\": \"authenticated\", \"is_anonymous\": false, \"email\": \"user@example.com\", \"phone\": \"+12025550100\", \"app_metadata\": { \"provider\": \"phone\", \"is_admin\": false }, \"user_metadata\": { \"display_name\": \"Alex\" }, \"aal\": \"aal1\", \"amr\": [{ \"method\": \"phone\", \"timestamp\": 1781794127 }], \"session_id\": \"edc2e2f1-…\" } sub is Supabase's auth.users.id UUID, so your Zonai collection should use it as the primary key — that is what makes the lookup match without a mapping table. Two shapes to expect. An anonymous session (signInAnonymously()) is identical except is_anonymous: true, empty email and phone, empty metadata maps, and amr naming the anonymous method. A phone-OTP session carries phone in E.164 and email: \"\", because the SMS flow collects no address. Anything you write into app_metadata at sign-up shows up here and is addressable from adminClaimPath."
+        },
+        {
+          "h": "Provisioning a row",
+          "a": "provisioning-a-row",
+          "b": "SupabaseClaims.from(...) decodes the standard fields into a typed shape, so the row builder is not a pile of Object? casts: @override Future onExternalAuthFirstSeen(Map<String, Object?> claims) async { final supabase = SupabaseClaims.from(claims); mutate.create.one( tableName: tableName, object: <String, dynamic>{ 'id': supabase.sub, 'email': supabase.email, // null for anonymous and phone-only users }, ); } It normalises the quirks that would otherwise each need a branch: sub is required — missing or empty throws ArgumentError rather than producing a row with no id. email: \"\" is Supabase's \"no email on file\" sentinel for anonymous and phone-only users. email returns null for both the empty string and the missing key. phone: \"\" normalises the same way. appMetadata / userMetadata arrive as Map<String, Object?>?, cast for you, null when missing or the wrong shape. The hook's scope, the inline flush and the 30-per-hour default limit are the general external-IdP behaviour — see Provisioning users."
+        },
+        {
+          "h": "Three things that will surprise you",
+          "a": "three-things-that-will-surprise-you",
+          "b": "An anonymous token verifies exactly like a real one. Same signature, same issuer, same aud. Only is_anonymous tells them apart, and nothing in the auth layer acts on it. If anonymous users should not be able to write, that belongs in a row rule reading claims['is_anonymous'] — not in this config, which will happily accept them. A service-role token would verify too. Supabase's service-role JWT carries role: \"service_role\" with aud: \"authenticated\", so it satisfies this config. Do not ship the service-role key to clients; and treat an inbound role: \"service_role\" as suspicious at the rule layer, because a token that reaches your server from a client is not one you issued to a server. Admin flags belong in app_metadata. user_metadata is user-writable through Supabase's own client API. An adminClaimPath pointed there is a self-service admin button."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "External Identity Providers — the general mechanism, required claims, and what trusting an outside token costs. Row Rules — where anonymous-vs-verified and service-role checks go. Config Flavors — .env lookup and per-flavor secrets."
         }
       ]
     },
@@ -1938,12 +2101,12 @@
       "g": "Extensions & Hooks",
       "s": [
         {
-          "b": "push sends a notification to every row of a table whose deviceToken column matches a query. AppConfig.push must be configured before anything is sent; without it the call throws. See Push Configuration. final job = await push( PushMessage( title: 'New reply', body: 'Someone replied to your post', collapseKey: 'post:${after.id}', data: {'postId': '${after.id}'}, ), table: 'device_tokens', column: 'token', where: In('user_id', recipientIds), );"
+          "b": "push sends a notification to every row of a table whose deviceToken column matches a query. AppConfig.push must be configured before anything is sent; without it the call throws. See Push Configuration. final job = await push( PushMessage( title: 'New reply', body: 'Someone replied to your post', collapseKey: 'post:${after.id}', data: {'postId': '${after.id}'}, ), table: 'device_tokens', column: 'token', platformColumn: 'platform', where: In('user_id', recipientIds), ); platformColumn names the column holding each row's platform, and it decides which transport carries the recipient: FCM, or APNs directly when AppConfig.push.apns is set. Omit it only if FCM is configured — it is the route Zonai picks for a recipient with no platform, so an APNs-only app that omits it can route nobody. See Device Tokens."
         },
         {
           "h": "It is unlike the other side effects, in three ways",
           "a": "it-is-unlike-the-other-side-effects-in-three-ways",
-          "b": "It is awaited. mutate queues a write and returns nothing; push returns a PushJobId. The wait is for the job row to be committed, not for the fan-out — a few milliseconds whether the recipient set is ten rows or a hundred thousand. The id is not a delivery receipt. It says the job was written down. Nothing here, and nothing FCM offers, tells you a notification reached a phone. See What the job id means. It outlives the request. A queued mutate is committed with the request. A fan-out keeps running long after the response was sent, and nothing about the request can stop it once it starts."
+          "b": "It is awaited. mutate queues a write and returns nothing; push returns a PushJobId. The wait is for the job row to be committed, not for the fan-out — a few milliseconds whether the recipient set is ten rows or a hundred thousand. The id is not a delivery receipt. It says the job was written down. Nothing here, and nothing either push service offers, tells you a notification reached a phone. See What the job id means. It outlives the request. A queued mutate is committed with the request. A fan-out keeps running long after the response was sent, and nothing about the request can stop it once it starts."
         },
         {
           "h": "Call it from after hooks, never before",
@@ -1953,12 +2116,12 @@
         {
           "h": "Recipients are a query, not a list",
           "a": "recipients-are-a-query-not-a-list",
-          "b": "where is a predicate Zonai runs and pages, so a large recipient set is never materialized in memory. The column must be declared with $.deviceToken(...): the fan-out reads only the primary key and that column, and refuses any column that is not one. See Device Tokens."
+          "b": "where is a predicate Zonai runs and pages, so a large recipient set is never materialized in memory. The column must be declared with $.deviceToken(...): the fan-out reads only the primary key, that column, and the platform column when you name one — and refuses a token column that is not a deviceToken. See Device Tokens."
         },
         {
           "h": "Dead tokens are Zonai's job, not yours",
           "a": "dead-tokens-are-zonais-job-not-yours",
-          "b": "When FCM reports a token permanently rejected, Zonai clears it and calls onPushRejected first — a hook on the extension for the table the token lives on, not something you request here. A timeout is not a dead token and never prunes. See Dead Tokens."
+          "b": "When the transport reports a token permanently rejected, Zonai clears it and calls onPushRejected first — a hook on the extension for the table the token lives on, not something you request here. A timeout is not a dead token and never prunes. See Dead Tokens."
         },
         {
           "h": "Related",
@@ -2347,12 +2510,12 @@
         {
           "h": "The platform column",
           "a": "the-platform-column",
-          "b": "A token is an opaque string, and FCM and APNs issue strings that look broadly alike. Nothing about the value says which service to send it to, and guessing from its shape is the tempting mistake: it works until an SDK version changes the format, and then it fails silently, per-device, in production. So the app says. Store it in an ordinary column — there is no special column type — and name that column when you send: platformColumn: 'platform', Stored value Routed to android FCM. There is no alternative; on Android, FCM is the transport. ios APNs directly when PushConfig.apns is set, otherwise FCM. anything unrecognised, or NULL FCM. Values are read case-insensitively, and apple, iphone and ipad are accepted as ios — this column is written by client code Zonai does not control, and Platform.operatingSystem says ios while plenty of apps store iOS. An unrecognised value is that row's problem and never the fan-out's: it falls back to FCM rather than failing everyone else's notification. Omitting platformColumn sends every recipient through FCM. That is what an FCM-only app wants, and it is why the parameter is optional."
+          "b": "A token is an opaque string, and FCM and APNs issue strings that look broadly alike. Nothing about the value says which service to send it to, and guessing from its shape is the tempting mistake: it works until an SDK version changes the format, and then it fails silently, per-device, in production. So the app says. Store it in an ordinary column — there is no special column type — and name that column when you send: platformColumn: 'platform', Stored value Routed to android FCM. There is no alternative; on Android, FCM is the transport. ios APNs directly when PushConfig.apns is set, otherwise FCM. anything unrecognised, or NULL FCM — and only FCM, so a setup without it cannot carry the row at all. Values are read case-insensitively, and apple, iphone and ipad are accepted as ios — this column is written by client code Zonai does not control, and Platform.operatingSystem says ios while plenty of apps store iOS. An unrecognised value is that row's problem and never the fan-out's: it falls back rather than failing everyone else's notification. Omitting platformColumn sends every recipient through FCM — which is what an FCM-only app wants, and why the parameter is optional. It is not "
         },
         {
-          "h": "The one arrangement to be careful with",
-          "a": "the-one-arrangement-to-be-careful-with",
-          "b": "An iOS-only app — apns configured and no FCM at all — must name the platform column, because the fallback it would otherwise take does not exist. A recipient that cannot be routed is counted as a transient failure with a detail naming the missing config, never pruned, and retried by the next drain. Nothing is delivered and nothing is lost; it simply keeps not arriving until either the column is named or FCM is configured. Transient rather than permanent on purpose: the token is valid and the configuration is wrong, and pruning there would clear an entire platform's registrations over a deployment mistake."
+          "h": "An APNs-only app must name the column",
+          "a": "an-apns-only-app-must-name-the-column",
+          "b": "Configure apns and no FCM, omit platformColumn, and there is nothing to fall back to: every recipient arrives with no platform, FCM is the only route Zonai will pick without one, and it is not there. Those recipients are counted as transient failures with a detail naming the missing configuration — never pruned, and retried by the next drain. So nothing is delivered and nothing is lost or cleared; it simply keeps not arriving until the column is named. The job's transiently_failed count equalling its recipient count, on a job that never fails, is what this looks like from the outside. Transient rather than permanent on purpose: the tokens are valid and the configuration is wrong, and pruning there would clear every registration you have over a deployment mistake. The same holds one platform at a time. An Android recipient with no FCM configured, or an iOS one with neither route configured, fails transiently for the same reason and with a detail naming what is missing."
         },
         {
           "h": "Put it on its own table",
@@ -2373,7 +2536,7 @@
       "g": "Push Notifications",
       "s": [
         {
-          "b": "AppConfig.push is nullable, exactly like AppConfig.email. A project without it logs a warning and enqueues nothing — a missing config is loud, never fatal. push: const PushConfig( projectId: 'my-firebase-project', credentials: PushCredentials.file('/etc/my-app/fcm-service-account.json'), ),"
+          "b": "AppConfig.push is nullable, exactly like AppConfig.email. A project without it logs a warning and enqueues nothing — a missing config is loud, never fatal. PushConfig carries two independent halves, FCM and APNs. At least one is required and neither is privileged: an Android app configures FCM, an iOS-only app configures APNs and no Firebase project at all, and an app on both platforms configures both and names a platform column so each recipient is routed. push: const PushConfig( projectId: 'my-firebase-project', credentials: PushCredentials.file('/etc/my-app/fcm-service-account.json'), ), Two fields, both FCM's. Partially configuring one half is refused by AppConfig.validate rather than read as \"that transport is off\" — a project id with no key would otherwise silently drop every Android recipient."
         },
         {
           "h": "Credentials: read the rotation cost before choosing",
@@ -2383,12 +2546,12 @@
         {
           "h": "The rest of PushConfig",
           "a": "the-rest-of-pushconfig",
-          "b": "Field Default What it is onPermanentRejection clearColumn What happens to a row whose token FCM rejects for good. See Dead Tokens. batchSize 500 Rows read, sent and committed per checkpoint. concurrency 8 Sends in flight at once within a batch. maxAttemptsPerBatch 3 Attempts a batch's transient failures get before the job pauses. These defaults are starting points, not measured optima. Saying so is more useful than a number presented with false confidence. batchSize in particular is three things at once: 1. the memory bound — how many rows are held at a time; 2. the checkpoint granularity — how much work a crash costs; 3. the crash blast radius — how many duplicate notifications a crash can cause, since the fan-out is at-least-once. Raising it makes a large fan-out faster and a crash more expensive, in exactly that proportion. Measure against your own recipient sizes before moving it. concurrency bounds how hard a single batch hits FCM. Sequential is slow; unbounded meets FCM's per-project quota, which is a 429 rather than an error you asked for. The transport backs off exponentially on 429 and 5xx."
+          "b": "Field Default What it is onPermanentRejection clearColumn What happens to a row whose token a transport rejects for good. See Dead Tokens. batchSize 500 Rows read, sent and committed per checkpoint. concurrency 8 Sends in flight at once within a batch. maxAttemptsPerBatch 3 Attempts a batch's transient failures get before the job pauses. These defaults are starting points, not measured optima. Saying so is more useful than a number presented with false confidence. batchSize in particular is three things at once: 1. the memory bound — how many rows are held at a time; 2. the checkpoint granularity — how much work a crash costs; 3. the crash blast radius — how many duplicate notifications a crash can cause, since the fan-out is at-least-once. Raising it makes a large fan-out faster and a crash more expensive, in exactly that proportion. Measure against your own recipient sizes before moving it. concurrency bounds how hard a single batch hits the transport, and it applies to both: sequential is slow, while unbounded meets FCM's per-project quota or APNs' documented per-connection limits — a 429 rather than an error you asked for. Both couriers back off exponentially on 429 and 5xx. Th"
         },
         {
           "h": "Per flavor",
           "a": "per-flavor",
-          "b": "AppConfig is resolved per flavor, so a staging build can point at a different Firebase project — or at none, in which case staging enqueues nothing and says so in the log rather than sending production notifications from a test run."
+          "b": "AppConfig is resolved per flavor, so a staging build can point at a different Firebase project, a sandbox APNs host, or at nothing — in which case staging enqueues nothing and says so in the log rather than sending production notifications from a test run."
         },
         {
           "h": "Reaching iOS without Firebase",
@@ -2424,7 +2587,7 @@
         {
           "h": "You name a set, not a list",
           "a": "you-name-a-set-not-a-list",
-          "b": "where is a query Zonai runs and pages. This is the difference between sending to a hundred thousand recipients and holding a hundred thousand tokens in memory before the first send. It also means a segment is expressible directly — active = true and locale = 'en' — without your code running the query, reading the rows, and handing back a list of strings. The fan-out reads only the primary key, the token column, and the platform column when you name one — whatever the where says. That is a security property rather than an optimisation: the recipient query deliberately skips per-row rules, so a wider projection would turn push into a way to read columns the caller could not otherwise read. It is also why platformColumn is a parameter rather than something Zonai discovers: widening the projection stays the caller's explicit decision. platformColumn is optional. Omit it and every recipient goes through FCM; name it and iOS recipients go straight to APNs when AppConfig.push.apns is configured. See Device Tokens for the values it accepts and the one setup that must not omit it."
+          "b": "where is a query Zonai runs and pages. This is the difference between sending to a hundred thousand recipients and holding a hundred thousand tokens in memory before the first send. It also means a segment is expressible directly — active = true and locale = 'en' — without your code running the query, reading the rows, and handing back a list of strings. The fan-out reads only the primary key, the token column, and the platform column when you name one — whatever the where says. That is a security property rather than an optimisation: the recipient query deliberately skips per-row rules, so a wider projection would turn push into a way to read columns the caller could not otherwise read. It is also why platformColumn is a parameter rather than something Zonai discovers: widening the projection stays the caller's explicit decision. platformColumn is optional, and what omitting it means depends on your configuration. With FCM configured, every recipient goes through FCM — the setup Zonai shipped with, and still correct. With APNs only, omitting it means nothing can be routed at all, because FCM is the fallback and it is not there; those recipients fail transiently and forever. Name i"
         },
         {
           "h": "Call it from after hooks, never before",
@@ -2460,12 +2623,12 @@
       "g": "Push Notifications",
       "s": [
         {
-          "b": "When FCM reports a token permanently rejected — the app was uninstalled, or the registration rotated — Zonai tells your app, then acts on it."
+          "b": "When FCM or APNs reports a token permanently rejected — the app was uninstalled, or the registration rotated — Zonai tells your app, then acts on it."
         },
         {
           "h": "The policy",
           "a": "the-policy",
-          "b": "onPermanentRejection Effect clearColumn Default. Sets the token column to NULL. The row stays. deleteRow Deletes the row. Opt-in. none Zonai does nothing. onPushRejected is the only signal — and it still fires."
+          "b": "onPermanentRejection Effect clearColumn Default. Sets the token column to NULL. The row stays — including its platform, so the device re-registering is an update rather than a new row. deleteRow Deletes the row. Opt-in. none Zonai does nothing. onPushRejected is the only signal — and it still fires."
         },
         {
           "h": "Why clearColumn is the default",
@@ -2475,7 +2638,7 @@
         {
           "h": "Only permanent rejections prune",
           "a": "only-permanent-rejections-prune",
-          "b": "A timeout, a 503, or a quota rejection is a transient failure. It is counted on the job row, retried within the batch, and never touches your row. A token that timed out is not a token that is dead. Keeping those two apart is most of the reason this feature lives in the framework instead of in your hook — the distinction is invisible unless you go looking for it, and getting it wrong deletes live registrations. Permanent means UNREGISTERED, NOT_FOUND or INVALID_ARGUMENT, and nothing else. An unrecognised status from FCM is treated as transient on purpose: guessing transient costs a retry, and guessing permanent costs a device that never hears from your app again."
+          "b": "A timeout, a 503, or a quota rejection is a transient failure. It is counted on the job row, retried within the batch, and never touches your row. A token that timed out is not a token that is dead. Keeping those two apart is most of the reason this feature lives in the framework instead of in your hook — the distinction is invisible unless you go looking for it, and getting it wrong deletes live registrations. What counts as permanent is per-transport, and both tables are below: on FCM it is UNREGISTERED, NOT_FOUND or INVALID_ARGUMENT and nothing else; on APNs it is a reason string rather than a status. Either way, an unrecognised answer is treated as transient on purpose: guessing transient costs a retry, and guessing permanent costs a device that never hears from your app again."
         },
         {
           "h": "What FCM actually returns",
@@ -3196,6 +3359,32 @@
           "h": "Requirements",
           "a": "requirements",
           "b": "The rules worker must be compiled. The server does not need to be running — zonai rules spawns the rules worker directly as a subprocess. Compile workers if needed: zonai compile"
+        }
+      ]
+    },
+    {
+      "u": "/cli/ping",
+      "t": "zonai ping",
+      "d": "Check that every compiled worker starts and answers.",
+      "g": "CLI Reference",
+      "s": [
+        {
+          "b": "zonai ping Starts each compiled worker in .zonai/executables/, asks it to answer, reports the result, and kills it again. The server does not need to be running, and nothing listens on a port. Ping extension succeeded Ping rules succeeded Ping operation succeeded Ping config succeeded Ping cron succeeded Ping rate limit succeeded Six workers are checked, in that order: extensions, rules, operations, config, crons and rate limits. Each is spawned, pinged and shut down before the next one starts, so a failure names the worker rather than leaving you to guess from a stack trace."
+        },
+        {
+          "h": "What it is for",
+          "a": "what-it-is-for",
+          "b": "zonai serve compiles workers and then starts serving, which means a worker that cannot start looks like a server problem. ping separates the two questions: it exercises the IPC handshake — spawn, send, receive, exit — and nothing else. Reach for it when: a worker was rebuilt and you want to know it runs before a request depends on it; serve fails in a way that does not say which piece is broken; a deploy target should be checked without exposing a port. Ops and rules are pinged here even though requests do not use them. On the default path they are compiled into the project-linked binary and called in-process; the .exe files still exist for compatibility, for ZONAI_FORCE_WORKERS=1, and for this command. See Workers."
+        },
+        {
+          "h": "Options",
+          "a": "options",
+          "b": "Flag -c, --config= Path to zonai.yaml. -h, --help Show help. Prints usage and spawns nothing. A worker that cannot be reached prints Ping failed and the command moves on to the next one. A failed ping does not change the exit code — ping exits 0 whether every worker answered or none did, so it is a diagnostic to read rather than a gate to script. (--help exits 1.) If you need a CI check, assert on the output."
+        },
+        {
+          "h": "Related",
+          "a": "related",
+          "b": "Workers — what each of these six processes does. zonai serve — the command that compiles them and serves requests."
         }
       ]
     },
