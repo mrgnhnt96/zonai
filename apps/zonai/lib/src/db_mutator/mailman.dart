@@ -15,6 +15,7 @@ import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rate_limit_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
+import 'package:zonai/src/push/push_caller.dart';
 import 'package:zonai_schema/src/handlers/messages/ipc_codec.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart'
     hide logger;
@@ -340,6 +341,9 @@ class Mailman<S extends Request, R extends Response> {
           response = await _provideNativeLibrary(request);
 
         case final EnqueuePushRequest request:
+          // The provenance the send is authorized by: an `EnqueuePushRequest`
+          // only exists because an extension hook or a cron job called `push`.
+          // `request.jwt` rides along for attribution; it is not the gate.
           final jobId = await zonaiDB.enqueuePush(
             message: request.message,
             table: request.table,
@@ -347,6 +351,7 @@ class Mailman<S extends Request, R extends Response> {
             platformColumn: request.platformColumn,
             where: request.where,
             jwt: request.jwt,
+            caller: PushCaller.serverCode,
           );
           response = EnqueuePushResponse(id: request.id, jobId: jobId?.value);
 

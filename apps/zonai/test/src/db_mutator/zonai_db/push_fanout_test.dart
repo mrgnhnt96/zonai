@@ -10,6 +10,7 @@ import 'package:zonai/src/db_mutator/host_worker_registries.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai/src/push/fcm_push_courier.dart';
+import 'package:zonai/src/push/push_caller.dart';
 import 'package:zonai/src/push/push_courier.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai_logger/zonai_logger.dart';
@@ -445,6 +446,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -484,6 +486,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
 
         // Drains chain, so awaiting one that was requested after the
@@ -515,6 +518,7 @@ version: $kVersion
         column: 'token',
         where: null,
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
       expect(courier.allSentTokens, hasLength(20));
@@ -562,6 +566,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -624,6 +629,7 @@ version: $kVersion
         column: 'token',
         where: null,
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
 
@@ -650,6 +656,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -675,6 +682,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -704,6 +712,7 @@ version: $kVersion
             column: 'token',
             where: null,
             jwt: CronJwt(),
+            caller: PushCaller.serverCode,
           );
           await zonaiDb.drainPushJobs();
 
@@ -755,6 +764,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -790,6 +800,7 @@ version: $kVersion
         column: 'token',
         where: null,
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
 
@@ -811,6 +822,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -860,6 +872,7 @@ version: $kVersion
         column: 'token',
         where: null,
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
 
@@ -898,6 +911,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -920,6 +934,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         ids.add(id!);
       }
@@ -953,6 +968,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
       }
       await zonaiDb.drainPushJobs();
@@ -991,6 +1007,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
 
         await zonaiDb.drainPushJobs();
@@ -1016,6 +1033,7 @@ version: $kVersion
         column: 'token',
         where: null,
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
 
@@ -1043,6 +1061,7 @@ version: $kVersion
         column: 'token',
         where: const Eq('user_id', 'nobody'),
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
 
@@ -1063,6 +1082,7 @@ version: $kVersion
         column: 'token',
         where: const Eq('user_id', 'u1'),
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
 
@@ -1089,6 +1109,7 @@ version: $kVersion
         column: 'token',
         where: null,
         jwt: CronJwt(),
+        caller: PushCaller.serverCode,
       );
       await zonaiDb.drainPushJobs();
 
@@ -1108,6 +1129,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
 
         expect(id, isNull, reason: 'a missing config must be loud, not fatal');
@@ -1137,6 +1159,7 @@ version: $kVersion
           column: 'label',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         ),
         throwsA(isA<PushTargetException>()),
       );
@@ -1148,26 +1171,66 @@ version: $kVersion
           column: 'nope',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         ),
         throwsA(isA<PushTargetException>()),
       );
     });
   });
 
-  test('a non-admin identity cannot enqueue a fan-out', () async {
+  /// A hook on an unauthenticated write — `POST /db` on a table whose rules
+  /// allow an anonymous create — still sends.
+  ///
+  /// **This used to assert the opposite**, and that was the bug: the identity
+  /// was the gate, so a hook could only push for an admin. What authorizes a
+  /// send is provenance, and a `jwt` of null says nothing about it. The
+  /// amplification this hands out is real and is the developer's to bound with
+  /// rules and a rate limit on the *triggering* operation — see
+  /// `PushCaller` and `/push/sending`.
+  test('a hook on an unauthenticated request can enqueue a fan-out', () async {
     await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
       await seed(zonaiDb, count: 3);
 
-      await expectLater(
-        zonaiDb.enqueuePush(
-          message: message,
-          table: 'device_tokens',
-          column: 'token',
-          where: null,
-          jwt: null,
-        ),
-        throwsA(isA<TableAccessDeniedException>()),
+      final jobId = await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: null,
+        jwt: null,
+        caller: PushCaller.serverCode,
       );
+
+      expect(jobId, isNotNull);
+    });
+  });
+
+  /// The case the docs prescribe: `push` from an `after*` hook on an ordinary
+  /// user's request. Extension requests carry the *caller's* jwt, so this is
+  /// the identity `_enqueuePush` sees on that path — and nothing covered it.
+  /// It threw `TableAccessDeniedException` until the gate moved to provenance,
+  /// which meant the documented primary use case did not work for any
+  /// non-admin user, after the write had already committed.
+  test('a hook running under an ordinary user can enqueue a fan-out', () async {
+    await run(_appConfigWith(_pushConfig()), (zonaiDb) async {
+      await seed(zonaiDb, count: 3);
+
+      final jobId = await zonaiDb.enqueuePush(
+        message: message,
+        table: 'device_tokens',
+        column: 'token',
+        where: null,
+        jwt: Jwt.create(
+          userId: 'user_1',
+          table: 'users',
+          user: const {'id': 'user_1'},
+          jwtId: JwtId.generate(),
+          expiresIn: const Duration(hours: 1),
+          claims: const {},
+        ),
+        caller: PushCaller.serverCode,
+      );
+
+      expect(jobId, isNotNull);
     });
   });
 
@@ -1239,6 +1302,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1288,6 +1352,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1330,6 +1395,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1366,6 +1432,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1397,6 +1464,7 @@ version: $kVersion
           column: 'token',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1460,6 +1528,7 @@ version: $kVersion
           platformColumn: 'platform',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1491,6 +1560,7 @@ version: $kVersion
           platformColumn: 'platform',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1514,6 +1584,7 @@ version: $kVersion
             column: 'token',
             where: null,
             jwt: CronJwt(),
+            caller: PushCaller.serverCode,
           );
           await zonaiDb.drainPushJobs();
 
@@ -1543,6 +1614,7 @@ version: $kVersion
             platformColumn: 'platform',
             where: null,
             jwt: CronJwt(),
+            caller: PushCaller.serverCode,
           );
           await zonaiDb.drainPushJobs();
 
@@ -1574,6 +1646,7 @@ version: $kVersion
           platformColumn: 'platform',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1604,6 +1677,7 @@ version: $kVersion
             platformColumn: 'platform',
             where: null,
             jwt: CronJwt(),
+            caller: PushCaller.serverCode,
           );
           await zonaiDb.drainPushJobs();
 
@@ -1688,6 +1762,7 @@ version: $kVersion
           platformColumn: 'platform',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1728,6 +1803,7 @@ version: $kVersion
           platformColumn: 'platform',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1768,6 +1844,7 @@ version: $kVersion
           platformColumn: 'platform',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 
@@ -1797,6 +1874,7 @@ version: $kVersion
           platformColumn: 'platform',
           where: null,
           jwt: CronJwt(),
+          caller: PushCaller.serverCode,
         );
         await zonaiDb.drainPushJobs();
 

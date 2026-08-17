@@ -49,14 +49,21 @@ extension _PushX on ZonaiDb {
     required String column,
     required Where? where,
     required Jwt? jwt,
+    required PushCaller caller,
     String? platformColumn,
   }) async {
-    // Gate one: an admin identity. `CronJwt` qualifies, so a scheduled job
-    // needs no special-casing. Enforced here, host-side, rather than trusted
-    // from the caller — the request arrives over IPC from a worker process.
-    if (jwt?.admin.isAdmin != true) {
-      throw TableAccessDeniedException(table: table, operation: 'push');
-    }
+    // Gate one is [caller], and it is a *type* rather than a check — there is
+    // deliberately no `if` here. The only way to reach this method is the
+    // host's IPC handler relaying an extension hook or a cron job, which is
+    // developer-authored Dart either way, so the question is answered by who
+    // can construct the argument rather than by inspecting it. An `assert`
+    // would be worse than nothing: it cannot fail today, and it is stripped
+    // from the release build regardless. See [PushCaller] for why this
+    // replaced an `isAdmin` test, and `push_entry_point_test.dart` for what
+    // keeps the reachable surface this small.
+    //
+    // [jwt] is still carried, for attribution and for `onPushRejected` — it is
+    // no longer what authorizes the send.
 
     final config = await configResolver.resolve();
     if (config.push == null) {

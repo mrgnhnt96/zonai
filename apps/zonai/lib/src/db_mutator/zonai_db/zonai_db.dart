@@ -37,6 +37,7 @@ import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart';
 import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
 import 'package:zonai_schema/src/internal/tables/photos_table.dart';
 import 'package:zonai_schema/src/internal/tables/push_jobs_table.dart';
+import 'package:zonai/src/push/push_caller.dart';
 import 'package:zonai/src/push/push_courier.dart';
 // `WhereX.sql` renders a caller's predicate to a parameterized SQL fragment.
 // The push fan-out needs it to splice the caller's `where` into a projection
@@ -725,12 +726,17 @@ class ZonaiDb {
 
   /// Records a push fan-out, returning its id — or null when the project has
   /// no `AppConfig.push`.
+  ///
+  /// [caller] is what authorizes this, not [jwt]: see [PushCaller]. Adding a
+  /// call site to this method is a decision `push_entry_point_test.dart` will
+  /// make you take deliberately.
   Future<PushJobId?> enqueuePush({
     required PushMessage message,
     required String table,
     required String column,
     required Where? where,
     required Jwt? jwt,
+    required PushCaller caller,
     String? platformColumn,
   }) async {
     return await _run(
@@ -740,6 +746,7 @@ class ZonaiDb {
         column: column,
         where: where,
         jwt: jwt,
+        caller: caller,
         platformColumn: platformColumn,
       ),
     );
