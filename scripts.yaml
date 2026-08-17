@@ -415,15 +415,37 @@ bootstrap:
     (bail):
     (command):
       - ${{ version.gen }}
+      # SERVER ARTIFACTS FIRST, and the order is load-bearing on Windows.
+      #
+      # This used to run last, after both native gens, and on windows-latest it
+      # failed DETERMINISTICALLY -- `unit` lost revali's SDK-mirror race 6 times
+      # out of 6 with the retry wrapper in place, while every job that reaches
+      # the same codegen through `zonai compile` passed. The difference between
+      # those two sets is exactly this ordering: `zonai compile` runs
+      # copy-to-cli BEFORE its native gens, `bootstrap test` ran it after.
+      #
+      #   zonai compile   -> copy-to-cli early : Compile/windows PASS, e2e/windows PASS
+      #   bootstrap test  -> copy-to-cli last  : unit/windows FAIL, cli/windows FAIL
+      #
+      # The mechanism is the one in tool/ci/revali_generate.sh: revali mirrors
+      # the workspace and the whole SDK into memory under one unbounded
+      # `Future.wait`, so the more that is on disk when it runs, the likelier a
+      # read is dropped. Running the gens first adds their output to what gets
+      # mirrored. Everything here was green at v0.7.2 in either order; the OAuth
+      # merge pushed the later position over the edge and left the earlier one
+      # under it.
+      #
+      # Nothing depends on the reordering being wrong: `zonai compile` has
+      # always run copy-to-cli before the native gens, so it cannot need them.
+      - |
+        echo "Generating server artifacts (apps/zonai/lib/gen/server)"
+        ${{ server.copy-to-cli }}
       - |
         echo "Generating resqlite native library"
         ${{ resqlite.gen }}
       - |
         echo "Generating native Argon2 library"
         ${{ argon2.gen }}
-      - |
-        echo "Generating server artifacts (apps/zonai/lib/gen/server)"
-        ${{ server.copy-to-cli }}
 
 zonai:
   # compiles server, web, and cli in 1 executable
