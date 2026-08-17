@@ -167,5 +167,57 @@ else:
     if not failed:
         print(f"  ok: every release.yml job is gated behind `{GATE_JOB}`")
 
+
+# What FEEDS the gate, and why prose about it needs a check under it.
+#
+# check_release_gates.sh demands a green Test and Verify Release run for the
+# exact sha. Neither has a `push` trigger: both hang off `workflow_run:
+# [Compile]`, so dispatching Compile is what produces both verdicts at that sha
+# and lets the chain satisfy its own gate. Remove that trigger and every release
+# refuses -- loud, but from a message that names the gate rather than the wiring.
+#
+# The `push` half is here because the prose rotted once already: that script
+# claimed "Test runs on push to main, so a main commit has one", which was true
+# when written and false after the trigger was dropped, and it sent a reader
+# hunting for a run nothing creates. Adding a `push:` trigger back to test.yml is
+# a legitimate change -- this check is not a prohibition. It exists so that the
+# comment gets updated in the same commit rather than becoming wrong again.
+FED_BY_COMPILE = {
+    ".github/workflows/test.yml": "Test",
+    ".github/workflows/verify-release.yml": "Verify Release",
+}
+
+for path, display in FED_BY_COMPILE.items():
+    document = documents.get(path)
+    if document is None:
+        print(f"{path} did not parse, so its triggers could not be checked")
+        failed = True
+        continue
+
+    # `on` is the YAML 1.1 boolean True -- same trap as release.yml above.
+    triggers = document.get("on", document.get(True)) or {}
+    workflows = ((triggers.get("workflow_run") or {}).get("workflows")) or []
+
+    if "Compile" not in workflows:
+        print(
+            f"{path}: `on.workflow_run.workflows` must include 'Compile'. "
+            f"{GATE_SCRIPT} requires a green {display} run for the released "
+            "sha, and Compile is what produces one -- without this trigger "
+            "every release refuses at the gate."
+        )
+        failed = True
+
+    if "push" in triggers:
+        print(
+            f"{path}: a `push` trigger was added. That is allowed, but "
+            f"{GATE_SCRIPT}'s header says {display} has none and explains the "
+            "release chain in those terms -- update that comment in this "
+            "commit, then update this check."
+        )
+        failed = True
+
+if not failed:
+    print("  ok: Test and Verify Release are fed by Compile, and neither on push")
+
 sys.exit(1 if failed else 0)
 PY

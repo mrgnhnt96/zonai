@@ -21,8 +21,18 @@
 #
 # WHAT IT CHECKS, all three overridable only by an explicit force on the manual
 # path (see below):
-#   Test            -- the suite. Runs on push to main, so a main commit has one.
-#   Verify Release  -- the five-platform artifact matrix.
+#   Test            -- the suite. It has NO `push` trigger: test.yml runs on
+#                      `pull_request`, on `workflow_run: [Compile] completed`,
+#                      and on `workflow_dispatch`. So a commit pushed to main
+#                      has no Test run until something compiles it, and what
+#                      makes the release chain satisfy this gate is that
+#                      dispatching Compile produces Test AND Verify Release at
+#                      the same head_sha. (This line used to say "Runs on push
+#                      to main, so a main commit has one" -- it was true when
+#                      written, and it sent a reader looking for a run that no
+#                      trigger creates.)
+#   Verify Release  -- the five-platform artifact matrix. Same trigger shape:
+#                      `workflow_run: [Compile]` or a manual dispatch.
 #   branch          -- the commit is on the default branch. This one is here
 #                      because turning the automatic trigger back on means a
 #                      Compile dispatched on a feature branch would otherwise
