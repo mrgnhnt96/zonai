@@ -25,7 +25,10 @@ export 'package:zonai/src/domain/project/project_link.dart';
 /// ops/rules) when launched from the bootstrap CLI.
 bool commandNeedsProjectRuntime(List<String> path) {
   return switch (path) {
-    ['serve', ...] || ['db', ...] || ['dev', ...] => true,
+    // `gen` reads the user's registered tables, which only exist in the
+    // project-linked entry -- the bootstrap CLI would generate from an empty
+    // schema and report success.
+    ['serve', ...] || ['db', ...] || ['dev', ...] || ['gen', ...] => true,
     _ => false,
   };
 }

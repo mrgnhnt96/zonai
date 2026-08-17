@@ -4,6 +4,7 @@ import 'package:yaml/yaml.dart';
 import 'package:yaml_edit/yaml_edit.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai/src/domain/arch.dart';
+import 'package:zonai/src/domain/gen/client_settings.dart';
 import 'package:zonai/src/domain/target_os.dart';
 
 import '../deps/args.dart';
@@ -31,9 +32,13 @@ class Settings {
     this.basePath,
     this.dartSdkPath,
     this.logDatabaseMaxBytes,
+    this.client,
   });
 
   static const defaultZonaiDirectory = '.zonai';
+
+  /// Where `zonai gen client` records the schema it generated from.
+  static const clientSchemaFileName = 'schema.json';
 
   factory Settings.load([String? basePath]) {
     final settings = switch ((
@@ -168,6 +173,20 @@ class Settings {
           'Invalid logDatabaseMaxSize: $value. Expected a size like 512mb.',
         ),
       },
+      // Absent means "no typed client for this project", which is the state
+      // every existing project is in -- so this is null rather than a default
+      // block, and `zonai gen client` is what reports on it.
+      client: switch (map['client']) {
+        null => null,
+        final Map<String, dynamic> value => ClientSettings.fromJson(
+          value,
+          normalize: normalize,
+        ),
+        final value => throw FormatException(
+          'Invalid client: $value. Expected a map (see `zonai gen client '
+          '--help`).',
+        ),
+      },
     );
   }
 
@@ -203,6 +222,16 @@ class Settings {
   /// would be hit by whichever write arrived first, application inserts
   /// included.
   final int? logDatabaseMaxBytes;
+
+  /// The `client:` block, or `null` when `zonai.yaml` has none.
+  ///
+  /// `zonai gen client` is the only reader; every other command ignores it.
+  final ClientSettings? client;
+
+  /// `.zonai/schema.json` — the generator's entire input, and the artifact
+  /// `--check` compares a hash against.
+  String get clientSchemaPath =>
+      _normalize([defaultZonaiDirectory, clientSchemaFileName]);
 
   String _normalize(List<String> paths) {
     return fs.path.normalize(fs.path.joinAll([?basePath, ...paths]));

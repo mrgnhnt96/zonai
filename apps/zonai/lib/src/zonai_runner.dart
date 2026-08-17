@@ -9,6 +9,7 @@ import 'commands/ai/ai.dart';
 import 'commands/compile.dart';
 import 'commands/db/db.dart';
 import 'commands/dev/dev.dart';
+import 'commands/gen/gen.dart';
 import 'commands/ping.dart';
 import 'commands/rules.dart';
 import 'commands/serve.dart';
@@ -27,6 +28,7 @@ Commands:
   compile     Compile all workers
   ping        Ping worker executables
   rules       Inspect compiled rules
+  gen         Generate code from the schema (typed client)
   ai          Install AI coding assistant reference files
 
 Global options (accepted by every command):
@@ -97,6 +99,8 @@ Future<int> run() async {
       return await ping();
     case ['rules', ...final path]:
       return await rules(path);
+    case ['gen', ...final path]:
+      return await gen(path);
     case ['ai', ...final path]:
       return await ai(path);
     default:

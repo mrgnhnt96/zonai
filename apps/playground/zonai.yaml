@@ -5,3 +5,11 @@ migrationsPath: .zonai/migrations
 schemasPath: lib/src/schemas
 configPath: lib/src/config
 emailTemplatesPath: lib/src/email_templates
+
+# `zonai gen client`. In a real project `output` points into a *separate* app
+# ("../app/lib/gen/zonai"); the playground has no sibling app, so it writes
+# into its own lib/ -- which is also what makes the generated output a
+# committed baseline for `zonai gen client --check`.
+client:
+  output: lib/gen/zonai
+

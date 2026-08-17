@@ -11,6 +11,8 @@ import 'package:zonai/src/commands/db/db.dart';
 import 'package:zonai/src/commands/db/photos.dart';
 import 'package:zonai/src/commands/db/test.dart' as db_smoke_test;
 import 'package:zonai/src/commands/dev/dev.dart';
+import 'package:zonai/src/commands/gen/client.dart' as gen_client;
+import 'package:zonai/src/commands/gen/gen.dart';
 import 'package:zonai/src/commands/migrate/migrate.dart';
 import 'package:zonai/src/commands/ping.dart';
 import 'package:zonai/src/commands/rules.dart';
@@ -205,6 +207,26 @@ void main() {
         expect(result.output, contains('Usage: zonai ai'));
       });
     }
+
+    test('gen', () async {
+      final result = await _help(() => gen(const []));
+
+      expect(result.exitCode, 1);
+      expect(result.output, contains('Usage: zonai gen'));
+    });
+
+    test('gen client', () async {
+      final result = await _help(gen_client.client);
+
+      expect(
+        result.exitCode,
+        1,
+        reason:
+            'this reaches settings, the database and the output directory '
+            'the moment it gets past the help check',
+      );
+      expect(result.output, contains('Usage: zonai gen client'));
+    });
 
     test('-h is honored as well as --help', () async {
       final result = await _help(serve, args: Args(abbr: {'h': true}));
