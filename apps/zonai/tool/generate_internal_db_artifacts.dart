@@ -76,9 +76,9 @@ Future<void> main(List<String> args) async {
       exit(exitCode);
     }
     _postProcessMigrationSqlFiles(packageRoot);
-    _writeMigrationsDartFile(packageRoot);
+    await _writeMigrationsDartFile(packageRoot);
   } else if (syncMigrationsDart) {
-    _writeMigrationsDartFile(packageRoot);
+    await _writeMigrationsDartFile(packageRoot);
   }
 
   final operations = _discoverEntries(
@@ -115,15 +115,18 @@ Future<void> main(List<String> args) async {
     rulesDir: Directory('${libRoot.path}/rules'),
   );
 
-  final output = _formatArtifactsDart(
-    operations: operations,
-    rules: rules,
-    rateLimits: rateLimits,
-    extensions: extensions,
-    crons: crons,
-    tables: tables,
-  );
   final outFile = File(p.join(packageRoot.path, _artifactsDartPath));
+  final output = await _dartFormat(
+    _formatArtifactsDart(
+      operations: operations,
+      rules: rules,
+      rateLimits: rateLimits,
+      extensions: extensions,
+      crons: crons,
+      tables: tables,
+    ),
+    outFile.path,
+  );
 
   if (checkOnly) {
     final migrationsDart = File('${packageRoot.path}/$_migrationsDartPath');
@@ -133,8 +136,9 @@ Future<void> main(List<String> args) async {
     final existingMigrations = migrationsDart.existsSync()
         ? migrationsDart.readAsStringSync()
         : '';
-    final expectedMigrations = _formatMigrationsDart(
-      _loadMigrationEntries(packageRoot),
+    final expectedMigrations = await _dartFormat(
+      _formatMigrationsDart(_loadMigrationEntries(packageRoot)),
+      migrationsDart.path,
     );
 
     if (existingArtifacts != output ||
@@ -155,7 +159,7 @@ Future<void> main(List<String> args) async {
     return;
   }
 
-  outFile.writeAsStringSync(output);
+  _writeIfChanged(outFile, output);
   stdout.writeln('Wrote ${outFile.path}');
   stdout.writeln(
     '  ${operations.length} operations, ${rules.length} rules, '
@@ -266,11 +270,57 @@ List<({String tag, String sql})> _loadMigrationEntries(Directory packageRoot) {
   return migrations;
 }
 
-void _writeMigrationsDartFile(Directory packageRoot) {
-  final output = _formatMigrationsDart(_loadMigrationEntries(packageRoot));
+Future<void> _writeMigrationsDartFile(Directory packageRoot) async {
   final outFile = File(p.join(packageRoot.path, _migrationsDartPath));
+  final output = await _dartFormat(
+    _formatMigrationsDart(_loadMigrationEntries(packageRoot)),
+    outFile.path,
+  );
   outFile.parent.createSync(recursive: true);
-  outFile.writeAsStringSync(output);
+  _writeIfChanged(outFile, output);
+}
+
+/// Writes only when the bytes would actually change.
+///
+/// An unconditional write moves the mtime of a file whose content is identical,
+/// and anything downstream that decides "has this changed since I last checked
+/// it?" from timestamps -- `.game_loop`'s verify gate, a build cache -- then
+/// re-runs work for a file nobody touched. Regenerating is supposed to be a
+/// no-op when nothing moved, and this is what makes it one.
+void _writeIfChanged(File file, String contents) {
+  if (file.existsSync() && file.readAsStringSync() == contents) return;
+  file.writeAsStringSync(contents);
+}
+
+/// Runs the emitted source through `dart format` before it is written or
+/// compared.
+///
+/// Both files this tool writes live under `lib/src`, not `lib/gen`, so
+/// `scripts.yaml`'s `test static` formats them like any other hand-written
+/// file -- and the buffers below do not happen to agree with the formatter.
+/// Formatting them by hand is not a fix: the next run of this tool reverts it,
+/// which is exactly the "gate would flap forever" the `lib/gen` exclusion
+/// exists to avoid. Emitting formatted source ends the disagreement at its
+/// source instead.
+///
+/// `--stdin-name` is what makes the width right rather than assumed: dart_style
+/// resolves `analysis_options.yaml` from that path, so a package declaring its
+/// own `page_width` is honoured instead of silently defaulting to 80.
+Future<String> _dartFormat(String source, String path) async {
+  final process = await Process.start(Platform.resolvedExecutable, [
+    'format',
+    '--stdin-name',
+    path,
+  ]);
+  process.stdin.write(source);
+  await process.stdin.close();
+
+  final formatted = await process.stdout.transform(utf8.decoder).join();
+  final errors = await process.stderr.transform(utf8.decoder).join();
+  if (await process.exitCode != 0) {
+    throw StateError('dart format failed for $path:\n$errors');
+  }
+  return formatted;
 }
 
 String _formatMigrationsDart(List<({String tag, String sql})> migrations) {
