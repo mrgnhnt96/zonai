@@ -61,6 +61,11 @@ ATTEMPTS="${REVALI_GENERATE_ATTEMPTS:-6}"
 # yes, it does not belong in this list.
 SIGNATURES='Error initializing analyzer|Bad state: No definition of type'
 
+# The one file this step exists to produce. `server.sync-to-cli` asserts the same
+# path immediately afterwards; checked here too so the failure is attributed to
+# the command that actually failed rather than to the next one to notice.
+ARTIFACT=".revali/server/server.dart"
+
 cd "${ROOT}/apps/server" || exit 1
 
 # Announce itself, unconditionally. Without this line the wrapper is invisible
@@ -79,14 +84,30 @@ for attempt in $(seq 1 "${ATTEMPTS}"); do
   # script's whole job is to read that status and that output -- so it does not
   # route either through something that can lose it. The output is echoed after
   # the fact instead, which costs ordering in the log and nothing else.
-  if dart run revali dev --generate-only --flavor dev --release --recompile \
-    >"${output_file}" 2>&1; then
-    cat "${output_file}"
+  dart run revali dev --generate-only --flavor dev --release --recompile \
+    >"${output_file}" 2>&1
+  status=$?
+  cat "${output_file}"
+
+  # THE EXIT STATUS IS NOT THE VERDICT, and believing it was is why the first
+  # two versions of this script never retried anything. `revali dev` prints the
+  # crash, then EXITS 0. The wrapper saw success, returned success, and the
+  # build walked on to fail minutes later in `dart compile exe` with "Error when
+  # reading .revali/server/server.dart" -- a message about a missing file, three
+  # steps away from the thing that failed to write it.
+  #
+  # So the artifact is the verdict. This step exists to produce that one file;
+  # if it is not there, the step failed, whatever revali returned. That is also
+  # what `server.sync-to-cli` checks one command later, which is the only reason
+  # any of this was caught at all.
+  if [ "${status}" -eq 0 ] && [ -f "${ARTIFACT}" ]; then
     rm -f "${output_file}"
     exit 0
   fi
 
-  cat "${output_file}"
+  if [ "${status}" -eq 0 ]; then
+    echo "revali exited 0 but did not write ${ARTIFACT}." >&2
+  fi
 
   if ! grep -qE "${SIGNATURES}" "${output_file}"; then
     echo "revali codegen failed for a reason that is NOT the SDK-mirror race." >&2
