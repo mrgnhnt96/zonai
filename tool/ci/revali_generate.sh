@@ -43,14 +43,30 @@ SIGNATURE="Error initializing analyzer"
 
 cd "${ROOT}/apps/server" || exit 1
 
+# Announce itself, unconditionally. Without this line the wrapper is invisible
+# in a passing log AND in a failing one -- the first time it went out, a windows
+# leg failed with the exact race this exists to retry and printed none of the
+# retry messages, and there was no way to tell "the wrapper never ran" from "the
+# wrapper ran and the match failed". Both are plausible and they need opposite
+# fixes, so the log has to say which.
+echo "revali codegen via tool/ci/revali_generate.sh (up to ${ATTEMPTS} attempt(s))" >&2
+
 for attempt in $(seq 1 "${ATTEMPTS}"); do
   output_file="$(mktemp)"
 
-  if dart run revali dev --generate-only --flavor dev --release --recompile 2>&1 |
-    tee "${output_file}"; then
+  # Redirected rather than piped through `tee`. A pipeline puts the exit status
+  # behind `pipefail` and the captured output behind tee's buffering, and this
+  # script's whole job is to read that status and that output -- so it does not
+  # route either through something that can lose it. The output is echoed after
+  # the fact instead, which costs ordering in the log and nothing else.
+  if dart run revali dev --generate-only --flavor dev --release --recompile \
+    >"${output_file}" 2>&1; then
+    cat "${output_file}"
     rm -f "${output_file}"
     exit 0
   fi
+
+  cat "${output_file}"
 
   if ! grep -q "${SIGNATURE}" "${output_file}"; then
     echo "revali codegen failed for a reason that is NOT the SDK-mirror race." >&2
