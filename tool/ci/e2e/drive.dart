@@ -1282,15 +1282,37 @@ Future<void> _operationalSurface(Api api) async {
     expected: true,
   );
 
+  const emailBody = {
+    'to': {'address': 'e2e-email-recipient@example.com'},
+    'subject': 'e2e probe',
+    'template': 'otp_code',
+    'variables': {'otp': '000000'},
+  };
+
+  final emailSendAnonymous = await api._sendRaw(
+    'POST',
+    '/email',
+    body: emailBody,
+  );
+  api.expect(
+    'POST /email is refused without an admin token',
+    actual: emailSendAnonymous.status,
+    expected: 403,
+    why:
+        'this route used to answer anybody, which made the server an open '
+        'mail relay: any caller could send to any address, from this '
+        'deployment, using its templates and its SMTP credentials. '
+        '`EmailHandler.send` now parses the bearer token and throws '
+        'EmailForbiddenException unless it is an admin. Asserted before the '
+        'happy path below, because a 2xx there proves the route works and '
+        'says nothing about who may reach it.',
+  );
+
   final emailSend = await api._sendRaw(
     'POST',
     '/email',
-    body: {
-      'to': {'address': 'e2e-email-recipient@example.com'},
-      'subject': 'e2e probe',
-      'template': 'otp_code',
-      'variables': {'otp': '000000'},
-    },
+    body: emailBody,
+    authorization: adminToken,
   );
   api.expect(
     'POST /email answers 2xx for a real built-in template',
