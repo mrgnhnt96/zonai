@@ -1,0 +1,8 @@
+{
+  "formatVersion": 1,
+  "generatorVersion": "0.8.0",
+  "schemaHash": "3bbbbd4f3771929fe569f8a56b3c6c1ac9fccb1750c6978f4929fd7405a53615",
+  "files": [
+    "zonai_client.g.dart"
+  ]
+}
