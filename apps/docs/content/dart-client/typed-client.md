@@ -65,6 +65,46 @@ For a table `posts` you get four names, all derived from one stem:
 
 Rename all four at once with [`names.<table>.row`](/configuration/zonai-yaml#client-settings) — an override that moved one name out of four would be no escape hatch at all for the case that most needs one, a table name that is not a usable Dart identifier.
 
+## What each column becomes
+
+The row type is where the generator earns its keep: values arrive from the server in SQLite's storage encodings, and the generated `fromJson` decodes them so you never write `json['created_at'] as DateTime` and find out at runtime.
+
+| Column kind | Field type |
+|---|---|
+| `id` | the table's own id type, or the **target table's** id for a foreign key |
+| `text`, `email` | `String` |
+| `integer` | `int` |
+| `real` | `double` |
+| `boolean`, `isVerified` | `bool` — from `0` / `1` on the wire |
+| `bigInt` | `BigInt` |
+| `dateTime`, `createdAt`, `updatedAt` | `DateTime` — from epoch milliseconds |
+| `enumerator` | `String` — see below |
+| `enumList` | `List<String>` |
+| `list` | `List<Object?>` — see below |
+| `map` | `Map<String, Object?>` |
+| `blob` | `List<int>` |
+| `photo` | `Uri` |
+| `photos` | `List<Uri>` |
+
+A nullable column gets the nullable form (`double?`, `DateTime?`).
+
+### Secret columns are not generated at all
+
+A `PasswordColumn` — or any column the schema marks secret — has **no field on the generated row**. It is not nullable, not empty: it is absent, and the generated file says so where the field would have been. The server strips it from responses, so a field for it could only ever hold null.
+
+### An enum column arrives as `String`
+
+This one surprises people, so it is worth stating plainly: a schema declaring `EnumColumn<Shelf>` generates `final String shelf`, not `final Shelf shelf`.
+
+It is a deliberate phase-1 limit rather than an oversight. The generator reads a *schema shape*, which records the enum's permitted values but not the Dart type's name or its declaring library — and the generated client lives in the app's package, which cannot import your server's enum. So there is no `Shelf` for it to name.
+
+```dart no-analyze
+if (book.shelf == 'reading') { ... }   // today
+if (book.shelf == Shelf.reading) { ... } // not yet
+```
+
+`$.list` behaves similarly: the element type is not carried, so `ListColumn<String>` becomes `List<Object?>`. `$.enumList` is the exception — its values are known to be strings, so it generates `List<String>`.
+
 ## Typed ids
 
 `PostsId` is an extension type over `String`, so it erases at runtime: it survives `jsonEncode` and `SendPort.send` untouched and needs no custom encoder. What it buys you is at compile time — passing an `AuthorsId` where a `PostsId` belongs stops compiling.
