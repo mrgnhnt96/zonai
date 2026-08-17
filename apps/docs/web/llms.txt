@@ -19,6 +19,7 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 - **Where filters**: docs/curl shorthand `{ "id": { "eq": "…" } }` is accepted. Canonical wire form is `{ "type": "eq", "column": "id", "value": "…" }`. Both work.
 - **Auth**: `Authorization: Bearer <jwt>`. Bodies include `"table": "users"` (or whatever auth table). Mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`, optional `AsAdmin`.
 - **Client**: prefer shipping `zonai_client` (auth, admin auth, db + listen, photos, email) over hand-rolled `package:http`.
+- **Typed client**: `zonai gen client` generates per-table APIs from the schema — `client.posts.list(...)` → `PostsRow`, instead of `client.db.list(body: ListBody(table: 'posts'), fromJson: …)`. It is an **extension** on `ZonaiClient`, so both styles are valid in one file. It needs a `client:` block in `zonai.yaml` whose `output` is **required with no default** (the server project cannot be an app dependency, so the destination belongs to the app). Phase 1 emits **read** operations only — `get`/`list`/`count`; writes and `db.listen` still go through `client.db`. `_`-prefixed system tables are skipped unless named in `client.tables.include`. `zonai gen client --check` fails when committed output is stale. https://docs.zonai.dev/cli/gen
 - **Rules default deny**: unoverridden table/row/auth checks return false → HTTP 403 before SQL. Streams reuse `canView` / `canList` / `canCount`.
 - **Dev vs prod**: `zonai dev` / `zonai serve` for local; `zonai build` ships `build/zonai` (asserts off). Restart `serve` after editing ops/rules so the linked entry reloads; workers hot-recompile on their own.
 - **Migrations**: `zonai db migrate generate` then `apply` (or auto-migrate on serve). Commit `.zonai/migrations/`. Do not commit `.zonai/data/` or executables.
@@ -40,7 +41,7 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 
 ## Configuration
 
-- [zonai.yaml Reference](https://docs.zonai.dev/configuration/zonai-yaml): Paths, version, server settings.
+- [zonai.yaml Reference](https://docs.zonai.dev/configuration/zonai-yaml): Paths, version, server settings, and the `client:` block for `zonai gen client`.
 - [App Config](https://docs.zonai.dev/configuration/app-config): `AppConfig` — `baseUrl`, JWT secret, SMTP, photos, workers.
 - [Environment Variables](https://docs.zonai.dev/configuration/environment-variables): Compile-time `.env` secrets, `--dart-define` overrides (there is no `--dart-define-from-file`), and optional `ZONAI_*` runtime tuning.
 
@@ -124,6 +125,7 @@ Firebase Cloud Messaging. Recipients are named by a **query over a `$.deviceToke
 ## Dart client
 
 - [Client Overview](https://docs.zonai.dev/dart-client/overview): Generated client install and `baseUrl` — prefer over hand-rolled HTTP.
+- [Typed Client](https://docs.zonai.dev/dart-client/typed-client): Per-table APIs from `zonai gen client` — typed rows and ids, `expand`, `as:`. **Reads only** in phase 1.
 - [Authentication](https://docs.zonai.dev/dart-client/authentication)
 - [Database](https://docs.zonai.dev/dart-client/database): CRUD + **`db.listen` live streams**.
 - [Photos](https://docs.zonai.dev/dart-client/photos)
@@ -136,6 +138,7 @@ Firebase Cloud Messaging. Recipients are named by a **query over a `$.deviceToke
 - [zonai dev](https://docs.zonai.dev/cli/dev): Interactive TUI + serve helpers.
 - [zonai serve](https://docs.zonai.dev/cli/serve) · [zonai compile](https://docs.zonai.dev/cli/compile) · [zonai build](https://docs.zonai.dev/cli/build)
 - [zonai db](https://docs.zonai.dev/cli/db) · [zonai rules](https://docs.zonai.dev/cli/rules) · [zonai version](https://docs.zonai.dev/cli/version)
+- [zonai gen](https://docs.zonai.dev/cli/gen): Generate a typed Dart client from the schema; `--check` for CI.
 - [Upgrading Zonai](https://docs.zonai.dev/cli/upgrading): Moving between releases, including breaking upgrades.
 - [Global Flags](https://docs.zonai.dev/cli/global-flags): `--flavor`, `--release`, `--config`, log levels — and why an unrecognized flag is ignored instead of rejected.
 
