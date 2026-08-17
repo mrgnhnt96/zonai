@@ -22,6 +22,7 @@ abstract final class Links {
   static const rules = 'https://docs.zonai.dev/rules/overview';
   static const pipeline = 'https://docs.zonai.dev/core-concepts/request-pipeline';
   static const client = 'https://docs.zonai.dev/dart-client/overview';
+  static const push = 'https://docs.zonai.dev/push/overview';
   static const deployment = 'https://docs.zonai.dev/deployment/building-for-production';
   static const llms = 'https://docs.zonai.dev/llms.txt';
   static const github = 'https://github.com/mrgnhnt96/zonai';

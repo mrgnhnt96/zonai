@@ -69,6 +69,14 @@ const _features = <Feature>[
     link: null,
   ),
   (
+    icon: 'bell',
+    title: 'Push notifications',
+    body:
+        'Send from a lifecycle hook to a recipient set named by a query, not a list of tokens. The fan-out pages, '
+        'checkpoints, resumes after a restart, and clears dead tokens — FCM for Android, APNs direct for iOS.',
+    link: Links.push,
+  ),
+  (
     icon: 'clock',
     title: 'Scheduled jobs',
     body:
@@ -102,6 +110,7 @@ const _glyphs = <String, String>{
   'stream': 'M4 8h5m6 0h5M4 16h9m4 0h3M4 12h3m4 0h9M6 8v0M13 16v0',
   'dart': 'M6 6h8l6 6-6 6H6V6Zm2.5 4.5 3.5 3.5m0-3.5-3.5 3.5',
   'mail': 'M3.5 7.5h17v10h-17v-10Zm0 .5 8.5 6 8.5-6',
+  'bell': 'M12 4.5a5 5 0 0 0-5 5c0 3.2-1.5 4.2-1.5 4.2h13S17 12.7 17 9.5a5 5 0 0 0-5-5Zm-1.7 12.2a1.7 1.7 0 0 0 3.4 0',
   'clock': 'M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15ZM12 8v4.3l3 1.8',
   'gauge': 'M4.5 17a8 8 0 1 1 15 0M12 13.5l3.5-3.5M12 13.5v0',
   'box': 'M12 3.5 20 8v8l-8 4.5L4 16V8l8-4.5Zm0 0v17M4 8l8 4.5L20 8',
