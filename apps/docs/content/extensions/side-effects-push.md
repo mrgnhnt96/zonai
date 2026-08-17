@@ -30,6 +30,8 @@ final job = await push(
 
 **It outlives the request.** A queued `mutate` is committed with the request. A fan-out keeps running long after the response was sent, and nothing about the request can stop it once it starts.
 
+It needs no particular identity, either: a hook pushes the same for an admin, an ordinary user or an unauthenticated request, because the code deciding to send is yours. Which means a hook on a publicly-reachable operation is a publicly-reachable fan-out — see [Who can send](/push/sending#who-can-send).
+
 ## Call it from `after*` hooks, never `before*`
 
 A `before` hook runs prior to the write. A notification announcing something that may not happen cannot be recalled — there is no unsend.

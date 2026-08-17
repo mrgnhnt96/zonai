@@ -30,6 +30,19 @@ The fan-out reads **only the primary key, the token column, and the platform col
 
 `platformColumn` is optional, and what omitting it means depends on your configuration. With FCM configured, every recipient goes through FCM — the setup Zonai shipped with, and still correct. **With APNs only, omitting it means nothing can be routed at all**, because FCM is the fallback and it is not there; those recipients fail transiently and forever. Name it and iOS goes straight to APNs. See [Device Tokens](/push/device-tokens) for the values it accepts and what an unroutable recipient looks like.
 
+## Who can send
+
+`push` is server-side only, and that is structural rather than a permission check. The `push` global exists inside an extension hook or a cron job and nowhere else — call it anywhere else and it throws a `StateError` saying so. There is no HTTP route that enqueues a fan-out, so nothing outside your own Dart can ask for one.
+
+**The signed-in user's identity is irrelevant.** A hook that pushes works the same for an admin, an ordinary user, and an unauthenticated request, because the code deciding to send is yours either way. The JWT is carried for attribution — `onPushRejected` receives it — not for authorization.
+
+That puts two things on you, and they are worth being deliberate about:
+
+- **A public trigger is a public send button.** If an unauthenticated `POST /db` has an `after` hook that pushes, anyone who can reach that endpoint can make your server fan out and spend its FCM or APNs quota. Bound it where it is bounded for everything else: [rules](/rules/overview) on the operation, and a [rate-limit policy](/rate-limiting/configuring-policies) on the table.
+- **Do not build `where` from unvalidated request input.** In a hook the caller is your code, so a predicate shaped by a user's payload lets that user widen their own audience. Same class of mistake as any query built from request data.
+
+Reading the jobs collection is a different question and stays admin-gated — a job row carries the notification body and the recipient predicate.
+
 ## Call it from `after*` hooks, never `before*`
 
 A `before` hook runs prior to the write. A notification announcing something that then does not happen cannot be recalled. This is the first thing to get right and the easiest to get wrong.
