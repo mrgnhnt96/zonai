@@ -160,7 +160,11 @@ env:
 #
 #   static 2.3m · docs 1.8m · unit 3.8m · submodules 3.0m   -> 10
 #   e2e 8.0m (passing, ubuntu)                              -> 15
-#   cli 11.6m ubuntu / 14.0m windows                        -> 20
+#   cli >18.6m ubuntu (cut off) / ~22.5m windows            -> 35
+#
+# `cli` moved 20 -> 35 on 2026-08-17 when the OAuth merge took the suite from
+# 677 to 818 tests; the reasoning, and the evidence that it is growth and not a
+# hang, is on the ceiling itself rather than repeated here.
 #
 # A ceiling is a BUDGET STOP, not a performance target. It bounds what a hang
 # COSTS; it does not diagnose one, and it cannot tell a hang from a slow runner.
@@ -571,10 +575,38 @@ jobs:
        github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
-    # 20 rather than the 10 the short jobs take: MEASURED 11.6m (ubuntu) / 14.0m (windows) completing normally on run
+    # 35 rather than the 10 the short jobs take: MEASURED 11.6m (ubuntu) / 14.0m (windows) completing normally on run
     # 31839671048, so a 10-minute ceiling would convert "503 passed, 4 failed"
     # into a contentless timeout and still bill the 10 minutes.
-    timeout-minutes: 20
+    #
+    # RAISED from 20 on 2026-08-17, for v0.8.0. Both legs hit exactly 20m15s on
+    # run 31986457034 -- `CLI tests` alone ran 18m37s on ubuntu and was cut off
+    # mid-suite, so its true duration is unknown and >18.6m.
+    #
+    # The note above `jobs:` says to read the step durations before raising a
+    # ceiling, because the 15m03s that produced this rule was a real defect and
+    # raising the number would have hidden it. Read them, and this one is
+    # growth, not a hang:
+    #
+    #   * the suite went 677 -> 818 tests when the OAuth campaign merged, and
+    #     OAuth's share is disproportionately the slow kind (compiled-binary
+    #     e2e legs, not unit tests);
+    #   * it COMPLETES locally on the same commit -- 818 passed in 4m09s, up
+    #     from 2m50s for 677. A wedged test would wedge on a laptop too;
+    #   * only `cli` is near its ceiling. On the same run e2e took 6.3m/5.5m
+    #     against 15, unit 3.2m/3.0m against 10, static 2.2m and docs 1.8m
+    #     against 10. A hang would not be this selective.
+    #
+    # 35 and not 25: ubuntu is only bounded below (>18.6m), and windows has run
+    # 1.21x ubuntu every time it was measured, which puts it near 22.5m. A
+    # ceiling under ~30 would be re-litigating this in a month. It is still a
+    # budget stop -- a wedged windows leg bills 70 minutes at 2x rather than the
+    # 720 that GitHub's 360-minute default would.
+    #
+    # RE-MEASURE from the first green run and tighten this: the number above is
+    # an extrapolation for windows and a lower bound for ubuntu, which is the
+    # weakest kind of evidence this comment block has ever carried.
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
