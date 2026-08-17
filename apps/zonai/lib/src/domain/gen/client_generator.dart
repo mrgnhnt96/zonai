@@ -3,6 +3,7 @@ import 'package:zonai_schema/src/types/schema_shape.dart';
 import '../../deps/fs.dart';
 import 'client_emitter.dart';
 import 'client_manifest.dart';
+import 'dart_client_emitter.dart';
 import 'client_schema_document.dart';
 import 'client_settings.dart';
 
@@ -102,7 +103,7 @@ final class ClientGenerator {
     required this.outputDirectory,
     required this.schemaFilePath,
     required this.generatorVersion,
-    this.emitter = const StubClientEmitter(),
+    this.emitter = const DartClientEmitter(),
   });
 
   final ClientSettings settings;
@@ -119,9 +120,14 @@ final class ClientGenerator {
 
   /// Turns live schema shapes into a full plan. Touches nothing.
   ClientGenerationPlan plan(Map<String, TableSchemaShape> shapes) {
+    // Everything the config leaves out, not just what it names: the
+    // `_`-prefixed system tables are excluded by default and `tables.include`
+    // is what brings one back. Filtering here rather than in the emitter keeps
+    // `.zonai/schema.json` exactly the generator's input, so its hash moves
+    // when the generated client would and stays put when it would not.
     final schema = ClientSchemaDocument.fromShapes(
       shapes,
-      excludeTables: settings.excludeTables,
+      excludeTables: settings.excludedFrom(shapes.keys),
     );
 
     final emitted = emitter.emit(

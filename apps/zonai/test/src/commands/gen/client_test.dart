@@ -19,6 +19,7 @@ import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/deps/zonai_db.dart';
 import 'package:zonai/src/domain/gen/client_emitter.dart';
 import 'package:zonai/src/domain/gen/client_manifest.dart';
+import 'package:zonai/src/domain/gen/dart_client_emitter.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai/src/utils/args.dart';
 import 'package:zonai_logger/zonai_logger.dart';
@@ -214,7 +215,7 @@ void main() {
       expect(memoryFs.file('.zonai/schema.json').existsSync(), isTrue);
       expect(
         memoryFs
-            .file('gen/zonai/${StubClientEmitter.outputFileName}')
+            .file('gen/zonai/${DartClientEmitter.barrelFileName}')
             .existsSync(),
         isTrue,
       );
@@ -247,7 +248,7 @@ void main() {
       expect(schema['hash'], isA<String>());
 
       final generated = memoryFs
-          .file('gen/zonai/${StubClientEmitter.outputFileName}')
+          .file('gen/zonai/${DartClientEmitter.barrelFileName}')
           .readAsStringSync();
       expect(generated, startsWith(kGeneratedClientHeader));
 
@@ -256,7 +257,12 @@ void main() {
             .file('gen/zonai/${ClientManifest.fileName}')
             .readAsStringSync(),
       )!;
-      expect(manifest.files, [StubClientEmitter.outputFileName]);
+      expect(manifest.files, [
+        'tables/authors.g.dart',
+        'tables/posts.g.dart',
+        DartClientEmitter.barrelFileName,
+        DartClientEmitter.runtimeFileName,
+      ]);
       expect(manifest.generatorVersion, kVersion);
       expect(manifest.schemaHash, schema['hash']);
     });
@@ -317,7 +323,7 @@ client:
       );
       expect(
         memoryFs
-            .file('gen/zonai/${StubClientEmitter.outputFileName}')
+            .file('gen/zonai/${DartClientEmitter.barrelFileName}')
             .existsSync(),
         isFalse,
       );
@@ -338,7 +344,7 @@ client:
       );
       expect(
         memoryFs
-            .file('gen/zonai/${StubClientEmitter.outputFileName}')
+            .file('gen/zonai/${DartClientEmitter.barrelFileName}')
             .existsSync(),
         isTrue,
       );
@@ -408,13 +414,13 @@ client:
       await _run(memoryFs);
 
       memoryFs
-          .file('gen/zonai/${StubClientEmitter.outputFileName}')
+          .file('gen/zonai/${DartClientEmitter.barrelFileName}')
           .writeAsStringSync('// edited');
 
       final result = await _run(memoryFs, flags: {'check': true});
 
       expect(result.exitCode, 1);
-      expect(result.output, contains(StubClientEmitter.outputFileName));
+      expect(result.output, contains(DartClientEmitter.barrelFileName));
     });
   });
 }

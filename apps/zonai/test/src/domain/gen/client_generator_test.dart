@@ -10,6 +10,7 @@ import 'package:zonai/src/domain/gen/client_generator.dart';
 import 'package:zonai/src/domain/gen/client_manifest.dart';
 import 'package:zonai/src/domain/gen/client_schema_document.dart';
 import 'package:zonai/src/domain/gen/client_settings.dart';
+import 'package:zonai/src/domain/gen/dart_client_emitter.dart';
 import 'package:zonai_schema/zonai_schema.dart'
     show ColumnShape, ColumnShapeKind, TableSchemaShape;
 
@@ -49,7 +50,7 @@ final _shapes = <String, TableSchemaShape>{
 
 ClientGenerator _generator({
   ClientSettings? settings,
-  ClientEmitter emitter = const StubClientEmitter(),
+  ClientEmitter emitter = const DartClientEmitter(),
 }) {
   return ClientGenerator(
     settings: settings ?? const ClientSettings(output: _output),
@@ -195,7 +196,13 @@ void main() {
         memoryFs.file('$_output/${ClientManifest.fileName}').readAsStringSync(),
       )!;
 
-      expect(manifest.files, [StubClientEmitter.outputFileName]);
+      expect(manifest.files, [
+        'tables/audit_log.g.dart',
+        'tables/authors.g.dart',
+        'tables/posts.g.dart',
+        DartClientEmitter.barrelFileName,
+        DartClientEmitter.runtimeFileName,
+      ]);
       expect(manifest.generatorVersion, '9.9.9');
       expect(
         manifest.files,
@@ -212,12 +219,15 @@ void main() {
         ),
       );
 
-      final emitted = generator
-          .plan(_shapes)
-          .files[StubClientEmitter.outputFileName]!;
+      final plan = generator.plan(_shapes);
 
-      expect(emitted, contains('BlogPostsRow'));
-      expect(emitted, contains('AuthorsRow'));
+      expect(plan.files['tables/posts.g.dart']!, contains('BlogPostsRow'));
+      expect(plan.files['tables/authors.g.dart']!, contains('AuthorsRow'));
+      expect(
+        plan.files[DartClientEmitter.barrelFileName]!,
+        contains('BlogPostsApi get blogPosts'),
+        reason: 'the override moves every name for the table, not just the row',
+      );
     });
   });
 
@@ -390,7 +400,7 @@ void main() {
         final plan = generator.plan(_shapes);
         generator.write(plan);
         memoryFs
-            .file('$_output/${StubClientEmitter.outputFileName}')
+            .file('$_output/${DartClientEmitter.barrelFileName}')
             .deleteSync();
         return generator.check(generator.plan(_shapes));
       });
@@ -406,7 +416,7 @@ void main() {
         final generator = _generator();
         generator.write(generator.plan(_shapes));
         memoryFs
-            .file('$_output/${StubClientEmitter.outputFileName}')
+            .file('$_output/${DartClientEmitter.barrelFileName}')
             .writeAsStringSync('// edited by hand');
         return generator.check(generator.plan(_shapes));
       });

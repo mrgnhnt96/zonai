@@ -53,7 +53,8 @@ client:
   package: false                 # true -> also emit a pubspec.yaml
   # packageName: my_api          # only read when package: true
   # tables:
-  #   exclude: [audit_log]       # default: every registered table
+  #   exclude: [audit_log]       # default: every project table
+  #   include: [_log]            # opt a zonai system table back in
   # names:
   #   posts:
   #     row: BlogPostsRow        # per-table override of the default naming
@@ -109,6 +110,23 @@ Future<int> client() async {
   try {
     final shapes = await zonaiDB.schemaShapes();
     final plan = generator.plan(shapes);
+
+    // Named, never silent. Most of a registered schema is zonai's own
+    // (`_jwt`, `_rate_limit`, `_photos`, ...), and a generated API over those
+    // would read as a supported surface -- so they are left out. A developer
+    // who wanted one back has to be able to see that it was dropped, and how
+    // to ask for it.
+    final skipped = configured.excludedFrom(shapes.keys);
+    if (skipped.isNotEmpty) {
+      final internal = skipped.where(ClientSettings.isInternalTable).toList();
+      logger.info('Skipped ${skipped.length} table(s): ${skipped.join(', ')}');
+      if (internal.isNotEmpty) {
+        logger.info(
+          'Of those, ${internal.length} are zonai\'s own system tables. Add '
+          'one to `client.tables.include` in zonai.yaml to generate it anyway.',
+        );
+      }
+    }
 
     if (plan.schema.tables.isEmpty) {
       logger.warn(
