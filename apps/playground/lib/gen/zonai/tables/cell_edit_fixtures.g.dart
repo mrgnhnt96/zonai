@@ -201,7 +201,7 @@ final class CellEditFixturesApi {
   /// A page of rows.
   ///
   /// `expand` takes the wire paths the server understands --
-  /// `['author_id', 'author_id.company_id']`, dotted and
+  /// `['company_id']`, dotted and
   /// capped at depth 4. Phase 3 replaces them with typed
   /// paths; the wire form does not change when it does.
   Future<Paginated<CellEditFixturesRow>> list({

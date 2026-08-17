@@ -222,6 +222,72 @@ void main() {
     });
   });
 
+  group('the expand example in list()', () {
+    // Regression: this line used to be the literal
+    // `['author_id', 'author_id.company_id']` for every table in every
+    // project. Those are apps/playground's columns, so it read as correct
+    // there and was wrong everywhere else -- including on tables with no
+    // foreign keys, where it named a column the schema does not have. Found
+    // by generating a client for a DIFFERENT project; the playground's own
+    // goldens could not see it.
+    test('names this table\'s own foreign key, not a fixed one', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains("`['author_id']`"));
+      expect(posts, isNot(contains('company_id')));
+    });
+
+    test('says so plainly when the table has no expandable relation', () {
+      final authors = _emit()['tables/authors.g.dart']!;
+
+      expect(authors, contains('`authors` has no foreign keys'));
+      expect(authors, isNot(contains('author_id')));
+    });
+
+    test('never suggests a photo column, which cannot be expanded', () {
+      // `photo` IS a foreign key, but it points at the `_photos` system table,
+      // which is not generated -- so the generated `expanded` class has no
+      // field for it. Reading foreign keys directly produced `['photo']` here;
+      // deriving from ExpandBinding is what keeps the example and the
+      // expanded class agreeing.
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, isNot(contains("`['photo']`")));
+    });
+
+    test('chains a second hop only when the target has one', () {
+      final shapes = <String, TableSchemaShape>{
+        ..._shapes,
+        'companies': TableSchemaShape(
+          table: 'companies',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+          ],
+        ),
+        'authors': TableSchemaShape(
+          table: 'authors',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column(
+              'company_id',
+              kind: ColumnShapeKind.id,
+              foreignKey: const ForeignKeyShape(
+                table: 'companies',
+                column: 'id',
+              ),
+            ),
+          ],
+        ),
+      };
+
+      final posts = _emit(shapes: shapes)['tables/posts.g.dart']!;
+
+      // Now that authors DOES have a foreign key, the dotted form appears --
+      // which is the only reason the example exists.
+      expect(posts, contains("`['author_id', 'author_id.company_id']`"));
+    });
+  });
+
   group('the barrel', () {
     test('hangs the tables off ZonaiClient as an extension', () {
       // §6: the dependency arrow points generated -> zonai_client, never back.

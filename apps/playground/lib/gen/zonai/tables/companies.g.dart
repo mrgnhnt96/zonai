@@ -101,10 +101,8 @@ final class CompaniesApi {
 
   /// A page of rows.
   ///
-  /// `expand` takes the wire paths the server understands --
-  /// `['author_id', 'author_id.company_id']`, dotted and
-  /// capped at depth 4. Phase 3 replaces them with typed
-  /// paths; the wire form does not change when it does.
+  /// `companies` has no foreign keys, so there is
+  /// nothing for `expand` to pull in here.
   Future<Paginated<CompaniesRow>> list({
     Where? where,
     int? limit,

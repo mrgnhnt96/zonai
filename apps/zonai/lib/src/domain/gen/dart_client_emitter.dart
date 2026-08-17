@@ -169,7 +169,13 @@ $kGeneratedClientHeader
     _writeId(buffer, shape, name);
     _writeRow(buffer, shape, name, columns, expands, secrets);
     if (expands.isNotEmpty) _writeExpanded(buffer, name, expands);
-    _writeApi(buffer, shape, name, columns);
+    _writeApi(
+      buffer,
+      shape,
+      name,
+      columns,
+      _expandExample(expands, input.schema.tables, names),
+    );
 
     return buffer.toString();
   }
@@ -191,6 +197,46 @@ $kGeneratedClientHeader
       }
     }
     return imports.toList()..sort();
+  }
+
+  /// An `expand` example built from THIS table's own foreign keys.
+  ///
+  /// It used to be the literal `['author_id', 'author_id.company_id']` for
+  /// every table in every project -- those are `apps/playground`'s columns, so
+  /// the line read as correct there and was wrong everywhere else. It was
+  /// printed even on tables with no foreign keys at all, telling a developer
+  /// to expand a column their schema does not have.
+  ///
+  /// Second hop only when the target genuinely has one, because the dotted
+  /// form is the whole thing the example exists to teach; a one-element list
+  /// demonstrates nothing. Null when the table has no expandable relation --
+  /// [_writeList] then says so instead of inventing a column.
+  /// Derived from [ExpandBinding.forTable] rather than from the columns
+  /// directly, so the example can only ever name a path the generated
+  /// `expanded` class actually offers. Reading the foreign keys myself was the
+  /// first attempt and it produced `['photo']` for `posts`: `photo` IS a
+  /// foreign key, but it points at `_photos`, a skipped system table, so the
+  /// generated client cannot expand it. One predicate, in one place.
+  String? _expandExample(
+    List<ExpandBinding> expands,
+    Map<String, TableSchemaShape> tables,
+    ClientNameTable names,
+  ) {
+    if (expands.isEmpty) return null;
+    final first = expands.first;
+
+    final second = switch (tables[first.targetTable]) {
+      final target? =>
+        ExpandBinding.forTable(target, names: names)
+            // `a.a` teaches the dotted form less clearly than a hop to a
+            // different table.
+            .where((next) => next.targetTable != first.targetTable)
+            .firstOrNull,
+      _ => null,
+    };
+
+    if (second == null) return "['${first.wireKey}']";
+    return "['${first.wireKey}', '${first.wireKey}.${second.wireKey}']";
   }
 
   void _writeId(StringBuffer buffer, TableSchemaShape shape, TableNames name) {
@@ -365,6 +411,7 @@ $kGeneratedClientHeader
     TableSchemaShape shape,
     TableNames name,
     List<ColumnBinding> columns,
+    String? expandExample,
   ) {
     final primaryKey = _primaryKey(shape);
     final keyed = primaryKey == null
@@ -395,7 +442,7 @@ $kGeneratedClientHeader
       ..writeln();
 
     _writeGet(buffer, name, keyed);
-    _writeList(buffer, name);
+    _writeList(buffer, name, expandExample);
     _writeCount(buffer, name);
 
     buffer.writeln('}');
@@ -445,14 +492,28 @@ $kGeneratedClientHeader
       ..writeln();
   }
 
-  void _writeList(StringBuffer buffer, TableNames name) {
+  void _writeList(
+    StringBuffer buffer,
+    TableNames name,
+    String? expandExample,
+  ) {
     buffer
       ..writeln('  /// A page of rows.')
-      ..writeln('  ///')
-      ..writeln('  /// `expand` takes the wire paths the server understands --')
-      ..writeln("  /// `['author_id', 'author_id.company_id']`, dotted and")
-      ..writeln('  /// capped at depth 4. Phase 3 replaces them with typed')
-      ..writeln('  /// paths; the wire form does not change when it does.')
+      ..writeln('  ///');
+    if (expandExample case final example?) {
+      buffer
+        ..writeln(
+          '  /// `expand` takes the wire paths the server understands --',
+        )
+        ..writeln('  /// `$example`, dotted and')
+        ..writeln('  /// capped at depth 4. Phase 3 replaces them with typed')
+        ..writeln('  /// paths; the wire form does not change when it does.');
+    } else {
+      buffer
+        ..writeln('  /// `${name.table}` has no foreign keys, so there is')
+        ..writeln('  /// nothing for `expand` to pull in here.');
+    }
+    buffer
       ..writeln('  Future<Paginated<${name.row}>> list({')
       ..writeln('    Where? where,')
       ..writeln('    int? limit,')
