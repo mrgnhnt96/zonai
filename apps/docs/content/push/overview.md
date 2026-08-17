@@ -1,22 +1,34 @@
 ---
 title: Push Notifications
-description: Send notifications through Firebase Cloud Messaging, with a checkpointed fan-out Zonai owns end to end.
+description: Send through Firebase Cloud Messaging or straight to APNs, with a checkpointed fan-out Zonai owns end to end.
 ---
 
-Zonai sends push notifications through **Firebase Cloud Messaging**. You declare which column holds a device token; Zonai pages the recipient set, sends in batches, survives a restart mid-send, and clears tokens FCM reports as dead.
+Zonai sends push notifications through **Firebase Cloud Messaging**, or **straight to APNs** for iOS with no Firebase in the path. You declare which column holds a device token; Zonai pages the recipient set, sends in batches, survives a restart mid-send, and clears tokens the transport reports as dead.
 
 Supabase has no native push — it points you at OneSignal or Expo. Firebase has it because FCM is theirs. A self-hosted backend where notifications work out of the box is one of the few gaps left in Zonai's surface, and this closes it.
 
+## Two routes to a device
+
+| | Android | iOS |
+|---|---|---|
+| **FCM** | The transport. On Android, FCM *is* push — there is no alternative. | Reached by FCM proxying to APNs, with a key you upload to the Firebase console. |
+| **APNs direct** | Not applicable. | Zonai signs its own provider tokens and talks to Apple. No Firebase project involved at all. |
+
+Configure both and each recipient is routed by its platform — see [Device Tokens](/push/device-tokens). Configure only APNs and the app is iOS-only, and needs no Firebase project anywhere in its setup. Nothing about your schema changes between the two: the same token column and the same platform column serve either route, and the choice lives entirely in `AppConfig.push`.
+
 ## Setup is not two lines, and nobody's is
 
-FCM reaches iOS *through* APNs. "One integration covers both platforms" is true for **sending** and false for **setup** — you still upload an APNs authentication key to the Firebase console before an iPhone receives anything. Budget for that.
+FCM reaches iOS *through* APNs. "One integration covers both platforms" is true for **sending** and false for **setup** — on that route you still upload an APNs authentication key to the Firebase console before an iPhone receives anything, and it is a console-only step with no API behind it. Going direct trades that upload for a `.p8`, a Key ID and a Team ID in your config. Budget for one or the other.
 
 | What you need | Where it comes from |
 |---|---|
-| A Firebase project | Its **project ID**, not its display name. |
+| A Firebase project | Android, and iOS via FCM. Its **project ID**, not its display name. |
 | A service-account JSON key | Firebase console → Project settings → Service accounts. |
-| An APNs auth key uploaded to Firebase | iOS only. Apple Developer → Keys → `.p8`. |
-| The FCM SDK in your client app | Zonai sends; the device has to be registered to receive. |
+| An APNs auth key uploaded to Firebase | iOS via FCM only. Apple Developer → Keys → `.p8`. |
+| An APNs `.p8`, Key ID, Team ID and bundle id | iOS direct only. The same kind of key, held by you instead of Google. |
+| The push SDK in your client app | Zonai sends; the device has to be registered to receive. |
+
+An Android-only app needs the first two rows. An iOS-only app going direct needs the fourth. An app on both platforms with iOS direct needs the first, second and fourth, and never touches the Firebase console's Cloud Messaging tab.
 
 ## Why this is in the framework
 
@@ -30,6 +42,7 @@ The last one matters most. A timeout that gets treated as a death deletes a live
 |---|---|
 | The `deviceToken` **column** — reads it, clears it | The table it lives on, its name, every other column |
 | Paging, batching, checkpointing, backoff, retries | Which recipients a message is for (the `where`) |
+| Choosing a transport per recipient, and signing for it | Declaring which platform a row belongs to |
 | Classifying a rejection as permanent or transient | What a rejection *means*, via `onPushRejected` |
 | `AppConfig.push`, credentials, the jobs table | When to send, cooldowns, muting, quiet hours |
 
@@ -39,8 +52,8 @@ A framework that writes into your tables is one you have to trust. That trust is
 
 ## Where to go next
 
-- [Device Tokens](/push/device-tokens) — declare the column that makes recipients findable.
-- [Configuration](/push/configuration) — credentials, and the rotation cost of getting them wrong.
+- [Device Tokens](/push/device-tokens) — declare the column that makes recipients findable, and the one that routes them.
+- [Configuration](/push/configuration) — credentials for both routes, and the rotation cost of getting them wrong.
 - [Sending](/push/sending) — naming a recipient set, and what the returned job id does and does not promise.
 - [Delivery Guarantees](/push/delivery-guarantees) — read this before assuming a notification arrived.
 
@@ -50,4 +63,4 @@ A framework that writes into your tables is one you have to trust. That trust is
 
 **Payload localization is decided against, not deferred.** Zonai does not translate notification text. An app that needs per-locale copy builds the string before calling `push` — it already knows its user's locale, and having the framework re-derive it would mean reading columns the fan-out deliberately does not select (see [Sending](/push/sending)).
 
-Also out of scope for now: APNs direct (`.p8`), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts.
+Also out of scope for now: web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts.

@@ -1,6 +1,6 @@
 ---
 title: Device Tokens
-description: The deviceToken column type, and why the table it lives on is your decision rather than Zonai's.
+description: The deviceToken column type, the platform column that routes a recipient, and why the table they live on is your decision rather than Zonai's.
 ---
 
 A `deviceToken` column is how Zonai finds recipients. It is a semantic column type like `photo()` or `email()` — Zonai recognises it across every collection, and declaring one is what makes a column nameable by `push` at all.
@@ -43,6 +43,32 @@ final deviceTokens = table('device_tokens', DeviceTokenTable.new);
 
 Everything else is yours: the table's name, whether there is a `user_id`, what else lives on the row. Zonai reads exactly one column and writes exactly one column.
 
+## The platform column
+
+A token is an opaque string, and FCM and APNs issue strings that look broadly alike. Nothing about the value says which service to send it to, and guessing from its shape is the tempting mistake: it works until an SDK version changes the format, and then it fails silently, per-device, in production.
+
+So the app says. Store it in an ordinary column — there is no special column type — and name that column when you send:
+
+```dart no-analyze
+platformColumn: 'platform',
+```
+
+| Stored value | Routed to |
+|---|---|
+| `android` | FCM. There is no alternative; on Android, FCM *is* the transport. |
+| `ios` | APNs directly when `PushConfig.apns` is set, otherwise FCM. |
+| anything unrecognised, or `NULL` | FCM. |
+
+Values are read case-insensitively, and `apple`, `iphone` and `ipad` are accepted as `ios` — this column is written by client code Zonai does not control, and `Platform.operatingSystem` says `ios` while plenty of apps store `iOS`. An unrecognised value is that row's problem and never the fan-out's: it falls back to FCM rather than failing everyone else's notification.
+
+**Omitting `platformColumn` sends every recipient through FCM.** That is what an FCM-only app wants, and it is why the parameter is optional.
+
+### The one arrangement to be careful with
+
+An **iOS-only app** — `apns` configured and no FCM at all — must name the platform column, because the fallback it would otherwise take does not exist. A recipient that cannot be routed is counted as a **transient failure** with a detail naming the missing config, never pruned, and retried by the next drain. Nothing is delivered and nothing is lost; it simply keeps not arriving until either the column is named or FCM is configured.
+
+Transient rather than permanent on purpose: the token is valid and the *configuration* is wrong, and pruning there would clear an entire platform's registrations over a deployment mistake.
+
 ## Put it on its own table
 
 You *can* put the token column on `users`. Prefer not to, for two reasons:
@@ -54,6 +80,15 @@ Zonai cannot tell the two table shapes apart, which is exactly why the default p
 
 ## Registering a token
 
-Zonai does not register devices — your client app does, through the FCM SDK, and then writes the token into this table like any other row. A typical shape is an upsert keyed on the device, so re-registering the same device updates its row instead of accumulating rows for a phone that keeps rotating its token.
+Zonai does not register devices — your client app does, and then writes the token into this table like any other row, alongside the platform it belongs to. A typical shape is an upsert keyed on the device, so re-registering the same device updates its row instead of accumulating rows for a phone that keeps rotating its token.
+
+Which SDK does the registering depends on the route:
+
+| Route | On the device |
+|---|---|
+| FCM (Android, or iOS via FCM) | The Firebase Messaging SDK. The token is an FCM registration token. |
+| APNs direct (iOS) | The OS, natively — `registerForRemoteNotifications`. **No Firebase SDK on the device at all.** The token is the raw APNs device token. |
+
+The two are different strings for the same phone, which is the other reason the platform column is not optional guesswork: a token registered through one route is unknown to the other.
 
 Rows with a `NULL` or empty token are skipped by every fan-out, so a pruned row costs nothing but the space it occupies.

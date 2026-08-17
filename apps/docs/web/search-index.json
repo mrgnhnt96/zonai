@@ -18,7 +18,7 @@
         {
           "h": "What You Get Out of the Box",
           "a": "what-you-get-out-of-the-box",
-          "b": "A full REST API for every table — create, read, update, delete, list, count, and live stream endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed. Built-in authentication — password sign-up/sign-in, one-time passcodes, and magic links are available by mixing a single trait into an auth table. Sessions, refresh, and logout are included. Authorization rules — evaluated before any SQL executes. Return true or false; a denied request gets a 403 immediately, with zero database access. Generated Dart client — zonai_client wraps auth, admin auth, db (including db.listen streams), photos, and email so apps do not hand-roll HTTP. Transactional email via SMTP — HTML templates with Mustache variables, sent from lifecycle hooks. Push notifications — send through FCM from a lifecycle hook. Recipients are a query over a deviceToken column, so a fan-out pages instead of loading every token into memory, resumes after a restart instead of re-notifying everyone, and clears tokens FCM reports dead. See Push Overview. Scheduled background jobs — cron-syntax jobs compiled into a separate worker with access to the full database API. Per-IP rate limiting — configur"
+          "b": "A full REST API for every table — create, read, update, delete, list, count, and live stream endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed. Built-in authentication — password sign-up/sign-in, one-time passcodes, and magic links are available by mixing a single trait into an auth table. Sessions, refresh, and logout are included. Authorization rules — evaluated before any SQL executes. Return true or false; a denied request gets a 403 immediately, with zero database access. Generated Dart client — zonai_client wraps auth, admin auth, db (including db.listen streams), photos, and email so apps do not hand-roll HTTP. Transactional email via SMTP — HTML templates with Mustache variables, sent from lifecycle hooks. Push notifications — send from a lifecycle hook through FCM, or straight to APNs for iOS with no Firebase in the path. Recipients are a query over a deviceToken column, so a fan-out pages instead of loading every token into memory, resumes after a restart instead of re-notifying everyone, and clears the tokens the transport reports dead. See Push Overview. Scheduled background jobs — cron-syntax jobs compiled into a separate work"
         },
         {
           "h": "How It Works",
@@ -2292,16 +2292,21 @@
     {
       "u": "/push/overview",
       "t": "Push Notifications",
-      "d": "What Zonai owns, and what setup actually costs.",
+      "d": "The two transports, what Zonai owns, and what setup actually costs.",
       "g": "Push Notifications",
       "s": [
         {
-          "b": "Zonai sends push notifications through Firebase Cloud Messaging. You declare which column holds a device token; Zonai pages the recipient set, sends in batches, survives a restart mid-send, and clears tokens FCM reports as dead. Supabase has no native push — it points you at OneSignal or Expo. Firebase has it because FCM is theirs. A self-hosted backend where notifications work out of the box is one of the few gaps left in Zonai's surface, and this closes it."
+          "b": "Zonai sends push notifications through Firebase Cloud Messaging, or straight to APNs for iOS with no Firebase in the path. You declare which column holds a device token; Zonai pages the recipient set, sends in batches, survives a restart mid-send, and clears tokens the transport reports as dead. Supabase has no native push — it points you at OneSignal or Expo. Firebase has it because FCM is theirs. A self-hosted backend where notifications work out of the box is one of the few gaps left in Zonai's surface, and this closes it."
+        },
+        {
+          "h": "Two routes to a device",
+          "a": "two-routes-to-a-device",
+          "b": "Android iOS FCM The transport. On Android, FCM is push — there is no alternative. Reached by FCM proxying to APNs, with a key you upload to the Firebase console. APNs direct Not applicable. Zonai signs its own provider tokens and talks to Apple. No Firebase project involved at all. Configure both and each recipient is routed by its platform — see Device Tokens. Configure only APNs and the app is iOS-only, and needs no Firebase project anywhere in its setup. Nothing about your schema changes between the two: the same token column and the same platform column serve either route, and the choice lives entirely in AppConfig.push."
         },
         {
           "h": "Setup is not two lines, and nobody's is",
           "a": "setup-is-not-two-lines-and-nobodys-is",
-          "b": "FCM reaches iOS through APNs. \"One integration covers both platforms\" is true for sending and false for setup — you still upload an APNs authentication key to the Firebase console before an iPhone receives anything. Budget for that. What you need Where it comes from A Firebase project Its project ID, not its display name. A service-account JSON key Firebase console → Project settings → Service accounts. An APNs auth key uploaded to Firebase iOS only. Apple Developer → Keys → .p8. The FCM SDK in your client app Zonai sends; the device has to be registered to receive."
+          "b": "FCM reaches iOS through APNs. \"One integration covers both platforms\" is true for sending and false for setup — on that route you still upload an APNs authentication key to the Firebase console before an iPhone receives anything, and it is a console-only step with no API behind it. Going direct trades that upload for a .p8, a Key ID and a Team ID in your config. Budget for one or the other. What you need Where it comes from A Firebase project Android, and iOS via FCM. Its project ID, not its display name. A service-account JSON key Firebase console → Project settings → Service accounts. An APNs auth key uploaded to Firebase iOS via FCM only. Apple Developer → Keys → .p8. An APNs .p8, Key ID, Team ID and bundle id iOS direct only. The same kind of key, held by you instead of Google. The push SDK in your client app Zonai sends; the device has to be registered to receive. An Android-only app needs the first two rows. An iOS-only app going direct needs the fourth. An app on both platforms with iOS direct needs the first, second and fourth, and never touches the Firebase console's Cloud Messaging tab."
         },
         {
           "h": "Why this is in the framework",
@@ -2311,24 +2316,24 @@
         {
           "h": "What Zonai owns, and what stays yours",
           "a": "what-zonai-owns-and-what-stays-yours",
-          "b": "Zonai You The deviceToken column — reads it, clears it The table it lives on, its name, every other column Paging, batching, checkpointing, backoff, retries Which recipients a message is for (the where) Classifying a rejection as permanent or transient What a rejection means, via onPushRejected AppConfig.push, credentials, the jobs table When to send, cooldowns, muting, quiet hours Zonai never requires a particular table name, never requires a user_id, and never reads a column it was not pointed at. A framework that writes into your tables is one you have to trust. That trust is optional — see Dead Tokens."
+          "b": "Zonai You The deviceToken column — reads it, clears it The table it lives on, its name, every other column Paging, batching, checkpointing, backoff, retries Which recipients a message is for (the where) Choosing a transport per recipient, and signing for it Declaring which platform a row belongs to Classifying a rejection as permanent or transient What a rejection means, via onPushRejected AppConfig.push, credentials, the jobs table When to send, cooldowns, muting, quiet hours Zonai never requires a particular table name, never requires a user_id, and never reads a column it was not pointed at. A framework that writes into your tables is one you have to trust. That trust is optional — see Dead Tokens."
         },
         {
           "h": "Where to go next",
           "a": "where-to-go-next",
-          "b": "Device Tokens — declare the column that makes recipients findable. Configuration — credentials, and the rotation cost of getting them wrong. Sending — naming a recipient set, and what the returned job id does and does not promise. Delivery Guarantees — read this before assuming a notification arrived."
+          "b": "Device Tokens — declare the column that makes recipients findable, and the one that routes them. Configuration — credentials for both routes, and the rotation cost of getting them wrong. Sending — naming a recipient set, and what the returned job id does and does not promise. Delivery Guarantees — read this before assuming a notification arrived."
         },
         {
           "h": "Not in v1",
           "a": "not-in-v1",
-          "b": "Topics are the right primitive for a true broadcast: one API call, no token list, no pruning, no restart-duplicate problem. When \"notify everyone\" comes up, the answer is topics rather than a bigger fan-out. They are deferred because they bring their own surface — subscribe, unsubscribe, per-topic auth. Payload localization is decided against, not deferred. Zonai does not translate notification text. An app that needs per-locale copy builds the string before calling push — it already knows its user's locale, and having the framework re-derive it would mean reading columns the fan-out deliberately does not select (see Sending). Also out of scope for now: APNs direct (.p8), web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts."
+          "b": "Topics are the right primitive for a true broadcast: one API call, no token list, no pruning, no restart-duplicate problem. When \"notify everyone\" comes up, the answer is topics rather than a bigger fan-out. They are deferred because they bring their own surface — subscribe, unsubscribe, per-topic auth. Payload localization is decided against, not deferred. Zonai does not translate notification text. An app that needs per-locale copy builds the string before calling push — it already knows its user's locale, and having the framework re-derive it would mean reading columns the fan-out deliberately does not select (see Sending). Also out of scope for now: web push, scheduled or delayed sends, delivery analytics, an in-app notification inbox, per-user preference storage, rich media attachments, and badge counts."
         }
       ]
     },
     {
       "u": "/push/device-tokens",
       "t": "Device Tokens",
-      "d": "The column type that makes recipients findable.",
+      "d": "The columns that make a recipient findable and routable.",
       "g": "Push Notifications",
       "s": [
         {
@@ -2340,6 +2345,16 @@
           "b": "The token column must be nullable. The default pruning policy writes NULL into it when FCM reports the token dead. A non-nullable column makes the framework's own default fail. The table must have a primary key. Zonai pages by it, and the cursor it saves is what lets a fan-out resume instead of restarting from the top. A table without one is refused, with a message saying exactly that. Everything else is yours: the table's name, whether there is a user_id, what else lives on the row. Zonai reads exactly one column and writes exactly one column."
         },
         {
+          "h": "The platform column",
+          "a": "the-platform-column",
+          "b": "A token is an opaque string, and FCM and APNs issue strings that look broadly alike. Nothing about the value says which service to send it to, and guessing from its shape is the tempting mistake: it works until an SDK version changes the format, and then it fails silently, per-device, in production. So the app says. Store it in an ordinary column — there is no special column type — and name that column when you send: platformColumn: 'platform', Stored value Routed to android FCM. There is no alternative; on Android, FCM is the transport. ios APNs directly when PushConfig.apns is set, otherwise FCM. anything unrecognised, or NULL FCM. Values are read case-insensitively, and apple, iphone and ipad are accepted as ios — this column is written by client code Zonai does not control, and Platform.operatingSystem says ios while plenty of apps store iOS. An unrecognised value is that row's problem and never the fan-out's: it falls back to FCM rather than failing everyone else's notification. Omitting platformColumn sends every recipient through FCM. That is what an FCM-only app wants, and it is why the parameter is optional."
+        },
+        {
+          "h": "The one arrangement to be careful with",
+          "a": "the-one-arrangement-to-be-careful-with",
+          "b": "An iOS-only app — apns configured and no FCM at all — must name the platform column, because the fallback it would otherwise take does not exist. A recipient that cannot be routed is counted as a transient failure with a detail naming the missing config, never pruned, and retried by the next drain. Nothing is delivered and nothing is lost; it simply keeps not arriving until either the column is named or FCM is configured. Transient rather than permanent on purpose: the token is valid and the configuration is wrong, and pruning there would clear an entire platform's registrations over a deployment mistake."
+        },
+        {
           "h": "Put it on its own table",
           "a": "put-it-on-its-own-table",
           "b": "You can put the token column on users. Prefer not to, for two reasons: A user has more than one device. One column on users silently means one device per account — a phone and a tablet cannot both be registered. Under deleteRow, a wiped phone would delete a user account. Unrecoverable, and caused by a policy that reads as being about tokens. Zonai cannot tell the two table shapes apart, which is exactly why the default pruning policy is the non-destructive one."
@@ -2347,14 +2362,14 @@
         {
           "h": "Registering a token",
           "a": "registering-a-token",
-          "b": "Zonai does not register devices — your client app does, through the FCM SDK, and then writes the token into this table like any other row. A typical shape is an upsert keyed on the device, so re-registering the same device updates its row instead of accumulating rows for a phone that keeps rotating its token. Rows with a NULL or empty token are skipped by every fan-out, so a pruned row costs nothing but the space it occupies."
+          "b": "Zonai does not register devices — your client app does, and then writes the token into this table like any other row, alongside the platform it belongs to. A typical shape is an upsert keyed on the device, so re-registering the same device updates its row instead of accumulating rows for a phone that keeps rotating its token. Which SDK does the registering depends on the route: Route On the device FCM (Android, or iOS via FCM) The Firebase Messaging SDK. The token is an FCM registration token. APNs direct (iOS) The OS, natively — registerForRemoteNotifications. No Firebase SDK on the device at all. The token is the raw APNs device token. The two are different strings for the same phone, which is the other reason the platform column is not optional guesswork: a token registered through one route is unknown to the other. Rows with a NULL or empty token are skipped by every fan-out, so a pruned row costs nothing but the space it occupies."
         }
       ]
     },
     {
       "u": "/push/configuration",
       "t": "Push Configuration",
-      "d": "Credentials, batching, and pruning policy.",
+      "d": "FCM and APNs credentials, batching, and pruning policy.",
       "g": "Push Notifications",
       "s": [
         {
@@ -2378,7 +2393,7 @@
         {
           "h": "Reaching iOS without Firebase",
           "a": "reaching-ios-without-firebase",
-          "b": "FCM delivers to iOS by proxying to APNs with a key you upload to its console. Zonai can skip that and talk to Apple directly: push: PushConfig( // Android still goes through FCM — on Android, FCM is the transport. projectId: 'my-firebase-project', credentials: PushCredentials.file('/etc/my-app/fcm-service-account.json'), // iOS goes straight to Apple. apns: ApnsConfig( credentials: ApnsCredentials.file('/etc/my-app/AuthKey_ABCD123456.p8'), keyId: 'ABCD123456', teamId: 'U2G2XV3688', bundleId: 'com.example.myapp', ), ), Both halves are optional and at least one is required. An iOS-only app omits projectId and credentials entirely and needs no Firebase project at all. Setting one FCM field without the other is refused rather than treated as \"FCM is off\", because that would silently drop every Android recipient. Recipients are routed by the platform column — see Device Tokens. An app can move iOS between the two transports by changing config alone: the device token is the same string either way, so there is no migration and no row to rewrite."
+          "b": "FCM delivers to iOS by proxying to APNs with a key you upload to its console. Zonai can skip that and talk to Apple directly: push: PushConfig( // Android still goes through FCM — on Android, FCM is the transport. projectId: 'my-firebase-project', credentials: PushCredentials.file('/etc/my-app/fcm-service-account.json'), // iOS goes straight to Apple. apns: ApnsConfig( credentials: ApnsCredentials.file('/etc/my-app/AuthKey_ABCD123456.p8'), keyId: 'ABCD123456', teamId: 'U2G2XV3688', bundleId: 'com.example.myapp', ), ), Both halves are optional and at least one is required. An iOS-only app omits projectId and credentials entirely and needs no Firebase project at all. Setting one FCM field without the other is refused rather than treated as \"FCM is off\", because that would silently drop every Android recipient. Recipients are routed by the platform column — see Device Tokens, which also covers what happens to a recipient no configured transport can carry. Switching iOS between the two routes is a config change on the server and a re-registration on the device. Your schema does not change — same token column, same platform column — but the token value comes from whichever SDK registere"
         },
         {
           "h": "What direct APNs buys",
@@ -2404,12 +2419,12 @@
       "g": "Push Notifications",
       "s": [
         {
-          "b": "final job = await push( PushMessage( title: 'New reply', body: 'Someone replied to your post', collapseKey: 'post:${after.id}', data: {'postId': '${after.id}'}, ), table: 'device_tokens', column: 'token', where: In('user_id', recipientIds), ); logger.info('queued push job ${job.value}');"
+          "b": "final job = await push( PushMessage( title: 'New reply', body: 'Someone replied to your post', collapseKey: 'post:${after.id}', data: {'postId': '${after.id}'}, ), table: 'device_tokens', column: 'token', platformColumn: 'platform', where: In('user_id', recipientIds), ); logger.info('queued push job ${job.value}');"
         },
         {
           "h": "You name a set, not a list",
           "a": "you-name-a-set-not-a-list",
-          "b": "where is a query Zonai runs and pages. This is the difference between sending to a hundred thousand recipients and holding a hundred thousand tokens in memory before the first send. It also means a segment is expressible directly — active = true and locale = 'en' — without your code running the query, reading the rows, and handing back a list of strings. The fan-out reads only the primary key and the token column, whatever the where says. That is a security property rather than an optimisation: the recipient query deliberately skips per-row rules, so a wider projection would turn push into a way to read columns the caller could not otherwise read."
+          "b": "where is a query Zonai runs and pages. This is the difference between sending to a hundred thousand recipients and holding a hundred thousand tokens in memory before the first send. It also means a segment is expressible directly — active = true and locale = 'en' — without your code running the query, reading the rows, and handing back a list of strings. The fan-out reads only the primary key, the token column, and the platform column when you name one — whatever the where says. That is a security property rather than an optimisation: the recipient query deliberately skips per-row rules, so a wider projection would turn push into a way to read columns the caller could not otherwise read. It is also why platformColumn is a parameter rather than something Zonai discovers: widening the projection stays the caller's explicit decision. platformColumn is optional. Omit it and every recipient goes through FCM; name it and iOS recipients go straight to APNs when AppConfig.push.apns is configured. See Device Tokens for the values it accepts and the one setup that must not omit it."
         },
         {
           "h": "Call it from after hooks, never before",
@@ -2419,7 +2434,12 @@
         {
           "h": "PushMessage",
           "a": "pushmessage",
-          "b": "Field title, body What the person sees. collapseKey Replaces an earlier undelivered notification carrying the same key instead of stacking beside it. Set this on anything sent from a fan-out — see Delivery Guarantees. data Map<String, String>. FCM's data values are strings; typing it wider invites a silent toString() at the transport, and a number that arrives as \"1\" on the device is a bug nobody can see from the server. data is where a deep link goes — the ids the app needs to open the right screen when someone taps the notification."
+          "b": "Field title, body What the person sees. collapseKey Replaces an earlier undelivered notification carrying the same key instead of stacking beside it — collapseKey on FCM, apns-collapse-id on APNs. Set this on anything sent from a fan-out — see Delivery Guarantees. data Map<String, String>. FCM's data values are strings; typing it wider invites a silent toString() at the transport, and a number that arrives as \"1\" on the device is a bug nobody can see from the server. data is where a deep link goes — the ids the app needs to open the right screen when someone taps the notification."
+        },
+        {
+          "h": "Size is checked at enqueue, not at send",
+          "a": "size-is-checked-at-enqueue-not-at-send",
+          "b": "FCM's documented payload ceiling is 4096 bytes, and Zonai refuses a message that does not fit — minus a 512-byte allowance for what the transport adds per recipient: the registration token, the platform blocks a collapse key expands into, and the JSON envelope around all of it. The check happens at the push call, which is the whole point. An over-limit payload comes back from FCM as INVALID_ARGUMENT — the same status it uses for a dead token — so left to the transport, one oversized message looks exactly like every recipient's registration going bad at once. Failing at the call site means the author is told before a job exists, and the error names the byte count and the budget. A notification body is truncated on screen well before this limit anyway. If you are near it, the detail belongs in the app, not the payload."
         },
         {
           "h": "What the job id means",
@@ -2496,12 +2516,12 @@
         {
           "h": "Why not exactly-once",
           "a": "why-not-exactly-once",
-          "b": "FCM exposes no idempotency key for messages:send. A send that succeeds remotely and crashes before its outcome is committed will be retried, and FCM has no way to recognise it as the same message. So the batch size is also the blast radius of a crash: at batchSize: 500, a crash at the wrong moment can re-notify up to 500 people. That is the trade the number encodes, and it is why Configuration calls it three things at once."
+          "b": "FCM exposes no idempotency key for messages:send. A send that succeeds remotely and crashes before its outcome is committed will be retried, and FCM has no way to recognise it as the same message. Going direct to APNs changes nothing here: a collapse id replaces a notification on the device, which is not the same thing as a service refusing a duplicate send. So the batch size is also the blast radius of a crash: at batchSize: 500, a crash at the wrong moment can re-notify up to 500 people. That is the trade the number encodes, and it is why Configuration calls it three things at once."
         },
         {
           "h": "What bounds it",
           "a": "what-bounds-it",
-          "b": "Checkpointing. Each batch's outcomes, prunes and cursor commit in a single transaction. A crash anywhere resumes at the last committed batch boundary rather than at the top of the recipient set. The paging is keyset — WHERE pk > cursor ORDER BY pk — never OFFSET. OFFSET degrades linearly across a scan and, worse, silently skips or repeats rows when the table is written to mid-scan. It will be: devices register while a fan-out is running. Collapse keys. A duplicate carrying the same collapseKey replaces the earlier notification on the device instead of stacking beside it. This is the only mechanism that makes a duplicate invisible to the person holding the phone, rather than merely rare. Set one on anything sent from a fan-out."
+          "b": "Checkpointing. Each batch's outcomes, prunes and cursor commit in a single transaction. A crash anywhere resumes at the last committed batch boundary rather than at the top of the recipient set. The paging is keyset — WHERE pk > cursor ORDER BY pk — never OFFSET. OFFSET degrades linearly across a scan and, worse, silently skips or repeats rows when the table is written to mid-scan. It will be: devices register while a fan-out is running. Collapse keys. A duplicate carrying the same collapseKey replaces the earlier notification on the device instead of stacking beside it — FCM calls it collapseKey, APNs calls it apns-collapse-id, and Zonai sets whichever the recipient's transport wants. This is the only mechanism that makes a duplicate invisible to the person holding the phone, rather than merely rare. Set one on anything sent from a fan-out."
         },
         {
           "h": "The other side of the trade",
@@ -2511,7 +2531,7 @@
         {
           "h": "What \"delivered\" means",
           "a": "what-delivered-means",
-          "b": "delivered on a job row means FCM accepted the message. It does not mean: the device received it — the phone may be off, or offline for days; the person saw it — notifications are dismissible and collapsible; the app processed it — a data payload can be dropped by the OS under memory pressure. No push service offers a real delivery receipt, so nothing above this layer can either. Treat push as a prompt to open the app, never as a transport for state the app cannot reconstruct on its own."
+          "b": "delivered on a job row means the transport accepted the message — FCM answered 200, or APNs did. It does not mean: the device received it — the phone may be off, or offline for days; the person saw it — notifications are dismissible and collapsible; the app processed it — a data payload can be dropped by the OS under memory pressure. No push service offers a real delivery receipt, so nothing above this layer can either. Treat push as a prompt to open the app, never as a transport for state the app cannot reconstruct on its own."
         },
         {
           "h": "Ordering",
@@ -2523,36 +2543,46 @@
     {
       "u": "/push/testing-locally",
       "t": "Testing Push Locally",
-      "d": "FCM has no sandbox, and what a stand-in cannot prove.",
+      "d": "FCM has no sandbox, APNs does, and what a stand-in cannot prove.",
       "g": "Push Notifications",
       "s": [
         {
-          "b": "Email has Mailhog. Push has nothing equivalent, and the reason is worth stating before you look for one: FCM has no sandbox. Every endpoint Google publishes delivers to a real device. There is no address you can point a staging deployment at and watch what happens without someone's phone buzzing. That leaves two options. They prove different things, and the difference matters."
+          "b": "Email has Mailhog. Push has nothing equivalent, and how close you can get depends on the transport: A test address that does not reach a phone FCM None. Every endpoint Google publishes delivers to a real device. APNs api.sandbox.push.apple.com, reached with useSandbox: true. So there are three things you can do, and they prove different things. The difference is the whole point of this page."
         },
         {
           "h": "A local stand-in",
           "a": "a-local-stand-in",
-          "b": "FcmPushCourier takes a baseUri, and a service-account key's token_uri decides where the OAuth2 exchange goes. Point both at a local server and the entire path runs unmodified — a real signed assertion, a real token exchange, real HTTP, real classification, real pruning. Zonai's own suite does exactly this. The stand-in is a real HttpServer implementing both FCM v1 endpoints, and it holds only the public half of a generated keypair, so it verifies the service-account assertion the way Google verifies it rather than rubber-stamping it. That check is the point: a stubbed HTTP client cannot fail it, because a stub never looks at a signature. An assertion signed with the wrong algorithm, carrying the wrong claims, or not verifiable at all looks identical to a correct one until something holding the public key inspects it. baseUri is a constructor argument and not a PushConfig field, on purpose. Config is parsed from user-supplied yaml, and an endpoint override there would be a way to redirect production's notifications — access token included — by editing a config file."
+          "b": "Both couriers take their endpoint as a constructor argument, so a test can point them at a local server and the entire path runs unmodified — real signing, real HTTP, real classification, real pruning. FcmPushCourier takes a baseUri, and a service-account key's token_uri decides where the OAuth2 exchange goes. ApnsPushCourier takes a connect function. APNs is HTTP/2-only and the courier multiplexes one connection, so the stand-in has to be a real HTTP/2 server rather than a stubbed client — that shape does not survive being replaced by canned responses. Zonai's own suite does exactly this, and both stand-ins hold only the public half of a generated keypair, so each verifies the credential the way the real service verifies it rather than rubber-stamping it. That check is the point: a stubbed HTTP client cannot fail it, because a stub never looks at a signature. An assertion signed with the wrong algorithm, carrying the wrong claims, or not verifiable at all looks identical to a correct one until something holding the public key inspects it. The two are also deliberately not the same key: Apple signs with ES256 and Google with RS256, and handing one an algorithm's key of the other ki"
         },
         {
           "h": "What it proves",
           "a": "what-it-proves",
-          "b": "That the request you build is one a correct FCM implementation accepts, and that an error body FCM documents produces the right outcome on the right row."
+          "b": "That the request you build is one a correct implementation accepts, and that an error body the service documents produces the right outcome on the right row."
         },
         {
           "h": "What it does not prove",
           "a": "what-it-does-not-prove",
-          "b": "That Google behaves the way Google documents. A stand-in written from the documentation and code written from the same documentation share any mistake in it silently, and go green together. A local run is not \"push is verified end to end\", and reading it that way is how a wrong classification reaches production with a full test suite behind it."
+          "b": "That Google and Apple behave the way Google and Apple document. A stand-in written from the documentation and code written from the same documentation share any mistake in it silently, and go green together. A local run is not \"push is verified end to end\", and reading it that way is how a wrong classification reaches production with a full test suite behind it. This is not hypothetical. The FCM classification table on Dead Tokens was wrong three times when written from the docs, every time in the direction that silently disables pruning."
+        },
+        {
+          "h": "The APNs sandbox",
+          "a": "the-apns-sandbox",
+          "b": "The strongest check available without a phone buzzing, and it exists on this route only. apns: ApnsConfig( credentials: ApnsCredentials.file('/etc/my-app/AuthKey_ABCD123456.p8'), keyId: 'ABCD123456', teamId: 'U2G2XV3688', bundleId: 'com.example.myapp', useSandbox: true, ), That is real Apple judging a real ES256 provider token signed by your real key. It answers the questions a stand-in cannot: whether the key, Key ID and Team ID actually belong together, and whether the bundle id is a registered, push-enabled App ID. Two things to know before it confuses you: Sandbox and production are separate worlds. A token issued to a development build is unknown to production and vice versa. The symptom of mixing them is BadDeviceToken on a token that is perfectly valid — just not here. A simulator token is accepted and dropped. APNs takes the send and nothing arrives, which looks exactly like a broken integration. A simulator cannot verify delivery; xcrun simctl push is how you exercise the app's receive side, and it never touches Apple."
         },
         {
           "h": "Checking credentials before a device exists",
           "a": "checking-credentials-before-a-device-exists",
-          "b": "A local stand-in never touches your real key, so it cannot tell you whether that key works. Push credentials fail in three ways that look identical from the outside — wrong project, missing IAM role, FCM API not enabled — and all three arrive as \"notifications just don't show up\". Zonai ships a probe that asks Google directly: dart run tool/fcm_probe.dart /etc/my-app/fcm-service-account.json It sends to a token FCM has never issued. Nothing reaches a phone and nothing is pruned; the error is the diagnosis. A permanent rejection is the healthy answer — it means the credentials worked and FCM got as far as judging the token, which is the same path a real dead registration takes. A 403 PERMISSION_DENIED means the service account lacks the Firebase Cloud Messaging API Admin role, or belongs to a different project than you think. That last case is the common one, and it is genuinely hard to spot any other way: a Play/androidpublisher service account — the kind Google Play billing and RevenueCat hand you — is a real key, in a real Google project, that simply is not the FCM one. It looks correct in every respect except the one that matters."
+          "b": "A local stand-in never touches your real key, so it cannot tell you whether that key works. FCM credentials fail in three ways that look identical from the outside — wrong project, missing IAM role, FCM API not enabled — and all three arrive as \"notifications just don't show up\". Zonai ships a probe that asks Google directly: dart run tool/fcm_probe.dart /etc/my-app/fcm-service-account.json It sends to a token FCM has never issued. Nothing reaches a phone and nothing is pruned; the error is the diagnosis. A permanent rejection is the healthy answer — it means the credentials worked and FCM got as far as judging the token, which is the same path a real dead registration takes. A 403 PERMISSION_DENIED means the service account lacks the Firebase Cloud Messaging API Admin role, or belongs to a different project than you think. That last case is the common one, and it is genuinely hard to spot any other way: a Play/androidpublisher service account — the kind Google Play billing and RevenueCat hand you — is a real key, in a real Google project, that simply is not the FCM one. It looks correct in every respect except the one that matters. The APNs equivalent is the sandbox above: send to"
         },
         {
           "h": "A real send",
           "a": "a-real-send",
-          "b": "The only thing that closes the gap above, and the reason it is worth the setup. You need a Firebase project, an app registered in it, and a service account holding the Firebase Cloud Messaging API Admin role. An androidpublisher service account — the kind Google Play billing and RevenueCat use — is not that one, and usually is not even in the same project. Then send to two devices: one with the app installed one where the app has been deliberately uninstalled The uninstalled one must prune. The installed one must not. That single test is what validates the classification table the whole feature rests on, because it is the only test where FCM itself — not your reading of its documentation — decides which row gets cleared. For iOS, upload an APNs auth key to the Firebase console first. See Configuration for which .p8 that is, and which one it is easy to mistake for it."
+          "b": "The only thing that closes the gap above, and the reason it is worth the setup. Send to two devices: one with the app installed one where the app has been deliberately uninstalled The uninstalled one must prune. The installed one must not. That single test is what validates the classification table the whole feature rests on, because it is the only test where the push service itself — not your reading of its documentation — decides which row gets cleared. For FCM you need a Firebase project, an app registered in it, and a service account holding the Firebase Cloud Messaging API Admin role. An androidpublisher service account is not that one, and usually is not even in the same project. For iOS via FCM, upload an APNs auth key to the Firebase console first — see Configuration for which .p8 that is, and which one it is easy to mistake for it."
+        },
+        {
+          "h": "Two things that will cost you an hour each on iOS",
+          "a": "two-things-that-will-cost-you-an-hour-each-on-ios",
+          "b": "Both are about observing the notification rather than sending it, and both look exactly like a lost notification. A push is only visible with the app backgrounded. While your app is frontmost, iOS suppresses the banner and hands the notification to the app instead. A foreground test looks like nothing arrived. Test a release build. A debug build cannot launch standalone on modern iOS — it needs the Flutter tooling attached — so flutter build ios --release is what you install on the phone."
         }
       ]
     },

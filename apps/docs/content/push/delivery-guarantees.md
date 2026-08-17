@@ -9,7 +9,7 @@ Reading that sentence carefully is worth more than any other page here.
 
 ## Why not exactly-once
 
-FCM exposes no idempotency key for `messages:send`. A send that succeeds remotely and crashes before its outcome is committed will be retried, and FCM has no way to recognise it as the same message.
+FCM exposes no idempotency key for `messages:send`. A send that succeeds remotely and crashes before its outcome is committed will be retried, and FCM has no way to recognise it as the same message. Going direct to APNs changes nothing here: a collapse id replaces a notification *on the device*, which is not the same thing as a service refusing a duplicate send.
 
 So the batch size is also the blast radius of a crash: at `batchSize: 500`, a crash at the wrong moment can re-notify up to 500 people. That is the trade the number encodes, and it is why [Configuration](/push/configuration) calls it three things at once.
 
@@ -19,7 +19,7 @@ So the batch size is also the blast radius of a crash: at `batchSize: 500`, a cr
 
 The paging is keyset — `WHERE pk > cursor ORDER BY pk` — never `OFFSET`. `OFFSET` degrades linearly across a scan and, worse, silently skips or repeats rows when the table is written to mid-scan. It will be: devices register while a fan-out is running.
 
-**Collapse keys.** A duplicate carrying the same `collapseKey` *replaces* the earlier notification on the device instead of stacking beside it. This is the only mechanism that makes a duplicate invisible to the person holding the phone, rather than merely rare. Set one on anything sent from a fan-out.
+**Collapse keys.** A duplicate carrying the same `collapseKey` *replaces* the earlier notification on the device instead of stacking beside it — FCM calls it `collapseKey`, APNs calls it `apns-collapse-id`, and Zonai sets whichever the recipient's transport wants. This is the only mechanism that makes a duplicate invisible to the person holding the phone, rather than merely rare. Set one on anything sent from a fan-out.
 
 ## The other side of the trade
 
@@ -33,7 +33,7 @@ If that count is non-zero and matters to you, the job row is where you find out.
 
 ## What "delivered" means
 
-`delivered` on a job row means **FCM accepted the message**. It does not mean:
+`delivered` on a job row means **the transport accepted the message** — FCM answered `200`, or APNs did. It does not mean:
 
 - the device received it — the phone may be off, or offline for days;
 - the person saw it — notifications are dismissible and collapsible;

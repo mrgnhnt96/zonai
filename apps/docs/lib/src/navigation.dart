@@ -291,19 +291,23 @@ const List<NavGroup> navigation = [
   NavGroup(
     'Push Notifications',
     icon: NavIcons.bell,
-    summary: 'Checkpointed FCM fan-outs over a queried recipient set.',
+    summary: 'Checkpointed fan-outs over a queried recipient set, through FCM or APNs.',
     items: [
       NavItem(
         'Overview',
         '/push/overview',
-        summary: 'What Zonai owns, and what setup actually costs.',
+        summary: 'The two transports, what Zonai owns, and what setup actually costs.',
       ),
       NavItem(
         'Device Tokens',
         '/push/device-tokens',
-        summary: 'The column type that makes recipients findable.',
+        summary: 'The columns that make a recipient findable and routable.',
       ),
-      NavItem('Configuration', '/push/configuration', summary: 'Credentials, batching, and pruning policy.'),
+      NavItem(
+        'Configuration',
+        '/push/configuration',
+        summary: 'FCM and APNs credentials, batching, and pruning policy.',
+      ),
       NavItem('Sending', '/push/sending', summary: 'Naming a recipient set, and what the job id means.'),
       NavItem(
         'Dead Tokens',
@@ -318,7 +322,7 @@ const List<NavGroup> navigation = [
       NavItem(
         'Testing Locally',
         '/push/testing-locally',
-        summary: 'FCM has no sandbox, and what a stand-in cannot prove.',
+        summary: 'FCM has no sandbox, APNs does, and what a stand-in cannot prove.',
       ),
     ],
   ),

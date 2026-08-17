@@ -13,6 +13,7 @@ final job = await push(
   ),
   table: 'device_tokens',
   column: 'token',
+  platformColumn: 'platform',
   where: In('user_id', recipientIds),
 );
 
@@ -25,7 +26,9 @@ logger.info('queued push job ${job.value}');
 
 It also means a segment is expressible directly — `active = true and locale = 'en'` — without your code running the query, reading the rows, and handing back a list of strings.
 
-The fan-out reads **only the primary key and the token column**, whatever the `where` says. That is a security property rather than an optimisation: the recipient query deliberately skips per-row rules, so a wider projection would turn `push` into a way to read columns the caller could not otherwise read.
+The fan-out reads **only the primary key, the token column, and the platform column when you name one** — whatever the `where` says. That is a security property rather than an optimisation: the recipient query deliberately skips per-row rules, so a wider projection would turn `push` into a way to read columns the caller could not otherwise read. It is also why `platformColumn` is a parameter rather than something Zonai discovers: widening the projection stays the caller's explicit decision.
+
+`platformColumn` is optional. Omit it and every recipient goes through FCM; name it and iOS recipients go straight to APNs when `AppConfig.push.apns` is configured. See [Device Tokens](/push/device-tokens) for the values it accepts and the one setup that must not omit it.
 
 ## Call it from `after*` hooks, never `before*`
 
@@ -40,10 +43,18 @@ A `before` hook runs prior to the write. A notification announcing something tha
 | Field | |
 |---|---|
 | `title`, `body` | What the person sees. |
-| `collapseKey` | Replaces an earlier undelivered notification carrying the same key instead of stacking beside it. **Set this on anything sent from a fan-out** — see [Delivery Guarantees](/push/delivery-guarantees). |
+| `collapseKey` | Replaces an earlier undelivered notification carrying the same key instead of stacking beside it — `collapseKey` on FCM, `apns-collapse-id` on APNs. **Set this on anything sent from a fan-out** — see [Delivery Guarantees](/push/delivery-guarantees). |
 | `data` | `Map<String, String>`. FCM's data values are strings; typing it wider invites a silent `toString()` at the transport, and a number that arrives as `"1"` on the device is a bug nobody can see from the server. |
 
 `data` is where a deep link goes — the ids the app needs to open the right screen when someone taps the notification.
+
+### Size is checked at enqueue, not at send
+
+FCM's documented payload ceiling is **4096 bytes**, and Zonai refuses a message that does not fit — minus a 512-byte allowance for what the transport adds per recipient: the registration token, the platform blocks a collapse key expands into, and the JSON envelope around all of it.
+
+The check happens at the `push` call, which is the whole point. An over-limit payload comes back from FCM as `INVALID_ARGUMENT` — *the same status it uses for a dead token* — so left to the transport, one oversized message looks exactly like every recipient's registration going bad at once. Failing at the call site means the author is told before a job exists, and the error names the byte count and the budget.
+
+A notification body is truncated on screen well before this limit anyway. If you are near it, the detail belongs in the app, not the payload.
 
 ## What the job id means
 

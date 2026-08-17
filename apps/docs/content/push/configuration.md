@@ -72,7 +72,9 @@ push: PushConfig(
 
 Both halves are optional and at least one is required. An iOS-only app omits `projectId` and `credentials` entirely and needs **no Firebase project at all**. Setting one FCM field without the other is refused rather than treated as "FCM is off", because that would silently drop every Android recipient.
 
-Recipients are routed by the `platform` column — see [Device Tokens](/push/device-tokens). An app can move iOS between the two transports by changing config alone: the device token is the same string either way, so there is no migration and no row to rewrite.
+Recipients are routed by the `platform` column — see [Device Tokens](/push/device-tokens), which also covers what happens to a recipient no configured transport can carry.
+
+Switching iOS between the two routes is a config change on the server and a **re-registration on the device**. Your schema does not change — same token column, same platform column — but the token value comes from whichever SDK registered the phone, and an FCM registration token is not an APNs device token. Ship the client change, let devices write their new tokens on next launch, and the two halves meet without a migration.
 
 ### What direct APNs buys
 
