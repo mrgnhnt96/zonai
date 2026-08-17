@@ -28,7 +28,7 @@ It also means a segment is expressible directly — `active = true and locale = 
 
 The fan-out reads **only the primary key, the token column, and the platform column when you name one** — whatever the `where` says. That is a security property rather than an optimisation: the recipient query deliberately skips per-row rules, so a wider projection would turn `push` into a way to read columns the caller could not otherwise read. It is also why `platformColumn` is a parameter rather than something Zonai discovers: widening the projection stays the caller's explicit decision.
 
-`platformColumn` is optional. Omit it and every recipient goes through FCM; name it and iOS recipients go straight to APNs when `AppConfig.push.apns` is configured. See [Device Tokens](/push/device-tokens) for the values it accepts and the one setup that must not omit it.
+`platformColumn` is optional, and what omitting it means depends on your configuration. With FCM configured, every recipient goes through FCM — the setup Zonai shipped with, and still correct. **With APNs only, omitting it means nothing can be routed at all**, because FCM is the fallback and it is not there; those recipients fail transiently and forever. Name it and iOS goes straight to APNs. See [Device Tokens](/push/device-tokens) for the values it accepts and what an unroutable recipient looks like.
 
 ## Call it from `after*` hooks, never `before*`
 

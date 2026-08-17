@@ -57,17 +57,21 @@ platformColumn: 'platform',
 |---|---|
 | `android` | FCM. There is no alternative; on Android, FCM *is* the transport. |
 | `ios` | APNs directly when `PushConfig.apns` is set, otherwise FCM. |
-| anything unrecognised, or `NULL` | FCM. |
+| anything unrecognised, or `NULL` | FCM — **and only FCM**, so a setup without it cannot carry the row at all. |
 
-Values are read case-insensitively, and `apple`, `iphone` and `ipad` are accepted as `ios` — this column is written by client code Zonai does not control, and `Platform.operatingSystem` says `ios` while plenty of apps store `iOS`. An unrecognised value is that row's problem and never the fan-out's: it falls back to FCM rather than failing everyone else's notification.
+Values are read case-insensitively, and `apple`, `iphone` and `ipad` are accepted as `ios` — this column is written by client code Zonai does not control, and `Platform.operatingSystem` says `ios` while plenty of apps store `iOS`. An unrecognised value is that row's problem and never the fan-out's: it falls back rather than failing everyone else's notification.
 
-**Omitting `platformColumn` sends every recipient through FCM.** That is what an FCM-only app wants, and it is why the parameter is optional.
+**Omitting `platformColumn` sends every recipient through FCM** — which is what an FCM-only app wants, and why the parameter is optional. It is *not* a general default, because that fallback only exists when FCM is configured.
 
-### The one arrangement to be careful with
+### An APNs-only app must name the column
 
-An **iOS-only app** — `apns` configured and no FCM at all — must name the platform column, because the fallback it would otherwise take does not exist. A recipient that cannot be routed is counted as a **transient failure** with a detail naming the missing config, never pruned, and retried by the next drain. Nothing is delivered and nothing is lost; it simply keeps not arriving until either the column is named or FCM is configured.
+Configure `apns` and no FCM, omit `platformColumn`, and there is nothing to fall back to: every recipient arrives with no platform, FCM is the only route Zonai will pick without one, and it is not there.
 
-Transient rather than permanent on purpose: the token is valid and the *configuration* is wrong, and pruning there would clear an entire platform's registrations over a deployment mistake.
+Those recipients are counted as **transient failures** with a detail naming the missing configuration — never pruned, and retried by the next drain. So nothing is delivered and nothing is lost or cleared; it simply keeps not arriving until the column is named. The job's `transiently_failed` count equalling its recipient count, on a job that never fails, is what this looks like from the outside.
+
+Transient rather than permanent on purpose: the tokens are valid and the *configuration* is wrong, and pruning there would clear every registration you have over a deployment mistake.
+
+The same holds one platform at a time. An Android recipient with no FCM configured, or an iOS one with neither route configured, fails transiently for the same reason and with a detail naming what is missing.
 
 ## Put it on its own table
 

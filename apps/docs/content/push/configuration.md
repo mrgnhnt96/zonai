@@ -5,12 +5,16 @@ description: PushConfig, the two credential forms and their very different rotat
 
 `AppConfig.push` is nullable, exactly like `AppConfig.email`. A project without it logs a warning and enqueues nothing — a missing config is loud, never fatal.
 
+`PushConfig` carries **two independent halves**, FCM and APNs. At least one is required and neither is privileged: an Android app configures FCM, an iOS-only app configures APNs and no Firebase project at all, and an app on both platforms configures both and names a [platform column](/push/device-tokens#the-platform-column) so each recipient is routed.
+
 ```dart in:app-config
 push: const PushConfig(
   projectId: 'my-firebase-project',
   credentials: PushCredentials.file('/etc/my-app/fcm-service-account.json'),
 ),
 ```
+
+Two fields, both FCM's. Partially configuring one half is refused by `AppConfig.validate` rather than read as "that transport is off" — a project id with no key would otherwise silently drop every Android recipient.
 
 ## Credentials: read the rotation cost before choosing
 
@@ -29,7 +33,7 @@ Never commit either form. `.file` points at a path your deploy places; `.inline`
 
 | Field | Default | What it is |
 |---|---|---|
-| `onPermanentRejection` | `clearColumn` | What happens to a row whose token FCM rejects for good. See [Dead Tokens](/push/dead-tokens). |
+| `onPermanentRejection` | `clearColumn` | What happens to a row whose token a transport rejects for good. See [Dead Tokens](/push/dead-tokens). |
 | `batchSize` | 500 | Rows read, sent and committed per checkpoint. |
 | `concurrency` | 8 | Sends in flight at once within a batch. |
 | `maxAttemptsPerBatch` | 3 | Attempts a batch's *transient* failures get before the job pauses. |
@@ -44,11 +48,11 @@ Never commit either form. `.file` points at a path your deploy places; `.inline`
 
 Raising it makes a large fan-out faster and a crash more expensive, in exactly that proportion. Measure against your own recipient sizes before moving it.
 
-`concurrency` bounds how hard a single batch hits FCM. Sequential is slow; unbounded meets FCM's per-project quota, which is a `429` rather than an error you asked for. The transport backs off exponentially on `429` and `5xx`.
+`concurrency` bounds how hard a single batch hits the transport, and it applies to both: sequential is slow, while unbounded meets FCM's per-project quota or APNs' documented per-connection limits — a `429` rather than an error you asked for. Both couriers back off exponentially on `429` and `5xx`. The shape underneath differs — FCM is a bounded pool of independent POSTs, APNs multiplexes one HTTP/2 connection — but the knob is the same one.
 
 ## Per flavor
 
-`AppConfig` is resolved per flavor, so a staging build can point at a different Firebase project — or at none, in which case staging enqueues nothing and says so in the log rather than sending production notifications from a test run.
+`AppConfig` is resolved per flavor, so a staging build can point at a different Firebase project, a sandbox APNs host, or at nothing — in which case staging enqueues nothing and says so in the log rather than sending production notifications from a test run.
 
 ## Reaching iOS without Firebase
 

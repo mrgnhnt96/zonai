@@ -1,15 +1,15 @@
 ---
 title: Dead Tokens
-description: How Zonai prunes a token FCM has rejected for good, the hook that fires first, and why a timeout is not a death.
+description: How Zonai prunes a token a transport has rejected for good, the hook that fires first, and why a timeout is not a death.
 ---
 
-When FCM reports a token permanently rejected — the app was uninstalled, or the registration rotated — Zonai tells your app, then acts on it.
+When FCM or APNs reports a token permanently rejected — the app was uninstalled, or the registration rotated — Zonai tells your app, then acts on it.
 
 ## The policy
 
 | `onPermanentRejection` | Effect |
 |---|---|
-| `clearColumn` | **Default.** Sets the token column to `NULL`. The row stays. |
+| `clearColumn` | **Default.** Sets the token column to `NULL`. The row stays — including its platform, so the device re-registering is an update rather than a new row. |
 | `deleteRow` | Deletes the row. Opt-in. |
 | `none` | Zonai does nothing. `onPushRejected` is the only signal — and it still fires. |
 
@@ -27,7 +27,7 @@ A timeout, a `503`, or a quota rejection is a **transient failure**. It is count
 
 A token that timed out is not a token that is dead. Keeping those two apart is most of the reason this feature lives in the framework instead of in your hook — the distinction is invisible unless you go looking for it, and getting it wrong deletes live registrations.
 
-Permanent means `UNREGISTERED`, `NOT_FOUND` or `INVALID_ARGUMENT`, and nothing else. An unrecognised status from FCM is treated as transient on purpose: guessing transient costs a retry, and guessing permanent costs a device that never hears from your app again.
+What counts as permanent is per-transport, and both tables are below: on FCM it is `UNREGISTERED`, `NOT_FOUND` or `INVALID_ARGUMENT` and nothing else; on APNs it is a `reason` string rather than a status. Either way, an unrecognised answer is treated as transient on purpose: guessing transient costs a retry, and guessing permanent costs a device that never hears from your app again.
 
 ### What FCM actually returns
 
