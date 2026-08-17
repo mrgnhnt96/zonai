@@ -70,7 +70,9 @@ final class ClientSettings {
   /// Name for that pubspec. Only read when [package] is true.
   final String? packageName;
 
-  /// Tables to leave out. Default: every registered table.
+  /// Project tables to leave out. Default: empty — every project table is
+  /// generated. (Framework-internal tables are a separate rule; see
+  /// [isInternalTable] and [includeTables].)
   final List<String> excludeTables;
 
   /// Framework-internal tables to generate anyway.

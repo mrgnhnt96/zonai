@@ -76,6 +76,56 @@ The optional `buildSettings` block enables cross-compilation:
 
 Use this when building on macOS to deploy to a Linux server.
 
+## Client Settings
+
+The optional `client` block configures [`zonai gen client`](/cli/gen), which generates a [typed Dart client](/dart-client/typed-client) from your schema. It is read only by that command — no other command and no server startup depends on it.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `output` | *(none — required)* | Directory to write the generated client into, relative to `zonai.yaml` |
+| `package` | `false` | Also emit a `pubspec.yaml`, making the output a standalone package |
+| `packageName` | *(none)* | Name for that pubspec. Only read when `package: true` |
+| `tables.exclude` | *(none)* | Project tables to leave out |
+| `tables.include` | *(none)* | Zonai system tables (`_`-prefixed) to generate anyway |
+| `names.<table>.row` | *(derived)* | Override the generated row-class name for one table |
+
+### `output` is required and has no default
+
+The server project cannot be an app dependency — `zonai_schema` pulls in native SQLite — so the generator writes into a directory the *app* owns. There is no default because the destination belongs to an app this project knows nothing about. Running `zonai gen client` without it prints the block to add and exits non-zero.
+
+```yaml
+client:
+  output: ../app/lib/gen/zonai
+```
+
+Pass `--output <dir>` to override it for a single run.
+
+### Choosing tables
+
+By default every table your project declared is generated, and every table **zonai** owns is not. System tables are the `_`-prefixed ones — `_jwt`, `_log`, `_photos`, `_push_jobs`, `_rate_limit` — and they are skipped because a generated, autocompleting `JwtApi` would read as a supported API over tables a consumer must never touch.
+
+```yaml
+client:
+  output: ../app/lib/gen/zonai
+  tables:
+    exclude: [audit_log]    # a project table you don't want in the client
+    include: [_log]         # a system table you genuinely read
+```
+
+`exclude` always wins over `include`. The command reports every table it skipped, so nothing disappears silently.
+
+### Renaming generated types
+
+Every generated name for a table derives from one stem, so `names.<table>.row` moves all of them together — `row: BlogPostsRow` also yields `BlogPostsId`, `BlogPostsApi` and `client.blogPosts`. This is the escape hatch for a table name that is not a usable Dart identifier.
+
+```yaml
+client:
+  output: ../app/lib/gen/zonai
+  names:
+    posts:
+      row: BlogPostsRow
+```
+
 ## Complete Example
 
 ```yaml
@@ -107,6 +157,13 @@ logDatabaseMaxSize: 512mb
 buildSettings:
   targetOs: linux
   targetArch: x64
+
+# Typed client generation (omit unless you run `zonai gen client`)
+client:
+  output: ../app/lib/gen/zonai
+  package: false
+  tables:
+    include: [_log]
 ```
 
 **Minimal `zonai.yaml`** (most projects only need this):

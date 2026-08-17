@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **`Where.isNull(column)` and `Where.isNotNull(column)`.** Two const factories that redirect to the existing `Null` and `NotNull` clauses, so those clauses stay constructible without a caller ever naming those two classes. That matters because `zonai_client`'s barrel cannot export them: a library importing `Null` shadows `dart:core`'s `Null`, since Dart resolves an explicit import ahead of the implicit `dart:core` one. Confirmed by compiling rather than by reasoning about it — in a file importing `package:zonai_schema/payloads.dart`, `Null x; print(x);` fails analysis with `not_assigned_potentially_non_nullable_local_variable`, which is legal against `dart:core`'s nullable `Null`, so the error is the shadowing itself. Additive: `Null` and `NotNull` are unchanged and still exported from this package.
+
 ## 0.4.0
 
 > **Re-run `zonai compile` after upgrading, and use it with Zonai CLI v0.8.0 or

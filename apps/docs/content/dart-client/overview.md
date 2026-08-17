@@ -18,6 +18,19 @@ For live screens, use `client.db.listen.one|list|count`. Full guide:
 
 </Info>
 
+<Info>
+
+**There is a typed layer on top of this one.** `client.db` takes a table name as a
+string and hands back a `Map` you decode yourself. [`zonai gen client`](/cli/gen)
+generates per-table APIs from your schema — `client.posts.list(...)` returning
+`PostsRow` — as an *extension* on the client described here, so both styles work in
+one file. See [Typed Client](/dart-client/typed-client).
+
+This page covers installing `zonai_client` and pointing it at a server, which the
+typed client needs first either way.
+
+</Info>
+
 ## Installation
 
 ```yaml
@@ -38,7 +51,9 @@ Future<void> main() async {
   // Check that the server is reachable
   final healthy = await client.health();
 
-  // Query the database
+  // Query the database. The table is a string and the row arrives as a Map;
+  // `zonai gen client` generates `client.posts.list()` returning a typed row
+  // instead — see /dart-client/typed-client.
   final page = await client.db.list(
     body: ListBody(table: 'posts'),
     fromJson: (row) => row,

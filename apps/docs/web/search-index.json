@@ -335,9 +335,29 @@
           "b": "The optional buildSettings block enables cross-compilation: Key Default Values targetOs Current OS linux, macos, windows targetArch Current arch arm64, x64 Use this when building on macOS to deploy to a Linux server."
         },
         {
+          "h": "Client Settings",
+          "a": "client-settings",
+          "b": "The optional client block configures zonai gen client, which generates a typed Dart client from your schema. It is read only by that command — no other command and no server startup depends on it. Key Default Description output (none — required) Directory to write the generated client into, relative to zonai.yaml package false Also emit a pubspec.yaml, making the output a standalone package packageName (none) Name for that pubspec. Only read when package: true tables.exclude (none) Project tables to leave out tables.include (none) Zonai system tables (_-prefixed) to generate anyway names. .row (derived) Override the generated row-class name for one table"
+        },
+        {
+          "h": "output is required and has no default",
+          "a": "output-is-required-and-has-no-default",
+          "b": "The server project cannot be an app dependency — zonai_schema pulls in native SQLite — so the generator writes into a directory the app owns. There is no default because the destination belongs to an app this project knows nothing about. Running zonai gen client without it prints the block to add and exits non-zero. client: output: ../app/lib/gen/zonai Pass --output to override it for a single run."
+        },
+        {
+          "h": "Choosing tables",
+          "a": "choosing-tables",
+          "b": "By default every table your project declared is generated, and every table zonai owns is not. System tables are the _-prefixed ones — _jwt, _log, _photos, _push_jobs, _rate_limit — and they are skipped because a generated, autocompleting JwtApi would read as a supported API over tables a consumer must never touch. client: output: ../app/lib/gen/zonai tables: exclude: [audit_log] a project table you don't want in the client include: [_log] a system table you genuinely read exclude always wins over include. The command reports every table it skipped, so nothing disappears silently."
+        },
+        {
+          "h": "Renaming generated types",
+          "a": "renaming-generated-types",
+          "b": "Every generated name for a table derives from one stem, so names. .row moves all of them together — row: BlogPostsRow also yields BlogPostsId, BlogPostsApi and client.blogPosts. This is the escape hatch for a table name that is not a usable Dart identifier. client: output: ../app/lib/gen/zonai names: posts: row: BlogPostsRow"
+        },
+        {
           "h": "Complete Example",
           "a": "complete-example",
-          "b": "version: 0.1.0 Server binding host: localhost port: 8080 Source paths (all have defaults — only set if you deviate) schemasPath: lib/src/schemas configPath: lib/src/config operationsPath: lib/src/operations rulesPath: lib/src/rules extensionsPath: lib/src/extensions rateLimitPath: lib/src/rate_limit cronsPath: lib/src/crons emailTemplatesPath: lib/src/email_templates Generated paths migrationsPath: .zonai/migrations dataPath: .zonai/data imagesPath: .zonai/data/images Optional hard ceiling on the log database (omit for no limit) logDatabaseMaxSize: 512mb Cross-compilation (omit to build for current platform) buildSettings: targetOs: linux targetArch: x64 Minimal zonai.yaml (most projects only need this): version: 0.1.0"
+          "b": "version: 0.1.0 Server binding host: localhost port: 8080 Source paths (all have defaults — only set if you deviate) schemasPath: lib/src/schemas configPath: lib/src/config operationsPath: lib/src/operations rulesPath: lib/src/rules extensionsPath: lib/src/extensions rateLimitPath: lib/src/rate_limit cronsPath: lib/src/crons emailTemplatesPath: lib/src/email_templates Generated paths migrationsPath: .zonai/migrations dataPath: .zonai/data imagesPath: .zonai/data/images Optional hard ceiling on the log database (omit for no limit) logDatabaseMaxSize: 512mb Cross-compilation (omit to build for current platform) buildSettings: targetOs: linux targetArch: x64 Typed client generation (omit unless you run zonai gen client) client: output: ../app/lib/gen/zonai package: false tables: include: [_log] Minimal zonai.yaml (most projects only need this): version: 0.1.0"
         }
       ]
     },
@@ -2882,7 +2902,7 @@
       "g": "Dart Client",
       "s": [
         {
-          "b": "zonai_client is a generated Dart package that wraps the Zonai server's REST API. It handles token storage, automatic header injection, and response parsing so that application code can call typed methods instead of managing HTTP requests directly. Prefer this package over a hand-written http client. It covers auth, admin auth, db (CRUD + live streams via client.db.listen), photos, and email. For live screens, use client.db.listen.one list count. Full guide: Streaming (Live Queries)."
+          "b": "zonai_client is a generated Dart package that wraps the Zonai server's REST API. It handles token storage, automatic header injection, and response parsing so that application code can call typed methods instead of managing HTTP requests directly. Prefer this package over a hand-written http client. It covers auth, admin auth, db (CRUD + live streams via client.db.listen), photos, and email. For live screens, use client.db.listen.one list count. Full guide: Streaming (Live Queries). There is a typed layer on top of this one. client.db takes a table name as a string and hands back a Map you decode yourself. zonai gen client generates per-table APIs from your schema — client.posts.list(...) returning PostsRow — as an extension on the client described here, so both styles work in one file. See Typed Client. This page covers installing zonai_client and pointing it at a server, which the typed client needs first either way."
         },
         {
           "h": "Installation",
@@ -2892,7 +2912,7 @@
         {
           "h": "Quick Start",
           "a": "quick-start",
-          "b": "import 'package:zonai_client/zonai_client.dart'; Future main() async { // Singleton — memory storage, base URL from BASE_URL env var or // http://localhost:8080 final client = ZonaiClient.instance; // Check that the server is reachable final healthy = await client.health(); // Query the database final page = await client.db.list( body: ListBody(table: 'posts'), fromJson: (row) => row, ); }"
+          "b": "import 'package:zonai_client/zonai_client.dart'; Future main() async { // Singleton — memory storage, base URL from BASE_URL env var or // http://localhost:8080 final client = ZonaiClient.instance; // Check that the server is reachable final healthy = await client.health(); // Query the database. The table is a string and the row arrives as a Map; // zonai gen client generates client.posts.list() returning a typed row // instead — see /dart-client/typed-client. final page = await client.db.list( body: ListBody(table: 'posts'), fromJson: (row) => row, ); }"
         },
         {
           "h": "Configuration",
@@ -2908,6 +2928,62 @@
           "h": "Direct Server Instantiation",
           "a": "direct-server-instantiation",
           "b": "For full control over the HTTP client and storage, construct a Server directly and pass it to ZonaiClient.server. Import server.dart to access the Server class: import 'package:zonai_client/server.dart'; import 'package:zonai_client/storage.dart'; import 'package:zonai_client/zonai_client.dart'; void main() { final server = Server( baseUrl: Uri.parse('https://api.example.com'), storage: ZonaiFileStorage(directory: '/var/lib/myapp'), ); final client = ZonaiClient.server(server: server); } This is also the pattern to use in tests — pass a ZonaiStorage.memory() to keep storage isolated between test cases."
+        }
+      ]
+    },
+    {
+      "u": "/dart-client/typed-client",
+      "t": "Typed Client",
+      "d": "Per-table APIs generated from your schema.",
+      "g": "Dart Client",
+      "s": [
+        {
+          "b": "zonai gen client generates a Dart client from your schema, so application code names tables as properties and gets decoded rows back: final page = await client.posts.list( where: Eq('author_id', authorId.value), orderBy: [OrderByTerm('created_at', SortDirection.desc)], limit: 20, ); for (final post in page.items) { print(post.title); // String, not Object? print(post.createdAt); // DateTime, decoded from epoch millis } Compare that with the untyped equivalent, which stays available and valid: final page = await client.db.list( body: ListBody(table: 'posts', limit: 20), fromJson: (row) => row, // Map<String, dynamic> — decode it yourself ); Generate it with zonai gen client; configure it with the client: block."
+        },
+        {
+          "h": "It extends the client, it does not replace it",
+          "a": "it-extends-the-client-it-does-not-replace-it",
+          "b": "The generated code hangs off ZonaiClient as an extension. The dependency arrow points generated → zonai_client and never back, so both styles are valid in the same file: import 'package:zonai_client/zonai_client.dart'; import 'package:my_app/gen/zonai/zonai_client.g.dart'; final typed = await client.posts.list(); final raw = await client.db.list( body: ListBody(table: 'posts'), fromJson: (row) => row, ); You keep client.auth, client.photos, client.email and client.db.listen exactly as they were. Phase 1 generates read operations only — get, list and count. Creates, updates and deletes still go through client.db, and so do live streams (client.db.listen). A table's generated API having no create method does not mean the table is read-only."
+        },
+        {
+          "h": "What is generated per table",
+          "a": "what-is-generated-per-table",
+          "b": "For a table posts you get four names, all derived from one stem: Name What it is PostsRow One decoded row — String, DateTime, bool, lists and maps, not raw storage PostsId An extension type over String for that table's id PostsApi get / list / count for the table client.posts The accessor, added by an extension on ZonaiClient Rename all four at once with names. .row — an override that moved one name out of four would be no escape hatch at all for the case that most needs one, a table name that is not a usable Dart identifier."
+        },
+        {
+          "h": "Typed ids",
+          "a": "typed-ids",
+          "b": "PostsId is an extension type over String, so it erases at runtime: it survives jsonEncode and SendPort.send untouched and needs no custom encoder. What it buys you is at compile time — passing an AuthorsId where a PostsId belongs stops compiling. final post = await client.posts.get(PostsId('abc123')); Reach for the underlying string with .value when you need it in a Where clause."
+        },
+        {
+          "h": "Expanded relations",
+          "a": "expanded-relations",
+          "b": "A row that points at another table gets an expanded companion, populated only when the call asked for it: final post = await client.posts.get(postId, expand: ['author_id']); print(post.expanded?.author?.name); expand takes the wire paths the server understands — ['author_id', 'author_id.company_id'], dotted, capped at depth 4. An unexpanded row is not an error; expanded is simply null."
+        },
+        {
+          "h": "Acting as a user",
+          "a": "acting-as-a-user",
+          "b": "Every generated method takes an optional as:, which sets the Authorization header: final page = await client.posts.list(as: Authorization.bearer(token)); Authorization.bearer adds the Bearer prefix the server requires, so the header cannot be built wrong. Use Authorization.raw only when you already hold a complete header value. Types say nothing about permission. canView / canList / canUpdate are evaluated on the server and still reject at runtime. A method existing in the generated client means the shape is known — not that this caller may call it. See Rules."
+        },
+        {
+          "h": "Views",
+          "a": "views",
+          "b": "A read-only view generates the same Row and Api types as a table. post_summary becomes client.postSummary, documented in the generated source as a read-only view."
+        },
+        {
+          "h": "Where the query vocabulary comes from",
+          "a": "where-the-query-vocabulary-comes-from",
+          "b": "Where, Update, OrderByTerm, SortDirection, Eq, Gt, In, Contains and the rest are exported by zonai_client itself, so importing the generated client is enough to name them. Two members are deliberately not exported: Null and NotNull. A library importing them would shadow dart:core's Null — Dart resolves an explicit import ahead of the implicit dart:core one, so every Null written in that library would mean the where-clause class instead. Build those clauses with the factories: final drafts = await client.posts.list(where: Where.isNull('published_at')); final live = await client.posts.list(where: Where.isNotNull('published_at'));"
+        },
+        {
+          "h": "Keeping it in sync",
+          "a": "keeping-it-in-sync",
+          "b": "The generated client is a build artifact of your schema. After changing a table, re-run zonai gen client and commit the result; zonai gen client --check fails when the committed copy has gone stale. See zonai gen."
+        },
+        {
+          "h": "See Also",
+          "a": "see-also",
+          "b": "zonai gen — the command and its flags client: configuration Dart Client Overview — installation and baseUrl Streaming (Live Queries) — still client.db.listen"
         }
       ]
     },
@@ -3333,6 +3409,57 @@
           "h": "db clear",
           "a": "db-clear",
           "b": "Delete the SQLite database files entirely — zonai.sqlite, zonai_log.sqlite and zonai_rate_limit.sqlite, along with their WAL sidecars: zonai db clear prompts for confirmation zonai db clear --yes skip confirmation (alias: -y) zonai db clear --reset alias Destructive — all data is lost. Migrations re-apply on next server start. Use in development to reset to a clean state."
+        }
+      ]
+    },
+    {
+      "u": "/cli/gen",
+      "t": "zonai gen",
+      "d": "Generate a typed Dart client from the schema.",
+      "g": "CLI Reference",
+      "s": [
+        {
+          "b": "Generate a typed Dart client from the project's schema, plus .zonai/schema.json describing it. Your app then calls client.posts.list(...) and gets PostsRow back, instead of passing a table name as a string and parsing a Map by hand. zonai gen client [flags] Everything is configured by the client: block in zonai.yaml. The flags below are overrides for one-off and CI use."
+        },
+        {
+          "h": "Why the output directory lives outside this project",
+          "a": "why-the-output-directory-lives-outside-this-project",
+          "b": "The server project cannot be an app dependency — zonai_schema pulls in native SQLite, which an app must not carry. So the generator writes into a directory the app owns, and client.output is the one genuinely required key. There is no default and there cannot be one: the destination belongs to an app this project knows nothing about. Running the command with no client: block is not a silent no-op — it prints the block to add and exits non-zero."
+        },
+        {
+          "h": "Flags",
+          "a": "flags",
+          "b": "Flag Description --check Write nothing; exit non-zero if the committed output is stale, naming each file that differs --output Override client.output for this run --force Generate into a non-empty directory that has no manifest. Adds files; never deletes files zonai did not write -c, --config Path to a custom zonai.yaml -h, --help Show help information"
+        },
+        {
+          "h": "What gets written",
+          "a": "what-gets-written",
+          "b": "Generated files carry a GENERATED CODE header and are recorded in zonai_client_manifest.json inside the output directory. Regeneration replaces or removes only the files in that manifest and touches nothing else — so the directory is safe to share with hand-written code. Alongside the client, the command writes .zonai/schema.json. That file is the generator's entire input, and the artifact --check compares a hash against. --force exists for the first run into a directory that already has files but no manifest. It is deliberately additive: zonai will not delete a file it did not write, so a mistaken --force cannot destroy hand-written code."
+        },
+        {
+          "h": "System tables are skipped by default",
+          "a": "system-tables-are-skipped-by-default",
+          "b": "Most of a registered schema is zonai's own — _jwt, _rate_limit, _photos, _push_jobs, _log. Any table whose name starts with _ is a system table, and those are left out of the generated client by default. The reason is specific to a typed client: a generated JwtApi or RateLimitApi would be discoverable and autocompleting, and types say nothing about permission — so it would read as a supported API over tables a consumer must never touch. The skip is never silent. The command reports it: Skipped 5 table(s): _jwt, _log, _photos, _push_jobs, _rate_limit Of those, 5 are zonai's own system tables. Add one to client.tables.include in zonai.yaml to generate it anyway. If your project genuinely reads one — _log is the usual case — opt it back in by name: client: output: ../app/lib/gen/zonai tables: include: [_log] client.tables.exclude always wins over include."
+        },
+        {
+          "h": "Keeping the committed client honest",
+          "a": "keeping-the-committed-client-honest",
+          "b": "--check writes nothing and exits non-zero when the committed output no longer matches the schema: zonai gen client --check Generated client is stale -- 2 difference(s). Run zonai gen client and commit the result. It names each file that differs, so you can tell whether the change was yours. On a matching tree it prints Generated client is up to date and exits 0. In CI, pass --no-version-check alongside it, the same as the repo's other verification scripts — the pinned project version intentionally differs from the CLI under test."
+        },
+        {
+          "h": "Regenerate after a schema change",
+          "a": "regenerate-after-a-schema-change",
+          "b": "The generated client is a build artifact of your schemas. Re-run it whenever a table, column, or type changes: zonai gen client Generated 9 file(s) for 7 table(s) in ../app/lib/gen/zonai Wrote .zonai/schema.json (schema a59bea3e3f7b) If a table disappears from the schema, its generated file is removed and named in the output."
+        },
+        {
+          "h": "Using the generated client",
+          "a": "using-the-generated-client",
+          "b": "The generated client builds on zonai_client, which exports the query vocabulary the generated methods take and return — Where, Update, OrderByTerm and friends. See Typed Client for what the generated API looks like in application code."
+        },
+        {
+          "h": "See Also",
+          "a": "see-also",
+          "b": "client: configuration reference Typed Client Dart Client Overview"
         }
       ]
     },
