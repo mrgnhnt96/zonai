@@ -9,11 +9,13 @@
 # wrapped in `catch (_) { return (file, null); }` while the collector only writes
 # `if (bytes != null)`. A read that failed under file-handle pressure is therefore
 # byte-identical to a file that was never there, and it surfaces thousands of
-# lines later as:
+# lines later as an analyzer that is missing part of the SDK.
 #
-#   Error initializing analyzer
-#   FileSystemException(path=...\dart\<ver>\x64\version; message=File does not exist.)
-#   package:analyzer/src/dart/sdk/sdk.dart  FolderBasedDartSdk.languageVersion
+# WHICH part is luck, so the failure has more than one face -- both of these were
+# observed on the same job within an hour, and they are the same bug:
+#
+#   Error initializing analyzer / FileSystemException on the SDK's version file
+#   Bad state: No definition of type Future   (TypeProviderImpl._getClassElement)
 #
 # Nothing about it is Windows-specific; Linux and macOS just have far higher
 # handle limits. It is pressure-sensitive, so it got worse when the OAuth
@@ -38,8 +40,26 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-ATTEMPTS="${REVALI_GENERATE_ATTEMPTS:-4}"
-SIGNATURE="Error initializing analyzer"
+ATTEMPTS="${REVALI_GENERATE_ATTEMPTS:-6}"
+
+# THE SIGNATURE IS A SET, because the race is polymorphic: what breaks depends on
+# which file lost the read, and the mirror drops a different one each time.
+# Both observed renderings are below, and a third is assumed to exist.
+#
+#   Error initializing analyzer        -- the SDK's version file was dropped, so
+#                                         FolderBasedDartSdk.languageVersion throws
+#                                         while the context is still being built.
+#   Bad state: No definition of type   -- part of dart:async (or dart:core) was
+#                                         dropped, so TypeProviderImpl cannot find
+#                                         a class every Dart program has.
+#
+# Narrow enough to stay honest: both are crashes INSIDE package:analyzer, and
+# neither is reachable from a genuine problem in this repo's source. Bad Dart in
+# apps/server produces an analysis DIAGNOSTIC naming our file; it does not make
+# the analyzer forget what `Future` is. If a third rendering shows up, add it
+# here with the same test -- "could our code cause this?" -- and if the answer is
+# yes, it does not belong in this list.
+SIGNATURES='Error initializing analyzer|Bad state: No definition of type'
 
 cd "${ROOT}/apps/server" || exit 1
 
@@ -68,7 +88,7 @@ for attempt in $(seq 1 "${ATTEMPTS}"); do
 
   cat "${output_file}"
 
-  if ! grep -q "${SIGNATURE}" "${output_file}"; then
+  if ! grep -qE "${SIGNATURES}" "${output_file}"; then
     echo "revali codegen failed for a reason that is NOT the SDK-mirror race." >&2
     echo "Not retrying: this is about the tree, not about file-handle pressure." >&2
     rm -f "${output_file}"
