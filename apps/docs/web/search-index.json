@@ -2938,7 +2938,7 @@
       "g": "Dart Client",
       "s": [
         {
-          "b": "zonai gen client generates a Dart client from your schema, so application code names tables as properties and gets decoded rows back: final page = await client.posts.list( where: Eq('author_id', authorId.value), orderBy: [OrderByTerm('created_at', SortDirection.desc)], limit: 20, ); for (final post in page.items) { print(post.title); // String, not Object? print(post.createdAt); // DateTime, decoded from epoch millis } Compare that with the untyped equivalent, which stays available and valid: final page = await client.db.list( body: ListBody(table: 'posts', limit: 20), fromJson: (row) => row, // Map<String, dynamic> — decode it yourself ); Generate it with zonai gen client; configure it with the client: block."
+          "b": "zonai gen client generates a Dart client from your schema, so application code names tables as properties and gets decoded rows back: final page = await client.posts.list( where: Eq('author_id', authorId.value), orderBy: [OrderByTerm(column: 'created_at', direction: SortDirection.desc)], limit: 20, ); for (final post in page.items) { print(post.title); // String, not Object? print(post.createdAt); // DateTime, decoded from epoch millis } Compare that with the untyped equivalent, which stays available and valid: final page = await client.db.list( body: ListBody(table: 'posts', limit: 20), fromJson: (row) => row, // Map<String, dynamic> — decode it yourself ); Generate it with zonai gen client; configure it with the client: block."
         },
         {
           "h": "It extends the client, it does not replace it",

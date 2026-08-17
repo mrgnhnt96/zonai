@@ -8,7 +8,7 @@ description: The generated, per-table client — typed rows, typed ids, and no t
 ```dart no-analyze
 final page = await client.posts.list(
   where: Eq('author_id', authorId.value),
-  orderBy: [OrderByTerm('created_at', SortDirection.desc)],
+  orderBy: [OrderByTerm(column: 'created_at', direction: SortDirection.desc)],
   limit: 20,
 );
 
