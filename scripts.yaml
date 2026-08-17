@@ -192,7 +192,11 @@ server:
     (bail):
     (command):
       - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
-      - cd apps/server && dart run revali dev --generate-only --flavor dev --release --recompile
+      # Not `cd apps/server && dart run revali dev ...` directly any more: that
+      # command loses a race inside revali's analyzer under file-handle
+      # pressure, and the wrapper retries THAT failure and nothing else. Why it
+      # happens, and why the fix is not ours to make, is in the script.
+      - bash tool/ci/revali_generate.sh
       - ${{ server.sync-to-cli }}
   gen:
     - |
