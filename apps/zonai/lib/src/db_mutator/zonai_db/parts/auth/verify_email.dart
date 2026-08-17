@@ -47,12 +47,9 @@ extension _VerifyEmailX on ZonaiDb {
       GetVerifyEmailConfigOperationRequest(table: table),
     )).config;
 
-    final secret = switch (kIsCompiled) {
-      false => 'dev-verify-email',
-      true => List.generate(
-        32,
-        (_) => Random.secure().nextInt(256),
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(),
+    final secret = switch (_insecureTestMode()) {
+      true => kInsecureTestVerifyEmailSecret,
+      false => _randomChallengeSecret(),
     };
     final hashedSecret = await _hashPassword.hash(password: secret);
 

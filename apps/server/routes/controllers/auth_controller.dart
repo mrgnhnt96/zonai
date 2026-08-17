@@ -93,6 +93,13 @@ class AuthController {
     return result;
   }
 
+  // Without this guard the admin auth endpoint was exempt from ALL rate
+  // limiting: `RateLimit.canContinue` learned to bucket admin bodies, but
+  // nothing invoked it here, so online credential guessing against the most
+  // privileged accounts was unlimited. `RateLimitOperation.adminAuthenticate`
+  // resolves to the (tight) `adminAuthenticatePolicy`, bucketed per-IP on the
+  // synthetic `__admin_auth__` key since admin auth carries no collection.
+  @BodyRateLimit<AdminAuthBody>(RateLimitOperation.adminAuthenticate)
   @Post('admin')
   Future<Map<String, Object?>?> adminAuthenticate({
     @Body() required AdminAuthBody body,

@@ -45,6 +45,7 @@ dependencies:
     path: ../../libs/zonai_schema
   zonai_web:
     path: ../web
+  http2: ^2.3.1
 
 dev_dependencies:
   test: ^1.26.0

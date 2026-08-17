@@ -39,6 +39,8 @@ sealed class OperationRequest extends Request {
       ),
       GetAdminTablesOperationRequest._path =>
         GetAdminTablesOperationRequest.fromRequest(request),
+      GetTableAdminStatusRequest._path =>
+        GetTableAdminStatusRequest.fromRequest(request),
       GetOAuthProvidersOperationRequest._path =>
         GetOAuthProvidersOperationRequest.fromRequest(request),
       GetOAuthProviderConfigRequest._path =>
@@ -330,6 +332,36 @@ final class GetAdminTablesOperationRequest extends OperationRequest {
   factory GetAdminTablesOperationRequest.fromRequest(UnknownRequest request) {
     return GetAdminTablesOperationRequest._(id: request.id);
   }
+}
+
+/// Asks the operations worker what admin powers the *schema* grants a token
+/// issued for [table].
+///
+/// Deliberately narrower than [GetJwtConfigOperationRequest], which answers the
+/// same question but also runs the project's `addClaims` hook. That hook is
+/// arbitrary user code and may touch the database; this request is consulted on
+/// every authenticated request (see `_validateJwt`), so it must stay a pure
+/// read of the registered schema.
+final class GetTableAdminStatusRequest extends OperationRequest {
+  GetTableAdminStatusRequest({required this.table})
+    : super(path: _path, id: Request.generateId(), jwt: null);
+
+  GetTableAdminStatusRequest._({required super.id, required this.table})
+    : super(path: _path, jwt: null);
+
+  factory GetTableAdminStatusRequest.fromRequest(UnknownRequest request) {
+    return GetTableAdminStatusRequest._(
+      id: request.id,
+      table: request.payload['table'] as String,
+    );
+  }
+
+  static const _path = '${Request.prefix}.auth.get_table_admin_status';
+
+  final String table;
+
+  @override
+  Map<String, dynamic> toJson() => {...super.toJson(), 'table': table};
 }
 
 /// Sibling of [GetAdminTablesOperationRequest]: every `(table,

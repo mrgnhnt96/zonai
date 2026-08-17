@@ -6,8 +6,9 @@ import 'package:zonai_schema/zonai_schema.dart';
 AppConfig main() {
   return const AppConfig(
     appName: 'Zonai CRUD Matrix',
-    passwordSecret: 'crud-matrix-password-pepper',
-    jwtSecret: 'crud-matrix-jwt-secret',
+    passwordSecret:
+        'crud-matrix-password-pepper-KW3PvuKi9E7Kk4ayngZT2DmjSrtbCKn',
+    jwtSecret: 'crud-matrix-jwt-secret-W1ICKTqJEEH3bdfxL4EY5Ahnc7HnaM',
     baseUrl: 'http://localhost:8080',
   );
 }

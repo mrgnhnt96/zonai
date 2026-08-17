@@ -1,7 +1,7 @@
 {
   "version": "1",
   "dialect": "sqlite",
-  "id": "1299d0e6-09d6-4457-909d-8c1e2a628e62",
+  "id": "402da8af-ddc3-45d3-97ca-962d41e06c9e",
   "prevId": "c2d3e4f5-a6b7-8901-bcde-f12345678901",
   "tables": {
     "_abusers": {
@@ -253,59 +253,6 @@
         }
       }
     },
-    "_oauth_identities": {
-      "name": "_oauth_identities",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "TEXT",
-          "primaryKey": true,
-          "isNullable": false
-        },
-        "table": {
-          "name": "table",
-          "type": "TEXT",
-          "primaryKey": false,
-          "isNullable": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "TEXT",
-          "primaryKey": false,
-          "isNullable": false
-        },
-        "provider": {
-          "name": "provider",
-          "type": "TEXT",
-          "primaryKey": false,
-          "isNullable": false
-        },
-        "subject": {
-          "name": "subject",
-          "type": "TEXT",
-          "primaryKey": false,
-          "isNullable": false
-        },
-        "email": {
-          "name": "email",
-          "type": "TEXT",
-          "primaryKey": false,
-          "isNullable": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "INTEGER",
-          "primaryKey": false,
-          "isNullable": false
-        },
-        "last_login_at": {
-          "name": "last_login_at",
-          "type": "INTEGER",
-          "primaryKey": false,
-          "isNullable": false
-        }
-      }
-    },
     "_photos": {
       "name": "_photos",
       "columns": {
@@ -348,6 +295,92 @@
         "extension": {
           "name": "extension",
           "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        }
+      }
+    },
+    "_push_jobs": {
+      "name": "_push_jobs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "message": {
+          "name": "message",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "target_table": {
+          "name": "target_table",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "target_column": {
+          "name": "target_column",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "where_json": {
+          "name": "where_json",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "cursor": {
+          "name": "cursor",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "status": {
+          "name": "status",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "delivered": {
+          "name": "delivered",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        },
+        "permanently_rejected": {
+          "name": "permanently_rejected",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        },
+        "transiently_failed": {
+          "name": "transiently_failed",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        },
+        "error": {
+          "name": "error",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
           "primaryKey": false,
           "isNullable": false
         }
@@ -456,15 +489,22 @@
       ],
       "isUnique": false
     },
-    "oauth_identities_lookup_unique": {
-      "name": "oauth_identities_lookup_unique",
-      "tableName": "_oauth_identities",
+    "push_job_id_unique": {
+      "name": "push_job_id_unique",
+      "tableName": "_push_jobs",
       "columns": [
-        "table",
-        "provider",
-        "subject"
+        "id"
       ],
       "isUnique": true
+    },
+    "push_job_status_created_index": {
+      "name": "push_job_status_created_index",
+      "tableName": "_push_jobs",
+      "columns": [
+        "status",
+        "created_at"
+      ],
+      "isUnique": false
     },
     "rate_limit_bucket_unique": {
       "name": "rate_limit_bucket_unique",

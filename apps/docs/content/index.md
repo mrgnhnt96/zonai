@@ -79,6 +79,8 @@ client.db.listen
 
 **Transactional email via SMTP** — HTML templates with Mustache variables, sent from lifecycle hooks.
 
+**Push notifications** — send through FCM from a lifecycle hook. Recipients are a query over a `deviceToken` column, so a fan-out pages instead of loading every token into memory, resumes after a restart instead of re-notifying everyone, and clears tokens FCM reports dead. See [Push Overview](/push/overview).
+
 **Scheduled background jobs** — cron-syntax jobs compiled into a separate worker with access to the full database API.
 
 **Per-IP rate limiting** — configurable per-table and per-operation with a simple policy class.

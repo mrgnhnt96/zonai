@@ -135,6 +135,7 @@ final items = table('items', ItemTable.new);
 | `$.email(name, getter)` | `EmailColumn` | Auth tables |
 | `$.password(name, getter)` | `PasswordColumn` | Auth tables; Argon2id auto-hashed |
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
+| `$.deviceToken(name, getter)` | `ColumnType<String?>` | Push recipient token; MUST be nullable |
 | `$.dateTime(name, getter)` | `DateTimeColumn` | Client-settable timestamp |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
 | `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
@@ -539,10 +540,19 @@ hooks are `onSignUp(R user, Jwt? jwt)`, `onSignIn`, `onRefresh`, `onLogout`,
 | `mutate.delete.many(tableName:, where:)` | Queue deletes |
 | `email.send.verifyEmail(...)` | Send verify-email link |
 | `email.send.loginNotice(...)` | Send login notification |
+| `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
 Writes via `mutate` are queued and committed after the main mutation, going
 through rules+extensions again (up to 10 chained iterations).
+
+`push` behaves differently from the queued writes above: it is awaited and
+returns the id of a durably recorded job, not a delivery receipt, and the
+fan-out outlives the request. Call it from `after*` hooks only — a `before`
+hook runs before the write, and a notification announcing something that may
+not happen cannot be recalled. Recipients are named by a query over a
+`$.deviceToken` column, never a list of tokens. Requires `AppConfig.push`;
+without it the call throws. See https://docs.zonai.dev/push/overview
 
 ---
 
@@ -983,6 +993,7 @@ users of this table to authenticate as admins.
 | `$.email(name, getter)` | `EmailColumn` | Auth tables |
 | `$.password(name, getter)` | `PasswordColumn` | Auto-hashed (Argon2id) |
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
+| `$.deviceToken(name, getter)` | `ColumnType<String?>` | Push recipient token; MUST be nullable |
 | `$.dateTime(name, getter)` | `DateTimeColumn` | Client-settable timestamp |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
 | `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
@@ -1536,6 +1547,7 @@ UserExtensions main() => UserExtensions();
 | `email.send.loginNotice(to, table:)` | Send login notification |
 | `email.send.passwordReset(to, table:)` | Send password reset link |
 | `email.send.magicLink(to, table:)` | Send magic-link sign-in |
+| `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
 `mutate` writes are **queued**, run after the main mutation commits, going
@@ -1703,6 +1715,7 @@ Cron jobs access the same globals as extensions:
 | `mutate.update.one(table:, updates:, where:)` | Queue an update |
 | `mutate.delete.many(tableName:, where:)` | Queue bulk deletes |
 | `email.send.*` | Send transactional email |
+| `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
 Cron jobs run as `CronJwt` — an internal admin-level identity. Rules applied

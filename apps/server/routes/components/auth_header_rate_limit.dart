@@ -12,18 +12,26 @@ final class AuthHeaderRateLimit extends RateLimit
 
   final RateLimitOperation operation;
 
+  /// Synthetic bucket key for token-identified auth flows. We deliberately do
+  /// NOT bucket on the token's `table` claim: `Jwt.parse` decodes without
+  /// verifying the signature, so a caller could forge/rotate `table` to land
+  /// every request in a fresh counter and dodge the limit entirely. A single
+  /// per-IP bucket cannot be rotated. Reserved: real collection names cannot
+  /// begin with `__`.
+  static const String _authHeaderBucket = '__auth_header__';
+
   Future<GuardResult> check(
     @Header(HttpHeaders.authorizationHeader) String authorization,
     @Ip() String ipAddress,
   ) async {
     final token = _parseBearerToken(authorization);
-    final jwt = token == null ? null : Jwt.parse(token);
-    if (jwt == null) {
+    if (token == null) {
       // Missing/invalid token — let the route handler return 401.
       return const GuardResult.pass();
     }
 
-    return checkByTable(jwt.table, ipAddress, operation);
+    // Bucket per IP, not per (unverified) token claim.
+    return checkByTable(_authHeaderBucket, ipAddress, operation);
   }
 
   static String? _parseBearerToken(String authorization) {

@@ -32,9 +32,9 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
 
   Future<RateLimitPolicy?> logoutAllPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
+  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .adminAuth;
 
-  Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
+  Future<RateLimitPolicy?> adminSignInPolicy() async => .adminAuth;
 
   /// Throttles `POST /admin/invites` for this auth table, keyed per client IP.
   /// Each accepted invite writes an `adminInvite` challenge row and sends an

@@ -61,7 +61,25 @@ class DbExtensions {
       case final AuthExtensionRequest request:
         await _auth(request);
         return NoActionExtensionResponse(id: request.id);
+
+      case final PushRejectedExtensionRequest request:
+        await _pushRejected(request);
+        return NoActionExtensionResponse(id: request.id);
     }
+  }
+
+  Future<void> _pushRejected(PushRejectedExtensionRequest request) async {
+    final extension = extensionsByTable[request.table];
+    if (extension == null) {
+      return;
+    }
+
+    await extension.onPushRejected(
+      extension.table.safeCreate(request.object),
+      request.token,
+      request.reason,
+      request.jwt,
+    );
   }
 
   Future<void> _delete(DeleteExtensionRequest request) async {

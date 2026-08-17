@@ -5,13 +5,12 @@
 // Regenerate SQL: dart run tool/generate_internal_db_artifacts.dart --migrate -n <name>
 // Resync this file: dart run tool/generate_internal_db_artifacts.dart --sync-migrations-dart
 
+
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 
 /// Versioned SQL for framework-managed SQLite tables (`0000_internal_*`, …).
 final internalDbMigrations = [
-  const Migration(
-    '0000_internal_initial',
-    '''
+  const Migration('0000_internal_initial', '''
 CREATE TABLE IF NOT EXISTS "_auth_challenges" (
   "can_consume" INTEGER NOT NULL,
   "consumed_at" INTEGER,
@@ -70,8 +69,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "log_id_unique" ON "_log" ("id");
 
 CREATE INDEX IF NOT EXISTS "log_level_timestamp_index" ON "_log" ("level", "timestamp");
 
-CREATE UNIQUE INDEX IF NOT EXISTS "rate_limit_bucket_unique" ON "_rate_limit" ("client_ip", "table", "operation");''',
-  ),
+CREATE UNIQUE INDEX IF NOT EXISTS "rate_limit_bucket_unique" ON "_rate_limit" ("client_ip", "table", "operation");'''),
   const Migration('0001_internal_update', '''
 CREATE TABLE IF NOT EXISTS "_cron_jobs" (
   "completed" INTEGER,
@@ -86,11 +84,8 @@ CREATE TABLE IF NOT EXISTS "_cron_jobs" (
 CREATE INDEX IF NOT EXISTS "cron_incomplete_index" ON "_cron_jobs" ("name", "completed", "failed");
 
 CREATE INDEX IF NOT EXISTS "cron_name_index" ON "_cron_jobs" ("name");'''),
-  const Migration(
-    '0002_internal_update',
-    '''
-ALTER TABLE "_auth_challenges" ADD COLUMN "allowed_attempts" INTEGER NOT NULL DEFAULT 0;''',
-  ),
+  const Migration('0002_internal_update', '''
+ALTER TABLE "_auth_challenges" ADD COLUMN "allowed_attempts" INTEGER NOT NULL DEFAULT 0;'''),
   const Migration('0003__zonai_v0_1_0_', '''
 CREATE TABLE IF NOT EXISTS "_abusers" (
   "black_listed" INTEGER NOT NULL,
@@ -105,9 +100,29 @@ CREATE TABLE IF NOT EXISTS "_abusers" (
 ALTER TABLE "_log" ADD COLUMN "props" TEXT;'''),
   const Migration('0005_internal_add_log_is_admin', '''
 ALTER TABLE "_log" ADD COLUMN "is_admin" INTEGER NOT NULL DEFAULT 0;'''),
-  const Migration(
-    '0006_add_oauth_identities_table_and_oauth_state_challenge',
-    '''
+  const Migration('0006_internal_push_jobs', '''
+CREATE TABLE IF NOT EXISTS "_push_jobs" (
+  "id" TEXT PRIMARY KEY,
+  "message" TEXT NOT NULL,
+  "target_table" TEXT NOT NULL,
+  "target_column" TEXT NOT NULL,
+  "where_json" TEXT,
+  "cursor" TEXT,
+  "status" TEXT NOT NULL,
+  "delivered" INTEGER NOT NULL DEFAULT 0,
+  "permanently_rejected" INTEGER NOT NULL DEFAULT 0,
+  "transiently_failed" INTEGER NOT NULL DEFAULT 0,
+  "error" TEXT,
+  "created_at" INTEGER NOT NULL,
+  "updated_at" INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "push_job_id_unique" ON "_push_jobs" ("id");
+
+CREATE INDEX IF NOT EXISTS "push_job_status_created_index" ON "_push_jobs" ("status", "created_at");'''),
+  const Migration('0007_push_jobs_platform', '''
+ALTER TABLE "_push_jobs" ADD COLUMN "platform_column" TEXT;'''),
+  const Migration('0008_add_oauth_identities_table', '''
 CREATE TABLE IF NOT EXISTS "_oauth_identities" (
   "id" TEXT PRIMARY KEY,
   "table" TEXT NOT NULL,
@@ -119,6 +134,6 @@ CREATE TABLE IF NOT EXISTS "_oauth_identities" (
   "last_login_at" INTEGER NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "oauth_identities_lookup_unique" ON "_oauth_identities" ("table", "provider", "subject");''',
-  ),
+CREATE UNIQUE INDEX IF NOT EXISTS "oauth_identities_lookup_unique" ON "_oauth_identities" ("table", "provider", "subject");'''),
 ];
+

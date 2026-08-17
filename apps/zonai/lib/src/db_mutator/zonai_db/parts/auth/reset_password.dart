@@ -41,12 +41,9 @@ extension _ResetPasswordX on ZonaiDb {
           GetResetPasswordConfigOperationRequest(table: table),
         )).config;
 
-    final secret = switch (kIsCompiled) {
-      false => 'dev-reset-password',
-      true => List.generate(
-        32,
-        (_) => Random.secure().nextInt(256),
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join(),
+    final secret = switch (_insecureTestMode()) {
+      true => kInsecureTestResetPasswordSecret,
+      false => _randomChallengeSecret(),
     };
     final hashedSecret = await _hashPassword.hash(password: secret);
 

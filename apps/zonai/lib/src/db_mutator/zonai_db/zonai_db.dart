@@ -36,6 +36,12 @@ import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart';
 // logs_table.dart exports one of its own.
 import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
 import 'package:zonai_schema/src/internal/tables/photos_table.dart';
+import 'package:zonai_schema/src/internal/tables/push_jobs_table.dart';
+import 'package:zonai/src/push/push_courier.dart';
+// `WhereX.sql` renders a caller's predicate to a parameterized SQL fragment.
+// The push fan-out needs it to splice the caller's `where` into a projection
+// it builds itself -- see `parts/push.dart`. Not re-exported by the barrel.
+import 'package:zonai_schema/src/types/where_sql.dart';
 import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart'
     show rateLimits;
 import 'package:zonai/src/messengers/config_mailman.dart';
@@ -47,7 +53,6 @@ import 'package:zonai/src/native/resqlite_native.dart';
 import 'package:zonai/src/utils/hash_password.dart';
 import 'package:zonai/src/utils/jwks_idp_verifier.dart';
 import 'package:zonai/src/utils/jwt_generator.dart';
-import 'package:zonai/src/utils/format_bytes.dart';
 import 'package:zonai/src/utils/free_disk_space.dart';
 import 'package:zonai/src/utils/oauth/apple_client_secret_signer.dart';
 import 'package:zonai/src/utils/oauth/github_email_resolver.dart';
@@ -106,9 +111,11 @@ part 'parts/expand.dart';
 part 'parts/list.dart';
 part 'parts/photo.dart';
 part 'parts/purge.dart';
+part 'parts/push.dart';
 part 'parts/read.dart';
 part 'parts/reclaim_log_space.dart';
 part 'parts/resolve_photos.dart';
+part 'parts/storage_metrics.dart';
 part 'parts/stream_list.dart';
 part 'parts/stream_one.dart';
 part 'parts/update.dart';
@@ -168,8 +175,16 @@ final _disposableTableIndexes = <String, List<String>>{
 };
 
 class ZonaiDb {
-  ZonaiDb()
-    : _extensions = MailmanPool(ExtensionsMailman.new),
+  /// [configResolver] replaces the config worker for tests.
+  ///
+  /// [_run] overrides `configResolverProvider` on every call, so a scope-level
+  /// override outside it is ignored — which meant that until this existed,
+  /// exercising anything that reads `AppConfig` required compiling a config
+  /// worker. That is the same missing seam `PushCourier` exists to avoid on
+  /// the transport side.
+  ZonaiDb({@visibleForTesting ConfigResolver? configResolver})
+    : _fixedConfigResolver = configResolver,
+      _extensions = MailmanPool(ExtensionsMailman.new),
       _rules = MailmanPool(RulesMailman.new),
       _operations = MailmanPool(OperationsMailman.new),
       _config = ConfigMailman(),
@@ -196,23 +211,42 @@ class ZonaiDb {
   final MailmanPool<OperationRequest, OperationResponse, OperationsMailman>
   _operations;
   final ConfigMailman _config;
+
+  /// Set only by tests; see the constructor.
+  final ConfigResolver? _fixedConfigResolver;
   final JwtGenerator _jwt;
   final HashPassword _hashPassword;
 
   /// Host-side caches so repeated list/get calls avoid Mailman IPC after the
   /// first resolve. Cleared implicitly when this [ZonaiDb] is disposed (new
   /// process / worker recompile restarts the server).
-  final Map<String, TableRulesResponse> _tableAccessCache = {};
+  /// Table-rule verdicts with the time each was decided, so
+  /// [UtilsX._cachedTableRules] can expire one instead of serving it forever.
+  final Map<String, ({TableRulesResponse response, DateTime at})>
+  _tableAccessCache = {};
   final Map<String, bool> _skipRowChecks = {};
   final Map<String, PerformOperationResponse> _operationCache = {};
   final Map<String, ({List<String> secretColumns, List<String> photoColumns})>
   _sanitizeMetaCache = {};
   final Map<String, String?> _columnNameCache = {};
 
+  /// Schema-derived admin powers per auth table, consulted by `_validateJwt`
+  /// on every authenticated request. Safe to cache for the process lifetime:
+  /// `AsAdmin` is declared in source, so changing it means a recompile and a
+  /// restart.
+  final Map<String, ({bool isAdmin, bool canEdit})> _adminStatusCache = {};
+
   /// Lazily detected: when the project has no extension Dart files (and no
   /// internal extensions), create/update/delete skip the extensions worker
   /// entirely.
   bool? _hasProjectExtensions;
+
+  /// The most recently started push drain, or null if none has run.
+  ///
+  /// Each new drain awaits this one before starting, so passes serialize and
+  /// every caller gets a pass that began after their call. See
+  /// `_PushX._drainPushJobs`.
+  Future<_DrainPushResult>? _pushDrain;
 
   /// Serializes mutating work so concurrent creates don't pile into
   /// SQLite's 5s busy_timeout. Excess waiters fail fast with 503.
@@ -328,6 +362,7 @@ class ZonaiDb {
     _operationCache.clear();
     _sanitizeMetaCache.clear();
     _columnNameCache.clear();
+    _adminStatusCache.clear();
     _hasProjectExtensions = null;
     for (final verifier in _jwksVerifiers.values) {
       verifier.dispose();
@@ -688,6 +723,32 @@ class ZonaiDb {
     return await _run(_cleanupUnreferencedPhotos);
   }
 
+  /// Records a push fan-out, returning its id — or null when the project has
+  /// no `AppConfig.push`.
+  Future<PushJobId?> enqueuePush({
+    required PushMessage message,
+    required String table,
+    required String column,
+    required Where? where,
+    required Jwt? jwt,
+    String? platformColumn,
+  }) async {
+    return await _run(
+      () => _enqueuePush(
+        message: message,
+        table: table,
+        column: column,
+        where: where,
+        jwt: jwt,
+        platformColumn: platformColumn,
+      ),
+    );
+  }
+
+  Future<_DrainPushResult> drainPushJobs() async {
+    return await _run(_drainPushJobs);
+  }
+
   Future<DashboardMetrics> dashboardMetrics({
     required Jwt jwt,
     int? since,
@@ -697,6 +758,15 @@ class ZonaiDb {
       () =>
           _dashboardMetrics(jwt: jwt, since: since, excludeAdmin: excludeAdmin),
     );
+  }
+
+  /// How much space zonai is using, and how much is left.
+  ///
+  /// Not folded into [dashboardMetrics]: this shells out to `df`, walks the
+  /// photos directory and makes two pragma round trips per database file, and
+  /// the dashboard polls its metrics on a timer.
+  Future<StorageMetrics> storageMetrics({required Jwt jwt}) async {
+    return await _run(() => _storageMetrics(jwt: jwt));
   }
 
   Future<void> runCronJob({required Jwt jwt, required String name}) async {
@@ -886,7 +956,7 @@ class ZonaiDb {
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(
-            () => ConfigResolver(mailman: _config),
+            () => _fixedConfigResolver ?? ConfigResolver(mailman: _config),
           ),
         },
       );
@@ -966,7 +1036,7 @@ class ZonaiDb {
         override: {
           mutationsProvider.overrideWith(() => m),
           configResolverProvider.overrideWith(
-            () => ConfigResolver(mailman: _config),
+            () => _fixedConfigResolver ?? ConfigResolver(mailman: _config),
           ),
         },
       );

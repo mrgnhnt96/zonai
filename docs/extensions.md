@@ -12,7 +12,7 @@ Extensions do **not** replace [rules](rules.md) or [operations](operations.md). 
 2. For create, update, or delete, the server sends an **extension request** to the compiled `db_extensions` worker (for example `beforeCreate` on `items`).
 3. Your extension class runs the matching hook method with a typed row and the caller’s JWT.
 4. The server continues: operations generate SQL, SQLite executes the mutation, then **after-success** hooks run.
-5. If the hook used `get`, `mutate`, or `email`, those side effects are queued and applied after the main transaction (with rules and extension hooks run again for each effect).
+5. If the hook used `get`, `mutate`, or `email`, those side effects are queued and applied after the main transaction (with rules and extension hooks run again for each effect). `push` is the exception: it is awaited, and its fan-out outlives the request entirely.
 
 While `serve` is running, changes under `extensionsPath` trigger a recompile so hooks stay in sync with your Dart code without restarting the database.
 
@@ -33,6 +33,14 @@ collection rules → row rules → beforeCreate → SQL insert → afterCreateSu
 | Delete    | `beforeDelete` | `afterDeleteSuccess` | `afterDeleteError` |
 
 Update hooks receive the row **before** the patch is applied (`beforeUpdate`) and typed **before/after** rows on success (`afterUpdateSuccess`). Delete hooks receive the rows about to be removed.
+
+One hook has no operation of its own, because nothing the app did triggers it:
+
+| Hook              | When called                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| `onPushRejected`  | FCM permanently rejected a device token on this collection      |
+
+It fires from a push fan-out rather than a request, **before** Zonai prunes the token, and under every `onPermanentRejection` setting including `none`. See [push.md](push.md).
 
 Auth hooks run after the auth flow succeeds (JWT issued or session cleared):
 
@@ -147,6 +155,17 @@ All hook methods are `async` and receive an optional **`Jwt?`** for the authenti
 | `afterDeleteSuccess` | `R row`, `Jwt? jwt`        | Run after rows are removed        |
 | `afterDeleteError`   | `Object error`, `Jwt? jwt` | Run when delete fails             |
 
+### `onPushRejected`
+
+| Method           | Arguments                                                            | Purpose                                     |
+| ---------------- | -------------------------------------------------------------------- | ------------------------------------------- |
+| `onPushRejected` | `R row`, `String token`, `PushRejectionReason reason`, `Jwt? jwt`    | A device token is dead; runs before pruning |
+
+`row` is the **unmodified** row: under `clearColumn` the token has not been
+nulled yet, and under `deleteRow` the row still exists. Only permanent
+rejections reach here — a timeout is counted on the job and never pruned.
+Throwing is logged and does not stop the prune or the fan-out.
+
 ### `AuthExtension`
 
 | Method      | Arguments            | Purpose                                                     |
@@ -156,7 +175,7 @@ All hook methods are `async` and receive an optional **`Jwt?`** for the authenti
 | `onRefresh` | `R user`, `Jwt? jwt` | After a new access token is issued via `POST /auth/refresh` |
 | `onLogout`  | `R user`, `Jwt? jwt` | After logout                                                |
 
-## Side effects: `get`, `mutate`, and `email`
+## Side effects: `get`, `mutate`, `email`, and `push`
 
 Inside the extension worker, Zonai exposes globals (from `package:zonai_schema/zonai_schema.dart`) that talk back to the server:
 
@@ -165,11 +184,14 @@ Inside the extension worker, Zonai exposes globals (from `package:zonai_schema/z
 | `get`    | Read rows (`get.one`, `get.many`) with the same rules as the public API                |
 | `mutate` | Queue creates, updates, or deletes (`mutate.create`, `mutate.update`, `mutate.delete`) |
 | `email`  | Send custom or built-in transactional email                                            |
+| `push`   | Send a push notification to a queried set of devices; see [push.md](push.md)           |
 | `logger` | Log at debug/info/warn/error (forwarded to the server console)                         |
 
 The same globals are available inside [cron](cron.md) `run()` methods (using `CronJwt` instead of the caller’s session token).
 
 **Reads** (`get`) run immediately and respect collection/row rules for the JWT passed to the hook.
+
+**`push`** is the one that does not fit either shape above. It is awaited and returns a `PushJobId`, but the wait is for the job to be *recorded*, not sent — the fan-out runs on the host afterwards and outlives the request. Call it from `after*` hooks only: a `before` hook runs prior to the write, and a notification announcing something that may not happen cannot be recalled.
 
 **Writes** (`mutate`) are **queued** as side effects. They run after the main mutation commits, in a separate transaction. Each side effect goes through rules and extension hooks again (up to 10 chained iterations). Use this to update related rows or send follow-up work without blocking the original SQL.
 
@@ -274,5 +296,6 @@ For auth collections, mix in `AuthExtension<R>` and override `onSignUp`, `onSign
 - **[operations.md](operations.md)** — SQL generation (runs after before-hooks)
 - **[rate-limiting.md](rate-limiting.md)** — per-operation request limits
 - **[cron.md](cron.md)** — scheduled background jobs
+- **[push.md](push.md)** — push notifications, and the `onPushRejected` hook
 - **[config-and-env-flavors.md](config-and-env-flavors.md)** — worker executables and compile-time env
 - **`libs/zonai_schema/lib/src/extension.dart`** — base class and mixin defaults

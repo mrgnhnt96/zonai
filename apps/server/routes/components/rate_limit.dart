@@ -5,14 +5,25 @@ import 'package:revali_router/revali_router.dart';
 class RateLimit {
   const RateLimit();
 
+  /// Synthetic bucket key for admin auth flows, which carry no collection of
+  /// their own. Reserved: real collection names cannot begin with `__`.
+  static const String _adminAuthBucket = '__admin_auth__';
+
   Future<GuardResult> canContinue(
     dynamic body,
     String ipAddress,
     RateLimitOperation operation,
   ) async {
-    // TODO:  get table from AdminAuthBody
+    // Admin auth bodies do not carry a collection (`AdminAuthBody.table`
+    // throws), and the admin auth table is resolved server-side from config,
+    // so there is no per-collection bucket to use here. Previously these
+    // returned `.pass()` unconditionally — admin sign-in / reset were exempt
+    // from ALL rate limiting, allowing unlimited online credential guessing
+    // against the most privileged accounts. Bucket them on a dedicated,
+    // per-IP admin key instead so they are throttled like every other auth
+    // flow (a follow-up can additionally bucket on the submitted email).
     if (body is AdminAuthBody || body is AdminSendResetPasswordAuthBody) {
-      return const .pass();
+      return checkByTable(_adminAuthBucket, ipAddress, operation);
     }
 
     final table = switch (body) {

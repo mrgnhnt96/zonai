@@ -6,6 +6,7 @@ import 'package:zonai/src/messengers/cron_mailman.dart';
 import 'package:zonai/src/messengers/extensions_mailman.dart';
 import 'package:zonai/src/messengers/operations_mailman.dart';
 import 'package:zonai/src/messengers/rules_mailman.dart';
+import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/utils/serve_guard.dart';
 
 import 'dev/actions/project_init.dart';
@@ -53,6 +54,22 @@ Future<int> serve() async {
   // for someone who only wanted to read the flags.
   if (args.help) {
     logger.info(_usage);
+    return 1;
+  }
+
+  // The interlock that makes the predictable-challenge hook safe to exist at
+  // all: it can be switched on for a test harness, and it can never be on for
+  // something serving traffic. Refusing is deliberate -- warning would be
+  // ignored exactly where it matters, and the failure mode it guards against
+  // (`123456` accepted as the OTP for any address) is total.
+  if (kInsecureTestMode) {
+    logger.error(
+      '$kInsecureTestModeVariable is set. It makes auth challenges '
+      'predictable — the OTP is always $kInsecureTestOtp and every emailed '
+      'link carries a fixed secret — so anyone who knows a user\'s email '
+      'address can sign in as them. `zonai serve` will not start with it set. '
+      'Unset it, or run the server without it and use the emailed values.',
+    );
     return 1;
   }
 

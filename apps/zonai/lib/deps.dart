@@ -4,6 +4,7 @@ export 'src/exceptions/exceptions.dart';
 export 'src/deps/args.dart';
 export 'src/deps/env.dart';
 export 'src/deps/courier.dart';
+export 'src/deps/push_courier.dart';
 export 'src/deps/fs.dart';
 export 'src/deps/clean_up.dart';
 export 'src/deps/mutations.dart';

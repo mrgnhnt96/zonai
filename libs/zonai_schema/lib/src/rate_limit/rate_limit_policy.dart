@@ -15,6 +15,17 @@ final class RateLimitPolicy {
     window: Duration(hours: 1),
   );
 
+  /// Default for the admin auth endpoint (`adminAuthenticatePolicy` /
+  /// `adminSignInPolicy`). Much tighter than [defaultPolicy]: this endpoint
+  /// guards the most privileged accounts in the system, and the only honest
+  /// traffic it sees is a human typing a password — a rate that never
+  /// approaches even this. Anything faster is online credential guessing, so
+  /// it is throttled far below the generic 100/min.
+  static const adminAuth = RateLimitPolicy(
+    maxRequests: 10,
+    window: Duration(minutes: 15),
+  );
+
   /// Fixed policy for `RateLimitOperation.oauthCallback`. Tighter than
   /// [defaultPolicy] because each accepted callback costs an outbound token
   /// exchange (and possibly a userinfo call) against the provider before it

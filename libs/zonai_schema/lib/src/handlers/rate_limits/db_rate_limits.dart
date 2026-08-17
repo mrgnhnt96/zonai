@@ -217,9 +217,9 @@ final class _DefaultAuthTableRateLimits {
 
   Future<RateLimitPolicy?> logoutAllPolicy() async => .defaultPolicy;
 
-  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .defaultPolicy;
+  Future<RateLimitPolicy?> adminAuthenticatePolicy() async => .adminAuth;
 
-  Future<RateLimitPolicy?> adminSignInPolicy() async => .defaultPolicy;
+  Future<RateLimitPolicy?> adminSignInPolicy() async => .adminAuth;
 
   Future<RateLimitPolicy?> adminInvitePolicy() async => .defaultPolicy;
 

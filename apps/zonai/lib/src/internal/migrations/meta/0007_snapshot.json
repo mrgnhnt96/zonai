@@ -1,0 +1,526 @@
+{
+  "version": "1",
+  "dialect": "sqlite",
+  "id": "edb3c0fd-995d-4f18-bcd8-74e1e71d3696",
+  "prevId": "402da8af-ddc3-45d3-97ca-962d41e06c9e",
+  "tables": {
+    "_abusers": {
+      "name": "_abusers",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "ip": {
+          "name": "ip",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "report": {
+          "name": "report",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "black_listed": {
+          "name": "black_listed",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "blocked_until": {
+          "name": "blocked_until",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "_auth_challenges": {
+      "name": "_auth_challenges",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "secret_hash": {
+          "name": "secret_hash",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "target": {
+          "name": "target",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "table": {
+          "name": "table",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "type": {
+          "name": "type",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "can_consume": {
+          "name": "can_consume",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "allowed_attempts": {
+          "name": "allowed_attempts",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        }
+      }
+    },
+    "_cron_jobs": {
+      "name": "_cron_jobs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "name": {
+          "name": "name",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "started": {
+          "name": "started",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "completed": {
+          "name": "completed",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "failed": {
+          "name": "failed",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "error": {
+          "name": "error",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "stack_trace": {
+          "name": "stack_trace",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "_jwt": {
+      "name": "_jwt",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        }
+      }
+    },
+    "_log": {
+      "name": "_log",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "trace_id": {
+          "name": "trace_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "level": {
+          "name": "level",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "message": {
+          "name": "message",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "error": {
+          "name": "error",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "props": {
+          "name": "props",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "is_admin": {
+          "name": "is_admin",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        }
+      }
+    },
+    "_photos": {
+      "name": "_photos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "owner_collection": {
+          "name": "owner_collection",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "table": {
+          "name": "table",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "path": {
+          "name": "path",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "extension": {
+          "name": "extension",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        }
+      }
+    },
+    "_push_jobs": {
+      "name": "_push_jobs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "message": {
+          "name": "message",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "target_table": {
+          "name": "target_table",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "target_column": {
+          "name": "target_column",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "platform_column": {
+          "name": "platform_column",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "where_json": {
+          "name": "where_json",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "cursor": {
+          "name": "cursor",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "status": {
+          "name": "status",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "delivered": {
+          "name": "delivered",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        },
+        "permanently_rejected": {
+          "name": "permanently_rejected",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        },
+        "transiently_failed": {
+          "name": "transiently_failed",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false,
+          "default": "0"
+        },
+        "error": {
+          "name": "error",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        }
+      }
+    },
+    "_rate_limit": {
+      "name": "_rate_limit",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "client_ip": {
+          "name": "client_ip",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "operation": {
+          "name": "operation",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "table": {
+          "name": "table",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "count": {
+          "name": "count",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "window_start": {
+          "name": "window_start",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        }
+      }
+    }
+  },
+  "indexes": {
+    "auth_challenges_target_collection_unique": {
+      "name": "auth_challenges_target_collection_unique",
+      "tableName": "_auth_challenges",
+      "columns": [
+        "target",
+        "table"
+      ],
+      "isUnique": false
+    },
+    "auth_challenges_consumed_unique": {
+      "name": "auth_challenges_consumed_unique",
+      "tableName": "_auth_challenges",
+      "columns": [
+        "can_consume"
+      ],
+      "isUnique": false
+    },
+    "cron_name_index": {
+      "name": "cron_name_index",
+      "tableName": "_cron_jobs",
+      "columns": [
+        "name"
+      ],
+      "isUnique": false
+    },
+    "cron_incomplete_index": {
+      "name": "cron_incomplete_index",
+      "tableName": "_cron_jobs",
+      "columns": [
+        "name",
+        "completed",
+        "failed"
+      ],
+      "isUnique": false
+    },
+    "jwt_id_unique": {
+      "name": "jwt_id_unique",
+      "tableName": "_jwt",
+      "columns": [
+        "id"
+      ],
+      "isUnique": true
+    },
+    "log_id_unique": {
+      "name": "log_id_unique",
+      "tableName": "_log",
+      "columns": [
+        "id"
+      ],
+      "isUnique": true
+    },
+    "log_level_timestamp_index": {
+      "name": "log_level_timestamp_index",
+      "tableName": "_log",
+      "columns": [
+        "level",
+        "timestamp"
+      ],
+      "isUnique": false
+    },
+    "push_job_id_unique": {
+      "name": "push_job_id_unique",
+      "tableName": "_push_jobs",
+      "columns": [
+        "id"
+      ],
+      "isUnique": true
+    },
+    "push_job_status_created_index": {
+      "name": "push_job_status_created_index",
+      "tableName": "_push_jobs",
+      "columns": [
+        "status",
+        "created_at"
+      ],
+      "isUnique": false
+    },
+    "rate_limit_bucket_unique": {
+      "name": "rate_limit_bucket_unique",
+      "tableName": "_rate_limit",
+      "columns": [
+        "client_ip",
+        "table",
+        "operation"
+      ],
+      "isUnique": true
+    }
+  }
+}

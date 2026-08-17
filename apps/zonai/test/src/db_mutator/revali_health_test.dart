@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
+import 'package:zonai/gen/server/lib/config/server_binding.dart';
 import 'package:zonai/gen/version.dart';
 import 'package:zonai/src/db_mutator/revali.dart';
 import 'package:zonai/src/deps/args.dart';
@@ -31,7 +32,15 @@ void main() {
     test(
       'reports healthy for the configured port, not the default 8080',
       () async {
-        final server = await HttpServer.bind('localhost', 0);
+        // Bind what the probe will dial, not a name that resolves to it on
+        // some machines. This test is about the *port*; the host was
+        // incidental, and it worked only because `ServerBinding.host` used to
+        // answer the wildcard `::`, which sends the probe at both loopbacks.
+        // Since the bind-exposure fix it answers `127.0.0.1` and probes that
+        // alone, while `bind('localhost')` picks whichever family the
+        // resolver puts first -- `::1` on macOS. The server was listening and
+        // the probe was looking elsewhere.
+        final server = await HttpServer.bind(ServerBinding.host, 0);
         addTearDown(server.close);
         server.listen((request) {
           request.response
@@ -55,8 +64,9 @@ void main() {
       'reports unhealthy when the configured port has nothing listening',
       () async {
         // Grab a port the OS reports as free, then release it immediately --
-        // nothing in this test binds to it.
-        final probe = await HttpServer.bind('localhost', 0);
+        // nothing in this test binds to it. Same host as the case above, so
+        // the port is known free on the address the probe actually dials.
+        final probe = await HttpServer.bind(ServerBinding.host, 0);
         final freePort = probe.port;
         await probe.close();
 

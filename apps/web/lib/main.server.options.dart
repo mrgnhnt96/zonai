@@ -33,6 +33,8 @@ import 'package:zonai_web/components/home_screen.dart' as _home_screen;
 import 'package:zonai_web/components/home_settings_overlay.dart'
     as _home_settings_overlay;
 import 'package:zonai_web/components/home_sidebar.dart' as _home_sidebar;
+import 'package:zonai_web/components/maintenance_screen.dart'
+    as _maintenance_screen;
 import 'package:zonai_web/components/oauth_sign_in_screen.dart'
     as _oauth_sign_in_screen;
 import 'package:zonai_web/components/schema_table_foreign_key_cell.dart'
@@ -108,6 +110,7 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ..._home_screen.HomeScreen.styles,
     ..._home_settings_overlay.HomeSettingsOverlay.styles,
     ..._home_sidebar.HomeSidebar.styles,
+    ..._maintenance_screen.MaintenanceScreen.styles,
     ..._oauth_sign_in_screen.OAuthProviderButtons.styles,
     ..._sign_in_screen.OAuthMethodGroup.styles,
     ..._toast_overlay.ToastOverlay.styles,

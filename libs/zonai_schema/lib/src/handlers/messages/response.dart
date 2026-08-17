@@ -27,6 +27,7 @@ base class Response {
       MessageErrorResponse._path => MessageErrorResponse.fromJson(json),
       GetRecordResponse._path => GetRecordResponse.fromJson(json),
       PurgeRecordsResponse._path => PurgeRecordsResponse.fromJson(json),
+      EnqueuePushResponse._path => EnqueuePushResponse.fromJson(json),
       NativeLibraryResponse._path => NativeLibraryResponse.fromJson(json),
       _ when path.startsWith(CronResponse.prefix) => CronResponse.fromJson(
         json,
@@ -202,6 +203,31 @@ final class PurgeRecordsResponse extends Response {
     ...super.toJson(),
     'rowsAffected': rowsAffected,
   };
+}
+
+/// Reply to an [EnqueuePushRequest]: the id of the durably recorded job.
+///
+/// [jobId] is null when the project has no `AppConfig.push` — the host logs a
+/// warning and enqueues nothing, because a missing config must be loud and
+/// must not throw. `push` turns that into a `StateError` at the call site,
+/// where the stack still points at the code that asked to send.
+final class EnqueuePushResponse extends Response {
+  EnqueuePushResponse({required super.id, required this.jobId})
+    : super(path: _path, payload: {'jobId': jobId});
+
+  factory EnqueuePushResponse.fromJson(Map<String, dynamic> json) {
+    return EnqueuePushResponse(
+      id: json['id'] as String,
+      jobId: json['jobId'] as String?,
+    );
+  }
+
+  static const _path = '${Response.prefix}.enqueue_push';
+
+  final String? jobId;
+
+  @override
+  Map<String, dynamic> toJson() => {...super.toJson(), 'jobId': jobId};
 }
 
 /// Reply to a [NativeLibraryRequest]: the spawner's shared, on-disk install

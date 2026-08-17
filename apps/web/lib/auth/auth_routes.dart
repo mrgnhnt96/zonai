@@ -5,6 +5,7 @@ abstract final class AuthRoutes {
   static const home = '/';
   static const signIn = '/sign-in';
   static const tables = '/tables';
+  static const maintenance = '/maintenance';
 
   /// The signed-in Admins screen: current admins and pending invites.
   static const admins = '/admins';
