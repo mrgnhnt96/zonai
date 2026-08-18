@@ -43,6 +43,12 @@ final class DartClientEmitter implements ClientEmitter {
       logger.warn(collision.message);
     }
 
+    // Enum types are minted per column, so this cannot run inside
+    // `ClientNameTable.forTables`, which only ever sees table names.
+    for (final entry in tables.entries) {
+      names[entry.key]!.assertMintable(_enumColumnsOf(entry.value));
+    }
+
     return {
       barrelFileName: _barrel(input, names),
       runtimeFileName:
@@ -51,6 +57,18 @@ final class DartClientEmitter implements ClientEmitter {
         names[entry.key]!.file: _table(input, entry.value, names),
     };
   }
+
+  /// The columns that mint an enum type: not secret, an enum kind, and
+  /// carrying members. A kind with an empty `enumValues` mints nothing, so it
+  /// cannot collide with anything either.
+  static List<String> _enumColumnsOf(TableSchemaShape shape) => [
+    for (final column in shape.columns)
+      if (!column.isSecret &&
+          (column.kind == ColumnShapeKind.enum_ ||
+              column.kind == ColumnShapeKind.enumList) &&
+          column.enumValues.isNotEmpty)
+        column.name,
+  ];
 
   /// The header every generated file carries.
   ///
@@ -178,6 +196,7 @@ $kGeneratedClientHeader
       ..writeln();
 
     _writeId(buffer, shape, name);
+    _writeEnums(buffer, shape, name);
     _writeRow(buffer, shape, name, columns, expands, secrets);
     if (expands.isNotEmpty) _writeExpanded(buffer, name, expands);
     // Emitted for every table, not only those with expandable keys: a table
@@ -292,6 +311,61 @@ $kGeneratedClientHeader
       ..writeln('  String toJson() => value;')
       ..writeln('}')
       ..writeln();
+  }
+
+  /// One extension type per enum column, carrying its declared members.
+  ///
+  /// An extension type over `String`, not a Dart `enum`, and the difference is
+  /// the point: a server that adds a member does not break a client generated
+  /// before it. The unrecognised value still arrives, still round-trips, and
+  /// `isKnown` reports it as one the schema did not declare -- where a real
+  /// enum would have to either throw or collapse it to a sentinel that loses
+  /// the value.
+  ///
+  /// The cost is no exhaustive `switch`. That is the trade, taken deliberately.
+  void _writeEnums(
+    StringBuffer buffer,
+    TableSchemaShape shape,
+    TableNames name,
+  ) {
+    for (final column in shape.columns) {
+      if (column.isSecret) continue;
+      if (column.kind != ColumnShapeKind.enum_ &&
+          column.kind != ColumnShapeKind.enumList) {
+        continue;
+      }
+      if (column.enumValues.isEmpty) continue;
+
+      final type = name.enumType(column.name);
+      final members = {
+        for (final value in column.enumValues)
+          ColumnBinding.fieldName(value): value,
+      };
+
+      buffer
+        ..writeln('/// The values `${shape.table}.${column.name}` declares.')
+        ..writeln('///')
+        ..writeln('/// An extension type over `String`, so it erases at')
+        ..writeln('/// runtime and the wire carries the member name exactly.')
+        ..writeln('/// A member the server adds after this client was')
+        ..writeln('/// generated still arrives and still round-trips --')
+        ..writeln('/// [isKnown] is how you find out it was not declared here.')
+        ..writeln('extension type const $type(String value) {');
+
+      members.forEach((field, value) {
+        buffer.writeln("  static const $field = $type('$value');");
+      });
+
+      buffer
+        ..writeln()
+        ..writeln('  /// Every member the schema declared at generation time.')
+        ..writeln('  static const values = [${members.keys.join(', ')}];')
+        ..writeln()
+        ..writeln('  /// False for a value the server added since.')
+        ..writeln('  bool get isKnown => values.contains(this);')
+        ..writeln('}')
+        ..writeln();
+    }
   }
 
   void _writeRow(
@@ -663,6 +737,11 @@ $kGeneratedClientHeader
       ColumnShapeKind.photo => '$field$bang.value',
       ColumnShapeKind.photos => '[for (final p in $field$bang) p.value]',
       ColumnShapeKind.id when write.type != 'String' => '$field$bang.value',
+      // Erasure would make the bare field work, but the unwrap is written out
+      // for the same reason it is on an id: the map is `dynamic`, and relying
+      // on erasure there is a thing to re-derive rather than read.
+      ColumnShapeKind.enum_ => '$field$bang.value',
+      ColumnShapeKind.enumList => '[for (final e in $field$bang) e.value]',
       _ => field + bang,
     };
 

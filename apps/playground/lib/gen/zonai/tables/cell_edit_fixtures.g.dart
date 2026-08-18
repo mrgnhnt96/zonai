@@ -39,6 +39,44 @@ extension type const CellEditFixturesId(String value) {
   String toJson() => value;
 }
 
+/// The values `cell_edit_fixtures.status` declares.
+///
+/// An extension type over `String`, so it erases at
+/// runtime and the wire carries the member name exactly.
+/// A member the server adds after this client was
+/// generated still arrives and still round-trips --
+/// [isKnown] is how you find out it was not declared here.
+extension type const CellEditFixturesStatus(String value) {
+  static const draft = CellEditFixturesStatus('draft');
+  static const published = CellEditFixturesStatus('published');
+  static const archived = CellEditFixturesStatus('archived');
+
+  /// Every member the schema declared at generation time.
+  static const values = [draft, published, archived];
+
+  /// False for a value the server added since.
+  bool get isKnown => values.contains(this);
+}
+
+/// The values `cell_edit_fixtures.tags` declares.
+///
+/// An extension type over `String`, so it erases at
+/// runtime and the wire carries the member name exactly.
+/// A member the server adds after this client was
+/// generated still arrives and still round-trips --
+/// [isKnown] is how you find out it was not declared here.
+extension type const CellEditFixturesTags(String value) {
+  static const alpha = CellEditFixturesTags('alpha');
+  static const beta = CellEditFixturesTags('beta');
+  static const gamma = CellEditFixturesTags('gamma');
+
+  /// Every member the schema declared at generation time.
+  static const values = [alpha, beta, gamma];
+
+  /// False for a value the server added since.
+  bool get isKnown => values.contains(this);
+}
+
 /// One `cell_edit_fixtures` row, decoded.
 ///
 /// `secret_note` is a secret column and is stripped from every
@@ -94,10 +132,10 @@ final class CellEditFixturesRow {
   final String contactEmail;
 
   /// `status` -- enum.
-  final String status;
+  final CellEditFixturesStatus status;
 
   /// `tags` -- enumList.
-  final List<String> tags;
+  final List<CellEditFixturesTags> tags;
 
   /// `keywords` -- list.
   final List<Object?> keywords;
@@ -130,8 +168,8 @@ final class CellEditFixturesRow {
         bigCount: _r.bigInt(json, 'big_count', kind: 'bigInt'),
         happenedAt: _r.dateTime(json, 'happened_at', kind: 'dateTime'),
         contactEmail: _r.string(json, 'contact_email', kind: 'email'),
-        status: _r.string(json, 'status', kind: 'enum'),
-        tags: _r.stringList(json, 'tags', kind: 'enumList'),
+        status: CellEditFixturesStatus(_r.string(json, 'status', kind: 'enum')),
+        tags: [for (final v in _r.stringList(json, 'tags', kind: 'enumList')) CellEditFixturesTags(v)],
         keywords: _r.list(json, 'keywords', kind: 'list'),
         companyId: switch (_r.stringOrNull(json, 'company_id', kind: 'id')) { final value? => CompaniesId(value), _ => null },
         meta: _r.map(json, 'meta', kind: 'map'),
@@ -226,7 +264,7 @@ abstract final class CellEditFixtures {
   static const contactEmail = ColumnRef<String>('contact_email');
 
   /// The `status` column.
-  static const status = ColumnRef<String>('status');
+  static const status = ColumnRef<CellEditFixturesStatus>('status');
 
   /// The `company_id` column.
   static const companyId = NullableColumnRef<CompaniesId>('company_id');
@@ -283,10 +321,10 @@ final class CellEditFixturesCreate {
   final String contactEmail;
 
   /// The `status` column.
-  final String status;
+  final CellEditFixturesStatus status;
 
   /// The `tags` column.
-  final List<String> tags;
+  final List<CellEditFixturesTags> tags;
 
   /// The `keywords` column.
   final List<Object?> keywords;
@@ -312,8 +350,8 @@ final class CellEditFixturesCreate {
         'amount': zonaiWriteValue(amount),
         'happened_at': zonaiWriteValue(happenedAt),
         'contact_email': zonaiWriteValue(contactEmail),
-        'status': zonaiWriteValue(status),
-        'tags': zonaiWriteValue(tags),
+        'status': zonaiWriteValue(status.value),
+        'tags': zonaiWriteValue([for (final e in tags) e.value]),
         'keywords': zonaiWriteValue(keywords),
         if (companyId != null) 'company_id': zonaiWriteValue(companyId!.value),
         'secret_note': zonaiWriteValue(secretNote),
@@ -367,10 +405,10 @@ final class CellEditFixturesUpdate {
   final Field<String>? contactEmail;
 
   /// The `status` column.
-  final Field<String>? status;
+  final Field<CellEditFixturesStatus>? status;
 
   /// The `tags` column.
-  final ListField<String>? tags;
+  final ListField<CellEditFixturesTags>? tags;
 
   /// The `keywords` column.
   final ListField<Object?>? keywords;

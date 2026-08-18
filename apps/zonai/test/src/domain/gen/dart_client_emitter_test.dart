@@ -396,6 +396,176 @@ void main() {
     });
   });
 
+  group('enum columns', () {
+    Map<String, TableSchemaShape> withEnums() => {
+      'posts': TableSchemaShape(
+        table: 'posts',
+        columns: [
+          _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+          ColumnShape(
+            name: 'status',
+            kind: ColumnShapeKind.enum_,
+            isNullable: false,
+            isPrimaryKey: false,
+            autoIncrement: false,
+            sqlType: 'TEXT',
+            enumValues: const ['draft', 'published', 'archived'],
+          ),
+          ColumnShape(
+            name: 'tags',
+            kind: ColumnShapeKind.enumList,
+            isNullable: false,
+            isPrimaryKey: false,
+            autoIncrement: false,
+            sqlType: 'TEXT',
+            enumValues: const ['alpha', 'beta'],
+          ),
+        ],
+      ),
+    };
+
+    test('mint an extension type over String, not a Dart enum', () {
+      // The owner's call, and the reason is forward compatibility: a real
+      // `enum` makes a server-added member a parse failure or a sentinel that
+      // loses the value. An extension type carries it either way.
+      final posts = _emit(shapes: withEnums())['tables/posts.g.dart']!;
+
+      expect(
+        posts,
+        contains('extension type const PostsStatus(String value) {'),
+      );
+      expect(posts, isNot(contains('enum PostsStatus')));
+      expect(posts, contains("static const draft = PostsStatus('draft');"));
+      expect(
+        posts,
+        contains('static const values = [draft, published, archived];'),
+      );
+      expect(posts, contains('bool get isKnown => values.contains(this);'));
+    });
+
+    test('the type is table-qualified', () {
+      // Two tables may each have a `status` whose members differ; an
+      // unqualified `Status` would silently make them the same type.
+      final posts = _emit(shapes: withEnums())['tables/posts.g.dart']!;
+
+      expect(posts, contains('PostsStatus'));
+      expect(posts, isNot(contains('extension type const Status(')));
+    });
+
+    test('it reaches the row, the token and both write builders', () {
+      final posts = _emit(shapes: withEnums())['tables/posts.g.dart']!;
+
+      expect(posts, contains('final PostsStatus status;'));
+      expect(
+        posts,
+        contains(
+          "status: PostsStatus(_r.string(json, 'status', kind: 'enum'))",
+        ),
+      );
+      expect(
+        posts,
+        contains("static const status = ColumnRef<PostsStatus>('status');"),
+      );
+      expect(posts, contains('Field<PostsStatus>? status;'));
+      expect(posts, contains("'status': zonaiWriteValue(status.value),"));
+    });
+
+    test('an enumList becomes a list of them, decoded element-wise', () {
+      final posts = _emit(shapes: withEnums())['tables/posts.g.dart']!;
+
+      expect(posts, contains('final List<PostsTags> tags;'));
+      expect(
+        posts,
+        contains(
+          "tags: [for (final v in _r.stringList(json, 'tags', "
+          "kind: 'enumList')) PostsTags(v)],",
+        ),
+      );
+      expect(posts, contains('ListField<PostsTags>? tags;'));
+    });
+
+    test('an enum type that would collide with another name is refused', () {
+      // `posts.row` would mint `PostsRow` a second time. Enum types reach the
+      // barrel exactly like the rest, so the collision check has to know about
+      // them -- this is the same class of bug as the `field` regression.
+      final shapes = {
+        'posts': TableSchemaShape(
+          table: 'posts',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            ColumnShape(
+              name: 'row',
+              kind: ColumnShapeKind.enum_,
+              isNullable: false,
+              isPrimaryKey: false,
+              autoIncrement: false,
+              sqlType: 'TEXT',
+              enumValues: const ['a', 'b'],
+            ),
+          ],
+        ),
+      };
+
+      expect(
+        () => _emit(shapes: shapes),
+        throwsA(
+          isA<ClientNameException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('PostsRow'), contains('declared twice')),
+          ),
+        ),
+      );
+    });
+
+    test('a column with no declared members falls back to String', () {
+      // Found by an existing test: the emitter mints a type only for a column
+      // that HAS members, but the binding named one regardless -- so the
+      // generated file referenced a type nothing declared and did not compile.
+      // The two rules now agree through one function.
+      final shapes = {
+        'items': TableSchemaShape(
+          table: 'items',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column('status', kind: ColumnShapeKind.enum_),
+            _column('tags', kind: ColumnShapeKind.enumList),
+          ],
+        ),
+      };
+      final items = _emit(shapes: shapes)['tables/items.g.dart']!;
+
+      expect(items, isNot(contains('ItemsStatus')));
+      expect(items, isNot(contains('ItemsTags')));
+      expect(items, contains('final String status;'));
+      expect(items, contains('final List<String> tags;'));
+    });
+
+    test('a secret enum column mints nothing', () {
+      final shapes = {
+        'posts': TableSchemaShape(
+          table: 'posts',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            ColumnShape(
+              name: 'status',
+              kind: ColumnShapeKind.enum_,
+              isNullable: false,
+              isPrimaryKey: false,
+              autoIncrement: false,
+              sqlType: 'TEXT',
+              isSecret: true,
+              enumValues: const ['draft'],
+            ),
+          ],
+        ),
+      };
+      final posts = _emit(shapes: shapes)['tables/posts.g.dart']!;
+
+      expect(posts, isNot(contains('extension type const PostsStatus')));
+    });
+  });
+
   group('a table name that clashes with the runtime', () {
     TableSchemaShape tableNamed(String name) => TableSchemaShape(
       table: name,

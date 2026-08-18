@@ -118,7 +118,10 @@ final class WriteBinding {
       ColumnShapeKind.integer => ('int', 'NumField'),
       ColumnShapeKind.real => ('double', 'NumField'),
       ColumnShapeKind.list => ('List<Object?>', 'ListField'),
-      ColumnShapeKind.enumList => ('List<String>', 'ListField'),
+      ColumnShapeKind.enumList => (
+        'List<${ColumnBinding.enumTypeOr(column, 'String', table: table, names: names)}>',
+        'ListField',
+      ),
       ColumnShapeKind.map => ('Map<String, Object?>', 'MapField'),
       ColumnShapeKind.boolean ||
       ColumnShapeKind.isVerified => ('bool', 'Field'),
@@ -129,8 +132,11 @@ final class WriteBinding {
       ColumnShapeKind.text ||
       ColumnShapeKind.email ||
       ColumnShapeKind.password ||
-      ColumnShapeKind.deviceToken ||
-      ColumnShapeKind.enum_ => ('String', 'Field'),
+      ColumnShapeKind.deviceToken => ('String', 'Field'),
+      ColumnShapeKind.enum_ => (
+        ColumnBinding.enumTypeOr(column, 'String', table: table, names: names),
+        'Field',
+      ),
       // Excluded above; the switch stays exhaustive so a new kind is a
       // compile error here rather than a silent `Field<Object?>`.
       ColumnShapeKind.bigInt => ('BigInt', 'Field'),
@@ -211,6 +217,23 @@ final class ColumnBinding {
       parseExpression: _wrap(column, call, table: table, names: names),
       isNullable: nullable,
     );
+  }
+
+  /// The enum type for [column], or [fallback] when the schema declared no
+  /// members.
+  ///
+  /// The emitter only mints a type for a column that HAS members, so a binding
+  /// naming one regardless would reference a type no file declares and the
+  /// generated client would not compile. The two rules have to agree, and this
+  /// is the one place that decides.
+  static String enumTypeOr(
+    ColumnShape column,
+    String fallback, {
+    required String table,
+    required ClientNameTable names,
+  }) {
+    if (column.enumValues.isEmpty) return fallback;
+    return names[table]!.enumType(column.name);
   }
 
   /// Whether a `ColumnRef` may be minted for this column kind.
@@ -295,11 +318,15 @@ final class ColumnBinding {
       ColumnShapeKind.text ||
       ColumnShapeKind.email ||
       ColumnShapeKind.password ||
-      ColumnShapeKind.deviceToken ||
-      // Phase 4 turns this into a real Dart enum. A `String` here is not a
-      // placeholder: the server may add a member without breaking an older
-      // client, and a generated enum would make that a parse failure.
-      ColumnShapeKind.enum_ => ('String', 'string'),
+      ColumnShapeKind.deviceToken => ('String', 'string'),
+      // An extension type over `String`, not a Dart `enum`. The server may add
+      // a member without breaking an older client, and a real enum would turn
+      // that into a parse failure -- while an extension type simply carries a
+      // value `isKnown` reports as unrecognised. Nothing is ever lost.
+      ColumnShapeKind.enum_ => (
+        enumTypeOr(column, 'String', table: table, names: names),
+        'string',
+      ),
       ColumnShapeKind.integer => ('int', 'integer'),
       ColumnShapeKind.real => ('double', 'real'),
       ColumnShapeKind.boolean ||
@@ -308,7 +335,10 @@ final class ColumnBinding {
       ColumnShapeKind.dateTime ||
       ColumnShapeKind.createdAt ||
       ColumnShapeKind.updatedAt => ('DateTime', 'dateTime'),
-      ColumnShapeKind.enumList => ('List<String>', 'stringList'),
+      ColumnShapeKind.enumList => (
+        'List<${enumTypeOr(column, 'String', table: table, names: names)}>',
+        'stringList',
+      ),
       ColumnShapeKind.list => ('List<Object?>', 'list'),
       ColumnShapeKind.map => ('Map<String, Object?>', 'map'),
       ColumnShapeKind.blob => ('List<int>', 'bytes'),
@@ -322,6 +352,24 @@ final class ColumnBinding {
     required String table,
     required ClientNameTable names,
   }) {
+    // An enum column decodes as a `String` and is then wrapped, exactly like
+    // an id. The wrapper erases at runtime, so the wire is untouched.
+    if (column.kind == ColumnShapeKind.enum_ && column.enumValues.isNotEmpty) {
+      final type = names[table]!.enumType(column.name);
+      return column.isNullable
+          ? 'switch ($call) { final value? => $type(value), _ => null }'
+          : '$type($call)';
+    }
+
+    if (column.kind == ColumnShapeKind.enumList &&
+        column.enumValues.isNotEmpty) {
+      final type = names[table]!.enumType(column.name);
+      return column.isNullable
+          ? 'switch ($call) { final values? => '
+                '[for (final v in values) $type(v)], _ => null }'
+          : '[for (final v in $call) $type(v)]';
+    }
+
     if (column.kind != ColumnShapeKind.id) return call;
 
     final type = idType(column, table: table, names: names);

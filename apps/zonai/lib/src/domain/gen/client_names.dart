@@ -103,6 +103,45 @@ final class TableNames {
     return names;
   }
 
+  /// Refuses any name this table would mint twice, or mint over the runtime.
+  ///
+  /// Called with the enum columns because they are not known when the names
+  /// are built, and an enum type reaches the barrel exactly like the rest: a
+  /// table `posts` with a column named `row` mints `PostsRow` a second time,
+  /// and the generated file does not compile.
+  void assertMintable(Iterable<String> enumColumns) {
+    final seen = <String>{};
+    for (final derived in allWithEnums(enumColumns)) {
+      if (kClientRuntimeExports.contains(derived)) {
+        throw ClientNameException(
+          table: table,
+          derived: derived,
+          reason:
+              '`$derived` is already exported by the generated runtime, so '
+              'the barrel would export it twice. Set `names.$table.row` in '
+              'zonai.yaml to a different stem',
+        );
+      }
+      if (!seen.add(derived)) {
+        throw ClientNameException(
+          table: table,
+          derived: derived,
+          reason:
+              '`$derived` would be declared twice in the same file -- an enum '
+              'column collides with another generated type. Rename the column '
+              'or set `names.$table.row` in zonai.yaml to a different stem',
+        );
+      }
+    }
+  }
+
+  /// The type minted for an enum column: `posts` + `status` -> `PostsStatus`.
+  ///
+  /// Table-qualified because two tables may both have a `status` whose members
+  /// differ, and an unqualified `Status` would silently make them the same
+  /// type.
+  String enumType(String column) => '$base${_pascal(column)}';
+
   /// Every name this table contributes to the barrel.
   ///
   /// Kept next to the getters that produce it: a new generated type is a new
@@ -118,6 +157,17 @@ final class TableNames {
     create,
     update,
     listen,
+  ];
+
+  /// [all], plus the enum type minted for each of [enumColumns].
+  ///
+  /// Separate because the column list is not known when [TableNames] is built.
+  /// An enum type is exported through the barrel exactly like the rest, so a
+  /// table `posts` with a column named `row` would mint `PostsRow` twice --
+  /// which is the whole reason this list exists.
+  List<String> allWithEnums(Iterable<String> enumColumns) => [
+    ...all,
+    for (final column in enumColumns) enumType(column),
   ];
 
   /// Read model. `PostsRow`.

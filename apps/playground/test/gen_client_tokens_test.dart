@@ -177,8 +177,8 @@ void main() {
         amount: 1.5,
         happenedAt: at,
         contactEmail: 'a@b.c',
-        status: 'draft',
-        tags: const ['alpha'],
+        status: CellEditFixturesStatus.draft,
+        tags: const [CellEditFixturesTags.alpha],
         keywords: const [],
         secretNote: 's',
         meta: const {},
@@ -197,7 +197,7 @@ void main() {
       );
       expect(
         CellEditFixturesUpdate(
-          tags: ListField.addAll(const ['beta']),
+          tags: ListField.addAll(const [CellEditFixturesTags.beta]),
         ).toUpdates().single.toJson()['value'],
         {
           'type': 'add_all',
@@ -227,6 +227,76 @@ void main() {
     });
   });
 
+  group('enum columns are typed without becoming brittle', () {
+    test('named constants, and the wire carries the member name', () {
+      expect(CellEditFixturesStatus.draft.value, 'draft');
+      expect(CellEditFixturesStatus.values.map((e) => e.value), [
+        'draft',
+        'published',
+        'archived',
+      ]);
+      expect(
+        CellEditFixtures.status.eq(CellEditFixturesStatus.published).toJson(),
+        {'type': 'eq', 'column': 'status', 'value': 'published'},
+      );
+    });
+
+    test('a member the server adds later still arrives intact', () {
+      // The whole reason this is an extension type and not a Dart `enum`. A
+      // real enum has to either throw here or collapse the value to a
+      // sentinel; this keeps it, and says it was not declared.
+      const added = CellEditFixturesStatus('rescinded');
+
+      expect(added.isKnown, isFalse);
+      expect(added.value, 'rescinded', reason: 'nothing is lost');
+      expect(CellEditFixturesStatus.draft.isKnown, isTrue);
+    });
+
+    test('a row parses an unknown member rather than failing', () {
+      final row = CellEditFixturesRow.fromJson({
+        'id': 'abc_cf',
+        'label': 'x',
+        'flag': 1,
+        'count': 1,
+        'amount': 1.5,
+        'big_count': [0, 1],
+        'happened_at': 1764547200000,
+        'contact_email': 'a@b.c',
+        'status': 'rescinded',
+        'tags': '["alpha","zeta"]',
+        'keywords': '[]',
+        'company_id': null,
+        'meta': '{}',
+        'payload': null,
+        'created_at': 1764547200000,
+        'updated_at': null,
+      });
+
+      expect(row.status, const CellEditFixturesStatus('rescinded'));
+      expect(row.status.isKnown, isFalse);
+      expect(row.tags, [
+        CellEditFixturesTags.alpha,
+        const CellEditFixturesTags('zeta'),
+      ]);
+      expect(row.tags.last.isKnown, isFalse);
+    });
+
+    test('it erases on the write path, in both directions', () {
+      expect(
+        CellEditFixturesUpdate(
+          status: Field.set(CellEditFixturesStatus.archived),
+        ).toUpdates().single.toJson()['value'],
+        {'type': 'literal', 'value': 'archived'},
+      );
+      expect(
+        CellEditFixturesUpdate(
+          tags: ListField.add(CellEditFixturesTags.beta),
+        ).toUpdates().single.toJson()['value'],
+        {'type': 'add', 'value': 'beta'},
+      );
+    });
+  });
+
   group('what a token deliberately cannot do', () {
     test('a nullable column keeps the full comparable surface', () {
       // The reason NullableColumnRef<T> is a subclass and not ColumnRef<T?>:
@@ -246,7 +316,12 @@ void main() {
       // users.password is secret; posts.photo stores an id but reads back a
       // URL; cell_edit_fixtures carries bigInt/enumList/list/map/blob columns.
       expect(CellEditFixtures.label.eq('x').toJson()['column'], 'label');
-      expect(CellEditFixtures.status.eq('draft').toJson()['column'], 'status');
+      expect(
+        CellEditFixtures.status
+            .eq(CellEditFixturesStatus.draft)
+            .toJson()['column'],
+        'status',
+      );
       expect(CellEditFixtures.flag.eq(true).toJson()['value'], true);
       expect(CellEditFixtures.count.gt(3).toJson()['value'], 3);
       expect(CellEditFixtures.companyId.isNull.toJson(), {

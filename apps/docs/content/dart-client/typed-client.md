@@ -80,8 +80,8 @@ The row type is where the generator earns its keep: values arrive from the serve
 | `boolean`, `isVerified` | `bool` — from `0` / `1` on the wire |
 | `bigInt` | `BigInt` |
 | `dateTime`, `createdAt`, `updatedAt` | `DateTime` — from epoch milliseconds |
-| `enumerator` | `String` — see below |
-| `enumList` | `List<String>` |
+| `enumerator` | `BooksShelf` — a per-column extension type, see below |
+| `enumList` | `List<BooksTags>` — same, per element |
 | `list` | `List<Object?>` — see below |
 | `map` | `Map<String, Object?>` |
 | `blob` | `List<int>` |
@@ -94,18 +94,33 @@ A nullable column gets the nullable form (`double?`, `DateTime?`).
 
 A `PasswordColumn` — or any column the schema marks secret — has **no field on the generated row**. It is not nullable, not empty: it is absent, and the generated file says so where the field would have been. The server strips it from responses, so a field for it could only ever hold null.
 
-### An enum column arrives as `String`
+### An enum column gets its own type
 
-This one surprises people, so it is worth stating plainly: a schema declaring `EnumColumn<Shelf>` generates `final String shelf`, not `final Shelf shelf`.
-
-It is a deliberate phase-1 limit rather than an oversight. The generator reads a *schema shape*, which records the enum's permitted values but not the Dart type's name or its declaring library — and the generated client lives in the app's package, which cannot import your server's enum. So there is no `Shelf` for it to name.
+A schema declaring `EnumColumn<Shelf>` generates `final BooksShelf shelf` — an extension type over `String`, with a named constant per declared member:
 
 ```dart no-analyze
-if (book.shelf == 'reading') { ... }   // today
-if (book.shelf == Shelf.reading) { ... } // not yet
+if (book.shelf == BooksShelf.reading) { ... }
+
+await client.books.list(where: Books.shelf.eq(BooksShelf.finished));
+await client.books.update(
+  where: Books.id.eq(book.id),
+  set: BooksUpdate(shelf: Field.set(BooksShelf.finished)),
+);
 ```
 
-`$.list` behaves similarly: the element type is not carried, so `ListColumn<String>` becomes `List<Object?>`. `$.enumList` is the exception — its values are known to be strings, so it generates `List<String>`.
+**Not a Dart `enum`, and that is the point.** A real enum makes a member the server adds later either a parse failure or a sentinel that loses the value. An extension type carries it regardless:
+
+```dart no-analyze
+// The server added `rescinded` after this client was generated.
+print(book.shelf.value);      // 'rescinded' — nothing is lost
+print(book.shelf.isKnown);    // false — and you can find out
+```
+
+The trade is that you do not get an exhaustive `switch`. `BooksShelf.values` lists what the schema declared at generation time, and `isKnown` is how you detect anything beyond it.
+
+The name is table-qualified (`BooksShelf`, not `Shelf`) because two tables may each declare a `shelf` whose members differ, and because the generated client lives in the app's package and cannot import your server's `Shelf`. It erases to `String` at runtime, so the wire is exactly the member name.
+
+`$.enumList` becomes `List<BooksTags>` under the same rules. `$.list` still becomes `List<Object?>` — the element type is not carried in the schema shape, so there is nothing to name.
 
 ## Typed ids
 
