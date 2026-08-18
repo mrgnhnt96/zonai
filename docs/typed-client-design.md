@@ -1,7 +1,7 @@
 # Typed client generation — design
 
 Status: **investigation + plan**, nothing implemented. No branch yet.
-Revision 2 — supersedes the first pass; see §11 for what changed and why.
+Revision 3 — supersedes the first two passes; see §11 for what changed and why.
 
 Today every database call from `zonai_client` is stringly typed: the table name is a
 `String`, the filter columns are `String`s, the create payload is a
@@ -101,14 +101,20 @@ re-solving discovery. The shape map is already `Map<String, TableSchemaShape>` w
 `toJson`, so the artifact is nearly free.
 
 ```jsonc
-// .zonai/schema.json  (sketch)
+// .zonai/schema.json  (as shipped)
 {
-  "version": 1,
-  "zonai": "0.7.2",
-  "hash": "sha256:8f3c…",           // see §8.2 — build-time gate, not a runtime kill switch
+  "formatVersion": 1,
+  "hash": "3bbbbd4f…",              // bare sha256 hex over `tables` alone; see §8.2 —
+                                    // build-time gate, not a runtime kill switch
   "tables": { "posts": { /* TableSchemaShape.toJson() */ } }
 }
 ```
+
+The hash covers `tables` and nothing else, deliberately: a generator version sitting
+inside the hashed region would make `--check` pass on real drift whenever the version
+moved with it (`client_schema_document.dart:19`). The generator's own version is
+recorded in the output manifest instead (§7), where it is metadata rather than part of
+the comparison.
 
 ---
 
@@ -247,6 +253,16 @@ order: `id`, `photo`, `author_id` (FK → `authors.id`, cascade), `title`, `body
 (nullable), `created_at`, `updated_at` (nullable). Column order follows declaration
 order, matching the shape map — see the snapshot index-order trap in
 `docs/known-issues.md`.
+
+**The playground has seven user tables, not six.** Six is the file count under
+`apps/playground/lib/src/schemas/` (`authors`, `cell_edit_fixtures`, `companies`,
+`items`, `posts`, `users`); the shape map adds a seventh, `post_summary`, which is a
+**view** (`isView: true`) and so has no schema file. It is worth having in the set
+rather than rounding away: a view is the §8.4 read-only case, and since phase 1 emits
+only `get`/`list`/`count`, `post_summary` is the one table in the playground the phase-1
+generator covers *completely*. It is the most useful golden in the set, not an
+afterthought. (The remaining ten tables in the shape map are framework-internal and
+excluded by default — §7.)
 
 **Naming — no singularization** (decided, §10). A table named `posts` produces
 `PostsRow`, `PostsExpanded`, `PostsId`, `PostsCreate`, `PostsUpdate`, `PostsApi`,
@@ -406,10 +422,37 @@ extension StringColumnRef on ColumnRef<String> {
 }
 
 extension NullableColumnRef<T> on ColumnRef<T?> {
-  Where get isNull => Null(name);
-  Where get isNotNull => NotNull(name);
+  // NOT `Null(name)` / `NotNull(name)` — see §8.1. `Where.isNull` and
+  // `Where.isNotNull` are new redirecting factories on the sealed base, so the
+  // generated code never has to name the `Null` class and never has to import
+  // it.
+  Where get isNull => Where.isNull(name);
+  Where get isNotNull => Where.isNotNull(name);
 }
 ```
+
+Those two factories do not exist yet; adding them to `where.dart` is part of the
+§8.1 work:
+
+```dart no-analyze
+sealed class Where {
+  const Where();
+  const factory Where.isNull(String column) = Null;
+  const factory Where.isNotNull(String column) = NotNull;
+  // … the existing variants are unchanged.
+}
+```
+
+`const factory`, not a plain one: every other `Where` variant has a const constructor,
+so a redirecting factory that dropped constness would make these two the only clauses
+that cannot appear in a `const` expression. The anchor test builds
+`const Where.isNull('a')` inside a `const` list alongside the fifteen named variants,
+which is the property that keeps them interchangeable.
+
+This is not stylistic. `where.dart:111` declares `final class Null extends Where`,
+which **shadows `dart:core`'s `Null`** in any library importing `payloads.dart`
+unfiltered — so `Null` and `NotNull` stay off the consumer barrel (§8.1) and the
+generated code reaches the same two `Where` nodes through the base class instead.
 
 ```dart no-analyze
 abstract final class Posts {
@@ -547,9 +590,10 @@ await client.articles.update(
 
 The cost is `Field.set('x')` where a bare `'x'` would have done. That is the price of
 distinguishing NULL from absent, and of gating the vocabulary by column kind; it buys
-the six compile errors in §4.6. If it grates in practice, a `.set` extension getter on
-common value types (`'New title'.set`) is a cheap sweetener that changes nothing
-structural.
+the six compile errors in §4.6. **`Field.set('x')` ships as-is** (decided, §10.6). A
+`.set` extension getter on common value types (`'New title'.set`) remains available as
+a sweetener if the explicit form grates in practice — it changes nothing structural,
+which is exactly why it is deferred rather than built now.
 
 Create is unchanged and stays plain — there is no absent/NULL ambiguity on insert:
 
@@ -747,22 +791,81 @@ client:
   package: false                 # true → also emit a pubspec.yaml
   packageName: my_api            # only read when package: true
   tables:
-    exclude: [audit_log]         # default: every registered table
+    exclude: [audit_log]         # added to the default — see below
   names:
     posts:
       row: BlogPostsRow          # per-table override of the §5 naming scheme
 ```
 
+**`tables.exclude` defaults to every `_`-prefixed table, not to nothing.** An earlier
+draft of this section said the default was "every registered table", which sounds
+harmless and is not: the shape map is every table the *server* registered, and ten of
+the playground's seventeen are framework-internal — `_abusers`, `_auth_challenges`,
+`_cron_jobs`, `_jwt`, `_log`, `_oauth_identities`, `_photos`, `_push_jobs`,
+`_raindrop_migrations`, `_rate_limit`. As written, the design emits `JwtApi`, `LogApi`
+and `RateLimitApi` over tables no consumer may touch. Read against §8.3 — types say
+nothing about permission — that is not merely noise: a typed, autocompleting API *reads*
+as a supported surface, which is exactly the wrong signal to send about `_jwt`.
+
+The `_` prefix is this repo's established system-table convention rather than a rule
+invented here: `apps/zonai/lib/src/commands/rules.dart:139` sorts on exactly that test
+and calls the matches system tables, and `parts/cleanup_photos.dart:70` and
+`parts/push.dart:277` both describe their table as an "internal table whose schema Zonai
+owns statically". So the default is to skip them, it is overridable (a project that
+genuinely wants `_log` typed can name it), and **what was skipped is logged** — a silent
+omission is its own kind of surprise.
+
 ```sh
 zonai gen client                 # reads zonai.yaml, no arguments needed
 zonai gen client --check         # exits non-zero if the output is stale (§8.2)
 zonai gen client --output <dir>  # override, for one-off/CI use
+zonai gen client --force         # write into a directory we cannot prove we own
 ```
+
+**The write guard is by provenance, not by location** (decided, §10.7). The hazard is
+`client.output` pointed at a hand-written `lib/` and silently clobbering it. A
+repo-root rule does not catch that and does catch the primary use case —
+`../app/lib/gen/zonai` is outside the repo *by construction*, so a location guard
+would make the opt-out mandatory boilerplate that nobody reads, which is worse than no
+guard at all. Instead the generator establishes ownership of what it writes:
+
+- every generated file carries a generated-code header —
+  `// GENERATED CODE - DO NOT MODIFY BY HAND`, the exact string already at the top of
+  `apps/zonai/lib/src/internal/internal_db_migrations.dart:1`, so generated files in
+  this repo all announce themselves the same way — followed by the generator version
+  and the schema hash;
+- the generator writes a **manifest** into the output directory listing every file it
+  produced, so it can tell its own output from anything else;
+- it **refuses to write into a non-empty directory that has no manifest**, and names
+  what it found. `--force` is the acknowledged override.
+
+An empty directory writes freely, and a directory the generator already owns is
+rewritten freely — including deleting files the manifest lists but the current schema
+no longer produces, which a location rule could never do safely. The only case that
+stops is the one that is actually dangerous: files present that we cannot prove we
+wrote.
+
+**A file the manifest does not list is never deleted, `--force` included.** `--force`
+grants permission to *add* — to write into a directory whose contents we cannot vouch
+for — and never permission to remove. Deletion stays bounded by the *previous*
+manifest, so the only files that can disappear are ones a prior run of this generator
+put there. That asymmetry is what makes the override safe to reach for: pointing
+`--force` at a directory holding something else can leave a mess to sort out, but it
+cannot destroy anything, so the guard never has to be argued with under pressure.
 
 This mirrors how `schemasPath` / `operationsPath` / `rulesPath` already work today
 (`zonai.yaml` at the repo root), so `client:` is a new key in a file that already
 exists rather than a new mechanism. `zonai gen client` with no `client:` block errors
 with a message showing the block to add.
+
+**The playground is the exception that proves the rule.** Its `client.output` is
+`lib/gen/zonai` — inside its own package, not `../app/lib/gen/zonai` — because the
+playground has no sibling app to write into. That is not a counterexample to the
+guard's reasoning: it is precisely the *outside-the-repo* path being the ordinary case
+that makes a location rule unworkable (§10.7), and an in-repo output is the special
+case. It buys something too. Because the output sits in the repo, the generated files
+are committed, which makes them a baseline `zonai gen client --check` can compare
+against — the drift check of §8.2 needs committed output to be a check at all.
 
 Regeneration hooks where `generateProjectEntry()` already runs
 (`project_runtime.dart:36`), plus the `dev` watcher on `schemasPath`, so the typed
@@ -774,21 +877,93 @@ the project-linked entry that can see the user's tables.
 
 ## 8. Prerequisites and risks
 
-### 8.1 Export gaps block this — BLOCKER
+### 8.1 Export gaps block this — BLOCKER (narrower than r2 claimed)
 
-`libs/zonai_client/lib/zonai_client.dart` currently exports neither:
+**r2 got two things wrong here, and they are corrected rather than edited out.**
 
-- `Db` / `DbListen` — the generated `PostsApi` must *name* these to hold them; and
-- `Where`, `Eq`, `Gt`, `In`, `And`, `Or`, `OrderByTerm`, `SortDirection`, `Update`,
-  `UpdateValue` (and its variants — `Literal`, `Increment`, `Add`, `AddAll`, …, now
-  that §5.5 wraps all of them) — the generated code returns and consumes all of them.
+**Retraction — the `Id` claim.** r2 said `Id` is "likewise absent from `payloads.dart`"
+and implied the generator needs it exported. It does not need it at all. §5.1 mints
+one id type per table as `extension type const PostsId(String value)` over a plain
+`String` — nothing implements `Id`, nothing mentions it. Read against the source:
 
-`Id` is likewise absent from `payloads.dart`, though `src/types/id.dart` is
-browser-safe (only `dart:convert`, `dart:math`, `package:crypto`).
+- `libs/zonai_client/lib` contains **zero** occurrences of the token `Id`
+  (`grep -rnw Id libs/zonai_client/lib` → no matches). The typed client has never
+  referred to it.
+- Every importer of `libs/zonai_schema/lib/src/types/id.dart` is server-side:
+  `zonai_schema`'s own internals (`cron_jwt.dart:1`, `provisioning_jwt.dart:1`,
+  `push_message.dart:3`, `jwt_id.dart:1`, `jwt.dart:5`, `schemas/auth_table.dart:6`,
+  `column_types/id_column.dart:2`), the server-side barrel
+  (`zonai_schema.dart:90`, **not** `payloads.dart`), and tests under `apps/zonai` and
+  `apps/server`. No client-side importer exists.
 
-These are one-line additions, but they are exactly the API-design calls deliberately
-deferred and recorded in `libs/zonai_client/test/export_surface_test.dart`'s
-`_exclusions`. Adding them is a decision, not a chore — and this plan forces it.
+So `Id` being off `payloads.dart` is not a gap; it is correct. It is a server-side
+identity abstraction, and the generated client's ids are a different mechanism that
+happens to share a noun. Nothing in this plan should add it.
+
+**Narrowing — the `Where`/`Update` half is a `show`-list edit, not new plumbing.**
+r2 listed `Where`, `Eq`, `Gt`, `In`, `And`, `Or`, `OrderByTerm`, `SortDirection`,
+`Update` and the `UpdateValue` family as things `payloads.dart` would have to start
+exporting. It already exports all of them:
+
+- `export 'src/types/where.dart'` → `Where` and all 15 variants;
+- `export 'src/types/order_by.dart'` → `SortDirection`, `OrderByTerm`;
+- `export 'src/update/update.dart'` → `Update`, `ColumnUpdate`, `ObjectUpdate`, and —
+  since `update_value.dart` is a `part` of that library, not a separate one — the
+  whole `UpdateValue` family (`Literal`, `Increment`, `Decrement`, `Add`, `Remove`,
+  `AddAll`, `RemoveAll`) with it.
+
+The only thing hiding them from consumers is `zonai_client`'s own explicit `show` list
+in `libs/zonai_client/lib/zonai_client.dart`. So this half is **adding names to one
+`show` list**, with no change to `zonai_schema` at all.
+
+**What genuinely is missing** is the other half r2 named, and it is exactly five
+`lib/src` types — the five already recorded as `GAP -- … (unfixed)` in
+`libs/zonai_client/test/export_surface_test.dart`'s `_exclusions`: `Db`, `DbListen`,
+`Emails`, `Photos`, `AdminAuth`. The generated `PostsApi` must *name* `Db` and
+`DbListen` to hold them. These are the API-design calls that sweep deliberately
+deferred; adding them is a decision, not a chore, and this plan forces it.
+
+**A constraint the `show` list turns up — `Null` is not exportable.**
+`where.dart:111` declares `final class Null extends Where`, which **shadows
+`dart:core`'s `Null`** in any library importing `payloads.dart` unfiltered. Verified,
+not reasoned: compiling `Null x;` in a library with that import fails with
+`not_assigned_potentially_non_nullable_local_variable` — i.e. `Null` resolved to the
+`Where` subclass, which is non-nullable, rather than `dart:core`'s, which would have
+been fine. A non-`dart:core` import wins over the implicit one, so every consumer of
+an unfiltered barrel silently loses the real `Null`.
+
+`Null` and `NotNull` therefore stay **off** the consumer `show` list, and §5.4's
+`isNull` / `isNotNull` build through new `Where.isNull` / `Where.isNotNull`
+redirecting factories on the sealed base instead. The generated code never names the
+class, so nothing it emits can leak the shadow into a consumer's namespace. This costs
+two factory lines in `where.dart` and is the reason §5.4's `NullableColumnRef` reads
+the way it does.
+
+**A second collision, of a different kind — and this one the curated list bounds
+rather than removes.** Writing the barrel turned up `Literal` colliding with
+`package:analyzer`'s `dart/ast/ast.dart`, which declares a `Literal` of its own. The
+two hazards are not the same shape, and only one of them is handled *for* the consumer:
+
+- `Null` shadows `dart:core`. It is **silent** — the wrong `Null` simply wins, and
+  nothing warns — so the design removes it by keeping the name off the barrel.
+- `Literal` collides with an ordinary third-party package. It is **loud**: the analyzer
+  reports `ambiguous_import` and the file does not compile. The remedy is `hide` at the
+  import site, and it belongs to the consumer, not to us.
+
+The names now on the barrel that can collide this way are `Add`, `Remove`, `In`, `Or`,
+`And`, `Contains`, `Literal`, `Update`, `Increment` and `Decrement` — short, generic
+nouns and verbs that any library might also declare. The curated `show` list **bounds**
+that exposure; it does not eliminate it. A consumer importing both this barrel and a
+library declaring one of those names needs one `hide` in one file, which is what
+`libs/zonai_client/test/export_surface_test.dart:10` does
+(`import 'package:analyzer/dart/ast/ast.dart' hide Literal;`).
+
+That is a small price and worth naming rather than hiding, because the alternative is
+strictly worse: a wholesale re-export would put *every* name in `payloads.dart` into
+the same namespace, multiplying the collisions while removing the curation that makes
+the surface reviewable. The reason to record it at all is that implementing the
+`Null` decision found a second instance within the hour — so §8.1 should not read as
+though `Null` were the only one.
 
 ### 8.2 Drift — a build-time gate, never a runtime kill switch
 
@@ -865,10 +1040,21 @@ header comment and in the docs page, not only here.
 
 | Phase | Contents |
 | --- | --- |
-| **1** | `zonai gen client` reading the `client:` block; `.zonai/schema.json`; ids, read models with the §5.2 parse helpers, `ZonaiTables` extension, `get`/`list`/`count`, and the `Authorization` wrapper on every method (§5.8). Fix the §8.1 exports. Golden-file tests over the playground's six tables. |
+| **1** | `zonai gen client` reading the `client:` block; `.zonai/schema.json`; ids, read models with the §5.2 parse helpers, `ZonaiTables` extension, `get`/`list`/`count`, and the `Authorization` wrapper on every method (§5.8). Fix the §8.1 exports. Golden-file tests over the playground's seven user tables. |
 | **2** | `ColumnRef` tokens; typed `Where` / `OrderByTerm` / `groupBy`; the `Patch` family and `PostsCreate` / `PostsUpdate`; create, update, delete. |
-| **3** | `ExpandPath` chaining to full depth 4; recursive `expanded` models; `listen` mirrors; `--check` wired into CI; `dev`-watch regeneration. |
+| **3** | `ExpandPath` chaining to full depth 4; recursive `expanded` models; `listen` mirrors; `--check` wired into the Test workflow (§10.5); a compiled-binary `gen client` smoke in `verify-release.yml`; `dev`-watch regeneration. |
 | **4** | Enum columns as real Dart enums; `MapField.at()` paths; custom operations (pending #25); retarget the same `schema.json` to TypeScript. |
+
+**On that phase-3 release-gate smoke.** `--check` itself belongs in the Test workflow
+and only there (§10.5), but there is one thing no source-tree test can catch: *the
+shipped binary cannot generate*. `verify_build_command.sh` already exercises exactly
+that shape for `zonai build`, so a `gen client` equivalent is a known, proven pattern
+rather than a new mechanism. It is phase 3 and not phase 1 because the `cli` leg's
+wall-clock is already the binding constraint on that workflow — `cli` is budgeted at
+`timeout-minutes: 35` against 10 for every other job in `test.yml`, and the compiled
+binary runs are what fill it. Adding a five-platform binary invocation to the release
+path is worth doing once the generator exists and is stable; it is not worth paying
+for while the output shape is still moving.
 
 Phase 1 is independently useful: it removes the hand-written `fromJson` and the
 epoch-ms/0-1 decoding from every consumer, which is where the runtime bugs actually
@@ -904,18 +1090,146 @@ resolving to the same Dart type name after `names` overrides are applied. It can
 another project's output, so a cross-package collision surfaces as an ordinary Dart
 import conflict. Saying so plainly is better than implying a guard that does not exist.
 
-### Still genuinely open
+**10.5 `--check` runs in the Test workflow only — not on the release gate.**
+`--check` compares committed generated output against the current schema. That is a
+**source-tree drift** check, and PR-time CI is what source-tree drift checks are for.
+§8.2 already states the principle — drift is "caught before it ships, **by the person
+who caused it**" — and putting `--check` on the release gate inverts exactly that: the
+drift would surface at release time, in front of whoever is releasing, who is usually
+not whoever caused it. `test.yml` runs on `pull_request`; that is the right door.
 
-1. Does `--check` belong in the existing release gate, or only in the Test workflow?
-   The gate is already per-sha and manual-dispatch sensitive (`docs/releasing.md`).
-2. Is `Field.set('x')` acceptable at call sites long-term, or is the `.set` extension
-   sweetener (§5.5) worth generating from the start?
-3. Should `zonai gen client` refuse to write outside the repo root by default? The
-   natural output path is `../app/lib/gen/zonai`, which is outside it by construction.
+`verify-release.yml` is also simply not a source-drift gate, and reading it says so.
+Every job there downloads a **compiled binary artifact** and exercises it —
+`verify_release_artifact.sh`, `verify_build_command.sh`, a cross-target bundle run, a
+previous-release compatibility check. It is per-sha and `workflow_dispatch`-sensitive,
+and `docs/releasing.md`'s Rule zero ("if `verify-release.yml` is red for the commit you
+are about to release, you do not have a release candidate") means every addition there
+costs real release friction: a new way for the gate to go red is a new way for a
+release to stop.
+
+The one genuine counter-argument, recorded rather than buried: a compiled-binary
+`gen client` smoke in `verify-release.yml` would catch "the shipped binary cannot
+generate", which no source test can, and `verify_build_command.sh` already does exactly
+that for `zonai build`. That is real, and it is why it is on the phase-3 row in §9
+alongside "`--check` wired into CI" — not a phase-1 change, and not the same thing as
+putting `--check` on the gate.
+
+**10.6 `Field.set('x')` ships as-is; no `.set` extension.** It is self-describing at
+the call site, and — the deciding point — the extension stays purely **additive**.
+Adding it later changes nothing structural, so shipping without it is the reversible
+choice and shipping with it is not. Generating a `.set` getter on `String`, `int`,
+`bool` and `DateTime` up front puts a very generic member on core types across every
+consumer's namespace, in every file that imports the generated library, before anyone
+has complained about the explicit form. If the explicit form does grate in practice,
+the sweetener is a small additive change made with evidence. §5.5 describes it as
+deferred, not pending.
+
+**10.7 `zonai gen client` guards by provenance, not by location.** No repo-root rule.
+`../app/lib/gen/zonai` is outside the repo *by construction* (§7) — the server project
+cannot be an app dependency, so writing into a directory the app owns is the primary
+use case, not an edge case. A location guard blocks it, and the opt-out flag then
+appears on every invocation, which is how a guard becomes boilerplate nobody reads and
+protects nothing.
+
+The hazard worth blocking is different and more specific: `client.output` pointed at a
+hand-written `lib/` and silently clobbering it. Location tells you nothing about that.
+Provenance does — a generated-code header on every file, a manifest of what the
+generator wrote, and a refusal to write into a **non-empty directory with no manifest**
+unless `--force`. That leaves the intended layout completely unobstructed, and it also
+buys something a location rule could not: the generator can safely delete its own
+stale output, because the manifest says which files are its. §7 carries this as
+designed behaviour.
 
 ---
 
 ## 11. Revision history
+
+**r3** — closes the last three open questions, and corrects r2 against the source:
+
+- **`--check` goes in the Test workflow only** (§10.5), not the release gate. It is a
+  source-tree drift check and PR-time CI is where those belong; §8.2's own principle —
+  caught by the person who caused it — is inverted by a release-time check. Reading
+  `verify-release.yml` settled it: every job there downloads and exercises a compiled
+  binary, so `--check` would be the only source-drift job in a workflow that has none,
+  behind Rule zero. The real release-gate item is a **compiled-binary `gen client`
+  smoke** mirroring `verify_build_command.sh`, recorded as phase 3 in §9 with the
+  reason it is not phase 1 (the `cli` leg's wall-clock is already the binding
+  constraint — 35 minutes budgeted against 10 everywhere else).
+- **`Field.set('x')` ships as-is** (§10.6). The `.set` extension is purely additive, so
+  not building it is the reversible call; building it up front puts a very generic
+  member on `String`/`int`/`bool`/`DateTime` across every consumer's namespace before
+  anyone has complained. §5.5 now reads *deferred*, not *pending*.
+- **The output guard is by provenance, not location** (§10.7, folded into §7 as
+  designed behaviour). A repo-root rule blocks the primary use case —
+  `../app/lib/gen/zonai` is outside the repo by construction — and turns its own
+  opt-out into boilerplate. A generated-code header, a manifest, and a refusal to write
+  into a non-empty unmanifested directory block the hazard that actually exists
+  (clobbering hand-written `lib/`) and additionally make it safe to delete stale output.
+- **r2's `Id` claim is retracted** (§8.1). r2 said `Id` was missing from
+  `payloads.dart` and implied the generator needs it. It does not: §5.1 mints ids as
+  extension types over `String`, `libs/zonai_client/lib` contains zero occurrences of
+  the token, and every importer of `src/types/id.dart` is server-side. Kept visible
+  here rather than edited out, the same way r1's runtime-hash mistake is.
+- **The rest of the §8.1 gap is narrower than r2 stated.** `payloads.dart` already
+  exports `where.dart`, `order_by.dart` and `update/update.dart` — and `update_value
+  .dart` is a `part` of the last, so the whole `UpdateValue` family comes with it. The
+  `Where`/`Update` half is therefore a `show`-list edit in `zonai_client`, not new
+  plumbing; the genuine gap is exactly the five `lib/src` types already recorded as
+  unfixed in `export_surface_test.dart`'s `_exclusions` (`Db`, `DbListen`, `Emails`,
+  `Photos`, `AdminAuth`).
+- **New constraint, found by making that export decision:** `where.dart:111`'s
+  `final class Null extends Where` **shadows `dart:core`'s `Null`** for anyone
+  importing `payloads.dart` unfiltered — verified by compiling `Null x;` against that
+  import and getting `not_assigned_potentially_non_nullable_local_variable`. `Null` and
+  `NotNull` stay off the consumer barrel, and §5.4's `isNull`/`isNotNull` now build
+  through new `Where.isNull` / `Where.isNotNull` redirecting factories instead.
+
+**r3 addendum — corrections from implementing r3.** Not an r4: r3 has not landed
+anywhere yet, and these are the same revision catching up to itself. Three leaves ran
+concurrently — one wrote r3 while two implemented parts of it — so the document
+described that work slightly *ahead* of it. Two entries below are findings; the rest are
+the doc deferring to a better implementation choice.
+
+- **Finding — `Null` was not the only collision** (§8.1). Writing the barrel's anchor
+  tests hit a second one within the hour: `package:analyzer`'s `Literal`, against the
+  `UpdateValue` variant the barrel now exports. It is a *different shape* of hazard —
+  loud (`ambiguous_import`) rather than silent, third-party rather than `dart:core`,
+  and fixed by the consumer with `hide` rather than by us with curation. §8.1 now names
+  the ten barrel names that can collide this way and says the `show` list **bounds**
+  the exposure rather than removing it, so that section no longer reads as though the
+  `dart:core` shadow were the whole story.
+- **Finding — the default excluded nothing, and would have shipped wrong** (§7). §7
+  said `tables.exclude` defaults to "every registered table". The shape map holds every
+  table the *server* registered: ten of the playground's seventeen are `_`-prefixed
+  framework internals, so as designed the generator emits `JwtApi`, `LogApi` and
+  `RateLimitApi`. Against §8.3 — types say nothing about permission — a typed API over
+  `_jwt` reads as a supported surface. The default is now to exclude `_`-prefixed
+  tables, overridable, with what was skipped logged. This is a hole in the design that
+  implementing it exposed, not a wording fix.
+- **Generated-file header** (§7) — the doc's invented
+  `` // GENERATED BY `zonai gen client` — DO NOT EDIT `` gives way to
+  `// GENERATED CODE - DO NOT MODIFY BY HAND`, which is what
+  `internal_db_migrations.dart:1` already says. Matching repo precedent beats a
+  bespoke string.
+- **`Where.isNull` is a `const factory`** (§8.1) — strictly more capable than the plain
+  factory the snippet showed, and it keeps the two redirecting factories usable
+  everywhere the fifteen named variants are.
+- **The manifest's delete rule** (§7), which the design never stated: a file the
+  manifest does not list is never deleted, `--force` included. `--force` grants
+  permission to add, never to delete. That asymmetry is what makes the guard safe to
+  point at a directory holding anything else.
+- **The playground's in-repo output path** (§7) — `lib/gen/zonai`, not the documented
+  `../app/lib/gen/zonai`, because it has no sibling app. Recorded so it does not read
+  as contradicting §10.7: the outside-the-repo path is what makes a location guard
+  unworkable, and the playground is the in-repo special case — which also makes its
+  committed output the baseline `--check` compares against.
+- **The playground has seven user tables, not six** (§5, §9) — six schema files plus
+  `post_summary`, a view. Being the §8.4 read-only case makes it the most useful golden
+  for phase 1, which emits only reads.
+- **`.zonai/schema.json`'s keys** (§3) — `formatVersion` / `hash` / `tables` as shipped,
+  not the sketch's `version` / `zonai` / `hash`. The generator version is deliberately
+  *outside* the hashed region and lives in the manifest instead, so that a version bump
+  cannot mask real schema drift from `--check`.
 
 **r2** — supersedes r1 after review:
 

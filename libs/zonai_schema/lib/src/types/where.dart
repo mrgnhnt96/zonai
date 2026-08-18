@@ -5,6 +5,27 @@ import 'where_value.dart';
 sealed class Where {
   const Where();
 
+  /// `column IS NULL`.
+  ///
+  /// This redirects to [Null] so a caller never has to *name* that class.
+  /// [Null] and [NotNull] are deliberately kept off `zonai_client`'s public
+  /// barrel, because a library that imports them shadows `dart:core`'s `Null`:
+  /// Dart resolves an explicit import ahead of the implicit `dart:core` one, so
+  /// every `Null` written in that library means the where-clause class instead.
+  ///
+  /// Confirmed by compiling, not by reasoning about it -- in a file importing
+  /// `package:zonai_schema/payloads.dart`, `Null x; print(x);` fails analysis
+  /// with `not_assigned_potentially_non_nullable_local_variable`. That line is
+  /// legal against `dart:core`'s `Null`, which is nullable, so the error is the
+  /// shadowing itself.
+  ///
+  /// These factories are what let the clause stay constructible while the two
+  /// names stay unexported.
+  const factory Where.isNull(String column) = Null;
+
+  /// `column IS NOT NULL`. See [Where.isNull] for why this factory exists.
+  const factory Where.isNotNull(String column) = NotNull;
+
   factory Where.fromJson(Map json) {
     // Canonical wire form: { "type": "eq", "column": "...", "value": ... }
     if (json.containsKey('type')) {

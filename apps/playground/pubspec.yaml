@@ -8,13 +8,14 @@ environment:
 
 dependencies:
   meta: ^1.17.0
+  # `lib/gen/zonai` -- the output of `zonai gen client` -- imports this, so it
+  # is a real dependency of lib/ and not only of the docs' snippets.
+  zonai_client:
+    path: ../../libs/zonai_client
 
 dev_dependencies:
   test: ^1.26.0
   zonai:
     path: ../zonai
-  # For the dart-client docs' snippets, which the doc-snippet test analyzes.
-  zonai_client:
-    path: ../../libs/zonai_client
   zonai_schema:
     path: ../../libs/zonai_schema

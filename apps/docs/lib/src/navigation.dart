@@ -366,6 +366,7 @@ const List<NavGroup> navigation = [
     summary: 'zonai_client — a typed client so apps never hand-roll HTTP.',
     items: [
       NavItem('Overview', '/dart-client/overview', summary: 'Installing the generated client and setting baseUrl.'),
+      NavItem('Typed Client', '/dart-client/typed-client', summary: 'Per-table APIs generated from your schema.'),
       NavItem('Authentication', '/dart-client/authentication', summary: 'Sign-in, token storage and refresh.'),
       NavItem('Database', '/dart-client/database', summary: 'CRUD plus db.listen live streams.'),
       NavItem('Photos', '/dart-client/photos'),
@@ -383,6 +384,7 @@ const List<NavGroup> navigation = [
       NavItem('zonai build', '/cli/build', summary: 'Produce the project-linked production binary.'),
       NavItem('zonai compile', '/cli/compile'),
       NavItem('zonai db', '/cli/db', summary: 'Migrations, admins, photos and logs.'),
+      NavItem('zonai gen', '/cli/gen', summary: 'Generate a typed Dart client from the schema.'),
       NavItem('zonai rules', '/cli/rules'),
       NavItem('zonai ping', '/cli/ping', summary: 'Check that every compiled worker starts and answers.'),
       NavItem('zonai ai', '/cli/ai', summary: 'Install project-local assistant rules.'),

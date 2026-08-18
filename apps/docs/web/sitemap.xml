@@ -214,6 +214,9 @@
     <loc>https://docs.zonai.dev/dart-client/overview/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/dart-client/typed-client/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/dart-client/authentication/</loc>
   </url>
   <url>
@@ -242,6 +245,9 @@
   </url>
   <url>
     <loc>https://docs.zonai.dev/cli/db/</loc>
+  </url>
+  <url>
+    <loc>https://docs.zonai.dev/cli/gen/</loc>
   </url>
   <url>
     <loc>https://docs.zonai.dev/cli/rules/</loc>

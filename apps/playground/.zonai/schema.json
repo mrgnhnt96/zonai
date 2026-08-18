@@ -1,0 +1,492 @@
+{
+  "formatVersion": 1,
+  "hash": "a59bea3e3f7bfa6c3acec0f91380cd284eef8e3fedf0f978111073c6c46090ab",
+  "tables": {
+    "authors": {
+      "table": "authors",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "name",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "company_id",
+          "kind": "id",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "foreignKey": {
+            "table": "companies",
+            "column": "id"
+          }
+        },
+        {
+          "name": "created_at",
+          "kind": "createdAt",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        },
+        {
+          "name": "updated_at",
+          "kind": "updatedAt",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        }
+      ],
+      "isView": false
+    },
+    "cell_edit_fixtures": {
+      "table": "cell_edit_fixtures",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "label",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "flag",
+          "kind": "boolean",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER"
+        },
+        {
+          "name": "count",
+          "kind": "integer",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER"
+        },
+        {
+          "name": "amount",
+          "kind": "real",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "REAL"
+        },
+        {
+          "name": "big_count",
+          "kind": "bigInt",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "BLOB"
+        },
+        {
+          "name": "happened_at",
+          "kind": "dateTime",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER"
+        },
+        {
+          "name": "contact_email",
+          "kind": "email",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "status",
+          "kind": "enum",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "enumValues": [
+            "draft",
+            "published",
+            "archived"
+          ]
+        },
+        {
+          "name": "tags",
+          "kind": "enumList",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "enumValues": [
+            "alpha",
+            "beta",
+            "gamma"
+          ]
+        },
+        {
+          "name": "keywords",
+          "kind": "list",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "company_id",
+          "kind": "id",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "foreignKey": {
+            "table": "companies",
+            "column": "id"
+          }
+        },
+        {
+          "name": "secret_note",
+          "kind": "password",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "isSecret": true
+        },
+        {
+          "name": "meta",
+          "kind": "map",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "payload",
+          "kind": "blob",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "BLOB"
+        },
+        {
+          "name": "created_at",
+          "kind": "createdAt",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        },
+        {
+          "name": "updated_at",
+          "kind": "updatedAt",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        }
+      ],
+      "isView": false
+    },
+    "companies": {
+      "table": "companies",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "name",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "created_at",
+          "kind": "createdAt",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        },
+        {
+          "name": "updated_at",
+          "kind": "updatedAt",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        }
+      ],
+      "isView": false
+    },
+    "items": {
+      "table": "items",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "body",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "description",
+          "kind": "text",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "image",
+          "kind": "photo",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "foreignKey": {
+            "table": "_photos",
+            "column": "id"
+          }
+        },
+        {
+          "name": "status",
+          "kind": "integer",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER"
+        },
+        {
+          "name": "created_at",
+          "kind": "createdAt",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        },
+        {
+          "name": "updated_at",
+          "kind": "updatedAt",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        }
+      ],
+      "isView": false
+    },
+    "post_summary": {
+      "table": "post_summary",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "title",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "author_name",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        }
+      ],
+      "isView": true
+    },
+    "posts": {
+      "table": "posts",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "photo",
+          "kind": "photo",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "foreignKey": {
+            "table": "_photos",
+            "column": "id"
+          }
+        },
+        {
+          "name": "author_id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "foreignKey": {
+            "table": "authors",
+            "column": "id"
+          }
+        },
+        {
+          "name": "title",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "body",
+          "kind": "text",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "created_at",
+          "kind": "createdAt",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        },
+        {
+          "name": "updated_at",
+          "kind": "updatedAt",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        }
+      ],
+      "isView": false
+    },
+    "users": {
+      "table": "users",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "name",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "email",
+          "kind": "email",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "is_verified",
+          "kind": "isVerified",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER"
+        },
+        {
+          "name": "password",
+          "kind": "password",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "isSecret": true
+        },
+        {
+          "name": "created_at",
+          "kind": "createdAt",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        },
+        {
+          "name": "updated_at",
+          "kind": "updatedAt",
+          "isNullable": true,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER",
+          "isReadOnly": true
+        }
+      ],
+      "isView": false
+    }
+  }
+}
