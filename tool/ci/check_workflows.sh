@@ -13,12 +13,75 @@ cd "${repo_root}"
 
 python3 - <<'PY'
 import glob
+import json
+import subprocess
 import sys
+
+# PyYAML if present, otherwise Ruby's Psych via a JSON bridge. Neither is
+# guaranteed on a developer machine, and for a long stretch on at least one of
+# them PyYAML was absent -- so this script exited 1 before checking anything,
+# every time. A gate that cannot run is not a strict gate; it is a blind one
+# that also blocks the commit, which is how it came to be pinned as a known
+# environmental failure and routed around. Two parsers is the fix.
+#
+# Ruby's Psych is a YAML 1.1 parser exactly like PyYAML, so a bare `on:` key
+# arrives as the BOOLEAN True there too, and JSON cannot carry a boolean key.
+# The bridge maps it back to the string "on"; the readers below still accept
+# both, because under PyYAML it is still True.
+_RUBY_BRIDGE = (
+    "require 'yaml'; require 'json'; "
+    "d = YAML.load_file(ARGV[0]); "
+    "d = d.transform_keys { |k| k == true ? 'on' : k } if d.is_a?(Hash); "
+    "print JSON.generate(d)"
+)
 
 try:
     import yaml
 except ImportError:
-    sys.exit("PyYAML is required to check workflow syntax")
+    yaml = None
+
+
+def _have_ruby():
+    try:
+        subprocess.run(["ruby", "-e", ""], capture_output=True, check=True)
+        return True
+    except (OSError, subprocess.CalledProcessError):
+        return False
+
+
+_RUBY = _have_ruby() if yaml is None else False
+if yaml is None and not _RUBY:
+    sys.exit(
+        "no YAML parser: install PyYAML (pip install PyYAML) or Ruby. "
+        "Refusing to report a pass without parsing anything."
+    )
+print(f"  parser: {'PyYAML' if yaml else 'ruby/psych via JSON'}")
+
+
+class ParseError(Exception):
+    pass
+
+
+def load_workflow(path):
+    if yaml is not None:
+        try:
+            return yaml.safe_load(open(path))
+        except yaml.YAMLError as error:
+            raise ParseError(error) from error
+    proc = subprocess.run(
+        ["ruby", "-e", _RUBY_BRIDGE, path], capture_output=True, text=True
+    )
+    if proc.returncode != 0:
+        # FIRST stderr line: that is Psych's message. The last line is a
+        # backtrace frame, which names this bridge instead of the mistake.
+        lines = [l for l in proc.stderr.splitlines() if l.strip()]
+        raise ParseError(lines[0].strip() if lines else "ruby failed to parse")
+    return json.loads(proc.stdout)
+
+
+def to_text(obj):
+    """Flatten a job for substring searching. Only ever used for `in` checks."""
+    return json.dumps(obj, default=str, sort_keys=True)
 
 paths = sorted(glob.glob(".github/workflows/*.yml"))
 if not paths:
@@ -28,8 +91,8 @@ failed = False
 documents = {}
 for path in paths:
     try:
-        document = yaml.safe_load(open(path))
-    except yaml.YAMLError as error:
+        document = load_workflow(path)
+    except ParseError as error:
         print(f"{path}: {error}")
         failed = True
         continue
@@ -127,7 +190,7 @@ else:
     if gate is None:
         print(f"{RELEASE}: no `{GATE_JOB}` job")
         failed = True
-    elif GATE_SCRIPT not in yaml.dump(gate):
+    elif GATE_SCRIPT not in to_text(gate):
         print(f"{RELEASE}: `{GATE_JOB}` does not run {GATE_SCRIPT}")
         failed = True
 

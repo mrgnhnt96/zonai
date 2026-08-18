@@ -18,16 +18,51 @@ cd "${repo_root}"
 
 python3 - <<'PY'
 import glob
+import json
 import re
 import subprocess
 import sys
 import tempfile
 import os
 
+# PyYAML if present, otherwise Ruby's Psych via a JSON bridge -- same reason as
+# tool/ci/check_workflows.sh: on a machine with neither, this exited 1 before
+# checking a single line, so the gate was blind AND blocking. Psych is YAML 1.1
+# like PyYAML, so a bare `on:` key arrives as boolean True; JSON cannot carry
+# that, so the bridge maps it back to the string. Nothing below reads `on`, but
+# the mapping keeps the two parsers returning the same shape.
+_RUBY_BRIDGE = (
+    "require 'yaml'; require 'json'; "
+    "d = YAML.load_file(ARGV[0]); "
+    "d = d.transform_keys { |k| k == true ? 'on' : k } if d.is_a?(Hash); "
+    "print JSON.generate(d)"
+)
+
 try:
     import yaml
 except ImportError:
-    sys.exit("PyYAML is required to check shell syntax")
+    yaml = None
+
+if yaml is None:
+    try:
+        subprocess.run(["ruby", "-e", ""], capture_output=True, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        sys.exit(
+            "no YAML parser: install PyYAML (pip install PyYAML) or Ruby. "
+            "Refusing to report a pass without parsing anything."
+        )
+
+
+def load_yaml(path):
+    if yaml is not None:
+        return yaml.safe_load(open(path))
+    proc = subprocess.run(
+        ["ruby", "-e", _RUBY_BRIDGE, path], capture_output=True, text=True
+    )
+    if proc.returncode != 0:
+        lines = [l for l in proc.stderr.splitlines() if l.strip()]
+        sys.exit(f"{path}: {lines[0].strip() if lines else 'ruby failed to parse'}")
+    return json.loads(proc.stdout)
 
 # `${{ ... }}` is GitHub Actions / sip interpolation and is not valid bash --
 # `${{` is a malformed parameter expansion. Replace each with a plain word so
@@ -73,10 +108,10 @@ def walk_scripts(node, trail):
                 walk_scripts(value, trail + [str(key)])
 
 
-walk_scripts(yaml.safe_load(open("scripts.yaml")), [])
+walk_scripts(load_yaml("scripts.yaml"), [])
 
 for path in sorted(glob.glob(".github/workflows/*.yml")):
-    document = yaml.safe_load(open(path))
+    document = load_yaml(path)
     for job_name, job in (document.get("jobs") or {}).items():
         for index, step in enumerate(job.get("steps") or []):
             if not isinstance(step, dict) or "run" not in step:
