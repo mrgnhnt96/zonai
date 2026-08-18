@@ -381,6 +381,103 @@ final class ZonaiRowReader {
 /// Omit it and the call falls through to the ambient token the client's
 /// interceptor already sets -- `client.posts.list()` is authenticated exactly
 /// as `client.db.list(...)` is today.
+/// A photo column's value on the WRITE side.
+///
+/// §4.2: a photo column is asymmetric. The write path validates that the value
+/// is an existing photo **id** (`_verifyPhotoIds`), while `_resolvePhotoFields`
+/// rewrites it to a fully-qualified URL on the way out. So the row model reads
+/// `Uri` and the create/update builders take this -- the asymmetry is in the
+/// types instead of in a comment nobody reads.
+extension type const PhotoId(String value) {
+  /// Parses an id from a raw JSON value.
+  static PhotoId fromJson(Object? json) => PhotoId(json! as String);
+
+  String toJson() => value;
+}
+
+/// Normalizes a value for the WRITE path.
+///
+/// The filter path already does this (`whereValueToJsonEncodable`), and the
+/// write path does not -- a raw `DateTime` reaches `jsonEncode` and throws
+/// `JsonUnsupportedObjectError`, in a create body and inside a `Literal`
+/// alike. Measured, not assumed.
+///
+/// `DateTime` becomes epoch milliseconds, which is both the storage encoding
+/// (`DateTimeTransformer.encode`) and one of the two forms its `decode`
+/// accepts. Absorbing this is most of why a generated client is worth having:
+/// §4.1 is otherwise knowledge every caller has to carry.
+Object? zonaiWriteValue(Object? value) => switch (value) {
+      final DateTime d => d.millisecondsSinceEpoch,
+      final List<Object?> l => [for (final e in l) zonaiWriteValue(e)],
+      final Map<Object?, Object?> m => {
+          for (final e in m.entries) e.key.toString(): zonaiWriteValue(e.value),
+        },
+      _ => value,
+    };
+
+/// One field's worth of change, in a form that can say "set to NULL".
+///
+/// The naive `PostsUpdate({String? title})` has two defects that this fixes at
+/// once. It can only ever express `literal`, and it **cannot distinguish
+/// "leave alone" from "set to NULL"** -- `Literal(null)` is a real operation
+/// the server applies (`_convertUpdateValue`), and a nullable named argument
+/// has no way to mean it.
+///
+/// The vocabulary is gated by subclass, so a column only offers the operations
+/// its kind actually supports: `increment` on a number, `addAll` on a list,
+/// and neither on a `String`.
+sealed class Patch<T> {
+  const Patch(this.value);
+
+  /// The wire operation this patch became.
+  final UpdateValue value;
+}
+
+/// Any column: set it, or set it to NULL.
+///
+/// Only the `clear` / `increment` / `decrement` constructors are `const`: the
+/// others take a runtime value, so `Literal(v)` is not a constant expression.
+final class Field<T> extends Patch<T> {
+  Field.set(T v) : super(Literal(zonaiWriteValue(v)));
+  const Field.clear() : super(const Literal(null));
+}
+
+/// `integer`, `real` -- the numeric mutation vocabulary.
+///
+/// `bigInt` is deliberately absent: `Literal.toJson` runs `jsonEncode`, which
+/// rejects a `BigInt`, so the request would throw before it was sent. That is
+/// the same measurement that keeps `bigInt` from carrying a `ColumnRef`.
+final class NumField<T extends num> extends Patch<T> {
+  NumField.set(T v) : super(Literal(zonaiWriteValue(v)));
+  const NumField.clear() : super(const Literal(null));
+  const NumField.increment() : super(const Increment());
+  const NumField.decrement() : super(const Decrement());
+  NumField.add(T v) : super(Add(zonaiWriteValue(v)));
+  NumField.subtract(T v) : super(Remove(zonaiWriteValue(v)));
+}
+
+/// `list`, `enumList`, `photos` -- element-wise mutation.
+final class ListField<E> extends Patch<List<E>> {
+  ListField.set(List<E> v) : super(Literal(zonaiWriteValue(v)));
+  const ListField.clear() : super(const Literal(null));
+  ListField.add(E v) : super(Add(zonaiWriteValue(v)));
+  ListField.remove(E v) : super(Remove(zonaiWriteValue(v)));
+  ListField.addAll(List<E> v)
+      : super(AddAll(zonaiWriteValue(v)! as List<Object?>));
+  ListField.removeAll(List<E> v)
+      : super(RemoveAll(zonaiWriteValue(v)! as List<Object?>));
+}
+
+/// `map` columns.
+///
+/// Set and clear only for now. The dotted JSON-path form (`.at('a.b')`, §4.7)
+/// renders to a dotted `ColumnUpdate` rather than a plain one and arrives with
+/// the rest of phase 4.
+final class MapField<T> extends Patch<T> {
+  MapField.set(T v) : super(Literal(zonaiWriteValue(v)));
+  const MapField.clear() : super(const Literal(null));
+}
+
 /// One `expand` path, built by chaining getters rather than writing a string.
 ///
 /// The server keys expanded rows by the **foreign-key column name** and splits

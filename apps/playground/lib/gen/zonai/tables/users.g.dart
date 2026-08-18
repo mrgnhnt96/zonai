@@ -138,6 +138,84 @@ abstract final class Users {
   static const updatedAt = NullableColumnRef<DateTime>('updated_at');
 }
 
+/// The columns a new `users` row may set.
+///
+/// Read-only columns are absent: `created_at`, `updated_at`
+/// and anything the server generates. A secret column IS
+/// here -- it is stripped from responses, not from writes.
+final class UsersCreate {
+  const UsersCreate({
+    this.id,
+    required this.name,
+    required this.email,
+    required this.isVerified,
+    required this.password,
+  });
+
+  /// The `id` column.
+  final UsersId? id;
+
+  /// The `name` column.
+  final String name;
+
+  /// The `email` column.
+  final String email;
+
+  /// The `is_verified` column.
+  final bool isVerified;
+
+  /// The `password` column.
+  final String password;
+
+  /// The wire object, omitting every column not supplied.
+  Map<String, dynamic> toObject() => {
+        if (id != null) 'id': zonaiWriteValue(id!.value),
+        'name': zonaiWriteValue(name),
+        'email': zonaiWriteValue(email),
+        'is_verified': zonaiWriteValue(isVerified),
+        'password': zonaiWriteValue(password),
+      };
+}
+
+/// The changes to apply to matching `users` rows.
+///
+/// Each field takes a `Patch` rather than a raw value, which
+/// is what makes "leave alone" and "set to NULL" different
+/// call sites instead of the same `null`.
+final class UsersUpdate {
+  const UsersUpdate({
+    this.id,
+    this.name,
+    this.email,
+    this.isVerified,
+    this.password,
+  });
+
+  /// The `id` column.
+  final Field<UsersId>? id;
+
+  /// The `name` column.
+  final Field<String>? name;
+
+  /// The `email` column.
+  final Field<String>? email;
+
+  /// The `is_verified` column.
+  final Field<bool>? isVerified;
+
+  /// The `password` column.
+  final Field<String>? password;
+
+  /// One `ColumnUpdate` per field actually supplied.
+  List<Update> toUpdates() => [
+        if (id case final p?) ColumnUpdate('id', p.value),
+        if (name case final p?) ColumnUpdate('name', p.value),
+        if (email case final p?) ColumnUpdate('email', p.value),
+        if (isVerified case final p?) ColumnUpdate('is_verified', p.value),
+        if (password case final p?) ColumnUpdate('password', p.value),
+      ];
+}
+
 /// Reads of the `users` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -201,6 +279,86 @@ final class UsersApi {
   Future<int> count({Where? where, Authorization? as}) =>
       _db.count(
         body: CountBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Inserts one row and returns it as the server stored it.
+  Future<UsersRow> create(
+    UsersCreate object, {
+    Authorization? as,
+  }) =>
+      _db.create(
+        body: CreateBody(table: table, object: object.toObject()),
+        fromJson: UsersRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Inserts many rows in one request.
+  Future<List<UsersRow>> createMany(
+    List<UsersCreate> objects, {
+    Authorization? as,
+  }) =>
+      _db.createMany(
+        body: CreateManyBody(
+          table: table,
+          objects: [for (final o in objects) o.toObject()],
+        ),
+        fromJson: UsersRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to the single row matching [where].
+  Future<UsersRow> update({
+    required Where where,
+    required UsersUpdate set,
+    Authorization? as,
+  }) =>
+      _db.update(
+        body: UpdateOneBody(
+          table: table,
+          where: where,
+          updates: set.toUpdates(),
+        ),
+        fromJson: UsersRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to every row matching [where].
+  Future<List<UsersRow>> updateMany({
+    required Where where,
+    required UsersUpdate set,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.updateMany(
+        body: UpdateBody(
+          table: table,
+          where: where,
+          limit: limit,
+          updates: set.toUpdates(),
+        ),
+        fromJson: UsersRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Deletes the single row matching [where].
+  Future<void> delete({
+    required Where where,
+    Authorization? as,
+  }) =>
+      _db.delete(
+        body: DeleteOneBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Deletes every row matching [where].
+  Future<void> deleteMany({
+    required Where where,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.deleteMany(
+        body: DeleteBody(table: table, where: where, limit: limit),
         authorization: as?.header,
       );
 }

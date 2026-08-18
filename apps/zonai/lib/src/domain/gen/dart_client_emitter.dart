@@ -99,6 +99,13 @@ $kGeneratedClientHeader
         'ColumnRef, '
         'ComparableColumnRef, '
         'ExpandPath, '
+        'Field, '
+        'ListField, '
+        'MapField, '
+        'NumField, '
+        'Patch, '
+        'PhotoId, '
+        'zonaiWriteValue, '
         'NullableColumnRef, '
         'StringColumnRef, '
         'ZonaiRowParseException;',
@@ -149,6 +156,10 @@ $kGeneratedClientHeader
           binding,
     ];
     final expands = ExpandBinding.forTable(shape, names: names);
+    // A view is read-only: the server has nothing to write through.
+    final writes = shape.isView
+        ? const <WriteBinding>[]
+        : WriteBinding.forTable(shape, names: names);
     final secrets = [
       for (final column in shape.columns)
         if (column.isSecret) column.name,
@@ -181,12 +192,17 @@ $kGeneratedClientHeader
     // `AuthorsExpand.companyId` has to have a `CompaniesExpand` to return.
     _writeExpand(buffer, name, expands, names);
     _writeTokens(buffer, shape, name, columns, secrets, expands);
+    if (writes.isNotEmpty) {
+      _writeCreateBuilder(buffer, name, writes);
+      _writeUpdateBuilder(buffer, name, writes);
+    }
     _writeApi(
       buffer,
       shape,
       name,
       columns,
       _expandExample(expands, input.schema.tables, names, owner: name),
+      writes,
     );
 
     return buffer.toString();
@@ -544,6 +560,125 @@ $kGeneratedClientHeader
       ..writeln();
   }
 
+  /// The create builder: a plain value per column, no `Patch`.
+  ///
+  /// There is no absent/NULL ambiguity on insert -- omitting a nullable column
+  /// and inserting NULL into it are the same thing -- so create stays plain and
+  /// only update pays the `Field.set(...)` cost.
+  void _writeCreateBuilder(
+    StringBuffer buffer,
+    TableNames name,
+    List<WriteBinding> writes,
+  ) {
+    buffer
+      ..writeln('/// The columns a new `${name.table}` row may set.')
+      ..writeln('///')
+      ..writeln('/// Read-only columns are absent: `created_at`, `updated_at`')
+      ..writeln('/// and anything the server generates. A secret column IS')
+      ..writeln('/// here -- it is stripped from responses, not from writes.')
+      ..writeln('final class ${name.create} {')
+      ..writeln('  const ${name.create}({');
+    for (final write in writes) {
+      final req = write.isRequiredOnCreate ? 'required ' : '';
+      buffer.writeln('    ${req}this.${write.field},');
+    }
+    buffer
+      ..writeln('  });')
+      ..writeln();
+
+    for (final write in writes) {
+      final opt = write.isRequiredOnCreate ? '' : '?';
+      buffer
+        ..writeln('  /// The `${write.wireKey}` column.')
+        ..writeln('  final ${write.type}$opt ${write.field};')
+        ..writeln();
+    }
+
+    buffer
+      ..writeln('  /// The wire object, omitting every column not supplied.')
+      ..writeln('  Map<String, dynamic> toObject() => {');
+    for (final write in writes) {
+      final expression = _writeValueExpression(write);
+      if (write.isRequiredOnCreate) {
+        buffer.writeln("        '${write.wireKey}': $expression,");
+      } else {
+        buffer.writeln(
+          '        if (${write.field} != null) '
+          "'${write.wireKey}': $expression,",
+        );
+      }
+    }
+    buffer
+      ..writeln('      };')
+      ..writeln('}')
+      ..writeln();
+  }
+
+  /// The update builder: one `Patch` per column, so NULL is expressible.
+  void _writeUpdateBuilder(
+    StringBuffer buffer,
+    TableNames name,
+    List<WriteBinding> writes,
+  ) {
+    buffer
+      ..writeln('/// The changes to apply to matching `${name.table}` rows.')
+      ..writeln('///')
+      ..writeln('/// Each field takes a `Patch` rather than a raw value, which')
+      ..writeln('/// is what makes "leave alone" and "set to NULL" different')
+      ..writeln('/// call sites instead of the same `null`.')
+      ..writeln('final class ${name.update} {')
+      ..writeln('  const ${name.update}({');
+    for (final write in writes) {
+      buffer.writeln('    this.${write.field},');
+    }
+    buffer
+      ..writeln('  });')
+      ..writeln();
+
+    for (final write in writes) {
+      buffer
+        ..writeln('  /// The `${write.wireKey}` column.')
+        ..writeln('  final ${write.patch}<${write.patchType}>? ${write.field};')
+        ..writeln();
+    }
+
+    buffer
+      ..writeln('  /// One `ColumnUpdate` per field actually supplied.')
+      ..writeln('  List<Update> toUpdates() => [');
+    for (final write in writes) {
+      buffer.writeln(
+        '        if (${write.field} case final p?) '
+        "ColumnUpdate('${write.wireKey}', p.value),",
+      );
+    }
+    buffer
+      ..writeln('      ];')
+      ..writeln('}')
+      ..writeln();
+  }
+
+  /// How a create field reaches the wire.
+  ///
+  /// An extension-type id erases to its `String` at runtime, but `toObject`
+  /// declares `Map<String, dynamic>` and the value is jsonEncoded downstream --
+  /// `.value` makes the unwrapping explicit rather than relying on erasure.
+  String _writeValueExpression(WriteBinding write) {
+    final field = write.field;
+    final bang = write.isRequiredOnCreate ? '' : '!';
+    final unwrapped = switch (write.column.kind) {
+      ColumnShapeKind.photo => '$field$bang.value',
+      ColumnShapeKind.photos => '[for (final p in $field$bang) p.value]',
+      ColumnShapeKind.id when write.type != 'String' => '$field$bang.value',
+      _ => field + bang,
+    };
+
+    // Everything goes through the same normalizer the `Patch` constructors
+    // use, so create and update cannot disagree about an encoding. It is a
+    // no-op on a `String` or an `int`; on a `DateTime` it is the difference
+    // between a request and a `JsonUnsupportedObjectError`.
+    return 'zonaiWriteValue($unwrapped)';
+  }
+
   /// `DateTime?` -> `DateTime`. A token's type parameter is always the
   /// non-nullable one; see `ColumnRef`'s own doc for why.
   static String _nonNullable(String type) =>
@@ -563,6 +698,7 @@ $kGeneratedClientHeader
     TableNames name,
     List<ColumnBinding> columns,
     String? expandExample,
+    List<WriteBinding> writes,
   ) {
     final primaryKey = _primaryKey(shape);
     final keyed = primaryKey == null
@@ -595,6 +731,7 @@ $kGeneratedClientHeader
     _writeGet(buffer, name, keyed);
     _writeList(buffer, name, expandExample);
     _writeCount(buffer, name);
+    if (writes.isNotEmpty) _writeMutations(buffer, name);
 
     buffer.writeln('}');
   }
@@ -693,6 +830,99 @@ $kGeneratedClientHeader
       ..writeln('  Future<int> count({Where? where, Authorization? as}) =>')
       ..writeln('      _db.count(')
       ..writeln('        body: CountBody(table: table, where: where),')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );');
+  }
+
+  /// `create` / `createMany` / `update` / `updateMany` / `delete` /
+  /// `deleteMany` -- the six `Db` operations that had no typed mirror.
+  ///
+  /// Emitted only for a real table. A view has no write surface because the
+  /// server has nothing to write through.
+  void _writeMutations(StringBuffer buffer, TableNames name) {
+    buffer
+      ..writeln()
+      ..writeln('  /// Inserts one row and returns it as the server stored it.')
+      ..writeln('  Future<${name.row}> create(')
+      ..writeln('    ${name.create} object, {')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.create(')
+      ..writeln(
+        '        body: CreateBody(table: table, object: object.toObject()),',
+      )
+      ..writeln('        fromJson: ${name.row}.fromJson,')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln()
+      ..writeln('  /// Inserts many rows in one request.')
+      ..writeln('  Future<List<${name.row}>> createMany(')
+      ..writeln('    List<${name.create}> objects, {')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.createMany(')
+      ..writeln('        body: CreateManyBody(')
+      ..writeln('          table: table,')
+      ..writeln('          objects: [for (final o in objects) o.toObject()],')
+      ..writeln('        ),')
+      ..writeln('        fromJson: ${name.row}.fromJson,')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln()
+      ..writeln('  /// Applies [set] to the single row matching [where].')
+      ..writeln('  Future<${name.row}> update({')
+      ..writeln('    required Where where,')
+      ..writeln('    required ${name.update} set,')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.update(')
+      ..writeln('        body: UpdateOneBody(')
+      ..writeln('          table: table,')
+      ..writeln('          where: where,')
+      ..writeln('          updates: set.toUpdates(),')
+      ..writeln('        ),')
+      ..writeln('        fromJson: ${name.row}.fromJson,')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln()
+      ..writeln('  /// Applies [set] to every row matching [where].')
+      ..writeln('  Future<List<${name.row}>> updateMany({')
+      ..writeln('    required Where where,')
+      ..writeln('    required ${name.update} set,')
+      ..writeln('    int? limit,')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.updateMany(')
+      ..writeln('        body: UpdateBody(')
+      ..writeln('          table: table,')
+      ..writeln('          where: where,')
+      ..writeln('          limit: limit,')
+      ..writeln('          updates: set.toUpdates(),')
+      ..writeln('        ),')
+      ..writeln('        fromJson: ${name.row}.fromJson,')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln()
+      ..writeln('  /// Deletes the single row matching [where].')
+      ..writeln('  Future<void> delete({')
+      ..writeln('    required Where where,')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.delete(')
+      ..writeln('        body: DeleteOneBody(table: table, where: where),')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln()
+      ..writeln('  /// Deletes every row matching [where].')
+      ..writeln('  Future<void> deleteMany({')
+      ..writeln('    required Where where,')
+      ..writeln('    int? limit,')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.deleteMany(')
+      ..writeln(
+        '        body: DeleteBody(table: table, where: where, limit: limit),',
+      )
       ..writeln('        authorization: as?.header,')
       ..writeln('      );');
   }

@@ -157,6 +157,64 @@ abstract final class Authors {
   static const updatedAt = NullableColumnRef<DateTime>('updated_at');
 }
 
+/// The columns a new `authors` row may set.
+///
+/// Read-only columns are absent: `created_at`, `updated_at`
+/// and anything the server generates. A secret column IS
+/// here -- it is stripped from responses, not from writes.
+final class AuthorsCreate {
+  const AuthorsCreate({
+    this.id,
+    required this.name,
+    this.companyId,
+  });
+
+  /// The `id` column.
+  final AuthorsId? id;
+
+  /// The `name` column.
+  final String name;
+
+  /// The `company_id` column.
+  final CompaniesId? companyId;
+
+  /// The wire object, omitting every column not supplied.
+  Map<String, dynamic> toObject() => {
+        if (id != null) 'id': zonaiWriteValue(id!.value),
+        'name': zonaiWriteValue(name),
+        if (companyId != null) 'company_id': zonaiWriteValue(companyId!.value),
+      };
+}
+
+/// The changes to apply to matching `authors` rows.
+///
+/// Each field takes a `Patch` rather than a raw value, which
+/// is what makes "leave alone" and "set to NULL" different
+/// call sites instead of the same `null`.
+final class AuthorsUpdate {
+  const AuthorsUpdate({
+    this.id,
+    this.name,
+    this.companyId,
+  });
+
+  /// The `id` column.
+  final Field<AuthorsId>? id;
+
+  /// The `name` column.
+  final Field<String>? name;
+
+  /// The `company_id` column.
+  final Field<CompaniesId>? companyId;
+
+  /// One `ColumnUpdate` per field actually supplied.
+  List<Update> toUpdates() => [
+        if (id case final p?) ColumnUpdate('id', p.value),
+        if (name case final p?) ColumnUpdate('name', p.value),
+        if (companyId case final p?) ColumnUpdate('company_id', p.value),
+      ];
+}
+
 /// Reads of the `authors` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -221,6 +279,86 @@ final class AuthorsApi {
   Future<int> count({Where? where, Authorization? as}) =>
       _db.count(
         body: CountBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Inserts one row and returns it as the server stored it.
+  Future<AuthorsRow> create(
+    AuthorsCreate object, {
+    Authorization? as,
+  }) =>
+      _db.create(
+        body: CreateBody(table: table, object: object.toObject()),
+        fromJson: AuthorsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Inserts many rows in one request.
+  Future<List<AuthorsRow>> createMany(
+    List<AuthorsCreate> objects, {
+    Authorization? as,
+  }) =>
+      _db.createMany(
+        body: CreateManyBody(
+          table: table,
+          objects: [for (final o in objects) o.toObject()],
+        ),
+        fromJson: AuthorsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to the single row matching [where].
+  Future<AuthorsRow> update({
+    required Where where,
+    required AuthorsUpdate set,
+    Authorization? as,
+  }) =>
+      _db.update(
+        body: UpdateOneBody(
+          table: table,
+          where: where,
+          updates: set.toUpdates(),
+        ),
+        fromJson: AuthorsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to every row matching [where].
+  Future<List<AuthorsRow>> updateMany({
+    required Where where,
+    required AuthorsUpdate set,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.updateMany(
+        body: UpdateBody(
+          table: table,
+          where: where,
+          limit: limit,
+          updates: set.toUpdates(),
+        ),
+        fromJson: AuthorsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Deletes the single row matching [where].
+  Future<void> delete({
+    required Where where,
+    Authorization? as,
+  }) =>
+      _db.delete(
+        body: DeleteOneBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Deletes every row matching [where].
+  Future<void> deleteMany({
+    required Where where,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.deleteMany(
+        body: DeleteBody(table: table, where: where, limit: limit),
         authorization: as?.header,
       );
 }

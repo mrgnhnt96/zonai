@@ -3,6 +3,156 @@ import 'package:zonai_schema/src/types/schema_shape.dart';
 
 import 'client_names.dart';
 
+/// One column on the WRITE side: create and update.
+///
+/// A separate resolution from [ColumnBinding], because the two disagree in
+/// three places and every one of them is load-bearing:
+///
+///  - **Secret columns are writable.** `_sanitizeRows` strips a password from
+///    every response, so [ColumnBinding] correctly returns null for it -- but
+///    `_requireFilterableColumn` is the *only* place the server special-cases a
+///    secret, and it guards filters, not writes. A create builder without the
+///    password field cannot create a row on a table that requires one.
+///  - **Photo columns invert.** The row reads `Uri`; the write takes a
+///    `PhotoId`, which `_verifyPhotoIds` checks against the `_photos` table.
+///  - **Read-only columns vanish.** `createdAt`, `updatedAt` and anything
+///    behind a `ServerGeneratedTransformer` are set by the server.
+final class WriteBinding {
+  const WriteBinding({
+    required this.column,
+    required this.field,
+    required this.type,
+    required this.patch,
+    required this.isRequiredOnCreate,
+  });
+
+  final ColumnShape column;
+
+  /// Dart field name. `author_id` -> `authorId`.
+  final String field;
+
+  /// The value type this column accepts, never nullable -- absence is spelled
+  /// by omitting the field, and NULL by `Field.clear()`.
+  final String type;
+
+  /// The `Patch` subclass gating this column's operation vocabulary.
+  final String patch;
+
+  /// Whether a create call must supply it.
+  final bool isRequiredOnCreate;
+
+  String get wireKey => column.name;
+
+  /// The writable columns of [shape], in declaration order.
+  static List<WriteBinding> forTable(
+    TableSchemaShape shape, {
+    required ClientNameTable names,
+  }) {
+    return [
+      for (final column in shape.columns)
+        if (forColumn(column, table: shape.table, names: names)
+            case final binding?)
+          binding,
+    ];
+  }
+
+  /// Resolves one column, or null when it cannot be written.
+  static WriteBinding? forColumn(
+    ColumnShape column, {
+    required String table,
+    required ClientNameTable names,
+  }) {
+    // Set by the server, not by the caller.
+    //
+    // Checked by kind as well as by the flag: a `createdAt` column is
+    // server-managed by definition, and a shape that arrived without
+    // `isReadOnly` set would otherwise mint a writable `created_at` whose
+    // value the server overwrites anyway.
+    if (column.isReadOnly) return null;
+    if (column.kind == ColumnShapeKind.createdAt ||
+        column.kind == ColumnShapeKind.updatedAt) {
+      return null;
+    }
+
+    // `Literal.toJson` runs `jsonEncode`, which throws on a `BigInt` -- so a
+    // typed setter for one would be a compile-time promise the request cannot
+    // keep. Measured, not assumed; the same finding excludes it from
+    // `isTokenable`.
+    if (column.kind == ColumnShapeKind.bigInt) return null;
+
+    final (type, patch) = _bindWrite(column, table: table, names: names);
+
+    // The id is generated when absent (`IdTransformer` carries a `generate`
+    // and mixes in `CreatePrimaryKey`), and a column with a default does not
+    // need one either.
+    final generated = column.isPrimaryKey && column.kind == ColumnShapeKind.id;
+    final required =
+        !column.isNullable &&
+        !generated &&
+        !column.autoIncrement &&
+        column.defaultValue == null;
+
+    return WriteBinding(
+      column: column,
+      field: ColumnBinding.fieldName(column.name),
+      type: type,
+      patch: patch,
+      isRequiredOnCreate: required,
+    );
+  }
+
+  /// The write-side Dart type and the `Patch` subclass that gates it.
+  static (String, String) _bindWrite(
+    ColumnShape column, {
+    required String table,
+    required ClientNameTable names,
+  }) {
+    return switch (column.kind) {
+      // The inversion: an id in, a URL out.
+      ColumnShapeKind.photo => ('PhotoId', 'Field'),
+      ColumnShapeKind.photos => ('List<PhotoId>', 'ListField'),
+      ColumnShapeKind.id => (
+        ColumnBinding.idType(column, table: table, names: names),
+        'Field',
+      ),
+      ColumnShapeKind.integer => ('int', 'NumField'),
+      ColumnShapeKind.real => ('double', 'NumField'),
+      ColumnShapeKind.list => ('List<Object?>', 'ListField'),
+      ColumnShapeKind.enumList => ('List<String>', 'ListField'),
+      ColumnShapeKind.map => ('Map<String, Object?>', 'MapField'),
+      ColumnShapeKind.boolean ||
+      ColumnShapeKind.isVerified => ('bool', 'Field'),
+      ColumnShapeKind.dateTime ||
+      ColumnShapeKind.createdAt ||
+      ColumnShapeKind.updatedAt => ('DateTime', 'Field'),
+      ColumnShapeKind.blob => ('List<int>', 'Field'),
+      ColumnShapeKind.text ||
+      ColumnShapeKind.email ||
+      ColumnShapeKind.password ||
+      ColumnShapeKind.deviceToken ||
+      ColumnShapeKind.enum_ => ('String', 'Field'),
+      // Excluded above; the switch stays exhaustive so a new kind is a
+      // compile error here rather than a silent `Field<Object?>`.
+      ColumnShapeKind.bigInt => ('BigInt', 'Field'),
+    };
+  }
+
+  /// The generic argument for this column's `Patch`.
+  ///
+  /// `ListField` is already `Patch<List<E>>`, so it takes the ELEMENT type
+  /// while everything else takes the value type.
+  String get patchType => switch (patch) {
+    'ListField' => _elementOf(type),
+    _ => type,
+  };
+
+  static String _elementOf(String listType) {
+    final open = listType.indexOf('<');
+    if (open == -1 || !listType.endsWith('>')) return 'Object?';
+    return listType.substring(open + 1, listType.length - 1);
+  }
+}
+
 /// One column, resolved to the Dart it turns into.
 ///
 /// The whole of §4.1 lives here: rows come off the wire as **raw SQLite
@@ -139,7 +289,7 @@ final class ColumnBinding {
       ColumnShapeKind.photo => ('Uri', 'uri'),
       ColumnShapeKind.photos => ('List<Uri>', 'uriList'),
       ColumnShapeKind.id => (
-        _idType(column, table: table, names: names),
+        idType(column, table: table, names: names),
         'string',
       ),
       ColumnShapeKind.text ||
@@ -174,7 +324,7 @@ final class ColumnBinding {
   }) {
     if (column.kind != ColumnShapeKind.id) return call;
 
-    final type = _idType(column, table: table, names: names);
+    final type = idType(column, table: table, names: names);
     if (type == 'String') return call;
 
     return column.isNullable
@@ -189,7 +339,7 @@ final class ColumnBinding {
   /// free, from data the server already publishes. A foreign key into a table
   /// this run did not emit (every `_`-prefixed one) has no type to name, so it
   /// falls back to the `String` it erases to anyway (§4.5).
-  static String _idType(
+  static String idType(
     ColumnShape column, {
     required String table,
     required ClientNameTable names,

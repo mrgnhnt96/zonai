@@ -396,17 +396,29 @@ void main() {
       expect(_apiMethods(source, 'PostSummaryApi'), ['get', 'list', 'count']);
       expect(source, contains('a read-only view'));
 
-      // Phase 1 emits no writes for *any* table, so on its own the absence
-      // above proves nothing about views. Pinning both surfaces is what makes
-      // this meaningful: when phase 2 adds `create`/`update`/`delete` to
-      // tables, the two lists stop matching and the view's has to stay put.
+      // Phase 2 has landed, so the two surfaces now differ -- which is what
+      // makes the view's list meaningful. A real table carries the six
+      // mutations; the view carries none of them, and the difference is
+      // exactly that set.
       expect(
         _apiMethods(plan.files['tables/posts.g.dart']!, 'PostsApi'),
-        _apiMethods(source, 'PostSummaryApi'),
-        reason:
-            'phase 1 emits reads only; if a table gained a write surface, '
-            'confirm the view did not and update this test',
+        containsAll(_apiMethods(source, 'PostSummaryApi')),
       );
+      expect(
+        _apiMethods(plan.files['tables/posts.g.dart']!, 'PostsApi').toSet()
+          ..removeAll(_apiMethods(source, 'PostSummaryApi')),
+        unorderedEquals(<String>[
+          'create',
+          'createMany',
+          'update',
+          'updateMany',
+          'delete',
+          'deleteMany',
+        ]),
+        reason: 'a view has nothing to write through',
+      );
+      expect(source, isNot(contains('PostSummaryCreate')));
+      expect(source, isNot(contains('PostSummaryUpdate')));
     });
 
     test('secret columns never reach the client', () {
@@ -419,10 +431,44 @@ void main() {
         contains('password'),
         reason: 'the assertion below is vacuous if the column is gone',
       );
-      expect(plan.files['tables/users.g.dart'], isNot(contains("'password'")));
+      // Scoped to the ROW. A secret is unreadable, not unwritable: the server
+      // special-cases it in `_requireFilterableColumn` only, which guards
+      // filters. A create builder without the field cannot create a user at
+      // all, so `UsersCreate.password` is correct and must not be forbidden
+      // here -- what must stay absent is a field on `UsersRow` and any attempt
+      // to parse one back off the wire.
+      String rowOf(String file, String type) {
+        final source = plan.files[file]!;
+        final start = source.indexOf('final class $type {');
+        return source.substring(start, source.indexOf('abstract final class'));
+      }
+
+      // The word itself appears in the row's doc, which explains the
+      // omission -- so this pins the field and the constructor parameter,
+      // which are the things that would actually be wrong.
+      final usersRow = rowOf('tables/users.g.dart', 'UsersRow');
+      expect(usersRow, isNot(contains('final String password;')));
+      expect(usersRow, isNot(contains('this.password,')));
+      // The note sits in the doc ABOVE the class, so it is asserted on the
+      // whole file rather than on the row slice.
+      expect(
+        plan.files['tables/users.g.dart'],
+        contains('`password` is a secret column'),
+        reason: 'absent is a decision, and the model should say so',
+      );
+      expect(
+        plan.files['tables/users.g.dart'],
+        isNot(contains("_r.string(json, 'password'")),
+      );
+      final fixturesRow = rowOf(
+        'tables/cell_edit_fixtures.g.dart',
+        'CellEditFixturesRow',
+      );
+      expect(fixturesRow, isNot(contains('final String secretNote;')));
+      expect(fixturesRow, isNot(contains('this.secretNote,')));
       expect(
         plan.files['tables/cell_edit_fixtures.g.dart'],
-        isNot(contains("'secret_note'")),
+        isNot(contains("_r.string(json, 'secret_note'")),
       );
     });
 

@@ -96,6 +96,12 @@ final class TableNames {
   /// Per-table API. `PostsApi`.
   String get api => '${base}Api';
 
+  /// The create builder: `posts` -> `PostsCreate`.
+  String get create => '${base}Create';
+
+  /// The update builder: `posts` -> `PostsUpdate`.
+  String get update => '${base}Update';
+
   /// The typed `expand` path builder: `posts` -> `PostsExpand`.
   ///
   /// Distinct from [expanded] (`PostsExpanded`), which is the *response* side.

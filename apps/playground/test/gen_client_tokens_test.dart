@@ -131,6 +131,102 @@ void main() {
     });
   });
 
+  group('the write surface says what a nullable field could not', () {
+    test('"leave alone" and "set to NULL" are different payloads', () {
+      // This is the entire reason each field takes a `Patch` instead of a raw
+      // value. `PostsUpdate({String? body})` cannot express the second one at
+      // all, and `Literal(null)` is a real operation the server applies.
+      final leaveAlone = const PostsUpdate().toUpdates();
+      final setToNull = const PostsUpdate(body: Field.clear()).toUpdates();
+      final setToValue = PostsUpdate(body: Field.set('hi')).toUpdates();
+
+      expect(leaveAlone, isEmpty);
+      expect(
+        jsonEncode([for (final u in setToNull) u.toJson()]),
+        isNot(jsonEncode([for (final u in leaveAlone) u.toJson()])),
+      );
+      expect(setToNull.single.toJson(), {
+        'type': 'column',
+        'column': 'body',
+        'value': {'type': 'literal', 'value': null},
+      });
+      expect((setToValue.single.toJson()['value'] as Map)['value'], 'hi');
+    });
+
+    test('a DateTime survives the write path as epoch milliseconds', () {
+      // Measured: a raw DateTime reaches jsonEncode and throws
+      // JsonUnsupportedObjectError, in a create body and inside a Literal
+      // alike. The filter path normalizes and the write path does not, so the
+      // generated client has to.
+      final at = DateTime.utc(2025, 6, 1);
+
+      // Not `updated_at`: that column is server-managed and correctly has no
+      // write field at all. `happened_at` is an ordinary writable dateTime.
+      final update = CellEditFixturesUpdate(
+        happenedAt: Field.set(at),
+      ).toUpdates();
+      expect(
+        (update.single.toJson()['value'] as Map)['value'],
+        at.millisecondsSinceEpoch,
+      );
+
+      final create = CellEditFixturesCreate(
+        label: 'x',
+        flag: true,
+        count: 1,
+        amount: 1.5,
+        happenedAt: at,
+        contactEmail: 'a@b.c',
+        status: 'draft',
+        tags: const ['alpha'],
+        keywords: const [],
+        secretNote: 's',
+        meta: const {},
+      ).toObject();
+      expect(create['happened_at'], at.millisecondsSinceEpoch);
+      expect(() => jsonEncode(create), returnsNormally);
+    });
+
+    test('the vocabulary is gated by column kind', () {
+      // `increment` exists on a number and nowhere else; `addAll` on a list.
+      expect(
+        const CellEditFixturesUpdate(
+          count: NumField.increment(),
+        ).toUpdates().single.toJson()['value'],
+        {'type': 'increment'},
+      );
+      expect(
+        CellEditFixturesUpdate(
+          tags: ListField.addAll(const ['beta']),
+        ).toUpdates().single.toJson()['value'],
+        {
+          'type': 'add_all',
+          'values': ['beta'],
+        },
+      );
+    });
+
+    test('create omits what it was not given, and keeps what it was', () {
+      final withId = PostsCreate(
+        id: const PostsId('abc_ps'),
+        authorId: const AuthorsId('abc_au'),
+        title: 'Hello',
+      ).toObject();
+      final withoutId = PostsCreate(
+        authorId: const AuthorsId('abc_au'),
+        title: 'Hello',
+      ).toObject();
+
+      expect(withId['id'], 'abc_ps', reason: 'an id erases to its String');
+      expect(
+        withoutId.containsKey('id'),
+        isFalse,
+        reason: 'the server generates one when absent',
+      );
+      expect(withoutId['author_id'], 'abc_au');
+    });
+  });
+
   group('what a token deliberately cannot do', () {
     test('a nullable column keeps the full comparable surface', () {
       // The reason NullableColumnRef<T> is a subclass and not ColumnRef<T?>:

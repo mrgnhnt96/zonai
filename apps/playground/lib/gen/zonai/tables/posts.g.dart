@@ -170,6 +170,84 @@ abstract final class Posts {
   static const updatedAt = NullableColumnRef<DateTime>('updated_at');
 }
 
+/// The columns a new `posts` row may set.
+///
+/// Read-only columns are absent: `created_at`, `updated_at`
+/// and anything the server generates. A secret column IS
+/// here -- it is stripped from responses, not from writes.
+final class PostsCreate {
+  const PostsCreate({
+    this.id,
+    this.photo,
+    required this.authorId,
+    required this.title,
+    this.body,
+  });
+
+  /// The `id` column.
+  final PostsId? id;
+
+  /// The `photo` column.
+  final PhotoId? photo;
+
+  /// The `author_id` column.
+  final AuthorsId authorId;
+
+  /// The `title` column.
+  final String title;
+
+  /// The `body` column.
+  final String? body;
+
+  /// The wire object, omitting every column not supplied.
+  Map<String, dynamic> toObject() => {
+        if (id != null) 'id': zonaiWriteValue(id!.value),
+        if (photo != null) 'photo': zonaiWriteValue(photo!.value),
+        'author_id': zonaiWriteValue(authorId.value),
+        'title': zonaiWriteValue(title),
+        if (body != null) 'body': zonaiWriteValue(body!),
+      };
+}
+
+/// The changes to apply to matching `posts` rows.
+///
+/// Each field takes a `Patch` rather than a raw value, which
+/// is what makes "leave alone" and "set to NULL" different
+/// call sites instead of the same `null`.
+final class PostsUpdate {
+  const PostsUpdate({
+    this.id,
+    this.photo,
+    this.authorId,
+    this.title,
+    this.body,
+  });
+
+  /// The `id` column.
+  final Field<PostsId>? id;
+
+  /// The `photo` column.
+  final Field<PhotoId>? photo;
+
+  /// The `author_id` column.
+  final Field<AuthorsId>? authorId;
+
+  /// The `title` column.
+  final Field<String>? title;
+
+  /// The `body` column.
+  final Field<String>? body;
+
+  /// One `ColumnUpdate` per field actually supplied.
+  List<Update> toUpdates() => [
+        if (id case final p?) ColumnUpdate('id', p.value),
+        if (photo case final p?) ColumnUpdate('photo', p.value),
+        if (authorId case final p?) ColumnUpdate('author_id', p.value),
+        if (title case final p?) ColumnUpdate('title', p.value),
+        if (body case final p?) ColumnUpdate('body', p.value),
+      ];
+}
+
 /// Reads of the `posts` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -234,6 +312,86 @@ final class PostsApi {
   Future<int> count({Where? where, Authorization? as}) =>
       _db.count(
         body: CountBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Inserts one row and returns it as the server stored it.
+  Future<PostsRow> create(
+    PostsCreate object, {
+    Authorization? as,
+  }) =>
+      _db.create(
+        body: CreateBody(table: table, object: object.toObject()),
+        fromJson: PostsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Inserts many rows in one request.
+  Future<List<PostsRow>> createMany(
+    List<PostsCreate> objects, {
+    Authorization? as,
+  }) =>
+      _db.createMany(
+        body: CreateManyBody(
+          table: table,
+          objects: [for (final o in objects) o.toObject()],
+        ),
+        fromJson: PostsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to the single row matching [where].
+  Future<PostsRow> update({
+    required Where where,
+    required PostsUpdate set,
+    Authorization? as,
+  }) =>
+      _db.update(
+        body: UpdateOneBody(
+          table: table,
+          where: where,
+          updates: set.toUpdates(),
+        ),
+        fromJson: PostsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to every row matching [where].
+  Future<List<PostsRow>> updateMany({
+    required Where where,
+    required PostsUpdate set,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.updateMany(
+        body: UpdateBody(
+          table: table,
+          where: where,
+          limit: limit,
+          updates: set.toUpdates(),
+        ),
+        fromJson: PostsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Deletes the single row matching [where].
+  Future<void> delete({
+    required Where where,
+    Authorization? as,
+  }) =>
+      _db.delete(
+        body: DeleteOneBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Deletes every row matching [where].
+  Future<void> deleteMany({
+    required Where where,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.deleteMany(
+        body: DeleteBody(table: table, where: where, limit: limit),
         authorization: as?.header,
       );
 }

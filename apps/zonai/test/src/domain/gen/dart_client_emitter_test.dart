@@ -75,6 +75,15 @@ Map<String, String> _emit({
   );
 }
 
+/// The source of one generated class, so an assertion about the create
+/// builder cannot be satisfied (or defeated) by the row above it.
+String _classBody(String source, String declaration) {
+  final start = source.indexOf(declaration);
+  if (start == -1) return '';
+  final end = source.indexOf('\n}', start);
+  return source.substring(start, end == -1 ? source.length : end);
+}
+
 void main() {
   group('the file set', () {
     test('is a barrel, a shared runtime and one file per table', () {
@@ -136,9 +145,22 @@ void main() {
       // §4.4: `_sanitizeRows` strips secrets from every response, so a
       // declared field would be null in every row that ever parses.
       final posts = _emit()['tables/posts.g.dart']!;
+      final row = posts.substring(
+        posts.indexOf('final class PostsRow {'),
+        posts.indexOf('abstract final class Posts {'),
+      );
 
-      expect(posts, isNot(contains('draftKey')));
+      // Scoped to the row on purpose. A secret column is stripped from every
+      // *response*, which is why it has no field here -- but it is perfectly
+      // writable, so `PostsCreate` and `PostsUpdate` do carry it. Asserting
+      // over the whole file would forbid the wrong thing.
+      expect(row, isNot(contains('draftKey')));
       expect(posts, isNot(contains("_r.string(json, 'draft_key'")));
+      expect(
+        posts,
+        contains('final String draftKey;'),
+        reason: 'a secret is unreadable, not unwritable -- create needs it',
+      );
       expect(
         posts,
         contains('`draft_key` is a secret column'),
@@ -186,10 +208,28 @@ void main() {
       expect(posts, contains('Future<Paginated<PostsRow>> list({'));
       expect(posts, contains('Future<int> count({'));
 
-      // Phase 2. Emitting them now would be a write surface with no builders.
-      expect(posts, isNot(contains('Future<PostsRow> create')));
-      expect(posts, isNot(contains('Future<void> delete')));
-      expect(posts, isNot(contains('update(')));
+      // The six that used to be missing. `Db` exposes nine operations and the
+      // generated API wrapped three of them; these are the other six.
+      expect(posts, contains('Future<PostsRow> create('));
+      expect(posts, contains('Future<List<PostsRow>> createMany('));
+      expect(posts, contains('Future<PostsRow> update({'));
+      expect(posts, contains('Future<List<PostsRow>> updateMany({'));
+      expect(posts, contains('Future<void> delete({'));
+      expect(posts, contains('Future<void> deleteMany({'));
+
+      // Still phase 3: `DbListen` has no typed mirror yet.
+      expect(posts, isNot(contains('Stream<')));
+    });
+
+    test('a view gets no write surface at all', () {
+      // The server has nothing to write through, so the builders and the six
+      // mutations are absent -- not present-and-throwing.
+      final view = _emit()['tables/post_summary.g.dart']!;
+
+      expect(view, contains('Future<PostSummaryRow> get('));
+      expect(view, isNot(contains('PostSummaryCreate')));
+      expect(view, isNot(contains('PostSummaryUpdate')));
+      expect(view, isNot(contains('Future<void> delete')));
     });
 
     test('takes an Authorization on every method, never a raw String', () {
@@ -198,9 +238,15 @@ void main() {
       // is the point of the type.
       final posts = _emit()['tables/posts.g.dart']!;
 
-      expect('Authorization? as'.allMatches(posts), hasLength(3));
+      // Counted against each other rather than against a literal: the point
+      // is that every method both takes the wrapper and forwards it, and a
+      // fixed number just has to be edited every time a method is added.
+      final declared = 'Authorization? as'.allMatches(posts).length;
+      final forwarded = 'authorization: as?.header,'.allMatches(posts).length;
+
+      expect(declared, 9, reason: 'get, list, count and the six mutations');
+      expect(forwarded, declared, reason: 'every method forwards what it took');
       expect(posts, isNot(contains('String? authorization')));
-      expect('authorization: as?.header,'.allMatches(posts), hasLength(3));
     });
 
     test('keys get by the typed id', () {
@@ -338,6 +384,118 @@ void main() {
         exported,
         isNot(contains('ZonaiRowReader')),
         reason: 'ZonaiRowReader is an implementation detail of the models',
+      );
+    });
+  });
+
+  group('the write surface (§5.5)', () {
+    test('read-only columns are absent from both builders', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('final class PostsCreate {'));
+      expect(posts, contains('final class PostsUpdate {'));
+
+      // Scoped to the builders: the ROW constructor legitimately has
+      // `required this.createdAt,` and a whole-file assertion would be
+      // satisfied by the wrong thing.
+      final create = _classBody(posts, 'final class PostsCreate {');
+      final update = _classBody(posts, 'final class PostsUpdate {');
+
+      expect(create, isNot(contains('createdAt')));
+      expect(update, isNot(contains('createdAt')));
+    });
+
+    test('a secret column IS writable, even though it is unreadable', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      // `_requireFilterableColumn` is the only place the server special-cases
+      // a secret and it guards filters, not writes. A create builder without
+      // the field cannot create a row on a table that requires one.
+      expect(posts, contains('required this.draftKey,'));
+      expect(posts, contains('Field<String>? draftKey;'));
+    });
+
+    test('a photo column inverts: PhotoId in, Uri out', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('final Uri? photo;'), reason: 'the row reads');
+      expect(posts, contains('final PhotoId? photo;'), reason: 'create writes');
+      expect(posts, contains('Field<PhotoId>? photo;'), reason: 'update');
+      expect(posts, contains("'photo': zonaiWriteValue(photo!.value),"));
+    });
+
+    test('the id is optional on create -- the server generates one', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      final create = _classBody(posts, 'final class PostsCreate {');
+
+      expect(create, contains('this.id,'));
+      expect(create, isNot(contains('required this.id,')));
+      expect(
+        create,
+        contains("if (id != null) 'id': zonaiWriteValue(id!.value),"),
+      );
+    });
+
+    test('the patch class is chosen by column kind', () {
+      final shapes = {
+        'items': TableSchemaShape(
+          table: 'items',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column('label'),
+            _column('views', kind: ColumnShapeKind.integer),
+            _column('score', kind: ColumnShapeKind.real),
+            _column('tags', kind: ColumnShapeKind.enumList),
+            _column('meta', kind: ColumnShapeKind.map),
+          ],
+        ),
+      };
+      final items = _emit(shapes: shapes)['tables/items.g.dart']!;
+
+      expect(items, contains('Field<String>? label;'));
+      expect(items, contains('NumField<int>? views;'));
+      expect(items, contains('NumField<double>? score;'));
+      // ListField is already Patch<List<E>>, so it takes the ELEMENT type.
+      expect(items, contains('ListField<String>? tags;'));
+      expect(items, contains('MapField<Map<String, Object?>>? meta;'));
+    });
+
+    test('bigInt is writable by nobody, for the reason it has no token', () {
+      // `Literal.toJson` runs `jsonEncode`, which throws on a BigInt -- so a
+      // typed setter would be a compile-time promise the request cannot keep.
+      final shapes = {
+        'items': TableSchemaShape(
+          table: 'items',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column('big_count', kind: ColumnShapeKind.bigInt),
+          ],
+        ),
+      };
+      final items = _emit(shapes: shapes)['tables/items.g.dart']!;
+
+      expect(items, contains('final BigInt bigCount;'), reason: 'still read');
+      expect(
+        _classBody(items, 'final class ItemsCreate {'),
+        isNot(contains('bigCount')),
+      );
+      expect(
+        _classBody(items, 'final class ItemsUpdate {'),
+        isNot(contains('bigCount')),
+      );
+      expect(items, isNot(contains('NumField<BigInt>')));
+    });
+
+    test('update renders one ColumnUpdate per field supplied', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('List<Update> toUpdates() => ['));
+      expect(
+        posts,
+        contains(
+          "if (authorId case final p?) ColumnUpdate('author_id', p.value),",
+        ),
       );
     });
   });

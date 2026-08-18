@@ -238,6 +238,174 @@ abstract final class CellEditFixtures {
   static const updatedAt = NullableColumnRef<DateTime>('updated_at');
 }
 
+/// The columns a new `cell_edit_fixtures` row may set.
+///
+/// Read-only columns are absent: `created_at`, `updated_at`
+/// and anything the server generates. A secret column IS
+/// here -- it is stripped from responses, not from writes.
+final class CellEditFixturesCreate {
+  const CellEditFixturesCreate({
+    this.id,
+    required this.label,
+    required this.flag,
+    required this.count,
+    required this.amount,
+    required this.happenedAt,
+    required this.contactEmail,
+    required this.status,
+    required this.tags,
+    required this.keywords,
+    this.companyId,
+    required this.secretNote,
+    required this.meta,
+    this.payload,
+  });
+
+  /// The `id` column.
+  final CellEditFixturesId? id;
+
+  /// The `label` column.
+  final String label;
+
+  /// The `flag` column.
+  final bool flag;
+
+  /// The `count` column.
+  final int count;
+
+  /// The `amount` column.
+  final double amount;
+
+  /// The `happened_at` column.
+  final DateTime happenedAt;
+
+  /// The `contact_email` column.
+  final String contactEmail;
+
+  /// The `status` column.
+  final String status;
+
+  /// The `tags` column.
+  final List<String> tags;
+
+  /// The `keywords` column.
+  final List<Object?> keywords;
+
+  /// The `company_id` column.
+  final CompaniesId? companyId;
+
+  /// The `secret_note` column.
+  final String secretNote;
+
+  /// The `meta` column.
+  final Map<String, Object?> meta;
+
+  /// The `payload` column.
+  final List<int>? payload;
+
+  /// The wire object, omitting every column not supplied.
+  Map<String, dynamic> toObject() => {
+        if (id != null) 'id': zonaiWriteValue(id!.value),
+        'label': zonaiWriteValue(label),
+        'flag': zonaiWriteValue(flag),
+        'count': zonaiWriteValue(count),
+        'amount': zonaiWriteValue(amount),
+        'happened_at': zonaiWriteValue(happenedAt),
+        'contact_email': zonaiWriteValue(contactEmail),
+        'status': zonaiWriteValue(status),
+        'tags': zonaiWriteValue(tags),
+        'keywords': zonaiWriteValue(keywords),
+        if (companyId != null) 'company_id': zonaiWriteValue(companyId!.value),
+        'secret_note': zonaiWriteValue(secretNote),
+        'meta': zonaiWriteValue(meta),
+        if (payload != null) 'payload': zonaiWriteValue(payload!),
+      };
+}
+
+/// The changes to apply to matching `cell_edit_fixtures` rows.
+///
+/// Each field takes a `Patch` rather than a raw value, which
+/// is what makes "leave alone" and "set to NULL" different
+/// call sites instead of the same `null`.
+final class CellEditFixturesUpdate {
+  const CellEditFixturesUpdate({
+    this.id,
+    this.label,
+    this.flag,
+    this.count,
+    this.amount,
+    this.happenedAt,
+    this.contactEmail,
+    this.status,
+    this.tags,
+    this.keywords,
+    this.companyId,
+    this.secretNote,
+    this.meta,
+    this.payload,
+  });
+
+  /// The `id` column.
+  final Field<CellEditFixturesId>? id;
+
+  /// The `label` column.
+  final Field<String>? label;
+
+  /// The `flag` column.
+  final Field<bool>? flag;
+
+  /// The `count` column.
+  final NumField<int>? count;
+
+  /// The `amount` column.
+  final NumField<double>? amount;
+
+  /// The `happened_at` column.
+  final Field<DateTime>? happenedAt;
+
+  /// The `contact_email` column.
+  final Field<String>? contactEmail;
+
+  /// The `status` column.
+  final Field<String>? status;
+
+  /// The `tags` column.
+  final ListField<String>? tags;
+
+  /// The `keywords` column.
+  final ListField<Object?>? keywords;
+
+  /// The `company_id` column.
+  final Field<CompaniesId>? companyId;
+
+  /// The `secret_note` column.
+  final Field<String>? secretNote;
+
+  /// The `meta` column.
+  final MapField<Map<String, Object?>>? meta;
+
+  /// The `payload` column.
+  final Field<List<int>>? payload;
+
+  /// One `ColumnUpdate` per field actually supplied.
+  List<Update> toUpdates() => [
+        if (id case final p?) ColumnUpdate('id', p.value),
+        if (label case final p?) ColumnUpdate('label', p.value),
+        if (flag case final p?) ColumnUpdate('flag', p.value),
+        if (count case final p?) ColumnUpdate('count', p.value),
+        if (amount case final p?) ColumnUpdate('amount', p.value),
+        if (happenedAt case final p?) ColumnUpdate('happened_at', p.value),
+        if (contactEmail case final p?) ColumnUpdate('contact_email', p.value),
+        if (status case final p?) ColumnUpdate('status', p.value),
+        if (tags case final p?) ColumnUpdate('tags', p.value),
+        if (keywords case final p?) ColumnUpdate('keywords', p.value),
+        if (companyId case final p?) ColumnUpdate('company_id', p.value),
+        if (secretNote case final p?) ColumnUpdate('secret_note', p.value),
+        if (meta case final p?) ColumnUpdate('meta', p.value),
+        if (payload case final p?) ColumnUpdate('payload', p.value),
+      ];
+}
+
 /// Reads of the `cell_edit_fixtures` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -302,6 +470,86 @@ final class CellEditFixturesApi {
   Future<int> count({Where? where, Authorization? as}) =>
       _db.count(
         body: CountBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Inserts one row and returns it as the server stored it.
+  Future<CellEditFixturesRow> create(
+    CellEditFixturesCreate object, {
+    Authorization? as,
+  }) =>
+      _db.create(
+        body: CreateBody(table: table, object: object.toObject()),
+        fromJson: CellEditFixturesRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Inserts many rows in one request.
+  Future<List<CellEditFixturesRow>> createMany(
+    List<CellEditFixturesCreate> objects, {
+    Authorization? as,
+  }) =>
+      _db.createMany(
+        body: CreateManyBody(
+          table: table,
+          objects: [for (final o in objects) o.toObject()],
+        ),
+        fromJson: CellEditFixturesRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to the single row matching [where].
+  Future<CellEditFixturesRow> update({
+    required Where where,
+    required CellEditFixturesUpdate set,
+    Authorization? as,
+  }) =>
+      _db.update(
+        body: UpdateOneBody(
+          table: table,
+          where: where,
+          updates: set.toUpdates(),
+        ),
+        fromJson: CellEditFixturesRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to every row matching [where].
+  Future<List<CellEditFixturesRow>> updateMany({
+    required Where where,
+    required CellEditFixturesUpdate set,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.updateMany(
+        body: UpdateBody(
+          table: table,
+          where: where,
+          limit: limit,
+          updates: set.toUpdates(),
+        ),
+        fromJson: CellEditFixturesRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Deletes the single row matching [where].
+  Future<void> delete({
+    required Where where,
+    Authorization? as,
+  }) =>
+      _db.delete(
+        body: DeleteOneBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Deletes every row matching [where].
+  Future<void> deleteMany({
+    required Where where,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.deleteMany(
+        body: DeleteBody(table: table, where: where, limit: limit),
         authorization: as?.header,
       );
 }

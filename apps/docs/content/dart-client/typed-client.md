@@ -54,17 +54,18 @@ You keep `client.auth`, `client.photos`, `client.email` and `client.db.listen` e
 
 ## What is generated per table
 
-For a table `posts` you get five names, all derived from one stem:
+For a table `posts` you get these names, all derived from one stem:
 
 | Name | What it is |
 |------|-----------|
 | `PostsRow` | One decoded row — `String`, `DateTime`, `bool`, lists and maps, not raw storage |
 | `PostsId` | An extension type over `String` for that table's id |
-| `PostsApi` | `get` / `list` / `count` for the table |
+| `PostsApi` | `get` / `list` / `count` and the [write surface](#creating-updating-and-deleting) |
+| `PostsCreate` / `PostsUpdate` | The [write builders](#creating-updating-and-deleting) |
 | `Posts` | The [column tokens](#filtering-and-ordering-by-column-token) — `Posts.title`, `Posts.createdAt` |
 | `client.posts` | The accessor, added by an extension on `ZonaiClient` |
 
-Rename all five at once with [`names.<table>.row`](/configuration/zonai-yaml#client-settings) — an override that moved one name out of four would be no escape hatch at all for the case that most needs one, a table name that is not a usable Dart identifier.
+Rename them all at once with [`names.<table>.row`](/configuration/zonai-yaml#client-settings) — an override that moved one name out of four would be no escape hatch at all for the case that most needs one, a table name that is not a usable Dart identifier.
 
 ## What each column becomes
 
@@ -159,9 +160,68 @@ final page = await client.posts.list(as: Authorization.bearer(token));
 
 </Warning>
 
+## Creating, updating and deleting
+
+`create` takes a plain builder — there is no absent/NULL ambiguity on insert, so nothing is wrapped:
+
+```dart no-analyze
+final post = await client.posts.create(
+  PostsCreate(authorId: author.id, title: 'Hello'),
+);
+```
+
+The id is optional: the server generates one when you leave it out. Read-only columns — `created_at`, `updated_at`, anything server-generated — have no field at all.
+
+`update` is different, and the difference is the point:
+
+```dart no-analyze
+// Set a value.
+await client.posts.update(
+  where: Posts.id.eq(post.id),
+  set: PostsUpdate(title: Field.set('New title')),
+);
+
+// Set it to NULL — a distinct operation, and not expressible with a
+// nullable named argument, because `null` there means "leave alone".
+await client.posts.update(
+  where: Posts.id.eq(post.id),
+  set: const PostsUpdate(body: Field.clear()),
+);
+```
+
+Each field takes a `Patch`, and which `Patch` depends on the column's kind — so the operations you can reach are the ones the column actually supports:
+
+| Column kind | Patch | Beyond `set` / `clear` |
+|-------------|-------|------------------------|
+| anything | `Field` | — |
+| `integer`, `real` | `NumField` | `increment`, `decrement`, `add`, `subtract` |
+| `list`, `enumList`, `photos` | `ListField` | `add`, `remove`, `addAll`, `removeAll` |
+| `map` | `MapField` | — |
+
+```dart no-analyze
+await client.articles.update(
+  where: Articles.id.eq(id),
+  set: const ArticlesUpdate(viewCount: NumField.increment()),
+);
+await client.articles.update(
+  where: Articles.id.eq(id),
+  set: ArticlesUpdate(tags: ListField.add('dart')),
+);
+```
+
+`createMany`, `updateMany`, `delete` and `deleteMany` round out the set. Every one takes an optional `as`, like every read.
+
+### Three ways the write side differs from the read side
+
+- **A secret column is writable.** It is stripped from every *response*, so it has no field on the row — but you must be able to set a password, so `PostsCreate` and `PostsUpdate` do carry it.
+- **A photo column inverts.** The row reads `Uri`; create and update take a `PhotoId`, which is what the server validates against.
+- **`bigInt` has no write field**, for the same reason it has no column token: `Literal.toJson` runs `jsonEncode`, which rejects a `BigInt`, so the request would throw before it was sent.
+
+A `DateTime` is converted to epoch milliseconds for you. The filter path already normalized it; the write path does not, and a raw `DateTime` in a create body throws — which is exactly the kind of encoding a generated client exists to absorb.
+
 ## Views
 
-A read-only view generates the same `Row` and `Api` types as a table. `post_summary` becomes `client.postSummary`, documented in the generated source as *a read-only view*.
+A read-only view generates the same `Row` and `Api` types as a table, but **no write surface at all** — no `Create`, no `Update`, and none of the six mutations. The server has nothing to write through. `post_summary` becomes `client.postSummary`, documented in the generated source as *a read-only view*.
 
 ## Filtering and ordering by column token
 

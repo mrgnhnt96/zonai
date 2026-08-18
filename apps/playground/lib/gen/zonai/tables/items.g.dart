@@ -135,6 +135,84 @@ abstract final class Items {
   static const updatedAt = NullableColumnRef<DateTime>('updated_at');
 }
 
+/// The columns a new `items` row may set.
+///
+/// Read-only columns are absent: `created_at`, `updated_at`
+/// and anything the server generates. A secret column IS
+/// here -- it is stripped from responses, not from writes.
+final class ItemsCreate {
+  const ItemsCreate({
+    this.id,
+    required this.body,
+    this.description,
+    this.image,
+    this.status,
+  });
+
+  /// The `id` column.
+  final ItemsId? id;
+
+  /// The `body` column.
+  final String body;
+
+  /// The `description` column.
+  final String? description;
+
+  /// The `image` column.
+  final PhotoId? image;
+
+  /// The `status` column.
+  final int? status;
+
+  /// The wire object, omitting every column not supplied.
+  Map<String, dynamic> toObject() => {
+        if (id != null) 'id': zonaiWriteValue(id!.value),
+        'body': zonaiWriteValue(body),
+        if (description != null) 'description': zonaiWriteValue(description!),
+        if (image != null) 'image': zonaiWriteValue(image!.value),
+        if (status != null) 'status': zonaiWriteValue(status!),
+      };
+}
+
+/// The changes to apply to matching `items` rows.
+///
+/// Each field takes a `Patch` rather than a raw value, which
+/// is what makes "leave alone" and "set to NULL" different
+/// call sites instead of the same `null`.
+final class ItemsUpdate {
+  const ItemsUpdate({
+    this.id,
+    this.body,
+    this.description,
+    this.image,
+    this.status,
+  });
+
+  /// The `id` column.
+  final Field<ItemsId>? id;
+
+  /// The `body` column.
+  final Field<String>? body;
+
+  /// The `description` column.
+  final Field<String>? description;
+
+  /// The `image` column.
+  final Field<PhotoId>? image;
+
+  /// The `status` column.
+  final NumField<int>? status;
+
+  /// One `ColumnUpdate` per field actually supplied.
+  List<Update> toUpdates() => [
+        if (id case final p?) ColumnUpdate('id', p.value),
+        if (body case final p?) ColumnUpdate('body', p.value),
+        if (description case final p?) ColumnUpdate('description', p.value),
+        if (image case final p?) ColumnUpdate('image', p.value),
+        if (status case final p?) ColumnUpdate('status', p.value),
+      ];
+}
+
 /// Reads of the `items` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -198,6 +276,86 @@ final class ItemsApi {
   Future<int> count({Where? where, Authorization? as}) =>
       _db.count(
         body: CountBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Inserts one row and returns it as the server stored it.
+  Future<ItemsRow> create(
+    ItemsCreate object, {
+    Authorization? as,
+  }) =>
+      _db.create(
+        body: CreateBody(table: table, object: object.toObject()),
+        fromJson: ItemsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Inserts many rows in one request.
+  Future<List<ItemsRow>> createMany(
+    List<ItemsCreate> objects, {
+    Authorization? as,
+  }) =>
+      _db.createMany(
+        body: CreateManyBody(
+          table: table,
+          objects: [for (final o in objects) o.toObject()],
+        ),
+        fromJson: ItemsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to the single row matching [where].
+  Future<ItemsRow> update({
+    required Where where,
+    required ItemsUpdate set,
+    Authorization? as,
+  }) =>
+      _db.update(
+        body: UpdateOneBody(
+          table: table,
+          where: where,
+          updates: set.toUpdates(),
+        ),
+        fromJson: ItemsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Applies [set] to every row matching [where].
+  Future<List<ItemsRow>> updateMany({
+    required Where where,
+    required ItemsUpdate set,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.updateMany(
+        body: UpdateBody(
+          table: table,
+          where: where,
+          limit: limit,
+          updates: set.toUpdates(),
+        ),
+        fromJson: ItemsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Deletes the single row matching [where].
+  Future<void> delete({
+    required Where where,
+    Authorization? as,
+  }) =>
+      _db.delete(
+        body: DeleteOneBody(table: table, where: where),
+        authorization: as?.header,
+      );
+
+  /// Deletes every row matching [where].
+  Future<void> deleteMany({
+    required Where where,
+    int? limit,
+    Authorization? as,
+  }) =>
+      _db.deleteMany(
+        body: DeleteBody(table: table, where: where, limit: limit),
         authorization: as?.header,
       );
 }
