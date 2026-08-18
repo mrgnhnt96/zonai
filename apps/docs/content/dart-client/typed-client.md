@@ -330,6 +330,8 @@ export 'package:zonai_client/zonai_client.dart' hide Photos;
 
 The name you get from the barrel is **yours** — the generated one. Nothing is refused and nothing else is affected. To reach `zonai_client`'s version, import that package with a prefix, or rename the generated class with [`client.names.<table>.row`](/configuration/zonai-yaml#client-settings) and the hide clause disappears with it.
 
+If you have a colliding table and you still import `package:zonai_client/zonai_client.dart` directly, **drop that import** — that is the fix, not a workaround. The `hide` clause only governs what the generated barrel re-exports; two explicit imports both offering `Photos` is an ambiguous *import*, in your library, which the generator cannot reach. That ambiguity is not new — a colliding table name does it today, with or without the re-export — and dropping the second import is what makes it go away, because the only `Photos` left in scope is yours.
+
 Most schemas collide with nothing and the clause is absent entirely.
 
 Two members are deliberately **not** exported: `Null` and `NotNull`. A library importing them would shadow `dart:core`'s `Null` — Dart resolves an explicit import ahead of the implicit `dart:core` one, so every `Null` written in that library would mean the where-clause class instead. Build those clauses with the factories:
