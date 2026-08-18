@@ -3,7 +3,8 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 // `show`: payloads.dart also exports a `DashboardMetrics`, and this file means
 // the provider's one.
-import 'package:zonai_schema/payloads.dart' show formatBytes;
+import 'package:zonai_schema/payloads.dart'
+    show DashboardDrainRun, DashboardPushQueue, DashboardSessions, DevicePlatform, formatBytes;
 
 import '../auth/auth_routes.dart';
 import '../constants/button_sizes.dart';
@@ -11,16 +12,21 @@ import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/maintenance_provider.dart';
+import '../providers/push_test_provider.dart';
+import '../providers/table_schema_provider.dart';
 import '../utils/cron_job_summary.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
+import '../utils/push_test_targets.dart';
 import '../utils/sqlite_table_utils.dart';
 import 'app_tooltip_overlay.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'theme/zonai_button.dart';
 import 'theme/zonai_icon_button.dart';
+import 'theme/zonai_select.dart';
+import 'theme/zonai_text_field.dart';
 import 'toast_overlay.dart';
 
 class DashboardScreen extends StatelessComponent {
@@ -52,6 +58,10 @@ class DashboardScreen extends StatelessComponent {
     final bucketsData = metrics.value?.buckets ?? [];
     final topErrorsData = topErrors.value ?? [];
     final tableCountsData = tableCounts.value ?? {};
+
+    // Derived from the schema shapes the shell already loaded, so this is
+    // known during SSR too — the panel does not appear a frame late.
+    final pushTargets = pushTestTargets(context.watch(tableSchemasProvider));
 
     final maxBucket = bucketsData.isEmpty ? 0 : bucketsData.map((bkt) => bkt.count).reduce((x, y) => x > y ? x : y);
 
@@ -89,12 +99,13 @@ class DashboardScreen extends StatelessComponent {
                 ],
               ),
             ]),
-            // Stat cards
+            // Stat cards. Active sessions is deliberately not here any more —
+            // it lives in the Sessions panel next to the distinct-user count
+            // that gives it meaning.
             div(classes: 'dashboard-stats', [
               _StatCard(label: 'Requests (24h)', value: statsData != null ? _fmtNum(statsData.requestCount24h) : '—'),
               _StatCard(label: 'Error Rate', value: statsData != null ? _fmtPercent(statsData.errorRate) : '—'),
               _StatCard(label: 'p95 Response', value: statsData != null ? _fmtMs(statsData.p95ResponseMs) : '—'),
-              _StatCard(label: 'Active Sessions', value: statsData != null ? _fmtNum(statsData.activeSessions) : '—'),
             ]),
             // Storage at a glance, linking to the Maintenance screen that
             // breaks it down. Deliberately three numbers and a link: the
@@ -158,6 +169,19 @@ class DashboardScreen extends StatelessComponent {
                   ]),
               ]),
             ]),
+            // Push queue + sessions. Both read-only: the dashboard's contract
+            // is look-don't-touch, and draining is already reachable through
+            // the Run button on `_drain_push_jobs` in the Cron Jobs panel
+            // below.
+            div(classes: 'dashboard-row dashboard-row--split', [
+              _PushQueuePanel(queue: metrics.value?.pushQueue, isLoading: metrics.isLoading && !metrics.hasValue),
+              _SessionsPanel(sessions: metrics.value?.sessions, isLoading: metrics.isLoading && !metrics.hasValue),
+            ]),
+            // Absent entirely when no collection declares a `deviceToken`
+            // column — not disabled, not an empty state. A project without one
+            // has nowhere to send a notification, and a greyed-out control
+            // would imply a setting somewhere that turns it on.
+            if (pushTargets.isNotEmpty) div(classes: 'dashboard-row', [_PushTestPanel(targets: pushTargets)]),
             div(classes: 'dashboard-row dashboard-row--split', [
               div(classes: 'dashboard-panel dashboard-panel--crons', [
                 div(classes: 'dashboard-panel-heading', [
@@ -361,6 +385,170 @@ class DashboardScreen extends StatelessComponent {
           fontWeight: .w600,
         ),
       ]),
+      // Push queue panel
+      css(
+        '.dashboard-panel--push',
+      ).styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero, minHeight: .zero, raw: const {'flex-basis': '420px'}),
+      css('.dashboard-push-outstanding').styles(
+        fontSize: 0.6875.rem,
+        fontWeight: .w600,
+        color: fgColor,
+        padding: .symmetric(vertical: 2.px, horizontal: ZonaiSpacing.s3),
+        radius: .all(Radius.circular(999.px)),
+        backgroundColor: bgColor,
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        raw: const {'cursor': 'default'},
+      ),
+      css('.dashboard-push-outstanding--idle').styles(color: mutedColor),
+      css(
+        '.dashboard-push-depth',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s3)),
+      css('.dashboard-push-depth-cell').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        minWidth: 72.px,
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s1),
+        padding: .symmetric(vertical: ZonaiSpacing.s3, horizontal: ZonaiSpacing.s4),
+        radius: .all(Radius.circular(8.px)),
+        backgroundColor: bgColor,
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        raw: const {'border-left-width': '3px'},
+      ),
+      css('.dashboard-push-depth-cell--pending').styles(raw: const {'border-left-color': 'var(--zonai-border)'}),
+      css('.dashboard-push-depth-cell--running').styles(raw: const {'border-left-color': 'var(--zonai-muted)'}),
+      css('.dashboard-push-depth-cell--ok').styles(raw: const {'border-left-color': 'var(--zonai-success)'}),
+      css('.dashboard-push-depth-cell--failed').styles(raw: const {'border-left-color': 'var(--zonai-error)'}),
+      css(
+        '.dashboard-push-depth-value',
+      ).styles(fontSize: 1.125.rem, fontWeight: .w600, color: fgColor, raw: const {'letter-spacing': '-0.02em'}),
+      css(
+        '.dashboard-push-note',
+      ).styles(margin: .zero, fontSize: 0.6875.rem, color: mutedColor, raw: const {'cursor': 'default'}),
+      css('.dashboard-push-drain').styles(
+        display: .flex,
+        flexDirection: FlexDirection.row,
+        alignItems: .center,
+        gap: Gap.all(ZonaiSpacing.s3),
+        fontSize: 0.75.rem,
+      ),
+      css('.dashboard-push-drain-label').styles(
+        fontSize: 0.6875.rem,
+        fontWeight: .w600,
+        letterSpacing: 0.04.rem,
+        textTransform: .upperCase,
+        color: mutedColor,
+      ),
+      css('.dashboard-push-drain-value').styles(color: fgColor, fontWeight: .w500),
+      css('.dashboard-push-subtitle').styles(
+        margin: .zero,
+        fontSize: 0.6875.rem,
+        fontWeight: .w600,
+        letterSpacing: 0.04.rem,
+        textTransform: .upperCase,
+        color: mutedColor,
+      ),
+      css('.dashboard-push-failures').styles(
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s2),
+        minHeight: .zero,
+        maxHeight: 220.px,
+        overflow: Overflow.auto,
+      ),
+      css(
+        '.dashboard-push-failure',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), minWidth: .zero),
+      css('.dashboard-push-failure-id').styles(
+        fontSize: 0.6875.rem,
+        color: mutedColor,
+        raw: const {'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'},
+      ),
+      css('.dashboard-push-failure-count').styles(fontSize: 0.6875.rem, fontWeight: .w600, color: fgColor),
+      // Test-send panel
+      css('.dashboard-panel--push-test').styles(minWidth: .zero, minHeight: .zero),
+      css(
+        '.dashboard-push-test-hint',
+      ).styles(fontSize: 0.6875.rem, color: mutedColor, raw: const {'cursor': 'default'}),
+      css('.dashboard-push-test-form').styles(
+        display: .grid,
+        gap: Gap.all(ZonaiSpacing.s3),
+        raw: const {'grid-template-columns': 'repeat(auto-fit, minmax(220px, 1fr))'},
+      ),
+      css(
+        '.dashboard-push-test-field',
+      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), minWidth: .zero),
+      css('.dashboard-push-test-target-note').styles(margin: .zero, fontSize: 0.75.rem, color: mutedColor),
+      css(
+        '.dashboard-push-test-actions',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, gap: Gap.all(ZonaiSpacing.s2)),
+      // The outcome is the reason the panel exists, so it is sized to be read
+      // rather than glanced at, and wraps instead of truncating -- a provider
+      // reason cut off at the panel edge is the one thing that must not happen.
+      css('.dashboard-push-test-outcome').styles(
+        margin: .zero,
+        fontSize: 0.75.rem,
+        lineHeight: 1.5.em,
+        color: fgColor,
+        raw: const {'overflow-wrap': 'anywhere'},
+      ),
+      css('.dashboard-push-test-outcome--accepted').styles(raw: const {'color': 'var(--zonai-success)'}),
+      css('.dashboard-push-test-outcome--rejected').styles(raw: const {'color': 'var(--zonai-error)'}),
+      css('.dashboard-push-test-outcome--failed').styles(raw: const {'color': 'var(--zonai-error)'}),
+      css('.dashboard-push-test-token-echo').styles(
+        margin: .zero,
+        fontSize: 0.6875.rem,
+        color: mutedColor,
+        raw: const {
+          'overflow-wrap': 'anywhere',
+          'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+        },
+      ),
+      // Sessions panel
+      css(
+        '.dashboard-panel--sessions',
+      ).styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero, minHeight: .zero, raw: const {'flex-basis': '320px'}),
+      css(
+        '.dashboard-session-figures',
+      ).styles(display: .flex, flexDirection: FlexDirection.row, flexWrap: .wrap, gap: Gap.all(ZonaiSpacing.s3)),
+      css('.dashboard-session-figure').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        minWidth: 84.px,
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s1),
+        padding: .symmetric(vertical: ZonaiSpacing.s3, horizontal: ZonaiSpacing.s4),
+        radius: .all(Radius.circular(8.px)),
+        backgroundColor: bgColor,
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        raw: const {'cursor': 'default'},
+      ),
+      css(
+        '.dashboard-session-figure-value',
+      ).styles(fontSize: 1.125.rem, fontWeight: .w600, color: fgColor, raw: const {'letter-spacing': '-0.02em'}),
+      css('.dashboard-session-users').styles(
+        display: .flex,
+        flexDirection: FlexDirection.column,
+        gap: Gap.all(ZonaiSpacing.s2),
+        minHeight: .zero,
+        maxHeight: 200.px,
+        overflow: Overflow.auto,
+      ),
+      css('.dashboard-session-user').styles(
+        display: .flex,
+        flexDirection: FlexDirection.row,
+        alignItems: .center,
+        justifyContent: .spaceBetween,
+        gap: Gap.all(ZonaiSpacing.s3),
+        padding: .symmetric(vertical: ZonaiSpacing.s2, horizontal: ZonaiSpacing.s4),
+        radius: .all(Radius.circular(6.px)),
+        backgroundColor: bgColor,
+        border: .all(color: borderColor, width: 1.px, style: .solid),
+        minWidth: .zero,
+      ),
+      css(
+        '.dashboard-session-user-count',
+      ).styles(fontSize: 0.6875.rem, color: mutedColor, raw: const {'flex': '0 0 auto'}),
       css('.dashboard-panel-title').styles(margin: .zero, fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
       css('.dashboard-panel-placeholder').styles(
         flex: Flex(grow: 1, shrink: 0),
@@ -612,6 +800,353 @@ class _StorageStrip extends StatelessComponent {
   }
 }
 
+/// The `_push_jobs` queue: depth by status, the last drain, and the failures.
+///
+/// **What this panel will not say.** It reports no "notifications sent" figure
+/// for the last drain, because none is recorded — `DrainPushJobsResponse.sent`
+/// goes to the cron and then into `_log` as prose, and no column holds it. The
+/// `delivered` number here is a sum over the job rows still retained, which is
+/// a different claim and is labelled as one. A count of jobs would say nothing
+/// about whether any notification went out, so it is not offered as if it did.
+class _PushQueuePanel extends StatelessComponent {
+  const _PushQueuePanel({required this.queue, required this.isLoading});
+
+  final DashboardPushQueue? queue;
+  final bool isLoading;
+
+  @override
+  Component build(BuildContext context) {
+    final queue = this.queue;
+
+    return div(classes: 'dashboard-panel dashboard-panel--push', [
+      div(classes: 'dashboard-panel-heading', [
+        p(classes: 'dashboard-panel-title', [.text('Push Queue')]),
+        if (queue != null)
+          span(
+            classes: 'dashboard-push-outstanding${queue.outstanding == 0 ? ' dashboard-push-outstanding--idle' : ''}',
+            events: appTooltipEvents(
+              context,
+              text:
+                  'Jobs still to be worked (pending + running).\nFinished jobs are kept for 7 days and not counted here.',
+              placement: AppTooltipPlacement.belowLeft,
+            ),
+            [.text(queue.outstanding == 0 ? 'Idle' : '${_fmtNum(queue.outstanding)} outstanding')],
+          ),
+      ]),
+      if (queue == null)
+        div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
+          .text(isLoading ? 'Loading...' : 'No data'),
+        ])
+      else ...[
+        div(classes: 'dashboard-push-depth', [
+          _PushDepthCell(label: 'Pending', value: queue.pending, tone: 'pending'),
+          _PushDepthCell(label: 'Running', value: queue.running, tone: 'running'),
+          _PushDepthCell(label: 'Completed', value: queue.completed, tone: 'ok'),
+          _PushDepthCell(label: 'Failed', value: queue.failed, tone: 'failed'),
+        ]),
+        // Recipient counters, not job counters, and said so on the label: a
+        // job count cannot answer "did a notification go out" and this can.
+        p(
+          classes: 'dashboard-push-note',
+          events: appTooltipEvents(
+            context,
+            text:
+                'Summed across the job rows still retained.\n_cleanup_push_jobs prunes finished jobs after 7 days,\nso this is a floor on everything ever sent — not a total.',
+            placement: AppTooltipPlacement.belowLeft,
+          ),
+          [
+            .text(
+              'Recipients reached ${_fmtNum(queue.delivered)} · '
+              'rejected ${_fmtNum(queue.permanentlyRejected)} · '
+              'retryable ${_fmtNum(queue.transientlyFailed)}',
+            ),
+          ],
+        ),
+        div(classes: 'dashboard-push-drain', [
+          span(classes: 'dashboard-push-drain-label', [.text('Last drain')]),
+          span(classes: 'dashboard-push-drain-value', [.text(_fmtDrain(queue.lastDrain))]),
+        ]),
+        if (queue.lastDrain?.error case final drainError?) pre(classes: 'dashboard-error-detail', [.text(drainError)]),
+        if (queue.failedJobs.isNotEmpty) ...[
+          p(classes: 'dashboard-push-subtitle', [
+            .text(
+              queue.failed > queue.failedJobs.length
+                  ? 'Failed jobs (${queue.failedJobs.length} of ${_fmtNum(queue.failed)})'
+                  : 'Failed jobs',
+            ),
+          ]),
+          div(classes: 'dashboard-push-failures', [
+            for (final job in queue.failedJobs)
+              div(classes: 'dashboard-push-failure', [
+                div(classes: 'dashboard-error-footer', [
+                  span(classes: 'dashboard-push-failure-id', [.text(job.id)]),
+                  // Delivered travels with the error: "failed having reached
+                  // nobody" is re-sendable and "failed at 40,000 of 50,000" is
+                  // not, and the error text alone does not distinguish them.
+                  span(classes: 'dashboard-push-failure-count', [.text('${_fmtNum(job.delivered)} reached')]),
+                  span(classes: 'dashboard-error-time', [.text(_timeAgo(job.updatedAt))]),
+                ]),
+                pre(classes: 'dashboard-error-detail', [.text(job.error ?? 'Failed with no reason recorded')]),
+              ]),
+          ]),
+        ],
+      ],
+    ]);
+  }
+}
+
+class _PushDepthCell extends StatelessComponent {
+  const _PushDepthCell({required this.label, required this.value, required this.tone});
+
+  final String label;
+  final int value;
+  final String tone;
+
+  @override
+  Component build(BuildContext context) {
+    return div(classes: 'dashboard-push-depth-cell dashboard-push-depth-cell--$tone', [
+      span(classes: 'dashboard-push-depth-value', [.text(_fmtNum(value))]),
+      span(classes: 'dashboard-stat-label', [.text(label)]),
+    ]);
+  }
+}
+
+/// Sessions, from the three columns `_jwt` actually has.
+///
+/// **What this panel cannot show, and does not pretend to.** `_jwt` is `id`,
+/// `user_id` and `expires_at` — there is no `created_at`, no device, no IP and
+/// no last-seen. So there is no sessions-over-time chart here, no "signed in
+/// from", and no idle-session list; those would need columns the table does not
+/// carry.
+///
+/// There is also no revoke button. Revoking every session for a user is a
+/// delete by `user_id`, and the dashboard is read-only by contract — the
+/// destructive verbs live on the Maintenance screen.
+/// Sends one notification to one device, and says what came back.
+///
+/// Rendered only when [targets] is non-empty; the caller does that check, so
+/// this component never has to render a "push is not set up" state.
+///
+/// The panel's real job is the failure path. A test notification that reports
+/// "sent" and nothing else is worse than no panel, because it looks like an
+/// answer — so what is shown is the transport's own words about *this token*,
+/// and the outcome deliberately never uses the word "delivered": neither FCM
+/// nor APNs offers a delivery receipt.
+class _PushTestPanel extends StatelessComponent {
+  const _PushTestPanel({required this.targets});
+
+  final List<PushTestTarget> targets;
+
+  @override
+  Component build(BuildContext context) {
+    final state = context.watch(pushTestProvider);
+    final notifier = context.read(pushTestProvider.notifier);
+    final target = resolvePushTestTarget(targets, state.targetId);
+
+    // Sending is a client-only action: it posts, and SSR has no one to post
+    // for. The form still renders server-side so the panel does not pop in.
+    final isClient = context.binding.isClient;
+    final canSend = isClient && state.canSend;
+
+    return div(classes: 'dashboard-panel dashboard-panel--push-test', [
+      div(classes: 'dashboard-panel-heading', [
+        p(classes: 'dashboard-panel-title', [.text('Send a test notification')]),
+        span(
+          classes: 'dashboard-push-test-hint',
+          events: appTooltipEvents(
+            context,
+            text:
+                'Sends straight to the transport, to this one token.\n'
+                'It does not enqueue a push job: a queued send reports totals for the whole\n'
+                'drain pass, prunes a rejected token, and fires your onPushRejected hook.',
+            placement: AppTooltipPlacement.belowLeft,
+          ),
+          [.text('Not queued')],
+        ),
+      ]),
+      div(classes: 'dashboard-push-test-form', [
+        // Only offered when there is a choice to make. One device-token column
+        // is the common case, and a select with a single option is a control
+        // that cannot do anything.
+        if (targets.length > 1)
+          div(classes: 'dashboard-push-test-field', [
+            label(
+              id: 'dashboard-push-test-target-label',
+              classes: 'maintenance-cleanup-label',
+              htmlFor: 'dashboard-push-test-target',
+              [.text('Token column')],
+            ),
+            ZonaiSelect(
+              id: 'dashboard-push-test-target',
+              labelId: 'dashboard-push-test-target-label',
+              value: target.id,
+              options: [for (final t in targets) ZonaiSelectOption(value: t.id, label: t.label)],
+              disabled: state.isSending,
+              onChange: notifier.selectTarget,
+            ),
+          ])
+        else
+          p(classes: 'dashboard-push-test-target-note', [.text('Sending through ${target.label}')]),
+        div(classes: 'dashboard-push-test-field', [
+          ZonaiTextField(
+            id: 'dashboard-push-test-token',
+            fieldLabel: 'Device token',
+            value: state.token,
+            placeholder: 'paste a token from a device',
+            disabled: state.isSending,
+            onInput: notifier.setToken,
+            attributes: const {'autocapitalize': 'none', 'spellcheck': 'false'},
+          ),
+        ]),
+        div(classes: 'dashboard-push-test-field', [
+          label(
+            id: 'dashboard-push-test-platform-label',
+            classes: 'maintenance-cleanup-label',
+            htmlFor: 'dashboard-push-test-platform',
+            [.text('Transport')],
+          ),
+          // Explicit, because a test send reads no row and so has no platform
+          // column to consult. "Default" is FCM, which is exactly what a
+          // fan-out without a platform column does -- named that way rather
+          // than "FCM" so the two iOS choices read as the decision they are.
+          ZonaiSelect(
+            id: 'dashboard-push-test-platform',
+            labelId: 'dashboard-push-test-platform-label',
+            value: state.platform?.name ?? '',
+            options: const [
+              ZonaiSelectOption(value: '', label: 'Default (FCM)'),
+              ZonaiSelectOption(value: 'ios', label: 'iOS (APNs when configured)'),
+              ZonaiSelectOption(value: 'android', label: 'Android (FCM)'),
+            ],
+            disabled: state.isSending,
+            onChange: (value) => notifier.setPlatform(DevicePlatform.tryParse(value)),
+          ),
+        ]),
+        div(classes: 'dashboard-push-test-field', [
+          ZonaiTextField(
+            id: 'dashboard-push-test-title',
+            fieldLabel: 'Title',
+            value: state.title,
+            disabled: state.isSending,
+            onInput: notifier.setTitle,
+          ),
+        ]),
+        div(classes: 'dashboard-push-test-field', [
+          ZonaiTextField(
+            id: 'dashboard-push-test-body',
+            fieldLabel: 'Body',
+            value: state.body,
+            disabled: state.isSending,
+            onInput: notifier.setBody,
+          ),
+        ]),
+      ]),
+      div(classes: 'dashboard-push-test-actions', [
+        ZonaiButton(
+          variant: ZonaiButtonVariant.secondary,
+          size: ZonaiButtonSize.sm,
+          disabled: !canSend,
+          onClick: canSend ? () => notifier.send(target) : null,
+          child: .text(state.isSending ? 'Sending...' : 'Send test'),
+        ),
+      ]),
+      // `role="status"` on both: the outcome is the point of pressing the
+      // button, and a screen reader that had to go looking for it would make
+      // this panel useless to the operator it matters most to.
+      if (state.error case final error?)
+        p(
+          classes: 'dashboard-push-test-outcome dashboard-push-test-outcome--failed',
+          attributes: const {'role': 'status'},
+          [.text(error)],
+        ),
+      if (state.result case final result?) ...[
+        p(
+          classes: 'dashboard-push-test-outcome dashboard-push-test-outcome--${result.status.name}',
+          attributes: const {'role': 'status'},
+          [.text(describePushTestResult(result))],
+        ),
+        // The token is echoed back so a result cannot be read against a token
+        // the operator has since edited in the box above it.
+        p(classes: 'dashboard-push-test-token-echo', [.text('Token: ${result.token}')]),
+      ],
+    ]);
+  }
+}
+
+class _SessionsPanel extends StatelessComponent {
+  const _SessionsPanel({required this.sessions, required this.isLoading});
+
+  final DashboardSessions? sessions;
+  final bool isLoading;
+
+  @override
+  Component build(BuildContext context) {
+    final sessions = this.sessions;
+
+    return div(classes: 'dashboard-panel dashboard-panel--sessions', [
+      p(classes: 'dashboard-panel-title', [.text('Sessions')]),
+      if (sessions == null)
+        div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [
+          .text(isLoading ? 'Loading...' : 'No data'),
+        ])
+      else if (sessions.active == 0)
+        div(classes: 'dashboard-panel-placeholder dashboard-panel-placeholder--sm', [.text('Nobody is signed in')])
+      else ...[
+        div(classes: 'dashboard-session-figures', [
+          _SessionFigure(
+            label: 'Active',
+            value: _fmtNum(sessions.active),
+            tip:
+                'Sessions whose expiry is still in the future.\n_delete_expired_jwts only sweeps at 04:00, so the row\ncount is higher than this between sweeps.',
+          ),
+          _SessionFigure(
+            label: 'Users',
+            value: _fmtNum(sessions.distinctUsers),
+            tip: 'Distinct users across those sessions.\nThe gap from Active is the multi-device story.',
+          ),
+          _SessionFigure(
+            label: 'Expiring < 1h',
+            value: _fmtNum(sessions.expiringWithinHour),
+            tip: 'A subset of Active. Without a created_at column this is the\nonly churn signal _jwt can offer.',
+          ),
+        ]),
+        if (sessions.topUsers.isNotEmpty) ...[
+          p(classes: 'dashboard-push-subtitle', [.text('Most sessions')]),
+          div(classes: 'dashboard-session-users', [
+            for (final user in sessions.topUsers)
+              div(classes: 'dashboard-session-user', [
+                span(classes: 'dashboard-cron-name', [.text(user.userId)]),
+                span(classes: 'dashboard-session-user-count', [
+                  .text(user.sessionCount == 1 ? '1 session' : '${_fmtNum(user.sessionCount)} sessions'),
+                ]),
+              ]),
+          ]),
+        ],
+      ],
+    ]);
+  }
+}
+
+class _SessionFigure extends StatelessComponent {
+  const _SessionFigure({required this.label, required this.value, required this.tip});
+
+  final String label;
+  final String value;
+  final String tip;
+
+  @override
+  Component build(BuildContext context) {
+    return div(
+      classes: 'dashboard-session-figure',
+      events: appTooltipEvents(context, text: tip, placement: AppTooltipPlacement.belowLeft),
+      [
+        span(classes: 'dashboard-session-figure-value', [.text(value)]),
+        span(classes: 'dashboard-stat-label', [.text(label)]),
+      ],
+    );
+  }
+}
+
 class _StatCard extends StatelessComponent {
   const _StatCard({required this.label, required this.value});
 
@@ -744,6 +1279,18 @@ String _fmtCronMeta(DateTime? lastStarted, Duration? duration) {
   final took = duration == null ? null : _fmtDuration(duration);
   if (took == null) return ago;
   return '$ago · $took';
+}
+
+/// The last drain, in one line.
+///
+/// Deliberately no count: nothing persists how many notifications a drain sent
+/// (see [DashboardDrainRun]), so this says when it ran and whether it broke and
+/// stops there rather than dressing a job count up as a delivery.
+String _fmtDrain(DashboardDrainRun? run) {
+  if (run == null) return 'Never';
+  if (run.inProgress) return 'Running (started ${_timeAgo(run.startedAt)})';
+  if (!run.succeeded) return 'Failed ${_timeAgo(run.failedAt ?? run.startedAt)}';
+  return 'Succeeded ${_timeAgo(run.completedAt ?? run.startedAt)}';
 }
 
 String _fmtTableMeta(int? count) {
