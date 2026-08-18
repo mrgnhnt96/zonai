@@ -1,0 +1,468 @@
+{
+  "_comment": "Calibration baseline for the stress error-rate gate. See README 'Thresholds'.",
+  "calibratedOn": "2026-08-18",
+  "calibrationRuns": 3,
+  "calibrationNote": "Three runs, same machine (12 cores) and same build. 1-min load average at each run's start was 16.1, 16.1 and 76.5 -- run 3 was measured under real contention ON PURPOSE, because that is the condition a shared CI runner is in.",
+  "policy": {
+    "gatedMetric": "errorRate",
+    "toleranceAbsolutePercentagePoints": 2.0,
+    "p99Gated": false,
+    "p99Rationale": "NOT gated. Across the same three runs the p99 spread was 139% at the median and 2178% at the worst cell. A p99 gate at any threshold those runs support would flap, and a flapping gate gets muted. p99 is REPORTED for trend only."
+  },
+  "cells": {
+    "auth-signin@1": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        35.691,
+        41.274,
+        54.546
+      ],
+      "p99SpreadPercent": 52.8
+    },
+    "auth-signin@10": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        78.5,
+        163.41,
+        47.875
+      ],
+      "p99SpreadPercent": 241.3
+    },
+    "auth-signin@100": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        749.155,
+        1295.896,
+        587.49
+      ],
+      "p99SpreadPercent": 120.6
+    },
+    "auth-signin@25": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        226.557,
+        398.633,
+        146.741
+      ],
+      "p99SpreadPercent": 171.7
+    },
+    "auth-signin@50": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        335.834,
+        831.335,
+        708.508
+      ],
+      "p99SpreadPercent": 147.5
+    },
+    "auth-signup@1": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        37.371,
+        70.548,
+        57.5
+      ],
+      "p99SpreadPercent": 88.8
+    },
+    "auth-signup@10": {
+      "errorRatePercentBaseline": 0.5618,
+      "errorRateObserved": [
+        0.2008,
+        0.5618,
+        0.1585
+      ],
+      "errorRateSpreadPP": 0.4033,
+      "p99ObservedMs": [
+        81.935,
+        136.808,
+        54.458
+      ],
+      "p99SpreadPercent": 151.2
+    },
+    "auth-signup@100": {
+      "errorRatePercentBaseline": 7.1661,
+      "errorRateObserved": [
+        7.1661,
+        0.1984,
+        1.1935
+      ],
+      "errorRateSpreadPP": 6.9677,
+      "p99ObservedMs": [
+        695.172,
+        889.789,
+        976.111
+      ],
+      "p99SpreadPercent": 40.4,
+      "knownBad": true
+    },
+    "auth-signup@25": {
+      "errorRatePercentBaseline": 1.6729,
+      "errorRateObserved": [
+        1.5459,
+        1.6729,
+        0.8264
+      ],
+      "errorRateSpreadPP": 0.8465,
+      "p99ObservedMs": [
+        261.049,
+        243.541,
+        154.681
+      ],
+      "p99SpreadPercent": 68.8
+    },
+    "auth-signup@50": {
+      "errorRatePercentBaseline": 1.2048,
+      "errorRateObserved": [
+        1.2048,
+        0.5669,
+        0.4858
+      ],
+      "errorRateSpreadPP": 0.719,
+      "p99ObservedMs": [
+        5399.779,
+        490.277,
+        368.84
+      ],
+      "p99SpreadPercent": 1364.0
+    },
+    "create@1": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        4.672,
+        10.139,
+        0.652
+      ],
+      "p99SpreadPercent": 1455.1
+    },
+    "create@10": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        10.349,
+        50.969,
+        4.737
+      ],
+      "p99SpreadPercent": 976.0
+    },
+    "create@100": {
+      "errorRatePercentBaseline": 97.7185,
+      "errorRateObserved": [
+        97.6603,
+        97.7185,
+        97.6883
+      ],
+      "errorRateSpreadPP": 0.0582,
+      "p99ObservedMs": [
+        2508.347,
+        2496.295,
+        2494.881
+      ],
+      "p99SpreadPercent": 0.5,
+      "knownBad": true
+    },
+    "create@25": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        12.007,
+        36.787,
+        10.7
+      ],
+      "p99SpreadPercent": 243.8
+    },
+    "create@50": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        19.799,
+        20.232,
+        21.247
+      ],
+      "p99SpreadPercent": 7.3
+    },
+    "delete@1": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        0.719,
+        0.732,
+        0.801
+      ],
+      "p99SpreadPercent": 11.4
+    },
+    "delete@10": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        5.904,
+        4.947,
+        4.568
+      ],
+      "p99SpreadPercent": 29.2
+    },
+    "delete@100": {
+      "errorRatePercentBaseline": 99.0205,
+      "errorRateObserved": [
+        98.9285,
+        98.7304,
+        99.0205
+      ],
+      "errorRateSpreadPP": 0.2901,
+      "p99ObservedMs": [
+        27.924,
+        29.597,
+        27.344
+      ],
+      "p99SpreadPercent": 8.2,
+      "knownBad": true
+    },
+    "delete@25": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        11.921,
+        25.453,
+        9.842
+      ],
+      "p99SpreadPercent": 158.6
+    },
+    "delete@50": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        153.36,
+        446.814,
+        19.618
+      ],
+      "p99SpreadPercent": 2177.6
+    },
+    "list@1": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        0.683,
+        1.757,
+        2.262
+      ],
+      "p99SpreadPercent": 231.2
+    },
+    "list@10": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        5.5,
+        28.38,
+        4.29
+      ],
+      "p99SpreadPercent": 561.5
+    },
+    "list@100": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        54.403,
+        110.462,
+        39.815
+      ],
+      "p99SpreadPercent": 177.4
+    },
+    "list@25": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        15.812,
+        46.699,
+        10.754
+      ],
+      "p99SpreadPercent": 334.2
+    },
+    "list@50": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        24.572,
+        65.705,
+        26.775
+      ],
+      "p99SpreadPercent": 167.4
+    },
+    "mixed@1": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        16.52,
+        21.725,
+        20.672
+      ],
+      "p99SpreadPercent": 31.5
+    },
+    "mixed@10": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        610.043,
+        370.601,
+        686.72
+      ],
+      "p99SpreadPercent": 85.3
+    },
+    "mixed@100": {
+      "errorRatePercentBaseline": 9.5986,
+      "errorRateObserved": [
+        8.7527,
+        9.5986,
+        2.9412
+      ],
+      "errorRateSpreadPP": 6.6574,
+      "p99ObservedMs": [
+        5423.058,
+        5331.164,
+        5521.661
+      ],
+      "p99SpreadPercent": 3.6,
+      "knownBad": true
+    },
+    "mixed@25": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        1458.065,
+        1193.488,
+        1844.711
+      ],
+      "p99SpreadPercent": 54.6
+    },
+    "mixed@50": {
+      "errorRatePercentBaseline": 0.0,
+      "errorRateObserved": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "errorRateSpreadPP": 0.0,
+      "p99ObservedMs": [
+        3641.529,
+        1989.438,
+        4601.979
+      ],
+      "p99SpreadPercent": 131.3
+    }
+  }
+}

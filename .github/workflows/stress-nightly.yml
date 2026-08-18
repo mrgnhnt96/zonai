@@ -1,0 +1,84 @@
+name: Stress (nightly)
+
+# docs/testing-strategy.md Step 7. NIGHTLY, deliberately not on the PR path: a
+# full sweep is minutes of saturated CPU and it is noisy on shared runners, so
+# putting it on every PR is how it gets disabled within a week.
+#
+# WHAT THIS GATES, AND WHAT IT REFUSES TO GATE
+#
+# It gates ERROR RATE. It does NOT gate p99 latency, and that is a measured
+# decision rather than an omission. Three calibration runs on one 12-core dev
+# machine, same build, gave:
+#
+#     p99 latency ... 139% spread at the median cell, 2178% at the worst
+#     error rate .... 0.00 percentage points at the median; 25 of 30 cells
+#                     were exactly 0.00% in all three runs
+#
+# Any p99 threshold those runs support would flap, and a flapping gate gets
+# muted -- which is worse than no gate. p99 is uploaded for trend, never
+# asserted. The numbers live in stress/thresholds.json so this is arguable
+# from data rather than from memory.
+#
+# THIS HAS NEVER RUN ON CI HARDWARE. Per this repo's own lesson from test.yml
+# -- "a local measurement of a CI claim is a hypothesis" -- the baseline in
+# thresholds.json was calibrated on a dev machine and there is no reason to
+# think a GitHub runner reproduces it. So the gate step is CONTINUE-ON-ERROR
+# for now: it reports, and it cannot fail the build.
+#
+#   TO ARM IT: let this run for a few nights, recalibrate thresholds.json from
+#   runner numbers (not laptop numbers), then delete the continue-on-error
+#   line below. Arming it before that ships a gate nobody has ever seen pass.
+
+on:
+  schedule:
+    # 07:00 UTC — off the working day for the repo's timezone.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  # Two stress runs on one runner measure each other, not the server.
+  group: stress-nightly
+  cancel-in-progress: false
+
+jobs:
+  stress:
+    name: sweep + error-rate gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Resolve stress deps
+        working-directory: stress
+        run: dart pub get
+
+      - name: Sweep
+        working-directory: stress
+        # Defaults match the calibration exactly (concurrency 1,10,25,50,100 x
+        # six scenarios, 5s each). Changing either here without recalibrating
+        # thresholds.json compares two different experiments.
+        run: dart run bin/stress.dart --json=results/nightly.json
+
+      - name: Error-rate gate
+        working-directory: stress
+        # DELETE THIS LINE once thresholds.json is calibrated from runner
+        # numbers. See the header.
+        continue-on-error: true
+        run: dart run bin/check_thresholds.dart results/nightly.json
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-nightly-${{ github.run_id }}
+          path: |
+            stress/results/nightly.json
+            stress/.cache/server.log
+          retention-days: 30
