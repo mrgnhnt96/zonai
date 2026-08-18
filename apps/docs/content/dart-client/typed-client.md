@@ -97,8 +97,10 @@ A `PasswordColumn` — or any column the schema marks secret — has **no field 
 
 A schema declaring `EnumColumn<Shelf>` generates `final BooksShelf shelf` — an extension type over `String`, with a named constant per declared member:
 
-```dart no-analyze
-if (book.shelf == BooksShelf.reading) { ... }
+```dart in:typed-client-fixture
+if (book.shelf == BooksShelf.reading) {
+  // ...
+}
 
 await client.books.list(where: Books.shelf.eq(BooksShelf.finished));
 await client.books.update(
@@ -109,7 +111,7 @@ await client.books.update(
 
 **Not a Dart `enum`, and that is the point.** A real enum makes a member the server adds later either a parse failure or a sentinel that loses the value. An extension type carries it regardless:
 
-```dart no-analyze
+```dart in:typed-client-fixture
 // The server added `rescinded` after this client was generated.
 print(book.shelf.value);      // 'rescinded' — nothing is lost
 print(book.shelf.isKnown);    // false — and you can find out
@@ -212,7 +214,7 @@ Each field takes a `Patch`, and which `Patch` depends on the column's kind — s
 | `list`, `enumList`, `photos` | `ListField` | `add`, `remove`, `addAll`, `removeAll` |
 | `map` | `MapField` | `at` — patch one path inside the map |
 
-```dart no-analyze
+```dart in:typed-client-fixture
 await client.articles.update(
   where: Articles.id.eq(id),
   set: const ArticlesUpdate(viewCount: NumField.increment()),
@@ -225,9 +227,9 @@ await client.articles.update(
 
 `MapField.at` patches a single path inside a JSON map column and leaves its other keys alone:
 
-```dart no-analyze
+```dart in:typed-client-fixture
 await client.users.update(
-  where: Users.id.eq(id),
+  where: Users.id.eq(userId),
   set: UsersUpdate(settings: MapField.at(const ['theme'], 'dark')),
 );
 ```
@@ -386,9 +388,13 @@ The value on the wire is identical; only the argument type moved.
 
 Comparing against a string literal still compiles **and still gives the right answer**:
 
-```dart no-analyze
-if (book.shelf == 'reading') { ... }        // still compiles, still true
-if (book.shelf == BooksShelf.reading) { ... } // the typed form
+```dart in:typed-client-fixture
+if (book.shelf == 'reading') {
+  // still compiles, still true
+}
+if (book.shelf == BooksShelf.reading) {
+  // the typed form
+}
 ```
 
 What stops compiling is using it *as* a `String` — assigning it to one, passing it to something that wants one, or calling a `String` method on it. `.value` is the way out:

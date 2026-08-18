@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "generatorVersion": "0.8.0",
+  "schemaHash": "bfe1d2d4804981736d224d03898553a4bcaf59ba61cece12214dea16499fde55",
+  "files": [
+    "tables/articles.g.dart",
+    "tables/books.g.dart",
+    "tables/notes.g.dart",
+    "tables/users.g.dart",
+    "zonai_client.g.dart",
+    "zonai_runtime.g.dart"
+  ]
+}
