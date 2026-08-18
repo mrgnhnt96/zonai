@@ -789,9 +789,18 @@ $kGeneratedClientHeader
       ..writeln('  /// One `ColumnUpdate` per field actually supplied.')
       ..writeln('  List<Update> toUpdates() => [');
     for (final write in writes) {
+      // A map column routes its name through `MapField.columnFor`, because
+      // `MapField.at` patches one path INSIDE the map and says so by changing
+      // the column to a dotted `settings.theme` (§4.7). Every other patch
+      // changes only the operation, so its name stays a literal -- emitting
+      // the call for them too would be a method call per column to return the
+      // string that is already there.
+      final column = write.patch == 'MapField'
+          ? "p.columnFor('${write.wireKey}')"
+          : "'${write.wireKey}'";
       buffer.writeln(
         '        if (${write.field} case final p?) '
-        "ColumnUpdate('${write.wireKey}', p.value),",
+        'ColumnUpdate($column, p.value),',
       );
     }
     buffer

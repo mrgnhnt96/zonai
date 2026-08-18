@@ -948,6 +948,42 @@ void main() {
         ),
       );
     });
+
+    test('only a map column routes its name through columnFor', () {
+      // `MapField.at` is the one patch that changes the column NAME rather
+      // than the operation: it renders `meta.theme` so the server applies a
+      // JSON patch (SS4.7). Every other patch keeps a literal name, and this
+      // asserts BOTH halves -- a version that called columnFor on everything
+      // would pass an assertion that only checked the map column.
+      final shapes = {
+        'items': TableSchemaShape(
+          table: 'items',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column('label', kind: ColumnShapeKind.text),
+            _column('meta', kind: ColumnShapeKind.map),
+          ],
+        ),
+      };
+      final items = _emit(shapes: shapes)['tables/items.g.dart']!;
+
+      expect(
+        items,
+        contains(
+          "if (meta case final p?) ColumnUpdate(p.columnFor('meta'), p.value),",
+        ),
+      );
+      expect(
+        items,
+        contains("if (label case final p?) ColumnUpdate('label', p.value),"),
+        reason: 'a non-map column still emits its name as a literal',
+      );
+      expect(
+        items,
+        isNot(contains("p.columnFor('label')")),
+        reason: 'columnFor exists only on MapField, so this would not compile',
+      );
+    });
   });
 
   group('typed expand paths (§5.3)', () {
