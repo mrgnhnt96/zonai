@@ -121,6 +121,18 @@ final class PostsExpanded {
       };
 }
 
+/// Typed `expand` paths rooted at a `posts` row.
+///
+/// Reach one through `Posts.expand`. Each hop is
+/// typed by the table it points at, and the value sent is
+/// the same dotted string the untyped client takes.
+final class PostsExpand extends ExpandPath {
+  const PostsExpand(super.segments);
+
+  /// Expand the `authors` row `author_id` points at.
+  AuthorsExpand get authorId => AuthorsExpand([...segments, 'author_id']);
+}
+
 /// Typed column tokens for `posts`.
 ///
 /// Each token builds a plain `Where` or `OrderByTerm`, so the
@@ -135,6 +147,9 @@ final class PostsExpanded {
 abstract final class Posts {
   /// The wire name of this table.
   static const table = 'posts';
+
+  /// The root of a typed `expand` path.
+  static const expand = PostsExpand([]);
 
   /// The `id` column.
   static const id = ColumnRef<PostsId>('id');
@@ -170,14 +185,14 @@ final class PostsApi {
   /// The single row with this id.
   Future<PostsRow> get(
     PostsId id, {
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.get(
         body: GetBody(
           table: table,
           where: Eq('id', id.value),
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: PostsRow.fromJson,
         authorization: as?.header,
@@ -189,17 +204,16 @@ final class PostsApi {
   /// not add aggregates, so rows come back in the ordinary
   /// row shape and `PostsRow.fromJson` still applies.
   ///
-  /// `expand` takes the wire paths the server understands --
-  /// `['author_id', 'author_id.company_id']`, dotted and
-  /// capped at depth 4. Phase 3 replaces them with typed
-  /// paths; the wire form does not change when it does.
+  /// `expand` takes typed paths -- `[Posts.expand.authorId, Posts.expand.authorId.companyId]`.
+  /// The server caps depth at 4 and keys each expanded
+  /// row by its foreign-key column name.
   Future<Paginated<PostsRow>> list({
     Where? where,
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
     ColumnRef<Object?>? groupBy,
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.list(
@@ -210,7 +224,7 @@ final class PostsApi {
           offset: offset,
           orderBy: orderBy,
           groupBy: groupBy?.name,
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: PostsRow.fromJson,
         authorization: as?.header,

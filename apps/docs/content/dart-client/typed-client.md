@@ -121,11 +121,27 @@ Reach for the underlying string with `.value` when you need it in a `Where` clau
 A row that points at another table gets an `expanded` companion, populated only when the call asked for it:
 
 ```dart no-analyze
-final post = await client.posts.get(postId, expand: ['author_id']);
-print(post.expanded?.author?.name);
+final post = await client.posts.get(postId, expand: [Posts.expand.authorId]);
+print(post.expanded?.authorId?.name);
 ```
 
-`expand` takes the wire paths the server understands — `['author_id', 'author_id.company_id']`, dotted, capped at depth 4. An unexpanded row is not an error; `expanded` is simply null.
+`expand` takes **typed paths**, built by chaining from `Posts.expand`. Each hop is typed by the table it points at, so a wrong turn stops compiling:
+
+```dart no-analyze
+final posts = await client.posts.list(
+  expand: [
+    Posts.expand.authorId,             // → 'author_id'
+    Posts.expand.authorId.companyId,   // → 'author_id.company_id'
+  ],
+);
+final company = posts.items.first.expanded?.authorId?.expanded?.companyId;
+```
+
+`Posts.expand.authorId.title` does not exist — `title` is a column, not a relation. The value on the wire is the same dotted string the untyped client takes, so nothing about the request changes.
+
+Both sides are keyed by the **foreign-key column name**, not by a relation alias: you ask for `author_id` and you read `expanded?.authorId`. An unexpanded row is not an error; `expanded` is simply null.
+
+The server caps depth at 4 and answers a deeper path with `ColumnNotExpandableException`. That cap is not enforced by the type system — a self-referencing key (`users.manager_id → users.id`) can be chained forever — so it is a debug assert on the client and the server's rejection in production.
 
 ## Acting as a user
 
@@ -199,7 +215,14 @@ where the encoding is visibly your problem.
 
 ## Where the query vocabulary comes from
 
-`Where`, `Update`, `OrderByTerm`, `SortDirection`, `Eq`, `Gt`, `In`, `Contains` and the rest are exported by `zonai_client` itself, so importing the generated client is enough to name them.
+`Where`, `Update`, `OrderByTerm`, `SortDirection`, `Eq`, `Gt`, `In`, `Contains` and the rest are exported by `zonai_client`. The generated barrel does **not** re-export them, so a file that names one of these types — including `Paginated`, which `list` returns — imports both:
+
+```dart no-analyze
+import 'package:zonai_client/zonai_client.dart';
+import 'package:my_app/gen/zonai/zonai_client.g.dart';
+```
+
+You do not need the first import to *build* a filter — `Posts.title.eq('x')` returns a `Where` without you naming the type — only to write one down.
 
 Two members are deliberately **not** exported: `Null` and `NotNull`. A library importing them would shadow `dart:core`'s `Null` — Dart resolves an explicit import ahead of the implicit `dart:core` one, so every `Null` written in that library would mean the where-clause class instead. Build those clauses with the factories:
 

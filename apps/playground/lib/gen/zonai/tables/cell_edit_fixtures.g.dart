@@ -170,6 +170,18 @@ final class CellEditFixturesExpanded {
       };
 }
 
+/// Typed `expand` paths rooted at a `cell_edit_fixtures` row.
+///
+/// Reach one through `CellEditFixtures.expand`. Each hop is
+/// typed by the table it points at, and the value sent is
+/// the same dotted string the untyped client takes.
+final class CellEditFixturesExpand extends ExpandPath {
+  const CellEditFixturesExpand(super.segments);
+
+  /// Expand the `companies` row `company_id` points at.
+  CompaniesExpand get companyId => CompaniesExpand([...segments, 'company_id']);
+}
+
 /// Typed column tokens for `cell_edit_fixtures`.
 ///
 /// Each token builds a plain `Where` or `OrderByTerm`, so the
@@ -188,6 +200,9 @@ final class CellEditFixturesExpanded {
 abstract final class CellEditFixtures {
   /// The wire name of this table.
   static const table = 'cell_edit_fixtures';
+
+  /// The root of a typed `expand` path.
+  static const expand = CellEditFixturesExpand([]);
 
   /// The `id` column.
   static const id = ColumnRef<CellEditFixturesId>('id');
@@ -238,14 +253,14 @@ final class CellEditFixturesApi {
   /// The single row with this id.
   Future<CellEditFixturesRow> get(
     CellEditFixturesId id, {
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.get(
         body: GetBody(
           table: table,
           where: Eq('id', id.value),
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: CellEditFixturesRow.fromJson,
         authorization: as?.header,
@@ -257,17 +272,16 @@ final class CellEditFixturesApi {
   /// not add aggregates, so rows come back in the ordinary
   /// row shape and `CellEditFixturesRow.fromJson` still applies.
   ///
-  /// `expand` takes the wire paths the server understands --
-  /// `['company_id']`, dotted and
-  /// capped at depth 4. Phase 3 replaces them with typed
-  /// paths; the wire form does not change when it does.
+  /// `expand` takes typed paths -- `[CellEditFixtures.expand.companyId]`.
+  /// The server caps depth at 4 and keys each expanded
+  /// row by its foreign-key column name.
   Future<Paginated<CellEditFixturesRow>> list({
     Where? where,
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
     ColumnRef<Object?>? groupBy,
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.list(
@@ -278,7 +292,7 @@ final class CellEditFixturesApi {
           offset: offset,
           orderBy: orderBy,
           groupBy: groupBy?.name,
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: CellEditFixturesRow.fromJson,
         authorization: as?.header,

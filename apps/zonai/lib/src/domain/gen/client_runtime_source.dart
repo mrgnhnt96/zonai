@@ -381,6 +381,40 @@ final class ZonaiRowReader {
 /// Omit it and the call falls through to the ambient token the client's
 /// interceptor already sets -- `client.posts.list()` is authenticated exactly
 /// as `client.db.list(...)` is today.
+/// One `expand` path, built by chaining getters rather than writing a string.
+///
+/// The server keys expanded rows by the **foreign-key column name** and splits
+/// each requested path on `.`, so `['author_id', 'author_id.company_id']` is
+/// the wire form and this type builds exactly that. Each hop is typed by the
+/// table it points at, which is what makes `Posts.expand.authorId.title`
+/// not exist.
+///
+/// The depth cap is an assert, not a type. The server throws
+/// `ColumnNotExpandableException` past depth 4, and a chain long enough to hit
+/// it is built at runtime -- a self-referencing foreign key can be followed
+/// forever -- so a type-level cap would need one class per table per depth.
+/// The assert in [path] catches it in debug; the server is still the
+/// enforcement.
+class ExpandPath {
+  const ExpandPath(this.segments);
+
+  /// The foreign-key column names walked so far, outermost first.
+  final List<String> segments;
+
+  /// The dotted wire form: `author_id.company_id`.
+  ///
+  /// The depth check lives here rather than in the constructor because
+  /// `List.length` is not reachable in a constant expression, and the root of
+  /// every chain (`Posts.expand`) is a `const`.
+  String get path {
+    assert(segments.length <= 4, 'The server caps expand depth at 4');
+    return segments.join('.');
+  }
+
+  @override
+  String toString() => path;
+}
+
 /// A typed handle on one column: the only way the generated API builds a
 /// filter, an order term or a `groupBy`.
 ///

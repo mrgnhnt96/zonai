@@ -71,6 +71,18 @@ final class CompaniesRow {
       );
 }
 
+/// Typed `expand` paths rooted at a `companies` row.
+///
+/// Reach one through `Companies.expand`. Each hop is
+/// typed by the table it points at, and the value sent is
+/// the same dotted string the untyped client takes.
+final class CompaniesExpand extends ExpandPath {
+  const CompaniesExpand(super.segments);
+
+  // No expandable foreign keys on this table. The type
+  // still exists because another table may point here.
+}
+
 /// Typed column tokens for `companies`.
 ///
 /// Each token builds a plain `Where` or `OrderByTerm`, so the
@@ -85,6 +97,9 @@ final class CompaniesRow {
 abstract final class Companies {
   /// The wire name of this table.
   static const table = 'companies';
+
+  /// The root of a typed `expand` path.
+  static const expand = CompaniesExpand([]);
 
   /// The `id` column.
   static const id = ColumnRef<CompaniesId>('id');
@@ -114,14 +129,14 @@ final class CompaniesApi {
   /// The single row with this id.
   Future<CompaniesRow> get(
     CompaniesId id, {
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.get(
         body: GetBody(
           table: table,
           where: Eq('id', id.value),
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: CompaniesRow.fromJson,
         authorization: as?.header,
@@ -141,7 +156,7 @@ final class CompaniesApi {
     int? offset,
     List<OrderByTerm>? orderBy,
     ColumnRef<Object?>? groupBy,
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.list(
@@ -152,7 +167,7 @@ final class CompaniesApi {
           offset: offset,
           orderBy: orderBy,
           groupBy: groupBy?.name,
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: CompaniesRow.fromJson,
         authorization: as?.header,

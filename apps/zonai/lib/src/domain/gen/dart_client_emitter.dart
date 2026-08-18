@@ -98,6 +98,7 @@ $kGeneratedClientHeader
         'Authorization, '
         'ColumnRef, '
         'ComparableColumnRef, '
+        'ExpandPath, '
         'NullableColumnRef, '
         'StringColumnRef, '
         'ZonaiRowParseException;',
@@ -175,13 +176,17 @@ $kGeneratedClientHeader
     _writeId(buffer, shape, name);
     _writeRow(buffer, shape, name, columns, expands, secrets);
     if (expands.isNotEmpty) _writeExpanded(buffer, name, expands);
-    _writeTokens(buffer, shape, name, columns, secrets);
+    // Emitted for every table, not only those with expandable keys: a table
+    // with none of its own is still the *target* of another table's, and
+    // `AuthorsExpand.companyId` has to have a `CompaniesExpand` to return.
+    _writeExpand(buffer, name, expands, names);
+    _writeTokens(buffer, shape, name, columns, secrets, expands);
     _writeApi(
       buffer,
       shape,
       name,
       columns,
-      _expandExample(expands, input.schema.tables, names),
+      _expandExample(expands, input.schema.tables, names, owner: name),
     );
 
     return buffer.toString();
@@ -227,8 +232,9 @@ $kGeneratedClientHeader
   String? _expandExample(
     List<ExpandBinding> expands,
     Map<String, TableSchemaShape> tables,
-    ClientNameTable names,
-  ) {
+    ClientNameTable names, {
+    required TableNames owner,
+  }) {
     if (expands.isEmpty) return null;
     final first = expands.first;
 
@@ -242,8 +248,10 @@ $kGeneratedClientHeader
       _ => null,
     };
 
-    if (second == null) return "['${first.wireKey}']";
-    return "['${first.wireKey}', '${first.wireKey}.${second.wireKey}']";
+    final root = '${owner.tokens}.expand';
+    if (second == null) return '[$root.${first.field}]';
+    return '[$root.${first.field}, '
+        '$root.${first.field}.${second.field}]';
   }
 
   void _writeId(StringBuffer buffer, TableSchemaShape shape, TableNames name) {
@@ -429,6 +437,7 @@ $kGeneratedClientHeader
     TableNames name,
     List<ColumnBinding> columns,
     List<String> secrets,
+    List<ExpandBinding> expands,
   ) {
     buffer
       ..writeln('/// Typed column tokens for `${shape.table}`.')
@@ -456,6 +465,11 @@ $kGeneratedClientHeader
       ..writeln('  /// The wire name of this table.')
       ..writeln("  static const table = '${shape.table}';");
 
+    buffer
+      ..writeln()
+      ..writeln('  /// The root of a typed `expand` path.')
+      ..writeln('  static const expand = ${name.expand}([]);');
+
     for (final binding in columns) {
       // Not every column can carry an honest token -- see
       // `ColumnBinding.isTokenable` for the seven kinds that cannot and the
@@ -470,6 +484,58 @@ $kGeneratedClientHeader
           '  static const ${binding.field} = '
           '$ref<${_nonNullable(binding.type)}>'
           "('${binding.wireKey}');",
+        );
+    }
+
+    buffer
+      ..writeln('}')
+      ..writeln();
+  }
+
+  /// The typed `expand` path builder for this table.
+  ///
+  /// One getter per expandable foreign key, each returning the *referenced*
+  /// table's builder -- so `Posts.expand.authorId.companyId` type-checks the
+  /// whole way down and `Posts.expand.authorId.title` does not exist. The
+  /// graph comes from [ExpandBinding.forTable], which already excludes a photo
+  /// column's foreign key into the framework-internal `_photos`.
+  ///
+  /// A self-referencing key (`users.manager_id -> users.id`) yields a getter
+  /// returning this same type, chainable to any depth -- which is exactly why
+  /// the depth cap on `ExpandPath` is an assert and not a type.
+  void _writeExpand(
+    StringBuffer buffer,
+    TableNames name,
+    List<ExpandBinding> expands,
+    ClientNameTable names,
+  ) {
+    buffer
+      ..writeln('/// Typed `expand` paths rooted at a `${name.table}` row.')
+      ..writeln('///')
+      ..writeln('/// Reach one through `${name.tokens}.expand`. Each hop is')
+      ..writeln('/// typed by the table it points at, and the value sent is')
+      ..writeln('/// the same dotted string the untyped client takes.')
+      ..writeln('final class ${name.expand} extends ExpandPath {')
+      ..writeln('  const ${name.expand}(super.segments);');
+
+    if (expands.isEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('  // No expandable foreign keys on this table. The type')
+        ..writeln('  // still exists because another table may point here.');
+    }
+
+    for (final expand in expands) {
+      final target = names[expand.targetTable]!;
+      buffer
+        ..writeln()
+        ..writeln(
+          '  /// Expand the `${expand.targetTable}` row '
+          '`${expand.wireKey}` points at.',
+        )
+        ..writeln(
+          '  ${target.expand} get ${expand.field} => '
+          "${target.expand}([...segments, '${expand.wireKey}']);",
         );
     }
 
@@ -543,14 +609,14 @@ $kGeneratedClientHeader
         ..writeln('  /// The single row with this ${keyed.wireKey}.')
         ..writeln('  Future<${name.row}> get(')
         ..writeln('    ${keyed.type} ${keyed.field}, {')
-        ..writeln('    List<String> expand = const [],')
+        ..writeln('    List<ExpandPath> expand = const [],')
         ..writeln('    Authorization? as,')
         ..writeln('  }) =>')
         ..writeln('      _db.get(')
         ..writeln('        body: GetBody(')
         ..writeln('          table: table,')
         ..writeln("          where: Eq('${keyed.wireKey}', $value),")
-        ..writeln('          expand: expand,')
+        ..writeln('          expand: [for (final e in expand) e.path],')
         ..writeln('        ),')
         ..writeln('        fromJson: ${name.row}.fromJson,')
         ..writeln('        authorization: as?.header,')
@@ -563,13 +629,13 @@ $kGeneratedClientHeader
       ..writeln('  /// The single row matching [where].')
       ..writeln('  Future<${name.row}> get({')
       ..writeln('    required Where where,')
-      ..writeln('    List<String> expand = const [],')
+      ..writeln('    List<ExpandPath> expand = const [],')
       ..writeln('    Authorization? as,')
       ..writeln('  }) =>')
       ..writeln('      _db.get(')
       ..writeln(
         '        body: GetBody(table: table, where: where, '
-        'expand: expand),',
+        'expand: [for (final e in expand) e.path]),',
       )
       ..writeln('        fromJson: ${name.row}.fromJson,')
       ..writeln('        authorization: as?.header,')
@@ -587,12 +653,9 @@ $kGeneratedClientHeader
       ..writeln('  ///');
     if (expandExample case final example?) {
       buffer
-        ..writeln(
-          '  /// `expand` takes the wire paths the server understands --',
-        )
-        ..writeln('  /// `$example`, dotted and')
-        ..writeln('  /// capped at depth 4. Phase 3 replaces them with typed')
-        ..writeln('  /// paths; the wire form does not change when it does.');
+        ..writeln('  /// `expand` takes typed paths -- `$example`.')
+        ..writeln('  /// The server caps depth at 4 and keys each expanded')
+        ..writeln('  /// row by its foreign-key column name.');
     } else {
       buffer
         ..writeln('  /// `${name.table}` has no foreign keys, so there is')
@@ -605,7 +668,7 @@ $kGeneratedClientHeader
       ..writeln('    int? offset,')
       ..writeln('    List<OrderByTerm>? orderBy,')
       ..writeln('    ColumnRef<Object?>? groupBy,')
-      ..writeln('    List<String> expand = const [],')
+      ..writeln('    List<ExpandPath> expand = const [],')
       ..writeln('    Authorization? as,')
       ..writeln('  }) =>')
       ..writeln('      _db.list(')
@@ -616,7 +679,7 @@ $kGeneratedClientHeader
       ..writeln('          offset: offset,')
       ..writeln('          orderBy: orderBy,')
       ..writeln('          groupBy: groupBy?.name,')
-      ..writeln('          expand: expand,')
+      ..writeln('          expand: [for (final e in expand) e.path],')
       ..writeln('        ),')
       ..writeln('        fromJson: ${name.row}.fromJson,')
       ..writeln('        authorization: as?.header,')

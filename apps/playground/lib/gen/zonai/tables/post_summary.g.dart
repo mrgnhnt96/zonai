@@ -66,6 +66,18 @@ final class PostSummaryRow {
       );
 }
 
+/// Typed `expand` paths rooted at a `post_summary` row.
+///
+/// Reach one through `PostSummary.expand`. Each hop is
+/// typed by the table it points at, and the value sent is
+/// the same dotted string the untyped client takes.
+final class PostSummaryExpand extends ExpandPath {
+  const PostSummaryExpand(super.segments);
+
+  // No expandable foreign keys on this table. The type
+  // still exists because another table may point here.
+}
+
 /// Typed column tokens for `post_summary`.
 ///
 /// Each token builds a plain `Where` or `OrderByTerm`, so the
@@ -80,6 +92,9 @@ final class PostSummaryRow {
 abstract final class PostSummary {
   /// The wire name of this table.
   static const table = 'post_summary';
+
+  /// The root of a typed `expand` path.
+  static const expand = PostSummaryExpand([]);
 
   /// The `id` column.
   static const id = ColumnRef<PostSummaryId>('id');
@@ -109,14 +124,14 @@ final class PostSummaryApi {
   /// The single row with this id.
   Future<PostSummaryRow> get(
     PostSummaryId id, {
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.get(
         body: GetBody(
           table: table,
           where: Eq('id', id.value),
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: PostSummaryRow.fromJson,
         authorization: as?.header,
@@ -136,7 +151,7 @@ final class PostSummaryApi {
     int? offset,
     List<OrderByTerm>? orderBy,
     ColumnRef<Object?>? groupBy,
-    List<String> expand = const [],
+    List<ExpandPath> expand = const [],
     Authorization? as,
   }) =>
       _db.list(
@@ -147,7 +162,7 @@ final class PostSummaryApi {
           offset: offset,
           orderBy: orderBy,
           groupBy: groupBy?.name,
-          expand: expand,
+          expand: [for (final e in expand) e.path],
         ),
         fromJson: PostSummaryRow.fromJson,
         authorization: as?.header,

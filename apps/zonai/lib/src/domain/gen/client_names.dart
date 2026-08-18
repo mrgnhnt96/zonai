@@ -96,6 +96,12 @@ final class TableNames {
   /// Per-table API. `PostsApi`.
   String get api => '${base}Api';
 
+  /// The typed `expand` path builder: `posts` -> `PostsExpand`.
+  ///
+  /// Distinct from [expanded] (`PostsExpanded`), which is the *response* side.
+  /// One asks for related rows, the other holds them.
+  String get expand => '${base}Expand';
+
   /// The column-token holder: `posts` -> `Posts`.
   ///
   /// Deliberately the bare base name. Nothing tries to guess an English

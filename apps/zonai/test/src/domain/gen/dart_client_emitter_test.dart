@@ -233,15 +233,15 @@ void main() {
     test('names this table\'s own foreign key, not a fixed one', () {
       final posts = _emit()['tables/posts.g.dart']!;
 
-      expect(posts, contains("`['author_id']`"));
-      expect(posts, isNot(contains('company_id')));
+      expect(posts, contains('`[Posts.expand.authorId]`'));
+      expect(posts, isNot(contains('companyId')));
     });
 
     test('says so plainly when the table has no expandable relation', () {
       final authors = _emit()['tables/authors.g.dart']!;
 
       expect(authors, contains('`authors` has no foreign keys'));
-      expect(authors, isNot(contains('author_id')));
+      expect(authors, isNot(contains('get authorId')));
     });
 
     test('never suggests a photo column, which cannot be expanded', () {
@@ -252,7 +252,8 @@ void main() {
       // expanded class agreeing.
       final posts = _emit()['tables/posts.g.dart']!;
 
-      expect(posts, isNot(contains("`['photo']`")));
+      expect(posts, isNot(contains('`[Posts.expand.photo]`')));
+      expect(posts, isNot(contains('get photo =>')));
     });
 
     test('chains a second hop only when the target has one', () {
@@ -282,9 +283,12 @@ void main() {
 
       final posts = _emit(shapes: shapes)['tables/posts.g.dart']!;
 
-      // Now that authors DOES have a foreign key, the dotted form appears --
+      // Now that authors DOES have a foreign key, the chained form appears --
       // which is the only reason the example exists.
-      expect(posts, contains("`['author_id', 'author_id.company_id']`"));
+      expect(
+        posts,
+        contains('`[Posts.expand.authorId, Posts.expand.authorId.companyId]`'),
+      );
     });
   });
 
@@ -334,6 +338,103 @@ void main() {
         exported,
         isNot(contains('ZonaiRowReader')),
         reason: 'ZonaiRowReader is an implementation detail of the models',
+      );
+    });
+  });
+
+  group('typed expand paths (§5.3)', () {
+    test('one getter per expandable key, typed by the table it points at', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('final class PostsExpand extends ExpandPath {'));
+      expect(
+        posts,
+        contains(
+          'AuthorsExpand get authorId => '
+          "AuthorsExpand([...segments, 'author_id']);",
+        ),
+        reason: 'the hop is typed by authors, not by posts',
+      );
+      expect(posts, contains('static const expand = PostsExpand([]);'));
+    });
+
+    test('a table with no expandable key still gets its Expand type', () {
+      // `authors` is the *target* of posts.author_id, so `PostsExpand` has to
+      // have an `AuthorsExpand` to return -- even though authors itself has
+      // nothing to expand. Emitting only for tables with keys of their own is
+      // exactly the bug that made the generated output stop compiling.
+      final authors = _emit()['tables/authors.g.dart']!;
+
+      expect(authors, contains('final class AuthorsExpand extends ExpandPath'));
+      expect(authors, contains('static const expand = AuthorsExpand([]);'));
+      expect(authors, isNot(contains('get authorId')));
+    });
+
+    test('a self-referencing key chains to itself, to any depth', () {
+      final shapes = {
+        'users': TableSchemaShape(
+          table: 'users',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column(
+              'manager_id',
+              kind: ColumnShapeKind.id,
+              isNullable: true,
+              foreignKey: const ForeignKeyShape(table: 'users', column: 'id'),
+            ),
+          ],
+        ),
+      };
+      final users = _emit(shapes: shapes)['tables/users.g.dart']!;
+
+      expect(
+        users,
+        contains(
+          'UsersExpand get managerId => '
+          "UsersExpand([...segments, 'manager_id']);",
+        ),
+        reason: 'chainable to any depth -- which is why the cap is not a type',
+      );
+      expect(
+        users,
+        isNot(contains("import 'users.g.dart';")),
+        reason: 'a self-reference must not import its own library',
+      );
+    });
+
+    test('get and list take ExpandPath and serialize the dotted form', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('List<ExpandPath> expand = const [],'));
+      expect(posts, isNot(contains('List<String> expand')));
+      expect(posts, contains('expand: [for (final e in expand) e.path]'));
+    });
+
+    test('the doc example is the typed form, not the raw wire strings', () {
+      // The stopgap comment promised "Phase 3 replaces them with typed paths".
+      // It has, so the promise must not still be in the output.
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('Posts.expand.authorId'));
+      expect(posts, isNot(contains('Phase 3 replaces them')));
+    });
+
+    test('the depth cap is checked where it can be, not in a const ctor', () {
+      // `List.length` is not reachable in a constant expression, so an assert
+      // in the constructor makes `static const expand = PostsExpand([])` a
+      // compile error in every generated file.
+      final runtime = _emit()[DartClientEmitter.runtimeFileName]!;
+
+      expect(runtime, contains('const ExpandPath(this.segments);'));
+      expect(
+        runtime,
+        contains(
+          "assert(segments.length <= 4, 'The server caps expand depth at 4');",
+        ),
+      );
+      expect(
+        runtime,
+        isNot(contains("const ExpandPath(this.segments)\n      : assert")),
       );
     });
   });

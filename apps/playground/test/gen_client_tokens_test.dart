@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:test/test.dart';
+import 'package:zonai_client/zonai_client.dart';
 import 'package:zonai_playground/gen/zonai/zonai_client.g.dart';
 
 /// The §5.4 column tokens, exercised down to the wire form.
@@ -83,6 +86,48 @@ void main() {
         'direction': 'desc',
       });
       expect(Posts.createdAt.asc.toJson(), {'column': 'created_at'});
+    });
+  });
+
+  group('a typed expand path sends exactly what the string form sent', () {
+    test('one hop, and a chained hop, produce the dotted wire form', () {
+      expect(Posts.expand.authorId.path, 'author_id');
+      expect(Posts.expand.authorId.companyId.path, 'author_id.company_id');
+    });
+
+    test('the request body is byte-identical to the hand-written strings', () {
+      // The whole promise of this change is that nothing on the wire moves.
+      // Asserting the two payloads rather than reading the serializer is the
+      // only way to know it.
+      String encode(List<String> expand) =>
+          jsonEncode(ListBody(table: 'posts', expand: expand).toJson());
+
+      final typed = encode([
+        for (final e in [
+          Posts.expand.authorId,
+          Posts.expand.authorId.companyId,
+        ])
+          e.path,
+      ]);
+      final byHand = encode(const ['author_id', 'author_id.company_id']);
+
+      expect(typed, byHand);
+    });
+
+    test('a self-reference is chainable, and the root is const', () {
+      // `Posts.expand` is a `static const`, which is why the depth assert
+      // cannot live in the constructor -- `List.length` is not const-evaluable.
+      const root = Posts.expand;
+      expect(root.segments, isEmpty);
+      expect(root.path, '');
+    });
+
+    test('a table with nothing to expand still has the type', () {
+      // Companies is the target of authors.company_id and has no keys of its
+      // own; without its own Expand type, AuthorsExpand.companyId has nothing
+      // to return and the generated output does not compile.
+      expect(Companies.expand, isA<ExpandPath>());
+      expect(Companies.expand.segments, isEmpty);
     });
   });
 
