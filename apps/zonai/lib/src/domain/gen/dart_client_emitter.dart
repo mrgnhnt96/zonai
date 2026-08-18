@@ -8,12 +8,19 @@ import 'client_names.dart';
 import 'client_package_exports.dart';
 import 'client_runtime_source.dart';
 
-/// The typed client: ids, read models, column tokens, typed expand paths, the
-/// write builders, `ZonaiTables`, and `get` / `list` / `count` / the six
-/// mutations / the `listen` mirror, each with an `Authorization`.
+/// The typed client: ids, read models, enum types, column tokens, typed expand
+/// paths, the write builders, `ZonaiTables`, and `get` / `list` / `count` / the
+/// six mutations / the `listen` mirror, each with an `Authorization`. The
+/// barrel re-exports `zonai_client`, so one import names the whole surface.
 ///
-/// Deliberately *not* here, and not because they were forgotten: enum columns
-/// as Dart enums, `MapField.at()` JSON paths, and custom operations (phase 4).
+/// An enum column gets an extension type over `String` rather than a Dart
+/// `enum`, which is a decision and not a shortcut: an `enum` would turn a
+/// member the server adds later into a parse failure in a client that shipped
+/// before it existed. The generated type keeps the raw value, names the members
+/// the schema declared, and answers `isKnown` for the rest.
+///
+/// Deliberately *not* here, and not because they were forgotten:
+/// `MapField.at()` JSON paths and custom operations.
 ///
 /// Nor are these, and each absence is a measured decision rather than a gap --
 /// see `ColumnBinding.isTokenable` and `WriteBinding.forColumn` for the

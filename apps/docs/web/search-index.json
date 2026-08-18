@@ -3504,7 +3504,7 @@
         {
           "h": "Using the generated client",
           "a": "using-the-generated-client",
-          "b": "The generated client builds on zonai_client, which exports the query vocabulary the generated methods take and return — Where, Update, OrderByTerm and friends. See Typed Client for what the generated API looks like in application code."
+          "b": "The generated client builds on zonai_client, which exports the query vocabulary the generated methods take and return — Where, Update, OrderByTerm and friends. The generated barrel re-exports it, so importing the generated zonai_client.g.dart is enough to name any of them. See Typed Client for what the generated API looks like in application code."
         },
         {
           "h": "See Also",

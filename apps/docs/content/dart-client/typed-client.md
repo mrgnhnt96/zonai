@@ -5,7 +5,7 @@ description: The generated, per-table client — typed rows, typed ids, and no t
 
 `zonai gen client` generates a Dart client from your schema, so application code names tables as properties and gets decoded rows back:
 
-```dart no-analyze
+```dart in:typed-client
 final page = await client.posts.list(
   where: Eq('author_id', authorId.value),
   orderBy: [OrderByTerm(column: 'created_at', direction: SortDirection.desc)],
@@ -20,7 +20,7 @@ for (final post in page.items) {
 
 Compare that with the untyped equivalent, which stays available and valid:
 
-```dart no-analyze
+```dart in:typed-client
 final page = await client.db.list(
   body: ListBody(table: 'posts', limit: 20),
   fromJson: (row) => row,     // Map<String, dynamic> — decode it yourself
@@ -125,7 +125,7 @@ The name is table-qualified (`BooksShelf`, not `Shelf`) because two tables may e
 
 `PostsId` is an extension type over `String`, so it erases at runtime: it survives `jsonEncode` and `SendPort.send` untouched and needs no custom encoder. What it buys you is at compile time — passing an `AuthorsId` where a `PostsId` belongs stops compiling.
 
-```dart no-analyze
+```dart in:typed-client
 final post = await client.posts.get(PostsId('abc123'));
 ```
 
@@ -135,14 +135,14 @@ Reach for the underlying string with `.value` when you need it in a `Where` clau
 
 A row that points at another table gets an `expanded` companion, populated only when the call asked for it:
 
-```dart no-analyze
+```dart in:typed-client
 final post = await client.posts.get(postId, expand: [Posts.expand.authorId]);
 print(post.expanded?.authorId?.name);
 ```
 
 `expand` takes **typed paths**, built by chaining from `Posts.expand`. Each hop is typed by the table it points at, so a wrong turn stops compiling:
 
-```dart no-analyze
+```dart in:typed-client
 final posts = await client.posts.list(
   expand: [
     Posts.expand.authorId,             // → 'author_id'
@@ -162,7 +162,7 @@ The server caps depth at 4 and answers a deeper path with `ColumnNotExpandableEx
 
 Every generated method takes an optional `as:`, which sets the `Authorization` header:
 
-```dart no-analyze
+```dart in:typed-client
 final page = await client.posts.list(as: Authorization.bearer(token));
 ```
 
@@ -178,7 +178,7 @@ final page = await client.posts.list(as: Authorization.bearer(token));
 
 `create` takes a plain builder — there is no absent/NULL ambiguity on insert, so nothing is wrapped:
 
-```dart no-analyze
+```dart in:typed-client
 final post = await client.posts.create(
   PostsCreate(authorId: author.id, title: 'Hello'),
 );
@@ -188,7 +188,7 @@ The id is optional: the server generates one when you leave it out. Read-only co
 
 `update` is different, and the difference is the point:
 
-```dart no-analyze
+```dart in:typed-client
 // Set a value.
 await client.posts.update(
   where: Posts.id.eq(post.id),
@@ -265,7 +265,7 @@ A read-only view generates the same `Row` and `Api` types as a table, but **no w
 `Posts` holds one token per column, and each token knows its own Dart type. That is
 what decides which operators you can reach:
 
-```dart no-analyze
+```dart in:typed-client
 final recent = await client.posts.list(
   where: And([
     Posts.authorId.eq(author.id),
@@ -290,7 +290,7 @@ the untyped client already takes. What changes is what stops compiling:
 
 `groupBy` takes a token too:
 
-```dart no-analyze
+```dart in:typed-client
 final byAuthor = await client.posts.list(groupBy: Posts.authorId);
 ```
 

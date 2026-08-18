@@ -704,6 +704,20 @@ typed paths (`Posts.expand.authorId.companyId`). Update fields take a `Patch`,
 so `Field.set(v)` and `Field.clear()` are different operations — the second
 sets NULL, which a nullable argument cannot express.
 
+An enum column gets its own generated type: an extension type over `String`
+with named constants (`BooksShelf.reading`, plus `values` and `isKnown`), not a
+Dart `enum` — a member the server adds later must not become a parse failure in
+a client that shipped before it existed. Comparisons still work
+(`row.shelf == BooksShelf.reading`); reach for `.value` where a raw `String` is
+wanted, because to the analyzer the type is not one.
+
+One import is enough. The generated barrel re-exports `zonai_client`, so
+`Where`, `Paginated`, `OrderByTerm` and the rest are in scope from the
+generated `zonai_client.g.dart` alone. When a table name collides with
+something `zonai_client` exports — a `photos` table against its `Photos` — the
+barrel hides the package's version and says so in the file; the name you get is
+your own.
+
 A view generates no write surface. Tables whose names start with `_` are
 zonai's own and are skipped unless named in `client.tables.include`. Re-run it
 after a schema change; `--check` fails when the committed output is stale.
@@ -890,8 +904,10 @@ dart run zonai version     # show version
 directory the app owns; there is no default. It generates reads, writes and
 live queries — `get`/`list`/`count`, the six mutations, and
 `client.posts.listen.*` — with column tokens for filters (`Posts.title.eq('x')`)
-and typed `expand` paths. It skips `_`-prefixed system tables unless
-`client.tables.include` names them.
+and typed `expand` paths. An enum column becomes an extension type over
+`String`, with `.value` for the raw one. The generated barrel re-exports
+`zonai_client`, so one import names the whole query vocabulary. It skips
+`_`-prefixed system tables unless `client.tables.include` names them.
 
 ## Config (`lib/src/config/`)
 

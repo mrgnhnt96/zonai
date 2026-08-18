@@ -93,7 +93,7 @@ If a table disappears from the schema, its generated file is removed and named i
 
 ## Using the generated client
 
-The generated client builds on `zonai_client`, which exports the query vocabulary the generated methods take and return — `Where`, `Update`, `OrderByTerm` and friends. See [Typed Client](/dart-client/typed-client) for what the generated API looks like in application code.
+The generated client builds on `zonai_client`, which exports the query vocabulary the generated methods take and return — `Where`, `Update`, `OrderByTerm` and friends. The generated barrel re-exports it, so importing the generated `zonai_client.g.dart` is enough to name any of them. See [Typed Client](/dart-client/typed-client) for what the generated API looks like in application code.
 
 ## See Also
 
