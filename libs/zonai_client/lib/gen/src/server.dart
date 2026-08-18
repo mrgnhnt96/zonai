@@ -23,6 +23,11 @@ class Server {
     storage: storage,
   );
 
+  late final PushDataSource push = PushDataSourceImpl(
+    client: client,
+    storage: storage,
+  );
+
   late final RootDataSource root = RootDataSourceImpl(
     client: client,
     storage: storage,

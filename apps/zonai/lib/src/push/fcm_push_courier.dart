@@ -185,10 +185,12 @@ class FcmPushCourier implements PushCourier {
       'UNREGISTERED' || 'NOT_FOUND' => PushPermanentlyRejected(
         token: token,
         reason: PushRejectionReason.unregistered,
+        detail: '${response.statusCode} $status',
       ),
       'INVALID_ARGUMENT' => PushPermanentlyRejected(
         token: token,
         reason: PushRejectionReason.invalidArgument,
+        detail: '${response.statusCode} $status',
       ),
       // UNAVAILABLE, INTERNAL, RESOURCE_EXHAUSTED (quota), and anything
       // unrecognised. Unrecognised lands here on purpose: an unknown status

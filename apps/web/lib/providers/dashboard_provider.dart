@@ -13,17 +13,16 @@ import 'toast_provider.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
+/// The three numbers that still belong on a stat card.
+///
+/// Active sessions used to be a fourth. It moved to the Sessions panel, which
+/// can put it next to the distinct-user count it needs to be read against — one
+/// number cannot distinguish 40 people from one person on 40 devices.
 final class DashboardStats {
-  const DashboardStats({
-    required this.requestCount24h,
-    required this.errorCount24h,
-    required this.activeSessions,
-    required this.p95ResponseMs,
-  });
+  const DashboardStats({required this.requestCount24h, required this.errorCount24h, required this.p95ResponseMs});
 
   final int requestCount24h;
   final int errorCount24h;
-  final int activeSessions;
   final int? p95ResponseMs;
 
   double? get errorRate => requestCount24h == 0 ? null : errorCount24h / requestCount24h * 100;
@@ -45,11 +44,36 @@ final class TopError {
 }
 
 final class DashboardMetrics {
-  const DashboardMetrics({required this.stats, required this.buckets});
+  const DashboardMetrics({required this.stats, required this.buckets, required this.pushQueue, required this.sessions});
 
   final DashboardStats stats;
   final List<RequestBucket> buckets;
+
+  /// The `_push_jobs` queue, straight off the payload — see [DashboardPushQueue]
+  /// for what it does and does not claim about delivery.
+  final DashboardPushQueue pushQueue;
+
+  /// Sessions, straight off the payload. Three columns' worth; see
+  /// [DashboardSessions].
+  final DashboardSessions sessions;
 }
+
+/// What SSR shows before the client has fetched anything.
+///
+/// Zeroes, not nulls: this stands in for "not loaded yet" and the panels render
+/// their own loading state off `isLoading` rather than off these values.
+const _emptyPushQueue = DashboardPushQueue(
+  pending: 0,
+  running: 0,
+  completed: 0,
+  failed: 0,
+  delivered: 0,
+  permanentlyRejected: 0,
+  transientlyFailed: 0,
+  failedJobs: [],
+);
+
+const _emptySessions = DashboardSessions(active: 0, expiringWithinHour: 0, distinctUsers: 0, topUsers: []);
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -85,8 +109,10 @@ class _DashboardMetricsNotifier extends AsyncNotifier<DashboardMetrics> {
   Future<DashboardMetrics> build() async {
     if (!ref.binding.isClient) {
       return DashboardMetrics(
-        stats: const DashboardStats(requestCount24h: 0, errorCount24h: 0, activeSessions: 0, p95ResponseMs: null),
+        stats: const DashboardStats(requestCount24h: 0, errorCount24h: 0, p95ResponseMs: null),
         buckets: const [],
+        pushQueue: _emptyPushQueue,
+        sessions: _emptySessions,
       );
     }
 
@@ -102,13 +128,14 @@ class _DashboardMetricsNotifier extends AsyncNotifier<DashboardMetrics> {
       stats: DashboardStats(
         requestCount24h: data.requestCount24h,
         errorCount24h: data.errorCount24h,
-        activeSessions: data.activeSessions,
         p95ResponseMs: data.p95ResponseMs,
       ),
       buckets: [
         for (final bucket in data.requestBuckets)
           RequestBucket(hour: DateTime.fromMillisecondsSinceEpoch(bucket.hour), count: bucket.count),
       ],
+      pushQueue: data.pushQueue,
+      sessions: data.sessions,
     );
   }
 }
