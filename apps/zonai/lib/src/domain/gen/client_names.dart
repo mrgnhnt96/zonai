@@ -1,3 +1,4 @@
+import 'client_runtime_source.dart';
 import 'client_settings.dart';
 
 /// A table name that cannot be turned into Dart names.
@@ -81,8 +82,43 @@ final class TableNames {
       );
     }
 
+    // A name the shared runtime already exports cannot also be minted here:
+    // the barrel exports both, which is an ambiguous export, so the generated
+    // client does not compile at all. Refused rather than warned for exactly
+    // that reason -- a warning would move the failure somewhere that names the
+    // barrel instead of the table that caused it.
+    for (final derived in names.all) {
+      if (kClientRuntimeExports.contains(derived)) {
+        throw ClientNameException(
+          table: table,
+          derived: derived,
+          reason:
+              '`$derived` is already exported by the generated runtime, so '
+              'the barrel would export it twice. Set `names.$table.row` in '
+              'zonai.yaml to a different stem',
+        );
+      }
+    }
+
     return names;
   }
+
+  /// Every name this table contributes to the barrel.
+  ///
+  /// Kept next to the getters that produce it: a new generated type is a new
+  /// way to collide, and the collision check has to learn about it here or it
+  /// silently does not cover it.
+  List<String> get all => [
+    base,
+    row,
+    id,
+    expanded,
+    expand,
+    api,
+    create,
+    update,
+    listen,
+  ];
 
   /// Read model. `PostsRow`.
   String get row => '${base}Row';

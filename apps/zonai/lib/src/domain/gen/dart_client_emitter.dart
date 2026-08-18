@@ -7,13 +7,19 @@ import 'client_emitter.dart';
 import 'client_names.dart';
 import 'client_runtime_source.dart';
 
-/// Phase 1 of the typed client: ids, read models, `ZonaiTables`, and
-/// `get` / `list` / `count` with an `Authorization` on every method.
+/// The typed client: ids, read models, column tokens, typed expand paths, the
+/// write builders, `ZonaiTables`, and `get` / `list` / `count` / the six
+/// mutations / the `listen` mirror, each with an `Authorization`.
 ///
-/// Deliberately *not* here, and not because they were forgotten: `ColumnRef`
-/// tokens, typed `Where` / `OrderByTerm`, the `Patch` family and the write
-/// surface (phase 2); `ExpandPath` chaining and `listen` mirrors (phase 3);
-/// enum columns as Dart enums and custom operations (phase 4).
+/// Deliberately *not* here, and not because they were forgotten: enum columns
+/// as Dart enums, `MapField.at()` JSON paths, and custom operations (phase 4).
+///
+/// Nor are these, and each absence is a measured decision rather than a gap --
+/// see `ColumnBinding.isTokenable` and `WriteBinding.forColumn` for the
+/// evidence: no column token or write field for `bigInt` (`jsonEncode` rejects
+/// a `BigInt`), none for `list` / `enumList` / `map` / blob on the filter side
+/// (the column stores a JSON-encoded string), and no token for a photo (it
+/// stores an id and reads back a URL).
 ///
 /// The output is a value, never a write. `--check` has to be able to compare a
 /// generation against disk without performing it, which is only possible while
@@ -95,20 +101,7 @@ $kGeneratedClientHeader
       ..writeln()
       ..writeln(
         "export '$runtimeFileName' show "
-        'Authorization, '
-        'ColumnRef, '
-        'ComparableColumnRef, '
-        'ExpandPath, '
-        'Field, '
-        'ListField, '
-        'MapField, '
-        'NumField, '
-        'Patch, '
-        'PhotoId, '
-        'zonaiWriteValue, '
-        'NullableColumnRef, '
-        'StringColumnRef, '
-        'ZonaiRowParseException;',
+        "${kClientRuntimeExports.join(', ')};",
       );
     for (final table in tables) {
       buffer.writeln("export '${names[table]!.file}';");

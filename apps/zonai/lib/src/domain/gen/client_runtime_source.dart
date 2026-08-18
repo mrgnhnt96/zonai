@@ -10,6 +10,30 @@
 /// is prepended by the emitter.
 library;
 
+/// Every name the shared runtime contributes to the generated barrel.
+///
+/// The single source of truth for two things that must not drift apart: the
+/// `show` clause the barrel emits, and the set of names a table may therefore
+/// not mint. A second hand-written copy of this list is a new thing to forget
+/// the next time a runtime type is added, which is exactly how a table named
+/// `field` came to make the barrel ambiguously export `Field`.
+const kClientRuntimeExports = <String>[
+  'Authorization',
+  'ColumnRef',
+  'ComparableColumnRef',
+  'ExpandPath',
+  'Field',
+  'ListField',
+  'MapField',
+  'NullableColumnRef',
+  'NumField',
+  'Patch',
+  'PhotoId',
+  'StringColumnRef',
+  'ZonaiRowParseException',
+  'zonaiWriteValue',
+];
+
 const kClientRuntimeSource = r'''
 import 'dart:convert';
 

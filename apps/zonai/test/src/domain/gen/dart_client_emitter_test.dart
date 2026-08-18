@@ -1,6 +1,7 @@
 import 'package:test/test.dart';
 import 'package:zonai/src/domain/gen/client_emitter.dart';
 import 'package:zonai/src/domain/gen/client_names.dart';
+import 'package:zonai/src/domain/gen/client_runtime_source.dart';
 import 'package:zonai/src/domain/gen/client_schema_document.dart';
 import 'package:zonai/src/domain/gen/client_settings.dart';
 import 'package:zonai/src/domain/gen/dart_client_emitter.dart';
@@ -392,6 +393,85 @@ void main() {
         isNot(contains('ZonaiRowReader')),
         reason: 'ZonaiRowReader is an implementation detail of the models',
       );
+    });
+  });
+
+  group('a table name that clashes with the runtime', () {
+    TableSchemaShape tableNamed(String name) => TableSchemaShape(
+      table: name,
+      columns: [_column('id', kind: ColumnShapeKind.id, isPrimaryKey: true)],
+    );
+
+    test('is refused, naming the clash and the override', () {
+      // Reproduced before it was fixed: a table named `field` minted a token
+      // holder `Field`, and the barrel exported both that and the runtime's
+      // `Field`. An ambiguous export -- the generated client did not compile,
+      // and the error named the barrel rather than the table.
+      expect(
+        () => _emit(shapes: {'field': tableNamed('field')}),
+        throwsA(
+          isA<ClientNameException>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('field'),
+              contains('already exported by the generated runtime'),
+              contains('names.field.row'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('covers every generated name, not just the token holder', () {
+      // `column_ref` mints `ColumnRef` as surely as `field` mints `Field`.
+      for (final name in ['patch', 'column_ref', 'expand_path', 'photo_id']) {
+        expect(
+          () => _emit(shapes: {name: tableNamed(name)}),
+          throwsA(isA<ClientNameException>()),
+          reason: '$name collides with a runtime export',
+        );
+      }
+    });
+
+    test('the override is a real escape hatch', () {
+      final out = _emit(
+        shapes: {'field': tableNamed('field')},
+        settings: const ClientSettings(
+          output: 'gen/zonai',
+          names: {'field': ClientNameOverrides(row: 'FormFieldRow')},
+        ),
+      );
+
+      expect(
+        out['tables/field.g.dart'],
+        contains('abstract final class FormField {'),
+      );
+    });
+
+    test('the forbidden set IS the barrel\'s show clause', () {
+      // The two must not drift. If a runtime type is added to the show clause
+      // without being added to `kClientRuntimeExports`, or vice versa, a table
+      // could mint it again and nothing would notice until a consumer's build
+      // broke.
+      final barrel = _emit()[DartClientEmitter.barrelFileName]!;
+      final show = RegExp(
+        "export '${DartClientEmitter.runtimeFileName}' show ([^;]+);",
+      ).firstMatch(barrel)!.group(1)!;
+
+      expect(
+        show.split(',').map((e) => e.trim()).toList(),
+        kClientRuntimeExports,
+      );
+
+      // And every one of them is really declared in the runtime source.
+      for (final name in kClientRuntimeExports) {
+        expect(
+          kClientRuntimeSource,
+          contains(name),
+          reason: '$name is exported but not declared',
+        );
+      }
     });
   });
 
