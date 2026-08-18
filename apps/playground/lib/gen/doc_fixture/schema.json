@@ -1,0 +1,168 @@
+{
+  "formatVersion": 1,
+  "hash": "bfe1d2d4804981736d224d03898553a4bcaf59ba61cece12214dea16499fde55",
+  "tables": {
+    "articles": {
+      "table": "articles",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "title",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "view_count",
+          "kind": "integer",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "INTEGER"
+        },
+        {
+          "name": "tags",
+          "kind": "list",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        }
+      ],
+      "isView": false
+    },
+    "books": {
+      "table": "books",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "title",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "shelf",
+          "kind": "enum",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "enumValues": [
+            "wantToRead",
+            "reading",
+            "finished"
+          ]
+        },
+        {
+          "name": "tags",
+          "kind": "enumList",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "enumValues": [
+            "fiction",
+            "reference",
+            "borrowed"
+          ]
+        },
+        {
+          "name": "owner_id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "foreignKey": {
+            "table": "users",
+            "column": "id"
+          }
+        }
+      ],
+      "isView": false
+    },
+    "notes": {
+      "table": "notes",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "body",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "book_id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT",
+          "foreignKey": {
+            "table": "books",
+            "column": "id"
+          }
+        }
+      ],
+      "isView": false
+    },
+    "users": {
+      "table": "users",
+      "columns": [
+        {
+          "name": "id",
+          "kind": "id",
+          "isNullable": false,
+          "isPrimaryKey": true,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "name",
+          "kind": "text",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        },
+        {
+          "name": "settings",
+          "kind": "map",
+          "isNullable": false,
+          "isPrimaryKey": false,
+          "autoIncrement": false,
+          "sqlType": "TEXT"
+        }
+      ],
+      "isView": false
+    }
+  }
+}

@@ -19,23 +19,25 @@
 // earlier example on the page produced.
 //
 // WHAT THIS STILL DOES NOT COVER, so nobody reads the page as fully checked.
-// Ten of the page's 22 fences are spliced in here. The other twelve are
-// `no-analyze` for four reasons, none of them "nobody got to it":
+// Ten of the page's fences are spliced in here. Five more go through
+// `typed-client-fixture.dart`, which carries a SECOND generated client built
+// from a fixture schema so the invented `books`/`articles`/`notes`/`users`
+// tables can be called for real -- that is the work this header used to defer,
+// and it landed. The rest are `no-analyze` for reasons, none of them "nobody
+// got to it":
 //
 //  * Three illustrate something that is not a statement -- an `import` line,
 //    the `export ... hide` directive the generator emits. There is no body to
 //    splice.
-//  * Six call tables the docs invent (`books`, `articles`, `notes`) because
-//    the prose reads better with them than with `cell_edit_fixtures`. Covering
-//    those needs a generated client for a fixture schema, committed and kept
-//    honest by its own `--check` -- a second generated artifact in the repo.
-//    That is a real piece of work and it belongs in its own change, not
-//    bolted onto this one. The docs should not be rewritten to match the
-//    playground's table names; the fixture should be built to match the docs.
 //  * Two (`Where.isNull('published_at')`) name a column `posts` does not have.
-//    Left alone for the same reason: bending the prose to fit the fixture is
-//    how a doc stops reading like a doc.
+//    Left alone deliberately: bending the prose to fit the fixture is how a
+//    doc stops reading like a doc.
 //  * One is Flutter (`setState`), which this scaffold has no widget for.
+//  * Two are fragments that CANNOT compile and say so -- the `expand`
+//    migration's `// before` line (the string form that stopped type-checking)
+//    and the two lines showing what an enum column stops you doing. The
+//    harness has exactly two modes, `in:` and `no-analyze`; there is no
+//    expected-to-fail mode. See typed-client-fixture.dart's header.
 import 'package:zonai_playground/gen/zonai/zonai_client.g.dart';
 
 class TypedClientExample {
