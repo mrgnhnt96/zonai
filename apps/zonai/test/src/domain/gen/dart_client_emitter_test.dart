@@ -454,8 +454,9 @@ void main() {
       // its UPDATE builder is `ColumnUpdate`, which `zonai_client` exports.
       // A check that looked at the base name alone would miss this one, so
       // this is the test that has to exist.
-      final barrel = _emit(shapes: {'column': tableNamed('column')})[
-        DartClientEmitter.barrelFileName]!;
+      final barrel = _emit(
+        shapes: {'column': tableNamed('column')},
+      )[DartClientEmitter.barrelFileName]!;
 
       expect(reexportOf(barrel), ' hide ColumnUpdate');
     });

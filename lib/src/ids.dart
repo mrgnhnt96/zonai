@@ -32,11 +32,11 @@ sealed class Id implements z.Id {
 
 class AdminsId extends Id {
   AdminsId(String value)
-      : assert(() {
-          final parts = value.split('_');
-          return parts.length == 2 && parts[1] == _suffix;
-        }(), 'Expected an ID with suffix $_suffix, got $value'),
-        super(value);
+    : assert(() {
+        final parts = value.split('_');
+        return parts.length == 2 && parts[1] == _suffix;
+      }(), 'Expected an ID with suffix $_suffix, got $value'),
+      super(value);
 
   factory AdminsId.generate() => AdminsId(z.Id.generate(_suffix));
 

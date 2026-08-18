@@ -16,7 +16,13 @@ File _clientBarrel() {
   var directory = Directory.current.absolute;
   for (var i = 0; i < 6; i++) {
     final candidate = File(
-      p.join(directory.path, 'libs', 'zonai_client', 'lib', 'zonai_client.dart'),
+      p.join(
+        directory.path,
+        'libs',
+        'zonai_client',
+        'lib',
+        'zonai_client.dart',
+      ),
     );
     if (candidate.existsSync()) return candidate;
     final parent = directory.parent;
@@ -62,9 +68,7 @@ Set<String> _exportedNames(File barrel) {
     }
 
     // An unrestricted export contributes everything the target declares.
-    final target = File(
-      p.join(p.dirname(barrel.path), directive.group(1)!),
-    );
+    final target = File(p.join(p.dirname(barrel.path), directive.group(1)!));
     expect(
       target.existsSync(),
       isTrue,
@@ -112,7 +116,10 @@ void main() {
     });
 
     test('is sorted, because the hide clause is emitted in its order', () {
-      expect(kZonaiClientExports, orderedEquals([...kZonaiClientExports]..sort()));
+      expect(
+        kZonaiClientExports,
+        orderedEquals([...kZonaiClientExports]..sort()),
+      );
     });
 
     test('does not overlap the generated runtime', () {

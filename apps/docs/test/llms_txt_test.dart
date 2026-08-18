@@ -83,22 +83,20 @@ void main() {
   test('every indexed URL points at a page that exists', () {
     // Against the filesystem, not the sidebar: `/about` is a real page that is
     // deliberately unlisted, so sidebar membership would fail a live link.
-    final urls = RegExp(r'https://docs\.zonai\.dev(/[A-Za-z0-9\-/.]*)')
-        .allMatches(llms)
-        .map((m) => m.group(1)!)
-        .toSet();
+    final urls = RegExp(
+      r'https://docs\.zonai\.dev(/[A-Za-z0-9\-/.]*)',
+    ).allMatches(llms).map((m) => m.group(1)!).toSet();
 
     final dead = [
       for (final url in urls)
-        if (!nonPageUrls.contains(url) &&
-            !File('content$url.md').existsSync())
-          url,
+        if (!nonPageUrls.contains(url) && !File('content$url.md').existsSync()) url,
     ];
 
     expect(
       dead,
       isEmpty,
-      reason: 'web/llms.txt links a route with no page behind it — renamed or '
+      reason:
+          'web/llms.txt links a route with no page behind it — renamed or '
           'deleted without the index being updated.',
     );
   });
