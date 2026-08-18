@@ -132,6 +132,59 @@ void main() {
   });
 
   group('the write surface says what a nullable field could not', () {
+    test('MapField.at patches one path; set and clear replace the column', () {
+      // The dotted column is the whole mechanism (SS4.7): the server applies a
+      // JSON patch when the column NAME is dotted, and rejects a dotted name
+      // on any non-map column. So the assertion that matters is the `column`,
+      // not the value.
+      final wholeColumn = CellEditFixturesUpdate(
+        meta: MapField.set({'theme': 'dark', 'density': 'cosy'}),
+      ).toUpdates();
+      final onePath = CellEditFixturesUpdate(
+        meta: MapField.at(const ['theme'], 'dark'),
+      ).toUpdates();
+
+      expect(wholeColumn.single.toJson()['column'], 'meta');
+      expect(onePath.single.toJson()['column'], 'meta.theme');
+      expect(
+        (onePath.single.toJson()['value'] as Map)['value'],
+        'dark',
+        reason: 'at() changes the column, not the operation',
+      );
+
+      // Clear still replaces the whole column, so it must NOT be dotted --
+      // a dotted clear would null one key and leave the rest, which is a
+      // different thing from clearing the column.
+      expect(
+        const CellEditFixturesUpdate(
+          meta: MapField.clear(),
+        ).toUpdates().single.toJson(),
+        {
+          'type': 'column',
+          'column': 'meta',
+          'value': {'type': 'literal', 'value': null},
+        },
+      );
+    });
+
+    test('a nested MapField.at path joins with dots, and rejects empties', () {
+      expect(
+        CellEditFixturesUpdate(
+          meta: MapField.at(const ['a', 'b', 'c'], 1),
+        ).toUpdates().single.toJson()['column'],
+        'meta.a.b.c',
+      );
+
+      // The server raises `Dotted column path must not contain empty
+      // segments` for these. Rejecting locally is the same rule one round
+      // trip earlier -- asserts, so this only holds in debug.
+      expect(
+        () => MapField.at(const ['a', ''], 1),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(() => MapField.at(const [], 1), throwsA(isA<AssertionError>()));
+    });
+
     test('"leave alone" and "set to NULL" are different payloads', () {
       // This is the entire reason each field takes a `Patch` instead of a raw
       // value. `PostsUpdate({String? body})` cannot express the second one at

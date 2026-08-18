@@ -210,7 +210,7 @@ Each field takes a `Patch`, and which `Patch` depends on the column's kind — s
 | anything | `Field` | — |
 | `integer`, `real` | `NumField` | `increment`, `decrement`, `add`, `subtract` |
 | `list`, `enumList`, `photos` | `ListField` | `add`, `remove`, `addAll`, `removeAll` |
-| `map` | `MapField` | — |
+| `map` | `MapField` | `at` — patch one path inside the map |
 
 ```dart no-analyze
 await client.articles.update(
@@ -222,6 +222,22 @@ await client.articles.update(
   set: ArticlesUpdate(tags: ListField.add('dart')),
 );
 ```
+
+`MapField.at` patches a single path inside a JSON map column and leaves its other keys alone:
+
+```dart no-analyze
+await client.users.update(
+  where: Users.id.eq(id),
+  set: UsersUpdate(settings: MapField.at(const ['theme'], 'dark')),
+);
+```
+
+The path is a `List<String>`, not a dotted string, because a key that itself contains a `.` has no unambiguous dotted spelling. It is sent as the dotted column `settings.theme`, which is the form the server applies as a JSON patch — and which it accepts only on a map column, so `at` existing nowhere else is what keeps that a name you cannot write rather than an error you get back.
+
+Two limits worth knowing before you reach them:
+
+- **One path per column per update.** An update holds a single patch per column, so `settings.a` and `settings.b` need two calls.
+- **`clear` is not `at(..., null)`.** `MapField.clear()` nulls the whole column; `MapField.at(const ['theme'], null)` nulls just that key.
 
 `createMany`, `updateMany`, `delete` and `deleteMany` round out the set. Every one takes an optional `as`, like every read.
 

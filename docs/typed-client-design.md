@@ -538,7 +538,10 @@ final class ListField<E> extends Patch<List<E>> {
 final class MapField<T> extends Patch<T> {
   MapField.set(T v) : super(Literal(v));
   const MapField.clear() : super(const Literal(null));
-  // `.at()` renders to a dotted ColumnUpdate rather than a plain one.
+  // `.at()` renders to a dotted ColumnUpdate rather than a plain one: it is
+  // the only patch that changes the column NAME instead of the operation.
+  MapField.at(List<String> path, Object? value) : super(Literal(value));
+  String columnFor(String base);  // 'settings' -> 'settings.theme'
 }
 ```
 
@@ -1029,8 +1032,15 @@ header comment and in the docs page, not only here.
   `base_row_rules.dart:68`) but nothing describes their return shape, so
   `client.posts.custom.publish(…)` cannot be typed without new authoring metadata.
   That overlaps issue #25 — out of scope here.
-- **`MapField.at()`** needs a path type; v1 can accept a `List<String>` and validate
-  nothing beyond "this is a map column", which the type already guarantees.
+- **`MapField.at()`** — BUILT. Takes a `List<String>` as this section proposed, and
+  validates two things rather than nothing: the path is non-empty, and no segment is
+  empty. Both are asserts mirroring the server's own `Dotted column path must not
+  contain empty segments`, so the rule is enforced one round trip earlier in debug and
+  by the server always. A list rather than a dotted string because a key containing a
+  `.` has no unambiguous dotted spelling.
+  The remaining limit is **one path per column per update**: a generated update holds a
+  single patch per column, so `settings.a` and `settings.b` need two updates. Widening
+  that is a change to the generated update shape, not to `MapField`.
 - **Id-type collisions across packages** — see §10.4. Detectable within one generation
   run, invisible across two.
 

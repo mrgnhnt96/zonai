@@ -494,12 +494,58 @@ final class ListField<E> extends Patch<List<E>> {
 
 /// `map` columns.
 ///
-/// Set and clear only for now. The dotted JSON-path form (`.at('a.b')`, §4.7)
-/// renders to a dotted `ColumnUpdate` rather than a plain one and arrives with
-/// the rest of phase 4.
+/// [MapField.set] and [MapField.clear] replace the whole map. [MapField.at]
+/// patches ONE path inside it, and is the only patch here that changes the
+/// column NAME rather than the operation: it renders to a dotted
+/// `ColumnUpdate` like `settings.theme` (§4.7), which the server applies as a
+/// JSON patch. The server accepts a dotted column only on a map column and
+/// throws `ArgumentError` otherwise, so `at` existing only here is what turns
+/// that runtime error into a name that does not exist (§4.6).
 final class MapField<T> extends Patch<T> {
-  MapField.set(T v) : super(Literal(zonaiWriteValue(v)));
-  const MapField.clear() : super(const Literal(null));
+  MapField.set(T v) : path = null, super(Literal(zonaiWriteValue(v)));
+  const MapField.clear() : path = null, super(const Literal(null));
+
+  /// Patch the value at [path] inside the map, leaving its other keys alone.
+  ///
+  /// `MapField.at(['theme'], 'dark')` on a `settings` column sends
+  /// `ColumnUpdate('settings.theme', 'dark')`. Pass `null` as [value] to null
+  /// that path rather than the whole column.
+  ///
+  /// A path is a `List<String>` rather than a dotted string on purpose: a key
+  /// that itself contains a `.` cannot be spelled unambiguously in the dotted
+  /// form, and the list makes the segmentation the caller's rather than a
+  /// parser's. It is joined with `.` here because that is the wire form.
+  ///
+  /// Empty segments are rejected here rather than at the server, which raises
+  /// `Dotted column path must not contain empty segments` for the same input.
+  /// Same rule, one round trip earlier.
+  ///
+  /// ONE PATH PER COLUMN PER UPDATE. A generated update holds a single patch
+  /// per column, so `settings.a` and `settings.b` cannot both be set in one
+  /// call -- send two updates. Widening that means letting a column carry a
+  /// list of patches, which is a change to the generated update shape and not
+  /// to this type.
+  MapField.at(List<String> path, Object? value)
+      : path = path,
+        assert(path.isNotEmpty, 'MapField.at needs at least one path segment'),
+        assert(
+          !path.any((s) => s.isEmpty),
+          'MapField.at path must not contain empty segments',
+        ),
+        super(Literal(zonaiWriteValue(value)));
+
+  /// The path this patch targets inside the map, or `null` when it replaces
+  /// the whole column.
+  final List<String>? path;
+
+  /// The wire column name for this patch on the column named [base].
+  ///
+  /// `base` unchanged for set/clear; `base.a.b` for `at(['a','b'], ...)`.
+  /// Called by the generated update rather than by hand.
+  String columnFor(String base) {
+    final p = path;
+    return p == null ? base : '$base.${p.join('.')}';
+  }
 }
 
 /// One `expand` path, built by chaining getters rather than writing a string.

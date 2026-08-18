@@ -439,7 +439,7 @@ final class CellEditFixturesUpdate {
         if (keywords case final p?) ColumnUpdate('keywords', p.value),
         if (companyId case final p?) ColumnUpdate('company_id', p.value),
         if (secretNote case final p?) ColumnUpdate('secret_note', p.value),
-        if (meta case final p?) ColumnUpdate('meta', p.value),
+        if (meta case final p?) ColumnUpdate(p.columnFor('meta'), p.value),
         if (payload case final p?) ColumnUpdate('payload', p.value),
       ];
 }
