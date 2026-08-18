@@ -96,6 +96,9 @@ final class TableNames {
   /// Per-table API. `PostsApi`.
   String get api => '${base}Api';
 
+  /// The live-query mirror: `posts` -> `PostsListen`.
+  String get listen => '${base}Listen';
+
   /// The create builder: `posts` -> `PostsCreate`.
   String get create => '${base}Create';
 

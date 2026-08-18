@@ -217,8 +217,11 @@ void main() {
       expect(posts, contains('Future<void> delete({'));
       expect(posts, contains('Future<void> deleteMany({'));
 
-      // Still phase 3: `DbListen` has no typed mirror yet.
-      expect(posts, isNot(contains('Stream<')));
+      // The streaming mirror lives on `listen`, not on the api itself, so
+      // `PostsApi` gains one getter and no `Stream`-returning method.
+      final api = _classBody(posts, 'final class PostsApi {');
+      expect(api, contains('PostsListen get listen'));
+      expect(api, isNot(contains('Stream<')));
     });
 
     test('a view gets no write surface at all', () {
@@ -244,7 +247,11 @@ void main() {
       final declared = 'Authorization? as'.allMatches(posts).length;
       final forwarded = 'authorization: as?.header,'.allMatches(posts).length;
 
-      expect(declared, 9, reason: 'get, list, count and the six mutations');
+      expect(
+        declared,
+        12,
+        reason: 'get, list, count, the six mutations, and three on listen',
+      );
       expect(forwarded, declared, reason: 'every method forwards what it took');
       expect(posts, isNot(contains('String? authorization')));
     });
@@ -385,6 +392,65 @@ void main() {
         isNot(contains('ZonaiRowReader')),
         reason: 'ZonaiRowReader is an implementation detail of the models',
       );
+    });
+  });
+
+  group('the listen mirror', () {
+    test('one, list and count, reachable through the api', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('final class PostsListen {'));
+      expect(posts, contains('PostsListen get listen => PostsListen(_db);'));
+      expect(posts, contains('Stream<PostsRow> one({'));
+      expect(posts, contains('Stream<List<PostsRow>> list({'));
+      expect(posts, contains('Stream<int> count({'));
+    });
+
+    test('list yields a List, not a Paginated -- mirroring the truth', () {
+      // `DbListen.list` returns `Stream<List<T>>`. Mirroring `Db.list`'s
+      // `Paginated<T>` here would be a nicer symmetry and a lie: the streaming
+      // endpoint carries no page metadata.
+      final posts = _emit()['tables/posts.g.dart']!;
+      final listen = _classBody(posts, 'final class PostsListen {');
+
+      // The word appears in the doc explaining the decision, so this pins
+      // the signature rather than the word.
+      expect(listen, contains('Stream<List<PostsRow>> list({'));
+      expect(listen, isNot(contains('Stream<Paginated')));
+    });
+
+    test('where is required exactly where the body requires it', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+      final listen = _classBody(posts, 'final class PostsListen {');
+
+      // StreamBody and StreamCountBody require it; StreamListBody does not.
+      expect(
+        listen,
+        contains('Stream<PostsRow> one({\n    required Where where,'),
+      );
+      expect(
+        listen,
+        contains('Stream<int> count({\n    required Where where,'),
+      );
+      expect(
+        listen,
+        contains('Stream<List<PostsRow>> list({\n    Where? where,'),
+      );
+    });
+
+    test('it delegates rather than re-implementing the subscription', () {
+      // The generated code adds a `fromJson` and nothing else. Anything that
+      // re-wrapped the stream here -- `asBroadcastStream` above all, which is
+      // one of the two confirmed leaks already found in this project -- would
+      // be a new place for a cancel to get lost.
+      final posts = _emit()['tables/posts.g.dart']!;
+      final listen = _classBody(posts, 'final class PostsListen {');
+
+      expect(listen, contains('_db.listen.one('));
+      expect(listen, contains('_db.listen.list('));
+      expect(listen, contains('_db.listen.count('));
+      expect(listen, isNot(contains('asBroadcastStream')));
+      expect(listen, isNot(contains('StreamController')));
     });
   });
 

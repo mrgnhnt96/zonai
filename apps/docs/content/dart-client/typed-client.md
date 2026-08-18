@@ -219,6 +219,29 @@ await client.articles.update(
 
 A `DateTime` is converted to epoch milliseconds for you. The filter path already normalized it; the write path does not, and a raw `DateTime` in a create body throws — which is exactly the kind of encoding a generated client exists to absorb.
 
+## Live queries
+
+Every table's api carries a `listen` mirror of `get` / `list` / `count`:
+
+```dart no-analyze
+final stream = client.posts.listen.list(
+  where: Posts.authorId.eq(author.id),
+  orderBy: [Posts.createdAt.desc],
+);
+final subscription = stream.listen((posts) => setState(() => _posts = posts));
+```
+
+It takes the same tokens and the same typed expand paths as the non-streaming
+methods, and it is the same subscription `client.db.listen` opens — only the rows
+coming out of it are typed.
+
+One asymmetry worth knowing: `listen.list` yields `Stream<List<PostsRow>>`, **not**
+`Stream<Paginated<PostsRow>>`. The streaming endpoint carries no page metadata, so
+mirroring the non-streaming return type would be a nicer symmetry and a lie.
+
+`where` is required on `listen.one` and `listen.count`, and optional on `listen.list`
+— matching what the server's stream bodies require.
+
 ## Views
 
 A read-only view generates the same `Row` and `Api` types as a table, but **no write surface at all** — no `Create`, no `Update`, and none of the six mutations. The server has nothing to write through. `post_summary` becomes `client.postSummary`, documented in the generated source as *a read-only view*.
@@ -303,4 +326,4 @@ The generated client is a build artifact of your schema. After changing a table,
 - [`zonai gen`](/cli/gen) — the command and its flags
 - [`client:` configuration](/configuration/zonai-yaml#client-settings)
 - [Dart Client Overview](/dart-client/overview) — installation and `baseUrl`
-- [Streaming (Live Queries)](/operations/streaming) — still `client.db.listen`
+- [Streaming (Live Queries)](/operations/streaming) — the untyped `client.db.listen` and how streaming works

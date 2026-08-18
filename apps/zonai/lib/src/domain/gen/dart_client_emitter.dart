@@ -204,6 +204,7 @@ $kGeneratedClientHeader
       _expandExample(expands, input.schema.tables, names, owner: name),
       writes,
     );
+    _writeListen(buffer, name, expands);
 
     return buffer.toString();
   }
@@ -732,6 +733,10 @@ $kGeneratedClientHeader
     _writeList(buffer, name, expandExample);
     _writeCount(buffer, name);
     if (writes.isNotEmpty) _writeMutations(buffer, name);
+    buffer
+      ..writeln()
+      ..writeln('  /// The live-query mirror of `get` / `list` / `count`.')
+      ..writeln('  ${name.listen} get listen => ${name.listen}(_db);');
 
     buffer.writeln('}');
   }
@@ -925,6 +930,91 @@ $kGeneratedClientHeader
       )
       ..writeln('        authorization: as?.header,')
       ..writeln('      );');
+  }
+
+  /// `listen.one` / `listen.list` / `listen.count` -- the typed mirror of
+  /// `DbListen`.
+  ///
+  /// `list` returns `Stream<List<Row>>` and NOT `Stream<Paginated<Row>>`,
+  /// because that is what `DbListen.list` actually returns. Mirroring the
+  /// non-streaming shape here would be a nicer symmetry and a lie.
+  ///
+  /// `where` is required on `one` and `count` because `StreamBody` and
+  /// `StreamCountBody` require it; it is optional on `list`, where
+  /// `StreamListBody` makes it so.
+  void _writeListen(
+    StringBuffer buffer,
+    TableNames name,
+    List<ExpandBinding> expands,
+  ) {
+    buffer
+      ..writeln('/// Live queries over `${name.table}`.')
+      ..writeln('///')
+      ..writeln('/// Reach one through `client.${name.getter}.listen`. Each')
+      ..writeln('/// stream is the same subscription `client.db.listen`')
+      ..writeln('/// opens -- this only types the rows coming out of it.')
+      ..writeln('final class ${name.listen} {')
+      ..writeln('  const ${name.listen}(this._db);')
+      ..writeln()
+      ..writeln('  /// The wire name of this table.')
+      ..writeln("  static const table = '${name.table}';")
+      ..writeln()
+      ..writeln('  final Db _db;')
+      ..writeln()
+      ..writeln('  /// The single row matching [where], re-emitted on change.')
+      ..writeln('  Stream<${name.row}> one({')
+      ..writeln('    required Where where,')
+      ..writeln('    List<ExpandPath> expand = const [],')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.listen.one(')
+      ..writeln('        body: StreamBody(')
+      ..writeln('          table: table,')
+      ..writeln('          where: where,')
+      ..writeln('          expand: [for (final e in expand) e.path],')
+      ..writeln('        ),')
+      ..writeln('        fromJson: ${name.row}.fromJson,')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln()
+      ..writeln('  /// Every matching row, re-emitted on change.')
+      ..writeln('  ///')
+      ..writeln('  /// A plain `List`, not a `Paginated` -- the streaming')
+      ..writeln('  /// endpoint carries no page metadata.')
+      ..writeln('  Stream<List<${name.row}>> list({')
+      ..writeln('    Where? where,')
+      ..writeln('    int? limit,')
+      ..writeln('    int? offset,')
+      ..writeln('    List<OrderByTerm>? orderBy,')
+      ..writeln('    ColumnRef<Object?>? groupBy,')
+      ..writeln('    List<ExpandPath> expand = const [],')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.listen.list(')
+      ..writeln('        body: StreamListBody(')
+      ..writeln('          table: table,')
+      ..writeln('          where: where,')
+      ..writeln('          limit: limit,')
+      ..writeln('          offset: offset,')
+      ..writeln('          orderBy: orderBy,')
+      ..writeln('          groupBy: groupBy?.name,')
+      ..writeln('          expand: [for (final e in expand) e.path],')
+      ..writeln('        ),')
+      ..writeln('        fromJson: ${name.row}.fromJson,')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln()
+      ..writeln('  /// How many rows match [where], re-emitted on change.')
+      ..writeln('  Stream<int> count({')
+      ..writeln('    required Where where,')
+      ..writeln('    Authorization? as,')
+      ..writeln('  }) =>')
+      ..writeln('      _db.listen.count(')
+      ..writeln('        body: StreamCountBody(table: table, where: where),')
+      ..writeln('        authorization: as?.header,')
+      ..writeln('      );')
+      ..writeln('}')
+      ..writeln();
   }
 
   /// The single primary-key column, or null when there is not exactly one.

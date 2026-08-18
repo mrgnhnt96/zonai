@@ -361,4 +361,74 @@ final class AuthorsApi {
         body: DeleteBody(table: table, where: where, limit: limit),
         authorization: as?.header,
       );
+
+  /// The live-query mirror of `get` / `list` / `count`.
+  AuthorsListen get listen => AuthorsListen(_db);
 }
+/// Live queries over `authors`.
+///
+/// Reach one through `client.authors.listen`. Each
+/// stream is the same subscription `client.db.listen`
+/// opens -- this only types the rows coming out of it.
+final class AuthorsListen {
+  const AuthorsListen(this._db);
+
+  /// The wire name of this table.
+  static const table = 'authors';
+
+  final Db _db;
+
+  /// The single row matching [where], re-emitted on change.
+  Stream<AuthorsRow> one({
+    required Where where,
+    List<ExpandPath> expand = const [],
+    Authorization? as,
+  }) =>
+      _db.listen.one(
+        body: StreamBody(
+          table: table,
+          where: where,
+          expand: [for (final e in expand) e.path],
+        ),
+        fromJson: AuthorsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// Every matching row, re-emitted on change.
+  ///
+  /// A plain `List`, not a `Paginated` -- the streaming
+  /// endpoint carries no page metadata.
+  Stream<List<AuthorsRow>> list({
+    Where? where,
+    int? limit,
+    int? offset,
+    List<OrderByTerm>? orderBy,
+    ColumnRef<Object?>? groupBy,
+    List<ExpandPath> expand = const [],
+    Authorization? as,
+  }) =>
+      _db.listen.list(
+        body: StreamListBody(
+          table: table,
+          where: where,
+          limit: limit,
+          offset: offset,
+          orderBy: orderBy,
+          groupBy: groupBy?.name,
+          expand: [for (final e in expand) e.path],
+        ),
+        fromJson: AuthorsRow.fromJson,
+        authorization: as?.header,
+      );
+
+  /// How many rows match [where], re-emitted on change.
+  Stream<int> count({
+    required Where where,
+    Authorization? as,
+  }) =>
+      _db.listen.count(
+        body: StreamCountBody(table: table, where: where),
+        authorization: as?.header,
+      );
+}
+
