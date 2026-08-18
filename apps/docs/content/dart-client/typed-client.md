@@ -344,6 +344,51 @@ final live = await client.posts.list(where: Where.isNotNull('published_at'));
 The column tokens above already do this for you — `Posts.publishedAt.isNull` builds the
 same clause without either name being in scope.
 
+## What breaks when you regenerate
+
+Almost everything the typed client gained is additive — the column tokens, `groupBy`, the write builders and the six mutations, the `listen` mirror. Existing code keeps compiling, and `client.db` is untouched. A filter written the old way still works: the tokens are an alternative, not a replacement.
+
+```dart no-analyze
+await client.posts.list(where: Where.isNull('published_at'));  // still fine
+await client.posts.list(where: Posts.publishedAt.isNull);      // the typed form
+```
+
+**Exactly two changes are source-breaking**, and you meet them only when you re-run `zonai gen client`.
+
+**1. `expand` takes typed paths.**
+
+```dart no-analyze
+// before
+expand: ['book_id', 'book_id.owner_id'],
+// after
+expand: [Notes.expand.bookId, Notes.expand.bookId.ownerId],
+```
+
+The value on the wire is identical; only the argument type moved.
+
+**2. An enum column has its own type** — but less breaks than you would expect, because the type erases to `String` at runtime.
+
+Comparing against a string literal still compiles **and still gives the right answer**:
+
+```dart no-analyze
+if (book.shelf == 'reading') { ... }        // still compiles, still true
+if (book.shelf == BooksShelf.reading) { ... } // the typed form
+```
+
+What stops compiling is using it *as* a `String` — assigning it to one, passing it to something that wants one, or calling a `String` method on it. `.value` is the way out:
+
+```dart no-analyze
+final String shelf = book.shelf;        // error
+final String shelf = book.shelf.value;  // fine
+
+book.shelf.toUpperCase();               // error — no String members
+book.shelf.value.toUpperCase();         // fine
+```
+
+`enumList` moves the same way, from `List<String>` to `List<BooksTags>`, so a `List<String>` variable assigned from it needs `[for (final t in book.tags) t.value]`.
+
+Both changes are caught at compile time — nothing changes behaviour silently, and nothing on the wire moves, so a regenerated client talks to an unchanged server.
+
 ## Keeping it in sync
 
 The generated client is a build artifact of your schema. After changing a table, re-run `zonai gen client` and commit the result; `zonai gen client --check` fails when the committed copy has gone stale. See [`zonai gen`](/cli/gen#keeping-the-committed-client-honest).
