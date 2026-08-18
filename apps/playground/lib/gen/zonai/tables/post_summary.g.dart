@@ -66,6 +66,31 @@ final class PostSummaryRow {
       );
 }
 
+/// Typed column tokens for `post_summary`.
+///
+/// Each token builds a plain `Where` or `OrderByTerm`, so the
+/// wire form is exactly what the untyped client sends.
+///
+/// Columns whose stored value differs from their decoded
+/// Dart value get no token -- a photo (stores an id, reads
+/// back a URL), and the JSON-encoded kinds (`list`, `map`,
+/// `enumList`, blob) plus `bigInt`. A filter built from the
+/// decoded value would match nothing or throw, and a token
+/// that cannot work is worse than no token at all.
+abstract final class PostSummary {
+  /// The wire name of this table.
+  static const table = 'post_summary';
+
+  /// The `id` column.
+  static const id = ColumnRef<PostSummaryId>('id');
+
+  /// The `title` column.
+  static const title = ColumnRef<String>('title');
+
+  /// The `author_name` column.
+  static const authorName = ColumnRef<String>('author_name');
+}
+
 /// Reads of the `post_summary` table.
 ///
 /// A read-only view: it has no `sqlite_master` row and no
@@ -99,6 +124,10 @@ final class PostSummaryApi {
 
   /// A page of rows.
   ///
+  /// `groupBy` takes a single column token. The server does
+  /// not add aggregates, so rows come back in the ordinary
+  /// row shape and `PostSummaryRow.fromJson` still applies.
+  ///
   /// `post_summary` has no foreign keys, so there is
   /// nothing for `expand` to pull in here.
   Future<Paginated<PostSummaryRow>> list({
@@ -106,6 +135,7 @@ final class PostSummaryApi {
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
+    ColumnRef<Object?>? groupBy,
     List<String> expand = const [],
     Authorization? as,
   }) =>
@@ -116,6 +146,7 @@ final class PostSummaryApi {
           limit: limit,
           offset: offset,
           orderBy: orderBy,
+          groupBy: groupBy?.name,
           expand: expand,
         ),
         fromJson: PostSummaryRow.fromJson,

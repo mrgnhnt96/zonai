@@ -63,6 +63,55 @@ final class ColumnBinding {
     );
   }
 
+  /// Whether a `ColumnRef` may be minted for this column kind.
+  ///
+  /// A token is a promise: *if it compiles, it works*. That promise only holds
+  /// where the decoded Dart value is also the correct value to filter **by**,
+  /// and for seven kinds it is not. Each was checked by running the real
+  /// serializers in `where_value.dart`, not by reading them:
+  ///
+  /// | Kind | `.eq(decodedValue)` does |
+  /// | --- | --- |
+  /// | `bigInt` | **throws** `JsonUnsupportedObjectError` -- neither `whereValueToJsonEncodable` nor `whereValueToParam` handles `BigInt`, so `jsonEncode` rejects it at request time, every time |
+  /// | `list`, `enumList`, `map` | serializes to a JSON *structure*, but the column stores a JSON-encoded **String** -- so it matches nothing, and the SQL parameter is a `List`/`Map` the driver cannot bind |
+  /// | `blob` | same, as a `List<int>` |
+  /// | `photo`, `photos` | the column stores a photo **id** (`_verifyPhotoIds` enforces exactly that) and `_resolvePhotoFields` rewrites it to a URL on read, so a token typed `Uri` builds a filter against a value that was never stored |
+  ///
+  /// For the kinds that remain, §4.5 holds and holds *because it was measured*:
+  /// `DateTime` normalizes to epoch-ms on the wire and as a bound parameter,
+  /// `bool` to `0`/`1` as a parameter, and an extension-type id erases to its
+  /// `String`. Those pass straight through with no work.
+  ///
+  /// Emitting a token for the other seven would be worse than emitting none:
+  /// it makes a filter that cannot work *look* type-checked, which is the exact
+  /// failure this surface exists to prevent. They arrive when each has a type
+  /// that is honest about the wire -- `PhotoId` for a photo, alongside the
+  /// write builders.
+  static bool isTokenable(ColumnShapeKind kind) => switch (kind) {
+    ColumnShapeKind.id ||
+    ColumnShapeKind.text ||
+    ColumnShapeKind.email ||
+    ColumnShapeKind.deviceToken ||
+    ColumnShapeKind.enum_ ||
+    ColumnShapeKind.integer ||
+    ColumnShapeKind.real ||
+    ColumnShapeKind.boolean ||
+    ColumnShapeKind.isVerified ||
+    ColumnShapeKind.dateTime ||
+    ColumnShapeKind.createdAt ||
+    ColumnShapeKind.updatedAt => true,
+    // A `password` column is a SecretTransformer and never reaches here --
+    // `forColumn` already returned null for it.
+    ColumnShapeKind.password ||
+    ColumnShapeKind.bigInt ||
+    ColumnShapeKind.list ||
+    ColumnShapeKind.enumList ||
+    ColumnShapeKind.map ||
+    ColumnShapeKind.blob ||
+    ColumnShapeKind.photo ||
+    ColumnShapeKind.photos => false,
+  };
+
   /// `author_id` → `authorId`, `created_at` → `createdAt`.
   static String fieldName(String column) {
     final parts = column

@@ -96,6 +96,13 @@ final class TableNames {
   /// Per-table API. `PostsApi`.
   String get api => '${base}Api';
 
+  /// The column-token holder: `posts` -> `Posts`.
+  ///
+  /// Deliberately the bare base name. Nothing tries to guess an English
+  /// singular (§10), and `Posts` cannot collide with `PostsRow` / `PostsId` /
+  /// `PostsApi`, which are all suffixed.
+  String get tokens => base;
+
   /// The `ZonaiTables` accessor. `client.posts`.
   String get getter => base[0].toLowerCase() + base.substring(1);
 

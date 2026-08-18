@@ -71,6 +71,34 @@ final class CompaniesRow {
       );
 }
 
+/// Typed column tokens for `companies`.
+///
+/// Each token builds a plain `Where` or `OrderByTerm`, so the
+/// wire form is exactly what the untyped client sends.
+///
+/// Columns whose stored value differs from their decoded
+/// Dart value get no token -- a photo (stores an id, reads
+/// back a URL), and the JSON-encoded kinds (`list`, `map`,
+/// `enumList`, blob) plus `bigInt`. A filter built from the
+/// decoded value would match nothing or throw, and a token
+/// that cannot work is worse than no token at all.
+abstract final class Companies {
+  /// The wire name of this table.
+  static const table = 'companies';
+
+  /// The `id` column.
+  static const id = ColumnRef<CompaniesId>('id');
+
+  /// The `name` column.
+  static const name = ColumnRef<String>('name');
+
+  /// The `created_at` column.
+  static const createdAt = ColumnRef<DateTime>('created_at');
+
+  /// The `updated_at` column.
+  static const updatedAt = NullableColumnRef<DateTime>('updated_at');
+}
+
 /// Reads of the `companies` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -101,6 +129,10 @@ final class CompaniesApi {
 
   /// A page of rows.
   ///
+  /// `groupBy` takes a single column token. The server does
+  /// not add aggregates, so rows come back in the ordinary
+  /// row shape and `CompaniesRow.fromJson` still applies.
+  ///
   /// `companies` has no foreign keys, so there is
   /// nothing for `expand` to pull in here.
   Future<Paginated<CompaniesRow>> list({
@@ -108,6 +140,7 @@ final class CompaniesApi {
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
+    ColumnRef<Object?>? groupBy,
     List<String> expand = const [],
     Authorization? as,
   }) =>
@@ -118,6 +151,7 @@ final class CompaniesApi {
           limit: limit,
           offset: offset,
           orderBy: orderBy,
+          groupBy: groupBy?.name,
           expand: expand,
         ),
         fromJson: CompaniesRow.fromJson,

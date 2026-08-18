@@ -170,6 +170,59 @@ final class CellEditFixturesExpanded {
       };
 }
 
+/// Typed column tokens for `cell_edit_fixtures`.
+///
+/// Each token builds a plain `Where` or `OrderByTerm`, so the
+/// wire form is exactly what the untyped client sends.
+///
+/// Columns whose stored value differs from their decoded
+/// Dart value get no token -- a photo (stores an id, reads
+/// back a URL), and the JSON-encoded kinds (`list`, `map`,
+/// `enumList`, blob) plus `bigInt`. A filter built from the
+/// decoded value would match nothing or throw, and a token
+/// that cannot work is worse than no token at all.
+///
+/// No token is emitted for `secret_note` --
+/// a secret column is stripped from every response and
+/// rejected in a filter, so it cannot be named here.
+abstract final class CellEditFixtures {
+  /// The wire name of this table.
+  static const table = 'cell_edit_fixtures';
+
+  /// The `id` column.
+  static const id = ColumnRef<CellEditFixturesId>('id');
+
+  /// The `label` column.
+  static const label = ColumnRef<String>('label');
+
+  /// The `flag` column.
+  static const flag = ColumnRef<bool>('flag');
+
+  /// The `count` column.
+  static const count = ColumnRef<int>('count');
+
+  /// The `amount` column.
+  static const amount = ColumnRef<double>('amount');
+
+  /// The `happened_at` column.
+  static const happenedAt = ColumnRef<DateTime>('happened_at');
+
+  /// The `contact_email` column.
+  static const contactEmail = ColumnRef<String>('contact_email');
+
+  /// The `status` column.
+  static const status = ColumnRef<String>('status');
+
+  /// The `company_id` column.
+  static const companyId = NullableColumnRef<CompaniesId>('company_id');
+
+  /// The `created_at` column.
+  static const createdAt = ColumnRef<DateTime>('created_at');
+
+  /// The `updated_at` column.
+  static const updatedAt = NullableColumnRef<DateTime>('updated_at');
+}
+
 /// Reads of the `cell_edit_fixtures` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -200,6 +253,10 @@ final class CellEditFixturesApi {
 
   /// A page of rows.
   ///
+  /// `groupBy` takes a single column token. The server does
+  /// not add aggregates, so rows come back in the ordinary
+  /// row shape and `CellEditFixturesRow.fromJson` still applies.
+  ///
   /// `expand` takes the wire paths the server understands --
   /// `['company_id']`, dotted and
   /// capped at depth 4. Phase 3 replaces them with typed
@@ -209,6 +266,7 @@ final class CellEditFixturesApi {
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
+    ColumnRef<Object?>? groupBy,
     List<String> expand = const [],
     Authorization? as,
   }) =>
@@ -219,6 +277,7 @@ final class CellEditFixturesApi {
           limit: limit,
           offset: offset,
           orderBy: orderBy,
+          groupBy: groupBy?.name,
           expand: expand,
         ),
         fromJson: CellEditFixturesRow.fromJson,

@@ -13,6 +13,8 @@
 
 import 'dart:convert';
 
+import 'package:zonai_client/zonai_client.dart';
+
 /// Thrown when a row does not have the shape this client was generated from.
 ///
 /// The point of this type is the four things it names. A bare `TypeError` out
@@ -379,6 +381,115 @@ final class ZonaiRowReader {
 /// Omit it and the call falls through to the ambient token the client's
 /// interceptor already sets -- `client.posts.list()` is authenticated exactly
 /// as `client.db.list(...)` is today.
+/// A typed handle on one column: the only way the generated API builds a
+/// filter, an order term or a `groupBy`.
+///
+/// Every operator returns the plain `Where` / `OrderByTerm` the untyped client
+/// already takes, so **nothing on the wire changes and the server needs no
+/// work at all**. This is a compile-time surface over an unchanged protocol.
+///
+/// A secret column gets no token at all -- `_sanitizeRows` strips it from every
+/// response and the server rejects it in a filter, so
+/// `SecretColumnFilterException` is unreachable through the generated API, in
+/// filters and in `groupBy` alike.
+///
+/// [T] is the column's **non-nullable** Dart type even when the column is
+/// nullable, which differs from the design sketch in `docs/typed-client-design.md`
+/// §5.4 on purpose:
+///
+/// - `DateTime?` does not implement `Comparable`, so a `ColumnRef<DateTime?>`
+///   would silently lose `gt`/`lt` on precisely the nullable timestamp columns
+///   that get filtered most.
+/// - SQL `= NULL` never matches, so `eq(null)` is not a filter anyone means to
+///   write. Nullability is expressed by [NullableColumnRef.isNull], which
+///   compiles to `IS NULL`.
+///
+/// The type parameter is unbounded rather than `T extends Object` because a
+/// generated id is an extension type, and an extension type with no
+/// `implements` clause does not conform to an `Object` bound. The cast in
+/// [eq] is what erases it back to its representation for the wire.
+class ColumnRef<T> {
+  const ColumnRef(this.name);
+
+  /// The wire column name -- snake_case, exactly as the server knows it.
+  final String name;
+
+  /// `column = value`.
+  Where eq(T value) => Eq(name, value as Object);
+
+  /// `column IN (values)`.
+  Where inList(List<T> values) => In(name, [for (final v in values) v as Object]);
+
+  /// `column NOT IN (values)`.
+  Where notIn(List<T> values) =>
+      NotIn(name, [for (final v in values) v as Object]);
+
+  /// Ascending order by this column.
+  OrderByTerm get asc =>
+      OrderByTerm(column: name, direction: SortDirection.asc);
+
+  /// Descending order by this column.
+  OrderByTerm get desc =>
+      OrderByTerm(column: name, direction: SortDirection.desc);
+}
+
+/// A column the schema declares nullable.
+///
+/// A subclass rather than a `ColumnRef<T?>` so that every operator on
+/// [ColumnRef] and its extensions still applies -- see the note there.
+final class NullableColumnRef<T> extends ColumnRef<T> {
+  const NullableColumnRef(super.name);
+
+  /// `column IS NULL`.
+  ///
+  /// Built through the `Where.isNull` factory rather than the `Null` class:
+  /// `zonai_client` deliberately does not export `Null`, because it would
+  /// shadow `dart:core`'s `Null` in every library that imports the barrel.
+  Where get isNull => Where.isNull(name);
+
+  /// `column IS NOT NULL`.
+  Where get isNotNull => Where.isNotNull(name);
+}
+
+/// Ordered comparisons, reachable only where the Dart type is `Comparable`.
+///
+/// `Posts.createdAt.gt(aDateTime)` compiles; `Posts.isDraft.gt(true)` does not.
+extension ComparableColumnRef<T extends Comparable<Object?>> on ColumnRef<T> {
+  /// `column > value`.
+  Where gt(T value) => Gt(name, value);
+
+  /// `column >= value`.
+  Where gte(T value) => Gte(name, value);
+
+  /// `column < value`.
+  Where lt(T value) => Lt(name, value);
+
+  /// `column <= value`.
+  Where lte(T value) => Lte(name, value);
+}
+
+/// Substring matching, reachable only on text columns.
+///
+/// `Posts.title.contains('draft')` compiles; `Posts.createdAt.contains(...)`
+/// does not.
+extension StringColumnRef on ColumnRef<String> {
+  /// `column LIKE %value%`.
+  Where contains(String value) => Contains(name, value);
+
+  /// `column NOT LIKE %value%`.
+  ///
+  /// Present on the server (`NotContains`, `where.dart:399`) but absent from
+  /// the design sketch's operator list; included so the typed surface is not
+  /// narrower than the untyped one it replaces.
+  Where notContains(String value) => NotContains(name, value);
+
+  /// `column LIKE value%`.
+  Where startsWith(String value) => StartsWith(name, value);
+
+  /// `column LIKE %value`.
+  Where endsWith(String value) => EndsWith(name, value);
+}
+
 extension type const Authorization._(String header) {
   /// Wraps a bare access token with the `Bearer ` prefix the server requires.
   factory Authorization.bearer(String token) => Authorization._('Bearer $token');

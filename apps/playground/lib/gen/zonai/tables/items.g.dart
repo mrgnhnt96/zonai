@@ -86,6 +86,40 @@ final class ItemsRow {
       );
 }
 
+/// Typed column tokens for `items`.
+///
+/// Each token builds a plain `Where` or `OrderByTerm`, so the
+/// wire form is exactly what the untyped client sends.
+///
+/// Columns whose stored value differs from their decoded
+/// Dart value get no token -- a photo (stores an id, reads
+/// back a URL), and the JSON-encoded kinds (`list`, `map`,
+/// `enumList`, blob) plus `bigInt`. A filter built from the
+/// decoded value would match nothing or throw, and a token
+/// that cannot work is worse than no token at all.
+abstract final class Items {
+  /// The wire name of this table.
+  static const table = 'items';
+
+  /// The `id` column.
+  static const id = ColumnRef<ItemsId>('id');
+
+  /// The `body` column.
+  static const body = ColumnRef<String>('body');
+
+  /// The `description` column.
+  static const description = NullableColumnRef<String>('description');
+
+  /// The `status` column.
+  static const status = NullableColumnRef<int>('status');
+
+  /// The `created_at` column.
+  static const createdAt = ColumnRef<DateTime>('created_at');
+
+  /// The `updated_at` column.
+  static const updatedAt = NullableColumnRef<DateTime>('updated_at');
+}
+
 /// Reads of the `items` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -116,6 +150,10 @@ final class ItemsApi {
 
   /// A page of rows.
   ///
+  /// `groupBy` takes a single column token. The server does
+  /// not add aggregates, so rows come back in the ordinary
+  /// row shape and `ItemsRow.fromJson` still applies.
+  ///
   /// `items` has no foreign keys, so there is
   /// nothing for `expand` to pull in here.
   Future<Paginated<ItemsRow>> list({
@@ -123,6 +161,7 @@ final class ItemsApi {
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
+    ColumnRef<Object?>? groupBy,
     List<String> expand = const [],
     Authorization? as,
   }) =>
@@ -133,6 +172,7 @@ final class ItemsApi {
           limit: limit,
           offset: offset,
           orderBy: orderBy,
+          groupBy: groupBy?.name,
           expand: expand,
         ),
         fromJson: ItemsRow.fromJson,

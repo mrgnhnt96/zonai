@@ -121,6 +121,40 @@ final class PostsExpanded {
       };
 }
 
+/// Typed column tokens for `posts`.
+///
+/// Each token builds a plain `Where` or `OrderByTerm`, so the
+/// wire form is exactly what the untyped client sends.
+///
+/// Columns whose stored value differs from their decoded
+/// Dart value get no token -- a photo (stores an id, reads
+/// back a URL), and the JSON-encoded kinds (`list`, `map`,
+/// `enumList`, blob) plus `bigInt`. A filter built from the
+/// decoded value would match nothing or throw, and a token
+/// that cannot work is worse than no token at all.
+abstract final class Posts {
+  /// The wire name of this table.
+  static const table = 'posts';
+
+  /// The `id` column.
+  static const id = ColumnRef<PostsId>('id');
+
+  /// The `author_id` column.
+  static const authorId = ColumnRef<AuthorsId>('author_id');
+
+  /// The `title` column.
+  static const title = ColumnRef<String>('title');
+
+  /// The `body` column.
+  static const body = NullableColumnRef<String>('body');
+
+  /// The `created_at` column.
+  static const createdAt = ColumnRef<DateTime>('created_at');
+
+  /// The `updated_at` column.
+  static const updatedAt = NullableColumnRef<DateTime>('updated_at');
+}
+
 /// Reads of the `posts` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -151,6 +185,10 @@ final class PostsApi {
 
   /// A page of rows.
   ///
+  /// `groupBy` takes a single column token. The server does
+  /// not add aggregates, so rows come back in the ordinary
+  /// row shape and `PostsRow.fromJson` still applies.
+  ///
   /// `expand` takes the wire paths the server understands --
   /// `['author_id', 'author_id.company_id']`, dotted and
   /// capped at depth 4. Phase 3 replaces them with typed
@@ -160,6 +198,7 @@ final class PostsApi {
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
+    ColumnRef<Object?>? groupBy,
     List<String> expand = const [],
     Authorization? as,
   }) =>
@@ -170,6 +209,7 @@ final class PostsApi {
           limit: limit,
           offset: offset,
           orderBy: orderBy,
+          groupBy: groupBy?.name,
           expand: expand,
         ),
         fromJson: PostsRow.fromJson,

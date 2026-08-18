@@ -298,17 +298,193 @@ void main() {
       expect(barrel, contains('PostSummaryApi get postSummary'));
     });
 
-    test('exports Authorization but not the parse helpers', () {
+    test('exports the consumer vocabulary but not the parse helpers', () {
       final barrel = _emit()[DartClientEmitter.barrelFileName]!;
 
+      // Asserted by intent rather than as one exact string: the show-list
+      // grows every time the typed surface does, and a test that pins the
+      // whole line fails for the wrong reason each time -- while still not
+      // saying which name mattered.
+      final show = RegExp(
+        "export '${DartClientEmitter.runtimeFileName}' show ([^;]+);",
+      ).firstMatch(barrel);
+      expect(show, isNotNull, reason: 'the barrel re-exports the runtime');
+
+      final exported = show!
+          .group(1)!
+          .split(',')
+          .map((e) => e.replaceAll(RegExp(r"['\s]"), ''))
+          .where((e) => e.isNotEmpty)
+          .toList();
+
       expect(
-        barrel,
-        contains(
-          "export '${DartClientEmitter.runtimeFileName}' "
-          'show Authorization, ZonaiRowParseException;',
-        ),
+        exported,
+        containsAll(<String>[
+          'Authorization',
+          'ZonaiRowParseException',
+          // The §5.4 query surface: a consumer writes `Posts.title.contains`
+          // in their own library, so the extensions must be in scope there.
+          'ColumnRef',
+          'NullableColumnRef',
+          'ComparableColumnRef',
+          'StringColumnRef',
+        ]),
+      );
+      expect(
+        exported,
+        isNot(contains('ZonaiRowReader')),
         reason: 'ZonaiRowReader is an implementation detail of the models',
       );
+    });
+  });
+
+  group('column tokens (§5.4)', () {
+    test('mints one token per visible column, typed and named', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('abstract final class Posts {'));
+      expect(posts, contains("static const table = 'posts';"));
+      expect(posts, contains("static const id = ColumnRef<PostsId>('id');"));
+      expect(
+        posts,
+        contains("static const authorId = ColumnRef<AuthorsId>('author_id');"),
+        reason: 'a foreign key is typed by the table it points at',
+      );
+      expect(
+        posts,
+        contains("static const createdAt = ColumnRef<DateTime>('created_at');"),
+      );
+    });
+
+    test('a nullable column gets NullableColumnRef, of the NON-null type', () {
+      // `DateTime?` does not implement Comparable, so a `ColumnRef<DateTime?>`
+      // would silently lose gt/lt on exactly the columns people filter on.
+      final shapes = {
+        'posts': TableSchemaShape(
+          table: 'posts',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column('body', isNullable: true),
+            _column(
+              'published_at',
+              kind: ColumnShapeKind.dateTime,
+              isNullable: true,
+            ),
+          ],
+        ),
+      };
+      final posts = _emit(shapes: shapes)['tables/posts.g.dart']!;
+
+      expect(
+        posts,
+        contains("static const body = NullableColumnRef<String>('body');"),
+      );
+      expect(
+        posts,
+        contains(
+          'static const publishedAt = '
+          "NullableColumnRef<DateTime>('published_at');",
+        ),
+      );
+      expect(posts, isNot(contains('ColumnRef<DateTime?>')));
+      expect(posts, isNot(contains('ColumnRef<String?>')));
+    });
+
+    test('a secret column gets no token, and the holder says so', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(
+        posts,
+        isNot(contains("ColumnRef<String>('draft_key')")),
+        reason: 'a secret column is a blind oracle, not a filter',
+      );
+      expect(posts, isNot(contains('static const draftKey')));
+      expect(posts, contains('No token is emitted for `draft_key`'));
+    });
+
+    test('a photo column gets no token: it stores an id, reads back a URL', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('final Uri? photo;'), reason: 'still on the row');
+      expect(
+        posts,
+        isNot(contains('static const photo =')),
+        reason: 'a ColumnRef<Uri> would filter by a value never stored',
+      );
+    });
+
+    test('the JSON-encoded kinds and bigInt get no token', () {
+      // Measured, not assumed: `BigInt` throws JsonUnsupportedObjectError out
+      // of serializeWhereValue, and list/enumList/map/blob serialize to a
+      // structure while the column stores a JSON-encoded String.
+      final shapes = {
+        'items': TableSchemaShape(
+          table: 'items',
+          columns: [
+            _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+            _column('label'),
+            _column('big_count', kind: ColumnShapeKind.bigInt),
+            _column('tags', kind: ColumnShapeKind.enumList),
+            _column('keywords', kind: ColumnShapeKind.list),
+            _column('meta', kind: ColumnShapeKind.map),
+            _column('payload', kind: ColumnShapeKind.blob),
+          ],
+        ),
+      };
+      final items = _emit(shapes: shapes)['tables/items.g.dart']!;
+
+      expect(
+        items,
+        contains("static const label = ColumnRef<String>('label');"),
+      );
+      for (final field in ['bigCount', 'tags', 'keywords', 'meta', 'payload']) {
+        expect(
+          items,
+          isNot(contains('static const $field =')),
+          reason: '$field cannot build a filter that works',
+        );
+      }
+    });
+
+    test('the operator sets are scoped by the extension `on` types', () {
+      // This is where the whole compile-time guarantee actually lives. Widen
+      // `StringColumnRef` to `on ColumnRef<Object>` and every other test in
+      // this file still passes, while `Posts.createdAt.contains(...)` starts
+      // compiling -- so the bound is asserted here, at the source.
+      final runtime = _emit()[DartClientEmitter.runtimeFileName]!;
+
+      expect(
+        runtime,
+        contains(
+          'extension ComparableColumnRef<T extends Comparable<Object?>> '
+          'on ColumnRef<T> {',
+        ),
+        reason: 'gt/gte/lt/lte must be unreachable on a non-comparable column',
+      );
+      expect(
+        runtime,
+        contains('extension StringColumnRef on ColumnRef<String> {'),
+        reason: 'contains/startsWith must be unreachable on a DateTime column',
+      );
+      expect(
+        runtime,
+        contains('final class NullableColumnRef<T> extends ColumnRef<T> {'),
+        reason:
+            'isNull must be unreachable on a non-nullable column, and a '
+            'subclass is what keeps gt/lt reachable on a nullable one',
+      );
+      expect(
+        runtime,
+        contains('Where get isNull => Where.isNull(name);'),
+        reason: 'the Null class is not exported -- it would shadow dart:core',
+      );
+    });
+
+    test('list() takes a typed groupBy and passes its wire name through', () {
+      final posts = _emit()['tables/posts.g.dart']!;
+
+      expect(posts, contains('ColumnRef<Object?>? groupBy,'));
+      expect(posts, contains('groupBy: groupBy?.name,'));
     });
   });
 

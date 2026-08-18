@@ -54,16 +54,17 @@ You keep `client.auth`, `client.photos`, `client.email` and `client.db.listen` e
 
 ## What is generated per table
 
-For a table `posts` you get four names, all derived from one stem:
+For a table `posts` you get five names, all derived from one stem:
 
 | Name | What it is |
 |------|-----------|
 | `PostsRow` | One decoded row — `String`, `DateTime`, `bool`, lists and maps, not raw storage |
 | `PostsId` | An extension type over `String` for that table's id |
 | `PostsApi` | `get` / `list` / `count` for the table |
+| `Posts` | The [column tokens](#filtering-and-ordering-by-column-token) — `Posts.title`, `Posts.createdAt` |
 | `client.posts` | The accessor, added by an extension on `ZonaiClient` |
 
-Rename all four at once with [`names.<table>.row`](/configuration/zonai-yaml#client-settings) — an override that moved one name out of four would be no escape hatch at all for the case that most needs one, a table name that is not a usable Dart identifier.
+Rename all five at once with [`names.<table>.row`](/configuration/zonai-yaml#client-settings) — an override that moved one name out of four would be no escape hatch at all for the case that most needs one, a table name that is not a usable Dart identifier.
 
 ## What each column becomes
 
@@ -146,6 +147,56 @@ final page = await client.posts.list(as: Authorization.bearer(token));
 
 A read-only view generates the same `Row` and `Api` types as a table. `post_summary` becomes `client.postSummary`, documented in the generated source as *a read-only view*.
 
+## Filtering and ordering by column token
+
+`Posts` holds one token per column, and each token knows its own Dart type. That is
+what decides which operators you can reach:
+
+```dart no-analyze
+final recent = await client.posts.list(
+  where: And([
+    Posts.authorId.eq(author.id),
+    Posts.createdAt.gt(DateTime.now().subtract(const Duration(days: 7))),
+    Posts.title.contains('release'),
+  ]),
+  orderBy: [Posts.createdAt.desc],
+);
+```
+
+Nothing on the wire changes — every token returns the same `Where` and `OrderByTerm`
+the untyped client already takes. What changes is what stops compiling:
+
+| Expression | Result |
+|------------|--------|
+| `Posts.title.contains('x')` | compiles — `title` is text |
+| `Posts.createdAt.contains('x')` | **does not compile** — `contains` is only on `ColumnRef<String>` |
+| `Posts.createdAt.gt(aDateTime)` | compiles, and sends epoch milliseconds |
+| `Posts.body.isNull` | compiles — `body` is nullable |
+| `Posts.title.isNull` | **does not compile** — `isNull` is only on a nullable column |
+| `Posts.authorId.eq(somePostsId)` | **does not compile** — `author_id` is an `AuthorsId` |
+
+`groupBy` takes a token too:
+
+```dart no-analyze
+final byAuthor = await client.posts.list(groupBy: Posts.authorId);
+```
+
+### Which columns get a token
+
+A token is a promise that if the call compiles, the filter works. Columns where that
+promise cannot be kept get **no token at all**, because a filter that looks
+type-checked and silently matches nothing is worse than no help:
+
+| Column kind | Why there is no token |
+|-------------|----------------------|
+| secret | Stripped from every response, and the server rejects it in a filter |
+| photo | Stores a photo **id** but reads back a URL, so filtering by the URL you read would match nothing |
+| `list`, `enumList`, `map`, blob | Stored as a JSON-encoded string; a filter built from the decoded value never matches |
+| `bigInt` | `BigInt` is not JSON-encodable, so the request throws before it is sent |
+
+You can still filter those columns through `client.db.list` with a hand-built `Where`,
+where the encoding is visibly your problem.
+
 ## Where the query vocabulary comes from
 
 `Where`, `Update`, `OrderByTerm`, `SortDirection`, `Eq`, `Gt`, `In`, `Contains` and the rest are exported by `zonai_client` itself, so importing the generated client is enough to name them.
@@ -156,6 +207,9 @@ Two members are deliberately **not** exported: `Null` and `NotNull`. A library i
 final drafts = await client.posts.list(where: Where.isNull('published_at'));
 final live = await client.posts.list(where: Where.isNotNull('published_at'));
 ```
+
+The column tokens above already do this for you — `Posts.publishedAt.isNull` builds the
+same clause without either name being in scope.
 
 ## Keeping it in sync
 

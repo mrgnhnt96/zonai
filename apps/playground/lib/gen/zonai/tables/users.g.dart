@@ -85,6 +85,44 @@ final class UsersRow {
       );
 }
 
+/// Typed column tokens for `users`.
+///
+/// Each token builds a plain `Where` or `OrderByTerm`, so the
+/// wire form is exactly what the untyped client sends.
+///
+/// Columns whose stored value differs from their decoded
+/// Dart value get no token -- a photo (stores an id, reads
+/// back a URL), and the JSON-encoded kinds (`list`, `map`,
+/// `enumList`, blob) plus `bigInt`. A filter built from the
+/// decoded value would match nothing or throw, and a token
+/// that cannot work is worse than no token at all.
+///
+/// No token is emitted for `password` --
+/// a secret column is stripped from every response and
+/// rejected in a filter, so it cannot be named here.
+abstract final class Users {
+  /// The wire name of this table.
+  static const table = 'users';
+
+  /// The `id` column.
+  static const id = ColumnRef<UsersId>('id');
+
+  /// The `name` column.
+  static const name = ColumnRef<String>('name');
+
+  /// The `email` column.
+  static const email = ColumnRef<String>('email');
+
+  /// The `is_verified` column.
+  static const isVerified = ColumnRef<bool>('is_verified');
+
+  /// The `created_at` column.
+  static const createdAt = ColumnRef<DateTime>('created_at');
+
+  /// The `updated_at` column.
+  static const updatedAt = NullableColumnRef<DateTime>('updated_at');
+}
+
 /// Reads of the `users` table.
 ///
 /// Every method takes an optional `as` and falls through to
@@ -115,6 +153,10 @@ final class UsersApi {
 
   /// A page of rows.
   ///
+  /// `groupBy` takes a single column token. The server does
+  /// not add aggregates, so rows come back in the ordinary
+  /// row shape and `UsersRow.fromJson` still applies.
+  ///
   /// `users` has no foreign keys, so there is
   /// nothing for `expand` to pull in here.
   Future<Paginated<UsersRow>> list({
@@ -122,6 +164,7 @@ final class UsersApi {
     int? limit,
     int? offset,
     List<OrderByTerm>? orderBy,
+    ColumnRef<Object?>? groupBy,
     List<String> expand = const [],
     Authorization? as,
   }) =>
@@ -132,6 +175,7 @@ final class UsersApi {
           limit: limit,
           offset: offset,
           orderBy: orderBy,
+          groupBy: groupBy?.name,
           expand: expand,
         ),
         fromJson: UsersRow.fromJson,

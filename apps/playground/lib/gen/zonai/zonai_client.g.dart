@@ -21,7 +21,7 @@ import 'tables/post_summary.g.dart';
 import 'tables/posts.g.dart';
 import 'tables/users.g.dart';
 
-export 'zonai_runtime.g.dart' show Authorization, ZonaiRowParseException;
+export 'zonai_runtime.g.dart' show Authorization, ColumnRef, ComparableColumnRef, NullableColumnRef, StringColumnRef, ZonaiRowParseException;
 export 'tables/authors.g.dart';
 export 'tables/cell_edit_fixtures.g.dart';
 export 'tables/companies.g.dart';

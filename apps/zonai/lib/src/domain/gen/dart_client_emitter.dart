@@ -94,7 +94,13 @@ $kGeneratedClientHeader
     buffer
       ..writeln()
       ..writeln(
-        "export '$runtimeFileName' show Authorization, ZonaiRowParseException;",
+        "export '$runtimeFileName' show "
+        'Authorization, '
+        'ColumnRef, '
+        'ComparableColumnRef, '
+        'NullableColumnRef, '
+        'StringColumnRef, '
+        'ZonaiRowParseException;',
       );
     for (final table in tables) {
       buffer.writeln("export '${names[table]!.file}';");
@@ -169,6 +175,7 @@ $kGeneratedClientHeader
     _writeId(buffer, shape, name);
     _writeRow(buffer, shape, name, columns, expands, secrets);
     if (expands.isNotEmpty) _writeExpanded(buffer, name, expands);
+    _writeTokens(buffer, shape, name, columns, secrets);
     _writeApi(
       buffer,
       shape,
@@ -406,6 +413,84 @@ $kGeneratedClientHeader
       ..writeln();
   }
 
+  /// The column-token holder: one `ColumnRef` per column the client can see.
+  ///
+  /// This is the whole of §5.4. Every token carries the column's Dart type, so
+  /// the operator set a call site can reach is decided by the schema rather
+  /// than by the author remembering: `contains` exists on a text column and
+  /// nowhere else, `isNull` on a nullable column and nowhere else.
+  ///
+  /// Secret columns are already absent from [columns] -- `ColumnBinding`
+  /// returns null for them -- so no token can be minted for one, and the
+  /// server's `SecretColumnFilterException` becomes unreachable from here.
+  void _writeTokens(
+    StringBuffer buffer,
+    TableSchemaShape shape,
+    TableNames name,
+    List<ColumnBinding> columns,
+    List<String> secrets,
+  ) {
+    buffer
+      ..writeln('/// Typed column tokens for `${shape.table}`.')
+      ..writeln('///')
+      ..writeln(
+        '/// Each token builds a plain `Where` or `OrderByTerm`, so the',
+      )
+      ..writeln('/// wire form is exactly what the untyped client sends.')
+      ..writeln('///')
+      ..writeln('/// Columns whose stored value differs from their decoded')
+      ..writeln('/// Dart value get no token -- a photo (stores an id, reads')
+      ..writeln('/// back a URL), and the JSON-encoded kinds (`list`, `map`,')
+      ..writeln('/// `enumList`, blob) plus `bigInt`. A filter built from the')
+      ..writeln('/// decoded value would match nothing or throw, and a token')
+      ..writeln('/// that cannot work is worse than no token at all.');
+    if (secrets.isNotEmpty) {
+      buffer
+        ..writeln('///')
+        ..writeln('/// No token is emitted for ${_englishList(secrets)} --')
+        ..writeln('/// a secret column is stripped from every response and')
+        ..writeln('/// rejected in a filter, so it cannot be named here.');
+    }
+    buffer
+      ..writeln('abstract final class ${name.tokens} {')
+      ..writeln('  /// The wire name of this table.')
+      ..writeln("  static const table = '${shape.table}';");
+
+    for (final binding in columns) {
+      // Not every column can carry an honest token -- see
+      // `ColumnBinding.isTokenable` for the seven kinds that cannot and the
+      // measurement behind each.
+      if (!ColumnBinding.isTokenable(binding.column.kind)) continue;
+
+      final ref = binding.isNullable ? 'NullableColumnRef' : 'ColumnRef';
+      buffer
+        ..writeln()
+        ..writeln('  /// The `${binding.wireKey}` column.')
+        ..writeln(
+          '  static const ${binding.field} = '
+          '$ref<${_nonNullable(binding.type)}>'
+          "('${binding.wireKey}');",
+        );
+    }
+
+    buffer
+      ..writeln('}')
+      ..writeln();
+  }
+
+  /// `DateTime?` -> `DateTime`. A token's type parameter is always the
+  /// non-nullable one; see `ColumnRef`'s own doc for why.
+  static String _nonNullable(String type) =>
+      type.endsWith('?') ? type.substring(0, type.length - 1) : type;
+
+  /// `[a]` -> '`a`'; `[a, b]` -> '`a` and `b`'; `[a, b, c]` -> '`a`, `b` and `c`'.
+  static String _englishList(List<String> items) {
+    final quoted = [for (final item in items) '`$item`'];
+    if (quoted.length == 1) return quoted.single;
+    return '${quoted.sublist(0, quoted.length - 1).join(', ')} '
+        'and ${quoted.last}';
+  }
+
   void _writeApi(
     StringBuffer buffer,
     TableSchemaShape shape,
@@ -492,13 +577,13 @@ $kGeneratedClientHeader
       ..writeln();
   }
 
-  void _writeList(
-    StringBuffer buffer,
-    TableNames name,
-    String? expandExample,
-  ) {
+  void _writeList(StringBuffer buffer, TableNames name, String? expandExample) {
     buffer
       ..writeln('  /// A page of rows.')
+      ..writeln('  ///')
+      ..writeln('  /// `groupBy` takes a single column token. The server does')
+      ..writeln('  /// not add aggregates, so rows come back in the ordinary')
+      ..writeln('  /// row shape and `${name.row}.fromJson` still applies.')
       ..writeln('  ///');
     if (expandExample case final example?) {
       buffer
@@ -519,6 +604,7 @@ $kGeneratedClientHeader
       ..writeln('    int? limit,')
       ..writeln('    int? offset,')
       ..writeln('    List<OrderByTerm>? orderBy,')
+      ..writeln('    ColumnRef<Object?>? groupBy,')
       ..writeln('    List<String> expand = const [],')
       ..writeln('    Authorization? as,')
       ..writeln('  }) =>')
@@ -529,6 +615,7 @@ $kGeneratedClientHeader
       ..writeln('          limit: limit,')
       ..writeln('          offset: offset,')
       ..writeln('          orderBy: orderBy,')
+      ..writeln('          groupBy: groupBy?.name,')
       ..writeln('          expand: expand,')
       ..writeln('        ),')
       ..writeln('        fromJson: ${name.row}.fromJson,')
