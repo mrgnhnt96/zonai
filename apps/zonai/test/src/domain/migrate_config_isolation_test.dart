@@ -131,7 +131,13 @@ dart: sentinel_migrations.dart
               ready.complete();
             }
           });
-      await ready.future.timeout(const Duration(seconds: 30));
+      // 90s, not 30s: the quiet-machine readiness wait measures 10.2s, but this is a
+      // process spawn plus JIT startup, so it degrades with CPU contention rather than
+      // with anything about the code. At 32 busy loops on this 12-core box (load 30 ->
+      // 72) a 30s budget FAILED here deterministically, while the suite passes on a
+      // quiet machine and at 2.5x oversubscription. 90s matches the migration wait
+      // below, which guards a comparable spawn-and-poll.
+      await ready.future.timeout(const Duration(seconds: 90));
 
       await _waitUntil(
         () => _allMigrationSql(migrationsDir).contains('CREATE TABLE "users"'),
@@ -146,7 +152,9 @@ dart: sentinel_migrations.dart
             "the fixture's raindrop.yaml dart: target must be left untouched",
       );
     },
-    timeout: const Timeout(Duration(minutes: 2)),
+    // The outer budget is deliberately the SUM of the inner waits (90 + 90); raising one
+    // without the other would leave the inner budget unreachable and decorative.
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 }
 

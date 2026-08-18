@@ -93,7 +93,9 @@ dependencies:
               ready.complete();
             }
           });
-      await ready.future.timeout(const Duration(seconds: 30));
+      // 90s, not 30s -- see migrate_config_isolation_test.dart for the measurement.
+      // Same spawn-and-wait-for-READY shape, same starvation exposure.
+      await ready.future.timeout(const Duration(seconds: 90));
     });
 
     tearDownAll(() {
@@ -140,7 +142,8 @@ dependencies:
           timeout: const Duration(seconds: 60),
         );
       },
-      timeout: const Timeout(Duration(minutes: 3)),
+      // Outer budget stays the sum of the inner waits: 90 + 90 + 60.
+      timeout: const Timeout(Duration(minutes: 4)),
     );
   });
 }
