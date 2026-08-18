@@ -34,7 +34,6 @@ Generate it with [`zonai gen client`](/cli/gen); configure it with the [`client:
 The generated code hangs off `ZonaiClient` as an extension. The dependency arrow points *generated → `zonai_client`* and never back, so both styles are valid in the same file:
 
 ```dart no-analyze
-import 'package:zonai_client/zonai_client.dart';
 import 'package:my_app/gen/zonai/zonai_client.g.dart';
 
 final typed = await client.posts.list();
@@ -313,14 +312,25 @@ where the encoding is visibly your problem.
 
 ## Where the query vocabulary comes from
 
-`Where`, `Update`, `OrderByTerm`, `SortDirection`, `Eq`, `Gt`, `In`, `Contains` and the rest are exported by `zonai_client`. The generated barrel does **not** re-export them, so a file that names one of these types — including `Paginated`, which `list` returns — imports both:
+`Where`, `Update`, `OrderByTerm`, `SortDirection`, `Eq`, `Gt`, `In`, `Contains` and the rest are exported by `zonai_client`, and the generated barrel re-exports them. One import is enough to name any of them — including `Paginated`, which `list` returns:
 
 ```dart no-analyze
-import 'package:zonai_client/zonai_client.dart';
 import 'package:my_app/gen/zonai/zonai_client.g.dart';
 ```
 
-You do not need the first import to *build* a filter — `Posts.title.eq('x')` returns a `Where` without you naming the type — only to write one down.
+### When a table name collides
+
+`zonai_client` exports 71 names, and a table can generate one of them — a table named `photos` produces a `Photos` token holder, and `zonai_client` has a `Photos` of its own. Exporting both would be an ambiguous export, so the generated barrel hides the package's version and says so in the file:
+
+```dart no-analyze
+/// `Photos` is hidden: `photos` generates a type of that name, and exporting
+/// both would be an ambiguous export.
+export 'package:zonai_client/zonai_client.dart' hide Photos;
+```
+
+The name you get from the barrel is **yours** — the generated one. Nothing is refused and nothing else is affected. To reach `zonai_client`'s version, import that package with a prefix, or rename the generated class with [`client.names.<table>.row`](/configuration/zonai-yaml#client-settings) and the hide clause disappears with it.
+
+Most schemas collide with nothing and the clause is absent entirely.
 
 Two members are deliberately **not** exported: `Null` and `NotNull`. A library importing them would shadow `dart:core`'s `Null` — Dart resolves an explicit import ahead of the implicit `dart:core` one, so every `Null` written in that library would mean the where-clause class instead. Build those clauses with the factories:
 

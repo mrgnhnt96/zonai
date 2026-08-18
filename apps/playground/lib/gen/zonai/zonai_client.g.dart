@@ -22,6 +22,11 @@ import 'tables/posts.g.dart';
 import 'tables/users.g.dart';
 
 export 'zonai_runtime.g.dart' show Authorization, ColumnRef, ComparableColumnRef, ExpandPath, Field, ListField, MapField, NullableColumnRef, NumField, Patch, PhotoId, StringColumnRef, ZonaiRowParseException, zonaiWriteValue;
+
+/// The query vocabulary the generated signatures are written
+/// in: `Paginated`, `Where`, `OrderByTerm` and the rest.
+/// Importing this file is enough to name them.
+export 'package:zonai_client/zonai_client.dart';
 export 'tables/authors.g.dart';
 export 'tables/cell_edit_fixtures.g.dart';
 export 'tables/companies.g.dart';

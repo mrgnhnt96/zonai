@@ -396,6 +396,139 @@ void main() {
     });
   });
 
+  group('the zonai_client re-export', () {
+    /// The re-export directive alone, so an assertion cannot be satisfied by
+    /// the import at the top of the file or by the doc comment above it.
+    String? reexportOf(String barrel) => RegExp(
+      r"^export 'package:zonai_client/zonai_client.dart'([^;]*);",
+      multiLine: true,
+    ).firstMatch(barrel)?.group(1);
+
+    TableSchemaShape tableNamed(String name) => TableSchemaShape(
+      table: name,
+      columns: [_column('id', kind: ColumnShapeKind.id, isPrimaryKey: true)],
+    );
+
+    test('is what makes Paginated and Where nameable from the barrel', () {
+      // The failure that filed this leaf: a Dart `export` of a table file
+      // carries what that file DECLARES, never what it imports -- so a
+      // consumer importing only the barrel could not write down
+      // `Paginated<PostsRow>`, the declared return type of every `list()`.
+      final barrel = _emit()[DartClientEmitter.barrelFileName]!;
+
+      expect(reexportOf(barrel), isNotNull);
+    });
+
+    test('hides nothing when no table mints over the package', () {
+      // The normal case, and it has to stay clean: a hide clause that showed
+      // up for every project would be churn in a file the consumer commits.
+      expect(reexportOf(_emit()[DartClientEmitter.barrelFileName]!), '');
+    });
+
+    test('hides a name the schema mints, rather than refusing the table', () {
+      // Reproduced before the hide clause existed: `photos` mints the token
+      // holder `Photos`, `zonai_client` exports a `Photos`, and a barrel
+      // exporting both is an ambiguous export that does not compile.
+      //
+      // Refusing was the other option. It would make `photos` -- an entirely
+      // ordinary table name -- ungeneratable for the sake of a re-export the
+      // project never asked for, so the collision is hidden instead.
+      final out = _emit(shapes: {'photos': tableNamed('photos')});
+      final barrel = out[DartClientEmitter.barrelFileName]!;
+
+      expect(reexportOf(barrel), ' hide Photos');
+      expect(
+        barrel,
+        contains("export 'tables/photos.g.dart';"),
+        reason: 'the generated Photos is what the barrel carries',
+      );
+      expect(
+        barrel,
+        contains('names.<table>.row'),
+        reason: 'the generated file names the escape hatch',
+      );
+    });
+
+    test('reads every name a table mints, not just the bare base', () {
+      // `column` mints the base `Column`, which collides with nothing --
+      // its UPDATE builder is `ColumnUpdate`, which `zonai_client` exports.
+      // A check that looked at the base name alone would miss this one, so
+      // this is the test that has to exist.
+      final barrel = _emit(shapes: {'column': tableNamed('column')})[
+        DartClientEmitter.barrelFileName]!;
+
+      expect(reexportOf(barrel), ' hide ColumnUpdate');
+    });
+
+    test('an enum type can collide too, and is hidden like the rest', () {
+      // `TableNames.allWithEnums` is what the hide set is derived from, so a
+      // type minted per COLUMN is covered without a second mechanism.
+      final barrel = _emit(
+        shapes: {
+          'order_by': TableSchemaShape(
+            table: 'order_by',
+            columns: [
+              _column('id', kind: ColumnShapeKind.id, isPrimaryKey: true),
+              ColumnShape(
+                name: 'term',
+                kind: ColumnShapeKind.enum_,
+                isNullable: false,
+                isPrimaryKey: false,
+                autoIncrement: false,
+                sqlType: 'TEXT',
+                isSecret: false,
+                enumValues: const ['asc', 'desc'],
+              ),
+            ],
+          ),
+        },
+      )[DartClientEmitter.barrelFileName]!;
+
+      expect(reexportOf(barrel), ' hide OrderByTerm');
+    });
+
+    test('hides several in one clause, in a stable order', () {
+      final barrel = _emit(
+        shapes: {
+          'photos': tableNamed('photos'),
+          'where': tableNamed('where'),
+          'emails': tableNamed('emails'),
+        },
+      )[DartClientEmitter.barrelFileName]!;
+
+      // Sorted, because it is taken from `kZonaiClientExports` in its own
+      // order -- the generated output has to be byte-identical run to run.
+      expect(reexportOf(barrel), ' hide Emails, Photos, Where');
+    });
+
+    test('the override moves the generated name and the clause with it', () {
+      final barrel = _emit(
+        shapes: {'photos': tableNamed('photos')},
+        settings: const ClientSettings(
+          output: 'gen/zonai',
+          names: {'photos': ClientNameOverrides(row: 'GalleryRow')},
+        ),
+      )[DartClientEmitter.barrelFileName]!;
+
+      expect(
+        reexportOf(barrel),
+        '',
+        reason: 'nothing collides once the generated class is renamed',
+      );
+    });
+
+    test('a runtime clash is still refused, not hidden', () {
+      // The two sets are treated differently on purpose. Hiding
+      // `zonai_client`'s `Photos` costs a consumer a prefixed import; hiding
+      // the runtime's `Field` would take a type the generated code itself is
+      // written in, so that one stays a refusal.
+      expect(
+        () => _emit(shapes: {'field': tableNamed('field')}),
+        throwsA(isA<ClientNameException>()),
+      );
+    });
+  });
+
   group('enum columns', () {
     Map<String, TableSchemaShape> withEnums() => {
       'posts': TableSchemaShape(

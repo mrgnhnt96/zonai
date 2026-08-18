@@ -5,6 +5,7 @@ import '../../deps/logger.dart';
 import 'client_column_binding.dart';
 import 'client_emitter.dart';
 import 'client_names.dart';
+import 'client_package_exports.dart';
 import 'client_runtime_source.dart';
 
 /// The typed client: ids, read models, column tokens, typed expand paths, the
@@ -121,6 +122,7 @@ $kGeneratedClientHeader
         "export '$runtimeFileName' show "
         "${kClientRuntimeExports.join(', ')};",
       );
+    _writeClientReexport(buffer, input, names);
     for (final table in tables) {
       buffer.writeln("export '${names[table]!.file}';");
     }
@@ -150,6 +152,72 @@ $kGeneratedClientHeader
 
     buffer.writeln('}');
     return buffer.toString();
+  }
+
+  /// The `zonai_client` re-export, minus whatever this run mints over it.
+  ///
+  /// `list()` returns `Paginated<PostsRow>` and every filter argument is a
+  /// `Where`, so a consumer who imports only the generated barrel could not
+  /// write down the types the generated methods hand them. A Dart `export` of
+  /// a table file carries what that file *declares*, never what it imports --
+  /// so the vocabulary has to be re-exported explicitly or it is not there.
+  ///
+  /// The `hide` clause is why this is not a one-liner. A table named `photos`
+  /// mints a token holder `Photos`, which `zonai_client` also exports, and a
+  /// barrel exporting both does not compile. Hiding the overlap keeps every
+  /// project that generates today generating: the clause is empty for a schema
+  /// with no clash, and the generated file says which name it dropped and why
+  /// for one that has it.
+  ///
+  /// Names are taken from [kZonaiClientExports] in its own order, which is
+  /// sorted -- the output has to be byte-identical run to run.
+  void _writeClientReexport(
+    StringBuffer buffer,
+    ClientGenerationInput input,
+    ClientNameTable names,
+  ) {
+    final minted = <String>{
+      for (final entry in input.schema.tables.entries)
+        ...names[entry.key]!.allWithEnums(_enumColumnsOf(entry.value)),
+    };
+    final hidden = [
+      for (final name in kZonaiClientExports)
+        if (minted.contains(name)) name,
+    ];
+
+    buffer
+      ..writeln()
+      ..writeln('/// The query vocabulary the generated signatures are written')
+      ..writeln('/// in: `Paginated`, `Where`, `OrderByTerm` and the rest.')
+      ..writeln('/// Importing this file is enough to name them.');
+    if (hidden.isNotEmpty) {
+      final tablesFor = [
+        for (final entry in input.schema.tables.entries)
+          if (names[entry.key]!
+              .allWithEnums(_enumColumnsOf(entry.value))
+              .any(hidden.contains))
+            entry.key,
+      ];
+      buffer
+        ..writeln('///')
+        ..writeln(
+          '/// ${_englishList(hidden)} '
+          '${hidden.length == 1 ? 'is' : 'are'} hidden: '
+          '${_englishList(tablesFor)}',
+        )
+        ..writeln(
+          '/// generate${tablesFor.length == 1 ? 's' : ''} a type of that '
+          'name, and exporting both would be an',
+        )
+        ..writeln('/// ambiguous export. Reach `zonai_client`\'s version')
+        ..writeln('/// through a prefixed import of that package, or set')
+        ..writeln('/// `names.<table>.row` in zonai.yaml to move the')
+        ..writeln('/// generated one out of the way.');
+    }
+    buffer.writeln(
+      "export 'package:zonai_client/zonai_client.dart'"
+      "${hidden.isEmpty ? '' : ' hide ${hidden.join(', ')}'};",
+    );
   }
 
   /// One table: its id type, read model, expanded holder and API.
