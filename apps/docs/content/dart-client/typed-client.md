@@ -48,7 +48,7 @@ You keep `client.auth`, `client.photos`, `client.email` and `client.db.listen` e
 
 <Warning>
 
-**Phase 1 generates read operations only** — `get`, `list` and `count`. Creates, updates and deletes still go through `client.db`, and so do live streams (`client.db.listen`). A table's generated API having no `create` method does not mean the table is read-only.
+**The generated API covers reads, writes and live queries** — `get` / `list` / `count`, the six mutations, and `listen.one` / `listen.list` / `listen.count`. `client.db` remains valid for anything the generator deliberately leaves untyped, such as filtering a JSON-encoded column. A method's absence here is always a decision with a reason, never a gap: a view has no write surface, and a `bigInt` column has no token or write field because the request would throw.
 
 </Warning>
 
