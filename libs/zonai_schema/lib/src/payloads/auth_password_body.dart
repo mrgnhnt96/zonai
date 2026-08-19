@@ -83,7 +83,7 @@ abstract class AdminAuthBody {
   const AdminAuthBody({required this.type});
 
   factory AdminAuthBody.fromJson(Map<String, dynamic> json) {
-    return switch (json['type'] as String) {
+    return switch (json['type']) {
       AdminSignInAuthBody._type => AdminSignInAuthBody.fromJson(json),
       AdminSendOtpAuthBody._type => AdminSendOtpAuthBody.fromJson(json),
       AdminVerifyOtpAuthBody._type => AdminVerifyOtpAuthBody.fromJson(json),
@@ -530,13 +530,29 @@ class SignUpAuthBody extends AuthBody {
   final Map<String, dynamic>? object;
 
   factory SignUpAuthBody.fromJson(Map<String, dynamic> json) {
+    final email = json['email'];
+    final password = json['password'];
+    if (email is! String || password is! String) {
+      throw ArgumentError(
+        'SignUpAuthBody requires string email and password '
+        '(got email=${email.runtimeType}, password=${password.runtimeType})',
+      );
+    }
+    final object = json['object'];
+    if (object != null && object is! Map) {
+      throw ArgumentError(
+        'SignUpAuthBody object must be a map (got ${object.runtimeType})',
+      );
+    }
+    // Same default as [SignInAuthBody.fromJson], and for the same reason: a
+    // bare {email,password} body used to cast null->String here and return
+    // HTTP 500 from /auth/sign-up instead of reaching the handler.
+    final table = json['table'];
     return SignUpAuthBody(
-      table: json['table'] as String,
-      email: json['email'] as String,
-      password: json['password'] as String,
-      object: json['object'] != null
-          ? Map<String, dynamic>.from(json['object'] as Map)
-          : null,
+      table: table is String && table.isNotEmpty ? table : 'users',
+      email: email,
+      password: password,
+      object: object != null ? Map<String, dynamic>.from(object as Map) : null,
     );
   }
 
