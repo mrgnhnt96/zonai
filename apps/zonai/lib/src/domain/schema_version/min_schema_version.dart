@@ -83,4 +83,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.4.0';
+const kMinSchemaVersion = '0.4.1';

@@ -6,7 +6,7 @@ name: zonai_client
 description: >-
   Typed Dart and Flutter client for a Zonai backend: auth, CRUD, file uploads,
   and live SQLite query streams over HTTP.
-version: 0.2.1
+version: 0.2.2
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 homepage: https://zonai.dev
 documentation: https://docs.zonai.dev/dart-client/overview
@@ -27,14 +27,21 @@ dependencies:
   file: ^7.0.1
   http: ^1.6.0
   revali_client: ^3.0.0
-  # Spans 0.1.x through 0.3.x on purpose. Every breaking change in those
-  # minors has been server-side -- `TableRateLimits.customPolicy` in 0.2.0,
-  # and 0.3.0's `revali_core` major plus new cron IPC vocabulary -- and this
-  # package references none of it. A `^` pin would force consumers of this
-  # client onto one schema minor for no reason of its own, and a constraint
-  # that lags is worse than useless: it silently pins them *below* a schema
-  # they explicitly asked for.
-  zonai_schema: ">=0.1.0 <0.5.0"
+  # The lower bound is 0.4.1 and it is load-bearing, which is a change from
+  # every earlier version of this constraint. It used to span 0.1.x onward
+  # because nothing here referenced what the schema minors changed (all
+  # server-side: `TableRateLimits.customPolicy` in 0.2.0, 0.3.0's
+  # `revali_core` major and cron IPC vocabulary, 0.4.0's push vocabulary).
+  #
+  # 0.4.1 is different. This barrel exports the query vocabulary and
+  # deliberately withholds `Null` / `NotNull`, because importing either
+  # shadows `dart:core`'s `Null` in the importing library. The documented
+  # replacement is `Where.isNull` / `Where.isNotNull`, which exist only from
+  # 0.4.1 -- so against 0.4.0 this package exports a surface with no way to
+  # build an IS NULL clause, and the code `zonai gen client` emits (which
+  # calls `Where.isNull`) does not compile. The upper bound stays open across
+  # the minor for the original reason.
+  zonai_schema: ">=0.4.1 <0.5.0"
 
 dev_dependencies:
   analyzer: ">=8.0.0 <13.0.0"

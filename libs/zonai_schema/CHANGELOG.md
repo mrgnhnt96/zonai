@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
+
+Purely additive. Nothing was removed, renamed, or changed in behaviour.
 
 - **`Where.isNull(column)` and `Where.isNotNull(column)`.** Two const factories that redirect to the existing `Null` and `NotNull` clauses, so those clauses stay constructible without a caller ever naming those two classes. That matters because `zonai_client`'s barrel cannot export them: a library importing `Null` shadows `dart:core`'s `Null`, since Dart resolves an explicit import ahead of the implicit `dart:core` one. Confirmed by compiling rather than by reasoning about it — in a file importing `package:zonai_schema/payloads.dart`, `Null x; print(x);` fails analysis with `not_assigned_potentially_non_nullable_local_variable`, which is legal against `dart:core`'s nullable `Null`, so the error is the shadowing itself. Additive: `Null` and `NotNull` are unchanged and still exported from this package.
+
+- **`Email.preheader`.** The inbox preview line a mail client shows next to the subject. Rendered into the template as `{{preheader}}` inside a hidden block, so it never paints in the body; without one the client scrapes whatever visible text comes first, which is usually the greeting. Each built-in auth email (`SendOtpEmail`, `SendMagicLinkEmail`, `SendVerifyEmailEmail`, `SendResetPasswordEmail`, `SendAdminInviteEmail`) now ships a default. The OTP one deliberately leaves the code out: the preheader is what renders on a locked phone.
+- **`PushPermanentlyRejected.detail`.** The provider's own words, carried as far as a human. `PushRejectionReason` has two values because two is all the fan-out needs, but APNs answers `Unregistered` for an uninstalled app and `BadDeviceToken` for a valid token issued by the *other* environment — both prune correctly, only the second is a deployment mistake somebody can fix. Nullable and never load-bearing: nothing branches on it.
+- **Push test-send payloads** (`src/payloads/push_test_send.dart`) and **dashboard metrics payloads** (`src/payloads/dashboard_metrics.dart`), backing the dashboard's test-send, push-queue and sessions panels. `payloads.dart` also now exports `push_outcome.dart` and `DevicePlatform`, which the dashboard needs to name and previously could not reach through that barrel.
 
 ## 0.4.0
 

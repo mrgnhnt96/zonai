@@ -1,7 +1,8 @@
-## Unreleased
+## 0.2.2
 
 - **The barrel now exports the query vocabulary**, so a consumer can name the types the generated typed client takes and returns. `zonai gen client` emits code whose signatures are `Where`, `Update`, `OrderByTerm` and friends; before this, that code compiled only if the app also depended on `zonai_schema` directly and imported it by hand, which defeats the point of a generated client. Added: `Where`, `Update`, `UpdateValue`, `ColumnUpdate`, `ObjectUpdate`, `OrderByTerm`, `SortDirection`, the comparison and set clauses (`Eq`, `Gt`, `Gte`, `Lt`, `Lte`, `In`, `NotIn`, `And`, `Or`, `Literal`), the string clauses (`Contains`, `NotContains`, `StartsWith`, `EndsWith`), and the mutation values (`Add`, `AddAll`, `Remove`, `RemoveAll`, `Increment`, `Decrement`). Also newly exported are the data sources a typed client hangs off — `Db`, `DbListen`, `AdminAuth`, `Emails`, `Photos`. Purely additive; nothing was removed or renamed.
 - **`Null` and `NotNull` are deliberately *not* exported**, and this is the one place the addition is not mechanical. A library that imports them shadows `dart:core`'s `Null`, because Dart resolves an explicit import ahead of the implicit `dart:core` one — so every `Null` written in that library would mean the where-clause class instead. Build those clauses with `Where.isNull` / `Where.isNotNull` (new in `zonai_schema`), which redirect to them. If you already import `package:zonai_schema/payloads.dart` directly and rely on `Null`, nothing changes for you.
+- **The `zonai_schema` lower bound moves to `>=0.4.1`** (was `>=0.1.0`). It is load-bearing for the first time: `Where.isNull` / `Where.isNotNull` are the documented way to build the two clauses this barrel withholds, and they do not exist below 0.4.1. Against 0.4.0 this package would export a query vocabulary with no way to express IS NULL, and `zonai gen client` output — whose runtime calls `Where.isNull` — would not compile.
 
 ## 0.2.1
 
