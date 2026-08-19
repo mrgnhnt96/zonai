@@ -92,21 +92,23 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
-## 17. `resqlite` segfaults reading diagnostics when any reader slot was never opened — diagnosed, not fixed
+## 17. `resqlite` segfaults reading diagnostics when a connection handle was never opened — fixed
 
-`libs/resqlite` is a separate repository, so this is filed here rather than fixed here.
+**Fixed 2026-08-19** in the submodule, not here: `libs/resqlite` is a separate repository
+(fork `mrgnhnt96/resqlite`, branch `zonai`, commit `1d6e270`). Suite went 163 passed/4 skipped
+to 169 passed/3 skipped; the two remaining resqlite skips are #16.
 
-Reproduce in about a second, without unquarantining anything:
+It reproduced in about a second, and after the fix the same command passes:
 
 ```sh
 cd libs/resqlite
 dart test test/stream_test.dart -j1 --run-skipped \
   -n "stream entry is removed from registry after last listener cancels"
-# exits 134
+# was: exits 134
 ```
 
-**The crash is not where the quarantine notes say.** They describe "a near-null dereference in
-the native stream-registry teardown path". The stack never mentions stream teardown:
+**The crash was not where the quarantine notes said.** They described "a near-null dereference
+in the native stream-registry teardown path". The stack never mentioned stream teardown:
 
 ```
 sqlite3_db_status64+0x34        <- si_addr=0x18
@@ -117,37 +119,50 @@ Database.diagnostics
 _streamLength                    <- the test helper
 ```
 
-It is the diagnostics counter read. That also explains the population: all five quarantined
-tests in that file assert on the registry *via* `diagnostics().streamLength`, and it is the
-shared `diagnostics()` call that crashes, not the shared subject matter.
+It was the diagnostics counter read. That also explained the population: all five quarantined
+tests in that file assert on the registry *via* `diagnostics().streamLength`, and it was the
+shared `diagnostics()` call that crashed, not the shared subject matter.
 
-**Root cause.** `native/resqlite.c:1251`, in `resqlite_db_status_total`:
+**Root cause — TWO unguarded sites, not one.** `resqlite_db_status_total` walks the writer and
+then every reader slot, handing each connection to `sqlite3_db_status`. Both kinds of handle are
+opened lazily, and nothing on this path opens one:
 
-```c
-for (int i = 0; i < db->reader_count; i++) {
-    if (db->readers[i].in_use) { ...; continue; }
-    int reader_rc = sqlite3_db_status(
-        db->readers[i].db, op, &current, &highwater, reset);   // db may be NULL
-```
+- `db->writer` is `NULL` from `:637` until `ensure_writer_open` runs. Never called here.
+- `db->readers[i].db` is `NULL` from `:650` until `ensure_reader_open` runs. Never called here.
+  `:648` sets `reader_count = max_readers` — slots, not open connections — so a slot that never
+  served a query is still NULL.
 
-Readers are opened lazily: `:648` sets `reader_count = max_readers` (slots, not open
-connections), `:650` sets every `readers[i].db = NULL`, and `ensure_reader_open` opens one on
-demand. So any slot that never served a query is still NULL, and this loop passes that NULL
-straight to `sqlite3_db_status`. It is the only unguarded site — `grep -n 'readers\[i\]\.db'`
-returns exactly three lines, and `sqlite3_close_v2(NULL)` at `:699` is a documented no-op.
+The fix skips an unopened handle at both sites. That is the correct total and not merely a crash
+guard: a connection that was never opened has allocated nothing for these counters to report, so
+it contributes 0.
+
+**The "only one unguarded site" claim in the first diagnosis was wrong, and the way it was wrong
+is the reusable lesson.** It rested on `grep -n 'readers\[i\]\.db'` returning exactly three hits.
+That grep could not have found the writer no matter what the code did — the search term already
+assumed the answer was a reader. Fixing only the reader loop moved the crash from
+`resqlite_db_status_total+0x11c` to `+0x84`, same `si_addr=0x18`, and left the whole
+`diagnostics_test.dart` suite still aborting. **A grep shaped like the hypothesis cannot falsify
+the hypothesis**; the thing that caught it was running the full suite and noticing a second
+quarantine with an identical signature.
 
 **Why a SEGV rather than `SQLITE_MISUSE`, and why `0x18` is exact.** `sqlite3_db_status`
 NULL-checks only under `SQLITE_ENABLE_API_ARMOR`, which is not among the defines in
-`tool/build_native.dart:220-236`, so the first statement is `sqlite3_mutex_enter(db->mutex)`.
-In `struct sqlite3`, `mutex` sits at offset 24 — `0x18`, byte-for-byte the reported `si_addr`.
+`tool/build_native.dart:220-236` (confirmed against the actual `clang` invocation, not just the
+build script), so the first statement is `sqlite3_mutex_enter(db->mutex)`. In `struct sqlite3`,
+`mutex` sits at offset 24 — `0x18`, byte-for-byte the reported `si_addr`. **Still worth pricing
+separately:** adding `SQLITE_ENABLE_API_ARMOR` to the build turns this entire class of mistake
+into `SQLITE_MISUSE` instead of a process abort, and would have made both sites a returned error
+code rather than a hunt.
 
-**Fix**: one line before that call — `if (!db->readers[i].db) continue;`. An unopened reader has
-contributed nothing to any counter, so skipping it is the correct answer and not merely a guard.
-Worth pricing separately: adding `SQLITE_ENABLE_API_ARMOR` to the build turns this whole class of
-mistake into `SQLITE_MISUSE` instead of a process abort.
+**Why it mattered beyond five tests**: it aborted the process, so `dart test` exited 134 with no
+summary and one segfault took down visibility into every other resqlite test. A whole
+`diagnostics_test.dart` suite was quarantined for it too — that one was missed by the first
+diagnosis, which counted only the five in `stream_test.dart`.
 
-**Why it matters beyond five tests**: it aborts the process, so `dart test` exits 134 with no
-summary and one segfault takes down visibility into every other resqlite test.
+**What it did *not* affect**: zonai never calls `Database.diagnostics()` — zero callers outside
+resqlite's own tests — so no zonai runtime path could reach this. The value recovered is the six
+tests, five of which are stream-registry leak guards for the API `resqlite_delegate.dart:477`
+depends on.
 
 ## 16. `resqlite` readers cannot open a database until something has written to it — diagnosed, not fixed
 
@@ -182,12 +197,17 @@ The tests are not wrong.
 
 **Relationship to #17 — established, not assumed.** They share a precondition, not a defect. A
 failed `ensure_reader_open` leaves `readers[i].db == NULL`, which is one producer of the NULL
-that #17 dereferences; but #17 does not need this bug, because a slot that was simply never used
-is NULL by design. Neither fix resolves the other.
+that #17 dereferenced; but #17 did not need this bug, because a slot that was simply never used
+is NULL by design. Neither fix resolves the other, and #17 being fixed (2026-08-19) leaves this
+one exactly where it was — the guard makes an unopened handle *harmless*, it does not make a
+reader *able to open*.
 
-**Fix is a design call** for whoever owns the library — give readers `CREATE` (but then a reader
-can create a stray file, which is what the missing flag was buying), or have the writer
-materialize the file on open, or treat CANTOPEN-on-missing-file as "no rows yet".
+**Fix — decided 2026-08-19: treat CANTOPEN-on-missing-file as "no rows yet".** The three options
+were: give readers `CREATE` (but then a reader can create a stray file, which is what the missing
+flag was buying), have the writer materialize the file on open (but then opening a database
+always touches disk), or report an empty result for a database that does not exist yet. The last
+was chosen because it is the only one that preserves the no-stray-files property the missing flag
+was there to buy.
 
 ## 15. An update that writes the column its own `where` matched on reported failure for a write that succeeded — fixed, and `PATCH /db` now 404s on no match
 
