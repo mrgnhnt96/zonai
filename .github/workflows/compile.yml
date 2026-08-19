@@ -139,7 +139,24 @@ jobs:
         # needs autoconf/automake/libtool/m4. ubuntu-latest may already
         # have these, but installing explicitly removes the ambiguity
         # rather than hoping the runner image includes them.
+        #
+        # ONE MINUTE, and it is a ceiling rather than a budget: the same step on
+        # ubuntu-24.04-arm takes 14 seconds (run 32294577535, 19:44:11 ->
+        # 19:44:25). On 2026-08-19 the ubuntu-latest half of that same run sat
+        # here for over 18 minutes -- `apt-get install` takes no
+        # DPkg::Lock::Timeout, so contention with the image's background
+        # unattended-upgrades waits forever, and the job declares no
+        # timeout-minutes of its own. That inherits GitHub's 6-hour default,
+        # and Test and Verify Release both hang off Compile finishing, so a
+        # stuck apt silently owns the whole release chain for six hours without
+        # ever reporting a failure.
+        #
+        # The trade this makes on purpose: an apt that is merely slow now fails
+        # the job instead of finishing late, and that costs a Compile
+        # re-dispatch. That is the cheaper of the two, because a failure is
+        # visible in a minute and a hang is not visible at all.
         if: runner.os == 'Linux'
+        timeout-minutes: 1
         run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       # Native libraries (resqlite, Argon2) rarely change and are slow to
