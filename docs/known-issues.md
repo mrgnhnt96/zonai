@@ -92,26 +92,32 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
-## 18. `resqlite`'s `ResultSet.toPositionalRows` returns nothing when schema names are empty — open, undiagnosed
+## 18. `resqlite`'s rows read as empty when the schema reports no column names — fixed
 
-Filed 2026-08-19 so it does not go untracked. It was previously "tracked as showrunner leaf
-`resqlite-stream-segv`", but that leaf was about the diagnostics segfault (#17) and is now closed
-— this is a third, unrelated defect that happened to be quarantined in the same sweep.
+**Fixed 2026-08-19** in the submodule (fork `mrgnhnt96/resqlite`, branch `zonai`, commit
+`f71f5d8`). This was the last skipped test in the package: 171 passed / 1 skipped ->
+**172 passed / 0 skipped**.
 
-It is the **only remaining skip** in resqlite's suite (171 passed / 1 skipped):
+Filed here first because it had been "tracked as showrunner leaf `resqlite-stream-segv`", and that
+leaf was the diagnostics segfault (#17), now closed — so it had no tracker left. It is a third
+defect, unrelated to #16 and #17, quarantined in the same 2026-08-14 sweep.
 
-```sh
-cd libs/resqlite
-dart test test/row_test.dart -j1 --run-skipped \
-  -n "toPositionalRows slices flat values when schema names are empty"
-```
+**Symptom.** `ResultSet(['001_init', 'abc123', ...], RowSchema(const []), 2).first.values`
+returned an empty `_RowValues` for a row that plainly had values.
 
-Expected `[001_init, abc123]`, got an empty `_RowValues`. Per its quarantine note this is a pure
-decode bug in `toPositionalRows` — **that file opens no database at all**, so it is unrelated to
-#16, to #17, and to the missing-native-library problem `08ef516` fixed. It became visible only
-because the package never ran at all until then.
+**Root cause — two disagreeing notions of "how wide is a row".** `ResultSet._columnCount` derives
+the true width from the flat values list when the schema reports none
+(`_values.length ~/ _rowCount`), and uses it to compute each row's offset. `Row` did not: it read
+its width from `_schema.columnCount` alone. With an empty schema every row was therefore
+zero-length — `length` 0, `values` empty, `entries` empty — while sitting at a correctly computed
+offset over real data. The half that positioned the row was fallback-aware; the half that read it
+was not.
 
-Not diagnosed. Nobody has read `toPositionalRows` against this case yet.
+**Fix.** Rows are built against a schema that names columns by position when none are reported.
+That is not a new convention — `materializeQueryRows` (`query_decoder.dart:201`) already generates
+`'0'`, `'1'`, ... for exactly this input, so the lazy and materialized paths now agree instead of
+disagreeing. `ResultSet.columnNames` still reports empty, because the result set genuinely has no
+column names; only the per-row view gains positional ones.
 
 ## 17. `resqlite` segfaults reading diagnostics when a connection handle was never opened — fixed
 
