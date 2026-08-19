@@ -1,5 +1,26 @@
 <!doctype html>
 <html lang="en"><body style="font-family:sans-serif;color:#0f172a">
+    <!-- Preheader: the inbox preview line. Hidden in the body, but mail clients
+         read it for the snippet next to the subject. The trailing zero-width
+         characters pad the snippet so the client stops here instead of running
+         on into the visible content below. -->
+    {{#preheader}}
+    <div
+      style="
+        display: none;
+        max-height: 0;
+        overflow: hidden;
+        mso-hide: all;
+        font-size: 1px;
+        line-height: 1px;
+        color: transparent;
+        opacity: 0;
+      "
+    >
+      {{preheader}}&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;
+    </div>
+    {{/preheader}}
+
 <p>Hi{{#name}} {{name}}{{/name}},</p>
 <p>Your {{appName}} sign-in code is <strong>{{otp}}</strong>.</p>
 <p>It expires in {{expiresIn}}.</p>
