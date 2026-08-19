@@ -248,6 +248,17 @@ class HomeScreen extends StatelessComponent {
         raw: const {'transition': 'padding-bottom 0.2s ease-out'},
       ),
       css('.table-rows-wrap--selection-open').styles(padding: .only(bottom: ZonaiSpacing.selectionBar)),
+      // With no rows the header keeps only the height it needs, so the empty
+      // message centres in the space below instead of under a stretched table.
+      css('.table-rows-wrap--empty').styles(flex: Flex(grow: 0, shrink: 0)),
+      css('.table-rows-empty').styles(
+        flex: Flex(grow: 1, shrink: 1),
+        display: .flex,
+        alignItems: .center,
+        justifyContent: .center,
+        padding: .all(ZonaiSpacing.s13),
+        minHeight: .zero,
+      ),
       css('.rows-table').styles(
         fontSize: 0.8125.rem,
         raw: const {'border-collapse': 'separate', 'border-spacing': '0', 'width': 'max-content', 'min-width': '100%'},
@@ -593,11 +604,19 @@ class _TableMain extends StatelessComponent {
             subtitleParts.add('${data.total} row$s');
           }
           final emptyMsg = appliedWhere != null ? 'No rows match this filter.' : 'This table has no rows.';
-          bodyChildren.add(
-            div(classes: 'table-detail-empty', [
-              p(classes: 'table-detail-empty-msg', [.text(emptyMsg)]),
-            ]),
-          );
+          if (data.columnShapes.isEmpty) {
+            bodyChildren.add(
+              div(classes: 'table-detail-empty', [
+                p(classes: 'table-detail-empty-msg', [.text(emptyMsg)]),
+              ]),
+            );
+          } else {
+            // Columns are worth seeing even with nothing under them, so keep the
+            // real table and put the message where the rows would have been.
+            bodyChildren.add(
+              _TableRowsBlock(data: data, sort: context.watch(tableSortProvider), emptyMessage: emptyMsg),
+            );
+          }
         } else {
           final filterLine = tableFilterSubtitle(appliedWhere, data, data.columnShapes);
           if (filterLine != null) {
@@ -635,10 +654,13 @@ class _TableMain extends StatelessComponent {
 }
 
 class _TableRowsBlock extends StatefulComponent {
-  const _TableRowsBlock({required this.data, required this.sort});
+  const _TableRowsBlock({required this.data, required this.sort, this.emptyMessage});
 
   final TableRowsData data;
   final TableSortState? sort;
+
+  /// Shown in place of the rows when there are none — the headers stay visible.
+  final String? emptyMessage;
 
   @override
   State<_TableRowsBlock> createState() => _TableRowsBlockState();
@@ -767,6 +789,7 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
   Component build(BuildContext context) {
     final data = component.data;
     final sort = component.sort;
+    final emptyMessage = data.rows.isEmpty ? component.emptyMessage : null;
     final selection = context.watch(tableRowSelectionProvider);
     final selectionNotifier = context.read(tableRowSelectionProvider.notifier);
     final detailKey = context.watch(tableRowDetailProvider)?.rowKey;
@@ -795,7 +818,10 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
 
     return div(classes: 'table-rows-block', [
       div(
-        classes: 'table-rows-wrap${selectionBarOpen ? ' table-rows-wrap--selection-open' : ''}',
+        classes:
+            'table-rows-wrap'
+            '${selectionBarOpen ? ' table-rows-wrap--selection-open' : ''}'
+            '${emptyMessage != null ? ' table-rows-wrap--empty' : ''}',
         events: {'scroll': _onTableScroll},
         [
           table(classes: 'rows-table', [
@@ -807,6 +833,7 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
                       type: InputType.checkbox,
                       classes: 'rows-select-checkbox',
                       checked: allDisplaySelected,
+                      disabled: displayKeys.isEmpty,
                       attributes: {'aria-label': 'Select all rows on this page'},
                       onChange: (selected) => selectionNotifier.setAll(displayKeys, selected: selected),
                     ),
@@ -841,6 +868,10 @@ class _TableRowsBlockState extends State<_TableRowsBlock> {
           ]),
         ],
       ),
+      if (emptyMessage != null)
+        div(classes: 'table-rows-empty', [
+          p(classes: 'table-detail-empty-msg', [.text(emptyMessage)]),
+        ]),
       div(classes: 'table-rows-selection-float${selectionBarOpen ? ' table-rows-selection-float--open' : ''}', [
         _SelectionToolbox(data: data, selection: selection, showSelectAll: showSelectAllInToolbar),
       ]),

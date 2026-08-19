@@ -398,7 +398,10 @@ Future<TableRowsData> _loadTableRows({
     _ => items.length,
   };
 
-  if (items.isEmpty) {
+  // An empty table still has a shape. Fall through whenever the schema can name
+  // the columns, so the header renders above the "no rows" message; only a table
+  // whose columns nothing describes returns the shapeless empty result.
+  if (items.isEmpty && (schema == null || schema.columns.isEmpty)) {
     return TableRowsData(
       sqliteName: sqliteName,
       columns: const [],
@@ -434,7 +437,7 @@ Future<TableRowsData> _loadTableRows({
     columnShapes: columnShapes,
     rows: rows,
     total: total,
-    truncated: total > items.length,
+    truncated: items.isNotEmpty && total > items.length,
     schema: schema,
   );
 }
