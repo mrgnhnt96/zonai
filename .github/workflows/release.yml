@@ -20,9 +20,39 @@ on:
   # or had never run. See docs/testing-strategy.md Step 5, and the release-gate
   # job below, which is what actually enforces the ordering: this trigger only
   # makes the correct order the default one.
+  #
+  # BOTH gates trigger this, and that is the point. Compile fans out to Test and
+  # Verify Release in parallel, and Verify Release finishes first every time --
+  # so with `[Verify Release]` alone this fired while Test was still running,
+  # the gate correctly refused, and publishing then required a human to notice
+  # Test go green and re-run the failed run by hand. That hand step was the only
+  # thing standing between a green chain and a release, and it is not a check:
+  # nothing verifies it happens, and a release simply waits until somebody looks.
+  #
+  # Listing both means whichever gate finishes LAST fires the attempt that
+  # publishes, in either order and without anybody watching. The first gate to
+  # finish also fires an attempt, which the gate refuses as "still running" --
+  # one expected red run per release, the same one that happens today. It is
+  # noise, not a failure; check_release_gates.sh says which kind it is.
+  #
+  # This does not widen what may publish. The gate still asks the runs API for a
+  # completed, successful run of BOTH workflows at this exact sha, so an extra
+  # trigger can only ask the question earlier, never answer it differently.
+  #
+  # `branches` is load-bearing now that Test is listed: test.yml ALSO runs on
+  # `pull_request`, so without this filter every owner PR's Test run would fire
+  # a Release attempt. Each would be refused (the gate checks the branch), but
+  # they would be refused loudly, on every PR, and a red Release run that means
+  # nothing is how a red Release run that means something stops being read. The
+  # filter reads the TRIGGERING run's head_branch, which for a PR-triggered Test
+  # is the PR's own branch and never `main`.
+  #
+  # Spelled literally because a trigger filter cannot take an expression; the
+  # gate's own RELEASE_GATE_DEFAULT_BRANCH is the other place this name lives.
   workflow_run:
-    workflows: [Verify Release]
+    workflows: [Verify Release, Test]
     types: [completed]
+    branches: [main]
 
 permissions:
   contents: write

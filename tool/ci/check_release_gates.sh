@@ -101,6 +101,17 @@ runs="$(
 refusals=""
 note_refusal() { refusals="${refusals}${1}"$'\n'; }
 
+# Tracks whether EVERY refusal is "that gate has not finished yet" rather than
+# "that gate said no". The two are the same exit code and must stay that way --
+# publishing on an unfinished gate is the whole thing this script exists to stop
+# -- but they are not the same event, and reading them as one is expensive in
+# both directions: a waiting run treated as a failure sends somebody debugging a
+# release that is fine, and once waiting runs are known to be routine, a real
+# red one gets waved past as "just the usual". Since both Test and Verify
+# Release now trigger release.yml, the first to finish ALWAYS produces one of
+# these, so it is the common case rather than an oddity.
+only_waiting=true
+
 emit "## Release gate for \`${sha}\`"
 emit ""
 emit "| gate | verdict |"
@@ -113,6 +124,7 @@ for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
   if [[ -z "${row}" ]]; then
     emit "| ${workflow} | **NO RUN for this commit** |"
     note_refusal "${workflow}: no run for ${sha}"
+    only_waiting=false
     continue
   fi
 
@@ -127,6 +139,7 @@ for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
   elif [[ "${conclusion}" != "success" ]]; then
     emit "| ${workflow} | **${conclusion}** ([run ${run_id}](${run_url})) |"
     note_refusal "${workflow}: run ${run_id} concluded ${conclusion}"
+    only_waiting=false
   else
     emit "| ${workflow} | success ([run ${run_id}](${run_url})) |"
   fi
@@ -135,9 +148,11 @@ done
 if [[ -z "${branch}" ]]; then
   emit "| branch | **unknown** |"
   note_refusal "branch: could not determine which branch ${sha} is being released from"
+  only_waiting=false
 elif [[ "${branch}" != "${default_branch}" ]]; then
   emit "| branch | **${branch}**, expected ${default_branch} |"
   note_refusal "branch: releasing from '${branch}', not the default branch '${default_branch}'"
+  only_waiting=false
 else
   emit "| branch | ${branch} |"
 fi
@@ -168,6 +183,25 @@ if [[ "${force}" == "true" && "${event}" == "workflow_dispatch" ]]; then
   emit ">"
   emit "> Dispatched by: ${GITHUB_ACTOR:-unknown}"
   exit 0
+fi
+
+if [[ "${only_waiting}" == "true" && "${event}" == "workflow_run" ]]; then
+  emit "> [!NOTE]"
+  emit "> **Waiting, not failing.** Nothing is wrong with \`${sha}\`; a gate has"
+  emit "> simply not finished yet:"
+  while IFS= read -r refusal; do
+    [[ -n "${refusal}" ]] || continue
+    emit "> - ${refusal}"
+  done <<<"${refusals}"
+  emit ">"
+  emit "> **No action needed.** Both Test and Verify Release trigger this"
+  emit "> workflow, so the one still running above will start it again when it"
+  emit "> finishes, and that attempt is the one that publishes. Do not re-run"
+  emit "> this run and do not dispatch Release by hand."
+  emit ">"
+  emit "> This run still fails, on purpose: exiting 0 here would let every job"
+  emit "> below it publish against a gate that has not answered."
+  exit 1
 fi
 
 emit "> [!IMPORTANT]"

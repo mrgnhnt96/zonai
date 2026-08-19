@@ -207,7 +207,35 @@ consumer, not here.
    new schema has, and run the check above. It should pass once steps 1–2 have
    landed.
 
-4. **Release the CLI.** Bump `VERSION`, then run the `Release` workflow.
+4. **Release the CLI.** Bump `VERSION`, regenerate the committed clients, then
+   dispatch **`Compile`** — not `Release`.
+
+   ```sh
+   echo "X.Y.Z" > VERSION
+   sip run version gen
+   cd apps/playground \
+     && UPDATE_GOLDENS=1 dart test test/gen_client_golden_test.dart \
+     && UPDATE_GOLDENS=1 dart test test/doc_fixture_client_golden_test.dart
+   ```
+
+   The regeneration is not optional and nothing in the release flow does it for
+   you: `zonai gen client` stamps the CLI version into every file it writes and
+   into `generatorVersion`, and `apps/playground` commits that output as its
+   golden baseline, so one line of `VERSION` invalidates 17 committed files.
+   `sip run version gen` first, because `apps/zonai/lib/gen/version.dart` is
+   gitignored and regenerating without it bakes the old version back in.
+   `tool/ci/check_generated_client_version.sh` catches a miss in `static`,
+   within seconds rather than a chain later.
+
+   Then `gh workflow run compile.yml --ref main`, and **that is the whole
+   thing** — Compile fans out to Test and Verify Release, and whichever finishes
+   last triggers `Release`, which publishes if the gate is green.
+
+   Expect exactly one red `Release` run per release, from the gate that finished
+   first. Its summary says **"Waiting, not failing"** and that no action is
+   needed. Do not re-run it and do not dispatch `Release` by hand; the second
+   trigger is the one that publishes. A refusal headed **"Refusing to publish"**
+   is the other kind and does need you.
 
 ## Raising the floor
 

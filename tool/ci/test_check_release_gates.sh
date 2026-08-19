@@ -208,4 +208,55 @@ fixture "${green_rows[@]}"
 run_gate workflow_dispatch false "main"
 [[ "${status}" -ne 0 ]] || fail "accepted a non-sha as the release commit" "${output}"
 
-echo "check_release_gates.sh: 12 checks passed (11 of them refusals)"
+# 13. WAITING, not failing. Both Test and Verify Release trigger release.yml, so
+#     the first of the two to finish always produces a run whose only complaint
+#     is that the other is still going. It must still refuse -- exiting 0 here
+#     would publish against a gate that has not answered -- but it must say so
+#     as waiting, because this is now the routine case and a routine red that
+#     reads as a failure is how a real failure stops being read.
+fixture "Test|in_progress||main|100" "Verify Release|completed|success|main|101"
+run_gate workflow_run false
+[[ "${status}" -ne 0 ]] || fail "published while Test was still in_progress" "${output}"
+grep -q "Waiting, not failing" <<<"${output}" \
+  || fail "an in-flight gate was reported as a failure rather than as waiting" "${output}"
+grep -q "No action needed" <<<"${output}" \
+  || fail "the waiting run did not say that no re-run is needed" "${output}"
+
+# 14. The same shape with the OTHER gate in flight, since the two are reached by
+#     different branches of the loop and only one of them was written first.
+fixture "Test|completed|success|main|100" "Verify Release|queued||main|101"
+run_gate workflow_run false
+[[ "${status}" -ne 0 ]] || fail "published while Verify Release was still queued" "${output}"
+grep -q "Waiting, not failing" <<<"${output}" \
+  || fail "a queued Verify Release was reported as a failure rather than as waiting" "${output}"
+
+# 15. A red gate is NOT waiting, even when another gate is also merely in
+#     flight. This is the case that decides whether the distinction is real: if
+#     "any run not completed" won it, a genuine failure would be dressed up as
+#     "no action needed" and left for a trigger that never comes.
+fixture "Test|completed|failure|main|100" "Verify Release|in_progress||main|101"
+run_gate workflow_run false
+[[ "${status}" -ne 0 ]] || fail "published with a FAILED Test run" "${output}"
+grep -q "Refusing to publish" <<<"${output}" \
+  || fail "a red gate beside an in-flight one was softened into waiting" "${output}"
+grep -q "Waiting, not failing" <<<"${output}" \
+  && fail "a red gate was reported as waiting" "${output}"
+
+# 16. A missing run is an answer, not a wait. Nothing will trigger this workflow
+#     again on behalf of a run that does not exist, so calling it "waiting" would
+#     promise a rescue that is never coming.
+fixture "Verify Release|completed|success|main|101"
+run_gate workflow_run false
+[[ "${status}" -ne 0 ]] || fail "published with NO Test run for the commit" "${output}"
+grep -q "Waiting, not failing" <<<"${output}" \
+  && fail "a missing run was reported as waiting" "${output}"
+
+# 17. On the MANUAL path an in-flight gate is not "waiting" either: a dispatch
+#     is not re-triggered by anything, so the person who ran it has to act.
+fixture "Test|in_progress||main|100" "Verify Release|completed|success|main|101"
+run_gate workflow_dispatch false
+[[ "${status}" -ne 0 ]] || fail "published while Test was still in_progress" "${output}"
+grep -q "Waiting, not failing" <<<"${output}" \
+  && fail "a hand-dispatched run promised an automatic retrigger" "${output}"
+
+echo "check_release_gates.sh: 17 checks passed (16 of them refusals)"

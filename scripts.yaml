@@ -325,6 +325,13 @@ test:
       # docs/revali-dot-shorthand-codegen.md). A guard against a CI-only
       # failure belongs where CI runs it.
       - bash tool/ci/check_dot_shorthand_annotations.sh
+      # Milliseconds, and it belongs here rather than in `unit` because of WHEN
+      # it answers, not whether. The golden suites already catch a stale
+      # generated client -- they caught this one -- but they run in `Test /
+      # unit`, downstream of Compile building five platform binaries, so a
+      # one-line VERSION bump took about fifteen minutes and a whole chain to
+      # come back wrong, and fixing it meant a new sha and the chain again.
+      - bash tool/ci/check_generated_client_version.sh
       # apps/zonai/lib/gen/server is a gitignored COPY of apps/server that
       # `zonai compile` embeds, so nothing in git keeps it honest -- and
       # analysis_options.yaml excludes **/lib/gen/**, so `dart analyze` is

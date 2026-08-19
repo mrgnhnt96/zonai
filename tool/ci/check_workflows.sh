@@ -179,6 +179,31 @@ else:
         )
         failed = True
 
+    # Both gates, or the release needs a human again. Compile fans Test and
+    # Verify Release out in parallel and Verify Release always finishes first,
+    # so with only Verify Release listed the trigger fires while Test is still
+    # running, the gate refuses, and nothing ever fires again -- publishing then
+    # depends on somebody noticing Test go green and re-running the failed run
+    # by hand. Dropping 'Test' from this list does not fail anything; it just
+    # quietly reinstates that hand step, which is why it is asserted here.
+    if "Test" not in (run_trigger.get("workflows") or []):
+        print(
+            f"{RELEASE}: `on.workflow_run.workflows` must include 'Test'. "
+            "Without it, whichever gate finishes last does not trigger the "
+            "release, and a green chain waits for a human to re-run it."
+        )
+        failed = True
+
+    # Without this, listing Test above turns every owner PR into a refused
+    # Release run, because test.yml runs on `pull_request` too.
+    if (run_trigger.get("branches") or []) != ["main"]:
+        print(
+            f"{RELEASE}: `on.workflow_run.branches` must be ['main']. "
+            "test.yml runs on pull_request, so an unfiltered trigger fires a "
+            "Release attempt for every PR."
+        )
+        failed = True
+
     if "force" not in ((dispatch.get("inputs") or {})):
         print(
             f"{RELEASE}: `workflow_dispatch` must declare a `force` input -- it is "
