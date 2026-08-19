@@ -82,6 +82,9 @@ jobs:
   release-gate:
     name: Require green Test and Verify Release for this commit
     runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 0.2 min over 2 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read
@@ -113,6 +116,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 1.6 min over 2 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 10
     permissions:
       contents: read
       actions: read
@@ -198,6 +204,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 0.7 min over 2 successful run(s)
+    # sampled 2026-08-19. Deliberately loose for its size: this job creates the tag and uploads 11 assets, and a timeout landing mid-publish is worse than a slow one.
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -346,6 +355,9 @@ jobs:
     name: cross-build-linux-x64 (released)
     needs: release
     runs-on: macos-latest
+    # Ceiling, not a budget: observed max 1.1 min over 2 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 10
 
     steps:
       # ref: main for the same reason deploy-website uses it -- the release job
@@ -460,6 +472,9 @@ jobs:
     name: cross-run-linux-x64 (released)
     needs: cross-target-build
     runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 0.2 min over 2 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 5
 
     steps:
       - name: Checkout

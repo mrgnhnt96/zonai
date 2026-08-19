@@ -244,25 +244,6 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
-      # WHY A JOB THAT ONLY ANALYZES HAS TO BUILD ANYTHING: `dart analyze .`
-      # reads apps/zonai/lib/gen, which is gitignored (.gitignore:8) and tracked
-      # nowhere, so no runner has ever had it.
-      #
-      # MEASURED on the first real CI run this repo ever had (2026-08-14, run
-      # 31830243531): 141 issues, 79 of them errors, and 75 of those were
-      # nothing but the missing lib/gen -- 47 undefined_identifier,
-      # 26 uri_does_not_exist, 2 uri_has_not_been_generated. A dev machine
-      # passes only because an earlier `bootstrap test` left the tree behind.
-      #
-      # `test static` already says in scripts.yaml that a gate must not rest on
-      # machine-local state -- that was written about the .dart_tool half, which
-      # got fixed while this half did not. Same class of bug, same job.
-      #
-      # No matrix here (this job is ubuntu-only), so the artifact name is
-      # spelled out where `unit`/`cli`/`e2e` read it from matrix context.
-      - name: Install native build toolchain (Linux)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
-
       - name: Download pre-built native libraries (cache release)
         id: download-native-libs
         continue-on-error: true
@@ -291,6 +272,29 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No native-libs-linux-x64.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source. Run the 'Native Libraries' workflow once to populate the cache."
           fi
+
+      # Only on the cache-miss path. When the pre-built native libraries
+      # download above succeeds, the build runs with
+      # ZONAI_SKIP_NATIVE_BUILD=true and never compiles libsodium -- so
+      # autoconf/automake/libtool/m4 would be installed for a build that does
+      # not happen. That is not merely wasteful: on 2026-08-19 `apt-get ... -qq`
+      # hung silently on ubuntu-latest x64 twice in twenty minutes (runs
+      # 32294577535 and 32296487810), printing nothing at all because -qq
+      # suppresses everything but errors and there were none. The first one held
+      # Compile -- and with it Test, Verify Release and the entire release chain
+      # -- for 18 minutes before a human killed it. Nothing that ran afterwards
+      # used the packages it was waiting on.
+      #
+      # argon2.gen compiles libsodium via an autoconf/make build (see
+      # tool/native/argon2_builder); confirmed via a bare `dart:stable`
+      # container that build-essential alone isn't enough -- it also
+      # needs autoconf/automake/libtool/m4. ubuntu-latest may already
+      # have these, but installing explicitly removes the ambiguity
+      # rather than hoping the runner image includes them.
+      - name: Install native build toolchain (Linux)
+        if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
+        timeout-minutes: 5
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Bootstrap lib/gen
         shell: bash
@@ -381,12 +385,6 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
-      - name: Install native build toolchain (Linux)
-        # argon2.gen compiles libsodium through autoconf/make; build-essential
-        # alone is not enough. Mirrors compile.yml, which records the finding.
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
-
       - name: Download pre-built native libraries (cache release)
         id: download-native-libs
         continue-on-error: true
@@ -421,6 +419,29 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source. Run the 'Native Libraries' workflow once to populate the cache."
           fi
+
+      # Only on the cache-miss path. When the pre-built native libraries
+      # download above succeeds, the build runs with
+      # ZONAI_SKIP_NATIVE_BUILD=true and never compiles libsodium -- so
+      # autoconf/automake/libtool/m4 would be installed for a build that does
+      # not happen. That is not merely wasteful: on 2026-08-19 `apt-get ... -qq`
+      # hung silently on ubuntu-latest x64 twice in twenty minutes (runs
+      # 32294577535 and 32296487810), printing nothing at all because -qq
+      # suppresses everything but errors and there were none. The first one held
+      # Compile -- and with it Test, Verify Release and the entire release chain
+      # -- for 18 minutes before a human killed it. Nothing that ran afterwards
+      # used the packages it was waiting on.
+      #
+      # argon2.gen compiles libsodium via an autoconf/make build (see
+      # tool/native/argon2_builder); confirmed via a bare `dart:stable`
+      # container that build-essential alone isn't enough -- it also
+      # needs autoconf/automake/libtool/m4. ubuntu-latest may already
+      # have these, but installing explicitly removes the ambiguity
+      # rather than hoping the runner image includes them.
+      - name: Install native build toolchain (Linux)
+        if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
+        timeout-minutes: 5
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Bootstrap lib/gen
         shell: bash
@@ -678,10 +699,6 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
-      - name: Install native build toolchain (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
-
       - name: Download pre-built native libraries (cache release)
         id: download-native-libs
         continue-on-error: true
@@ -710,6 +727,29 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
           fi
+
+      # Only on the cache-miss path. When the pre-built native libraries
+      # download above succeeds, the build runs with
+      # ZONAI_SKIP_NATIVE_BUILD=true and never compiles libsodium -- so
+      # autoconf/automake/libtool/m4 would be installed for a build that does
+      # not happen. That is not merely wasteful: on 2026-08-19 `apt-get ... -qq`
+      # hung silently on ubuntu-latest x64 twice in twenty minutes (runs
+      # 32294577535 and 32296487810), printing nothing at all because -qq
+      # suppresses everything but errors and there were none. The first one held
+      # Compile -- and with it Test, Verify Release and the entire release chain
+      # -- for 18 minutes before a human killed it. Nothing that ran afterwards
+      # used the packages it was waiting on.
+      #
+      # argon2.gen compiles libsodium via an autoconf/make build (see
+      # tool/native/argon2_builder); confirmed via a bare `dart:stable`
+      # container that build-essential alone isn't enough -- it also
+      # needs autoconf/automake/libtool/m4. ubuntu-latest may already
+      # have these, but installing explicitly removes the ambiguity
+      # rather than hoping the runner image includes them.
+      - name: Install native build toolchain (Linux)
+        if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
+        timeout-minutes: 5
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Bootstrap lib/gen
         shell: bash
@@ -811,10 +851,6 @@ jobs:
       - name: Get dependencies
         run: dart pub get
 
-      - name: Install native build toolchain (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
-
       - name: Download pre-built native libraries (cache release)
         id: download-native-libs
         continue-on-error: true
@@ -843,6 +879,29 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "::warning::No ${{ matrix.native_libs_artifact }}.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
           fi
+
+      # Only on the cache-miss path. When the pre-built native libraries
+      # download above succeeds, the build runs with
+      # ZONAI_SKIP_NATIVE_BUILD=true and never compiles libsodium -- so
+      # autoconf/automake/libtool/m4 would be installed for a build that does
+      # not happen. That is not merely wasteful: on 2026-08-19 `apt-get ... -qq`
+      # hung silently on ubuntu-latest x64 twice in twenty minutes (runs
+      # 32294577535 and 32296487810), printing nothing at all because -qq
+      # suppresses everything but errors and there were none. The first one held
+      # Compile -- and with it Test, Verify Release and the entire release chain
+      # -- for 18 minutes before a human killed it. Nothing that ran afterwards
+      # used the packages it was waiting on.
+      #
+      # argon2.gen compiles libsodium via an autoconf/make build (see
+      # tool/native/argon2_builder); confirmed via a bare `dart:stable`
+      # container that build-essential alone isn't enough -- it also
+      # needs autoconf/automake/libtool/m4. ubuntu-latest may already
+      # have these, but installing explicitly removes the ambiguity
+      # rather than hoping the runner image includes them.
+      - name: Install native build toolchain (Linux)
+        if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
+        timeout-minutes: 5
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       # NO `bootstrap test` STEP HERE, deliberately -- unlike unit and cli.
       # `zonai compile` below is a SUPERSET of it (scripts.yaml: bootstrap test
@@ -950,6 +1009,11 @@ jobs:
 
       - name: Install native build toolchain (Linux)
         # resqlite's own build, below, compiles SQLite from C source.
+        # Genuinely needed here -- this job has no pre-built-native-libraries
+        # path to fall back on, so the toolchain is used rather than merely
+        # installed. Still bounded: see compile.yml for the silent apt hang
+        # that made an unbounded step cost 18 minutes of a release chain.
+        timeout-minutes: 5
         run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Submodule tests

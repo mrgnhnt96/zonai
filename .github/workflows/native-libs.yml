@@ -18,6 +18,9 @@ jobs:
   build:
     name: ${{ matrix.artifact_name }}
     runs-on: ${{ matrix.os }}
+    # Ceiling, not a budget: observed max 5.5 min over 11 successful run(s)
+    # sampled 2026-08-19. This one always builds from source; that is its job.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -77,6 +80,11 @@ jobs:
         # argon2's build hook compiles libsodium via an autoconf/make build
         # (see tool/native/argon2_builder); mirrors compile.yml's own step.
         if: runner.os == 'Linux'
+        # Genuinely needed here -- this job has no pre-built-native-libraries
+        # path to fall back on, so the toolchain is used rather than merely
+        # installed. Still bounded: see compile.yml for the silent apt hang
+        # that made an unbounded step cost 18 minutes of a release chain.
+        timeout-minutes: 5
         run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Build resqlite native library
@@ -177,6 +185,9 @@ jobs:
     name: Publish cache release
     needs: build
     runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 0.1 min over 1 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 5
     permissions:
       contents: write
     steps:

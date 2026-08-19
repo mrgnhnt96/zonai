@@ -17,6 +17,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
+    # Ceiling, not a budget: observed max 3.1 min over 12 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -138,6 +141,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
+    # Ceiling, not a budget: observed max 5.1 min over 12 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -358,6 +364,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: macos-latest
+    # Ceiling, not a budget: observed max 1.8 min over 12 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -494,6 +503,9 @@ jobs:
     name: cross-run-linux-x64
     needs: cross-target-build
     runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 0.3 min over 11 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 5
 
     steps:
       # No submodules and no PAT: this job runs a bundle that is already built
@@ -522,6 +534,9 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
+    # Ceiling, not a budget: observed max 3.1 min over 11 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:

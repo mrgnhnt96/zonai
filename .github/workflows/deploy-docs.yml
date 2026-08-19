@@ -50,6 +50,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 2.3 min over 22 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
