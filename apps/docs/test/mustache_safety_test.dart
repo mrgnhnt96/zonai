@@ -17,6 +17,13 @@
 /// thing in its content, which makes the rest of the file inert. This test
 /// does not care which remedy is used — it renders the page exactly as the
 /// site does and asserts the result still contains what the source wrote.
+///
+/// The second test here covers the stage immediately after: the markdown
+/// parser, which parses embedded HTML strictly. `--` inside an HTML comment is
+/// illegal, and jaspr_content turns it into `Assertion failed: "Unexpected
+/// parse error: unexpected-char-in-comment"` — another whole-build failure,
+/// found the same day by fixing the first bug with a comment that contained a
+/// double hyphen.
 library;
 
 import 'dart:io';
@@ -38,6 +45,10 @@ const _rendersMustacheOnPurpose = {'content/about.md'};
 /// A tag as written in the source: `{{name}}`, `{{#items}}`, `{{/items}}`.
 final _tag = RegExp(r'\{\{[#/^]?([A-Za-z][\w.]*)\}\}');
 
+/// An HTML comment, including the unterminated case — `<!--` with no `-->` is
+/// itself a parse error, so it must not be quietly skipped.
+final _htmlComment = RegExp(r'<!--(.*?)(-->|$)', dotAll: true);
+
 /// jaspr_content strips frontmatter before the engine sees the page.
 String _body(String source) {
   if (!source.startsWith('---')) return source;
@@ -54,6 +65,27 @@ void main() {
   test('there are content pages to check', () {
     expect(pages, isNotEmpty);
   });
+
+  for (final page in pages) {
+    test('${page.path} has no double hyphen inside an HTML comment', () {
+      final source = page.readAsStringSync();
+      final offenders = <String>[];
+      for (final m in _htmlComment.allMatches(source)) {
+        if (m.group(2) != '-->') {
+          offenders.add('unterminated comment at offset ${m.start}');
+        } else if (m.group(1)!.contains('--')) {
+          offenders.add('`--` inside the comment at offset ${m.start}');
+        }
+      }
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'The markdown parser rejects this and fails the whole docs build '
+            'with "unexpected-char-in-comment". Use an em dash.',
+      );
+    });
+  }
 
   for (final page in pages) {
     final path = page.path;

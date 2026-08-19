@@ -14,10 +14,10 @@ description: The six built-in email templates and when they are used.
      whole docs deploy down on 2026-08-19.
 
      The tag above switches the delimiters away from curly braces for the
-     rest of the page (it cannot be spelled out here -- writing the new
+     rest of the page (it cannot be spelled out here — writing the new
      delimiters in this comment would make the comment a tag),
      which is Mustache's own way of saying "no tags here". It renders as
-     nothing. It has to come first -- before this comment -- because anything
+     nothing. It has to come first — before this comment — because anything
      Mustache reads ahead of it is still a tag. Keep it at the top of any page
      that quotes Mustache. content/about.md deliberately does NOT have one: it
      uses a real {SITE_SOCIAL} loop. -->
