@@ -39,16 +39,19 @@ void main() {
       expect(body.table, 'admins');
     });
 
-    test('throws ArgumentError, not a cast error, without email or password', () {
-      expect(
-        () => SignUpAuthBody.fromJson({'table': 'users'}),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => SignUpAuthBody.fromJson({'email': 'a@b.c'}),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'throws ArgumentError, not a cast error, without email or password',
+      () {
+        expect(
+          () => SignUpAuthBody.fromJson({'table': 'users'}),
+          throwsA(isA<ArgumentError>()),
+        );
+        expect(
+          () => SignUpAuthBody.fromJson({'email': 'a@b.c'}),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test('throws ArgumentError when object is not a map', () {
       expect(
