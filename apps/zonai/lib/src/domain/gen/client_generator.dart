@@ -263,9 +263,8 @@ final class ClientGenerator {
         drift.add(ClientDrift(.missing, path));
         continue;
       }
-      if (file.readAsStringSync() != entry.value) {
-        drift.add(ClientDrift(.changed, path));
-      }
+      if (_sameContent(file.readAsStringSync(), entry.value)) continue;
+      drift.add(ClientDrift(.changed, path));
     }
 
     // Files a previous run generated that this one would not: real drift, and
@@ -280,6 +279,31 @@ final class ClientGenerator {
 
     return drift;
   }
+
+  /// Compares generated content while ignoring the one difference version
+  /// control is entitled to introduce: the line ending.
+  ///
+  /// The emitter writes `\n` on every platform, deliberately, so the output is
+  /// byte-identical wherever it runs. Git is not obliged to leave it that way.
+  /// Git for Windows installs with `core.autocrlf=true`, which rewrites text
+  /// files to CRLF on checkout -- so a Windows user who commits a generated
+  /// client gets CRLF back in their working tree, and a raw `!=` against
+  /// freshly emitted LF reports EVERY file as drifted. `--check` then fails on
+  /// a correct, up-to-date client and there is nothing the user can do to it
+  /// that helps: regenerating rewrites LF, and the next checkout undoes it.
+  ///
+  /// Measured 2026-08-19, where it showed up first as the repo's own goldens
+  /// failing on `windows-latest` with `'...BY HAND\n'` against
+  /// `'...BY HAND\r\n'`. That half is fixed by `.gitattributes`; this half is
+  /// not, because a consumer's repository is not ours to configure.
+  ///
+  /// Line endings are the ONLY thing forgiven. Everything else -- whitespace,
+  /// ordering, a single changed character -- is still drift, because for
+  /// generated code it means the generator would write something different.
+  static bool _sameContent(String onDisk, String generated) =>
+      _lf(onDisk) == _lf(generated);
+
+  static String _lf(String content) => content.replaceAll('\r\n', '\n');
 
   static String _short(String hash) =>
       hash.length <= 12 ? hash : hash.substring(0, 12);

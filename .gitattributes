@@ -1,0 +1,47 @@
+# Line endings are part of a contract here, not a preference.
+#
+# WHAT THIS FIXES, measured 2026-08-19 on run 32288856529: `unit
+# (windows-latest)` failed 8 tests across gen_client_golden_test.dart and
+# doc_fixture_client_golden_test.dart, every one of them
+#
+#     Expected: '// GENERATED CODE - DO NOT MODIFY BY HAND\n'
+#       Actual: '// GENERATED CODE - DO NOT MODIFY BY HAND\r\n'
+#
+# The goldens ARE the committed files (apps/playground/lib/gen/**), compared
+# byte for byte against what the generator would emit. The generator writes
+# LF on every platform; Git for Windows defaults to core.autocrlf=true, so the
+# checkout handed the test CRLF. Nothing was wrong with either side -- they
+# were reading different bytes than were committed.
+#
+# Fixed here rather than by normalising inside the tests, because the tests are
+# not the only reader. `zonai gen client --check` compares the same way
+# (client_generator.dart, `check`), so the same skew is a real defect for a
+# Windows user of the shipped CLI. A test-local normalisation would have made
+# CI green and left that in place, unseen.
+#
+# This changes no committed bytes: `git ls-files --eol` reports i/lf w/lf for
+# every tracked file today, so this pins behaviour that already holds rather
+# than renormalising anything.
+* text=auto eol=lf
+
+# Detected as binary by `text=auto` anyway; named so that a corrupted one is a
+# bug in the file rather than a question about this file.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.zip binary
+*.gz binary
+*.exe binary
+*.dll binary
+*.dylib binary
+*.so binary
+*.a binary
+*.aot binary
+*.db binary
+*.sqlite binary

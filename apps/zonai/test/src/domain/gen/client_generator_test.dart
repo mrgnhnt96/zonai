@@ -452,6 +452,74 @@ void main() {
       expect(drift.single.path, '$_output/b.dart');
     });
 
+    test('a CRLF checkout of an up-to-date client is not drift', () {
+      // Git for Windows installs with core.autocrlf=true, so a consumer who
+      // commits their generated client gets CRLF back on checkout while the
+      // emitter still produces LF. Before this, `--check` called every file
+      // changed and there was no way out of it: regenerating rewrites LF and
+      // the next checkout undoes it. Our own goldens hit the same skew on
+      // windows-latest; `.gitattributes` fixes that, and cannot fix this,
+      // because a consumer's repository is not ours to configure.
+      final memoryFs = MemoryFileSystem();
+
+      _scoped(memoryFs, () {
+        final generator = _generator();
+        generator.write(generator.plan(_shapes));
+      });
+
+      // Exactly what the checkout does: rewrite every generated file's line
+      // endings, touching nothing else.
+      for (final file
+          in memoryFs
+              .directory(_output)
+              .listSync(recursive: true)
+              .whereType<File>()) {
+        file.writeAsStringSync(
+          file.readAsStringSync().replaceAll('\n', '\r\n'),
+        );
+      }
+
+      final drift = _scoped(
+        memoryFs,
+        () => _generator().check(_generator().plan(_shapes)),
+      );
+
+      expect(drift, isEmpty);
+    });
+
+    test('a real change is still drift on a CRLF checkout', () {
+      // The control for the test above. Forgiving line endings must not
+      // forgive content -- an implementation that compared nothing would pass
+      // the previous assertion perfectly.
+      final memoryFs = MemoryFileSystem();
+
+      _scoped(memoryFs, () {
+        final generator = _generator(
+          emitter: const _FixedEmitter({
+            'a.dart': '$kGeneratedClientHeader\n// a',
+          }),
+        );
+        generator.write(generator.plan(_shapes));
+      });
+
+      final onDisk = memoryFs.file('$_output/a.dart');
+      onDisk.writeAsStringSync(
+        onDisk.readAsStringSync().replaceAll('\n', '\r\n'),
+      );
+
+      final drift = _scoped(memoryFs, () {
+        final generator = _generator(
+          emitter: const _FixedEmitter({
+            'a.dart': '$kGeneratedClientHeader\n// a CHANGED',
+          }),
+        );
+        return generator.check(generator.plan(_shapes));
+      });
+
+      expect(drift, hasLength(1));
+      expect(drift.single.kind, ClientDriftKind.changed);
+    });
+
     test('writes nothing at all', () {
       final memoryFs = MemoryFileSystem();
 
