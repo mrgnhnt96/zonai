@@ -1105,7 +1105,16 @@ jobs:
           # found either way, so a future image dropping a package shows up
           # as a log line rather than as a mystery.
           missing=""
-          for tool in gcc make autoconf automake libtool m4 pkg-config; do
+          # THIS JOB ONLY NEEDS A C COMPILER. It runs
+          # `resqlite/tool/build_native.dart`, which drives
+          # package:native_toolchain_c (CBuilder) -- the compiler directly,
+          # with no autoconf/automake/libtool/m4 anywhere in it. The longer
+          # list belongs to the jobs that build libsodium through autoconf,
+          # and was copied here with it. That cost a release cycle on
+          # 2026-08-19: the probe reported `missing: libtool`, apt went out
+          # to fetch a package nothing in this job would have used, and hung
+          # -- the fourth silent apt hang of the day.
+          for tool in gcc make; do
             command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
           done
           if [ -z "${missing}" ]; then
@@ -1114,7 +1123,7 @@ jobs:
           fi
           echo "missing:${missing} -- installing via apt"
           sudo apt-get update -qq
-          sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+          sudo apt-get install -y -qq build-essential
 
       - name: Submodule tests
         shell: bash
