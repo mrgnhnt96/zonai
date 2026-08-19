@@ -3,6 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart' hide logger;
 import '../../deps/args.dart';
 import '../../deps/logger.dart';
 import '../../deps/zonai_db.dart';
+import '../../utils/email_template_variables.dart';
 
 const _usage = '''
 Usage: zonai db email test [options]
@@ -36,6 +37,7 @@ Future<int> emailTest() async {
         to: EmailAddress(address: to, name: 'Test User'),
         subject: 'Zonai test email',
         template: template,
+        preheader: samplePreheader,
         variables: {
           'name': 'Test User',
           'email': to,

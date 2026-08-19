@@ -44,6 +44,10 @@ class _Send {
       )
       ..recipients.add(Address(email.to.address, email.to.name))
       ..subject = email.subject
+      // HTML only -- no `..text`, so this is not multipart/alternative. If a
+      // plaintext alternative is ever added, `Email.preheader` must stay OUT of
+      // it: it is already the inbox snippet via the hidden block in the HTML,
+      // and clients that prefer the text part would then show it twice.
       ..html = _EmailContent(email, config).html();
 
     final fromAddress = email.from?.address ?? emailConfig.from.address;
@@ -120,5 +124,6 @@ class _EmailContent {
     variables: email.variables,
     appName: config.appName,
     emailTemplatesPath: settings.emailTemplatesPath,
+    preheader: email.preheader,
   );
 }

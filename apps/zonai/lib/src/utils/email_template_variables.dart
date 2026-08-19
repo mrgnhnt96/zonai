@@ -18,19 +18,30 @@ Map<String, String> defaultEmailTemplateVariables() {
     'ipAddress': '192.168.1.1',
     'device': 'Chrome on macOS',
     'secureAccountUrl': 'https://example.com/security',
+    'preheader': samplePreheader,
   };
 }
 
+/// Stand-in inbox preview line for previews and test sends.
+///
+/// Real sends get theirs from [Email.preheader]; this is only so the hidden
+/// block renders with something in it while you are looking at a template.
+const samplePreheader = 'This is the preview line shown next to the subject.';
+
 final _mustacheVarPattern = RegExp(r'\{\{[\^#>]?\s*([a-zA-Z_][\w.]*)');
+
+/// Variables the renderer supplies itself, so a template author never fills
+/// them in: `appName` comes from the config and `preheader` from the [Email].
+const _injectedVariables = {'appName', 'preheader'};
 
 /// Extracts editable Mustache variable names from a template source.
 ///
-/// [appName] is injected automatically at render time and is excluded.
+/// Variables in [_injectedVariables] are supplied at render time and excluded.
 List<String> extractMustacheVariables(String source) {
   final vars = <String>{};
   for (final match in _mustacheVarPattern.allMatches(source)) {
     final name = match.group(1)!;
-    if (name != 'appName') vars.add(name);
+    if (!_injectedVariables.contains(name)) vars.add(name);
   }
   return vars.toList()..sort();
 }

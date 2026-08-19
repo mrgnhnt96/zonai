@@ -12,6 +12,7 @@ import 'package:zonai_schema/src/handlers/cron/cron_request.dart';
 import 'package:zonai_schema/src/handlers/cron/cron_response.dart';
 import '../../../utils/admin_create_shape.dart';
 import '../../../utils/email_template_render.dart';
+import '../../../utils/email_template_variables.dart';
 import '../../../utils/terminal_pointer.dart';
 import '../actions/clipboard.dart';
 import '../actions/create_part.dart';
@@ -570,16 +571,21 @@ class _DevAppState extends State<DevApp> {
     () async {
       try {
         final appName = await _resolveAppName();
+        final preheader = variables['preheader'] ?? samplePreheader;
         final html = renderEmailTemplate(
           templateName: template,
           variables: variables,
           appName: appName,
+          preheader: preheader,
         );
         await _openEmailInBrowser(
           html: html,
           filename: template,
           outputLabel: 'Preview email: $template',
         );
+        // The preheader is invisible in the rendered page by design, so the
+        // only place it can be checked is here.
+        _addOutput('Inbox preview line: $preheader');
       } catch (e) {
         if (!mounted) return;
         _showToast('$e', isError: true);
