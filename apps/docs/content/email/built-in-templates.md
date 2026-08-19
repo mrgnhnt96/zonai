@@ -66,6 +66,22 @@ Sent when `email.send.loginNotice(...)` is called (typically in `onSignIn`).
 | -------- | ----------------------------- |
 | `email`  | The recipient's email address |
 
+## Preview Text
+
+Every built-in template opens with a hidden `{{preheader}}` block — the line the inbox shows next to the subject. Each built-in auth email sets its own default:
+
+| Email            | Default preview line                              |
+| ---------------- | ------------------------------------------------- |
+| `otp_code`       | `Your sign-in code expires in 10 minutes.`        |
+| `magic_link`     | `Your sign-in link expires in 15 minutes.`        |
+| `verify_email`   | `Confirm <address> to finish setting up your account.` |
+| `password_reset` | `Your reset link expires in 30 minutes.`          |
+| `admin_invite`   | `Your invite expires in 3 days.`                  |
+
+The expiry text follows whatever `expiresIn` you configure. The OTP preview deliberately omits the code itself — the preview line is what shows on a locked phone.
+
+Pass `preheader:` when constructing the email to override any of them, and see [Custom Templates](/email/custom-templates#preview-text) for the markup if you are writing your own template.
+
 ## Customizing Templates
 
 Edit the HTML files in `emailTemplatesPath` directly. Templates use [Mustache](https://mustache.github.io/mustache.5.html) syntax.

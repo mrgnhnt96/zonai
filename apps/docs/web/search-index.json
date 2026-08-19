@@ -2405,6 +2405,11 @@
           "b": "Sent when email.send.loginNotice(...) is called (typically in onSignIn). Variable Description email The recipient's email address"
         },
         {
+          "h": "Preview Text",
+          "a": "preview-text",
+          "b": "Every built-in template opens with a hidden {{preheader}} block — the line the inbox shows next to the subject. Each built-in auth email sets its own default: Email Default preview line otp_code Your sign-in code expires in 10 minutes. magic_link Your sign-in link expires in 15 minutes. verify_email Confirm to finish setting up your account. password_reset Your reset link expires in 30 minutes. admin_invite Your invite expires in 3 days. The expiry text follows whatever expiresIn you configure. The OTP preview deliberately omits the code itself — the preview line is what shows on a locked phone. Pass preheader: when constructing the email to override any of them, and see Custom Templates for the markup if you are writing your own template."
+        },
+        {
           "h": "Customizing Templates",
           "a": "customizing-templates",
           "b": "Edit the HTML files in emailTemplatesPath directly. Templates use Mustache syntax. Templates are read at send time — no recompile needed after editing. To create a new template, see Custom Templates."
@@ -2430,7 +2435,12 @@
         {
           "h": "Sending a Custom Template",
           "a": "sending-a-custom-template",
-          "b": "Use email.send(Email(...)) from any extension hook or cron job: @override Future afterCreateSuccess(Purchase purchase, Jwt? jwt) async { final customer = await get.one( tableName: 'users', where: Eq('id', purchase.userId.value), ); if (customer == null) return; email.send(Email( to: EmailAddress(address: customer['email'] as String), subject: 'Order ${purchase.id} confirmed', template: 'order_confirmation', variables: { 'customerName': customer['name'], 'orderId': purchase.id.value, 'total': purchase.total, }, )); } The template field is the filename without .html."
+          "b": "Use email.send(Email(...)) from any extension hook or cron job: @override Future afterCreateSuccess(Purchase purchase, Jwt? jwt) async { final customer = await get.one( tableName: 'users', where: Eq('id', purchase.userId.value), ); if (customer == null) return; email.send(Email( to: EmailAddress(address: customer['email'] as String), subject: 'Order ${purchase.id} confirmed', preheader: 'Arriving Thursday. Track it any time.', template: 'order_confirmation', variables: { 'customerName': customer['name'], 'orderId': purchase.id.value, 'total': purchase.total, }, )); } The template field is the filename without .html."
+        },
+        {
+          "h": "Preview Text",
+          "a": "preview-text",
+          "b": "preheader is the line the inbox shows next to the subject. Leave it unset and the client picks the first visible text it finds — usually the greeting, so every message previews as Hi Morgan,. It is injected into your template as {{preheader}}, the same way {{appName}} is — you never pass it in variables. To use it, put a hidden block at the very top of the : {{preheader}} {{preheader}}&847;&zwnj;&nbsp;&8203;&847;&zwnj;&nbsp;&8203; {{/preheader}} Three parts, all of them load-bearing: The {{preheader}} section renders nothing at all when no preheader was set, rather than leaving an empty hidden div in every message. The style block hides the text every way a client might respect — display: none and max-height: 0 for most, mso-hide: all for Outlook, opacity and color: transparent for anything that strips the first two. The trailing zero-width characters pad out the rest of the snippet. Without them the client keeps scraping and tacks the next visible text — often a button label — onto the end of your preview line. Repeat the run until it covers roughly 100 characters. Keep the line under ~100 characters, and do not repeat the subject: the two are shown side by side, so the preheader "
         },
         {
           "h": "Live Reloading",

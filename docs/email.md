@@ -76,7 +76,7 @@ Common patterns in the built-in templates:
 | `{{#name}} … {{/name}}` | Block rendered when `name` is truthy |
 | `{{^name}} … {{/name}}` | Block rendered when `name` is falsy  |
 
-Every rendered email automatically receives **`appName`** from `AppConfig`, even if you do not pass it in `variables`.
+Every rendered email automatically receives **`appName`** from `AppConfig` and **`preheader`** from `Email.preheader`, even if you do not pass either in `variables`. See [Preview text](#preview-text-preheader).
 
 Example snippet:
 
@@ -85,6 +85,33 @@ Example snippet:
 <p>Your code is <strong>{{otp}}</strong>. It expires in {{expiresIn}}.</p>
 <p>Sent by {{appName}}</p>
 ```
+
+## Preview text (preheader)
+
+The inbox shows a snippet next to the subject. With nothing to read, the client scrapes the first visible text in the body — which is the greeting, so every message previews as `Hi Ada,`.
+
+`Email.preheader` fills that slot. It is injected as `{{preheader}}`, the same way `appName` is, and every built-in template opens with a hidden block that consumes it:
+
+```html
+{{#preheader}}
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:transparent;opacity:0">
+  {{preheader}}&#847;&zwnj;&nbsp;&#8203;&#847;&zwnj;&nbsp;&#8203;
+</div>
+{{/preheader}}
+```
+
+- The section tag means no preheader renders **no block at all**, rather than an empty div in every message.
+- The style list hides the text in every client that reads any part of it — `mso-hide` for Outlook, `opacity`/`color:transparent` for clients that strip `display:none`.
+- The trailing zero-width run is **padding**. Without it the client fills the rest of the snippet from the visible body, so the preview reads `Your code expires in 10 minutes. Sign in Hi Ada,`.
+
+Rules of the road:
+
+- A blank or whitespace-only preheader is treated as unset. Mustache reads any string — `''` included — as a truthy section, so `renderEmailTemplate` drops the key entirely rather than passing an empty one through.
+- The value is HTML-escaped (`{{ }}`, not `{{{ }}}`), so an `&` or a `<` in the copy cannot break the block.
+- Keep it under ~100 characters and do not restate the subject; the two are shown side by side.
+- Each built-in auth email sets a default (`SendOtpEmail` → `Your sign-in code expires in 10 minutes.`). The OTP one deliberately excludes the code: the preheader is what appears on a locked phone.
+
+The messages are HTML-only — `Courier` sets `message.html` and never `message.text`, so there is no `multipart/alternative` and the snippet always comes from the HTML. If a plaintext alternative is ever added, the preheader must be left out of it, or clients that prefer the text part will show the line twice.
 
 ## Built-in templates and variables
 
@@ -130,6 +157,7 @@ Construct an `Email` and send it:
 final message = Email(
   to: EmailAddress(address: 'user@example.com', name: 'Ada'),
   subject: 'Welcome',
+  preheader: 'Confirm your address to finish setting up your account.',
   template: 'verify_email',
   variables: {
     'name': 'Ada',
