@@ -294,7 +294,27 @@ jobs:
       - name: Install native build toolchain (Linux)
         if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
         timeout-minutes: 5
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+        run: |
+          # Ask before installing. `apt-get ... -qq` hung silently on
+          # ubuntu-latest three times on 2026-08-19 (18min, 1min, 5min --
+          # printing nothing at all, because -qq suppresses everything but
+          # errors and there were none), and the ubuntu image already ships
+          # this toolchain. When every tool is on PATH there is nothing to
+          # install and the hang cannot reach us; apt still runs, bounded,
+          # when something is genuinely missing. The check names what it
+          # found either way, so a future image dropping a package shows up
+          # as a log line rather than as a mystery.
+          missing=""
+          for tool in gcc make autoconf automake libtool m4 pkg-config; do
+            command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
+          done
+          if [ -z "${missing}" ]; then
+            echo "native build toolchain already present -- not calling apt"
+            exit 0
+          fi
+          echo "missing:${missing} -- installing via apt"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Bootstrap lib/gen
         shell: bash
@@ -441,7 +461,27 @@ jobs:
       - name: Install native build toolchain (Linux)
         if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
         timeout-minutes: 5
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+        run: |
+          # Ask before installing. `apt-get ... -qq` hung silently on
+          # ubuntu-latest three times on 2026-08-19 (18min, 1min, 5min --
+          # printing nothing at all, because -qq suppresses everything but
+          # errors and there were none), and the ubuntu image already ships
+          # this toolchain. When every tool is on PATH there is nothing to
+          # install and the hang cannot reach us; apt still runs, bounded,
+          # when something is genuinely missing. The check names what it
+          # found either way, so a future image dropping a package shows up
+          # as a log line rather than as a mystery.
+          missing=""
+          for tool in gcc make autoconf automake libtool m4 pkg-config; do
+            command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
+          done
+          if [ -z "${missing}" ]; then
+            echo "native build toolchain already present -- not calling apt"
+            exit 0
+          fi
+          echo "missing:${missing} -- installing via apt"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Bootstrap lib/gen
         shell: bash
@@ -749,7 +789,27 @@ jobs:
       - name: Install native build toolchain (Linux)
         if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
         timeout-minutes: 5
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+        run: |
+          # Ask before installing. `apt-get ... -qq` hung silently on
+          # ubuntu-latest three times on 2026-08-19 (18min, 1min, 5min --
+          # printing nothing at all, because -qq suppresses everything but
+          # errors and there were none), and the ubuntu image already ships
+          # this toolchain. When every tool is on PATH there is nothing to
+          # install and the hang cannot reach us; apt still runs, bounded,
+          # when something is genuinely missing. The check names what it
+          # found either way, so a future image dropping a package shows up
+          # as a log line rather than as a mystery.
+          missing=""
+          for tool in gcc make autoconf automake libtool m4 pkg-config; do
+            command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
+          done
+          if [ -z "${missing}" ]; then
+            echo "native build toolchain already present -- not calling apt"
+            exit 0
+          fi
+          echo "missing:${missing} -- installing via apt"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Bootstrap lib/gen
         shell: bash
@@ -901,7 +961,27 @@ jobs:
       - name: Install native build toolchain (Linux)
         if: runner.os == 'Linux' && steps.native-libs.outputs.found != 'true'
         timeout-minutes: 5
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+        run: |
+          # Ask before installing. `apt-get ... -qq` hung silently on
+          # ubuntu-latest three times on 2026-08-19 (18min, 1min, 5min --
+          # printing nothing at all, because -qq suppresses everything but
+          # errors and there were none), and the ubuntu image already ships
+          # this toolchain. When every tool is on PATH there is nothing to
+          # install and the hang cannot reach us; apt still runs, bounded,
+          # when something is genuinely missing. The check names what it
+          # found either way, so a future image dropping a package shows up
+          # as a log line rather than as a mystery.
+          missing=""
+          for tool in gcc make autoconf automake libtool m4 pkg-config; do
+            command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
+          done
+          if [ -z "${missing}" ]; then
+            echo "native build toolchain already present -- not calling apt"
+            exit 0
+          fi
+          echo "missing:${missing} -- installing via apt"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       # NO `bootstrap test` STEP HERE, deliberately -- unlike unit and cli.
       # `zonai compile` below is a SUPERSET of it (scripts.yaml: bootstrap test
@@ -1014,7 +1094,27 @@ jobs:
         # installed. Still bounded: see compile.yml for the silent apt hang
         # that made an unbounded step cost 18 minutes of a release chain.
         timeout-minutes: 5
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+        run: |
+          # Ask before installing. `apt-get ... -qq` hung silently on
+          # ubuntu-latest three times on 2026-08-19 (18min, 1min, 5min --
+          # printing nothing at all, because -qq suppresses everything but
+          # errors and there were none), and the ubuntu image already ships
+          # this toolchain. When every tool is on PATH there is nothing to
+          # install and the hang cannot reach us; apt still runs, bounded,
+          # when something is genuinely missing. The check names what it
+          # found either way, so a future image dropping a package shows up
+          # as a log line rather than as a mystery.
+          missing=""
+          for tool in gcc make autoconf automake libtool m4 pkg-config; do
+            command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
+          done
+          if [ -z "${missing}" ]; then
+            echo "native build toolchain already present -- not calling apt"
+            exit 0
+          fi
+          echo "missing:${missing} -- installing via apt"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
 
       - name: Submodule tests
         shell: bash
