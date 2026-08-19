@@ -92,6 +92,27 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 18. `resqlite`'s `ResultSet.toPositionalRows` returns nothing when schema names are empty — open, undiagnosed
+
+Filed 2026-08-19 so it does not go untracked. It was previously "tracked as showrunner leaf
+`resqlite-stream-segv`", but that leaf was about the diagnostics segfault (#17) and is now closed
+— this is a third, unrelated defect that happened to be quarantined in the same sweep.
+
+It is the **only remaining skip** in resqlite's suite (171 passed / 1 skipped):
+
+```sh
+cd libs/resqlite
+dart test test/row_test.dart -j1 --run-skipped \
+  -n "toPositionalRows slices flat values when schema names are empty"
+```
+
+Expected `[001_init, abc123]`, got an empty `_RowValues`. Per its quarantine note this is a pure
+decode bug in `toPositionalRows` — **that file opens no database at all**, so it is unrelated to
+#16, to #17, and to the missing-native-library problem `08ef516` fixed. It became visible only
+because the package never ran at all until then.
+
+Not diagnosed. Nobody has read `toPositionalRows` against this case yet.
+
 ## 17. `resqlite` segfaults reading diagnostics when a connection handle was never opened — fixed
 
 **Fixed 2026-08-19** in the submodule, not here: `libs/resqlite` is a separate repository
@@ -164,7 +185,7 @@ resqlite's own tests — so no zonai runtime path could reach this. The value re
 tests, five of which are stream-registry leak guards for the API `resqlite_delegate.dart:477`
 depends on.
 
-## 16. `resqlite` readers cannot open a database until something has written to it — diagnosed, not fixed
+## 16. `resqlite` readers cannot open a database until something has written to it — fixed
 
 Two tests are quarantined with `ResqliteQueryException: reader not open`
 (`database_test`'s "select rejects too few parameters on cached statements" and
@@ -202,12 +223,25 @@ is NULL by design. Neither fix resolves the other, and #17 being fixed (2026-08-
 one exactly where it was — the guard makes an unopened handle *harmless*, it does not make a
 reader *able to open*.
 
-**Fix — decided 2026-08-19: treat CANTOPEN-on-missing-file as "no rows yet".** The three options
-were: give readers `CREATE` (but then a reader can create a stray file, which is what the missing
-flag was buying), have the writer materialize the file on open (but then opening a database
-always touches disk), or report an empty result for a database that does not exist yet. The last
-was chosen because it is the only one that preserves the no-stray-files property the missing flag
-was there to buy.
+**Fixed 2026-08-19** in the submodule (fork `mrgnhnt96/resqlite`, branch `zonai`, commit
+`ed756ce`): readers now open with `SQLITE_OPEN_CREATE`, exactly as the writer does. Suite went to
+171 passed / 1 skipped.
+
+**"No rows yet" was chosen first and then rejected on analysis** — worth recording, because the
+reasoning that killed it is not obvious. Returning an empty result for a missing file sounds
+conservative, but a database with no file has *no tables*, so every select against one names a
+table that does not exist. Reporting "no rows" would therefore permanently mask genuine
+`no such table` errors, typos included. There is no query for which "no rows yet" is the correct
+answer on a never-written database, because a table can only come into existence via a write. The
+quarantined test agrees: it asserts `contains('no such table')`.
+
+**The stray-file objection to `CREATE` did not survive checking either.** `ensure_reader_open`
+passes `db->path` — the same path the writer would create. A reader cannot create a file anywhere
+else, so there is no mistyped-path scenario for the missing flag to prevent. The only real cost is
+that a read-only workflow now materialises the database file it was given, rather than erroring.
+
+The third option (have the writer materialize the file on `Database.open`) was not implemented; it
+would have the same on-disk cost, concentrated at open rather than at first read.
 
 ## 15. An update that writes the column its own `where` matched on reported failure for a write that succeeded — fixed, and `PATCH /db` now 404s on no match
 
