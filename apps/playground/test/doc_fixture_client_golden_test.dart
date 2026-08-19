@@ -200,7 +200,19 @@ void main() {
           Directory(outputDirectory)
               .listSync(recursive: true)
               .whereType<File>()
-              .map((f) => p.relative(f.path, from: outputDirectory))
+              // `p.relative` builds with the PLATFORM separator, and
+              // `p.posix.normalize` treats a backslash as an ordinary
+              // character rather than a separator -- so on Windows this read
+              // 'tables\\articles.g.dart' against a manifest that records
+              // 'tables/articles.g.dart', and every nested file looked like a
+              // file the generator would not write. Split on the platform
+              // separator, rejoin on posix, so the comparison is in the
+              // manifest's own vocabulary on every OS.
+              .map(
+                (f) => p
+                    .split(p.relative(f.path, from: outputDirectory))
+                    .join('/'),
+              )
               .map(p.posix.normalize)
               .where((name) => p.basename(name) != '.DS_Store')
               .toList()
