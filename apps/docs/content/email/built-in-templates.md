@@ -3,6 +3,26 @@ title: Built-in Templates
 description: The six built-in email templates and when they are used.
 ---
 
+{{=<% %>=}}
+
+<!-- This page shows Mustache syntax literally, so Mustache must not read it.
+     jaspr_content runs every page through MustacheTemplateEngine before the
+     markdown is parsed (see main.server.dart), so a placeholder written as an
+     example is treated as a real tag: the published page rendered "Hi ," where
+     the code block said "Hi {NAME}," and a prose mention of a section tag
+     failed the build outright with "Unclosed tag: 'preheader'", taking the
+     whole docs deploy down on 2026-08-19.
+
+     The tag above switches the delimiters away from curly braces for the
+     rest of the page (it cannot be spelled out here -- writing the new
+     delimiters in this comment would make the comment a tag),
+     which is Mustache's own way of saying "no tags here". It renders as
+     nothing. It has to come first -- before this comment -- because anything
+     Mustache reads ahead of it is still a tag. Keep it at the top of any page
+     that quotes Mustache. content/about.md deliberately does NOT have one: it
+     uses a real {SITE_SOCIAL} loop. -->
+
+
 Zonai ships six HTML email templates for the standard auth flows. They are stored in `emailTemplatesPath` and can be edited directly — changes take effect without recompiling.
 
 ## The Six Built-in Templates

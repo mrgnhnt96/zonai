@@ -258,6 +258,12 @@ String _plainText(String markdown) {
 
   // Component tags (<Info>, <CardGrid …>) and raw HTML carry no query terms.
   text = text.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), ' ');
+
+  // Mustache's delimiter-change tag. A page that quotes Mustache carries one at
+  // the top so the template engine leaves the page alone (see
+  // test/mustache_safety_test.dart); it renders as nothing on the published
+  // page, so indexing it would put `{{=<% %>=}}` in a search result.
+  text = text.replaceAll(RegExp(r'\{\{=.*?=\}\}'), ' ');
   text = text.replaceAll(RegExp(r'</?[A-Za-z][\w-]*(\s[^<>]*)?/?>'), ' ');
 
   text = text.replaceAllMapped(RegExp(r'!\[([^\]]*)\]\([^)]*\)'), (m) => m.group(1)!);
