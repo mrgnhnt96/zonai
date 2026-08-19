@@ -92,6 +92,103 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 17. `resqlite` segfaults reading diagnostics when any reader slot was never opened — diagnosed, not fixed
+
+`libs/resqlite` is a separate repository, so this is filed here rather than fixed here.
+
+Reproduce in about a second, without unquarantining anything:
+
+```sh
+cd libs/resqlite
+dart test test/stream_test.dart -j1 --run-skipped \
+  -n "stream entry is removed from registry after last listener cancels"
+# exits 134
+```
+
+**The crash is not where the quarantine notes say.** They describe "a near-null dereference in
+the native stream-registry teardown path". The stack never mentions stream teardown:
+
+```
+sqlite3_db_status64+0x34        <- si_addr=0x18
+sqlite3_db_status+0x28
+resqlite_db_status_total+0x11c
+Database.diagnostics.readCounter
+Database.diagnostics
+_streamLength                    <- the test helper
+```
+
+It is the diagnostics counter read. That also explains the population: all five quarantined
+tests in that file assert on the registry *via* `diagnostics().streamLength`, and it is the
+shared `diagnostics()` call that crashes, not the shared subject matter.
+
+**Root cause.** `native/resqlite.c:1251`, in `resqlite_db_status_total`:
+
+```c
+for (int i = 0; i < db->reader_count; i++) {
+    if (db->readers[i].in_use) { ...; continue; }
+    int reader_rc = sqlite3_db_status(
+        db->readers[i].db, op, &current, &highwater, reset);   // db may be NULL
+```
+
+Readers are opened lazily: `:648` sets `reader_count = max_readers` (slots, not open
+connections), `:650` sets every `readers[i].db = NULL`, and `ensure_reader_open` opens one on
+demand. So any slot that never served a query is still NULL, and this loop passes that NULL
+straight to `sqlite3_db_status`. It is the only unguarded site — `grep -n 'readers\[i\]\.db'`
+returns exactly three lines, and `sqlite3_close_v2(NULL)` at `:699` is a documented no-op.
+
+**Why a SEGV rather than `SQLITE_MISUSE`, and why `0x18` is exact.** `sqlite3_db_status`
+NULL-checks only under `SQLITE_ENABLE_API_ARMOR`, which is not among the defines in
+`tool/build_native.dart:220-236`, so the first statement is `sqlite3_mutex_enter(db->mutex)`.
+In `struct sqlite3`, `mutex` sits at offset 24 — `0x18`, byte-for-byte the reported `si_addr`.
+
+**Fix**: one line before that call — `if (!db->readers[i].db) continue;`. An unopened reader has
+contributed nothing to any counter, so skipping it is the correct answer and not merely a guard.
+Worth pricing separately: adding `SQLITE_ENABLE_API_ARMOR` to the build turns this whole class of
+mistake into `SQLITE_MISUSE` instead of a process abort.
+
+**Why it matters beyond five tests**: it aborts the process, so `dart test` exits 134 with no
+summary and one segfault takes down visibility into every other resqlite test.
+
+## 16. `resqlite` readers cannot open a database until something has written to it — diagnosed, not fixed
+
+Two tests are quarantined with `ResqliteQueryException: reader not open`
+(`database_test`'s "select rejects too few parameters on cached statements" and
+`reader_error_reporting_test`'s "reader prepare failure uses reader sqlite error message").
+Both reproduce on macOS locally and on Linux CI.
+
+**Root cause.** `open_connection` gives reader connections `SQLITE_OPEN_READWRITE` **without**
+`SQLITE_OPEN_CREATE`, while SQLite defers creating the database file until a first write.
+Verified with the `sqlite3` CLI:
+
+| writer did                          | file on disk |
+|-------------------------------------|--------------|
+| open with CREATE, then nothing      | **does not exist** |
+| open with CREATE, then CREATE TABLE | exists, 8192 bytes |
+
+So between `Database.open(path)` and the first write there is no file, and the reader's
+`sqlite3_open_v2` without CREATE returns `SQLITE_CANTOPEN` — code 14, exactly what both failures
+report — which surfaces as "reader not open".
+
+**The control pair already exists in the repo**, same file and same setup, differing in one thing:
+
+| test                          | writes first?                  | result |
+|-------------------------------|--------------------------------|--------|
+| `reader prepare failure ...`  | no — opens, selects immediately | fails "reader not open" |
+| `reader bind failure ...`     | yes — `CREATE TABLE` then selects | passes |
+
+Note the failing exception carries `Params: [first]`: it is the test's *first* select that
+throws, the one expected to succeed, so the assertion the test is actually about is never reached.
+The tests are not wrong.
+
+**Relationship to #17 — established, not assumed.** They share a precondition, not a defect. A
+failed `ensure_reader_open` leaves `readers[i].db == NULL`, which is one producer of the NULL
+that #17 dereferences; but #17 does not need this bug, because a slot that was simply never used
+is NULL by design. Neither fix resolves the other.
+
+**Fix is a design call** for whoever owns the library — give readers `CREATE` (but then a reader
+can create a stray file, which is what the missing flag was buying), or have the writer
+materialize the file on open, or treat CANTOPEN-on-missing-file as "no rows yet".
+
 ## 15. An update that writes the column its own `where` matched on reported failure for a write that succeeded — fixed, and `PATCH /db` now 404s on no match
 
 **Fixed 2026-08-13** (`a16b499`). Reported from the field as *"`PATCH /db` 500s
