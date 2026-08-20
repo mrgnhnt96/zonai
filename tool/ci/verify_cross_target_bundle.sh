@@ -100,6 +100,15 @@ digest_of() {
   fi
 }
 
+# The zonai release a shipped library was fetched for, out of the sidecar
+# `<library>.stamp` that `zonai build` writes (`<version> <os> <arch>`, see
+# native_library_stamp.dart). Empty when nothing stamped it.
+stamped_version_of() {
+  local stamp="$1.stamp"
+  [[ -f "$stamp" ]] || return 0
+  awk '{print $1; exit}' "$stamp"
+}
+
 cd "$bundle_dir"
 
 echo "== 1. the bundle runs on ${target_os}/${target_arch} =="
@@ -113,8 +122,16 @@ fi
 if [[ -f ".zonai/lib/${argon2_library}" ]]; then
   before_argon2="$(digest_of ".zonai/lib/${argon2_library}")"
 fi
+stamp_resqlite="$(stamped_version_of ".zonai/lib/${resqlite_library}")"
+stamp_argon2="$(stamped_version_of ".zonai/lib/${argon2_library}")"
 
-./zonai version --no-version-check --no-schema-version-check
+# Captured, not just printed: step 3 needs to know which release this host
+# binary is, because that -- not $version -- is what decides whether it keeps
+# the libraries the bundle shipped.
+version_log="$(mktemp)"
+./zonai version --no-version-check --no-schema-version-check | tee "$version_log"
+bundle_version="$(sed -n 's/^Zonai:[[:space:]]*v\{0,1\}\([0-9][0-9.]*\).*/\1/p' "$version_log" | head -n1)"
+
 ./zonai db migrate apply --no-version-check
 
 # Applying a migration means the database opened, which means the library
@@ -203,9 +220,14 @@ fi
 
 echo "== 3. nothing foreign was installed into the shared library path =="
 checked_any=0
-for pair in "${resqlite_library}:${before_resqlite}" "${argon2_library}:${before_argon2}"; do
-  library="${pair%%:*}"
-  before="${pair##*:}"
+skipped_any=0
+for entry in \
+  "${resqlite_library}|${before_resqlite}|${stamp_resqlite}" \
+  "${argon2_library}|${before_argon2}|${stamp_argon2}"; do
+  library="${entry%%|*}"
+  entry_rest="${entry#*|}"
+  before="${entry_rest%%|*}"
+  stamped="${entry_rest##*|}"
   path=".zonai/lib/${library}"
 
   if [[ ! -f "$path" ]]; then
@@ -229,14 +251,42 @@ for pair in "${resqlite_library}:${before_resqlite}" "${argon2_library}:${before
 
   if [[ -n "$before" ]]; then
     after="$(digest_of "$path")"
-    if [[ "$before" != "$after" ]]; then
+    if [[ "$before" == "$after" ]]; then
+      echo "  ok: ${path} is byte-identical to what shipped"
+    elif [[ -n "$bundle_version" && -n "$stamped" && "$bundle_version" != "$stamped" ]]; then
+      # Byte-identity is only a fair question when the host binary here is the
+      # release the libraries were fetched for. It often is not, and by design:
+      # `zonai build` stamps them with the CLI's own kVersion (build.dart's
+      # `_bundleTargetNativeLibs`), but a project that cannot link -- the normal
+      # case, since nothing depends on package:zonai -- ships the PUBLISHED
+      # binary for its own pinned `settings.version` instead. Those two
+      # deliberately diverge, and `hasCurrentNativeLibraryStamp` compares the
+      # stamp against the READER's kVersion, so this host was always going to
+      # install its own copy. Asserting identity here tests the pin, not the
+      # bundle.
+      #
+      # MEASURED on v0.8.1 (run 32312355513): a 0.7.1 host beside 0.8.1-stamped
+      # libraries replaced libresqlite.so and turned the whole post-release job
+      # red, having installed a perfectly correct linux/x64 library.
+      #
+      # The platform assertion above is the one that still has to hold, and it
+      # is the one that catches the bug this step exists for -- a bundle
+      # extracting the BUILD HOST's library over the shared path. That is
+      # unaffected by any of this.
+      echo "  SKIPPED: ${path} was replaced, and this bundle could never keep it."
+      echo "    shipped stamped ${stamped}, but the host binary here is ${bundle_version}," >&2
+      echo "    so self-extraction was always going to win. Not a pass: the" >&2
+      echo "    byte-identity question was not asked. The platform check above was." >&2
+      skipped_any=1
+    else
       echo "  ${path} changed while the bundle ran" >&2
       echo "  before ${before}" >&2
       echo "  after  ${after}" >&2
-      echo "  It shipped stamped for this target and something replaced it." >&2
+      echo "  It shipped stamped ${stamped:-<unstamped>} and the host binary here is" >&2
+      echo "  ${bundle_version:-<unknown>}. Those agree, so this host was meant to" >&2
+      echo "  keep what shipped -- and something replaced it." >&2
       exit 1
     fi
-    echo "  ok: ${path} is byte-identical to what shipped"
   fi
 done
 
@@ -244,6 +294,15 @@ if [[ "$checked_any" == "0" ]]; then
   echo "  NOT CHECKED: no library exists at .zonai/lib after the run, so this" >&2
   echo "  step read nothing. That is not a pass -- it means the bundle never" >&2
   echo "  reached the extraction path, and step 1 above is what vouched for it." >&2
+fi
+
+# Said again at the end of the step, because a SKIPPED line scrolls past in a
+# job log that otherwise reads as a clean pass -- and a narrowed check that goes
+# quiet about what it stopped asking is how the next regression hides.
+if [[ "$skipped_any" == "1" ]]; then
+  echo "  ^ this step did NOT verify byte-identity: the bundled host binary is a" >&2
+  echo "    different release from the libraries beside it. Only the platform" >&2
+  echo "    assertion ran." >&2
 fi
 
 echo "== 4. self-extraction refuses a foreign library, keeps a stamped one =="
