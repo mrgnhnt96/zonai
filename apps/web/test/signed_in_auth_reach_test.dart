@@ -28,10 +28,7 @@ List<String> _forms(String path) {
 void main() {
   group('the reachable set', () {
     test('holds the reset-password and verify-email callbacks', () {
-      for (final path in [
-        ..._forms(AuthRoutes.resetPasswordCallback),
-        ..._forms(AuthRoutes.verifyEmailCallback),
-      ]) {
+      for (final path in [..._forms(AuthRoutes.resetPasswordCallback), ..._forms(AuthRoutes.verifyEmailCallback)]) {
         expect(AuthRoutes.isSignedInReachableAuthPath(path), isTrue, reason: path);
       }
     });
@@ -74,21 +71,13 @@ void main() {
   group('the shell gate', () {
     test('hands a signed-in reset link to the auth shell, not the dashboard', () {
       for (final path in _forms(AuthRoutes.resetPasswordCallback)) {
-        expect(
-          AppShellGate.showsHomeShell(initialSignedIn: true, initialPath: path),
-          isFalse,
-          reason: path,
-        );
+        expect(AppShellGate.showsHomeShell(initialSignedIn: true, initialPath: path), isFalse, reason: path);
       }
     });
 
     test('hands a signed-in verify-email link to the auth shell', () {
       for (final path in _forms(AuthRoutes.verifyEmailCallback)) {
-        expect(
-          AppShellGate.showsHomeShell(initialSignedIn: true, initialPath: path),
-          isFalse,
-          reason: path,
-        );
+        expect(AppShellGate.showsHomeShell(initialSignedIn: true, initialPath: path), isFalse, reason: path);
       }
     });
 
