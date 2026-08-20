@@ -21,10 +21,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Password updated'), findsOneComponent);
-      expect(
-        find.text('Your password has been reset. You can now sign in with your new password.'),
-        findsOneComponent,
-      );
+      expect(find.text('Your password has been reset. You can now sign in with your new password.'), findsOneComponent);
     });
 
     testComponents('offers no route into the dashboard', (tester) async {
