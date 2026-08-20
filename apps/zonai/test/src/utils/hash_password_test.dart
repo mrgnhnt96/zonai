@@ -40,6 +40,27 @@ void main() {
       },
     );
 
+    test('the same password hashes to a different string every time', () async {
+      // Why `_confirmResetPassword` cannot detect password reuse by comparing
+      // stored encodings: each `hash` mints a fresh random salt, so equality
+      // between two hashes of one password is not merely unlikely, it is
+      // unreachable. Its reuse guard was written that way and so never fired;
+      // `verify` against the *stored* hash is the only comparison that works.
+      const password = 'correct-horse-battery-staple';
+      final first = await _hasher.hash(password: password);
+      final second = await _hasher.hash(password: password);
+
+      expect(first, isNot(second));
+      expect(
+        await _hasher.verify(passwordHash: first, rawPassword: password),
+        isTrue,
+      );
+      expect(
+        await _hasher.verify(passwordHash: second, rawPassword: password),
+        isTrue,
+      );
+    });
+
     test('wrong password fails verification', () async {
       final encoded = await _hasher.hash(password: 'secret');
       expect(
