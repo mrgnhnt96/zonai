@@ -133,8 +133,6 @@ extension _ResetPasswordX on ZonaiDb {
       throw const InvalidOrExpiredResetPasswordLinkException();
     }
 
-    await _consumeChallenge(challenge);
-
     final passwordColumn = await _dispatchOperation<ColumnNameResponse>(
       GetColumnNameRequest(table: challenge.table, columnName: .password),
     );
@@ -152,10 +150,17 @@ extension _ResetPasswordX on ZonaiDb {
       throw AuthFailedException(cause: 'Password hash not found');
     }
 
-    final newPasswordHash = await _hashPassword.hash(
-      password: payload.newPassword,
+    // Not `hash(newPassword) == passwordHash`, which is what this was and
+    // could never be true: [HashPassword.hash] mints a fresh random salt per
+    // call and stores `<salt>.<digest>`, so two hashes of the *same* password
+    // differ. The check was dead and reuse went through silently. `verify`
+    // re-derives the digest from the stored salt, which is the only comparison
+    // that answers the question.
+    final reusesCurrentPassword = await _hashPassword.verify(
+      rawPassword: payload.newPassword,
+      passwordHash: passwordHash,
     );
-    if (newPasswordHash == passwordHash) {
+    if (reusesCurrentPassword) {
       throw const PasswordReuseException();
     }
 
@@ -164,6 +169,18 @@ extension _ResetPasswordX on ZonaiDb {
     if (passwordColumnName == null || idColumnName == null) {
       throw StateError('Missing column(s) for password reset');
     }
+
+    // Consumed here rather than immediately after the secret check, which is
+    // where it used to sit. That order was harmless only while the reuse check
+    // could not fire; now that it can, spending the challenge first would burn
+    // the link on a typo -- someone entering the password they already have
+    // would be told to go request a whole new email. Everything that can still
+    // reject this submission has run by now.
+    await _consumeChallenge(challenge);
+
+    final newPasswordHash = await _hashPassword.hash(
+      password: payload.newPassword,
+    );
 
     final operation = await _dispatchOperation<PerformOperationResponse>(
       UpdateOperationRequest(
@@ -182,5 +199,16 @@ extension _ResetPasswordX on ZonaiDb {
     if (result == null) {
       throw const AuthFailedException();
     }
+
+    // A reset is the remedy for a password someone else may know, so the
+    // sessions that password minted must not outlive it -- otherwise an
+    // attacker's JWT keeps working, for its whole expiry, against an account
+    // whose owner believes they have just locked them out. Same revocation as
+    // "log out everywhere" ([_logoutAll]) and admin removal.
+    final revoked = await _revokeAllSessions(UnknownId(authRecordId));
+    logger.verbose(
+      'Reset password for $authRecordId, revoked $revoked session(s)',
+      prefix: _prefix,
+    );
   }
 }
