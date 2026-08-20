@@ -97,18 +97,7 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
   @override
   Component build(BuildContext context) {
     if (_success) {
-      return AuthFormCard(
-        children: [
-          AuthSentHeader(
-            icon: '✓',
-            title: 'Password updated',
-            subtitle: 'Your password has been reset. You can sign in with your new password.',
-          ),
-          AuthActions(
-            children: [ZonaiButton(fullWidth: true, onClick: _returnToSignIn, child: .text('Sign in'))],
-          ),
-        ],
-      );
+      return const ResetPasswordDoneCard();
     }
 
     if (_linkError case final linkError?) {
@@ -172,6 +161,35 @@ class ResetPasswordConfirmFormState extends State<ResetPasswordConfirmForm> {
           }
         },
       },
+    );
+  }
+}
+
+/// Terminal confirmation for a completed reset.
+///
+/// Deliberately offers no way onward. This page is served by the dashboard,
+/// but a reset link is sent to whoever owns the account -- any auth table, not
+/// just the admin one -- so most people who reach it are an app's own users.
+/// The only sign-in this app could offer them is the dashboard's, which is not
+/// theirs to enter; returning them to the app they came from is that app's job.
+/// The honest end of this flow is "done", not a door into somebody else's admin
+/// panel.
+///
+/// Its own component, and public, so the state behind an async call can still
+/// be pumped directly in a test -- the same reason `AdminsPanel` is pure.
+class ResetPasswordDoneCard extends StatelessComponent {
+  const ResetPasswordDoneCard({super.key});
+
+  @override
+  Component build(BuildContext context) {
+    return const AuthFormCard(
+      children: [
+        AuthSentHeader(
+          icon: '✓',
+          title: 'Password updated',
+          subtitle: 'Your password has been reset. You can now sign in with your new password.',
+        ),
+      ],
     );
   }
 }
