@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Provoke check_release_gates.sh into REFUSING, eleven ways.
+# Provoke check_release_gates.sh into REFUSING, fifteen ways.
 #
 # WHY THE NEGATIVE CONTROLS ARE THE POINT: the artifact that failed here was a
 # release gate that had only ever been seen to pass. verify-release.yml is five
 # platforms of real work and it was green for months while gating nothing,
 # because it ran beside publication instead of before it. A checker never
 # observed refusing is indistinguishable from one that cannot refuse -- so the
-# positive control (everything green -> exit 0) is one case out of twelve here,
-# and the other eleven are all the shapes of "not green" that must stop a
-# publish.
+# positive control (green -> exit 0) is two cases out of seventeen here, and
+# the other fifteen are all the shapes of "not green" that must stop a publish.
 #
 # `gh` is stubbed the same way tool/ci/test_resolve_release_version.sh stubs it:
 # the stub applies the script's REAL `-q` expression to a fixture with jq, so
@@ -95,22 +94,20 @@ run_gate() {
   summary="$(cat "${work}/summary.md")"
 }
 
-green_rows=(
-  "Test|completed|success|main|100"
-  "Verify Release|completed|success|main|101"
-)
+green_rows=("Test|completed|success|main|100")
 
-# 1. POSITIVE CONTROL. Both workflows completed successfully for this exact sha,
-#    on the default branch -- the only shape that may publish.
+# 1. POSITIVE CONTROL. A completed, successful Test run for this exact sha, on
+#    the default branch -- the only shape that may publish.
 fixture "${green_rows[@]}"
 run_gate workflow_run false
-[[ "${status}" -eq 0 ]] || fail "refused a commit with both gates green" "${output}"
+[[ "${status}" -eq 0 ]] || fail "refused a commit whose gate is green" "${output}"
 grep -q "All release gates are green" <<<"${output}" \
   || fail "green run did not say so" "${output}"
 
 # 2. THE REFUSAL THIS LEAF EXISTS FOR: no Test run at all for this commit. Before
-#    the gate, dispatching Release here published happily.
-fixture "Verify Release|completed|success|main|101"
+#    the gate, dispatching Release here published happily. The fixture is not
+#    empty on purpose -- other runs exist at this sha, and none of them counts.
+fixture "Compile|completed|success|main|101"
 run_gate workflow_dispatch false
 [[ "${status}" -ne 0 ]] || fail "published with NO Test run for the commit" "${output}"
 grep -q "Test: no run for ${SHA}" <<<"${output}" \
@@ -118,22 +115,28 @@ grep -q "Test: no run for ${SHA}" <<<"${output}" \
 
 # 3. A red Test run. Distinct from case 2 -- absent and failed are different
 #    bugs, and a gate that only looks for presence passes this one.
-fixture "Test|completed|failure|main|100" "Verify Release|completed|success|main|101"
+fixture "Test|completed|failure|main|100"
 run_gate workflow_dispatch false
 [[ "${status}" -ne 0 ]] || fail "published with a FAILED Test run" "${output}"
 grep -q "Test: run 100 concluded failure" <<<"${output}" \
   || fail "refusal did not name the failed Test run" "${output}"
 
-# 4. No Verify Release run -- the half that was never actually gating.
-fixture "Test|completed|success|main|100"
+# 4. WHAT THE MERGE CHANGED, pinned rather than left to be discovered.
+#
+#    'Verify Release' was a second REQUIRED_WORKFLOWS entry until it became a
+#    reusable workflow that test.yml calls. This gate no longer looks for a run
+#    by that name -- so a stale or hand-dispatched Verify Release run sitting at
+#    this sha, red, does NOT block, and its absence does not either. That is
+#    correct (the verification ran inside Test) and it is exactly the assumption
+#    that rots if test.yml stops calling it, which is why the call is asserted
+#    in tool/ci/check_workflows.sh instead. Nothing here can see it.
+fixture "Test|completed|success|main|100" "Verify Release|completed|failure|main|99"
 run_gate workflow_dispatch false
-[[ "${status}" -ne 0 ]] || fail "published with NO Verify Release run" "${output}"
-grep -q "Verify Release: no run for ${SHA}" <<<"${output}" \
-  || fail "refusal did not name the missing Verify Release run" "${output}"
+[[ "${status}" -eq 0 ]] || fail "a workflow this gate no longer requires blocked a release" "${output}"
 
 # 5. Still running. `conclusion` is null while a run is in flight, and treating
 #    null as "not a failure" is the cheap way to write this check wrongly.
-fixture "Test|in_progress||main|100" "Verify Release|completed|success|main|101"
+fixture "Test|in_progress||main|100"
 run_gate workflow_dispatch false
 [[ "${status}" -ne 0 ]] || fail "published while Test was still in_progress" "${output}"
 grep -q "Test: run 100 is in_progress, not completed" <<<"${output}" \
@@ -142,8 +145,7 @@ grep -q "Test: run 100 is in_progress, not completed" <<<"${output}" \
 # 6. A re-run supersedes what it replaced: red first, green after -> publish.
 fixture \
   "Test|completed|failure|main|100" \
-  "Test|completed|success|main|102" \
-  "Verify Release|completed|success|main|101"
+  "Test|completed|success|main|102"
 run_gate workflow_dispatch false
 [[ "${status}" -eq 0 ]] || fail "a successful re-run of Test did not clear the earlier failure" "${output}"
 
@@ -152,31 +154,26 @@ run_gate workflow_dispatch false
 #    passes case 6 and fails here, publishing a commit whose latest verdict is red.
 fixture \
   "Test|completed|success|main|100" \
-  "Test|completed|failure|main|102" \
-  "Verify Release|completed|success|main|101"
+  "Test|completed|failure|main|102"
 run_gate workflow_dispatch false
 [[ "${status}" -ne 0 ]] || fail "an older green Test run rescued a newer red one" "${output}"
 grep -q "Test: run 102 concluded failure" <<<"${output}" \
   || fail "refusal did not name the newest Test run" "${output}"
 
-# 8. Green runs that belong to a DIFFERENT commit. The stub does not apply the
+# 8. A green run that belongs to a DIFFERENT commit. The stub does not apply the
 #    `head_sha=` query parameter, so this is the script's own filter under test
 #    -- and "verified some other commit" is precisely how v0.6.3 shipped
 #    six-day-old artifacts under a fresh version.
-fixture \
-  "Test|completed|success|main|100|${OTHER_SHA}" \
-  "Verify Release|completed|success|main|101|${OTHER_SHA}"
+fixture "Test|completed|success|main|100|${OTHER_SHA}"
 run_gate workflow_dispatch false
-[[ "${status}" -ne 0 ]] || fail "another commit's green runs satisfied the gate" "${output}"
+[[ "${status}" -ne 0 ]] || fail "another commit's green run satisfied the gate" "${output}"
 grep -q "Test: no run for ${SHA}" <<<"${output}" \
   || fail "refusal did not treat another commit's run as absent" "${output}"
 
-# 9. Everything green, but the commit is not on the default branch. This gate
-#    exists because release.yml's automatic trigger is being turned back on: a
-#    Compile dispatched on a feature branch would otherwise walk the whole chain.
-fixture \
-  "Test|completed|success|feature/x|100" \
-  "Verify Release|completed|success|feature/x|101"
+# 9. Green, but the commit is not on the default branch. This gate exists
+#    because release.yml's automatic trigger is on: a Compile dispatched on a
+#    feature branch would otherwise walk the whole chain and publish from it.
+fixture "Test|completed|success|feature/x|100"
 run_gate workflow_dispatch false "${SHA}" "feature/x"
 [[ "${status}" -ne 0 ]] || fail "published from a non-default branch" "${output}"
 grep -q "not the default branch" <<<"${output}" \
@@ -184,7 +181,7 @@ grep -q "not the default branch" <<<"${output}" \
 
 # 10. The override works, and LEAVES A TRACE. A force that publishes silently is
 #     the same failure as no gate at all, one release later.
-fixture "Test|completed|failure|main|100" "Verify Release|completed|success|main|101"
+fixture "Test|completed|failure|main|100"
 run_gate workflow_dispatch true
 [[ "${status}" -eq 0 ]] || fail "force: true did not override a red gate" "${output}"
 grep -q "force: true" <<<"${summary}" \
@@ -197,7 +194,7 @@ grep -q "tester" <<<"${summary}" \
 # 11. Force is not honoured on the automatic path. `workflow_run` carries no
 #     inputs, so a `true` arriving there is a stray environment variable rather
 #     than a decision -- and an override nobody chose is worse than none.
-fixture "Test|completed|failure|main|100" "Verify Release|completed|success|main|101"
+fixture "Test|completed|failure|main|100"
 run_gate workflow_run true
 [[ "${status}" -ne 0 ]] || fail "force was honoured on the automatic workflow_run path" "${output}"
 
@@ -208,44 +205,46 @@ fixture "${green_rows[@]}"
 run_gate workflow_dispatch false "main"
 [[ "${status}" -ne 0 ]] || fail "accepted a non-sha as the release commit" "${output}"
 
-# 13. WAITING, not failing. Both Test and Verify Release trigger release.yml, so
-#     the first of the two to finish always produces a run whose only complaint
-#     is that the other is still going. It must still refuse -- exiting 0 here
-#     would publish against a gate that has not answered -- but it must say so
-#     as waiting, because this is now the routine case and a routine red that
-#     reads as a failure is how a real failure stops being read.
-fixture "Test|in_progress||main|100" "Verify Release|completed|success|main|101"
+# 13. WAITING, not failing. This used to be the routine case: release.yml fired
+#     on both Test and Verify Release, so the first to finish always produced a
+#     run whose only complaint was that the other was still going -- one red
+#     Release run per release, by design. Test is the sole prerequisite now, so
+#     reaching here takes a re-run already back in flight. Rare, still possible,
+#     and it must still refuse: exiting 0 would publish against a gate that has
+#     not answered. It must also still say WAITING rather than failed, because a
+#     routine red that reads as a failure is how a real failure stops being read.
+fixture "Test|in_progress||main|100"
 run_gate workflow_run false
 [[ "${status}" -ne 0 ]] || fail "published while Test was still in_progress" "${output}"
 grep -q "Waiting, not failing" <<<"${output}" \
   || fail "an in-flight gate was reported as a failure rather than as waiting" "${output}"
-grep -q "No action needed" <<<"${output}" \
-  || fail "the waiting run did not say that no re-run is needed" "${output}"
+grep -q "no action needed" <<<"$(tr 'A-Z' 'a-z' <<<"${output}")" \
+  || fail "the waiting run did not say a fresh attempt is coming" "${output}"
 
-# 14. The same shape with the OTHER gate in flight, since the two are reached by
-#     different branches of the loop and only one of them was written first.
-fixture "Test|completed|success|main|100" "Verify Release|queued||main|101"
+# 14. The same shape with `queued` rather than `in_progress`. Two different
+#     strings from the API reach the same branch, and only one of them was
+#     written first.
+fixture "Test|queued||main|100"
 run_gate workflow_run false
-[[ "${status}" -ne 0 ]] || fail "published while Verify Release was still queued" "${output}"
+[[ "${status}" -ne 0 ]] || fail "published while Test was still queued" "${output}"
 grep -q "Waiting, not failing" <<<"${output}" \
-  || fail "a queued Verify Release was reported as a failure rather than as waiting" "${output}"
+  || fail "a queued Test run was reported as a failure rather than as waiting" "${output}"
 
-# 15. A red gate is NOT waiting, even when another gate is also merely in
-#     flight. This is the case that decides whether the distinction is real: if
-#     "any run not completed" won it, a genuine failure would be dressed up as
-#     "no action needed" and left for a trigger that never comes.
-fixture "Test|completed|failure|main|100" "Verify Release|in_progress||main|101"
+# 15. A red gate is NOT waiting. This is the case that decides whether the
+#     distinction is real: if it were softened, a genuine failure would be
+#     dressed up as "no action needed" and left for a trigger that never comes.
+fixture "Test|completed|failure|main|100"
 run_gate workflow_run false
 [[ "${status}" -ne 0 ]] || fail "published with a FAILED Test run" "${output}"
 grep -q "Refusing to publish" <<<"${output}" \
-  || fail "a red gate beside an in-flight one was softened into waiting" "${output}"
+  || fail "a red gate was softened into waiting" "${output}"
 grep -q "Waiting, not failing" <<<"${output}" \
   && fail "a red gate was reported as waiting" "${output}"
 
 # 16. A missing run is an answer, not a wait. Nothing will trigger this workflow
 #     again on behalf of a run that does not exist, so calling it "waiting" would
 #     promise a rescue that is never coming.
-fixture "Verify Release|completed|success|main|101"
+fixture "Compile|completed|success|main|101"
 run_gate workflow_run false
 [[ "${status}" -ne 0 ]] || fail "published with NO Test run for the commit" "${output}"
 grep -q "Waiting, not failing" <<<"${output}" \
@@ -253,10 +252,10 @@ grep -q "Waiting, not failing" <<<"${output}" \
 
 # 17. On the MANUAL path an in-flight gate is not "waiting" either: a dispatch
 #     is not re-triggered by anything, so the person who ran it has to act.
-fixture "Test|in_progress||main|100" "Verify Release|completed|success|main|101"
+fixture "Test|in_progress||main|100"
 run_gate workflow_dispatch false
 [[ "${status}" -ne 0 ]] || fail "published while Test was still in_progress" "${output}"
 grep -q "Waiting, not failing" <<<"${output}" \
   && fail "a hand-dispatched run promised an automatic retrigger" "${output}"
 
-echo "check_release_gates.sh: 17 checks passed (16 of them refusals)"
+echo "check_release_gates.sh: 17 checks passed (15 of them refusals)"

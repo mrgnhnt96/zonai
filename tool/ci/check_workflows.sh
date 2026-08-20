@@ -146,7 +146,7 @@ else:
 
 
 # The release ordering invariant. tool/ci/check_release_gates.sh can refuse --
-# its own suite provokes eleven refusals -- but a refusal only stops a release
+# its own suite provokes fifteen refusals -- but a refusal only stops a release
 # if every publishing job is DOWNSTREAM of it. That wiring lives in YAML, cannot
 # be unit-tested, and has exactly the shape that rots: someone adds a job and
 # forgets `needs:`, or adds `always()` to an `if:` to make a run finish, and the
@@ -173,26 +173,29 @@ else:
     dispatch = triggers.get("workflow_dispatch") or {}
     run_trigger = triggers.get("workflow_run") or {}
 
-    if "Verify Release" not in (run_trigger.get("workflows") or []):
+    # EXACTLY ONE name, and which one matters in both directions.
+    #
+    # Empty (or missing) is how this file was found in 2026-08: the trigger was
+    # commented out, workflow_dispatch was the only door, and verification ran
+    # beside publication instead of before it.
+    #
+    # More than one is the other failure, and it is subtler because it looks
+    # like belt and braces. Test and Verify Release were two workflows fanned
+    # out from Compile, so release.yml listed both -- a `workflow_run` trigger
+    # cannot say "whichever finishes last", and the loser's attempt was refused
+    # as "the other one is still running". That produced one red Release run per
+    # release, documented as expected noise, which is what a red run that MEANS
+    # something then has to compete with. The fix was structural: verify-release
+    # became a reusable workflow that test.yml calls, so there is one
+    # prerequisite. Adding a second name here would reinstate the noise.
+    if (run_trigger.get("workflows") or []) != ["Test"]:
         print(
-            f"{RELEASE}: `on.workflow_run.workflows` must include 'Verify Release'. "
-            "Without it, workflow_dispatch is the only door and verification "
-            "runs beside publication instead of before it."
-        )
-        failed = True
-
-    # Both gates, or the release needs a human again. Compile fans Test and
-    # Verify Release out in parallel and Verify Release always finishes first,
-    # so with only Verify Release listed the trigger fires while Test is still
-    # running, the gate refuses, and nothing ever fires again -- publishing then
-    # depends on somebody noticing Test go green and re-running the failed run
-    # by hand. Dropping 'Test' from this list does not fail anything; it just
-    # quietly reinstates that hand step, which is why it is asserted here.
-    if "Test" not in (run_trigger.get("workflows") or []):
-        print(
-            f"{RELEASE}: `on.workflow_run.workflows` must include 'Test'. "
-            "Without it, whichever gate finishes last does not trigger the "
-            "release, and a green chain waits for a human to re-run it."
+            f"{RELEASE}: `on.workflow_run.workflows` must be exactly ['Test'], "
+            f"got {run_trigger.get('workflows')!r}. Empty means workflow_dispatch "
+            "is the only door and verification runs beside publication; more "
+            "than one means the release fires once per prerequisite and refuses "
+            "every attempt but the last, which is a guaranteed red run per "
+            "release."
         )
         failed = True
 
@@ -324,11 +327,11 @@ else:
 
 # What FEEDS the gate, and why prose about it needs a check under it.
 #
-# check_release_gates.sh demands a green Test and Verify Release run for the
-# exact sha. Neither has a `push` trigger: both hang off `workflow_run:
-# [Compile]`, so dispatching Compile is what produces both verdicts at that sha
-# and lets the chain satisfy its own gate. Remove that trigger and every release
-# refuses -- loud, but from a message that names the gate rather than the wiring.
+# check_release_gates.sh demands a green Test run for the exact sha. Test has no
+# `push` trigger: it hangs off `workflow_run: [Compile]`, so dispatching Compile
+# is what produces that verdict at that sha and lets the chain satisfy its own
+# gate. Remove that trigger and every release refuses -- loud, but from a
+# message that names the gate rather than the wiring.
 #
 # The `push` half is here because the prose rotted once already: that script
 # claimed "Test runs on push to main, so a main commit has one", which was true
@@ -338,7 +341,6 @@ else:
 # comment gets updated in the same commit rather than becoming wrong again.
 FED_BY_COMPILE = {
     ".github/workflows/test.yml": "Test",
-    ".github/workflows/verify-release.yml": "Verify Release",
 }
 
 for path, display in FED_BY_COMPILE.items():
@@ -371,7 +373,83 @@ for path, display in FED_BY_COMPILE.items():
         failed = True
 
 if not failed:
-    print("  ok: Test and Verify Release are fed by Compile, and neither on push")
+    print("  ok: Test is fed by Compile, and not on push")
+
+# THE ONE THING THE RELEASE GATE CANNOT SEE FOR ITSELF.
+#
+# check_release_gates.sh used to require TWO green workflows, Test and Verify
+# Release. They are one workflow now: verify-release.yml declares
+# `on.workflow_call` and test.yml calls it, so a green Test run means the suite
+# AND the five-platform artifact verification passed. That removed a guaranteed
+# red Release run per release (see the release.yml trigger check above) and it
+# moved one assurance out of reach: the gate asks the runs API for "a green Test
+# run at this sha" and gets the same answer whether or not that run still calls
+# verify-release.yml. Delete the `verify-release` job from test.yml and every
+# release would keep publishing, verified by nothing.
+#
+# So the call itself is the invariant, asserted here rather than trusted:
+#   - verify-release.yml must be callable (`on.workflow_call`), and
+#   - test.yml must have a job that `uses:` it.
+#
+# WHAT THIS STILL DOES NOT CHECK, out loud: that the called workflow's jobs run.
+# Their `if:` conditions live inside it, and one that never evaluates true would
+# satisfy every check here while verifying nothing.
+VERIFY = ".github/workflows/verify-release.yml"
+TEST = ".github/workflows/test.yml"
+VERIFY_REF = "./.github/workflows/verify-release.yml"
+
+verify = documents.get(VERIFY)
+test = documents.get(TEST)
+
+if verify is None or test is None:
+    print(f"{VERIFY} or {TEST} did not parse, so the release verification "
+          "call could not be checked")
+    failed = True
+else:
+    verify_triggers = verify.get("on", verify.get(True)) or {}
+    if "workflow_call" not in verify_triggers:
+        print(
+            f"{VERIFY}: must declare `on.workflow_call` -- it is no longer "
+            "triggered by Compile, and test.yml calling it is the only thing "
+            "that runs the release verification."
+        )
+        failed = True
+
+    callers = [
+        name for name, job in (test.get("jobs") or {}).items()
+        if str((job or {}).get("uses", "")) == VERIFY_REF
+    ]
+    if not callers:
+        print(
+            f"{TEST}: no job `uses: {VERIFY_REF}`. {GATE_SCRIPT} requires only "
+            "a green Test run, so without this call the five-platform release "
+            "verification stops running and every release still publishes."
+        )
+        failed = True
+    else:
+        # AND the inputs it passes must exist. GitHub rejects an unknown one at
+        # runtime ("Invalid input, X is not defined in the referenced
+        # workflow"), so this is not a silent failure -- but the moment it
+        # surfaces is the release, which is the worst moment to learn it.
+        # actionlint does not catch this direction either: it type-checks
+        # `inputs.*` inside the callee and says nothing about the caller's
+        # `with:` keys. Measured 2026-08-20 by renaming the key and watching it
+        # pass.
+        declared = set((verify_triggers.get("workflow_call") or {})
+                       .get("inputs") or {})
+        for name in callers:
+            passed = set(((test.get("jobs") or {})[name].get("with") or {}))
+            unknown = sorted(passed - declared)
+            if unknown:
+                print(
+                    f"{TEST}: job `{name}` passes {unknown} to {VERIFY}, which "
+                    f"declares {sorted(declared)}. GitHub refuses the run."
+                )
+                failed = True
+
+    if not failed:
+        print(f"  ok: {TEST} runs the release verification "
+              f"(job `{callers[0]}`)")
 
 sys.exit(1 if failed else 0)
 PY

@@ -10,47 +10,51 @@ on:
     inputs:
       force:
         description: >-
-          Publish even if Test / Verify Release are not green for this commit.
+          Publish even if Test is not green for this commit. Test now carries
+          the five-platform release verification too, so this is the whole gate.
           Recorded loudly in the job summary.
         type: boolean
         default: false
-  # The happy path, restored. This was commented out, leaving workflow_dispatch
-  # as the only trigger -- so Verify Release ran BESIDE publication rather than
-  # before it, and nothing stopped a human dispatching Release while it was red
-  # or had never run. See docs/testing-strategy.md Step 5, and the release-gate
-  # job below, which is what actually enforces the ordering: this trigger only
-  # makes the correct order the default one.
+  # The happy path, and it hangs off ONE workflow on purpose.
   #
-  # BOTH gates trigger this, and that is the point. Compile fans out to Test and
-  # Verify Release in parallel, and Verify Release finishes first every time --
-  # so with `[Verify Release]` alone this fired while Test was still running,
-  # the gate correctly refused, and publishing then required a human to notice
-  # Test go green and re-run the failed run by hand. That hand step was the only
-  # thing standing between a green chain and a release, and it is not a check:
-  # nothing verifies it happens, and a release simply waits until somebody looks.
+  # This was commented out entirely at one point, leaving workflow_dispatch as
+  # the only door -- so Verify Release ran BESIDE publication rather than before
+  # it, and nothing stopped a human dispatching Release while it was red or had
+  # never run. See docs/testing-strategy.md Step 5, and the release-gate job
+  # below, which is what actually enforces the ordering: this trigger only makes
+  # the correct order the default one.
   #
-  # Listing both means whichever gate finishes LAST fires the attempt that
-  # publishes, in either order and without anybody watching. The first gate to
-  # finish also fires an attempt, which the gate refuses as "still running" --
-  # one expected red run per release, the same one that happens today. It is
-  # noise, not a failure; check_release_gates.sh says which kind it is.
+  # WHY THERE IS ONLY ONE NAME HERE NOW. The release requires two things to be
+  # green -- the suite, and the five-platform artifact verification -- and they
+  # used to be two workflows that Compile fanned out to in parallel. A
+  # `workflow_run` trigger cannot say "whichever of these finishes last", so
+  # this listed BOTH: the loser fired an attempt that the gate refused as "the
+  # other one is still running", and every release therefore produced one red
+  # Release run BY DESIGN. Documenting that red as noise is exactly how a red
+  # run that is NOT noise stops being read.
   #
-  # This does not widen what may publish. The gate still asks the runs API for a
-  # completed, successful run of BOTH workflows at this exact sha, so an extra
-  # trigger can only ask the question earlier, never answer it differently.
+  # verify-release.yml is now a reusable workflow that test.yml calls (see the
+  # `verify-release` job there), so there is one prerequisite workflow, one
+  # trigger, and one attempt. A red Release run now means the release did not
+  # happen. Nothing about the schedule changed -- the verify jobs still run
+  # concurrently, just inside Test's run.
   #
-  # `branches` is load-bearing now that Test is listed: test.yml ALSO runs on
-  # `pull_request`, so without this filter every owner PR's Test run would fire
-  # a Release attempt. Each would be refused (the gate checks the branch), but
-  # they would be refused loudly, on every PR, and a red Release run that means
-  # nothing is how a red Release run that means something stops being read. The
-  # filter reads the TRIGGERING run's head_branch, which for a PR-triggered Test
-  # is the PR's own branch and never `main`.
+  # This does not widen what may publish. The gate below still asks the runs API
+  # for a completed, successful Test run at this exact sha; the trigger only
+  # decides when the question is asked, never how it is answered.
+  #
+  # `branches` is load-bearing: test.yml ALSO runs on `pull_request`, so without
+  # this filter every owner PR's Test run would fire a Release attempt. Each
+  # would be refused (the gate checks the branch), but they would be refused
+  # loudly, on every PR, and a red Release run that means nothing is how a red
+  # Release run that means something stops being read. The filter reads the
+  # TRIGGERING run's head_branch, which for a PR-triggered Test is the PR's own
+  # branch and never `main`.
   #
   # Spelled literally because a trigger filter cannot take an expression; the
   # gate's own RELEASE_GATE_DEFAULT_BRANCH is the other place this name lives.
   workflow_run:
-    workflows: [Verify Release, Test]
+    workflows: [Test]
     types: [completed]
     branches: [main]
 
@@ -60,8 +64,8 @@ permissions:
 
 jobs:
   # NOTHING IN THIS FILE MAY RUN BEFORE THIS JOB. It asks the one question the
-  # trigger cannot answer -- "are Test and Verify Release green for the exact
-  # commit I am about to publish?" -- by querying the runs API for that sha,
+  # trigger cannot answer -- "is Test green for the exact commit I am about to
+  # publish?" -- by querying the runs API for that sha,
   # rather than inferring it from `workflow_run` ordering, which is what
   # produced the bug this closes.
   #
@@ -72,7 +76,7 @@ jobs:
   # skips the entire chain rather than merely failing beside it. Adding
   # `always()` to any `if:` below would silently reopen the door.
   release-gate:
-    name: Require green Test and Verify Release for this commit
+    name: Require a green Test run for this commit
     runs-on: ubuntu-latest
     # Ceiling, not a budget: observed max 0.2 min over 2 successful run(s)
     # sampled 2026-08-19.
@@ -89,9 +93,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # The same sha the artifact downloads below pin themselves to. On the
-          # automatic path that is the commit Compile built and Verify Release
-          # verified -- NOT `github.sha`, which on a `workflow_run` event is the
-          # default branch head and may have moved since.
+          # automatic path that is the commit Compile built and Test verified
+          # -- NOT `github.sha`, which on a `workflow_run` event is the default
+          # branch head and may have moved since.
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           RELEASE_GATE_EVENT: ${{ github.event_name }}
           RELEASE_GATE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
@@ -145,7 +149,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash tool/ci/resolve_release_version.sh
 
-      - name: Download compile artifacts (triggering verify run)
+      - name: Download compile artifacts (triggering test run)
         if: github.event_name == 'workflow_run'
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -211,7 +215,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash tool/ci/resolve_release_version.sh
 
-      - name: Download compile artifacts (triggering verify run)
+      - name: Download compile artifacts (triggering test run)
         if: github.event_name == 'workflow_run'
         uses: dawidd6/action-download-artifact@v6
         with:

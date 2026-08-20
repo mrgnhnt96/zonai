@@ -1,10 +1,46 @@
 name: Verify Release
 
+# CALLED BY test.yml, not triggered by Compile. It used to hang off
+# `workflow_run: [Compile]` beside test.yml, and that parallelism is the entire
+# reason release.yml produced a guaranteed red run per release: two prerequisite
+# workflows, and no way for a `workflow_run` trigger to know which of them
+# finishes last, so Release was fired by BOTH and the first attempt was always
+# refused as "the other one is still running". See release.yml's trigger block.
+#
+# Merging them costs nothing in wall clock -- these are still separate jobs,
+# still running concurrently with Test's own, just inside one run with one
+# verdict -- and it removes the ambiguity rather than dressing it up.
+#
+# THE COMPILE RUN IS NOW AN INPUT rather than something inferred from the event.
+# Every download below needs the run that produced the artifacts, and inside a
+# called workflow the `github` context describes the CALLER's event. Rather than
+# rest ten downloads on how that context is inherited, test.yml passes the id it
+# was triggered by and this file reads one input. Empty means "no run named" --
+# the hand-dispatched path -- and every download then resolves the newest
+# successful Compile for `github.sha` instead.
+#
+# `workflow_dispatch` stays, and is the only way to re-run this half alone after
+# a flake. It takes the same input so a dispatch can also name a specific
+# Compile run rather than trusting "newest for this ref".
 on:
+  workflow_call:
+    inputs:
+      compile_run_id:
+        description: >-
+          The Compile run whose artifacts to verify. Empty resolves the newest
+          successful Compile for this commit instead.
+        type: string
+        required: false
+        default: ""
   workflow_dispatch:
-  workflow_run:
-    workflows: [Compile]
-    types: [completed]
+    inputs:
+      compile_run_id:
+        description: >-
+          Optional Compile run id. Leave blank to use the newest successful
+          Compile for this ref.
+        type: string
+        required: false
+        default: ""
 
 permissions:
   actions: read
@@ -13,9 +49,6 @@ permissions:
 jobs:
   verify:
     name: ${{ matrix.artifact_name }}
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
     # Ceiling, not a budget: observed max 3.1 min over 12 successful run(s)
     # sampled 2026-08-19.
@@ -59,18 +92,19 @@ jobs:
         run: ./tool/setup_raindrop_submodule.ps1
 
       - name: Download release version files (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: release-version
 
-      # Every `workflow_dispatch` download in this file is pinned to
-      # `github.sha`, and this is the first of eight. The `workflow_run` paths
-      # are already safe because they pin `run_id` to the triggering compile;
-      # only the hand-triggered ones asked for "the newest successful Compile"
-      # and would take it from any commit, however old.
+      # THE FALLBACK PATH, and this is the first of ten. When no compile run
+      # is named the download resolves "the newest successful Compile" -- which
+      # is pinned to `github.sha` here, and was not always. The named-run paths
+      # are safe by construction because `run_id` IS the compile being verified;
+      # only this half ever asked for "the newest" and would take it from any
+      # commit, however old.
       #
       # That asymmetry is not cosmetic. This workflow is the release gate, and
       # a gate that validates a different commit's binaries reports success
@@ -82,7 +116,7 @@ jobs:
       # artifact is only a warning and the job continues against whatever
       # happens to be in the workspace. Run Compile on the ref, then dispatch.
       - name: Download release version files (this commit)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -93,16 +127,16 @@ jobs:
           name: release-version
 
       - name: Download artifact (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: ${{ matrix.artifact_name }}
           path: build
 
       - name: Download artifact (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -137,9 +171,6 @@ jobs:
   # command, a real-shaped project, and the bundle actually serving.
   build-command:
     name: build-${{ matrix.artifact_name }}
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
     # Ceiling, not a budget: observed max 5.1 min over 12 successful run(s)
     # sampled 2026-08-19.
@@ -188,15 +219,15 @@ jobs:
         run: ./tool/setup_raindrop_submodule.ps1
 
       - name: Download release version files (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: release-version
 
       - name: Download release version files (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -207,16 +238,16 @@ jobs:
           name: release-version
 
       - name: Download artifact (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: ${{ matrix.artifact_name }}
           path: build
 
       - name: Download artifact (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -262,16 +293,16 @@ jobs:
       # libraries come from the compile run being verified, so what gets
       # embedded here is what that run embedded.
       - name: Download embedded native libraries (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: native-libs-embedded-${{ matrix.target }}
           path: apps/zonai/lib/gen/native
 
       - name: Download embedded native libraries (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -298,16 +329,16 @@ jobs:
       # compile` in the run being verified rather than regenerated here, so
       # this exercises what that run actually built.
       - name: Download generated sources (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: zonai-gen-sources-${{ matrix.target }}
           path: apps/zonai/lib/gen
 
       - name: Download generated sources (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -360,9 +391,6 @@ jobs:
   # GitHub's macOS runners have no container runtime to stand in for one.
   cross-target-build:
     name: cross-build-linux-x64
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: macos-latest
     # Ceiling, not a budget: observed max 1.8 min over 12 successful run(s)
     # sampled 2026-08-19.
@@ -380,15 +408,15 @@ jobs:
         run: bash tool/setup_raindrop_submodule.sh
 
       - name: Download release version files (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: release-version
 
       - name: Download release version files (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -399,16 +427,16 @@ jobs:
           name: release-version
 
       - name: Download artifact (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: zonai-macos-arm64
           path: build
 
       - name: Download artifact (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -424,16 +452,16 @@ jobs:
       # of every worker in the bundle and the only way to make a binary that
       # would install the wrong library if the guard let it.
       - name: Download embedded native libraries (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: native-libs-embedded-macos-arm64
           path: apps/zonai/lib/gen/native
 
       - name: Download embedded native libraries (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -530,9 +558,6 @@ jobs:
   compat-check:
     name: compat-${{ matrix.artifact_name }}
     needs: verify
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ${{ matrix.os }}
     # Ceiling, not a budget: observed max 3.1 min over 11 successful run(s)
     # sampled 2026-08-19.
@@ -584,16 +609,16 @@ jobs:
         run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Download new binary (triggering compile run)
-        if: github.event_name == 'workflow_run'
+        if: inputs.compile_run_id != ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          run_id: ${{ inputs.compile_run_id }}
           name: ${{ matrix.artifact_name }}
           path: build/new
 
       - name: Download new binary (latest successful compile)
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.compile_run_id == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

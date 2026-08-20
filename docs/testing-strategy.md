@@ -286,6 +286,21 @@ Three edits to `release.yml`, none of them large:
 The ordering matters more than the mechanism: **verification must precede publication.**
 Today it does not.
 
+> **What actually shipped, and one thing this proposal got wrong.** All three edits landed:
+> the `release-gate` job (`tool/ci/check_release_gates.sh`, 17 cases in
+> `tool/ci/test_check_release_gates.sh`), the automatic trigger, and `force: true` with a
+> recorded summary. Point 2 aged badly. Restoring the trigger as
+> `workflows: [Verify Release]` alone meant Release fired while `Test` was still running and
+> the gate correctly refused, so publishing needed a human to re-run it; adding `Test`
+> alongside fixed that but made the loser's refusal a *guaranteed* red run on every release
+> — a `workflow_run` trigger cannot express "whichever finishes last". Both shapes were
+> wrong for the same reason: **two prerequisite workflows.** Fixed structurally on
+> 2026-08-20 by making `verify-release.yml` a reusable workflow that `test.yml` calls, so
+> there is one prerequisite, one trigger and one attempt. `tool/ci/check_workflows.sh` now
+> asserts both that `release.yml` lists exactly `[Test]` and that `test.yml` still calls
+> `verify-release.yml` — the gate itself cannot see the second, since a green `Test` run
+> looks identical whether or not the verification ran inside it.
+
 ### Step 6 — Cover the packages with nothing *(ongoing)*
 
 - **`libs/zonai_client`** (0 tests, 11 analyzer warnings, and a memory-recorded history of a

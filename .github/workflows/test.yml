@@ -1128,3 +1128,49 @@ jobs:
       - name: Submodule tests
         shell: bash
         run: dart pub global run sip_cli:sip run test submodules
+
+  # THE FORMER `Verify Release` WORKFLOW, now a job in this one -- five
+  # platforms of `zonai` artifact checks, `zonai build` on a real-shaped
+  # project, the macOS->linux cross-target pair and the upgrade compat matrix.
+  # Its bodies did not move; see verify-release.yml.
+  #
+  # WHY IT MOVED HERE. It used to hang off `workflow_run: [Compile]` beside this
+  # workflow, so the release chain had TWO prerequisite workflows finishing at
+  # unpredictable times. release.yml has to wait for both, a `workflow_run`
+  # trigger cannot express "whichever finishes last", so Release was fired by
+  # both -- and the earlier attempt was refused as "the other one is still
+  # running", producing one red Release run per release BY DESIGN. That red was
+  # documented as noise, which is the state a real red run has to compete with.
+  # One prerequisite workflow means one trigger, one attempt, and a red Release
+  # run that always means something.
+  #
+  # WALL CLOCK IS UNCHANGED. These are still separate jobs on separate runners
+  # running concurrently with `cli`/`e2e`/`unit` above, and the verify legs
+  # (~5 min) finish long inside `cli` (~26 min). What merged is the VERDICT,
+  # not the schedule.
+  #
+  # THE `if:` IS THE SAME ALLOWANCE FILTER as every job above, minus the
+  # pull_request arm: these jobs consume Compile artifacts, and a pull request
+  # has no Compile run to consume. An owner PR skips this and runs the rest.
+  #
+  # `permissions:` is not inherited -- a called workflow is capped by the grant
+  # on the calling job, and this file's top-level grant is `contents: read`
+  # alone. Without `actions: read` here every artifact download inside fails.
+  verify-release:
+    name: verify-release
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/verify-release.yml
+    with:
+      # The Compile run that triggered THIS run, so the artifacts verified are
+      # the ones that commit produced. Empty on a workflow_dispatch, where the
+      # callee falls back to the newest successful Compile for `github.sha`.
+      compile_run_id: ${{ github.event.workflow_run.id }}
+    # SUBMODULES_PAT, for the private raindrop submodule the verify jobs check
+    # out. GITHUB_TOKEN cannot read it.
+    secrets: inherit

@@ -25,10 +25,12 @@ name: Post-Release Verify
 # THE TRIGGER. `workflow_run` on Release rather than the `release` event:
 # release.yml creates the release with GITHUB_TOKEN, and GitHub deliberately
 # does not start new runs from events raised by that token. It is also the
-# third link in a workflow_run chain (Compile -> Verify Release -> Release ->
-# here), which is the documented maximum -- a fourth would not fire at all.
-# If a future link is added ahead of this one, this is the workflow that goes
-# quiet, and quietly. `workflow_dispatch` is the fallback and the re-run door:
+# third link in a workflow_run chain (Compile -> Test -> Release -> here),
+# which is the documented maximum -- a fourth would not fire at all. If a
+# future link is added ahead of this one, this is the workflow that goes quiet,
+# and quietly. Folding verify-release.yml into test.yml as a called workflow
+# kept the depth at three: a `uses:` job belongs to its caller's run and is not
+# a link of its own. `workflow_dispatch` is the fallback and the re-run door:
 # it reads VERSION from main, which the release job has already committed, so
 # a dispatch after a fix checks the same release the automatic run would have.
 on:
@@ -61,10 +63,13 @@ jobs:
   cross-target-build:
     name: cross-build-linux-x64 (released)
     # A Release run that concluded anything other than `success` published
-    # nothing -- the commonest case is the gate refusing while the other half
-    # of the chain is still running, which is one expected red Release run per
-    # release. Skipping is the correct outcome there; there is no release to
-    # verify.
+    # nothing, so there is no release to verify and skipping is correct.
+    #
+    # That used to be the routine case rather than the exception: Release fired
+    # on both Test and Verify Release and refused the earlier attempt, so every
+    # release produced one red Release run and one skipped run of this workflow.
+    # Test is the sole prerequisite now -- a red Release run means the release
+    # did not happen, and a skip here means the same thing.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'

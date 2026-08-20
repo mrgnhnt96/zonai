@@ -1,9 +1,16 @@
 # Releasing
 
-## Rule zero: never dispatch `Release` while `Verify Release` is failing
+## Rule zero: never dispatch `Release` while `Test` is failing
 
-**If `verify-release.yml` is red for the commit you are about to release, you
-do not have a release candidate. You have a bug. Fix it and start again.**
+**If `Test` is red for the commit you are about to release, you do not have a
+release candidate. You have a bug. Fix it and start again.**
+
+`Test` carries the release verification: `verify-release.yml` is a reusable
+workflow that `test.yml` calls (its `verify-release` job), so the five-platform
+artifact matrix, the `zonai build` legs, the cross-target pair and the compat
+check are all jobs inside the `Test` run. Before 2026-08-20 they were a
+separate `Verify Release` workflow, and every reference below that says `Test`
+used to say both.
 
 There is no version of "ship it anyway" that makes sense here. The point of
 shipping is that the product works; a release that fails its own verification
@@ -11,8 +18,9 @@ is not early, it is wrong. Nothing about this repo's release is time-pressured
 — `Release` is `workflow_dispatch` precisely so a human can take as long as
 they need — so there is never a reason to walk past a red gate.
 
-`verify-release.yml` triggers automatically on a successful `Compile`. It runs
-without being asked, which means **the only way to skip it is to not look**.
+`Test` triggers automatically on a successful `Compile`, and the verification
+runs inside it. It runs without being asked, which means **the only way to skip
+it is to not look**.
 
 This was written on 2026-08-13, after exactly that. Verify Release ran on
 `fd0770c` at 22:09:35 and failed on three platforms — `TableMeta.get` not
@@ -23,7 +31,7 @@ it. v0.6.3 went out with those bugs in it.
 Before dispatching `Release`, check:
 
 ```sh
-gh run list --workflow=verify-release.yml --limit 3 \
+gh run list --workflow=test.yml --limit 3 \
   --json conclusion,headSha --jq '.[] | "\(.conclusion)\t\(.headSha[0:8])"'
 ```
 
@@ -228,14 +236,24 @@ consumer, not here.
    within seconds rather than a chain later.
 
    Then `gh workflow run compile.yml --ref main`, and **that is the whole
-   thing** — Compile fans out to Test and Verify Release, and whichever finishes
-   last triggers `Release`, which publishes if the gate is green.
+   thing** — Compile triggers `Test`, and `Test` finishing triggers `Release`,
+   which publishes if the gate is green.
 
-   Expect exactly one red `Release` run per release, from the gate that finished
-   first. Its summary says **"Waiting, not failing"** and that no action is
-   needed. Do not re-run it and do not dispatch `Release` by hand; the second
-   trigger is the one that publishes. A refusal headed **"Refusing to publish"**
-   is the other kind and does need you.
+   **Expect exactly one `Release` run, and expect it to be green.** This
+   changed on 2026-08-20. `Release` used to be triggered by *two* workflows —
+   `Test` and the then-separate `Verify Release` — because it needs both to be
+   green and a `workflow_run` trigger cannot say "whichever finishes last". The
+   loser's attempt was refused as "the other one is still running", so every
+   release carried one red `Release` run that meant nothing, and a red run that
+   means nothing is what a red run that means *something* has to compete with.
+   Merging the two removed the ambiguity: one prerequisite, one trigger, one
+   attempt. If you see a red `Release` run now, read it — a refusal headed
+   **"Refusing to publish"** names the gate that said no.
+
+   A summary headed **"Waiting, not failing"** is still possible and still
+   rare: it means the `Test` run that fired this attempt is already back in
+   flight, which normally means somebody re-ran it. Wait for that run rather
+   than re-running the `Release` attempt.
 
 5. **Watch `Post-Release Verify`,** which fires by itself once `Release`
    succeeds.

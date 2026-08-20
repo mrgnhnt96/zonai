@@ -2,8 +2,8 @@
 # Refuse to publish unless the workflows that prove THIS EXACT COMMIT are green.
 #
 # THE BUG THIS EXISTS FOR, measured 2026-08-14 on eea8e74: verify-release.yml
-# triggers on `workflow_run: [Compile] completed`, and release.yml's
-# `workflow_run: [Verify Release]` trigger was commented out (release.yml:5-7),
+# was its own workflow triggered by `workflow_run: [Compile] completed`, and
+# release.yml's `workflow_run: [Verify Release]` trigger was commented out,
 # leaving `workflow_dispatch:` as its only door. So verification ran BESIDE
 # publication rather than before it, and nothing at all stopped a human
 # dispatching Release while Verify Release was red, still running, or had never
@@ -21,22 +21,29 @@
 #
 # WHAT IT CHECKS, all three overridable only by an explicit force on the manual
 # path (see below):
-#   Test            -- the suite. It has NO `push` trigger: test.yml runs on
+#   Test            -- the suite, AND the five-platform artifact verification:
+#                      verify-release.yml is a reusable workflow that test.yml
+#                      calls (its `verify-release` job), so one green Test run
+#                      covers both. It used to be a second required workflow
+#                      here; the two were merged because two prerequisites and
+#                      one `workflow_run` trigger meant release.yml had to fire
+#                      on both and refuse the loser, one red run per release.
+#                      Test has NO `push` trigger: test.yml runs on
 #                      `pull_request`, on `workflow_run: [Compile] completed`,
 #                      and on `workflow_dispatch`. So a commit pushed to main
 #                      has no Test run until something compiles it, and what
 #                      makes the release chain satisfy this gate is that
-#                      dispatching Compile produces Test AND Verify Release at
-#                      the same head_sha. (This line used to say "Runs on push
-#                      to main, so a main commit has one" -- it was true when
-#                      written, and it sent a reader looking for a run that no
-#                      trigger creates.)
-#   Verify Release  -- the five-platform artifact matrix. Same trigger shape:
-#                      `workflow_run: [Compile]` or a manual dispatch.
+#                      dispatching Compile produces one at the same head_sha.
 #   branch          -- the commit is on the default branch. This one is here
 #                      because turning the automatic trigger back on means a
 #                      Compile dispatched on a feature branch would otherwise
 #                      walk the whole chain and publish from it.
+#
+# WHAT MERGING THE TWO COST, out loud: this file can no longer tell that the
+# verification ran at all. A green Test run satisfies it whether or not
+# test.yml still calls verify-release.yml, and deleting that one job would be
+# invisible here. tool/ci/check_workflows.sh asserts the call exists, which is
+# the only thing standing between that deletion and a release nobody verified.
 #
 # THE ONE REFUSAL THAT WILL LOOK LIKE A BUG AND IS NOT: release.yml's own
 # "Commit release version" step pushes VERSION with GITHUB_TOKEN, and GitHub
@@ -48,8 +55,8 @@
 #
 # WHAT IT CANNOT CHECK, out loud: whether a green Test run MEANT anything -- a
 # workflow whose jobs are all `continue-on-error` concludes success and this
-# believes it. It also cannot see a check that was never wired: only the two
-# workflows named here are required, and a third suite added later is invisible
+# believes it. It also cannot see a check that was never wired: only the
+# workflow named here is required, and a second suite added later is invisible
 # until somebody adds it to REQUIRED_WORKFLOWS. And it reads the newest 100 runs
 # for the commit (see the query below), so a commit re-run more than 100 times
 # would be judged on a truncated list.
@@ -62,7 +69,7 @@ branch="${RELEASE_GATE_BRANCH:-}"
 default_branch="${RELEASE_GATE_DEFAULT_BRANCH:-main}"
 force="${RELEASE_GATE_FORCE:-false}"
 
-REQUIRED_WORKFLOWS=("Test" "Verify Release")
+REQUIRED_WORKFLOWS=("Test")
 
 # Hex-validated before it is interpolated into the jq filter below, and because
 # a truncated or symbolic ref here would silently match no runs -- which reads
@@ -107,9 +114,14 @@ note_refusal() { refusals="${refusals}${1}"$'\n'; }
 # -- but they are not the same event, and reading them as one is expensive in
 # both directions: a waiting run treated as a failure sends somebody debugging a
 # release that is fine, and once waiting runs are known to be routine, a real
-# red one gets waved past as "just the usual". Since both Test and Verify
-# Release now trigger release.yml, the first to finish ALWAYS produces one of
-# these, so it is the common case rather than an oddity.
+# red one gets waved past as "just the usual".
+#
+# This used to be the COMMON case, and that was the bug worth fixing rather than
+# labelling: release.yml fired on both Test and Verify Release, so the first to
+# finish always produced one of these and every release carried a red run that
+# meant nothing. With one prerequisite workflow, a wait on the automatic path
+# now takes something unusual -- Test re-run and back in flight by the time this
+# job reaches the API. Rare, still possible, and still refused.
 only_waiting=true
 
 emit "## Release gate for \`${sha}\`"
@@ -194,10 +206,15 @@ if [[ "${only_waiting}" == "true" && "${event}" == "workflow_run" ]]; then
     emit "> - ${refusal}"
   done <<<"${refusals}"
   emit ">"
-  emit "> **No action needed.** Both Test and Verify Release trigger this"
-  emit "> workflow, so the one still running above will start it again when it"
-  emit "> finishes, and that attempt is the one that publishes. Do not re-run"
-  emit "> this run and do not dispatch Release by hand."
+  emit "> **Probably no action needed.** Test triggers this workflow when it"
+  emit "> completes, so the run above will start a fresh attempt on its own"
+  emit "> when it finishes, and that attempt is the one that publishes. Wait"
+  emit "> for it rather than re-running this run."
+  emit ">"
+  emit "> Reaching here at all is unusual now that Test is the only gate -- it"
+  emit "> means the run that fired this one is already back in flight, which"
+  emit "> normally means somebody re-ran it. If it finishes green and no"
+  emit "> Release attempt follows, dispatch Release by hand."
   emit ">"
   emit "> This run still fails, on purpose: exiting 0 here would let every job"
   emit "> below it publish against a gate that has not answered."

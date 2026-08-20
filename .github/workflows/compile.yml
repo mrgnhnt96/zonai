@@ -205,7 +205,7 @@ jobs:
       # hung silently on ubuntu-latest x64 twice in twenty minutes (runs
       # 32294577535 and 32296487810), printing nothing at all because -qq
       # suppresses everything but errors and there were none. The first one held
-      # Compile -- and with it Test, Verify Release and the entire release chain
+      # Compile -- and with it Test and the entire release chain
       # -- for 18 minutes before a human killed it. Nothing that ran afterwards
       # used the packages it was waiting on.
       #
