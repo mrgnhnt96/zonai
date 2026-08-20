@@ -237,6 +237,26 @@ consumer, not here.
    trigger is the one that publishes. A refusal headed **"Refusing to publish"**
    is the other kind and does need you.
 
+5. **Watch `Post-Release Verify`,** which fires by itself once `Release`
+   succeeds.
+
+   It is the half of the cross-target gate that cannot run before publication:
+   `zonai build` fetches the native libraries from the release for *this*
+   version, so `cross-build-linux-x64 (released)` and
+   `cross-run-linux-x64 (released)` exercise the artifact people actually
+   download rather than one assembled from compile artifacts.
+
+   It is a **separate workflow** on purpose. These two jobs used to sit in
+   `release.yml` as `needs: release`, where a failure painted the whole Release
+   run red after the tag, the eleven assets and the `VERSION` commit had all
+   landed correctly — "the release failed" when it had not. A green `Release`
+   now means the version published; this workflow answers the other question.
+
+   What the split does not change: it still runs **after** the release, so a
+   regression here still means re-cutting a patch. Fix it, then
+   `gh workflow run post-release-verify.yml --ref main` to re-check the same
+   release without cutting a new one.
+
 ## Raising the floor
 
 Raise it in the same change that starts depending on newer schema — the CLI

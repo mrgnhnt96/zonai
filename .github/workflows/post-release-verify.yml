@@ -1,0 +1,211 @@
+name: Post-Release Verify
+
+# The half of the cross-target gate that cannot run before a release exists.
+#
+# verify-release.yml builds the same bundle and runs it on Linux before
+# publication, but the native libraries `zonai build` fetches come from the
+# GitHub release for THIS version -- so before the release exists there is
+# nothing to fetch and that job checks everything except the fetch. Here the
+# assets exist, REQUIRE_NATIVE_LIBS makes their absence a failure, and what
+# gets checked is the artifact people actually download rather than one
+# assembled from compile artifacts.
+#
+# WHY IT IS ITS OWN WORKFLOW. These two jobs lived in release.yml as
+# `needs: release`, which meant a failure here painted the whole Release run
+# red *after* the tag, the eleven assets and the VERSION commit had all landed
+# correctly. That reads as "the release failed" when the release succeeded and
+# a downstream check did not. Split out, Release's verdict answers exactly one
+# question -- did this version publish -- and this workflow's verdict answers
+# the other one.
+#
+# WHAT THE SPLIT DOES NOT CHANGE: this still runs after publication. The fetch
+# it exercises is release-shaped, so a regression here still means re-cutting a
+# patch. Only the signal moved, not the ordering.
+#
+# THE TRIGGER. `workflow_run` on Release rather than the `release` event:
+# release.yml creates the release with GITHUB_TOKEN, and GitHub deliberately
+# does not start new runs from events raised by that token. It is also the
+# third link in a workflow_run chain (Compile -> Verify Release -> Release ->
+# here), which is the documented maximum -- a fourth would not fire at all.
+# If a future link is added ahead of this one, this is the workflow that goes
+# quiet, and quietly. `workflow_dispatch` is the fallback and the re-run door:
+# it reads VERSION from main, which the release job has already committed, so
+# a dispatch after a fix checks the same release the automatic run would have.
+on:
+  workflow_dispatch:
+  # Matches release.yml's own filter, and for the same reason: this reads the
+  # TRIGGERING run's head_branch, so a Release dispatched from a side branch
+  # does not drag a verification of `main` behind it.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  # `contents: read` downloads the release assets; `actions: read` is what
+  # download-artifact needs to reach the bundle the macOS job uploaded. Both
+  # were inherited from release.yml's wider grant before the split, and the
+  # release job's `contents: write` deliberately did not come with them.
+  contents: read
+  actions: read
+
+env:
+  # One of four declarers of this string, with compile.yml, native-libs.yml and
+  # test.yml -- cross-target-build restores the same prebuilt libraries to
+  # generate the native byte bindings. check_workflows.sh asserts all four
+  # agree; it names exactly which files may declare it, so adding a fifth means
+  # updating that list too.
+  NATIVE_LIBS_CACHE_TAG: native-libs-cache
+
+jobs:
+  cross-target-build:
+    name: cross-build-linux-x64 (released)
+    # A Release run that concluded anything other than `success` published
+    # nothing -- the commonest case is the gate refusing while the other half
+    # of the chain is still running, which is one expected red Release run per
+    # release. Skipping is the correct outcome there; there is no release to
+    # verify.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: macos-latest
+    # Ceiling, not a budget: observed max 1.1 min over 2 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 10
+
+    steps:
+      # ref: main for the same reason deploy-website uses it -- the release job
+      # commits VERSION, and the stamp this checks must be the released one.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.SUBMODULES_PAT }}
+          submodules: recursive
+
+      - name: Configure raindrop sparse checkout
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: |
+          bash tool/ci/use_revali_git_overrides.sh
+          bash tool/ci/use_revali_git_overrides.sh e2e/build_smoke
+
+      - name: Get dependencies
+        run: dart pub get
+
+      # `apps/zonai/lib/gen/` is gitignored and produced by compile.yml, so a
+      # plain checkout does not have it. This job needs it anyway, because
+      # `zonai build` links the smoke project against apps/zonai's own sources
+      # (resolveProjectLink's merged package_config), so the AOT compile reads
+      # those files directly -- it failed on a missing `kVersion` and missing
+      # `*_native.g.dart` byte bindings, which is what this step exists to
+      # prevent. Passed on v0.6.2 and broke here, so it is fragile rather than
+      # new: nothing pinned the requirement, it was just incidentally
+      # satisfied before.
+      - name: Generate lib/gen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Inlined from scripts.yaml's `version.gen` rather than shelled out,
+          # so this does not depend on sip being activated -- and deliberately
+          # NOT resolve_release_version.sh, which would *bump* the version
+          # (VERSION now equals the tag, so it would resolve to a new minor).
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          mkdir -p apps/zonai/lib/gen
+          echo "const kVersion = \"${VERSION}\";" > apps/zonai/lib/gen/version.dart
+          echo "kVersion = ${VERSION}"
+
+          # The native byte bindings, from the same cache release compile.yml
+          # reads. With the libraries present, ZONAI_SKIP_NATIVE_BUILD makes
+          # the gen scripts emit the .g.dart wrappers without rebuilding
+          # libsodium from source.
+          mkdir -p apps/zonai/lib/gen/native
+          archive="native-libs-macos-arm64.tar.gz"
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+          dart pub global activate sip_cli >/dev/null
+          export ZONAI_SKIP_NATIVE_BUILD=true
+          dart pub global run sip_cli:sip run resqlite gen
+          dart pub global run sip_cli:sip run argon2 gen
+          ls -la apps/zonai/lib/gen apps/zonai/lib/gen/native
+
+      - name: Download the released macOS arm64 binary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          gh release download "v${version}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'zonai-macos-arm64.zip' \
+            --dir .
+          mkdir -p build
+          unzip -o zonai-macos-arm64.zip -d build
+          chmod +x build/zonai
+
+      # No probe is built here: this checkout has never run the native library
+      # generators, so apps/zonai/lib/gen/native is empty. cross_target_build.sh
+      # says so and the run half skips its controls by name -- they are covered
+      # pre-release, where that directory is populated from compile artifacts.
+      - name: Build a linux/x64 bundle from the released binary
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRE_NATIVE_LIBS: "1"
+        run: |
+          bash tool/ci/cross_target_build.sh \
+            build/zonai linux x64 e2e/build_smoke cross-target-out
+
+      # See the note on the same step in verify-release.yml: the bundle is all
+      # dot-directories, which upload-artifact drops unless told otherwise.
+      - name: Upload the released cross-target bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-target-linux-x64-released
+          retention-days: 10
+          path: cross-target-out
+          include-hidden-files: true
+          if-no-files-found: error
+
+  cross-target-run:
+    name: cross-run-linux-x64 (released)
+    needs: cross-target-build
+    runs-on: ubuntu-latest
+    # Ceiling, not a budget: observed max 0.2 min over 2 successful run(s)
+    # sampled 2026-08-19.
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download the released cross-target bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-target-linux-x64-released
+          path: cross-target-out
+
+      - name: Run the macOS-built bundle on linux/x64
+        shell: bash
+        run: |
+          bash tool/ci/verify_cross_target_bundle.sh \
+            cross-target-out/bundle \
+            - \
+            cross-target-out/VERSION

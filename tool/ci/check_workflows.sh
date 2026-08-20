@@ -121,8 +121,10 @@ expected = {
     ".github/workflows/compile.yml",
     ".github/workflows/native-libs.yml",
     # cross-target-build restores the same libraries to generate the native
-    # byte bindings, which apps/zonai/lib/gen/ needs and a checkout lacks.
-    ".github/workflows/release.yml",
+    # byte bindings, which apps/zonai/lib/gen/ needs and a checkout lacks. It
+    # was release.yml's declaration until that job moved out of the release
+    # into its own workflow.
+    ".github/workflows/post-release-verify.yml",
     # test.yml's unit/cli/e2e jobs run `bootstrap test`, which is resqlite.gen
     # and argon2.gen -- the same compile-libsodium-from-source cost compile.yml
     # restores this cache to avoid, now paid on three platforms per push
@@ -254,6 +256,70 @@ else:
 
     if not failed:
         print(f"  ok: every release.yml job is gated behind `{GATE_JOB}`")
+
+
+# The post-release half of the cross-target gate. It used to be two jobs in
+# release.yml with `needs: release`; it is now its own workflow, so a failure
+# there no longer reddens a Release run that published correctly. What that
+# split costs is a connection nothing but a string enforces: if this trigger is
+# dropped, or the Release workflow is renamed, the check does not fail -- it
+# stops running, and a release stops being verified against the artifact people
+# actually download. Exactly the shape of the bug that motivated the release
+# gate above, so it gets the same treatment.
+POST_RELEASE = ".github/workflows/post-release-verify.yml"
+POST_RELEASE_JOBS = {"cross-target-build", "cross-target-run"}
+
+post_release = documents.get(POST_RELEASE)
+if post_release is None:
+    print(
+        f"{POST_RELEASE} is missing or did not parse. It carries the "
+        "post-release cross-target check that release.yml no longer runs; "
+        "without it nothing verifies a released bundle's native libraries."
+    )
+    failed = True
+else:
+    # `on` is the YAML 1.1 boolean True -- same trap as release.yml above.
+    triggers = post_release.get("on", post_release.get(True)) or {}
+    run_trigger = triggers.get("workflow_run") or {}
+
+    if "Release" not in (run_trigger.get("workflows") or []):
+        print(
+            f"{POST_RELEASE}: `on.workflow_run.workflows` must include "
+            "'Release'. Without it this workflow never fires on its own and "
+            "the post-release check silently stops happening."
+        )
+        failed = True
+
+    if (run_trigger.get("branches") or []) != ["main"]:
+        print(
+            f"{POST_RELEASE}: `on.workflow_run.branches` must be ['main'], "
+            "matching release.yml -- a Release dispatched from a side branch "
+            "must not drag a verification of main behind it."
+        )
+        failed = True
+
+    # The re-run door. This runs after publication by construction, so the
+    # answer to a failure is "fix it and check again", and without a dispatch
+    # trigger the only way to check again is to cut another release.
+    if "workflow_dispatch" not in triggers:
+        print(
+            f"{POST_RELEASE}: must keep a `workflow_dispatch` trigger -- it is "
+            "the only way to re-check a release after a fix without cutting a "
+            "new one, and the fallback if the workflow_run chain stops firing."
+        )
+        failed = True
+
+    missing_jobs = POST_RELEASE_JOBS - set(post_release.get("jobs") or {})
+    if missing_jobs:
+        print(
+            f"{POST_RELEASE}: missing job(s) {sorted(missing_jobs)}. Both "
+            "halves are needed: one builds the bundle on macOS, the other is "
+            "the only thing that runs it on Linux."
+        )
+        failed = True
+
+    if not failed:
+        print("  ok: post-release-verify.yml is fired by Release and dispatchable")
 
 
 # What FEEDS the gate, and why prose about it needs a check under it.
