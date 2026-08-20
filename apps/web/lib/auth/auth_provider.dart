@@ -41,7 +41,7 @@ class AuthNotifier extends Notifier<bool> {
   void _onAuthRouteChanged(String? previous, String next) {
     if (!state) return;
 
-    if (AuthRoutes.isVerifyEmailCallbackPath(next)) return;
+    if (AuthRoutes.isSignedInReachableAuthPath(next)) return;
 
     if (!AuthRoutes.isSignInPath(next)) return;
 
@@ -166,7 +166,7 @@ class AuthNotifier extends Notifier<bool> {
 
     if (signedIn) {
       final path = ref.read(authRouteProvider);
-      if (AuthRoutes.isSignInPath(path) && !AuthRoutes.isVerifyEmailCallbackPath(path)) {
+      if (AuthRoutes.isSignInPath(path) && !AuthRoutes.isSignedInReachableAuthPath(path)) {
         web.window.location.assign(AuthRoutes.toUrlPath(AuthRoutes.home));
       }
       return;

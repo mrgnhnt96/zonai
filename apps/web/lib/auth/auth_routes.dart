@@ -98,6 +98,30 @@ abstract final class AuthRoutes {
     return isSignInPath(path) || isVerifyEmailCallbackPath(path) || isAdminInviteAcceptPath(path);
   }
 
+  /// Auth pages a **signed-in** browser must be allowed to stay on.
+  ///
+  /// [isSignInPath] is what bounces a session-holder home, and for almost
+  /// every member of that set it is right: there is nothing to do on a sign-in
+  /// form you no longer need. These two are the exceptions, because each
+  /// carries its own authority in the URL and that authority is *not* the
+  /// session cookie — the `?s=` decodes to `secret:email` and names the
+  /// account it acts on, which need not be the one already signed in.
+  ///
+  /// Deliberately excluded, each for its own reason:
+  ///
+  /// * [oauthCallback] — arriving here *with* a session is the success path;
+  ///   the server minted the cookie on its own 302, so home is where this
+  ///   visitor was going. See `OAuthCallbackScreen`.
+  /// * [adminInviteAccept] — spent on this browser (see [isPublicAuthPath]).
+  /// * [magicLinkCallback] — would mint a *second*, different session over the
+  ///   first. Signing out before honouring it is the only correct answer and
+  ///   this set does not attempt it.
+  /// * [resetPasswordRequest] — asks for a link by email; a signed-in visitor
+  ///   already has the account open.
+  static bool isSignedInReachableAuthPath(String path) {
+    return isResetPasswordCallbackPath(path) || isVerifyEmailCallbackPath(path);
+  }
+
   static bool isMagicLinkCallbackPath(String path) {
     return normalizePath(path) == magicLinkCallback;
   }

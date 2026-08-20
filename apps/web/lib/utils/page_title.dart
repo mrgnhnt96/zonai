@@ -22,12 +22,17 @@ abstract final class PageTitle {
       return '$appName — Admin invitation';
     }
 
+    // Above the `signedIn` gate for the same reason verify-email is: a session
+    // does not stop this page from being reachable
+    // ([AuthRoutes.isSignedInReachableAuthPath]), so the title cannot be
+    // decided by one. Carries no token — `path` has been normalized.
+    if (AuthRoutes.isResetPasswordCallbackPath(path)) {
+      return '$appName — Reset password';
+    }
+
     if (!signedIn) {
       if (AuthRoutes.isMagicLinkCallbackPath(path)) {
         return '$appName — Sign in';
-      }
-      if (AuthRoutes.isResetPasswordCallbackPath(path)) {
-        return '$appName — Reset password';
       }
       if (AuthRoutes.isResetPasswordRequestPath(path)) {
         return '$appName — Reset password';
@@ -67,12 +72,13 @@ abstract final class PageTitle {
       return 'Accept an invitation to administer $appName.';
     }
 
+    if (AuthRoutes.isResetPasswordCallbackPath(path)) {
+      return 'Choose a new password for your $appName account.';
+    }
+
     if (!signedIn) {
       if (AuthRoutes.isMagicLinkCallbackPath(path)) {
         return 'Complete sign-in to $appName.';
-      }
-      if (AuthRoutes.isResetPasswordCallbackPath(path)) {
-        return 'Choose a new password for your $appName account.';
       }
       if (AuthRoutes.isResetPasswordRequestPath(path)) {
         return 'Request a password reset link for $appName.';

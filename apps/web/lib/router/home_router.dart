@@ -36,7 +36,14 @@ class HomeRouter extends StatelessComponent {
     }
 
     final path = AuthRoutes.normalizePath(state.location);
-    if (AuthRoutes.isSignInPath(path) || AuthRoutes.isVerifyEmailCallbackPath(path)) {
+    // `isSignInPath` already contains the verify-email and reset-password
+    // callbacks, so naming either here would be a no-op — which is exactly the
+    // bug this once was: the carve-out `AuthNotifier` makes was written as an
+    // `||` and so never applied. Those pages never reach this router now
+    // (`AppShellGate` hands them to `AuthAppShell`), and if an in-app link ever
+    // pointed at one, `homeRoutes` has nothing to render for it, so home stays
+    // the right answer for anything that does arrive.
+    if (AuthRoutes.isSignInPath(path)) {
       return AuthRoutes.toUrlPath(AuthRoutes.home);
     }
     // An invite link opened in a browser that already holds a dashboard
