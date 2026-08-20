@@ -332,6 +332,14 @@ test:
       # one-line VERSION bump took about fifteen minutes and a whole chain to
       # come back wrong, and fixing it meant a new sha and the chain again.
       - bash tool/ci/check_generated_client_version.sh
+      # Controls for step 3 of verify_cross_target_bundle.sh, which was narrowed
+      # after v0.8.1 (run 32312355513) went red for a bundle behaving correctly:
+      # its host binary was a different release from the libraries beside it, so
+      # self-extraction was always going to replace them. Skipping that case is
+      # only safe while a REAL replacement still fails, and the post-release job
+      # that would notice runs once per release, after the release. This asks
+      # the same question in `static`, in seconds, against a synthetic bundle.
+      - bash tool/ci/test_verify_cross_target_bundle.sh
       # apps/zonai/lib/gen/server is a gitignored COPY of apps/server that
       # `zonai compile` embeds, so nothing in git keeps it honest -- and
       # analysis_options.yaml excludes **/lib/gen/**, so `dart analyze` is
