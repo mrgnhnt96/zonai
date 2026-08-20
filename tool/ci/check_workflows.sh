@@ -130,6 +130,10 @@ expected = {
     # restores this cache to avoid, now paid on three platforms per push
     # instead of once per release.
     ".github/workflows/test.yml",
+    # stress-nightly.yml runs `bootstrap test` for the same reason: its harness
+    # compiles apps/zonai, and apps/zonai/lib/gen is gitignored in full. Added
+    # 2026-08-20, when that job was found to have never once reached its sweep.
+    ".github/workflows/stress-nightly.yml",
 }
 if set(declared) != expected:
     print(

@@ -1,8 +1,13 @@
 name: Stress (nightly)
 
-# docs/testing-strategy.md Step 7. NIGHTLY, deliberately not on the PR path: a
-# full sweep is minutes of saturated CPU and it is noisy on shared runners, so
-# putting it on every PR is how it gets disabled within a week.
+# docs/testing-strategy.md Step 7. WEEKLY (Mondays), deliberately not on the PR
+# path: a full sweep is minutes of saturated CPU and it is noisy on shared
+# runners, so putting it on every PR is how it gets disabled within a week.
+#
+# The file, the workflow name and the artifact prefix all still say "nightly".
+# That is deliberate: renaming them orphans every artifact already uploaded and
+# every reference in stress/README.md and thresholds.json. The cadence is the
+# cron below and nothing else.
 #
 # WHAT THIS GATES, AND WHAT IT REFUSES TO GATE
 #
@@ -25,20 +30,40 @@ name: Stress (nightly)
 # think a GitHub runner reproduces it. So the gate step is CONTINUE-ON-ERROR
 # for now: it reports, and it cannot fail the build.
 #
-#   TO ARM IT: let this run for a few nights, recalibrate thresholds.json from
+#   TO ARM IT: let this run for a few weeks, recalibrate thresholds.json from
 #   runner numbers (not laptop numbers), then delete the continue-on-error
 #   line below. Arming it before that ships a gate nobody has ever seen pass.
+#
+#   AND IT IS FURTHER OFF THAN THAT SENTENCE READS. As of 2026-08-20 this
+#   workflow had never reached its sweep -- two scheduled runs, both dead in the
+#   checkout at 16 seconds (see the note on the steps). So there is not one
+#   runner number yet, and at one run a week the recalibration is weeks of
+#   waiting rather than nights. `workflow_dispatch` is the way to shorten that,
+#   and it is the honest way to gather the sample: dispatch it a few times
+#   rather than reading a weekly schedule as though it had been collecting.
 
 on:
   schedule:
-    # 07:00 UTC — off the working day for the repo's timezone.
-    - cron: '0 7 * * *'
+    # Mondays, 07:00 UTC — off the working day for the repo's timezone.
+    #
+    # WEEKLY, not nightly (changed 2026-08-20). The name and the artifact
+    # prefix still say "nightly"; renaming them would orphan every uploaded
+    # artifact and the thresholds prose that refers to them, so the cadence
+    # lives here and nowhere else. A `1` is Monday in GitHub's cron.
+    - cron: '0 7 * * 1'
   workflow_dispatch:
 
 concurrency:
   # Two stress runs on one runner measure each other, not the server.
   group: stress-nightly
   cancel-in-progress: false
+
+env:
+  # MUST match compile.yml's, native-libs.yml's, post-release-verify.yml's and
+  # test.yml's copies -- check_workflows.sh asserts all five agree and names
+  # exactly which files may declare it. Without the cache this job compiles
+  # libsodium from C source on every run.
+  NATIVE_LIBS_CACHE_TAG: native-libs-cache
 
 jobs:
   stress:
@@ -47,14 +72,129 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      # EVERYTHING FROM HERE TO `Resolve stress deps` IS THE SETUP THIS JOB
+      # NEVER HAD, and it is why it had never once got past its first step.
+      #
+      # It ran twice, on 2026-08-19 and 2026-08-20, and failed both times in 16
+      # seconds: `submodules: recursive` with no `token:`, so the private
+      # `raindrop` submodule answered `remote: Repository not found` (GitHub
+      # returns 404 rather than 403 for a repo the token cannot see) and the
+      # checkout died. It was the only one of nine workflows checking out
+      # submodules without SUBMODULES_PAT.
+      #
+      # Two more failures were queued behind that one, and both are the reason
+      # the steps below are copied from test.yml's `cli` job rather than
+      # invented here. `stress/lib/src/harness_setup.dart` runs
+      # `dart compile exe bin/zonai.dart` inside apps/zonai, so this job needs
+      # everything a zonai compile needs:
+      #
+      #   - raindrop's ROOT pubspec.yaml trips pub's stray-pubspec check for the
+      #     zonai workspace, so it has to be sparse-checked-out away;
+      #   - `apps/zonai/lib/gen/` is gitignored in full (.gitignore:8, zero
+      #     files tracked) and `bootstrap test` is what produces it. Without it
+      #     the compile fails on the native byte bindings -- the same
+      #     "Error when reading .../argon2_native.g.dart" that took every leg
+      #     of Verify Release run 31748784749 down.
+      #
+      # WHAT THIS COST WHILE IT WAS BROKEN: the header above says the error-rate
+      # gate stays `continue-on-error` until thresholds.json is recalibrated
+      # from runner numbers, and that "let this run for a few nights" is how
+      # those numbers arrive. Zero runs reached the sweep, so no runner number
+      # has ever existed and the gate could not have been armed. The only thing
+      # that could ever have turned this workflow red was its own checkout.
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
+          # GITHUB_TOKEN cannot read private submodule repos; raindrop is
+          # private. This line is the whole reason the job failed.
+          token: ${{ secrets.SUBMODULES_PAT }}
           submodules: recursive
 
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
+      - name: Configure raindrop sparse checkout
+        shell: bash
+        run: bash tool/setup_raindrop_submodule.sh
 
+      # PINNED, where this said `stable`. It was the only workflow floating,
+      # and an SDK that moves under a performance baseline changes the numbers
+      # this job exists to compare -- silently, and in the direction of
+      # "something regressed". Same 3.12.0 as everywhere else.
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: "3.12.0"
+
+      - name: Configure revali git overrides
+        shell: bash
+        run: bash tool/ci/use_revali_git_overrides.sh
+
+      - name: Install sip
+        run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+
+      - name: Get dependencies
+        run: dart pub get
+
+      - name: Download pre-built native libraries (cache release)
+        id: download-native-libs
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          archive="native-libs-linux-x64.tar.gz"
+          mkdir -p apps/zonai/lib/gen/native
+          gh release download "${NATIVE_LIBS_CACHE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${archive}" \
+            --dir "${RUNNER_TEMP}" \
+            --clobber
+          tar -xzf - -C apps/zonai/lib/gen/native < "${RUNNER_TEMP}/${archive}"
+
+      - name: Check downloaded native libraries
+        id: native-libs
+        shell: bash
+        run: |
+          if [ "${{ steps.download-native-libs.outcome }}" = "success" ] && \
+             [ -n "$(ls -A apps/zonai/lib/gen/native 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No native-libs-linux-x64.tar.gz in the ${NATIVE_LIBS_CACHE_TAG} release -- building resqlite/Argon2 from source."
+          fi
+
+      # Only on the cache-miss path, and it ASKS before installing -- see the
+      # long note on the same step in test.yml. `apt-get -qq` hung silently on
+      # ubuntu-latest three times on 2026-08-19 while printing nothing, and the
+      # image already ships this toolchain.
+      - name: Install native build toolchain
+        if: steps.native-libs.outputs.found != 'true'
+        timeout-minutes: 5
+        run: |
+          missing=""
+          for tool in gcc make autoconf automake libtool m4 pkg-config; do
+            command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
+          done
+          if [ -z "${missing}" ]; then
+            echo "native build toolchain already present -- not calling apt"
+            exit 0
+          fi
+          echo "missing:${missing} -- installing via apt"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential autoconf automake libtool m4 pkg-config
+
+      # Produces apps/zonai/lib/gen -- version.dart and the native byte
+      # bindings. The harness compiles apps/zonai itself and does NOT run this
+      # for you, deliberately: a missing lib/gen must fail loudly rather than
+      # let a sweep measure a stale binary.
+      - name: Bootstrap lib/gen
+        shell: bash
+        env:
+          ZONAI_SKIP_NATIVE_BUILD: ${{ steps.native-libs.outputs.found }}
+        run: dart pub global run sip_cli:sip run bootstrap test
+
+      # `stress/` is deliberately NOT a workspace member (the root workspace is
+      # libs/**, support/** and apps/*), so it resolves on its own and this is
+      # not a duplicate of the root `dart pub get` above.
       - name: Resolve stress deps
         working-directory: stress
         run: dart pub get
