@@ -326,12 +326,34 @@ class HomeScreen extends StatelessComponent {
       css(
         '.rows-table .rows-row td.rows-cell',
       ).styles(maxWidth: 14.rem, raw: const {'text-overflow': 'ellipsis', 'white-space': 'nowrap'}),
+      // Rich cells (tags, chips, FK labels, thumbnails) stay on a single line
+      // like plain cells do, so one long value cannot stretch its row taller
+      // than the rest of the table.
       css(
         '.rows-table .rows-row td.rows-cell--rich',
-      ).styles(whiteSpace: WhiteSpace.normal, raw: const {'text-overflow': 'clip'}),
+      ).styles(whiteSpace: WhiteSpace.noWrap, raw: const {'text-overflow': 'clip'}),
       css(
         '.rows-cell-inner',
       ).styles(display: .flex, alignItems: .center, maxWidth: 100.percent, minHeight: 100.percent),
+      css(
+        '.rows-cell--rich .rows-cell-inner',
+      ).styles(overflow: Overflow.hidden, minWidth: .zero, raw: const {'flex-wrap': 'nowrap'}),
+      css('.rows-cell--rich .z-tag-list').styles(minWidth: .zero, raw: const {'flex-wrap': 'nowrap'}),
+      css('.rows-cell--rich .z-enum-chip-row').styles(minWidth: .zero, raw: const {'flex-wrap': 'nowrap'}),
+      css('.rows-cell--rich .rows-fk-cell').styles(minWidth: .zero, raw: const {'flex-wrap': 'nowrap'}),
+      css('.rows-cell--rich .schema-table-photo-cell').styles(minWidth: .zero, raw: const {'flex-wrap': 'nowrap'}),
+      css('.rows-cell--rich .z-tag').styles(
+        display: .block,
+        overflow: Overflow.hidden,
+        minWidth: .zero,
+        raw: const {'white-space': 'nowrap', 'text-overflow': 'ellipsis'},
+      ),
+      css('.rows-cell--rich .z-enum-chip').styles(
+        display: .block,
+        overflow: Overflow.hidden,
+        minWidth: .zero,
+        raw: const {'white-space': 'nowrap', 'text-overflow': 'ellipsis'},
+      ),
       css('.rows-cell:not(.rows-cell--rich) .rows-cell-inner').styles(
         display: .block,
         overflow: Overflow.hidden,
