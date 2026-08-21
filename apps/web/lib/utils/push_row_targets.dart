@@ -110,6 +110,43 @@ List<PushRowTarget> pushRowTargets({
   return targets;
 }
 
+/// The subset of [pushRowTargets] that [row] actually carries a token in.
+///
+/// This is what a *single* row — the one open in the detail panel — can be
+/// sent to, as opposed to what the table declares. The distinction matters
+/// because the send dialog opens on the first target it is handed and offers
+/// the rest in a picker: handed a column this row leaves null, it would open a
+/// form whose Send button can never enable and whose column picker offers a
+/// choice that resolves to nobody.
+///
+/// An empty list means this row has no device to reach. That is a reason to
+/// not offer the action at all rather than to offer it disabled — the same
+/// call [pushRowTargets] makes for a table with no device-token column.
+List<PushRowTarget> pushRowTargetsForRow({
+  required String table,
+  required List<String> columns,
+  required List<ColumnShape> columnShapes,
+  required List<Object?> row,
+}) {
+  final targets = pushRowTargets(table: table, columns: columns, columnShapes: columnShapes);
+
+  return [
+    for (final target in targets)
+      if (rowCarriesPushToken(row: row, target: target)) target,
+  ];
+}
+
+/// Whether [row] holds a non-blank token in [target]'s column.
+///
+/// Blank counts as absent: a token column filled with `''` by a client that
+/// registered before it had one is the ordinary shape of "no device", and
+/// sending to it is a request the transport rejects for a reason that reads
+/// like a token problem rather than an empty cell.
+bool rowCarriesPushToken({required List<Object?> row, required PushRowTarget target}) {
+  final value = row.elementAtOrNull(target.tokenIndex);
+  return value is String && value.trim().isNotEmpty;
+}
+
 /// The target matching [id], or the first one when nothing matches.
 ///
 /// Falls back rather than returning null: the caller only asks once it knows

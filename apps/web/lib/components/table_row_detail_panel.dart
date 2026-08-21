@@ -13,6 +13,7 @@ import '../constants/button_sizes.dart';
 import '../constants/layout.dart';
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
+import '../providers/push_send_provider.dart';
 import '../providers/resolved_collection_provider.dart';
 import '../providers/session_user_provider.dart';
 import '../providers/table_filter_provider.dart';
@@ -24,6 +25,7 @@ import '../providers/table_rows_provider.dart';
 import '../providers/toast_provider.dart';
 import '../api/api_client.dart';
 import '../utils/photo_edit_value.dart';
+import '../utils/push_row_targets.dart';
 import '../utils/resolve_photo_drafts.dart';
 import '../utils/dom_event_values.dart';
 import '../utils/table_cell_edit.dart';
@@ -32,6 +34,7 @@ import '../utils/table_row_key.dart';
 import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
+import 'push_send_dialog.dart';
 import 'query_preview_card.dart';
 import 'schema_table_foreign_key_cell.dart';
 import 'schema_table_photo_cell.dart';
@@ -196,6 +199,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (event.key == 'Escape') {
       if (isDatetimePickerPopoverOpen()) return;
       if (isForeignKeyPickerOpen()) return;
+      if (isPushSendDialogOpen()) return;
       event.preventDefault();
       if (_pendingDismiss != null) {
         setState(() => _pendingDismiss = null);
@@ -536,6 +540,38 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (emailIndex == -1 || emailIndex >= cached.row.length) return null;
     final value = cached.row[emailIndex];
     return value is String && value.isNotEmpty ? value : null;
+  }
+
+  /// The device-token columns this row can actually be sent to.
+  ///
+  /// An empty list hides the action outright, the same way `Reset password`
+  /// disappears on a row with no email: a row with no token has no device to
+  /// reach, and a greyed-out button would imply a setting that switches it on.
+  List<PushRowTarget> _pushTargetsForRow(TableRowDetailState cached) {
+    return pushRowTargetsForRow(
+      table: cached.sqliteName,
+      columns: cached.columns,
+      columnShapes: cached.columnShapes,
+      row: cached.row,
+    );
+  }
+
+  /// Opens the composer over this one row.
+  ///
+  /// Synchronous, unlike the selection toolbox's version: the row is already
+  /// in hand, so there is nothing to page in and no window in which the
+  /// operator waits on a fetch before the dialog appears.
+  void _openPushSend(BuildContext context, TableRowDetailState cached, List<PushRowTarget> targets) {
+    context.read(appTooltipProvider.notifier).hide();
+    context
+        .read(pushSendProvider.notifier)
+        .open(
+          table: cached.sqliteName,
+          columns: cached.columns,
+          columnShapes: cached.columnShapes,
+          rows: [cached.row],
+          targets: targets,
+        );
   }
 
   Future<void> _triggerPasswordReset(BuildContext context, TableRowDetailState cached) async {
@@ -1257,7 +1293,8 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 
   Component _buildDetailPanel(BuildContext context, TableRowDetailState cached) {
     final allActions = context.watch(tableCollectionActionsProvider);
-    final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
+    final sessionUser = context.watch(sessionUserProvider);
+    final sessionCanEdit = sessionUser?.canEdit == true;
     final rowEditable = _canEditRow(cached, allActions, sessionCanEdit);
     final canSave = _canSubmitEdit(cached);
     final requiredFields = _editing && _draft != null
@@ -1265,6 +1302,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         : const <String>[];
     final canResetPassword =
         !_editing && sessionCanEdit && _isPasswordAuthTable(cached) && _emailForPasswordReset(cached) != null;
+    // Admin, because the send endpoint refuses anything else — an editor
+    // pressing this would get a 403 from a button that looked available.
+    final pushTargets = !_editing && sessionUser?.isAdmin == true
+        ? _pushTargetsForRow(cached)
+        : const <PushRowTarget>[];
+    final canSendPush = pushTargets.isNotEmpty;
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     void goBack() => _requestNavigateBack(cached);
     final subtitle = _detailSubtitle(cached);
@@ -1354,7 +1397,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
               else
                 for (var i = 0; i < cached.row.length; i++) _buildDetailField(context, cached, i),
             ]),
-            if ((rowEditable || canResetPassword) && !showRawJson)
+            if ((rowEditable || canResetPassword || canSendPush) && !showRawJson)
               div(classes: ['table-row-detail-footer', if (_editing) 'table-row-detail-footer--create'].join(' '), [
                 if (_editing) ...[
                   if (requiredFields.isNotEmpty)
@@ -1376,28 +1419,54 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                     ),
                   ]),
                 ] else
-                  div(classes: 'table-row-detail-footer-actions', [
-                    if (rowEditable)
-                      button(
-                        classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
-                        type: .button,
-                        attributes: {'aria-label': 'Edit row'},
-                        onClick: () =>
-                            context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.edit),
-                        [.text('Edit row')],
-                      ),
-                    if (canResetPassword)
-                      button(
-                        classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
-                        type: .button,
-                        attributes: {
-                          'aria-label': 'Send password reset email',
-                          if (_sendingPasswordReset) 'disabled': 'true',
-                        },
-                        onClick: _sendingPasswordReset ? null : () => _triggerPasswordReset(context, cached),
-                        [.text(_sendingPasswordReset ? 'Sending…' : 'Reset password')],
-                      ),
-                  ]),
+                  div(
+                    classes: [
+                      'table-row-detail-footer-actions',
+                      if (canSendPush) 'table-row-detail-footer-actions--wrap',
+                    ].join(' '),
+                    [
+                      if (rowEditable)
+                        button(
+                          classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
+                          type: .button,
+                          attributes: {'aria-label': 'Edit row'},
+                          onClick: () =>
+                              context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.edit),
+                          [.text('Edit row')],
+                        ),
+                      if (canResetPassword)
+                        button(
+                          classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
+                          type: .button,
+                          attributes: {
+                            'aria-label': 'Send password reset email',
+                            if (_sendingPasswordReset) 'disabled': 'true',
+                          },
+                          onClick: _sendingPasswordReset ? null : () => _triggerPasswordReset(context, cached),
+                          [.text(_sendingPasswordReset ? 'Sending…' : 'Reset password')],
+                        ),
+                      // Its own full-width line rather than a third column: the
+                      // label does not survive a 500px row split three ways, and
+                      // a button whose text wraps mid-phrase reads as a layout
+                      // bug on the one action that makes a real phone ring.
+                      if (canSendPush)
+                        button(
+                          classes:
+                              'table-row-detail-footer-btn table-row-detail-footer-btn--cancel '
+                              'table-row-detail-footer-btn--push',
+                          type: .button,
+                          attributes: {'aria-label': 'Send a test notification to this device'},
+                          events: appTooltipEvents(
+                            context,
+                            text: pushTargets.length == 1
+                                ? 'Sends to ${pushTargets.first.column}'
+                                : 'Pick which token column to send to',
+                          ),
+                          onClick: () => _openPushSend(context, cached, pushTargets),
+                          [.text('Send test notification')],
+                        ),
+                    ],
+                  ),
               ]),
           ]),
         ],
@@ -2154,6 +2223,15 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css(
     '.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel',
   ).styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero),
+  css('.table-row-detail-footer-actions--wrap').styles(raw: const {'flex-wrap': 'wrap'}),
+  // Basis 100% is what puts it under the other actions instead of beside them,
+  // and it is a rule about the label rather than about how many buttons there
+  // happen to be — so the layout does not change when Edit or Reset password
+  // is absent.
+  css('.table-row-detail-footer-actions .table-row-detail-footer-btn--push').styles(
+    flex: Flex(grow: 1, shrink: 1, basis: 100.percent),
+    minWidth: .zero,
+  ),
   css('.table-row-detail-footer > .table-row-detail-footer-btn').styles(width: 100.percent, maxWidth: 100.percent),
   css('.table-row-detail-footer-btn').styles(
     display: .block,

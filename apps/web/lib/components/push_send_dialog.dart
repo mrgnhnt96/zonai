@@ -15,6 +15,16 @@ import 'theme/theme_components.dart';
 
 const _dialogFadeDuration = Duration(milliseconds: 120);
 
+/// Whether the send dialog is currently on screen.
+///
+/// Read from the DOM rather than the provider so a panel that sits *under* the
+/// dialog can ask without watching its state, which is what the foreign-key
+/// picker already does for the same reason. The dialog and the row detail
+/// panel both listen for Escape on `document`, and `preventDefault` does not
+/// stop a sibling listener — without this, one Escape would close the dialog
+/// and the panel behind it in the same keystroke.
+bool isPushSendDialogOpen() => web.document.querySelector('.push-send-backdrop') != null;
+
 /// Composes one notification and sends it to the selected rows' devices.
 ///
 /// Mounted next to the toast overlay rather than inside the selection toolbar,
