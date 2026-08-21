@@ -64,6 +64,13 @@
       "when": 1780619434457,
       "tag": "0008_auto",
       "snapshotId": "11259f8f-34ce-4b13-94f5-17f5b0aace13"
+    },
+    {
+      "idx": 9,
+      "version": "1",
+      "when": 1787286744369,
+      "tag": "0009_device_tokens_demo",
+      "snapshotId": "7defb50d-607c-4fa8-ae7d-3460192ea052"
     }
   ]
 }

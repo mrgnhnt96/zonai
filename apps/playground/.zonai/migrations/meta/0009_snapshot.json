@@ -1,0 +1,394 @@
+{
+  "version": "1",
+  "dialect": "sqlite",
+  "id": "7defb50d-607c-4fa8-ae7d-3460192ea052",
+  "prevId": "11259f8f-34ce-4b13-94f5-17f5b0aace13",
+  "tables": {
+    "authors": {
+      "name": "authors",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "name": {
+          "name": "name",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true,
+          "foreignKey": {
+            "referencedTable": "companies",
+            "referencedColumn": "id",
+            "onDelete": "SET NULL"
+          }
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "cell_edit_fixtures": {
+      "name": "cell_edit_fixtures",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "label": {
+          "name": "label",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "flag": {
+          "name": "flag",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "count": {
+          "name": "count",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "REAL",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "big_count": {
+          "name": "big_count",
+          "type": "BLOB",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "happened_at": {
+          "name": "happened_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "status": {
+          "name": "status",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "keywords": {
+          "name": "keywords",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true,
+          "foreignKey": {
+            "referencedTable": "companies",
+            "referencedColumn": "id",
+            "onDelete": "SET NULL"
+          }
+        },
+        "secret_note": {
+          "name": "secret_note",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "meta": {
+          "name": "meta",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "BLOB",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "companies": {
+      "name": "companies",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "name": {
+          "name": "name",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "device_tokens": {
+      "name": "device_tokens",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "label": {
+          "name": "label",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "token": {
+          "name": "token",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "platform": {
+          "name": "platform",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        }
+      }
+    },
+    "items": {
+      "name": "items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "body": {
+          "name": "body",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "description": {
+          "name": "description",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "image": {
+          "name": "image",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true,
+          "foreignKey": {
+            "referencedTable": "_photos",
+            "referencedColumn": "id"
+          }
+        },
+        "status": {
+          "name": "status",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "posts": {
+      "name": "posts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "photo": {
+          "name": "photo",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true,
+          "foreignKey": {
+            "referencedTable": "_photos",
+            "referencedColumn": "id"
+          }
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false,
+          "foreignKey": {
+            "referencedTable": "authors",
+            "referencedColumn": "id",
+            "onDelete": "CASCADE"
+          }
+        },
+        "title": {
+          "name": "title",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "body": {
+          "name": "body",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "TEXT",
+          "primaryKey": true,
+          "isNullable": false
+        },
+        "name": {
+          "name": "name",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "email": {
+          "name": "email",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "is_verified": {
+          "name": "is_verified",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "password": {
+          "name": "password",
+          "type": "TEXT",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "INTEGER",
+          "primaryKey": false,
+          "isNullable": true
+        }
+      }
+    }
+  },
+  "indexes": {
+    "users.id_unique": {
+      "name": "users.id_unique",
+      "tableName": "users",
+      "columns": [
+        "id"
+      ],
+      "isUnique": true
+    }
+  }
+}
