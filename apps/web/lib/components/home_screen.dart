@@ -23,8 +23,10 @@ import '../providers/table_schema_provider.dart';
 import '../providers/table_sort_provider.dart';
 import '../providers/table_filter_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
+import '../providers/push_send_provider.dart';
 import '../providers/toast_provider.dart';
 import '../utils/download_text_file.dart';
+import '../utils/push_row_targets.dart';
 import '../utils/table_row_edit.dart';
 import '../utils/table_row_key.dart';
 import '../utils/table_rows_sort.dart';
@@ -43,6 +45,7 @@ import 'table_filter_datetime_field.dart';
 import 'table_search_panel.dart';
 import 'table_search_side_panel.dart';
 import 'foreign_key_picker_overlay.dart';
+import 'push_send_dialog.dart';
 import 'toast_overlay.dart';
 import 'theme/ui_styles.dart';
 import 'theme/zonai_icon_button.dart';
@@ -83,6 +86,7 @@ class HomeScreen extends StatelessComponent {
       if (context.binding.isClient) const TableRowDetailPanel(),
       if (context.binding.isClient) const TableSearchSidePanel(),
       if (context.binding.isClient) const ForeignKeyPickerOverlay(),
+      if (context.binding.isClient) const PushSendDialog(),
       if (context.binding.isClient) const ToastOverlay(),
     ]);
   }
@@ -94,6 +98,7 @@ class HomeScreen extends StatelessComponent {
     ...ForeignKeyPickerOverlay.styles,
     ...syntaxHighlightedCodeStyles,
     ...tableRowDetailPanelStyles,
+    ...pushSendDialogStyles,
     ...ToastOverlay.styles,
     ...tableSearchPanelStyles,
     ...tableSearchSidePanelStyles,
@@ -1016,6 +1021,7 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
 
   var _deleting = false;
   var _exporting = false;
+  var _preparingPush = false;
   var _deleteHoldPhase = _DeleteHoldPhase.idle;
   var _holdProgress = 0.0;
   var _holdCommitted = false;
@@ -1028,7 +1034,7 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
   web.EventListener? _deleteHoldEndListener;
   var _deleteHoldEndListenersActive = false;
 
-  bool get _busy => _deleting || _exporting;
+  bool get _busy => _deleting || _exporting || _preparingPush;
 
   /// True when every row in the table is selected — hold must finish before delete.
   bool get _mustCompleteHold {
@@ -1205,6 +1211,66 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     _runDeleteSelected();
   }
 
+  /// Resolves the selected rows, then opens the composer over their devices.
+  ///
+  /// The rows are fetched here rather than in the dialog because a selection
+  /// can cover rows no page has loaded — `rowsForSelection` already knows how
+  /// to page through "all 12,480", and the cap above is what keeps that from
+  /// being asked for.
+  ///
+  /// A selection where no row carries a token opens nothing. The dialog would
+  /// render a form whose Send button can never enable, and a toast that names
+  /// the count answers the operator's actual question — why not? — without
+  /// making them close a dialog to hear it.
+  Future<void> _openPushSend(List<PushRowTarget> targets) async {
+    if (_busy) return;
+    setState(() => _preparingPush = true);
+
+    final data = component.data;
+    try {
+      final rows = await context
+          .read(tableRowsProvider.notifier)
+          .rowsForSelection(context.read(tableRowSelectionProvider));
+      if (!mounted) return;
+
+      final scan = scanPushRecipients(
+        target: targets.first,
+        rows: rows,
+        columns: data.columns,
+        columnShapes: data.columnShapes,
+      );
+      if (scan.recipients.isEmpty) {
+        context
+            .read(toastProvider.notifier)
+            .showError(
+              rows.length == 1
+                  ? 'The selected row has no ${targets.first.column}, so there is no device to send to.'
+                  : 'None of the ${rows.length} selected rows has a ${targets.first.column}, so there is no device to send to.',
+            );
+        return;
+      }
+
+      context
+          .read(pushSendProvider.notifier)
+          .open(
+            table: data.sqliteName,
+            columns: data.columns,
+            columnShapes: data.columnShapes,
+            rows: rows,
+            targets: targets,
+          );
+    } catch (e) {
+      if (!mounted) return;
+      context.read(toastProvider.notifier).showError(switch (e) {
+        StateError(:final message) => message,
+        _ => 'Failed to read the selected rows: $e',
+      });
+    } finally {
+      _hideTooltip();
+      if (mounted) setState(() => _preparingPush = false);
+    }
+  }
+
   Future<void> _exportSelectedAsJson() async {
     if (_busy) return;
     setState(() => _exporting = true);
@@ -1257,7 +1323,14 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
     final selectedCount = selection.displayCount(data.total);
     final label = selectedCount == 1 ? '1 selected' : '$selectedCount selected';
     final allActions = context.watch(tableCollectionActionsProvider);
-    final sessionCanEdit = context.watch(sessionUserProvider)?.canEdit == true;
+    final sessionUser = context.watch(sessionUserProvider);
+    final sessionCanEdit = sessionUser?.canEdit == true;
+    // Admin, because the send endpoint refuses anything else — an editor
+    // pressing this would get a 403 from a button that looked available.
+    final pushTargets = sessionUser?.isAdmin == true
+        ? pushRowTargets(table: data.sqliteName, columns: data.columns, columnShapes: data.columnShapes)
+        : const <PushRowTarget>[];
+    final overPushLimit = selectedCount > pushRowSelectionLimit;
     final canDeleteRows = canDeleteTableRows(
       allActions: allActions,
       actions: allActions[data.sqliteName],
@@ -1291,6 +1364,29 @@ class _SelectionToolboxState extends State<_SelectionToolbox> {
           onClick: _exportSelectedAsJson,
           child: _selectionExportIcon(),
         ),
+        if (pushTargets.isNotEmpty)
+          ZonaiIconButton(
+            size: ZonaiIconButtonSize.xs,
+            // Disabled rather than hidden over the cap: the action exists for
+            // this table, and hiding it would read as "this table cannot be
+            // sent to" instead of "not this many at once".
+            disabled: _busy || overPushLimit,
+            attributes: {
+              'aria-label': overPushLimit
+                  ? 'Too many rows selected to send a notification'
+                  : _preparingPush
+                  ? 'Preparing notification'
+                  : 'Send a notification to selected devices',
+            },
+            events: appTooltipEvents(
+              context,
+              text: overPushLimit
+                  ? 'Select $pushRowSelectionLimit rows or fewer.\nThe dashboard sends one device at a time;\na real fan-out belongs in push() on the server.'
+                  : 'Send a notification',
+            ),
+            onClick: () => _openPushSend(pushTargets),
+            child: _selectionPushIcon(),
+          ),
         if (canDeleteRows)
           button(
             classes: [
@@ -1366,6 +1462,32 @@ Component _selectionExportIcon() {
         stroke: const Color('currentColor'),
         strokeWidth: '1.5',
         d: 'M3.5 12.75h9',
+        attributes: const {'stroke-linecap': 'round'},
+        [],
+      ),
+    ],
+  );
+}
+
+/// A bell, because the row it sits over is about to make a phone ring.
+Component _selectionPushIcon() {
+  return svg(
+    viewBox: '0 0 16 16',
+    width: 14.px,
+    height: 14.px,
+    attributes: {'aria-hidden': 'true', 'fill': 'none'},
+    [
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.5',
+        d: 'M4.25 6.75a3.75 3.75 0 0 1 7.5 0c0 2.4.5 3.4 1.1 4.1.3.35.05.9-.4.9H3.55c-.45 0-.7-.55-.4-.9.6-.7 1.1-1.7 1.1-4.1Z',
+        attributes: const {'stroke-linecap': 'round', 'stroke-linejoin': 'round'},
+        [],
+      ),
+      path(
+        stroke: const Color('currentColor'),
+        strokeWidth: '1.5',
+        d: 'M6.5 13.25a1.75 1.75 0 0 0 3 0',
         attributes: const {'stroke-linecap': 'round'},
         [],
       ),
