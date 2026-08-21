@@ -218,6 +218,11 @@ consumer, not here.
 4. **Release the CLI.** Bump `VERSION`, regenerate the committed clients, then
    dispatch **`Compile`** — not `Release`.
 
+   Bumping `VERSION` is what *makes* it a release. `resolve_release_version.sh`
+   refuses unless `VERSION` is strictly greater than the latest CLI tag, so a
+   `Compile` dispatched on `main` at any other time stops there instead of
+   publishing. See **Dispatching Compile without releasing** below.
+
    ```sh
    echo "X.Y.Z" > VERSION
    sip run version gen
@@ -274,6 +279,45 @@ consumer, not here.
    regression here still means re-cutting a patch. Fix it, then
    `gh workflow run post-release-verify.yml --ref main` to re-check the same
    release without cutting a new one.
+
+## Dispatching `Compile` without releasing
+
+Dispatching `Compile` on `main` is how a release is cut — Compile triggers
+`Test`, and `Test` triggers `Release`. Nothing in the dispatch dialog says so,
+and for a while nothing stopped it: `resolve_release_version.sh` used to bump
+the latest tag's minor whenever `VERSION` was not ahead of it. Since the release
+job commits `VERSION`, that is the state `main` sits in **from the moment a
+release lands until someone bumps it again** — so anyone dispatching Compile to
+"check CI" would have resolved a new minor and let the chain publish it.
+
+Two changes closed that:
+
+**`VERSION` must be ahead, or the resolver refuses.** No invented versions. The
+refusal names both ways forward, because the person who hits it is usually one
+dispatch away from a release they did not intend. It also leaves `VERSION`
+alone on the way out.
+
+**`Compile` takes a `dry_run` input.** Tick it to build against `VERSION` as it
+stands:
+
+```sh
+gh workflow run compile.yml --ref main -f dry_run=true
+```
+
+The binaries carry the version already in `VERSION`, and the run is stamped
+**Dry run** in its job summary so it is not mistaken for a release later.
+
+A dry run cannot publish, and not because it is trusted to behave: `release.yml`
+resolves the version **again, in its own checkout**, without the flag. So the
+chain a dry run starts refuses at that second resolve. That independence is the
+point — the two callers stamping `kVersion` and choosing the tag must never
+disagree, and the way they disagreed before was `v0.6.3`, which published
+binaries reporting `0.6.2`.
+
+**The escape hatch.** `RELEASE_VERSION_ALLOW_BUMP=1` restores the old auto-bump.
+Nothing sets it. It exists so that reverting this is a decision someone makes
+deliberately, rather than a code edit made under time pressure — and so this
+paragraph is where they find out it was a decision in the first place.
 
 ## Raising the floor
 

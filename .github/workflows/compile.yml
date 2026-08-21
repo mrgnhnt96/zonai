@@ -1,7 +1,19 @@
 name: Compile
 
 on:
+  # Dispatching this on `main` is how a release is cut -- Compile fans out to
+  # Test, and a green Test triggers Release. Nothing in the dispatch dialog says
+  # so, which is what `dry_run` is for: it makes "I want to exercise the build"
+  # expressible, instead of being spelled the same way as "publish".
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: >-
+          Build against VERSION as it stands instead of resolving a release
+          version. Cannot publish: release.yml resolves without this flag and
+          refuses when VERSION is not ahead of the latest tag.
+        type: boolean
+        default: false
 
 permissions:
   actions: read
@@ -25,11 +37,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Refuses unless VERSION is ahead of the latest CLI release, which is what
+      # stops a Compile dispatched on main after a release from resolving a new
+      # minor and letting the chain publish it. See the script's header.
       - name: Resolve release version
         id: resolve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty on any non-dispatch path; the script treats empty as off.
+          RELEASE_VERSION_DRY_RUN: ${{ inputs.dry_run }}
         run: bash tool/ci/resolve_release_version.sh
+
+      # A dry run that looks identical to a real one in the Actions list is a
+      # trap, and this workflow's artifacts outlive the run that made them.
+      - name: Mark this run as a dry run
+        if: ${{ inputs.dry_run }}
+        run: |
+          {
+            echo "## Dry run"
+            echo
+            echo "\`VERSION\` was used as it stands (\`$(tr -d '[:space:]' < VERSION)\`)"
+            echo "and was not resolved to a new release version."
+            echo
+            echo "This chain cannot publish: \`release.yml\` resolves the version"
+            echo "again without this flag and refuses when \`VERSION\` is not ahead"
+            echo "of the latest tag."
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       # Every artifact this workflow produces is a step on the way to a release,
       # and the release is the durable copy -- the binaries become release

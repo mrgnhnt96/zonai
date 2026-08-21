@@ -329,6 +329,59 @@ else:
         print("  ok: post-release-verify.yml is fired by Release and dispatchable")
 
 
+# The dry-run door on compile.yml, and the refusal behind it.
+#
+# Dispatching Compile on main IS how a release is cut, so "just exercise the
+# build" needed a way to be said. Two ways for that to rot, both silent and both
+# ending in an unintended release:
+#
+#   * the input is removed -- the dialog loses the box, and whoever wanted a
+#     dry run dispatches a real one instead;
+#   * the input survives but stops being WIRED to the env var -- the box is
+#     still there, ticking it does nothing, and the run publishes while the
+#     person who ticked it believes it cannot.
+#
+# The second is the dangerous one: it looks exactly like success. Neither fails
+# anything on its own, so both are asserted here.
+COMPILE = ".github/workflows/compile.yml"
+DRY_RUN_INPUT = "dry_run"
+DRY_RUN_ENV = "RELEASE_VERSION_DRY_RUN"
+
+compile_doc = documents.get(COMPILE)
+if compile_doc is None:
+    print(f"{COMPILE} is missing or did not parse, so its dry-run door could not be checked")
+    failed = True
+else:
+    # `on` is the YAML 1.1 boolean True -- same trap as release.yml above.
+    triggers = compile_doc.get("on", compile_doc.get(True)) or {}
+    inputs = ((triggers.get("workflow_dispatch") or {}).get("inputs")) or {}
+
+    if DRY_RUN_INPUT not in inputs:
+        print(
+            f"{COMPILE}: `workflow_dispatch` must declare a `{DRY_RUN_INPUT}` input. "
+            "Dispatching Compile on main is what cuts a release, and without this "
+            "there is no way to exercise the build without publishing one."
+        )
+        failed = True
+
+    # The wiring, not just the declaration. to_text flattens the whole job, so
+    # this finds the env key wherever in the job it is set.
+    prepare = (compile_doc.get("jobs") or {}).get("prepare")
+    if prepare is None:
+        print(f"{COMPILE}: no `prepare` job -- that is where the version is resolved")
+        failed = True
+    elif DRY_RUN_ENV not in to_text(prepare):
+        print(
+            f"{COMPILE}: the `prepare` job never sets {DRY_RUN_ENV}, so the "
+            f"`{DRY_RUN_INPUT}` input is decorative -- ticking it would still "
+            "resolve a release version and let the chain publish."
+        )
+        failed = True
+
+    if not failed:
+        print(f"  ok: compile.yml offers a dry run, and wires it to {DRY_RUN_ENV}")
+
+
 # What FEEDS the gate, and why prose about it needs a check under it.
 #
 # check_release_gates.sh demands a green Test run for the exact sha. Test has no
