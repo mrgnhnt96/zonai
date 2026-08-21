@@ -270,6 +270,67 @@ void main() {
     });
   });
 
+  // The detail panel offers the action over exactly one row, so "can this be
+  // sent to?" narrows from a question about the table to a question about the
+  // row in front of the operator. A table-level answer would open a composer
+  // addressed to nobody on the ordinary case: a user who never registered a
+  // device.
+  group('what one row can be sent to', () {
+    final shapes = [
+      column('id', ColumnShapeKind.text, isPrimaryKey: true),
+      column('androidToken', ColumnShapeKind.deviceToken),
+      column('iosToken', ColumnShapeKind.deviceToken),
+    ];
+    final columns = namesOf(shapes);
+
+    List<String> targetsFor(List<Object?> row) {
+      return [
+        for (final target in pushRowTargetsForRow(table: 'users', columns: columns, columnShapes: shapes, row: row))
+          target.column,
+      ];
+    }
+
+    test('only the columns this row filled in are offered', () {
+      // The dialog opens on the first target and offers the rest in a picker,
+      // so a column this row left null must not be in the list at all.
+      expect(targetsFor(['u1', null, 'ios-token']), ['iosToken']);
+      expect(targetsFor(['u1', 'android-token', null]), ['androidToken']);
+      expect(targetsFor(['u1', 'android-token', 'ios-token']), ['androidToken', 'iosToken']);
+    });
+
+    test('a row with no token offers nothing, so the action is not shown', () {
+      expect(targetsFor(['u1', null, null]), isEmpty);
+    });
+
+    test('a blank token is no token', () {
+      // A client that registered before it had a token writes '', and sending
+      // to it is a rejection whose wording blames the token rather than the
+      // empty cell.
+      expect(targetsFor(['u1', '', '   ']), isEmpty);
+    });
+
+    test('a non-string cell is no token', () {
+      expect(targetsFor(['u1', 42, null]), isEmpty);
+    });
+
+    test('a short row offers nothing rather than reading past its end', () {
+      expect(targetsFor(['u1']), isEmpty);
+    });
+
+    test('a table with no deviceToken column offers nothing whatever the row holds', () {
+      final plain = [column('id', ColumnShapeKind.text), column('token', ColumnShapeKind.text)];
+      expect(
+        pushRowTargetsForRow(
+          table: 'notes',
+          columns: namesOf(plain),
+          columnShapes: plain,
+          row: ['n1', 'looks-like-a-token'],
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   group('transport routing', () {
     test('the column choice defers to the row, and falls back to FCM', () {
       expect(
