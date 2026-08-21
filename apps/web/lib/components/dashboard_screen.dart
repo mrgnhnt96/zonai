@@ -3,8 +3,7 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 // `show`: payloads.dart also exports a `DashboardMetrics`, and this file means
 // the provider's one.
-import 'package:zonai_schema/payloads.dart'
-    show DashboardDrainRun, DashboardPushQueue, DashboardSessions, DevicePlatform, formatBytes;
+import 'package:zonai_schema/payloads.dart' show DashboardDrainRun, DashboardPushQueue, DashboardSessions, formatBytes;
 
 import '../auth/auth_routes.dart';
 import '../constants/button_sizes.dart';
@@ -12,21 +11,16 @@ import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/maintenance_provider.dart';
-import '../providers/push_test_provider.dart';
-import '../providers/table_schema_provider.dart';
 import '../utils/cron_job_summary.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
 import '../providers/sqlite_tables_provider.dart';
-import '../utils/push_test_targets.dart';
 import '../utils/sqlite_table_utils.dart';
 import 'app_tooltip_overlay.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'theme/zonai_button.dart';
 import 'theme/zonai_icon_button.dart';
-import 'theme/zonai_select.dart';
-import 'theme/zonai_text_field.dart';
 import 'toast_overlay.dart';
 
 class DashboardScreen extends StatelessComponent {
@@ -58,10 +52,6 @@ class DashboardScreen extends StatelessComponent {
     final bucketsData = metrics.value?.buckets ?? [];
     final topErrorsData = topErrors.value ?? [];
     final tableCountsData = tableCounts.value ?? {};
-
-    // Derived from the schema shapes the shell already loaded, so this is
-    // known during SSR too — the panel does not appear a frame late.
-    final pushTargets = pushTestTargets(context.watch(tableSchemasProvider));
 
     final maxBucket = bucketsData.isEmpty ? 0 : bucketsData.map((bkt) => bkt.count).reduce((x, y) => x > y ? x : y);
 
@@ -177,11 +167,6 @@ class DashboardScreen extends StatelessComponent {
               _PushQueuePanel(queue: metrics.value?.pushQueue, isLoading: metrics.isLoading && !metrics.hasValue),
               _SessionsPanel(sessions: metrics.value?.sessions, isLoading: metrics.isLoading && !metrics.hasValue),
             ]),
-            // Absent entirely when no collection declares a `deviceToken`
-            // column — not disabled, not an empty state. A project without one
-            // has nowhere to send a notification, and a greyed-out control
-            // would imply a setting somewhere that turns it on.
-            if (pushTargets.isNotEmpty) div(classes: 'dashboard-row', [_PushTestPanel(targets: pushTargets)]),
             div(classes: 'dashboard-row dashboard-row--split', [
               div(classes: 'dashboard-panel dashboard-panel--crons', [
                 div(classes: 'dashboard-panel-heading', [
@@ -465,45 +450,6 @@ class DashboardScreen extends StatelessComponent {
         raw: const {'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'},
       ),
       css('.dashboard-push-failure-count').styles(fontSize: 0.6875.rem, fontWeight: .w600, color: fgColor),
-      // Test-send panel
-      css('.dashboard-panel--push-test').styles(minWidth: .zero, minHeight: .zero),
-      css(
-        '.dashboard-push-test-hint',
-      ).styles(fontSize: 0.6875.rem, color: mutedColor, raw: const {'cursor': 'default'}),
-      css('.dashboard-push-test-form').styles(
-        display: .grid,
-        gap: Gap.all(ZonaiSpacing.s3),
-        raw: const {'grid-template-columns': 'repeat(auto-fit, minmax(220px, 1fr))'},
-      ),
-      css(
-        '.dashboard-push-test-field',
-      ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2), minWidth: .zero),
-      css('.dashboard-push-test-target-note').styles(margin: .zero, fontSize: 0.75.rem, color: mutedColor),
-      css(
-        '.dashboard-push-test-actions',
-      ).styles(display: .flex, flexDirection: FlexDirection.row, gap: Gap.all(ZonaiSpacing.s2)),
-      // The outcome is the reason the panel exists, so it is sized to be read
-      // rather than glanced at, and wraps instead of truncating -- a provider
-      // reason cut off at the panel edge is the one thing that must not happen.
-      css('.dashboard-push-test-outcome').styles(
-        margin: .zero,
-        fontSize: 0.75.rem,
-        lineHeight: 1.5.em,
-        color: fgColor,
-        raw: const {'overflow-wrap': 'anywhere'},
-      ),
-      css('.dashboard-push-test-outcome--accepted').styles(raw: const {'color': 'var(--zonai-success)'}),
-      css('.dashboard-push-test-outcome--rejected').styles(raw: const {'color': 'var(--zonai-error)'}),
-      css('.dashboard-push-test-outcome--failed').styles(raw: const {'color': 'var(--zonai-error)'}),
-      css('.dashboard-push-test-token-echo').styles(
-        margin: .zero,
-        fontSize: 0.6875.rem,
-        color: mutedColor,
-        raw: const {
-          'overflow-wrap': 'anywhere',
-          'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-        },
-      ),
       // Sessions panel
       css(
         '.dashboard-panel--sessions',
@@ -922,157 +868,6 @@ class _PushDepthCell extends StatelessComponent {
 /// There is also no revoke button. Revoking every session for a user is a
 /// delete by `user_id`, and the dashboard is read-only by contract — the
 /// destructive verbs live on the Maintenance screen.
-/// Sends one notification to one device, and says what came back.
-///
-/// Rendered only when [targets] is non-empty; the caller does that check, so
-/// this component never has to render a "push is not set up" state.
-///
-/// The panel's real job is the failure path. A test notification that reports
-/// "sent" and nothing else is worse than no panel, because it looks like an
-/// answer — so what is shown is the transport's own words about *this token*,
-/// and the outcome deliberately never uses the word "delivered": neither FCM
-/// nor APNs offers a delivery receipt.
-class _PushTestPanel extends StatelessComponent {
-  const _PushTestPanel({required this.targets});
-
-  final List<PushTestTarget> targets;
-
-  @override
-  Component build(BuildContext context) {
-    final state = context.watch(pushTestProvider);
-    final notifier = context.read(pushTestProvider.notifier);
-    final target = resolvePushTestTarget(targets, state.targetId);
-
-    // Sending is a client-only action: it posts, and SSR has no one to post
-    // for. The form still renders server-side so the panel does not pop in.
-    final isClient = context.binding.isClient;
-    final canSend = isClient && state.canSend;
-
-    return div(classes: 'dashboard-panel dashboard-panel--push-test', [
-      div(classes: 'dashboard-panel-heading', [
-        p(classes: 'dashboard-panel-title', [.text('Send a test notification')]),
-        span(
-          classes: 'dashboard-push-test-hint',
-          events: appTooltipEvents(
-            context,
-            text:
-                'Sends straight to the transport, to this one token.\n'
-                'It does not enqueue a push job: a queued send reports totals for the whole\n'
-                'drain pass, prunes a rejected token, and fires your onPushRejected hook.',
-            placement: AppTooltipPlacement.belowLeft,
-          ),
-          [.text('Not queued')],
-        ),
-      ]),
-      div(classes: 'dashboard-push-test-form', [
-        // Only offered when there is a choice to make. One device-token column
-        // is the common case, and a select with a single option is a control
-        // that cannot do anything.
-        if (targets.length > 1)
-          div(classes: 'dashboard-push-test-field', [
-            label(
-              id: 'dashboard-push-test-target-label',
-              classes: 'maintenance-cleanup-label',
-              htmlFor: 'dashboard-push-test-target',
-              [.text('Token column')],
-            ),
-            ZonaiSelect(
-              id: 'dashboard-push-test-target',
-              labelId: 'dashboard-push-test-target-label',
-              value: target.id,
-              options: [for (final t in targets) ZonaiSelectOption(value: t.id, label: t.label)],
-              disabled: state.isSending,
-              onChange: notifier.selectTarget,
-            ),
-          ])
-        else
-          p(classes: 'dashboard-push-test-target-note', [.text('Sending through ${target.label}')]),
-        div(classes: 'dashboard-push-test-field', [
-          ZonaiTextField(
-            id: 'dashboard-push-test-token',
-            fieldLabel: 'Device token',
-            value: state.token,
-            placeholder: 'paste a token from a device',
-            disabled: state.isSending,
-            onInput: notifier.setToken,
-            attributes: const {'autocapitalize': 'none', 'spellcheck': 'false'},
-          ),
-        ]),
-        div(classes: 'dashboard-push-test-field', [
-          label(
-            id: 'dashboard-push-test-platform-label',
-            classes: 'maintenance-cleanup-label',
-            htmlFor: 'dashboard-push-test-platform',
-            [.text('Transport')],
-          ),
-          // Explicit, because a test send reads no row and so has no platform
-          // column to consult. "Default" is FCM, which is exactly what a
-          // fan-out without a platform column does -- named that way rather
-          // than "FCM" so the two iOS choices read as the decision they are.
-          ZonaiSelect(
-            id: 'dashboard-push-test-platform',
-            labelId: 'dashboard-push-test-platform-label',
-            value: state.platform?.name ?? '',
-            options: const [
-              ZonaiSelectOption(value: '', label: 'Default (FCM)'),
-              ZonaiSelectOption(value: 'ios', label: 'iOS (APNs when configured)'),
-              ZonaiSelectOption(value: 'android', label: 'Android (FCM)'),
-            ],
-            disabled: state.isSending,
-            onChange: (value) => notifier.setPlatform(DevicePlatform.tryParse(value)),
-          ),
-        ]),
-        div(classes: 'dashboard-push-test-field', [
-          ZonaiTextField(
-            id: 'dashboard-push-test-title',
-            fieldLabel: 'Title',
-            value: state.title,
-            disabled: state.isSending,
-            onInput: notifier.setTitle,
-          ),
-        ]),
-        div(classes: 'dashboard-push-test-field', [
-          ZonaiTextField(
-            id: 'dashboard-push-test-body',
-            fieldLabel: 'Body',
-            value: state.body,
-            disabled: state.isSending,
-            onInput: notifier.setBody,
-          ),
-        ]),
-      ]),
-      div(classes: 'dashboard-push-test-actions', [
-        ZonaiButton(
-          variant: ZonaiButtonVariant.secondary,
-          size: ZonaiButtonSize.sm,
-          disabled: !canSend,
-          onClick: canSend ? () => notifier.send(target) : null,
-          child: .text(state.isSending ? 'Sending...' : 'Send test'),
-        ),
-      ]),
-      // `role="status"` on both: the outcome is the point of pressing the
-      // button, and a screen reader that had to go looking for it would make
-      // this panel useless to the operator it matters most to.
-      if (state.error case final error?)
-        p(
-          classes: 'dashboard-push-test-outcome dashboard-push-test-outcome--failed',
-          attributes: const {'role': 'status'},
-          [.text(error)],
-        ),
-      if (state.result case final result?) ...[
-        p(
-          classes: 'dashboard-push-test-outcome dashboard-push-test-outcome--${result.status.name}',
-          attributes: const {'role': 'status'},
-          [.text(describePushTestResult(result))],
-        ),
-        // The token is echoed back so a result cannot be read against a token
-        // the operator has since edited in the box above it.
-        p(classes: 'dashboard-push-test-token-echo', [.text('Token: ${result.token}')]),
-      ],
-    ]);
-  }
-}
-
 class _SessionsPanel extends StatelessComponent {
   const _SessionsPanel({required this.sessions, required this.isLoading});
 
