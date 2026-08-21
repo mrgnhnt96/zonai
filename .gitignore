@@ -114,3 +114,8 @@ apps/server/lib/gen/
 
 # showrunner Crawler worktrees
 .worktrees
+
+# Added by saggar — local files that shouldn't be committed
+.saggar/**/*.local.*
+.saggar/scratchpad.md
+.saggar/jobs/
