@@ -23,10 +23,19 @@ enum ExtensionStep { before, afterSuccess, afterError }
 
 enum ExtensionType { create, update, delete }
 
-enum AuthExtensionStep { onSignUp, onSignIn, onRefresh, onLogout, onPasswordReset, onExternalAuthFirstSeen }
+enum AuthExtensionStep { beforeSignUp, onSignUp, onSignIn, onRefresh, onLogout, onPasswordReset, onExternalAuthFirstSeen }
 
 /// The [jwt] belongs to the user who is making the request, not the user that is being created or signed in.
 final class AuthExtensionRequest extends ExtensionRequest {
+  /// The only step dispatched *before* its auth flow commits anything.
+  ///
+  /// [object] is the candidate row -- the sign-up body's columns, not a
+  /// persisted row -- so `safeCreate` fills the primary key, timestamps and
+  /// secret columns with placeholders on the far side. Throwing
+  /// `SignUpDeclinedException` from the hook is what refuses the sign-up.
+  AuthExtensionRequest.beforeSignUp({required this.table, required this.object, required super.jwt})
+    : step = .beforeSignUp,
+      super(path: _path, id: Request.generateId());
   AuthExtensionRequest.onSignUp({required this.table, required this.object, required super.jwt})
     : step = .onSignUp,
       super(path: _path, id: Request.generateId());

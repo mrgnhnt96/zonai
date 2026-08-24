@@ -193,6 +193,13 @@ class DbExtensions {
     }
 
     switch (request.step) {
+      case .beforeSignUp:
+        if (extension case AuthExtension(:final beforeSignUp)) {
+          await beforeSignUp(
+            extension.table.safeCreate(request.object),
+            request.jwt,
+          );
+        }
       case .onSignUp:
         if (extension case AuthExtension(:final onSignUp)) {
           await onSignUp(

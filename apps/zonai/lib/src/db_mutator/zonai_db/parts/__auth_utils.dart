@@ -181,6 +181,51 @@ extension _AuthUtilsX on ZonaiDb {
     throw TableAccessDeniedException(table: table, operation: operation.name);
   }
 
+  /// Runs the app's `beforeSignUp` hook and lets it refuse the sign-up.
+  ///
+  /// Call this *before* the INSERT, on every flow that creates an auth row.
+  /// [object] is the candidate row's columns -- the email plus whatever the
+  /// sign-up body carried -- and reaches the hook through `safeCreate`, the
+  /// same way `beforeCreate` receives its argument.
+  ///
+  /// ## Two dispatch paths, one exception
+  ///
+  /// Extensions run either in-process (`HostWorkerRegistries`, the shape unit
+  /// tests and `zonai dev` use) or in a worker. In-process, the hook's throw
+  /// arrives here as the real [SignUpDeclinedException]. Through a worker it
+  /// does not: `MessageErrorResponse` carries only strings, so the type is
+  /// gone by the time it lands and it surfaces as a
+  /// [MessageHandlerFailedException] whose `cause` is the original
+  /// `toString`. Recovering it is what keeps a declined sign-up a 403 on both
+  /// paths -- without this, running the same app under a worker would answer
+  /// 500 for a refusal the app made deliberately.
+  ///
+  /// A [MessageHandlerFailedException] that is *not* a decline is rethrown
+  /// untouched: a hook that crashed is a server error, and dressing it up as
+  /// a 403 would tell the caller its request was refused when the truth is
+  /// that the app is broken.
+  Future<void> _runSignUpGate(
+    String table, {
+    required Map<String, Object?> object,
+    required Jwt? jwt,
+  }) async {
+    try {
+      await _runExtension(
+        AuthExtensionRequest.beforeSignUp(
+          table: table,
+          object: {...object},
+          jwt: jwt,
+        ),
+      );
+    } on SignUpDeclinedException {
+      rethrow;
+    } on MessageHandlerFailedException catch (e) {
+      final declined = SignUpDeclinedException.tryParse(e.cause ?? e.message);
+      if (declined != null) throw declined;
+      rethrow;
+    }
+  }
+
   /// Verifies the JWT signature and decodes claims without checking the
   /// revocation record in the database. Use only for read-only UI display
   /// (e.g. determining which buttons to show); always use [_extractJwt] for
