@@ -168,3 +168,102 @@ extension _PasswordResetRequirementX on ZonaiDb {
     return rows.singleOrNull;
   }
 }
+
+extension _PasswordResetGateX on ZonaiDb {
+  /// Refuses a password sign-in that verified, when the account owes a new
+  /// password -- handing back a one-time ticket instead of a session.
+  ///
+  /// Called from [_signInWithPassword] after the password matches and before
+  /// anything mints, records or announces a session, so a gated attempt
+  /// leaves no JWT, no `_jwt` row, and fires no `onSignIn` extension. An
+  /// extension told a sign-in happened would provision, log and notify
+  /// against a session that does not exist.
+  ///
+  /// One insertion point covers `POST /auth/sign-in`, `POST /auth` with
+  /// `type: signIn`, and `POST /auth/admin`: all three build a password
+  /// payload and land here.
+  ///
+  /// Deliberately not reached by OTP, magic link or OAuth. The requirement is
+  /// a statement about the *password* credential; someone who proved
+  /// possession of their mailbox or their Google account has not used the
+  /// password and is not asked to change it. It stays unusable until they do.
+  Future<void> _refuseIfPasswordResetRequired({
+    required String table,
+    required Map<String, Object?> user,
+  }) async {
+    final idColumn = await _dispatchOperation<ColumnNameResponse>(
+      GetColumnNameRequest(table: table, columnName: .id),
+    );
+    final emailColumn = await _dispatchOperation<ColumnNameResponse>(
+      GetColumnNameRequest(table: table, columnName: .email),
+    );
+
+    final idColumnName = idColumn.name;
+    final emailColumnName = emailColumn.name;
+    if (idColumnName == null || emailColumnName == null) {
+      // Nothing to enforce against: without an id there is no key to look a
+      // requirement up by. Falling through lets the sign-in proceed, which is
+      // the pre-feature behaviour rather than a new refusal.
+      return;
+    }
+
+    final userId = user[idColumnName];
+    final email = user[emailColumnName];
+    if (userId is! String || email is! String) {
+      return;
+    }
+
+    final requirement = await _passwordResetRequirement(
+      table: table,
+      userId: userId,
+    );
+    if (requirement == null) {
+      return;
+    }
+
+    // A fresh sign-in invalidates any ticket a previous one handed out, and
+    // any emailed reset link still in flight. Two live tickets for one
+    // account would mean a secret the holder has forgotten about staying
+    // good.
+    await _expireOldChallenges(
+      table: table,
+      email: email,
+      type: .passwordReset,
+    );
+
+    final secret = switch (_insecureTestMode()) {
+      true => kInsecureTestResetPasswordSecret,
+      false => _randomChallengeSecret(),
+    };
+    final hashedSecret = await _hashPassword.hash(password: secret);
+
+    final db = await open();
+    await db.insert(into: authChallenges).values([
+      AuthChallenge.passwordReset(
+        id: AuthChallengeId.generate(),
+        expiresAt: clock.now().add(_forcedResetTicketLifetime),
+        secretHash: hashedSecret,
+        target: email,
+        table: table,
+      ),
+    ]);
+
+    logger.verbose(
+      'Refused sign-in for $userId in "$table": password reset required '
+      '(${requirement.reason.name})',
+      prefix: _prefix,
+    );
+
+    throw PasswordResetRequiredException(
+      token: base64Encode('$secret:$email'.codeUnits),
+      expiresIn: _forcedResetTicketLifetime,
+      reason: requirement.reason,
+    );
+  }
+}
+
+/// Deliberately shorter than the emailed link's configured `expiresIn`. That
+/// one has to survive a trip through a mail queue and a person getting round
+/// to their inbox; this one is handed to a caller who is at the keyboard
+/// right now, so a long life is exposure with nothing bought for it.
+const _forcedResetTicketLifetime = Duration(minutes: 15);

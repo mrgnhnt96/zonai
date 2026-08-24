@@ -1,3 +1,5 @@
+import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart';
+
 sealed class AuthException implements Exception {
   const AuthException();
 }
@@ -88,6 +90,50 @@ final class ResetPasswordLinkExpiredException extends AuthException {
 
   @override
   String toString() => 'Reset password link expired';
+}
+
+/// A password sign-in that verified, and is still refused: the account owes
+/// a new password before it may hold a session (design §4.3).
+///
+/// [token] is a bearer secret -- whoever holds it can set this account's
+/// password. It is deliberately **absent from [toString]**, and that is an
+/// invariant rather than a style choice. Two sinks in this codebase render an
+/// exception's `toString` and neither renders a response body:
+///
+///  * `Exceptions._serverSide` logs `'...: $exception'` through a logger that
+///    persists to the `_log` TABLE;
+///  * revali's `Router._logServerError` prints `'Request failed: $error'` to
+///    the serve log for any status >= 500.
+///
+/// The intended 403 path reaches neither today. The invariant exists so that
+/// stays true after a refactor routes auth exceptions differently, and so an
+/// uncaught escape does not write the secret to disk. Guarding at the catcher
+/// instead would be one branch protecting a value three other branches can
+/// still reach. The catcher reads [token] explicitly when it builds the
+/// envelope's `details`; nothing interpolates it.
+final class PasswordResetRequiredException extends AuthException {
+  const PasswordResetRequiredException({
+    required this.token,
+    required this.expiresIn,
+    required this.reason,
+  });
+
+  /// The one-time reset ticket, `base64('<secret>:<email>')` -- the same shape
+  /// the emailed reset link carries, so `POST /auth/confirm` resolves it with
+  /// no new code.
+  final String token;
+
+  /// How long [token] stays good. Shorter than the emailed link's configured
+  /// lifetime: the holder is at the keyboard right now.
+  final Duration expiresIn;
+
+  /// Why the account owes a password, for a client that wants to say
+  /// something truer than "you must reset".
+  final PasswordResetReason reason;
+
+  /// Deliberately carries no [token]. See the invariant on the class.
+  @override
+  String toString() => 'A new password is required before signing in';
 }
 
 final class PasswordReuseException extends AuthException {

@@ -79,6 +79,10 @@ extension _PasswordX on ZonaiDb {
         throw const InvalidPasswordOrEmailException();
       }
 
+      step = 'reset_required';
+      await _refuseIfPasswordResetRequired(table: table, user: user);
+      logger.trace('reset_required');
+
       step = 'jwt_create';
       final (jwt, token) = await _createJwt(table, user);
       logger.trace('jwt_create');
