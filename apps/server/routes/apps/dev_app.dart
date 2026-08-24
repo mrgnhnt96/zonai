@@ -9,6 +9,7 @@ import 'package:zonai_server/components/lifecycle_components/external_idp_provis
 import 'package:zonai_server/components/lifecycle_components/trace_id.dart';
 import 'package:zonai_server/config/server_binding.dart';
 import 'package:zonai_server/src/handlers/admin_handler.dart';
+import 'package:zonai_server/src/handlers/api_token_handler.dart';
 import 'package:zonai_server/src/handlers/auth_handler.dart';
 import 'package:zonai_server/src/handlers/cron_handler.dart';
 import 'package:zonai_server/src/handlers/dashboard_handler.dart';
@@ -174,6 +175,7 @@ final class DevApp extends AppConfig {
     di.registerFactory(DbHandler.new);
     di.registerFactory(AuthHandler.new);
     di.registerFactory(AdminHandler.new);
+    di.registerFactory(ApiTokenHandler.new);
     di.registerFactory(DashboardHandler.new);
     di.registerFactory(CronHandler.new);
     di.registerFactory(MaintenanceHandler.new);

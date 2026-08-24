@@ -11,6 +11,7 @@ export 'src/config/apns_config.dart' show DevicePlatform;
 export 'src/config/photos_config.dart';
 export 'src/types/image_mime_type.dart';
 export 'src/payloads/admin_invite_body.dart';
+export 'src/payloads/api_token_body.dart';
 export 'src/payloads/auth_password_body.dart';
 export 'src/payloads/count_body.dart';
 export 'src/payloads/cron_job_list.dart';

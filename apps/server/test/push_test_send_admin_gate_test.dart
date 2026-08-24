@@ -200,7 +200,13 @@ class _StubZonaiDb implements ZonaiDb {
   PushMessage? sentMessage;
 
   @override
-  Future<Jwt?> parseJwt(String? token) async => jwt;
+  // `allowApiToken` is accepted and ignored: this stub answers with whatever
+  // identity the case under test set up, and these routes never opt in
+  // anyway. Present because the real signature has it -- an override that
+  // drops it does not compile, which is how this file stopped loading at all
+  // when `parseJwt` grew the parameter.
+  Future<Jwt?> parseJwt(String? token, {bool allowApiToken = false}) async =>
+      jwt;
 
   @override
   Future<PushTestSendResult> sendTestPush({

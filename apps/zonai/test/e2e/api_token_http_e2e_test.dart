@@ -437,6 +437,128 @@ void main() {
     });
 
     // -----------------------------------------------------------------
+    // The dashboard's own route family: the only path that mints, because
+    // `/db` structurally cannot be one.
+    // -----------------------------------------------------------------
+
+    test(
+      'an admin mints, lists, revokes and deletes over /admin/tokens',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        final admin = {
+          'content-type': 'application/json',
+          'authorization': 'Bearer $adminJwt',
+        };
+
+        final created = await client.post(
+          server.uri('/admin/tokens'),
+          headers: admin,
+          body: jsonEncode({
+            'name': 'dashboard-minted-$unique',
+            'tables': ['users'],
+            'operations': ['view', 'list'],
+          }),
+        );
+        expect(created.statusCode, 200, reason: created.body);
+
+        final row = _asMap(created);
+        final secret = row['token']! as String;
+        final id = row['id']! as String;
+
+        // The plaintext is real: it authenticates on the next request, against
+        // a route the minting one never touched.
+        expect(secret, startsWith(ApiTokenSecret.prefix));
+        expect((await list(secret, 'users')).statusCode, 200);
+
+        // The row is an admin without anything asking for it -- the CLI's
+        // default, reached through a second door.
+        expect((row['scope']! as Map)['admin'], isTrue);
+        expect((row['scope']! as Map)['canEdit'], isFalse);
+        // And it records WHO, not `__cli__`.
+        expect(row['createdBy'], isNot('__cli__'));
+        expect(row['tokenPrefix'], isNotNull);
+
+        final listed = await client.get(
+          server.uri('/admin/tokens'),
+          headers: admin,
+        );
+        expect(listed.statusCode, 200, reason: listed.body);
+        expect(listed.body, contains('dashboard-minted-$unique'));
+        // Shown once, and once only: nothing on the server can produce it again.
+        expect(listed.body, isNot(contains(secret)));
+        expect(listed.body, isNot(contains('tokenHash')));
+
+        final revoked = await client.post(
+          server.uri('/admin/tokens/$id/revoke'),
+          headers: admin,
+        );
+        expect(revoked.statusCode, 200, reason: revoked.body);
+        expect(_asMap(revoked)['revokedAt'], isNotNull);
+        // On the very next request, with no restart.
+        expect((await list(secret, 'users')).statusCode, 401);
+
+        final deleted = await client.send(
+          http.Request('DELETE', server.uri('/admin/tokens/$id'))
+            ..headers['authorization'] = 'Bearer $adminJwt',
+        );
+        expect(deleted.statusCode, anyOf(200, 204), reason: '$deleted');
+
+        final after = await client.get(
+          server.uri('/admin/tokens'),
+          headers: admin,
+        );
+        expect(after.body, isNot(contains('dashboard-minted-$unique')));
+      },
+    );
+
+    test('an API token cannot mint a token', () async {
+      if (!_runningOnDartVm) return;
+
+      // The property the whole route family rests on. `_api_tokens` denies
+      // `create` to everyone through `/db`, so this route is the only way in
+      // -- and its gate uses `parseJwt` without `allowApiToken`, so the
+      // credential is refused rather than scoped.
+      final wildcard = await mint(
+        name: 'would-be-minter',
+        tables: {ApiTokenScope.wildcard},
+        operations: TableOperation.values.toSet(),
+      );
+
+      for (final response in [
+        await client.get(
+          server.uri('/admin/tokens'),
+          headers: {'authorization': 'Bearer $wildcard'},
+        ),
+        await client.post(
+          server.uri('/admin/tokens'),
+          headers: {
+            'content-type': 'application/json',
+            'authorization': 'Bearer $wildcard',
+          },
+          body: jsonEncode({
+            'name': 'escalation-$unique',
+            'tables': ['*'],
+            'operations': ['view', 'list', 'create', 'update', 'delete'],
+          }),
+        ),
+      ]) {
+        expect(
+          response.statusCode,
+          anyOf(401, 403),
+          reason: '${response.statusCode}: ${response.body}',
+        );
+      }
+
+      // And nothing was minted by the attempt.
+      final listed = await client.get(
+        server.uri('/admin/tokens'),
+        headers: {'authorization': 'Bearer $adminJwt'},
+      );
+      expect(listed.body, isNot(contains('escalation-$unique')));
+    });
+
+    // -----------------------------------------------------------------
     // A bound token is never more privileged than the row it acts as.
     // -----------------------------------------------------------------
 

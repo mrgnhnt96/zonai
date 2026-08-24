@@ -111,6 +111,104 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/admin/tokens": {
+      "get": {
+        "operationId": "apitoken_list",
+        "tags": [
+          "apitoken"
+        ],
+        "responses": {
+          "200": {
+            "description": "`{tokens: [{id, name, tokenPrefix, scope, claims, boundTable, boundUserId, createdBy, createdAt, expiresAt, revokedAt, lastUsedAt}]}`"
+          },
+          "403": {
+            "description": "No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an API token (which is never accepted here)"
+          }
+        }
+      },
+      "post": {
+        "operationId": "apitoken_create",
+        "tags": [
+          "apitoken"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiTokenCreateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The row, plus `token` — the plaintext credential, returned exactly once and unrecoverable afterwards"
+          },
+          "400": {
+            "description": "A scope that could not have been meant"
+          },
+          "403": {
+            "description": "No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an API token"
+          }
+        }
+      }
+    },
+    "/admin/tokens/{id}": {
+      "delete": {
+        "operationId": "apitoken_delete",
+        "tags": [
+          "apitoken"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "No token with that id or prefix"
+          },
+          "403": {
+            "description": "Not an admin for the admin table"
+          }
+        }
+      }
+    },
+    "/admin/tokens/{id}/revoke": {
+      "post": {
+        "operationId": "apitoken_revoke",
+        "tags": [
+          "apitoken"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The revoked row"
+          },
+          "404": {
+            "description": "No token with that id or prefix"
+          },
+          "403": {
+            "description": "Not an admin for the admin table"
+          }
+        }
+      }
+    },
     "/auth": {
       "delete": {
         "operationId": "auth_logout",
@@ -1715,6 +1813,83 @@ const kSwaggerJson = r'''{
           "conditions"
         ]
       },
+      "ApiTokenCreateBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ApiTokenScope"
+          },
+          "claims": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "boundTable": {
+            "type": "string",
+            "nullable": true
+          },
+          "boundUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "scope",
+          "claims"
+        ]
+      },
+      "ApiTokenScope": {
+        "type": "object",
+        "properties": {
+          "tables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TableOperation"
+            }
+          },
+          "customOperations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "admin": {
+            "type": "boolean"
+          },
+          "_canEdit": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "rateLimit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RateLimitPolicy"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "tables",
+          "operations",
+          "customOperations",
+          "admin"
+        ]
+      },
       "AuthBody": {
         "oneOf": [
           {
@@ -2213,6 +2388,10 @@ const kSwaggerJson = r'''{
           "variables": {
             "type": "object",
             "additionalProperties": true
+          },
+          "preheader": {
+            "type": "string",
+            "nullable": true
           },
           "thread": {
             "type": "string",
@@ -2758,6 +2937,22 @@ const kSwaggerJson = r'''{
           "failed"
         ]
       },
+      "RateLimitPolicy": {
+        "type": "object",
+        "properties": {
+          "maxRequests": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "window": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "maxRequests",
+          "window"
+        ]
+      },
       "Remove": {
         "type": "object",
         "properties": {
@@ -3110,6 +3305,17 @@ const kSwaggerJson = r'''{
           "value"
         ]
       },
+      "TableOperation": {
+        "type": "string",
+        "enum": [
+          "create",
+          "update",
+          "delete",
+          "view",
+          "list",
+          "count"
+        ]
+      },
       "Update": {
         "oneOf": [
           {
@@ -3382,6 +3588,67 @@ paths:
           description: No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an admin removing themselves
         '409':
           description: That is the table's last admin
+  '/admin/tokens':
+    get:
+      operationId: apitoken_list
+      tags:
+        - apitoken
+      responses:
+        '200':
+          description: '`{tokens: [{id, name, tokenPrefix, scope, claims, boundTable, boundUserId, createdBy, createdAt, expiresAt, revokedAt, lastUsedAt}]}`'
+        '403':
+          description: No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an API token (which is never accepted here)
+    post:
+      operationId: apitoken_create
+      tags:
+        - apitoken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiTokenCreateBody'
+      responses:
+        '200':
+          description: The row, plus `token` — the plaintext credential, returned exactly once and unrecoverable afterwards
+        '400':
+          description: A scope that could not have been meant
+        '403':
+          description: No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an API token
+  '/admin/tokens/{id}':
+    delete:
+      operationId: apitoken_delete
+      tags:
+        - apitoken
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '404':
+          description: No token with that id or prefix
+        '403':
+          description: Not an admin for the admin table
+  '/admin/tokens/{id}/revoke':
+    post:
+      operationId: apitoken_revoke
+      tags:
+        - apitoken
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The revoked row
+        '404':
+          description: No token with that id or prefix
+        '403':
+          description: Not an admin for the admin table
   '/auth':
     delete:
       operationId: auth_logout
@@ -4377,6 +4644,59 @@ components:
             $ref: '#/components/schemas/Where'
       required:
         - conditions
+    ApiTokenCreateBody:
+      type: object
+      properties:
+        name:
+          type: string
+        scope:
+          $ref: '#/components/schemas/ApiTokenScope'
+        claims:
+          type: object
+          additionalProperties: true
+        boundTable:
+          type: string
+          nullable: true
+        boundUserId:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - name
+        - scope
+        - claims
+    ApiTokenScope:
+      type: object
+      properties:
+        tables:
+          type: array
+          items:
+            type: string
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TableOperation'
+        customOperations:
+          type: array
+          items:
+            type: string
+        admin:
+          type: boolean
+        _canEdit:
+          type: boolean
+          nullable: true
+        rateLimit:
+          allOf:
+            - $ref: '#/components/schemas/RateLimitPolicy'
+          nullable: true
+      required:
+        - tables
+        - operations
+        - customOperations
+        - admin
     AuthBody:
       oneOf:
         - $ref: '#/components/schemas/SendOtpAuthBody'
@@ -4717,6 +5037,9 @@ components:
         variables:
           type: object
           additionalProperties: true
+        preheader:
+          type: string
+          nullable: true
         thread:
           type: string
           nullable: true
@@ -5084,6 +5407,17 @@ components:
         - accepted
         - rejected
         - failed
+    RateLimitPolicy:
+      type: object
+      properties:
+        maxRequests:
+          type: integer
+          format: int64
+        window:
+          type: string
+      required:
+        - maxRequests
+        - window
     Remove:
       type: object
       properties:
@@ -5326,6 +5660,15 @@ components:
           type: string
       required:
         - value
+    TableOperation:
+      type: string
+      enum:
+        - create
+        - update
+        - delete
+        - view
+        - list
+        - count
     Update:
       oneOf:
         - $ref: '#/components/schemas/ColumnUpdate'

@@ -102,33 +102,55 @@ class AdminHandler {
   Future<({Jwt admin, String token})> _requireAdmin(
     String? authorization,
     String operation,
-  ) async {
-    final (table, _) = await zonaiDB.adminTable();
+  ) => requireAdminCaller(authorization, operation);
+}
 
-    final token = _parseBearerAuthorization(authorization);
-    final jwt = await zonaiDB.parseJwt(token);
-    if (token == null || !mayActOnAdminTable(jwt, table)) {
-      throw TableAccessDeniedException(table: table, operation: operation);
-    }
+/// The gate every `/admin/**` route shares: an admin JWT for the *resolved*
+/// `AsAdmin` collection, or [TableAccessDeniedException].
+///
+/// Top-level and public because it is not [AdminHandler]'s alone any more --
+/// `ApiTokenHandler` needs exactly this rule, and the alternative is a second
+/// copy of an authorization check. The reasoning for each of the three
+/// refusals is on [mayActOnAdminTable].
+///
+/// Both halves are returned because the two layers want different ones:
+/// `inviteAdmin`/`revokeAdminInvite` re-parse the raw token themselves, while
+/// `removeAdmin` takes the parsed [Jwt] as `actingAdmin`.
+///
+/// **`parseJwt` refuses an API token**, by its own default, and that is not
+/// incidental here: without it a token minted through this route could mint a
+/// wider one, and the scope would stop meaning anything. Every route behind
+/// this gate is therefore reachable only by a signed-in human.
+Future<({Jwt admin, String token})> requireAdminCaller(
+  String? authorization,
+  String operation,
+) async {
+  final (table, _) = await zonaiDB.adminTable();
 
-    return (admin: jwt!, token: token);
+  final token = parseBearerAuthorization(authorization);
+  final jwt = await zonaiDB.parseJwt(token);
+  if (token == null || !mayActOnAdminTable(jwt, table)) {
+    throw TableAccessDeniedException(table: table, operation: operation);
   }
 
-  String? _parseBearerAuthorization(String? authorizationHeader) {
-    if (authorizationHeader == null) return null;
+  return (admin: jwt!, token: token);
+}
 
-    final trimmed = authorizationHeader.trim();
-    if (trimmed.isEmpty) return null;
+/// The bearer token out of an `Authorization` header, or null.
+String? parseBearerAuthorization(String? authorizationHeader) {
+  if (authorizationHeader == null) return null;
 
-    const prefix = 'Bearer ';
-    if (trimmed.length >= prefix.length &&
-        trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
-      final token = trimmed.substring(prefix.length).trim();
-      return token.isEmpty ? null : token;
-    }
+  final trimmed = authorizationHeader.trim();
+  if (trimmed.isEmpty) return null;
 
-    return null;
+  const prefix = 'Bearer ';
+  if (trimmed.length >= prefix.length &&
+      trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
+    final token = trimmed.substring(prefix.length).trim();
+    return token.isEmpty ? null : token;
   }
+
+  return null;
 }
 
 // The two functions below are top-level and public on purpose, for the reason

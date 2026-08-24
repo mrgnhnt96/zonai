@@ -28,6 +28,11 @@ class Server {
     storage: storage,
   );
 
+  late final ApiTokenDataSource apiToken = ApiTokenDataSourceImpl(
+    client: client,
+    storage: storage,
+  );
+
   late final RootDataSource root = RootDataSourceImpl(
     client: client,
     storage: storage,
