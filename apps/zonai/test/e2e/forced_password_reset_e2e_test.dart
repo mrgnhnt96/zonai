@@ -6,11 +6,14 @@ import 'package:path/path.dart' as p;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 import 'package:zonai/deps.dart';
+import 'package:zonai/src/db_mutator/host_worker_registries.dart';
 import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/src/handlers/extensions/db_extensions.dart'
+    show DbExtensions;
 import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart'
     show AuthChallengeType, authChallenges;
 import 'package:zonai_schema/src/internal/tables/jwt_table.dart' show jwts;
@@ -41,6 +44,11 @@ import '../support/temp_directory.dart';
 ///     `requirePasswordReset` -- which `--no-force-reset` turns off, and which
 ///     no future caller of the method is obliged to call at all.
 ///   * the gate hands back a one-time ticket and mints NO session.
+///   * a gated attempt does NOT fire `onSignIn`. The ordering is already
+///     right; this pins it. The hook's default is not a no-op -- on a
+///     HasEmail collection it sends a login notice -- so a regression moving
+///     the gate below it would mail "you just signed in" to the owner of an
+///     account whose sign-in was just refused.
 ///   * confirming with that ticket clears the requirement, and the ticket
 ///     does not work twice.
 ///   * submitting the CURRENT password answers reuse and does NOT burn the
@@ -348,6 +356,78 @@ void main() {
                 'toString() must never carry the ticket: the catcher logs the '
                 'exception server-side, and a one-time credential in the log '
                 'table outlives the 15 minutes it is good for',
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    test(
+      'a gated sign-in does not fire onSignIn',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        final recorder = _RecordingAdminsExtension();
+        HostWorkerRegistries.extensions = DbExtensions(extensions: [recorder]);
+        addTearDown(() => HostWorkerRegistries.extensions = null);
+
+        await withDb((db) async {
+          const email = 'hooked@example.com';
+          const password = 'old-password-hooked-1';
+
+          await db.authenticate(
+            'admins',
+            const PasswordAuthPayload(email: email, password: password),
+          );
+
+          // THE POSITIVE CONTROL, and it is not optional. "The hook did not
+          // fire" is only evidence if this recorder fires at all, and with no
+          // extension registered `_runExtension` returns early -- so `onSignIn`
+          // could not fire whatever the gate did, and the assertion below would
+          // pass while proving nothing. Not hypothetical: it is exactly what
+          // this test did on the first run that registered no extension.
+          expect(
+            await db.authenticate(
+              'admins',
+              const SignInPasswordAuthPayload(email: email, password: password),
+            ),
+            isNotNull,
+          );
+          expect(
+            recorder.signIns.where((e) => e == email).length,
+            1,
+            reason:
+                'an ordinary sign-in fires onSignIn exactly once -- so a zero '
+                'below is the gate, not a recorder that never worked',
+          );
+
+          await db.requirePasswordReset(
+            table: 'admins',
+            email: email,
+            reason: PasswordResetReason.compromised,
+            byUserId: 'cli',
+          );
+
+          await expectLater(
+            db.authenticate(
+              'admins',
+              const SignInPasswordAuthPayload(email: email, password: password),
+            ),
+            throwsA(isA<PasswordResetRequiredException>()),
+          );
+
+          expect(
+            recorder.signIns.where((e) => e == email).length,
+            1,
+            reason:
+                'STILL one, counted rather than inferred: the gate throws at the '
+                '`reset_required` step, two steps before `ext_hook`, and this '
+                "pins it there. `onSignIn`'s default is not a no-op -- on any "
+                'HasEmail collection it sends a login notice -- so a regression '
+                "moving the gate below the hook would email the account's owner "
+                '"you just signed in" at the moment their sign-in was refused, '
+                'during a compromise response, which is when that mail is most '
+                'likely to be believed and most wrong',
           );
         });
       },
@@ -906,5 +986,91 @@ void _copyTree(Directory source, Directory destination) {
       Directory(p.dirname(targetPath)).createSync(recursive: true);
       entity.copySync(targetPath);
     }
+  }
+}
+
+/// A stand-in for the fixture's `admins` table.
+///
+/// Declared here because the recorder below has to exist in THIS process,
+/// while the fixture package is only ever compiled into a temporary project
+/// and never linked into the test. Two columns, not six: `safeCreate` walks
+/// the table's own columns and `fromRow` reads only what is declared, so the
+/// rest of the row is passed over. A rename of `id` or `email` in the fixture
+/// makes this throw rather than quietly record nothing -- a loud failure,
+/// which is the only thing that makes a second declaration of one table
+/// tolerable.
+final class _HookedAdminId implements Id {
+  const _HookedAdminId(this.value);
+
+  factory _HookedAdminId.generate() =>
+      _HookedAdminId('${DateTime.now().microsecondsSinceEpoch}_hook');
+
+  @override
+  final String value;
+
+  @override
+  String toString() => value;
+}
+
+final class _HookedAdmin {
+  _HookedAdmin({required this.id, required this.email});
+
+  final _HookedAdminId id;
+  final String email;
+}
+
+final class _HookedAdminTable extends AuthTable<_HookedAdmin> {
+  _HookedAdminTable(super.$)
+    : id = $.id(
+        'id',
+        (s) => s.id,
+        fromString: _HookedAdminId.new,
+        generate: _HookedAdminId.generate,
+      ),
+      email = $.email('email', (s) => s.email);
+
+  @override
+  _HookedAdmin fromRow(RowReader read) =>
+      _HookedAdmin(id: read(id), email: read(email));
+
+  final IdColumn<_HookedAdminId> id;
+  final EmailColumn email;
+}
+
+final _hookedAdmins = authTable('admins', _HookedAdminTable.new);
+
+/// Records every `onSignIn` FIRING, in memory.
+///
+/// In memory, and registered through [HostWorkerRegistries], for two reasons.
+///
+/// The first is that the assertion needs an extension to exist AT ALL: with
+/// no project extension `_runExtension` returns early, so `onSignIn` cannot
+/// fire whatever the gate does, and "no hook fired" would be vacuous. The
+/// positive control in the test is what catches that.
+///
+/// The second is that the obvious alternative -- an extension in the fixture
+/// -- is worse than it looks. It makes every auth event in every test spawn
+/// the compiled extensions worker, and MEASURED on this suite that reds three
+/// unrelated tests: a second DB connection turns `_revokeAllSessions` into
+/// `SqliteException(5): database is locked`, and the worker's last stdout
+/// chunk lands after teardown as `Bad state: Cannot add new events after
+/// calling close`. Both are worth their own leaf; neither is this one.
+///
+/// It also records the hook BODY running, which is the thing being asserted.
+/// A `mutate.create.one` would not: an extension's mutations are executed by
+/// `_executeEffects()` at the `effects` step, one step AFTER `ext_hook`, so a
+/// regression putting the gate between the two would fire the hook and still
+/// write no row -- passing over exactly the regression this exists to catch.
+final class _RecordingAdminsExtension extends Extension<_HookedAdmin>
+    with AuthExtension<_HookedAdmin> {
+  _RecordingAdminsExtension() : super(_hookedAdmins);
+
+  final signIns = <String>[];
+
+  @override
+  Future<void> onSignIn(_HookedAdmin user, Jwt? jwt) async {
+    // Deliberately not calling the default, which sends a login notice. What
+    // is being asserted is whether this body ran.
+    signIns.add(user.email);
   }
 }
