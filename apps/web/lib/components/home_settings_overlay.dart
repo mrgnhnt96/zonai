@@ -268,6 +268,20 @@ class _HomeSettingsOverlayState extends State<HomeSettingsOverlay> {
                 },
                 child: .text('Admins'),
               ),
+            // Beside Admins, and admin-only for the same reason: every
+            // `/admin/tokens` route answers only an admin JWT for the resolved
+            // `AsAdmin` table, so offering this to anyone else is a link to a
+            // refusal.
+            if (sessionUser?.isAdmin == true)
+              ZonaiButton(
+                variant: ZonaiButtonVariant.secondary,
+                fullWidth: true,
+                onClick: () {
+                  close();
+                  context.goApp(AuthRoutes.apiTokens);
+                },
+                child: .text('API tokens'),
+              ),
             ZonaiButton(
               variant: ZonaiButtonVariant.secondary,
               fullWidth: true,

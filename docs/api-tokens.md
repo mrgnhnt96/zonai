@@ -159,6 +159,34 @@ at resolution to the bound table's own: if that collection does not mix in `AsAd
 token is not an admin token whatever its row says — and if `AsAdmin` is later removed and
 the app redeployed, every outstanding token bound to it is demoted on the next request.
 
+## The dashboard
+
+**API tokens**, on the account menu beside **Admins** — admin-only, because
+every `/admin/tokens` route answers only an admin JWT for the resolved `AsAdmin`
+collection.
+
+The screen mints, lists, revokes and deletes. Minting reveals the credential in
+a panel that stays until you dismiss it and says out loud that it will not be
+shown again — the server keeps only the SHA-256, so there is nothing anywhere to
+read it back out of. A revoked token stays in the list, labelled: a credential
+that stopped working is exactly the row you are looking for when an integration
+breaks, and hiding it turns "revoked" into "vanished".
+
+The routes behind it, if you would rather script them:
+
+```
+GET    /admin/tokens             every token, revoked ones included
+POST   /admin/tokens             mint one; the response carries the plaintext
+POST   /admin/tokens/:id/revoke  stops working on the NEXT request
+DELETE /admin/tokens/:id         removes the row, record and all
+```
+
+`POST` for revoke and `DELETE` for delete because the row survives one and not
+the other. An API token is refused on all four — the gate is `parseJwt` without
+`allowApiToken`, so **a token cannot mint a token**, and that is not policy: the
+internal rules deny `create` and `update` on `_api_tokens` to everyone, so this
+route family is the only path that mints at all.
+
 ## Listing and revoking
 
 ```bash

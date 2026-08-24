@@ -10,6 +10,10 @@ abstract final class AuthRoutes {
   /// The signed-in Admins screen: current admins and pending invites.
   static const admins = '/admins';
 
+  /// The signed-in API Tokens screen: mint, list, revoke and delete
+  /// credentials for the data API (`docs/api-tokens-design.md` §8).
+  static const apiTokens = '/api-tokens';
+
   /// Where the invite email's link lands (`{baseUrl}/_/admin/invite?token=…`,
   /// built in `invite_admin.dart`).
   ///
@@ -76,6 +80,10 @@ abstract final class AuthRoutes {
 
   static bool isAdminsPath(String path) {
     return normalizePath(path) == admins;
+  }
+
+  static bool isApiTokensPath(String path) {
+    return normalizePath(path) == apiTokens;
   }
 
   /// True for the invite acceptance page, with or without its `?token=`.

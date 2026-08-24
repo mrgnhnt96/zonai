@@ -51,6 +51,10 @@ abstract final class PageTitle {
       return '$appName — Admins';
     }
 
+    if (AuthRoutes.isApiTokensPath(path)) {
+      return '$appName — API tokens';
+    }
+
     if (tableDisplayName != null) {
       return '$tableDisplayName — $appName';
     }
@@ -95,6 +99,10 @@ abstract final class PageTitle {
 
     if (AuthRoutes.isAdminsPath(path)) {
       return 'Manage who can administer $appName.';
+    }
+
+    if (AuthRoutes.isApiTokensPath(path)) {
+      return 'Issue and revoke API tokens for $appName.';
     }
 
     if (tableDisplayName != null) {

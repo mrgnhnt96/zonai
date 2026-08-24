@@ -491,6 +491,108 @@ List<StyleRule> get zonaiUiStyles => [
     // this flex column the gap already spaces it.
     css('.z-field').styles(margin: .zero),
   ]),
+  // API Tokens screen (`docs/api-tokens-design.md` §11 step 8). Here rather
+  // than in an `@css` getter on `ApiTokensScreen`, for the mechanical reason
+  // stated above the admins block: a new getter is inert until
+  // `main.server.options.dart` is regenerated, and inert styles analyze clean
+  // and render unstyled.
+  //
+  // Most of the screen reuses `.z-admins-*` — the row, the note and the list
+  // are the same shapes. What is here is what is genuinely new: the reveal,
+  // the status pill, and the mint form's controls.
+  css('.z-token-form').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s4)),
+  css('.z-token-form', [
+    // `.z-field` carries a bottom margin sized for a stacked auth form; the
+    // column gap already spaces it here.
+    css('.z-field').styles(margin: .zero),
+  ]),
+  css('.z-token-ops').styles(
+    display: .flex,
+    flexWrap: FlexWrap.wrap,
+    gap: Gap.all(ZonaiSpacing.s4),
+    margin: .zero,
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s4),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(10.px)),
+  ),
+  css('.z-token-ops-legend').styles(
+    padding: .symmetric(horizontal: ZonaiSpacing.s2),
+    fontSize: 0.75.rem,
+    fontWeight: .w600,
+    color: mutedColor,
+  ),
+  css('.z-token-op').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(ZonaiSpacing.s2),
+    fontSize: 0.8125.rem,
+    color: fgColor,
+    raw: const {'cursor': 'pointer', 'user-select': 'none'},
+  ),
+  css('.z-token-expiry').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
+  // The reveal. Deliberately the loudest thing on the page: it holds the only
+  // copy of a credential that cannot be recovered, and a panel that looked
+  // like every other panel would be scrolled past.
+  css('.z-token-reveal').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(ZonaiSpacing.s4),
+    margin: .only(bottom: ZonaiSpacing.s6),
+    border: .all(color: const Color('var(--zonai-accent, #6366f1)'), width: 1.px, style: .solid),
+  ),
+  css('.z-token-secret').styles(
+    margin: .zero,
+    padding: .all(ZonaiSpacing.s5),
+    radius: .all(Radius.circular(8.px)),
+    backgroundColor: bgColor,
+    fontSize: 0.8125.rem,
+    raw: const {
+      'font-family': 'var(--zonai-font-mono, ui-monospace, monospace)',
+      'overflow-wrap': 'anywhere',
+      'white-space': 'pre-wrap',
+      'user-select': 'all',
+    },
+  ),
+  css('.z-token-row-head').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(ZonaiSpacing.s3),
+    flexWrap: FlexWrap.wrap,
+  ),
+  css('.z-token-row-actions').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    gap: Gap.all(ZonaiSpacing.s3),
+    flex: const Flex(grow: 0, shrink: 0),
+  ),
+  css('.z-token-prefix').styles(
+    fontSize: 0.75.rem,
+    color: mutedColor,
+    raw: const {'font-family': 'var(--zonai-font-mono, ui-monospace, monospace)', 'overflow-wrap': 'anywhere'},
+  ),
+  // Three states, three colours: `revoked` and `expired` both mean "stopped
+  // working", and telling them apart is the only thing anyone wants to know
+  // when an integration breaks.
+  css('.z-token-status').styles(
+    padding: .symmetric(horizontal: ZonaiSpacing.s3, vertical: ZonaiSpacing.s1),
+    radius: .all(Radius.circular(999.px)),
+    fontSize: 0.6875.rem,
+    fontWeight: .w600,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    color: mutedColor,
+    raw: const {'letter-spacing': '0.04em', 'text-transform': 'uppercase', 'white-space': 'nowrap'},
+  ),
+  css('.z-token-status--live').styles(
+    color: const Color('var(--zonai-success-fg, #15803d)'),
+    border: .all(color: const Color('var(--zonai-success-fg, #15803d)'), width: 1.px, style: .solid),
+  ),
+  css('.z-token-status--revoked').styles(
+    color: const Color('var(--zonai-danger-fg, #b91c1c)'),
+    border: .all(color: const Color('var(--zonai-danger-fg, #b91c1c)'), width: 1.px, style: .solid),
+  ),
   ...zonaiTagStyles,
   ...zonaiEnumChipStyles,
   ...zonaiBooleanCheckStyles,

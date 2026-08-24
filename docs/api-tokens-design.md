@@ -1,6 +1,6 @@
 # API tokens — design and build plan
 
-Status: **verified over HTTP**. Written 2026-08-24. §11 is the build order. Steps 1-5, 7
+Status: **shipped, dashboard included**. Written 2026-08-24. §11 is the build order. Steps 1-5, 7
 and the reference half of 9 are built: `zonai db token create` mints a credential with no
 sign-in and no expiry, it authenticates against `/db`, its scope is enforced ahead of
 the rules, it records when it was last used, and it is revocable on the next request --
@@ -428,9 +428,16 @@ Each step is shippable and observable on its own.
 8. **Dashboard screen.**
 9. **Docs:** `docs/api-tokens.md` and `apps/docs/content/authentication/api-tokens.md`.
 
-Steps 1-5, 7 and the `docs/api-tokens.md` half of 9 are built, and so is the HTTP
-end-to-end proof of all of them (§12). Left: per-token rate limiting (6, and see the note
-in §7 for why it is not free), the dashboard screen (8), and the public-site page.
+Steps 1-5 and 7-9 are built, and so is the HTTP end-to-end proof of all of them (§12).
+Left: per-token rate limiting (6, and see the note in §7 for why it is not free).
+
+Step 8 landed as its own route family, `/admin/tokens/**`, rather than as a rules
+exception on `/db`: the internal rules deny `create` and `update` on `_api_tokens` to
+everyone, and `token_hash` is a secret column the operations layer refuses to filter on,
+so there is no path through the data API that mints a credential *by construction*. A
+hole in that would be a token that can mint a wider token. The gate is
+`requireAdminCaller`, whose `parseJwt` does not opt into API tokens — which is what makes
+"a token cannot mint a token" a property rather than a convention.
 
 ---
 

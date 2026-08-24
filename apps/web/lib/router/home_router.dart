@@ -3,6 +3,7 @@ import 'package:jaspr_router/jaspr_router.dart';
 
 import '../auth/auth_routes.dart';
 import '../components/admins_screen.dart';
+import '../components/api_tokens_screen.dart';
 import '../components/dashboard_screen.dart';
 import '../components/home_screen.dart';
 import '../components/maintenance_screen.dart';
@@ -69,5 +70,10 @@ final List<RouteBase> homeRoutes = [
     builder: (_, _) => const MaintenanceScreen(),
   ),
   Route(path: '${AuthRoutes.mountPath}${AuthRoutes.admins}', name: 'admins', builder: (_, _) => const AdminsScreen()),
+  Route(
+    path: '${AuthRoutes.mountPath}${AuthRoutes.apiTokens}',
+    name: 'api-tokens',
+    builder: (_, _) => const ApiTokensScreen(),
+  ),
   Route(path: AuthRoutes.mountPath, name: 'dashboard', builder: (_, _) => const DashboardScreen()),
 ];
