@@ -29,6 +29,15 @@ library;
 /// no more drastic than purging `_jwt`, which signs out every user. Deleting
 /// the row *is* the complete revocation -- unlike `_photos`, nothing outside
 /// the database is left behind.
+/// **`_password_reset_requirements` is present, and it is the one entry whose
+/// purge is a *weakening*.** Every other table here becomes more restrictive
+/// when emptied -- purging `_jwt` signs everyone out, purging `_api_tokens`
+/// revokes every token. Purging this one lifts a control: every account an
+/// operator forced to choose a new password is quietly released, and the
+/// password each was forced away from keeps working. It stays purgeable
+/// because the derivation admits every internal table but `_photos` and a
+/// hand-carved exception would drift, but an operator reaching for it should
+/// know it is an amnesty, not a cleanup.
 const kPurgeableTableNames = <String>{
   '_abusers',
   '_api_tokens',
@@ -37,6 +46,7 @@ const kPurgeableTableNames = <String>{
   '_jwt',
   '_log',
   '_oauth_identities',
+  '_password_reset_requirements',
   '_push_jobs',
   '_rate_limit',
 };
