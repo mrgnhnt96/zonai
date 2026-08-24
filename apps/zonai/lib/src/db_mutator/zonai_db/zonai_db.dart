@@ -33,6 +33,7 @@ import 'package:zonai_schema/src/internal/tables/api_token_table.dart';
 import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart';
 import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
 import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart';
+import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart';
 // `show logs`: this file already has a `Level` in scope from the logger, and
 // logs_table.dart exports one of its own.
 import 'package:zonai_schema/src/internal/tables/logs_table.dart' show logs;
@@ -98,6 +99,7 @@ part 'parts/auth/magic_link.dart';
 part 'parts/auth/oauth.dart';
 part 'parts/auth/otp.dart';
 part 'parts/auth/password.dart';
+part 'parts/auth/password_reset_requirement.dart';
 part 'parts/auth/reset_password.dart';
 part 'parts/auth/verify_email.dart';
 part 'parts/cleanup_photos.dart';
@@ -568,6 +570,54 @@ class ZonaiDb {
   /// prefix.
   Future<void> deleteApiToken({required String id}) async {
     return await _run(() => _deleteApiToken(id: id));
+  }
+
+  /// Requires [email]'s account in [table] to choose a new password before a
+  /// password sign-in will mint a session for it, and revokes every session
+  /// it currently holds (design §4.1).
+  ///
+  /// [byUserId] is the admin who set it, or `'cli'` from the server box.
+  /// Throws when the account does not exist, or when [table] has no password
+  /// column -- a requirement there would gate a sign-in path that does not
+  /// exist.
+  Future<void> requirePasswordReset({
+    required String table,
+    required String email,
+    required PasswordResetReason reason,
+    String? byUserId,
+  }) async {
+    return await _run(
+      () => _requirePasswordReset(
+        table: table,
+        email: email,
+        reason: reason,
+        byUserId: byUserId,
+      ),
+    );
+  }
+
+  /// The requirement standing against one account, or null when it owes
+  /// nothing. Read by the sign-in gate, and by the dashboard so an operator
+  /// can see a requirement before deciding whether to clear it.
+  Future<PasswordResetRequirement?> passwordResetRequirement({
+    required String table,
+    required String userId,
+  }) async {
+    return await _run(
+      () => _passwordResetRequirement(table: table, userId: userId),
+    );
+  }
+
+  /// Lifts a requirement the account has not satisfied (design §4.2) -- the
+  /// escape hatch for one set on the wrong address. Returns whether a row was
+  /// actually removed.
+  Future<bool> clearPasswordResetRequirement({
+    required String table,
+    required String email,
+  }) async {
+    return await _run(
+      () => _clearPasswordResetRequirement(table: table, email: email),
+    );
   }
 
   Future<Map<String, Object?>> resetAdminPassword({
