@@ -47,7 +47,7 @@ Like `zonai db admin add`, this command talks to the database file directly — 
 |------|-------|----------|-------------|
 | `--name` | `-n` | Yes | What this token is for. An unnamed credential is one nobody ever revokes, because nobody can tell what would break |
 | `--tables` | `-t` | Yes | Collections it may reach, comma-separated, or `"*"` for every app collection. Quote the `*` so your shell does not expand it |
-| `--operations` | `-o` | Yes, or a shorthand | Any of `view`, `list`, `count`, `create`, `update`, `delete` |
+| `--operations` | `-o` | Yes, or a shorthand | Any of `view`, `list`, `count`, `create`, `update`, `delete` — or `"*"` for every one. Quote the `*` so your shell does not expand it |
 | `--read` / `--write` | | | Shorthand for the read three and the write three |
 | `--custom` | | No | Named custom operations, or `"*"` |
 | `--no-admin` | | No | Mint a token that is *not* an admin — see [Tokens are admins by default](#tokens-are-admins-by-default) |
@@ -95,6 +95,14 @@ Two independent things decide, and both must say yes.
 **The rules** then run exactly as they do for a signed-in user. A token scoped to `orders` still has to satisfy `OrderTableRules.canList` and `OrderRowRules.canView`.
 
 An out-of-scope request answers with the same `403 {"error":"Forbidden"}` a rules denial produces, so a token cannot be used to discover which collections exist.
+
+### The Wildcard Is Stored, Not Expanded
+
+`"*"` in `--tables`, `--operations` or `--custom` is written to the token's row as the literal `*`, and the gate tests for it on every request. It is never expanded into the list of things that existed at mint time.
+
+That is the point of it. A collection you add next month, a custom operation you name next week, and a built-in operation a later zonai ships are all covered by a token you minted today — no re-mint, no re-deploy of whatever holds the secret.
+
+The trade is worth stating: `*` is a standing grant, not a shorthand. Ticking all six operation boxes and ticking **Every operation** produce different rows, and only the second one keeps up.
 
 ### Internal Tables Are Never in Scope
 

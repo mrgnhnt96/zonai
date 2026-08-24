@@ -162,4 +162,56 @@ void main() {
       );
     });
   });
+
+  group('the operations wildcard over HTTP', () {
+    Map<String, dynamic> valid([Map<String, dynamic> overrides = const {}]) => {
+      'name': 'nightly-backup',
+      'tables': ['orders'],
+      'operations': ['view', 'list'],
+      ...overrides,
+    };
+
+    test('"*" is accepted where a name would be', () {
+      final body = ApiTokenCreateBody.fromJson(
+        valid({
+          'operations': ['*'],
+        }),
+      );
+
+      expect(body.scope.allOperations, isTrue);
+      for (final operation in TableOperation.values) {
+        expect(body.scope.allowsOperation(operation), isTrue);
+      }
+    });
+
+    test('reaches the row as ["*"], not as the expanded six', () {
+      // The CLI and the dashboard have to write the same row, or a token
+      // minted in one place stops meaning what it meant in the other the day
+      // an operation is added.
+      final body = ApiTokenCreateBody.fromJson(
+        valid({
+          'operations': ['*'],
+        }),
+      );
+
+      expect(body.toJson()['operations'], ['*']);
+    });
+
+    test('an unknown name is still refused, and now says "*" is a way out', () {
+      expect(
+        () => ApiTokenCreateBody.fromJson(
+          valid({
+            'operations': ['teleport'],
+          }),
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '$e',
+            'message',
+            allOf(contains('teleport'), contains('"*"')),
+          ),
+        ),
+      );
+    });
+  });
 }

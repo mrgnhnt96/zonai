@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:zonai_schema/zonai_schema.dart' show ApiTokenScope;
+
 import '../../../deps/args.dart';
 import '../../../deps/logger.dart';
 import '../../../deps/zonai_db.dart';
@@ -67,15 +69,23 @@ Future<int> listTokens() async {
     logger.info('${tokens.length} API token(s):');
     for (final token in tokens) {
       final scope = token.scope;
+      // Hoisted out of the interpolation below: the formatter cannot break a
+      // line inside `${...}`, so the same list written there formats to a
+      // single 150-column line and stays that way.
+      final operations = [
+        if (scope.allOperations)
+          ApiTokenScope.wildcard
+        else
+          ...scope.operations.map((o) => o.name),
+        ...scope.customOperations,
+      ]..sort();
+
       logger
         ..info('')
         ..info('  ${token.name}  (${token.id.value})')
         ..info('    token:      ${token.tokenPrefix}...')
         ..info('    tables:     ${(scope.tables.toList()..sort()).join(', ')}')
-        ..info(
-          '    operations: '
-          '${([...scope.operations.map((o) => o.name), ...scope.customOperations]..sort()).join(', ')}',
-        )
+        ..info('    operations: ${operations.join(', ')}')
         ..info(
           '    admin:      ${scope.admin}${scope.canEdit ? ' (canEdit)' : ''}',
         )

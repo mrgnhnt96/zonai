@@ -26,7 +26,10 @@ Options:
                                collection (required). Quote the "*" so your
                                shell does not expand it.
   -o, --operations=<a,b>      Any of: view, list, count, create, update,
-                               delete. Or use --read / --write.
+                               delete. Or "*" for every one, including
+                               operations added in a later zonai -- the "*"
+                               is stored, not expanded. Or use --read /
+                               --write.
       --read                  Shorthand for --operations=view,list,count
       --write                 Shorthand for --operations=create,update,delete
       --custom=<a,b>          Named custom operations, or "*"
@@ -90,13 +93,19 @@ Future<int> createToken() async {
       TableOperation.delete,
     ]);
   }
+  var allOperations = false;
   if (_stringOption('operations', abbr: 'o') case final raw?) {
     for (final name in _splitList(raw)) {
+      if (name == ApiTokenScope.wildcard) {
+        allOperations = true;
+        continue;
+      }
       final operation = TableOperation.fromString(name);
       if (operation == null) {
         logger.error(
           'Unknown operation "$name" -- expected one of: '
-          '${TableOperation.values.map((o) => o.name).join(', ')}',
+          '${TableOperation.values.map((o) => o.name).join(', ')}, '
+          'or "${ApiTokenScope.wildcard}" for all of them',
         );
         return 1;
       }
@@ -109,7 +118,7 @@ Future<int> createToken() async {
     null => <String>{},
   };
 
-  if (operations.isEmpty && customOperations.isEmpty) {
+  if (operations.isEmpty && !allOperations && customOperations.isEmpty) {
     logger.error(
       'Missing required option: --operations (or --read / --write). A token '
       'that may reach a table but perform nothing on it can do nothing.',
@@ -176,6 +185,7 @@ Future<int> createToken() async {
       scope: ApiTokenScope(
         tables: tables,
         operations: operations,
+        allOperations: allOperations,
         customOperations: customOperations,
         admin: admin,
         canEdit: canEdit,
@@ -214,7 +224,7 @@ Future<int> createToken() async {
       ..info('  tables:     ${tables.join(', ')}')
       ..info(
         '  operations: '
-        '${[...operations.map((o) => o.name), ...customOperations].join(', ')}',
+        '${[if (allOperations) ApiTokenScope.wildcard else ...operations.map((o) => o.name), ...customOperations].join(', ')}',
       )
       ..info(
         '  admin:      '

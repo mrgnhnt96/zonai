@@ -34,14 +34,20 @@ class ApiTokenCreateBody {
     }
 
     final operations = <TableOperation>{};
+    var allOperations = false;
     for (final raw in _stringList(json['operations'], 'operations')) {
+      if (raw == ApiTokenScope.wildcard) {
+        allOperations = true;
+        continue;
+      }
       final operation = TableOperation.fromString(raw);
       if (operation == null) {
         throw ArgumentError.value(
           raw,
           'operations',
           'unknown operation -- expected one of: '
-              '${TableOperation.values.map((o) => o.name).join(', ')}',
+              '${TableOperation.values.map((o) => o.name).join(', ')}, '
+              'or "${ApiTokenScope.wildcard}" for all of them',
         );
       }
       operations.add(operation);
@@ -64,6 +70,7 @@ class ApiTokenCreateBody {
       scope: ApiTokenScope(
         tables: _stringList(json['tables'], 'tables').toSet(),
         operations: operations,
+        allOperations: allOperations,
         customOperations: _stringList(
           json['customOperations'],
           'customOperations',

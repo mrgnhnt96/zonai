@@ -267,8 +267,11 @@ class ApiTokenMintForm extends StatelessComponent {
           label(classes: 'z-token-op', [
             input<bool>(
               type: InputType.checkbox,
-              checked: draft.operations.contains(operation),
-              attributes: {if (pending) 'disabled': 'disabled'},
+              // Every box reads as ticked under the wildcard, because that is
+              // what the token can do. Disabled with it, so the display is not
+              // a control that silently disagrees with what gets sent.
+              checked: draft.allOperations || draft.operations.contains(operation),
+              attributes: {if (pending || draft.allOperations) 'disabled': 'disabled'},
               onChange: (_) => onChanged(
                 draft.copyWith(
                   operations: {
@@ -280,6 +283,26 @@ class ApiTokenMintForm extends StatelessComponent {
               ),
             ),
             .text(operation),
+          ]),
+        label(classes: 'z-token-op z-token-op-all', [
+          input<bool>(
+            type: InputType.checkbox,
+            checked: draft.allOperations,
+            attributes: {if (pending) 'disabled': 'disabled'},
+            onChange: (_) => onChanged(draft.copyWith(allOperations: !draft.allOperations)),
+          ),
+          .text('Every operation'),
+        ]),
+        // Said next to the box rather than in the docs, because this is the
+        // one thing that distinguishes it from ticking all six: the six are a
+        // list, this is a standing grant. Someone reaching for "tick them all"
+        // deserves to know which one they are choosing.
+        if (draft.allOperations)
+          p(classes: 'z-token-ops-note', [
+            .text(
+              'Including any operation a later zonai adds — the "*" is stored '
+              'on the token, not expanded into today\'s six.',
+            ),
           ]),
       ]),
       label(classes: 'z-token-op z-token-admin', [

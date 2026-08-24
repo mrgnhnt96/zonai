@@ -530,6 +530,20 @@ List<StyleRule> get zonaiUiStyles => [
     color: fgColor,
     raw: const {'cursor': 'pointer', 'user-select': 'none'},
   ),
+  // Its own row, above a rule: it is not a seventh operation, it is the choice
+  // of whether the six above are the grant at all. Sitting inline with them
+  // would read as one more box to tick.
+  css('.z-token-op-all').styles(
+    width: 100.percent,
+    padding: .only(top: ZonaiSpacing.s3),
+    border: .only(
+      top: BorderSide(color: borderColor, width: 1.px, style: .solid),
+    ),
+    fontWeight: .w600,
+  ),
+  css(
+    '.z-token-ops-note',
+  ).styles(width: 100.percent, margin: .zero, fontSize: 0.75.rem, lineHeight: 1.4.em, color: mutedColor),
   css('.z-token-expiry').styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s2)),
   // The reveal. Deliberately the loudest thing on the page: it holds the only
   // copy of a credential that cannot be recovered, and a panel that looked

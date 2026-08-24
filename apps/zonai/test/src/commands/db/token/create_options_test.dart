@@ -158,4 +158,32 @@ void main() {
       expect(result.output, contains('<table>/<row-id>'));
     });
   });
+
+  group('--operations "*"', () {
+    test('satisfies the "name at least one operation" refusal', () async {
+      // It cannot mint here -- this scope registers no database -- so the
+      // proof that the wildcard was accepted is that the run got PAST
+      // validation and failed on the database instead.
+      final result = await _create({
+        'name': 'backup',
+        'tables': 'orders',
+        'operations': '*',
+      });
+
+      expect(result.output, isNot(contains('Missing required option')));
+      expect(result.output, contains('Failed to create API token'));
+    });
+
+    test('an unknown name is still refused, and now points at "*"', () async {
+      final result = await _create({
+        'name': 'backup',
+        'tables': 'orders',
+        'operations': 'list,teleport',
+      });
+
+      expect(result.exitCode, 1);
+      expect(result.output, contains('teleport'));
+      expect(result.output, contains('"*"'));
+    });
+  });
 }

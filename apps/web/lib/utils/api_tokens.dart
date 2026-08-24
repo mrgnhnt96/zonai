@@ -117,6 +117,11 @@ final class ApiTokenScopeView {
   final bool canEdit;
 
   bool get isWildcard => tables.contains('*');
+
+  /// The same wildcard in the operations position — every built-in operation,
+  /// including ones a later zonai adds. The server stores the literal `"*"`
+  /// rather than expanding it, so this is what arrives on the row.
+  bool get isEveryOperation => operations.contains('*');
 }
 
 /// Parses the `data` object of `GET /admin/tokens`.
@@ -186,7 +191,10 @@ String describeScope(ApiTokenScopeView scope) {
           _ => scope.tables.join(', '),
         };
 
-  final operations = [...scope.operations, ...scope.customOperations];
+  final operations = [
+    if (scope.isEveryOperation) 'every operation' else ...scope.operations,
+    ...scope.customOperations,
+  ];
 
   return '$tables · ${operations.isEmpty ? 'nothing' : operations.join(', ')}';
 }
@@ -231,6 +239,7 @@ final class ApiTokenDraft {
     this.name = '',
     this.tables = '',
     this.operations = const {'view', 'list', 'count'},
+    this.allOperations = false,
     this.admin = true,
     this.expiry = ApiTokenExpiry.never,
   });
@@ -242,7 +251,15 @@ final class ApiTokenDraft {
   /// and a picker of existing tables can express neither.
   final String tables;
 
+  /// Which of [apiTokenOperations] are ticked. Kept while [allOperations] is
+  /// on, not cleared, so unticking "Every operation" returns the form to the
+  /// boxes the person had chosen rather than to none of them.
   final Set<String> operations;
+
+  /// The `*` in the operations position: every built-in operation, including
+  /// ones added in a later zonai. Sent as `["*"]` and stored that way, which
+  /// is what makes it stay current — see [ApiTokenScopeView.isEveryOperation].
+  final bool allOperations;
 
   /// Defaults to true, matching `zonai db token create`. A non-admin token is
   /// denied by the DEFAULT rules, so it reads as broken rather than as narrow.
@@ -250,11 +267,19 @@ final class ApiTokenDraft {
 
   final ApiTokenExpiry expiry;
 
-  ApiTokenDraft copyWith({String? name, String? tables, Set<String>? operations, bool? admin, ApiTokenExpiry? expiry}) {
+  ApiTokenDraft copyWith({
+    String? name,
+    String? tables,
+    Set<String>? operations,
+    bool? allOperations,
+    bool? admin,
+    ApiTokenExpiry? expiry,
+  }) {
     return ApiTokenDraft(
       name: name ?? this.name,
       tables: tables ?? this.tables,
       operations: operations ?? this.operations,
+      allOperations: allOperations ?? this.allOperations,
       admin: admin ?? this.admin,
       expiry: expiry ?? this.expiry,
     );
@@ -279,7 +304,7 @@ final class ApiTokenDraft {
     if (tableList.isEmpty) {
       return 'Name at least one collection, or "*" for every one.';
     }
-    if (operations.isEmpty) {
+    if (operations.isEmpty && !allOperations) {
       return 'Choose at least one operation. A token that may reach a '
           'collection but do nothing to it can do nothing at all.';
     }
@@ -295,10 +320,16 @@ final class ApiTokenDraft {
     return {
       'name': name.trim(),
       'tables': tableList,
-      'operations': [
-        for (final operation in apiTokenOperations)
-          if (operations.contains(operation)) operation,
-      ],
+      // `["*"]` replaces the list rather than joining it, matching what
+      // `ApiTokenScope.toJson` writes back: the wildcard already subsumes
+      // every member, and a body carrying both invites the reader to wonder
+      // which half won.
+      'operations': allOperations
+          ? const ['*']
+          : [
+              for (final operation in apiTokenOperations)
+                if (operations.contains(operation)) operation,
+            ],
       'admin': admin,
       'expiresAt': switch (expiry.duration) {
         final duration? => now.toUtc().add(duration).toIso8601String(),

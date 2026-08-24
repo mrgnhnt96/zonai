@@ -49,7 +49,7 @@ a token obtainable without sign-in credentials at all.
 | --- | --- |
 | `-n, --name` | What this token is for. Required — an unnamed credential is one nobody ever revokes, because nobody can tell what would break. |
 | `-t, --tables` | Collections it may reach, comma-separated, or `"*"` for every app collection. Quote the `*` so your shell does not expand it. |
-| `-o, --operations` | Any of `view`, `list`, `count`, `create`, `update`, `delete`. |
+| `-o, --operations` | Any of `view`, `list`, `count`, `create`, `update`, `delete` — or `"*"` for every one. Quote the `*` so your shell does not expand it. |
 | `--read` / `--write` | Shorthand for the read three and the write three. |
 | `--custom` | Named custom operations, or `"*"`. |
 | `--no-admin` | Mint a token that is *not* an admin. See [A token is an admin by default](#a-token-is-an-admin-by-default). |
@@ -94,6 +94,22 @@ editing the row.
 An out-of-scope request answers with the same permission error a rules denial produces —
 `403 {"error":"Forbidden"}`, byte for byte — so a token cannot be used to discover which
 collections exist.
+
+### The wildcard is stored, not expanded
+
+`"*"` in `--tables`, `--operations` or `--custom` is written to the `_api_tokens` row as
+the literal `*`, and the gate tests for it on every request. It is never expanded into
+the list of things that happened to exist at mint time.
+
+That is the whole point of it. A collection you add next month, a custom operation you
+name next week, and a built-in operation a later zonai ships are all covered by a token
+minted today. Expanding at mint would freeze each grant to one particular afternoon, and
+the surprise would land months later as a `403` on something the operator believes their
+`*` token already covers.
+
+The cost is stated plainly: `*` is a standing grant, not a shorthand. Ticking all six
+operation boxes and ticking **Every operation** produce different rows, and only the
+second one keeps up.
 
 ### Internal tables are never in scope
 

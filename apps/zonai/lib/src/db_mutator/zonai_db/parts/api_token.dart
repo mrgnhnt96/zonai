@@ -252,7 +252,7 @@ extension _ApiTokenX on ZonaiDb {
       );
     }
 
-    if (scope.operations.isEmpty && scope.customOperations.isEmpty) {
+    if (scope.grantsNoOperation) {
       throw const InvalidApiTokenScopeException(
         'name at least one operation -- a token that may reach a table but '
         'perform nothing on it can do nothing at all',

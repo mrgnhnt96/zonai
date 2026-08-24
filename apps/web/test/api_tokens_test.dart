@@ -242,4 +242,47 @@ void main() {
       expect(ApiTokenExpiry.fromName('fortnight'), ApiTokenExpiry.never);
     });
   });
+
+  group('the operations wildcard', () {
+    test('describeScope spells it out the way it does for collections', () {
+      // Same reason: the widest grant on the page must not be the smallest
+      // glyph on it. Someone scanning for the credential with too much reach
+      // should not have to know that one asterisk is the wide one.
+      final line = describeScope(
+        const ApiTokenScopeView(
+          tables: ['orders'],
+          operations: ['*'],
+          customOperations: [],
+          admin: true,
+          canEdit: true,
+        ),
+      );
+
+      expect(line, 'orders · every operation');
+      expect(line, isNot(contains('*')));
+    });
+
+    test('the draft sends ["*"] instead of the ticked boxes', () {
+      const draft = ApiTokenDraft(name: 'backup', tables: 'orders', operations: {'view'}, allOperations: true);
+
+      expect(draft.toRequestBody(now: _now)['operations'], ['*']);
+    });
+
+    test('it satisfies the "choose an operation" refusal on its own', () {
+      const draft = ApiTokenDraft(name: 'backup', tables: 'orders', operations: {}, allOperations: true);
+
+      expect(draft.refusal, isNull);
+    });
+
+    test('unticking it restores the boxes rather than clearing them', () {
+      // The ticks are kept while the wildcard is on, so turning it off is not
+      // a way to lose the choice somebody had already made.
+      const draft = ApiTokenDraft(name: 'backup', tables: 'orders', operations: {'view', 'count'}, allOperations: true);
+
+      final off = draft.copyWith(allOperations: false);
+
+      expect(off.operations, {'view', 'count'});
+      expect(off.toRequestBody(now: _now)['operations'], ['view', 'count']);
+    });
+  });
 }

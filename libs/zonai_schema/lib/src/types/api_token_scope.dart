@@ -17,6 +17,7 @@ final class ApiTokenScope {
   const ApiTokenScope({
     required this.tables,
     required this.operations,
+    this.allOperations = false,
     this.customOperations = const {},
     this.admin = true,
     bool? canEdit,
@@ -24,12 +25,15 @@ final class ApiTokenScope {
   }) : _canEdit = canEdit;
 
   factory ApiTokenScope.fromJson(Map<String, Object?> json) {
+    final rawOperations = _stringSet(json['operations']);
+
     return ApiTokenScope(
       tables: _stringSet(json['tables']),
       operations: {
-        for (final name in _stringSet(json['operations']))
+        for (final name in rawOperations)
           if (TableOperation.fromString(name) case final operation?) operation,
       },
+      allOperations: rawOperations.contains(wildcard),
       customOperations: _stringSet(json['customOperations']),
       // Deliberately strict, unlike the constructor's default: the *authoring*
       // default is admin, but a decode is what an unparsable or truncated
@@ -66,7 +70,8 @@ final class ApiTokenScope {
     canEdit: false,
   );
 
-  /// The member of [tables] / [customOperations] meaning "every one".
+  /// The member of [tables] / [customOperations] meaning "every one", and the
+  /// value `operations` carries on the wire when [allOperations] is set.
   ///
   /// Never the internal tables. `"*"` is a wildcard over the app's
   /// collections; `_api_tokens`, `_jwt`, `_auth_challenges` and the rest are
@@ -74,13 +79,31 @@ final class ApiTokenScope {
   /// is refused when the token is created. Otherwise `"*"` would be a route
   /// to every session id and every outstanding auth challenge in the
   /// database -- and, through `_api_tokens`, to minting a wider token.
+  ///
+  /// In all three positions the wildcard is **stored, not expanded**: the
+  /// `_api_tokens` row keeps the literal `"*"` and the gate tests for it on
+  /// each request. So a collection, a custom operation, or a built-in
+  /// operation that did not exist when the token was minted is covered by it
+  /// anyway. Expanding at mint would freeze the grant to whatever the product
+  /// happened to offer that day, and the surprise would land months later on
+  /// whoever added the seventh operation.
   static const wildcard = '*';
 
   /// Collection names this token may touch, or `{'*'}`.
   final Set<String> tables;
 
-  /// Which of the six built-in operations are permitted.
+  /// Which of the six built-in operations are permitted. Ignored when
+  /// [allOperations] is set, which is the wildcard's stored form.
   final Set<TableOperation> operations;
+
+  /// Every built-in operation, including ones added after this token was
+  /// minted -- what `--operations '*'` grants.
+  ///
+  /// A separate flag rather than a member of [operations] only because
+  /// [TableOperation] is a closed enum and `"*"` is not one of its values.
+  /// Semantically it is the same wildcard [tables] and [customOperations]
+  /// carry, and [toJson] writes it in the same shape: `["*"]`.
+  final bool allOperations;
 
   /// Named custom operations (`TableOperations.custom`) this token may call,
   /// or `{'*'}`.
@@ -107,7 +130,8 @@ final class ApiTokenScope {
   /// explicitly to override the derivation in either direction; [toJson]
   /// always emits the resolved answer, so a row is never ambiguous.
   bool get canEdit =>
-      _canEdit ?? (admin && operations.any(writeOperations.contains));
+      _canEdit ??
+      (admin && (allOperations || operations.any(writeOperations.contains)));
 
   final bool? _canEdit;
 
@@ -141,6 +165,7 @@ final class ApiTokenScope {
     return ApiTokenScope(
       tables: tables,
       operations: operations,
+      allOperations: allOperations,
       customOperations: customOperations,
       admin: grantedAdmin,
       canEdit: grantedCanEdit,
@@ -152,20 +177,37 @@ final class ApiTokenScope {
       tables.contains(wildcard) || tables.contains(table);
 
   bool allowsOperation(TableOperation operation) =>
-      operations.contains(operation);
+      allOperations || operations.contains(operation);
 
   bool allowsCustomOperation(String operation) =>
       customOperations.contains(wildcard) ||
       customOperations.contains(operation);
 
+  /// Whether this scope grants no operation at all -- the token that may
+  /// reach a table and do nothing on it.
+  bool get grantsNoOperation =>
+      !allOperations && operations.isEmpty && customOperations.isEmpty;
+
   Map<String, Object?> toJson() => {
     'tables': tables.toList()..sort(),
-    'operations': [for (final operation in operations) operation.name]..sort(),
+    'operations': _operationsJson,
     'customOperations': customOperations.toList()..sort(),
     'admin': admin,
     'canEdit': canEdit,
     'rateLimit': rateLimit?.toJson(),
   };
+
+  /// The wildcard replaces the list rather than joining it: it already
+  /// subsumes every member, and a row reading `["*", "view"]` invites the
+  /// reader to wonder which half won.
+  ///
+  /// Written as a getter rather than inline in [toJson] because `..sort()`
+  /// binds looser than `? :` -- a conditional there would have cascaded onto
+  /// the const wildcard list instead of onto the names.
+  List<String> get _operationsJson {
+    if (allOperations) return const [wildcard];
+    return [for (final operation in operations) operation.name]..sort();
+  }
 
   static Set<String> _stringSet(Object? raw) => switch (raw) {
     final List<Object?> list => {

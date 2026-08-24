@@ -257,4 +257,104 @@ void main() {
       expect(named.allowsCustomOperation('reopen'), isFalse);
     });
   });
+
+  group('the operations wildcard', () {
+    // The reason it is stored rather than expanded: a token minted today has
+    // to still mean "everything" after a seventh operation ships. Expanding
+    // at mint would freeze the grant to the six that happened to exist, and
+    // nobody would find out until the new operation quietly 403'd.
+    test('covers an operation the enum did not have when it was minted', () {
+      final decoded = ApiTokenScope.fromJson(const {
+        'tables': ['orders'],
+        'operations': ['*'],
+      });
+
+      for (final operation in TableOperation.values) {
+        expect(
+          decoded.allowsOperation(operation),
+          isTrue,
+          reason: '${operation.name} is a built-in operation, so "*" covers it',
+        );
+      }
+      expect(decoded.allOperations, isTrue);
+    });
+
+    test('round-trips as ["*"] rather than as the expanded six', () {
+      const scope = ApiTokenScope(
+        tables: {'orders'},
+        operations: {},
+        allOperations: true,
+      );
+
+      expect(scope.toJson()['operations'], ['*']);
+      expect(
+        ApiTokenScope.fromJson(scope.toJson().cast()).allOperations,
+        isTrue,
+      );
+    });
+
+    test('the wildcard subsumes named members rather than joining them', () {
+      // `["*", "view"]` on the way in is a hand-written row, and it is not
+      // ambiguous -- the wildcard already covers view. What must not happen
+      // is toJson writing both back and leaving a reader to guess.
+      final decoded = ApiTokenScope.fromJson(const {
+        'tables': ['orders'],
+        'operations': ['*', 'view'],
+      });
+
+      expect(decoded.allOperations, isTrue);
+      expect(decoded.toJson()['operations'], ['*']);
+    });
+
+    test('derives canEdit, because it grants the writes', () {
+      const scope = ApiTokenScope(
+        tables: {'orders'},
+        operations: {},
+        allOperations: true,
+      );
+
+      expect(scope.canEdit, isTrue);
+      expect(scope.toJson()['canEdit'], isTrue);
+    });
+
+    test('survives clampedTo, which rebuilds the scope field by field', () {
+      // The clamp constructs a new ApiTokenScope. A field it forgets to carry
+      // is silently dropped on every bound token's first request -- which is
+      // exactly how the admin grant would have been lost.
+      const scope = ApiTokenScope(
+        tables: {'orders'},
+        operations: {},
+        allOperations: true,
+      );
+
+      final clamped = scope.clampedTo((isAdmin: false, canEdit: false));
+
+      expect(clamped.admin, isFalse);
+      expect(clamped.allOperations, isTrue);
+      expect(clamped.allowsOperation(TableOperation.delete), isTrue);
+    });
+
+    test('is not "grants nothing", so the mint gate lets it through', () {
+      const scope = ApiTokenScope(
+        tables: {'orders'},
+        operations: {},
+        allOperations: true,
+      );
+
+      expect(scope.grantsNoOperation, isFalse);
+      expect(
+        const ApiTokenScope(
+          tables: {'orders'},
+          operations: {},
+        ).grantsNoOperation,
+        isTrue,
+      );
+    });
+
+    test('ApiTokenScope.none stays closed', () {
+      expect(ApiTokenScope.none.allOperations, isFalse);
+      expect(ApiTokenScope.none.allowsOperation(TableOperation.view), isFalse);
+      expect(ApiTokenScope.none.grantsNoOperation, isTrue);
+    });
+  });
 }
