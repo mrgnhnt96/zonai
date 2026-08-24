@@ -64,6 +64,13 @@
       "when": 1786925099492,
       "tag": "0008_add_oauth_identities_table",
       "snapshotId": "af35ff37-51db-497b-a779-99b42513d9a7"
+    },
+    {
+      "idx": 9,
+      "version": "1",
+      "when": 1787593277768,
+      "tag": "0009_api_tokens",
+      "snapshotId": "e58923d1-742b-41eb-843e-a21b65e600ad"
     }
   ]
 }

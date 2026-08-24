@@ -24,8 +24,14 @@ library;
 /// has no hook for; purging the table would orphan every file it removed a row
 /// for. Photos are cleaned by [PhotoCleanupResult]'s verb instead, one row at
 /// a time.
+/// **`_api_tokens` is present on purpose.** Purging it revokes every API
+/// token at once, which is the break-glass answer to a suspected leak and is
+/// no more drastic than purging `_jwt`, which signs out every user. Deleting
+/// the row *is* the complete revocation -- unlike `_photos`, nothing outside
+/// the database is left behind.
 const kPurgeableTableNames = <String>{
   '_abusers',
+  '_api_tokens',
   '_auth_challenges',
   '_cron_jobs',
   '_jwt',

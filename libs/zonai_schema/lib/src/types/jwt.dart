@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:clock/clock.dart';
+import 'package:zonai_schema/src/types/api_token_jwt.dart';
 import 'package:zonai_schema/src/types/cron_jwt.dart';
 import 'package:zonai_schema/src/types/id.dart';
 import 'package:zonai_schema/src/types/jwt_id.dart';
@@ -54,12 +55,26 @@ class Jwt {
   static bool isProvisioningWorkerPayload(Map<String, Object?> json) =>
       ProvisioningJwt.isProvisioningPayload(json);
 
+  /// Worker IPC form of a resolved API token ([ApiTokenJwt]); must not be
+  /// accepted on user bearer tokens.
+  ///
+  /// The credential for an API token is an opaque `zonai_pat_...` string, not
+  /// a JWT. This payload exists so a resolved token survives the trip to the
+  /// rules and operations workers -- accepting a *signed* one as a bearer
+  /// token would let anyone holding the signing key mint an unscoped admin
+  /// identity for themselves.
+  static bool isApiTokenPayload(Map<String, Object?> json) =>
+      ApiTokenJwt.isApiTokenPayload(json);
+
   factory Jwt.fromJson(Map<String, dynamic> json) {
     if (isCronWorkerPayload(json)) {
       return CronJwt();
     }
     if (isProvisioningWorkerPayload(json)) {
       return ProvisioningJwt(authTable: json['authTable'] as String);
+    }
+    if (isApiTokenPayload(json)) {
+      return ApiTokenJwt.fromJson(json);
     }
 
     return Jwt(
