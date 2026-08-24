@@ -23,7 +23,9 @@ import '../providers/app_base_url_provider.dart';
 import '../providers/photos_config_provider.dart';
 import '../providers/table_rows_provider.dart';
 import '../providers/toast_provider.dart';
+import '../api/admin_client.dart';
 import '../api/api_client.dart';
+import '../utils/password_reset_requirement_summary.dart';
 import '../utils/photo_edit_value.dart';
 import '../utils/push_row_targets.dart';
 import '../utils/resolve_photo_drafts.dart';
@@ -84,6 +86,16 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _editing = false;
   var _saving = false;
   var _sendingPasswordReset = false;
+
+  /// The standing forced-password-reset requirement for the open row, and the
+  /// row it was read for.
+  ///
+  /// Keyed by rowKey rather than cleared on close, because the panel navigates
+  /// between rows without unmounting: a requirement read for one account would
+  /// otherwise be rendered against the next one the operator opened.
+  Map<String, Object?>? _passwordResetRequirement;
+  String? _passwordResetRequirementRowKey;
+  var _togglingPasswordResetRequirement = false;
   List<Object?>? _draft;
   Map<int, String> _textInputs = {};
   final Set<String> _invalidFkFields = {};
@@ -485,8 +497,13 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         _showRawJson = false;
         _rawJsonRowKey = null;
         _passwordReplaceColumns = {};
+        _passwordResetRequirement = null;
+        _passwordResetRequirementRowKey = null;
       }
       _cachedDetail = detail;
+      if (rowChanged) {
+        scheduleMicrotask(() => _loadPasswordResetRequirement(detail));
+      }
       if (rowChanged || viewChanged) {
         scheduleMicrotask(() {
           if (!mounted) return;
@@ -589,6 +606,99 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       }
     } finally {
       if (mounted) setState(() => _sendingPasswordReset = false);
+    }
+  }
+
+  /// Admin, and a password collection, and an address to key on.
+  ///
+  /// Admin because the route refuses anything else -- the same call
+  /// `canSendPush` makes, not the `sessionCanEdit` one `canResetPassword`
+  /// makes, because an editor pressing this would get a 403 from a control
+  /// that looked available.
+  bool _canRequirePasswordReset(TableRowDetailState cached) {
+    return !_editing &&
+        context.read(sessionUserProvider)?.isAdmin == true &&
+        _isPasswordAuthTable(cached) &&
+        _emailForPasswordReset(cached) != null;
+  }
+
+  /// Reads whether this account already owes a password.
+  ///
+  /// Fired per row rather than per panel-open because the panel navigates
+  /// between rows without unmounting. It is one indexed read and it MISSES for
+  /// essentially every account in essentially every deployment (design §3.3),
+  /// so it stays quiet on failure: a requirement that cannot be read is a
+  /// control the operator did not know about either way, and a toast on every
+  /// row open would be noise for a state almost nobody is in.
+  Future<void> _loadPasswordResetRequirement(TableRowDetailState detail) async {
+    if (!mounted) return;
+    if (!_canRequirePasswordReset(detail)) return;
+    final email = _emailForPasswordReset(detail);
+    if (email == null) return;
+
+    try {
+      final requirement = await fetchPasswordResetRequirement(
+        server: context.read(revaliServerProvider),
+        email: email,
+        table: detail.sqliteName,
+      );
+      if (!mounted) return;
+      // The row may have changed while this was in flight.
+      if (context.read(tableRowDetailProvider)?.rowKey != detail.rowKey) return;
+      setState(() {
+        _passwordResetRequirement = requirement;
+        _passwordResetRequirementRowKey = detail.rowKey;
+      });
+    } catch (_) {
+      // Deliberately silent -- see above.
+    }
+  }
+
+  Map<String, Object?>? _requirementForRow(TableRowDetailState cached) {
+    if (_passwordResetRequirementRowKey != cached.rowKey) return null;
+    return _passwordResetRequirement;
+  }
+
+  Future<void> _togglePasswordResetRequirement(
+    BuildContext context,
+    TableRowDetailState cached, {
+    required bool clear,
+  }) async {
+    final email = _emailForPasswordReset(cached);
+    if (email == null) return;
+
+    setState(() => _togglingPasswordResetRequirement = true);
+    final server = context.read(revaliServerProvider);
+    final toasts = context.read(toastProvider.notifier);
+    try {
+      if (clear) {
+        final result = await clearPasswordReset(server: server, email: email, table: cached.sqliteName);
+        if (!mounted) return;
+        // "Cleared" and "there was nothing to clear" are reported differently
+        // on purpose. Neither is an error, but a typo'd address that reported
+        // success would let an operator believe they had lifted a lockout they
+        // had not touched.
+        if (result['cleared'] == true) {
+          toasts.showSuccess('$email no longer has to reset their password');
+        } else {
+          toasts.showSuccess('$email had no password reset requirement');
+        }
+        setState(() {
+          _passwordResetRequirement = null;
+          _passwordResetRequirementRowKey = cached.rowKey;
+        });
+      } else {
+        await requirePasswordReset(server: server, email: email, table: cached.sqliteName, reason: 'admin-forced');
+        if (!mounted) return;
+        toasts.showSuccess('$email must set a new password before signing in');
+        // Re-read rather than assume: the response says what was asked for,
+        // and this panel is supposed to show what is actually stored.
+        unawaited(_loadPasswordResetRequirement(cached));
+      }
+    } catch (e) {
+      if (mounted) toasts.showError(userFacingError(e));
+    } finally {
+      if (mounted) setState(() => _togglingPasswordResetRequirement = false);
     }
   }
 
@@ -1308,6 +1418,12 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
         ? _pushTargetsForRow(cached)
         : const <PushRowTarget>[];
     final canSendPush = pushTargets.isNotEmpty;
+    // Admin for the same reason as push, NOT `sessionCanEdit` like the
+    // Reset-password button beside it: the route refuses anything else, and an
+    // editor pressing this would get a 403 from a control that looked
+    // available.
+    final canRequirePasswordReset = _canRequirePasswordReset(cached);
+    final standingRequirement = _requirementForRow(cached);
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     void goBack() => _requestNavigateBack(cached);
     final subtitle = _detailSubtitle(cached);
@@ -1397,7 +1513,17 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
               else
                 for (var i = 0; i < cached.row.length; i++) _buildDetailField(context, cached, i),
             ]),
-            if ((rowEditable || canResetPassword || canSendPush) && !showRawJson)
+            // Above the footer, not in it: this is STATE, not an action, and
+            // an operator deciding whether to clear a requirement needs to see
+            // it before they see the button that clears it.
+            if (standingRequirement != null && !showRawJson)
+              div(classes: 'table-row-detail-requirement', [
+                p(classes: 'table-row-detail-requirement-title', [.text('Must set a new password before signing in')]),
+                p(classes: 'table-row-detail-requirement-detail', [
+                  .text(passwordResetRequirementSummary(standingRequirement)),
+                ]),
+              ]),
+            if ((rowEditable || canResetPassword || canSendPush || canRequirePasswordReset) && !showRawJson)
               div(classes: ['table-row-detail-footer', if (_editing) 'table-row-detail-footer--create'].join(' '), [
                 if (_editing) ...[
                   if (requiredFields.isNotEmpty)
@@ -1422,7 +1548,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                   div(
                     classes: [
                       'table-row-detail-footer-actions',
-                      if (canSendPush) 'table-row-detail-footer-actions--wrap',
+                      if (canSendPush || canRequirePasswordReset) 'table-row-detail-footer-actions--wrap',
                     ].join(' '),
                     [
                       if (rowEditable)
@@ -1444,6 +1570,40 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                           },
                           onClick: _sendingPasswordReset ? null : () => _triggerPasswordReset(context, cached),
                           [.text(_sendingPasswordReset ? 'Sending…' : 'Reset password')],
+                        ),
+                      if (canRequirePasswordReset)
+                        button(
+                          classes:
+                              'table-row-detail-footer-btn table-row-detail-footer-btn--cancel '
+                              'table-row-detail-footer-btn--push',
+                          type: .button,
+                          attributes: {
+                            'aria-label': standingRequirement != null
+                                ? 'Clear the password reset requirement'
+                                : 'Require this account to set a new password',
+                            if (_togglingPasswordResetRequirement) 'disabled': 'true',
+                          },
+                          events: appTooltipEvents(
+                            context,
+                            text: standingRequirement != null
+                                ? 'Lets this account sign in with its current password again'
+                                : 'Refuses password sign-in until a new password is set, '
+                                      'and revokes every session it holds now',
+                          ),
+                          onClick: _togglingPasswordResetRequirement
+                              ? null
+                              : () => _togglePasswordResetRequirement(
+                                  context,
+                                  cached,
+                                  clear: standingRequirement != null,
+                                ),
+                          [
+                            .text(switch ((_togglingPasswordResetRequirement, standingRequirement != null)) {
+                              (true, _) => 'Working…',
+                              (false, true) => 'Clear password reset requirement',
+                              (false, false) => 'Require password reset',
+                            }),
+                          ],
                         ),
                       // Its own full-width line rather than a third column: the
                       // label does not survive a 500px row split three ways, and
@@ -2183,6 +2343,27 @@ List<StyleRule> get tableRowDetailPanelStyles => [
     raw: const {'font': 'inherit', 'line-height': '1.2'},
   ),
   css('.table-row-detail-view-toggle:hover').styles(backgroundColor: hoverColor, color: fgColor),
+  // Reads as a NOTICE rather than as another field. An operator scanning a row
+  // has to see that the account is locked out before they reach the button
+  // that would unlock it, and a line of body text among forty others would be
+  // missed by exactly the person the requirement was set to inform.
+  css('.table-row-detail-requirement').styles(
+    flex: Flex(grow: 0, shrink: 0),
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(ZonaiSpacing.s1),
+    margin: .symmetric(horizontal: ZonaiSpacing.s8),
+    padding: .symmetric(horizontal: ZonaiSpacing.s4, vertical: ZonaiSpacing.s3),
+    border: .only(
+      left: BorderSide.solid(color: errorBorderColor, width: 3.px),
+    ),
+    backgroundColor: errorBgColor,
+    raw: const {'box-sizing': 'border-box', 'border-radius': '4px'},
+  ),
+  css(
+    '.table-row-detail-requirement-title',
+  ).styles(color: errorFgColor, fontSize: 13.px, fontWeight: .w600, margin: .zero),
+  css('.table-row-detail-requirement-detail').styles(color: errorFgColor, fontSize: 12.px, margin: .zero),
   css('.table-row-detail-footer').styles(
     flex: Flex(grow: 0, shrink: 0),
     display: .flex,

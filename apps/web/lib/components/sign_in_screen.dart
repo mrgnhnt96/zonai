@@ -2,6 +2,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/web.dart' as web;
+import 'package:zonai_client/zonai_client.dart' show PasswordResetRequiredException;
 import 'package:zonai_schema/payloads.dart';
 
 import '../auth/auth_provider.dart';
@@ -9,6 +10,7 @@ import '../auth/auth_route_provider.dart';
 import '../auth/auth_routes.dart';
 import '../auth/supported_auth_types_provider.dart';
 import '../constants/spacing.dart';
+import 'forced_password_reset_form.dart';
 import 'oauth_sign_in_screen.dart';
 import 'theme/theme_components.dart';
 
@@ -130,6 +132,12 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
   bool _loading = false;
   String? _error;
 
+  /// Set when the server refuses with a 403 carrying a reset ticket. Its
+  /// presence is what swaps this form for [ForcedPasswordResetForm] -- an
+  /// admin who is forced to reset and cannot finish it HERE has no dashboard,
+  /// and no email need reach them for this to work.
+  PasswordResetRequiredException? _resetRequired;
+
   Future<void> _submit() async {
     if (_loading) return;
 
@@ -140,6 +148,16 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
 
     try {
       await context.read(authProvider.notifier).signInWithPassword(email: _email, password: _password);
+    } on PasswordResetRequiredException catch (refusal) {
+      // Caught BEFORE the generic clause below, which is the whole point.
+      // "Check your email and password" is exactly wrong here: the credentials
+      // were correct, and the response carries the one thing needed to
+      // recover.
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _resetRequired = refusal;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -151,6 +169,10 @@ class PasswordSignInFormState extends State<PasswordSignInForm> {
 
   @override
   Component build(BuildContext context) {
+    if (_resetRequired case final refusal?) {
+      return ForcedPasswordResetForm(email: _email, refusal: refusal);
+    }
+
     return form(
       [
         AuthFormCard(

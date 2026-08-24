@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
+    show PasswordResetReason;
 import 'package:zonai_schema/zonai_schema.dart' show AuthType;
 
 import '../../../deps/args.dart';
@@ -25,6 +27,10 @@ Options:
                            supports password sign-in; an error otherwise)
   -d, --data=<json>       JSON object of extra record fields (optional)
       --no-verify         Do not mark the account as verified
+      --force-reset       Require the account to choose its own password
+                           before it may sign in. OPT-IN here, unlike
+                           `reset-password`: the person running `add` is
+                           frequently the person who will sign in.
 ''';
 
 Future<int> addAdmin() async {
@@ -50,7 +56,16 @@ Future<int> addAdmin() async {
     }
   }
 
-  final verified = args.getOrNull<bool>('no-verify') != true;
+  // `--no-verify` parses to `verify: false`, NOT to a `no-verify` key --
+  // Args.parse strips the `no-` prefix and stores the negation under the bare
+  // name (utils/args.dart, the `--no-` branch). This read used to ask for
+  // `'no-verify'`, which is null on every real invocation, so `!= true` was
+  // always true and the flag did nothing: `zonai db admin add --no-verify`
+  // created a VERIFIED account and said so. It survived because every test in
+  // add_test.dart builds `Args(args: {...})` by hand and never runs the
+  // parser, and because no test named the flag at all.
+  final verified = args.getOrNull<bool>('verify') != false;
+  final forceReset = args.getOrNull<bool>('force-reset') == true;
 
   try {
     final (table, authTypes) = await zonaiDB.adminTable();
@@ -75,6 +90,21 @@ Future<int> addAdmin() async {
       return 1;
     }
 
+    // Refused BEFORE the account is created, not after. `requirePasswordReset`
+    // throws on a table with no password column -- correctly, since the
+    // sign-in path a requirement would gate does not exist there -- and
+    // letting that happen downstream would leave a created account behind a
+    // command that reported failure.
+    if (!supportsPassword && forceReset) {
+      logger.error(
+        'Admin table "$table" has no password sign-in configured, so '
+        '--force-reset has nothing to require: the password sign-in it would '
+        'gate does not exist',
+      );
+      logger.info(_usage);
+      return 1;
+    }
+
     final tableShape = await resolveAdminTableShape(zonaiDB);
     final extraFields = adminExtraCreateFields(tableShape.columns);
     final resolvedObject = resolveAdminCreateObject(
@@ -89,6 +119,19 @@ Future<int> addAdmin() async {
       verified: verified,
     );
 
+    if (forceReset) {
+      // After `createAdmin`, for the same reason `reset-password` orders it
+      // this way: a requirement set against an account that then failed to be
+      // created has nothing to attach to, and `requirePasswordReset` would
+      // throw over an address that does not exist yet.
+      await zonaiDB.requirePasswordReset(
+        table: table,
+        email: email,
+        reason: PasswordResetReason.temporaryPassword,
+        byUserId: 'cli',
+      );
+    }
+
     logger.info('Admin created successfully');
     logger.info('  id: ${user['id']}');
     logger.info('  email: ${user['email'] ?? email}');
@@ -102,6 +145,9 @@ Future<int> addAdmin() async {
     }
     if (verified) {
       logger.info('  verified: true');
+    }
+    if (forceReset) {
+      logger.info('  must choose its own password before signing in');
     }
 
     return 0;

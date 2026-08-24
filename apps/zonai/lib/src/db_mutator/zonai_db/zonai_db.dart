@@ -615,6 +615,22 @@ class ZonaiDb {
     );
   }
 
+  /// The requirement standing against one account, addressed by email.
+  ///
+  /// The by-email twin of [passwordResetRequirement]. An operator surface has
+  /// an address, not an account id -- the dashboard's row panel reads this to
+  /// show a standing requirement before deciding whether to clear it. Throws
+  /// on an unknown address, like [requirePasswordReset] and
+  /// [clearPasswordResetRequirement] and for the same reason.
+  Future<PasswordResetRequirement?> passwordResetRequirementForEmail({
+    required String table,
+    required String email,
+  }) async {
+    return await _run(
+      () => _passwordResetRequirementForEmail(table: table, email: email),
+    );
+  }
+
   /// Lifts a requirement the account has not satisfied (design §4.2) -- the
   /// escape hatch for one set on the wrong address. Returns whether a row was
   /// actually removed.

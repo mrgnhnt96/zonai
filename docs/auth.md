@@ -35,6 +35,91 @@ The same reasoning is why [the reset-password flow](#reset-password-flow) return
 
 Sign-in is not a constant-time operation and does not claim to be: an attacker with a large enough sample and a quiet enough network may still be able to distinguish the branches by timing. What is guaranteed here is that the response itself carries no answer.
 
+One sign-in failure is deliberately *not* rendered this way, and a client that treats every 4xx from this endpoint as "bad credentials" will handle it wrongly: see [Forced password reset](#forced-password-reset).
+
+## Forced password reset
+
+An operator can require an account to **choose a new password before it may sign in again**. The account keeps its current password — the password still verifies — but a password sign-in answers `403` with a one-time reset ticket instead of a session, until a new password is set.
+
+Setting the requirement also **revokes every session the account currently holds**. That is the half that makes it a response to a leaked password rather than a note for later: without it the requirement would bind only sign-ins that have not happened yet, and whoever the password leaked to would keep their session for the rest of `jwtExpiresIn` (14 days by default).
+
+### Setting it
+
+All three of these run from the server box, with no secret, no SMTP and no running server — which is what makes this the recovery path when everything else is locked out:
+
+```bash
+# Require it outright. --reason rides to the client in the 403.
+zonai db admin require-password-reset --email someone@example.com --reason compromised
+
+# Lift it again, for one set on the wrong address.
+zonai db admin require-password-reset --email someone@example.com --clear
+
+# reset-password sets a TEMPORARY password by default: whoever ran the command
+# knows it, so the account must choose its own. --no-force-reset opts out.
+zonai db admin reset-password --email someone@example.com --password 'temp-1'
+
+# On `add` it is OPT-IN -- the person running `add` is frequently the person
+# who will sign in.
+zonai db admin add --email someone@example.com --password 'temp-1' --force-reset
+```
+
+`--reason` is one of `admin-forced` (the default), `compromised`, `temporary-password` or `password-policy`.
+
+### What the client sees
+
+`POST /auth/sign-in` — and `POST /auth` with `"type": "signIn"`, and `POST /auth/admin`, since all three land on the same password path — answers:
+
+```http
+403 Forbidden
+```
+```json
+{
+  "error": {
+    "code": "password_reset_required",
+    "message": "This account must set a new password before signing in",
+    "details": {
+      "resetToken": "<one-time ticket>",
+      "expiresIn": 900,
+      "reason": "temporaryPassword"
+    }
+  }
+}
+```
+
+> **This body is not shaped like the other auth errors, and that is deliberate.** Every other failure on these endpoints — including the `401` above — answers a bare `{"error": "<sentence>"}` whose *string* is part of the contract. This one answers a structured envelope, because a sentence cannot carry a ticket and cannot be branched on. Only this error speaks it today; migrating the rest is a breaking wire change and has not happened. Branch on `error.code`, never on `error.message`.
+
+Why `403` and not `401`: the whole [failed sign-in](#failed-sign-in) contract rests on `401` meaning *these credentials are not valid*, rendered identically for a wrong password and an unknown address. This response says the opposite — the credentials were correct. And it is not a `200` with no `accessToken`, which every client written before this existed would read as success before failing somewhere further away.
+
+`expiresIn` is in **seconds**. The ticket is short-lived (15 minutes) on purpose: unlike an emailed link, its holder is at the keyboard right now.
+
+### Completing it
+
+The ticket is an ordinary password-reset ticket — the same shape the emailed link carries — so it is redeemed at the endpoint that already exists:
+
+```http
+POST /auth/confirm
+```
+```json
+{
+  "type": "confirmResetPassword",
+  "token": "<the resetToken from the 403>",
+  "newPassword": "<the account's own new password>"
+}
+```
+
+That clears the requirement and revokes sessions again. It returns **no session**: the client signs in again with the new password. Two failures worth handling:
+
+- **`422`** — the submitted password is the one the account already has. The ticket is **not** consumed by this, so the same `resetToken` can be submitted again with a different password. A typo must not cost the recovery path, and on this flow there is no email to re-request.
+- **`401`** — the ticket is expired, already used, or was invalidated by a newer sign-in attempt. Sign in again to be issued a fresh one.
+
+An **emailed** reset also clears a forced requirement. The demand is "choose a new password", not "choose it through this particular door".
+
+### What is not gated
+
+The requirement is a statement about the **password** credential. OTP, magic link and OAuth sign-in are untouched: someone who proved possession of their mailbox or their Google account has not used the password, and is not asked to change it. The password stays unusable until they do — an OTP sign-in does not satisfy the requirement.
+
+Design and rationale: [force-password-reset-design.md](force-password-reset-design.md).
+
 ## Refreshing a session
 
 Use **`POST /auth/refresh`** to exchange a still-valid access token for a new one without re-entering credentials.
@@ -125,6 +210,7 @@ See `resetPasswordConfig` in [operations.md](operations.md#auth-collections) and
 | SMTP, templates, and sending email | [email.md](email.md) |
 | Public base URL in auth emails | [server-binding.md](server-binding.md) |
 | Admin password update rules and error codes | [operations.md](operations.md#password-columns) |
+| Requiring an account to choose a new password | [force-password-reset-design.md](force-password-reset-design.md) |
 
 ## Tokens for machines
 
@@ -143,3 +229,4 @@ revocable on the next request.
 - **[rules.md](rules.md)** — auth collection and row rules
 - **[rate-limiting.md](rate-limiting.md)** — `refreshTokenPolicy()` and other auth limits
 - **[admin-invite-design.md](admin-invite-design.md)** — inviting someone to an admin table, and why no admin row exists until the invite is accepted
+- **[force-password-reset-design.md](force-password-reset-design.md)** — where the requirement lives, why the gate runs before a JWT exists, and why this one error speaks a structured envelope

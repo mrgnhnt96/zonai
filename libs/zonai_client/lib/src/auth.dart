@@ -1,5 +1,7 @@
+import 'package:revali_client/revali_client.dart' show ServerException;
 import 'package:zonai_client/gen/interfaces.dart';
 import 'package:zonai_client/src/admin_auth.dart';
+import 'package:zonai_client/src/password_reset_required_exception.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
 
@@ -64,9 +66,8 @@ class Auth {
     required AuthBody body,
     String? authorization,
   }) async {
-    final raw = await _auth.authenticate(
-      body: body,
-      authorization: authorization,
+    final raw = await translatePasswordResetRefusal(
+      () => _auth.authenticate(body: body, authorization: authorization),
     );
     return _sessionFromRaw(raw);
   }
@@ -79,8 +80,54 @@ class Auth {
     // Prefer the dedicated /auth/sign-in route (typed SignInAuthBody) over the
     // polymorphic /auth authenticate endpoint — avoids 500s when a caller
     // omits `type`/`table` and keeps sign-in on the BodyRateLimit(.signIn) bucket.
-    final raw = await _auth.signIn(body: body);
+    final raw = await translatePasswordResetRefusal(
+      () => _auth.signIn(body: body),
+    );
     return _sessionFromRaw(raw);
+  }
+
+  /// Finish a forced password reset and end up signed in.
+  ///
+  /// Two calls, not one, and that is the server's contract rather than an
+  /// oversight: `POST /auth/confirm` returns NO session for a password reset,
+  /// because the emailed variant is completed by whoever holds the link and
+  /// handing that party a session would be a very different feature. Rather
+  /// than change the contract for the forced path only, the client signs in
+  /// again with the password the caller just chose.
+  ///
+  /// ```dart
+  /// try {
+  ///   await client.auth.signIn(body: body);
+  /// } on PasswordResetRequiredException catch (e) {
+  ///   await client.auth.completePasswordReset(
+  ///     refusal: e,
+  ///     email: body.email,
+  ///     newPassword: chosen,
+  ///     table: body.table,
+  ///   );
+  /// }
+  /// ```
+  ///
+  /// Throws whatever the confirm rejected with, unchanged — notably a
+  /// `ServerException` with status 422 when [newPassword] is the password the
+  /// account already has. That one does NOT consume the ticket, so the same
+  /// [refusal] can be passed again with a different password.
+  Future<AuthSession?> completePasswordReset({
+    required PasswordResetRequiredException refusal,
+    required String email,
+    required String newPassword,
+    String table = 'users',
+  }) async {
+    await confirm(
+      body: VerifyAuthBody.confirmResetPassword(
+        token: refusal.resetToken,
+        newPassword: newPassword,
+      ),
+    );
+
+    return signIn(
+      body: SignInAuthBody(table: table, email: email, password: newPassword),
+    );
   }
 
   /// Sign up with email and password.
@@ -210,5 +257,25 @@ class Auth {
 
   Future<void> logoutAll({String? authorization}) async {
     await _auth.logoutAll(authorization: authorization ?? '');
+  }
+}
+
+/// Re-throws a [ServerException] as a [PasswordResetRequiredException] when it
+/// is one.
+///
+/// Shared by [Auth] and [AdminAuth] because all three password doors —
+/// `/auth/sign-in`, `/auth` with `type: signIn`, and `/auth/admin` — land on
+/// the same server-side gate, so a client that translated only one of them
+/// would leave the dashboard's own sign-in holding a raw envelope.
+///
+/// Anything that is not this failure is re-thrown UNCHANGED, including a 403
+/// carrying some other `code`. Reshaping another failure into this type would
+/// send a caller off to collect a new password for a problem that is not
+/// about passwords.
+Future<T> translatePasswordResetRefusal<T>(Future<T> Function() request) async {
+  try {
+    return await request();
+  } on ServerException catch (e) {
+    throw PasswordResetRequiredException.tryFrom(e) ?? e;
   }
 }

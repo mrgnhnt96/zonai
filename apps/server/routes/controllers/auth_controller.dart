@@ -30,6 +30,20 @@ class AuthController {
 
   final AuthHandler authHandler;
 
+  // The one structured error body zonai emits -- every other auth failure on
+  // these routes is a bare `{"error": "<sentence>"}`. Documented on all three
+  // password doors because all three run `_signInWithPassword`, which is what
+  // raises it. See docs/auth.md, "Forced password reset".
+  @swagger.ApiResponse(
+    403,
+    description:
+        'The credentials were correct, but the account owes a new '
+        'password before it may sign in. Body is the structured envelope '
+        '`{"error": {"code": "password_reset_required", "message": ..., '
+        '"details": {"resetToken": ..., "expiresIn": <seconds>, '
+        '"reason": ...}}}`. Complete it with `POST /auth/confirm` carrying '
+        '`resetToken`, then sign in again.',
+  )
   @BodyRateLimit<AuthBody>(RateLimitOperation.authenticate)
   @Post()
   Future<Map<String, Object?>?> authenticate({
@@ -99,6 +113,20 @@ class AuthController {
   // privileged accounts was unlimited. `RateLimitOperation.adminAuthenticate`
   // resolves to the (tight) `adminAuthenticatePolicy`, bucketed per-IP on the
   // synthetic `__admin_auth__` key since admin auth carries no collection.
+  // The one structured error body zonai emits -- every other auth failure on
+  // these routes is a bare `{"error": "<sentence>"}`. Documented on all three
+  // password doors because all three run `_signInWithPassword`, which is what
+  // raises it. See docs/auth.md, "Forced password reset".
+  @swagger.ApiResponse(
+    403,
+    description:
+        'The credentials were correct, but the account owes a new '
+        'password before it may sign in. Body is the structured envelope '
+        '`{"error": {"code": "password_reset_required", "message": ..., '
+        '"details": {"resetToken": ..., "expiresIn": <seconds>, '
+        '"reason": ...}}}`. Complete it with `POST /auth/confirm` carrying '
+        '`resetToken`, then sign in again.',
+  )
   @BodyRateLimit<AdminAuthBody>(RateLimitOperation.adminAuthenticate)
   @Post('admin')
   Future<Map<String, Object?>?> adminAuthenticate({
@@ -112,6 +140,20 @@ class AuthController {
     return result;
   }
 
+  // The one structured error body zonai emits -- every other auth failure on
+  // these routes is a bare `{"error": "<sentence>"}`. Documented on all three
+  // password doors because all three run `_signInWithPassword`, which is what
+  // raises it. See docs/auth.md, "Forced password reset".
+  @swagger.ApiResponse(
+    403,
+    description:
+        'The credentials were correct, but the account owes a new '
+        'password before it may sign in. Body is the structured envelope '
+        '`{"error": {"code": "password_reset_required", "message": ..., '
+        '"details": {"resetToken": ..., "expiresIn": <seconds>, '
+        '"reason": ...}}}`. Complete it with `POST /auth/confirm` carrying '
+        '`resetToken`, then sign in again.',
+  )
   @BodyRateLimit<SignInAuthBody>(RateLimitOperation.signIn)
   @Post('sign-in')
   Future<Map<String, Object?>> signIn({

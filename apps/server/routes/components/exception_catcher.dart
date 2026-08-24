@@ -94,6 +94,40 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 401,
         body: {'error': '$exception'},
       ),
+      // 403, not 401. The whole sign-in oracle contract (docs/auth.md,
+      // "Failed sign-in") rests on 401 meaning *these credentials are not
+      // valid*, rendered identically for a wrong password and an unknown
+      // address. This says the opposite -- the password was right -- so it
+      // must not share that status. 409 was considered on the
+      // AdminInviteRequiresOAuthException precedent ("wrong door") and
+      // rejected: this caller is at the right door and is being refused.
+      //
+      // Not a 200 carrying no accessToken either: every client written before
+      // this existed would read that as success, proceed with a null token,
+      // and fail somewhere further away. A 4xx fails closed.
+      //
+      // The body is the ONE structured envelope zonai emits -- every other
+      // error here is a bare sentence. That is deliberate and narrow: a
+      // sentence cannot carry a ticket and cannot be branched on, and
+      // migrating the rest is a breaking wire change that gets its own
+      // commit and its own migration note (design §5.2, option (a)).
+      // Built through HttpError so the shape cannot drift from the one
+      // ServerException.fromBody already parses on the client.
+      //
+      // `token` is read explicitly here. Nothing interpolates the exception
+      // -- see the invariant on PasswordResetRequiredException.
+      final PasswordResetRequiredException e => .handled(
+        statusCode: 403,
+        body: HttpError.forbidden(
+          code: 'password_reset_required',
+          message: 'This account must set a new password before signing in',
+          details: {
+            'resetToken': e.token,
+            'expiresIn': e.expiresIn.inSeconds,
+            'reason': e.reason.name,
+          },
+        ).toEnvelope(),
+      ),
       AlreadyAuthenticatedException() => .handled(
         statusCode: 409,
         body: {'error': '$exception'},

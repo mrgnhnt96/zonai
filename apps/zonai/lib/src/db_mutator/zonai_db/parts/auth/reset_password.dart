@@ -210,5 +210,22 @@ extension _ResetPasswordX on ZonaiDb {
       'Reset password for $authRecordId, revoked $revoked session(s)',
       prefix: _prefix,
     );
+
+    // The requirement is satisfied by the password CHANGING, not by the door
+    // it changed through. Clearing here rather than in the forced-sign-in
+    // path means an emailed reset also lifts a forced requirement -- which is
+    // right: the demand was "choose a new password", never "choose it this
+    // particular way". Doing it after the update and the revocation means a
+    // submission that failed any earlier check leaves the requirement
+    // standing.
+    final db = await open();
+    await db
+        .delete(from: passwordResetRequirements)
+        .where(
+          passwordResetRequirements.table.equals(challenge.table) &
+              passwordResetRequirements.userId.equals(
+                UnknownId(authRecordId),
+              ),
+        );
   }
 }

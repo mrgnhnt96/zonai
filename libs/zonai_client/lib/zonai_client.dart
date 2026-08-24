@@ -12,6 +12,11 @@ export 'src/auth.dart' show Auth;
 export 'src/db.dart' show Db;
 export 'src/db_listen.dart' show DbListen;
 export 'src/emails.dart' show Emails;
+// The one typed failure zonai's own error envelope produces. A consumer that
+// cannot NAME it cannot catch it, and the whole point of the 403 is that it is
+// recoverable rather than fatal.
+export 'src/password_reset_required_exception.dart'
+    show PasswordResetRequiredException;
 export 'src/photos.dart' show Photos;
 // The `Where` / `Update` / `OrderByTerm` vocabulary below is the query surface a
 // generated typed client returns and consumes, so a consumer must be able to

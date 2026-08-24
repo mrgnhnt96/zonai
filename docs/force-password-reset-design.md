@@ -1,6 +1,6 @@
 # Force password reset on sign in — design and build plan
 
-Status: **proposed**. Nothing built. Written 2026-08-24.
+Status: **largely built**. Written 2026-08-24. See [§12](#12-implementation-status) for what landed, what did not, and how §10's open questions were answered.
 
 Every password in a zonai deployment today is changed by the person who owns it, on their
 own initiative. `POST /auth/reset-password` mails a link; the link is confirmed at
@@ -104,13 +104,35 @@ the same reason, behind `InternalTableRules`/`InternalRowRules`.
 ### 3.2 Why not a row in `_auth_challenges`
 
 Tempting, because it needs no migration: a new `AuthChallengeType` with a far-future
-`expiresAt` and `canConsume: false`. Rejected. That table means *one secret, one expiry,
-one consumption* — `secretHash` is `NOT NULL`, `cleanup_auth_challenges_cron` deletes
-every row whose `expires_at` has passed, and `_lastChallenge`/`_expireOldChallenges`
-assume every row is a live secret. A secretless,
-never-expiring, non-consumable row is a lie told in the schema and paid for by every
-query that touches the table afterwards. The requirement and the ticket are two different
-lifetimes; conflating them is exactly the mistake §1's first row describes.
+`expiresAt` and `canConsume: false`. Rejected — but for one reason, not three, and the
+difference matters because the other two would not have been enough.
+
+**The deciding reason is the cron.** `CleanupAuthChallengesCron`
+(`libs/zonai_schema/lib/src/internal/crons/cleanup_auth_challenges_cron.dart`) purges
+`where: Lt('expires_at', now)` with **no type filter at all**. A requirement row would
+therefore need a sentinel far-future `expires_at` — a security control resting on a magic
+date — or the cron would have to grow a special case for a row that is not a challenge.
+Neither is a small cost: the first is silent when it goes wrong, and the second puts
+knowledge of this feature into a job that has nothing else to do with it.
+
+**The write patterns are opposites.** A challenge is consumed and then reaped by expiry;
+a requirement is deleted, and only on a successful password change. One table holding
+both means "why is this row still here" has two different right answers.
+
+**`secretHash` is `TEXT NOT NULL` and a requirement has no secret** — a smell, not a
+blocker. It would be satisfied with a sentinel and nobody would be misled for long.
+
+> **Correction.** An earlier version of this section also claimed that
+> `_lastChallenge`/`_expireOldChallenges` "assume every row is a live secret". **That is
+> wrong.** Both filter on `type` explicitly
+> (`apps/zonai/lib/src/db_mutator/zonai_db/parts/auth/challenge.dart:34` and `:69`), so a
+> new `AuthChallengeType` would be naturally isolated from them. That leg of the argument
+> is removed rather than quietly softened: reuse here was more defensible than the
+> original text implied, and the honest case rests on the cron alone.
+
+The requirement and the ticket are still two different lifetimes; conflating them is the
+mistake §1's first row describes. But it is worth saying that the separate table is a
+judgement about one unfiltered `DELETE`, not an obvious win.
 
 ### 3.3 Cost
 
@@ -421,3 +443,133 @@ Two things read while designing this. Neither blocks it; both are real.
   while `sign-in`, `sign-up`, `authenticate`, `admin` and the send-* routes all do. That is
   the endpoint that verifies OTP codes, magic links and reset tokens — and the one this
   feature leans on. Worth its own fix regardless.
+
+---
+
+## 12. Implementation status
+
+Written after the fact, against the code rather than against the plan above.
+
+### Built
+
+**Steps 1–4 (schema, artifacts, mutator, gate).** `_password_reset_requirements` with its
+`InternalTableRules`/`InternalRowRules`/`TableOperations`, migration **`0010`** (not `0009`
+— `api_tokens` landed first, exactly as step 2 warned), and a `kPurgeableTableNames` entry.
+`ZonaiDb.requirePasswordReset` / `clearPasswordResetRequirement` /
+`passwordResetRequirement` are public. The gate sits in `_signInWithPassword` before
+anything mints, records or announces a session; the clear sits in `_confirmResetPassword`
+after the update and the revocation, so a submission that failed an earlier check leaves
+the requirement standing.
+
+**Step 5 (HTTP).** The 403 envelope is in `onAuthException`, built through
+`HttpError.forbidden(...).toEnvelope()` so the shape cannot drift. It landed **with step
+4, not after it**: `AuthException` is sealed, so the exhaustive switch would not compile
+without the case — the exception and its wire mapping could not be separated into two
+changes. `@ApiResponse(403, …)` is on `signIn`, `authenticate` **and**
+`adminAuthenticate`, because all three build a `SignInPasswordAuthPayload` and land in
+`_signInWithPassword`.
+
+**Step 6 (CLI).** `zonai db admin require-password-reset --email <a>`, with `--clear` and
+`--reason`. `reset-password` now sets the requirement **by default** with
+`--no-force-reset` to opt out; `admin add` gets `--force-reset` as opt-in. `--reason`
+accepts kebab-case and the Dart identifier spelling, and refuses an unknown value rather
+than defaulting — the value rides to the client in `details.reason`, and a fallback would
+put a claim in a user-facing body that nobody made.
+
+**Step 9 (docs).** `docs/auth.md` has a "Forced password reset" section, and it states
+explicitly that this body is not shaped like the other auth errors and that a client must
+branch on `error.code` rather than on `error.message`. §3.2 above is corrected.
+
+**Step 7 (client).** `zonai_client` throws a typed `PasswordResetRequiredException` carrying
+`token`, `expiresIn` and `reason`, and `completePasswordReset(…)` sits on both `Auth` and
+`AdminAuth`. `reason` crosses as a **String**, not a mirrored enum: an enum would throw on a
+value a newer server had added, and the client's job here is to relay what the server said,
+not to ratify it.
+
+**Step 8 (dashboard).** The sign-in form catches the exception ahead of its generic clause and
+swaps itself for a forced-reset form that lands the admin **signed in** — deliberately not a
+reuse of `ResetPasswordConfirmForm`, which reads its token from `?s=` and ends on a card that
+offers no way onward. That ending is right for an emailed link, which reaches whoever owns the
+account on any auth table and most of those are an app's users; here the caller is already at
+the dashboard's own door, so the honest ending is the opposite one.
+
+The row action and its three routes take **`?table=`** and act on the collection NAMED, not on
+the `AsAdmin` one. `:email` is a path segment while `table` and `reason` are query parameters,
+and that split is load-bearing: `Uri.pathSegments` percent-decodes, so `a+b@example.com`
+survives a path segment, while in a query parameter `+` decodes to a space and silently
+addresses a different account.
+
+### Not built
+
+**§9's `drive.dart` fixture is not wired in.** The `e2e/forced_password_reset` fixture
+exists and is driven, but by an **in-process** suite
+(`apps/zonai/test/e2e/forced_password_reset_e2e_test.dart`, 8 round trips against a
+compiled project) rather than over HTTP by `tool/ci/e2e/drive.dart`. The HTTP layer needs
+one thing this repo does not have yet: a hook in `tool/ci/run_e2e.sh` that runs a CLI
+command between the `seed` and `verify` phases, because there is **no HTTP route that sets
+a requirement** — by design — so the fixture can only be put into the gated state by the
+CLI, while the server is stopped. Landing an unrun fixture in `served_fixtures` would red
+the whole CI e2e leg, so it is left out rather than added untested. `timeout-minutes` was
+therefore not raised either; it must be raised in the same change that adds the fixture.
+
+### How §10's open questions were answered
+
+1. **§5.2 → option (a).** One structured error among sentences. Migrating the rest is a
+   breaking wire change and gets its own commit and its own migration note.
+2. **Confirm returns no session.** The client re-signs in. The emailed reset path is
+   unchanged.
+3. **Password age policy** — still out of scope, still cheap to add later.
+4. **§5.3 → checked, and the answer is conditional rather than flat.** Response bodies are
+   never logged: `Router._authoredResponse` (revali_router 5.1.1) only logs at `>= 500`,
+   and zonai logs no response body anywhere. The ONE surface that could carry the ticket
+   into `_log` is `'$exception'` — `Exceptions._serverSide` interpolates an exception's
+   `toString()` into a warn that the trace component persists. The 403 branch returns
+   `.handled(...)` and does not call `_serverSide` at all, so nothing is logged on the
+   intended path; and `PasswordResetRequiredException.toString()` carries no token,
+   which is pinned by a test rather than left to a comment. That invariant is the
+   mitigation, so it must not be relaxed.
+
+Also decided, and by the operator rather than by this design: **the CLI stays admin-only, and
+that is a boundary rather than a gap.** Every layer beneath it is already table-generic — the
+mutator, the sign-in gate in `_signInWithPassword`, the three routes and the dashboard row
+action all act on any collection carrying a password column, and `requirePasswordReset`
+refuses a table with none rather than writing a row nothing would ever read. Only
+`zonai db admin require-password-reset` resolves `adminPasswordTable()`, and so does its
+sibling `reset-password`: the whole `zonai db admin` group is the *admin* group, and the CLI
+has no non-admin account group at all. Reaching a user table from the command line would mean
+either a `--table` flag on one subcommand of a namespace that promises the opposite, or a new
+command group — so the dashboard is the operator surface for non-admin accounts, and the CLI
+stays the no-server recovery path for admins, which is what its own help text already claims.
+
+Also decided, and not in §10: **no new `AuthOperation` enum value.** Setting a requirement
+is an admin action authorized the way admin invites are, not an auth-flow step evaluated
+by `AuthRowRules`; adding to that enum would source-break every app that switches
+exhaustively over it, for nothing.
+
+### What §11 looks like now
+
+The first adjacent finding — **`_resetAdminPassword` does not revoke sessions** — is no
+longer reachable the way it was described, because `zonai db admin reset-password` now
+calls `requirePasswordReset` by default and that revokes. The underlying
+`_resetAdminPassword` method still does not revoke on its own, so a caller passing
+`--no-force-reset`, or any future caller of the method, still gets the old behaviour. Worth
+fixing at the method rather than leaving it to its callers.
+
+The second — **`POST /auth/confirm` is not rate limited** — is unchanged, and this feature
+leans on that endpoint. Still worth its own fix.
+
+### What is proven, and by what
+
+| Claim | Where |
+| --- | --- |
+| Row semantics: lookup, the unique index, collection scoping | `apps/zonai/test/src/db_mutator/zonai_db/password_reset_requirement_test.dart` |
+| `toString()` never carries the ticket | `apps/zonai/test/src/exceptions/password_reset_required_exception_test.dart` |
+| The 403 envelope, key-for-key, and `expiresIn` in seconds | `apps/server/test/password_reset_required_envelope_test.dart` |
+| The CLI surfaces, including the `reset-password` default flip | `apps/zonai/test/src/commands/db/admin/` |
+| Session revocation; the gate minting no `_jwt` row (counted, not inferred); a WRONG password against a gated account staying an ordinary 401 with no ticket minted; the round trip and its replay; reuse without burning the ticket; cross-door; passwordless; the OAuth-only refusal; clear-returns-false | `apps/zonai/test/e2e/forced_password_reset_e2e_test.dart` (compiled project, 9 tests) |
+| `onSignIn` did not run on a gated attempt (§9 asks for it) | **nothing** — the gate is proven to mint no `_jwt` row, which is the half that hands a caller something; the extension not firing is still unasserted |
+| The typed client exception, its `toString()` withholding the token, and the confirm round trip | `libs/zonai_client/test/password_reset_required_test.dart` (9 tests) |
+| The three routes refusing a non-admin bearer, and acting on the collection `?table=` names rather than on the `AsAdmin` one | `apps/server/test/require_password_reset_admin_gate_test.dart` (19 tests) |
+| The dashboard's requirement summary and reason spelling | `apps/web/test/password_reset_requirement_test.dart` (12 tests) |
+| The dashboard sign-in swap and the row action **rendering** | **nothing** — both are asserted only through the pure helpers above; no component/render coverage exists in `apps/web` yet (`verify.yaml` says so under its `apps/web/lib/**` RECHECK) |
+| The 403 **over the wire** | **nothing yet** — see "Not built" |
