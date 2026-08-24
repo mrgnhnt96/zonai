@@ -104,16 +104,22 @@ void main() {
       expect(result.output, contains('delete'));
     });
 
-    test('--can-edit without --admin', () async {
+    test('--can-edit alongside --no-admin', () async {
+      // A token is an admin unless --no-admin says otherwise, so the pair
+      // that cannot be meant is now this one rather than a bare --can-edit.
+      // `--can-edit` on its own is no longer refused at all -- it falls
+      // through to the mint, which is past this file's boundary; the scope's
+      // own tests carry that half.
       final result = await _create({
         'name': 'backup',
         'tables': 'orders',
         'write': true,
+        'admin': false,
         'can-edit': true,
       });
 
       expect(result.exitCode, 1);
-      expect(result.output, contains('--admin'));
+      expect(result.output, contains('--no-admin'));
     });
 
     test('an --expires that is not a duration', () async {

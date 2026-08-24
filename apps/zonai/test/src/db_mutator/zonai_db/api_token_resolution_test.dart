@@ -535,19 +535,47 @@ void main() {
 
     dbTest('canEdit without admin', (db) async {
       // `BaseTableRules.canCreate` checks `canEdit` alone, so the pair apart
-      // would be a live write grant wearing a non-admin label.
+      // would be a live write grant wearing a non-admin label. `admin: false`
+      // has to be said out loud now that it defaults to true -- which is what
+      // makes this pair reachable only by asking for it.
       await expectLater(
         db.createApiToken(
           name: 'half-admin',
           scope: const ApiTokenScope(
             tables: {'orders'},
             operations: {TableOperation.create},
+            admin: false,
             canEdit: true,
           ),
           createdBy: '__cli__',
         ),
         throwsA(isA<InvalidApiTokenScopeException>()),
       );
+    });
+
+    dbTest('a scope that says nothing about admin mints an admin token', (
+      db,
+    ) async {
+      // The user's decision, at the layer that stores it: the row must carry
+      // `admin: true`, not merely resolve to one in memory, or a token read
+      // back by another process would be inert.
+      final minted = await db.createApiToken(
+        name: 'unstated',
+        scope: const ApiTokenScope(
+          tables: {'orders'},
+          operations: {TableOperation.list},
+        ),
+        createdBy: '__cli__',
+      );
+
+      expect(minted.row.scopeJson['admin'], isTrue);
+      expect(minted.row.scopeJson['canEdit'], isFalse);
+
+      final identity =
+          (await db.parseJwt(minted.secret, allowApiToken: true))!
+              as ApiTokenJwt;
+
+      expect(identity.admin, (isAdmin: true, canEdit: false));
     });
 
     dbTest('no tables, no operations, or no name', (db) async {

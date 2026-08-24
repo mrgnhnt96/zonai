@@ -18,10 +18,10 @@ final class ApiTokenScope {
     required this.tables,
     required this.operations,
     this.customOperations = const {},
-    this.admin = false,
-    this.canEdit = false,
+    this.admin = true,
+    bool? canEdit,
     this.rateLimit,
-  });
+  }) : _canEdit = canEdit;
 
   factory ApiTokenScope.fromJson(Map<String, Object?> json) {
     return ApiTokenScope(
@@ -31,8 +31,20 @@ final class ApiTokenScope {
           if (TableOperation.fromString(name) case final operation?) operation,
       },
       customOperations: _stringSet(json['customOperations']),
+      // Deliberately strict, unlike the constructor's default: the *authoring*
+      // default is admin, but a decode is what an unparsable or truncated
+      // `scope` column goes through, and that one must fail closed. Every row
+      // this codebase writes came from [toJson], which always emits the key,
+      // so the absent case is a corrupted column or a hand-written row -- and
+      // a hand-written row that forgot to say `admin` is exactly the row that
+      // should not silently be one.
       admin: json['admin'] == true,
-      canEdit: json['canEdit'] == true,
+      canEdit: switch (json['canEdit']) {
+        final bool canEdit => canEdit,
+        // Absent, so let [canEdit] derive itself rather than reading as a
+        // hard `false` -- see the getter.
+        _ => null,
+      },
       rateLimit: switch (json['rateLimit']) {
         final Map<String, dynamic> policy => RateLimitPolicy.fromJson(policy),
         final Map<Object?, Object?> policy => RateLimitPolicy.fromJson(
@@ -45,7 +57,14 @@ final class ApiTokenScope {
 
   /// A token scoped to nothing. What an unparsable or absent `scope` column
   /// decodes to, so a corrupted row fails closed rather than open.
-  static const none = ApiTokenScope(tables: {}, operations: {});
+  static const none = ApiTokenScope(
+    tables: {},
+    operations: {},
+    // Explicit, because [admin] now defaults to true. This value is what an
+    // absent `scope` decodes to, and it must grant nothing at all.
+    admin: false,
+    canEdit: false,
+  );
 
   /// The member of [tables] / [customOperations] meaning "every one".
   ///
@@ -70,19 +89,64 @@ final class ApiTokenScope {
   /// Whether this token satisfies the *default* rule implementations, which
   /// deny everyone but an admin (`BaseTableRules`).
   ///
-  /// Not a bypass: rules still run, and a rule that asks for something else
-  /// still decides. Without it a token is inert against any collection whose
-  /// rules were never overridden.
+  /// **Defaults to true.** Not a bypass: rules still run, a rule that asks
+  /// for something else still decides, and the scope gate has already refused
+  /// every table and operation the token was not granted. Without it a token
+  /// is inert against any collection whose rules were never overridden, which
+  /// is what almost every collection is -- so a non-admin token reads as
+  /// broken rather than as restricted. Narrowing is the scope's job.
   final bool admin;
 
   /// The write half of [admin] -- `jwt.admin.canEdit`. Implies nothing on its
   /// own; a token with `canEdit` and no `update` in [operations] still cannot
   /// update.
-  final bool canEdit;
+  ///
+  /// Derived when it was not stated: an admin token granted any of
+  /// [writeOperations] carries it, a read-only one does not. So a `--read`
+  /// token is not handed a write grant it has no operation to spend. State it
+  /// explicitly to override the derivation in either direction; [toJson]
+  /// always emits the resolved answer, so a row is never ambiguous.
+  bool get canEdit =>
+      _canEdit ?? (admin && operations.any(writeOperations.contains));
+
+  final bool? _canEdit;
+
+  /// The operations [canEdit] is derived from -- the ones that write.
+  static const writeOperations = {
+    TableOperation.create,
+    TableOperation.update,
+    TableOperation.delete,
+  };
 
   /// Requests per window for this token, bucketed on the token rather than
   /// the client IP. Null means the collection's own policy applies.
   final RateLimitPolicy? rateLimit;
+
+  /// The stricter of this scope's admin grant and [table]'s own, for a token
+  /// **bound** to an auth row.
+  ///
+  /// An unbound token has no table to derive from -- its powers come from a
+  /// `_api_tokens` row only an admin could have written, and that is the
+  /// safety property. A bound one does have a table, and must never be more
+  /// privileged than the row it acts as: a personal access token for an
+  /// ordinary user is not an admin key, whatever its row says. Applied at
+  /// resolution rather than at mint, so removing `AsAdmin` from a collection
+  /// demotes every outstanding token for it on the next request -- the same
+  /// property `_withServerDerivedAdmin` gives a signed JWT.
+  ApiTokenScope clampedTo(({bool isAdmin, bool canEdit}) table) {
+    final grantedAdmin = admin && table.isAdmin;
+    final grantedCanEdit = grantedAdmin && canEdit && table.canEdit;
+    if (grantedAdmin == admin && grantedCanEdit == canEdit) return this;
+
+    return ApiTokenScope(
+      tables: tables,
+      operations: operations,
+      customOperations: customOperations,
+      admin: grantedAdmin,
+      canEdit: grantedCanEdit,
+      rateLimit: rateLimit,
+    );
+  }
 
   bool allowsTable(String table) =>
       tables.contains(wildcard) || tables.contains(table);

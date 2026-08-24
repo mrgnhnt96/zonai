@@ -20,8 +20,7 @@ zonai_pat_qT501HohVqtce6xB_EmC9W1lCBnhlDq-PpfWURL_6Xk
 zonai db token create \
   --name nightly-backup \
   --tables orders,line_items \
-  --read \
-  --admin
+  --read
 ```
 
 ```
@@ -33,6 +32,7 @@ zonai db token create \
   name:       nightly-backup
   tables:     orders, line_items
   operations: view, list, count
+  admin:      yes
   expires:    never -- revoke with `zonai db token revoke 0549432694cd399_pat`
 ```
 
@@ -52,8 +52,8 @@ a token obtainable without sign-in credentials at all.
 | `-o, --operations` | Any of `view`, `list`, `count`, `create`, `update`, `delete`. |
 | `--read` / `--write` | Shorthand for the read three and the write three. |
 | `--custom` | Named custom operations, or `"*"`. |
-| `--admin` | See [Why a token usually needs `--admin`](#why-a-token-usually-needs---admin). |
-| `--can-edit` | The write half of `--admin`. Requires `--admin`. |
+| `--no-admin` | Mint a token that is *not* an admin. See [A token is an admin by default](#a-token-is-an-admin-by-default). |
+| `--can-edit` / `--no-can-edit` | The write half of admin. Derived when unstated — on for an admin token granted `create`/`update`/`delete`, off for a read-only one. |
 | `--expires=90d` | `90d`, `12h`, `30m`, `45s`, or a bare number of days. |
 | `--no-expires` | The default. |
 | `--claims='{"role":"reporting"}'` | Merged into `jwt.claims`, so rules already reading `jwt.claims['role']` work unchanged. |
@@ -115,20 +115,29 @@ Those endpoints are refused rather than scoped because a scope speaks in tables 
 operations, a vocabulary none of them have: a token "scoped to orders" has no meaningful
 answer to *may it purge an internal table*.
 
-## Why a token usually needs `--admin`
+## A token is an admin by default
 
 The default rule implementations deny everyone except an admin (see
-[rules.md](rules.md#default-behavior)). So a token minted without `--admin` is **inert
+[rules.md](rules.md#default-behavior)). A token that is not an admin is therefore **inert
 against any collection whose rules were never overridden** — every request denied, with
-nothing obviously wrong.
+nothing obviously wrong. That is most collections, so a non-admin token reads as broken
+rather than as narrow, which is why it is not the default.
 
-`--admin` is not a bypass. It makes the token satisfy a rule that asks `jwt.admin.isAdmin`,
-and nothing more: the scope still bounds it, and every rule still runs. The two ways to
-use a non-admin token are to override the collection's rules to admit it — usually on
-`jwt.claims`, which `--claims` is there to populate — or to bind it to a user.
+Admin is not a bypass. It makes the token satisfy a rule that asks `jwt.admin.isAdmin`,
+and nothing more: **the scope still bounds it, and every rule still runs.** What a token
+may reach is `--tables` and `--operations`; admin is what lets it reach them at all.
+Narrowing is the scope's job, not admin's.
 
-`--can-edit` is the write half, and requires `--admin`: `BaseTableRules.canCreate` checks
-`canEdit` alone, so the pair apart would be a live write grant wearing a non-admin label.
+`--no-admin` mints one without it. One of two things then has to be true for it to work:
+either the collection's rules admit it explicitly — usually on `jwt.claims`, which
+`--claims` is there to populate — or the token is bound to a user with `--as`.
+
+`--can-edit` is the write half. It is **derived** when you do not say: an admin token
+granted any of `create`, `update` or `delete` carries it, a read-only one does not — so
+a `--read` token is never handed a write grant it has no operation to spend. Pass
+`--can-edit` or `--no-can-edit` to decide it yourself. It cannot be granted alongside
+`--no-admin`: `BaseTableRules.canCreate` checks `canEdit` alone, so the pair apart would
+be a live write grant wearing a non-admin label.
 
 ## Bound tokens
 
@@ -142,8 +151,10 @@ and `jwt.user` are that row's, so every ownership rule you have already written 
 working. This is what a "personal access token" is, and it is the cheap way to give an
 integration exactly one user's view of the data.
 
-A bound token is never more privileged than the row it names: if that table is not an
-`AsAdmin` collection, the token is not an admin token whatever `--admin` said.
+A bound token is never more privileged than the row it names. Its admin grant is clamped
+at resolution to the bound table's own: if that collection does not mix in `AsAdmin`, the
+token is not an admin token whatever its row says — and if `AsAdmin` is later removed and
+the app redeployed, every outstanding token bound to it is demoted on the next request.
 
 ## Listing and revoking
 

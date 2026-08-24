@@ -363,7 +363,14 @@ extension _AuthUtilsX on ZonaiDb {
     return ApiTokenJwt(
       tokenId: row.id,
       name: row.name,
-      scope: row.scope,
+      // A bound token is never more privileged than the row it acts as, so
+      // the schema's `AsAdmin` status clamps the row's grant. An unbound one
+      // has no table to derive from and keeps its scope verbatim -- see
+      // [ApiTokenScope.clampedTo] and the class doc on [ApiTokenJwt].
+      scope: switch (row.boundTable) {
+        final table? => row.scope.clampedTo(await _tableAdminStatus(table)),
+        null => row.scope,
+      },
       claims: row.claims,
       boundTable: row.boundTable,
       boundUserId: switch (row.boundUserId) {

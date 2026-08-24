@@ -229,6 +229,16 @@ level.** A token that can mint or widen a token is a token with no scope at all.
   Without it a token is useless against any collection whose rules were never overridden,
   because the defaults deny everyone else. With it, rules still run — this grants no
   bypass, it only makes the token look like an admin to a rule that asks.
+  **`admin` defaults to true** (§14.1, decided by the user). `canEdit` is *derived* when
+  the scope does not state it — on for an admin token granted `create`/`update`/`delete`,
+  off for a read-only one — and `toJson` always writes the resolved answer, so a stored
+  row is never ambiguous and a later change to the derivation cannot silently re-scope
+  tokens already issued.
+
+  The constructor default and the **decode** disagree on purpose:
+  `ApiTokenScope.fromJson` reads a missing `admin` as `false`. A decode is what a
+  corrupted or truncated `scope` column goes through, and that path has to fail closed;
+  every row this codebase writes came from `toJson`, which always emits the key.
 
 ### `admin` here is a grant, not a claim
 
@@ -246,6 +256,11 @@ reader will assume the check was forgotten.
 
 For a **bound** token, take the stricter of the two: the row's grant *and* the bound
 table's schema-derived status. A PAT for a non-admin user must not become an admin key.
+Built as `ApiTokenScope.clampedTo`, applied in `_resolveApiToken` — at resolution rather
+than at mint, so removing `AsAdmin` from a collection demotes every outstanding token
+bound to it on the next request, exactly as it does for a signed JWT. This was specified
+here and *not* implemented in the first pass; it became load-bearing the moment `admin`
+became the default, which is when it was caught.
 
 ### Two callers of the same token must not share a cached verdict
 
@@ -331,7 +346,7 @@ policy, which [api-tokens.md](api-tokens.md#rate-limits) says out loud.
 
 ```
 zonai db token create --name nightly-backup \
-    --tables orders,line_items --read --admin --no-expires
+    --tables orders,line_items --read --no-expires
 zonai db token list [--all] [--json]
 zonai db token revoke <id|prefix>
 zonai db token delete <id|prefix>
@@ -432,7 +447,9 @@ The ones that would be embarrassing to miss:
   §2 decision, and it is the one a JWT-based implementation would fail.
 - A revoked token 401s on the next request, with no restart.
 - An expired token 401s; a `null`-expiry token does not.
-- A bound token for a non-admin user is not an admin.
+- A bound token for a non-admin user is not an admin. (Unit-covered at
+  `ApiTokenScope.clampedTo`; the end-to-end half needs a compiled project, because the
+  bound table's `AsAdmin` status is resolved through the operations worker.)
 - Rate limiting keys on the token, not the IP: two IPs sharing a token share a bucket.
 
 ---
@@ -461,10 +478,16 @@ which the extra table fixes.
 
 ## 14. Open questions
 
-1. **Should an unbound token be `admin` by default?** Making it opt-in is safer and makes
-   the first token someone creates appear broken (every default rule denies it). Making it
-   the default is friendlier and is how people will actually use it. Recommendation:
-   opt-in, with the CLI printing the specific reason when a token is created without it.
+1. ~~**Should an unbound token be `admin` by default?**~~ **Answered: yes.** Shipped
+   opt-in first, with the CLI explaining itself; the user reversed it — *"the token
+   should be assumed to be admin, I don't see any reason for it to be non-admin at the
+   moment."* The reasoning that carried it: what a token may reach is `tables` and
+   `operations`, and admin is only what lets it reach them at all — so a non-admin token
+   is not a narrower token, it is an inert one, and it reads as broken. `--no-admin`
+   mints one, and the CLI now prints the explanation in that case instead. Two
+   consequences fell out of it and are built: `canEdit` is derived rather than defaulted
+   (so a `--read` token carries no write grant), and the bound-token clamp above stopped
+   being optional.
 2. **Is `custom:<name>` scoping worth v1?** Custom operations already have a rules path of
    their own and the name arrives unvalidated when rules are not linked in-process
    (`docs/rate-limiting.md:122`). Scoping them may need to wait for that.

@@ -54,17 +54,28 @@ void main() {
     });
 
     test('admin comes from the scope, and canEdit needs admin', () {
-      expect(_token().admin, (isAdmin: false, canEdit: null));
+      // Admin by default: a token that is not one is denied by the DEFAULT
+      // rules, so it reads as broken rather than as narrow. The default scope
+      // here grants only `list`, so `canEdit` derives to false.
+      expect(_token().admin, (isAdmin: true, canEdit: false));
 
       final adminToken = _token(
         scope: const ApiTokenScope(
           tables: {'orders'},
           operations: {TableOperation.list},
-          admin: true,
           canEdit: true,
         ),
       );
       expect(adminToken.admin, (isAdmin: true, canEdit: true));
+
+      final notAdmin = _token(
+        scope: const ApiTokenScope(
+          tables: {'orders'},
+          operations: {TableOperation.list},
+          admin: false,
+        ),
+      );
+      expect(notAdmin.admin, (isAdmin: false, canEdit: null));
 
       // `canEdit` without `admin` is a row edited by hand into a shape token
       // creation refuses. It grants nothing -- otherwise it would satisfy
@@ -73,10 +84,53 @@ void main() {
         scope: const ApiTokenScope(
           tables: {'orders'},
           operations: {TableOperation.create},
+          admin: false,
           canEdit: true,
         ),
       );
       expect(malformed.admin, (isAdmin: false, canEdit: null));
+    });
+
+    test('canEdit derives from the granted operations when unstated', () {
+      // A --read token must not carry a write grant it has no operation to
+      // spend, and a --write token must not need a second flag to work.
+      const readOnly = ApiTokenScope(
+        tables: {'orders'},
+        operations: {
+          TableOperation.view,
+          TableOperation.list,
+          TableOperation.count,
+        },
+      );
+      expect(readOnly.canEdit, isFalse);
+      expect(_token(scope: readOnly).admin, (isAdmin: true, canEdit: false));
+
+      const writer = ApiTokenScope(
+        tables: {'orders'},
+        operations: {
+          TableOperation.view,
+          TableOperation.create,
+          TableOperation.update,
+        },
+      );
+      expect(writer.canEdit, isTrue);
+      expect(_token(scope: writer).admin, (isAdmin: true, canEdit: true));
+
+      // Derivation never outruns admin, and an explicit answer wins over it
+      // in both directions.
+      const notAdmin = ApiTokenScope(
+        tables: {'orders'},
+        operations: {TableOperation.create},
+        admin: false,
+      );
+      expect(notAdmin.canEdit, isFalse);
+
+      const refused = ApiTokenScope(
+        tables: {'orders'},
+        operations: {TableOperation.create},
+        canEdit: false,
+      );
+      expect(refused.canEdit, isFalse);
     });
 
     test('a token with no expiry never expires', () {

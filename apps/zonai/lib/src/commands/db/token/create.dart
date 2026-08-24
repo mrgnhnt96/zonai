@@ -30,11 +30,17 @@ Options:
       --read                  Shorthand for --operations=view,list,count
       --write                 Shorthand for --operations=create,update,delete
       --custom=<a,b>          Named custom operations, or "*"
-      --admin                 Let the token satisfy the DEFAULT rules, which
-                               deny everyone but an admin. Without this a
+      --no-admin              Mint a token that is NOT an admin. Tokens are
+                               admin by default, because the DEFAULT rules
+                               deny everyone but an admin -- so a non-admin
                                token is inert against any collection whose
-                               rules were never overridden.
-      --can-edit              The write half of --admin. Requires --admin.
+                               rules were never overridden. What the token
+                               may reach is --tables and --operations; admin
+                               is what lets it reach them at all.
+      --can-edit,             The write half of admin. Derived when unstated:
+      --no-can-edit            on by default for an admin token granted
+                               create/update/delete, off for a read-only one.
+                               --can-edit requires admin.
       --expires=<90d|12h|30m> When it stops working
       --no-expires            Never expires (the default)
       --claims=<json>         JSON object merged into jwt.claims, so rules
@@ -112,13 +118,16 @@ Future<int> createToken() async {
     return 1;
   }
 
-  final admin = args.getOrNull<bool>('admin') == true;
-  final canEdit =
-      args.getOrNull<bool>('can-edit', aliases: ['canEdit']) == true;
-  if (canEdit && !admin) {
+  // Admin unless refused: see `ApiTokenScope.admin`. `--no-admin` parses to
+  // `false`; an absent flag reads back as null.
+  final admin = args.getOrNull<bool>('admin') != false;
+  // Left null when neither flag was passed, so the scope derives it from the
+  // granted operations rather than being pinned to a hard false.
+  final canEdit = args.getOrNull<bool>('can-edit', aliases: ['canEdit']);
+  if (canEdit == true && !admin) {
     logger.error(
-      '--can-edit is the write half of --admin. Pass --admin as well, or '
-      'neither.',
+      '--can-edit is the write half of admin, and --no-admin was passed. '
+      'Drop one of them.',
     );
     return 1;
   }
@@ -208,6 +217,11 @@ Future<int> createToken() async {
         '${[...operations.map((o) => o.name), ...customOperations].join(', ')}',
       )
       ..info(
+        '  admin:      '
+        '${minted.row.scope.admin ? 'yes' : 'no'}'
+        '${minted.row.scope.canEdit ? ', can edit' : ''}',
+      )
+      ..info(
         '  expires:    '
         '${minted.row.expiresAt?.toIso8601String() ?? 'never -- revoke with '
                 '`zonai db token revoke ${minted.row.id.value}`'}',
@@ -218,19 +232,20 @@ Future<int> createToken() async {
     }
 
     if (!admin) {
-      // The first token someone mints usually looks broken without this, and
-      // the reason is nowhere near where they will look for it.
+      // --no-admin was asked for, so this is not a surprise -- but the
+      // consequence lands nowhere near where they will look for it, and a
+      // token that is denied everything reads as a broken token.
       logger
         ..info('')
         ..info(
-          '  Note: this token is not an admin token, so it is denied by the '
-          'DEFAULT rules,',
+          '  Note: --no-admin, so this token is denied by the DEFAULT rules, '
+          'which allow',
         )
         ..info(
-          '  which allow only admins. Either override the collection\'s rules '
-          'to admit it',
+          '  only admins. Override the collection\'s rules to admit it (for '
+          'example on',
         )
-        ..info('  (for example on jwt.claims), or re-mint with --admin.');
+        ..info('  jwt.claims), or re-mint without --no-admin.');
     }
 
     logger.info('');

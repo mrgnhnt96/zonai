@@ -32,6 +32,8 @@ void main() {
     test('an unparsable scope decodes to nothing, not to everything', () {
       // The failure mode worth pinning: a corrupted or truncated `scope`
       // column must leave the token able to do nothing, never to do all of it.
+      // `admin` defaults to TRUE in the constructor and is still false here,
+      // and that asymmetry is deliberate -- see `fromJson`.
       final decoded = ApiTokenScope.fromJson(const {});
 
       expect(decoded.tables, isEmpty);
@@ -43,6 +45,8 @@ void main() {
     });
 
     test('ApiTokenScope.none allows nothing', () {
+      expect(ApiTokenScope.none.admin, isFalse);
+      expect(ApiTokenScope.none.canEdit, isFalse);
       expect(ApiTokenScope.none.allowsTable('orders'), isFalse);
       expect(ApiTokenScope.none.allowsTable(ApiTokenScope.wildcard), isFalse);
       expect(ApiTokenScope.none.allowsOperation(TableOperation.list), isFalse);
@@ -93,6 +97,145 @@ void main() {
       expect(decoded.tables, {ApiTokenScope.wildcard});
       expect(decoded.allowsTable('orders'), isTrue);
       expect(decoded.toJson()['tables'], ['*']);
+    });
+
+    test('a token is an admin unless it says otherwise', () {
+      // The user's decision: there is no reason for a token to be non-admin
+      // by default, and a non-admin one is denied by the DEFAULT rules, so it
+      // reads as broken rather than as narrow. Narrowing is what `tables` and
+      // `operations` are for.
+      const scope = ApiTokenScope(
+        tables: {'orders'},
+        operations: {TableOperation.list},
+      );
+
+      expect(scope.admin, isTrue);
+      expect(scope.toJson()['admin'], isTrue);
+
+      const refused = ApiTokenScope(
+        tables: {'orders'},
+        operations: {TableOperation.list},
+        admin: false,
+      );
+
+      expect(refused.admin, isFalse);
+      expect(ApiTokenScope.fromJson(refused.toJson()).admin, isFalse);
+    });
+
+    test('canEdit is derived from the granted operations when unstated', () {
+      const readOnly = ApiTokenScope(
+        tables: {'orders'},
+        operations: {
+          TableOperation.view,
+          TableOperation.list,
+          TableOperation.count,
+        },
+      );
+      expect(readOnly.canEdit, isFalse);
+
+      for (final write in ApiTokenScope.writeOperations) {
+        expect(
+          ApiTokenScope(tables: const {'orders'}, operations: {write}).canEdit,
+          isTrue,
+          reason: '$write is a write, so an admin token granted it can edit',
+        );
+      }
+
+      // Never without admin, and an explicit answer wins in both directions.
+      expect(
+        const ApiTokenScope(
+          tables: {'orders'},
+          operations: {TableOperation.create},
+          admin: false,
+        ).canEdit,
+        isFalse,
+      );
+      expect(
+        const ApiTokenScope(
+          tables: {'orders'},
+          operations: {TableOperation.create},
+          canEdit: false,
+        ).canEdit,
+        isFalse,
+      );
+      expect(
+        const ApiTokenScope(
+          tables: {'orders'},
+          operations: {TableOperation.list},
+          canEdit: true,
+        ).canEdit,
+        isTrue,
+      );
+    });
+
+    test('toJson emits the resolved canEdit, so a row is never ambiguous', () {
+      // The derivation lives in code; the row must not have to re-run it, or
+      // a later change to the rule would silently re-scope every stored token.
+      const derived = ApiTokenScope(
+        tables: {'orders'},
+        operations: {TableOperation.create},
+      );
+
+      expect(derived.toJson()['canEdit'], isTrue);
+      expect(ApiTokenScope.fromJson(derived.toJson()).canEdit, isTrue);
+
+      // And a stored `false` survives being read back beside a write op,
+      // rather than being re-derived into a true.
+      const pinned = ApiTokenScope(
+        tables: {'orders'},
+        operations: {TableOperation.create},
+        canEdit: false,
+      );
+
+      expect(pinned.toJson()['canEdit'], isFalse);
+      expect(ApiTokenScope.fromJson(pinned.toJson()).canEdit, isFalse);
+    });
+
+    group('clampedTo', () {
+      const admin = ApiTokenScope(
+        tables: {'orders'},
+        operations: {TableOperation.list, TableOperation.update},
+      );
+
+      test('a bound token is not an admin on a table that grants none', () {
+        // The whole point: a personal access token for an ordinary user must
+        // not be an admin key just because its row says admin.
+        final clamped = admin.clampedTo((isAdmin: false, canEdit: false));
+
+        expect(admin.admin, isTrue, reason: 'the row really did grant it');
+        expect(clamped.admin, isFalse);
+        expect(clamped.canEdit, isFalse);
+        // Only the admin half is withheld -- what it may reach is unchanged.
+        expect(clamped.tables, {'orders'});
+        expect(clamped.operations, admin.operations);
+      });
+
+      test('canEdit is withheld on an admin table that does not grant it', () {
+        final clamped = admin.clampedTo((isAdmin: true, canEdit: false));
+
+        expect(clamped.admin, isTrue);
+        expect(clamped.canEdit, isFalse);
+      });
+
+      test('a table that grants both leaves the scope untouched', () {
+        final clamped = admin.clampedTo((isAdmin: true, canEdit: true));
+
+        expect(identical(clamped, admin), isTrue);
+        expect(clamped.canEdit, isTrue);
+      });
+
+      test('it never widens -- the stricter of the two always wins', () {
+        const narrow = ApiTokenScope(
+          tables: {'orders'},
+          operations: {TableOperation.list},
+          admin: false,
+        );
+
+        final clamped = narrow.clampedTo((isAdmin: true, canEdit: true));
+
+        expect(clamped.admin, isFalse);
+        expect(clamped.canEdit, isFalse);
+      });
     });
 
     test('custom operations honour their own wildcard', () {

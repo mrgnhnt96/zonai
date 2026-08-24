@@ -29,7 +29,9 @@ import 'package:zonai_schema/src/types/jwt_id.dart';
 ///   need one, because its powers come from a `_api_tokens` row that only an
 ///   existing admin (or someone with filesystem access to the database) could
 ///   have written. The safety property is server-side state either way; only
-///   the route to it differs.
+///   the route to it differs. A **bound** token does have a table, and is
+///   clamped to it at resolution by [ApiTokenScope.clampedTo] -- a personal
+///   access token for an ordinary user is not an admin key.
 final class ApiTokenJwt implements Jwt {
   ApiTokenJwt({
     required this.tokenId,
