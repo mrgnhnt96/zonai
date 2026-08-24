@@ -688,6 +688,7 @@ dart run zonai gen client  # generate a typed Dart client from the schema
 dart run zonai rules       # inspect compiled authorization rules
 dart run zonai ping        # test worker executables
 dart run zonai version     # show version + check for updates
+dart run zonai ai update   # refresh these reference files after an upgrade
 ```
 
 `zonai gen client` writes a typed client — `client.posts.list(...)` returning a
@@ -898,6 +899,7 @@ dart run zonai gen client  # generate a typed Dart client from the schema
 dart run zonai rules       # inspect compiled authorization rules
 dart run zonai ping        # test worker executables
 dart run zonai version     # show version
+dart run zonai ai update   # refresh these reference files after an upgrade
 ```
 
 `zonai gen client` needs a `client:` block in `zonai.yaml` naming an `output`

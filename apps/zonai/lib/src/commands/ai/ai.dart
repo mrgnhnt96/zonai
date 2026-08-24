@@ -1,5 +1,6 @@
 import '../../deps/args.dart';
 import '../../deps/logger.dart';
+import 'ai_update.dart';
 import 'tools/cline.dart';
 import 'tools/claude.dart';
 import 'tools/copilot.dart';
@@ -19,6 +20,7 @@ Tools:
   copilot    GitHub Copilot (.github/copilot-instructions.md)
   windsurf   Windsurf (.windsurfrules)
   cline      Cline (.clinerules)
+  update     Rewrite the reference files this project already has, in place
 
 Options:
   -h, --help   Show help information
@@ -44,6 +46,8 @@ Future<int> ai(List<String> path) async {
       return await installWindsurf();
     case ['cline']:
       return await installCline();
+    case ['update']:
+      return await updateInstalledAiFiles();
     case ['all']:
       await installClaude();
       await installCursor();
