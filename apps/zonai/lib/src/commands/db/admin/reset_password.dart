@@ -13,11 +13,14 @@ Usage: zonai db admin reset-password [options]
 Reset an existing admin account's password. Use this to recover a
 deployment where an admin account exists but nobody has the password.
 
-The new password is TEMPORARY by default: the account must choose its own
-before it may sign in again, and every session it currently holds is
-revoked. Whoever ran this command knows the password they just set, so a
-password that stays good is a credential shared between two people for as
-long as nobody gets round to changing it.
+Every session the account currently holds is revoked, always -- a reset is
+the remedy for a password someone else may know, so the sessions that
+password minted must not outlive it.
+
+The new password is also TEMPORARY by default: the account must choose its
+own before it may sign in again. Whoever ran this command knows the password
+they just set, so a password that stays good is a credential shared between
+two people for as long as nobody gets round to changing it.
 
 Options:
   -h, --help              Show help information
@@ -61,6 +64,11 @@ Future<int> resetAdminPassword() async {
     await zonaiDB.resetAdminPassword(email: email, newPassword: password);
 
     logger.info('Password reset for $email');
+    // Unconditional, because the revocation is: `resetAdminPassword` revokes
+    // in the method now, so reporting it only under `--force-reset` would
+    // leave a `--no-force-reset` operator unaware that the sessions they held
+    // -- possibly their own -- are gone.
+    logger.info('  every session it held has been revoked');
 
     if (forceReset) {
       // AFTER the password lands, never before. Requiring a reset against a
@@ -78,7 +86,6 @@ Future<int> resetAdminPassword() async {
       );
 
       logger.info('  this password is temporary: $email must choose its own');
-      logger.info('  every session it held has been revoked');
       logger.info('  pass --no-force-reset to skip that');
     }
 

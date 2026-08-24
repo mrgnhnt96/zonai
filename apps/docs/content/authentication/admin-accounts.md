@@ -215,6 +215,8 @@ If nobody has the current password — the usual reason to reach for this — re
 zonai db admin reset-password --email admin@example.com --password newSecurePassword
 ```
 
+This revokes every session the account currently holds — always, including under `--no-force-reset`. Otherwise whoever the old password leaked to keeps a working session for the rest of `jwtExpiresIn` (14 days by default) while the owner believes they have just locked them out. By default the new password is also temporary: the account must choose its own before it may sign in again.
+
 If the admin already knows their password and just wants to change it, use the standard password reset flow (`POST /auth/reset-password`), the admin UI, or update the row directly:
 
 ```

@@ -114,6 +114,11 @@ zonai db admin reset -e admin@example.com -p newSecret123   # alias
 |------|-------|-------------|
 | `--email` | `-e` | Admin email address (required) |
 | `--password` | `-p` | New admin password (required) |
+| `--no-force-reset` | | Leave the new password standing — do not require the account to choose another |
+
+Every session the account currently holds is revoked, always. A reset is the remedy for a password someone else may know, so the sessions that password minted must not outlive it — `--no-force-reset` does not change that.
+
+By default the new password is also **temporary**: the account must choose its own before it may sign in again. Whoever ran the command knows the password they just set, so a password that stays good is a credential shared between two people. Pass `--no-force-reset` when you are resetting your own password and there is no second person to lock out.
 
 ### remove
 

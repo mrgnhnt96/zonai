@@ -36,6 +36,10 @@ import '../support/temp_directory.dart';
 ///     password leaked to keeps their session for the rest of `jwtExpiresIn`
 ///     (14 days by default) while the owner believes they were just locked
 ///     out.
+///   * `resetAdminPassword` revokes on its OWN, with no requirement in play.
+///     The CLI's revocation today is a side effect of it ALSO calling
+///     `requirePasswordReset` -- which `--no-force-reset` turns off, and which
+///     no future caller of the method is obliged to call at all.
 ///   * the gate hands back a one-time ticket and mints NO session.
 ///   * confirming with that ticket clears the requirement, and the ticket
 ///     does not work twice.
@@ -212,6 +216,75 @@ void main() {
               'THE load-bearing half. A requirement that only gates future '
               'sign-ins leaves a leaked password\'s existing session live for '
               'the rest of jwtExpiresIn.',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('resetting an admin password revokes sessions on its OWN, with no '
+        'requirement involved', () async {
+      if (!_runningOnDartVm) return;
+
+      await withDb((db) async {
+        const email = 'admin-reset@example.com';
+        const oldPassword = 'old-password-admin-reset-1';
+        const newPassword = 'new-password-admin-reset-1';
+
+        final signUp = await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(email: email, password: oldPassword),
+        );
+        expect(signUp, isNotNull);
+        final userId = signUp!.user['id']! as String;
+        final token = signUp.jwt;
+
+        // The control: the session works right now, so its later failure is
+        // caused by the reset rather than by never having been valid.
+        expect(await db.parseJwt(token), isNotNull);
+
+        // The METHOD, deliberately -- not `zonai db admin reset-password`.
+        // The CLI happens to revoke today by ALSO calling
+        // `requirePasswordReset`, which `--no-force-reset` turns off; driving
+        // the CLI here would ride on that side effect and prove nothing about
+        // the method every future caller will reach for.
+        await db.resetAdminPassword(email: email, newPassword: newPassword);
+
+        expect(
+          await db.passwordResetRequirement(table: 'admins', userId: userId),
+          isNull,
+          reason:
+              'THE control for this test. No requirement was set, so the '
+              'revocation below can only have come from `resetAdminPassword` '
+              'itself -- which is the point: the safety has to live in the '
+              'method, or `--no-force-reset` and every future caller opt out '
+              'of it without ever saying so',
+        );
+
+        expect(
+          await _sessionCount(db, userId),
+          0,
+          reason:
+              'counted, not inferred: a `_jwt` row surviving the reset is a '
+              'session minted by the password that was just replaced, and it '
+              'goes on working for the rest of jwtExpiresIn',
+        );
+
+        await expectLater(
+          db.parseJwt(token),
+          throwsA(isA<JwtRecordNotFoundException>()),
+        );
+
+        // And the reset itself still did its job -- a revocation that also
+        // broke the password change would satisfy every assertion above.
+        expect(
+          await db.authenticate(
+            'admins',
+            const SignInPasswordAuthPayload(
+              email: email,
+              password: newPassword,
+            ),
+          ),
+          isNotNull,
+          reason: 'the new password signs in',
         );
       });
     }, timeout: const Timeout(Duration(minutes: 3)));
