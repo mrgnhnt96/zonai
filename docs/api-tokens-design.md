@@ -1,11 +1,14 @@
 # API tokens — design and build plan
 
-Status: **usable**. Written 2026-08-24. §11 is the build order. Steps 1-5, 7 and the
-reference half of 9 are built: `zonai db token create` mints a credential with no
+Status: **verified over HTTP**. Written 2026-08-24. §11 is the build order. Steps 1-5, 7
+and the reference half of 9 are built: `zonai db token create` mints a credential with no
 sign-in and no expiry, it authenticates against `/db`, its scope is enforced ahead of
-the rules, it records when it was last used, and it is revocable on the next request.
-[api-tokens.md](api-tokens.md) is the user-facing doc. Still to come: per-token rate
-limiting (6), the dashboard screen (8), and the public-site page.
+the rules, it records when it was last used, and it is revocable on the next request --
+all of it now proven against a live server in
+`apps/zonai/test/e2e/api_token_http_e2e_test.dart` (§12, which also records the two
+defects only that test could find). [api-tokens.md](api-tokens.md) is the user-facing
+doc. Still to come: per-token rate limiting (6), the dashboard screen (8), and the
+public-site page.
 
 A zonai deployment today has exactly one way to obtain a credential for `/db`: sign in
 as a row in an auth collection and receive a JWT that expires (`jwtExpiresIn`, default
@@ -425,13 +428,34 @@ Each step is shippable and observable on its own.
 8. **Dashboard screen.**
 9. **Docs:** `docs/api-tokens.md` and `apps/docs/content/authentication/api-tokens.md`.
 
-Steps 1-5, 7 and the `docs/api-tokens.md` half of 9 are built. Left: per-token rate
-limiting (6, and see the note in §7 for why it is not free), the dashboard screen (8),
-and the public-site page.
+Steps 1-5, 7 and the `docs/api-tokens.md` half of 9 are built, and so is the HTTP
+end-to-end proof of all of them (§12). Left: per-token rate limiting (6, and see the note
+in §7 for why it is not free), the dashboard screen (8), and the public-site page.
 
 ---
 
 ## 12. What has to be tested
+
+Status: the HTTP leg is built --
+`apps/zonai/test/e2e/api_token_http_e2e_test.dart`, against the real generated
+server over a real socket, on the unmodified `e2e/data_plane_access_repro`
+fixture. Everything below `_extractJwt` had been green the whole time while the
+credential had never once been presented as an `Authorization` header, and that
+gap held two defects, both found the first time the test ran:
+
+1. **`ZonaiDb.create` / `createMany` resolved the identity without
+   `allowApiToken: true`.** They re-resolve it ahead of `parts/create.dart`
+   (which does opt in) purely to decide whether a password may be hashed into
+   the row — so an API token was refused before it ever reached the path that
+   would have accepted it. A `--write` token could read and never create.
+2. **The sealed `ApiTokenException` family had no catcher.** Every member
+   reached revali's default handler, so the default-deny on `/admin/**` and
+   `/dashboard/maintenance/**` — §7 working exactly as designed — answered
+   **500 Internal Server Error**. Now `401` with the exception's own constant
+   message.
+
+Neither is reachable from a unit test: the first needs the operations worker
+and the second needs the route pipeline.
 
 The ones that would be embarrassing to miss:
 

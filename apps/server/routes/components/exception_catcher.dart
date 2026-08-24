@@ -284,6 +284,44 @@ final class Exceptions implements LifecycleComponent {
     };
   }
 
+  /// An API token offered somewhere it is not a credential.
+  ///
+  /// Without this the sealed family had no catcher at all, and every one of
+  /// them reached revali's default handler as an unhandled exception: a token
+  /// presented to `/admin/**` or `/dashboard/maintenance/**` -- the
+  /// default-deny working exactly as designed -- answered **500 Internal
+  /// Server Error**. Found by `test/e2e/api_token_http_e2e_test.dart`; a
+  /// refusal that reads as a server fault is one nobody debugs as a refusal.
+  ///
+  /// 401 rather than 403: the caller is not authenticated *here*, whatever it
+  /// is elsewhere, which is the same answer `InvalidJwtException` gets. The
+  /// message is a constant and names no table, so echoing it leaks nothing --
+  /// and it is the one line that tells an integration author what happened.
+  ///
+  /// The other two members are CLI-side today (`zonai db token create` /
+  /// `revoke`) and reach no route; they are mapped anyway so that adding a
+  /// mint endpoint later cannot reintroduce the 500.
+  ExceptionCatcherResult<ApiTokenException> onApiTokenException(
+    ApiTokenException exception,
+  ) {
+    return switch (exception) {
+      ApiTokenNotAcceptedHereException() => .handled(
+        statusCode: 401,
+        body: {'error': '$exception'},
+      ),
+      InvalidApiTokenScopeException() => _suppressed(
+        exception,
+        statusCode: 400,
+        error: '$exception',
+      ),
+      ApiTokenNotFoundException() => _suppressed(
+        exception,
+        statusCode: 404,
+        error: _notFound,
+      ),
+    };
+  }
+
   /// Both permission failures answer identically, and neither names the table.
   ///
   /// `TableAccessDeniedException` and `RowAccessDeniedException` stringify to

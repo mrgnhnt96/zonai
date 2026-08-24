@@ -91,8 +91,9 @@ editing the row.
 **The rules** then run exactly as they do for a signed-in user. A token scoped to
 `orders` still has to satisfy `OrderTableRules.canList` and `OrderRowRules.canView`.
 
-An out-of-scope request answers with the same permission error a rules denial produces,
-so a token cannot be used to discover which collections exist.
+An out-of-scope request answers with the same permission error a rules denial produces —
+`403 {"error":"Forbidden"}`, byte for byte — so a token cannot be used to discover which
+collections exist.
 
 ### Internal tables are never in scope
 
@@ -107,9 +108,11 @@ write it would mint itself a wider token, and the scope would stop meaning anyth
 
 ### Only the data API
 
-`/auth/*`, `/admin/*`, `/maintenance/*`, `/cron/*`, `/email/*`, `/push/*` and the photo
-endpoints all refuse an API token. So does any route added later — the credential is
-rejected by default and each data path opts in explicitly, so forgetting fails closed.
+`/auth/*`, `/admin/*`, `/dashboard/maintenance/*`, `/cron/*`, `/email/*`, `/push/*` and
+the photo endpoints all refuse an API token, with `401` and *"An API token is not accepted
+here. API tokens authenticate the data API; sign in for anything else."* So does any route
+added later — the credential is rejected by default and each data path opts in explicitly,
+so forgetting fails closed.
 
 Those endpoints are refused rather than scoped because a scope speaks in tables and
 operations, a vocabulary none of them have: a token "scoped to orders" has no meaningful

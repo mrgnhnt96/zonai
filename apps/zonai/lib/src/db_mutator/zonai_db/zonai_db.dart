@@ -955,7 +955,12 @@ class ZonaiDb {
     // Hash Argon2 outside the writer lock so concurrent creates aren't
     // serialized behind password hashing.
     return await _run(() async {
-      final jwt = await _extractJwt(payload);
+      // `allowApiToken: true` because this IS the `/db` create path -- it
+      // resolves the identity a second time, ahead of `_create`, only to
+      // decide whether a password may be hashed into the row. Without it an
+      // API token was refused here before ever reaching `parts/create.dart`,
+      // which does opt in: a `--write` token could read but never create.
+      final jwt = await _extractJwt(payload, allowApiToken: true);
       final changed = await _hashPasswordCreate(table, payload.object);
       if (changed) {
         if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
@@ -971,7 +976,8 @@ class ZonaiDb {
     CreateManyPayload payload,
   ) async {
     return await _run(() async {
-      final jwt = await _extractJwt(payload);
+      // See [create] -- same pre-check, same reason it must accept a token.
+      final jwt = await _extractJwt(payload, allowApiToken: true);
       var anyPasswordHashed = false;
       for (final object in payload.objects) {
         if (await _hashPasswordCreate(table, object)) {
