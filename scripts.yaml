@@ -147,7 +147,12 @@ docs:
     (command):
       - ${{ docs.index }}
       - ${{ docs.sitemap }}
-      - cd apps/docs && dart pub get && dart run jaspr_cli:jaspr build
+      # Not `cd apps/docs && dart run jaspr_cli:jaspr build` directly any more:
+      # jaspr's static generator binds 8080 unconditionally, and a foreign
+      # listener there makes every route fail with a 404 that reads like broken
+      # content. The wrapper names the pid instead. Why the fix is not ours to
+      # make is in the script.
+      - bash tool/ci/docs_build.sh
   test:
     (aliases): [t]
     (bail):
