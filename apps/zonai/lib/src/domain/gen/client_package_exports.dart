@@ -73,6 +73,7 @@ const kZonaiClientExports = <String>[
   'Or',
   'OrderByTerm',
   'Paginated',
+  'PasswordResetRequiredException',
   'PhotoCreateMeta',
   'Photos',
   'Remove',
