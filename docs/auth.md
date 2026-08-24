@@ -126,8 +126,17 @@ See `resetPasswordConfig` in [operations.md](operations.md#auth-collections) and
 | Public base URL in auth emails | [server-binding.md](server-binding.md) |
 | Admin password update rules and error codes | [operations.md](operations.md#password-columns) |
 
+## Tokens for machines
+
+Everything above is about a credential issued to a person who signed in. A backup script,
+a CI job or a partner integration has no password to type and nobody awake to
+re-authenticate it — use an [API token](api-tokens.md) instead: issued from the CLI with
+no sign-in at all, optionally without an expiry, scoped to named collections, and
+revocable on the next request.
+
 ## See also
 
+- **[api-tokens.md](api-tokens.md)** — credentials for scripts and integrations
 - **[extensions.md](extensions.md)** — `onSignUp`, `onSignIn`, `onRefresh`, `onLogout` hooks
 - **[email.md](email.md)** — SMTP setup, HTML templates, and transactional email
 - **[sending-email.md](sending-email.md)** — provider, DNS, and credentials for real mail delivery

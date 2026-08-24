@@ -10,6 +10,10 @@ import 'package:zonai/src/commands/compile.dart';
 import 'package:zonai/src/commands/db/db.dart';
 import 'package:zonai/src/commands/db/photos.dart';
 import 'package:zonai/src/commands/db/test.dart' as db_smoke_test;
+import 'package:zonai/src/commands/db/token.dart';
+import 'package:zonai/src/commands/db/token/create.dart';
+import 'package:zonai/src/commands/db/token/list.dart';
+import 'package:zonai/src/commands/db/token/revoke.dart';
 import 'package:zonai/src/commands/dev/dev.dart';
 import 'package:zonai/src/commands/gen/client.dart' as gen_client;
 import 'package:zonai/src/commands/gen/gen.dart';
@@ -129,6 +133,42 @@ void main() {
 
       expect(result.exitCode, 1);
       expect(result.output, contains('Usage: zonai db photos'));
+    });
+
+    test('db token', () async {
+      final result = await _help(() => token(const []));
+
+      expect(result.exitCode, 1);
+      expect(result.output, contains('Usage: zonai db token'));
+    });
+
+    test('db token create', () async {
+      final result = await _help(createToken);
+
+      expect(result.exitCode, 1);
+      expect(result.output, contains('Usage: zonai db token create'));
+      expect(result.output, contains('--no-expires'));
+    });
+
+    test('db token list', () async {
+      final result = await _help(listTokens);
+
+      expect(result.exitCode, 1);
+      expect(result.output, contains('Usage: zonai db token list'));
+    });
+
+    test('db token revoke', () async {
+      final result = await _help(() => revokeToken(null));
+
+      expect(result.exitCode, 1);
+      expect(result.output, contains('Usage: zonai db token revoke'));
+    });
+
+    test('db token delete', () async {
+      final result = await _help(() => deleteToken(null));
+
+      expect(result.exitCode, 1);
+      expect(result.output, contains('Usage: zonai db token delete'));
     });
 
     test('db migrate', () async {

@@ -1,9 +1,11 @@
 # API tokens — design and build plan
 
-Status: **in progress**. Written 2026-08-24. §11 is the build order. Steps 1, 2, 3
-and 5 are built: a token can be minted, presented, scoped, expired and revoked
-against a real database. Still to come: the CLI (4), per-token rate limiting (6),
-`last_used_at` (7), the dashboard screen (8) and the docs (9).
+Status: **usable**. Written 2026-08-24. §11 is the build order. Steps 1-5 and 9 are
+built: `zonai db token create` mints a credential with no sign-in and no expiry, it
+authenticates against `/db`, its scope is enforced ahead of the rules, and it is
+revocable on the next request. [api-tokens.md](api-tokens.md) is the user-facing
+doc. Still to come: per-token rate limiting (6), `last_used_at` writes (7), and the
+dashboard screen (8).
 
 A zonai deployment today has exactly one way to obtain a credential for `/db`: sign in
 as a row in an auth collection and receive a JWT that expires (`jwtExpiresIn`, default
@@ -321,10 +323,10 @@ expiry" is the combination worth being deliberate about.
 
 ```
 zonai db token create --name nightly-backup \
-    --tables orders,line_items --operations list,view \
-    --admin --no-expires
-zonai db token list
+    --tables orders,line_items --read --admin --no-expires
+zonai db token list [--all] [--json]
 zonai db token revoke <id|prefix>
+zonai db token delete <id|prefix>
 ```
 
 Talks to the DB file directly, exactly as `revokeAdminInviteFromCli` does

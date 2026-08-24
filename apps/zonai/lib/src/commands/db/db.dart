@@ -6,6 +6,7 @@ import 'email.dart';
 import 'logs.dart';
 import 'photos.dart';
 import 'test.dart';
+import 'token.dart';
 import '../migrate/migrate.dart';
 import '../../deps/args.dart';
 import '../../deps/logger.dart';
@@ -16,6 +17,7 @@ Usage: zonai db <subcommand> [options]
 Subcommands:
   migrate         Manage SQL migrations
   admin           Manage admin accounts
+  token           Manage API tokens for the data API
   logs            Manage internal log records
   email           Send test emails
   clear           Delete the local database file
@@ -44,6 +46,9 @@ Future<int> db(List<String> path) async {
 
     case ['admin', ...final path]:
       return await admin(path);
+
+    case ['token' || 'tokens' || 'api-token' || 'api-tokens', ...final path]:
+      return await token(path);
 
     case ['logs' || 'log', ...final path]:
       return await logs(path);
