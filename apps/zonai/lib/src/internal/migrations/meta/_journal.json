@@ -71,6 +71,13 @@
       "when": 1787593277768,
       "tag": "0009_api_tokens",
       "snapshotId": "e58923d1-742b-41eb-843e-a21b65e600ad"
+    },
+    {
+      "idx": 10,
+      "version": "1",
+      "when": 1787595470145,
+      "tag": "0010__zonai_v0_8_3_",
+      "snapshotId": "7038af6f-52d6-4d2a-b34e-f3b1e99b3696"
     }
   ]
 }

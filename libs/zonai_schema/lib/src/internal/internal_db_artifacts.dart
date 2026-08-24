@@ -24,6 +24,8 @@ import 'package:zonai_schema/src/internal/tables/logs_table.dart'
     as _schema_logs;
 import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart'
     as _schema_oauthIdentities;
+import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
+    as _schema_passwordResetRequirements;
 import 'package:zonai_schema/src/internal/tables/photos_table.dart'
     as _schema_photos;
 import 'package:zonai_schema/src/internal/tables/push_jobs_table.dart'
@@ -67,6 +69,11 @@ abstract final class InternalDbArtifacts {
       importPath:
           'package:zonai_schema/src/internal/operations/oauth_identity_operations.dart',
       alias: 'zonai_internal_oauth_identity_operations',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/operations/password_reset_requirement_operations.dart',
+      alias: 'zonai_internal_password_reset_requirement_operations',
     ),
     (
       importPath:
@@ -157,6 +164,16 @@ abstract final class InternalDbArtifacts {
       importPath:
           'package:zonai_schema/src/internal/rules/oauth_identity_table_rules.dart',
       alias: 'zonai_internal_oauth_identity_table_rules',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/rules/password_reset_requirement_row_rules.dart',
+      alias: 'zonai_internal_password_reset_requirement_row_rules',
+    ),
+    (
+      importPath:
+          'package:zonai_schema/src/internal/rules/password_reset_requirement_table_rules.dart',
+      alias: 'zonai_internal_password_reset_requirement_table_rules',
     ),
     (
       importPath:
@@ -288,6 +305,12 @@ abstract final class InternalDbArtifacts {
       tableName: '_oauth_identities',
     ),
     (
+      importPath:
+          'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart',
+      getter: 'passwordResetRequirements',
+      tableName: '_password_reset_requirements',
+    ),
+    (
       importPath: 'package:zonai_schema/src/internal/tables/photos_table.dart',
       getter: 'photos',
       tableName: '_photos',
@@ -315,6 +338,7 @@ abstract final class InternalDbArtifacts {
     _schema_jwts.jwts,
     _schema_logs.logs,
     _schema_oauthIdentities.oauthIdentities,
+    _schema_passwordResetRequirements.passwordResetRequirements,
     _schema_photos.photos,
     _schema_pushJobs.pushJobs,
     _schema_rateLimits.rateLimits,
@@ -329,6 +353,7 @@ abstract final class InternalDbArtifacts {
     '_jwt',
     '_log',
     '_oauth_identities',
+    '_password_reset_requirements',
     '_photos',
     '_push_jobs',
     '_rate_limit',
