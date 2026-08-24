@@ -144,4 +144,100 @@ class AdminController {
       email: email,
     );
   }
+
+  /// Require [email]'s account in `table` to choose a new password, and revoke
+  /// every session it holds (`docs/force-password-reset-design.md` §6).
+  ///
+  /// **`table` is a query parameter, and the rest of this controller has no
+  /// equivalent.** Its neighbours all act on the resolved `AsAdmin`
+  /// collection, because inviting and removing admins is only ever about that
+  /// one table. This is offered from the dashboard's row detail panel, which
+  /// opens on ANY collection with a password column, so resolving the admin
+  /// table here would look a `users` address up in `admins` and do nothing
+  /// while reporting success. Admin-ness is still required — `table` widens
+  /// what may be acted ON, never who may call.
+  ///
+  /// A query parameter rather than a body because both values are scalars and
+  /// neither is a secret, and because a body would need a new payload class in
+  /// `zonai_schema`.
+  @swagger.ApiResponse(200, description: '`{table, email, reason}`')
+  @swagger.ApiResponse(400, description: '`reason` names no known value')
+  @swagger.ApiResponse(
+    403,
+    description:
+        'No Bearer token, or one that is not an '
+        'admin for the resolved `AsAdmin` table',
+  )
+  @Post('members/:email/require-password-reset')
+  Future<Map<String, Object?>> requirePasswordReset({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Param() required String email,
+    @Query('table') required String table,
+    @Query('reason') String? reason,
+  }) async {
+    return await adminHandler.requirePasswordReset(
+      authorization: authorization,
+      email: email,
+      table: table,
+      reason: reason,
+    );
+  }
+
+  /// The requirement standing against [email] in `table`, or null.
+  ///
+  /// Read by the row detail panel so an operator can SEE one before deciding
+  /// whether to clear it. Admin-only like its neighbours: whether a given
+  /// account is locked out is not a fact an anonymous caller should be able to
+  /// probe for.
+  @swagger.ApiResponse(
+    200,
+    description:
+        '`{table, email, requirement}` — `requirement` is null when the '
+        'account owes nothing, else `{reason, createdAt, createdBy}`',
+  )
+  @swagger.ApiResponse(
+    403,
+    description:
+        'No Bearer token, or one that is not an '
+        'admin for the resolved `AsAdmin` table',
+  )
+  @Get('members/:email/require-password-reset')
+  Future<Map<String, Object?>> passwordResetRequirement({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Param() required String email,
+    @Query('table') required String table,
+  }) async {
+    return await adminHandler.passwordResetRequirement(
+      authorization: authorization,
+      email: email,
+      table: table,
+    );
+  }
+
+  /// Lift a requirement the account has not satisfied (design §4.2) — the
+  /// escape hatch for one set on the wrong address.
+  ///
+  /// `cleared` distinguishes "lifted" from "there was nothing to lift", so a
+  /// typo'd address does not read as a success. Neither is an error: the
+  /// operator asked for "this account owes nothing" and that is the state they
+  /// get either way.
+  @swagger.ApiResponse(200, description: '`{table, email, cleared}`')
+  @swagger.ApiResponse(
+    403,
+    description:
+        'No Bearer token, or one that is not an '
+        'admin for the resolved `AsAdmin` table',
+  )
+  @Delete('members/:email/require-password-reset')
+  Future<Map<String, Object?>> clearPasswordReset({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Param() required String email,
+    @Query('table') required String table,
+  }) async {
+    return await adminHandler.clearPasswordReset(
+      authorization: authorization,
+      email: email,
+      table: table,
+    );
+  }
 }

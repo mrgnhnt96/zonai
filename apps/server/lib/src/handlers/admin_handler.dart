@@ -1,4 +1,8 @@
 import 'package:zonai/deps.dart';
+// `PasswordResetReason` is not on zonai_schema's public barrel -- the table it
+// belongs to is internal. Imported from src the same way `zonai_db.dart` does.
+import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
+    show PasswordResetReason, passwordResetReasonFromWire;
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// The admin-management surface behind `/admin/**`
@@ -81,6 +85,118 @@ class AdminHandler {
     );
 
     return await zonaiDB.removeAdmin(email: email, actingAdmin: admin);
+  }
+
+  /// `POST /admin/members/:email/require-password-reset?table=&reason=` —
+  /// require [email]'s account in [table] to choose a new password, and revoke
+  /// every session it currently holds.
+  ///
+  /// **[table] is a parameter, and that is the whole difference between this
+  /// route and its neighbours.** Every other method here acts on whatever
+  /// `_requireAdmin` resolved — the first `AsAdmin` collection — because
+  /// inviting and removing admins is only ever about that one table. This
+  /// action is not: the dashboard offers it from the row detail panel, which
+  /// opens on ANY collection carrying a password column. Resolving the admin
+  /// table here instead would look up a `users` row's address in `admins` and,
+  /// finding nothing, either throw or silently do nothing while the operator
+  /// was told it worked.
+  ///
+  /// Admin-ness is still required, and still checked here. [table] widens what
+  /// the caller may act ON, never who may call.
+  Future<Map<String, Object?>> requirePasswordReset({
+    required String? authorization,
+    required String email,
+    required String table,
+    String? reason,
+  }) async {
+    final (token: _, :admin) = await _requireAdmin(
+      authorization,
+      'requirePasswordReset',
+    );
+
+    // An unknown value is REFUSED rather than defaulted. It rides to the
+    // gated client in the 403's `details.reason`, and falling back to
+    // `adminForced` would put a claim in a user-facing body that nobody made.
+    // Same posture as `zonai db admin require-password-reset --reason`.
+    final resolved = switch (reason) {
+      null || '' => PasswordResetReason.adminForced,
+      final raw => passwordResetReasonFromWire(raw),
+    };
+    if (resolved == null) {
+      throw ArgumentError.value(
+        reason,
+        'reason',
+        'Unknown password reset reason',
+      );
+    }
+
+    await zonaiDB.requirePasswordReset(
+      table: table,
+      email: email,
+      reason: resolved,
+      // Attributed to the admin who pressed the button, unlike the CLI's
+      // `'cli'`. `created_by` is how an operator later answers "who locked this
+      // account out", and a dashboard action that answered `'cli'` would be a
+      // lie in the one column that exists to say.
+      byUserId: admin.userId.value,
+    );
+
+    return {'table': table, 'email': email, 'reason': resolved.name};
+  }
+
+  /// `GET /admin/members/:email/require-password-reset?table=` — the
+  /// requirement standing against [email] in [table], or `{requirement: null}`.
+  ///
+  /// Read by the row detail panel so an operator can SEE a requirement before
+  /// deciding whether to clear it. `reason` and `createdAt` cross the wire;
+  /// `createdBy` is the admin id that set it, which the panel shows so
+  /// "who locked this account out" has an answer.
+  Future<Map<String, Object?>> passwordResetRequirement({
+    required String? authorization,
+    required String email,
+    required String table,
+  }) async {
+    await _requireAdmin(authorization, 'passwordResetRequirement');
+
+    final requirement = await zonaiDB.passwordResetRequirementForEmail(
+      table: table,
+      email: email,
+    );
+
+    return {
+      'table': table,
+      'email': email,
+      'requirement': switch (requirement) {
+        null => null,
+        final r => {
+          'reason': r.reason.name,
+          'createdAt': r.createdAt.toIso8601String(),
+          'createdBy': r.createdBy,
+        },
+      },
+    };
+  }
+
+  /// `DELETE /admin/members/:email/require-password-reset?table=` — lift a
+  /// requirement the account has not satisfied.
+  ///
+  /// Reports whether a row was actually removed. "Nothing to clear" is not a
+  /// failure — the operator asked for "this account owes nothing" and that is
+  /// the state they get — but it is reported distinctly, so a typo'd address
+  /// does not read as a success.
+  Future<Map<String, Object?>> clearPasswordReset({
+    required String? authorization,
+    required String email,
+    required String table,
+  }) async {
+    await _requireAdmin(authorization, 'clearPasswordResetRequirement');
+
+    final cleared = await zonaiDB.clearPasswordResetRequirement(
+      table: table,
+      email: email,
+    );
+
+    return {'table': table, 'email': email, 'cleared': cleared};
   }
 
   /// The caller's parsed JWT and the raw bearer token it came from, or

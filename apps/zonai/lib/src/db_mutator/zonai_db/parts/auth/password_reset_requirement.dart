@@ -144,6 +144,44 @@ extension _PasswordResetRequirementX on ZonaiDb {
     return removed.isNotEmpty;
   }
 
+  /// The requirement standing against [email]'s account in [table], or null.
+  ///
+  /// The by-email twin of [_passwordResetRequirement], which is keyed on the
+  /// account id. Both exist because the two callers hold different things: the
+  /// sign-in gate has already resolved the row and would waste a lookup, while
+  /// an operator surface -- the dashboard's row panel -- has only an address.
+  ///
+  /// Throws on an unknown address, matching [_requirePasswordReset] and
+  /// [_clearPasswordResetRequirement] rather than the auth flows: every caller
+  /// here is an authenticated admin or the CLI on the server box, so there is
+  /// no enumeration oracle to protect, and a silent null would read as "this
+  /// account owes nothing" for an address that does not exist.
+  Future<PasswordResetRequirement?> _passwordResetRequirementForEmail({
+    required String table,
+    required String email,
+  }) async {
+    final user = await _authRecord(table: table, email: email, sanitize: false);
+    if (user == null) {
+      throw StateError('No account with email "$email" exists in "$table"');
+    }
+
+    final idColumn = await _dispatchOperation<ColumnNameResponse>(
+      GetColumnNameRequest(table: table, columnName: .id),
+    );
+
+    final idColumnName = idColumn.name;
+    if (idColumnName == null) {
+      throw StateError('Missing id column for "$table"');
+    }
+
+    final userId = user[idColumnName];
+    if (userId is! String) {
+      throw StateError('Auth record id not found in "$table"');
+    }
+
+    return await _passwordResetRequirement(table: table, userId: userId);
+  }
+
   /// The requirement for one account, or null when it owes nothing.
   ///
   /// Keyed on `(table, user_id)`, which the unique index covers. This sits on

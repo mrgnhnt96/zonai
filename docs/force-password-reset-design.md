@@ -480,11 +480,26 @@ put a claim in a user-facing body that nobody made.
 explicitly that this body is not shaped like the other auth errors and that a client must
 branch on `error.code` rather than on `error.message`. §3.2 above is corrected.
 
-### Not built
+**Step 7 (client).** `zonai_client` throws a typed `PasswordResetRequiredException` carrying
+`token`, `expiresIn` and `reason`, and `completePasswordReset(…)` sits on both `Auth` and
+`AdminAuth`. `reason` crosses as a **String**, not a mirrored enum: an enum would throw on a
+value a newer server had added, and the client's job here is to relay what the server said,
+not to ratify it.
 
-**Step 7 (client)** and **step 8 (dashboard)** are not started. A `zonai_client` consumer
-sees the raw 403 body today and has no typed exception or re-sign-in helper; the dashboard
-has no sign-in handling and no row action.
+**Step 8 (dashboard).** The sign-in form catches the exception ahead of its generic clause and
+swaps itself for a forced-reset form that lands the admin **signed in** — deliberately not a
+reuse of `ResetPasswordConfirmForm`, which reads its token from `?s=` and ends on a card that
+offers no way onward. That ending is right for an emailed link, which reaches whoever owns the
+account on any auth table and most of those are an app's users; here the caller is already at
+the dashboard's own door, so the honest ending is the opposite one.
+
+The row action and its three routes take **`?table=`** and act on the collection NAMED, not on
+the `AsAdmin` one. `:email` is a path segment while `table` and `reason` are query parameters,
+and that split is load-bearing: `Uri.pathSegments` percent-decodes, so `a+b@example.com`
+survives a path segment, while in a query parameter `+` decodes to a space and silently
+addresses a different account.
+
+### Not built
 
 **§9's `drive.dart` fixture is not wired in.** The `e2e/forced_password_reset` fixture
 exists and is driven, but by an **in-process** suite
@@ -514,6 +529,18 @@ therefore not raised either; it must be raised in the same change that adds the 
    which is pinned by a test rather than left to a comment. That invariant is the
    mitigation, so it must not be relaxed.
 
+Also decided, and by the operator rather than by this design: **the CLI stays admin-only, and
+that is a boundary rather than a gap.** Every layer beneath it is already table-generic — the
+mutator, the sign-in gate in `_signInWithPassword`, the three routes and the dashboard row
+action all act on any collection carrying a password column, and `requirePasswordReset`
+refuses a table with none rather than writing a row nothing would ever read. Only
+`zonai db admin require-password-reset` resolves `adminPasswordTable()`, and so does its
+sibling `reset-password`: the whole `zonai db admin` group is the *admin* group, and the CLI
+has no non-admin account group at all. Reaching a user table from the command line would mean
+either a `--table` flag on one subcommand of a namespace that promises the opposite, or a new
+command group — so the dashboard is the operator surface for non-admin accounts, and the CLI
+stays the no-server recovery path for admins, which is what its own help text already claims.
+
 Also decided, and not in §10: **no new `AuthOperation` enum value.** Setting a requirement
 is an admin action authorized the way admin invites are, not an auth-flow step evaluated
 by `AuthRowRules`; adding to that enum would source-break every app that switches
@@ -541,4 +568,8 @@ leans on that endpoint. Still worth its own fix.
 | The CLI surfaces, including the `reset-password` default flip | `apps/zonai/test/src/commands/db/admin/` |
 | Session revocation; the gate minting no `_jwt` row (counted, not inferred); a WRONG password against a gated account staying an ordinary 401 with no ticket minted; the round trip and its replay; reuse without burning the ticket; cross-door; passwordless; the OAuth-only refusal; clear-returns-false | `apps/zonai/test/e2e/forced_password_reset_e2e_test.dart` (compiled project, 9 tests) |
 | `onSignIn` did not run on a gated attempt (§9 asks for it) | **nothing** — the gate is proven to mint no `_jwt` row, which is the half that hands a caller something; the extension not firing is still unasserted |
+| The typed client exception, its `toString()` withholding the token, and the confirm round trip | `libs/zonai_client/test/password_reset_required_test.dart` (9 tests) |
+| The three routes refusing a non-admin bearer, and acting on the collection `?table=` names rather than on the `AsAdmin` one | `apps/server/test/require_password_reset_admin_gate_test.dart` (19 tests) |
+| The dashboard's requirement summary and reason spelling | `apps/web/test/password_reset_requirement_test.dart` (12 tests) |
+| The dashboard sign-in swap and the row action **rendering** | **nothing** — both are asserted only through the pure helpers above; no component/render coverage exists in `apps/web` yet (`verify.yaml` says so under its `apps/web/lib/**` RECHECK) |
 | The 403 **over the wire** | **nothing yet** — see "Not built" |

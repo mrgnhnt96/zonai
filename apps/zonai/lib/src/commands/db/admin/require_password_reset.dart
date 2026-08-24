@@ -3,7 +3,7 @@
 // `apps/zonai/lib/src/exceptions/auth_exception.dart` and `zonai_db.dart`
 // already do.
 import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
-    show PasswordResetReason;
+    show PasswordResetReason, passwordResetReasonFromWire;
 
 import '../../../deps/args.dart';
 import '../../../deps/logger.dart';
@@ -43,20 +43,6 @@ Options:
                              password-policy    a rotation/age policy
 ''';
 
-/// `admin-forced`, not `adminForced`: every other CLI value in this tool is
-/// kebab-case, and an operator typing an enum's Dart identifier is a leak of
-/// how this is implemented. Both spellings are accepted so neither guess is
-/// wrong at 3am.
-const _reasons = <String, PasswordResetReason>{
-  'admin-forced': PasswordResetReason.adminForced,
-  'adminforced': PasswordResetReason.adminForced,
-  'compromised': PasswordResetReason.compromised,
-  'temporary-password': PasswordResetReason.temporaryPassword,
-  'temporarypassword': PasswordResetReason.temporaryPassword,
-  'password-policy': PasswordResetReason.passwordPolicy,
-  'passwordpolicy': PasswordResetReason.passwordPolicy,
-};
-
 Future<int> requireAdminPasswordReset() async {
   if (args.help) {
     logger.info(_usage);
@@ -82,9 +68,13 @@ Future<int> requireAdminPasswordReset() async {
     return 1;
   }
 
+  // Resolved through `zonai_schema`'s own helper, not a table spelled out
+  // here: the dashboard's row action resolves the same operator-supplied
+  // string, and two copies of the spelling table would drift the day someone
+  // adds a reason.
   final reason = switch (rawReason) {
     null => PasswordResetReason.adminForced,
-    final raw => _reasons[raw.toLowerCase()],
+    final raw => passwordResetReasonFromWire(raw),
   };
   if (reason == null) {
     logger.error(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:universal_web/web.dart' as web;
+import 'package:zonai_client/zonai_client.dart' show PasswordResetRequiredException;
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 import 'package:zonai_web/auth/auth_route_provider.dart';
@@ -102,10 +103,36 @@ class AuthNotifier extends Notifier<bool> {
     await _client.auth.sendVerifyEmail();
   }
 
+  /// Throws [PasswordResetRequiredException] when the account owes a new
+  /// password — deliberately let through rather than folded into the generic
+  /// failure, because it is the one sign-in refusal that is RECOVERABLE
+  /// without leaving this screen. An admin who cannot complete it here has no
+  /// dashboard.
   Future<void> signInWithPassword({required String email, required String password}) async {
     await _client.auth.admin.signIn(
       body: AdminSignInAuthBody(email: email, password: password),
     );
+    await signIn();
+  }
+
+  /// Finishes a forced reset and lands the caller signed in.
+  ///
+  /// Two calls, and the second is not optional: `POST /auth/confirm` returns
+  /// NO session for a password reset. `completePasswordReset` on the client
+  /// does both, and [signIn] then does what the ordinary password path does —
+  /// writes the cookie and navigates home — so a forced sign-in ends exactly
+  /// where an unforced one does.
+  ///
+  /// Note this is NOT [confirmResetPassword], which is the EMAILED path and
+  /// deliberately ends signed OUT: that link reaches whoever owns the account,
+  /// on any auth table, and most of them are an app's users rather than
+  /// admins. Here the caller is already at the dashboard's own door.
+  Future<void> completeForcedPasswordReset({
+    required PasswordResetRequiredException refusal,
+    required String email,
+    required String newPassword,
+  }) async {
+    await _client.auth.admin.completePasswordReset(refusal: refusal, email: email, newPassword: newPassword);
     await signIn();
   }
 

@@ -68,6 +68,35 @@ enum PasswordResetReason {
   passwordPolicy,
 }
 
+/// Resolves an operator-supplied spelling to a [PasswordResetReason], or null
+/// when it names none.
+///
+/// Both spellings are accepted, and neither is the "real" one. Every other
+/// operator-facing value in this tool is kebab-case, so `temporary-password` is
+/// what someone types; the Dart identifier is what they see coming BACK, in the
+/// 403's `details.reason` and in `zonai db admin` output. Refusing whichever
+/// they happened to copy would be a puzzle at exactly the wrong moment.
+///
+/// Returns null rather than defaulting, and every caller must keep that.
+/// This value crosses the wire to a locked-out client, and falling back to
+/// [PasswordResetReason.adminForced] would put a claim in a user-facing body
+/// that nobody made.
+///
+/// Lives here, beside the enum, because it has two callers that must not drift:
+/// `zonai db admin require-password-reset --reason` and the dashboard's row
+/// action through `POST /admin/members/:email/require-password-reset`.
+PasswordResetReason? passwordResetReasonFromWire(String raw) {
+  final normalized = raw
+      .trim()
+      .toLowerCase()
+      .replaceAll('-', '')
+      .replaceAll('_', '');
+  for (final reason in PasswordResetReason.values) {
+    if (reason.name.toLowerCase() == normalized) return reason;
+  }
+  return null;
+}
+
 class PasswordResetRequirementId implements Id {
   PasswordResetRequirementId(this.value) {
     if (!value.endsWith(_suffix)) {
