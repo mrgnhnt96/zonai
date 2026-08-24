@@ -124,6 +124,18 @@ extension _PasswordX on ZonaiDb {
       await _requireAuthRecordAccess(table, .signUp, payload);
       logger.trace('row_access');
 
+      // Before the Argon2 hash, not after: declining costs the caller a
+      // rules check and a hook call rather than a full KDF round, and the
+      // hook has nothing to gain from a hash it must not see anyway.
+      step = 'signup_gate';
+      await _runSignUpGate(
+        table,
+        email: payload.email,
+        object: payload.object,
+        jwt: jwt,
+      );
+      logger.trace('signup_gate');
+
       step = 'password_hash';
       final hashedPassword = await _hashPassword.hash(
         password: switch (payload) {

@@ -1,4 +1,6 @@
 import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart' as rd;
+import 'package:zonai_schema/src/exceptions/sign_up_declined_exception.dart';
+import 'package:zonai_schema/src/handlers/extensions/sign_up_candidate.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/schemas/auth_table.dart';
 import 'package:zonai_schema/src/types/email_address.dart';
@@ -61,6 +63,28 @@ abstract class Extension<T> {
 }
 
 mixin AuthExtension<R> on Extension<R> {
+  /// Called before a user is registered, while the sign-up can still be
+  /// refused.
+  ///
+  /// Throw [SignUpDeclinedException] to decline — the caller is answered
+  /// **403** with the reason, and no row, no session and no verification
+  /// email are created. Any other throw aborts the sign-up too, but as a
+  /// server error; declining is the deliberate path.
+  ///
+  /// [candidate] is the sign-up request, not a row — the address and whatever
+  /// extra columns the body carried. Unlike every other hook it is not typed
+  /// as `R`, and that is deliberate: nothing has been inserted, so there is no
+  /// row to hand over and no honest way to invent one. [SignUpCandidate] says
+  /// why in full.
+  ///
+  /// Runs on the three flows that insert an auth row directly: password,
+  /// OTP and magic-link sign-up. It does **not** run for a first-seen
+  /// external identity (OAuth, or an external IdP token): those provision
+  /// through [onExternalAuthFirstSeen], which already declines by returning
+  /// without inserting a row, and reach the hook with verified IdP claims
+  /// rather than a candidate row.
+  Future<void> beforeSignUp(SignUpCandidate candidate, Jwt? jwt) async {}
+
   /// Called when a user signs up
   ///
   /// By default, sends a [email.send.verifyEmail] to the user's email address

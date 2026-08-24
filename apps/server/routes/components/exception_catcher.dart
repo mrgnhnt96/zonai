@@ -3,6 +3,7 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 import 'package:zonai_schema/src/exceptions/schema_exception.dart';
+import 'package:zonai_schema/src/exceptions/sign_up_declined_exception.dart';
 import 'package:zonai_server/src/exceptions/oauth_http_exception.dart';
 
 import 'package:zonai_server/src/handlers/email_handler.dart';
@@ -74,6 +75,23 @@ final class Exceptions implements LifecycleComponent {
     WriteBackpressureException exception,
   ) {
     return .handled(statusCode: 503, body: {'error': '$exception'});
+  }
+
+  /// A sign-up the app refused from its own `beforeSignUp` hook.
+  ///
+  /// The reason IS rendered to the caller, unlike the `_forbidden` branches
+  /// above, and that is the point rather than an oversight: the app chose
+  /// this string for the person who typed the address ("invite only", "that
+  /// domain is not eligible"), and a bare "Forbidden" would make the hook
+  /// useless for the thing it exists to do. The oracle concern those
+  /// branches guard against does not apply -- nothing here is derived from
+  /// the schema, and the app is free to return a constant.
+  ///
+  /// 403, not 400: the request is well-formed and the server understood it.
+  ExceptionCatcherResult<SignUpDeclinedException> onSignUpDeclined(
+    SignUpDeclinedException exception,
+  ) {
+    return .handled(statusCode: 403, body: {'error': exception.reason});
   }
 
   ExceptionCatcherResult<AuthException> onAuthException(

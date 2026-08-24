@@ -1167,6 +1167,13 @@ class ZonaiDb {
       rethrow;
     } on SchemaException {
       rethrow;
+    } on SignUpDeclinedException {
+      // The app's own refusal, thrown from `beforeSignUp`. Without this arm
+      // it falls to the catch-all below and reaches the caller as
+      // `StateError('Failed to run database operation: ...')` -- a 500 for a
+      // sign-up the app deliberately declined, with the reason it chose
+      // rewritten into an internal error.
+      rethrow;
     } on PermissionException {
       rethrow;
     } on WriteBackpressureException {
