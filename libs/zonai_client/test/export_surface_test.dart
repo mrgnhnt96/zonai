@@ -165,6 +165,36 @@ void main() {
       });
     });
 
+    // A consumer that cannot NAME this type cannot `catch` it, and the entire
+    // point of the 403 is that it is recoverable rather than fatal -- the
+    // caller collects a new password and completes the reset. Dropped from the
+    // barrel it becomes indistinguishable from any other ServerException, and
+    // the group-2 sweep below would catch the omission only as an assertion
+    // failure; this catches it as a compile failure, which is the earlier and
+    // louder signal.
+    test('PasswordResetRequiredException is nameable and catchable', () {
+      const refusal = PasswordResetRequiredException(
+        resetToken: 'tok',
+        expiresIn: Duration(minutes: 15),
+        reason: 'temporaryPassword',
+        message: 'This account must set a new password before signing in',
+      );
+
+      // Written as a `catch` clause on purpose: that is the ONE use a consumer
+      // actually has for this name, and it is the use that stops compiling
+      // first if the export goes.
+      Object? caught;
+      try {
+        throw refusal;
+      } on PasswordResetRequiredException catch (e) {
+        caught = e;
+      }
+
+      expect(caught, same(refusal));
+      expect(PasswordResetRequiredException.code, 'password_reset_required');
+      expect('$refusal', isNot(contains('tok')));
+    });
+
     test('the five client types reachable from ZonaiClient are nameable', () {
       // Memory storage, not `ZonaiStorage.none()`: constructing a client writes
       // through to storage, and the no-op one asserts on save.
