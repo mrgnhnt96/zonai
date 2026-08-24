@@ -111,6 +111,116 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/admin/members/{email}/require-password-reset": {
+      "delete": {
+        "operationId": "admin_clearPasswordReset",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`{table, email, cleared}`"
+          },
+          "403": {
+            "description": "No Bearer token, or one that is not an admin for the resolved `AsAdmin` table"
+          }
+        }
+      },
+      "get": {
+        "operationId": "admin_passwordResetRequirement",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`{table, email, requirement}` — `requirement` is null when the account owes nothing, else `{reason, createdAt, createdBy}`"
+          },
+          "403": {
+            "description": "No Bearer token, or one that is not an admin for the resolved `AsAdmin` table"
+          }
+        }
+      },
+      "post": {
+        "operationId": "admin_requirePasswordReset",
+        "tags": [
+          "admin"
+        ],
+        "parameters": [
+          {
+            "name": "email",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`{table, email, reason}`"
+          },
+          "400": {
+            "description": "`reason` names no known value"
+          },
+          "403": {
+            "description": "No Bearer token, or one that is not an admin for the resolved `AsAdmin` table"
+          }
+        }
+      }
+    },
     "/admin/tokens": {
       "get": {
         "operationId": "apitoken_list",
@@ -237,17 +347,8 @@ const kSwaggerJson = r'''{
           }
         },
         "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "nullable": true
-                }
-              }
-            }
+          "403": {
+            "description": "The credentials were correct, but the account owes a new password before it may sign in. Body is the structured envelope `{\"error\": {\"code\": \"password_reset_required\", \"message\": ..., \"details\": {\"resetToken\": ..., \"expiresIn\": <seconds>, \"reason\": ...}}}`. Complete it with `POST /auth/confirm` carrying `resetToken`, then sign in again."
           }
         }
       }
@@ -269,17 +370,8 @@ const kSwaggerJson = r'''{
           }
         },
         "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "nullable": true
-                }
-              }
-            }
+          "403": {
+            "description": "The credentials were correct, but the account owes a new password before it may sign in. Body is the structured envelope `{\"error\": {\"code\": \"password_reset_required\", \"message\": ..., \"details\": {\"resetToken\": ..., \"expiresIn\": <seconds>, \"reason\": ...}}}`. Complete it with `POST /auth/confirm` carrying `resetToken`, then sign in again."
           }
         }
       }
@@ -759,16 +851,8 @@ const kSwaggerJson = r'''{
           }
         },
         "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
+          "403": {
+            "description": "The credentials were correct, but the account owes a new password before it may sign in. Body is the structured envelope `{\"error\": {\"code\": \"password_reset_required\", \"message\": ..., \"details\": {\"resetToken\": ..., \"expiresIn\": <seconds>, \"reason\": ...}}}`. Complete it with `POST /auth/confirm` carrying `resetToken`, then sign in again."
           }
         }
       }
@@ -1861,6 +1945,9 @@ const kSwaggerJson = r'''{
               "$ref": "#/components/schemas/TableOperation"
             }
           },
+          "allOperations": {
+            "type": "boolean"
+          },
           "customOperations": {
             "type": "array",
             "items": {
@@ -1886,6 +1973,7 @@ const kSwaggerJson = r'''{
         "required": [
           "tables",
           "operations",
+          "allOperations",
           "customOperations",
           "admin"
         ]
@@ -3588,6 +3676,75 @@ paths:
           description: No Bearer token, one that is not an admin for the resolved `AsAdmin` table, or an admin removing themselves
         '409':
           description: That is the table's last admin
+  '/admin/members/{email}/require-password-reset':
+    delete:
+      operationId: admin_clearPasswordReset
+      tags:
+        - admin
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: '`{table, email, cleared}`'
+        '403':
+          description: No Bearer token, or one that is not an admin for the resolved `AsAdmin` table
+    get:
+      operationId: admin_passwordResetRequirement
+      tags:
+        - admin
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: '`{table, email, requirement}` — `requirement` is null when the account owes nothing, else `{reason, createdAt, createdBy}`'
+        '403':
+          description: No Bearer token, or one that is not an admin for the resolved `AsAdmin` table
+    post:
+      operationId: admin_requirePasswordReset
+      tags:
+        - admin
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: table
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: reason
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        '200':
+          description: '`{table, email, reason}`'
+        '400':
+          description: '`reason` names no known value'
+        '403':
+          description: No Bearer token, or one that is not an admin for the resolved `AsAdmin` table
   '/admin/tokens':
     get:
       operationId: apitoken_list
@@ -3668,14 +3825,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AuthBody'
       responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                nullable: true
+        '403':
+          description: 'The credentials were correct, but the account owes a new password before it may sign in. Body is the structured envelope `{"error": {"code": "password_reset_required", "message": ..., "details": {"resetToken": ..., "expiresIn": <seconds>, "reason": ...}}}`. Complete it with `POST /auth/confirm` carrying `resetToken`, then sign in again.'
   '/auth/admin':
     post:
       operationId: auth_adminAuthenticate
@@ -3688,14 +3839,8 @@ paths:
             schema:
               $ref: '#/components/schemas/AdminAuthBody'
       responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                nullable: true
+        '403':
+          description: 'The credentials were correct, but the account owes a new password before it may sign in. Body is the structured envelope `{"error": {"code": "password_reset_required", "message": ..., "details": {"resetToken": ..., "expiresIn": <seconds>, "reason": ...}}}`. Complete it with `POST /auth/confirm` carrying `resetToken`, then sign in again.'
   '/auth/admin/invite':
     get:
       operationId: auth_adminInviteStatus
@@ -3996,13 +4141,8 @@ paths:
             schema:
               $ref: '#/components/schemas/SignInAuthBody'
       responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
+        '403':
+          description: 'The credentials were correct, but the account owes a new password before it may sign in. Body is the structured envelope `{"error": {"code": "password_reset_required", "message": ..., "details": {"resetToken": ..., "expiresIn": <seconds>, "reason": ...}}}`. Complete it with `POST /auth/confirm` carrying `resetToken`, then sign in again.'
   '/auth/sign-up':
     post:
       operationId: auth_signUp
@@ -4679,6 +4819,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TableOperation'
+        allOperations:
+          type: boolean
         customOperations:
           type: array
           items:
@@ -4695,6 +4837,7 @@ components:
       required:
         - tables
         - operations
+        - allOperations
         - customOperations
         - admin
     AuthBody:
