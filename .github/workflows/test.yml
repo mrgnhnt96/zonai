@@ -854,10 +854,20 @@ jobs:
        github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
-    # 15 rather than the 10 the short jobs take: MEASURED 8.0m (ubuntu, passing) on run 31839671048, and its dominant step
-    # is an AOT compile whose duration is variable -- 10 would be a coin flip and
-    # a timeout here would read as a product regression rather than a budget cut.
-    timeout-minutes: 15
+    # 18 rather than the 10 the short jobs take: MEASURED 8.0m (ubuntu, passing) on run 31839671048 with FOUR served
+    # fixtures, and its dominant step is an AOT compile whose duration is
+    # variable -- 10 would be a coin flip and a timeout here would read as a
+    # product regression rather than a budget cut.
+    #
+    # Raised from 15 with `forced_password_reset`, the fifth served fixture.
+    # Each fixture pays its own `zonai compile` and then runs twice (process
+    # and isolate), so the honest estimate is 8.0m x 5/4 = ~10m, and 15 would
+    # have left this job thinner headroom than the measurement it was set
+    # from. Measured locally at 16.5s for the new fixture's whole lifecycle,
+    # both transports included -- but a loaded dev machine is not a runner,
+    # which is exactly why the ceiling moves with the fixture count rather
+    # than with that number.
+    timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix:

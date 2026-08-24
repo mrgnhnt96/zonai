@@ -77,7 +77,16 @@ const _suites = <String, Suite>{
   'admin_password_update_repro': _adminPasswordUpdate,
   'signup_backfill_repro': _signupBackfill,
   'concurrency_repro': _concurrency,
+  'forced_password_reset': _forcedPasswordReset,
 };
+
+/// The address `_forcedPasswordReset` gates. Named here because
+/// `run_e2e.sh`'s `fixture_between_phases` hook has to pass the SAME one to
+/// `zonai db admin require-password-reset` while the server is stopped, and
+/// the two would otherwise drift silently -- the seed would pass, the CLI
+/// would gate an account nobody signs in as, and `verify` would get a 200 and
+/// report the gate broken.
+const kForcedResetEmail = 'e2e-forced-reset@example.com';
 
 /// The operator x column-type matrix, plus every mutation shape, plus the one
 /// assertion in this repo that reaches the worker-side serializer.
@@ -794,6 +803,141 @@ Future<void> _assertStreamDelivers(
 /// was written for (`_hashPasswordUpdates` dropping an `ObjectUpdate` on the
 /// floor) is in the mutation path either way, but only this route proves the
 /// HTTP surface -- /auth/sign-in, and the 401 the old password must now get.
+/// The forced-password-reset 403, over a real socket.
+///
+/// This is the only layer that sees the envelope as an HTTP client does.
+/// `apps/zonai/test/e2e/forced_password_reset_e2e_test.dart` proves the
+/// control in-process against a compiled project, and
+/// `apps/server/test/password_reset_required_envelope_test.dart` pins the
+/// body key-for-key -- but until this suite existed the two never met, and a
+/// status code or an envelope that survived neither serialization nor the
+/// exception catcher would have passed both.
+///
+/// The requirement is set BETWEEN the phases, by
+/// `fixture_between_phases` in run_e2e.sh, with the server STOPPED. That is
+/// not a convenience: there is deliberately no HTTP route that sets a
+/// requirement -- the only producers are CLI commands -- so a driver that
+/// could gate the account over the wire would be asserting against a door
+/// that does not exist.
+///
+///   seed    sign up, and prove the password signs in RIGHT NOW.
+///   <hook>  `zonai db admin require-password-reset`, server down.
+///   verify  the same credentials now answer 403 with the envelope.
+///
+/// The seed's sign-in is what makes the verify meaningful: without it, a 403
+/// caused by a typo in the password would be indistinguishable from a 403
+/// caused by the gate.
+Future<void> _forcedPasswordReset(Api api, String phase) async {
+  const password = 'e2e-forced-reset-password-1';
+
+  if (phase == 'seed') {
+    final signUp = await api.signUp(
+      table: 'admins',
+      email: kForcedResetEmail,
+      password: password,
+    );
+    api.expect(
+      'the account exists and holds a session',
+      actual: signUp['accessToken'] is String,
+      expected: true,
+    );
+
+    final signIn = await api.signIn(
+      table: 'admins',
+      email: kForcedResetEmail,
+      password: password,
+    );
+    api.expect(
+      'the password signs in BEFORE the requirement is set',
+      actual: signIn['accessToken'] is String,
+      expected: true,
+      why:
+          'the control for the whole suite. A 403 in `verify` only means the '
+          'gate if these exact credentials worked a moment earlier.',
+    );
+    return;
+  }
+
+  final refused = await api._sendRaw(
+    'POST',
+    '/auth/sign-in',
+    body: {
+      'type': 'signIn',
+      'table': 'admins',
+      'email': kForcedResetEmail,
+      'password': password,
+    },
+  );
+
+  api.expect(
+    'a gated sign-in answers 403',
+    actual: refused.status,
+    expected: 403,
+    why:
+        'not 401 (the credentials were correct) and not 409. Decided in '
+        'docs/force-password-reset-design.md and pinned server-side; this is '
+        'the only assertion that sees the status a real client receives.',
+  );
+
+  final body = refused.data;
+  final error = body is Map ? body['error'] : null;
+  api.expect(
+    'the body is the structured envelope, not a bare string',
+    actual: error is Map,
+    expected: true,
+    why:
+        'every other auth failure on these routes is `{"error": "<sentence>"}`. '
+        'A client cannot branch on prose, so this one route answers an object '
+        '-- and an exception catcher that flattened it would be invisible '
+        'everywhere but here.',
+  );
+
+  final map = error is Map ? error : const {};
+  api.expect(
+    'it names the code the client branches on',
+    actual: map['code'],
+    expected: 'password_reset_required',
+  );
+
+  final details = map['details'];
+  final detailMap = details is Map ? details : const {};
+  api.expect(
+    'it carries a reset ticket',
+    actual:
+        detailMap['resetToken'] is String &&
+        (detailMap['resetToken'] as String).isNotEmpty,
+    expected: true,
+    why:
+        'the ticket IS the recovery path -- POST /auth/confirm takes it. A 403 '
+        'without one locks the account out of the door the 403 points at.',
+  );
+  api.expect(
+    'it says how long the ticket is good for',
+    actual: detailMap['expiresIn'],
+    expected: 900,
+    why:
+        '15 minutes, as `_forcedResetTicketLifetime` sets it, in SECONDS on '
+        'the wire.',
+  );
+  api.expect(
+    'it says why, in the wire spelling',
+    actual: detailMap['reason'],
+    expected: 'compromised',
+    why:
+        'the reason `fixture_between_phases` passed to the CLI. A client says '
+        'something truer than "you must reset" only if this survives the trip.',
+  );
+
+  api.expect(
+    'and it mints NO session',
+    actual: body is Map && body.containsKey('accessToken'),
+    expected: false,
+    why:
+        'a refused sign-in that still hands back a token is the whole control '
+        'defeated, and the caller is under no obligation to discard it.',
+  );
+}
+
 Future<void> _adminPasswordUpdate(Api api, String phase) async {
   const email = 'admin@example.com';
   const oldPassword = 'old-admin-password-1';

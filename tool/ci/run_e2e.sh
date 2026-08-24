@@ -74,6 +74,9 @@ served_fixtures=(
   admin_password_update_repro
   signup_backfill_repro
   concurrency_repro
+  # Gated between its phases by `fixture_between_phases`, because the
+  # requirement it asserts has no HTTP producer.
+  forced_password_reset
 )
 
 # Declared, not silently absent. external_auth provisions a user from a
@@ -267,6 +270,38 @@ fixture_reset_db() {
   step "zonai db migrate apply (fresh database)"
   zonai db migrate apply
   cd "$repo_root"
+}
+
+# Runs BETWEEN a fixture's two phases, with the server STOPPED and the
+# database at rest.
+#
+# It exists for one shape of assertion this harness could not otherwise make:
+# state that only a CLI command can produce. `forced_password_reset` is the
+# case -- there is deliberately NO HTTP route that sets a password-reset
+# requirement, the only producers are CLI commands, so the gate can only be
+# armed here. A fixture with nothing to do between phases falls through and
+# costs nothing.
+#
+# The email is duplicated from `kForcedResetEmail` in drive.dart on purpose:
+# drive.dart imports nothing outside the SDK, and this script cannot read a
+# Dart const. Both sides name it in a comment so a change to one sends the
+# reader to the other. If they ever drift, `verify` gets a 200 where it
+# expects 403 and reports the gate broken -- loud, not silent.
+fixture_between_phases() {
+  local fixture="$1"
+
+  case "$fixture" in
+    forced_password_reset)
+      cd "${repo_root}/e2e/${fixture}"
+      step "zonai db admin require-password-reset (server stopped)"
+      # `--reason compromised` is asserted back over the wire by the suite's
+      # `verify` phase, so this is not a throwaway argument.
+      zonai db admin require-password-reset \
+        --email 'e2e-forced-reset@example.com' \
+        --reason compromised
+      cd "$repo_root"
+      ;;
+  esac
 }
 
 # ---------------------------------------------------------------------------
@@ -489,6 +524,12 @@ for fixture in "${served_fixtures[@]}"; do
     drive "$fixture" "$mode" seed
     assert_isolate_transport
     serve_stop
+
+    # The one window where the database is at rest and no server holds it.
+    # Some state can only be produced by a CLI command -- see the function.
+    current_mode="${mode}/between"
+    fixture_between_phases "$fixture"
+    current_mode="$mode"
 
     # A response that looks right over a write that never reached the file is
     # the mirror image of a16b499, and only a process that did not perform the
