@@ -96,6 +96,18 @@ class Mailman<S extends Request, R extends Response> {
   final String? sourceEntryPath;
 
   io.Process? _process;
+
+  /// The live subscription to [_process]'s stdout, held so [kill] can stop
+  /// the flow at its source rather than letting a dead worker's kernel-buffered
+  /// bytes keep arriving. `_start` reassigns it on every spawn; without a
+  /// field the previous process's subscription also leaked across a restart.
+  StreamSubscription<List<int>>? _stdoutSubscription;
+
+  /// Set by [dispose] before anything is torn down, so [_listenToMessages]
+  /// can tell "a message arrived" from "a message arrived after we stopped
+  /// having anywhere to put it".
+  var _disposed = false;
+
   Isolate? _isolate;
   SendPort? _isolatePeer;
   ReceivePort? _isolateLocal;
@@ -128,7 +140,15 @@ class Mailman<S extends Request, R extends Response> {
   Future<void> _sendChain = Future.value();
 
   Future<void> dispose() async {
-    kill();
+    // Flagged first: everything below tears down a place a message could
+    // land, and [_listenToMessages] reads this to decide whether a message
+    // still has anywhere to go.
+    _disposed = true;
+    // Awaited, unlike before: [kill] is only synchronous when nothing is
+    // mid-start. If a spawn is in flight it awaits it, and the un-awaited
+    // call let `_response.close()` run against a worker that was still being
+    // wired up.
+    await kill();
     _response.close();
     _responseSubscription.cancel();
     _request.close();
@@ -632,7 +652,7 @@ class Mailman<S extends Request, R extends Response> {
       }
     });
 
-    p.stdout.listen(
+    _stdoutSubscription = p.stdout.listen(
       Zone.current.bindUnaryCallback<void, List<int>>(_onStdoutChunk),
       onError: _onStreamError,
     );
@@ -794,6 +814,33 @@ class Mailman<S extends Request, R extends Response> {
     final pathRaw = json['path'];
     if (pathRaw is! String) {
       logger.error('$_prefix: Message missing path');
+      return;
+    }
+
+    // A worker's stdout is a kernel pipe and `process.kill()` is a signal,
+    // not a barrier: the OS can hand us bytes it had already buffered, and
+    // the worker can get one more frame out, after we have decided we are
+    // done with it. By then [dispose] has closed `_response`/`_request`, so
+    // the `add` below would throw `Bad state: Cannot add new events after
+    // calling close`.
+    //
+    // The throw is the smaller half of the problem. `_onStdoutChunk` is
+    // bound to the zone that STARTED this worker (see the
+    // `bindUnaryCallback` in `_startOnce`), so the error is reported against
+    // whoever owned that start -- under `dart test`, a test that had already
+    // passed, which then fails with "This test failed after it had already
+    // completed". That sends the next person debugging the wrong test.
+    //
+    // Dropping loses nothing: [kill] has already completed every entry in
+    // `_pendingResponses` with a `WorkerProcessFailedException`, so a late
+    // reply has no caller left to hand it to. Guarded on the specific
+    // condition rather than wrapped in a `try`, which would also swallow the
+    // decode failures above.
+    if (_disposed) {
+      logger.trace(
+        'Dropped late message "$pathRaw" (disposed)',
+        prefix: _prefix,
+      );
       return;
     }
 
@@ -1089,6 +1136,13 @@ class Mailman<S extends Request, R extends Response> {
       process.kill();
       _process = null;
       _stdoutFrames.clear();
+      // Stops the flow at its source, so bytes the kernel had already
+      // buffered for the process we just signalled are never parsed at all.
+      // Deliberately not applied to stderr: `p.exitCode`'s handler reports
+      // `_stderrBuffer` as the worker's dying words, and cancelling that
+      // would trade this crash for a worse diagnostic.
+      unawaited(_stdoutSubscription?.cancel() ?? Future<void>.value());
+      _stdoutSubscription = null;
     }
 
     if (_isolate != null) {
