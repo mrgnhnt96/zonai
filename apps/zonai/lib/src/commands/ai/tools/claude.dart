@@ -1,7 +1,9 @@
-import '../ai_templates.dart';
+import '../ai_files.dart';
 import '../ai_writer.dart';
 
 Future<int> installClaude() {
-  writeAiFile('CLAUDE.md', claudeMd);
+  for (final entry in aiToolFiles['claude']!.entries) {
+    writeAiFile(entry.key, entry.value);
+  }
   return Future.value(0);
 }

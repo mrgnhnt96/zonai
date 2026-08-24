@@ -1,7 +1,9 @@
-import '../ai_templates.dart';
+import '../ai_files.dart';
 import '../ai_writer.dart';
 
 Future<int> installCopilot() {
-  writeAiFile('.github/copilot-instructions.md', copilotMd);
+  for (final entry in aiToolFiles['copilot']!.entries) {
+    writeAiFile(entry.key, entry.value);
+  }
   return Future.value(0);
 }
