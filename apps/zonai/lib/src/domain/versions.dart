@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:pub_semver/pub_semver.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/gen/version.dart';
+import 'package:zonai/src/domain/ai_docs.dart';
 import 'package:zonai/src/domain/arch.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/native_library_stamp.dart';
@@ -273,6 +274,77 @@ class Versions {
       logger.warn(
         'This update may include breaking changes. '
         'See the migration guide: $_migrationGuideUrl',
+      );
+    }
+
+    await offerAiDocRefresh(targetVersion);
+  }
+
+  /// Asks whether to rewrite the project's AI reference files after an update.
+  ///
+  /// Runs the *newly installed* binary rather than regenerating in-process:
+  /// the templates are compiled into the CLI, so this process is still holding
+  /// the ones it started with. Writing those would stamp the outgoing
+  /// release's prose with the incoming release's version -- a file that lies
+  /// about being current is worse than one that is honestly stale.
+  ///
+  /// Everything here is best-effort. The binary is already installed by the
+  /// time it runs, so no failure of a convenience prompt is allowed to turn a
+  /// successful update into a non-zero exit.
+  Future<void> offerAiDocRefresh(String targetVersion) async {
+    final List<AiDoc> stale;
+    try {
+      stale = staleAiDocs(version: targetVersion);
+    } on FileSystemException {
+      return;
+    }
+
+    if (stale.isEmpty) return;
+
+    logger.warn(
+      '${stale.length} AI reference file(s) here were not written by '
+      'v$targetVersion:',
+    );
+    for (final doc in stale) {
+      logger.info('  ${doc.path} (${doc.describeWriter})');
+    }
+
+    // Windows swaps the executable from a detached script after this process
+    // exits, so `Platform.executable` is still the old binary and re-running it
+    // would write the old templates. Running from source has no installed
+    // binary to re-run at all. And without a terminal there is nobody to ask:
+    // `confirm` falls back to its default, which would let an unattended
+    // `version update` rewrite files in a checkout nobody is watching.
+    if (Platform.isWindows || !kIsCompiled || !stdin.hasTerminal) {
+      logger.info('Run `zonai ai update` to bring them up to date.');
+      return;
+    }
+
+    final confirmed = await logger.confirm(
+      'Update them now?',
+      defaultYes: true,
+    );
+
+    if (!confirmed) {
+      logger.info('Run `zonai ai update` when you want them refreshed.');
+      return;
+    }
+
+    try {
+      final result = await process.run(Platform.executable, ['ai', 'update']);
+      final out = '${result.stdout}'.trim();
+      if (out.isNotEmpty) logger.info(out);
+
+      if (result.exitCode != 0) {
+        logger.warn(
+          'Could not refresh the AI reference files '
+          '(exit ${result.exitCode}). Run `zonai ai update` to retry.',
+        );
+      }
+    } on ProcessException catch (e) {
+      logger.warn(
+        'Could not run the updated CLI (${e.message}). '
+        'Run `zonai ai update` to refresh the AI reference files.',
       );
     }
   }
