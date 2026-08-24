@@ -1,7 +1,9 @@
 # API tokens — design and build plan
 
-Status: **in progress**. Written 2026-08-24. §11 is the build order; step 1 is
-built (the `_api_tokens` table, its migration, rules, and the `ApiTokenJwt` identity).
+Status: **in progress**. Written 2026-08-24. §11 is the build order. Steps 1, 2, 3
+and 5 are built: a token can be minted, presented, scoped, expired and revoked
+against a real database. Still to come: the CLI (4), per-token rate limiting (6),
+`last_used_at` (7), the dashboard screen (8) and the docs (9).
 
 A zonai deployment today has exactly one way to obtain a credential for `/db`: sign in
 as a row in an auth collection and receive a JWT that expires (`jwtExpiresIn`, default
@@ -243,6 +245,15 @@ reader will assume the check was forgotten.
 For a **bound** token, take the stricter of the two: the row's grant *and* the bound
 table's schema-derived status. A PAT for a non-admin user must not become an admin key.
 
+### Two callers of the same token must not share a cached verdict
+
+Found while building: `_jwtCacheKey` keys the table-rule cache on
+`table|userId|isAdmin|canEdit|claims`, and for an unbound API token the first two are
+the shared `__api_token__` sentinel. Two tokens with the same admin flags and the same
+claims — and *different scopes* — were therefore the same cache key, so one token's
+verdict (and its `skipRowChecks`) was served to the other. The key now carries the token
+id.
+
 ### Two enforcement layers
 
 1. **A hard gate, before rules run.** In the choke point that already resolves table
@@ -264,8 +275,20 @@ reading every session id and every outstanding auth challenge in the database.
 
 ### Routes an API token may never reach
 
-`/auth/*` (it has no password to change and no session to refresh), `/admin/*`, and
-admin-invite mutation. Enforced at the route, not only by rules.
+`/auth/*` (it has no password to change and no session to refresh), `/admin/*`,
+`/maintenance/*`, `/cron/*`, `/email/*`, `/push/*`, and photos.
+
+**Enforced by inverting the default, which is stronger than an allowlist of routes.**
+`_extractJwt` takes `allowApiToken`, defaulting to **false**, and only the nine data
+paths (`read`, `list`, `count`, `create`, `createMany`, `update`, `custom`, `delete`,
+`streamOne`, `streamList`) pass `true`. Every handler that authorizes through
+`zonaiDB.parseJwt` gets the refusal without asking for it — and so does any path added
+later whose author never thought about API tokens at all. Forgetting fails closed.
+
+The reason those endpoints are refused rather than scoped: a scope is expressed in
+tables and operations, which is a vocabulary none of them have. A token "scoped to
+orders" has no meaningful answer to *may it purge an internal table* or *may it invite
+an admin*, and inventing one per endpoint is how a scope stops meaning anything.
 
 ---
 

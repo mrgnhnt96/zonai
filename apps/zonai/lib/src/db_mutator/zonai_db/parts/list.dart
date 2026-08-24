@@ -18,7 +18,10 @@ extension _ListX on ZonaiDb {
               null => null,
               final jwt => await _validateJwt(jwt),
             },
-            final ListPayload payload => await _extractJwt(payload),
+            final ListPayload payload => await _extractJwt(
+              payload,
+              allowApiToken: true,
+            ),
           };
       logger.trace('jwt_extract');
 

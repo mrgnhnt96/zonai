@@ -13,7 +13,7 @@ extension _CountX on ZonaiDb {
       logger.trace('start');
     }
 
-    final jwt = userJwt ?? await _extractJwt(payload);
+    final jwt = userJwt ?? await _extractJwt(payload, allowApiToken: true);
     if (!skipTableAccess) {
       await _requireTableAccess(table, .list, jwt);
     }
@@ -38,7 +38,7 @@ extension _CountX on ZonaiDb {
   }
 
   Stream<int> _streamCount(String table, CountPayload payload) async* {
-    final jwt = await _extractJwt(payload);
+    final jwt = await _extractJwt(payload, allowApiToken: true);
     await _requireTableAccess(table, .list, jwt);
 
     final operation = await _getOperation(

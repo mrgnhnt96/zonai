@@ -188,6 +188,13 @@ extension _AuthUtilsX on ZonaiDb {
   Future<Jwt?> _extractJwtClaimsOnly(String? jwt) async {
     if (jwt == null) return null;
 
+    // An API token has no "claims only" form. Its claims, its scope and its
+    // validity all live in the same row, so there is no cheaper answer to
+    // give here -- the same resolution runs, and the same one read decides.
+    if (ApiTokenSecret.looksLike(jwt)) {
+      return await _resolveApiToken(jwt);
+    }
+
     final decoded = await _jwt.verify(jwt);
     if (decoded == null) {
       // Internal HS256 didn't match — try configured external IdPs.
@@ -201,6 +208,15 @@ extension _AuthUtilsX on ZonaiDb {
 
     if (Jwt.isCronWorkerPayload(decoded)) throw const InvalidJwtException();
     if (Jwt.isProvisioningWorkerPayload(decoded)) {
+      throw const InvalidJwtException();
+    }
+    // Refused here as flatly as in [_extractJwt], and this is the path where
+    // it matters most: this one deliberately skips the `_jwt` lookup, so a
+    // forged token has no database read to fail on. The dashboard's SSR feeds
+    // the result to `collectionActions`, so without this an attacker holding
+    // the signing key is rendered the admin UI.
+    if (Jwt.isApiTokenPayload(decoded)) {
+      _logForgedApiTokenPayload();
       throw const InvalidJwtException();
     }
 
@@ -221,11 +237,31 @@ extension _AuthUtilsX on ZonaiDb {
     return await _withServerDerivedAdmin(claimsOnly);
   }
 
-  Future<Jwt?> _extractJwt(JwtPayload payload) async {
+  Future<Jwt?> _extractJwt(
+    JwtPayload payload, {
+    bool allowApiToken = false,
+  }) async {
     final jwt = payload.jwt;
 
     if (jwt == null) {
       return null;
+    }
+
+    // Tested on the shape, before anything parses the value. An API token is
+    // an opaque `zonai_pat_...` string, so it must never reach the JWT
+    // verifier -- and a JWT must never be looked up as a token. The prefix is
+    // what makes those two doors unambiguous rather than a guess.
+    //
+    // [allowApiToken] defaults to false, and the default is the security
+    // property: only the data paths opt in, so `/auth`, `/admin`,
+    // `/maintenance`, `/cron`, `/email`, `/push` and photos all refuse one --
+    // as does any path added later whose author never thought about API
+    // tokens at all.
+    if (ApiTokenSecret.looksLike(jwt)) {
+      if (!allowApiToken) {
+        throw const ApiTokenNotAcceptedHereException();
+      }
+      return await _resolveApiToken(jwt);
     }
 
     final decoded = await _jwt.verify(jwt);
@@ -259,6 +295,20 @@ extension _AuthUtilsX on ZonaiDb {
       throw const InvalidJwtException();
     }
 
+    /// An API token's credential is an opaque `zonai_pat_...` string, never a
+    /// JWT -- the `API_TOKEN` payload exists only so a *resolved* token
+    /// survives the trip to the rules and operations workers. A signed one
+    /// arriving as a bearer token is the worst of the three sentinels to
+    /// accept, because it is the only one whose payload also carries the
+    /// powers: an attacker holding the signing key (a leaked `jwtSecret`, or
+    /// a retired one still live in `previousJwtSecrets` on purpose) would mint
+    /// themselves an unscoped, never-expiring admin identity with no row in
+    /// `_api_tokens` to revoke.
+    if (Jwt.isApiTokenPayload(decoded)) {
+      _logForgedApiTokenPayload();
+      throw const InvalidJwtException();
+    }
+
     Jwt appJwt;
 
     try {
@@ -270,12 +320,103 @@ extension _AuthUtilsX on ZonaiDb {
     return await _validateJwt(appJwt);
   }
 
+  /// Turns a presented `zonai_pat_...` credential into the identity it names.
+  ///
+  /// One indexed read of `_api_tokens` on the SHA-256 of what was presented --
+  /// the same cost `_validateJwt` already pays against `_jwt`, and through the
+  /// query builder rather than the operations layer, because
+  /// `TableOperations` refuses a `where` on a secret column
+  /// ([SecretColumnFilterException]). That refusal is deliberate: strippable
+  /// but filterable would make `startsWith` on a hash a blind oracle. It also
+  /// means `/db` is structurally incapable of being the path a credential is
+  /// resolved on, which is a good property to have for free.
+  ///
+  /// Unknown, revoked and expired all answer the same [InvalidJwtException].
+  /// There is no oracle to protect here -- you have to already hold the secret
+  /// to ask -- so the flat answer is for simplicity, not secrecy, and telling
+  /// the three apart later is safe.
+  Future<Jwt> _resolveApiToken(String presented) async {
+    final normalized = ApiTokenSecret.normalize(presented);
+
+    await open();
+    final db = this.db;
+    if (db == null) {
+      throw const DatabaseNotOpenException();
+    }
+
+    final rows = await db
+        .select()
+        .from(apiTokens)
+        .where(apiTokens.tokenHash.equals(ApiTokenSecret.hash(normalized)));
+
+    logger.trace('api_token_db_lookup', extra: {'found': rows.isNotEmpty});
+
+    final row = rows.singleOrNull;
+    if (row == null || row.isRevoked || row.isExpiredAt(clock.now())) {
+      throw const InvalidJwtException();
+    }
+
+    return ApiTokenJwt(
+      tokenId: row.id,
+      name: row.name,
+      scope: row.scope,
+      claims: row.claims,
+      boundTable: row.boundTable,
+      boundUserId: switch (row.boundUserId) {
+        final id? => UnknownId(id),
+        null => null,
+      },
+      boundUser: await _boundUserRow(row),
+      revokesAt: row.expiresAt,
+    );
+  }
+
+  /// The auth row a bound token acts as, sanitized, so a rule reading
+  /// `jwt.user['...']` sees what it would see for a signed-in session.
+  ///
+  /// Empty for an unbound token, which owns no rows -- and empty, rather than
+  /// a failure, when the bound row has since been deleted: the scope still
+  /// bounds what the token can reach, and every ownership rule comparing
+  /// against `jwt.userId` now matches nothing, which is the right outcome for
+  /// a token whose user is gone.
+  Future<Map<String, Object?>> _boundUserRow(ApiTokenEntry row) async {
+    final table = row.boundTable;
+    final userId = row.boundUserId;
+    if (table == null || userId == null) return const {};
+
+    return await _boundUserRowFor(table: table, userId: userId);
+  }
+
+  /// Both bearer paths log identically, so a forged token is one greppable
+  /// string wherever it is presented.
+  void _logForgedApiTokenPayload() {
+    logger.error(
+      'Attempt to use an API-token payload as a bearer JWT. An API token is '
+      'an opaque credential, never a signed token, so nothing zonai issues '
+      'looks like this -- either the JWT signing key has leaked or a retired '
+      'one is still in previousJwtSecrets. This is absolutely not expected '
+      'and should be considered a security threat. Rotate the JWT secret and '
+      'deploy a new version of the application immediately.',
+    );
+  }
+
   Future<Jwt> _validateJwt(Jwt jwt) async {
     // Worker sentinels are minted in-process, never parsed from a bearer
     // token (`_extractJwt` rejects both payload shapes before it gets here),
     // so their powers are not attacker-influenced and there is nothing to
     // re-derive.
     if (jwt is CronJwt || jwt is ProvisioningJwt) {
+      return jwt;
+    }
+
+    // An [ApiTokenJwt] never arrives from a bearer JWT either (the check in
+    // [_extractJwt] above refuses that payload outright); it is built here,
+    // in-process, from a row this method would only re-read. Its revocation
+    // record is that row, not `_jwt`, and its admin powers come from the same
+    // row -- so [_withServerDerivedAdmin] has nothing to derive from and would
+    // rebuild it as a plain [Jwt], dropping both the type and the scope every
+    // downstream check depends on.
+    if (jwt is ApiTokenJwt) {
       return jwt;
     }
 

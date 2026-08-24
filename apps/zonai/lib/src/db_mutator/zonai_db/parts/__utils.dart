@@ -200,6 +200,12 @@ extension UtilsX on ZonaiDb {
       'Checking table rules for $table $operation',
       prefix: _prefix,
     );
+    _requireApiTokenScope(
+      table,
+      operation.name,
+      jwt,
+      allows: (scope) => scope.allowsOperation(operation),
+    );
     final tableRules = await _tableRules(table, operation, jwt);
 
     if (!tableRules.canAccess) {
@@ -211,6 +217,52 @@ extension UtilsX on ZonaiDb {
     // operation for that table and token skipped row rules too, including ones
     // whose own verdict said otherwise.
     _skipRowChecks['$table|${_jwtCacheKey(jwt)}'] = tableRules.skipRowChecks;
+  }
+
+  /// The hard gate an API token passes before any rule is consulted.
+  ///
+  /// Deliberately **not** an input to the rules. A rule file is application
+  /// code and may be as permissive as its author likes; the scope is
+  /// server-side state that only an admin, or someone with filesystem access
+  /// to the database, could have written. Evaluating it here means a token
+  /// cannot be widened by editing a rule -- only by editing the row.
+  ///
+  /// Three things are checked, and the first is unconditional:
+  ///
+  ///  1. **No internal table, ever.** Not even under `"*"`, and naming one
+  ///     explicitly is refused when the token is created. `_api_tokens` is
+  ///     the reason this is absolute rather than scoped: a token that can
+  ///     read it sees every other credential's row, and one that can write it
+  ///     mints itself a wider token. `_jwt` and `_auth_challenges` are barely
+  ///     better -- every live session id, and every outstanding auth
+  ///     challenge.
+  ///  2. The table is named, or `"*"` is.
+  ///  3. The operation is named.
+  ///
+  /// The refusal is the **same** [TableAccessDeniedException] a rules denial
+  /// raises. A distinct error would turn any token into a scanner for which
+  /// collections exist.
+  void _requireApiTokenScope(
+    String table,
+    String operation,
+    Jwt? jwt, {
+    required bool Function(ApiTokenScope scope) allows,
+  }) {
+    if (jwt is! ApiTokenJwt) return;
+
+    final permitted =
+        !InternalDbArtifacts.tableNames.contains(table) &&
+        jwt.scope.allowsTable(table) &&
+        allows(jwt.scope);
+
+    if (permitted) return;
+
+    logger.warn(
+      'API token "${jwt.name}" (${jwt.tokenId.value}) is not scoped for '
+      '$operation on "$table"',
+      prefix: _prefix,
+    );
+    throw TableAccessDeniedException(table: table, operation: operation);
   }
 
   /// How long a table-rule verdict may be reused before it is asked again.
@@ -280,6 +332,12 @@ extension UtilsX on ZonaiDb {
     logger.verbose(
       'Checking table rules for $table custom:$operation',
       prefix: _prefix,
+    );
+    _requireApiTokenScope(
+      table,
+      operation,
+      jwt,
+      allows: (scope) => scope.allowsCustomOperation(operation),
     );
     final tableRules = await _customTableRules(table, operation, jwt);
 
@@ -656,8 +714,14 @@ extension UtilsX on ZonaiDb {
   ///    got each other's decisions.
   String _jwtCacheKey(Jwt? jwt) {
     if (jwt == null) return '';
+    // Two API tokens with the same admin flags and the same claims are the
+    // same key by every field below -- `table` and `userId` are the shared
+    // `__api_token__` sentinel for an unbound one. So the token id has to be
+    // in the key, or one token's rule verdict (and its `skipRowChecks`) is
+    // served to another with a different scope.
+    final apiToken = jwt is ApiTokenJwt ? jwt.tokenId.value : '';
     return '${jwt.table}|${jwt.userId.value}|${jwt.admin.isAdmin}'
-        '|${jwt.admin.canEdit}|${jsonEncode(jwt.claims)}';
+        '|${jwt.admin.canEdit}|${jsonEncode(jwt.claims)}|$apiToken';
   }
 
   Never _throwDatabaseError(

@@ -2,6 +2,7 @@ import 'package:zonai_schema/src/exceptions/schema_exception.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/operations/operation_request.dart';
 
+import 'api_token_exception.dart';
 import 'auth_exception.dart';
 import 'crud_exception.dart';
 import 'permission_exception.dart';
@@ -15,6 +16,7 @@ Object mapDatabaseError(
   Object Function(Object? cause)? orElse,
 }) {
   if (error is AuthException ||
+      error is ApiTokenException ||
       error is CrudException ||
       error is PhotoException ||
       error is SchemaException ||

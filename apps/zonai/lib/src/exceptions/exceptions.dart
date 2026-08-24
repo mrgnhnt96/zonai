@@ -1,3 +1,4 @@
+export 'api_token_exception.dart';
 export 'auth_exception.dart';
 export 'crud_exception.dart';
 export 'exception_mapper.dart';

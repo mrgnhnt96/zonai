@@ -5,7 +5,7 @@ extension _StreamOneX on ZonaiDb {
     String table,
     ViewPayload payload,
   ) async* {
-    final jwt = await _extractJwt(payload);
+    final jwt = await _extractJwt(payload, allowApiToken: true);
     await _requireTableAccess(table, .view, jwt);
 
     final operation = await _getOperation(

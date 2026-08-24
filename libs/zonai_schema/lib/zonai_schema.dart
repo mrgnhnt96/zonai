@@ -87,6 +87,7 @@ export 'src/tables/table.dart';
 export 'src/types/api_token_id.dart';
 export 'src/types/api_token_jwt.dart';
 export 'src/types/api_token_scope.dart';
+export 'src/types/api_token_secret.dart';
 export 'src/types/auth_session.dart';
 export 'src/types/built_in_emails.dart';
 export 'src/types/email.dart';

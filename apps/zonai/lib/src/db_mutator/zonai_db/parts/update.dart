@@ -11,7 +11,7 @@ extension _UpdateX on ZonaiDb {
     logger.trace('start');
     try {
       step = 'jwt_extract';
-      final jwt = userJwt ?? await _extractJwt(payload);
+      final jwt = userJwt ?? await _extractJwt(payload, allowApiToken: true);
       logger.trace('jwt_extract');
 
       step = 'update_operation';

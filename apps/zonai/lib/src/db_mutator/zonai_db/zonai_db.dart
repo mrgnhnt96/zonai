@@ -29,6 +29,7 @@ import 'package:zonai/src/utils/admin_create_shape.dart';
 import 'package:zonai/src/domain/mutations.dart';
 import 'package:zonai_schema/src/internal/internal_db_artifacts.dart';
 import 'package:zonai/src/internal/internal_db_migrate.dart';
+import 'package:zonai_schema/src/internal/tables/api_token_table.dart';
 import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart';
 import 'package:zonai_schema/src/internal/tables/jwt_table.dart';
 import 'package:zonai_schema/src/internal/tables/oauth_identity_table.dart';
@@ -83,6 +84,7 @@ import '../sqlite_internal_table_sync.dart';
 
 part 'parts/__auth_utils.dart';
 part 'parts/__utils.dart';
+part 'parts/api_token.dart';
 part 'parts/admin/create_admin.dart';
 part 'parts/admin/invite_admin.dart';
 part 'parts/admin/list_admins.dart';
@@ -510,6 +512,64 @@ class ZonaiDb {
     );
   }
 
+  /// Mints an API token and returns the plaintext **once**.
+  ///
+  /// The credential is an opaque `zonai_pat_...` string; the row keeps only
+  /// its SHA-256, so [MintedApiToken.secret] cannot be recovered from
+  /// anywhere afterwards. Show it or lose it.
+  ///
+  /// [createdBy] is an admin user id, or `__cli__` for `zonai db token
+  /// create` -- which needs no session, no password and no signing secret,
+  /// only write access to the database file. That is the same trust boundary
+  /// `zonai db admin add` already assumes, and it is what makes an API token
+  /// obtainable without sign-in credentials at all.
+  ///
+  /// [expiresAt] of null means **never**. The pairing that makes that safe is
+  /// [revokeApiToken]: resolution reads the row on every request, so a
+  /// withdrawal lands on the next one.
+  Future<MintedApiToken> createApiToken({
+    required String name,
+    required ApiTokenScope scope,
+    required String createdBy,
+    Map<String, dynamic> claims = const {},
+    String? boundTable,
+    String? boundUserId,
+    DateTime? expiresAt,
+  }) async {
+    return await _run(
+      () => _createApiToken(
+        name: name,
+        scope: scope,
+        createdBy: createdBy,
+        claims: claims,
+        boundTable: boundTable,
+        boundUserId: boundUserId,
+        expiresAt: expiresAt,
+      ),
+    );
+  }
+
+  /// Every live token, newest first. Never the hash -- it is not on
+  /// [ApiTokenEntry] in any readable form and could not be returned if it
+  /// were asked for.
+  Future<List<ApiTokenEntry>> listApiTokens({
+    bool includeRevoked = false,
+  }) async {
+    return await _run(() => _listApiTokens(includeRevoked: includeRevoked));
+  }
+
+  /// Stops [id] working, on the next request, keeping the row as a record of
+  /// what once had access. [id] may be a unique prefix.
+  Future<ApiTokenEntry> revokeApiToken({required String id}) async {
+    return await _run(() => _revokeApiToken(id: id));
+  }
+
+  /// [revokeApiToken] without the record: the row goes. [id] may be a unique
+  /// prefix.
+  Future<void> deleteApiToken({required String id}) async {
+    return await _run(() => _deleteApiToken(id: id));
+  }
+
   Future<Map<String, Object?>> resetAdminPassword({
     required String email,
     required String newPassword,
@@ -920,10 +980,30 @@ class ZonaiDb {
     });
   }
 
-  Future<Jwt?> parseJwt(String? jwt) async {
-    return await _run(() => _extractJwt(JwtPayload(jwt: jwt)));
+  /// Resolves a bearer credential to the identity behind it.
+  ///
+  /// [allowApiToken] is **false by default, and that default is the security
+  /// boundary.** Every route handler that authorizes with this -- dashboard,
+  /// admin, maintenance, cron, email, push -- gets the safe answer without
+  /// asking for it, and refuses an API token with
+  /// [ApiTokenNotAcceptedHereException]. Only the data paths (`/db`, and its
+  /// streams) pass true, and they do it inside `_extract*`, not here.
+  ///
+  /// Pass true to introspect a credential deliberately -- `zonai db token`
+  /// asking "what is this?" -- never to authorize one.
+  Future<Jwt?> parseJwt(String? jwt, {bool allowApiToken = false}) async {
+    return await _run(
+      () => _extractJwt(JwtPayload(jwt: jwt), allowApiToken: allowApiToken),
+    );
   }
 
+  /// Signature and claims, without the revocation lookup -- read-only UI
+  /// display only, never data access.
+  ///
+  /// An API token has no cheaper form: its claims, its scope and its validity
+  /// are one row, so this resolves it in full, exactly as [parseJwt] would.
+  /// It is not an authorization decision either way -- the only caller is the
+  /// tracing component, which wants an id to label a log line with.
   Future<Jwt?> parseJwtClaimsOnly(String? jwt) async {
     return await _run(() => _extractJwtClaimsOnly(jwt));
   }
@@ -999,6 +1079,8 @@ class ZonaiDb {
     } on WorkerProcessFailedException {
       rethrow;
     } on AuthException {
+      rethrow;
+    } on ApiTokenException {
       rethrow;
     } on CrudException {
       rethrow;

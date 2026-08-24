@@ -26,7 +26,7 @@ extension _DeleteX on ZonaiDb {
     logger.trace('start');
     try {
       step = 'jwt_extract';
-      final jwt = await _extractJwt(payload);
+      final jwt = await _extractJwt(payload, allowApiToken: true);
       logger.trace('jwt_extract');
 
       step = 'delete_operation';
