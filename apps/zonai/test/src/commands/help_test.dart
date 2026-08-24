@@ -235,6 +235,7 @@ void main() {
       'copilot',
       'windsurf',
       'cline',
+      'update',
     ]) {
       test('ai $tool', () async {
         final result = await _help(() => ai([tool]));
