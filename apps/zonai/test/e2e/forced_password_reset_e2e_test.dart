@@ -11,6 +11,8 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart'
+    show AuthChallengeType, authChallenges;
 import 'package:zonai_schema/src/internal/tables/jwt_table.dart' show jwts;
 import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
     show PasswordResetReason;
@@ -278,6 +280,54 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
+
+    test('a WRONG password against a gated account is an ordinary 401 with '
+        'no ticket', () async {
+      if (!_runningOnDartVm) return;
+
+      await withDb((db) async {
+        const email = 'oracle@example.com';
+        const password = 'old-password-oracle-1';
+
+        await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(email: email, password: password),
+        );
+        await db.requirePasswordReset(
+          table: 'admins',
+          email: email,
+          reason: PasswordResetReason.compromised,
+          byUserId: 'cli',
+        );
+
+        // The gate runs AFTER the password verifies, and it has to stay
+        // there. Raising the refusal on a wrong password would turn the
+        // requirement into the enumeration oracle the whole "Failed sign-in"
+        // contract exists to prevent -- an unauthenticated caller could tell a
+        // gated account from any other by guessing one wrong password, and
+        // would be handed a live reset ticket for the privilege.
+        await expectLater(
+          db.authenticate(
+            'admins',
+            const SignInPasswordAuthPayload(
+              email: email,
+              password: 'not-the-password',
+            ),
+          ),
+          throwsA(isA<InvalidPasswordOrEmailException>()),
+          reason: 'indistinguishable from any other wrong password',
+        );
+
+        expect(
+          await _resetChallengeCount(db, email),
+          0,
+          reason:
+              'and no ticket was minted -- a `passwordReset` challenge row '
+              'written here is a credential handed to someone who failed to '
+              'authenticate',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test('the ticket completes the reset, clears the requirement, and does '
         'not work twice', () async {
@@ -652,6 +702,24 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
   });
+}
+
+/// How many live `passwordReset` challenges exist for one address.
+///
+/// `canConsume` rather than "any row": a spent or expired ticket is not a
+/// credential, and counting those would make this assertion fail for a reason
+/// it is not about.
+Future<int> _resetChallengeCount(ZonaiDb db, String email) async {
+  final raw = await db.open();
+  final rows = await raw
+      .select()
+      .from(authChallenges)
+      .where(
+        authChallenges.target.equals(email) &
+            authChallenges.type.equals(AuthChallengeType.passwordReset) &
+            authChallenges.canConsume.isTrue(),
+      );
+  return rows.length;
 }
 
 /// How many live `_jwt` rows one account holds.
