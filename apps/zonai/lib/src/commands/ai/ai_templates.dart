@@ -1572,7 +1572,7 @@ class UserExtensions extends Extension<User> with AuthExtension<User> {
   // this reason, no row, no session, no verify email). Password, OTP and
   // magic-link only; OAuth first-seen declines via onExternalAuthFirstSeen.
   @override
-  Future<void> beforeSignUp(User candidate, Jwt? jwt) async {
+  Future<void> beforeSignUp(SignUpCandidate candidate, Jwt? jwt) async {
     if (!candidate.email.endsWith('@acme.com')) {
       throw const SignUpDeclinedException('Sign-up is limited to Acme staff');
     }

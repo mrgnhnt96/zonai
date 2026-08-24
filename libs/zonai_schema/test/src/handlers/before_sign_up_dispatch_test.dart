@@ -7,11 +7,16 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// `beforeSignUp` reaching the app's extension, and its refusal reaching the
 /// caller.
 ///
-/// The dispatch arm is the whole mechanism: an `AuthExtensionRequest` with no
-/// arm silently succeeds — `db_extensions.dart`'s switch would fall through
-/// and reply `NoActionExtensionResponse`, so a hook that declines every
-/// sign-up would let every sign-up through and nothing would say so. These
-/// tests assert the hook was *entered*, not merely that dispatch returned.
+/// The dispatch arm is the whole mechanism: a request with no arm silently
+/// succeeds — `db_extensions.dart`'s switch would fall through and reply
+/// `NoActionExtensionResponse`, so a hook that declines every sign-up would
+/// let every sign-up through and nothing would say so. These tests assert the
+/// hook was *entered*, not merely that dispatch returned.
+///
+/// No `safeCreate` is involved, unlike every other extension arm. The e2e
+/// proved why: fabricating a typed row for an auth table throws on any
+/// non-nullable column the sign-up body did not supply (`is_verified` is one,
+/// on every `AuthTable`), and it threw before the hook was ever entered.
 void main() {
   final users = table('users', _UserTable.new);
 
@@ -20,15 +25,22 @@ void main() {
     final dbExtensions = DbExtensions(extensions: [extension]);
 
     await dbExtensions.dispatch(
-      AuthExtensionRequest.beforeSignUp(
+      BeforeSignUpExtensionRequest(
         table: 'users',
-        object: {'id': 'u-1', 'email': 'ada@example.com'},
+        email: 'ada@example.com',
+        object: const {'nickname': 'ada'},
         jwt: null,
       ),
     );
 
     expect(extension.saw, isNotNull);
     expect(extension.saw!.email, 'ada@example.com');
+    expect(extension.saw!.table, 'users');
+    // The extra columns arrive as the body sent them, and the address is NOT
+    // duplicated into the map -- an auth table names its own email column, so
+    // there is no key that would be right for every project.
+    expect(extension.saw!.object, {'nickname': 'ada'});
+    expect(extension.saw!['nickname'], 'ada');
   });
 
   test('a declining hook propagates its exception out of dispatch', () async {
@@ -36,9 +48,10 @@ void main() {
 
     await expectLater(
       dbExtensions.dispatch(
-        AuthExtensionRequest.beforeSignUp(
+        BeforeSignUpExtensionRequest(
           table: 'users',
-          object: {'id': 'u-1', 'email': 'nope@blocked.test'},
+          email: 'nope@blocked.test',
+          object: const {},
           jwt: null,
         ),
       ),
@@ -59,9 +72,10 @@ void main() {
     final dbExtensions = DbExtensions(extensions: [_UsersExtension(users)]);
 
     final response = await dbExtensions.dispatch(
-      AuthExtensionRequest.beforeSignUp(
+      BeforeSignUpExtensionRequest(
         table: 'users',
-        object: {'id': 'u-1', 'email': 'ada@example.com'},
+        email: 'ada@example.com',
+        object: const {'nickname': 'ada'},
         jwt: null,
       ),
     );
@@ -74,9 +88,10 @@ void main() {
 
     await expectLater(
       dbExtensions.dispatch(
-        AuthExtensionRequest.beforeSignUp(
+        BeforeSignUpExtensionRequest(
           table: 'other_table',
-          object: {'id': 'u-1', 'email': 'ada@example.com'},
+          email: 'ada@example.com',
+          object: const {},
           jwt: null,
         ),
       ),
@@ -92,9 +107,10 @@ void main() {
 
     await expectLater(
       dbExtensions.dispatch(
-        AuthExtensionRequest.beforeSignUp(
+        BeforeSignUpExtensionRequest(
           table: 'users',
-          object: {'id': 'u-1', 'email': 'ada@example.com'},
+          email: 'ada@example.com',
+          object: const {},
           jwt: null,
         ),
       ),
@@ -125,10 +141,10 @@ final class _UserTable extends Table<_User> {
 final class _UsersExtension extends Extension<_User> with AuthExtension<_User> {
   _UsersExtension(super.schema);
 
-  _User? saw;
+  SignUpCandidate? saw;
 
   @override
-  Future<void> beforeSignUp(_User candidate, Jwt? jwt) async {
+  Future<void> beforeSignUp(SignUpCandidate candidate, Jwt? jwt) async {
     saw = candidate;
   }
 }
@@ -138,7 +154,7 @@ final class _DecliningExtension extends Extension<_User>
   _DecliningExtension(super.schema);
 
   @override
-  Future<void> beforeSignUp(_User candidate, Jwt? jwt) async {
+  Future<void> beforeSignUp(SignUpCandidate candidate, Jwt? jwt) async {
     throw const SignUpDeclinedException('Invite only');
   }
 }

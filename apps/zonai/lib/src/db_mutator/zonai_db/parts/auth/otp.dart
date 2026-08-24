@@ -164,7 +164,8 @@ extension _OtpX on ZonaiDb {
 
     await _runSignUpGate(
       table,
-      object: {'email': email, ...?object},
+      email: email,
+      object: object,
       jwt: appJwt,
     );
 

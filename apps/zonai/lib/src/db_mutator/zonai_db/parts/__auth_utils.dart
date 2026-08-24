@@ -184,9 +184,11 @@ extension _AuthUtilsX on ZonaiDb {
   /// Runs the app's `beforeSignUp` hook and lets it refuse the sign-up.
   ///
   /// Call this *before* the INSERT, on every flow that creates an auth row.
-  /// [object] is the candidate row's columns -- the email plus whatever the
-  /// sign-up body carried -- and reaches the hook through `safeCreate`, the
-  /// same way `beforeCreate` receives its argument.
+  /// [email] and [object] are the sign-up body, handed over as they are --
+  /// no row is built, because none exists yet (see `SignUpCandidate`). The
+  /// address travels separately from [object] the whole way down: an auth
+  /// table names its own email column, so there is no key to put it under
+  /// that would be right for every project.
   ///
   /// ## Two dispatch paths, one exception
   ///
@@ -206,14 +208,16 @@ extension _AuthUtilsX on ZonaiDb {
   /// that the app is broken.
   Future<void> _runSignUpGate(
     String table, {
-    required Map<String, Object?> object,
+    required String email,
+    required Map<String, Object?>? object,
     required Jwt? jwt,
   }) async {
     try {
       await _runExtension(
-        AuthExtensionRequest.beforeSignUp(
+        BeforeSignUpExtensionRequest(
           table: table,
-          object: {...object},
+          email: email,
+          object: {...?object},
           jwt: jwt,
         ),
       );

@@ -1,6 +1,7 @@
 import 'package:zonai_schema/src/extension.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_request.dart';
 import 'package:zonai_schema/src/handlers/extensions/extension_response.dart';
+import 'package:zonai_schema/src/handlers/extensions/sign_up_candidate.dart';
 import 'package:zonai_schema/src/handlers/messages/message_handler.dart';
 import 'package:zonai_schema/src/handlers/messages/message_io.dart';
 import 'package:zonai_schema/src/table_extensions.dart';
@@ -56,6 +57,10 @@ class DbExtensions {
 
       case final ErrorExtensionRequest request:
         await _error(request);
+        return NoActionExtensionResponse(id: request.id);
+
+      case final BeforeSignUpExtensionRequest request:
+        await _beforeSignUp(request);
         return NoActionExtensionResponse(id: request.id);
 
       case final AuthExtensionRequest request:
@@ -186,6 +191,30 @@ class DbExtensions {
     }
   }
 
+  /// The one hook that runs before its flow commits, and the one that can
+  /// refuse it.
+  ///
+  /// No `safeCreate` here, unlike every other arm: nothing has been inserted,
+  /// so there is no row to rebuild and no honest way to invent one. The hook
+  /// is handed the sign-up body itself.
+  Future<void> _beforeSignUp(BeforeSignUpExtensionRequest request) async {
+    final extension = extensionsByTable[request.table];
+    if (extension == null) {
+      return;
+    }
+
+    if (extension case AuthExtension(:final beforeSignUp)) {
+      await beforeSignUp(
+        SignUpCandidate(
+          table: request.table,
+          email: request.email,
+          object: Map<String, Object?>.from(request.object),
+        ),
+        request.jwt,
+      );
+    }
+  }
+
   Future<void> _auth(AuthExtensionRequest request) async {
     final extension = extensionsByTable[request.table];
     if (extension == null) {
@@ -193,13 +222,6 @@ class DbExtensions {
     }
 
     switch (request.step) {
-      case .beforeSignUp:
-        if (extension case AuthExtension(:final beforeSignUp)) {
-          await beforeSignUp(
-            extension.table.safeCreate(request.object),
-            request.jwt,
-          );
-        }
       case .onSignUp:
         if (extension case AuthExtension(:final onSignUp)) {
           await onSignUp(

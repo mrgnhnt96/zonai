@@ -130,7 +130,8 @@ extension _PasswordX on ZonaiDb {
       step = 'signup_gate';
       await _runSignUpGate(
         table,
-        object: {'email': payload.email, ...?payload.object},
+        email: payload.email,
+        object: payload.object,
         jwt: jwt,
       );
       logger.trace('signup_gate');

@@ -74,7 +74,7 @@ from it and the caller is answered **403** with the reason you chose:
 
 ```dart in:extension-user
 @override
-Future<void> beforeSignUp(User candidate, Jwt? jwt) async {
+Future<void> beforeSignUp(SignUpCandidate candidate, Jwt? jwt) async {
   if (!candidate.email.endsWith('@acme.com')) {
     throw const SignUpDeclinedException('Sign-up is limited to Acme staff');
   }
@@ -95,11 +95,23 @@ deliberate path, and a hook that merely crashed should not look like a refusal.
 
 ### What it does and does not cover
 
-`candidate` is the row **about to be inserted**, not a stored one. The primary
-key, `createdAt`/`updatedAt` and every secret column (the password hash
-included) hold placeholders, because none of them exist yet. Read the columns
-the sign-up body supplied — the email, and whatever the client passed in
-`object`.
+`candidate` is a `SignUpCandidate` — the sign-up **request** — and not the
+app's row class, which is the one place `beforeSignUp` differs from every
+other hook. There is no row yet, so there is nothing typed to hand over:
+
+| Field       | What it is                                                     |
+| ----------- | -------------------------------------------------------------- |
+| `email`     | The address the sign-up was made with                          |
+| `object`    | The extra columns the body carried, as the client sent them    |
+| `table`     | The auth collection being signed up into                       |
+
+`candidate['nickname']` is shorthand for `candidate.object['nickname']`.
+
+Nothing in `object` has been through rules or the insert yet — that is the
+point of being here — so do not treat a value in it as the value the row will
+end up with. The address is deliberately *not* duplicated into `object`: an
+auth table names its own email column, so there is no key that would be right
+for every project.
 
 It runs on the three flows that insert an auth row directly: **password**,
 **OTP** and **magic-link** sign-up.
@@ -228,7 +240,7 @@ Throwing is logged and does not stop the prune or the fan-out.
 
 | Method         | Arguments                 | Purpose                                                     |
 | -------------- | ------------------------- | ----------------------------------------------------------- |
-| `beforeSignUp` | `R candidate`, `Jwt? jwt` | Before the row is inserted; throw to decline                |
+| `beforeSignUp` | `SignUpCandidate candidate`, `Jwt? jwt` | Before the row is inserted; throw to decline   |
 | `onSignUp`     | `R user`, `Jwt? jwt`      | After successful sign-up                                    |
 | `onSignIn`  | `R user`, `Jwt? jwt` | After successful sign-in                                    |
 | `onRefresh` | `R user`, `Jwt? jwt` | After a new access token is issued via `POST /auth/refresh` |

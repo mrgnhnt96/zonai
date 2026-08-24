@@ -13,6 +13,7 @@ sealed class ExtensionRequest extends Request {
       DeleteExtensionRequest._path => DeleteExtensionRequest.fromRequest(request),
       ErrorExtensionRequest._path => ErrorExtensionRequest.fromRequest(request),
       AuthExtensionRequest._path => AuthExtensionRequest.fromRequest(request),
+      BeforeSignUpExtensionRequest._path => BeforeSignUpExtensionRequest.fromRequest(request),
       PushRejectedExtensionRequest._path => PushRejectedExtensionRequest.fromRequest(request),
       _ => throw ArgumentError('Invalid extension request path: ${request.path}'),
     };
@@ -23,19 +24,46 @@ enum ExtensionStep { before, afterSuccess, afterError }
 
 enum ExtensionType { create, update, delete }
 
-enum AuthExtensionStep { beforeSignUp, onSignUp, onSignIn, onRefresh, onLogout, onPasswordReset, onExternalAuthFirstSeen }
+enum AuthExtensionStep { onSignUp, onSignIn, onRefresh, onLogout, onPasswordReset, onExternalAuthFirstSeen }
+
+/// The one extension request dispatched BEFORE its auth flow commits anything,
+/// and the only one whose reply can change the outcome.
+///
+/// It carries the sign-up body rather than a row, because at this point there
+/// is no row -- see [SignUpCandidate] for why fabricating one does not work.
+/// Throwing `SignUpDeclinedException` from the hook is what refuses the
+/// sign-up; the host recovers it from the error text on the far side.
+final class BeforeSignUpExtensionRequest extends ExtensionRequest {
+  BeforeSignUpExtensionRequest({required this.table, required this.email, required this.object, required super.jwt})
+    : super(path: _path, id: Request.generateId());
+
+  BeforeSignUpExtensionRequest._({required super.id, required this.table, required this.email, required this.object, required super.jwt})
+    : super(path: _path);
+
+  factory BeforeSignUpExtensionRequest.fromRequest(UnknownRequest request) {
+    return BeforeSignUpExtensionRequest._(
+      id: request.id,
+      table: request.payload['table'] as String,
+      email: request.payload['email'] as String,
+      object: Map<String, dynamic>.from(request.payload['object'] as Map? ?? const {}),
+      jwt: request.jwt,
+    );
+  }
+
+  static const _path = '${Request.prefix}.extension.before_sign_up';
+
+  final String table;
+  final String email;
+  final Map<String, dynamic> object;
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'table': table, 'email': email, 'object': object};
+  }
+}
 
 /// The [jwt] belongs to the user who is making the request, not the user that is being created or signed in.
 final class AuthExtensionRequest extends ExtensionRequest {
-  /// The only step dispatched *before* its auth flow commits anything.
-  ///
-  /// [object] is the candidate row -- the sign-up body's columns, not a
-  /// persisted row -- so `safeCreate` fills the primary key, timestamps and
-  /// secret columns with placeholders on the far side. Throwing
-  /// `SignUpDeclinedException` from the hook is what refuses the sign-up.
-  AuthExtensionRequest.beforeSignUp({required this.table, required this.object, required super.jwt})
-    : step = .beforeSignUp,
-      super(path: _path, id: Request.generateId());
   AuthExtensionRequest.onSignUp({required this.table, required this.object, required super.jwt})
     : step = .onSignUp,
       super(path: _path, id: Request.generateId());
