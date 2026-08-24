@@ -361,6 +361,36 @@ final class ResqliteDelegate extends RaindropDelegate {
     await db.execute('PRAGMA foreign_keys = ON;');
     final rawReads = sqlite3.open(path);
     rawReads.execute('PRAGMA foreign_keys = ON;');
+    // `busy_timeout` is per-connection, and until this line only ONE of
+    // these two had one: resqlite sets it to 5000 on every connection it
+    // opens (native/resqlite.c, `PRAGMA busy_timeout = 5000`, in the shared
+    // path outside the reader branch), and SQLite's own default is 0.
+    //
+    // Nothing about `rawReads` is read-only despite the name. `execute`
+    // below routes any statement carrying `RETURNING` here -- which is what
+    // raindrop's builder emits for every `INSERT`/`UPDATE`/`DELETE` that
+    // yields rows -- and `transaction()` runs against this connection too.
+    // So the connection doing much of zonai's writing was the one with no
+    // patience at all: a write landing here while the writer isolate held
+    // the lock got `SQLiteException(5): database is locked` immediately,
+    // with no retry, surfaced to the caller as a 500.
+    //
+    // The rest of the system already assumed this pragma was here.
+    // `ZonaiDb._runWrite`'s single-writer queue exists, by its own comment,
+    // to stop "concurrent creates from stacking into SQLite's 5s
+    // busy_timeout" -- a 5s ceiling that was real for the writer and
+    // fictional for this connection. Matching resqlite's value makes the
+    // two symmetric rather than inventing a third number.
+    //
+    // The trade this makes: a contended write now waits for the lock
+    // instead of failing instantly, and because `package:sqlite3`'s
+    // `execute` is a synchronous FFI call, that wait blocks this isolate.
+    // In practice it ends when the writer isolate commits (sub-millisecond),
+    // so 5000 is a ceiling and not a cost -- but a genuinely long-held write
+    // lock (a `VACUUM`, a large `_purge` round) now stalls here rather than
+    // erroring here. That is the better failure of the two, and it is the
+    // same one every resqlite connection already has.
+    rawReads.execute('PRAGMA busy_timeout = 5000;');
 
     // Same trap as the pragma above, and the reason [attach] is a parameter
     // of `open` rather than a statement a caller could run afterwards: an
