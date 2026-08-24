@@ -4,6 +4,7 @@ import 'admin/add.dart';
 import 'admin/invite.dart';
 import 'admin/list.dart';
 import 'admin/remove.dart';
+import 'admin/require_password_reset.dart';
 import 'admin/reset_password.dart';
 
 const _usage = '''
@@ -19,6 +20,9 @@ Subcommands:
   revoke-invite       Cancel an outstanding invite
   list                List every admin account
   reset-password      Reset an existing admin account's password
+  require-password-reset
+                      Make an admin choose a new password before it may
+                       sign in again, and revoke its sessions
   remove              Remove an existing admin account
 
 `add` creates the account itself and is how the first admin exists at all.
@@ -45,6 +49,8 @@ Future<int> admin(List<String> path) async {
       return await listAdmins();
     case ['reset-password' || 'reset_password' || 'reset']:
       return await resetAdminPassword();
+    case ['require-password-reset' || 'require_password_reset']:
+      return await requireAdminPasswordReset();
     case ['remove' || 'rm' || 'delete']:
       return await removeAdmin();
     default:

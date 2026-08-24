@@ -7,6 +7,8 @@ import 'package:zonai/src/deps/executable_stop.dart';
 import 'package:zonai/src/deps/fs.dart';
 import 'package:zonai/src/deps/settings.dart';
 import 'package:zonai/src/domain/settings.dart';
+import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
+    show PasswordResetReason;
 import 'package:zonai_schema/zonai_schema.dart'
     show AuthType, Jwt, TableSchemaShape;
 
@@ -158,6 +160,60 @@ class FakeZonaiDb extends ZonaiDb {
     resetAdminPasswordCall = (email: email, newPassword: newPassword);
     if (resetAdminPasswordError case final error?) throw error;
     return resetAdminPasswordResult;
+  }
+
+  Object? adminPasswordTableError;
+  String adminPasswordTableResult = 'users';
+
+  Object? requirePasswordResetError;
+  Object? clearPasswordResetRequirementError;
+  bool clearPasswordResetRequirementResult = true;
+
+  /// One entry per call, in order. A list rather than a single slot because
+  /// `reset-password` and `add --force-reset` each perform TWO writes, and
+  /// "the requirement was set once, after the password landed" is a claim
+  /// about ordering and count that a last-write-wins slot cannot make.
+  final requirePasswordResetCalls =
+      <
+        ({
+          String table,
+          String email,
+          PasswordResetReason reason,
+          String? byUserId,
+        })
+      >[];
+  final clearPasswordResetRequirementCalls = <({String table, String email})>[];
+
+  @override
+  Future<String> adminPasswordTable() async {
+    if (adminPasswordTableError case final error?) throw error;
+    return adminPasswordTableResult;
+  }
+
+  @override
+  Future<void> requirePasswordReset({
+    required String table,
+    required String email,
+    required PasswordResetReason reason,
+    String? byUserId,
+  }) async {
+    requirePasswordResetCalls.add((
+      table: table,
+      email: email,
+      reason: reason,
+      byUserId: byUserId,
+    ));
+    if (requirePasswordResetError case final error?) throw error;
+  }
+
+  @override
+  Future<bool> clearPasswordResetRequirement({
+    required String table,
+    required String email,
+  }) async {
+    clearPasswordResetRequirementCalls.add((table: table, email: email));
+    if (clearPasswordResetRequirementError case final error?) throw error;
+    return clearPasswordResetRequirementResult;
   }
 
   @override
