@@ -9,6 +9,19 @@ class RateLimit {
   /// their own. Reserved: real collection names cannot begin with `__`.
   static const String _adminAuthBucket = '__admin_auth__';
 
+  /// Synthetic bucket key for `POST /auth/confirm`, which carries no
+  /// collection of its own -- [VerifyAuthBody] is a token or a code, not a
+  /// table. Reserved: real collection names cannot begin with `__`.
+  ///
+  /// Per-IP, and deliberately NOT keyed on the address in the payload. The
+  /// send side throttles per target address because its harm is a flooded
+  /// inbox, which belongs to that address. The harm here is the server's own
+  /// CPU, which belongs to nobody in particular -- and an address-keyed
+  /// counter on an unauthenticated endpoint answers "is this account real?"
+  /// differently for a known address than an unknown one, which is the
+  /// enumeration oracle the rest of the auth surface is built to avoid.
+  static const String kConfirmBucket = '__auth_confirm__';
+
   Future<GuardResult> canContinue(
     dynamic body,
     String ipAddress,
@@ -24,6 +37,20 @@ class RateLimit {
     // flow (a follow-up can additionally bucket on the submitted email).
     if (body is AdminAuthBody || body is AdminSendResetPasswordAuthBody) {
       return checkByTable(_adminAuthBucket, ipAddress, operation);
+    }
+
+    // Same shape, same reason. `POST /auth/confirm` was exempt from ALL rate
+    // limiting: `RateLimitOperation.confirm` and `confirmPolicy()` are wired
+    // in `db_rate_limits.dart`, but the route carried no `@BodyRateLimit`, so
+    // nothing ever invoked them -- character for character the defect
+    // recorded above for admin auth. Every confirm attempt reaches an Argon2
+    // verification (`parts/auth/reset_password.dart`), which is expensive BY
+    // DESIGN, so an unauthenticated caller could force unbounded work with a
+    // loop of junk tokens. Not a guessing risk: the secret is 32 bytes from
+    // `Random.secure()`. It is CPU exhaustion, on the endpoint a forced reset
+    // needs most -- the ticket lives 15 minutes.
+    if (body is VerifyAuthBody) {
+      return checkByTable(kConfirmBucket, ipAddress, operation);
     }
 
     final table = switch (body) {

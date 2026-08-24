@@ -95,6 +95,11 @@ class AuthController {
     await authHandler.sendVerifyEmail(authorization: authorization, body: body);
   }
 
+  // Bucketed on the synthetic per-IP `__auth_confirm__` key, since
+  // `VerifyAuthBody` carries a token rather than a collection. Without this
+  // annotation the route was exempt from ALL rate limiting even though
+  // `confirmPolicy()` existed and was wired -- see `RateLimit.canContinue`.
+  @BodyRateLimit<VerifyAuthBody>(RateLimitOperation.confirm)
   @Post('confirm')
   Future<Map<String, Object?>?> confirm({
     @Body() required VerifyAuthBody body,

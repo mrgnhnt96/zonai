@@ -39,7 +39,7 @@ UserRateLimits main() => UserRateLimits();
 | `signUpPolicy()` | `POST /auth/sign-up` | 5/hour |
 | `signInPolicy()` | `POST /auth/sign-in` | 10/15min |
 | `authenticatePolicy()` | `POST /auth` (confirm) | 20/15min |
-| `confirmPolicy()` | `POST /auth/confirm` | 10/15min |
+| `confirmPolicy()` | `POST /auth/confirm` | framework default — see below |
 | `refreshTokenPolicy()` | `POST /auth/refresh` | default |
 | `logoutPolicy()` | `DELETE /auth` | default |
 | `logoutAllPolicy()` | `DELETE /auth/all` | default |
@@ -51,6 +51,18 @@ UserRateLimits main() => UserRateLimits();
 | `adminAuthenticatePolicy()` | Admin auth confirm | 10/15min |
 
 All methods are `async` and return `Future<RateLimitPolicy?>`. Return `null` to disable rate limiting for that endpoint.
+
+## Endpoints that carry no collection
+
+Two endpoints are bucketed per-IP on a shared, synthetic key rather than per auth table, because their request body does not name one: `POST /auth/confirm` (the body is a token, or an email and a code) and the admin auth endpoints (the admin table is resolved server-side from config).
+
+For those, **a per-table override does not apply** — there is no table to match it against, so the framework default is what runs. `POST /auth/confirm` is limited at the generic 100/min per IP; admin auth is limited far below that, at 10/15min.
+
+<Info>
+
+`POST /auth/confirm` is worth knowing about even though it takes no password: every attempt reaches an Argon2 verification, which is expensive by design. That cost is the server's, not the caller's, so the limit here is about CPU exhaustion rather than about guessing — the tokens it checks are 32 bytes from a secure random source and are not guessable.
+
+</Info>
 
 <Info>
 
