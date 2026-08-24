@@ -11,6 +11,7 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/src/internal/tables/jwt_table.dart' show jwts;
 import 'package:zonai_schema/src/internal/tables/password_reset_requirement_table.dart'
     show PasswordResetReason;
 import 'package:zonai_schema/zonai_schema.dart';
@@ -222,10 +223,11 @@ void main() {
           const email = 'gated@example.com';
           const password = 'old-password-gated-1';
 
-          await db.authenticate(
+          final signUp = await db.authenticate(
             'admins',
             const PasswordAuthPayload(email: email, password: password),
           );
+          final userId = signUp!.user['id']! as String;
           await db.requirePasswordReset(
             table: 'admins',
             email: email,
@@ -238,6 +240,20 @@ void main() {
               'admins',
               const SignInPasswordAuthPayload(email: email, password: password),
             ),
+          );
+
+          // "Mints no session" asserted as a COUNT of `_jwt` rows, not as
+          // "the call threw". The gate sits after the password verifies and
+          // before anything mints, records or announces a session -- move it
+          // one line later and this is the only assertion that notices, since
+          // the caller sees an exception either way. Setting the requirement
+          // revoked the sign-up's session, so the right number here is zero.
+          expect(
+            await _sessionCount(db, userId),
+            0,
+            reason:
+                'a JWT recorded in `_jwt` has been handed to a caller who is '
+                'under no obligation to discard it',
           );
 
           expect(refusal.reason, PasswordResetReason.temporaryPassword);
@@ -636,6 +652,21 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
   });
+}
+
+/// How many live `_jwt` rows one account holds.
+///
+/// Read straight off the internal table rather than inferred from whether some
+/// token still parses: "no session was minted" is a statement about what was
+/// WRITTEN, and a token nobody kept a reference to would let an
+/// inference-based check pass over a row that is really there.
+Future<int> _sessionCount(ZonaiDb db, String userId) async {
+  final raw = await db.open();
+  final rows = await raw
+      .select()
+      .from(jwts)
+      .where(jwts.userId.equals(UnknownId(userId)));
+  return rows.length;
 }
 
 /// Runs [action] and returns the refusal it must raise.
