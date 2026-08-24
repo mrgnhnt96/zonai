@@ -285,4 +285,46 @@ void main() {
       expect(off.toRequestBody(now: _now)['operations'], ['view', 'count']);
     });
   });
+
+  group('a bound draft', () {
+    const bound = ApiTokenDraft(
+      name: 'users-abc123_usr',
+      tables: 'orders',
+      boundTable: 'users',
+      boundUserId: 'abc123_usr',
+    );
+
+    test('sends both halves of the binding', () {
+      final body = bound.toRequestBody(now: _now);
+
+      expect(body['boundTable'], 'users');
+      expect(body['boundUserId'], 'abc123_usr');
+      expect(bound.isBound, isTrue);
+    });
+
+    test('an unbound draft omits the keys rather than nulling them', () {
+      // The server refuses half a binding, and a body that names the keys is
+      // one `?? ""` away from being half of one. Absent cannot be half.
+      final body = const ApiTokenDraft(name: 'backup', tables: 'orders').toRequestBody(now: _now);
+
+      expect(body.containsKey('boundTable'), isFalse);
+      expect(body.containsKey('boundUserId'), isFalse);
+    });
+
+    test('copyWith carries the binding through every edit', () {
+      // The dialog rebuilds the draft on every keystroke. A copyWith that
+      // dropped these would mint an UNBOUND token from a screen that spent the
+      // whole time saying which row it would act as.
+      final edited = bound
+          .copyWith(name: 'renamed')
+          .copyWith(tables: '*')
+          .copyWith(allOperations: true)
+          .copyWith(admin: false)
+          .copyWith(expiry: ApiTokenExpiry.days90);
+
+      expect(edited.boundTable, 'users');
+      expect(edited.boundUserId, 'abc123_usr');
+      expect(edited.toRequestBody(now: _now)['boundUserId'], 'abc123_usr');
+    });
+  });
 }

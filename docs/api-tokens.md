@@ -175,6 +175,20 @@ at resolution to the bound table's own: if that collection does not mix in `AsAd
 token is not an admin token whatever its row says — and if `AsAdmin` is later removed and
 the app redeployed, every outstanding token bound to it is demoted on the next request.
 
+### From the row, in the dashboard
+
+Open any row of an auth collection and the detail panel offers **Create API token**. It
+mints a token bound to that row, so the binding is shown rather than typed — the id is
+already on screen, and `<table>/<id>` is a thing worth not mistyping.
+
+Admin-only, and offered only on an auth collection: the gate keys on the row having an
+`isVerified` column, which comes from `HasEmail` and so is present under `PasswordAuth`,
+`OtpAuth`, `MagicLinkAuth` and `OAuth` alike. A bare `AuthTable` with no auth mixin has
+no such column and no way to sign in either; `--as` on the CLI still binds to one.
+
+The reveal works the same way as on the API tokens screen and for the same reason, with
+one addition: while it is open, Escape does not close the row panel underneath it.
+
 ## The dashboard
 
 **API tokens**, on the account menu beside **Admins** — admin-only, because

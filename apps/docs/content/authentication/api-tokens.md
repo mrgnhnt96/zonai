@@ -142,6 +142,12 @@ zonai db token create --name partner-sync \
 
 A bound token is never more privileged than the row it names. Its admin grant is clamped at resolution to the bound table's own: if that collection does not mix in `AsAdmin`, the token is not an admin token whatever its row says — and if `AsAdmin` is later removed and the app redeployed, every outstanding token bound to it is demoted on the next request.
 
+### From a Row in the Dashboard
+
+You do not have to reach for the CLI to bind one. Open any row of an auth collection and the detail panel offers **Create API token** — it mints a token bound to that row, with the binding shown rather than typed. The id is already on screen, and `<table>/<id>` is a thing worth not mistyping.
+
+Admin-only, and offered only on auth collections, which the dashboard recognises by the `isVerified` column every auth mixin brings with it. The credential is revealed exactly once, in the same copy-once panel the API tokens screen uses.
+
 ## The Dashboard
 
 **API tokens** sits on the dashboard's account menu beside **Admins**, and is admin-only — every route behind it answers only an admin JWT for the resolved `AsAdmin` collection.

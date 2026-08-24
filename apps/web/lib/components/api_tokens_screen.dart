@@ -185,7 +185,7 @@ class ApiTokensPanel extends StatelessComponent {
       div(classes: 'dashboard-header', [
         h1(classes: 'dashboard-title', [.text('API tokens')]),
       ]),
-      if (revealed case final minted?) _RevealPanel(minted: minted, onDismiss: onDismissReveal),
+      if (revealed case final minted?) ApiTokenRevealPanel(minted: minted, onDismiss: onDismissReveal),
       if (loadError case final error?)
         div(classes: 'dashboard-panel', [
           p(classes: 'dashboard-panel-title', [.text('Could not load API tokens')]),
@@ -243,6 +243,18 @@ class ApiTokenMintForm extends StatelessComponent {
     final refusal = draft.refusal;
 
     return div(classes: 'z-token-form', [
+      // Stated first, above the name, when there is one: the binding is the
+      // thing that makes this token different from every other one on the
+      // deployment, and it is the only field here nobody can change.
+      if (draft.isBound)
+        p(classes: 'z-token-bound-note', [
+          .text('Acts as '),
+          code(classes: 'z-token-bound-row', [.text('${draft.boundTable}/${draft.boundUserId}')]),
+          .text(
+            '. Ownership rules match this row, and the token can never be more '
+            'of an admin than the row itself is.',
+          ),
+        ]),
       ZonaiTextField(
         id: 'api-token-name',
         fieldLabel: 'Name',
@@ -357,8 +369,13 @@ class ApiTokenMintForm extends StatelessComponent {
 /// dismissed by clicking anywhere, and both would destroy the only copy of a
 /// credential that cannot be recovered. It stays until it is dismissed
 /// deliberately, and it says why.
-class _RevealPanel extends StatelessComponent {
-  const _RevealPanel({required this.minted, required this.onDismiss});
+///
+/// Public because the row detail panel mints bound tokens too, and a second
+/// copy of this would be a second chance to get "shown once" wrong. It is
+/// presentational only — the secret itself still lives in whichever `State`
+/// did the minting, never in `apiTokensProvider`.
+class ApiTokenRevealPanel extends StatelessComponent {
+  const ApiTokenRevealPanel({super.key, required this.minted, required this.onDismiss});
 
   final ({ApiTokenRow row, String secret}) minted;
   final void Function() onDismiss;

@@ -607,6 +607,55 @@ List<StyleRule> get zonaiUiStyles => [
     color: const Color('var(--zonai-danger-fg, #b91c1c)'),
     border: .all(color: const Color('var(--zonai-danger-fg, #b91c1c)'), width: 1.px, style: .solid),
   ),
+  // Minting a token bound to one auth row, from the row detail panel. Here
+  // rather than beside the panel's own styles because it reuses `.z-token-*`
+  // above -- the form and the reveal are the same components the API Tokens
+  // screen renders, and a second copy of their rules would be a second thing
+  // to keep in step.
+  //
+  // Above the panel (1200) and above the push dialog (1300): it can be opened
+  // from the panel, and while a secret is on screen nothing may cover it.
+  css('.z-token-bound-backdrop').styles(
+    position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
+    raw: const {'z-index': '1400', 'background': 'rgba(0,0,0,0.4)'},
+  ),
+  css('.z-token-bound-dialog').styles(
+    position: Position.fixed(top: 50.percent, left: 50.percent),
+    width: 100.percent,
+    maxWidth: 520.px,
+    maxHeight: 85.vh,
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(ZonaiSpacing.s5),
+    padding: .all(ZonaiSpacing.s6),
+    backgroundColor: surfaceColor,
+    radius: .all(Radius.circular(12.px)),
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    overflow: Overflow.only(y: .auto),
+    transform: Transform.translate(x: (-50).percent, y: (-50).percent),
+    raw: const {'z-index': '1401', 'box-shadow': 'var(--zonai-shadow)'},
+  ),
+  css('.z-token-bound-dialog-header').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    justifyContent: .spaceBetween,
+    gap: Gap.all(ZonaiSpacing.s4),
+  ),
+  css('.z-token-bound-note').styles(
+    margin: .zero,
+    padding: .symmetric(horizontal: ZonaiSpacing.s5, vertical: ZonaiSpacing.s4),
+    fontSize: 0.8125.rem,
+    lineHeight: 1.5.em,
+    color: mutedColor,
+    backgroundColor: hoverColor,
+    radius: .all(Radius.circular(10.px)),
+  ),
+  css('.z-token-bound-row').styles(
+    fontFamily: const FontFamily.list([FontFamily('ui-monospace'), FontFamily('monospace')]),
+    fontSize: 0.8125.rem,
+    color: fgColor,
+  ),
   ...zonaiTagStyles,
   ...zonaiEnumChipStyles,
   ...zonaiBooleanCheckStyles,

@@ -229,4 +229,70 @@ void main() {
       expect(_buttonsLabelled('Creating…').single.disabled, isTrue);
     });
   });
+
+  group('the mint form, bound to an auth row', () {
+    // The bound form is the same component the screen renders; what a test can
+    // pin without a browser is that it SAYS what it is bound to. The binding
+    // is the one field nobody can edit, and a form that did not show it would
+    // look identical to the unbound one.
+    testComponents('names the row it will act as', (tester) async {
+      tester.pumpComponent(
+        _panel(
+          draft: const ApiTokenDraft(
+            name: 'users-abc123_usr',
+            tables: 'orders',
+            boundTable: 'users',
+            boundUserId: 'abc123_usr',
+          ),
+        ),
+      );
+
+      expect(find.text('users/abc123_usr'), findsOneComponent);
+      expect(find.textContaining('Acts as'), findsOneComponent);
+      // The consequence, not just the fact: a bound token is clamped to the
+      // row's own admin grant at resolution, and somebody minting one from a
+      // row panel is exactly who needs to know that.
+      expect(find.textContaining('never be more of an admin'), findsOneComponent);
+    });
+
+    testComponents('says nothing about a binding when there is none', (tester) async {
+      tester.pumpComponent(
+        _panel(
+          draft: const ApiTokenDraft(name: 'backup', tables: 'orders'),
+        ),
+      );
+
+      expect(find.textContaining('Acts as'), findsNothing);
+    });
+  });
+
+  group('the operations wildcard', () {
+    testComponents('ticks and disables all six, so the display cannot lie', (tester) async {
+      // Under `*` the token really can do all six, so showing them unticked
+      // would be false. Showing them ticked and ENABLED would be worse: the
+      // next click would send a narrower scope than the one on screen.
+      tester.pumpComponent(
+        _panel(
+          draft: const ApiTokenDraft(name: 'backup', tables: 'orders', operations: {'view'}, allOperations: true),
+        ),
+      );
+
+      // Read off the rendered DOM rather than the component: `input<bool>`
+      // builds a DomComponent, so a cast back to `input` fails.
+      final boxes = [
+        for (final element in find.tag('input').evaluate())
+          if (element.component case final DomComponent dom) dom,
+      ].where((dom) => dom.attributes?['type'] == 'checkbox').toList();
+
+      // Six operations + "Every operation" + "Admin".
+      expect(boxes.length, 8);
+      for (final box in boxes.take(6)) {
+        expect(box.attributes?['checked'], isNotNull);
+        expect(box.attributes?['disabled'], 'disabled');
+      }
+      // The wildcard's own box stays live -- it is how the choice is undone.
+      expect(boxes[6].attributes?['disabled'], isNull);
+      expect(find.textContaining('a later zonai adds'), findsOneComponent);
+    });
+  });
 }

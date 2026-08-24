@@ -242,6 +242,8 @@ final class ApiTokenDraft {
     this.allOperations = false,
     this.admin = true,
     this.expiry = ApiTokenExpiry.never,
+    this.boundTable,
+    this.boundUserId,
   });
 
   final String name;
@@ -267,6 +269,23 @@ final class ApiTokenDraft {
 
   final ApiTokenExpiry expiry;
 
+  /// The auth row this token acts as, or null for a standalone service
+  /// identity that owns no rows.
+  ///
+  /// Set by the row detail panel, never typed: a binding is `<table>/<id>`
+  /// and the panel is already standing on exactly one such row, so offering
+  /// it as free text would only be a way to mistype an id that is right
+  /// there. `POST /admin/tokens` refuses half a binding, so these two are
+  /// carried and sent together.
+  final String? boundTable;
+  final String? boundUserId;
+
+  bool get isBound => boundTable != null && boundUserId != null;
+
+  /// The binding is not a parameter here on purpose. It is fixed when the
+  /// draft is made and never edited, and a nullable `copyWith` parameter
+  /// cannot tell "leave it" from "clear it" — so the one way to unbind a
+  /// draft would also be a typo away from happening by accident.
   ApiTokenDraft copyWith({
     String? name,
     String? tables,
@@ -282,6 +301,8 @@ final class ApiTokenDraft {
       allOperations: allOperations ?? this.allOperations,
       admin: admin ?? this.admin,
       expiry: expiry ?? this.expiry,
+      boundTable: boundTable,
+      boundUserId: boundUserId,
     );
   }
 
@@ -335,6 +356,11 @@ final class ApiTokenDraft {
         final duration? => now.toUtc().add(duration).toIso8601String(),
         null => null,
       },
+      // Omitted entirely rather than sent as null when there is no binding.
+      // The server refuses half a binding, and a body that names the keys is
+      // one `?? ''` away from being half of one.
+      if (isBound) 'boundTable': boundTable,
+      if (isBound) 'boundUserId': boundUserId,
     };
   }
 }

@@ -36,6 +36,7 @@ import '../utils/table_row_key.dart';
 import '../utils/user_facing_error.dart';
 import '../utils/table_rows_json.dart';
 import 'app_tooltip_overlay.dart';
+import 'mint_bound_token_dialog.dart';
 import 'push_send_dialog.dart';
 import 'query_preview_card.dart';
 import 'schema_table_foreign_key_cell.dart';
@@ -86,6 +87,14 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   var _editing = false;
   var _saving = false;
   var _sendingPasswordReset = false;
+
+  /// The `<table>/<id>` the bound-token dialog is open over, or null.
+  ///
+  /// Captured rather than read from the open row while the dialog is up: the
+  /// panel navigates between rows without unmounting, and a token minted from
+  /// a dialog that silently followed the panel would be bound to whichever
+  /// row happened to be underneath when the operator pressed Create.
+  ({String table, String rowId})? _mintingBoundTokenFor;
 
   /// The standing forced-password-reset requirement for the open row, and the
   /// row it was read for.
@@ -212,6 +221,11 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       if (isDatetimePickerPopoverOpen()) return;
       if (isForeignKeyPickerOpen()) return;
       if (isPushSendDialogOpen()) return;
+      // Escape must not reach the panel while a token is on screen: the
+      // dialog is over it, and the reveal under that dialog holds the only
+      // copy of a credential the server cannot produce again. Closing the
+      // panel would take both with it.
+      if (_mintingBoundTokenFor != null) return;
       event.preventDefault();
       if (_pendingDismiss != null) {
         setState(() => _pendingDismiss = null);
@@ -559,6 +573,45 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     return value is String && value.isNotEmpty ? value : null;
   }
 
+  /// The row's own id, which is what a bound token is bound to.
+  String? _rowIdValue(TableRowDetailState cached) {
+    final index = cached.columnShapes.indexWhere((c) => c.kind == ColumnShapeKind.id);
+    if (index == -1 || index >= cached.row.length) return null;
+    final value = cached.row[index];
+    if (value == null) return null;
+    final text = '$value';
+    return text.isEmpty ? null : text;
+  }
+
+  /// Whether this collection is an auth collection.
+  ///
+  /// Keyed on `isVerified` rather than on `password`, unlike
+  /// [_isPasswordAuthTable] beside it: `isVerified` comes from `HasEmail`,
+  /// which `PasswordAuth`, `OtpAuth`, `MagicLinkAuth` and `OAuth` all
+  /// implement, so it is present on every auth collection and on no ordinary
+  /// one. Keying on `password` would have hidden this action on an OTP-only
+  /// or magic-link-only collection, whose rows are exactly as bindable.
+  ///
+  /// What this does NOT see: a collection that is an auth table with no auth
+  /// mixin at all. Such a table has an id and nothing else, cannot be signed
+  /// in to, and `zonai db token create --as` remains the way to bind to one.
+  bool _isAuthTable(TableRowDetailState cached) {
+    return cached.columnShapes.any((c) => c.kind == ColumnShapeKind.isVerified);
+  }
+
+  /// Admin, an auth collection, a row with an id, and not mid-edit.
+  ///
+  /// Admin because `POST /admin/tokens` refuses anything else — the same call
+  /// `canSendPush` makes, not the `sessionCanEdit` one `canResetPassword`
+  /// makes. An editor pressing this would get a 403 from a control that
+  /// looked available.
+  bool _canMintBoundToken(TableRowDetailState cached) {
+    return !_editing &&
+        context.read(sessionUserProvider)?.isAdmin == true &&
+        _isAuthTable(cached) &&
+        _rowIdValue(cached) != null;
+  }
+
   /// The device-token columns this row can actually be sent to.
   ///
   /// An empty list hides the action outright, the same way `Reset password`
@@ -571,6 +624,14 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       columnShapes: cached.columnShapes,
       row: cached.row,
     );
+  }
+
+  /// Opens the bound-token dialog over this one row.
+  void _openMintBoundToken(BuildContext context, TableRowDetailState cached) {
+    final rowId = _rowIdValue(cached);
+    if (rowId == null) return;
+    context.read(appTooltipProvider.notifier).hide();
+    setState(() => _mintingBoundTokenFor = (table: cached.sqliteName, rowId: rowId));
   }
 
   /// Opens the composer over this one row.
@@ -1423,6 +1484,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     // editor pressing this would get a 403 from a control that looked
     // available.
     final canRequirePasswordReset = _canRequirePasswordReset(cached);
+    final canMintBoundToken = _canMintBoundToken(cached);
     final standingRequirement = _requirementForRow(cached);
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     void goBack() => _requestNavigateBack(cached);
@@ -1625,12 +1687,35 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                           onClick: () => _openPushSend(context, cached, pushTargets),
                           [.text('Send test notification')],
                         ),
+                      // Its own full-width line for the same reason as push,
+                      // and last because it is the only action here that
+                      // hands back something the operator must then keep.
+                      if (canMintBoundToken)
+                        button(
+                          classes:
+                              'table-row-detail-footer-btn table-row-detail-footer-btn--cancel '
+                              'table-row-detail-footer-btn--push',
+                          type: .button,
+                          attributes: {'aria-label': 'Create an API token that acts as this row'},
+                          events: appTooltipEvents(
+                            context,
+                            text: 'A token that acts as this account, so ownership rules match it',
+                          ),
+                          onClick: () => _openMintBoundToken(context, cached),
+                          [.text('Create API token')],
+                        ),
                     ],
                   ),
               ]),
           ]),
         ],
       ),
+      if (_mintingBoundTokenFor case final binding?)
+        MintBoundTokenDialog(
+          table: binding.table,
+          rowId: binding.rowId,
+          onClose: () => setState(() => _mintingBoundTokenFor = null),
+        ),
       if (_pendingDismiss != null)
         _DiscardChangesDialog(
           mode: _discardDialogMode(_pendingDismiss!),
