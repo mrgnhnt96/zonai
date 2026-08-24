@@ -112,7 +112,13 @@ web:
     (command):
       - cd apps/zonai && dart run tool/generate_web_assets.dart --stub
       - ${{ server.sync-to-cli }}
-      - cd apps/web && dart pub get && dart run jaspr_cli:jaspr build
+      # Through the wrapper, not `jaspr build` directly: sync-to-cli above
+      # replaces apps/zonai/lib/gen/server wholesale, which poisons apps/web's
+      # cached build_runner asset graph and aborts the build with an
+      # InvalidOutputException naming a file that does not exist. The wrapper
+      # recognises exactly that, clears the graph and retries once. See the
+      # comment block at the top of it.
+      - bash tool/ci/web_build.sh
       - cd apps/zonai && dart run tool/generate_web_assets.dart
       - dart pub get
     (aliases): [web-assets, wa]
