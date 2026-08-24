@@ -356,6 +356,10 @@ extension _AuthUtilsX on ZonaiDb {
       throw const InvalidJwtException();
     }
 
+    // Bookkeeping, not authorization: awaited so a test can observe it, but
+    // it cannot fail the request (see [_touchApiToken]).
+    await _touchApiToken(row);
+
     return ApiTokenJwt(
       tokenId: row.id,
       name: row.name,

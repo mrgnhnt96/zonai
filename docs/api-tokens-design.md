@@ -1,11 +1,11 @@
 # API tokens — design and build plan
 
-Status: **usable**. Written 2026-08-24. §11 is the build order. Steps 1-5 and 9 are
-built: `zonai db token create` mints a credential with no sign-in and no expiry, it
-authenticates against `/db`, its scope is enforced ahead of the rules, and it is
-revocable on the next request. [api-tokens.md](api-tokens.md) is the user-facing
-doc. Still to come: per-token rate limiting (6), `last_used_at` writes (7), and the
-dashboard screen (8).
+Status: **usable**. Written 2026-08-24. §11 is the build order. Steps 1-5, 7 and the
+reference half of 9 are built: `zonai db token create` mints a credential with no
+sign-in and no expiry, it authenticates against `/db`, its scope is enforced ahead of
+the rules, it records when it was last used, and it is revocable on the next request.
+[api-tokens.md](api-tokens.md) is the user-facing doc. Still to come: per-token rate
+limiting (6), the dashboard screen (8), and the public-site page.
 
 A zonai deployment today has exactly one way to obtain a credential for `/db`: sign in
 as a row in an auth collection and receive a JWT that expires (`jwtExpiresIn`, default
@@ -315,6 +315,14 @@ own resolution; cache the resolution for the request rather than reading twice.
 `--unlimited` should exist and should print a warning, because "no rate limit and no
 expiry" is the combination worth being deliberate about.
 
+**Not built.** Sized while building the rest, and it is the one step with a cost the
+others did not have: the guards are revali lifecycle components with generated
+counterparts under `lib/gen/server/.revali/`, so giving them the `Authorization` header
+means regenerating that tree. It also puts a database read in the guard, *before* the
+handler resolves the same token — so the resolution has to become per-request cached
+rather than done twice. Until it lands, a token is limited per IP at the collection's own
+policy, which [api-tokens.md](api-tokens.md#rate-limits) says out loud.
+
 ---
 
 ## 8. Generating one
@@ -401,6 +409,10 @@ Each step is shippable and observable on its own.
 7. **`last_used_at`.**
 8. **Dashboard screen.**
 9. **Docs:** `docs/api-tokens.md` and `apps/docs/content/authentication/api-tokens.md`.
+
+Steps 1-5, 7 and the `docs/api-tokens.md` half of 9 are built. Left: per-token rate
+limiting (6, and see the note in §7 for why it is not free), the dashboard screen (8),
+and the public-site page.
 
 ---
 

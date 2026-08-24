@@ -9,6 +9,45 @@ part of zonai_db;
 typedef MintedApiToken = ({String secret, ApiTokenEntry row});
 
 extension _ApiTokenX on ZonaiDb {
+  /// How stale `last_used_at` is allowed to get.
+  ///
+  /// A write per request would be a real cost on a hot token and would buy
+  /// nothing: the question this field answers is "used this hour, or not since
+  /// March", and five minutes of imprecision cannot change that answer.
+  static const lastUsedThrottle = Duration(minutes: 5);
+
+  /// Records that a token authenticated, at most once per
+  /// [lastUsedThrottle] per token.
+  ///
+  /// Deliberately fire-and-forget and deliberately swallowing: this is
+  /// bookkeeping on the authentication path, and a failed write must never
+  /// turn a valid credential into a rejected one. The cost of losing a write
+  /// is a slightly stale timestamp.
+  Future<void> _touchApiToken(ApiTokenEntry row) async {
+    final now = clock.now();
+    final lastWritten = _apiTokenLastUsed[row.id.value];
+    if (lastWritten != null && now.difference(lastWritten) < lastUsedThrottle) {
+      return;
+    }
+    // Stamped before the write, not after: a burst of concurrent requests
+    // must produce one write, not one per request that got here first.
+    _apiTokenLastUsed[row.id.value] = now;
+
+    try {
+      final db = this.db;
+      if (db == null) return;
+      await db
+          .update(apiTokens)
+          .set(apiTokens.lastUsedAt.to(now))
+          .where(apiTokens.id.equals(row.id));
+    } on Object catch (e) {
+      logger.verbose(
+        'Could not record last use of API token ${row.id.value}: $e',
+        prefix: _prefix,
+      );
+    }
+  }
+
   Future<MintedApiToken> _createApiToken({
     required String name,
     required ApiTokenScope scope,

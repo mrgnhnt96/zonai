@@ -394,6 +394,77 @@ void main() {
     });
   });
 
+  group('last used', () {
+    dbTest('a first use is recorded', (db) async {
+      final minted = await db.createApiToken(
+        name: 'nightly-backup',
+        scope: readOnly,
+        createdBy: '__cli__',
+      );
+
+      expect((await db.listApiTokens()).single.lastUsedAt, isNull);
+
+      await db.parseJwt(minted.secret, allowApiToken: true);
+
+      expect((await db.listApiTokens()).single.lastUsedAt, isNotNull);
+    });
+
+    dbTest('a burst does not cost a write per request', (db) async {
+      // The field answers "used this hour, or not since March". Five minutes
+      // of imprecision cannot change that answer, and a write per request on
+      // a hot token would be a real cost for nothing.
+      final minted = await db.createApiToken(
+        name: 'hot',
+        scope: readOnly,
+        createdBy: '__cli__',
+      );
+
+      final start = DateTime.now();
+      await withClock(Clock.fixed(start), () async {
+        await db.parseJwt(minted.secret, allowApiToken: true);
+      });
+      final first = (await db.listApiTokens()).single.lastUsedAt;
+      expect(first, isNotNull);
+
+      await withClock(
+        Clock.fixed(start.add(const Duration(minutes: 1))),
+        () async {
+          for (var i = 0; i < 5; i++) {
+            await db.parseJwt(minted.secret, allowApiToken: true);
+          }
+        },
+      );
+      expect((await db.listApiTokens()).single.lastUsedAt, first);
+
+      await withClock(
+        Clock.fixed(start.add(const Duration(minutes: 6))),
+        () async {
+          await db.parseJwt(minted.secret, allowApiToken: true);
+        },
+      );
+      expect((await db.listApiTokens()).single.lastUsedAt, isNot(first));
+    });
+
+    dbTest('a rejected token records nothing', (db) async {
+      final minted = await db.createApiToken(
+        name: 'leaked',
+        scope: readOnly,
+        createdBy: '__cli__',
+      );
+      await db.revokeApiToken(id: minted.row.id.value);
+
+      await expectLater(
+        db.parseJwt(minted.secret, allowApiToken: true),
+        throwsA(isA<InvalidJwtException>()),
+      );
+
+      expect(
+        (await db.listApiTokens(includeRevoked: true)).single.lastUsedAt,
+        isNull,
+      );
+    });
+  });
+
   group('expiry', () {
     dbTest('a token past its expiry is refused', (db) async {
       final minted = await db.createApiToken(

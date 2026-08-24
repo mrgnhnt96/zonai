@@ -239,6 +239,12 @@ class ZonaiDb {
   /// restart.
   final Map<String, ({bool isAdmin, bool canEdit})> _adminStatusCache = {};
 
+  /// When each API token's `last_used_at` was last written, so a hot token
+  /// costs one write every [ApiTokenX.lastUsedThrottle] rather than one per
+  /// request. In memory only: a restart just means the first request after it
+  /// writes, which is the correct behaviour anyway.
+  final Map<String, DateTime> _apiTokenLastUsed = {};
+
   /// Lazily detected: when the project has no extension Dart files (and no
   /// internal extensions), create/update/delete skip the extensions worker
   /// entirely.
@@ -366,6 +372,7 @@ class ZonaiDb {
     _sanitizeMetaCache.clear();
     _columnNameCache.clear();
     _adminStatusCache.clear();
+    _apiTokenLastUsed.clear();
     _hasProjectExtensions = null;
     for (final verifier in _jwksVerifiers.values) {
       verifier.dispose();

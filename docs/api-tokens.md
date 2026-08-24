@@ -174,6 +174,23 @@ To withdraw everything at once — the break-glass response to a suspected leak 
 `_api_tokens` from the Maintenance screen. That is no more drastic than purging `_jwt`,
 which signs out every user.
 
+## Rate limits
+
+An API token is rate-limited exactly like any other client today: **per client IP, per
+collection, per operation**, at whatever policy that collection declares (default
+100/minute — see [rate-limiting.md](rate-limiting.md)).
+
+Know two things about that before you deploy an integration.
+
+**One IP is one bucket.** Every request from a backup job or a CI runner shares a
+counter, so a job that fans out will hit the limit far sooner than the same volume spread
+across users. Raise the collection's policy, or spread the work.
+
+**A leaked token is not limited as a token.** Used from many IPs it gets many buckets.
+
+Bucketing on the token instead of the IP, with a per-token limit, is designed and not yet
+built — [api-tokens-design.md §7](api-tokens-design.md).
+
 ## Why it is not a JWT
 
 Four reasons, and the first two are the load-bearing ones.
