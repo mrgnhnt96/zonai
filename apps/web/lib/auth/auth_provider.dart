@@ -7,6 +7,7 @@ import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_web/api/api_client.dart';
 import 'package:zonai_web/auth/auth_route_provider.dart';
 import 'package:zonai_web/auth/auth_routes.dart';
+import 'package:zonai_web/utils/reset_password_body.dart';
 import 'package:zonai_web/utils/zonai_cookie.dart';
 
 final authProvider = NotifierProvider<AuthNotifier, bool>(AuthNotifier.new);
@@ -80,8 +81,22 @@ class AuthNotifier extends Notifier<bool> {
     await signIn();
   }
 
-  Future<void> sendResetPassword({required String email}) async {
-    await _client.auth.sendResetPassword(body: AdminSendResetPasswordAuthBody(email: email));
+  /// [table] names the collection the address belongs to, for a reset sent on
+  /// someone ELSE's behalf -- a row action in the data browser, where the row
+  /// may live in any password collection.
+  ///
+  /// Omit it only for the dashboard's own door, where the operator is
+  /// resetting their OWN admin password and the admin table is resolved
+  /// server-side from config. The two are not interchangeable: the admin body
+  /// always resolves the admin table, so sending it for a `users` row asks the
+  /// server to reset an admin account that does not exist -- and
+  /// `_sendResetPassword` returns SILENTLY when there is no auth record
+  /// (deliberately, to avoid an existence oracle), so the caller gets a
+  /// success it did not earn and the account never hears anything.
+  Future<void> sendResetPassword({required String email, String? table}) async {
+    await _client.auth.sendResetPassword(
+      body: resetPasswordBody(email: email, table: table),
+    );
   }
 
   Future<void> confirmResetPassword({required String token, required String newPassword}) async {

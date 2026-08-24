@@ -657,7 +657,15 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     if (email == null) return;
     setState(() => _sendingPasswordReset = true);
     try {
-      await context.read(authProvider.notifier).sendResetPassword(email: email);
+      // The row's OWN table, not the admin one. This action is gated on
+      // `sessionCanEdit` and any password collection, so it appears on `users`
+      // rows too -- and the admin-shaped body would resolve the admin table
+      // there, find no such account, and return silently. The operator got a
+      // success toast and nothing happened.
+      await context.read(authProvider.notifier).sendResetPassword(
+        email: email,
+        table: cached.sqliteName,
+      );
       if (mounted) {
         context.read(toastProvider.notifier).showSuccess('Password reset email sent to $email');
       }
