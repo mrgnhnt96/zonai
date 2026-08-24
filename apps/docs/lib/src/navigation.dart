@@ -258,6 +258,11 @@ const List<NavGroup> navigation = [
         '/authentication/admin-accounts',
         summary: 'zonai db admin, the AsAdmin trait, elevated claims.',
       ),
+      NavItem(
+        'API Tokens',
+        '/authentication/api-tokens',
+        summary: 'A credential for the data API with no sign-in and no expiry.',
+      ),
     ],
   ),
   NavGroup(

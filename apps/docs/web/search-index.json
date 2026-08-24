@@ -1414,6 +1414,11 @@
           "b": "A single auth table can use one or more of these simultaneously: Mixin Description PasswordAuth Email and password sign-in OtpAuth One-time passcode delivered via email MagicLinkAuth Passwordless sign-in via an emailed link See Auth Tables for how to add them to a table."
         },
         {
+          "h": "Tokens for Machines",
+          "a": "tokens-for-machines",
+          "b": "Everything above assumes a person who signed in. A script, a CI job or a partner integration has no password to type and nobody awake to re-authenticate it when its token lapses — see API Tokens for a credential that needs neither."
+        },
+        {
           "h": "Token Lifetime",
           "a": "token-lifetime",
           "b": "Tokens expire after 24 hours by default. This is configured globally via AppConfig.jwtExpiresIn, and can be overridden per auth table in its AuthOperations class. After expiry, requests with the token return 401 Unauthorized. See Session Management for how to refresh tokens."
@@ -1817,6 +1822,67 @@
           "h": "Changing an Admin Password",
           "a": "changing-an-admin-password",
           "b": "If nobody has the current password — the usual reason to reach for this — reset it directly from the CLI. The server does not need to be running: zonai db admin reset-password --email admin@example.com --password newSecurePassword If the admin already knows their password and just wants to change it, use the standard password reset flow (POST /auth/reset-password), the admin UI, or update the row directly: PATCH /db Authorization: Bearer { \"table\": \"users\", \"where\": { \"id\": { \"eq\": \" \" } }, \"updates\": [{ \"column\": \"password\", \"value\": \"newSecurePassword\" }] } The new value is automatically hashed — never store plaintext passwords."
+        }
+      ]
+    },
+    {
+      "u": "/authentication/api-tokens",
+      "t": "API Tokens",
+      "d": "A credential for the data API with no sign-in and no expiry.",
+      "g": "Authentication",
+      "s": [
+        {
+          "b": "An API token is a credential for the data API that needs no sign-in, no mailbox and no password, and can be issued with no expiry at all. It is what a nightly backup script, a CI job, an ETL worker or a partner integration uses to talk to your database. zonai_pat_qT501HohVqtce6xB_EmC9W1lCBnhlDq-PpfWURL_6Xk It is not a JWT. A JWT is issued to a person who signed in, expires (jwtExpiresIn, default 14 days) and is revoked the moment it is refreshed — correct for a browser, unusable for a process that has no password to type and nobody awake to re-authenticate it. An API token is an opaque string whose authority is a row: it works until that row says otherwise."
+        },
+        {
+          "h": "Creating One",
+          "a": "creating-one",
+          "b": "The server does not need to be running. Run this in your project directory: zonai db token create \\ --name nightly-backup \\ --tables orders,line_items \\ --read zonai_pat_qT501HohVqtce6xB_EmC9W1lCBnhlDq-PpfWURL_6Xk This is the only time it will be shown. The server keeps only its hash. id: 0549432694cd399_pat name: nightly-backup tables: orders, line_items operations: view, list, count admin: yes expires: never -- revoke with zonai db token revoke 0549432694cd399_pat The token is printed once and cannot be recovered. Only its SHA-256 is stored, so there is nothing on the server to read it back out of. Copy it before you close the terminal; if you lose it, revoke the row and mint another. Like zonai db admin add, this command talks to the database file directly — no running server, no session, no JWT signing secret. Write access to the database is the authorization, and that is what makes a token obtainable without sign-in credentials at all. Flag Short Required Description --name -n Yes What this token is for. An unnamed credential is one nobody ever revokes, because nobody can tell what would break --tables -t Yes Collections it may reach, comma-separated, or \"\" for every app colle"
+        },
+        {
+          "h": "Using One",
+          "a": "using-one",
+          "b": "Exactly like a JWT — same header, same routes: curl https://your-app.example/db/list?table=orders \\ -H \"Authorization: Bearer zonai_pat_qT501Hoh...\" With the Dart client, seed it the same way you would any externally obtained token (see Setting a Token Manually): import 'package:zonai_client/server.dart'; import 'package:zonai_client/storage.dart'; import 'package:zonai_client/zonai_client.dart'; Future main() async { final server = Server( storage: ZonaiFileStorage(directory: '/var/lib/myapp'), ); await server.storage.save('token', 'zonai_pat_qT501Hoh...'); final client = ZonaiClient.server(server: server); } No client changes are needed: the interceptor injects whatever is stored, and an API token is just a different string. A token never receives an X-Auth header and is never refreshed — there is nothing to refresh, which is the point."
+        },
+        {
+          "h": "What a Token Can Reach",
+          "a": "what-a-token-can-reach",
+          "b": "Two independent things decide, and both must say yes. The scope, stored on the row, is checked before any rule runs. It names tables and operations, and a request outside it is refused no matter how permissive that collection's rules are. A token cannot be widened by editing a rule file — only by editing the row. The rules then run exactly as they do for a signed-in user. A token scoped to orders still has to satisfy OrderTableRules.canList and OrderRowRules.canView. An out-of-scope request answers with the same 403 {\"error\":\"Forbidden\"} a rules denial produces, so a token cannot be used to discover which collections exist."
+        },
+        {
+          "h": "Internal Tables Are Never in Scope",
+          "a": "internal-tables-are-never-in-scope",
+          "b": "_api_tokens, _jwt, _auth_challenges, _log, _rate_limit, _photos, _abusers, _oauth_identities, _cron_jobs, _push_jobs — unreachable under \"\", and naming one explicitly is refused when the token is created. This is absolute rather than configurable because of what the first two hold. A token that could read _api_tokens would see every other integration's row; a token that could write it would mint itself a wider token, and the scope would stop meaning anything. _jwt is every live session id."
+        },
+        {
+          "h": "Only the Data API",
+          "a": "only-the-data-api",
+          "b": "/auth/, /admin/, /dashboard/maintenance/, /cron/, /email/, /push/ and the photo endpoints all refuse an API token with 401. So does any route added later — the credential is rejected by default and each data path opts in explicitly, so forgetting fails closed. Those endpoints are refused rather than scoped because a scope speaks in tables and operations, a vocabulary none of them have: a token \"scoped to orders\" has no meaningful answer to may it purge an internal table."
+        },
+        {
+          "h": "Tokens Are Admins by Default",
+          "a": "tokens-are-admins-by-default",
+          "b": "The default rule implementations deny everyone except an admin (see Default behavior). A token that is not an admin is therefore inert against any collection whose rules were never overridden — every request denied, with nothing obviously wrong. That is most collections, so a non-admin token reads as broken rather than as narrow, which is why it is not the default. Admin is not a bypass. It makes the token satisfy a rule that asks jwt.admin.isAdmin, and nothing more: the scope still bounds it, and every rule still runs. What a token may reach is --tables and --operations; admin is what lets it reach them at all. --no-admin mints one without it. One of two things then has to be true for it to work: either the collection's rules admit it explicitly — usually on jwt.claims, which --claims populates — or the token is bound to a user with --as."
+        },
+        {
+          "h": "Bound Tokens",
+          "a": "bound-tokens",
+          "b": "By default a token is a service identity: it belongs to no row. jwt.userId is a sentinel, so a rule doing row.ownerId == jwt.userId matches nothing. That is correct — the token owns no rows — and it is the surprise, so it is worth knowing before you debug an empty list. zonai db token create --name partner-sync \\ --tables orders --read \\ --as users/abc123_usr --as binds the token to one auth row instead. jwt.userId, jwt.table and jwt.user are that row's, so every ownership rule you have already written keeps working. This is what a \"personal access token\" is, and it is the cheap way to give an integration exactly one user's view of the data. A bound token is never more privileged than the row it names. Its admin grant is clamped at resolution to the bound table's own: if that collection does not mix in AsAdmin, the token is not an admin token whatever its row says — and if AsAdmin is later removed and the app redeployed, every outstanding token bound to it is demoted on the next request."
+        },
+        {
+          "h": "Listing and Revoking",
+          "a": "listing-and-revoking",
+          "b": "zonai db token list live tokens zonai db token list --all including revoked zonai db token revoke stops working; keeps the record zonai db token delete removes the row entirely may be a unique prefix of the id list prints. An ambiguous prefix is refused rather than guessed — picking the first match for a revoke is how the wrong integration goes down. Revocation is what makes \"never expires\" safe. The row is read on every request, so a revoke lands on the next one — no restart, no cache to wait out, no redeploy. list shows when each token was last used. It is written lazily rather than on every request: \"used this hour\" versus \"not since March\" is the whole decision it supports, and precision would cost a write per request and buy nothing."
+        },
+        {
+          "h": "Rate Limits",
+          "a": "rate-limits",
+          "b": "A token is rate-limited per client IP, like any other caller — the limiter runs before the handler that resolves the credential, so it cannot yet see which token is calling. Two integrations behind one NAT therefore share a bucket, and one token spread across many IPs is not aggregated. Per-token limits are planned."
+        },
+        {
+          "h": "Security Model",
+          "a": "security-model",
+          "b": "Property How The credential is never stored Only sha256(token). The column is a secret column, which the operations layer refuses to filter on — so /db is structurally incapable of being the path a credential is resolved on A leaked signing secret cannot mint one A token is not a JWT and is not verified with jwtSecret. Rotating the secret does not invalidate an integration, and leaking it does not create one A signed token claiming to be an API token is refused On both bearer paths, with an alert telling you to rotate the secret — nothing Zonai issues looks like that Revocation is individual and immediate One row, next request Scope cannot be widened by a rule The gate runs ahead of the rules dispatch; only the row widens a token"
         }
       ]
     },
@@ -3069,7 +3135,7 @@
         {
           "h": "Setting a Token Manually",
           "a": "setting-a-token-manually",
-          "b": "If you obtain a token outside of the client — for example from a native auth SDK or a server-side session — you can seed it directly into the server's storage before making requests: import 'package:zonai_client/server.dart'; import 'package:zonai_client/storage.dart'; import 'package:zonai_client/zonai_client.dart'; Future main() async { final server = Server( storage: ZonaiFileStorage(directory: '/var/lib/myapp'), ); await server.storage.save('token', ' '); final client = ZonaiClient.server(server: server); }"
+          "b": "If you obtain a token outside of the client — for example from a native auth SDK, a server-side session, or an API token minted with zonai db token create — you can seed it directly into the server's storage before making requests: import 'package:zonai_client/server.dart'; import 'package:zonai_client/storage.dart'; import 'package:zonai_client/zonai_client.dart'; Future main() async { final server = Server( storage: ZonaiFileStorage(directory: '/var/lib/myapp'), ); await server.storage.save('token', ' '); final client = ZonaiClient.server(server: server); }"
         },
         {
           "h": "Unauthenticated Requests",

@@ -55,7 +55,8 @@ and refresh details on the server side.
 ## Setting a Token Manually
 
 If you obtain a token outside of the client — for example from a native auth
-SDK or a server-side session — you can seed it directly into the server's
+SDK, a server-side session, or an [API token](/authentication/api-tokens) minted
+with `zonai db token create` — you can seed it directly into the server's
 storage before making requests:
 
 ```dart

@@ -61,6 +61,10 @@ A single auth table can use one or more of these simultaneously:
 
 See [Auth Tables](/schemas/auth-tables) for how to add them to a table.
 
+## Tokens for Machines
+
+Everything above assumes a person who signed in. A script, a CI job or a partner integration has no password to type and nobody awake to re-authenticate it when its token lapses — see [API Tokens](/authentication/api-tokens) for a credential that needs neither.
+
 ## Token Lifetime
 
 Tokens expire after 24 hours by default. This is configured globally via `AppConfig.jwtExpiresIn`, and can be overridden per auth table in its `AuthOperations` class. After expiry, requests with the token return `401 Unauthorized`. See [Session Management](/authentication/session-management) for how to refresh tokens.

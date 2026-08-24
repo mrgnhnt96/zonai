@@ -81,6 +81,7 @@ This file is a curated index for LLMs and coding agents. Prefer these pages over
 - [Magic Link Auth](https://docs.zonai.dev/authentication/magic-link-auth): Passwordless emailed links.
 - [Session Management](https://docs.zonai.dev/authentication/session-management): Refresh, logout, JWT lifetime.
 - [Admin Accounts](https://docs.zonai.dev/authentication/admin-accounts): `zonai db admin`, `AsAdmin`, elevated claims.
+- [API Tokens](https://docs.zonai.dev/authentication/api-tokens): `zonai db token`, opaque `zonai_pat_` credentials with no sign-in and no expiry, scoped and revocable.
 
 ## Extensions (lifecycle hooks)
 
