@@ -31,6 +31,15 @@ This holds for `POST /auth` with `"type": "signIn"` and for admin sign-in as wel
 - **Sign-in never creates the account it was given.** Only `POST /auth/sign-up` (and `POST /auth` with `"type": "signUp"`) provisions. An unknown email is a rejection, not a registration.
 - **The message is part of the contract, not just the status.** A distinct body behind the same 401 would be the same oracle one layer down, so every password-path failure renders the string above.
 
+Sign-up has a refusal of its own, and it is a different status on purpose. An app can decline a registration from the `beforeSignUp` extension hook, in which case the endpoint answers:
+
+```text
+403 Forbidden
+{"error": "Sign-up is limited to Acme staff"}
+```
+
+401 means *these credentials are not valid*; this is a well-formed request the app chose to refuse, and the reason is the app's own text rather than a generic `Forbidden`. It runs before the insert, so no account, no session and no verify-email exist afterwards. See [Declining a sign-up](extensions.md#declining-a-sign-up) for what it covers — notably that OTP and magic-link accounts are created at *verify* time, so the code email has already been sent.
+
 The same reasoning is why [the reset-password flow](#reset-password-flow) returns success for an address it has never seen.
 
 Sign-in is not a constant-time operation and does not claim to be: an attacker with a large enough sample and a quiet enough network may still be able to distinguish the branches by timing. What is guaranteed here is that the response itself carries no answer.
@@ -206,6 +215,7 @@ See `resetPasswordConfig` in [operations.md](operations.md#auth-collections) and
 | Global JWT lifetime (`jwtExpiresIn`, default 14 days) | [config-and-env-flavors.md](config-and-env-flavors.md) |
 | Who may sign in / sign up | [rules.md](rules.md#auth-collections) |
 | Hooks on refresh (`onRefresh`) | [extensions.md](extensions.md#authextension) |
+| Declining a sign-up (`beforeSignUp`) | [extensions.md](extensions.md#declining-a-sign-up) |
 | Per-IP refresh limits | [rate-limiting.md](rate-limiting.md#auth-operations-authcollectionratelimits) |
 | SMTP, templates, and sending email | [email.md](email.md) |
 | Public base URL in auth emails | [server-binding.md](server-binding.md) |

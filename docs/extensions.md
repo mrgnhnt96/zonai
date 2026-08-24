@@ -26,6 +26,13 @@ collection rules → row rules → beforeCreate → SQL insert → afterCreateSu
                                                afterCreateError
 ```
 
+A **sign-up** is the same shape, with its own pair — the JWT is minted between
+them, so `beforeSignUp` is the last point at which there is nothing to undo:
+
+```text
+collection rules → row rules → beforeSignUp → SQL insert → mint JWT → onSignUp
+```
+
 | Operation | Before SQL     | After SQL success    | After SQL error    |
 | --------- | -------------- | -------------------- | ------------------ |
 | Create    | `beforeCreate` | `afterCreateSuccess` | `afterCreateError` |
@@ -42,20 +49,71 @@ One hook has no operation of its own, because nothing the app did triggers it:
 
 It fires from a push fan-out rather than a request, **before** Zonai prunes the token, and under every `onPermanentRejection` setting including `none`. See [push.md](push.md).
 
-Auth hooks run after the auth flow succeeds (JWT issued or session cleared):
+Auth hooks run after the auth flow succeeds (JWT issued or session cleared) — all but one:
 
-| Hook        | When called             |
-| ----------- | ----------------------- |
-| `onSignUp`  | New user registered     |
-| `onSignIn`  | Existing user signed in |
-| `onRefresh` | Session token refreshed |
-| `onLogout`  | User logged out         |
+| Hook           | When called                              |
+| -------------- | ---------------------------------------- |
+| `beforeSignUp` | A new user is **about to be** registered |
+| `onSignUp`     | New user registered                      |
+| `onSignIn`     | Existing user signed in                  |
+| `onRefresh`    | Session token refreshed                  |
+| `onLogout`     | User logged out                          |
+
+`beforeSignUp` is the exception, and it is the only auth hook that can change the outcome — see [Declining a sign-up](#declining-a-sign-up).
 
 For auth hooks, the **`jwt` argument is the caller making the request**, not necessarily the user row in `object`. On sign-up, `jwt` is typically `null`.
 
 If no extension is registered for a collection, the worker returns immediately — hooks are optional per collection. The **`db_extensions` executable must still be compiled** before create, update, delete, or auth endpoints run; see [Compilation](#compilation-and-analysis).
 
 Throwing from a **before** hook aborts the request. Throwing from an **after** hook fails the request after the database change has already committed.
+
+## Declining a sign-up
+
+`beforeSignUp` runs before the row is inserted. Throw `SignUpDeclinedException`
+from it and the caller is answered **403** with the reason you chose:
+
+```dart in:extension-user
+@override
+Future<void> beforeSignUp(User candidate, Jwt? jwt) async {
+  if (!candidate.email.endsWith('@acme.com')) {
+    throw const SignUpDeclinedException('Sign-up is limited to Acme staff');
+  }
+}
+```
+
+```json
+{ "error": "Sign-up is limited to Acme staff" }
+```
+
+The reason is rendered to the caller **verbatim**, unlike the generic
+`Forbidden` most 403s carry — the hook exists to tell someone why, so put
+nothing in it they should not see.
+
+Nothing is left behind to undo: no row, no session, and no verify-email. Any
+other exception aborts the sign-up too, but as a `500` — declining is the
+deliberate path, and a hook that merely crashed should not look like a refusal.
+
+### What it does and does not cover
+
+`candidate` is the row **about to be inserted**, not a stored one. The primary
+key, `createdAt`/`updatedAt` and every secret column (the password hash
+included) hold placeholders, because none of them exist yet. Read the columns
+the sign-up body supplied — the email, and whatever the client passed in
+`object`.
+
+It runs on the three flows that insert an auth row directly: **password**,
+**OTP** and **magic-link** sign-up.
+
+It does **not** run for a first-seen OAuth or external-IdP identity. Those
+provision through [`onExternalAuthFirstSeen`](external-idp.md), which already
+declines by returning without inserting a row, and which receives verified IdP
+claims rather than a candidate row.
+
+For OTP and magic link, the account is created when the **code is verified**,
+not when it is requested — so the code email has already gone out by the time
+`beforeSignUp` runs. It prevents the account, not the email. To refuse before
+anything is sent, use the `canSignUp` row rule as well; see
+[rules.md](rules.md).
 
 ## Project layout
 
@@ -168,9 +226,10 @@ Throwing is logged and does not stop the prune or the fan-out.
 
 ### `AuthExtension`
 
-| Method      | Arguments            | Purpose                                                     |
-| ----------- | -------------------- | ----------------------------------------------------------- |
-| `onSignUp`  | `R user`, `Jwt? jwt` | After successful sign-up                                    |
+| Method         | Arguments                 | Purpose                                                     |
+| -------------- | ------------------------- | ----------------------------------------------------------- |
+| `beforeSignUp` | `R candidate`, `Jwt? jwt` | Before the row is inserted; throw to decline                |
+| `onSignUp`     | `R user`, `Jwt? jwt`      | After successful sign-up                                    |
 | `onSignIn`  | `R user`, `Jwt? jwt` | After successful sign-in                                    |
 | `onRefresh` | `R user`, `Jwt? jwt` | After a new access token is issued via `POST /auth/refresh` |
 | `onLogout`  | `R user`, `Jwt? jwt` | After logout                                                |

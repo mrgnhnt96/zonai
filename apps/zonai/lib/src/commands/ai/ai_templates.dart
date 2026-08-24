@@ -1559,12 +1559,24 @@ ItemExtensions main() => ItemExtensions();
 
 Throwing from a **before** hook aborts the request.
 Throwing from an **after** hook fails after the DB change committed.
+`beforeSignUp` is the auth-side equivalent: throw `SignUpDeclinedException`
+to answer the caller 403 with your own reason, before any row exists.
 
 ## Auth extension (`AuthExtension` mixin)
 
 ```dart in:project-file
 class UserExtensions extends Extension<User> with AuthExtension<User> {
   UserExtensions() : super(users);
+
+  // Runs BEFORE the row is inserted -- throw to refuse the sign-up (403 with
+  // this reason, no row, no session, no verify email). Password, OTP and
+  // magic-link only; OAuth first-seen declines via onExternalAuthFirstSeen.
+  @override
+  Future<void> beforeSignUp(User candidate, Jwt? jwt) async {
+    if (!candidate.email.endsWith('@acme.com')) {
+      throw const SignUpDeclinedException('Sign-up is limited to Acme staff');
+    }
+  }
 
   @override
   Future<void> onSignUp(User user, Jwt? jwt) async {
