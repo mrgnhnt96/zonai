@@ -102,7 +102,7 @@ extension _MagicLinkX on ZonaiDb {
       final path => path,
     };
 
-    courier.send(
+    courier.sendInBackground(
       SendMagicLinkEmail(
         to: EmailAddress(address: payload.email),
         table: table,

@@ -188,7 +188,7 @@ extension _InviteAdminX on ZonaiDb {
     final inviteUrl =
         '$base/_/admin/invite?token=${Uri.encodeComponent(token)}';
 
-    courier.send(
+    courier.sendInBackground(
       SendAdminInviteEmail(
         to: EmailAddress(address: normalizedEmail),
         table: table,

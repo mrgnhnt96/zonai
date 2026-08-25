@@ -74,7 +74,7 @@ extension _VerifyEmailX on ZonaiDb {
       final path => path,
     };
 
-    courier.send(
+    courier.sendInBackground(
       SendVerifyEmailEmail(
         to: EmailAddress(address: email),
         table: table,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:zonai/src/deps/config_resolver.dart';
@@ -21,6 +22,37 @@ class Courier {
   final String emailTemplatesPath;
 
   final _Send send;
+
+  /// Sends [email] without waiting for it, and without letting a failure
+  /// escape to the ambient zone.
+  ///
+  /// Every auth flow that mails a code or a link fires the send off rather
+  /// than awaiting it -- the operator's signal is the log line the failure
+  /// writes, never the future -- and each one used to call [send] bare. A
+  /// bare fire-and-forget future has nothing listening when it completes
+  /// with an error, and Dart delivers that to the ambient zone: an
+  /// unhandled async error in production, and under `package:test` a
+  /// failure charged to whichever test happens to be running.
+  ///
+  /// That is how this was found. [send] resolves the app config through the
+  /// CONFIG worker before it can reach SMTP, so a host disposed while a send
+  /// is still in flight kills that worker out from under it
+  /// (`WorkerProcessFailedException: CONFIG worker failed / Process
+  /// killed`). On 2026-08-25 that failed two Windows `cli` e2e tests --
+  /// `signup_gate_e2e` and `admin_invite_runtime_e2e` -- which had already
+  /// made and passed every assertion they own. The slower the host, the
+  /// wider the window, which is why only the Windows leg saw it.
+  ///
+  /// Callers that want to know whether the mail actually went out must
+  /// `await send` instead; this is only for the paths that deliberately do
+  /// not.
+  void sendInBackground(Email email) {
+    unawaited(
+      send(email).catchError((Object error, StackTrace stack) {
+        logger.error('Failed to send a ${email.runtimeType}', error, stack);
+      }),
+    );
+  }
 }
 
 class _Send {

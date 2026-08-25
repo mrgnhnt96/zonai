@@ -126,4 +126,62 @@ void main() {
       expect(output, isNot(contains(_missingConfigWarning)));
     });
   });
+
+  group('Courier.sendInBackground', () {
+    // The defect that failed two Windows `cli` e2e tests on 2026-08-25 --
+    // `signup_gate_e2e` and `admin_invite_runtime_e2e`, both reporting
+    // `CONFIG worker failed / Process killed` against a test that had already
+    // made every assertion it owns.
+    //
+    // Every auth flow that mails a code or a link fires the send off without
+    // awaiting it, and each one used to call `send` bare. A bare future has
+    // nothing listening when it completes with an error, so Dart hands that
+    // error to the ambient zone -- an unhandled async error in production,
+    // and under `package:test` a failure charged to whichever test is running
+    // at the time.
+    //
+    // `runZonedGuarded` is the load-bearing part of this test. Without it the
+    // escape has nowhere visible to land and a bare `send` would pass here
+    // too; `escaped` is what tells the two apart.
+    test('logs a failure instead of letting it escape to the zone', () async {
+      final escaped = <Object>[];
+      final done = Completer<void>();
+      var output = '';
+
+      runZonedGuarded(
+        () async {
+          // The configured branch renders the template before it opens an
+          // SMTP connection, and the in-memory file system holds no
+          // templates -- so the send fails with no network I/O.
+          output = await _capturingLog(config: _configuredConfig, () async {
+            courier.sendInBackground(_email);
+            // `ConfigResolver.fixed` answers on a microtask and the render
+            // throws synchronously after it, so the `catchError` is reached
+            // within a couple of turns. Pumping more than that costs nothing
+            // and keeps a slower host from reading as a pass-by-silence.
+            for (var i = 0; i < 20; i++) {
+              await Future<void>.delayed(Duration.zero);
+            }
+          });
+          done.complete();
+        },
+        (error, stack) {
+          escaped.add(error);
+          if (!done.isCompleted) done.complete();
+        },
+      );
+
+      await done.future;
+
+      expect(
+        escaped,
+        isEmpty,
+        reason: 'a fire-and-forget send must own its own failure',
+      );
+      expect(output, contains('Failed to send a'));
+      // Owning the error is not the same as hiding it: the operator's only
+      // signal is this line, so it has to carry the cause.
+      expect(output, contains('Email template not found'));
+    });
+  });
 }

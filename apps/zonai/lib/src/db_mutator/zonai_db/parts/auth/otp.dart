@@ -91,7 +91,7 @@ extension _OtpX on ZonaiDb {
       ),
     ]);
 
-    courier.send(
+    courier.sendInBackground(
       SendOtpEmail(
         to: EmailAddress(address: payload.email),
         table: table,

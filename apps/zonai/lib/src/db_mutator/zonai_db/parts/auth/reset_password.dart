@@ -67,7 +67,7 @@ extension _ResetPasswordX on ZonaiDb {
       final path => path,
     };
 
-    courier.send(
+    courier.sendInBackground(
       SendResetPasswordEmail(
         to: EmailAddress(address: payload.email),
         table: table,

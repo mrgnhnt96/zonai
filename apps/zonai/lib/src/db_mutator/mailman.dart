@@ -893,7 +893,7 @@ class Mailman<S extends Request, R extends Response> {
 
         switch (request) {
           case final SendEmailRequest request:
-            courier.send(request.email);
+            courier.sendInBackground(request.email);
           case final SendBuiltInEmailRequest request:
             _sendBuiltInEmail(request);
           case final MutationRequest mutation:
