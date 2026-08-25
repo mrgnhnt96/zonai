@@ -86,53 +86,38 @@ void main() {
 
       runZonedGuarded(
         () async {
-          await runScoped(
-            () async {
-              final launcher = _FakeLauncher(
-                wrapStdout: (inner) => observed = _ObservedStream(
-                  inner,
-                  honourCancel: honourCancel,
-                ),
-              );
-              final mailman = Mailman<Request, Response>(
-                debugName: 'late-chunk',
-                executablePath: executablePath,
-                fromJson: (_) =>
-                    throw UnimplementedError('ping never re-decodes'),
-              );
+          await runScoped(() async {
+            final launcher = _FakeLauncher(
+              wrapStdout: (inner) =>
+                  observed = _ObservedStream(inner, honourCancel: honourCancel),
+            );
+            final mailman = Mailman<Request, Response>(
+              debugName: 'late-chunk',
+              executablePath: executablePath,
+              fromJson: (_) =>
+                  throw UnimplementedError('ping never re-decodes'),
+            );
 
-              // A real round trip first: this is what starts the worker and
-              // binds `_onStdoutChunk` to THIS zone.
-              expect(await mailman.ping(), isTrue);
+            // A real round trip first: this is what starts the worker and
+            // binds `_onStdoutChunk` to THIS zone.
+            expect(await mailman.ping(), isTrue);
 
-              await mailman.dispose();
+            await mailman.dispose();
 
-              // The late chunk: a well-formed reply the worker got out
-              // before it died. Same shape as the one that was in flight, so
-              // nothing here is malformed -- the only thing wrong with it is
-              // when it arrived.
-              observed.late = true;
-              launcher.process.emit(
-                IpcCodec.encode(PongResponse(id: 'late').toJson()),
-              );
+            // The late chunk: a well-formed reply the worker got out
+            // before it died. Same shape as the one that was in flight, so
+            // nothing here is malformed -- the only thing wrong with it is
+            // when it arrived.
+            observed.late = true;
+            launcher.process.emit(
+              IpcCodec.encode(PongResponse(id: 'late').toJson()),
+            );
 
-              // Two full event-loop turns: enough for a delivered chunk to
-              // be parsed and for the throw to reach the zone handler.
-              await Future<void>.delayed(Duration.zero);
-              await Future<void>.delayed(Duration.zero);
-            },
-            values: {
-              settingsProvider.overrideWith(() => fakeSettings),
-              fsProvider.overrideWith(LocalFileSystem.new),
-              processProvider.overrideWith(
-                () => _FakeLauncher.current ?? Process(),
-              ),
-              cleanUpProvider,
-              executableStopProvider,
-              loggerProvider,
-              mutationsProvider,
-            },
-          );
+            // Two full event-loop turns: enough for a delivered chunk to
+            // be parsed and for the throw to reach the zone handler.
+            await Future<void>.delayed(Duration.zero);
+            await Future<void>.delayed(Duration.zero);
+          }, values: _scope());
           done.complete();
         },
         (error, stack) {
@@ -158,6 +143,70 @@ void main() {
       expect(escaped, isEmpty);
     });
 
+    test('does not STRAND a caller that reaches a disposed Mailman', () async {
+      // The regression the first version of the `_disposed` guard shipped
+      // with. Its comment claimed "kill() has already completed every entry
+      // in _pendingResponses, so a late reply has no caller left" -- true for
+      // a reply to a request sent BEFORE dispose, and false for this:
+      //
+      //   `_send` queues `_writeOnce` behind `_sendChain`. If dispose() runs
+      //   while a send is still queued, the continuation then calls
+      //   `_start()` -- which sees `isRunning == false`, spawns a FRESH
+      //   worker, registers a completer on the map kill() has already
+      //   drained, and writes the request. The worker answers; the guard
+      //   drops the answer; nothing will ever drain that map again.
+      //
+      // Measured on the forced-password-reset e2e before this fix: a
+      // `config.get` that is answered in ~15ms became a 10s
+      // `TimeoutException` ("CONFIG worker failed"), reported against a test
+      // that had already passed. Silence is a worse failure than an error --
+      // it is indistinguishable from a hung worker, and it is what sent this
+      // investigation looking at timeouts instead of at teardown.
+      final escaped = <Object>[];
+      final done = Completer<void>();
+      Object? outcome;
+
+      runZonedGuarded(
+        () async {
+          await runScoped(() async {
+            _FakeLauncher();
+            final mailman = Mailman<Request, Response>(
+              debugName: 'stranded',
+              executablePath: executablePath,
+              fromJson: (_) => throw UnimplementedError(),
+            );
+
+            await mailman.dispose();
+
+            // Well under `_coldStartRequestTimeout` (10s), so a pass here
+            // means it answered rather than waited the timeout out.
+            try {
+              outcome = await mailman.ping().timeout(
+                const Duration(seconds: 2),
+              );
+            } on Object catch (e) {
+              outcome = e;
+            }
+          }, values: _scope());
+          done.complete();
+        },
+        (error, stack) {
+          escaped.add(error);
+          if (!done.isCompleted) done.complete();
+        },
+      );
+
+      await done.future;
+
+      expect(
+        outcome,
+        isNot(isA<TimeoutException>()),
+        reason: 'the caller was stranded waiting for a reply that was dropped',
+      );
+      expect(outcome, isFalse, reason: 'a disposed worker cannot be pinged');
+      expect(escaped, isEmpty);
+    });
+
     test('is DROPPED, not added, when it reaches the host anyway', () async {
       // Cancelling a subscription cannot un-dispatch a callback the runtime
       // has already scheduled, and on the isolate transport -- or when the
@@ -179,6 +228,17 @@ void main() {
     });
   });
 }
+
+/// The deps `Mailman` reaches for, with the process launcher faked.
+Set<ScopedRef<Object>> _scope() => {
+  settingsProvider.overrideWith(() => fakeSettings),
+  fsProvider.overrideWith(LocalFileSystem.new),
+  processProvider.overrideWith(() => _FakeLauncher.current ?? Process()),
+  cleanUpProvider,
+  executableStopProvider,
+  loggerProvider,
+  mutationsProvider,
+};
 
 /// A [Process] launcher that answers [start] with an in-memory worker.
 class _FakeLauncher extends Process {

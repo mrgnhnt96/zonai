@@ -831,11 +831,23 @@ class Mailman<S extends Request, R extends Response> {
     // passed, which then fails with "This test failed after it had already
     // completed". That sends the next person debugging the wrong test.
     //
-    // Dropping loses nothing: [kill] has already completed every entry in
-    // `_pendingResponses` with a `WorkerProcessFailedException`, so a late
-    // reply has no caller left to hand it to. Guarded on the specific
-    // condition rather than wrapped in a `try`, which would also swallow the
-    // decode failures above.
+    // Guarded on the specific condition rather than wrapped in a `try`,
+    // which would also swallow the decode failures above.
+    //
+    // Dropping is only safe because nobody can still be waiting on this id.
+    // [kill] completes every entry in `_pendingResponses` with a
+    // `WorkerProcessFailedException` on the way through [dispose], and
+    // `_writeOnce` refuses to register a new one once `_disposed` is set.
+    //
+    // That second half is load-bearing and was missing when this guard was
+    // first written. `_send` queues `_writeOnce` behind `_sendChain`, so a
+    // send still queued when [dispose] runs would go on to call `_start()`,
+    // see `isRunning == false`, spawn a FRESH worker, and register a
+    // completer on the map [kill] had already drained. Dropping that
+    // worker's answer left the caller waiting for its own timeout instead:
+    // measured on the forced-password-reset e2e, a `config.get` normally
+    // answered in ~15ms became a 10s `TimeoutException`. Silence is a worse
+    // failure than a crash -- it is indistinguishable from a hung worker.
     if (_disposed) {
       logger.trace(
         'Dropped late message "$pathRaw" (disposed)',
@@ -899,17 +911,36 @@ class Mailman<S extends Request, R extends Response> {
     }
   }
 
+  /// Dispatches a worker's built-in email request against the host's DB.
+  ///
+  /// Deliberately not awaited: the worker is not waiting for the mail to go
+  /// out, and blocking this handler would stall the frame loop behind an
+  /// SMTP round trip. But "not awaited" is not the same as "nobody handles
+  /// the error", which is what this used to be -- three bare calls whose
+  /// futures were dropped on the floor.
+  ///
+  /// A dropped future's error has nowhere to go but the ambient zone, so a
+  /// failure here surfaced as an unhandled async error against whatever was
+  /// running at the time: under `dart test`, a test that had already passed
+  /// ("This test failed after it had already completed"), naming a test that
+  /// had nothing to do with it. Same misattribution as the late-chunk crash
+  /// [_listenToMessages] guards against, by the same mechanism -- an error
+  /// raised into a zone that no longer belongs to the work that caused it.
+  ///
+  /// So the future is still not awaited, but it is now OWNED: a failure is
+  /// logged against this worker's prefix, where it names itself.
   void _sendBuiltInEmail(SendBuiltInEmailRequest request) {
+    final Future<void> sending;
     switch (request.builtIn) {
       case .otp:
-        zonaiDB.sendOtp(
+        sending = zonaiDB.sendOtp(
           request.table,
           SendOtpAuthPayload(email: request.to.address, object: request.object),
           jwt: request.jwt,
         );
 
       case .verifyEmail:
-        zonaiDB.sendVerifyEmail(
+        sending = zonaiDB.sendVerifyEmail(
           request.table,
           email: request.to.address,
           variables: request.object,
@@ -917,7 +948,7 @@ class Mailman<S extends Request, R extends Response> {
         );
 
       case .passwordReset:
-        zonaiDB.sendResetPassword(
+        sending = zonaiDB.sendResetPassword(
           request.table,
           ResetPasswordAuthPayload(email: request.to.address),
         );
@@ -927,6 +958,16 @@ class Mailman<S extends Request, R extends Response> {
       case .loginNotice:
         throw UnimplementedError('${request.builtIn} not implemented');
     }
+
+    unawaited(
+      sending.catchError((Object error, StackTrace stack) {
+        logger.error(
+          '$_prefix: Failed to send built-in ${request.builtIn.name} email',
+          error,
+          stack,
+        );
+      }),
+    );
   }
 
   Future<T> send<T extends R?>(S request) async {
@@ -1040,6 +1081,19 @@ class Mailman<S extends Request, R extends Response> {
       if (hasExecutable) {
         logger.debug('Skipping send of request: $request', prefix: _prefix);
       }
+      return null;
+    }
+
+    // `_start()` above is an await, so [dispose] can have run to completion
+    // while this call was suspended in it -- draining `_pendingResponses`
+    // before this completer was ever in it. Registering one now would put a
+    // caller on a map nothing will ever drain again, waiting out its own
+    // timeout for an answer that is guaranteed not to come.
+    if (_disposed) {
+      logger.debug(
+        'Skipping send of request (disposed): $request',
+        prefix: _prefix,
+      );
       return null;
     }
 
