@@ -117,9 +117,13 @@ It runs on the three flows that insert an auth row directly: **password**,
 **OTP** and **magic-link** sign-up.
 
 It does **not** run for a first-seen OAuth or external-IdP identity. Those
-provision through [`onExternalAuthFirstSeen`](external-idp.md), which already
-declines by returning without inserting a row, and which receives verified IdP
-claims rather than a candidate row.
+provision through [`onExternalAuthFirstSeen`](external-idp.md#refusing-to-provision),
+which receives verified IdP claims rather than a candidate row, and which
+declines by returning without inserting one.
+
+Note that path answers **401**, not 403 — there is no thrown refusal to carry a
+reason. The 403-with-your-own-message equivalent over there is the provisioning
+gate; see [Refusing to provision](external-idp.md#refusing-to-provision).
 
 ### It runs before the email, and it can run twice
 

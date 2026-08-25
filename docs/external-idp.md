@@ -212,7 +212,20 @@ final class UsersExtension extends Extension<User> with AuthExtension<User> {
 
 **Restricted scope.** During `onExternalAuthFirstSeen` the hook runs under a `ProvisioningJwt` scoped to the configured `authTable`. Mutations targeting any other collection are rejected with a clear error — a buggy hook cannot mutate unrelated data.
 
-**Refusing to provision.** Return from the hook without queueing a mutation (the default behavior, or a hook that decides `claims` doesn't satisfy required invariants) and the auth request fails with `UserNotFoundAuthException`.
+### Refusing to provision
+
+This is the external-IdP counterpart of [declining a sign-up](extensions.md#declining-a-sign-up), and there are two ways to do it. They are not interchangeable — they answer the caller differently.
+
+| | How | Caller gets |
+| --- | --- | --- |
+| **The hook returns without inserting** | the default, or a hook that decides `claims` don't satisfy your invariants | `UserNotFoundAuthException` → **401** |
+| **The provisioning gate says no** | `externalIdpProvisioningGate.canProvision` returns `false`, before the hook runs at all | `ExternalIdpProvisioningRejectedException` → **403** |
+
+The mechanism is the *absence* of an insert. After the hook returns, zonai drains its queued mutations and re-reads the row by `sub`; finding nothing is the refusal. Nothing is thrown by your code, and there is no exception to construct.
+
+The consequence is that an early return reads to the caller as **401 — this token does not correspond to a user**, sharing the arm every other "unknown identity" failure renders, deliberately. It is not the 403-with-your-own-reason that `beforeSignUp` produces. If you want the caller told *we refused you*, and told why, that is the provisioning gate, not the hook.
+
+**Why this is shaped differently from `beforeSignUp`.** That hook exists because a password, OTP or magic-link sign-up carries values the client made up, so something has to inspect them before a row is built — hence `SignUpCandidate`, and hence a thrown refusal with a message. Here the claims are already **verified** by the IdP whose signature you configured. There is no untrusted candidate to vet and no row to prevent: not inserting one *is* the decline. So `beforeSignUp` does not run on this path at all.
 
 **Alternative provisioning paths.** If you'd rather create users out-of-band (admin script, IdP webhook, periodic reconcile), leave `onExternalAuthFirstSeen` unimplemented. The auth flow will reject unknown `sub`s with `UserNotFoundAuthException` until the row exists.
 
