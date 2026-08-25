@@ -205,12 +205,7 @@ extension _MagicLinkX on ZonaiDb {
       SendMagicLinkAuthPayload(email: email, object: object, jwt: jwt),
     );
 
-    await _runSignUpGate(
-      table,
-      email: email,
-      object: object,
-      jwt: appJwt,
-    );
+    await _runSignUpGate(table, email: email, object: object, jwt: appJwt);
 
     final operation = await _getOperation(
       CreateAuthOperationRequest(

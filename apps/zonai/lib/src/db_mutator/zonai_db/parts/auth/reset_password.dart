@@ -223,9 +223,7 @@ extension _ResetPasswordX on ZonaiDb {
         .delete(from: passwordResetRequirements)
         .where(
           passwordResetRequirements.table.equals(challenge.table) &
-              passwordResetRequirements.userId.equals(
-                UnknownId(authRecordId),
-              ),
+              passwordResetRequirements.userId.equals(UnknownId(authRecordId)),
         );
   }
 }

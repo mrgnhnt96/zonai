@@ -672,10 +672,7 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       // rows too -- and the admin-shaped body would resolve the admin table
       // there, find no such account, and return silently. The operator got a
       // success toast and nothing happened.
-      await context.read(authProvider.notifier).sendResetPassword(
-        email: email,
-        table: cached.sqliteName,
-      );
+      await context.read(authProvider.notifier).sendResetPassword(email: email, table: cached.sqliteName);
       if (mounted) {
         context.read(toastProvider.notifier).showSuccess('Password reset email sent to $email');
       }

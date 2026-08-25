@@ -229,9 +229,9 @@ void main() {
         ),
       ]);
 
-      await db.delete(from: jwts).where(
-            jwts.userId.equals(const UnknownId('usr_1')),
-          );
+      await db
+          .delete(from: jwts)
+          .where(jwts.userId.equals(const UnknownId('usr_1')));
 
       final remaining = await db.select().from(jwts);
 
