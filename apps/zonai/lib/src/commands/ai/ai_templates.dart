@@ -1573,6 +1573,10 @@ class UserExtensions extends Extension<User> with AuthExtension<User> {
   // Runs BEFORE the row is inserted -- throw to refuse the sign-up (403 with
   // this reason, no row, no session, no verify email). Password, OTP and
   // magic-link only; OAuth first-seen declines via onExternalAuthFirstSeen.
+  //
+  // On OTP and magic link it runs at BOTH the code request and the verify, so
+  // it is at-least-once -- keep the body free of side effects that cannot
+  // repeat.
   @override
   Future<void> beforeSignUp(SignUpCandidate candidate, Jwt? jwt) async {
     if (!candidate.email.endsWith('@acme.com')) {

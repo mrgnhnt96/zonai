@@ -38,7 +38,7 @@ Sign-up has a refusal of its own, and it is a different status on purpose. An ap
 {"error": "Sign-up is limited to Acme staff"}
 ```
 
-401 means *these credentials are not valid*; this is a well-formed request the app chose to refuse, and the reason is the app's own text rather than a generic `Forbidden`. It runs before the insert, so no account, no session and no verify-email exist afterwards. See [Declining a sign-up](extensions.md#declining-a-sign-up) for what it covers — notably that OTP and magic-link accounts are created at *verify* time, so the code email has already been sent.
+401 means *these credentials are not valid*; this is a well-formed request the app chose to refuse, and the reason is the app's own text rather than a generic `Forbidden`. It runs before the insert — and, on the OTP and magic-link flows, before the code is even sent — so a refusal leaves no account, no session, no verify-email and no code in the caller's inbox. See [Declining a sign-up](extensions.md#declining-a-sign-up) for what it covers — notably that on OTP and magic link the hook runs at *both* the request and the verify, so it is at-least-once and a hook body with a side effect must tolerate that.
 
 The same reasoning is why [the reset-password flow](#reset-password-flow) returns success for an address it has never seen.
 

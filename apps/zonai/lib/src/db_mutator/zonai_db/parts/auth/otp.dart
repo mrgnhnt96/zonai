@@ -31,6 +31,31 @@ extension _OtpX on ZonaiDb {
     await _requireAuthTableAccess(table, payload);
     await _requireAuthRecordAccess(table, operation, payload);
 
+    // Before the code is sent, not after it is verified. The account is
+    // created at verify time, so wiring the gate to the INSERT -- correct for
+    // the password flow, where the insert is in this same request -- left the
+    // app's refusal landing ten minutes late, to a caller who was never going
+    // to verify. The email had already gone out to an address the app had
+    // said it did not want.
+    //
+    // Everything the candidate needs is in hand here: `operation` above
+    // already decided this is a sign-up, and `payload.object` is trusted
+    // enough at this point to be persisted onto the challenge and
+    // interpolated into the mail below.
+    //
+    // The gate also runs again at verify (`_signUpWithOtp`), which is the
+    // last point before the row exists and a challenge is valid for ten
+    // minutes. So the hook is AT LEAST ONCE for this flow, and its body has
+    // to tolerate that.
+    if (operation == AuthOperation.signUp) {
+      await _runSignUpGate(
+        table,
+        email: payload.email,
+        object: payload.object,
+        jwt: jwt,
+      );
+    }
+
     final lastOtp = await _lastChallenge(
       table: table,
       email: payload.email,
