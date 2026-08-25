@@ -124,11 +124,13 @@ class _MintBoundTokenDialogState extends State<MintBoundTokenDialog> {
         attributes: {
           'role': 'dialog',
           'aria-modal': 'true',
-          'aria-label': 'Create an API token for ${component.table}/${component.rowId}',
+          'aria-label': 'Impersonate ${component.table}/${component.rowId} with an API token',
         },
         [
           div(classes: 'z-token-bound-dialog-header', [
-            h2(classes: 'dashboard-panel-title', [.text(revealed == null ? 'New API token' : 'Copy it now')]),
+            // Names the action the button promised AND the thing handed back,
+            // so "Impersonate" does not open a dialog titled something else.
+            h2(classes: 'dashboard-panel-title', [.text(revealed == null ? 'Impersonation token' : 'Copy it now')]),
             ZonaiIconButton(
               size: ZonaiIconButtonSize.sm,
               variant: ZonaiIconButtonVariant.ghost,

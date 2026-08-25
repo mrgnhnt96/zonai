@@ -96,6 +96,9 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
   /// row happened to be underneath when the operator pressed Create.
   ({String table, String rowId})? _mintingBoundTokenFor;
 
+  /// Whether the footer's overflow (⋮) dialog is open.
+  bool _overflowOpen = false;
+
   /// The standing forced-password-reset requirement for the open row, and the
   /// row it was read for.
   ///
@@ -221,6 +224,13 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
       if (isDatetimePickerPopoverOpen()) return;
       if (isForeignKeyPickerOpen()) return;
       if (isPushSendDialogOpen()) return;
+      // The overflow dialog is this panel's own, so Escape closes it here
+      // rather than falling through to closing the panel underneath it.
+      if (_overflowOpen) {
+        event.preventDefault();
+        setState(() => _overflowOpen = false);
+        return;
+      }
       // Escape must not reach the panel while a token is on screen: the
       // dialog is over it, and the reveal under that dialog holds the only
       // copy of a credential the server cannot produce again. Closing the
@@ -1494,6 +1504,52 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
     final canRequirePasswordReset = _canRequirePasswordReset(cached);
     final canMintBoundToken = _canMintBoundToken(cached);
     final standingRequirement = _requirementForRow(cached);
+
+    // The overflow list, built once and used twice: the footer asks only
+    // whether it is empty, the dialog renders it.
+    //
+    // What stays on the footer and what moves here is a judgement about
+    // FREQUENCY, not about power. `Edit row` is the one action every row has;
+    // `Reset password` is the ordinary auth errand. Everything below is
+    // occasional, and two of the three are standing security decisions rather
+    // than errands -- so they are grouped under `Access` and given the
+    // sentence that used to be a hover tooltip. In a dialog there is room to
+    // say what a thing does, and a tooltip on a control this consequential was
+    // the wrong place for it anyway (it was also the one that hid off-screen).
+    final overflowActions = <_RowAction>[
+      if (canRequirePasswordReset)
+        (
+          group: 'Access',
+          label: switch ((_togglingPasswordResetRequirement, standingRequirement != null)) {
+            (true, _) => 'Working\u2026',
+            (false, true) => 'Clear password reset requirement',
+            (false, false) => 'Require password reset',
+          },
+          description: standingRequirement != null
+              ? 'Lets this account sign in with its current password again.'
+              : 'Refuses password sign-in until a new password is set, and revokes every session it holds now.',
+          disabled: _togglingPasswordResetRequirement,
+          onTap: () => _togglePasswordResetRequirement(context, cached, clear: standingRequirement != null),
+        ),
+      if (canMintBoundToken)
+        (
+          group: 'Access',
+          label: 'Impersonate',
+          description: 'Mints an API token that acts as this account, so ownership rules match it.',
+          disabled: false,
+          onTap: () => _openMintBoundToken(context, cached),
+        ),
+      if (canSendPush)
+        (
+          group: 'Diagnostics',
+          label: 'Send test notification',
+          description: pushTargets.length == 1
+              ? 'Sends to ${pushTargets.first.column}.'
+              : 'Pick which token column to send to.',
+          disabled: false,
+          onTap: () => _openPushSend(context, cached, pushTargets),
+        ),
+    ];
     void close() => _requestDismiss(cached, _PendingDismiss.closePanel);
     void goBack() => _requestNavigateBack(cached);
     final subtitle = _detailSubtitle(cached);
@@ -1615,109 +1671,52 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
                     ),
                   ]),
                 ] else
-                  div(
-                    classes: [
-                      'table-row-detail-footer-actions',
-                      if (canSendPush || canRequirePasswordReset) 'table-row-detail-footer-actions--wrap',
-                    ].join(' '),
-                    [
-                      if (rowEditable)
-                        button(
-                          classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
-                          type: .button,
-                          attributes: {'aria-label': 'Edit row'},
-                          onClick: () =>
-                              context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.edit),
-                          [.text('Edit row')],
-                        ),
-                      if (canResetPassword)
-                        button(
-                          classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
-                          type: .button,
-                          attributes: {
-                            'aria-label': 'Send password reset email',
-                            if (_sendingPasswordReset) 'disabled': 'true',
-                          },
-                          onClick: _sendingPasswordReset ? null : () => _triggerPasswordReset(context, cached),
-                          [.text(_sendingPasswordReset ? 'Sending…' : 'Reset password')],
-                        ),
-                      if (canRequirePasswordReset)
-                        button(
-                          classes:
-                              'table-row-detail-footer-btn table-row-detail-footer-btn--cancel '
-                              'table-row-detail-footer-btn--push',
-                          type: .button,
-                          attributes: {
-                            'aria-label': standingRequirement != null
-                                ? 'Clear the password reset requirement'
-                                : 'Require this account to set a new password',
-                            if (_togglingPasswordResetRequirement) 'disabled': 'true',
-                          },
-                          events: appTooltipEvents(
-                            context,
-                            text: standingRequirement != null
-                                ? 'Lets this account sign in with its current password again'
-                                : 'Refuses password sign-in until a new password is set, '
-                                      'and revokes every session it holds now',
-                          ),
-                          onClick: _togglingPasswordResetRequirement
-                              ? null
-                              : () => _togglePasswordResetRequirement(
-                                  context,
-                                  cached,
-                                  clear: standingRequirement != null,
-                                ),
-                          [
-                            .text(switch ((_togglingPasswordResetRequirement, standingRequirement != null)) {
-                              (true, _) => 'Working…',
-                              (false, true) => 'Clear password reset requirement',
-                              (false, false) => 'Require password reset',
-                            }),
-                          ],
-                        ),
-                      // Its own full-width line rather than a third column: the
-                      // label does not survive a 500px row split three ways, and
-                      // a button whose text wraps mid-phrase reads as a layout
-                      // bug on the one action that makes a real phone ring.
-                      if (canSendPush)
-                        button(
-                          classes:
-                              'table-row-detail-footer-btn table-row-detail-footer-btn--cancel '
-                              'table-row-detail-footer-btn--push',
-                          type: .button,
-                          attributes: {'aria-label': 'Send a test notification to this device'},
-                          events: appTooltipEvents(
-                            context,
-                            text: pushTargets.length == 1
-                                ? 'Sends to ${pushTargets.first.column}'
-                                : 'Pick which token column to send to',
-                          ),
-                          onClick: () => _openPushSend(context, cached, pushTargets),
-                          [.text('Send test notification')],
-                        ),
-                      // Its own full-width line for the same reason as push,
-                      // and last because it is the only action here that
-                      // hands back something the operator must then keep.
-                      if (canMintBoundToken)
-                        button(
-                          classes:
-                              'table-row-detail-footer-btn table-row-detail-footer-btn--cancel '
-                              'table-row-detail-footer-btn--push',
-                          type: .button,
-                          attributes: {'aria-label': 'Create an API token that acts as this row'},
-                          events: appTooltipEvents(
-                            context,
-                            text: 'A token that acts as this account, so ownership rules match it',
-                          ),
-                          onClick: () => _openMintBoundToken(context, cached),
-                          [.text('Create API token')],
-                        ),
-                    ],
-                  ),
+                  div(classes: 'table-row-detail-footer-actions table-row-detail-footer-actions--view', [
+                    if (rowEditable)
+                      button(
+                        classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--primary',
+                        type: .button,
+                        attributes: {'aria-label': 'Edit row'},
+                        onClick: () =>
+                            context.read(tableRowDetailProvider.notifier).setViewMode(TableRowDetailViewMode.edit),
+                        [.text('Edit row')],
+                      ),
+                    if (canResetPassword)
+                      button(
+                        classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--cancel',
+                        type: .button,
+                        attributes: {
+                          'aria-label': 'Send password reset email',
+                          if (_sendingPasswordReset) 'disabled': 'true',
+                        },
+                        onClick: _sendingPasswordReset ? null : () => _triggerPasswordReset(context, cached),
+                        [.text(_sendingPasswordReset ? 'Sending\u2026' : 'Reset password')],
+                      ),
+                    // The overflow only exists when something is in it, so a
+                    // plain row keeps two buttons rather than growing a
+                    // control that opens an empty dialog.
+                    if (overflowActions.isNotEmpty)
+                      button(
+                        classes: 'table-row-detail-footer-btn table-row-detail-footer-btn--more',
+                        type: .button,
+                        attributes: {
+                          'aria-label': 'More actions',
+                          'aria-haspopup': 'dialog',
+                          'aria-expanded': _overflowOpen ? 'true' : 'false',
+                        },
+                        onClick: () {
+                          context.read(appTooltipProvider.notifier).hide();
+                          setState(() => _overflowOpen = true);
+                        },
+                        [_verticalDotsIcon()],
+                      ),
+                  ]),
               ]),
           ]),
         ],
       ),
+      if (_overflowOpen && overflowActions.isNotEmpty)
+        _RowActionsOverflowDialog(actions: overflowActions, onClose: () => setState(() => _overflowOpen = false)),
       if (_mintingBoundTokenFor case final binding?)
         MintBoundTokenDialog(
           table: binding.table,
@@ -1745,6 +1744,95 @@ class _TableRowDetailPanelState extends State<TableRowDetailPanel> {
 enum _PendingDismiss { closePanel, cancelEditing, navigateBack, closeCreate }
 
 enum _DiscardDialogMode { edit, create }
+
+/// One entry in the row panel's overflow (⋮) dialog.
+typedef _RowAction = ({String group, String label, String description, bool disabled, void Function() onTap});
+
+Component _verticalDotsIcon() {
+  return svg(
+    viewBox: '0 0 16 16',
+    width: 16.px,
+    height: 16.px,
+    attributes: {'aria-hidden': 'true', 'fill': 'currentColor'},
+    [
+      circle(cx: '8', cy: '3.25', r: '1.35', []),
+      circle(cx: '8', cy: '8', r: '1.35', []),
+      circle(cx: '8', cy: '12.75', r: '1.35', []),
+    ],
+  );
+}
+
+/// The row panel's overflow dialog: the actions that are not everyday errands.
+///
+/// A single root element, deliberately. A `Component.fragment` root throws
+/// `Cannot remove fragment from a different parent` when a conditionally
+/// rendered component is torn down -- that is exactly the bug that left the
+/// impersonation dialog stuck open, and this dialog is rendered the same way.
+///
+/// Each action carries its description as VISIBLE text rather than a hover
+/// tooltip: there is room for it here, the reader is deciding rather than
+/// scanning, and the tooltip on the old inline buttons rendered off-screen
+/// when the panel sat low in the viewport.
+class _RowActionsOverflowDialog extends StatelessComponent {
+  const _RowActionsOverflowDialog({required this.actions, required this.onClose});
+
+  final List<_RowAction> actions;
+  final void Function() onClose;
+
+  @override
+  Component build(BuildContext context) {
+    final groups = <String, List<_RowAction>>{};
+    for (final action in actions) {
+      (groups[action.group] ??= []).add(action);
+    }
+
+    return div(
+      classes: 'table-row-detail-more-backdrop',
+      events: {'click': (_) => onClose()},
+      [
+        div(
+          classes: 'table-row-detail-more-dialog',
+          attributes: {'role': 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'table-row-detail-more-title'},
+          events: {'click': (event) => event.stopPropagation()},
+          [
+            div(classes: 'table-row-detail-more-header', [
+              h3(id: 'table-row-detail-more-title', classes: 'table-row-detail-more-title', [.text('More actions')]),
+              ZonaiIconButton(
+                size: ZonaiIconButtonSize.sm,
+                variant: ZonaiIconButtonVariant.ghost,
+                attributes: {'aria-label': 'Close'},
+                onClick: onClose,
+                child: .text('×'),
+              ),
+            ]),
+            for (final entry in groups.entries)
+              div(classes: 'table-row-detail-more-group', [
+                p(classes: 'table-row-detail-more-group-label', [.text(entry.key)]),
+                for (final action in entry.value)
+                  button(
+                    classes: 'table-row-detail-more-item',
+                    type: .button,
+                    attributes: {'aria-label': action.label, if (action.disabled) 'disabled': 'true'},
+                    onClick: action.disabled
+                        ? null
+                        : () {
+                            // Closed first, so an action that opens a dialog
+                            // of its own does not stack two modals.
+                            onClose();
+                            action.onTap();
+                          },
+                    [
+                      span(classes: 'table-row-detail-more-item-label', [.text(action.label)]),
+                      span(classes: 'table-row-detail-more-item-desc', [.text(action.description)]),
+                    ],
+                  ),
+              ]),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
 class _DiscardChangesDialog extends StatefulComponent {
   const _DiscardChangesDialog({
@@ -2497,7 +2585,98 @@ List<StyleRule> get tableRowDetailPanelStyles => [
   css(
     '.table-row-detail-footer-actions .table-row-detail-footer-btn--cancel',
   ).styles(flex: Flex(grow: 1, shrink: 1), minWidth: .zero),
-  css('.table-row-detail-footer-actions--wrap').styles(raw: const {'flex-wrap': 'wrap'}),
+  // The view footer sizes its two text buttons from their CONTENT, so the
+  // 3:1 grow below actually distributes the leftover space. Left at the base
+  // rule's `width: 100%` the flex basis is the whole container, there is no
+  // free space to grow into, and the row degenerates -- which is how the
+  // overflow control ended up 500px wide with the text buttons at 30px.
+  // Scoped to --view so the edit footer's Save/Cancel keeps the proportions
+  // it already had.
+  css('.table-row-detail-footer-actions--view .table-row-detail-footer-btn').styles(width: .auto),
+  // Square, so it reads as an icon control beside two text buttons rather
+  // than a third thing competing with them for the row. TWO classes, and an
+  // explicit basis: the base `.table-row-detail-footer-btn` sets `width: 100%`
+  // and is declared later in this list, so a single-class rule loses to it and
+  // the control swells to the full row.
+  css('.table-row-detail-footer-actions .table-row-detail-footer-btn--more').styles(
+    flex: Flex(grow: 0, shrink: 0, basis: 38.px),
+    width: 38.px,
+    minWidth: 38.px,
+    padding: .zero,
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+  ),
+  css('.table-row-detail-more-backdrop').styles(
+    position: Position.fixed(top: 0.px, left: 0.px, right: 0.px, bottom: 0.px),
+    display: .flex,
+    alignItems: .center,
+    justifyContent: .center,
+    padding: .symmetric(horizontal: ZonaiSpacing.s11),
+    raw: const {'z-index': '175', 'background-color': 'rgb(15 23 42 / 0.55)'},
+  ),
+  css('.table-row-detail-more-dialog').styles(
+    width: 100.percent,
+    maxWidth: 440.px,
+    maxHeight: 85.vh,
+    overflow: Overflow.only(y: .auto),
+    padding: .all(ZonaiSpacing.s9),
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    gap: Gap.all(ZonaiSpacing.s7),
+    backgroundColor: surfaceColor,
+    border: .all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(12.px)),
+    raw: const {'box-shadow': 'var(--zonai-shadow)'},
+  ),
+  css('.table-row-detail-more-header').styles(
+    display: .flex,
+    flexDirection: FlexDirection.row,
+    alignItems: .center,
+    justifyContent: .spaceBetween,
+    gap: Gap.all(ZonaiSpacing.s4),
+  ),
+  css('.table-row-detail-more-title').styles(margin: .zero, fontSize: 1.rem, fontWeight: .w600, color: fgColor),
+  css(
+    '.table-row-detail-more-group',
+  ).styles(display: .flex, flexDirection: FlexDirection.column, gap: Gap.all(ZonaiSpacing.s3)),
+  css('.table-row-detail-more-group-label').styles(
+    margin: .zero,
+    fontSize: 0.6875.rem,
+    fontWeight: .w600,
+    color: mutedColor,
+    raw: const {'text-transform': 'uppercase', 'letter-spacing': '0.08em'},
+  ),
+  css('.table-row-detail-more-item').styles(
+    display: .flex,
+    flexDirection: FlexDirection.column,
+    alignItems: .start,
+    gap: Gap.all(ZonaiSpacing.s2),
+    width: 100.percent,
+    padding: .symmetric(horizontal: ZonaiSpacing.s6, vertical: ZonaiSpacing.s5),
+    border: Border.all(color: borderColor, width: 1.px, style: .solid),
+    radius: .all(Radius.circular(10.px)),
+    backgroundColor: surfaceColor,
+    color: fgColor,
+    cursor: .pointer,
+    textAlign: TextAlign.start,
+    raw: const {'font': 'inherit', 'box-sizing': 'border-box'},
+  ),
+  css('.table-row-detail-more-item:hover:not(:disabled)').styles(backgroundColor: hoverColor),
+  css('.table-row-detail-more-item:disabled').styles(opacity: 0.55, cursor: .notAllowed),
+  css('.table-row-detail-more-item-label').styles(fontSize: 0.875.rem, fontWeight: .w600, color: fgColor),
+  css(
+    '.table-row-detail-more-item-desc',
+  ).styles(fontSize: 0.8125.rem, color: mutedColor, raw: const {'line-height': '1.45'}),
+  // Only under --wrap, and the reason is the interaction rather than either
+  // rule alone. `.table-row-detail-footer-btn` sets `width: 100%`, and none of
+  // the flex rules here set a basis -- so basis stays `auto` and resolves to
+  // that width. Under `nowrap` that is harmless: shrink pulls the row back
+  // onto one line. Turn wrapping on and the same width means no two buttons
+  // can ever share a line, so EVERY action stacks full width and the 3:1
+  // pairing below never appears. Width `auto` puts the basis back on content
+  // size. `--push` is unaffected: it sets `basis: 100%` explicitly, which
+  // wins over width, so it keeps the full-width line it asks for.
   // Basis 100% is what puts it under the other actions instead of beside them,
   // and it is a rule about the label rather than about how many buttons there
   // happen to be — so the layout does not change when Edit or Reset password
