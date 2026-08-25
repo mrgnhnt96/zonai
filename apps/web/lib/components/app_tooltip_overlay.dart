@@ -14,12 +14,36 @@ void showAppTooltipForElement(
   AppTooltipPlacement placement = AppTooltipPlacement.belowCenter,
 }) {
   final rect = anchor.getBoundingClientRect();
-  final (top, left) = switch (placement) {
+
+  // A `below*` tooltip on an anchor near the bottom of the window renders past
+  // the bottom edge. It is `position: fixed`, so no ancestor clips it and
+  // nothing scrolls it back into view -- it is simply not there. The last
+  // actions in the row detail panel sit exactly that low.
+  //
+  // Flipping needs the tooltip's height, which does not exist until it
+  // renders, so the test is against a constant instead: one line of 0.8125rem
+  // text between 6px paddings inside a 1px border is ~30px, and the offset
+  // below adds 6. 44 leaves room for both plus a little slack, and erring
+  // toward flipping early is the safe direction -- above the anchor there is
+  // a whole panel of space, below there is none.
+  final flip = web.window.innerHeight - rect.bottom < 44;
+  final resolved = switch (placement) {
+    AppTooltipPlacement.belowCenter when flip => AppTooltipPlacement.aboveCenter,
+    AppTooltipPlacement.belowLeft when flip => AppTooltipPlacement.aboveLeft,
+    _ => placement,
+  };
+
+  // The `above*` pair anchors at the anchor's TOP and is pulled up by its own
+  // height in CSS (`translateY(-100%)`), which is what lets this run without
+  // ever measuring the tooltip.
+  final (top, left) = switch (resolved) {
     AppTooltipPlacement.belowCenter => (rect.bottom + 6, rect.left + rect.width / 2),
     AppTooltipPlacement.belowLeft => (rect.bottom + 6, rect.left),
+    AppTooltipPlacement.aboveCenter => (rect.top - 6, rect.left + rect.width / 2),
+    AppTooltipPlacement.aboveLeft => (rect.top - 6, rect.left),
     AppTooltipPlacement.rightCenter => (rect.top + rect.height / 2, rect.right + 8),
   };
-  notifier.show(text: text, top: top, left: left, placement: placement);
+  notifier.show(text: text, top: top, left: left, placement: resolved);
 }
 
 void showAppTooltipFromEvent(
@@ -69,6 +93,10 @@ class AppTooltipOverlay extends StatelessComponent {
     final transform = switch (tooltip.placement) {
       AppTooltipPlacement.belowCenter => 'translateX(-50%)',
       AppTooltipPlacement.belowLeft => null,
+      // -100% of the tooltip's OWN height, so it lands above the anchor
+      // without anyone having to measure it first.
+      AppTooltipPlacement.aboveCenter => 'translate(-50%, -100%)',
+      AppTooltipPlacement.aboveLeft => 'translateY(-100%)',
       AppTooltipPlacement.rightCenter => 'translateY(-50%)',
     };
 
