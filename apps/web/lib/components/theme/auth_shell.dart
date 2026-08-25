@@ -142,7 +142,13 @@ class AuthSentHeader extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return Component.fragment([
+    // ONE root element, not a `Component.fragment`. Every call site renders
+    // this behind an `if`, and a fragment root cannot be removed without
+    // throwing out of `_FragmentElement.detachRenderObject`. See
+    // tool/ci/check_dialog_fragment_roots.sh. All five parents are
+    // `AuthFormCard`, which is block flow with no gap, so the wrapper is
+    // layout-neutral.
+    return div([
       div(classes: ZonaiClasses.authSentIcon, [.text(icon)]),
       ZonaiPageTitle(title),
       ZonaiPageSubtitle(subtitle),

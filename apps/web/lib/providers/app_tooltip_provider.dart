@@ -2,7 +2,14 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import 'table_focus_provider.dart';
 
-enum AppTooltipPlacement { belowCenter, belowLeft, rightCenter }
+/// Where the tooltip sits relative to its anchor.
+///
+/// The `above*` pair is not something a caller asks for: it is what
+/// `showAppTooltipForElement` swaps a `below*` request to when the anchor is
+/// too close to the bottom of the viewport for the tooltip to be visible
+/// there. The tooltip is `position: fixed`, so nothing clips it -- it simply
+/// renders past the bottom edge, which reads as "the tooltip is broken".
+enum AppTooltipPlacement { belowCenter, belowLeft, aboveCenter, aboveLeft, rightCenter }
 
 final class AppTooltipState {
   const AppTooltipState({this.text, this.top = 0, this.left = 0, this.placement = AppTooltipPlacement.belowCenter});

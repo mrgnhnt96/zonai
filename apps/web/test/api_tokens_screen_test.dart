@@ -2,6 +2,7 @@ import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_test/jaspr_test.dart';
 import 'package:zonai_web/components/api_tokens_screen.dart';
+import 'package:zonai_web/components/theme/zonai_tag.dart';
 import 'package:zonai_web/utils/api_tokens.dart';
 
 /// Component tests for the API Tokens screen.
@@ -40,6 +41,7 @@ ApiTokenRow _row({String id = 'abc123_pat', String name = 'nightly-backup', Date
 Component _panel({
   List<ApiTokenRow> tokens = const [],
   ApiTokenDraft draft = const ApiTokenDraft(),
+  List<String> collections = const ['orders', 'line_items', 'users'],
   ({ApiTokenRow row, String secret})? revealed,
   bool isLoading = false,
   String? loadError,
@@ -49,17 +51,19 @@ Component _panel({
   void Function(ApiTokenRow row)? onRevoke,
   void Function(ApiTokenRow row)? onDelete,
   void Function()? onMint,
+  void Function(ApiTokenDraft draft)? onDraftChanged,
 }) {
   return ApiTokensPanel(
     tokens: tokens,
     draft: draft,
+    collections: collections,
     revealed: revealed,
     now: _now,
     isLoading: isLoading,
     loadError: loadError,
     isMinting: isMinting,
     busyIds: busyIds,
-    onDraftChanged: (_) {},
+    onDraftChanged: onDraftChanged ?? (_) {},
     onMint: onMint ?? () {},
     onDismissReveal: onDismissReveal ?? () {},
     onRevoke: onRevoke ?? (_) {},
@@ -293,6 +297,110 @@ void main() {
       // The wildcard's own box stays live -- it is how the choice is undone.
       expect(boxes[6].attributes?['disabled'], isNull);
       expect(find.textContaining('a later zonai adds'), findsOneComponent);
+    });
+  });
+  group('the collections field', () {
+    // The value on the wire did not change -- still a comma-separated string,
+    // still `*` -- so what these pin is the authoring gesture: what the
+    // dropdown offers, what became a pill, and that the two never disagree.
+    //
+    // Everything here is addressed by id or aria-label rather than by tag:
+    // the mint form carries a SECOND select (the expiry), so `find.tag`
+    // silently matches the wrong control -- it did, while these were written.
+    Finder collectionsSelect() => find.byComponentPredicate(
+      (c) => c is DomComponent && c.tag == 'select' && c.id == 'api-token-tables',
+      description: 'the collections <select>',
+    );
+
+    Finder removeButton(String name) => find.byComponentPredicate(
+      (c) => c is DomComponent && c.tag == 'button' && c.attributes?['aria-label'] == 'Remove $name',
+      description: 'the remove control for $name',
+    );
+
+    // Every <option> on the form, not just this select's. Reading the select's
+    // own `children` returns nothing -- the options are built into the element
+    // tree, not held on the parent DomComponent -- and the expiry select's
+    // values ('30d' and friends) cannot collide with a collection name, so a
+    // page-wide scan answers the same question.
+    List<String> optionValues() => [
+      for (final element in find.tag('option').evaluate())
+        if (element.component case final DomComponent dom) dom.attributes?['value'] ?? '',
+    ];
+
+    testComponents('offers every collection and the wildcard when none are picked', (tester) async {
+      tester.pumpComponent(_panel(collections: const ['orders', 'line_items']));
+
+      expect(optionValues(), containsAll(<String>['*', 'orders', 'line_items']));
+      // Empty is a real scope, not an unfilled field, and it grants nothing.
+      expect(find.textContaining('this token would reach none'), findsOneComponent);
+    });
+
+    testComponents('a picked collection leaves the dropdown and becomes a pill', (tester) async {
+      tester.pumpComponent(
+        _panel(
+          draft: const ApiTokenDraft(name: 'backup', tables: 'orders'),
+          collections: const ['orders', 'line_items'],
+        ),
+      );
+
+      // Offering it again would let the same grant be added twice.
+      expect(optionValues(), isNot(contains('orders')));
+      expect(optionValues(), contains('line_items'));
+      expect(removeButton('orders'), findsOneComponent);
+    });
+
+    testComponents('removing a pill drops only that collection', (tester) async {
+      ApiTokenDraft? changed;
+      tester.pumpComponent(
+        _panel(
+          draft: const ApiTokenDraft(name: 'backup', tables: 'orders,line_items'),
+          collections: const ['orders', 'line_items'],
+          onDraftChanged: (draft) => changed = draft,
+        ),
+      );
+
+      // The closure is invoked directly rather than clicked: ZonaiTag's remove
+      // handler calls `event.stopPropagation()`, and universal_web throws
+      // "Cannot use web or js_interop apis on native platforms" the moment a
+      // VM component test dispatches a real click at it. What is being pinned
+      // is which name the field drops, and that lives in this closure.
+      final tag =
+          find
+                  .byComponentPredicate((c) => c is ZonaiTag && c.label == 'orders', description: 'the orders pill')
+                  .evaluate()
+                  .single
+                  .component
+              as ZonaiTag;
+      tag.onRemove!();
+
+      expect(changed?.tables, 'line_items');
+    });
+
+    testComponents('offers the app\'s own collections before zonai\'s internals', (tester) async {
+      // A flat list puts `_api_tokens` beside `orders` as though granting them
+      // were the same kind of decision. The sidebar keeps system tables behind
+      // an expander; this keeps them last. They stay reachable either way.
+      tester.pumpComponent(_panel(collections: const ['_api_tokens', 'orders', '_abusers', 'line_items']));
+
+      final values = optionValues().where((v) => v != '').toList();
+      expect(values.indexOf('orders'), lessThan(values.indexOf('_api_tokens')));
+      expect(values.indexOf('line_items'), lessThan(values.indexOf('_abusers')));
+      expect(values, containsAll(<String>['_api_tokens', '_abusers']));
+    });
+
+    testComponents('the wildcard shows one pill and no dropdown to widen it further', (tester) async {
+      // There is nothing to add to "every collection", and a control that
+      // cannot do anything on a scope form reads as a control that failed.
+      tester.pumpComponent(
+        _panel(
+          draft: const ApiTokenDraft(name: 'backup', tables: '*'),
+          collections: const ['orders', 'line_items'],
+        ),
+      );
+
+      expect(collectionsSelect(), findsNothing);
+      expect(find.text('* \u2014 every collection'), findsOneComponent);
+      expect(removeButton('orders'), findsNothing);
     });
   });
 }

@@ -21,6 +21,8 @@ import 'package:zonai_web/components/theme/zonai_boolean_check.dart'
 import 'package:zonai_web/components/theme/zonai_enum_chip.dart'
     as _zonai_enum_chip;
 import 'package:zonai_web/components/theme/zonai_tag.dart' as _zonai_tag;
+import 'package:zonai_web/components/api_token_collections_field.dart'
+    as _api_token_collections_field;
 import 'package:zonai_web/components/app_tooltip_overlay.dart'
     as _app_tooltip_overlay;
 import 'package:zonai_web/components/auth_app_shell.dart' as _auth_app_shell;
@@ -83,6 +85,7 @@ ServerOptions get defaultServerOptions => ServerOptions(
     ),
   },
   styles: () => [
+    ..._api_token_collections_field.apiTokenCollectionsFieldStyles,
     ..._schema_table_foreign_key_cell.schemaTableForeignKeyCellStyles,
     ..._schema_table_photo_cell.schemaTablePhotoCellStyles,
     ..._syntax_highlighted_code.syntaxHighlightedCodeStyles,
