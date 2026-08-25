@@ -375,7 +375,14 @@ class AdminInviteAcceptFormState extends State<AdminInviteAcceptForm> {
 
   @override
   Component build(BuildContext context) {
-    return Component.fragment([
+    // ONE root element, not a `Component.fragment`. This form is rendered
+    // behind `if (direct.isNotEmpty)`, and removing a fragment-rooted
+    // component throws `Cannot remove fragment from a different parent` out of
+    // `_FragmentElement.detachRenderObject`, which aborts the rebuild half-done
+    // and leaves it on screen. See tool/ci/check_dialog_fragment_roots.sh. The
+    // AuthFormCard around it is block flow with no gap, so a styleless wrapper
+    // changes no spacing.
+    return div([
       if (_error case final message?) ZonaiErrorAlert(title: 'Could not accept the invitation', body: message),
       for (final field in component.fields)
         ZonaiTextField(
