@@ -4,6 +4,7 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 
 import '../constants/button_sizes.dart';
 import '../providers/api_tokens_provider.dart';
+import '../providers/sqlite_tables_provider.dart';
 import '../utils/api_tokens.dart';
 import 'api_tokens_screen.dart' show ApiTokenMintForm, ApiTokenRevealPanel;
 import 'theme/zonai_icon_button.dart';
@@ -102,6 +103,7 @@ class _MintBoundTokenDialogState extends State<MintBoundTokenDialog> {
           else
             ApiTokenMintForm(
               draft: _draft,
+              collections: [for (final t in context.watch(sqliteTablesProvider).tables) t.sqliteName],
               pending: _minting,
               onChanged: (draft) => setState(() => _draft = draft),
               onSubmit: _mint,

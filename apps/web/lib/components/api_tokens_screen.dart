@@ -5,8 +5,10 @@ import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import '../constants/button_sizes.dart';
 import '../providers/api_tokens_provider.dart';
 import '../providers/home_ui_provider.dart';
+import '../providers/sqlite_tables_provider.dart';
 import '../utils/api_tokens.dart';
 import '../utils/user_facing_error.dart';
+import 'api_token_collections_field.dart';
 import 'home_settings_overlay.dart';
 import 'home_sidebar.dart';
 import 'theme/zonai_button.dart';
@@ -83,6 +85,7 @@ class _ApiTokensScreenState extends State<ApiTokensScreen> {
             ApiTokensPanel(
               tokens: tokens.value ?? const [],
               draft: _draft,
+              collections: [for (final t in context.watch(sqliteTablesProvider).tables) t.sqliteName],
               revealed: _revealed,
               now: DateTime.now(),
               isLoading: tokens.isLoading && !tokens.hasValue,
@@ -149,6 +152,7 @@ class ApiTokensPanel extends StatelessComponent {
     super.key,
     required this.tokens,
     required this.draft,
+    required this.collections,
     required this.now,
     required this.onDraftChanged,
     required this.onMint,
@@ -164,6 +168,9 @@ class ApiTokensPanel extends StatelessComponent {
 
   final List<ApiTokenRow> tokens;
   final ApiTokenDraft draft;
+
+  /// Grantable collection names for the mint form's Collections dropdown.
+  final List<String> collections;
 
   /// The plaintext just minted, or null when there is nothing to reveal.
   final ({ApiTokenRow row, String secret})? revealed;
@@ -195,7 +202,13 @@ class ApiTokensPanel extends StatelessComponent {
         div(classes: 'dashboard-row dashboard-row--split', [
           div(classes: 'dashboard-panel z-admins-panel', [
             p(classes: 'dashboard-panel-title', [.text('New token')]),
-            ApiTokenMintForm(draft: draft, pending: isMinting, onChanged: onDraftChanged, onSubmit: onMint),
+            ApiTokenMintForm(
+              draft: draft,
+              collections: collections,
+              pending: isMinting,
+              onChanged: onDraftChanged,
+              onSubmit: onMint,
+            ),
           ]),
           div(classes: 'dashboard-panel z-admins-panel', [
             p(classes: 'dashboard-panel-title', [
@@ -228,10 +241,16 @@ class ApiTokenMintForm extends StatelessComponent {
   const ApiTokenMintForm({
     super.key,
     required this.draft,
+    required this.collections,
     required this.onChanged,
     required this.onSubmit,
     this.pending = false,
   });
+
+  /// Grantable collection names, handed down rather than read from a provider
+  /// so this form stays pumpable without a scope. See
+  /// [ApiTokenCollectionsField].
+  final List<String> collections;
 
   final ApiTokenDraft draft;
   final void Function(ApiTokenDraft draft) onChanged;
@@ -264,14 +283,12 @@ class ApiTokenMintForm extends StatelessComponent {
         disabled: pending,
         onInput: (value) => onChanged(draft.copyWith(name: value)),
       ),
-      ZonaiTextField(
+      ApiTokenCollectionsField(
         id: 'api-token-tables',
-        fieldLabel: 'Collections',
         value: draft.tables,
-        placeholder: 'orders, line_items — or * for every one',
-        autocomplete: 'off',
+        collections: collections,
         disabled: pending,
-        onInput: (value) => onChanged(draft.copyWith(tables: value)),
+        onChanged: (value) => onChanged(draft.copyWith(tables: value)),
       ),
       fieldset(classes: 'z-token-ops', [
         legend(classes: 'z-token-ops-legend', [.text('Operations')]),
