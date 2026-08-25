@@ -66,9 +66,17 @@ offenders="$(scan "${sources[@]}" || true)"
 
 # Positive control. Silence above proves nothing unless the same scan still
 # catches a known-bad line, so feed it one.
+#
+# The bad flag is assembled rather than written out, and that is not squeamish-
+# ness: this file is tracked, so the scan above reads it too, and a control
+# spelled literally makes the check fail on ITSELF. It did, the first time it
+# was run after being committed -- passing while untracked and failing the
+# moment `git ls-files` could see it, which is the worst possible moment for a
+# gate to change its mind.
 control_dir="$(mktemp -d "${TMPDIR:-/tmp}/zonai_portability.XXXXXX")"
 trap 'rm -rf "${control_dir}"' EXIT
-printf 'log="$(mktemp -t zonai_web_build)"\n' > "${control_dir}/bad.sh"
+bad_flag="-${bad_letter:-t}"
+printf 'log="$(mktemp %s zonai_web_build)"\n' "${bad_flag}" > "${control_dir}/bad.sh"
 printf 'log="$(mktemp "${TMPDIR:-/tmp}/ok.XXXXXX")"\n' >> "${control_dir}/bad.sh"
 control="$(scan "${control_dir}/bad.sh" || true)"
 if [ -z "${control}" ]; then
