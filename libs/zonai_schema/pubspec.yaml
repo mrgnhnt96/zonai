@@ -4,7 +4,7 @@ name: zonai_schema
 description: >-
   Define a Zonai backend in Dart: tables, access rules, rate limits, extensions
   and the wire types the server and its clients agree on.
-version: 0.4.1
+version: 0.4.2
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_schema
 homepage: https://zonai.dev
 documentation: https://docs.zonai.dev/schemas/defining-tables

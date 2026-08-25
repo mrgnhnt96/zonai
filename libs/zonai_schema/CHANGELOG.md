@@ -1,5 +1,84 @@
 # Changelog
 
+## 0.4.2
+
+Additive. No export was removed or renamed, and no behaviour that an existing
+app relies on changed.
+
+**API tokens.** A credential for something that cannot sign in — a backup
+script, a CI job, a partner integration. Issued from the CLI or
+`POST /admin/tokens`, with no sign-in involved and optionally no expiry.
+
+- `ApiTokenSecret`, `ApiTokenId`, `ApiTokenJwt`, `ApiTokenScope`, and the
+  `ApiTokenBody` payload for the create route.
+- The credential is an opaque `zonai_pat_…` string, **not** a JWT. Only its
+  SHA-256 is stored, so the plaintext exists exactly twice — in the process
+  that generated it, and wherever the operator pasted it. Nothing can recover
+  it from a row, which is what makes "shown once, at creation" a fact rather
+  than a promise.
+- `ApiTokenJwt` is a `Jwt` because `Jwt` is the currency of the whole
+  authorization layer — rules take one, row rules filter on one, and the
+  worker IPC boundary rebuilds one from JSON. An API-token identity that were
+  not a `Jwt` would need a parallel path through all of it.
+- A signed JWT carrying the API-token flag is **refused** as a bearer token,
+  with the same "rotate the secret" log the `CRON` and `PROVISIONING`
+  sentinels get. Accepting one would let anyone who can sign a token mint
+  themselves an unscoped admin key. The flag exists for the worker round trip
+  and nothing else.
+- `ApiTokenScope` is a hard gate evaluated **before** rules, not an input to
+  them: an out-of-scope `(table, operation)` is refused however permissive
+  that table's rules are, and rules then run as usual and may deny further.
+  Widening is only ever possible by editing the row.
+- `"*"` for `--operations` is **stored as `"*"`**, not expanded at creation.
+  An expanded list would silently freeze the token to the operations that
+  existed on the day it was minted.
+- `SecretColumn` (`src/column_types/secret_column.dart`), the column type
+  `is SecretTransformer` checks see.
+
+**Forced password reset.** `_password_reset_requirements`, one
+`(table, user_id)` marker meaning "this account must choose a new password
+before a password sign-in will mint a session", with its rules and operations.
+
+- Durable on purpose. The reset *ticket* a gated sign-in hands back is an
+  ordinary `_auth_challenges` row with a short expiry; this row is the
+  requirement and has to outlive every ticket issued against it. A requirement
+  that expired on its own would silently restore the old password — the exact
+  failure the feature exists to prevent.
+
+**`beforeSignUp`.** An `AuthExtension` hook that can decline a registration
+before any row exists, answering `403` with the app's own reason.
+
+- `SignUpCandidate` and `SignUpDeclinedException`.
+- The candidate is deliberately **not** the typed row. The row does not exist
+  yet, so building one means `safeCreate` inventing a value for every column
+  the body did not supply — and it only knows how to invent for five
+  transformers. `is_verified`, on every `AuthTable`, is not one, so
+  `decode(null)` threw inside the extension worker and an ordinary *allowed*
+  sign-up died before the hook was entered. Widening `safeCreate` would move
+  that failure rather than remove it.
+- It runs on password, OTP and magic-link sign-up, at request time. On OTP and
+  magic link it runs **again** at verify, because the account is created there
+  and a challenge is valid for ten minutes — so the hook is **at least once**
+  on those two flows and a body with a side effect must tolerate repeating.
+- It does not run for a first-seen OAuth or external-IdP identity; those
+  decline by returning from `onExternalAuthFirstSeen` without inserting.
+
+**Smaller things.**
+
+- `Jwt.isApiTokenPayload`, and `Jwt.maybeFromJson` now reconstructs an
+  `ApiTokenJwt` when it sees that payload.
+- `SignUpAuthBody.fromJson` validates rather than casts. A body whose `email`,
+  `password` or `object` had the wrong type produced a `500` from a failed
+  cast; it now raises `ArgumentError` and the route answers `400`. The `type`
+  switch no longer casts either, so a missing or non-string `type` is a `400`
+  rather than a crash.
+- `maintenance_actions.dart` documents `_api_tokens` and
+  `_password_reset_requirements` as purge targets — and flags the second as
+  the one entry whose purge is a **weakening**: every other table here becomes
+  more restrictive when emptied, while this one quietly releases every account
+  an operator forced to reset.
+- `internal_db_artifacts.dart` registers the two new internal tables.
+
 ## 0.4.1
 
 Purely additive. Nothing was removed, renamed, or changed in behaviour.
