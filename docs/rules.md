@@ -237,6 +237,26 @@ Defaults:
 - **`canSignIn`** — allowed when the schema supports the requested auth type.
 - **`canPasswordReset`** — allowed for password auth only.
 
+#### `canSignUp` or `beforeSignUp`?
+
+Both refuse a registration and both run before anything is written, so the
+choice is about what you need to see and what the caller is told.
+
+| | `canSignUp` (rule) | [`beforeSignUp`](extensions.md#declining-a-sign-up) (extension hook) |
+| --- | --- | --- |
+| Sees | the JWT and the `AuthType` | those, plus the submitted email and every extra column the body carried |
+| Answers with | a `bool` | your own message, rendered as `403` with that text |
+| Runs | on all three flows, at request time | on all three flows, at request time |
+| Times per sign-up | once | once for password; **at least once** for OTP and magic link, which also re-run it at verify |
+
+Reach for the rule when the decision is a property of the *caller* — an admin
+token, an auth type this collection does not want open. Reach for the hook when
+the decision is a property of the *submission*, such as the address's domain,
+or when the caller deserves a reason rather than a bare refusal.
+
+They compose: the rule runs first, and a `false` there means the hook is never
+consulted.
+
 #### Sign-up is closed by default on an `AsAdmin` table
 
 `AsAdmin` is a per-**table** switch, not a per-row one: every JWT the table issues carries `admin.isAdmin`, however that row came to exist. Combined with an anonymous `POST /auth/sign-up`, an `AsAdmin` table with open registration makes **every registrant an admin** — see [known-issues.md §6](known-issues.md), where that was confirmed against a running server.
