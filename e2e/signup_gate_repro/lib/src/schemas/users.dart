@@ -19,7 +19,16 @@ final class User {
   final DateTime? updatedAt;
 }
 
-final class UserTable extends AuthTable<User> with PasswordAuth {
+/// All three insert-a-row flows, on one table.
+///
+/// `OtpAuth` and `MagicLinkAuth` are capability flags -- neither adds a
+/// column -- so carrying all three costs nothing here and lets one compiled
+/// worker answer for every flow `beforeSignUp` is supposed to gate. The two
+/// code flows create the account at VERIFY time, which is exactly why they
+/// need their own coverage: the gate has to run at REQUEST time or the code
+/// email is already gone.
+final class UserTable extends AuthTable<User>
+    with PasswordAuth, OtpAuth, MagicLinkAuth {
   UserTable(super.$)
     : id = $.id(
         'id',

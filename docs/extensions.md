@@ -121,11 +121,24 @@ provision through [`onExternalAuthFirstSeen`](external-idp.md), which already
 declines by returning without inserting a row, and which receives verified IdP
 claims rather than a candidate row.
 
-For OTP and magic link, the account is created when the **code is verified**,
-not when it is requested — so the code email has already gone out by the time
-`beforeSignUp` runs. It prevents the account, not the email. To refuse before
-anything is sent, use the `canSignUp` row rule as well; see
-[rules.md](rules.md).
+### It runs before the email, and it can run twice
+
+For OTP and magic link the account is created when the **code is verified**,
+not when it is requested. So the hook runs at *both* points: once when the
+code is requested, before anything is sent, and again at verify, immediately
+before the row is inserted.
+
+That makes it **at least once** for these two flows, and a hook body with a
+side effect has to tolerate running twice for a single sign-up. Keeping the
+verify-time call is deliberate: a challenge is valid for ten minutes, and the
+answer your hook would give can change inside that window.
+
+The password flow requests and inserts in one call, so the hook runs once
+there.
+
+> Earlier versions ran the hook only at the insert. On OTP and magic link that
+> meant the code email had already been sent by the time the app refused — the
+> hook prevented the account but not the mail. It now runs before the send.
 
 ## Project layout
 

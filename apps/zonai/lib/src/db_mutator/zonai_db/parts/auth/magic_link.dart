@@ -34,6 +34,22 @@ extension _MagicLinkX on ZonaiDb {
 
     await _requireAuthTableAccess(table, payload);
     await _requireAuthRecordAccess(table, operation, payload);
+
+    // Before the link is sent -- see the same block in `_sendOtp`. The
+    // account is created at verify time, so gating only the insert let the
+    // mail reach an address the app had already decided to refuse.
+    //
+    // The gate runs again at verify (`_signUpWithMagicLink`), so the hook is
+    // AT LEAST ONCE for this flow.
+    if (operation == AuthOperation.signUp) {
+      await _runSignUpGate(
+        table,
+        email: payload.email,
+        object: payload.object,
+        jwt: await _extractJwt(payload),
+      );
+    }
+
     final lastMagicLink = await _lastChallenge(
       table: table,
       email: payload.email,

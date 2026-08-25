@@ -10,6 +10,8 @@ import 'package:zonai/src/db_mutator/payloads/payloads.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
+import 'package:zonai_schema/src/internal/tables/auth_challenge_table.dart'
+    show authChallenges;
 import 'package:zonai_schema/zonai_schema.dart';
 
 import '../support/temp_directory.dart';
@@ -41,6 +43,9 @@ void main() {
   group('signup gate e2e', () {
     const declinedEmail = 'nope@blocked.test';
     const allowedEmail = 'ada@allowed.test';
+    // A second allowed address, so the OTP positive control counts its own
+    // challenge rather than one the password tests left behind.
+    const otpAllowedEmail = 'grace@allowed.test';
     const declineReason = 'Sign-up from that domain is not accepted';
 
     late Directory projectRoot;
@@ -230,7 +235,121 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 3)),
     );
+
+    // The two flows below create the account at VERIFY time, so the gate had
+    // to move to REQUEST time to mean anything. Before that change both of
+    // these passed the send and refused ten minutes later, at a verify the
+    // caller was never going to reach -- with the code already delivered.
+    //
+    // The assertion is the CHALLENGE ROW, not the exception alone. `_sendOtp`
+    // runs gate -> insert challenge -> courier.send, so a challenge that does
+    // not exist is the durable evidence that nothing was minted and nothing
+    // was mailed. Asserting only the throw would still pass if the gate ran
+    // after the insert.
+    test(
+      'a declined OTP sign-up is refused before the code is minted or sent',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          await expectLater(
+            db.authenticate(
+              'users',
+              const SendOtpAuthPayload(email: declinedEmail),
+            ),
+            throwsA(
+              isA<SignUpDeclinedException>().having(
+                (e) => e.reason,
+                'reason',
+                declineReason,
+              ),
+            ),
+            reason:
+                'the gate must run in _sendOtp, before the challenge insert -- '
+                'not at verify, by which point the code has been emailed',
+          );
+
+          expect(
+            await _challengeCount(db, declinedEmail),
+            isZero,
+            reason:
+                'a challenge row means the OTP was minted and handed to the '
+                'courier, so the refusal did not prevent the email',
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    test(
+      'a declined magic-link sign-up is refused before the link is sent',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          await expectLater(
+            db.authenticate(
+              'users',
+              const SendMagicLinkAuthPayload(email: declinedEmail),
+            ),
+            throwsA(
+              isA<SignUpDeclinedException>().having(
+                (e) => e.reason,
+                'reason',
+                declineReason,
+              ),
+            ),
+          );
+
+          expect(
+            await _challengeCount(db, declinedEmail),
+            isZero,
+            reason: 'no challenge row means no link was minted or mailed',
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+
+    // The positive control for the two above. Without it, a gate that refused
+    // EVERY OTP request -- or an `operation` that never resolved to signUp --
+    // would leave both tests green while the feature was broken for everyone.
+    test(
+      'an allowed OTP sign-up still mints its challenge',
+      () async {
+        if (!_runningOnDartVm) return;
+
+        await withDb((db) async {
+          await db.authenticate(
+            'users',
+            const SendOtpAuthPayload(email: otpAllowedEmail),
+          );
+
+          expect(
+            await _challengeCount(db, otpAllowedEmail),
+            1,
+            reason: 'the gate must not refuse an address the hook allows',
+          );
+        });
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
   });
+}
+
+/// Live `_auth_challenges` rows for one address.
+///
+/// Read off the internal table rather than inferred from whether a later
+/// verify succeeds: "no code was sent" is a statement about what was WRITTEN,
+/// and the insert is the last thing that happens before `courier.send`. An
+/// inference-based check would pass over a row that is really there.
+Future<int> _challengeCount(ZonaiDb db, String email) async {
+  final raw = await db.open();
+  final rows = await raw
+      .select()
+      .from(authChallenges)
+      .where(authChallenges.target.equals(email));
+  return rows.length;
 }
 
 bool get _runningOnDartVm =>
@@ -245,6 +364,12 @@ Set<ScopedRef<dynamic>> _e2eScopeOverrides(
     loggerProvider.overrideWith(() => Logger(level: .error)),
     settingsProvider.overrideWith(() => settings),
     processProvider,
+    // Only the ALLOWED paths reach `courier.send` -- a declined sign-up
+    // throws before it, which is the whole point -- so this override is what
+    // lets the positive controls run at all. The fixture's AppConfig carries
+    // no `email`, so `_Send` warns and returns without opening an SMTP
+    // connection.
+    courierProvider,
     migrateProvider,
     mutationsProvider,
     cleanUpProvider,
