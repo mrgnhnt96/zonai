@@ -1,6 +1,8 @@
 import 'package:jaspr/dom.dart';
 import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
+import 'package:universal_web/js_interop.dart';
+import 'package:universal_web/web.dart' as web;
 
 import '../constants/button_sizes.dart';
 import '../providers/api_tokens_provider.dart';
@@ -55,6 +57,37 @@ class _MintBoundTokenDialogState extends State<MintBoundTokenDialog> {
   ({ApiTokenRow row, String secret})? _revealed;
   bool _minting = false;
 
+  web.EventListener? _keyListener;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!context.binding.isClient) return;
+    // The dialog owns its own Escape rather than leaning on the panel's
+    // document listener: that one deliberately returns early while this is
+    // open (closing the panel would take the dialog and any unread secret
+    // with it), so it is the wrong place to decide this dialog's fate.
+    final listener = (web.Event event) {
+      if (event is! web.KeyboardEvent || event.key != 'Escape') return;
+      if (!mounted) return;
+      event.preventDefault();
+      event.stopPropagation();
+      component.onClose();
+    }.toJS;
+    _keyListener = listener;
+    web.document.addEventListener('keydown', listener);
+  }
+
+  @override
+  void dispose() {
+    final listener = _keyListener;
+    if (listener != null) {
+      web.document.removeEventListener('keydown', listener);
+      _keyListener = null;
+    }
+    super.dispose();
+  }
+
   Future<void> _mint() async {
     if (_minting || _draft.refusal != null) return;
     setState(() => _minting = true);
@@ -71,7 +104,16 @@ class _MintBoundTokenDialogState extends State<MintBoundTokenDialog> {
   Component build(BuildContext context) {
     final revealed = _revealed;
 
-    return Component.fragment([
+    // ONE root element, not a `Component.fragment`. The panel renders this
+    // dialog conditionally, and removing a fragment-rooted component throws
+    // `Cannot remove fragment from a different parent` inside
+    // `_FragmentElement.detachRenderObject` -- which aborted the rebuild
+    // half-done and left the dialog on screen. The close button was firing
+    // the whole time; it was the teardown that failed. Verified in Chrome
+    // over CDP, not inferred. The wrapper sets no z-index and no transform,
+    // so it creates no stacking context and both fixed children still
+    // position against the viewport.
+    return div(classes: 'z-token-bound-root', [
       // No dismiss-on-click. Everywhere else in this dashboard a backdrop
       // click closes the thing over it; here, once the reveal is open, that
       // gesture destroys the only copy of a credential — so the backdrop is
