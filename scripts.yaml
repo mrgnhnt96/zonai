@@ -326,6 +326,13 @@ test:
       # -- a gate that silently checks a subset is worse than none.
       - dart format --output=none --set-exit-if-changed $(git ls-files '*.dart' | grep -v '/lib/gen/')
       - bash tool/ci/check_shell_syntax.sh
+      # Syntax is not portability: every block check_shell_syntax.sh accepts
+      # still has to mean the same thing under GNU coreutils as under BSD's.
+      # `mktemp -t <no X's>` does not, and the way it fails -- an EMPTY path
+      # that turns a passing build into a reported failure -- cost Compile
+      # 32795339596 three of its five platforms while both macOS legs, i.e.
+      # every machine anyone here develops on, stayed green.
+      - bash tool/ci/check_shell_portability.sh
       - bash tool/ci/check_workflows.sh
       # Lives in `static` rather than in .game_loop/verify.yaml, where the
       # Crawler that found this proposed it: verify.yaml is gitignored, so a

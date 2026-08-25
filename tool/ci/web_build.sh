@@ -35,7 +35,14 @@ set -uo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root/apps/web" || exit 1
 
-log="$(mktemp -t zonai_web_build)"
+# `mktemp -t <prefix>` is BSD-only: on macOS it appends a random suffix, but GNU
+# coreutils reads the argument as a TEMPLATE and refuses one without three X's
+# --- "mktemp: too few X's in template". `$log` was then empty, `tee ""` failed,
+# and with pipefail that turned a SUCCESSFUL jaspr build into a failed one, on
+# every Linux and Windows runner while both macOS legs stayed green. It cost
+# Compile 32795339596 (v0.8.4) three of its five platforms. A positional
+# template is the portable spelling and works on both.
+log="$(mktemp "${TMPDIR:-/tmp}/zonai_web_build.XXXXXX")" || exit 1
 trap 'rm -f "$log"' EXIT
 
 dart pub get || exit 1
