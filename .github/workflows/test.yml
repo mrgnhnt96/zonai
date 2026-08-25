@@ -667,7 +667,33 @@ jobs:
     # RE-MEASURE from the first green run and tighten this: the number above is
     # an extrapolation for windows and a lower bound for ubuntu, which is the
     # weakest kind of evidence this comment block has ever carried.
-    timeout-minutes: 35
+    #
+    # RE-MEASURED, and RAISED from 35 on 2026-08-25, for v0.8.4. The
+    # extrapolation was good and the ceiling was nearly reached anyway:
+    #
+    #   run 32310153095 / 32326305981 / 32337936988 (2026-08-19..20, v0.8.3):
+    #     windows 29m, ubuntu 25m -- all three runs, both legs, identical.
+    #   run 32796694121 (2026-08-25, this batch):
+    #     windows 34m15s, ubuntu 28m49s.
+    #
+    # So the 1.21x windows:ubuntu ratio held exactly (28m49s x 1.21 = 34.9),
+    # and one release cycle of e2e fixtures added ~5m to the windows leg --
+    # leaving **45 seconds** of headroom under 35. That is not a ceiling any
+    # more, it is a coin flip, and the coin decides whether a release chain
+    # completes or throws away 40 minutes on a contentless timeout.
+    #
+    # 45 and not 40: 40 buys back only the headroom v0.8.3 already had, and
+    # this leg has now grown twice for the same reason (see
+    # `project_ci_cli_leg_grows_by_wallclock`). 45 is ~30% over the measured
+    # 34m15s, which survives another batch of this size. Still a budget stop:
+    # a wedged windows leg bills 90 minutes at 2x, against GitHub's 720.
+    #
+    # This is growth, not a hang, by the same three tests the 2026-08-17 note
+    # applies: ubuntu grew in step (25 -> 28m49s, the same ~15%), the suite
+    # completes locally on the same commit (9m27s for 1122 tests), and no
+    # other leg is near its ceiling -- e2e, unit, docs and static all still
+    # finish in single digits against 10-18.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
