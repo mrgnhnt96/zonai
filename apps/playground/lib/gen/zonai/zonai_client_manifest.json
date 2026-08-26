@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "generatorVersion": "0.8.4",
+  "generatorVersion": "0.8.5",
   "schemaHash": "a59bea3e3f7bfa6c3acec0f91380cd284eef8e3fedf0f978111073c6c46090ab",
   "files": [
     "tables/authors.g.dart",

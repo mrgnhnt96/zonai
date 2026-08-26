@@ -8,6 +8,15 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.8.5
+
+- The dashboard's "Most sessions" list is clickable — each user opens the same
+  row-detail panel the tables screen opens, instead of printing an id to copy.
+- Long tooltips stay inside the window. They wrap at their authored newlines,
+  flip on both axes, and measure their real box rather than a hardcoded 44px.
+- The dashboard scrollbar sits flush against the right edge of the viewport
+  instead of 20px in from it.
+
 ## 0.8.4
 
 - **API tokens.** A credential that needs no sign-in: `zonai db token
