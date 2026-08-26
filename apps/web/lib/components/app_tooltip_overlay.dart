@@ -5,7 +5,33 @@ import 'package:universal_web/web.dart' as web;
 
 import '../constants/theme.dart';
 import '../providers/app_tooltip_provider.dart';
+import '../utils/app_tooltip_geometry.dart';
 import '../constants/spacing.dart';
+
+/// A hidden twin of the tooltip, kept in the document so its box can be
+/// measured before the real one renders.
+///
+/// Placement used to be decided against a hardcoded ~30px height, because the
+/// tooltip does not exist until after the state change that shows it -- and a
+/// guess is all you can test against. The twin carries the same
+/// `.app-tooltip` class, so it inherits the padding, border, font and
+/// `max-width` that decide the box, which makes `getBoundingClientRect` on it
+/// the real answer rather than an approximation of one.
+web.Element? _measureEl;
+
+({double width, double height}) _measureTooltip(String text) {
+  final el = _measureEl ??= web.document.createElement('span')
+    ..className = 'app-tooltip app-tooltip--measure'
+    ..setAttribute('aria-hidden', 'true');
+
+  if (!el.isConnected) {
+    web.document.body?.appendChild(el);
+  }
+
+  el.textContent = text;
+  final rect = el.getBoundingClientRect();
+  return (width: rect.width, height: rect.height);
+}
 
 void showAppTooltipForElement(
   AppTooltipNotifier notifier, {
@@ -14,36 +40,21 @@ void showAppTooltipForElement(
   AppTooltipPlacement placement = AppTooltipPlacement.belowCenter,
 }) {
   final rect = anchor.getBoundingClientRect();
+  final size = _measureTooltip(text);
 
-  // A `below*` tooltip on an anchor near the bottom of the window renders past
-  // the bottom edge. It is `position: fixed`, so no ancestor clips it and
-  // nothing scrolls it back into view -- it is simply not there. The last
-  // actions in the row detail panel sit exactly that low.
-  //
-  // Flipping needs the tooltip's height, which does not exist until it
-  // renders, so the test is against a constant instead: one line of 0.8125rem
-  // text between 6px paddings inside a 1px border is ~30px, and the offset
-  // below adds 6. 44 leaves room for both plus a little slack, and erring
-  // toward flipping early is the safe direction -- above the anchor there is
-  // a whole panel of space, below there is none.
-  final flip = web.window.innerHeight - rect.bottom < 44;
-  final resolved = switch (placement) {
-    AppTooltipPlacement.belowCenter when flip => AppTooltipPlacement.aboveCenter,
-    AppTooltipPlacement.belowLeft when flip => AppTooltipPlacement.aboveLeft,
-    _ => placement,
-  };
+  final position = resolveAppTooltipPosition(
+    placement: placement,
+    anchorTop: rect.top,
+    anchorLeft: rect.left,
+    anchorWidth: rect.width,
+    anchorHeight: rect.height,
+    tooltipWidth: size.width,
+    tooltipHeight: size.height,
+    viewportWidth: web.window.innerWidth.toDouble(),
+    viewportHeight: web.window.innerHeight.toDouble(),
+  );
 
-  // The `above*` pair anchors at the anchor's TOP and is pulled up by its own
-  // height in CSS (`translateY(-100%)`), which is what lets this run without
-  // ever measuring the tooltip.
-  final (top, left) = switch (resolved) {
-    AppTooltipPlacement.belowCenter => (rect.bottom + 6, rect.left + rect.width / 2),
-    AppTooltipPlacement.belowLeft => (rect.bottom + 6, rect.left),
-    AppTooltipPlacement.aboveCenter => (rect.top - 6, rect.left + rect.width / 2),
-    AppTooltipPlacement.aboveLeft => (rect.top - 6, rect.left),
-    AppTooltipPlacement.rightCenter => (rect.top + rect.height / 2, rect.right + 8),
-  };
-  notifier.show(text: text, top: top, left: left, placement: resolved);
+  notifier.show(text: text, top: position.top, left: position.left, placement: position.placement);
 }
 
 void showAppTooltipFromEvent(
@@ -93,8 +104,8 @@ class AppTooltipOverlay extends StatelessComponent {
     final transform = switch (tooltip.placement) {
       AppTooltipPlacement.belowCenter => 'translateX(-50%)',
       AppTooltipPlacement.belowLeft => null,
-      // -100% of the tooltip's OWN height, so it lands above the anchor
-      // without anyone having to measure it first.
+      // -100% of the tooltip's OWN height, so the placement code can hand
+      // over an anchor point and let CSS do the subtraction.
       AppTooltipPlacement.aboveCenter => 'translate(-50%, -100%)',
       AppTooltipPlacement.aboveLeft => 'translateY(-100%)',
       AppTooltipPlacement.rightCenter => 'translateY(-50%)',
@@ -128,7 +139,18 @@ class AppTooltipOverlay extends StatelessComponent {
       pointerEvents: .none,
       raw: const {
         'position': 'fixed',
-        'white-space': 'nowrap',
+        // Tips are authored with hard newlines where the writer wanted a
+        // break, so those have to survive -- `nowrap` collapsed them into one
+        // unbroken line that ran off the screen. `pre-line` keeps the
+        // authored breaks and lets `max-width` wrap whatever is left.
+        'white-space': 'pre-line',
+        // The `100vw` half is the one that matters on a narrow window: it
+        // guarantees the box always fits between the two margins the
+        // placement code clamps to, so the clamp can never be asked for the
+        // impossible.
+        // 16px is two `appTooltipMargin`s, written out because a `const` map
+        // cannot interpolate a double.
+        'max-width': 'min(24rem, calc(100vw - 16px))',
         'z-index': '400',
         'box-shadow': 'var(--zonai-shadow-sm)',
         'opacity': '0',
@@ -137,5 +159,10 @@ class AppTooltipOverlay extends StatelessComponent {
       },
     ),
     css('.app-tooltip--visible').styles(raw: const {'opacity': '1', 'visibility': 'visible'}),
+    // The measuring twin. `visibility: hidden` is inherited from
+    // `.app-tooltip` and still produces layout, which is the whole point;
+    // parking it off-screen keeps it from ever painting or extending the
+    // scroll area.
+    css('.app-tooltip--measure').styles(raw: const {'left': '-9999px', 'top': '0', 'transition': 'none'}),
   ];
 }
