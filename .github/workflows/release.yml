@@ -105,6 +105,16 @@ jobs:
           RELEASE_GATE_FORCE: ${{ inputs.force }}
         run: bash tool/ci/check_release_gates.sh
 
+      # A release ships a short bulleted summary of what it contains, and this
+      # is where a missing one becomes a refusal rather than a blank release
+      # page. It sits in the GATE job on purpose: everything else in this file
+      # reaches the gate through `needs:`, so refusing here skips the whole
+      # chain instead of failing beside a tag that already exists. The check
+      # itself is two seconds of awk -- the cost of putting it last would be a
+      # release that published, then complained.
+      - name: Require a summary for this release
+        run: bash tool/ci/release_notes.sh check
+
   package-fat-binary:
     name: Package fat binary (macOS + Linux)
     needs: release-gate
@@ -262,6 +272,25 @@ jobs:
       - name: Package native library assets
         run: bash tool/ci/package_native_lib_assets.sh artifacts release-assets
 
+      # The description, built BEFORE the release exists -- latest_cli_release_tag.sh
+      # reads the newest CLI release, which is the PREVIOUS one only while this
+      # one is unpublished. Run after the create step and the compare link would
+      # point a release at itself.
+      - name: Render the release description
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          prev="$(bash tool/ci/latest_cli_release_tag.sh "${GITHUB_REPOSITORY}")"
+          bash tool/ci/release_notes.sh body "v${VERSION}" "${prev}" \
+            "${GITHUB_REPOSITORY}" > release-notes.txt
+          echo "Publishing v${VERSION} with:" >> "${GITHUB_STEP_SUMMARY}"
+          {
+            echo '```markdown'
+            cat release-notes.txt
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -278,11 +307,18 @@ jobs:
           # 2026-08-10, and since it carries no assets it silently broke every
           # `releases/latest/download/...` install link in the docs and the
           # CLI's own update check.
+          #
+          # --notes-file, not --generate-notes. Generated notes are a compare
+          # link and nothing else on a repo that commits to main, which is what
+          # every release through v0.8.4 published as its entire description.
+          # The file carries the summary a human wrote plus that same link; see
+          # tool/ci/release_notes.sh for why the body is built here rather than
+          # left to whichever gh the runner ships.
           gh release create "${tag}" \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Zonai ${tag}" \
             --latest \
-            --generate-notes \
+            --notes-file release-notes.txt \
             release-assets/zonai-linux-x64.zip \
             release-assets/zonai-linux-arm64.zip \
             release-assets/zonai-macos-arm64.zip \

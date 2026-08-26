@@ -215,8 +215,9 @@ consumer, not here.
    new schema has, and run the check above. It should pass once steps 1–2 have
    landed.
 
-4. **Release the CLI.** Bump `VERSION`, regenerate the committed clients, then
-   dispatch **`Compile`** — not `Release`.
+4. **Release the CLI.** Bump `VERSION`, **write the release summary**,
+   regenerate the committed clients, then dispatch **`Compile`** — not
+   `Release`.
 
    Bumping `VERSION` is what *makes* it a release. `resolve_release_version.sh`
    refuses unless `VERSION` is strictly greater than the latest CLI tag, so a
@@ -225,6 +226,9 @@ consumer, not here.
 
    ```sh
    echo "X.Y.Z" > VERSION
+   # add a `## X.Y.Z` section at the TOP of RELEASE_NOTES.md -- see
+   # "The release summary" below; `static` fails without it
+   bash tool/ci/release_notes.sh check
    sip run version gen
    cd apps/playground \
      && UPDATE_GOLDENS=1 dart test test/gen_client_golden_test.dart \
@@ -279,6 +283,94 @@ consumer, not here.
    regression here still means re-cutting a patch. Fix it, then
    `gh workflow run post-release-verify.yml --ref main` to re-check the same
    release without cutting a new one.
+
+## The release summary
+
+**Every release ships a short bulleted summary of what it contains, written by
+hand into `RELEASE_NOTES.md` before the release is cut.** It is not optional and
+it is not generated: `Release` refuses to publish a version this file does not
+describe.
+
+Until v0.8.5, what the workflow published was one line —
+
+```
+**Full Changelog**: https://github.com/mrgnhnt96/zonai/compare/v0.8.3...v0.8.4
+```
+
+— because `release.yml` passed `--generate-notes` and nothing else, and
+generated notes on a repo that commits straight to `main` are a compare link.
+That is a diff, not a summary.
+
+The summary was never missing because nobody valued it: v0.7.0, v0.8.0 and
+v0.8.1 all carry good hand-written highlights, added by editing the release
+**after** it published. It was missing whenever somebody was busy. v0.8.2,
+v0.8.3 and v0.8.4 went out with the bare compare link and stayed that way — and
+v0.8.4 was the release that carried the whole API-tokens feature, the forced
+password reset, `beforeSignUp`, dashboard push and `zonai ai update`. Its page
+told anyone deciding whether to upgrade to go read ninety commits, most of which
+are `test:` and `chore:`. The release page is the only place a consumer of the
+CLI ever looks.
+
+That is the shape of a step that lives only in a human's memory, and the reason
+this one is a gate: a summary written before the tag exists cannot be the thing
+that gets skipped when the release is the busy part.
+
+### The shape
+
+`RELEASE_NOTES.md` lives at the repo root and accumulates newest-first. One
+`## X.Y.Z` heading per release — a human-readable tail is allowed, `## 0.9.0 --
+the one with the tokens` names `0.9.0` — followed by bullets:
+
+```markdown
+## 0.8.5
+
+- The dashboard's "Most sessions" list is clickable.
+- Long tooltips stay inside the window.
+```
+
+Write for somebody deciding whether to upgrade: what they can now do, and what
+stopped being broken. Group a multi-commit feature into one bullet and name it
+in bold. Leave out anything whose whole audience is this repo — a refactor, a
+test, a CI ceiling. Ten seconds of reading is the budget; the commit list is
+already one click away.
+
+### What enforces it
+
+`tool/ci/release_notes.sh check` asserts that the **first** heading in the file
+equals `VERSION` and that its section carries at least one bullet. It runs in
+two places, on purpose:
+
+- **`static`**, so it fails on the branch, in seconds. A `VERSION` bump that
+  forgets the summary is caught next to the bump rather than a Compile and a
+  Test later.
+- **`release.yml`'s gate job**, before anything is packaged. Everything else in
+  that file reaches the gate through `needs:`, so a refusal here skips the whole
+  chain instead of failing beside a tag that already exists.
+
+It reads the *first* heading rather than any matching one because the file
+accumulates: a section for the version being released that sits below an older
+one means the newest section was never written, which is the exact miss.
+
+`tool/ci/release_notes.sh body v<X.Y.Z> <prev-tag> <owner/repo>` renders what
+gets published — the section, then the compare link `--generate-notes` used to
+be the only source of. `release.yml` runs it into `release-notes.txt`, echoes
+the result into the job summary, and passes `--notes-file`. The body is built
+by us rather than merged by `gh` so that what publishes is one behaviour,
+testable on a laptop (`tool/ci/test_release_notes.sh`) and not a property of
+whichever `gh` the runner happens to ship.
+
+**What it cannot check, out loud:** whether the summary is *true*, or whether it
+describes this version rather than the last one with the heading changed. It
+checks that a human wrote something, bulleted, under the right number. The
+judgement stays human; the gate only makes skipping it loud.
+
+### Editing a description after the fact
+
+The file is the source of truth going forward, but a published description can
+be corrected — `gh release edit v<X.Y.Z> --notes-file <path>`. Do it from a
+file, never an inline `--notes`, so the text is reviewable before it goes out.
+v0.8.4's description was backfilled this way when this flow landed, from the
+same `## 0.8.4` section that is still in `RELEASE_NOTES.md`.
 
 ## Dispatching `Compile` without releasing
 

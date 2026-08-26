@@ -358,6 +358,17 @@ test:
       # that would notice runs once per release, after the release. This asks
       # the same question in `static`, in seconds, against a synthetic bundle.
       - bash tool/ci/test_verify_cross_target_bundle.sh
+      # Guards the one gate whose output is PUBLISHED. release_notes.sh decides
+      # both whether a release may go out without a summary and what text that
+      # release carries, and a bug in it is found on the release page, after the
+      # tag, the assets and the notification have all gone out. Here it is
+      # milliseconds against throwaway trees.
+      - bash tool/ci/test_release_notes.sh
+      # The other half: that RELEASE_NOTES.md in THIS tree still describes the
+      # version in VERSION. It runs on every branch, not only at release time,
+      # so a VERSION bump that forgets the summary fails in `static` -- seconds
+      # -- rather than at the release gate, a Compile and a Test later.
+      - bash tool/ci/release_notes.sh check
       # apps/zonai/lib/gen/server is a gitignored COPY of apps/server that
       # `zonai compile` embeds, so nothing in git keeps it honest -- and
       # analysis_options.yaml excludes **/lib/gen/**, so `dart analyze` is
