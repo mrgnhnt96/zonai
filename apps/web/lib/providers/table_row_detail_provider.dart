@@ -1,6 +1,8 @@
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 import 'package:zonai_schema/payloads.dart';
 
+import 'pending_row_detail_provider.dart';
+import 'sqlite_tables_provider.dart';
 import 'table_focus_provider.dart';
 import 'table_row_create_provider.dart';
 
@@ -73,15 +75,53 @@ final class TableRowDetailState {
   }
 }
 
+/// The detail state a pending row opens as, or null when it is not for
+/// [focus].
+///
+/// A pending row is only ever opened on its own table's route. Opening it
+/// anywhere else would render a row from one collection inside another
+/// collection's panel, where every row action — edit, delete, reset password —
+/// is authorised against the focused collection.
+TableRowDetailState? pendingRowDetailState({required SqliteTableRef? focus, required PendingRowDetail? pending}) {
+  if (pending == null || focus == null) return null;
+  if (focus.sqliteName != pending.sqliteName) return null;
+
+  return TableRowDetailState(
+    rowKey: pending.rowKey,
+    row: List<Object?>.from(pending.row),
+    sqliteName: pending.sqliteName,
+    columns: pending.columns,
+    columnShapes: pending.columnShapes,
+  );
+}
+
 final tableRowDetailProvider = NotifierProvider<TableRowDetailNotifier, TableRowDetailState?>(
   TableRowDetailNotifier.new,
 );
 
 class TableRowDetailNotifier extends Notifier<TableRowDetailState?> {
+  /// Null on every rebuild but one: the rebuild a table focus change causes
+  /// while a row is waiting in [pendingRowDetailProvider] for that very table.
+  ///
+  /// See [PendingRowDetail] for why a caller on another screen cannot simply
+  /// call [open] and navigate.
   @override
   TableRowDetailState? build() {
-    ref.watch(tableFocusProvider);
-    return null;
+    final focus = ref.watch(tableFocusProvider);
+    // `read`, not `watch`: consuming a pending row clears it, and a watch
+    // would make that clear a second rebuild — one that closes the panel the
+    // row was just opened in.
+    final pending = ref.read(pendingRowDetailProvider);
+    if (pending == null) return null;
+
+    final opened = pendingRowDetailState(focus: focus, pending: pending);
+    if (opened == null) return null;
+
+    // Cleared a turn later rather than here: Riverpod refuses a provider that
+    // mutates another provider during its own build.
+    final pendingNotifier = ref.read(pendingRowDetailProvider.notifier);
+    Future.microtask(() => pendingNotifier.clearIf(pending));
+    return opened;
   }
 
   TableRowDetailSnapshot _snapshot(TableRowDetailState current) {

@@ -3,7 +3,8 @@ import 'package:jaspr/jaspr.dart';
 import 'package:jaspr_riverpod/jaspr_riverpod.dart';
 // `show`: payloads.dart also exports a `DashboardMetrics`, and this file means
 // the provider's one.
-import 'package:zonai_schema/payloads.dart' show DashboardDrainRun, DashboardPushQueue, DashboardSessions, formatBytes;
+import 'package:zonai_schema/payloads.dart'
+    show DashboardDrainRun, DashboardPushQueue, DashboardSessionUser, DashboardSessions, formatBytes;
 
 import '../auth/auth_routes.dart';
 import '../constants/button_sizes.dart';
@@ -11,6 +12,7 @@ import '../constants/spacing.dart';
 import '../constants/theme.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/maintenance_provider.dart';
+import '../providers/session_user_row_provider.dart';
 import '../utils/cron_job_summary.dart';
 import '../providers/app_tooltip_provider.dart';
 import '../providers/home_ui_provider.dart';
@@ -485,6 +487,8 @@ class DashboardScreen extends StatelessComponent {
         maxHeight: 200.px,
         overflow: Overflow.auto,
       ),
+      // A `<button>`, so the browser's own reset (font, text-align, width)
+      // has to be undone before it reads as the row it replaced.
       css('.dashboard-session-user').styles(
         display: .flex,
         flexDirection: FlexDirection.row,
@@ -496,7 +500,26 @@ class DashboardScreen extends StatelessComponent {
         backgroundColor: bgColor,
         border: .all(color: borderColor, width: 1.px, style: .solid),
         minWidth: .zero,
+        width: 100.percent,
+        cursor: .pointer,
+        raw: const {
+          'font': 'inherit',
+          'text-align': 'left',
+          'appearance': 'none',
+          '-webkit-appearance': 'none',
+          'transition': 'background-color 120ms ease, border-color 120ms ease',
+        },
       ),
+      css('.dashboard-session-user:hover').styles(
+        backgroundColor: hoverColor,
+        border: .all(color: mutedColor, width: 1.px, style: .solid),
+      ),
+      css(
+        '.dashboard-session-user:focus-visible',
+      ).styles(raw: const {'outline': '2px solid var(--zonai-primary)', 'outline-offset': '2px'}),
+      // Mid-lookup: the probe is one request per auth collection, so the wait
+      // is short but not always invisible.
+      css('.dashboard-session-user[aria-busy="true"]').styles(raw: const {'opacity': '0.6', 'cursor': 'progress'}),
       css(
         '.dashboard-session-user-count',
       ).styles(fontSize: 0.6875.rem, color: mutedColor, raw: const {'flex': '0 0 auto'}),
@@ -912,18 +935,47 @@ class _SessionsPanel extends StatelessComponent {
         ]),
         if (sessions.topUsers.isNotEmpty) ...[
           p(classes: 'dashboard-push-subtitle', [.text('Most sessions')]),
-          div(classes: 'dashboard-session-users', [
-            for (final user in sessions.topUsers)
-              div(classes: 'dashboard-session-user', [
-                span(classes: 'dashboard-cron-name', [.text(user.userId)]),
-                span(classes: 'dashboard-session-user-count', [
-                  .text(user.sessionCount == 1 ? '1 session' : '${_fmtNum(user.sessionCount)} sessions'),
-                ]),
-              ]),
-          ]),
+          div(classes: 'dashboard-session-users', [for (final user in sessions.topUsers) _SessionUserRow(user: user)]),
         ],
       ],
     ]);
+  }
+}
+
+/// One "most sessions" line, and the way into that user's row.
+///
+/// The dashboard is read-only, but this is not a write: it opens the same
+/// row-detail panel the tables screen opens, on the collection the id turns
+/// out to belong to. Which collection that is takes a lookup — `_jwt` does not
+/// record one — so the destination is not knowable at render time and this is
+/// a button rather than a link. See [SessionUserRowNotifier.open].
+class _SessionUserRow extends StatelessComponent {
+  const _SessionUserRow({required this.user});
+
+  final DashboardSessionUser user;
+
+  @override
+  Component build(BuildContext context) {
+    final busy = context.watch(sessionUserRowProvider) == user.userId;
+
+    return button(
+      type: ButtonType.button,
+      classes: 'dashboard-session-user',
+      attributes: {'aria-label': 'Open the row for ${user.userId}', if (busy) 'aria-busy': 'true'},
+      events: {
+        'click': (_) {
+          context.read(appTooltipProvider.notifier).hide();
+          context.read(sessionUserRowProvider.notifier).open(context, user.userId);
+        },
+        ...appTooltipEvents(context, text: "Open this user's row", placement: AppTooltipPlacement.belowLeft),
+      },
+      [
+        span(classes: 'dashboard-cron-name', [.text(user.userId)]),
+        span(classes: 'dashboard-session-user-count', [
+          .text(user.sessionCount == 1 ? '1 session' : '${_fmtNum(user.sessionCount)} sessions'),
+        ]),
+      ],
+    );
   }
 }
 
