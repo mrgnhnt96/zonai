@@ -252,6 +252,11 @@ class DashboardScreen extends StatelessComponent {
       alignItems: .center,
       minHeight: .zero,
       overflow: Overflow.auto,
+      // Bleed back out over `.home-main`'s right padding (also ZonaiSpacing.s10)
+      // so the scrollbar sits flush against the viewport edge; the matching
+      // padding leaves the content inset exactly where it was.
+      margin: .only(right: Unit.expression('-${ZonaiSpacing.s10.value}')),
+      padding: .only(right: ZonaiSpacing.s10),
       raw: const {'-webkit-overflow-scrolling': 'touch'},
     ),
     css('.dashboard', [
