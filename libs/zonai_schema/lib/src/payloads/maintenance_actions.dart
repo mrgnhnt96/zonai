@@ -81,6 +81,8 @@ const kPurgeableTableNames = <String>{
 /// for.** The reclaim affordance was log-only, so purging 56,483 `_cron_jobs`
 /// rows freed 9.5 MB *inside* `zonai.sqlite` that nothing in the product
 /// could hand back to the operating system.
+///
+/// Introduced in 0.9.0.
 const kReclaimableSchemas = <String>{'main', 'logdb', 'ratedb'};
 
 /// Which log rows to delete.
@@ -206,6 +208,8 @@ class LogSpaceReclamationResult {
 /// [target]. [LogSpaceReclamationResult] stays exactly as it is — it is the
 /// declared return type of the legacy log-only route and is exported from
 /// the public `package:zonai_schema/payloads.dart`.
+///
+/// Introduced in 0.9.0.
 class SpaceReclamationResult {
   const SpaceReclamationResult({
     required this.target,

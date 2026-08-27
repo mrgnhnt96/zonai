@@ -52,6 +52,8 @@ Future<PhotoCleanupResult> cleanupUnreferencedPhotos({required Server server}) {
 /// The result's `skipped` reason is the field worth reading: a volume with no
 /// headroom reclaims nothing, and without the reason that is indistinguishable
 /// from having had nothing to reclaim.
+///
+/// Introduced in 0.9.0.
 Future<SpaceReclamationResult> reclaimSpace({
   required Server server,
   required String target,

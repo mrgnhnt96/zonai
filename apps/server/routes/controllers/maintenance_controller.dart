@@ -51,6 +51,8 @@ class MaintenanceController {
   /// route, and a 3xx carries a `Location` header and no body, so arguments
   /// the redirect has to carry can only live in the URL. `@Query` on a `POST`
   /// is the established shape here -- see `CronController.run`.
+  ///
+  /// Introduced in 0.9.0.
   @Post('reclaim-space')
   Future<SpaceReclamationResult> reclaimSpace({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,
@@ -104,6 +106,8 @@ class MaintenanceController {
   /// whatever this number is. That is a limitation of `dart:io`, not of this
   /// route, and it does not touch the browser, which is the only caller of
   /// this path.
+  ///
+  /// The redirect ships in 0.9.0. Through 0.8.5 this route answered directly.
   @Redirect(
     '/dashboard/maintenance/reclaim-space?target=logdb&min_reclaimable_bytes=16777216',
     307,

@@ -128,6 +128,8 @@ class MaintenanceHandler {
   /// than a body so the legacy `reclaim-log-space` route can redirect onto
   /// this one: a 3xx carries a `Location` header and no body, so arguments a
   /// redirect has to keep are only expressible in the URL.
+  ///
+  /// Introduced in 0.9.0.
   Future<SpaceReclamationResult> reclaimSpace(
     String? authorization, {
     required String target,

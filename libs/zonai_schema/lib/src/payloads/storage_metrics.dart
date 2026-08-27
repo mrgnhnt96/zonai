@@ -44,6 +44,8 @@ class StorageDatabaseFile {
   /// file is this?" branch into every call site for a case that cannot
   /// happen. A payload without it is a bug worth failing on, not a state to
   /// render.
+  ///
+  /// Added to this payload in 0.9.0.
   final String schema;
 
   /// Size of the database file, or `0` when it does not exist yet.

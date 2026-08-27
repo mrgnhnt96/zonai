@@ -828,6 +828,8 @@ class ZonaiDb {
   /// Serialized like any other write: the rewrite takes an exclusive lock for
   /// its duration, so letting it interleave would only push concurrent
   /// writers into SQLite's busy timeout.
+  ///
+  /// Introduced in 0.9.0. `reclaimLogSpace` predates it and stays.
   Future<SpaceReclamation> reclaimSpace({
     required String schema,
     required int minReclaimableBytes,

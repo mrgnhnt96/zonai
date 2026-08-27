@@ -136,10 +136,11 @@ void main() {
 
       final restored = StorageMetrics.fromJson(original.toJson());
 
-      expect(
-        restored.databases.map((db) => db.schema),
-        ['main', 'logdb', 'ratedb'],
-      );
+      expect(restored.databases.map((db) => db.schema), [
+        'main',
+        'logdb',
+        'ratedb',
+      ]);
       // Unknown stays unknown across the wire -- a file whose freelist could
       // not be read must not come back as "0 B reclaimable".
       expect(restored.databases[1].reclaimableBytes, isNull);
