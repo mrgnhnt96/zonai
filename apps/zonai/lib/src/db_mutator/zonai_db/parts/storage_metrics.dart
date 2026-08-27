@@ -9,9 +9,7 @@ extension _StorageMetricsX on ZonaiDb {
   /// the writer, which discards row data and would hand back an empty result
   /// for every one of these. `transaction` runs on the companion sqlite3
   /// connection, which returns rows. This is the same trick
-  /// [_ReclaimLogSpaceX._logDbPragmaInt] documents, generalised over the
-  /// schema — and it is generalised here rather than reused because that one
-  /// hard-codes [kLogDbSchema] and this needs all three files.
+  /// [_ReclaimSpaceX._reclaimPragmaInt] documents, over the same three files.
   ///
   /// The `pragma_*` table-valued functions are not an alternative:
   /// `pragma_freelist_count` accepts no arguments at all, so there is no way
@@ -47,6 +45,7 @@ extension _StorageMetricsX on ZonaiDb {
 
     return StorageDatabaseFile(
       name: fs.path.basename(path),
+      schema: schema,
       // Absolute, because the payload promises absolute and because the
       // configured value is not one: `Settings.load()` joins onto a null
       // basePath in production, so this arrives as `.zonai/data/zonai.sqlite`

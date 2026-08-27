@@ -813,12 +813,65 @@ class ZonaiDb {
     return await _runWrite(() => _vacuum(schema: schema));
   }
 
-  /// Rewrites the log database if enough of it is dead space and the volume
-  /// has room, reporting what it did either way. See [_reclaimLogSpace].
+  /// Rewrites [schema]'s database file if enough of it is dead space and the
+  /// volume has room, reporting what it did either way. See [_reclaimSpace].
   ///
-  /// Serialized like any other write: the rewrite takes an exclusive lock.
+  /// [schema] is `main` for the application database, [kLogDbSchema] for the
+  /// log database, or [kRateLimitDbSchema] for the rate-limit database;
+  /// anything else throws rather than quietly rewriting the wrong file.
+  ///
+  /// [minReclaimableBytes] is the floor below which the rewrite is not worth
+  /// doing, and it is the caller's to choose — see [kCronReclaimFloorBytes]
+  /// for why an unattended cron and a human pressing a button do not want the
+  /// same number.
+  ///
+  /// Serialized like any other write: the rewrite takes an exclusive lock for
+  /// its duration, so letting it interleave would only push concurrent
+  /// writers into SQLite's busy timeout.
+  Future<SpaceReclamation> reclaimSpace({
+    required String schema,
+    required int minReclaimableBytes,
+  }) async {
+    // Resolved before entering the write queue, and deliberately so. Inside
+    // `_runWrite` every failure is rewrapped as a StateError reading "Failed
+    // to run database operation" -- true of a full disk, wrong for a caller
+    // who named a database that does not exist. The target arrives from a
+    // request payload, so the caller surfacing this has to tell a bad
+    // argument from a broken database, and only one of those is its fault.
+    _schemaFile(schema);
+
+    return await _runWrite(
+      () => _reclaimSpace(
+        schema: schema,
+        minReclaimableBytes: minReclaimableBytes,
+      ),
+    );
+  }
+
+  /// Rewrites the log database if enough of it is dead space and the volume
+  /// has room, reporting what it did either way.
+  ///
+  /// The log-only form of [reclaimSpace], kept as a thin delegation rather
+  /// than replaced. It is what `CronMailman` answers `ReclaimLogSpaceRequest`
+  /// with, and that message deliberately stays on the wire: `zonai_schema`
+  /// and the CLI release on independent cadences, so `CleanupLogsCron`
+  /// swallows an unrecognised-path error to let a newer schema run against an
+  /// older binary. Renaming this would break that in the direction the
+  /// swallow cannot cover.
+  ///
+  /// Passing [kCronReclaimFloorBytes] here is what keeps the cron's behaviour
+  /// byte-for-byte what it was before the floor became a parameter.
   Future<LogSpaceReclamation> reclaimLogSpace() async {
-    return await _runWrite(() => _reclaimLogSpace());
+    final result = await reclaimSpace(
+      schema: kLogDbSchema,
+      minReclaimableBytes: kCronReclaimFloorBytes,
+    );
+    return (
+      reclaimableBytes: result.reclaimableBytes,
+      reclaimedBytes: result.reclaimedBytes,
+      vacuumed: result.vacuumed,
+      skipped: result.skipped,
+    );
   }
 
   Future<File> getPhoto(String id, {required String? token}) {
