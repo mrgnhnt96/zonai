@@ -1,0 +1,28 @@
+name: zonai_legacy_reclaim_redirect
+description: >-
+  Repro harness for the kept legacy reclaim endpoint. Serves the real
+  revali_router route tree that apps/server generates for
+  `dashboard/maintenance`, records the method and path the SERVER actually
+  received, and drives it from both HTTP stacks that reach that route in
+  production -- `package:http` on dart:io, and `package:http`'s BrowserClient
+  (window.fetch) in a real browser.
+
+  Deliberately outside the pub workspace, like every other e2e/ package, so it
+  resolves the same revali_router and revali_client versions from pub.dev that
+  apps/server does rather than borrowing the workspace's resolution.
+publish_to: none
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  # Pinned to the versions apps/server resolves (root pubspec.lock), because
+  # the whole point of this package is that the redirect is revali's own and
+  # not a hand-rolled one.
+  http: ^1.5.0
+  revali_client: ^3.0.0
+  revali_router: ^5.1.1
+  web: ^1.1.0
+
+dev_dependencies:
+  test: ^1.26.0
