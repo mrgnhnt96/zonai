@@ -128,10 +128,7 @@ class MaintenanceScreen extends StatelessComponent {
             ],
             if (isClient) ...[
               p(classes: 'maintenance-section-label', [.text('Cleanup')]),
-              _CleanupSection(
-                logDatabaseName: _logDatabaseFile(data)?.name ?? 'zonai_log.sqlite',
-                logDatabaseBytes: _logDatabaseFile(data)?.sizeBytes,
-              ),
+              _CleanupSection(reclaimTargets: reclaimTargetOptions(data)),
             ],
           ]),
         ]),
@@ -298,18 +295,6 @@ class _StatCard extends StatelessComponent {
   }
 }
 
-/// The log database as the storage report describes it, or `null` before the
-/// report arrives.
-///
-/// Read from the report rather than hardcoded so the reclaim card names — and
-/// sizes — the file it will actually lock on this deployment.
-StorageDatabaseFile? _logDatabaseFile(StorageMetrics? data) {
-  for (final db in data?.databases ?? const <StorageDatabaseFile>[]) {
-    if (db.name.contains('log')) return db;
-  }
-  return null;
-}
-
 /// The destructive half of the Maintenance screen.
 ///
 /// Every action here wraps a verb the engine already has; what this adds is a
@@ -317,16 +302,14 @@ StorageDatabaseFile? _logDatabaseFile(StorageMetrics? data) {
 /// outcome — a purge that removed four million rows and one that matched
 /// nothing both finish successfully, and only the number tells them apart.
 class _CleanupSection extends StatefulComponent {
-  const _CleanupSection({required this.logDatabaseName, this.logDatabaseBytes});
+  const _CleanupSection({required this.reclaimTargets});
 
-  final String logDatabaseName;
-
-  /// Size of the file the reclaim locks, or `null` before the storage report
-  /// arrives.
+  /// The database files the reclaim can aim at, from the storage report.
   ///
-  /// The stall this action causes scales with it, and "locks a 20 KB file" and
-  /// "locks a 3 GB file" are the same sentence describing opposite decisions.
-  final int? logDatabaseBytes;
+  /// Empty before the report arrives, which is a state the reclaim card
+  /// renders rather than hides: there is no list to pick from yet, so it
+  /// describes the verb and leaves its button disabled.
+  final List<ReclaimTarget> reclaimTargets;
 
   @override
   State<_CleanupSection> createState() => _CleanupSectionState();
@@ -343,11 +326,53 @@ class _CleanupSectionState extends State<_CleanupSection> {
   /// the server refuses it independently.
   String _table = _purgeableTables.first;
 
+  /// Which database file the reclaim dropdown is pointing at, by schema.
+  ///
+  /// Nullable and held as an identifier rather than a [ReclaimTarget], because
+  /// the option list arrives asynchronously and is rebuilt on every storage
+  /// refresh. A stored object would go stale against the report; a schema id
+  /// is re-resolved against the current list on every build (see
+  /// [_selectedTarget]), so a refresh updates the numbers under the selection
+  /// instead of pinning the old ones.
+  String? _reclaimSchema;
+
+  /// Which schema the reclaim's typed confirmation was typed for.
+  ///
+  /// The purge dropdown clears its confirm in `onChange` and that is enough,
+  /// because its option list is static. This list is not: a storage refresh
+  /// can drop the selected file and move [_selectedTarget] on its own, with no
+  /// `onChange` to hang the clearing off. Pairing the typed value with the
+  /// schema it was meant for closes that without mutating state during build.
+  String? _reclaimConfirmSchema;
+
   /// Typed confirmations, one per action, cleared when the action runs.
   final Map<CleanupAction, String> _confirms = {};
 
   /// The dropdown's options, sorted so the list is stable between renders.
   static final List<String> _purgeableTables = purgeableTableOptions();
+
+  /// The reclaim target the card is actually acting on, or `null` when the
+  /// storage report has not arrived.
+  ///
+  /// Falls back to the first option when the stored schema is not in the
+  /// current list — which covers both "nothing has been picked yet" and "the
+  /// report no longer has the file that was picked".
+  ReclaimTarget? get _selectedTarget {
+    final targets = component.reclaimTargets;
+    if (targets.isEmpty) return null;
+
+    for (final target in targets) {
+      if (target.schema == _reclaimSchema) return target;
+    }
+    return targets.first;
+  }
+
+  /// What has been typed to confirm the reclaim, discarding anything typed for
+  /// a different target.
+  String _reclaimConfirmValue(ReclaimTarget? target) {
+    if (target == null || _reclaimConfirmSchema != target.schema) return '';
+    return _confirms[CleanupAction.reclaimSpace] ?? '';
+  }
 
   int? get _parsedDays {
     final trimmed = _days.trim();
@@ -369,24 +394,70 @@ class _CleanupSectionState extends State<_CleanupSection> {
     // become one.
     final daysValid = _days.trim().isEmpty || (days != null && days >= 0);
 
+    final reclaimTarget = _selectedTarget;
+    // Per target, not per card. `logdb` and `ratedb` still need nothing typed
+    // -- each is a file of its own and a rewrite loses no rows. `main` asks for
+    // its own file name, because a VACUUM there takes an exclusive lock on
+    // application data and every write blocks for its duration. See
+    // [reclaimConfirmPhrase], which owns the rule so it can be tested.
+    final reclaimConfirm = reclaimConfirmPhrase(reclaimTarget);
+
     return div(classes: 'maintenance-cleanup', [
       _CleanupCard(
-        title: 'Reclaim log space',
-        // Lock first, and sized -- see [describeReclaimLock], which owns the
-        // wording so it can be tested. Safe from data loss precisely because
-        // the log database is a file of its own; that is why it was split out.
-        description: describeReclaimLock(file: component.logDatabaseName, bytes: component.logDatabaseBytes),
-        action: CleanupAction.reclaimLogSpace,
+        title: 'Reclaim space',
+        // Lock first, sized, and target-aware -- see [describeReclaimLock],
+        // which owns the wording so it can be tested.
+        description: describeReclaimLock(reclaimTarget),
+        action: CleanupAction.reclaimSpace,
         state: state,
-        // Not destructive: it moves no rows, it only rewrites the file around
-        // the ones that are left. The lock warning is the disclosure that
-        // matters, and a typed confirm on a non-destructive verb would train
-        // an operator to type through the ones that are.
-        confirmPhrase: null,
-        confirmValue: null,
-        onConfirmInput: null,
-        onRun: () => context.read(cleanupActionsProvider.notifier).reclaimLogSpace(),
-        children: const [],
+        confirmPhrase: reclaimConfirm,
+        confirmValue: _reclaimConfirmValue(reclaimTarget),
+        onConfirmInput: (value) => setState(() {
+          _confirms[CleanupAction.reclaimSpace] = value;
+          _reclaimConfirmSchema = reclaimTarget?.schema;
+        }),
+        // Nothing to aim at until the storage report lands. The description
+        // says so; the button must not offer to act on a target that does not
+        // exist yet.
+        runEnabled: reclaimTarget != null,
+        onRun: () {
+          if (reclaimTarget == null) return;
+          _clearConfirm(CleanupAction.reclaimSpace);
+          // The schema identifier, never the path or the name -- the server
+          // validates it against `kReclaimableSchemas` regardless.
+          context.read(cleanupActionsProvider.notifier).reclaimSpace(target: reclaimTarget.schema);
+        },
+        children: [
+          if (reclaimTarget != null)
+            div(classes: 'maintenance-cleanup-control', [
+              label(
+                id: 'maintenance-reclaim-target-label',
+                classes: 'maintenance-cleanup-label',
+                htmlFor: 'maintenance-reclaim-target',
+                [.text('Database')],
+              ),
+              ZonaiSelect(
+                id: 'maintenance-reclaim-target',
+                labelId: 'maintenance-reclaim-target-label',
+                value: reclaimTarget.schema,
+                // Built from the storage report, so the names and the
+                // reclaimable figures are this deployment's real ones.
+                options: [
+                  for (final target in component.reclaimTargets)
+                    ZonaiSelectOption(value: target.schema, label: target.label),
+                ],
+                // Changing the target invalidates whatever was typed to
+                // confirm the old one, for the reason the purge dropdown does
+                // it: "zonai.sqlite" typed for `main` must not still be
+                // sitting there authorising a rewrite of a different file.
+                onChange: (value) => setState(() {
+                  _reclaimSchema = value;
+                  _confirms.remove(CleanupAction.reclaimSpace);
+                  _reclaimConfirmSchema = null;
+                }),
+              ),
+            ]),
+        ],
       ),
       _CleanupCard(
         title: 'Purge logs',
