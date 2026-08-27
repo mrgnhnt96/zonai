@@ -43,6 +43,11 @@ void main() {
     'cleanupPhotos': (auth) => const MaintenanceHandler().cleanupPhotos(auth),
     'reclaimLogSpace': (auth) =>
         const MaintenanceHandler().reclaimLogSpace(auth),
+    'reclaimSpace': (auth) => const MaintenanceHandler().reclaimSpace(
+      auth,
+      target: 'logdb',
+      minReclaimableBytes: 0,
+    ),
   };
 
   /// The three ways a caller can fail to be an admin.
@@ -349,6 +354,235 @@ void main() {
       );
     });
   });
+
+  group('reclaimSpace target gate', () {
+    /// A target the allowlist does not name never reaches the engine.
+    ///
+    /// The engine refuses an unknown schema itself, so this is the second of
+    /// two locks -- but [target] arrives from a browser and selects a database
+    /// *file*, so the value worth pinning is that an unlisted string is
+    /// refused before anything is opened.
+    for (final target in const ['ratedb2', 'temp', '']) {
+      test('refuses "$target" before reaching the engine', () async {
+        final db = _StubZonaiDb(jwt: jwtWith(isAdmin: true));
+
+        await runScoped(
+          () async {
+            await expectLater(
+              const MaintenanceHandler().reclaimSpace(
+                'Bearer admin-token',
+                target: target,
+                minReclaimableBytes: 0,
+              ),
+              throwsA(isA<TableAccessDeniedException>()),
+            );
+            expect(db.acted, isEmpty, reason: 'Reached: \${db.acted}');
+          },
+          values: {
+            zonaiDbProvider.overrideWith(
+              () =>
+                  () => db,
+            ),
+          },
+        );
+      });
+    }
+
+    /// A path is never a schema identifier.
+    ///
+    /// The allowlist is what makes this true, and it is worth its own case:
+    /// the failure this guards against is a caller reaching a database file
+    /// by naming it, and every one of these is a plausible spelling of that.
+    for (final path in const [
+      '.zonai/data/zonai.sqlite',
+      '/etc/passwd',
+      '../../zonai.sqlite',
+      'main/../logdb',
+    ]) {
+      test('refuses the path-shaped target "$path"', () async {
+        final db = _StubZonaiDb(jwt: jwtWith(isAdmin: true));
+
+        await runScoped(
+          () async {
+            await expectLater(
+              const MaintenanceHandler().reclaimSpace(
+                'Bearer admin-token',
+                target: path,
+                minReclaimableBytes: 0,
+              ),
+              throwsA(isA<TableAccessDeniedException>()),
+            );
+            expect(
+              db.acted,
+              isEmpty,
+              reason:
+                  'a path must never be accepted as a target -- only a schema '
+                  'identifier. Reached: \${db.acted}',
+            );
+          },
+          values: {
+            zonaiDbProvider.overrideWith(
+              () =>
+                  () => db,
+            ),
+          },
+        );
+      });
+    }
+
+    /// Every allowlisted schema is passed to the engine unchanged.
+    ///
+    /// The counterpart to the refusals above: a gate that refused everything
+    /// would pass all of them for the wrong reason.
+    for (final target in kReclaimableSchemas) {
+      test('passes "$target" through to the engine', () async {
+        final db = _StubZonaiDb(jwt: jwtWith(isAdmin: true));
+
+        await runScoped(
+          () async {
+            await const MaintenanceHandler().reclaimSpace(
+              'Bearer admin-token',
+              target: target,
+              minReclaimableBytes: 1024,
+            );
+
+            expect(db.reclaimedSchema, target);
+            expect(db.reclaimedFloor, 1024);
+          },
+          values: {
+            zonaiDbProvider.overrideWith(
+              () =>
+                  () => db,
+            ),
+          },
+        );
+      });
+    }
+
+    test('a negative floor is refused', () async {
+      final db = _StubZonaiDb(jwt: jwtWith(isAdmin: true));
+
+      await runScoped(
+        () async {
+          await expectLater(
+            const MaintenanceHandler().reclaimSpace(
+              'Bearer admin-token',
+              target: 'logdb',
+              minReclaimableBytes: -1,
+            ),
+            throwsA(isA<ArgumentError>()),
+          );
+          expect(db.acted, isEmpty);
+        },
+        values: {
+          zonaiDbProvider.overrideWith(
+            () =>
+                () => db,
+          ),
+        },
+      );
+    });
+
+    test('a zero floor is allowed and reaches the engine', () async {
+      final db = _StubZonaiDb(jwt: jwtWith(isAdmin: true));
+
+      await runScoped(
+        () async {
+          await const MaintenanceHandler().reclaimSpace(
+            'Bearer admin-token',
+            target: 'main',
+            minReclaimableBytes: 0,
+          );
+
+          // Zero is the operator's "do it anyway", and the whole reason the
+          // floor became a parameter -- refusing it would put the human back
+          // on the cron's number.
+          expect(db.reclaimedFloor, 0);
+        },
+        values: {
+          zonaiDbProvider.overrideWith(
+            () =>
+                () => db,
+          ),
+        },
+      );
+    });
+  });
+
+  group('reclaimSpace result', () {
+    test('passes every field of the engine result through', () async {
+      final db = _StubZonaiDb(
+        jwt: jwtWith(isAdmin: true),
+        spaceReclamation: (
+          target: 'main',
+          reclaimableBytes: 9 * 1024 * 1024,
+          reclaimedBytes: 0,
+          vacuumed: false,
+          skipped: 'not enough free disk for the rewrite',
+        ),
+      );
+
+      await runScoped(
+        () async {
+          final result = await const MaintenanceHandler().reclaimSpace(
+            'Bearer admin-token',
+            target: 'main',
+            minReclaimableBytes: 0,
+          );
+
+          // `skipped` verbatim, for the reason the payload carries a string
+          // rather than a bool: a full volume reclaims nothing, which without
+          // the reason is indistinguishable from having had nothing to
+          // reclaim.
+          expect(result.skipped, 'not enough free disk for the rewrite');
+          expect(result.target, 'main');
+          expect(result.vacuumed, isFalse);
+          expect(result.reclaimedBytes, 0);
+          expect(result.reclaimableBytes, 9 * 1024 * 1024);
+        },
+        values: {
+          zonaiDbProvider.overrideWith(
+            () =>
+                () => db,
+          ),
+        },
+      );
+    });
+
+    test('a successful rewrite carries no skip reason', () async {
+      final db = _StubZonaiDb(
+        jwt: jwtWith(isAdmin: true),
+        spaceReclamation: (
+          target: 'ratedb',
+          reclaimableBytes: 4 * 1024 * 1024,
+          reclaimedBytes: 4 * 1024 * 1024,
+          vacuumed: true,
+          skipped: null,
+        ),
+      );
+
+      await runScoped(
+        () async {
+          final result = await const MaintenanceHandler().reclaimSpace(
+            'Bearer admin-token',
+            target: 'ratedb',
+            minReclaimableBytes: 0,
+          );
+
+          expect(result.skipped, isNull);
+          expect(result.vacuumed, isTrue);
+          expect(result.target, 'ratedb');
+          expect(result.reclaimedBytes, 4 * 1024 * 1024);
+        },
+        values: {
+          zonaiDbProvider.overrideWith(
+            () =>
+                () => db,
+          ),
+        },
+      );
+    });
+  });
 }
 
 /// A [ZonaiDb] that answers a fixed [Jwt] and records which verbs were reached.
@@ -356,15 +590,18 @@ void main() {
 /// [acted] is the load-bearing field: the gate's job is to keep it empty for
 /// an unauthorized caller.
 class _StubZonaiDb implements ZonaiDb {
-  _StubZonaiDb({required this.jwt, this.reclamation});
+  _StubZonaiDb({required this.jwt, this.reclamation, this.spaceReclamation});
 
   final Jwt? jwt;
   final LogSpaceReclamation? reclamation;
+  final SpaceReclamation? spaceReclamation;
 
   final List<String> acted = [];
   DateTime? clearLogsBefore;
   String? purgedTable;
   Where? purgedWhere;
+  String? reclaimedSchema;
+  int? reclaimedFloor;
 
   @override
   // `allowApiToken` is accepted and ignored: this stub answers with whatever
@@ -405,6 +642,24 @@ class _StubZonaiDb implements ZonaiDb {
     acted.add('reclaimLogSpace');
     return reclamation ??
         (
+          reclaimableBytes: 0,
+          reclaimedBytes: 0,
+          vacuumed: false,
+          skipped: null,
+        );
+  }
+
+  @override
+  Future<SpaceReclamation> reclaimSpace({
+    required String schema,
+    required int minReclaimableBytes,
+  }) async {
+    acted.add('reclaimSpace');
+    reclaimedSchema = schema;
+    reclaimedFloor = minReclaimableBytes;
+    return spaceReclamation ??
+        (
+          target: schema,
           reclaimableBytes: 0,
           reclaimedBytes: 0,
           vacuumed: false,

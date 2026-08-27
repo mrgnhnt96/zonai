@@ -44,6 +44,44 @@ class MaintenanceController {
     return maintenanceHandler.cleanupPhotos(authorization);
   }
 
+  /// Reclaims space from the database the caller names.
+  ///
+  /// Arguments in the query string rather than a body, and that is forced
+  /// rather than a style choice: [reclaimLogSpace] below redirects onto this
+  /// route, and a 3xx carries a `Location` header and no body, so arguments
+  /// the redirect has to carry can only live in the URL. `@Query` on a `POST`
+  /// is the established shape here -- see `CronController.run`.
+  @Post('reclaim-space')
+  Future<SpaceReclamationResult> reclaimSpace({
+    @Header(HttpHeaders.authorizationHeader) required String? authorization,
+    @Query('target') required String target,
+    @Query('min_reclaimable_bytes') required int minReclaimableBytes,
+  }) {
+    return maintenanceHandler.reclaimSpace(
+      authorization,
+      target: target,
+      minReclaimableBytes: minReclaimableBytes,
+    );
+  }
+
+  /// The log-only reclaim, kept as a redirect onto [reclaimSpace].
+  ///
+  /// **The body below never runs.** `RunRedirect` is called from
+  /// `revali_router`'s `Router._handle` *before* `execute.run()`, so a route
+  /// carrying `@Redirect` answers with the `Location` response and the method
+  /// is never invoked. The method stays because the route stays: the generated
+  /// client exposes `reclaimLogSpace` against this path, and removing either
+  /// would break a client that has not been regenerated.
+  ///
+  /// The arguments in the target are the log database and
+  /// `kCronReclaimFloorBytes` (16 MiB, written out because `apps/server` does
+  /// not depend on the constant), so the legacy path behaves exactly as it did
+  /// before. The `Location` is absolute so the result does not depend on how
+  /// the requesting URL's last segment resolves.
+  @Redirect(
+    '/dashboard/maintenance/reclaim-space?target=logdb&min_reclaimable_bytes=16777216',
+    302,
+  )
   @Post('reclaim-log-space')
   Future<LogSpaceReclamationResult> reclaimLogSpace({
     @Header(HttpHeaders.authorizationHeader) required String? authorization,

@@ -8,18 +8,27 @@ import 'package:scoped_deps/scoped_deps.dart';
 import 'package:test/test.dart';
 import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
+import 'package:zonai/src/domain/constants.dart';
 import 'package:zonai/src/domain/process.dart' as domain;
 import 'package:zonai/src/domain/settings.dart';
 import 'package:zonai_logger/zonai_logger.dart';
 
 import '../../../support/temp_directory.dart';
 
-/// The conditional rewrite at the end of `_cleanup_logs`.
+/// The conditional rewrite that hands dead pages back to the operating
+/// system, and the two gates deciding whether doing so is worth it and
+/// possible.
 ///
-/// Deleting log rows only moves their pages to a freelist -- the file does
-/// not shrink, so a deployment watching `df` sees retention run nightly and
-/// the number never move. This is the half that hands the space back, and the
-/// gate that decides whether doing so is worth it and possible.
+/// Deleting rows only moves their pages to a freelist -- the file does not
+/// shrink, so a deployment watching `df` sees retention run nightly and the
+/// number never move. `reclaimSpace` is the half that hands the space back.
+///
+/// It takes both its target and its floor as parameters, and the tests below
+/// cover why each had to stop being hardcoded: the log database is not the
+/// only one that accumulates dead pages, and the floor that is right for an
+/// unattended nightly cron is a silent skip for an operator who is looking
+/// at the reclaimable number and pressing the button. `reclaimLogSpace` is
+/// the cron's caller and must keep behaving exactly as it did.
 void main() {
   setUpAll(() {
     final lib = io.File('lib/gen/native/${rs.defaultLibraryFileName}');
@@ -98,6 +107,39 @@ void main() {
       );
     }
     await db.execute('DELETE FROM "_log" WHERE "timestamp" < ?', [
+      total - keep,
+    ]);
+  }
+
+  /// The same shape as [fillAndPurge], against the *application* database.
+  ///
+  /// `_log` and `_rate_limit` live in their own files, so dirtying `main`
+  /// needs a table that is actually in it -- qualified with `"main".` so a
+  /// name that later appears in an attached file cannot silently move this
+  /// somewhere else. This stands in for the incident that motivated
+  /// generalising the verb: an operator purged tens of thousands of
+  /// `_cron_jobs` rows, freed megabytes inside `zonai.sqlite`, and had no way
+  /// to hand them back.
+  Future<void> fillAndPurgeMain(
+    ZonaiDb zonaiDb, {
+    required int total,
+    required int keep,
+  }) async {
+    final db = await zonaiDb.open();
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS "main"."_bloat" '
+      '("id" TEXT PRIMARY KEY, "seq" INTEGER, "payload" TEXT)',
+      const [],
+    );
+    final padding = 'x' * 4000;
+    for (var i = 0; i < total; i++) {
+      await db.execute(
+        'INSERT INTO "main"."_bloat" ("id", "seq", "payload") '
+        'VALUES (?, ?, ?)',
+        ['id$i', i, padding],
+      );
+    }
+    await db.execute('DELETE FROM "main"."_bloat" WHERE "seq" < ?', [
       total - keep,
     ]);
   }
@@ -202,6 +244,14 @@ void main() {
           expect(warning, contains('reclaimed no disk space'));
           expect(
             warning,
+            contains('"$kLogDbSchema"'),
+            reason:
+                'the verb can act on any of three files now, so a warning '
+                'that does not name the one it is about sends an operator to '
+                'grow the wrong volume',
+          );
+          expect(
+            warning,
             contains('Extend the volume'),
             reason:
                 'at this point the database cannot fix itself -- reclaiming '
@@ -246,6 +296,151 @@ void main() {
       }
     });
   }, timeout: const Timeout(Duration(minutes: 5)));
+
+  test(
+    'reclaims the application database too, and that file actually shrinks',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
+
+      // The whole reason the verb stopped being welded to the log database.
+      // `main` is also the case that answers a question the source could not:
+      // `_vacuum` treats `null` as `main` and emits a bare `VACUUM`, so
+      // whether the driver accepts the qualified `VACUUM "main"` this path
+      // sends had to be measured. It does -- if it ever stops doing so, this
+      // test is what fails, rather than an operator's reclaim.
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          await fillAndPurgeMain(zonaiDb, total: 5000, keep: 0);
+
+          final dbFile = io.File(settings.zonaiSqlitePath);
+          final before = dbFile.lengthSync();
+          expect(before, greaterThan(16 * 1024 * 1024));
+
+          final result = await zonaiDb.reclaimSpace(
+            schema: 'main',
+            minReclaimableBytes: kCronReclaimFloorBytes,
+          );
+
+          expect(result.target, 'main');
+          expect(result.vacuumed, isTrue);
+          expect(result.skipped, isNull);
+          expect(
+            dbFile.lengthSync(),
+            lessThan(before ~/ 2),
+            reason:
+                'the freed pages have to leave the application database '
+                'file, not just its table',
+          );
+          expect(result.reclaimedBytes, greaterThan(0));
+        } finally {
+          await zonaiDb.dispose();
+        }
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
+
+  test(
+    'a floor of 0 reclaims a small-but-real freelist that the cron skips',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
+
+      // THE operator case, and the one that must not regress. ~8 MB on the
+      // freelist is under the cron's 16 MB floor, so the nightly job is right
+      // to leave it: a `VACUUM` costs more than 8 MB is worth to an
+      // unattended process. But a human looking at "8 MB reclaimable" on the
+      // Maintenance screen and pressing the button means it, and before the
+      // floor became a parameter they got a silent skip for the exact case
+      // they pressed for.
+      //
+      // Both halves are asserted against the SAME arrangement on purpose --
+      // that is what makes the floor, and nothing else, the thing being
+      // measured.
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          await fillAndPurge(zonaiDb, total: 2000, keep: 0);
+
+          final logFile = io.File(settings.zonaiLogSqlitePath);
+          final before = logFile.lengthSync();
+
+          final cron = await zonaiDb.reclaimLogSpace();
+          expect(
+            cron.reclaimableBytes,
+            greaterThan(0),
+            reason: 'there has to be something there for the skip to be about',
+          );
+          expect(
+            cron.reclaimableBytes,
+            lessThan(kCronReclaimFloorBytes),
+            reason:
+                'below the cron floor is the whole premise of this test; '
+                'above it and the skip below would prove nothing',
+          );
+          expect(
+            cron.vacuumed,
+            isFalse,
+            reason:
+                'the cron is unchanged -- 16 MB is still its floor, and it '
+                'still declines to spend a rewrite on less than that',
+          );
+          expect(cron.reclaimedBytes, 0);
+          expect(logFile.lengthSync(), before);
+
+          final operator = await zonaiDb.reclaimSpace(
+            schema: kLogDbSchema,
+            minReclaimableBytes: 0,
+          );
+
+          expect(operator.target, kLogDbSchema);
+          expect(
+            operator.vacuumed,
+            isTrue,
+            reason:
+                'a floor of 0 must not skip -- this is the regression the '
+                'whole change exists to prevent',
+          );
+          expect(operator.skipped, isNull);
+          expect(operator.reclaimedBytes, greaterThan(0));
+          expect(logFile.lengthSync(), lessThan(before ~/ 2));
+        } finally {
+          await zonaiDb.dispose();
+        }
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
+
+  test('refuses a schema it does not attach rather than rewriting the wrong '
+      'file', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
+
+    // The target arrives from a request payload, so an unrecognised value is
+    // reachable. Defaulting it would rewrite a file the caller did not ask
+    // for, holding an exclusive lock on it; refusing is the cheaper failure.
+    await withScope(() async {
+      final zonaiDb = ZonaiDb();
+      try {
+        await zonaiDb.open();
+        await expectLater(
+          zonaiDb.reclaimSpace(schema: 'nope', minReclaimableBytes: 0),
+          throwsA(isA<ArgumentError>()),
+        );
+      } finally {
+        await zonaiDb.dispose();
+      }
+    });
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }
 
 /// A `df` that reports a volume of the caller's choosing, or fails outright

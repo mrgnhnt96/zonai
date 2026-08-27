@@ -36,11 +36,26 @@ Future<PhotoCleanupResult> cleanupUnreferencedPhotos({required Server server}) {
   return server.maintenance.cleanupPhotos();
 }
 
-/// Rewrites the log database when enough of it is dead space.
+/// Rewrites the database behind [target] when enough of it is dead space.
+///
+/// [target] is a schema identifier from [kReclaimableSchemas] — never a path.
+/// A path would be an operator's string arriving from a browser that the
+/// server would have to re-validate against the deployment's real files,
+/// while a schema name is one of three known values the engine already
+/// attaches by. The server checks it against the same set regardless.
+///
+/// [minReclaimableBytes] is the floor below which the rewrite is not worth
+/// doing, and it is deliberately the caller's to choose: an unattended nightly
+/// cron and an operator pressing a button do not want the same number. See
+/// `kUiReclaimFloorBytes` for the one this app sends.
 ///
 /// The result's `skipped` reason is the field worth reading: a volume with no
 /// headroom reclaims nothing, and without the reason that is indistinguishable
 /// from having had nothing to reclaim.
-Future<LogSpaceReclamationResult> reclaimLogSpace({required Server server}) {
-  return server.maintenance.reclaimLogSpace();
+Future<SpaceReclamationResult> reclaimSpace({
+  required Server server,
+  required String target,
+  required int minReclaimableBytes,
+}) {
+  return server.maintenance.reclaimSpace(target: target, minReclaimableBytes: minReclaimableBytes);
 }

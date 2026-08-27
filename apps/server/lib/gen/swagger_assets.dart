@@ -1059,6 +1059,45 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/dashboard/maintenance/reclaim-space": {
+      "post": {
+        "operationId": "maintenance_reclaimSpace",
+        "tags": [
+          "maintenance"
+        ],
+        "parameters": [
+          {
+            "name": "target",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_reclaimable_bytes",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceReclamationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/metrics": {
       "get": {
         "operationId": "dashboard_metrics",
@@ -3198,6 +3237,35 @@ const kSwaggerJson = r'''{
           "desc"
         ]
       },
+      "SpaceReclamationResult": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "reclaimableBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reclaimedBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "vacuumed": {
+            "type": "boolean"
+          },
+          "skipped": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "target",
+          "reclaimableBytes",
+          "reclaimedBytes",
+          "vacuumed"
+        ]
+      },
       "StartsWith": {
         "type": "object",
         "properties": {
@@ -3218,6 +3286,9 @@ const kSwaggerJson = r'''{
             "type": "string"
           },
           "path": {
+            "type": "string"
+          },
+          "schema": {
             "type": "string"
           },
           "sizeBytes": {
@@ -3242,6 +3313,7 @@ const kSwaggerJson = r'''{
         "required": [
           "name",
           "path",
+          "schema",
           "sizeBytes",
           "walBytes"
         ]
@@ -4264,6 +4336,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LogSpaceReclamationResult'
+  '/dashboard/maintenance/reclaim-space':
+    post:
+      operationId: maintenance_reclaimSpace
+      tags:
+        - maintenance
+      parameters:
+        - name: target
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: min_reclaimable_bytes
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceReclamationResult'
   '/dashboard/metrics':
     get:
       operationId: dashboard_metrics
@@ -5667,6 +5763,27 @@ components:
       enum:
         - asc
         - desc
+    SpaceReclamationResult:
+      type: object
+      properties:
+        target:
+          type: string
+        reclaimableBytes:
+          type: integer
+          format: int64
+        reclaimedBytes:
+          type: integer
+          format: int64
+        vacuumed:
+          type: boolean
+        skipped:
+          type: string
+          nullable: true
+      required:
+        - target
+        - reclaimableBytes
+        - reclaimedBytes
+        - vacuumed
     StartsWith:
       type: object
       properties:
@@ -5682,6 +5799,8 @@ components:
         name:
           type: string
         path:
+          type: string
+        schema:
           type: string
         sizeBytes:
           type: integer
@@ -5700,6 +5819,7 @@ components:
       required:
         - name
         - path
+        - schema
         - sizeBytes
         - walBytes
     StorageMetrics:

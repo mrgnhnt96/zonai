@@ -51,6 +51,38 @@ const kPurgeableTableNames = <String>{
   '_rate_limit',
 };
 
+/// SQLite schema identifiers a space reclaim is allowed to target.
+///
+/// These are the three files zonai attaches — the application database as
+/// `main`, the log database as `logdb` (the engine's `kLogDbSchema`) and the
+/// rate-limit database as `ratedb` (`kRateLimitDbSchema`) — and they are the
+/// values `StorageDatabaseFile.schema` carries. A reclaim request names one
+/// of these rather than a path, so the server never has to decide whether a
+/// string from a browser points at a file it owns.
+///
+/// Deliberately a written-out constant rather than an import of the engine's
+/// constants, for exactly the reason [kPurgeableTableNames] is: those live in
+/// `apps/zonai`, behind an import chain that reaches native SQLite, and
+/// `payloads.dart` is the library `apps/web` compiles to JavaScript.
+/// Importing them here would break the browser build for the sake of three
+/// strings.
+///
+/// The cost of writing it out is drift, so drift is what a test pins:
+/// `maintenance_reclaimable_schemas_test.dart`. That test cannot compare
+/// against `kLogDbSchema`/`kRateLimitDbSchema` the way
+/// `maintenance_purgeable_tables_test.dart` compares against
+/// `InternalDbArtifacts` — the purgeable-table derivation lives in *this*
+/// package, while the schema constants live in `apps/zonai`, which depends on
+/// this package and not the reverse. The test pins the literal values and the
+/// shape instead, and the app-side half of the pin belongs in `apps/zonai`'s
+/// own suite.
+///
+/// **`main` is a member on purpose, and it is the member this set exists
+/// for.** The reclaim affordance was log-only, so purging 56,483 `_cron_jobs`
+/// rows freed 9.5 MB *inside* `zonai.sqlite` that nothing in the product
+/// could hand back to the operating system.
+const kReclaimableSchemas = <String>{'main', 'logdb', 'ratedb'};
+
 /// Which log rows to delete.
 class PurgeLogsBody {
   const PurgeLogsBody({this.olderThanDays});
@@ -161,6 +193,75 @@ class LogSpaceReclamationResult {
   }
 
   Map<String, dynamic> toJson() => {
+    'reclaimable_bytes': reclaimableBytes,
+    'reclaimed_bytes': reclaimedBytes,
+    'vacuumed': vacuumed,
+    'skipped': skipped,
+  };
+}
+
+/// What one attempt to reclaim space from a chosen database file did.
+///
+/// The general form of [LogSpaceReclamationResult]: same four fields, plus
+/// [target]. [LogSpaceReclamationResult] stays exactly as it is — it is the
+/// declared return type of the legacy log-only route and is exported from
+/// the public `package:zonai_schema/payloads.dart`.
+class SpaceReclamationResult {
+  const SpaceReclamationResult({
+    required this.target,
+    required this.reclaimableBytes,
+    required this.reclaimedBytes,
+    required this.vacuumed,
+    this.skipped,
+  });
+
+  /// The schema identifier this attempt acted on — one of
+  /// [kReclaimableSchemas].
+  ///
+  /// **The result says which file it is about so it cannot be misread as
+  /// being about a different one.** A reclaim result stays on screen after it
+  /// arrives, and the operator can move the picker while it is still there;
+  /// without this field, a report of "reclaimed 0 B" from the log database
+  /// reads as a report about whatever is now selected. Rendering [target]
+  /// alongside the numbers is what keeps the sentence true a second after it
+  /// was written.
+  final String target;
+
+  /// Bytes on that database's freelist when the attempt started — free
+  /// *inside* the file, not returned to the operating system.
+  final int reclaimableBytes;
+
+  /// Bytes the file actually shrank by. Zero when nothing was rewritten.
+  final int reclaimedBytes;
+
+  /// Whether the rewrite ran at all.
+  final bool vacuumed;
+
+  /// Why nothing was rewritten, or `null` when the attempt was not blocked.
+  ///
+  /// **Render this verbatim; do not collapse it to a boolean.** A deployment
+  /// whose volume is already full fails the headroom check and reclaims
+  /// nothing — and that is exactly the deployment where a silent success is
+  /// worst, because it is indistinguishable from having had nothing to
+  /// reclaim. Separating those two is the only reason this string exists.
+  ///
+  /// Note that `null` here covers both "it rewrote the file" and the ordinary
+  /// "there was not enough dead space to be worth it" — neither is a problem
+  /// to report. [vacuumed] tells those two apart.
+  final String? skipped;
+
+  factory SpaceReclamationResult.fromJson(Map<String, dynamic> json) {
+    return SpaceReclamationResult(
+      target: json['target'] as String,
+      reclaimableBytes: json['reclaimable_bytes'] as int,
+      reclaimedBytes: json['reclaimed_bytes'] as int,
+      vacuumed: json['vacuumed'] as bool,
+      skipped: json['skipped'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'target': target,
     'reclaimable_bytes': reclaimableBytes,
     'reclaimed_bytes': reclaimedBytes,
     'vacuumed': vacuumed,
