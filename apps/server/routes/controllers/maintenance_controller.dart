@@ -78,9 +78,35 @@ class MaintenanceController {
   /// not depend on the constant), so the legacy path behaves exactly as it did
   /// before. The `Location` is absolute so the result does not depend on how
   /// the requesting URL's last segment resolves.
+  ///
+  /// **307, not the 302 that was asked for, and the difference is the whole
+  /// point of keeping this route.** A 302 is not method-preserving: per the
+  /// Fetch standard a browser rewrites a redirected `POST` into a `GET` and
+  /// drops the body, and every route on this controller is `POST`-only on
+  /// purpose (see the class doc). A 302 therefore does not reach
+  /// [reclaimSpace] at all -- the second request arrives as a `GET`,
+  /// `Router._findMatch` matches on `(method, segments)` and finds nothing,
+  /// and the dashboard's one "Reclaim log space" button gets a 404 on the
+  /// path that exists solely for compatibility.
+  ///
+  /// Measured, not reasoned. `e2e/legacy_reclaim_redirect` serves this route
+  /// tree from the real [Router] and records the method and path the SERVER
+  /// received. Against 302, Chrome 151 sent
+  /// `POST /dashboard/maintenance/reclaim-log-space` and then
+  /// `GET /dashboard/maintenance/reclaim-space?...` -> 404. Against 307 the
+  /// second request is a `POST`, carries both arguments, and reaches the
+  /// handler. 307 is the smallest change that makes the kept route work.
+  ///
+  /// One caller this does not rescue: `dart:io`. Its
+  /// `HttpClientResponse.isRedirect` is false for a `POST` receiving anything
+  /// but 303, so `package:http`'s `IOClient` follows neither 302 nor 307 nor
+  /// 308 -- a Dart consumer of the generated client sees the raw redirect
+  /// whatever this number is. That is a limitation of `dart:io`, not of this
+  /// route, and it does not touch the browser, which is the only caller of
+  /// this path.
   @Redirect(
     '/dashboard/maintenance/reclaim-space?target=logdb&min_reclaimable_bytes=16777216',
-    302,
+    307,
   )
   @Post('reclaim-log-space')
   Future<LogSpaceReclamationResult> reclaimLogSpace({
