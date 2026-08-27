@@ -45,8 +45,14 @@ final class CronsCompiler {
     __subscription = null;
   }
 
-  Future<void> compile({BuildSettings? buildSettings}) async {
-    if (!await _canCompile()) return;
+  /// Compiles the crons worker, returning `0` on success.
+  ///
+  /// A non-zero result is the exit code of whichever `dart` invocation failed,
+  /// so `zonai compile` can propagate it (see commands/compile.dart).
+  Future<int> compile({BuildSettings? buildSettings}) async {
+    if (await _analyze() case final exitCode when exitCode != 0) {
+      return exitCode;
+    }
 
     executableStop.request(settings.compiledCronsPath);
 
@@ -89,7 +95,7 @@ final class CronsCompiler {
     if (result.exitCode != 0) {
       logger.error('Failed to compile ${CronGenerator.executablePath}');
       logger.error('${result.stderr}');
-      return;
+      return result.exitCode;
     }
 
     writeProtocolStamp(target);
@@ -97,12 +103,18 @@ final class CronsCompiler {
 
     final s = files.length == 1 ? '' : 's';
     logger.info('Compiled ${files.length} cron$s');
+
+    return 0;
   }
 
-  Future<bool> _canCompile() async {
+  /// The exit code of `dart analyze` over the crons sources.
+  ///
+  /// `0` when there is nothing to analyze, so an absent directory reads as a
+  /// clean run rather than a failure.
+  Future<int> _analyze() async {
     final directory = fs.directory(settings.cronsPath);
     if (!directory.existsSync()) {
-      return true;
+      return 0;
     }
 
     final result = await process.runDart(['analyze', directory.path]);
@@ -116,9 +128,9 @@ final class CronsCompiler {
             ? 'Failed to analyze crons (exit ${result.exitCode}).'
             : 'Failed to analyze crons:\n$details',
       );
-      return false;
+      return result.exitCode;
     }
 
-    return true;
+    return 0;
   }
 }

@@ -46,8 +46,14 @@ class Rules {
     __subscription = null;
   }
 
-  Future<void> compile({BuildSettings? buildSettings}) async {
-    if (!await _canCompile()) return;
+  /// Compiles the rules worker, returning `0` on success.
+  ///
+  /// A non-zero result is the exit code of whichever `dart` invocation failed,
+  /// so `zonai compile` can propagate it (see commands/compile.dart).
+  Future<int> compile({BuildSettings? buildSettings}) async {
+    if (await _analyze() case final exitCode when exitCode != 0) {
+      return exitCode;
+    }
 
     executableStop.request(settings.compiledRulesPath);
 
@@ -99,7 +105,7 @@ class Rules {
       logger.error('Failed to compile ${RuleGenerator.executablePath}');
       logger.info('----');
       logger.error('${result.stderr}');
-      return;
+      return result.exitCode;
     }
 
     writeProtocolStamp(target);
@@ -123,6 +129,11 @@ class Rules {
       // stamp has to describe the file that is actually there.
       writeMessageContractStamp(snapshotTarget);
     } else {
+      // Deliberately a warning, and deliberately NOT part of this method's
+      // exit code: the snapshot is only the fast path for the isolate
+      // transport, and its absence makes the runtime fall back to spawning
+      // the .exe that was just compiled above. The worker still runs, so
+      // failing `zonai compile` here would refuse a build that works.
       logger.warn(
         'Failed to compile rules AOT snapshot (isolate transport '
         'will fall back to process): ${snapshot.stderr}',
@@ -131,12 +142,18 @@ class Rules {
 
     final s = files.length == 1 ? '' : 's';
     logger.info('Compiled ${files.length} rule$s');
+
+    return 0;
   }
 
-  Future<bool> _canCompile() async {
+  /// The exit code of `dart analyze` over the rules sources.
+  ///
+  /// `0` when there is nothing to analyze, so an absent directory reads as a
+  /// clean run rather than a failure.
+  Future<int> _analyze() async {
     final directory = fs.directory(settings.rulesPath);
     if (!directory.existsSync()) {
-      return true;
+      return 0;
     }
 
     final result = await process.runDart(['analyze', directory.path]);
@@ -152,9 +169,9 @@ class Rules {
             ? 'Failed to compile rules (dart analyze exited with $exitCode).'
             : 'Failed to compile rules:\n$details',
       );
-      return false;
+      return result.exitCode;
     }
 
-    return true;
+    return 0;
   }
 }
