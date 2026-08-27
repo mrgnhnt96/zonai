@@ -11,6 +11,7 @@ class StorageDatabaseFile {
   const StorageDatabaseFile({
     required this.name,
     required this.path,
+    required this.schema,
     required this.sizeBytes,
     required this.walBytes,
     this.reclaimableBytes,
@@ -22,6 +23,28 @@ class StorageDatabaseFile {
 
   /// Absolute path, so an operator can go and look at the file themselves.
   final String path;
+
+  /// The SQLite schema name this file is attached under — `main`, `logdb` or
+  /// `ratedb` (the members of `kReclaimableSchemas`).
+  ///
+  /// This is the file's stable identifier, and it is what a reclaim request
+  /// names. A browser must send *this*, never [path]: a path is an operator's
+  /// string that arrives from an untrusted client and would have to be
+  /// re-validated against the deployment's real files, while a schema name is
+  /// one of three known values the engine already attaches by. [name] is not
+  /// a substitute either — it is a basename a project can configure, so
+  /// picking the log file out with `name.contains('log')` (which is what
+  /// `apps/web/lib/components/maintenance_screen.dart:308` does today)
+  /// matches on a coincidence rather than on identity.
+  ///
+  /// **Required rather than nullable, deliberately.** The only producer is
+  /// the `dashboard/storage` endpoint and the only consumer is the dashboard
+  /// that reads it, and the two ship in the same binary — so there is no
+  /// version skew to absorb, and a nullable field would only push a "which
+  /// file is this?" branch into every call site for a case that cannot
+  /// happen. A payload without it is a bug worth failing on, not a state to
+  /// render.
+  final String schema;
 
   /// Size of the database file, or `0` when it does not exist yet.
   final int sizeBytes;
@@ -62,6 +85,7 @@ class StorageDatabaseFile {
     return StorageDatabaseFile(
       name: json['name'] as String,
       path: json['path'] as String,
+      schema: json['schema'] as String,
       sizeBytes: json['size_bytes'] as int,
       walBytes: json['wal_bytes'] as int,
       reclaimableBytes: json['reclaimable_bytes'] as int?,
@@ -72,6 +96,7 @@ class StorageDatabaseFile {
   Map<String, dynamic> toJson() => {
     'name': name,
     'path': path,
+    'schema': schema,
     'size_bytes': sizeBytes,
     'wal_bytes': walBytes,
     'reclaimable_bytes': reclaimableBytes,
