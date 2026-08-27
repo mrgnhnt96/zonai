@@ -116,6 +116,59 @@ class MaintenanceHandler {
     );
   }
 
+  /// Rewrites the database behind [target] when enough of it is dead space.
+  ///
+  /// The general form of [reclaimLogSpace]: the operator names the database
+  /// and the floor instead of both being fixed. Every field of the engine's
+  /// result is passed through, [SpaceReclamationResult.skipped] included and
+  /// unmodified, for the reason given on [reclaimLogSpace] -- it applies
+  /// unchanged here, and applies to more databases.
+  ///
+  /// [target] and [minReclaimableBytes] arrive in the query string rather
+  /// than a body so the legacy `reclaim-log-space` route can redirect onto
+  /// this one: a 3xx carries a `Location` header and no body, so arguments a
+  /// redirect has to keep are only expressible in the URL.
+  Future<SpaceReclamationResult> reclaimSpace(
+    String? authorization, {
+    required String target,
+    required int minReclaimableBytes,
+  }) async {
+    await _requireAdmin(authorization, operation: 'reclaim_space');
+
+    // Checked here as well as in the engine, the same way [purgeTable] checks
+    // its table. The engine's check is the load-bearing one, but [target]
+    // arrives from a browser and names a database file -- refusing an
+    // unlisted value at the edge keeps a supplied string off the code path
+    // that opens files entirely. Only a schema identifier is ever accepted;
+    // a path never is.
+    if (!kReclaimableSchemas.contains(target)) {
+      throw TableAccessDeniedException(
+        table: target,
+        operation: 'reclaim_space',
+      );
+    }
+
+    if (minReclaimableBytes < 0) {
+      throw ArgumentError.value(
+        minReclaimableBytes,
+        'min_reclaimable_bytes',
+        'must not be negative',
+      );
+    }
+
+    final result = await zonaiDB.reclaimSpace(
+      schema: target,
+      minReclaimableBytes: minReclaimableBytes,
+    );
+    return SpaceReclamationResult(
+      target: result.target,
+      reclaimableBytes: result.reclaimableBytes,
+      reclaimedBytes: result.reclaimedBytes,
+      vacuumed: result.vacuumed,
+      skipped: result.skipped,
+    );
+  }
+
   /// Parses the bearer token and refuses anything that is not an admin.
   ///
   /// Returns the [Jwt] rather than a bool so callers that need an admin

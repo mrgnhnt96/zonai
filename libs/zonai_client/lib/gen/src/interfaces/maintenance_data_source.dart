@@ -12,5 +12,10 @@ abstract interface class MaintenanceDataSource {
     String? authorization,
   });
   Future<PhotoCleanupResult> cleanupPhotos({String? authorization});
+  Future<SpaceReclamationResult> reclaimSpace({
+    required String target,
+    required int minReclaimableBytes,
+    String? authorization,
+  });
   Future<LogSpaceReclamationResult> reclaimLogSpace({String? authorization});
 }
