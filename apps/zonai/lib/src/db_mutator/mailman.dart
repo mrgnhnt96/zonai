@@ -4,6 +4,7 @@ import 'dart:io' as io;
 import 'dart:isolate';
 import 'dart:math' show min;
 
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:scoped_deps/scoped_deps.dart';
 import 'package:zonai/src/db_mutator/worker_transport.dart';
 import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
@@ -36,6 +37,8 @@ import '../deps/process.dart';
 import '../deps/settings.dart';
 import '../deps/zonai_db.dart';
 import '../domain/message_contract_stamp.dart';
+import '../domain/snapshot_sdk_stamp.dart';
+import '../domain/vm_snapshot_hash.dart';
 import '../native/argon2_native.dart' show provideArgon2NativeLibraryPath;
 import '../native/resqlite_native.dart' show provideResqliteNativeLibraryPath;
 
@@ -55,6 +58,7 @@ class Mailman<S extends Request, R extends Response> {
   static final _loggedProtocolMismatches = <String>{};
   static final _loggedContractMismatches = <String>{};
   static final _loggedStaleSnapshots = <String>{};
+  static final _loggedIncompatibleSdkSnapshots = <String>{};
   static var _loggedInertContractGuard = false;
 
   Mailman({
@@ -63,12 +67,16 @@ class Mailman<S extends Request, R extends Response> {
     required R Function(Map<String, dynamic>) fromJson,
     this.snapshotPath,
     this.sourceEntryPath,
+    @visibleForTesting String? hostVmHash,
+    @visibleForTesting String? hostSdkVersion,
     // Subprocess stdout preserves frame order (mutation RPCs before the reply).
     // Sync broadcast avoids delayed stream delivery; mutation [Request]s are
     // queued in [_listenToMessages] so enqueue cannot fall behind the next
     // response frame after an async [_handleRequest] await.
   }) : _response = StreamController.broadcast(sync: true),
        _request = StreamController.broadcast(sync: true),
+       _hostVmSnapshotHash = hostVmHash ?? hostVmSnapshotHash,
+       _hostDartSdkVersion = hostSdkVersion ?? hostDartSdkVersion,
        _fromJson = fromJson {
     cleanUp.add(dispose);
     _responseSubscription = _response.stream.listen(
@@ -94,6 +102,24 @@ class Mailman<S extends Request, R extends Response> {
 
   /// Optional generated `.dart` entry for JIT isolate spawn.
   final String? sourceEntryPath;
+
+  /// The VM snapshot hash this host can load, and the SDK version string that
+  /// goes with it for message text. See [_snapshotSdkIsIncompatible].
+  ///
+  /// Constructor-injected for one reason: both are baked in at `dart compile
+  /// exe --define` time and read back through `String.fromEnvironment`, so
+  /// under `dart test` they are unconditionally empty. Without a seam the
+  /// *compatible* direction of the guard -- the one that lets a snapshot
+  /// through -- is unreachable from a test, and a guard that has only ever
+  /// been observed refusing is one nobody can tell apart from a guard that
+  /// refuses everything.
+  ///
+  /// The `??` fallback is exact rather than convenient: [hostVmSnapshotHash]
+  /// answers `null` under `dart test`, so a test that passes nothing gets the
+  /// same `null` a stock binary compiled without the define has, and the
+  /// unknown-host case still tests as itself.
+  final String? _hostVmSnapshotHash;
+  final String? _hostDartSdkVersion;
 
   io.Process? _process;
 
@@ -695,6 +721,83 @@ class Mailman<S extends Request, R extends Response> {
   static String _shortContract(String? hash) =>
       hash == null ? 'nothing' : hash.substring(0, min(12, hash.length));
 
+  /// Whether the AOT snapshot at [path] must not be handed to
+  /// [Isolate.spawnUri] because a different Dart SDK compiled it.
+  ///
+  /// The third snapshot guard, beside [_snapshotContractIsStale], and the only
+  /// one that has to run *before* the spawn rather than around it. The other
+  /// two protect against a worker that starts and then disagrees, which the
+  /// `catch` at the bottom of [_tryStartIsolate] could also have caught. This
+  /// one protects against a worker that never starts, in a way that `catch`
+  /// cannot see: across a container-format change -- a 3.12.x host handed a
+  /// 3.13.x snapshot -- the process takes SIGABRT (exit 134) inside
+  /// `snapshot_utils.cc` before any Dart code runs. No exception is raised and
+  /// there is no host left to raise it to. Deciding here is the only thing
+  /// that survives that.
+  ///
+  /// Declines rather than throwing, for the same reason as its sibling: the
+  /// fallback is the `.exe` worker, which serves identically, so the cost of a
+  /// false positive is in-process dispatch and not the request.
+  ///
+  /// Unknown counts as incompatible, inverting the other two guards --
+  /// [isSnapshotSdkIncompatible] owns that decision and the argument for it.
+  ///
+  /// Only the snapshot branch consults this. The JIT branch compiles nothing
+  /// and loads nothing: it hands [Isolate.spawnUri] a `.dart` source file, and
+  /// the VM that would compile it is the VM already running, so host and
+  /// compiler cannot skew apart there.
+  bool _snapshotSdkIsIncompatible(String path) {
+    if (!isSnapshotSdkIncompatible(path, hostHash: _hostVmSnapshotHash)) {
+      return false;
+    }
+
+    if (_loggedIncompatibleSdkSnapshots.add(path)) {
+      logger.warn(
+        '$_prefix: $path ${_sdkRefusalReason(path)} -- ignoring it '
+        'and using the worker process instead (dispatch still works, '
+        'in-process does not). Run `zonai compile` with the SDK this host '
+        'was built with to refresh it, or `zonai build` and redeploy if '
+        'this host is a deployed bundle.',
+      );
+    }
+    return true;
+  }
+
+  /// Which of [isSnapshotSdkIncompatible]'s four refusals this was.
+  ///
+  /// They read very differently to whoever has to act on the message -- one is
+  /// "rebuild your snapshot", one is "this binary predates the check" -- and
+  /// collapsing them into a single "SDK mismatch" would send someone
+  /// recompiling a snapshot that is fine.
+  String _sdkRefusalReason(String path) {
+    if (_hostVmSnapshotHash == null) {
+      return 'cannot be spawned in-process because this host does not know '
+          'which VM snapshot format it can load (it was compiled without '
+          '`--define=ZONAI_VM_HASH=...`)';
+    }
+
+    final stamped = readSnapshotSdkStamp(path);
+    if (stamped == null) {
+      return 'carries no `.sdk` stamp saying which Dart SDK compiled it, and '
+          'an unstamped snapshot cannot be told apart from an incompatible '
+          'one';
+    }
+
+    // Both version strings are message text only, and either can be absent
+    // from an otherwise perfectly good stamp, so the sentence naming them is
+    // built only when it can name both. The hashes are what was compared, and
+    // they are always available here -- printing two hex strings is a worse
+    // message than "3.12.0 vs 3.13.2" but it is better than no message.
+    final host = _hostDartSdkVersion;
+    final built = stamped.version;
+    if (host != null && built != null) {
+      return 'requires Dart $host, snapshot was compiled by $built';
+    }
+    return 'was compiled by a Dart SDK with VM snapshot hash '
+        '${_shortContract(stamped.hash)}, but this host can only load '
+        '${_shortContract(_hostVmSnapshotHash)}';
+  }
+
   Future<bool> _tryStartIsolate() async {
     Uri? entry;
     Uri? packageConfig;
@@ -710,6 +813,7 @@ class Mailman<S extends Request, R extends Response> {
       }
     } else if (snapshotPath != null && fs.file(snapshotPath!).existsSync()) {
       if (_snapshotContractIsStale(snapshotPath!)) return false;
+      if (_snapshotSdkIsIncompatible(snapshotPath!)) return false;
       entry = Uri.file(fs.file(snapshotPath!).absolute.path);
       fromSnapshot = true;
     } else {
@@ -747,11 +851,31 @@ class Mailman<S extends Request, R extends Response> {
       }
       return _isolatePeer != null;
     } catch (e, stack) {
-      // A snapshot that is present and will not spawn is worth saying out loud:
-      // the fallback to the .exe worker serves identically, so this is the only
-      // moment the loss of in-process dispatch is observable at all. The most
-      // likely cause on a deployed bundle is a snapshot built for the build
-      // host rather than the target.
+      // A snapshot that is present and will not spawn is worth saying out
+      // loud: the fallback to the .exe worker serves identically, so a log
+      // line is the only place the loss of in-process dispatch shows up at
+      // all.
+      //
+      // What this is NOT is the only moment a bad snapshot is caught, and the
+      // earlier version of this comment said so in the one direction that
+      // matters. Across a container-format change -- a 3.12.x host handed a
+      // 3.13.x snapshot -- the process takes SIGABRT (exit 134) inside
+      // `snapshot_utils.cc` before any Dart code runs. There is no exception
+      // to catch, this block never executes, and the host dies taking every
+      // in-flight request with it. That measured case is why
+      // `_snapshotSdkIsIncompatible` decides ahead of the spawn instead of
+      // leaving it to here.
+      //
+      // What still arrives here is the survivable half: the same container
+      // format with a different VM snapshot hash, which raises a catchable
+      // `IsolateSpawnException: Wrong full snapshot version` -- plus the
+      // ordinary spawn failures, a truncated or unreadable file and a
+      // handshake that times out. A snapshot built for the build host rather
+      // than the target is possible and used to be named here as the likely
+      // cause, which on a same-arch developer machine it is not: what was
+      // actually measured is an SDK skew between the host binary (CI pins
+      // 3.12.0) and whatever `DartExecutable.resolve()` found locally, and
+      // the guard above now takes that case before it can reach this one.
       if (fromSnapshot) {
         logger.warn(
           '$_prefix: $snapshotPath would not spawn, falling back to the '
