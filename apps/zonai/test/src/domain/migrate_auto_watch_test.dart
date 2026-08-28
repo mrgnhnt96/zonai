@@ -130,6 +130,21 @@ dependencies:
           _tableSchemaSource(className: 'CommentSchema', tableName: 'comments'),
         );
 
+        // 90s, not 60s, for the reason 08c0a9e6 gave when it derived the two
+        // waits above: this guards a comparable spawn-and-poll -- a full
+        // `raindrop generate` with its analyzer/analysis-context and a
+        // runtime-introspection subprocess -- and 60 was the one budget in
+        // this file never derived from anything.
+        //
+        // Honest about what is NOT established: the 60s budget was measured
+        // to degrade with CPU contention (5s quiet, 16s at load 7 on a
+        // 12-core box) but that scaling does not reach 60s at the contention
+        // the ubuntu runner showed, so slowness alone may not be the whole
+        // story. Hence the reason string below reports what was actually on
+        // disk: if this times out again with one table present and not the
+        // other, the cause is the watcher missing an event, NOT this budget,
+        // and raising it further would be the "raise it until green" that
+        // 08c0a9e6 explicitly refused.
         await _waitUntil(
           () =>
               _allMigrationSql(
@@ -138,12 +153,20 @@ dependencies:
               _allMigrationSql(
                 migrationsDir,
               ).contains('CREATE TABLE "comments"'),
-          reason: 'migrations for both tables from the close-together edit',
-          timeout: const Duration(seconds: 60),
+          reason: () {
+            final sql = _allMigrationSql(migrationsDir);
+            return 'migrations for both tables from the close-together edit '
+                '(posts: ${sql.contains('CREATE TABLE "posts"')}, '
+                'comments: ${sql.contains('CREATE TABLE "comments"')})';
+          },
+          timeout: const Duration(seconds: 90),
         );
       },
-      // Outer budget stays the sum of the inner waits: 90 + 90 + 60.
-      timeout: const Timeout(Duration(minutes: 4)),
+      // Outer budget stays the sum of the inner waits: 90 + 90 + 90.
+      // 5 minutes: the inner waits now sum to 270s, and an outer budget
+      // below that would make the last inner wait unreachable and decorative
+      // -- the trap 08c0a9e6 named when it moved the other two.
+      timeout: const Timeout(Duration(minutes: 5)),
     );
   });
 }
@@ -191,15 +214,21 @@ String _allMigrationSql(Directory migrationsDir) {
   return sqlFiles.map((file) => file.readAsStringSync()).join('\n');
 }
 
+/// [reason] may be a String or a `String Function()`. The lazy form exists so
+/// a timeout can report the state that actually existed when it gave up,
+/// which is what distinguishes "too slow" from "the event never arrived".
 Future<void> _waitUntil(
   bool Function() condition, {
-  required String reason,
+  required Object reason,
   Duration timeout = const Duration(seconds: 30),
 }) async {
   final deadline = DateTime.now().add(timeout);
   while (!condition()) {
     if (DateTime.now().isAfter(deadline)) {
-      fail('Timed out waiting for: $reason');
+      fail(
+        'Timed out waiting for: '
+        '${reason is String Function() ? reason() : reason}',
+      );
     }
     await Future.delayed(const Duration(milliseconds: 100));
   }
