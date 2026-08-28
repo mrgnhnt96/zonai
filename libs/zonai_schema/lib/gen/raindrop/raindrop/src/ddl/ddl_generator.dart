@@ -8,6 +8,7 @@
 
 import 'dart:isolate';
 
+import 'package:meta/meta.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/ddl.dart';
 import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 
@@ -22,11 +23,15 @@ import 'package:zonai_schema/gen/raindrop/raindrop/dialect.dart';
 /// void main(List<String> args, SendPort sendPort) =>
 ///     serveDdlGenerator(MyDdlGenerator(), sendPort);
 /// ```
-ReceivePort serveDdlGenerator(DdlGenerator generator, SendPort sendPort) {
+ReceivePort serveDdlGenerator(
+  DdlGenerator generator,
+  SendPort sendPort, {
+  SchemaInspector? inspector,
+}) {
   final receivePort = ReceivePort();
   sendPort.send(receivePort.sendPort);
 
-  receivePort.listen((message) {
+  receivePort.listen((message) async {
     if (message is Map<String, dynamic>) {
       final replyPort = message['replyPort'] as SendPort;
       final action = message['action'] as String? ?? 'generate';
@@ -41,6 +46,33 @@ ReceivePort serveDdlGenerator(DdlGenerator generator, SendPort sendPort) {
             );
 
             replyPort.send({'success': true, 'sql': sql});
+          case 'replay':
+            // A driver that cannot build a scratch database says so, and the
+            // caller reports it. It must never read as agreement: "nothing
+            // was compared" and "nothing differs" are the same green
+            // otherwise, which is the whole failure this check exists to
+            // stop happening one level up.
+            if (inspector == null) {
+              replyPort.send({
+                'success': false,
+                'unsupported': true,
+                'error': 'The "${generator.dialect.name}" driver cannot '
+                    'replay migrations: it serves no SchemaInspector, so '
+                    'there is no scratch database to apply them to.',
+              });
+              return;
+            }
+            final schemas = await inspector.replay([
+              for (final entry in message['migrations']! as List<dynamic>)
+                Migration(
+                  (entry as Map)['tag'] as String,
+                  entry['sql'] as String,
+                ),
+            ]);
+            replyPort.send({
+              'success': true,
+              'schemas': [for (final schema in schemas) schema.toMap()],
+            });
           default:
             replyPort.send(
               {'success': false, 'error': 'Unknown action: $action'},
@@ -53,6 +85,41 @@ ReceivePort serveDdlGenerator(DdlGenerator generator, SendPort sendPort) {
   });
 
   return receivePort;
+}
+
+/// {@template schema_inspector}
+/// Applies migrations to a throwaway database and reports the schema they
+/// actually produce.
+///
+/// This is the half of migration correctness nothing else can answer. A
+/// snapshot records what the schema asked for and the `.sql` records what
+/// will run, and once a human edits the `.sql` — which is a supported thing
+/// to do — the two part company silently and every later migration is
+/// computed against the snapshot rather than against reality.
+///
+/// Implemented by drivers that can stand a database up on their own.
+/// SQLite can, in memory, for nothing. A driver that needs a server does not
+/// implement this, and the caller is told so rather than being told nothing
+/// is wrong.
+/// {@endtemplate}
+abstract class SchemaInspector {
+  /// {@macro schema_inspector}
+  const SchemaInspector();
+
+  /// Applies [migrations] in order to an empty scratch database, reading the
+  /// schema back out of it after each one.
+  ///
+  /// After each, not only at the end, because a later migration can HEAL an
+  /// earlier one's divergence and hide it. Picto's `recordings.sequence`
+  /// gained a default its schema never declared in migration 3 and lost it
+  /// again in migration 10, when an unrelated change rebuilt the table from
+  /// the schema -- so a check that only looked at the newest snapshot would
+  /// have reported that project clean while it was wrong for seven
+  /// migrations, and while one of those migrations was a full table rebuild
+  /// that existed only to correct it.
+  ///
+  /// The result is parallel to [migrations].
+  Future<List<LiveSchema>> replay(List<Migration> migrations);
 }
 
 /// {@template ddl_generator}
@@ -124,6 +191,43 @@ abstract class DdlGenerator {
 
   /// Gets the SQL type string for a column.
   String getColumnType(ColumnInfo column);
+
+  /// Refuses [columns] being added to the existing table [tableName] when one
+  /// of them is `NOT NULL` and has no default.
+  ///
+  /// The rows that are already there would have no value, so no statement can
+  /// express the change: SQLite's `ADD COLUMN` rejects it outright, a rebuild
+  /// has nothing to select into the new column, and postgres's `ADD COLUMN`
+  /// fails with "contains null values".
+  ///
+  /// Refusing HERE, while the migration is being written, is the whole point.
+  /// Every one of those failures happens at apply time and only on a table
+  /// with rows in it -- so the migration passes on every empty database (CI,
+  /// every dev machine, every test) and fails exactly once, in production.
+  /// A generate-time refusal is the same information delivered to the person
+  /// who can still do something about it.
+  ///
+  /// Called by each driver's [alterTable]; the wording lives here so that two
+  /// drivers cannot answer the same question differently.
+  @protected
+  void requireBackfillableAdds(
+    String tableName,
+    Iterable<ColumnInfo> columns,
+  ) {
+    for (final column in columns) {
+      if (column.isNullable || column.defaultValue != null) continue;
+      throw UnsupportedError(
+        '''
+Adding NOT NULL column "${column.name}" to "$tableName" without a default: the rows already in the table have no value to backfill.
+
+Give the column a defaultValue in the schema, which is what fills them:
+
+    ${column.name} = \$.<type>('${column.name}', (row) => row.<field>, defaultValue: <value>)
+
+A defaultValue is permanent -- it stays on the column and applies to every later insert. If you only mean to fill the rows that exist today, write this one migration by hand with `generate --empty`.''',
+      );
+    }
+  }
 
   /// Escape [name] through the [dialect].
   ///

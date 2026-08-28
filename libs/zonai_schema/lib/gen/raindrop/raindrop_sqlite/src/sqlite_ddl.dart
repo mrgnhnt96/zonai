@@ -17,27 +17,6 @@ class SQLiteDdlGenerator extends DdlGenerator {
   const SQLiteDdlGenerator() : super(dialect: const SQLiteDialect());
 
   @override
-  String generate(List<DiffOperation> operations) {
-    final altered = {
-      for (final op in operations)
-        if (op case final AlterTable alter) alter.tableName,
-    };
-    for (final op in operations) {
-      if (op case final AlterTable alter when _needsRebuild(alter)) {
-        for (final dependent in alter.referencedBy) {
-          if (altered.contains(dependent.table.name)) {
-            throw UnsupportedError(
-              '''
-Rebuilding "${alter.tableName}" must recreate "${dependent.table.name}", which is itself altered in this migration. Split the two changes into separate migrations.''',
-            );
-          }
-        }
-      }
-    }
-    return super.generate(operations);
-  }
-
-  @override
   String createTable(TableInfo table) {
     final defs = [
       ...table.columns.map(_columnDefinition),
@@ -55,6 +34,7 @@ Rebuilding "${alter.tableName}" must recreate "${dependent.table.name}", which i
   @override
   String alterTable(AlterTable operation) {
     final diff = TableDiff.of(operation);
+    requireBackfillableAdds(operation.tableName, diff.addedColumns);
     return _isSimple(operation, diff)
         ? _simpleAlter(operation, diff)
         : _rebuild(operation, diff);
@@ -82,12 +62,7 @@ CREATE ${unique}INDEX ${escapeName(index.name)} ON ${escapeName(index.tableName)
     if (diff.changesDefinitions) return false;
 
     for (final column in diff.addedColumns) {
-      final plainAdd = !column.primaryKey &&
-          !column.autoIncrement &&
-          column.foreignKey == null &&
-          column.isNullable &&
-          column.defaultValue == null;
-      if (!plainAdd) return false;
+      if (!_canAddColumn(column)) return false;
     }
 
     for (final column in diff.droppedColumns) {
@@ -111,6 +86,52 @@ CREATE ${unique}INDEX ${escapeName(index.name)} ON ${escapeName(index.tableName)
     return true;
   }
 
+  /// Whether [column] can be appended with `ALTER TABLE ... ADD COLUMN`.
+  ///
+  /// SQLite accepts far more here than a nullable column with no default --
+  /// see https://sqlite.org/lang_altertable.html#altertabaddcol. It refuses
+  /// only: a PRIMARY KEY or UNIQUE column; a NOT NULL column without a
+  /// non-null default (existing rows would have no value); a non-constant
+  /// default, meaning `CURRENT_TIME`/`CURRENT_DATE`/`CURRENT_TIMESTAMP` or a
+  /// parenthesized expression; a `REFERENCES` column whose default is not
+  /// NULL; and a generated `STORED` column.
+  ///
+  /// UNIQUE and generated columns are not representable on [ColumnInfo], so
+  /// there is nothing to test for them here. A UNIQUE *index* added over the
+  /// new column is a separate `CREATE UNIQUE INDEX`, which SQLite allows.
+  bool _canAddColumn(ColumnInfo column) {
+    if (column.primaryKey || column.autoIncrement) return false;
+
+    final defaultValue = column.defaultValue;
+    final hasNonNullDefault =
+        defaultValue != null && !_isNullLiteral(defaultValue);
+
+    // Existing rows need a value, and `DEFAULT NULL` does not supply one.
+    if (!column.isNullable && !hasNonNullDefault) return false;
+
+    if (defaultValue != null && !_isConstantDefault(defaultValue)) return false;
+
+    // SQLite requires the default of a REFERENCES column to be NULL, so the
+    // added column cannot point at a parent row that may not exist.
+    if (column.foreignKey != null && hasNonNullDefault) return false;
+
+    return true;
+  }
+
+  bool _isNullLiteral(String expression) =>
+      expression.trim().toUpperCase() == 'NULL';
+
+  /// Whether [expression] is a constant, as `ADD COLUMN` requires.
+  bool _isConstantDefault(String expression) {
+    final value = expression.trim();
+    if (value.startsWith('(')) return false;
+    return !const {
+      'CURRENT_TIME',
+      'CURRENT_DATE',
+      'CURRENT_TIMESTAMP',
+    }.contains(value.toUpperCase());
+  }
+
   String _simpleAlter(AlterTable operation, TableDiff diff) {
     final table = escapeName(operation.tableName);
     return [
@@ -127,80 +148,45 @@ ALTER TABLE $table RENAME COLUMN ${escapeName(entry.key)} TO ${escapeName(entry.
     ].join('\n');
   }
 
+  /// Rebuilds [operation]'s table via SQLite's documented 12-step ALTER TABLE
+  /// procedure (https://sqlite.org/lang_altertable.html#otheralter): shadow,
+  /// copy, drop, rename, re-index.
+  ///
+  /// Only the target is rebuilt. Dependents are left alone and stay valid,
+  /// because the table returns under its original name -- their `REFERENCES`
+  /// clauses never stop being true. The shadow's own foreign keys therefore
+  /// name the REAL tables, not other shadows.
+  ///
+  /// This procedure requires `foreign_keys = OFF` for its duration, which is
+  /// the migrator's job: with them ON, `DROP TABLE` performs an implicit
+  /// DELETE that fires `ON DELETE CASCADE` on referencing rows and destroys
+  /// them. `PRAGMA defer_foreign_keys` does NOT prevent that -- it defers
+  /// constraint *enforcement*, while cascade *actions* still run.
   String _rebuild(AlterTable operation, TableDiff diff) {
-    for (final column in diff.addedColumns) {
-      if (!column.isNullable && column.defaultValue == null) {
-        throw UnsupportedError(
-          '''
-Adding NOT NULL column "${column.name}" to "${operation.tableName}" without a default: existing rows have no value to backfill. Give the column a default, or write the migration by hand with `generate --empty`.''',
-        );
-      }
-    }
-
-    final rebuildSet = {
-      operation.tableName,
-      for (final dependent in operation.referencedBy) dependent.table.name,
-    };
-
-    final statements = <String>[
-      'PRAGMA defer_foreign_keys = ON;',
-      _createShadow(operation.newTable, rebuildSet),
+    // The un-backfillable case is refused in `alterTable`, before the split
+    // between this and `_simpleAlter`: it is the same answer either way.
+    return [
+      // Not a statement -- `splitStatements` drops comment-only fragments.
+      // It is here because the requirement is invisible in the SQL itself.
+      '-- Requires foreign_keys = OFF (SQLite 12-step ALTER TABLE procedure).',
+      '-- The migrator disables them around the transaction; `PRAGMA',
+      '-- foreign_keys` inside one is silently a no-op.',
+      _createShadow(operation.newTable),
       _copyTarget(operation, diff),
-    ];
-
-    // Dependents, byte-identical apart from re-targeted references.
-    for (final dependent in operation.referencedBy) {
-      statements
-        ..add(_createShadow(dependent.table, rebuildSet))
-        ..add(_copyVerbatim(dependent.table));
-    }
-
-    // Drop originals, a table only once nothing left references it.
-    for (final name in _dropOrder(operation)) {
-      statements.add('DROP TABLE ${escapeName(name)};');
-    }
-
-    // Rename shadows into place and restore the indexes.
-    for (final name in rebuildSet) {
-      statements.add(
-        '''
-ALTER TABLE ${escapeName('__new_$name')} RENAME TO ${escapeName(name)};''',
-      );
-    }
-    statements.addAll([
+      'DROP TABLE ${escapeName(operation.tableName)};',
+      '''
+ALTER TABLE ${escapeName('__new_${operation.tableName}')} RENAME TO ${escapeName(operation.tableName)};''',
       for (final index in operation.newIndexes) createIndex(index),
-      for (final dependent in operation.referencedBy)
-        for (final index in dependent.indexes) createIndex(index),
-    ]);
-
-    return statements.join('\n');
+    ].join('\n');
   }
 
-  /// `CREATE TABLE "__new_<t>"` with references into [rebuildSet] pointed at
-  /// their `__new_` names.
-  String _createShadow(TableInfo table, Set<String> rebuildSet) {
+  /// `CREATE TABLE "__new_<t>"`, its foreign keys naming the real tables.
+  ///
+  /// Nothing is re-targeted at a `__new_` name: only [table] is being rebuilt,
+  /// and it is renamed back before anything reads it.
+  String _createShadow(TableInfo table) {
     final defs = [
-      for (final column in table.columns)
-        _columnDefinition(
-          column.foreignKey != null &&
-                  rebuildSet.contains(column.foreignKey!.referencedTable)
-              ? ColumnInfo(
-                  name: column.name,
-                  type: column.type,
-                  isNullable: column.isNullable,
-                  primaryKey: column.primaryKey,
-                  autoIncrement: column.autoIncrement,
-                  defaultValue: column.defaultValue,
-                  foreignKey: ForeignKeyInfo(
-                    referencedTable:
-                        '__new_${column.foreignKey!.referencedTable}',
-                    referencedColumn: column.foreignKey!.referencedColumn,
-                    onDelete: column.foreignKey!.onDelete,
-                    onUpdate: column.foreignKey!.onUpdate,
-                  ),
-                )
-              : column,
-        ),
+      ...table.columns.map(_columnDefinition),
       for (final entry in table.checks.entries)
         'CONSTRAINT ${escapeName(entry.key)} CHECK (${entry.value})',
     ].join(',\n  ');
@@ -226,44 +212,6 @@ ALTER TABLE ${escapeName('__new_$name')} RENAME TO ${escapeName(name)};''',
         copied.map((name) => escapeName(oldNameOf[name] ?? name)).join(', ');
     return '''
 INSERT INTO ${escapeName('__new_${operation.tableName}')} ($targets) SELECT $sources FROM ${escapeName(operation.tableName)};''';
-  }
-
-  String _copyVerbatim(TableInfo table) {
-    final columns = table.columns.map((c) => escapeName(c.name)).join(', ');
-    return '''
-INSERT INTO ${escapeName('__new_${table.name}')} ($columns) SELECT $columns FROM ${escapeName(table.name)};''';
-  }
-
-  /// Original tables in a safe drop order: a table is dropped only after
-  /// every rebuilt table referencing it is gone.
-  List<String> _dropOrder(AlterTable operation) {
-    final tables = {
-      operation.tableName: operation.newTable,
-      for (final dependent in operation.referencedBy)
-        dependent.table.name: dependent.table,
-    };
-
-    final remaining = {...tables.keys};
-    final order = <String>[];
-    while (remaining.isNotEmpty) {
-      final free = remaining.where((name) {
-        return !remaining.any((other) {
-          if (other == name) return false;
-          return tables[other]!.columns.any(
-                (column) => column.foreignKey?.referencedTable == name,
-              );
-        });
-      }).toList();
-      if (free.isEmpty) {
-        throw UnsupportedError(
-          '''
-Cyclic foreign keys among ${remaining.join(', ')}: no safe order to rebuild them. Write the migration by hand with `generate --empty`.''',
-        );
-      }
-      order.addAll(free);
-      remaining.removeAll(free);
-    }
-    return order;
   }
 
   String _columnDefinition(ColumnInfo column) {
@@ -297,8 +245,4 @@ Cyclic foreign keys among ${remaining.join(', ')}: no safe order to rebuild them
 
     return parts.join(' ');
   }
-
-  /// Whether [operation] takes the rebuild path (vs the ALTER whitelist).
-  bool _needsRebuild(AlterTable operation) =>
-      !_isSimple(operation, TableDiff.of(operation));
 }

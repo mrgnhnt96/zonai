@@ -229,10 +229,14 @@ class TableInfo {
 /// A table whose foreign keys reference the table being altered, with its
 /// indexes.
 ///
-/// Carried on `AlterTable` so a dialect that must REBUILD the altered table
-/// (SQLite) can rebuild its dependents too, dropping a table that is still
-/// referenced fires `ON DELETE CASCADE` on the referencing rows, silently.
-/// Dialects that alter in place (Postgres) ignore this.
+/// Carried on `AlterTable` so a dialect can see what a change would break.
+/// SQLite uses it to decide whether a column may be dropped in place: a
+/// column another table's foreign key points at cannot be.
+///
+/// It is deliberately NOT used to rebuild dependents. A rebuild recreates
+/// only its target, which returns under the same name, so a dependent's
+/// `REFERENCES` clause never stops being true. Dialects that alter in place
+/// (Postgres) ignore this entirely.
 /// {@endtemplate}
 class ReferencedBy {
   /// {@macro referenced_by}

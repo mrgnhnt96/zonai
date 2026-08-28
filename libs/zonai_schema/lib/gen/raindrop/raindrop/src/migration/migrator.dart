@@ -78,18 +78,31 @@ class _Migrator {
     for (final migration in pending) {
       final checksum = _calculateChecksum(migration.sql);
 
-      await _db.transaction((tx) async {
-        final statements = _dialect.splitStatements(migration.sql);
-        for (final statement in statements) {
-          await tx.execute(statement);
-        }
+      // Outside the transaction on purpose: a connection-level setting the
+      // migration depends on may be unchangeable from inside one. SQLite's
+      // `PRAGMA foreign_keys` is silently a no-op there, so a migration file
+      // can never assert it for itself.
+      final state = await _dialect.beginMigration(_db.execute);
+      try {
+        await _db.transaction((tx) async {
+          final statements = _dialect.splitStatements(migration.sql);
+          for (final statement in statements) {
+            await tx.execute(statement);
+          }
 
-        await _dialect.recordMigration(
-          tx.execute,
-          tag: migration.tag,
-          checksum: checksum,
-        );
-      });
+          await _dialect.recordMigration(
+            tx.execute,
+            tag: migration.tag,
+            checksum: checksum,
+          );
+
+          // Last, so it sees the migration's finished schema. Throwing here
+          // rolls the transaction back.
+          await _dialect.verifyMigration(tx.execute);
+        });
+      } finally {
+        await _dialect.endMigration(_db.execute, state);
+      }
     }
   }
 

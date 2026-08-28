@@ -11,7 +11,20 @@ import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 /// Floating-point numbers, stored as a REAL.
 extension RealColumnDefinition<R> on SchemaBuilder<R> {
   /// A [double] column, stored as an 8-byte IEEE floating point number.
-  ColumnType<W> real<W extends double?>(String name, Field<R, W> field) {
-    return column<double, W>(name, field, sqlType: 'REAL');
+  ///
+  /// [defaultValue] is what existing rows get when this column is added to a
+  /// table that already has some -- without it, a non-nullable column cannot
+  /// be added at all, because there is no value to backfill them with.
+  ColumnType<W> real<W extends double?>(
+    String name,
+    Field<R, W> field, {
+    ColumnOr<double>? defaultValue,
+  }) {
+    return column<double, W>(
+      name,
+      field,
+      sqlType: 'REAL',
+      defaultValue: defaultValue,
+    );
   }
 }

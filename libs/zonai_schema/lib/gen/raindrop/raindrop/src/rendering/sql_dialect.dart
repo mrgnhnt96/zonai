@@ -178,6 +178,29 @@ abstract class SqlDialect {
   /// Render [value] as a SQL literal, for the places that cannot bind.
   String escapeLiteral(Object? value);
 
+  /// Prepares the connection for a migration, OUTSIDE its transaction.
+  ///
+  /// Returns opaque state handed back to [endMigration], so a dialect can
+  /// restore whatever it changed without holding mutable state of its own --
+  /// dialects are const.
+  ///
+  /// This runs outside the transaction because that is the only place some
+  /// settings can be changed at all: SQLite's `PRAGMA foreign_keys` is
+  /// silently a no-op inside one.
+  Future<Object?> beginMigration(MigrationExecute execute) async => null;
+
+  /// Verifies integrity INSIDE the migration transaction, before it commits.
+  ///
+  /// Should throw to abort -- the transaction then rolls back, so a migration
+  /// that corrupted the schema never lands.
+  Future<void> verifyMigration(MigrationExecute execute) async {}
+
+  /// Restores what [beginMigration] changed, after the transaction ends.
+  ///
+  /// [state] is whatever [beginMigration] returned. Runs even when the
+  /// migration failed, so a connection is never left reconfigured.
+  Future<void> endMigration(MigrationExecute execute, Object? state) async {}
+
   /// Ensures that the migration tracking storage exists.
   Future<void> ensureMigrationStorage(MigrationExecute execute) async {
     final table = escapeName('_raindrop_migrations');
