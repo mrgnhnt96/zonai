@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:isolate';
 import 'dart:math' show min;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:scoped_deps/scoped_deps.dart';
@@ -158,6 +159,15 @@ class Mailman<S extends Request, R extends Response> {
   final Map<String, Completer<(Response, List<MutationRequest>)>>
   _pendingResponses = {};
   final Map<String, List<MutationRequest>> _pendingMutations = {};
+
+  /// The request ids still waiting on a reply.
+  ///
+  /// Exposed only so a test can assert on the map's *contents* rather than on
+  /// its consequences. The consequence of an orphan entry is that
+  /// [_restartFromStopFile] never finishes draining, which a test can observe
+  /// only as a hang -- and a hang is indistinguishable from a slow machine.
+  @visibleForTesting
+  Iterable<String> get pendingResponseIds => _pendingResponses.keys;
 
   Future<void>? _restartFuture;
 
@@ -537,7 +547,27 @@ class Mailman<S extends Request, R extends Response> {
 
   void _sendOutbound(Map<String, dynamic> message) {
     if (_isolatePeer case final peer?) {
-      peer.send(message);
+      // These two branches are not symmetric by default, and the asymmetry is
+      // what took a host down. `IpcCodec.encode` below runs a full MessagePack
+      // pass, and that pass flattens whatever any `toJson()` handed it into
+      // plain maps, lists and primitives before a byte goes out.
+      // `SendPort.send` does no such pass: it hands the live object graph
+      // straight to the VM's message serializer.
+      //
+      // For a peer in the SAME isolate group that would still be fine --
+      // arbitrary instances are deep-copied. Every isolate worker here is
+      // spawned with [Isolate.spawnUri] (see [_tryStartIsolate]), which starts
+      // a NEW isolate group, and across groups the serializer accepts only
+      // literal instances: null, bool, num, String, and the VM's own List and
+      // Map. An `UnmodifiableMapView` -- the ordinary product of a defensive
+      // `toJson()` -- is none of those, so one of them anywhere in the payload
+      // makes the whole send throw.
+      //
+      // So normalize to the same plain shape the process branch already
+      // produces. This is not extra work bolted onto the cheap path: it is
+      // strictly less work than the encode it mirrors, which does this same
+      // walk and then serializes and frames the result.
+      peer.send(toIsolateSendable(message));
       return;
     }
     _process?.stdin.add(IpcCodec.encode(message));
@@ -1224,7 +1254,30 @@ class Mailman<S extends Request, R extends Response> {
     final pendingResponse = Completer<(Response, List<MutationRequest>)>();
     _pendingResponses[request.id] = pendingResponse;
 
-    _sendOutbound(request.toJson());
+    try {
+      _sendOutbound(request.toJson());
+    } catch (_) {
+      // Registering before the send is deliberate and stays that way: a
+      // worker can answer faster than this function resumes, and an entry
+      // added after the send would race its own reply. What that ordering
+      // costs is this window -- a send that throws leaves an entry nothing
+      // will ever complete.
+      //
+      // That is not what fails the request. The error propagates out of here
+      // through `_send`, so the caller sees it either way. What it wedges is
+      // teardown: `_restartFromStopFile` waits on
+      // `while (_pendingResponses.isNotEmpty)`, so one orphan entry spins
+      // that loop forever and a stop-file restart never happens again for
+      // the life of the process.
+      //
+      // Discarded rather than completed with the error, because nothing is
+      // listening: `_awaitOnce` is only reached once `_writeOnce` returns
+      // normally, so a `completeError` here would surface as an unhandled
+      // asynchronous error attributed to no caller at all.
+      _pendingResponses.remove(request.id);
+      _pendingMutations.remove(request.id);
+      rethrow;
+    }
     return pendingResponse;
   }
 
@@ -1401,5 +1454,46 @@ class MailmanPool<
 
   Future<void> dispose() async {
     await Future.wait(_workers.map((w) => w.dispose()));
+  }
+}
+
+/// [value] rebuilt out of the literal instances `SendPort.send` accepts when
+/// the peer is in a different isolate group.
+///
+/// Deliberately the same walk, in the same order and with the same `toJson()`
+/// fallback, as the `_jsonReady` that `IpcCodec.encode` runs on the process
+/// transport. That symmetry is the point rather than an accident of
+/// implementation: a worker's `fromJson` reads whatever arrives, and it must
+/// not be able to tell which transport carried it. A normalizer that made
+/// different choices here would turn the transport -- picked by
+/// [workerTransportModeFromEnv] and by whether a snapshot happens to be
+/// spawnable on this host -- into something a payload's shape depends on.
+///
+/// It is duplicated rather than shared because `_jsonReady` is private to
+/// `zonai_schema`'s codec. If it is ever exported, this should call it.
+///
+/// [Uint8List] passes through whole. Typed data crosses an isolate group
+/// as-is, and widening it to a `List<int>` would cost a per-byte copy and
+/// hand the worker a different type than the process transport does.
+Object? toIsolateSendable(Object? value) {
+  if (value == null || value is bool || value is num || value is String) {
+    return value;
+  }
+  if (value is Uint8List) return value;
+  if (value is Map) {
+    return <String, Object?>{
+      for (final entry in value.entries)
+        entry.key.toString(): toIsolateSendable(entry.value),
+    };
+  }
+  if (value is Iterable) {
+    return [for (final item in value) toIsolateSendable(item)];
+  }
+
+  try {
+    final dynamic object = value;
+    return toIsolateSendable(object.toJson());
+  } on NoSuchMethodError {
+    throw FormatException("Don't know how to serialize ${value.runtimeType}");
   }
 }
