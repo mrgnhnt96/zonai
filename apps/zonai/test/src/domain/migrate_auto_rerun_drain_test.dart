@@ -115,49 +115,46 @@ void main() {
       final unhandled = <Object>[];
       final finished = Completer<void>();
 
-      runZonedGuarded(
-        () async {
-          try {
-            await _inScope(schemasDir, migrationsDir, () async {
-              // Migrations directory already present, so no initialize run.
-              migrationsDir.createSync(recursive: true);
-              migrate.auto();
-              expect(cli.dispatched, isEmpty);
+      runZonedGuarded(() async {
+        try {
+          await _inScope(schemasDir, migrationsDir, () async {
+            // Migrations directory already present, so no initialize run.
+            migrationsDir.createSync(recursive: true);
+            migrate.auto();
+            expect(cli.dispatched, isEmpty);
 
-              events.add(
-                WatchEvent(ChangeType.ADD, _schema(schemasDir, 'posts')),
-              );
-              await _waitUntil(
-                () => cli.dispatched.isNotEmpty,
-                reason: 'the first auto run to be dispatched',
-              );
-              expect(cli.dispatched, ['auto']);
+            events.add(
+              WatchEvent(ChangeType.ADD, _schema(schemasDir, 'posts')),
+            );
+            await _waitUntil(
+              () => cli.dispatched.isNotEmpty,
+              reason: 'the first auto run to be dispatched',
+            );
+            expect(cli.dispatched, ['auto']);
 
-              events.add(
-                WatchEvent(ChangeType.ADD, _schema(schemasDir, 'comments')),
-              );
-              await _waitUntil(
-                () => migrate.hasQueuedRerun,
-                reason: 'the second edit to queue a rerun',
-              );
+            events.add(
+              WatchEvent(ChangeType.ADD, _schema(schemasDir, 'comments')),
+            );
+            await _waitUntil(
+              () => migrate.hasQueuedRerun,
+              reason: 'the second edit to queue a rerun',
+            );
 
-              cli.fail(0, StateError('raindrop_cli blew up'));
+            cli.fail(0, StateError('raindrop_cli blew up'));
 
-              await _waitUntil(
-                () => cli.dispatched.length > 1,
-                reason:
-                    'the queued rerun to be dispatched even though the run '
-                    'it was queued behind failed',
-              );
-              expect(cli.dispatched, ['auto', 'auto']);
-            });
-            finished.complete();
-          } catch (error, stackTrace) {
-            finished.completeError(error, stackTrace);
-          }
-        },
-        (error, _) => unhandled.add(error),
-      );
+            await _waitUntil(
+              () => cli.dispatched.length > 1,
+              reason:
+                  'the queued rerun to be dispatched even though the run '
+                  'it was queued behind failed',
+            );
+            expect(cli.dispatched, ['auto', 'auto']);
+          });
+          finished.complete();
+        } catch (error, stackTrace) {
+          finished.completeError(error, stackTrace);
+        }
+      }, (error, _) => unhandled.add(error));
 
       await finished.future;
       // A `.then` with no `onError` left the failure with nowhere to go, and
@@ -190,22 +187,23 @@ Future<void> _inScope(
   },
 );
 
-Settings _fixtureSettings(String schemasPath, String migrationsPath) => Settings(
-  path: 'zonai.yml',
-  migrationsPath: migrationsPath,
-  dataPath: '.zonai/data',
-  schemasPath: schemasPath,
-  extensionsPath: '.zonai/unused/extensions',
-  rulesPath: '.zonai/unused/rules',
-  operationsPath: '.zonai/unused/operations',
-  configPath: '.zonai/unused/config',
-  emailTemplatesPath: '.zonai/unused/email_templates',
-  rateLimitPath: '.zonai/unused/rate_limit',
-  cronsPath: '.zonai/unused/crons',
-  imagesPath: '.zonai/unused/images',
-  buildSettings: BuildSettings.current(),
-  version: kVersion,
-);
+Settings _fixtureSettings(String schemasPath, String migrationsPath) =>
+    Settings(
+      path: 'zonai.yml',
+      migrationsPath: migrationsPath,
+      dataPath: '.zonai/data',
+      schemasPath: schemasPath,
+      extensionsPath: '.zonai/unused/extensions',
+      rulesPath: '.zonai/unused/rules',
+      operationsPath: '.zonai/unused/operations',
+      configPath: '.zonai/unused/config',
+      emailTemplatesPath: '.zonai/unused/email_templates',
+      rateLimitPath: '.zonai/unused/rate_limit',
+      cronsPath: '.zonai/unused/crons',
+      imagesPath: '.zonai/unused/images',
+      buildSettings: BuildSettings.current(),
+      version: kVersion,
+    );
 
 String _schema(Directory schemasDir, String name) =>
     p.join(schemasDir.path, '$name.dart');
@@ -225,7 +223,8 @@ class _GatedRaindropCli {
   }
 
   /// Finishes the [index]th dispatched run successfully.
-  void finish(int index, {int exitCode = 0}) => _gates[index].complete(exitCode);
+  void finish(int index, {int exitCode = 0}) =>
+      _gates[index].complete(exitCode);
 
   /// Finishes the [index]th dispatched run by throwing.
   void fail(int index, Object error) => _gates[index].completeError(error);
