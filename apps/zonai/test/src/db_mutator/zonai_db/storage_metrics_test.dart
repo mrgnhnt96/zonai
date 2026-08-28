@@ -88,34 +88,30 @@ void main() {
     admin: (isAdmin: isAdmin, canEdit: isAdmin ? true : null),
   );
 
-  test(
-    'refuses a caller who is not an admin',
-    () async {
-      if (!rs.isInstalled) {
-        markTestSkipped('resqlite native library not found');
-        return;
+  test('refuses a caller who is not an admin', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
+
+    await withScope(() async {
+      final zonaiDb = ZonaiDb();
+      try {
+        await zonaiDb.open();
+
+        // Every path, size and internal row count on the host is operator
+        // information. The endpoint gates it the same way, but the engine
+        // refusing on its own is what makes that gate a second lock rather
+        // than the only one.
+        await expectLater(
+          zonaiDb.storageMetrics(jwt: jwt(isAdmin: false)),
+          throwsA(isA<TableAccessDeniedException>()),
+        );
+      } finally {
+        await zonaiDb.dispose();
       }
-
-      await withScope(() async {
-        final zonaiDb = ZonaiDb();
-        try {
-          await zonaiDb.open();
-
-          // Every path, size and internal row count on the host is operator
-          // information. The endpoint gates it the same way, but the engine
-          // refusing on its own is what makes that gate a second lock rather
-          // than the only one.
-          await expectLater(
-            zonaiDb.storageMetrics(jwt: jwt(isAdmin: false)),
-            throwsA(isA<TableAccessDeniedException>()),
-          );
-        } finally {
-          await zonaiDb.dispose();
-        }
-      });
-    },
-    timeout: const Timeout(Duration(minutes: 3)),
-  );
+    });
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   test(
     'measures every database file zonai owns, against a real database',
@@ -132,11 +128,11 @@ void main() {
 
           final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
 
-          expect(
-            metrics.databases.map((d) => d.name),
-            ['zonai.sqlite', 'zonai_log.sqlite', 'zonai_rate_limit.sqlite'],
-            reason: 'application database first, matching zonaiSqlitePaths',
-          );
+          expect(metrics.databases.map((d) => d.name), [
+            'zonai.sqlite',
+            'zonai_log.sqlite',
+            'zonai_rate_limit.sqlite',
+          ], reason: 'application database first, matching zonaiSqlitePaths');
 
           for (final db in metrics.databases) {
             expect(
@@ -304,33 +300,29 @@ void main() {
     });
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  test(
-    'survives a project that has never stored a photo',
-    () async {
-      if (!rs.isInstalled) {
-        markTestSkipped('resqlite native library not found');
-        return;
+  test('survives a project that has never stored a photo', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
+
+    await withScope(() async {
+      final zonaiDb = ZonaiDb();
+      try {
+        await zonaiDb.open();
+        expect(io.Directory(settings.imagesPath).existsSync(), isFalse);
+
+        final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
+
+        // A missing images directory is the normal state of a deployment that
+        // has not accepted an upload, not a fault to report.
+        expect(metrics.photosBytes, 0);
+        expect(metrics.photosFileCount, 0);
+      } finally {
+        await zonaiDb.dispose();
       }
-
-      await withScope(() async {
-        final zonaiDb = ZonaiDb();
-        try {
-          await zonaiDb.open();
-          expect(io.Directory(settings.imagesPath).existsSync(), isFalse);
-
-          final metrics = await zonaiDb.storageMetrics(jwt: jwt(isAdmin: true));
-
-          // A missing images directory is the normal state of a deployment that
-          // has not accepted an upload, not a fault to report.
-          expect(metrics.photosBytes, 0);
-          expect(metrics.photosFileCount, 0);
-        } finally {
-          await zonaiDb.dispose();
-        }
-      });
-    },
-    timeout: const Timeout(Duration(minutes: 3)),
-  );
+    });
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   test('reports an absolute path even when the project configures a relative '
       'one', () async {

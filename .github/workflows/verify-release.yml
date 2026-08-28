@@ -150,7 +150,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
 
       - name: Configure revali git overrides
         shell: bash
@@ -261,7 +261,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
 
       # The fixture is not a workspace member, so the root overrides other
       # jobs write would never reach it -- pin it explicitly to the same ref
@@ -475,7 +475,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
 
       - name: Configure revali git overrides
         shell: bash
@@ -602,7 +602,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
 
       - name: Configure revali git overrides
         shell: bash

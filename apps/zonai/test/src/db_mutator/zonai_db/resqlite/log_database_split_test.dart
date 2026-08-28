@@ -300,25 +300,23 @@ void main() {
       });
     }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-      'moves an existing main."_log" across, dropping its rows',
-      () async {
-        if (!rs.isInstalled) {
-          markTestSkipped('resqlite native library not found');
-          return;
-        }
+    test('moves an existing main."_log" across, dropping its rows', () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
 
-        await withScope(() async {
-          // A database as it exists before the upgrade: `_log` in the shared
-          // file, holding rows. Its columns are migration 0001's, so the
-          // migrations that follow apply to it exactly as they would on a real
-          // deployment -- plus `legacy_marker`, which no schema declares and
-          // which is therefore how the assertions below tell the old table
-          // apart from the new one.
-          Directory(settings.dataPath).createSync(recursive: true);
-          final seeded = await ResqliteDelegate.open(settings.zonaiSqlitePath);
-          final seed = Raindrop(seeded);
-          await seed.execute('''
+      await withScope(() async {
+        // A database as it exists before the upgrade: `_log` in the shared
+        // file, holding rows. Its columns are migration 0001's, so the
+        // migrations that follow apply to it exactly as they would on a real
+        // deployment -- plus `legacy_marker`, which no schema declares and
+        // which is therefore how the assertions below tell the old table
+        // apart from the new one.
+        Directory(settings.dataPath).createSync(recursive: true);
+        final seeded = await ResqliteDelegate.open(settings.zonaiSqlitePath);
+        final seed = Raindrop(seeded);
+        await seed.execute('''
 CREATE TABLE "_log" (
   "error" TEXT,
   "id" TEXT PRIMARY KEY,
@@ -328,149 +326,139 @@ CREATE TABLE "_log" (
   "trace_id" TEXT NOT NULL,
   "legacy_marker" TEXT
 )''');
-          await seed.execute(
-            'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
-            '"trace_id") VALUES (?, ?, ?, ?, ?)',
-            ['a', 'info', 'old', 1, 't'],
+        await seed.execute(
+          'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
+          '"trace_id") VALUES (?, ?, ?, ?, ?)',
+          ['a', 'info', 'old', 1, 't'],
+        );
+        await seeded.close();
+
+        final zonaiDb = ZonaiDb();
+        try {
+          final db = await zonaiDb.open();
+
+          final inMain = await db.execute(
+            'SELECT 1 FROM "main".sqlite_master WHERE name = ?',
+            ['_log'],
           );
-          await seeded.close();
+          expect(
+            inMain.rows,
+            isEmpty,
+            reason:
+                'the old table has to go, or it keeps shadowing the new one',
+          );
 
-          final zonaiDb = ZonaiDb();
-          try {
-            final db = await zonaiDb.open();
+          // Dropped, not migrated -- a deliberate decision. The deployments
+          // that need this most hold millions of rows on a volume with no
+          // room to copy anything, and the rows are logs.
+          final rows = await db.execute('SELECT COUNT(*) FROM "_log"');
+          expect(rows.rows.single.single, 0);
 
-            final inMain = await db.execute(
-              'SELECT 1 FROM "main".sqlite_master WHERE name = ?',
-              ['_log'],
-            );
-            expect(
-              inMain.rows,
-              isEmpty,
-              reason:
-                  'the old table has to go, or it keeps shadowing the new one',
-            );
-
-            // Dropped, not migrated -- a deliberate decision. The deployments
-            // that need this most hold millions of rows on a volume with no
-            // room to copy anything, and the rows are logs.
-            final rows = await db.execute('SELECT COUNT(*) FROM "_log"');
-            expect(rows.rows.single.single, 0);
-
-            // And the table that answered that query is genuinely the new
-            // one, not an emptied version of the old: it carries the schema's
-            // full current shape and none of the seed's `legacy_marker`.
-            final columns = await db.execute(
-              'SELECT name FROM pragma_table_info(?)',
-              ['_log'],
-            );
-            final names = columns.rows.map((r) => r.single).toList();
-            expect(names, containsAll(['props', 'is_admin', 'trace_id']));
-            expect(names, isNot(contains('legacy_marker')));
-          } finally {
-            await zonaiDb.dispose();
-          }
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
-
-    test(
-      'splits "_rate_limit" into its own file the same way',
-      () async {
-        if (!rs.isInstalled) {
-          markTestSkipped('resqlite native library not found');
-          return;
+          // And the table that answered that query is genuinely the new
+          // one, not an emptied version of the old: it carries the schema's
+          // full current shape and none of the seed's `legacy_marker`.
+          final columns = await db.execute(
+            'SELECT name FROM pragma_table_info(?)',
+            ['_log'],
+          );
+          final names = columns.rows.map((r) => r.single).toList();
+          expect(names, containsAll(['props', 'is_admin', 'trace_id']));
+          expect(names, isNot(contains('legacy_marker')));
+        } finally {
+          await zonaiDb.dispose();
         }
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-        // The mechanism is shared, so this asserts the parts a second table
-        // could get wrong independently: its own file, its own schema, and its
-        // own index -- which the rate limiter depends on for *correctness*, not
-        // just speed. It resolves the race between two concurrent requests
-        // missing the same bucket row by retrying on constraint violation 19,
-        // and without the unique index there is no violation to retry on.
-        await withScope(() async {
-          final zonaiDb = ZonaiDb();
-          try {
-            final db = await zonaiDb.open();
+    test('splits "_rate_limit" into its own file the same way', () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
 
-            final inMain = await db.execute(
-              'SELECT 1 FROM "main".sqlite_master WHERE name = ?',
-              ['_rate_limit'],
-            );
-            expect(inMain.rows, isEmpty);
+      // The mechanism is shared, so this asserts the parts a second table
+      // could get wrong independently: its own file, its own schema, and its
+      // own index -- which the rate limiter depends on for *correctness*, not
+      // just speed. It resolves the race between two concurrent requests
+      // missing the same bucket row by retrying on constraint violation 19,
+      // and without the unique index there is no violation to retry on.
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          final db = await zonaiDb.open();
 
-            final inRateDb = await db.execute(
-              'SELECT name FROM "$kRateLimitDbSchema".sqlite_master '
-              "WHERE type IN ('table', 'index') ORDER BY name",
-            );
-            expect(
-              inRateDb.rows.map((r) => r.single).toList(),
-              containsAll(['_rate_limit', 'rate_limit_bucket_unique']),
-            );
+          final inMain = await db.execute(
+            'SELECT 1 FROM "main".sqlite_master WHERE name = ?',
+            ['_rate_limit'],
+          );
+          expect(inMain.rows, isEmpty);
 
-            await db.execute(
+          final inRateDb = await db.execute(
+            'SELECT name FROM "$kRateLimitDbSchema".sqlite_master '
+            "WHERE type IN ('table', 'index') ORDER BY name",
+          );
+          expect(
+            inRateDb.rows.map((r) => r.single).toList(),
+            containsAll(['_rate_limit', 'rate_limit_bucket_unique']),
+          );
+
+          await db.execute(
+            'INSERT INTO "_rate_limit" ("id", "client_ip", "table", '
+            '"operation", "count", "window_start") VALUES (?, ?, ?, ?, ?, ?)',
+            ['a', '1.2.3.4', 'widgets', 'read', 1, 0],
+          );
+          await expectLater(
+            db.execute(
               'INSERT INTO "_rate_limit" ("id", "client_ip", "table", '
               '"operation", "count", "window_start") VALUES (?, ?, ?, ?, ?, ?)',
-              ['a', '1.2.3.4', 'widgets', 'read', 1, 0],
-            );
-            await expectLater(
-              db.execute(
-                'INSERT INTO "_rate_limit" ("id", "client_ip", "table", '
-                '"operation", "count", "window_start") VALUES (?, ?, ?, ?, ?, ?)',
-                ['b', '1.2.3.4', 'widgets', 'read', 1, 0],
-              ),
-              throwsA(anything),
-              reason:
-                  'the bucket index has to be enforcing in the new file too -- '
-                  "the rate limiter's duplicate-insert retry is what makes it "
-                  'correct under concurrency',
-            );
-          } finally {
-            await zonaiDb.dispose();
-          }
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+              ['b', '1.2.3.4', 'widgets', 'read', 1, 0],
+            ),
+            throwsA(anything),
+            reason:
+                'the bucket index has to be enforcing in the new file too -- '
+                "the rate limiter's duplicate-insert retry is what makes it "
+                'correct under concurrency',
+          );
+        } finally {
+          await zonaiDb.dispose();
+        }
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-      'opening twice is a no-op the second time',
-      () async {
-        if (!rs.isInstalled) {
-          markTestSkipped('resqlite native library not found');
-          return;
+    test('opening twice is a no-op the second time', () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
+
+      await withScope(() async {
+        final first = ZonaiDb();
+        try {
+          final db = await first.open();
+          await db.execute(
+            'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
+            '"trace_id") VALUES (?, ?, ?, ?, ?)',
+            ['a', 'info', 'kept', 1, 't'],
+          );
+        } finally {
+          await first.dispose();
         }
 
-        await withScope(() async {
-          final first = ZonaiDb();
-          try {
-            final db = await first.open();
-            await db.execute(
-              'INSERT INTO "_log" ("id", "level", "message", "timestamp", '
-              '"trace_id") VALUES (?, ?, ?, ?, ?)',
-              ['a', 'info', 'kept', 1, 't'],
-            );
-          } finally {
-            await first.dispose();
-          }
-
-          final second = ZonaiDb();
-          try {
-            final db = await second.open();
-            final rows = await db.execute('SELECT "message" FROM "_log"');
-            expect(
-              rows.rows.single.single,
-              'kept',
-              reason:
-                  'the move must not re-run once done, or every restart would '
-                  'silently discard the logs since the last one',
-            );
-          } finally {
-            await second.dispose();
-          }
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+        final second = ZonaiDb();
+        try {
+          final db = await second.open();
+          final rows = await db.execute('SELECT "message" FROM "_log"');
+          expect(
+            rows.rows.single.single,
+            'kept',
+            reason:
+                'the move must not re-run once done, or every restart would '
+                'silently discard the logs since the last one',
+          );
+        } finally {
+          await second.dispose();
+        }
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
   });
 }

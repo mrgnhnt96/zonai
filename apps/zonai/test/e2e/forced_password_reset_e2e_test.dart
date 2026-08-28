@@ -297,142 +297,134 @@ void main() {
       });
     }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-      'a gated sign-in mints no session and hands back a ticket',
-      () async {
-        if (!_runningOnDartVm) return;
+    test('a gated sign-in mints no session and hands back a ticket', () async {
+      if (!_runningOnDartVm) return;
 
-        await withDb((db) async {
-          const email = 'gated@example.com';
-          const password = 'old-password-gated-1';
+      await withDb((db) async {
+        const email = 'gated@example.com';
+        const password = 'old-password-gated-1';
 
-          final signUp = await db.authenticate(
+        final signUp = await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(email: email, password: password),
+        );
+        final userId = signUp!.user['id']! as String;
+        await db.requirePasswordReset(
+          table: 'admins',
+          email: email,
+          reason: PasswordResetReason.temporaryPassword,
+          byUserId: 'cli',
+        );
+
+        final refusal = await _captureRefusal(
+          () => db.authenticate(
             'admins',
-            const PasswordAuthPayload(email: email, password: password),
-          );
-          final userId = signUp!.user['id']! as String;
-          await db.requirePasswordReset(
-            table: 'admins',
-            email: email,
-            reason: PasswordResetReason.temporaryPassword,
-            byUserId: 'cli',
-          );
+            const SignInPasswordAuthPayload(email: email, password: password),
+          ),
+        );
 
-          final refusal = await _captureRefusal(
-            () => db.authenticate(
-              'admins',
-              const SignInPasswordAuthPayload(email: email, password: password),
-            ),
-          );
+        // "Mints no session" asserted as a COUNT of `_jwt` rows, not as
+        // "the call threw". The gate sits after the password verifies and
+        // before anything mints, records or announces a session -- move it
+        // one line later and this is the only assertion that notices, since
+        // the caller sees an exception either way. Setting the requirement
+        // revoked the sign-up's session, so the right number here is zero.
+        expect(
+          await _sessionCount(db, userId),
+          0,
+          reason:
+              'a JWT recorded in `_jwt` has been handed to a caller who is '
+              'under no obligation to discard it',
+        );
 
-          // "Mints no session" asserted as a COUNT of `_jwt` rows, not as
-          // "the call threw". The gate sits after the password verifies and
-          // before anything mints, records or announces a session -- move it
-          // one line later and this is the only assertion that notices, since
-          // the caller sees an exception either way. Setting the requirement
-          // revoked the sign-up's session, so the right number here is zero.
-          expect(
-            await _sessionCount(db, userId),
-            0,
-            reason:
-                'a JWT recorded in `_jwt` has been handed to a caller who is '
-                'under no obligation to discard it',
-          );
+        expect(refusal.reason, PasswordResetReason.temporaryPassword);
+        expect(refusal.expiresIn, const Duration(minutes: 15));
+        expect(
+          utf8.decode(base64Decode(refusal.token)).split(':').last,
+          email,
+          reason:
+              'the ticket is `base64(<secret>:<email>)` -- the same shape the '
+              'emailed link carries, which is why POST /auth/confirm resolves '
+              'it with no new code',
+        );
+        expect(
+          '$refusal',
+          isNot(contains(refusal.token)),
+          reason:
+              'toString() must never carry the ticket: the catcher logs the '
+              'exception server-side, and a one-time credential in the log '
+              'table outlives the 15 minutes it is good for',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-          expect(refusal.reason, PasswordResetReason.temporaryPassword);
-          expect(refusal.expiresIn, const Duration(minutes: 15));
-          expect(
-            utf8.decode(base64Decode(refusal.token)).split(':').last,
-            email,
-            reason:
-                'the ticket is `base64(<secret>:<email>)` -- the same shape the '
-                'emailed link carries, which is why POST /auth/confirm resolves '
-                'it with no new code',
-          );
-          expect(
-            '$refusal',
-            isNot(contains(refusal.token)),
-            reason:
-                'toString() must never carry the ticket: the catcher logs the '
-                'exception server-side, and a one-time credential in the log '
-                'table outlives the 15 minutes it is good for',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('a gated sign-in does not fire onSignIn', () async {
+      if (!_runningOnDartVm) return;
 
-    test(
-      'a gated sign-in does not fire onSignIn',
-      () async {
-        if (!_runningOnDartVm) return;
+      final recorder = _RecordingAdminsExtension();
+      HostWorkerRegistries.extensions = DbExtensions(extensions: [recorder]);
+      addTearDown(() => HostWorkerRegistries.extensions = null);
 
-        final recorder = _RecordingAdminsExtension();
-        HostWorkerRegistries.extensions = DbExtensions(extensions: [recorder]);
-        addTearDown(() => HostWorkerRegistries.extensions = null);
+      await withDb((db) async {
+        const email = 'hooked@example.com';
+        const password = 'old-password-hooked-1';
 
-        await withDb((db) async {
-          const email = 'hooked@example.com';
-          const password = 'old-password-hooked-1';
+        await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(email: email, password: password),
+        );
 
+        // THE POSITIVE CONTROL, and it is not optional. "The hook did not
+        // fire" is only evidence if this recorder fires at all, and with no
+        // extension registered `_runExtension` returns early -- so `onSignIn`
+        // could not fire whatever the gate did, and the assertion below would
+        // pass while proving nothing. Not hypothetical: it is exactly what
+        // this test did on the first run that registered no extension.
+        expect(
           await db.authenticate(
             'admins',
-            const PasswordAuthPayload(email: email, password: password),
-          );
+            const SignInPasswordAuthPayload(email: email, password: password),
+          ),
+          isNotNull,
+        );
+        expect(
+          recorder.signIns.where((e) => e == email).length,
+          1,
+          reason:
+              'an ordinary sign-in fires onSignIn exactly once -- so a zero '
+              'below is the gate, not a recorder that never worked',
+        );
 
-          // THE POSITIVE CONTROL, and it is not optional. "The hook did not
-          // fire" is only evidence if this recorder fires at all, and with no
-          // extension registered `_runExtension` returns early -- so `onSignIn`
-          // could not fire whatever the gate did, and the assertion below would
-          // pass while proving nothing. Not hypothetical: it is exactly what
-          // this test did on the first run that registered no extension.
-          expect(
-            await db.authenticate(
-              'admins',
-              const SignInPasswordAuthPayload(email: email, password: password),
-            ),
-            isNotNull,
-          );
-          expect(
-            recorder.signIns.where((e) => e == email).length,
-            1,
-            reason:
-                'an ordinary sign-in fires onSignIn exactly once -- so a zero '
-                'below is the gate, not a recorder that never worked',
-          );
+        await db.requirePasswordReset(
+          table: 'admins',
+          email: email,
+          reason: PasswordResetReason.compromised,
+          byUserId: 'cli',
+        );
 
-          await db.requirePasswordReset(
-            table: 'admins',
-            email: email,
-            reason: PasswordResetReason.compromised,
-            byUserId: 'cli',
-          );
+        await expectLater(
+          db.authenticate(
+            'admins',
+            const SignInPasswordAuthPayload(email: email, password: password),
+          ),
+          throwsA(isA<PasswordResetRequiredException>()),
+        );
 
-          await expectLater(
-            db.authenticate(
-              'admins',
-              const SignInPasswordAuthPayload(email: email, password: password),
-            ),
-            throwsA(isA<PasswordResetRequiredException>()),
-          );
-
-          expect(
-            recorder.signIns.where((e) => e == email).length,
-            1,
-            reason:
-                'STILL one, counted rather than inferred: the gate throws at the '
-                '`reset_required` step, two steps before `ext_hook`, and this '
-                "pins it there. `onSignIn`'s default is not a no-op -- on any "
-                'HasEmail collection it sends a login notice -- so a regression '
-                "moving the gate below the hook would email the account's owner "
-                '"you just signed in" at the moment their sign-in was refused, '
-                'during a compromise response, which is when that mail is most '
-                'likely to be believed and most wrong',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+        expect(
+          recorder.signIns.where((e) => e == email).length,
+          1,
+          reason:
+              'STILL one, counted rather than inferred: the gate throws at the '
+              '`reset_required` step, two steps before `ext_hook`, and this '
+              "pins it there. `onSignIn`'s default is not a no-op -- on any "
+              'HasEmail collection it sends a login notice -- so a regression '
+              "moving the gate below the hook would email the account's owner "
+              '"you just signed in" at the moment their sign-in was refused, '
+              'during a compromise response, which is when that mail is most '
+              'likely to be believed and most wrong',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test('a WRONG password against a gated account is an ordinary 401 with '
         'no ticket', () async {
@@ -627,233 +619,211 @@ void main() {
       });
     }, timeout: const Timeout(Duration(minutes: 3)));
 
-    test(
-      'an emailed reset clears a forced requirement too',
-      () async {
-        if (!_runningOnDartVm) return;
+    test('an emailed reset clears a forced requirement too', () async {
+      if (!_runningOnDartVm) return;
 
-        // The cross-door case. The requirement says "choose a new password",
-        // not "choose it through the door we shut you out of", so the ordinary
-        // forgot-my-password flow has to satisfy it. If it did not, an account
-        // that reset by email would still be gated with no ticket in hand.
-        debugInsecureTestMode = true;
+      // The cross-door case. The requirement says "choose a new password",
+      // not "choose it through the door we shut you out of", so the ordinary
+      // forgot-my-password flow has to satisfy it. If it did not, an account
+      // that reset by email would still be gated with no ticket in hand.
+      debugInsecureTestMode = true;
 
-        await withDb((db) async {
-          const email = 'crossdoor@example.com';
-          const password = 'old-password-crossdoor-1';
-          const newPassword = 'new-password-crossdoor-2';
+      await withDb((db) async {
+        const email = 'crossdoor@example.com';
+        const password = 'old-password-crossdoor-1';
+        const newPassword = 'new-password-crossdoor-2';
 
-          final signUp = await db.authenticate(
-            'users',
-            const PasswordAuthPayload(email: email, password: password),
-          );
-          final userId = signUp!.user['id']! as String;
+        final signUp = await db.authenticate(
+          'users',
+          const PasswordAuthPayload(email: email, password: password),
+        );
+        final userId = signUp!.user['id']! as String;
 
-          await db.requirePasswordReset(
-            table: 'users',
-            email: email,
-            reason: PasswordResetReason.compromised,
-            byUserId: 'cli',
-          );
+        await db.requirePasswordReset(
+          table: 'users',
+          email: email,
+          reason: PasswordResetReason.compromised,
+          byUserId: 'cli',
+        );
 
-          await db.sendResetPassword(
-            'users',
-            const ResetPasswordAuthPayload(email: email),
-          );
+        await db.sendResetPassword(
+          'users',
+          const ResetPasswordAuthPayload(email: email),
+        );
 
-          // Under insecure test mode the emailed secret is a known constant, so
-          // the token can be rebuilt here exactly as the email would carry it.
-          // The alternative is an SMTP capture server, which buys nothing this
-          // assertion needs.
-          final emailedToken = base64Encode(
-            '$kInsecureTestResetPasswordSecret:$email'.codeUnits,
-          );
+        // Under insecure test mode the emailed secret is a known constant, so
+        // the token can be rebuilt here exactly as the email would carry it.
+        // The alternative is an SMTP capture server, which buys nothing this
+        // assertion needs.
+        final emailedToken = base64Encode(
+          '$kInsecureTestResetPasswordSecret:$email'.codeUnits,
+        );
 
-          await db.confirmAuth(
-            ConfirmResetPasswordAuthPayload(
-              token: emailedToken,
-              newPassword: newPassword,
-            ),
-          );
+        await db.confirmAuth(
+          ConfirmResetPasswordAuthPayload(
+            token: emailedToken,
+            newPassword: newPassword,
+          ),
+        );
 
-          expect(
-            await db.passwordResetRequirement(table: 'users', userId: userId),
-            isNull,
-          );
-          expect(
-            await db.authenticate(
-              'users',
-              const SignInPasswordAuthPayload(
-                email: email,
-                password: newPassword,
-              ),
-            ),
-            isNotNull,
-            reason: 'and the account is no longer gated',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
-
-    test(
-      'OTP still signs in, and the requirement survives it',
-      () async {
-        if (!_runningOnDartVm) return;
-
-        // The requirement is a statement about the PASSWORD credential.
-        // Someone who proved possession of their mailbox has not used the
-        // password, so they are not asked to change it -- and it stays unusable
-        // until they do. Gating OTP as well would lock an account out of the
-        // one door that could still let it in.
-        debugInsecureTestMode = true;
-
-        await withDb((db) async {
-          const email = 'passwordless@example.com';
-          const password = 'old-password-passwordless-1';
-
-          final signUp = await db.authenticate(
-            'users',
-            const PasswordAuthPayload(email: email, password: password),
-          );
-          final userId = signUp!.user['id']! as String;
-
-          await db.requirePasswordReset(
-            table: 'users',
-            email: email,
-            reason: PasswordResetReason.passwordPolicy,
-            byUserId: 'cli',
-          );
-
-          await db.sendOtp('users', const SendOtpAuthPayload(email: email));
-          final otpSignIn = await db.confirmAuth(
-            const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
-          );
-
-          expect(otpSignIn, isNotNull, reason: 'the OTP door stays open');
-          expect(otpSignIn!.jwt, isNotEmpty);
-
-          expect(
-            await db.passwordResetRequirement(table: 'users', userId: userId),
-            isNotNull,
-            reason:
-                'an OTP sign-in is not a new password, so it must not satisfy '
-                'the requirement -- otherwise the control is lifted by the one '
-                'door it deliberately left open',
-          );
-
-          await expectLater(
-            db.authenticate(
-              'users',
-              const SignInPasswordAuthPayload(email: email, password: password),
-            ),
-            throwsA(isA<PasswordResetRequiredException>()),
-            reason: 'and the password door is still shut',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
-
-    test(
-      'an OAuth-only collection refuses a requirement',
-      () async {
-        if (!_runningOnDartVm) return;
-
-        await withDb((db) async {
-          const email = 'partner@example.com';
-
-          // Created through the OTP door, because there is no other.
-          // `db.create` refuses an auth table outright ("Cannot create auth
-          // records, use the auth API instead") and the OAuth door needs a
-          // real provider round trip. What matters is only that the row
-          // exists with no password: `_requirePasswordReset` looks the account
-          // up FIRST, so without one it would throw "No account with email"
-          // and prove nothing about the branch this test is named for.
-          debugInsecureTestMode = true;
-          await db.sendOtp('partners', const SendOtpAuthPayload(email: email));
-          final created = await db.confirmAuth(
-            const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
-          );
-          expect(created, isNotNull);
-          debugInsecureTestMode = null;
-
-          await expectLater(
-            db.requirePasswordReset(
-              table: 'partners',
-              email: email,
-              reason: PasswordResetReason.adminForced,
-              byUserId: 'cli',
-            ),
-            throwsA(
-              isA<StateError>().having(
-                (e) => e.message,
-                'message',
-                contains('no password column'),
-              ),
-            ),
-            reason:
-                'writing a row here would be unenforceable by construction, and '
-                'an operator who got a success would believe the account was '
-                'constrained',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
-
-    test(
-      'clearing reports whether there was anything to clear',
-      () async {
-        if (!_runningOnDartVm) return;
-
-        await withDb((db) async {
-          const email = 'clearable@example.com';
-          const password = 'old-password-clearable-1';
-
+        expect(
+          await db.passwordResetRequirement(table: 'users', userId: userId),
+          isNull,
+        );
+        expect(
           await db.authenticate(
-            'admins',
-            const PasswordAuthPayload(email: email, password: password),
-          );
-
-          expect(
-            await db.clearPasswordResetRequirement(
-              table: 'admins',
+            'users',
+            const SignInPasswordAuthPayload(
               email: email,
+              password: newPassword,
             ),
-            isFalse,
-            reason:
-                'nothing set -- and it must ANSWER that rather than throw, or a '
-                'CLI clearing an already-satisfied requirement reports failure',
-          );
+          ),
+          isNotNull,
+          reason: 'and the account is no longer gated',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-          await db.requirePasswordReset(
-            table: 'admins',
+    test('OTP still signs in, and the requirement survives it', () async {
+      if (!_runningOnDartVm) return;
+
+      // The requirement is a statement about the PASSWORD credential.
+      // Someone who proved possession of their mailbox has not used the
+      // password, so they are not asked to change it -- and it stays unusable
+      // until they do. Gating OTP as well would lock an account out of the
+      // one door that could still let it in.
+      debugInsecureTestMode = true;
+
+      await withDb((db) async {
+        const email = 'passwordless@example.com';
+        const password = 'old-password-passwordless-1';
+
+        final signUp = await db.authenticate(
+          'users',
+          const PasswordAuthPayload(email: email, password: password),
+        );
+        final userId = signUp!.user['id']! as String;
+
+        await db.requirePasswordReset(
+          table: 'users',
+          email: email,
+          reason: PasswordResetReason.passwordPolicy,
+          byUserId: 'cli',
+        );
+
+        await db.sendOtp('users', const SendOtpAuthPayload(email: email));
+        final otpSignIn = await db.confirmAuth(
+          const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
+        );
+
+        expect(otpSignIn, isNotNull, reason: 'the OTP door stays open');
+        expect(otpSignIn!.jwt, isNotEmpty);
+
+        expect(
+          await db.passwordResetRequirement(table: 'users', userId: userId),
+          isNotNull,
+          reason:
+              'an OTP sign-in is not a new password, so it must not satisfy '
+              'the requirement -- otherwise the control is lifted by the one '
+              'door it deliberately left open',
+        );
+
+        await expectLater(
+          db.authenticate(
+            'users',
+            const SignInPasswordAuthPayload(email: email, password: password),
+          ),
+          throwsA(isA<PasswordResetRequiredException>()),
+          reason: 'and the password door is still shut',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('an OAuth-only collection refuses a requirement', () async {
+      if (!_runningOnDartVm) return;
+
+      await withDb((db) async {
+        const email = 'partner@example.com';
+
+        // Created through the OTP door, because there is no other.
+        // `db.create` refuses an auth table outright ("Cannot create auth
+        // records, use the auth API instead") and the OAuth door needs a
+        // real provider round trip. What matters is only that the row
+        // exists with no password: `_requirePasswordReset` looks the account
+        // up FIRST, so without one it would throw "No account with email"
+        // and prove nothing about the branch this test is named for.
+        debugInsecureTestMode = true;
+        await db.sendOtp('partners', const SendOtpAuthPayload(email: email));
+        final created = await db.confirmAuth(
+          const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
+        );
+        expect(created, isNotNull);
+        debugInsecureTestMode = null;
+
+        await expectLater(
+          db.requirePasswordReset(
+            table: 'partners',
             email: email,
             reason: PasswordResetReason.adminForced,
             byUserId: 'cli',
-          );
-
-          expect(
-            await db.clearPasswordResetRequirement(
-              table: 'admins',
-              email: email,
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('no password column'),
             ),
-            isTrue,
-          );
+          ),
+          reason:
+              'writing a row here would be unenforceable by construction, and '
+              'an operator who got a success would believe the account was '
+              'constrained',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-          expect(
-            await db.authenticate(
-              'admins',
-              const SignInPasswordAuthPayload(email: email, password: password),
-            ),
-            isNotNull,
-            reason: 'the escape hatch really lifts the gate',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('clearing reports whether there was anything to clear', () async {
+      if (!_runningOnDartVm) return;
+
+      await withDb((db) async {
+        const email = 'clearable@example.com';
+        const password = 'old-password-clearable-1';
+
+        await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(email: email, password: password),
+        );
+
+        expect(
+          await db.clearPasswordResetRequirement(table: 'admins', email: email),
+          isFalse,
+          reason:
+              'nothing set -- and it must ANSWER that rather than throw, or a '
+              'CLI clearing an already-satisfied requirement reports failure',
+        );
+
+        await db.requirePasswordReset(
+          table: 'admins',
+          email: email,
+          reason: PasswordResetReason.adminForced,
+          byUserId: 'cli',
+        );
+
+        expect(
+          await db.clearPasswordResetRequirement(table: 'admins', email: email),
+          isTrue,
+        );
+
+        expect(
+          await db.authenticate(
+            'admins',
+            const SignInPasswordAuthPayload(email: email, password: password),
+          ),
+          isNotNull,
+          reason: 'the escape hatch really lifts the gate',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
   });
 }
 

@@ -29,52 +29,40 @@ void main() {
   }
 
   group('error stack traces in a compiled binary', () {
-    test(
-      'are omitted at the default level',
-      () async {
-        final output = await runProbe('info', compiled: true);
+    test('are omitted at the default level', () async {
+      final output = await runProbe('info', compiled: true);
 
-        expect(output, contains('probe-message'));
-        expect(output, contains('probe-error'));
+      expect(output, contains('probe-message'));
+      expect(output, contains('probe-error'));
+      expect(
+        output,
+        isNot(contains('probeFrame')),
+        reason:
+            'a Dart frame stack is noise on a CLI error line at the default '
+            'level',
+      );
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('are printed once the operator asks for detail', () async {
+      for (final level in const ['debug', 'verbose', 'trace', 'request']) {
+        final output = await runProbe(level, compiled: true);
+
         expect(
           output,
-          isNot(contains('probeFrame')),
+          contains('probeFrame'),
           reason:
-              'a Dart frame stack is noise on a CLI error line at the default '
-              'level',
+              'at --log=$level the operator has explicitly asked for detail; '
+              'discarding the trace there is what left a 500 with nothing to '
+              'locate it by',
         );
-      },
-      timeout: const Timeout(Duration(minutes: 2)),
-    );
+      }
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
-    test(
-      'are printed once the operator asks for detail',
-      () async {
-        for (final level in const ['debug', 'verbose', 'trace', 'request']) {
-          final output = await runProbe(level, compiled: true);
+    test('are always printed when not compiled', () async {
+      final output = await runProbe('info', compiled: false);
 
-          expect(
-            output,
-            contains('probeFrame'),
-            reason:
-                'at --log=$level the operator has explicitly asked for detail; '
-                'discarding the trace there is what left a 500 with nothing to '
-                'locate it by',
-          );
-        }
-      },
-      timeout: const Timeout(Duration(minutes: 2)),
-    );
-
-    test(
-      'are always printed when not compiled',
-      () async {
-        final output = await runProbe('info', compiled: false);
-
-        expect(output, contains('probeFrame'));
-      },
-      timeout: const Timeout(Duration(minutes: 2)),
-    );
+      expect(output, contains('probeFrame'));
+    }, timeout: const Timeout(Duration(minutes: 2)));
   });
 }
 

@@ -158,36 +158,28 @@ void main() {
     final runtime = p.join(p.dirname(resolved), 'dartaotruntime');
     final reachable = io.File(runtime).existsSync();
 
-    test(
-      'this SDK\'s dartaotruntime yields exactly one hash',
-      () {
-        final hash = runScoped(
-          () => vmSnapshotHashOfFile(runtime),
-          values: {fsProvider.overrideWith(LocalFileSystem.new)},
-        );
+    test('this SDK\'s dartaotruntime yields exactly one hash', () {
+      final hash = runScoped(
+        () => vmSnapshotHashOfFile(runtime),
+        values: {fsProvider.overrideWith(LocalFileSystem.new)},
+      );
 
-        expect(hash, matches(RegExp(r'^[0-9a-f]{32}$')));
-      },
-      skip: reachable ? null : 'no dartaotruntime beside $resolved',
-    );
+      expect(hash, matches(RegExp(r'^[0-9a-f]{32}$')));
+    }, skip: reachable ? null : 'no dartaotruntime beside $resolved');
 
-    test(
-      'sdkVmSnapshotHash agrees with reading the runtime directly',
-      () {
-        final viaSdk = runScoped(
-          () => sdkVmSnapshotHash(resolved),
-          values: {fsProvider.overrideWith(LocalFileSystem.new)},
-        );
-        final direct = runScoped(
-          () => vmSnapshotHashOfFile(runtime),
-          values: {fsProvider.overrideWith(LocalFileSystem.new)},
-        );
+    test('sdkVmSnapshotHash agrees with reading the runtime directly', () {
+      final viaSdk = runScoped(
+        () => sdkVmSnapshotHash(resolved),
+        values: {fsProvider.overrideWith(LocalFileSystem.new)},
+      );
+      final direct = runScoped(
+        () => vmSnapshotHashOfFile(runtime),
+        values: {fsProvider.overrideWith(LocalFileSystem.new)},
+      );
 
-        expect(viaSdk, isNotNull);
-        expect(viaSdk, direct);
-      },
-      skip: reachable ? null : 'no dartaotruntime beside $resolved',
-    );
+      expect(viaSdk, isNotNull);
+      expect(viaSdk, direct);
+    }, skip: reachable ? null : 'no dartaotruntime beside $resolved');
   });
 
   group('sdkDartVersion', () {

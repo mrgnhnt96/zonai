@@ -96,75 +96,67 @@ void main() {
     admin: (isAdmin: isAdmin, canEdit: isAdmin ? true : null),
   );
 
-  test(
-    '_photos is refused by the engine even for an admin',
-    () async {
-      if (!rs.isInstalled) {
-        markTestSkipped('resqlite native library not found');
-        return;
+  test('_photos is refused by the engine even for an admin', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
+
+    await withScope(() async {
+      final zonaiDb = ZonaiDb();
+      try {
+        await zonaiDb.open();
+
+        // If `_photos` stopped being an internal table this would pass for
+        // the wrong reason.
+        expect(InternalDbArtifacts.tableNames, contains('_photos'));
+
+        // Deleting a photo row also deletes the file behind it, through a
+        // per-row path a bulk DELETE has no hook for. A purge would remove
+        // the rows and orphan every file they pointed at, which is why
+        // `_cleanup_unreferenced_photos` exists and why admin is not enough
+        // to get past this.
+        await expectLater(
+          zonaiDb.purge(
+            table: '_photos',
+            where: const NotNull('id'),
+            jwt: jwt(isAdmin: true),
+          ),
+          throwsA(isA<TableAccessDeniedException>()),
+        );
+      } finally {
+        await zonaiDb.dispose();
       }
+    });
+  }, timeout: const Timeout(Duration(minutes: 5)));
 
-      await withScope(() async {
-        final zonaiDb = ZonaiDb();
-        try {
-          await zonaiDb.open();
+  test('a non-admin is refused whatever the table', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
 
-          // If `_photos` stopped being an internal table this would pass for
-          // the wrong reason.
-          expect(InternalDbArtifacts.tableNames, contains('_photos'));
+    await withScope(() async {
+      final zonaiDb = ZonaiDb();
+      try {
+        await zonaiDb.open();
 
-          // Deleting a photo row also deletes the file behind it, through a
-          // per-row path a bulk DELETE has no hook for. A purge would remove
-          // the rows and orphan every file they pointed at, which is why
-          // `_cleanup_unreferenced_photos` exists and why admin is not enough
-          // to get past this.
-          await expectLater(
-            zonaiDb.purge(
-              table: '_photos',
-              where: const NotNull('id'),
-              jwt: jwt(isAdmin: true),
-            ),
-            throwsA(isA<TableAccessDeniedException>()),
-          );
-        } finally {
-          await zonaiDb.dispose();
-        }
-      });
-    },
-    timeout: const Timeout(Duration(minutes: 5)),
-  );
-
-  test(
-    'a non-admin is refused whatever the table',
-    () async {
-      if (!rs.isInstalled) {
-        markTestSkipped('resqlite native library not found');
-        return;
+        // The endpoint gates this too, but the engine refusing on its own is
+        // what makes that a second lock rather than the only one -- a purge
+        // request can also arrive over IPC from a worker process.
+        await expectLater(
+          zonaiDb.purge(
+            table: '_log',
+            where: const NotNull('id'),
+            jwt: jwt(isAdmin: false),
+          ),
+          throwsA(isA<TableAccessDeniedException>()),
+        );
+      } finally {
+        await zonaiDb.dispose();
       }
-
-      await withScope(() async {
-        final zonaiDb = ZonaiDb();
-        try {
-          await zonaiDb.open();
-
-          // The endpoint gates this too, but the engine refusing on its own is
-          // what makes that a second lock rather than the only one -- a purge
-          // request can also arrive over IPC from a worker process.
-          await expectLater(
-            zonaiDb.purge(
-              table: '_log',
-              where: const NotNull('id'),
-              jwt: jwt(isAdmin: false),
-            ),
-            throwsA(isA<TableAccessDeniedException>()),
-          );
-        } finally {
-          await zonaiDb.dispose();
-        }
-      });
-    },
-    timeout: const Timeout(Duration(minutes: 5)),
-  );
+    });
+  }, timeout: const Timeout(Duration(minutes: 5)));
 }
 
 class _NullSink implements StreamConsumer<List<int>> {

@@ -186,190 +186,175 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
-    test(
-      'the escalated token cannot do what a real admin token can',
-      () async {
-        if (!_runningOnDartVm) return;
+    test('the escalated token cannot do what a real admin token can', () async {
+      if (!_runningOnDartVm) return;
 
-        await _withDb(settings, appConfig, (db) async {
-          final victim = await db.authenticate(
-            'users',
-            const PasswordAuthPayload(
-              email: 'victim@example.com',
-              password: 'victim-password-1',
-            ),
-          );
-          expect(victim, isNotNull);
-          final victimId = victim!.user['id'] as String;
+      await _withDb(settings, appConfig, (db) async {
+        final victim = await db.authenticate(
+          'users',
+          const PasswordAuthPayload(
+            email: 'victim@example.com',
+            password: 'victim-password-1',
+          ),
+        );
+        expect(victim, isNotNull);
+        final victimId = victim!.user['id'] as String;
 
-          final attacker = await db.authenticate(
-            'users',
-            const PasswordAuthPayload(
-              email: 'attacker@example.com',
-              password: 'attacker-password-1',
-            ),
-          );
-          expect(attacker, isNotNull);
+        final attacker = await db.authenticate(
+          'users',
+          const PasswordAuthPayload(
+            email: 'attacker@example.com',
+            password: 'attacker-password-1',
+          ),
+        );
+        expect(attacker, isNotNull);
 
-          final forged = _resign(
-            attacker!.jwt,
-            (payload) => payload
-              ..['admin'] = <String, Object?>{'isAdmin': true, 'canEdit': true},
-          );
+        final forged = _resign(
+          attacker!.jwt,
+          (payload) => payload
+            ..['admin'] = <String, Object?>{'isAdmin': true, 'canEdit': true},
+        );
 
-          await expectLater(
-            db.update(
-              'users',
-              UpdatePayload(
-                where: Eq('id', victimId),
-                updates: [
-                  Update.object({'password': 'taken-over-1'}),
-                ],
-                jwt: forged,
-              ),
-            ),
-            throwsA(anything),
-            reason:
-                "a self-escalated token must not be able to rewrite another "
-                "user's password — the whole point of the escalation",
-          );
-
-          // Proof the refusal is about the escalation and not about the write
-          // being impossible: a genuine admin token performs the same write.
-          final admin = await db.authenticate(
-            'admins',
-            const PasswordAuthPayload(
-              email: 'real-admin@example.com',
-              password: 'real-admin-password-1',
-            ),
-          );
-          expect(admin, isNotNull);
-
-          await db.update(
+        await expectLater(
+          db.update(
             'users',
             UpdatePayload(
               where: Eq('id', victimId),
               updates: [
-                Update.object({'password': 'admin-set-password-1'}),
+                Update.object({'password': 'taken-over-1'}),
               ],
-              jwt: admin!.jwt,
+              jwt: forged,
             ),
-          );
+          ),
+          throwsA(anything),
+          reason:
+              "a self-escalated token must not be able to rewrite another "
+              "user's password — the whole point of the escalation",
+        );
 
-          expect(
-            await db.authenticate(
-              'users',
-              const PasswordAuthPayload(
-                email: 'victim@example.com',
-                password: 'admin-set-password-1',
-              ),
-            ),
-            isNotNull,
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+        // Proof the refusal is about the escalation and not about the write
+        // being impossible: a genuine admin token performs the same write.
+        final admin = await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(
+            email: 'real-admin@example.com',
+            password: 'real-admin-password-1',
+          ),
+        );
+        expect(admin, isNotNull);
 
-    test(
-      'a genuine admin token keeps its powers',
-      () async {
-        if (!_runningOnDartVm) return;
+        await db.update(
+          'users',
+          UpdatePayload(
+            where: Eq('id', victimId),
+            updates: [
+              Update.object({'password': 'admin-set-password-1'}),
+            ],
+            jwt: admin!.jwt,
+          ),
+        );
 
-        await _withDb(settings, appConfig, (db) async {
-          final session = await db.authenticate(
-            'admins',
+        expect(
+          await db.authenticate(
+            'users',
             const PasswordAuthPayload(
-              email: 'still-admin@example.com',
-              password: 'still-admin-password-1',
+              email: 'victim@example.com',
+              password: 'admin-set-password-1',
             ),
-          );
-          expect(session, isNotNull);
+          ),
+          isNotNull,
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
-          final parsed = await db.parseJwt(session!.jwt);
-          expect(
-            parsed!.admin.isAdmin,
-            isTrue,
-            reason:
-                'the fix must re-derive admin, not remove it — `admins` mixes '
-                'in AsAdmin, so its tokens stay admin',
-          );
-          expect(parsed.admin.canEdit, isTrue);
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('a genuine admin token keeps its powers', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final session = await db.authenticate(
+          'admins',
+          const PasswordAuthPayload(
+            email: 'still-admin@example.com',
+            password: 'still-admin-password-1',
+          ),
+        );
+        expect(session, isNotNull);
+
+        final parsed = await db.parseJwt(session!.jwt);
+        expect(
+          parsed!.admin.isAdmin,
+          isTrue,
+          reason:
+              'the fix must re-derive admin, not remove it — `admins` mixes '
+              'in AsAdmin, so its tokens stay admin',
+        );
+        expect(parsed.admin.canEdit, isTrue);
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     // An escalation attempt is a signing-key compromise, which nothing else
     // would report — but the warning has to be rare enough to be read. The
     // first draft compared the whole claim against the schema and therefore
     // fired on every ordinary user request, because `Jwt.fromJson` normalises
     // a non-admin token's `canEdit` to null while the schema reports false.
-    test(
-      'an escalation is logged, and an honest token logs nothing',
-      () async {
-        if (!_runningOnDartVm) return;
+    test('an escalation is logged, and an honest token logs nothing', () async {
+      if (!_runningOnDartVm) return;
 
-        final honestLogs = _LogCapture();
-        await _withDb(settings, appConfig, logs: honestLogs, (db) async {
-          final session = await db.authenticate(
-            'users',
-            const PasswordAuthPayload(
-              email: 'quiet-user@example.com',
-              password: 'quiet-user-password-1',
-            ),
-          );
-          // Several ordinary authenticated calls, none of them admin.
-          await db.parseJwt(session!.jwt);
-          // A plain user cannot list the auth table, and that denial must not
-          // be mistaken for a key compromise either — a refused ordinary
-          // request is still ordinary. Swallow the access denial; the log
-          // assertion below is the point.
-          try {
-            await db.list('users', ListPayload(where: null, jwt: session.jwt));
-          } on Object {
-            // expected: table-level access is admin-only here
-          }
-        });
-
-        expect(
-          honestLogs.text,
-          isNot(contains('claims admin powers')),
-          reason:
-              'a plain user going about their business must not look like a '
-              'key compromise — an alert that fires constantly is not read',
+      final honestLogs = _LogCapture();
+      await _withDb(settings, appConfig, logs: honestLogs, (db) async {
+        final session = await db.authenticate(
+          'users',
+          const PasswordAuthPayload(
+            email: 'quiet-user@example.com',
+            password: 'quiet-user-password-1',
+          ),
         );
+        // Several ordinary authenticated calls, none of them admin.
+        await db.parseJwt(session!.jwt);
+        // A plain user cannot list the auth table, and that denial must not
+        // be mistaken for a key compromise either — a refused ordinary
+        // request is still ordinary. Swallow the access denial; the log
+        // assertion below is the point.
+        try {
+          await db.list('users', ListPayload(where: null, jwt: session.jwt));
+        } on Object {
+          // expected: table-level access is admin-only here
+        }
+      });
 
-        final forgedLogs = _LogCapture();
-        await _withDb(settings, appConfig, logs: forgedLogs, (db) async {
-          final session = await db.authenticate(
-            'users',
-            const PasswordAuthPayload(
-              email: 'loud-user@example.com',
-              password: 'loud-user-password-1',
-            ),
-          );
-          await db.parseJwt(
-            _resign(
-              session!.jwt,
-              (payload) => payload
-                ..['admin'] = <String, Object?>{
-                  'isAdmin': true,
-                  'canEdit': true,
-                },
-            ),
-          );
-        });
+      expect(
+        honestLogs.text,
+        isNot(contains('claims admin powers')),
+        reason:
+            'a plain user going about their business must not look like a '
+            'key compromise — an alert that fires constantly is not read',
+      );
 
-        expect(
-          forgedLogs.text,
-          contains('claims admin powers'),
-          reason: 'the one case worth waking someone for must be reported',
+      final forgedLogs = _LogCapture();
+      await _withDb(settings, appConfig, logs: forgedLogs, (db) async {
+        final session = await db.authenticate(
+          'users',
+          const PasswordAuthPayload(
+            email: 'loud-user@example.com',
+            password: 'loud-user-password-1',
+          ),
         );
-        expect(forgedLogs.text, contains('rotate it'));
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+        await db.parseJwt(
+          _resign(
+            session!.jwt,
+            (payload) => payload
+              ..['admin'] = <String, Object?>{'isAdmin': true, 'canEdit': true},
+          ),
+        );
+      });
+
+      expect(
+        forgedLogs.text,
+        contains('claims admin powers'),
+        reason: 'the one case worth waking someone for must be reported',
+      );
+      expect(forgedLogs.text, contains('rotate it'));
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     // The other direction, and the sharper test of the two: the live probe
     // found that flipping the flag to `false` made a real admin session *lose*

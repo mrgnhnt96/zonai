@@ -59,78 +59,70 @@ void main() {
       deleteTempDirectory(projectRoot);
     });
 
-    test(
-      'bundles a working copy of itself at build/zonai',
-      () async {
-        if (!_runningOnDartVm) {
-          return;
-        }
+    test('bundles a working copy of itself at build/zonai', () async {
+      if (!_runningOnDartVm) {
+        return;
+      }
 
-        final result = await Process.run(executablePath, [
+      final result = await Process.run(executablePath, [
+        'build',
+        '--no-version-check',
+        '--no-schema-version-check',
+      ], workingDirectory: projectRoot.path);
+
+      expect(result.exitCode, 0, reason: '${result.stderr}\n${result.stdout}');
+
+      // `Settings.buildExecutablePath` names the bundled binary after the
+      // TARGET os, and `zonai build` here targets the host -- so on Windows
+      // the file to look for is `zonai.exe`. Hard-coding the posix name
+      // asserted the product had done something it never promised.
+      final bundledExecutable = File(
+        p.join(
+          projectRoot.path,
           'build',
-          '--no-version-check',
-          '--no-schema-version-check',
-        ], workingDirectory: projectRoot.path);
+          Platform.isWindows ? 'zonai.exe' : 'zonai',
+        ),
+      );
+      expect(
+        bundledExecutable.existsSync(),
+        isTrue,
+        reason:
+            'zonai build must leave a runnable zonai at build/zonai so the '
+            'bundle is self-contained',
+      );
 
-        expect(
-          result.exitCode,
-          0,
-          reason: '${result.stderr}\n${result.stdout}',
-        );
+      final version = await Process.run(bundledExecutable.path, [
+        'version',
+        '--no-version-check',
+        '--no-schema-version-check',
+      ]);
+      expect(
+        version.exitCode,
+        0,
+        reason:
+            'bundled build/zonai must itself run: '
+            '${version.stderr}\n${version.stdout}',
+      );
 
-        // `Settings.buildExecutablePath` names the bundled binary after the
-        // TARGET os, and `zonai build` here targets the host -- so on Windows
-        // the file to look for is `zonai.exe`. Hard-coding the posix name
-        // asserted the product had done something it never promised.
-        final bundledExecutable = File(
-          p.join(
-            projectRoot.path,
-            'build',
-            Platform.isWindows ? 'zonai.exe' : 'zonai',
-          ),
-        );
-        expect(
-          bundledExecutable.existsSync(),
-          isTrue,
-          reason:
-              'zonai build must leave a runnable zonai at build/zonai so the '
-              'bundle is self-contained',
-        );
+      expect(
+        '${result.stdout}',
+        contains('package:zonai is not resolvable'),
+        reason:
+            'the fallback to worker IPC must say why it happened -- losing '
+            'in-process dispatch silently is indistinguishable from a '
+            'normal build',
+      );
 
-        final version = await Process.run(bundledExecutable.path, [
-          'version',
-          '--no-version-check',
-          '--no-schema-version-check',
-        ]);
-        expect(
-          version.exitCode,
-          0,
-          reason:
-              'bundled build/zonai must itself run: '
-              '${version.stderr}\n${version.stdout}',
-        );
-
-        expect(
-          '${result.stdout}',
-          contains('package:zonai is not resolvable'),
-          reason:
-              'the fallback to worker IPC must say why it happened -- losing '
-              'in-process dispatch silently is indistinguishable from a '
-              'normal build',
-        );
-
-        // The bundled binary drives ops/rules over IPC, so a bundle without
-        // these starts and then fails on the first db call.
-        expect(
-          Directory(
-            p.join(projectRoot.path, 'build', '.zonai', 'executables'),
-          ).existsSync(),
-          isTrue,
-          reason: 'worker executables must be bundled for the IPC path',
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+      // The bundled binary drives ops/rules over IPC, so a bundle without
+      // these starts and then fails on the first db call.
+      expect(
+        Directory(
+          p.join(projectRoot.path, 'build', '.zonai', 'executables'),
+        ).existsSync(),
+        isTrue,
+        reason: 'worker executables must be bundled for the IPC path',
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test(
       'copies migration SQL into the bundle with its contents intact',

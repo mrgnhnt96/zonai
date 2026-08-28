@@ -48,35 +48,31 @@ void main() {
   });
 
   group('canContinue routes a confirm body to the bucket', () {
-    test(
-      'it is bucketed, not rejected as an unexpected body type',
-      () async {
-        // The half that would otherwise 500 every confirm request. Before the
-        // `VerifyAuthBody` arm existed, this body matched nothing in
-        // `canContinue`'s switch and fell through to
-        // `throw ArgumentError('Unexpected query body type for rate limit')` --
-        // so adding the annotation alone would have taken the endpoint from
-        // unlimited straight to broken.
-        //
-        // Asserted as "not an ArgumentError" rather than as a pass, and that is
-        // the honest limit of this file: with the arm in place the call gets as
-        // far as the limiter and then fails for want of a database, which this
-        // file deliberately does not stand up. Remove the arm and it is an
-        // ArgumentError again and this tears.
-        await expectLater(
-          const RateLimit().canContinue(
-            VerifyAuthBody.confirmResetPassword(
-              token: 'a-token',
-              newPassword: 'a-password',
-            ),
-            '203.0.113.7',
-            RateLimitOperation.confirm,
+    test('it is bucketed, not rejected as an unexpected body type', () async {
+      // The half that would otherwise 500 every confirm request. Before the
+      // `VerifyAuthBody` arm existed, this body matched nothing in
+      // `canContinue`'s switch and fell through to
+      // `throw ArgumentError('Unexpected query body type for rate limit')` --
+      // so adding the annotation alone would have taken the endpoint from
+      // unlimited straight to broken.
+      //
+      // Asserted as "not an ArgumentError" rather than as a pass, and that is
+      // the honest limit of this file: with the arm in place the call gets as
+      // far as the limiter and then fails for want of a database, which this
+      // file deliberately does not stand up. Remove the arm and it is an
+      // ArgumentError again and this tears.
+      await expectLater(
+        const RateLimit().canContinue(
+          VerifyAuthBody.confirmResetPassword(
+            token: 'a-token',
+            newPassword: 'a-password',
           ),
-          throwsA(isNot(isA<ArgumentError>())),
-        );
-      },
-      timeout: const Timeout(Duration(seconds: 30)),
-    );
+          '203.0.113.7',
+          RateLimitOperation.confirm,
+        ),
+        throwsA(isNot(isA<ArgumentError>())),
+      );
+    }, timeout: const Timeout(Duration(seconds: 30)));
   });
 
   group('the generated route table actually carries the guard', () {
