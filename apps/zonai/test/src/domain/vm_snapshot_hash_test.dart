@@ -190,6 +190,100 @@ void main() {
     );
   });
 
+  group('sdkDartVersion', () {
+    _memoryTest('reads the version file in the SDK root', () {
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary('/sdk/bin/dartaotruntime', _runtimeBytes(_hashA));
+      _writeBinary('/sdk/version', '3.12.0\n');
+
+      expect(sdkDartVersion('/sdk/bin/dart'), '3.12.0');
+    });
+
+    _memoryTest('is null when the SDK ships no version file', () {
+      // Survivable on purpose: the version is message text and is never
+      // compared, so a trimmed SDK costs a nicer error and nothing more.
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary('/sdk/bin/dartaotruntime', _runtimeBytes(_hashA));
+
+      expect(sdkDartVersion('/sdk/bin/dart'), isNull);
+    });
+
+    _memoryTest('is null when the version file is blank', () {
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary('/sdk/bin/dartaotruntime', _runtimeBytes(_hashA));
+      _writeBinary('/sdk/version', '   \n');
+
+      expect(sdkDartVersion('/sdk/bin/dart'), isNull);
+    });
+
+    _memoryTest('is null when no dartaotruntime identifies an SDK', () {
+      // Without a runtime there is no SDK to be the version OF, so a `version`
+      // file sitting next to an unrelated `dart` must not be believed.
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary('/sdk/version', '3.12.0');
+
+      expect(sdkDartVersion('/sdk/bin/dart'), isNull);
+    });
+
+    _memoryTest('resolves through a shim onto the versioned SDK', () {
+      // The shape every version manager installs: a name on PATH pointing into
+      // a versioned directory. The version must come from the SDK the hash
+      // came from, not from beside the shim.
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary('/sdk/bin/dartaotruntime', _runtimeBytes(_hashA));
+      _writeBinary('/sdk/version', '3.12.0');
+      fs.directory('/shims').createSync(recursive: true);
+      fs.link('/shims/dart').createSync('/sdk/bin/dart');
+
+      expect(sdkDartVersion('/shims/dart'), '3.12.0');
+    });
+  });
+
+  group('vmSnapshotDefines', () {
+    _memoryTest('emits both defines for an SDK that answers', () {
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary('/sdk/bin/dartaotruntime', _runtimeBytes(_hashA));
+      _writeBinary('/sdk/version', '3.12.0');
+
+      expect(vmSnapshotDefines('/sdk/bin/dart'), [
+        '--define=ZONAI_VM_HASH=$_hashA',
+        '--define=ZONAI_DART_SDK=3.12.0',
+      ]);
+    });
+
+    _memoryTest('emits the hash alone when the version is unreadable', () {
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary('/sdk/bin/dartaotruntime', _runtimeBytes(_hashA));
+
+      expect(vmSnapshotDefines('/sdk/bin/dart'), [
+        '--define=ZONAI_VM_HASH=$_hashA',
+      ]);
+    });
+
+    _memoryTest('emits nothing when the hash is ambiguous', () {
+      // Never a version on its own: it would be a claim about compatibility
+      // that nothing can check, and the guard compares only the hash.
+      _writeBinary('/sdk/bin/dart', 'launcher');
+      _writeBinary(
+        '/sdk/bin/dartaotruntime',
+        _runtimeBytes('$_hashA\x00$_hashB'),
+      );
+      _writeBinary('/sdk/version', '3.12.0');
+
+      expect(vmSnapshotDefines('/sdk/bin/dart'), isEmpty);
+    });
+
+    _memoryTest('emits nothing when there is no SDK at all', () {
+      expect(vmSnapshotDefines('/sdk/bin/dart'), isEmpty);
+    });
+
+    test('emits nothing instead of throwing outside an fs scope', () {
+      // Runs in front of a compile; a throw here would be a build failure in
+      // place of an unstamped binary, which is the strictly worse trade.
+      expect(vmSnapshotDefines('/sdk/bin/dart'), isEmpty);
+    });
+  });
+
   group('outside an fs scope', () {
     // Found by running the real thing before trusting the memory-filesystem
     // tests: `fs` throws a bare StateError, not a FileSystemException, so a

@@ -197,15 +197,81 @@ String? sdkVmSnapshotHash(String dartExecutablePath) {
 }
 
 String? _sdkHash(String dartExecutablePath) {
+  final runtime = _dartaotruntimeFor(dartExecutablePath);
+  if (runtime == null) return null;
+  return vmSnapshotHashOfFile(runtime);
+}
+
+/// The `dartaotruntime` beside the first candidate for [dartExecutablePath]
+/// that has one, or `null`.
+///
+/// The single place that decides *which* SDK a `dart` names, so the hash and
+/// the version can never be read off two different ones -- that would attach
+/// the message this file exists to make trustworthy ("requires Dart 3.12.0")
+/// to a hash from somewhere else.
+String? _dartaotruntimeFor(String dartExecutablePath) {
   for (final dart in _dartExecutableCandidates(dartExecutablePath)) {
     final sibling = fs.path.join(
       fs.path.dirname(dart),
       _dartaotruntimeNameBeside(dart),
     );
-    if (!fs.file(sibling).existsSync()) continue;
-    return vmSnapshotHashOfFile(sibling);
+    if (fs.file(sibling).existsSync()) return sibling;
   }
   return null;
+}
+
+/// The version string of the SDK [dartExecutablePath] names, e.g. `3.12.0`,
+/// or `null` when it cannot be read.
+///
+/// Read from the one-line `version` file the official SDK archive ships in its
+/// root directory, resolved from the same candidate that supplied the hash. A
+/// repackaged or trimmed SDK may not carry it, and that is survivable: this
+/// value is message text only and is never compared, so losing it costs a
+/// nicer error and nothing else.
+///
+/// Deliberately not `dart --version`: this runs in front of a compile, and
+/// spawning a process to obtain a string that only ever appears in an error
+/// message is a cost paid on every build for something allowed to be absent.
+String? sdkDartVersion(String dartExecutablePath) {
+  try {
+    final runtime = _dartaotruntimeFor(dartExecutablePath);
+    if (runtime == null) return null;
+
+    // The runtime sits in the SDK's `bin`, and `version` sits beside that
+    // `bin` -- so the root is two directories up from the runtime itself.
+    final root = fs.path.dirname(fs.path.dirname(runtime));
+    final file = fs.file(fs.path.join(root, 'version'));
+    if (!file.existsSync()) return null;
+
+    final version = file.readAsStringSync().trim();
+    return version.isEmpty ? null : version;
+  } on Object {
+    return null;
+  }
+}
+
+/// The `dart compile exe` arguments that stamp a host binary with the runtime
+/// identity of the SDK at [dartExecutablePath].
+///
+/// Empty when the SDK cannot be identified, which is the safe direction: an
+/// unstamped binary reports `null` from [hostVmSnapshotHash] and callers treat
+/// that as UNKNOWN, whereas a binary carrying an empty or guessed define would
+/// be believed. The version define is emitted only alongside a hash -- on its
+/// own it is a claim about compatibility that nothing can check.
+///
+/// These must be passed AFTER any caller-supplied `-D` arguments. Measured
+/// with `dart compile exe` 3.12.0: when a key is defined twice, the LAST
+/// occurrence wins, so appending is what keeps a project's own `.env` from
+/// overriding the stamp with a value of its own choosing.
+List<String> vmSnapshotDefines(String dartExecutablePath) {
+  final hash = sdkVmSnapshotHash(dartExecutablePath);
+  if (hash == null) return const [];
+
+  final version = sdkDartVersion(dartExecutablePath);
+  return [
+    '--define=ZONAI_VM_HASH=$hash',
+    if (version != null) '--define=ZONAI_DART_SDK=$version',
+  ];
 }
 
 /// The paths [dartExecutablePath] could name, most specific first.
