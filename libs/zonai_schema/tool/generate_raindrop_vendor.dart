@@ -98,7 +98,16 @@ void main() {
         continue;
       }
 
-      var content = entity.readAsStringSync();
+      // Upstream is a SEPARATE git repo (the libs/raindrop submodule), so this
+      // repo's .gitattributes does not govern how it checks out -- on Windows
+      // it arrives CRLF. Every rewrite below matches multi-line '\n' literals,
+      // _dropSchemaInspector's guard most of all, and that one THROWS when it
+      // does not match. So a CRLF checkout failed `zonai compile` on
+      // windows-x64 ONLY, while the other four platforms went green off the
+      // same commit (run 33134781640). Normalising on read also keeps the
+      // emitted files LF, which is what is committed and what the goldens
+      // compare against.
+      var content = entity.readAsStringSync().replaceAll('\r\n', '\n');
       content = _rewriteImports(content);
       content = _stripInternalAnnotations(content);
       content = _renameTableClass(content);
