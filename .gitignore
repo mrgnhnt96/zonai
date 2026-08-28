@@ -119,3 +119,8 @@ apps/server/lib/gen/
 .saggar/**/*.local.*
 .saggar/scratchpad.md
 .saggar/jobs/
+
+# The Dart SDK the released binary and CI are pinned to (3.12.0). Kept in-tree
+# so every git worktree can reach it by ABSOLUTE path without a version manager.
+# See docs/dart-sdk-skew.md.
+.toolchain-dart-3.12.0/
