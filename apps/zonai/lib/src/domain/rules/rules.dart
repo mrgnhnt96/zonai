@@ -118,15 +118,52 @@ class Rules {
       != null => settings.buildRulesSnapshotPath,
       _ => settings.compiledRulesSnapshotPath,
     };
-    final snapshot = await process.runDart([
-      'compile',
-      'aot-snapshot',
-      ...compileArgs,
-      RuleGenerator.executablePath,
-      '-o',
-      snapshotTarget,
-    ]);
-    if (snapshot.exitCode == 0) {
+    // A cross-target bundle must not carry a snapshot. `dart compile
+    // aot-snapshot` takes no --target-os -- unlike the .exe above, which
+    // `compileArgs` aims -- so emitting one here puts a BUILD-HOST snapshot
+    // beside a TARGET binary. settings.dart's `compileTargetArgs` already
+    // records that `zonai build` shipped exactly that for two releases.
+    //
+    // It used to fail softly: the spawn was refused and mailman fell back to
+    // the .exe worker, which is what tool/ci/verify_cross_target_bundle.sh
+    // asserts by grepping for the "would not spawn" warning. That stopped
+    // being true the day CI moved to Dart 3.13.2 -- once two SDKs differ by a
+    // snapshot CONTAINER format the process takes SIGABRT inside
+    // snapshot_utils.cc before any Dart code runs, and there is nothing to
+    // catch. A bundle whose downloaded host binary predates the `.sdk` guard
+    // cannot refuse it either, which is why not emitting it is the fix rather
+    // than relying on the guard to decline it.
+    //
+    // Costs in-process dispatch on cross-built bundles and nothing else: with
+    // no snapshot present mailman serves through the .exe worker, the same
+    // answer by a different transport. A leftover from an earlier
+    // same-platform build is DELETED, not merely left unwritten -- shipping
+    // the leftover is the whole bug.
+    final crossTarget =
+        buildSettings != null && !buildSettings.targetsCurrentPlatform();
+    if (crossTarget) {
+      for (final stale in [
+        snapshotTarget,
+        messageContractStampPathFor(snapshotTarget),
+        snapshotSdkStampPathFor(snapshotTarget),
+      ]) {
+        if (fs.file(stale).existsSync()) fs.file(stale).deleteSync();
+      }
+    }
+    final snapshot = crossTarget
+        ? null
+        : await process.runDart([
+            'compile',
+            'aot-snapshot',
+            ...compileArgs,
+            RuleGenerator.executablePath,
+            '-o',
+            snapshotTarget,
+          ]);
+    if (snapshot == null) {
+      // Nothing to stamp and nothing to warn about: the absence is
+      // deliberate and the .exe beside it is the supported transport.
+    } else if (snapshot.exitCode == 0) {
       // Its own stamp, not the .exe's: this is a separate compile of the same
       // sources, and when it fails the previous snapshot stays on disk. The
       // stamp has to describe the file that is actually there.
