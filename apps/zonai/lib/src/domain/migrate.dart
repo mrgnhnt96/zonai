@@ -26,6 +26,16 @@ class Migrate {
   DirectoryWatcher get _watcher =>
       __watcher ??= DirectoryWatcher(settings.schemasPath);
 
+  /// Seeds the memoized watcher so a test can deliver [WatchEvent]s itself.
+  ///
+  /// A real [DirectoryWatcher] cannot be told to stop: events for writes made
+  /// seconds ago can still land, and a stray one arriving after the run under
+  /// test finishes dispatches a follow-up run all by itself -- which is
+  /// exactly the observation the rerun-drain tests are trying to make, so a
+  /// broken drain would look fixed. Owning the event source removes that.
+  @visibleForTesting
+  set watcher(DirectoryWatcher value) => __watcher = value;
+
   StreamSubscription<WatchEvent>? __subscription;
   Timer? _debounce;
   bool _rerunPending = false;
@@ -71,14 +81,48 @@ class Migrate {
       return;
     }
 
+    // Nothing awaits this: the watcher callback is `void`, so an escaping
+    // error would land as an unhandled async error and take the dev server
+    // down with it. The rerun drain does NOT live here -- see
+    // [_drainPendingRerun] for why it has to be every run's business, not
+    // just this one's.
     unawaited(
-      run(name: 'auto').then((_) {
-        if (_rerunPending) {
-          _rerunPending = false;
-          _runAutoNow();
-        }
+      run(name: 'auto').catchError((Object e, StackTrace stack) {
+        logger.error('$e', 'Auto migration failed', stack);
+        return 1;
       }),
     );
+  }
+
+  /// Dispatches the follow-up run [_runAutoNow] queued while a run held
+  /// [_running], and is called from [run]'s `finally` so that EVERY run
+  /// drains -- not just the `auto` ones.
+  ///
+  /// It used to be a `.then` on the `run(name: 'auto')` future inside
+  /// [_runAutoNow], which stranded the queue permanently in the one case
+  /// [auto] creates on purpose: a fresh project has no migrations directory,
+  /// so [auto] starts an `initialize` run, and a schema edit landing inside
+  /// that run's window (the debounce is only 300ms, the run spawns an
+  /// analyzer) queued a rerun that nothing was ever going to dispatch. That
+  /// second drain also skipped on failure, because `.then` without `onError`
+  /// does not run.
+  ///
+  /// The dispatch is deferred to a microtask rather than called inline for
+  /// [run]'s own early return: `if (_running case final completer?) return
+  /// completer.future;` means a caller arriving before `_running` is cleared
+  /// gets the future of the run that is currently finishing instead of a new
+  /// run. By the time the microtask fires, [run]'s `finally` has nulled
+  /// `_running` and the follow-up is a real run. [_rerunPending] is re-read
+  /// there too, so a [stop] in between cancels the drain instead of reviving
+  /// a watcher that was just torn down.
+  void _drainPendingRerun() {
+    if (!_rerunPending) return;
+
+    scheduleMicrotask(() {
+      if (!_rerunPending) return;
+      _rerunPending = false;
+      _runAutoNow();
+    });
   }
 
   void listenForKeyboardInput() {
@@ -149,9 +193,8 @@ class Migrate {
 
       result = await runZoned(
         () async {
-          final exitCode = await CliRunner().run(
-            generateArgs(name: name, dryRun: dryRun ?? false),
-          );
+          final argv = generateArgs(name: name, dryRun: dryRun ?? false);
+          final exitCode = await (runRaindropCli ?? _invokeRaindropCli)(argv);
 
           return exitCode;
         },
@@ -200,8 +243,30 @@ class Migrate {
     } finally {
       _running?.complete(result);
       _running = null;
+      _drainPendingRerun();
     }
   }
+
+  /// Invokes `raindrop_cli` with [argv]. The one seam in [run] that talks to
+  /// something expensive and out-of-process.
+  ///
+  /// Overridable because the rerun drain is a question about WHEN a run
+  /// finishes relative to a watcher event, and the real CLI answers that by
+  /// starting an analyzer -- a window that is seconds wide on a loaded CI
+  /// runner and too narrow to hit reliably on a developer's machine, which is
+  /// exactly how the stranded-rerun bug reached CI green-on-laptop. A test
+  /// that can hold a run open at a known point tests the queueing instead of
+  /// the hardware.
+  @visibleForTesting
+  Future<int> Function(List<String> argv)? runRaindropCli;
+
+  /// Whether a watcher event arrived mid-run and is waiting for the in-flight
+  /// run to finish. Exposed so a test can wait for the queue to be armed
+  /// before releasing the run it is racing, rather than sleeping.
+  @visibleForTesting
+  bool get hasQueuedRerun => _rerunPending;
+
+  Future<int> _invokeRaindropCli(List<String> argv) => CliRunner().run(argv);
 
   /// The argument vector handed to `raindrop_cli` to generate [name].
   ///
