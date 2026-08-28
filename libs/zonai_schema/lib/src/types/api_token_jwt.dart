@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:clock/clock.dart';
 import 'package:zonai_schema/src/types/api_token_id.dart';
 import 'package:zonai_schema/src/types/api_token_scope.dart';
@@ -159,16 +161,31 @@ final class ApiTokenJwt implements Jwt {
   @override
   final Map<String, Object?> user;
 
+  /// The payload crosses to the rules worker over a [SendPort], and that
+  /// worker is reached by `Isolate.spawnUri` -- a *separate* isolate group.
+  /// A cross-group send accepts only literal-like values and refuses any
+  /// "regular instance", which is what [claims] and [user] are: they are held
+  /// as `Map.unmodifiable(...)`, i.e. `UnmodifiableMapView`. Emitting them by
+  /// reference threw `Invalid argument: is a regular instance reachable via`
+  /// on the first rule evaluation an API token asked for.
+  ///
+  /// So both are laundered through `jsonDecode(jsonEncode(...))`, which is
+  /// what [Jwt.toJson] already does with the same two fields. Deep on
+  /// purpose: a shallow copy leaves a nested unmodifiable view in place, and
+  /// one level down is refused just as hard as the top. The fields themselves
+  /// stay unmodifiable -- an identity handed to rule code must not be mutable,
+  /// and the defect was only ever that `toJson` handed out the live view
+  /// instead of a copy.
   @override
   Map<String, dynamic> toJson() => {
     flag: true,
     'tokenId': tokenId.value,
     'name': name,
     'scope': scope.toJson(),
-    'claims': claims,
+    'claims': jsonDecode(jsonEncode(claims)),
     'boundTable': ?boundTable,
     'boundUserId': ?boundUserId?.value,
-    'user': user,
+    'user': jsonDecode(jsonEncode(user)),
     'expiresAt': ?_expiresAtSeconds,
   };
 

@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:clock/clock.dart';
 import 'package:test/test.dart';
 import 'package:zonai_schema/src/handlers/rules/rule_request.dart'
@@ -257,6 +259,110 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('toJson is sendable across an isolate group boundary', () {
+    // `Isolate.spawnUri` creates a *separate* isolate group, and a cross-group
+    // `SendPort.send` accepts only literal-like values -- it refuses any
+    // "regular instance", which an `UnmodifiableMapView` is. The identical
+    // value sends fine over `Isolate.spawn`, which shares a group, so this
+    // never surfaced in tests that used the in-group path.
+    //
+    // `claims` and `user` are held as `Map.unmodifiable(...)` on purpose: an
+    // identity handed to rule code must not be mutable. So the property that
+    // has to hold is about what `toJson` *hands out*, not about the fields --
+    // the payload must be plain maps all the way down. Measured refusal,
+    // verbatim from a real cross-group probe:
+    //
+    //   Invalid argument: is a regular instance reachable via  <- null
+    //   : Instance of 'UnmodifiableMapView<String, Object?>'
+
+    /// Every map reached from [value], at every depth, including itself.
+    Iterable<Map<Object?, Object?>> mapsWithin(Object? value) sync* {
+      switch (value) {
+        case final Map<Object?, Object?> map:
+          yield map;
+          for (final entry in map.values) {
+            yield* mapsWithin(entry);
+          }
+        case final List<Object?> list:
+          for (final entry in list) {
+            yield* mapsWithin(entry);
+          }
+      }
+    }
+
+    ApiTokenJwt boundToken() => _token(
+      claims: const {
+        'role': 'reporting',
+        // Nested, because a shallow copy would pass a top-level-only check
+        // while still handing out an unsendable view one level down.
+        'limits': {'rows': 100},
+      },
+      boundTable: 'users',
+      boundUserId: const UnknownId('user_1'),
+      boundUser: const {
+        'id': 'user_1',
+        'profile': {'name': 'Ada'},
+      },
+    );
+
+    test('every map in the payload is a plain, modifiable Map', () {
+      final json = boundToken().toJson();
+
+      final maps = mapsWithin(json).toList();
+      // Guards the walker itself: a traversal that silently found nothing
+      // would pass this test for the wrong reason.
+      expect(maps, hasLength(greaterThan(4)));
+
+      for (final map in maps) {
+        expect(
+          map,
+          isNot(isA<UnmodifiableMapView<Object?, Object?>>()),
+          reason: 'an unmodifiable view is refused by a cross-group send',
+        );
+        expect(() => map['__probe__'] = 1, returnsNormally);
+      }
+    });
+
+    test('mutating the payload does not reach the live identity', () {
+      // The other half of the same property: `toJson` must hand out a copy,
+      // not the live view. If it ever stops throwing *and* starts writing
+      // through, the identity rules were handed would be mutable.
+      final jwt = boundToken();
+      final json = jwt.toJson();
+
+      (json['claims']! as Map<Object?, Object?>)['role'] = 'tampered';
+      (json['user']! as Map<Object?, Object?>)['id'] = 'user_2';
+
+      expect(jwt.claims['role'], 'reporting');
+      expect(jwt.user['id'], 'user_1');
+      expect(() => jwt.claims['role'] = 'x', throwsUnsupportedError);
+    });
+
+    test('ApiTokenScope.toJson emits only sendable collections', () {
+      // Checked rather than assumed: a cross-group probe accepts a `const`
+      // list (`_operationsJson`'s wildcard form) and every fresh list
+      // `toList()` builds, so the scope has no equivalent defect. What it
+      // must never grow is an unmodifiable *view*.
+      final json = const ApiTokenScope(
+        tables: {'*'},
+        operations: {},
+        allOperations: true,
+        customOperations: {'*'},
+        rateLimit: RateLimitPolicy(
+          maxRequests: 10,
+          window: Duration(minutes: 1),
+        ),
+      ).toJson();
+
+      for (final map in mapsWithin(json)) {
+        expect(map, isNot(isA<UnmodifiableMapView<Object?, Object?>>()));
+      }
+      for (final value in json.values) {
+        expect(value, isNot(isA<UnmodifiableListView<Object?>>()));
+      }
     });
   });
 }
