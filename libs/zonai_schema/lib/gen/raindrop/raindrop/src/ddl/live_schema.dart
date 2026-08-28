@@ -28,14 +28,14 @@ class LiveSchema {
   factory LiveSchema.fromMap(Map<String, Object?> map) {
     return LiveSchema(
       tables: {
-        for (final entry in (map['tables']! as Map).cast<String, Object?>()
-            .entries)
+        for (final entry
+            in (map['tables']! as Map).cast<String, Object?>().entries)
           entry.key:
               LiveTable.fromMap((entry.value! as Map).cast<String, Object?>()),
       },
       indexes: {
-        for (final entry in (map['indexes']! as Map).cast<String, Object?>()
-            .entries)
+        for (final entry
+            in (map['indexes']! as Map).cast<String, Object?>().entries)
           entry.key:
               LiveIndex.fromMap((entry.value! as Map).cast<String, Object?>()),
       },
@@ -80,8 +80,8 @@ class LiveTable {
       name: map['name']! as String,
       definition: map['definition'] as String?,
       columns: {
-        for (final entry in (map['columns']! as Map).cast<String, Object?>()
-            .entries)
+        for (final entry
+            in (map['columns']! as Map).cast<String, Object?>().entries)
           entry.key:
               LiveColumn.fromMap((entry.value! as Map).cast<String, Object?>()),
       },
