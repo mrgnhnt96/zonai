@@ -29,7 +29,11 @@ Future<int> compile([BuildSettings? buildSettings]) async {
 
   logger.info('Compiling all workers...');
 
-  await Future.wait([
+  // Still a fan-out, and deliberately so: every broken worker should be named
+  // in one run rather than the user fixing them one command at a time. So the
+  // exit codes are collected after all six have finished, not short-circuited
+  // on the first failure.
+  final results = await Future.wait([
     operations.compile(buildSettings: buildSettings),
     extensions.compile(buildSettings: buildSettings),
     rules.compile(buildSettings: buildSettings),
@@ -37,6 +41,23 @@ Future<int> compile([BuildSettings? buildSettings]) async {
     cronsCompiler.compile(buildSettings: buildSettings),
     config.compile(buildSettings: buildSettings),
   ]);
+
+  final failed = [
+    for (final (index, exitCode) in results.indexed)
+      if (exitCode != 0) (name: _workerNames[index], exitCode: exitCode),
+  ];
+
+  if (failed.isNotEmpty) {
+    // The six workers compile in parallel, so their stderr is interleaved and
+    // scrolled well off screen by now. This line is the only place that says
+    // which ones actually failed.
+    logger.error(
+      'Failed to compile: ${failed.map((worker) => worker.name).join(', ')}',
+    );
+    // The first failure in fan-out order, not the first to finish: the same
+    // broken project has to produce the same exit code on every run.
+    return failed.first.exitCode;
+  }
 
   // `zonai build` always rebuilds the host binary fresh right after this
   // returns (see build.dart), so it can never go stale. This only matters
@@ -46,22 +67,37 @@ Future<int> compile([BuildSettings? buildSettings]) async {
   // change (see message_contract_hash.dart) could silently outrun an
   // already-built host binary sitting on disk.
   if (buildSettings == null) {
-    await _rebuildHostIfStale();
+    return _rebuildHostIfStale();
   }
 
   return 0;
 }
 
-Future<void> _rebuildHostIfStale() async {
+/// In the order the compilers are fanned out above, so a result index names
+/// the worker it came from.
+const _workerNames = [
+  'operations',
+  'extensions',
+  'rules',
+  'rate limits',
+  'crons',
+  'config',
+];
+
+/// Rebuilds the host binary when it has gone stale, returning its exit code.
+///
+/// `0` when there is nothing to rebuild -- a host that is absent or current is
+/// not a failure.
+Future<int> _rebuildHostIfStale() async {
   final hostPath = settings.compiledProjectBinaryPath;
-  if (!fs.file(hostPath).existsSync()) return;
+  if (!fs.file(hostPath).existsSync()) return 0;
 
   final reason =
       _protocolStaleReason(hostPath) ?? _contractStaleReason(hostPath);
-  if (reason == null) return;
+  if (reason == null) return 0;
 
   logger.info('$reason -- rebuilding host binary...');
-  await ProjectBinary().compile();
+  return ProjectBinary().compile();
 }
 
 String? _protocolStaleReason(String hostPath) {

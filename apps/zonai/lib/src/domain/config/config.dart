@@ -44,6 +44,11 @@ class Config {
     __subscription = null;
   }
 
+  /// Whether there is anything to compile.
+  ///
+  /// Unlike the other workers this has no `dart analyze` step, so both `false`
+  /// cases below are ordinary "nothing to do" -- a project with no config is
+  /// normal. They are not failures and [compile] returns `0` for them.
   Future<bool> _canCompile() async {
     final directory = fs.directory(settings.configPath);
     if (!directory.existsSync()) {
@@ -66,8 +71,13 @@ class Config {
     return true;
   }
 
-  Future<void> compile({BuildSettings? buildSettings}) async {
-    if (!await _canCompile()) return;
+  /// Compiles the config worker, returning `0` on success.
+  ///
+  /// A non-zero result is the exit code of the failed `dart compile exe`, so
+  /// `zonai compile` can propagate it (see commands/compile.dart). A project
+  /// with no config to compile is a success.
+  Future<int> compile({BuildSettings? buildSettings}) async {
+    if (!await _canCompile()) return 0;
 
     executableStop.request(settings.compiledConfigPath);
 
@@ -83,7 +93,7 @@ class Config {
       logger.info(
         'No Dart config files under ${directory.path}; skipping compile.',
       );
-      return;
+      return 0;
     }
 
     final target = switch (buildSettings) {
@@ -117,7 +127,7 @@ class Config {
       logger.error('Failed to compile ${ConfigGenerator.executablePath}');
       logger.info('----');
       logger.error('${result.stderr}');
-      return;
+      return result.exitCode;
     }
 
     writeProtocolStamp(target);
@@ -125,5 +135,7 @@ class Config {
 
     final s = files.length == 1 ? '' : 's';
     logger.info('Compiled ${files.length} config$s');
+
+    return 0;
   }
 }
