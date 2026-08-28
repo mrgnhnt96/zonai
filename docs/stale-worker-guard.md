@@ -214,10 +214,23 @@ not have been expressed, let alone observed.
   like.
 - **The published CLI acting as host** — still missed, but it now *says so*.
   A released `zonai` serving a project directly (`zonai serve`, `zonai db …`)
-  is built with `__ZONAI_COMPILED__=true` (scripts.yaml), and nothing stamps
-  it: `compile.yml` runs a bare `dart compile exe`. So
+  is built with `__ZONAI_COMPILED__=true` by the bare `dart compile exe` at
+  `scripts.yaml:570` (which `compile.yml` reaches through `sip run zonai
+  compile` — that file contains no `dart compile exe` of its own, contrary to
+  what this doc and `docs/linking-a-bare-released-binary.md` both said until
+  2026-08-27). No **contract** stamp is written there, so
   `hostMessageContractHash` looks for a sidecar beside
   `Platform.resolvedExecutable`, finds none, and everything passes.
+
+  "Nothing stamps it" was true of that compile until 2026-08-27 and is no
+  longer: it now bakes in `ZONAI_VM_HASH` and `ZONAI_DART_SDK` via
+  `tool/ci/vm_snapshot_defines.sh` (`scripts.yaml:550`). That is a *different*
+  stamp for a different hazard — which VM snapshot format the host can load,
+  not which message vocabulary it speaks — and it does nothing for this gap.
+  See `docs/dart-sdk-skew.md`. The reason the two were solved differently is
+  the one below: a hash baked into the CLI cannot describe a project's
+  contract, whereas the VM snapshot hash is a property of the binary itself and
+  describes nothing else.
 
   **This has nothing to do with project linking**, which is how it was first
   written down here and in `docs/linking-a-bare-released-binary.md`.

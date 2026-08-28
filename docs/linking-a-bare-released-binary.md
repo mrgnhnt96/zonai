@@ -79,8 +79,18 @@ Two further corrections while checking it:
   contract. The uncovered case is narrower: the CLI used **in place**
   (`zonai serve`, `zonai db …`) — which is the developer's own loop, and so the
   place `zonai_schema` actually moves under them.
-- Nothing stamps a released CLI because `compile.yml` builds it with a bare
-  `dart compile exe` (`scripts.yaml:287`), not through `ProjectBinary.compile`.
+- No *contract* stamp is written for a released CLI, because it is built by a
+  bare `dart compile exe` (`scripts.yaml:570`) rather than through
+  `ProjectBinary.compile`. Two corrections to how this was written here
+  originally, both established 2026-08-27: `compile.yml` contains no `dart
+  compile exe` — it reaches that line through `sip run zonai compile` — and
+  "nothing stamps a released CLI" is no longer true. That compile now bakes in
+  `ZONAI_VM_HASH` and `ZONAI_DART_SDK` (`scripts.yaml:550`, via
+  `tool/ci/vm_snapshot_defines.sh`), which guards a different hazard entirely:
+  which VM snapshot format the host can load, so an `.aot` worker compiled by a
+  skewed SDK is declined instead of killing the process with an uncatchable
+  SIGABRT. See `docs/dart-sdk-skew.md`. The contract gap below is untouched by
+  it.
 
 So the guard gap is a separate item with a separate fix, and it has one now:
 `Mailman._warnIfContractGuardInert` says the check is not running, once, at the

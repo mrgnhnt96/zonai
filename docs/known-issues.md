@@ -92,6 +92,45 @@ attached to a `dart run` (non-compiled) process from a real terminal
 session, since that's the one repro condition that hasn't actually been
 tried yet.
 
+## 19. A stock released binary loading locally recompiled `.aot` workers dies with SIGABRT, uncatchably — fixed
+
+**Fixed 2026-08-27.** Full write-up in `docs/dart-sdk-skew.md`; this entry is
+the pointer.
+
+**Symptom.** A zonai host and the `.aot` worker snapshots it loads through
+`Isolate.spawnUri` must come from Dart SDKs sharing a VM snapshot hash. Across a
+snapshot container-format change — a 3.12.x host handed a 3.13.x snapshot — the
+process takes SIGABRT (exit 134) inside `snapshot_utils.cc:269`,
+`Failed to resolve symbol 'kDartIsolateSnapshotData'`, **before any Dart code
+runs**. Mailman's `try`/`catch` around the spawn never executes and the host
+dies with every in-flight request. The milder mode — same container format,
+different hash — raises a catchable `IsolateSpawnException` that the same
+`catch` has always handled correctly.
+
+**The window.** CI pins `sdk: "3.12.0"` in 18 workflow jobs, so a released
+binary embeds a 3.12.0 runtime, while snapshots are compiled by whatever
+`DartExecutable.resolve()` finds locally (3.13.2 on the machine this was
+measured on). A `zonai build` bundle is that pairing by construction:
+`_bundlePublishedBinary` copies the running binary next to the locally compiled
+snapshots (`build.dart:219`). The `.exe` workers are separate processes with
+their own embedded runtimes and are not affected; neither is the JIT source
+branch, whose compiler is the VM already running.
+
+**Compatibility follows the hash, not semver.** 3.12.1 and 3.12.2 share
+`ace654289f5abc240509fc941453ebc5` and spawn each other's snapshots; 3.12.0 is
+`41be3daaabd524b8aa7423bc24584957` and does not, despite sharing their minor.
+Hash equality predicted all eight measured spawn outcomes, so a semver range
+would be unsound in both directions and is not used anywhere.
+
+**Fix.** The host's own hash is baked in at `dart compile exe` time; every
+`.aot` gets a `.sdk` sidecar naming the SDK that compiled it; and Mailman
+compares them *before* the spawn, since no `catch` can cover the SIGABRT.
+Unknown counts as incompatible — the inversion of the `.protocol` and
+`.contract` guards, because a miss here is a dead host and an over-reach is only
+the loss of in-process dispatch. Separately, `zonai compile` and `zonai build`
+now refuse with exit 1 when the local SDK has drifted from the host binary;
+every other command warns once and proceeds.
+
 ## 18. `resqlite`'s rows read as empty when the schema reports no column names — fixed
 
 **Fixed 2026-08-19** in the submodule (fork `mrgnhnt96/resqlite`, branch `zonai`, commit
