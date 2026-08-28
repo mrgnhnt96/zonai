@@ -6,6 +6,7 @@ import 'package:zonai/src/deps/courier.dart';
 import 'package:zonai/src/deps/config_resolver.dart';
 import 'package:zonai/src/deps/args.dart';
 import 'package:zonai/src/deps/clean_up.dart';
+import 'package:zonai/src/deps/dart_sdk_check.dart';
 import 'package:zonai/src/deps/executable_stop.dart';
 import 'package:zonai/src/deps/extensions.dart';
 import 'package:zonai/src/deps/fs.dart';
@@ -98,6 +99,7 @@ Future<void> runZonai(List<String> arguments) async {
       settingsProvider,
       versionsProvider,
       schemaVersionCheckProvider,
+      dartSdkCheckProvider,
     },
   );
 }
