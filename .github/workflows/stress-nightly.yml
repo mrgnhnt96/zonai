@@ -117,11 +117,11 @@ jobs:
       # PINNED, where this said `stable`. It was the only workflow floating,
       # and an SDK that moves under a performance baseline changes the numbers
       # this job exists to compare -- silently, and in the direction of
-      # "something regressed". Same 3.12.0 as everywhere else.
+      # "something regressed". Same 3.13.2 as everywhere else.
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
 
       - name: Configure revali git overrides
         shell: bash

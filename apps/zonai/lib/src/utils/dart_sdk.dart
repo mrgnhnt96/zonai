@@ -29,7 +29,7 @@ void configureRaindropDartSdk() {
 ///
 /// The bare version comes back rather than the whole `--version` line for two
 /// reasons: it is the shape the host side is baked in with (CI pins `sdk:
-/// "3.12.0"`, and `hostDartSdkVersion` reads that back verbatim), so both
+/// "3.13.2"`, and `hostDartSdkVersion` reads that back verbatim), so both
 /// halves of that sentence match; and the stamp writes the version as one
 /// line, which the line's build date and platform have no use for.
 ///

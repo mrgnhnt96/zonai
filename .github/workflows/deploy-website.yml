@@ -69,7 +69,7 @@ jobs:
       - name: Set up Dart
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
 
       - name: Configure revali git overrides
         run: bash tool/ci/use_revali_git_overrides.sh

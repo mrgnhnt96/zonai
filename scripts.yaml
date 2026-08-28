@@ -573,7 +573,7 @@ zonai:
         # hash off itself at runtime (no `dartaotruntime` beside it, and its own
         # bytes are not a reliable source), so compile time is the only chance.
         #
-        # DERIVED, never written down: `sdk: "3.12.0"` appears in 18 workflow
+        # DERIVED, never written down: `sdk: "3.13.2"` appears in 18 workflow
         # job definitions, and a literal beside them would be correct until the
         # first bump and silently wrong afterwards. The script reads the SDK
         # that is actually on PATH -- i.e. the one about to run `dart compile

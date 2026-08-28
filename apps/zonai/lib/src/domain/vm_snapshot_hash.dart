@@ -11,7 +11,7 @@ import '../deps/fs.dart';
 /// A zonai host binary and the `.aot` worker snapshots it loads through
 /// `Isolate.spawnUri` (see mailman.dart) must come from Dart SDKs that share a
 /// VM snapshot hash. Nothing today ties the two together: CI pins `sdk:
-/// "3.12.0"` across its workflow jobs, so a released binary embeds a 3.12.0
+/// "3.13.2"` across its workflow jobs, so a released binary embeds a 3.13.2
 /// runtime, while the snapshots are compiled by whatever SDK
 /// `DartExecutable.resolve()` happens to find on the developer's machine.
 ///

@@ -107,8 +107,8 @@ dies with every in-flight request. The milder mode — same container format,
 different hash — raises a catchable `IsolateSpawnException` that the same
 `catch` has always handled correctly.
 
-**The window.** CI pins `sdk: "3.12.0"` in 18 workflow jobs, so a released
-binary embeds a 3.12.0 runtime, while snapshots are compiled by whatever
+**The window.** CI pins `sdk: "3.13.2"` in 18 workflow jobs, so a released
+binary embeds a 3.13.2 runtime, while snapshots are compiled by whatever
 `DartExecutable.resolve()` finds locally (3.13.2 on the machine this was
 measured on). A `zonai build` bundle is that pairing by construction:
 `_bundlePublishedBinary` copies the running binary next to the locally compiled

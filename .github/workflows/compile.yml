@@ -151,13 +151,13 @@ jobs:
         if: matrix.dart_architecture != 'x64'
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
 
       - name: Set up Dart (x64)
         if: matrix.dart_architecture == 'x64'
         uses: dart-lang/setup-dart@v1
         with:
-          sdk: "3.12.0"
+          sdk: "3.13.2"
           architecture: x64
 
       - name: Install sip

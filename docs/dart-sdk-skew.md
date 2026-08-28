@@ -33,8 +33,8 @@ coupled surface is that narrow and can be enumerated.
 
 They are chosen by two mechanisms that never consult each other.
 
-- **The host.** CI pins `sdk: "3.12.0"` in **18 workflow job definitions**, so a
-  released `zonai` embeds a 3.12.0 runtime. A project binary compiled by
+- **The host.** CI pins `sdk: "3.13.2"` in **18 workflow job definitions**, so a
+  released `zonai` embeds a 3.13.2 runtime. A project binary compiled by
   `zonai compile` / `zonai build` embeds whatever compiled *it*.
 - **The snapshots.** Compiled by whatever `DartExecutable.resolve()` finds on
   the developer's machine (`rules.dart:123`, `operations.dart:143`). On the
@@ -143,7 +143,7 @@ Two details there are measured, not assumed:
   with `-DZONAI_VM_HASH=an_env_file_lie` ahead of the real define reported the
   real hash out of the compiled binary.
 - **The hash is derived on the release path, never written down.** A literal
-  beside those 18 `sdk: "3.12.0"` pins would be correct until the first bump and
+  beside those 18 `sdk: "3.13.2"` pins would be correct until the next bump and
   silently wrong afterwards — and a binary claiming a runtime it does not have
   is worse than one claiming none, because the guard trusts it. The script reads
   the SDK actually on `PATH`, i.e. the one about to run the compile two lines
