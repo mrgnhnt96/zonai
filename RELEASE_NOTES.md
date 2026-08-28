@@ -8,6 +8,37 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.9.0
+
+- **Reclaim space on any database, not just the log.** The Maintenance card's
+  "Reclaim log space" is now "Reclaim space", with a picker built from this
+  deployment's real files and their real reclaimable bytes. Reclaiming the main
+  database asks for its filename typed first, because a `VACUUM` there takes an
+  exclusive lock on application data. `ZonaiDb.reclaimSpace` and `POST
+  /dashboard/maintenance/reclaim-space` take the target and the floor; the old
+  `reclaim-log-space` route stays, redirecting onto the new one and behaving
+  exactly as it did.
+- **`zonai compile` and `zonai build` refuse a mismatched Dart SDK.** They now
+  exit 1 with a message naming both versions — "zonai was built with Dart
+  3.13.2; you are on 3.12.0" — instead of producing workers that fail later at
+  spawn. Every other command warns once and continues, and
+  `--no-dart-sdk-check` turns the check off. This is the one thing here that can
+  stop a command that used to succeed.
+- Workers compiled by a Dart SDK that does not match the one zonai was built
+  with are no longer loaded in-process. That combination could kill the running
+  host outright with SIGABRT — no exception to catch, every in-flight request
+  gone with it. The host now decides before the spawn and falls back to the
+  worker process, which serves identically.
+- `zonai compile` exits non-zero when a worker fails to compile. It used to
+  report success on a project full of analyzer errors, and `zonai build` — which
+  guards on that exit code — bundled whatever stale executables were already on
+  disk.
+- `zonai db migrate` and `zonai build` no longer die inside your project with
+  `Couldn't resolve the package 'sqlite3'`. The vendored DDL driver reached
+  `package:sqlite3` through an export chain nothing called; `zonai_schema` keeps
+  that package a dev_dependency so a query-only client never has to resolve it.
+- zonai is now built with Dart 3.13.2.
+
 ## 0.8.5
 
 - The dashboard's "Most sessions" list is clickable — each user opens the same
