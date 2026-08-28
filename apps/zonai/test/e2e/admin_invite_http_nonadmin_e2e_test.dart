@@ -286,6 +286,7 @@ class _LiveServer {
         zonaiDbProvider,
         versionsProvider,
         schemaVersionCheckProvider,
+        dartSdkCheckProvider,
       },
     );
 

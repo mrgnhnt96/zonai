@@ -1,5 +1,6 @@
 import 'package:zonai/src/commands/build.dart';
 import 'package:zonai/src/commands/version.dart';
+import 'package:zonai/src/deps/dart_sdk_check.dart';
 import 'package:zonai/src/deps/logger.dart';
 import 'package:zonai/src/deps/schema_version_check.dart';
 import 'package:zonai/src/deps/versions.dart';
@@ -43,6 +44,7 @@ Global options (accepted by every command):
       --no-version-check     Skip the CLI/project version check
       --no-schema-version-check
                              Skip the zonai_schema minimum-version check
+      --no-dart-sdk-check    Skip the Dart SDK / host runtime sync check
 
 Run `zonai <command> --help` for a command's own options.
 ''';
@@ -74,6 +76,13 @@ Future<int> run() async {
     }
 
     if (await schemaVersionCheck.ensure() case final exitCode?) {
+      return exitCode;
+    }
+
+    // Before the dispatch below, so every command is covered by one call --
+    // which is also what makes the warning fire once per process rather than
+    // once per thing that happens to ask.
+    if (await dartSdkCheck.ensure() case final exitCode?) {
       return exitCode;
     }
 

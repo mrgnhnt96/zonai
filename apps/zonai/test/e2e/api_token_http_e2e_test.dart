@@ -705,6 +705,7 @@ Set<ScopedRef<dynamic>> _serverScopeOverrides(Settings settings) => {
   zonaiDbProvider,
   versionsProvider,
   schemaVersionCheckProvider,
+  dartSdkCheckProvider,
 };
 
 // ===========================================================================
