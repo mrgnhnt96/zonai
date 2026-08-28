@@ -13,16 +13,14 @@ import 'package:zonai_schema/gen/raindrop/raindrop_sqlite/ddl.dart';
 export 'package:zonai_schema/gen/raindrop/raindrop/ddl.dart';
 
 export 'src/sqlite_ddl.dart';
-export 'src/sqlite_schema_inspector.dart';
 
 /// The CLI's DDL entrypoint: serves this driver's [DdlGenerator] over the
-/// isolate command protocol, and its [SchemaInspector] alongside it.
+/// isolate command protocol.
 ///
-/// SQLite can stand a scratch database up in memory, so it can answer "what
-/// do these migrations actually produce" as well as "what SQL expresses this
-/// change".
+/// It serves no [SchemaInspector]: the one raindrop_sqlite ships needs
+/// `package:sqlite3`, which zonai_schema keeps a dev_dependency (issue #24).
+/// raindrop_cli reports the replay as NOT CHECKED rather than as agreement.
 void main(List<String> args, SendPort sendPort) => serveDdlGenerator(
       const SQLiteDdlGenerator(),
       sendPort,
-      inspector: const SQLiteSchemaInspector(),
     );
