@@ -150,73 +150,81 @@ void main() {
     timeout: const Timeout(Duration(minutes: 3)),
   );
 
-  test('the engine accepts every member as a reclaim target', () async {
-    if (!rs.isInstalled) {
-      markTestSkipped('resqlite native library not found');
-      return;
-    }
+  test(
+    'the engine accepts every member as a reclaim target',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
+      }
 
-    await withScope(() async {
-      final zonaiDb = ZonaiDb();
-      try {
-        await zonaiDb.open();
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          await zonaiDb.open();
 
-        for (final schema in kReclaimableSchemas) {
-          // `ZonaiDb.reclaimSpace` resolves the target through
-          // `_ReclaimSpaceX._schemaFile` before entering the write queue,
-          // and an unknown name throws `ArgumentError` there rather than
-          // rewriting the wrong file. So this drives the server-side
-          // allowlist with exactly the strings a browser is entitled to
-          // send: if `kLogDbSchema` were renamed and the payload constant
-          // did not follow, this is the throw the operator would get.
-          //
-          // The floor is set absurdly high so every call takes the
-          // "not worth it" branch and no test rewrites a database file.
-          final result = await zonaiDb.reclaimSpace(
-            schema: schema,
-            minReclaimableBytes: 1 << 40,
-          );
+          for (final schema in kReclaimableSchemas) {
+            // `ZonaiDb.reclaimSpace` resolves the target through
+            // `_ReclaimSpaceX._schemaFile` before entering the write queue,
+            // and an unknown name throws `ArgumentError` there rather than
+            // rewriting the wrong file. So this drives the server-side
+            // allowlist with exactly the strings a browser is entitled to
+            // send: if `kLogDbSchema` were renamed and the payload constant
+            // did not follow, this is the throw the operator would get.
+            //
+            // The floor is set absurdly high so every call takes the
+            // "not worth it" branch and no test rewrites a database file.
+            final result = await zonaiDb.reclaimSpace(
+              schema: schema,
+              minReclaimableBytes: 1 << 40,
+            );
 
-          expect(result.target, schema);
-          expect(
-            result.vacuumed,
-            isFalse,
-            reason: 'a 1 TiB floor must not be met by a fresh database',
-          );
+            expect(result.target, schema);
+            expect(
+              result.vacuumed,
+              isFalse,
+              reason: 'a 1 TiB floor must not be met by a fresh database',
+            );
+          }
+        } finally {
+          await zonaiDb.dispose();
         }
-      } finally {
-        await zonaiDb.dispose();
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
+    'a schema outside the set is refused rather than guessed at',
+    () async {
+      if (!rs.isInstalled) {
+        markTestSkipped('resqlite native library not found');
+        return;
       }
-    });
-  }, timeout: const Timeout(Duration(minutes: 3)));
 
-  test('a schema outside the set is refused rather than guessed at', () async {
-    if (!rs.isInstalled) {
-      markTestSkipped('resqlite native library not found');
-      return;
-    }
+      await withScope(() async {
+        final zonaiDb = ZonaiDb();
+        try {
+          await zonaiDb.open();
 
-    await withScope(() async {
-      final zonaiDb = ZonaiDb();
-      try {
-        await zonaiDb.open();
-
-        // The other direction of the same allowlist: the engine must not
-        // be *wider* than `kReclaimableSchemas`. `VACUUM` rewrites a file,
-        // and the target arrives from a browser, so a name the engine does
-        // not recognise has to stop here.
-        await expectLater(
-          zonaiDb.reclaimSpace(
-            schema: 'photosdb',
-            minReclaimableBytes: 1 << 40,
-          ),
-          throwsA(isA<ArgumentError>()),
-        );
-      } finally {
-        await zonaiDb.dispose();
-      }
-    });
-  }, timeout: const Timeout(Duration(minutes: 3)));
+          // The other direction of the same allowlist: the engine must not
+          // be *wider* than `kReclaimableSchemas`. `VACUUM` rewrites a file,
+          // and the target arrives from a browser, so a name the engine does
+          // not recognise has to stop here.
+          await expectLater(
+            zonaiDb.reclaimSpace(
+              schema: 'photosdb',
+              minReclaimableBytes: 1 << 40,
+            ),
+            throwsA(isA<ArgumentError>()),
+          );
+        } finally {
+          await zonaiDb.dispose();
+        }
+      });
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 }
 
 class _NullSink implements StreamConsumer<List<int>> {
