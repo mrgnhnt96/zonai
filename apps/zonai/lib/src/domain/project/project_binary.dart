@@ -13,6 +13,8 @@ import 'package:zonai/src/domain/project/project_generator.dart';
 import 'package:zonai/src/domain/project/project_link.dart';
 import 'package:zonai/src/domain/rules/rule_generator.dart';
 import 'package:zonai/src/domain/settings.dart';
+import 'package:zonai/src/domain/vm_snapshot_hash.dart';
+import 'package:zonai/src/utils/dart_sdk.dart';
 
 /// Compiles the project-linked binary (in-process ops/rules + full CLI).
 class ProjectBinary {
@@ -51,12 +53,34 @@ class ProjectBinary {
       dir.createSync(recursive: true);
     }
 
+    // The SDK that is about to run the compile. Resolved here as well as
+    // inside `process.runDart` so the stamp below describes the SDK that
+    // actually produces the binary, rather than whichever one happens to be
+    // first on PATH at the moment this line runs.
+    final dartExecutable = await resolveDartExecutable();
+
     logger.info('Compiling project binary → $target');
     final result = await process.runDart([
       'compile',
       'exe',
       '-D__ZONAI_COMPILED__=true',
       ...env.dartDefineArgs,
+      // The project binary is a zonai HOST: it loads `.aot` worker snapshots
+      // through `Isolate.spawnUri`, and a snapshot built by an SDK with a
+      // different container format kills the process with SIGABRT before any
+      // Dart code runs -- there is no exception to catch. A compiled host has
+      // no `dartaotruntime` beside it to read at runtime, so compile time is
+      // the only chance to record which runtime is inside it.
+      //
+      // AFTER `dartDefineArgs` on purpose: a duplicate key is won by the LAST
+      // `--define`, so a project `.env` naming ZONAI_VM_HASH cannot replace
+      // the real stamp with one of its own.
+      //
+      // Empty when the SDK cannot be identified. That leaves the binary
+      // unstamped, which is the safe direction -- `hostVmSnapshotHash` reads
+      // null and the guard declines to vouch for a spawn instead of vouching
+      // for it wrongly.
+      ...vmSnapshotDefines(dartExecutable),
       // Absent for a project that depends on zonai directly: its own
       // resolution is already correct, and passing a config would only be a
       // chance to get it wrong.
