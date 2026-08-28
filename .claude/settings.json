@@ -1,47 +1,102 @@
 {
   "hooks": {
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop sessionstart",
+            "statusMessage": "game_loop: rehydrating the loop",
+            "timeout": 20,
+            "type": "command"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/whoami.sh",
+            "statusMessage": "showrunner: what is this session?",
+            "timeout": 20,
+            "type": "command"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
-        "matcher": "Write|Edit|NotebookEdit|Bash",
         "hooks": [
           {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/guard-writes.sh",
+            "statusMessage": "game_loop: checking the write stays inside the repo",
             "timeout": 10,
-            "statusMessage": "game_loop: checking the write stays inside the repo"
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Write|Edit|NotebookEdit|Bash"
       },
       {
-        "matcher": "Write|Edit|NotebookEdit|Bash",
         "hooks": [
           {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop limitgate",
+            "statusMessage": "game_loop: usage-limit handoff gate",
             "timeout": 10,
-            "statusMessage": "game_loop: usage-limit handoff gate"
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": "Write|Edit|NotebookEdit|Bash"
       },
       {
-        "matcher": "mcp__.*",
         "hooks": [
           {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/guard-mcp.sh",
+            "statusMessage": "game_loop: does this MCP call mutate?",
             "timeout": 10,
-            "statusMessage": "game_loop: does this MCP call mutate?"
+            "type": "command"
+          }
+        ],
+        "matcher": "mcp__.*"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/worktree-guard.sh",
+            "statusMessage": "showrunner: is this tree held by another session?",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "Write|Edit|NotebookEdit|Bash"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/dispatch-guard.sh",
+            "statusMessage": "showrunner: is this session allowed to dispatch?",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop sessionstart",
+            "statusMessage": "game_loop: rehydrating the loop",
+            "timeout": 20,
+            "type": "command"
           }
         ]
       },
       {
-        "matcher": "Write|Edit|NotebookEdit|Bash",
         "hooks": [
           {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/worktree-guard.sh",
-            "timeout": 10,
-            "statusMessage": "showrunner: is this tree held by another session?"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/whoami.sh",
+            "statusMessage": "showrunner: what is this session?",
+            "timeout": 20,
+            "type": "command"
           }
         ]
       }
@@ -50,49 +105,35 @@
       {
         "hooks": [
           {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop stopgate",
+            "statusMessage": "game_loop: is this turn-end earned?",
             "timeout": 10,
-            "statusMessage": "game_loop: is this turn-end earned?"
+            "type": "command"
           },
           {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/watchdog",
             "asyncRewake": true,
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/watchdog",
+            "statusMessage": "game_loop: arming the idle watchdog",
             "timeout": 604800,
-            "statusMessage": "game_loop: arming the idle watchdog"
+            "type": "command"
           }
         ]
-      }
-    ],
-    "SessionStart": [
+      },
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop sessionstart",
-            "timeout": 20,
-            "statusMessage": "game_loop: rehydrating the loop"
-          }
-        ]
-      }
-    ],
-    "PostCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop sessionstart",
-            "timeout": 20,
-            "statusMessage": "game_loop: rehydrating the loop"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/inert-crawler-gate.sh",
+            "statusMessage": "showrunner: is a Crawler waiting on a message?",
+            "timeout": 30,
+            "type": "command"
           }
         ]
       }
     ]
   },
   "statusLine": {
-    "type": "command",
     "command": "p=\"${CLAUDE_PROJECT_DIR:-.}\"; gl=\"$p/.game_loop_self/.game_loop/bin/game_loop\"; [ -x \"$gl\" ] || gl=\"$p/.game_loop/bin/game_loop\"; if [ -x \"$gl\" ]; then GAME_LOOP_HOME=\"$p/.game_loop\" exec \"$gl\" statusline; else cat >/dev/null; echo \"\ud83c\udfae game_loop: statusline tap not found \u2014 usage-limit gates are inert\"; fi",
-    "refreshInterval": 60
+    "refreshInterval": 60,
+    "type": "command"
   }
 }
