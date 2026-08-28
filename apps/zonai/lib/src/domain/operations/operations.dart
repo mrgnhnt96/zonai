@@ -12,9 +12,12 @@ import '../../deps/fs.dart';
 import '../../deps/logger.dart';
 import '../../deps/process.dart';
 import '../../deps/settings.dart';
+import '../../utils/dart_sdk.dart';
 import '../ipc_protocol_stamp.dart';
 import '../message_contract_stamp.dart';
 import '../project/project_generator.dart';
+import '../snapshot_sdk_stamp.dart';
+import '../vm_snapshot_hash.dart';
 import 'operation_generator.dart';
 
 class Operations {
@@ -148,6 +151,19 @@ class Operations {
       // sources, and when it fails the previous snapshot stays on disk. The
       // stamp has to describe the file that is actually there.
       writeMessageContractStamp(snapshotTarget);
+
+      // The COMPILING SDK's hash, not this process's. The two differ in
+      // exactly the case the `.sdk` sidecar exists to catch -- a host built by
+      // CI's pinned SDK being handed a snapshot a developer's newer SDK
+      // produced -- and reading the host's would record the one number that
+      // can never disagree. Resolved once and used for both the hash and the
+      // version, rather than once per value.
+      final dart = await resolveDartExecutable();
+      writeSnapshotSdkStamp(
+        snapshotTarget,
+        hash: sdkVmSnapshotHash(dart),
+        version: await dartSdkVersion(dart),
+      );
     } else {
       // Deliberately a warning, and deliberately NOT part of this method's
       // exit code: the snapshot is only the fast path for the isolate
