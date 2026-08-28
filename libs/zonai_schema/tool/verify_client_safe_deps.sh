@@ -24,7 +24,8 @@
 #   drift  -- client depends on sqlite3 ^3.0.0. Catches a regained regular
 #             (non-dev) 'sqlite3: <3.0.0' dep at version-solve time.
 #   bare   -- client depends on NO sqlite3 at all. Catches an internal file
-#             importing a barrel whose export chain reaches sqlite_delegate.dart.
+#             importing a barrel whose export chain reaches sqlite_delegate.dart,
+#             or the vendored ddl.dart entrypoint reaching sqlite3 at all.
 #
 # The 'drift' scenario alone reported success while three internal files
 # (tables/table.dart, tables/auth_table.dart, operations/table_operations.dart)
@@ -84,11 +85,33 @@ class UserSchema extends Table<User> {
 final users = table('users', UserSchema.new);
 DART
 
+  # Imports BOTH entrypoints an end-user project actually loads:
+  #
+  #   zonai_schema.dart -- what the user's schema files import.
+  #   ddl.dart          -- what raindrop_cli's DdlRunner spawns with
+  #                        Isolate.spawnUri during `zonai migrate`. It resolves
+  #                        the driver package root's own lib/ddl.dart, and
+  #                        zonai passes `--driver zonai_schema`, so this file
+  #                        is loaded inside the user's project too.
+  #
+  # ddl.dart is here because it regressed while only the barrel was covered:
+  # re-vendoring raindrop picked up an unrestricted export of the vendored
+  # sqlite_schema_inspector.dart, which imports package:sqlite3. Nothing
+  # called the inspector and this script stayed green, because the barrel's
+  # chain never reaches ddl.dart -- but the compiler resolves every file in
+  # an unrestricted export chain, so every `zonai migrate` died with
+  # `IsolateSpawnException: ... Couldn't resolve the package 'sqlite3'`.
+  # Importing it is enough to catch that: the failure is at compile time,
+  # not at call time.
   cat > "$scratch_dir/bin/run.dart" << 'DART'
+import 'package:zonai_schema/ddl.dart' as ddl;
 import 'package:zonai_schema_client_safe_check/src/schemas/users.dart' as r0;
 
 void main() {
   print(r0.users);
+  // Referenced, never called: `main` starts a ReceivePort server that never
+  // returns. Resolving the import is the whole check.
+  print(ddl.main is Function);
 }
 DART
 
@@ -100,8 +123,8 @@ DART
   fi
 
   if ! dart run bin/run.dart > run.log 2>&1; then
-    echo "[$scenario] zonai_schema resolved but a schema file importing" >&2
-    echo "zonai_schema.dart failed to RUN (see issue #24). Output:" >&2
+    echo "[$scenario] zonai_schema resolved but a client importing" >&2
+    echo "zonai_schema.dart and ddl.dart failed to RUN (see issue #24). Output:" >&2
     cat run.log >&2
     return 1
   fi

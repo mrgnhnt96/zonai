@@ -12,6 +12,11 @@
 // runtime (apps/zonai) ports those three files separately, importing the
 // vendored `SQLiteDelegate`/`RaindropDelegate` from here instead.
 //
+// `sqlite_schema_inspector.dart` is excluded for the same shape of reason and
+// a different dependency: it needs `package:sqlite3`, which this package keeps
+// a dev_dependency on purpose (issue #24). See `_excludedFiles` and
+// `_dropSchemaInspector` below.
+//
 // Run from libs/zonai_schema:
 //   dart run tool/generate_raindrop_vendor.dart
 
@@ -22,13 +27,28 @@ const _outputRelative = 'lib/gen/raindrop';
 
 const _packages = ['raindrop', 'raindrop_sqlite'];
 
-/// Files backing `ResqliteDelegate`'s reactive streaming -- these need
-/// `package:resqlite` (a git dependency) and are ported separately into
-/// apps/zonai instead of vendored here. See module comment above.
+/// Upstream files that are NOT vendored, each because it drags a dependency
+/// this package refuses to carry at runtime. See module comment above, and
+/// the per-entry comments below for which dependency and why.
 const _excludedFiles = {
   'raindrop_sqlite/lib/src/resqlite_delegate.dart',
   'raindrop_sqlite/lib/src/hybrid_stream_engine.dart',
   'raindrop_sqlite/lib/src/sql_read_dependencies.dart',
+  // `SQLiteSchemaInspector`, which stands a `:memory:` scratch database up to
+  // answer raindrop_cli's drift check. Needs `package:sqlite3`, which is a
+  // dev_dependency here and must stay one -- see `_dropSchemaInspector`.
+  //
+  // Excluded rather than merely un-exported because the file has no consumer
+  // in this repo at all: nothing outside the vendored tree names
+  // `SQLiteSchemaInspector`, and `lib/ddl.dart` (the entrypoint raindrop_cli
+  // actually spawns) serves no inspector. Leaving an sqlite3-importing file
+  // sitting in the tree is how the export chain grew back last time.
+  //
+  // `sqlite_delegate.dart` is NOT excluded despite also needing sqlite3: this
+  // package's own tests use `SQLiteDelegate` for in-memory testing, and it is
+  // kept out of every entrypoint's export chain instead (the outer barrel's
+  // `show` clause, and `--driver-import` pointing at `sqlite_dialect.dart`).
+  'raindrop_sqlite/lib/src/sqlite_schema_inspector.dart',
 };
 
 const _header = '''
@@ -84,6 +104,9 @@ void main() {
       content = _renameTableClass(content);
       if (package == 'raindrop_sqlite' && relative == 'raindrop_sqlite.dart') {
         content = _dropResqliteDelegateExport(content);
+      }
+      if (package == 'raindrop_sqlite' && relative == 'ddl.dart') {
+        content = _dropSchemaInspector(content);
       }
 
       final outFile = File('${outputDir.path}/$package/$relative');
@@ -196,6 +219,70 @@ String _stripInternalAnnotations(String content) {
   }
 
   return lines.join('\n');
+}
+
+/// Takes `SQLiteSchemaInspector` out of the vendored DDL entrypoint.
+///
+/// `sqlite_schema_inspector.dart` imports `package:sqlite3`, and zonai_schema
+/// keeps sqlite3 a dev_dependency on purpose (issue #24) so a query-only
+/// client -- e.g. a Flutter app already on Drift, which pins sqlite3 ^3.0.0 --
+/// never has to resolve this package's <3.0.0 constraint.
+///
+/// The `export` alone is enough to break things, with nothing calling the
+/// inspector: `zonai_schema/lib/ddl.dart` is the file raindrop_cli's
+/// `DdlRunner` spawns (it resolves `<driver package root>/lib/ddl.dart`, and
+/// zonai passes `--driver zonai_schema`), it imports this vendored entrypoint,
+/// and the compiler fully resolves every file in an unrestricted export chain
+/// whether or not a name off it is used. The isolate then dies inside the
+/// user's project with `IsolateSpawnException: ... Couldn't resolve the
+/// package 'sqlite3'`, which is what took out `zonai migrate` end-to-end.
+///
+/// Nothing is lost that this repo had. `lib/ddl.dart` already passed no
+/// `inspector` to [serveDdlGenerator], so raindrop_cli's drift check has
+/// always answered `Schema drift: NOT CHECKED -- the "sqlite" driver cannot
+/// replay migrations` for zonai projects; it reports and never fails. Making
+/// the drift replay actually work would need a driver package that may depend
+/// on sqlite3, which zonai_schema is precisely not.
+///
+/// Throws when a line it expects is missing rather than emitting a file that
+/// imports sqlite3 again. This function IS the guarantee; a silent no-op here
+/// puts the failure back where only a spawned isolate can see it, and
+/// `dart analyze` cannot -- the root `analysis_options.yaml` excludes
+/// `**/lib/gen/**`.
+String _dropSchemaInspector(String content) {
+  const export = "export 'src/sqlite_schema_inspector.dart';";
+  const argument = 'inspector: const SQLiteSchemaInspector(),';
+  const inspectorDoc = """
+/// isolate command protocol, and its [SchemaInspector] alongside it.
+///
+/// SQLite can stand a scratch database up in memory, so it can answer "what
+/// do these migrations actually produce" as well as "what SQL expresses this
+/// change".""";
+  const generatorDoc = """
+/// isolate command protocol.
+///
+/// It serves no [SchemaInspector]: the one raindrop_sqlite ships needs
+/// `package:sqlite3`, which zonai_schema keeps a dev_dependency (issue #24).
+/// raindrop_cli reports the replay as NOT CHECKED rather than as agreement.""";
+
+  for (final expected in [export, argument, inspectorDoc]) {
+    if (!content.contains(expected)) {
+      throw StateError(
+        'Vendoring raindrop_sqlite/lib/ddl.dart: expected to find\n\n'
+        '$expected\n\n'
+        'and did not. Upstream changed shape, so this rewrite can no longer '
+        'prove the vendored entrypoint is free of package:sqlite3. Update '
+        '_dropSchemaInspector to match upstream before regenerating.',
+      );
+    }
+  }
+
+  return content
+      .replaceFirst(inspectorDoc, generatorDoc)
+      .split('\n')
+      .where((line) => line.trim() != export)
+      .where((line) => line.trim() != argument)
+      .join('\n');
 }
 
 /// The vendored barrel can't export the excluded `resqlite_delegate.dart`.
