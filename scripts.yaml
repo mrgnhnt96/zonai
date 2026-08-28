@@ -512,6 +512,7 @@ zonai:
         ${{ web.gen }}
       - |
         BUILD_DIR="$(pwd)/build"
+        REPO_ROOT="$(pwd)"
         # Without deleting the directory, clear out all the files (recursively) in the directory
         mkdir -p $BUILD_DIR
         find $BUILD_DIR -type f -delete
@@ -526,7 +527,40 @@ zonai:
           OUTPUT="$OUTPUT.exe"
         fi
 
-        compile_args=(-D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT")
+        # THIS is the bare `dart compile exe` that produces the released CLI --
+        # compile.yml reaches it through `sip run zonai compile`, and
+        # docs/linking-a-bare-released-binary.md records that nothing used to
+        # stamp it. A released binary has to carry the VM snapshot hash of the
+        # runtime embedded in it, because it is the host that loads `.aot`
+        # worker snapshots through `Isolate.spawnUri` and a snapshot from an
+        # SDK with a different container format does not raise a catchable
+        # exception -- the process takes SIGABRT (exit 134) inside
+        # snapshot_utils.cc before any Dart code runs. The host cannot read the
+        # hash off itself at runtime (no `dartaotruntime` beside it, and its own
+        # bytes are not a reliable source), so compile time is the only chance.
+        #
+        # DERIVED, never written down: `sdk: "3.12.0"` appears in 18 workflow
+        # job definitions, and a literal beside them would be correct until the
+        # first bump and silently wrong afterwards. The script reads the SDK
+        # that is actually on PATH -- i.e. the one about to run `dart compile
+        # exe` two lines down -- and exits non-zero rather than emitting an
+        # empty define, which `|| exit 1` turns into a failed build. That is
+        # deliberate on the release path: an unstamped binary is a supported
+        # state, but not one to reach by accident.
+        VM_DEFINES="$(bash "$REPO_ROOT/tool/ci/vm_snapshot_defines.sh" dart)" || exit 1
+        #
+        # A here-string rather than a here-doc: this block is a YAML literal
+        # scalar, so a here-doc terminator's column depends on the block
+        # indentation YAML strips, and `<<<` has no terminator to get wrong.
+        # A pipe would not do -- the `while` would run in a subshell and the
+        # array would come back empty.
+        vm_define_args=()
+        while IFS= read -r vm_define; do
+          [ -n "$vm_define" ] || continue
+          vm_define_args+=("$vm_define")
+        done <<< "$VM_DEFINES"
+
+        compile_args=("${vm_define_args[@]}" -D__ZONAI_COMPILED__=true bin/zonai.dart -o "$OUTPUT")
         # Dart cannot cross-compile to macOS from Apple Silicon; macOS x64
         # builds must run on Intel hardware (e.g. macos-15-intel in CI).
         if [ -n "$TARGET_ARCH" ] && [ "$(uname -s)" = "Linux" ]; then
