@@ -229,41 +229,33 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
-    test(
-      'a failed sign-in never creates the account it was given',
-      () async {
-        if (!_runningOnDartVm) {
-          return;
+    test('a failed sign-in never creates the account it was given', () async {
+      if (!_runningOnDartVm) {
+        return;
+      }
+
+      await withDb((db) async {
+        try {
+          await db.authenticate(
+            table,
+            const SignInPasswordAuthPayload(
+              email: unknownEmail,
+              password: wrongPassword,
+            ),
+          );
+        } on Object {
+          // asserted by the test above; here we only care about the side
+          // effect the attempt may have left behind.
         }
 
-        await withDb((db) async {
-          try {
-            await db.authenticate(
-              table,
-              const SignInPasswordAuthPayload(
-                email: unknownEmail,
-                password: wrongPassword,
-              ),
-            );
-          } on Object {
-            // asserted by the test above; here we only care about the side
-            // effect the attempt may have left behind.
-          }
+        final rows = await db.list(
+          table,
+          ListPayload(where: Eq('email', unknownEmail)),
+        );
 
-          final rows = await db.list(
-            table,
-            ListPayload(where: Eq('email', unknownEmail)),
-          );
-
-          expect(
-            rows.items,
-            isEmpty,
-            reason: 'sign-in must never insert a row',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+        expect(rows.items, isEmpty, reason: 'sign-in must never insert a row');
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     // `users` carries a required `name`, so the sign-up insert this used to
     // fall through to had something to fail on and the caller saw a 500.

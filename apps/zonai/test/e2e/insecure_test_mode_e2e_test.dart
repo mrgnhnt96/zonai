@@ -117,112 +117,94 @@ void main() {
 
     // This test running from source is the point: before the fix, running from
     // source is exactly the condition under which `123456` was the OTP.
-    test(
-      'an OTP request from source does not hand out 123456',
-      () async {
-        if (!_runningOnDartVm) return;
+    test('an OTP request from source does not hand out 123456', () async {
+      if (!_runningOnDartVm) return;
 
-        debugInsecureTestMode = null;
-        expect(
-          kInsecureTestMode,
-          isFalse,
-          reason: 'the test runner sets no ZONAI_INSECURE_TEST_MODE',
+      debugInsecureTestMode = null;
+      expect(
+        kInsecureTestMode,
+        isFalse,
+        reason: 'the test runner sets no ZONAI_INSECURE_TEST_MODE',
+      );
+
+      await _withDb(settings, appConfig, (db) async {
+        const email = 'otp-off@example.com';
+
+        await db.authenticate('users', const SendOtpAuthPayload(email: email));
+
+        await expectLater(
+          db.confirmAuth(
+            const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
+          ),
+          throwsA(isA<InvalidOrExpiredCodeException>()),
+          reason:
+              'the fixed dev OTP must not redeem a real challenge — this is '
+              'the account-takeover-by-email-address finding',
         );
-
-        await _withDb(settings, appConfig, (db) async {
-          const email = 'otp-off@example.com';
-
-          await db.authenticate(
-            'users',
-            const SendOtpAuthPayload(email: email),
-          );
-
-          await expectLater(
-            db.confirmAuth(
-              const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
-            ),
-            throwsA(isA<InvalidOrExpiredCodeException>()),
-            reason:
-                'the fixed dev OTP must not redeem a real challenge — this is '
-                'the account-takeover-by-email-address finding',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     // The other half: the hook must still work where it is legitimately
     // wanted, or it will simply be reintroduced by hand.
-    test(
-      'with the mode on, the fixed OTP redeems — and signs in',
-      () async {
-        if (!_runningOnDartVm) return;
+    test('with the mode on, the fixed OTP redeems — and signs in', () async {
+      if (!_runningOnDartVm) return;
+
+      debugInsecureTestMode = true;
+
+      await _withDb(settings, appConfig, (db) async {
+        const email = 'otp-on@example.com';
+
+        await db.authenticate('users', const SendOtpAuthPayload(email: email));
+
+        final session = await db.confirmAuth(
+          const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
+        );
+
+        expect(
+          session,
+          isNotNull,
+          reason: 'the opt-in hook must still be usable when asked for',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('the same is true of the magic link', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        const offEmail = 'magic-off@example.com';
+        const onEmail = 'magic-on@example.com';
+
+        debugInsecureTestMode = null;
+        await db.authenticate(
+          'users',
+          const SendMagicLinkAuthPayload(email: offEmail),
+        );
+        await expectLater(
+          db.confirmAuth(
+            VerifyMagicLinkAuthPayload(
+              secret: _linkToken(kInsecureTestMagicLinkSecret, offEmail),
+            ),
+          ),
+          throwsA(isA<InvalidOrExpiredCodeException>()),
+          reason: 'the fixed dev magic-link secret must not redeem',
+        );
 
         debugInsecureTestMode = true;
-
-        await _withDb(settings, appConfig, (db) async {
-          const email = 'otp-on@example.com';
-
-          await db.authenticate(
-            'users',
-            const SendOtpAuthPayload(email: email),
-          );
-
-          final session = await db.confirmAuth(
-            const VerifyOtpAuthPayload(email: email, code: kInsecureTestOtp),
-          );
-
-          expect(
-            session,
-            isNotNull,
-            reason: 'the opt-in hook must still be usable when asked for',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
-
-    test(
-      'the same is true of the magic link',
-      () async {
-        if (!_runningOnDartVm) return;
-
-        await _withDb(settings, appConfig, (db) async {
-          const offEmail = 'magic-off@example.com';
-          const onEmail = 'magic-on@example.com';
-
-          debugInsecureTestMode = null;
-          await db.authenticate(
-            'users',
-            const SendMagicLinkAuthPayload(email: offEmail),
-          );
-          await expectLater(
-            db.confirmAuth(
-              VerifyMagicLinkAuthPayload(
-                secret: _linkToken(kInsecureTestMagicLinkSecret, offEmail),
-              ),
+        await db.authenticate(
+          'users',
+          const SendMagicLinkAuthPayload(email: onEmail),
+        );
+        expect(
+          await db.confirmAuth(
+            VerifyMagicLinkAuthPayload(
+              secret: _linkToken(kInsecureTestMagicLinkSecret, onEmail),
             ),
-            throwsA(isA<InvalidOrExpiredCodeException>()),
-            reason: 'the fixed dev magic-link secret must not redeem',
-          );
-
-          debugInsecureTestMode = true;
-          await db.authenticate(
-            'users',
-            const SendMagicLinkAuthPayload(email: onEmail),
-          );
-          expect(
-            await db.confirmAuth(
-              VerifyMagicLinkAuthPayload(
-                secret: _linkToken(kInsecureTestMagicLinkSecret, onEmail),
-              ),
-            ),
-            isNotNull,
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+          ),
+          isNotNull,
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test(
       'two challenges in a row do not collide, i.e. they are random',

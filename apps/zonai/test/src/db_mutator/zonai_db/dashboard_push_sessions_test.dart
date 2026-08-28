@@ -159,62 +159,58 @@ void main() {
   }
 
   group('sessions', () {
-    test(
-      'counts only sessions that have not expired',
-      () async {
-        await withMetrics(
-          (db) async {
-            final now = DateTime.now();
-            // Two live, one expired an hour ago. The expired row is still in the
-            // table because `_delete_expired_jwts` runs at 04:00, which is
-            // exactly the state the count has to survive.
-            await insertJwt(
-              db,
-              id: 'live1',
-              userId: 'alice',
-              expiresAt: now.add(const Duration(hours: 5)),
-            );
-            await insertJwt(
-              db,
-              id: 'live2',
-              userId: 'alice',
-              expiresAt: now.add(const Duration(hours: 5)),
-            );
-            await insertJwt(
-              db,
-              id: 'dead',
-              userId: 'bob',
-              expiresAt: now.subtract(const Duration(hours: 1)),
-            );
-          },
-          (metrics) async {
-            expect(
-              metrics.sessions.active,
-              2,
-              reason:
-                  'the expired row is not a session. Comparing a milliseconds '
-                  'column against a seconds value made every row pass, which '
-                  'reported 3 here and is the bug this pins',
-            );
-            expect(
-              metrics.activeSessions,
-              metrics.sessions.active,
-              reason:
-                  'the top-level wire field and the panel read one query -- two '
-                  'counts of the same thing are two chances to disagree',
-            );
-            expect(
-              metrics.sessions.distinctUsers,
-              1,
-              reason:
-                  "bob's only session is expired, so he is not signed in -- and "
-                  "alice's two sessions are one user, not two",
-            );
-          },
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('counts only sessions that have not expired', () async {
+      await withMetrics(
+        (db) async {
+          final now = DateTime.now();
+          // Two live, one expired an hour ago. The expired row is still in the
+          // table because `_delete_expired_jwts` runs at 04:00, which is
+          // exactly the state the count has to survive.
+          await insertJwt(
+            db,
+            id: 'live1',
+            userId: 'alice',
+            expiresAt: now.add(const Duration(hours: 5)),
+          );
+          await insertJwt(
+            db,
+            id: 'live2',
+            userId: 'alice',
+            expiresAt: now.add(const Duration(hours: 5)),
+          );
+          await insertJwt(
+            db,
+            id: 'dead',
+            userId: 'bob',
+            expiresAt: now.subtract(const Duration(hours: 1)),
+          );
+        },
+        (metrics) async {
+          expect(
+            metrics.sessions.active,
+            2,
+            reason:
+                'the expired row is not a session. Comparing a milliseconds '
+                'column against a seconds value made every row pass, which '
+                'reported 3 here and is the bug this pins',
+          );
+          expect(
+            metrics.activeSessions,
+            metrics.sessions.active,
+            reason:
+                'the top-level wire field and the panel read one query -- two '
+                'counts of the same thing are two chances to disagree',
+          );
+          expect(
+            metrics.sessions.distinctUsers,
+            1,
+            reason:
+                "bob's only session is expired, so he is not signed in -- and "
+                "alice's two sessions are one user, not two",
+          );
+        },
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test(
       'separates expiring-soon from active without double counting',
@@ -252,107 +248,94 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
-    test(
-      'ranks top users by live sessions only',
-      () async {
-        await withMetrics(
-          (db) async {
-            final now = DateTime.now();
-            for (var i = 0; i < 3; i++) {
-              await insertJwt(
-                db,
-                id: 'a$i',
-                userId: 'alice',
-                expiresAt: now.add(const Duration(hours: 4)),
-              );
-            }
+    test('ranks top users by live sessions only', () async {
+      await withMetrics(
+        (db) async {
+          final now = DateTime.now();
+          for (var i = 0; i < 3; i++) {
             await insertJwt(
               db,
-              id: 'b0',
-              userId: 'bob',
+              id: 'a$i',
+              userId: 'alice',
               expiresAt: now.add(const Duration(hours: 4)),
             );
-            // Five expired rows for carol: a ranking that counted rows rather
-            // than sessions would put her top.
-            for (var i = 0; i < 5; i++) {
-              await insertJwt(
-                db,
-                id: 'c$i',
-                userId: 'carol',
-                expiresAt: now.subtract(const Duration(days: 1)),
-              );
-            }
-          },
-          (metrics) async {
-            expect(
-              metrics.sessions.topUsers.map((u) => u.userId),
-              ['alice', 'bob'],
-              reason: 'carol holds five rows and zero sessions',
-            );
-            expect(metrics.sessions.topUsers.first.sessionCount, 3);
-          },
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
-
-    test(
-      'reports the no-sessions state as zero, not as an error',
-      () async {
-        await withMetrics((db) async {}, (metrics) async {
-          expect(metrics.sessions.active, 0);
-          expect(metrics.sessions.expiringWithinHour, 0);
-          expect(metrics.sessions.distinctUsers, 0);
-          expect(
-            metrics.sessions.topUsers,
-            isEmpty,
-            reason:
-                'a deployment nobody has signed in to is the normal first state, '
-                'not a fault -- and SUM over no rows is NULL, which must land as '
-                '0 rather than throwing',
+          }
+          await insertJwt(
+            db,
+            id: 'b0',
+            userId: 'bob',
+            expiresAt: now.add(const Duration(hours: 4)),
           );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+          // Five expired rows for carol: a ranking that counted rows rather
+          // than sessions would put her top.
+          for (var i = 0; i < 5; i++) {
+            await insertJwt(
+              db,
+              id: 'c$i',
+              userId: 'carol',
+              expiresAt: now.subtract(const Duration(days: 1)),
+            );
+          }
+        },
+        (metrics) async {
+          expect(metrics.sessions.topUsers.map((u) => u.userId), [
+            'alice',
+            'bob',
+          ], reason: 'carol holds five rows and zero sessions');
+          expect(metrics.sessions.topUsers.first.sessionCount, 3);
+        },
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('reports the no-sessions state as zero, not as an error', () async {
+      await withMetrics((db) async {}, (metrics) async {
+        expect(metrics.sessions.active, 0);
+        expect(metrics.sessions.expiringWithinHour, 0);
+        expect(metrics.sessions.distinctUsers, 0);
+        expect(
+          metrics.sessions.topUsers,
+          isEmpty,
+          reason:
+              'a deployment nobody has signed in to is the normal first state, '
+              'not a fault -- and SUM over no rows is NULL, which must land as '
+              '0 rather than throwing',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
   });
 
   group('push queue', () {
-    test(
-      'reports depth per status rather than one total',
-      () async {
-        await withMetrics(
-          (db) async {
-            await insertPushJob(db, id: 'p1', status: PushJobStatus.pending);
-            await insertPushJob(db, id: 'p2', status: PushJobStatus.pending);
-            await insertPushJob(db, id: 'r1', status: PushJobStatus.running);
-            await insertPushJob(db, id: 'c1', status: PushJobStatus.completed);
-            await insertPushJob(
-              db,
-              id: 'f1',
-              status: PushJobStatus.failed,
-              error: 'APNs said 410',
-            );
-          },
-          (metrics) async {
-            final queue = metrics.pushQueue;
-            expect(queue.pending, 2);
-            expect(queue.running, 1);
-            expect(queue.completed, 1);
-            expect(queue.failed, 1);
-            expect(
-              queue.outstanding,
-              3,
-              reason:
-                  'work still to do is pending + running. Folding the finished '
-                  'jobs in would keep this non-zero for the seven days retention '
-                  'holds them, so it could never signal a backlog',
-            );
-          },
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('reports depth per status rather than one total', () async {
+      await withMetrics(
+        (db) async {
+          await insertPushJob(db, id: 'p1', status: PushJobStatus.pending);
+          await insertPushJob(db, id: 'p2', status: PushJobStatus.pending);
+          await insertPushJob(db, id: 'r1', status: PushJobStatus.running);
+          await insertPushJob(db, id: 'c1', status: PushJobStatus.completed);
+          await insertPushJob(
+            db,
+            id: 'f1',
+            status: PushJobStatus.failed,
+            error: 'APNs said 410',
+          );
+        },
+        (metrics) async {
+          final queue = metrics.pushQueue;
+          expect(queue.pending, 2);
+          expect(queue.running, 1);
+          expect(queue.completed, 1);
+          expect(queue.failed, 1);
+          expect(
+            queue.outstanding,
+            3,
+            reason:
+                'work still to do is pending + running. Folding the finished '
+                'jobs in would keep this non-zero for the seven days retention '
+                'holds them, so it could never signal a backlog',
+          );
+        },
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test(
       'sums recipient counters, which a job count cannot substitute for',
@@ -397,47 +380,43 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
-    test(
-      'lists failed jobs with their error, newest first',
-      () async {
-        await withMetrics(
-          (db) async {
-            final now = DateTime.now();
-            await insertPushJob(
-              db,
-              id: 'old',
-              status: PushJobStatus.failed,
-              error: 'no push config',
-              delivered: 0,
-              updatedAt: now.subtract(const Duration(hours: 2)),
-            );
-            await insertPushJob(
-              db,
-              id: 'recent',
-              status: PushJobStatus.failed,
-              error: 'FCM 401 after 40000 recipients',
-              delivered: 40000,
-              updatedAt: now,
-            );
-          },
-          (metrics) async {
-            final failures = metrics.pushQueue.failedJobs;
-            expect(failures.map((f) => f.id), ['recent', 'old']);
-            expect(failures.first.error, 'FCM 401 after 40000 recipients');
-            expect(
-              failures.first.delivered,
-              40000,
-              reason:
-                  'delivered travels with the error: a job that failed having '
-                  'reached 40,000 people cannot be re-sent, and one that reached '
-                  'nobody can. The error text alone does not say which',
-            );
-            expect(failures.last.delivered, 0);
-          },
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('lists failed jobs with their error, newest first', () async {
+      await withMetrics(
+        (db) async {
+          final now = DateTime.now();
+          await insertPushJob(
+            db,
+            id: 'old',
+            status: PushJobStatus.failed,
+            error: 'no push config',
+            delivered: 0,
+            updatedAt: now.subtract(const Duration(hours: 2)),
+          );
+          await insertPushJob(
+            db,
+            id: 'recent',
+            status: PushJobStatus.failed,
+            error: 'FCM 401 after 40000 recipients',
+            delivered: 40000,
+            updatedAt: now,
+          );
+        },
+        (metrics) async {
+          final failures = metrics.pushQueue.failedJobs;
+          expect(failures.map((f) => f.id), ['recent', 'old']);
+          expect(failures.first.error, 'FCM 401 after 40000 recipients');
+          expect(
+            failures.first.delivered,
+            40000,
+            reason:
+                'delivered travels with the error: a job that failed having '
+                'reached 40,000 people cannot be re-sent, and one that reached '
+                'nobody can. The error text alone does not say which',
+          );
+          expect(failures.last.delivered, 0);
+        },
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test(
       'reports the empty queue as idle rather than as missing data',
@@ -529,80 +508,72 @@ void main() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
-    test(
-      'treats a drain with no outcome yet as in progress',
-      () async {
-        await withMetrics(
-          (db) async {
-            await db.execute(
-              'INSERT INTO "_cron_jobs" ("id", "name", "started", "completed", '
-              '"failed", "error", "stack_trace") VALUES (?, ?, ?, ?, ?, ?, ?)',
-              [
-                'cr1',
-                '_drain_push_jobs',
-                DateTime.now().millisecondsSinceEpoch,
-                null,
-                null,
-                null,
-                null,
-              ],
-            );
-          },
-          (metrics) async {
-            final drain = metrics.pushQueue.lastDrain!;
-            expect(
-              drain.inProgress,
-              isTrue,
-              reason:
-                  'the drain fires every minute, so catching one mid-run is '
-                  'ordinary -- reporting it as failed would cry wolf once a minute',
-            );
-            expect(drain.succeeded, isFalse);
-          },
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+    test('treats a drain with no outcome yet as in progress', () async {
+      await withMetrics(
+        (db) async {
+          await db.execute(
+            'INSERT INTO "_cron_jobs" ("id", "name", "started", "completed", '
+            '"failed", "error", "stack_trace") VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [
+              'cr1',
+              '_drain_push_jobs',
+              DateTime.now().millisecondsSinceEpoch,
+              null,
+              null,
+              null,
+              null,
+            ],
+          );
+        },
+        (metrics) async {
+          final drain = metrics.pushQueue.lastDrain!;
+          expect(
+            drain.inProgress,
+            isTrue,
+            reason:
+                'the drain fires every minute, so catching one mid-run is '
+                'ordinary -- reporting it as failed would cry wolf once a minute',
+          );
+          expect(drain.succeeded, isFalse);
+        },
+      );
+    }, timeout: const Timeout(Duration(minutes: 3)));
   });
 
-  test(
-    'refuses a caller who is not an admin',
-    () async {
-      if (!rs.isInstalled) {
-        markTestSkipped('resqlite native library not found');
-        return;
-      }
+  test('refuses a caller who is not an admin', () async {
+    if (!rs.isInstalled) {
+      markTestSkipped('resqlite native library not found');
+      return;
+    }
 
-      await withScope(() async {
-        final zonaiDb = ZonaiDb();
-        try {
-          await zonaiDb.open();
+    await withScope(() async {
+      final zonaiDb = ZonaiDb();
+      try {
+        await zonaiDb.open();
 
-          // The push queue names every failure reason on the deployment and the
-          // sessions panel names user ids. Both are operator information, and the
-          // engine refusing on its own is what makes the endpoint's gate a second
-          // lock rather than the only one.
-          await expectLater(
-            zonaiDb.dashboardMetrics(
-              jwt: Jwt(
-                userId: UnknownId('u'),
-                table: '_user',
-                jwtId: JwtId('j'),
-                expiresAt: DateTime.now().add(const Duration(hours: 1)),
-                user: const {},
-                claims: const {},
-                admin: const (isAdmin: false, canEdit: null),
-              ),
+        // The push queue names every failure reason on the deployment and the
+        // sessions panel names user ids. Both are operator information, and the
+        // engine refusing on its own is what makes the endpoint's gate a second
+        // lock rather than the only one.
+        await expectLater(
+          zonaiDb.dashboardMetrics(
+            jwt: Jwt(
+              userId: UnknownId('u'),
+              table: '_user',
+              jwtId: JwtId('j'),
+              expiresAt: DateTime.now().add(const Duration(hours: 1)),
+              user: const {},
+              claims: const {},
+              admin: const (isAdmin: false, canEdit: null),
             ),
-            throwsA(isA<TableAccessDeniedException>()),
-          );
-        } finally {
-          await zonaiDb.dispose();
-        }
-      });
-    },
-    timeout: const Timeout(Duration(minutes: 3)),
-  );
+          ),
+          throwsA(isA<TableAccessDeniedException>()),
+        );
+      } finally {
+        await zonaiDb.dispose();
+      }
+    });
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }
 
 /// Swallows log output; these tests assert on returned values, not on logs.

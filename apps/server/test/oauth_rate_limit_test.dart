@@ -105,15 +105,11 @@ void main() {
       }
     }, skip: skip);
 
-    test(
-      'the POST (Apple form_post) callback route exists and is guarded',
-      () {
-        final blocks = _routeBlocks(source, "'oauth/callback/:provider'");
-        expect(blocks.any((b) => b.contains("method: 'POST'")), isTrue);
-        expect(blocks.any((b) => b.contains("method: 'GET'")), isTrue);
-      },
-      skip: skip,
-    );
+    test('the POST (Apple form_post) callback route exists and is guarded', () {
+      final blocks = _routeBlocks(source, "'oauth/callback/:provider'");
+      expect(blocks.any((b) => b.contains("method: 'POST'")), isTrue);
+      expect(blocks.any((b) => b.contains("method: 'GET'")), isTrue);
+    }, skip: skip);
 
     test('the native flow is guarded too', () {
       final block = _routeBlock(source, "'oauth'");

@@ -457,11 +457,10 @@ void main() {
       );
 
       expect(outcomes, everyElement(isA<PushTransientlyFailed>()));
-      expect(
-        outcomes.map((o) => o.token),
-        ['a', 'b'],
-        reason: 'not reaching Apple is nobody\'s token being at fault',
-      );
+      expect(outcomes.map((o) => o.token), [
+        'a',
+        'b',
+      ], reason: 'not reaching Apple is nobody\'s token being at fault');
     });
   });
 

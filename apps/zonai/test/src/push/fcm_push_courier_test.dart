@@ -182,11 +182,9 @@ void main() {
         client: client,
       );
 
-      await courier.send(
-        const PushMessage(title: 'a', body: 'b'),
-        [for (var i = 0; i < 25; i++) 'tok-$i'],
-        config: _config(privateKey: privateKey),
-      );
+      await courier.send(const PushMessage(title: 'a', body: 'b'), [
+        for (var i = 0; i < 25; i++) 'tok-$i',
+      ], config: _config(privateKey: privateKey));
 
       expect(client.sendRequests, 25);
       expect(
@@ -199,11 +197,9 @@ void main() {
       );
 
       // A second batch on the same courier must not mint again.
-      await courier.send(
-        const PushMessage(title: 'a', body: 'b'),
-        ['tok-later'],
-        config: _config(privateKey: privateKey),
-      );
+      await courier.send(const PushMessage(title: 'a', body: 'b'), [
+        'tok-later',
+      ], config: _config(privateKey: privateKey));
       expect(client.tokenRequests, 1);
     });
 
@@ -633,11 +629,9 @@ void main() {
       );
       withKey = client.requests.last.body;
 
-      await courier.send(
-        const PushMessage(title: 'a', body: 'b'),
-        ['t'],
-        config: _config(privateKey: privateKey),
-      );
+      await courier.send(const PushMessage(title: 'a', body: 'b'), [
+        't',
+      ], config: _config(privateKey: privateKey));
       withoutKey = client.requests.last.body;
 
       final keyed =

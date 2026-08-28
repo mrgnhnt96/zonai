@@ -314,26 +314,22 @@ void main() {
     // The positive control for the two above. Without it, a gate that refused
     // EVERY OTP request -- or an `operation` that never resolved to signUp --
     // would leave both tests green while the feature was broken for everyone.
-    test(
-      'an allowed OTP sign-up still mints its challenge',
-      () async {
-        if (!_runningOnDartVm) return;
+    test('an allowed OTP sign-up still mints its challenge', () async {
+      if (!_runningOnDartVm) return;
 
-        await withDb((db) async {
-          await db.authenticate(
-            'users',
-            const SendOtpAuthPayload(email: otpAllowedEmail),
-          );
+      await withDb((db) async {
+        await db.authenticate(
+          'users',
+          const SendOtpAuthPayload(email: otpAllowedEmail),
+        );
 
-          expect(
-            await _challengeCount(db, otpAllowedEmail),
-            1,
-            reason: 'the gate must not refuse an address the hook allows',
-          );
-        });
-      },
-      timeout: const Timeout(Duration(minutes: 3)),
-    );
+        expect(
+          await _challengeCount(db, otpAllowedEmail),
+          1,
+          reason: 'the gate must not refuse an address the hook allows',
+        );
+      });
+    }, timeout: const Timeout(Duration(minutes: 3)));
   });
 }
 

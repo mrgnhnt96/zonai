@@ -41,70 +41,66 @@ void main() {
   final root = _workspaceRoot();
   final playground = p.join(root, 'apps', 'playground');
 
-  test(
-    'every checkable doc snippet analyzes',
-    () async {
-      // A fence naming a scaffold that does not exist is left to the test
-      // below, which says so in one line rather than as a crash here.
-      final scaffolds = _scaffoldNames(playground);
-      final snippets = _collect(root)
-          .where((s) => s.isCheckable)
-          .where((s) => s.scaffold == null || scaffolds.contains(s.scaffold))
-          .toList();
+  test('every checkable doc snippet analyzes', () async {
+    // A fence naming a scaffold that does not exist is left to the test
+    // below, which says so in one line rather than as a crash here.
+    final scaffolds = _scaffoldNames(playground);
+    final snippets = _collect(root)
+        .where((s) => s.isCheckable)
+        .where((s) => s.scaffold == null || scaffolds.contains(s.scaffold))
+        .toList();
 
-      expect(
-        snippets,
-        isNotEmpty,
-        reason:
-            'Found no checkable snippets at all -- the extractor stopped '
-            'matching the docs rather than the docs losing their examples.',
-      );
+    expect(
+      snippets,
+      isNotEmpty,
+      reason:
+          'Found no checkable snippets at all -- the extractor stopped '
+          'matching the docs rather than the docs losing their examples.',
+    );
 
-      final analysis = await _analyze(snippets, playground);
-      final failures = analysis.failures;
+    final analysis = await _analyze(snippets, playground);
+    final failures = analysis.failures;
 
-      // Checked before the snippets, for the same reason as the fixtures: a
-      // scaffold that no longer compiles takes down every fragment spliced
-      // into it, and those failures would read as drift in a dozen docs at
-      // once rather than as one stale scaffold.
-      expect(
-        analysis.scaffoldErrors,
-        isEmpty,
-        reason:
-            'test/fixtures/doc_scaffolds no longer analyzes:\n'
-            '  ${analysis.scaffoldErrors.join('\n  ')}\n'
-            'Fix the scaffold against the real API. Nothing below this line '
-            'can be trusted while the surrounding code a fragment is spliced '
-            'into is itself broken.',
-      );
+    // Checked before the snippets, for the same reason as the fixtures: a
+    // scaffold that no longer compiles takes down every fragment spliced
+    // into it, and those failures would read as drift in a dozen docs at
+    // once rather than as one stale scaffold.
+    expect(
+      analysis.scaffoldErrors,
+      isEmpty,
+      reason:
+          'test/fixtures/doc_scaffolds no longer analyzes:\n'
+          '  ${analysis.scaffoldErrors.join('\n  ')}\n'
+          'Fix the scaffold against the real API. Nothing below this line '
+          'can be trusted while the surrounding code a fragment is spliced '
+          'into is itself broken.',
+    );
 
-      // Checked before the snippets themselves: a broken fixture makes every
-      // snippet importing it fail for a reason that has nothing to do with the
-      // docs, and those failures would be indistinguishable from real drift.
-      expect(
-        analysis.fixtureErrors,
-        isEmpty,
-        reason:
-            'test/fixtures/doc_snippets no longer analyzes:\n'
-            '  ${analysis.fixtureErrors.join('\n  ')}\n'
-            'Fix the fixture. Nothing below this line can be trusted while a '
-            'stand-in the snippets import is itself broken.',
-      );
+    // Checked before the snippets themselves: a broken fixture makes every
+    // snippet importing it fail for a reason that has nothing to do with the
+    // docs, and those failures would be indistinguishable from real drift.
+    expect(
+      analysis.fixtureErrors,
+      isEmpty,
+      reason:
+          'test/fixtures/doc_snippets no longer analyzes:\n'
+          '  ${analysis.fixtureErrors.join('\n  ')}\n'
+          'Fix the fixture. Nothing below this line can be trusted while a '
+          'stand-in the snippets import is itself broken.',
+    );
 
-      expect(
-        failures,
-        isEmpty,
-        reason:
-            'These snippets no longer compile against the API they describe:\n'
-            '${_render(failures)}\n'
-            'Fix the snippet against the real API. If it is a sketch that is '
-            'deliberately not compilable -- elided bodies, a placeholder '
-            'import -- tag its fence ```dart no-analyze and say why in the '
-            'prose around it. Do not reintroduce a baseline file.',
-      );
-    },
-    timeout: const Timeout(Duration(minutes: 5)),
-  );
+    expect(
+      failures,
+      isEmpty,
+      reason:
+          'These snippets no longer compile against the API they describe:\n'
+          '${_render(failures)}\n'
+          'Fix the snippet against the real API. If it is a sketch that is '
+          'deliberately not compilable -- elided bodies, a placeholder '
+          'import -- tag its fence ```dart no-analyze and say why in the '
+          'prose around it. Do not reintroduce a baseline file.',
+    );
+  }, timeout: const Timeout(Duration(minutes: 5)));
 
   test('every in: tag names a scaffold that exists', () {
     final scaffolds = _scaffoldNames(playground);
