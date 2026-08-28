@@ -358,6 +358,40 @@ test:
       # that would notice runs once per release, after the release. This asks
       # the same question in `static`, in seconds, against a synthetic bundle.
       - bash tool/ci/test_verify_cross_target_bundle.sh
+      # Controls for vm_snapshot_defines.sh, which decides what runtime identity
+      # EVERY RELEASED BINARY claims. `zonai compile` bakes its output in as
+      # --define=ZONAI_VM_HASH / ZONAI_DART_SDK (this file, under `zonai
+      # compile`), and apps/zonai/lib/src/domain/vm_snapshot_hash.dart reads it
+      # back through String.fromEnvironment to decide whether a host may spawn
+      # an `.aot` worker at all. Get it wrong and the host takes SIGABRT (exit
+      # 134) inside snapshot_utils.cc before any Dart code runs -- no exception,
+      # no fallback.
+      #
+      # Both of its failure modes are SILENT. A wrong hash bakes a lie the guard
+      # then believes, which is worse than baking nothing (unstamped is a
+      # supported state and reads as UNKNOWN). And "found the hash" is the same
+      # observation as "found a 32-character window inside a slab of zero-fill"
+      # to a naive grep: measured against the 3.12.0 dartaotruntime, `grep -o
+      # '[0-9a-f]\{32\}'` returns seven values where the maximal-run spelling
+      # returns exactly one. Neither shows up as a red build -- they show up as
+      # a released binary that mis-decides, or as a guard quietly switched off.
+      #
+      # THIS HARNESS EXISTED AND NOTHING RAN IT. It was committed alongside the
+      # script it controls and, grepped tree-wide on 2026-08-27, the only
+      # occurrence of its name anywhere in the repo was inside itself: no
+      # workflow, no target here, no .game_loop rule. A control never executed
+      # is indistinguishable from one that cannot fail. 14 cases, 1.7s, driving
+      # the real script against fabricated SDK trees and against whichever Dart
+      # SDK is actually on PATH.
+      #
+      # LIVES HERE RATHER THAN IN .game_loop/verify.yaml, where it also belongs
+      # and where a Crawler was sent to put it: verify.yaml is gitignored
+      # (.gitignore:96, `.game_loop`), so a rule there rides no branch and
+      # protects only the machine it was written on -- and in a linked worktree
+      # it is a separate copy that integration cannot carry and cleanup deletes.
+      # Same reasoning, and the same resolution, as
+      # check_dot_shorthand_annotations.sh and server_mirror_check.dart below.
+      - bash tool/ci/test_vm_snapshot_defines.sh
       # Guards the one gate whose output is PUBLISHED. release_notes.sh decides
       # both whether a release may go out without a summary and what text that
       # release carries, and a bug in it is found on the release page, after the
