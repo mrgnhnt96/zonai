@@ -1070,8 +1070,12 @@ jobs:
   # EXPECTED RED: libs/resqlite was measured at 55/172 on trunk, 117 failures
   # from an undeclared prerequisite inside its own suite. `test submodules`
   # now satisfies that prerequisite; whether it clears all 117 is what this
-  # job is here to find out. libs/raindrop was measured at 755 passing across
-  # its 5 packages.
+  # job is here to find out. libs/raindrop was measured at 901 passing across
+  # its 5 packages (2026-08-27: raindrop 320, raindrop_sqlite 254,
+  # raindrop_postgres 82, raindrop_test 64, raindrop_cli 181 -- the last
+  # includes the migration harness under packages/raindrop_cli/test/migrations,
+  # which the sparse checkout above does pull in: its pattern is '/*' plus
+  # '/packages/').
   #
   # ubuntu only, for now: it is the platform the submodules are developed on,
   # and adding the other two before this one is green would just be three
