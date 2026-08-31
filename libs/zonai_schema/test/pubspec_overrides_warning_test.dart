@@ -5,9 +5,9 @@ import 'package:test/test.dart';
 
 /// Issue #25 (SupposedlySam's review): a repo-root `pubspec_overrides.yaml`
 /// is gitignored (`.gitignore` line 4), so `git status` never shows one --
-/// including a stale one left over from `tool/ci/use_revali_git_overrides.sh`
-/// (meant for CI only) or from a local path override used to test an
-/// unpublished change. In one observed case that silently pinned the whole
+/// including a local path override used to test an unpublished change, or
+/// one left behind by any tooling that writes overrides. In one observed
+/// case that silently pinned the whole
 /// revali family to a stale branch and dropped 3 tests from this exact
 /// suite with no red anywhere: 230 passing with the file present, 233
 /// without it.
@@ -29,9 +29,8 @@ WARNING: ${overrides.path} exists.
 
 That file is gitignored, so `git status` will never flag it, and it can
 silently change which package versions this test suite (and any other local
-command) resolves against -- e.g. a branch pinned by
-tool/ci/use_revali_git_overrides.sh, or a local path override left over from
-testing an unpublished change elsewhere.
+command) resolves against -- e.g. a local path override left over from
+testing an unpublished change elsewhere, or a branch someone pinned by hand.
 
 If you didn't put it there on purpose for what you're doing right now,
 delete it and re-resolve:

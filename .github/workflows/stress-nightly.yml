@@ -123,10 +123,6 @@ jobs:
         with:
           sdk: "3.13.2"
 
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
-
       - name: Install sip
         run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
 

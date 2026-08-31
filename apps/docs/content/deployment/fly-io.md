@@ -727,18 +727,15 @@ dart pub get
 
 ### Path A: Compile the CLI
 
-1. For a full framework rebuild, run `tool/ci/use_revali_git_overrides.sh` first. It rewrites
-   `pubspec_overrides.yaml` to point at git-based `revali` dependencies instead of local sibling-repo
-   paths, which a container won't have.
-2. Install [`sip`](https://github.com/mrgnhnt96/sip) and run the framework's compile pipeline:
+Install [`sip`](https://github.com/mrgnhnt96/sip) and run the framework's compile pipeline:
 
-   ```sh
-   dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
-   dart pub global run sip_cli:sip run zonai compile
-   ```
+```sh
+dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
+dart pub global run sip_cli:sip run zonai compile
+```
 
-   This runs `version.gen`, `server.copy-to-cli`, `resqlite.gen`, `argon2.gen`, `web.gen`, then the
-   final `dart compile exe` — roughly 24 minutes from a cold cache.
+This runs `version.gen`, `server.copy-to-cli`, `resqlite.gen`, `argon2.gen`, `web.gen`, then the
+final `dart compile exe` — roughly 24 minutes from a cold cache.
 
 Compiling manually instead of via `sip` requires passing the compiled marker explicitly:
 

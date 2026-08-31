@@ -449,8 +449,8 @@ any library problem does.
   5000/hr bucket as local `gh`. Two runs in quick succession exhausted it on
   2026-08-10. Read `X-RateLimit-*` response headers, not `gh api rate_limit` —
   they report different buckets and disagreed during that incident.
-- **`e2e/` fixtures are not workspace members**, so the root
-  `pubspec_overrides.yaml` CI writes never reaches them.
-  `use_revali_git_overrides.sh` now takes an optional target dir for this.
+- **`e2e/` fixtures are not workspace members**, so they resolve their own
+  dependencies rather than inheriting the root's resolution. Anything that has
+  to hold across the whole run must be applied to each fixture separately.
 - The `chore: release v<x>` commit is skipped when `VERSION` already matches —
   expected, not a failure.
