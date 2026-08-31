@@ -11,9 +11,10 @@
 //   dart run bin/leak_scan.dart --drop=graceful
 //   dart run bin/leak_scan.dart --drop=abrupt --duration=15
 //
-// Do NOT pass --skip-build if a dependency (e.g. a local revali checkout)
-// changed since the last run -- the fixture's project-linked binary is an
-// AOT snapshot and only picks up source changes on a fresh `zonai build`.
+// Do NOT pass --skip-build if a dependency (e.g. one of the local monorepo
+// packages the harness path-overrides) changed since the last run -- the
+// fixture's project-linked binary is an AOT snapshot and only picks up source
+// changes on a fresh `zonai build`.
 //
 // See stress/README.md's Findings section for how to interpret a run.
 import 'dart:async';
