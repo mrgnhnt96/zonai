@@ -152,10 +152,6 @@ jobs:
         with:
           sdk: "3.13.2"
 
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
-
       - name: Get dependencies
         run: dart pub get
 
@@ -262,15 +258,6 @@ jobs:
         uses: dart-lang/setup-dart@v1
         with:
           sdk: "3.13.2"
-
-      # The fixture is not a workspace member, so the root overrides other
-      # jobs write would never reach it -- pin it explicitly to the same ref
-      # rather than let it resolve the revali family from pub.dev.
-      - name: Configure revali git overrides
-        shell: bash
-        run: |
-          bash tool/ci/use_revali_git_overrides.sh
-          bash tool/ci/use_revali_git_overrides.sh e2e/build_smoke
 
       - name: Get dependencies
         run: dart pub get
@@ -477,12 +464,6 @@ jobs:
         with:
           sdk: "3.13.2"
 
-      - name: Configure revali git overrides
-        shell: bash
-        run: |
-          bash tool/ci/use_revali_git_overrides.sh
-          bash tool/ci/use_revali_git_overrides.sh e2e/build_smoke
-
       - name: Get dependencies
         run: dart pub get
 
@@ -603,10 +584,6 @@ jobs:
         uses: dart-lang/setup-dart@v1
         with:
           sdk: "3.13.2"
-
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Download new binary (triggering compile run)
         if: inputs.compile_run_id != ''

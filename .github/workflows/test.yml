@@ -228,13 +228,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/pub-cache
-          # use_revali_git_overrides.sh pins the revali git refs, so a change
-          # to it invalidates a resolution the lock file alone would not.
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
-
-      - name: Configure revali git overrides
-        run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Install sip
         # Temporary: install from GitHub until a pub.dev release is pinned.
@@ -392,12 +387,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
-
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Install sip
         run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
@@ -555,11 +546,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
-
-      - name: Configure revali git overrides
-        run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Install sip
         run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
@@ -752,12 +740,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
-
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Install sip
         run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
@@ -934,12 +918,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
-
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Install sip
         run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
@@ -1115,11 +1095,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock', 'tool/ci/use_revali_git_overrides.sh') }}
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
-
-      - name: Configure revali git overrides
-        run: bash tool/ci/use_revali_git_overrides.sh
 
       - name: Install sip
         run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main

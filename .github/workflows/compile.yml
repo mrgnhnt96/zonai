@@ -164,10 +164,6 @@ jobs:
         # Temporary: install from GitHub until a pub.dev release is pinned.
         run: dart pub global activate --source git https://github.com/mrgnhnt96/sip.git --git-ref main
 
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
-
       - name: Get dependencies
         run: dart pub get
 

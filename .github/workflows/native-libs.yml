@@ -69,10 +69,6 @@ jobs:
           sdk: "3.13.2"
           architecture: x64
 
-      - name: Configure revali git overrides
-        shell: bash
-        run: bash tool/ci/use_revali_git_overrides.sh
-
       - name: Get dependencies
         run: dart pub get
 
