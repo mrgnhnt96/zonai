@@ -65,9 +65,9 @@ apps/web/.cursor
 # (tool/ci/verify_build_command.sh wipes and regenerates it, migrations
 # included), unlike a real project where migrations are committed source.
 e2e/build_smoke/.zonai/
-# Its lock is never authoritative either: CI writes a pubspec_overrides.yaml
-# into this fixture (it is not a workspace member, so the root's overrides
-# miss it) and pub re-resolves against that anyway.
+# Its lock is never authoritative either: the fixture is not a workspace
+# member, so it resolves on its own, and verify_build_command.sh re-resolves
+# it from scratch on every run rather than honoring a committed lock.
 e2e/build_smoke/pubspec.lock
 
 # tool/ci/run_e2e.sh does the same to every fixture it drives: it `rm -rf
