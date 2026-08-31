@@ -14,8 +14,9 @@ dart run bin/stress.dart
 
 First run compiles the bootstrap `zonai` CLI (`-D__ZONAI_COMPILED__=true`,
 ~30s, cached at `.cache/zonai_exe`), writes fixture `pubspec_overrides` for
-local resqlite/revali, fetches the fixture's deps, generates+applies its
-migration, and runs `zonai build` (workers + **project-linked** `build/zonai`).
+the local monorepo packages (resqlite, raindrop, zonai_schema), fetches the
+fixture's deps, generates+applies its migration, and runs `zonai build`
+(workers + **project-linked** `build/zonai`).
 Subsequent runs skip the parts that are already done; pass `--skip-build` to
 also reuse the last build.
 
@@ -252,7 +253,9 @@ See `results/auth_new_binary.json`.
 - `--no-version-check` also skips `assertVersion`.
 - Fixture `sqlite3` must stay `<3.0.0` (`open.dart` removed in 3.x).
 - Fixture depends on `zonai` as a path package so `project_main` can link it;
-  stress writes gitignored `pubspec_overrides.yaml` for local resqlite/revali.
+  stress writes gitignored `pubspec_overrides.yaml` for the local monorepo
+  packages (resqlite, raindrop, zonai_schema). The `revali` family is *not*
+  overridden — it resolves from pub.dev, so no local revali checkout is needed.
 
 ## CPU/memory leak investigation (2026-08-05)
 
@@ -436,6 +439,12 @@ the natural write-failure-detection timing from the mechanism repro, and
 holds through the rest of the window — no relapse. **Nothing to do on the
 zonai side**: the fix is entirely in the dependency; zonai just needs
 whatever revali release picks this commit up.
+
+*(Update: that release has since landed on pub.dev. The harness no longer
+writes `revali*` path overrides for the fixture — the whole family resolves
+from pub.dev, and no local revali checkout is required to run stress. The
+measurement above is left as the historical record of how the fix was
+verified at the time, against a local revali path dependency.)*
 
 If CPU/memory monitoring for the compiled binary is wanted independently of
 this (now-fixed) bug, watch CPU/latency under sustained writes (not just
