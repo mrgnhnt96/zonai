@@ -96,9 +96,18 @@ and prints a start/end/peak RSS summary with a KB/min growth rate.
 The harness used to produce numbers and assert nothing. It now has a gate — but a
 narrower one than the obvious, and the narrowing is the point.
 
-### What is gated: error rate. What is not: p99 latency.
+### Three gate kinds, and none of them is p99 latency
 
-Three runs on one 12-core dev machine, same build, nothing changed between them:
+Every cell in `thresholds.json` names its gate kind in a `gate` field:
+
+| `gate`        | fails when                                                              | used by |
+|---------------|-------------------------------------------------------------------------|---------|
+| `"errorRate"` | error rate exceeds `errorRatePercentBaseline` + tolerance                | 28 cells — the **default** when the field is absent |
+| `"okPerSec"`  | successful throughput `(total − errors) / wallTimeMs × 1000` drops below `okPerSecFloor` | `create@100` |
+| `"none"`      | never — printed as `report-only`, listed in the summary, **not counted as checked** | `delete@100` |
+
+Error rate is the default for a measured reason. Three runs on one 12-core dev
+machine, same build, nothing changed between them:
 
 | metric      | median spread across the 3 runs | worst cell |
 |-------------|--------------------------------|------------|
@@ -146,7 +155,18 @@ when its error rate exceeds its own baseline plus a tolerance. The tolerance is
 `toleranceOverridePP`, and every printed line says which of the two it used —
 `= +2.0pp default` or `= +6.0pp override`. A widened ceiling catches less, so
 which cells are widened is reported rather than buried in the JSON. An override may
-also **narrow** a cell, which is what all four cliff cells now need: see below.
+also **narrow** a cell, which is what the cliff cells needed: see below.
+
+An `okPerSec` cell prints what its floor stands on the same way —
+`ok/s 51.4 (floor 19.0 = worst 35.3 - 1 spread 16.1)` — from the cell's own
+`okPerSecObserved`, so how much a pass is worth is on the screen. A floor at or
+below 0 is a dead gate exactly like a ceiling at or above 100, refused the same
+way; a missing `okPerSecFloor` and an unknown `gate` value are refused too, since
+a cell checked against nothing is the silent pass this whole scan exists to catch.
+A `none` cell is *measured* but not *asserted*: it still has to appear in the run
+(a missing cell fails for every gate kind), it is printed with its error rate and
+ok/s for trend, and the summary names it separately from the `checked N cell(s)`
+count because it was not checked.
 
 ### The write-queue cliff — baselined, and NOT thereby acceptable
 
@@ -156,12 +176,17 @@ that is bookkeeping, not approval. These four are the ONLY cells calibrated from
 GitHub hosted runner, all three at `32157ef1`. The other 26 keep their dev-machine
 calibration because they read exactly 0.00% on both:
 
-| cell              | error rate (3 runner runs) | spread | tolerance | ceiling |
-|-------------------|----------------------------|--------|-----------|---------|
-| `create@100`      | 98.23 / 98.33 / 98.11      |  0.22pp | +1pp override   |  99.33% |
-| `delete@100`      | 99.57 / 99.39 / 99.44      |  0.18pp | +0.25pp override |  99.82% |
-| `mixed@100`       |  6.90 / 12.48 / 11.82      |  5.58pp | +6pp override   |  18.48% |
-| `auth-signup@100` |  2.23 /  3.60 /  0.00      |  3.60pp | +4pp override   |   7.60% |
+| cell              | gate        | observed (runner runs)                         | spread  | limit |
+|-------------------|-------------|------------------------------------------------|---------|-------|
+| `create@100`      | `okPerSec`  | ok/s 51.4 / 35.3 / 43.1 / 43.7 / 38.5 (5 runs) | 16.07/s | floor **19 ok/s** = 35.35 − 16.07, rounded down |
+| `delete@100`      | `none`      | 64 successes in every run, ok/s ≈ 12.5         | —       | report-only |
+| `mixed@100`       | `errorRate` |  6.90 / 12.48 / 11.82 %                        |  5.58pp | +6pp override → 18.48% |
+| `auth-signup@100` | `errorRate` |  2.23 /  3.60 /  0.00 %                        |  3.60pp | +4pp override → 7.60% |
+
+`create@100` and `delete@100` still carry their three-run error-rate fields
+(98.23 / 98.33 / 98.11 → +1pp override; 99.57 / 99.39 / 99.44 → +0.25pp override)
+as **trend data**; the gate does not read them. Why those two moved is two
+sections down.
 
 **These numbers are POST-`674a59e1`** ("shed write backpressure without formatting a
 stack trace"), and they replace a five-run calibration taken hours earlier against
@@ -214,9 +239,35 @@ near-total saturation going total, and essentially nothing else.
 `674a59e1` improved `delete@100`'s p99 by roughly 4× and its successful throughput
 by roughly as much, and the error-rate gate registered that improvement as a
 REGRESSION. A metric that moves the wrong way when the server gets better is not
-measuring what the gate wants for these cells. Gating them on **successful
-throughput** instead, or making them report-only the way p99 already is, is the open
-design question here — it is a human call and it has NOT been made.
+measuring what the gate wants for these cells. That is why they no longer gate on it:
+
+### Why `create@100` gates on goodput and `delete@100` gates on nothing
+
+**`create@100` → `gate: "okPerSec"`.** Successful throughput is the number that
+actually moved when the server got better (~29 → ~107 ok/s locally in the
+write-queue FINDINGS), and it has a floor of 0 rather than a wall at 100, so a
+tolerance can be sized from the spread instead of from what is physically left.
+Five post-`674a59e1` runner runs — `33546159251`, `33546896150`, `33547744930` at
+`32157ef1`; `33549701544`, `33552772241` at `0404e063` — gave 51.41 / 35.35 / 43.09
+/ 43.68 / 38.51 ok/s. Worst 35.35 minus one full spread (16.07) is 19.28, rounded
+**down** to **19** (the rule for floors: down, never below 1). A run under 19 is more
+than one whole measured spread below the worst of five. The cell's
+`calibrationNote` carries the per-run arithmetic.
+
+**`delete@100` → `gate: "none"`, and its ok/s is NOT a throughput.** It completes
+*exactly 64* requests in every run — all five runner runs, and locally at both 5s
+and 15s (`.showrunner/scratch/write-queue-write-queue/FINDINGS.md`). Steady-state
+successful deletes at concurrency 100 are zero. The 64 is the end-of-run drain of a
+write queue pinned at `_maxQueuedWrites`: when the generator stops starting
+iterations, the 64 in-flight users finish their create-then-delete against an
+emptying queue. So `ok/s` here is the queue depth divided by wall time (~12.5/s at
+5s, ~4.3/s at 15s no matter what the server does), and a floor on it would gate the
+constant 64, not the server. Error rate has 0.18pp of range. Neither metric measures
+anything, so the cell asserts nothing and says so on every line. The way to make it
+assert something is to change what it measures — a delete scenario that does not
+need two consecutive admissions per iteration — not to pick a threshold.
+
+Both stay `knownBad`. Report-only is bookkeeping, not approval.
 
 `create` and `delete` are clean at concurrency 50 (0.00% errors in all runs, laptop
 and runner) and collapse at 100. That is a **cliff, not a slope**. The server says
@@ -244,7 +295,8 @@ separate entrypoint on a different workload, and wiring it in would mean
 calibrating a second baseline. Named rather than quietly dropped.
 
 The nightly workflow (`.github/workflows/stress-nightly.yml`) runs this, and its
-gate step is **ARMED** — no `continue-on-error`, so a regression fails the run. The
+gate step is **ARMED** — no `continue-on-error`, so a regression on any gated cell
+fails the run. The
 original reason for leaving it unarmed — "the baseline was calibrated on a dev
 machine and this has never run on CI hardware" — no longer holds for the four cliff
 cells, which are calibrated from runner runs. See that file's header for what

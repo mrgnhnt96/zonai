@@ -11,9 +11,12 @@ name: Stress (nightly)
 #
 # WHAT THIS GATES, AND WHAT IT REFUSES TO GATE
 #
-# It gates ERROR RATE. It does NOT gate p99 latency, and that is a measured
-# decision rather than an omission. Three calibration runs on one 12-core dev
-# machine, same build, gave:
+# It gates ERROR RATE on 28 cells and SUCCESSFUL THROUGHPUT (ok/s) on
+# create@100, per cell via `gate` in thresholds.json; delete@100 is report-only
+# because its ok/s is a constant 64-request drain, not a throughput. See
+# stress/README.md "Thresholds". It does NOT gate p99 latency, and that is a
+# measured decision rather than an omission. Three calibration runs on one
+# 12-core dev machine, same build, gave:
 #
 #     p99 latency ... 139% spread at the median cell, 2178% at the worst
 #     error rate .... 0.00 percentage points at the median; 25 of 30 cells
