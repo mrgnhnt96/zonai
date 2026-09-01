@@ -64,7 +64,7 @@ See [Operations Overview](/operations/overview).
 
 Zonai executes the generated SQL against the SQLite database. This is the only step that reads from or writes to the database.
 
-Mutating requests (create/update/delete) are **serialized** on the host so concurrent writes do not pile into SQLite's busy timeout. If too many writes are already queued (default cap 64), the server fails fast with **`503`** (`WriteBackpressureException`) instead of waiting.
+Mutating requests (create/update/delete) are **serialized** on the host so concurrent writes do not pile into SQLite's busy timeout. If too many writes are already queued (default cap 64), the server fails fast with **`503`** (`WriteBackpressureException`) instead of waiting. The 503 carries `Retry-After: 1`: a floor rather than a prediction, since the queue drains in milliseconds and one second is the smallest delay HTTP can express. Wait at least that long before retrying rather than re-sending immediately.
 
 For mutation operations, the `before*` extension hooks run here, before the SQL executes. If a `before*` hook throws, the mutation is aborted and a `400` is returned.
 

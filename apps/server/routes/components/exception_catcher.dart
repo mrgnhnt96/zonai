@@ -71,10 +71,33 @@ final class Exceptions implements LifecycleComponent {
     return .handled(statusCode: 503, body: {'error': '$exception'});
   }
 
+  /// A full write queue, refused before any work was done.
+  ///
+  /// Carries `retry-after` so the client has a number to wait on instead of
+  /// retrying blind. Without it the only well-behaved option is to retry
+  /// immediately, and a burst of those is what the stress sweep shows past 64
+  /// in flight: ~98% of writes refused at concurrency 100
+  /// (stress/README.md). Refusing is cheap on this side since `674a59e1`, so
+  /// what holds that rate there is the caller re-sending into the same full
+  /// queue -- the README notes cheaper rejection let the backoff-free
+  /// generator land *more* attempts per window, not fewer. This header is the
+  /// one thing that lets a client not be that generator.
+  ///
+  /// The value is [kBackpressureRetryAfterSeconds], a floor the
+  /// server can honestly promise rather than a prediction of when a slot
+  /// frees; lowercase to match revali's `Throttle` kit and the 429 helper in
+  /// `rate_limit.dart`.
+  ///
+  /// Its read-side twin, `ReadBackpressureException`, has no catcher here at
+  /// all today and falls through to revali's default 500.
   ExceptionCatcherResult<WriteBackpressureException> onWriteBackpressure(
     WriteBackpressureException exception,
   ) {
-    return .handled(statusCode: 503, body: {'error': '$exception'});
+    return .handled(
+      statusCode: 503,
+      headers: {'retry-after': '$kBackpressureRetryAfterSeconds'},
+      body: {'error': '$exception'},
+    );
   }
 
   /// A sign-up the app refused from its own `beforeSignUp` hook.

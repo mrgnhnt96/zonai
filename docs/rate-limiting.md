@@ -270,6 +270,18 @@ The rate-limit headers are sent on the 429 only; successful responses do not car
 
 `PATCH /db/custom/:operation` additionally returns **404 Not Found** when `:operation` isn't registered in that collection's `TableRules.customOperations` (see [rules.md](rules.md#custom-operation-rules)) — checked before the rate limiter, not after.
 
+## Write backpressure (503)
+
+Rate limiting is per IP and per policy. Separately from it, the server bounds how much write work it will hold at once, and that bound is global: mutating requests (create, update, delete, and the write half of sign-up) run on a single-writer queue so concurrent writes do not pile into SQLite's busy timeout. The queue holds **64** pending writes. A write that arrives when 64 are already waiting is refused before any work is done, with **`503 Service Unavailable`**, the body `{"error": "Server is busy writing; retry shortly (write queue saturated)."}`, and:
+
+| Header        | Value                                                                 |
+| ------------- | --------------------------------------------------------------------- |
+| `Retry-After` | `1`. Whole seconds, from a single constant (`kBackpressureRetryAfterSeconds`). |
+
+The value is a **floor, not a prediction**. The queue drains in tens of milliseconds and the server does not know when a slot will free, so it does not guess; `1` is the smallest delay HTTP can express, and the point of sending it is that a client stops retrying blind. Refusing is cheap for the server, so what keeps a saturated queue saturated is the caller: `stress/README.md` measures ~98% of writes refused at concurrency 100, and records that making rejection cheaper let its backoff-free load generator land *more* attempts in the same window rather than fewer. Wait at least `Retry-After` seconds and retry; a client that had several writes refused should retry them in sequence rather than re-issuing the whole burst at once, since the burst is what filled the queue.
+
+No `X-RateLimit-*` headers are sent on this 503: there is no per-client window to describe. A 429 says *you* have been asking too often; this 503 says the server is busy, whoever is asking.
+
 ## See also
 
 - **[server-binding.md](server-binding.md)** — host/port and reverse-proxy deployment
