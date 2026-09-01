@@ -176,6 +176,26 @@ final class DiskFullException implements Exception {
   }
 }
 
+/// What the `retry-after` header says on a backpressure 503, in whole seconds.
+///
+/// A floor, not a prediction. The write queue drains in tens of milliseconds
+/// and the server does not know when a slot will free, so it does not pretend
+/// to: 1s is the smallest value HTTP can express, and the point of sending it
+/// is that a well-behaved client stops spinning, not that it returns at the
+/// exact instant a slot opens. What it buys is measured on the client side,
+/// not the server's: since `674a59e1` refusing is already cheap here, so the
+/// thing that keeps a saturated queue saturated is a caller with no backoff
+/// re-sending into it immediately -- stress/README.md records ~98% of writes
+/// refused at concurrency 100, and notes that making rejection cheaper let the
+/// generator land *more* attempts in the same window rather than fewer. Any
+/// wait at all breaks that loop, and a whole second is the shortest one
+/// `Retry-After` can say.
+///
+/// One constant for both directions of backpressure, so the read-side twin
+/// cannot drift from the write side. Never 0: `Retry-After: 0` is an
+/// instruction to retry into the same full queue.
+const kBackpressureRetryAfterSeconds = 1;
+
 final class WriteBackpressureException implements Exception {
   const WriteBackpressureException();
 
