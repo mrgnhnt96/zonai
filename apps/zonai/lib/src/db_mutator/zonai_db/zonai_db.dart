@@ -1255,7 +1255,28 @@ class ZonaiDb {
   /// already inside [_run] (e.g. hash Argon2, then serialize only the INSERT).
   Future<T> _enqueueWrite<T>(Future<T> Function() body) async {
     if (_pendingWrites >= _maxQueuedWrites) {
-      throw const WriteBackpressureException();
+      // Thrown with an EMPTY stack on purpose, and that is a throughput fix
+      // rather than tidiness. The catcher answers backpressure with 503, and
+      // revali's `Router._authoredResponse` logs every response >= 500 through
+      // `print('Request failed: $error\n${Trace.format(stackTrace)}')`. Under
+      // saturation that runs on the *reject* path, so shedding load costs more
+      // than serving it: measured AOT, formatting and printing this 23-frame
+      // trace is 2.13ms per rejection versus 21us with `StackTrace.empty`,
+      // while a whole successful create is 0.35ms. Rejecting 5794 requests in
+      // a 5s window therefore asks for ~12s of single-threaded work, so the
+      // event loop starves the writes it *did* admit and successful
+      // throughput collapses instead of levelling off (2860/s at concurrency
+      // 64 -> 116/s at 70). See stress/README.md for the sweep.
+      //
+      // Nothing diagnostic is lost: the trace is identical on every rejection
+      // and names only this method and its two callers, while the message
+      // already says exactly what happened. What it did produce was 40MB of
+      // serve log per 15s of saturated load -- a disk-fill hazard on the one
+      // path that fires when the server is already in trouble.
+      Error.throwWithStackTrace(
+        const WriteBackpressureException(),
+        StackTrace.empty,
+      );
     }
     _pendingWrites++;
     final previous = _writeChain;
