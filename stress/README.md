@@ -132,24 +132,48 @@ Exit 0 pass, 1 regression. A cell in the baseline that the run did not produce i
 way a gate like this goes quietly dead.
 
 The gate is a delta against `thresholds.json`, never an absolute line: a cell fails
-when its error rate exceeds its own baseline plus 2 percentage points.
+when its error rate exceeds its own baseline plus a tolerance. The tolerance is
+`policy.toleranceAbsolutePercentagePoints` (2pp) unless the cell names its own
+`toleranceOverridePP`, and every printed line says which of the two it used —
+`= +2.0pp default` or `= +16.0pp override`. A widened ceiling catches less, so
+which cells are widened is reported rather than buried in the JSON.
 
 ### The write-queue cliff — baselined, and NOT thereby acceptable
 
 Four cells are marked `knownBad`. They are baselined so the gate is usable today;
-that is bookkeeping, not approval:
+that is bookkeeping, not approval. These four are the ONLY cells calibrated from
+**runner** numbers — five `workflow_dispatch` runs of `stress-nightly.yml` on a
+GitHub hosted runner, against identical code. The other 26 keep their dev-machine
+calibration because they read exactly 0.00% on both:
 
-| cell            | error rate (3 runs)      |
-|-----------------|--------------------------|
-| `create@100`    | 97.66% / 97.72% / 97.69% |
-| `delete@100`    | 98.93% / 98.73% / 99.02% |
-| `mixed@100`     | 8.75% / 9.60% / 2.94%    |
-| `auth-signup@100` | 7.17% / 0.20% / 1.19%  |
+| cell              | error rate (5 runner runs)                    | spread | tolerance | ceiling |
+|-------------------|-----------------------------------------------|--------|-----------|---------|
+| `create@100`      | 96.75 / 96.77 / 97.27 / 97.78 / 96.80         |  1.03pp | +2pp default  |  99.78% |
+| `delete@100`      | 97.95 / 98.08 / 98.60 / 99.06 / 98.11         |  1.11pp | +2pp default  | 101.06% |
+| `mixed@100`       |  8.87 /  9.97 / 16.39 / 14.05 /  9.89         |  7.52pp | +8pp override |  24.39% |
+| `auth-signup@100` | 15.56 / 13.96 /  4.98 / 10.48 /  0.00         | 15.56pp | +16pp override |  31.56% |
 
-`create` and `delete` are clean at concurrency 50 (0.00% errors in all three runs)
-and collapse at 100. That is a **cliff, not a slope**, and it reproduces to within
-0.3 percentage points across runs whose load differed by 4x. The server says why —
-15,480 occurrences in one run's log of:
+**Why two of them are widened.** All four are the same saturation cliff, but they
+sit at different places on it. `create@100` and `delete@100` are PAST the edge —
+pinned near 98%, spread ~1pp, comfortably gateable at the 2pp default. `mixed@100`
+and `auth-signup@100` sit ON the edge and swing bimodally: `auth-signup@100`
+measured 15.56% in one run and 0.00% in another **on the same commit**. Under one
+flat 2pp tolerance those two false-positived in 5 of 10 cell-runs, and the failing
+cell moved between runs — a flapping gate, not a regression. Each now carries one
+full measured spread of headroom above its worst observation.
+
+The cost is stated rather than hidden: at a 31.56% ceiling, `auth-signup@100` no
+longer catches a regression that merely doubles its typical error rate. What it
+still catches is the collapse this gate actually exists for — the cliff spreading,
+which shows up at 96–99% in `create@100` and `delete@100`, three times over the
+widened ceiling. `delete@100`'s ceiling of 101.06% is above the 100% maximum and so
+cannot be tripped at all; that is inherited from the 2pp default against a 99.06%
+baseline, and it is a real hole in the gate rather than a rounding artifact.
+
+`create` and `delete` are clean at concurrency 50 (0.00% errors in all runs, laptop
+and runner) and collapse at 100. That is a **cliff, not a slope**. The server says
+why — every one of the 7,954 to 16,319 `Request failed` lines in a runner run's log
+is the same single message:
 
     Request failed: Server is busy writing; retry shortly (write queue saturated).
 
@@ -171,10 +195,12 @@ here. `bin/leak_scan.dart` measures RSS over sustained streaming load, but it is
 separate entrypoint on a different workload, and wiring it in would mean
 calibrating a second baseline. Named rather than quietly dropped.
 
-The nightly workflow (`.github/workflows/stress-nightly.yml`) runs this, but its
-gate step is `continue-on-error` because **the baseline was calibrated on a dev
-machine and this has never run on CI hardware.** See that file's header for how to
-arm it.
+The nightly workflow (`.github/workflows/stress-nightly.yml`) runs this, and its
+gate step is still `continue-on-error`. The original reason — "the baseline was
+calibrated on a dev machine and this has never run on CI hardware" — no longer
+holds for the four cliff cells, which are now calibrated from five runner runs.
+Arming it (deleting that line) is a deliberate human call and has NOT been done
+here. See that file's header.
 
 ## What the fixture looks like
 

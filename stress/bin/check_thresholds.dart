@@ -30,7 +30,9 @@ void main(List<String> args) {
 
   final base = jsonDecode(baseFile.readAsStringSync()) as Map<String, dynamic>;
   final cells = base['cells'] as Map<String, dynamic>;
-  final tolerance =
+  // The DEFAULT tolerance. A cell may widen it for itself with
+  // `toleranceOverridePP` -- see the loop below and README "Thresholds".
+  final defaultTolerance =
       (base['policy']
               as Map<String, dynamic>)['toleranceAbsolutePercentagePoints']
           as num;
@@ -52,6 +54,14 @@ void main(List<String> args) {
     checked++;
     final observed = (e['errorRate'] as num) * 100;
     final baseline = cell['errorRatePercentBaseline'] as num;
+
+    // A cell whose run-to-run variance genuinely exceeds the global tolerance
+    // may name its own, so one wide cell does not force everybody else's gate
+    // open. Which one was used is PRINTED, because a widened ceiling catches
+    // less and that has to be visible to a reader rather than buried here.
+    final override = cell['toleranceOverridePP'] as num?;
+    final tolerance = override ?? defaultTolerance;
+    final toleranceSource = override == null ? 'default' : 'override';
     final ceiling = baseline + tolerance;
     final p99 = (e['latencyMs'] as Map<String, dynamic>)['p99'];
 
@@ -63,14 +73,15 @@ void main(List<String> args) {
     stdout.writeln(
       '${marker.padRight(9)} ${key.padRight(20)} '
       'err ${observed.toStringAsFixed(2)}% '
-      '(baseline ${baseline.toStringAsFixed(2)}%, ceiling ${ceiling.toStringAsFixed(2)}%)  '
+      '(baseline ${baseline.toStringAsFixed(2)}%, ceiling ${ceiling.toStringAsFixed(2)}% '
+      '= +${tolerance}pp $toleranceSource)  '
       'p99 ${p99}ms (not gated)',
     );
     if (over) {
       regressions.add(
         '$key: error rate ${observed.toStringAsFixed(2)}% exceeds '
         '${ceiling.toStringAsFixed(2)}% (baseline ${baseline.toStringAsFixed(2)}% '
-        '+ ${tolerance}pp tolerance)',
+        '+ ${tolerance}pp $toleranceSource tolerance)',
       );
     }
   }
