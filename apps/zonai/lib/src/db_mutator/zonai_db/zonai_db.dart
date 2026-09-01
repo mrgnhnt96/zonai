@@ -19,6 +19,7 @@ import 'package:zonai/deps.dart';
 import 'package:zonai/src/db_mutator/host_worker_registries.dart';
 import 'package:zonai/src/db_mutator/mailman.dart';
 import 'package:zonai/src/db_mutator/zonai_db/concurrency_gate.dart';
+import 'package:zonai/src/db_mutator/zonai_db/write_admission.dart';
 import 'package:zonai/src/db_mutator/objected_row.dart';
 import 'package:zonai/src/domain/constants.dart';
 // The extra-column rules `zonai db admin add` already applies. Imported here
@@ -260,10 +261,42 @@ class ZonaiDb {
   Future<_DrainPushResult>? _pushDrain;
 
   /// Serializes mutating work so concurrent creates don't pile into
-  /// SQLite's 5s busy_timeout. Excess waiters fail fast with 503.
+  /// SQLite's 5s busy_timeout. Admission to the chain is a separate step --
+  /// [_writeAdmission], taken through [_admitWrite] before a write's
+  /// expensive pre-work -- so a refusal costs nothing, and a caller past the
+  /// cap waits briefly for a slot before it is refused with 503.
   Future<void>? _writeChain;
-  var _pendingWrites = 0;
   static const _maxQueuedWrites = 64;
+
+  /// How long a write waits for a slot once all [_maxQueuedWrites] are held.
+  ///
+  /// Sized from the chain, not from the client. A full chain of 64 creates
+  /// drains in ~21ms (0.33ms each, measured AOT on the stress fixture), so
+  /// even the last of 64 waiters behind a full house is served in well under
+  /// this window under ordinary contention, and the window only expires when
+  /// the server genuinely cannot keep up -- the one case a 503 is the right
+  /// answer. Kept short because it is also the ceiling on what the wait can
+  /// add to an admitted write's tail latency: p99 may rise by up to this and
+  /// no more. Without any wait the knee was a step, not a curve -- a refused
+  /// closed-loop client fires again at once, and at concurrency 70 the server
+  /// spent ~82% of its CPU issuing 503s (2997 ok/s at c=64 -> 545 at c=70).
+  static const _writeAdmissionWait = Duration(milliseconds: 250);
+
+  /// The waiter bound is the queue depth again: a flood holds 64 slots and 64
+  /// waiters and is refused immediately -- and cheaply -- past that, so the
+  /// wait cannot grow memory.
+  late final WriteAdmission _writeAdmission = WriteAdmission(
+    maxAdmitted: _maxQueuedWrites,
+    maxWaiters: _maxQueuedWrites,
+    waitWindow: _writeAdmissionWait,
+    onRefused: () => const WriteBackpressureException(),
+  );
+
+  /// The write gate, reachable from a test so it can be filled without a
+  /// database: proving that a refused write never reached the hasher needs
+  /// every slot held, and there is deliberately no other way to hold one.
+  @visibleForTesting
+  WriteAdmission get writeAdmission => _writeAdmission;
 
   /// Caps concurrent read-path work (read/list/count). Reads aren't
   /// serialized like writes -- this just bounds how many can be in flight
@@ -1073,45 +1106,61 @@ class ZonaiDb {
   }
 
   Future<_CrudResult> create(String table, CreatePayload payload) async {
-    // Hash Argon2 outside the writer lock so concurrent creates aren't
-    // serialized behind password hashing.
-    return await _run(() async {
-      // `allowApiToken: true` because this IS the `/db` create path -- it
-      // resolves the identity a second time, ahead of `_create`, only to
-      // decide whether a password may be hashed into the row. Without it an
-      // API token was refused here before ever reaching `parts/create.dart`,
-      // which does opt in: a `--write` token could read but never create.
-      final jwt = await _extractJwt(payload, allowApiToken: true);
-      final changed = await _hashPasswordCreate(table, payload.object);
-      if (changed) {
-        if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
-          throw PasswordUpdateForbiddenException(table: table);
+    // Admitted FIRST -- before the scope, the bearer-token check and the
+    // Argon2 hash -- so a write that is going to be refused is refused before
+    // it has cost anything. The slot is reserved, not merely checked, and held
+    // through the hash and the chained INSERT: a check-then-hash-then-enqueue
+    // would let a hundred requests pass the check and all of them enqueue.
+    final slot = await _admitWrite();
+    try {
+      // Hash Argon2 outside the writer lock so concurrent creates aren't
+      // serialized behind password hashing.
+      return await _run(() async {
+        // `allowApiToken: true` because this IS the `/db` create path -- it
+        // resolves the identity a second time, ahead of `_create`, only to
+        // decide whether a password may be hashed into the row. Without it an
+        // API token was refused here before ever reaching `parts/create.dart`,
+        // which does opt in: a `--write` token could read but never create.
+        final jwt = await _extractJwt(payload, allowApiToken: true);
+        final changed = await _hashPasswordCreate(table, payload.object);
+        if (changed) {
+          if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
+            throw PasswordUpdateForbiddenException(table: table);
+          }
         }
-      }
-      return await _enqueueWrite(() => _create(table, payload));
-    });
+        return await _chainWrite(() => _create(table, payload));
+      });
+    } finally {
+      slot.release();
+    }
   }
 
   Future<_CrudListResult> createMany(
     String table,
     CreateManyPayload payload,
   ) async {
-    return await _run(() async {
-      // See [create] -- same pre-check, same reason it must accept a token.
-      final jwt = await _extractJwt(payload, allowApiToken: true);
-      var anyPasswordHashed = false;
-      for (final object in payload.objects) {
-        if (await _hashPasswordCreate(table, object)) {
-          anyPasswordHashed = true;
+    // See [create]: the slot comes first and outlives the hashes.
+    final slot = await _admitWrite();
+    try {
+      return await _run(() async {
+        // See [create] -- same pre-check, same reason it must accept a token.
+        final jwt = await _extractJwt(payload, allowApiToken: true);
+        var anyPasswordHashed = false;
+        for (final object in payload.objects) {
+          if (await _hashPasswordCreate(table, object)) {
+            anyPasswordHashed = true;
+          }
         }
-      }
-      if (anyPasswordHashed) {
-        if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
-          throw PasswordUpdateForbiddenException(table: table);
+        if (anyPasswordHashed) {
+          if (jwt == null || !jwt.admin.isAdmin || jwt.admin.canEdit == false) {
+            throw PasswordUpdateForbiddenException(table: table);
+          }
         }
-      }
-      return await _enqueueWrite(() => _createMany(table, payload));
-    });
+        return await _chainWrite(() => _createMany(table, payload));
+      });
+    } finally {
+      slot.release();
+    }
   }
 
   /// Resolves a bearer credential to the identity behind it.
@@ -1244,41 +1293,31 @@ class ZonaiDb {
     }
   }
 
-  /// Runs [body] on a single-writer queue. Prevents concurrent creates from
-  /// stacking into SQLite's 5s `busy_timeout`; when the queue is saturated,
-  /// fails immediately with [WriteBackpressureException] (HTTP 503).
+  /// Runs [body] on the single-writer queue: reserves a slot ([_admitWrite]),
+  /// runs [body] in its own scope at its turn on the chain ([_chainWrite]),
+  /// and releases the slot. Prevents concurrent writes from stacking into
+  /// SQLite's 5s `busy_timeout`; when the queue is saturated, waits up to
+  /// [_writeAdmissionWait] for a slot and then fails with
+  /// [WriteBackpressureException] (HTTP 503).
   Future<T> _runWrite<T>(Future<T> Function() body) async {
-    return _enqueueWrite(() => _run(body));
+    final slot = await _admitWrite();
+    try {
+      return await _chainWrite(() => _run(body));
+    } finally {
+      slot.release();
+    }
   }
 
-  /// Like [_runWrite] but does not open a new riverpod scope — for use when
-  /// already inside [_run] (e.g. hash Argon2, then serialize only the INSERT).
-  Future<T> _enqueueWrite<T>(Future<T> Function() body) async {
-    if (_pendingWrites >= _maxQueuedWrites) {
-      // Thrown with an EMPTY stack on purpose, and that is a throughput fix
-      // rather than tidiness. The catcher answers backpressure with 503, and
-      // revali's `Router._authoredResponse` logs every response >= 500 through
-      // `print('Request failed: $error\n${Trace.format(stackTrace)}')`. Under
-      // saturation that runs on the *reject* path, so shedding load costs more
-      // than serving it: measured AOT, formatting and printing this 23-frame
-      // trace is 2.13ms per rejection versus 21us with `StackTrace.empty`,
-      // while a whole successful create is 0.35ms. Rejecting 5794 requests in
-      // a 5s window therefore asks for ~12s of single-threaded work, so the
-      // event loop starves the writes it *did* admit and successful
-      // throughput collapses instead of levelling off (2860/s at concurrency
-      // 64 -> 116/s at 70). See stress/README.md for the sweep.
-      //
-      // Nothing diagnostic is lost: the trace is identical on every rejection
-      // and names only this method and its two callers, while the message
-      // already says exactly what happened. What it did produce was 40MB of
-      // serve log per 15s of saturated load -- a disk-fill hazard on the one
-      // path that fires when the server is already in trouble.
-      Error.throwWithStackTrace(
-        const WriteBackpressureException(),
-        StackTrace.empty,
-      );
-    }
-    _pendingWrites++;
+  /// Reserves a slot on the write chain -- the single choke point every write
+  /// passes through, so nothing bypasses backpressure. Take it *before* the
+  /// expensive part of the write (token verification, Argon2), hold it across
+  /// the [_chainWrite], and release it in a `finally`. Refusals arrive with an
+  /// empty stack trace, and `WriteAdmission._refuse` says why that matters.
+  Future<WriteSlot> _admitWrite() => _writeAdmission.admit();
+
+  /// Runs [body] at its turn on the single-writer chain. Admission is the
+  /// caller's business: hold a [WriteSlot] from [_admitWrite] across this.
+  Future<T> _chainWrite<T>(Future<T> Function() body) async {
     final previous = _writeChain;
     final done = Completer<void>();
     _writeChain = done.future;
@@ -1286,7 +1325,6 @@ class ZonaiDb {
       await previous;
       return await body();
     } finally {
-      _pendingWrites--;
       done.complete();
     }
   }

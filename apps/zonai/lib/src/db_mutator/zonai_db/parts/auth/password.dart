@@ -136,35 +136,48 @@ extension _PasswordX on ZonaiDb {
       );
       logger.trace('signup_gate');
 
-      step = 'password_hash';
-      final hashedPassword = await _hashPassword.hash(
-        password: switch (payload) {
-          PasswordAuthPayload() => payload.password,
-        },
-      );
-      logger.trace('password_hash');
+      // The write slot is reserved BEFORE the Argon2 hash, not after it, for
+      // the same reason the sign-up gate runs before it: a sign-up the queue
+      // is going to refuse should cost the checks above, not a full KDF
+      // round. The slot is held through the hash and the INSERT and released
+      // before the hooks and effects, which do not touch the writer.
+      step = 'write_admit';
+      final slot = await _admitWrite();
+      final Object? error;
+      final OperationResult? result;
+      try {
+        step = 'password_hash';
+        final hashedPassword = await _hashPassword.hash(
+          password: switch (payload) {
+            PasswordAuthPayload() => payload.password,
+          },
+        );
+        logger.trace('password_hash');
 
-      step = 'sql_build';
-      final operation = await _getOperation(
-        CreateAuthOperationRequest(
-          table: table,
-          jwt: jwt,
-          payload: PasswordAuthOperationPayload.save(
-            email: payload.email,
-            passwordHash: hashedPassword,
-            object: payload.object,
+        step = 'sql_build';
+        final operation = await _getOperation(
+          CreateAuthOperationRequest(
+            table: table,
+            jwt: jwt,
+            payload: PasswordAuthOperationPayload.save(
+              email: payload.email,
+              passwordHash: hashedPassword,
+              object: payload.object,
+            ),
           ),
-        ),
-      );
-      logger.trace('sql_build');
+        );
+        logger.trace('sql_build');
 
-      // Serialize the INSERT so concurrent signups don't hit SQLite busy /
-      // write storms. Argon2 already finished above, off the writer lock.
-      step = 'sql_execute';
-      final (error, result) = await _enqueueWrite(
-        () => _execute((operation.query, operation.values)),
-      );
-      logger.trace('sql_execute');
+        // Serialize the INSERT so concurrent signups don't hit SQLite busy /
+        // write storms. Argon2 already finished above, off the writer lock.
+        step = 'sql_execute';
+        (error, result) = await _chainWrite(
+          () => _execute((operation.query, operation.values)),
+        );
+        logger.trace('sql_execute');
+      } finally {
+        slot.release();
+      }
 
       if (error != null || result == null) {
         throw error ?? AuthFailedException(cause: 'Failed to create user');
