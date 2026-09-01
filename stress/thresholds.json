@@ -1,8 +1,8 @@
 {
   "_comment": "Calibration baseline for the stress error-rate gate. See README 'Thresholds'.",
-  "calibratedOn": "2026-08-31",
-  "calibrationRuns": 5,
-  "calibrationNote": "MIXED PROVENANCE, on purpose. The four write-queue-cliff cells (create@100, delete@100, mixed@100, auth-signup@100) are RUNNER-calibrated from five stress-nightly.yml workflow_dispatch runs on a GitHub hosted ubuntu-latest runner: 33452619048, 33464423811, 33466235356, 33466730516, 33467169270. Those five measured identical code -- the first is at 647f7e7d and the rest at 8fb2e605, and the only diff between the two shas is a mkdir in stress.dart that runs AFTER every measurement. The other 26 cells keep their 2026-08-18 laptop calibration UNCHANGED, because they read exactly 0.00% in all five runner runs as well as all three laptop runs; there was nothing to recalibrate. mixed@100 and auth-signup@100 sit ON the saturation cliff rather than past it and swing bimodally, so they carry a toleranceOverridePP that WIDENS them by one full measured spread; create@100 and delete@100 are past the cliff and pinned near 98%. create@100 stays on the 2.0pp default. delete@100 does NOT: its baseline of 99.0558% plus the 2.0pp default put its ceiling at 101.06%, above the 100% maximum an error rate can reach, so no run could ever trip it -- a dead gate that printed a pass every run and looked exactly like a live one. It now carries a NARROWING toleranceOverridePP of 0.5 for a ceiling of 99.5558%: 0.5pp above its worst of six observations (97.9494, 98.0787, 98.1076, 98.5993, 99.0383, 99.0558) and 0.44pp below 100, which is the only band this cell can still fail in. check_thresholds.dart now REFUSES any cell whose baseline + tolerance reaches 100 instead of reporting it as a pass.",
+  "calibratedOn": "2026-09-01",
+  "calibrationRuns": 3,
+  "calibrationNote": "MIXED PROVENANCE, on purpose, and the four cliff cells are now POST-674a59e1. The write-queue-cliff cells (create@100, delete@100, mixed@100, auth-signup@100) are RUNNER-calibrated from three stress-nightly.yml workflow_dispatch runs on a GitHub hosted ubuntu-latest runner, all three at 32157ef1: 33546159251, 33546896150, 33547744930. This SUPERSEDES the five-run calibration of 2026-08-31 (33452619048, 33464423811, 33466235356, 33466730516, 33467169270), which measured code from before 674a59e1 'shed write backpressure without formatting a stack trace'. That commit changed what every write cell measures, so the old numbers describe a server that no longer exists: latency improved sharply (create@100 p99 ~2500 -> 1489-1724ms, delete@100 p99 ~28 -> 12-26ms), the partially-saturated cells' error rates FELL a lot (mixed@100 worst 16.3934 -> 12.4837, auth-signup@100 worst 15.5589 -> 3.5994), and the two fully-saturated cells' rose slightly (create@100 97.7843 -> 98.3259, delete@100 99.0558 -> 99.5712) because cheaper rejection lets the closed-loop generator land more attempts inside the same 5s window. The ARMED gate went red on exactly that and nothing else: run 33546159251 failed delete@100 at 99.5712% against the old 99.5558% ceiling, by 0.0154pp, with no regression behind it. THREE observations is a THINNER basis than the five it replaces -- it is what exists at this sha, and it is stated rather than smoothed over. The other 26 cells keep their 2026-08-18 laptop calibration UNCHANGED: they read exactly 0.00% in all three post-fix runs, as well as in all five pre-fix runner runs and all three laptop runs, so there is again nothing to recalibrate. p99ObservedMs for these four is refreshed from the same three runs -- it had still held the 2026-08-18 laptop numbers, which is misleading trend data for cells whose latency moved this much; p99 remains NOT gated. TOLERANCES. Three cells take this file's rule -- worst observation plus one full measured spread, rounded up to the next whole percentage point: create@100 +1.0pp (spread 0.2196), mixed@100 +6.0pp (spread 5.5825), auth-signup@100 +4.0pp (spread 3.5994). mixed@100 and auth-signup@100 were +8.0pp and +16.0pp against the old, much wider pre-fix spreads; a 31.56% ceiling on a cell that now reads 0.00-3.60% asserts nothing, so both are narrowed to their new spreads. create@100 needs an override at all only because its new baseline of 98.3259 plus the 2.0pp default is 100.33, which check_thresholds.dart refuses as a dead gate. delete@100 cannot take the rule: at a 99.5712 baseline only 0.4288pp is physically left below 100 and one whole point does not fit, so its headroom is bounded by what remains -- toleranceOverridePP 0.25 for a ceiling of 99.8212%, which is 1.41 measured spreads above its worst observation (where the old 0.5pp was only 0.45 of the spread it faced, which is why it flapped) and 0.1788pp under the maximum. That 0.18pp is the entire live range this cell has. See README 'Thresholds' -- error rate is close to blind for create@100 and delete@100 and that is a design question, not a calibration one.",
   "policy": {
     "gatedMetric": "errorRate",
     "toleranceAbsolutePercentagePoints": 2.0,
@@ -116,24 +116,22 @@
       "p99SpreadPercent": 151.2
     },
     "auth-signup@100": {
-      "errorRatePercentBaseline": 15.5589,
+      "errorRatePercentBaseline": 3.5994,
       "errorRateObserved": [
-        15.5589,
-        13.9571,
-        4.9813,
-        10.4816,
+        2.2277,
+        3.5994,
         0.0
       ],
-      "errorRateSpreadPP": 15.5589,
+      "errorRateSpreadPP": 3.5994,
       "p99ObservedMs": [
-        695.172,
-        889.789,
-        976.111
+        1142.988,
+        1522.04,
+        1602.865
       ],
-      "p99SpreadPercent": 40.4,
+      "p99SpreadPercent": 40.2,
       "knownBad": true,
       "calibrationSource": "runner",
-      "toleranceOverridePP": 16.0
+      "toleranceOverridePP": 4.0
     },
     "auth-signup@25": {
       "errorRatePercentBaseline": 1.6729,
@@ -196,23 +194,22 @@
       "p99SpreadPercent": 976.0
     },
     "create@100": {
-      "errorRatePercentBaseline": 97.7843,
+      "errorRatePercentBaseline": 98.3259,
       "errorRateObserved": [
-        96.7498,
-        96.7732,
-        97.267,
-        97.7843,
-        96.8002
+        98.2323,
+        98.3259,
+        98.1063
       ],
-      "errorRateSpreadPP": 1.0345,
+      "errorRateSpreadPP": 0.2196,
       "p99ObservedMs": [
-        2508.347,
-        2496.295,
-        2494.881
+        1488.877,
+        1607.312,
+        1724.014
       ],
-      "p99SpreadPercent": 0.5,
+      "p99SpreadPercent": 15.8,
       "knownBad": true,
-      "calibrationSource": "runner"
+      "calibrationSource": "runner",
+      "toleranceOverridePP": 1.0
     },
     "create@25": {
       "errorRatePercentBaseline": 0.0,
@@ -275,24 +272,22 @@
       "p99SpreadPercent": 29.2
     },
     "delete@100": {
-      "errorRatePercentBaseline": 99.0558,
+      "errorRatePercentBaseline": 99.5712,
       "errorRateObserved": [
-        97.9494,
-        98.0787,
-        98.5993,
-        99.0558,
-        98.1076
+        99.5712,
+        99.3944,
+        99.4377
       ],
-      "errorRateSpreadPP": 1.1064,
+      "errorRateSpreadPP": 0.1768,
       "p99ObservedMs": [
-        27.924,
-        29.597,
-        27.344
+        11.986,
+        25.922,
+        15.947
       ],
-      "p99SpreadPercent": 8.2,
+      "p99SpreadPercent": 116.3,
       "knownBad": true,
       "calibrationSource": "runner",
-      "toleranceOverridePP": 0.5
+      "toleranceOverridePP": 0.25
     },
     "delete@25": {
       "errorRatePercentBaseline": 0.0,
@@ -430,24 +425,22 @@
       "p99SpreadPercent": 85.3
     },
     "mixed@100": {
-      "errorRatePercentBaseline": 16.3934,
+      "errorRatePercentBaseline": 12.4837,
       "errorRateObserved": [
-        8.8732,
-        9.9719,
-        16.3934,
-        14.0546,
-        9.887
+        6.9012,
+        12.4837,
+        11.8207
       ],
-      "errorRateSpreadPP": 7.5202,
+      "errorRateSpreadPP": 5.5825,
       "p99ObservedMs": [
-        5423.058,
-        5331.164,
-        5521.661
+        5272.531,
+        5252.168,
+        5286.469
       ],
-      "p99SpreadPercent": 3.6,
+      "p99SpreadPercent": 0.7,
       "knownBad": true,
       "calibrationSource": "runner",
-      "toleranceOverridePP": 8.0
+      "toleranceOverridePP": 6.0
     },
     "mixed@25": {
       "errorRatePercentBaseline": 0.0,
