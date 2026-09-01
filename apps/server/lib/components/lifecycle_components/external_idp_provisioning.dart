@@ -44,10 +44,11 @@ final class _HttpExternalIdpProvisioningGate
     required String issuer,
     required String sub,
   }) async {
-    return await rateLimiter.check(
+    final check = await rateLimiter.check(
       table: table,
       ipAddress: ipAddress,
       operation: RateLimitOperation.externalIdpProvisioning,
     );
+    return check.allowed;
   }
 }

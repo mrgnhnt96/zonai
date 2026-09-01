@@ -9,7 +9,7 @@ Rate limit policies are defined in Dart under your project’s **`rateLimitPath`
 1. An incoming HTTP request hits a route.
 2. The server asks the compiled rate-limit worker which policy applies for that collection and operation.
 3. The server tracks usage in the internal `_rate_limit` SQLite table, keyed by client IP, collection name, and operation.
-4. If the count for the current window is below `maxRequests`, the request proceeds; otherwise the server returns 429.
+4. If the count for the current window is below `maxRequests`, the request proceeds; otherwise the server returns 429 with `Retry-After` and `X-RateLimit-*` headers naming when the window resets (see [HTTP behavior](#http-behavior)).
 
 Policies are resolved at request time, so you can change limits in Dart and recompile without restarting the database.
 
@@ -146,12 +146,14 @@ Not every auth route is guarded today (for example `POST /auth/confirm` and `POS
 ```dart in:expression
 const RateLimitPolicy(
   maxRequests: 10,               // allowed requests per window
-  window: Duration(minutes: 15), // sliding window length
+  window: Duration(minutes: 15), // fixed window length
 ),
 ```
 
 - **`maxRequests`** — maximum number of requests allowed from one IP for this collection + operation within one window.
-- **`window`** — after this duration elapses since the first request in a window, the counter resets.
+- **`window`** — the length of one window.
+
+The window is **fixed** (it does not slide). It starts at the first counted request from that IP for that collection + operation, and it resets on the first request after `window` has elapsed since it started — that request opens a new window and counts as its first. Requests refused with 429 are **not** counted and do **not** extend the window, so a client that keeps retrying is told the same reset instant every time and cannot push it further away. With `maxRequests: 10, window: 15 minutes`, ten requests at 12:00 exhaust the window and the eleventh is refused until 12:15 no matter how many refusals happen in between.
 
 Return **`null`** from an override to allow unlimited requests for that operation.
 
@@ -222,12 +224,49 @@ Request counts are stored in the framework-managed `_rate_limit` table. You do n
 
 ## HTTP behavior
 
-When a client exceeds a limit, the guard returns:
+When a client exceeds a limit, the guard returns **`429 Too Many Requests`** with headers that say exactly when to come back:
 
-- **Status:** `429 Too Many Requests`
-- **Body:** `Rate limit exceeded`
+| Header                  | Value                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `Retry-After`           | Whole seconds until the window resets, rounded **up** and never `0` (so a client never retries into the same closed window). |
+| `X-RateLimit-Limit`     | The policy's `maxRequests`.                                                                                    |
+| `X-RateLimit-Remaining` | `0` — the request was refused.                                                                                 |
+| `X-RateLimit-Reset`     | The instant the window resets, as a Unix epoch in whole seconds (UTC).                                         |
 
-There is no `Retry-After` header today. Clients should back off until the policy window expires.
+The body is JSON and names the policy that was hit, so a client throttled on `create` can keep reading, and a human can see which limit to raise:
+
+```json
+{
+  "error": "Rate limit exceeded",
+  "collection": "items",
+  "operation": "create",
+  "retryAfter": 42
+}
+```
+
+- **`collection`** — the collection the request targeted, or a framework bucket for routes that carry no collection (`__admin_auth__` for admin sign-in and reset, `__auth_confirm__` for `POST /auth/confirm`, `oauth` for OAuth callbacks, `oauth_admin` and `oauth_admin_invite` for the admin OAuth start routes).
+- **`operation`** — the `RateLimitOperation` name (`get`, `create`, `signIn`, `custom`, ...).
+- **`customOperation`** — present only for `PATCH /db/custom/:operation` when the name was validated; the name of the custom operation whose counter was hit.
+- **`retryAfter`** — the same number as the `Retry-After` header.
+
+A full refusal looks like:
+
+```http
+HTTP/1.1 429 Too Many Requests
+retry-after: 42
+x-ratelimit-limit: 100
+x-ratelimit-remaining: 0
+x-ratelimit-reset: 1788307242
+content-type: application/json
+
+{"error":"Rate limit exceeded","collection":"items","operation":"create","retryAfter":42}
+```
+
+Wait `Retry-After` seconds and retry once. Because the window is fixed and refusals do not extend it, the reset instant is the same for every client behind one IP; several agents sharing an address should all wait for `X-RateLimit-Reset` rather than each retrying on its own schedule.
+
+The rate-limit headers are sent on the 429 only; successful responses do not carry them today.
+
+**Through 0.9.0 the body was the plain string `Rate limit exceeded`.** A client that matched on that text should key on the `429` status code instead (or on the `error` field of the JSON body, which carries the same string).
 
 `PATCH /db/custom/:operation` additionally returns **404 Not Found** when `:operation` isn't registered in that collection's `TableRules.customOperations` (see [rules.md](rules.md#custom-operation-rules)) — checked before the rate limiter, not after.
 

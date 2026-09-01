@@ -1,9 +1,67 @@
+import 'package:clock/clock.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 import 'package:zonai/src/deps/rate_limiter.dart';
+import 'package:zonai/src/services/rate_limit_check.dart';
 import 'package:revali_router/revali_router.dart';
 
 class RateLimit {
   const RateLimit();
+
+  /// The one place a rate-limit refusal becomes an HTTP response, so every
+  /// 429 this guard family emits carries the same headers and body
+  /// (GitHub issue #32: a 429 with no `Retry-After` is one a client can only
+  /// poll against, and nine agents behind one IP polling is what keeps the
+  /// shared bucket empty).
+  ///
+  /// Header names are lowercase to match revali's own `Throttle` kit. The
+  /// seconds are rounded UP and never 0: `Retry-After: 0` tells a client to
+  /// retry into the same closed window, and flooring 900ms to 0s would do the
+  /// same. `x-ratelimit-reset` is a Unix epoch in whole seconds, UTC, the
+  /// GitHub/Laravel convention.
+  ///
+  /// [check] must be a refusal under a real policy; an unlimited check has no
+  /// window to describe and must never reach here.
+  static GuardResult exceeded(RateLimitCheck check) {
+    assert(!check.allowed, 'exceeded() called with an allowed check');
+    final limit = check.limit;
+    final resetAt = check.resetAt;
+    if (limit == null || resetAt == null) {
+      throw ArgumentError.value(
+        check,
+        'check',
+        'an unlimited bucket cannot be exceeded',
+      );
+    }
+
+    final untilReset = resetAt.difference(clock.now());
+    final retryAfter = (untilReset.inMilliseconds / 1000).ceil().clamp(
+      1,
+      1 << 31,
+    );
+
+    return GuardResult.block(
+      statusCode: 429,
+      headers: {
+        'retry-after': '$retryAfter',
+        'x-ratelimit-limit': '$limit',
+        'x-ratelimit-remaining': '0',
+        'x-ratelimit-reset':
+            '${resetAt.toUtc().millisecondsSinceEpoch ~/ 1000}',
+      },
+      body: {
+        'error': 'Rate limit exceeded',
+        'collection': check.table,
+        'operation': check.operation.name,
+        if (check.customOperation case final custom?) 'customOperation': custom,
+        'retryAfter': retryAfter,
+      },
+    );
+  }
+
+  /// `.pass()` or [exceeded], and nothing else -- so the three guard paths
+  /// below cannot drift apart in what a 429 looks like.
+  static GuardResult _resultFor(RateLimitCheck check) =>
+      check.allowed ? const .pass() : exceeded(check);
 
   /// Synthetic bucket key for admin auth flows, which carry no collection of
   /// their own. Reserved: real collection names cannot begin with `__`.
@@ -75,16 +133,13 @@ class RateLimit {
       ),
     };
 
-    final isAllowed = await rateLimiter.check(
-      table: table,
-      ipAddress: ipAddress,
-      operation: operation,
+    return _resultFor(
+      await rateLimiter.check(
+        table: table,
+        ipAddress: ipAddress,
+        operation: operation,
+      ),
     );
-
-    return switch (isAllowed) {
-      true => const .pass(),
-      false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
-    };
   }
 
   Future<GuardResult> checkByTable(
@@ -92,16 +147,13 @@ class RateLimit {
     String ipAddress,
     RateLimitOperation operation,
   ) async {
-    final isAllowed = await rateLimiter.check(
-      table: table,
-      ipAddress: ipAddress,
-      operation: operation,
+    return _resultFor(
+      await rateLimiter.check(
+        table: table,
+        ipAddress: ipAddress,
+        operation: operation,
+      ),
     );
-
-    return switch (isAllowed) {
-      true => const .pass(),
-      false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
-    };
   }
 
   /// The one bucket every OAuth callback from one client IP shares.
@@ -196,16 +248,13 @@ class RateLimit {
     // -- fall back to the coarse per-table `.custom` bucket rather than trust
     // an unvalidated name as a bucket dimension. The rules layer still denies
     // an unregistered operation regardless; this only protects the limiter.
-    final isAllowed = await rateLimiter.check(
-      table: table,
-      ipAddress: ipAddress,
-      operation: .custom,
-      customOperation: registered == null ? null : operation,
+    return _resultFor(
+      await rateLimiter.check(
+        table: table,
+        ipAddress: ipAddress,
+        operation: .custom,
+        customOperation: registered == null ? null : operation,
+      ),
     );
-
-    return switch (isAllowed) {
-      true => const .pass(),
-      false => const .block(statusCode: 429, body: 'Rate limit exceeded'),
-    };
   }
 }

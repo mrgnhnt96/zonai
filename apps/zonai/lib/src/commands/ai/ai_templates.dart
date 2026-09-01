@@ -1703,11 +1703,11 @@ Auth policy methods: `signInPolicy`, `signUpPolicy`, `refreshTokenPolicy`,
 ```dart in:expression
 const RateLimitPolicy(
   maxRequests: 10,               // requests allowed per window
-  window: Duration(minutes: 15), // sliding window duration
+  window: Duration(minutes: 15), // fixed window duration
 )
 ```
 
-429 Too Many Requests is returned when the limit is exceeded.
+429 Too Many Requests is returned when the limit is exceeded. The window is fixed: it starts at the first counted request and resets `window` later; refused requests do not extend it. The 429 carries `Retry-After` (seconds, rounded up, never 0), `X-RateLimit-Limit`, `X-RateLimit-Remaining: 0` and `X-RateLimit-Reset` (Unix epoch seconds), and a JSON body `{"error": "Rate limit exceeded", "collection": ..., "operation": ..., "retryAfter": ...}` naming the policy that was hit.
 """;
 
 const cursorCronsMdc = r"""---
