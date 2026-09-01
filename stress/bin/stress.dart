@@ -120,6 +120,9 @@ Future<void> main(List<String> rawArgs) async {
 
     if (args.jsonOutput != null) {
       final file = File(args.jsonOutput!);
+      // `results/` is gitignored, so it does not exist in a fresh checkout --
+      // create it (and any nested path) before writing the sweep results.
+      file.parent.createSync(recursive: true);
       file.writeAsStringSync(
         const JsonEncoder.withIndent(
           '  ',
