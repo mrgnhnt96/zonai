@@ -139,7 +139,7 @@ Checking that registration means reading the collection's rules, which the serve
 | `adminAuthenticate` | `adminAuthenticatePolicy()` | Admin auth                  |
 | `adminSignIn`       | `adminSignInPolicy()`       | Admin sign-in               |
 
-Not every auth route is guarded today (for example `POST /auth/confirm` and `POST /auth/admin` have no rate-limit guard). Override a policy method only when the corresponding endpoint is rate-limited.
+Not every auth route is guarded today: `DELETE /auth` (logout) and `DELETE /auth/all` (logout all) carry no `@BodyRateLimit`, so `logoutPolicy()` and `logoutAllPolicy()` are never consulted no matter what you return from them. Override a policy method only when the corresponding endpoint is rate-limited.
 
 ## `RateLimitPolicy`
 
