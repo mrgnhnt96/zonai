@@ -5,15 +5,42 @@ import 'package:zonai/src/db_mutator/zonai_db/zonai_db.dart';
 import 'package:zonai_schema/src/internal/tables/rate_limit_table.dart'
     as rate_limit_table;
 import 'package:zonai/src/messengers/rate_limit_mailman.dart';
+import 'package:zonai/src/services/rate_limit_check.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_response.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class RateLimiter {
-  RateLimiter();
+  /// [resolvePolicy] answers which policy governs a bucket; `null` means
+  /// unlimited. Defaults to asking the compiled rate-limit worker. Tests
+  /// inject a lookup so the window arithmetic can be pinned without a
+  /// worker executable on disk.
+  RateLimiter({
+    Future<RateLimitPolicy?> Function(RateLimitRequest)? resolvePolicy,
+  }) : _resolvePolicy = resolvePolicy;
+
+  final Future<RateLimitPolicy?> Function(RateLimitRequest)? _resolvePolicy;
 
   RateLimitsMailman? __mailman;
   RateLimitsMailman get _mailman => __mailman ??= RateLimitsMailman();
+
+  Future<RateLimitPolicy?> _resolveThroughWorker(
+    RateLimitRequest request,
+  ) async {
+    final response = await _mailman.send<RateLimitResponse>(request).catchError(
+      (e, stack) {
+        if (e is ExecutableUnavailableException) {
+          return RateLimitResponse(
+            policy: RateLimitPolicy.defaultPolicy,
+            id: '',
+          );
+        }
+
+        throw Error.throwWithStackTrace(e, stack);
+      },
+    );
+    return response.policy;
+  }
 
   /// Tables whose rate-limit worker returned `null` (unlimited). After the
   /// first resolve we skip the IPC hop entirely — the policy is static for
@@ -49,49 +76,47 @@ final class RateLimiter {
         .contains(operationName);
   }
 
-  Future<bool> check({
+  /// Counts one request from [ipAddress] against the bucket for [table] +
+  /// [operation] (+ [customOperation]) and reports the verdict together with
+  /// the window it was decided in -- see [RateLimitCheck] for what a caller
+  /// can put in a 429 from it.
+  Future<RateLimitCheck> check({
     required String table,
     required String ipAddress,
     required RateLimitOperation operation,
     String? customOperation,
   }) async {
     final key = (table, operation, customOperation);
+    RateLimitCheck unlimited() => RateLimitCheck.unlimited(
+      table: table,
+      operation: operation,
+      customOperation: customOperation,
+    );
+
     if (_unlimited.contains(key)) {
-      return true;
+      return unlimited();
     }
 
     var policy = _policies[key];
     if (policy == null && !_policies.containsKey(key)) {
-      final response = await _mailman
-          .send<RateLimitResponse>(
-            RateLimitRequest(
-              table: table,
-              operation: operation,
-              customOperation: customOperation,
-            ),
-          )
-          .catchError((e, stack) {
-            if (e is ExecutableUnavailableException) {
-              return RateLimitResponse(
-                policy: RateLimitPolicy.defaultPolicy,
-                id: '',
-              );
-            }
+      final resolved = await (_resolvePolicy ?? _resolveThroughWorker)(
+        RateLimitRequest(
+          table: table,
+          operation: operation,
+          customOperation: customOperation,
+        ),
+      );
 
-            throw Error.throwWithStackTrace(e, stack);
-          });
-
-      final resolved = response.policy;
       if (resolved == null) {
         _unlimited.add(key);
-        return true;
+        return unlimited();
       }
       _policies[key] = resolved;
       policy = resolved;
     }
 
     if (policy == null) {
-      return true;
+      return unlimited();
     }
     // Captured by the transaction closure below; a non-final local loses its
     // null-promotion once captured, even though it is never reassigned again.
@@ -143,6 +168,27 @@ final class RateLimiter {
     // yields SQLITE_BUSY rather than queueing, and the 500 comes back wearing
     // a different hat. A retry loop would not save it either; the fix then is
     // one writer, or an atomic upsert.
+    RateLimitCheck verdict({
+      required bool allowed,
+      required int count,
+      required DateTime windowStart,
+    }) => RateLimitCheck(
+      allowed: allowed,
+      table: table,
+      operation: operation,
+      customOperation: customOperation,
+      limit: resolvedPolicy.maxRequests,
+      remaining: (resolvedPolicy.maxRequests - count).clamp(
+        0,
+        resolvedPolicy.maxRequests,
+      ),
+      // Fixed window: it resets `window` after the request that opened it,
+      // whatever happens in between. UTC so the instant compares and
+      // serialises the same way whether it came from `clock.now()` or from
+      // a row SQLite handed back in local time.
+      resetAt: windowStart.add(resolvedPolicy.window).toUtc(),
+    );
+
     return db.transaction((tx) async {
       final rows = await tx
           .select()
@@ -165,7 +211,7 @@ final class RateLimiter {
             windowStart: now,
           ),
         ]);
-        return true;
+        return verdict(allowed: true, count: 1, windowStart: now);
       }
 
       if (now.difference(entry.windowStart) >= resolvedPolicy.window) {
@@ -176,11 +222,17 @@ final class RateLimiter {
               rateLimitSchema.count.to(1),
             )
             .where(rateLimitSchema.id.equals(entry.id));
-        return true;
+        return verdict(allowed: true, count: 1, windowStart: now);
       }
 
       if (entry.count >= resolvedPolicy.maxRequests) {
-        return false;
+        // Refused requests are not counted and do not move the window, so
+        // `resetAt` is the same instant every refusal in this window reports.
+        return verdict(
+          allowed: false,
+          count: entry.count,
+          windowStart: entry.windowStart,
+        );
       }
 
       await tx
@@ -188,7 +240,11 @@ final class RateLimiter {
           .set(rateLimitSchema.count.to(entry.count + 1))
           .where(rateLimitSchema.id.equals(entry.id));
 
-      return true;
+      return verdict(
+        allowed: true,
+        count: entry.count + 1,
+        windowStart: entry.windowStart,
+      );
     });
   }
 }
