@@ -131,12 +131,22 @@ Exit 0 pass, 1 regression. A cell in the baseline that the run did not produce i
 **failure**, not a pass — silence where a measurement was expected is exactly the
 way a gate like this goes quietly dead.
 
+So is a cell that **cannot fail**. An error rate is a percentage of requests, so a
+ceiling at or above 100% is one no run could ever exceed: the cell reports a pass
+every time while printing exactly like a live one. `check_thresholds.dart` scans
+every cell in the baseline before it checks anything, prints such a cell as
+`DEAD-GATE` rather than `ok` or `known-bad` (both of which read as "this cell was
+checked"), leaves it out of the `checked N cell(s)` count, and exits 1 naming it.
+That is a configuration error in `thresholds.json`, not a lenient cell, and the fix
+is to re-express it with a reachable ceiling — not to delete the check.
+
 The gate is a delta against `thresholds.json`, never an absolute line: a cell fails
 when its error rate exceeds its own baseline plus a tolerance. The tolerance is
 `policy.toleranceAbsolutePercentagePoints` (2pp) unless the cell names its own
 `toleranceOverridePP`, and every printed line says which of the two it used —
 `= +2.0pp default` or `= +16.0pp override`. A widened ceiling catches less, so
-which cells are widened is reported rather than buried in the JSON.
+which cells are widened is reported rather than buried in the JSON. An override may
+also **narrow** a cell, which is what `delete@100` needs: see below.
 
 ### The write-queue cliff — baselined, and NOT thereby acceptable
 
@@ -149,26 +159,50 @@ calibration because they read exactly 0.00% on both:
 | cell              | error rate (5 runner runs)                    | spread | tolerance | ceiling |
 |-------------------|-----------------------------------------------|--------|-----------|---------|
 | `create@100`      | 96.75 / 96.77 / 97.27 / 97.78 / 96.80         |  1.03pp | +2pp default  |  99.78% |
-| `delete@100`      | 97.95 / 98.08 / 98.60 / 99.06 / 98.11         |  1.11pp | +2pp default  | 101.06% |
+| `delete@100`      | 97.95 / 98.08 / 98.60 / 99.06 / 98.11         |  1.11pp | +0.5pp override |  99.56% |
 | `mixed@100`       |  8.87 /  9.97 / 16.39 / 14.05 /  9.89         |  7.52pp | +8pp override |  24.39% |
 | `auth-signup@100` | 15.56 / 13.96 /  4.98 / 10.48 /  0.00         | 15.56pp | +16pp override |  31.56% |
 
 **Why two of them are widened.** All four are the same saturation cliff, but they
 sit at different places on it. `create@100` and `delete@100` are PAST the edge —
-pinned near 98%, spread ~1pp, comfortably gateable at the 2pp default. `mixed@100`
-and `auth-signup@100` sit ON the edge and swing bimodally: `auth-signup@100`
-measured 15.56% in one run and 0.00% in another **on the same commit**. Under one
-flat 2pp tolerance those two false-positived in 5 of 10 cell-runs, and the failing
-cell moved between runs — a flapping gate, not a regression. Each now carries one
-full measured spread of headroom above its worst observation.
+pinned near 98%, spread ~1pp. `mixed@100` and `auth-signup@100` sit ON the edge and
+swing bimodally: `auth-signup@100` measured 15.56% in one run and 0.00% in another
+**on the same commit**. Under one flat 2pp tolerance those two false-positived in 5
+of 10 cell-runs, and the failing cell moved between runs — a flapping gate, not a
+regression. Each now carries one full measured spread of headroom above its worst
+observation.
+
+**Why one of them is narrowed.** `delete@100` baselines at 99.06%, so the 2pp
+default put its ceiling at 101.06% — above the 100% an error rate can physically
+reach. It was a dead gate: it printed `known-bad` every run and there was no
+measurement, not even total collapse at 100%, that could have failed it. The file's
+own method — worst observation plus one full spread — cannot work this close to
+saturation, because at a 99.06% baseline there is only 0.94pp of room left below
+100 and a 1.11pp spread does not fit in it. So the headroom is bounded by what is
+physically left instead: `toleranceOverridePP: 0.5`, ceiling **99.5558%** — 0.5pp
+above its worst of six observations (the five above plus 99.04% from run
+33468456839) and 0.44pp under the maximum. All six pass; 99.56% and above fails.
 
 The cost is stated rather than hidden: at a 31.56% ceiling, `auth-signup@100` no
 longer catches a regression that merely doubles its typical error rate. What it
 still catches is the collapse this gate actually exists for — the cliff spreading,
 which shows up at 96–99% in `create@100` and `delete@100`, three times over the
-widened ceiling. `delete@100`'s ceiling of 101.06% is above the 100% maximum and so
-cannot be tripped at all; that is inherited from the 2pp default against a 99.06%
-baseline, and it is a real hole in the gate rather than a rounding artifact.
+widened ceiling.
+
+`delete@100`'s cost is the opposite one and equally worth stating: a 99.56% ceiling
+leaves it only 0.52pp above the 99.04% it read on run 33468456839, so this cell is
+tighter than any other and could flap if the cliff creeps up at all. That is the
+best available trade, not a comfortable one — a cell baselined at 99.06% has under
+1pp of live range no matter how the tolerance is written, and the alternative is the
+dead gate it had before. What it still catches is the only worsening left to
+distinguish here: near-total saturation going total.
+
+`create@100` is deliberately left on the 2pp default. Its ceiling of 99.78% is
+reachable — a run between 99.79% and 100% trips it — so it is live, if only by
+0.22pp, and narrowing a live cell is a recalibration decision to make from data
+rather than a side effect of this fix. It also can no longer die quietly: the moment
+a recalibration pushes its baseline past 98.0%, the gate refuses to run at all and
+names the cell, which is the whole point of the `DEAD-GATE` check above.
 
 `create` and `delete` are clean at concurrency 50 (0.00% errors in all runs, laptop
 and runner) and collapse at 100. That is a **cliff, not a slope**. The server says

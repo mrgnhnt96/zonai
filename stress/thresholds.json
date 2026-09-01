@@ -2,7 +2,7 @@
   "_comment": "Calibration baseline for the stress error-rate gate. See README 'Thresholds'.",
   "calibratedOn": "2026-08-31",
   "calibrationRuns": 5,
-  "calibrationNote": "MIXED PROVENANCE, on purpose. The four write-queue-cliff cells (create@100, delete@100, mixed@100, auth-signup@100) are RUNNER-calibrated from five stress-nightly.yml workflow_dispatch runs on a GitHub hosted ubuntu-latest runner: 33452619048, 33464423811, 33466235356, 33466730516, 33467169270. Those five measured identical code -- the first is at 647f7e7d and the rest at 8fb2e605, and the only diff between the two shas is a mkdir in stress.dart that runs AFTER every measurement. The other 26 cells keep their 2026-08-18 laptop calibration UNCHANGED, because they read exactly 0.00% in all five runner runs as well as all three laptop runs; there was nothing to recalibrate. mixed@100 and auth-signup@100 sit ON the saturation cliff rather than past it and swing bimodally, so they carry a toleranceOverridePP of one full measured spread; create@100 and delete@100 are past the cliff, pinned near 98%, and stay on the 2.0pp default.",
+  "calibrationNote": "MIXED PROVENANCE, on purpose. The four write-queue-cliff cells (create@100, delete@100, mixed@100, auth-signup@100) are RUNNER-calibrated from five stress-nightly.yml workflow_dispatch runs on a GitHub hosted ubuntu-latest runner: 33452619048, 33464423811, 33466235356, 33466730516, 33467169270. Those five measured identical code -- the first is at 647f7e7d and the rest at 8fb2e605, and the only diff between the two shas is a mkdir in stress.dart that runs AFTER every measurement. The other 26 cells keep their 2026-08-18 laptop calibration UNCHANGED, because they read exactly 0.00% in all five runner runs as well as all three laptop runs; there was nothing to recalibrate. mixed@100 and auth-signup@100 sit ON the saturation cliff rather than past it and swing bimodally, so they carry a toleranceOverridePP that WIDENS them by one full measured spread; create@100 and delete@100 are past the cliff and pinned near 98%. create@100 stays on the 2.0pp default. delete@100 does NOT: its baseline of 99.0558% plus the 2.0pp default put its ceiling at 101.06%, above the 100% maximum an error rate can reach, so no run could ever trip it -- a dead gate that printed a pass every run and looked exactly like a live one. It now carries a NARROWING toleranceOverridePP of 0.5 for a ceiling of 99.5558%: 0.5pp above its worst of six observations (97.9494, 98.0787, 98.1076, 98.5993, 99.0383, 99.0558) and 0.44pp below 100, which is the only band this cell can still fail in. check_thresholds.dart now REFUSES any cell whose baseline + tolerance reaches 100 instead of reporting it as a pass.",
   "policy": {
     "gatedMetric": "errorRate",
     "toleranceAbsolutePercentagePoints": 2.0,
@@ -291,7 +291,8 @@
       ],
       "p99SpreadPercent": 8.2,
       "knownBad": true,
-      "calibrationSource": "runner"
+      "calibrationSource": "runner",
+      "toleranceOverridePP": 0.5
     },
     "delete@25": {
       "errorRatePercentBaseline": 0.0,

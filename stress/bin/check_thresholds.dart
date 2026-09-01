@@ -10,7 +10,9 @@
 //
 //   dart run bin/check_thresholds.dart results/nightly.json
 //
-// Exit codes: 0 pass, 1 regression, 2 bad usage/missing cell.
+// Exit codes: 0 pass, 1 regression or an unusable baseline (a cell the run
+// never produced, or a cell whose ceiling no run could ever trip),
+// 2 bad usage/missing file.
 import 'dart:convert';
 import 'dart:io';
 
@@ -38,6 +40,28 @@ void main(List<String> args) {
           as num;
   final run = jsonDecode(runFile.readAsStringSync()) as List<dynamic>;
 
+  // A ceiling at or above 100% is a CONFIGURATION error, not a lenient cell.
+  // An error rate is a percentage of requests, so no run can ever measure more
+  // than 100% -- such a cell passes every time while printing exactly like a
+  // live one. Same reasoning as the MISSING block at the end of main: a cell
+  // that was not really checked is a failure, not a pass. Scanned across the
+  // whole baseline rather than only the cells this run produced, because it is
+  // a fact about the file and holds whether or not the run reached the cell.
+  final unreachable = <String, String>{};
+  for (final entry in cells.entries) {
+    final cell = entry.value as Map<String, dynamic>;
+    final override = cell['toleranceOverridePP'] as num?;
+    final tolerance = override ?? defaultTolerance;
+    final baseline = cell['errorRatePercentBaseline'] as num;
+    final ceiling = baseline + tolerance;
+    if (ceiling >= 100) {
+      unreachable[entry.key] =
+          'ceiling ${ceiling.toStringAsFixed(4)}% = baseline '
+          '${baseline.toStringAsFixed(4)}% + ${tolerance}pp '
+          '${override == null ? 'default' : 'override'}';
+    }
+  }
+
   final regressions = <String>[];
   final missing = <String>[];
   final knownBad = <String>[];
@@ -51,7 +75,8 @@ void main(List<String> args) {
       missing.add(key);
       continue;
     }
-    checked++;
+    final dead = unreachable.containsKey(key);
+    if (!dead) checked++;
     final observed = (e['errorRate'] as num) * 100;
     final baseline = cell['errorRatePercentBaseline'] as num;
 
@@ -65,11 +90,16 @@ void main(List<String> args) {
     final ceiling = baseline + tolerance;
     final p99 = (e['latencyMs'] as Map<String, dynamic>)['p99'];
 
+    // `over` stays first so a widened or dead ceiling can never hide a real
+    // failure. DEAD-GATE sits above known-bad/ok because both of those read as
+    // "this cell was checked", and this one was not.
     final over = observed > ceiling;
     final marker = over
         ? 'FAIL'
+        : dead
+        ? 'DEAD-GATE'
         : (cell['knownBad'] == true ? 'known-bad' : 'ok');
-    if (cell['knownBad'] == true && !over) knownBad.add(key);
+    if (cell['knownBad'] == true && !over && !dead) knownBad.add(key);
     stdout.writeln(
       '${marker.padRight(9)} ${key.padRight(20)} '
       'err ${observed.toStringAsFixed(2)}% '
@@ -108,11 +138,28 @@ void main(List<String> args) {
   if (missing.isNotEmpty) {
     stdout.writeln('NOT CHECKED -- not in the baseline: ${missing.join(', ')}');
   }
+  if (unreachable.isNotEmpty) {
+    stderr.writeln(
+      'DEAD GATE -- these cells can never be tripped and were NOT checked:',
+    );
+    for (final e in unreachable.entries) {
+      stderr.writeln('  - ${e.key}: ${e.value}');
+    }
+    stderr.writeln(
+      '  An error rate cannot exceed 100%, so a ceiling at or above 100% is a '
+      'cell that reports a pass every run while looking exactly like a live '
+      'one. Re-express it with a reachable ceiling -- give the cell a '
+      'toleranceOverridePP that keeps baseline + tolerance below 100. See '
+      'README "Thresholds".',
+    );
+  }
   if (absent.isNotEmpty) {
     stderr.writeln(
       'MISSING -- baseline expects these and the run produced none: '
       '${absent.join(', ')}',
     );
+  }
+  if (unreachable.isNotEmpty || absent.isNotEmpty) {
     exit(1);
   }
   if (regressions.isEmpty) {
