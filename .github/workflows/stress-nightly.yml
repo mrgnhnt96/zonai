@@ -24,23 +24,48 @@ name: Stress (nightly)
 # asserted. The numbers live in stress/thresholds.json so this is arguable
 # from data rather than from memory.
 #
-# THIS HAS NEVER RUN ON CI HARDWARE. Per this repo's own lesson from test.yml
-# -- "a local measurement of a CI claim is a hypothesis" -- the baseline in
-# thresholds.json was calibrated on a dev machine and there is no reason to
-# think a GitHub runner reproduces it. So the gate step is CONTINUE-ON-ERROR
-# for now: it reports, and it cannot fail the build.
+# ARMED on 2026-09-01. The error-rate gate has no `continue-on-error` and a
+# regression fails the run. This block records what that is standing on,
+# because the case for arming is weaker than "the gate is green" sounds.
 #
-#   TO ARM IT: let this run for a few weeks, recalibrate thresholds.json from
-#   runner numbers (not laptop numbers), then delete the continue-on-error
-#   line below. Arming it before that ships a gate nobody has ever seen pass.
+# THE BASELINE IS RUNNER-CALIBRATED, where it used to be a laptop number. Per
+# this repo's own lesson from test.yml -- "a local measurement of a CI claim is
+# a hypothesis" -- an arming decision needs runner data, and thresholds.json now
+# has it: `calibrationRuns: 5`, `calibratedOn: 2026-08-31`. The four
+# write-queue-cliff cells (create@100, delete@100, mixed@100, auth-signup@100)
+# carry five observations each from `workflow_dispatch` runs on hosted
+# ubuntu-latest. The other 26 cells kept their laptop calibration on purpose:
+# they read exactly 0.00% in all five runner runs as well as all three laptop
+# runs, so there was nothing to recalibrate. Full provenance is in
+# thresholds.json's `calibrationNote`.
 #
-#   AND IT IS FURTHER OFF THAN THAT SENTENCE READS. As of 2026-08-20 this
-#   workflow had never reached its sweep -- two scheduled runs, both dead in the
-#   checkout at 16 seconds (see the note on the steps). So there is not one
-#   runner number yet, and at one run a week the recalibration is weeks of
-#   waiting rather than nights. `workflow_dispatch` is the way to shorten that,
-#   and it is the honest way to gather the sample: dispatch it a few times
-#   rather than reading a weekly schedule as though it had been collecting.
+# IT HAS BEEN SEEN TO PASS ON TRUNK -- once for this exact configuration, not
+# twice. Runs 33468456839 and 33469624333 both printed "PASS -- no error-rate
+# regression." over 30 cells. But 33468456839 ran at ecac0b7e, before cb7eb900
+# narrowed delete@100 to a 0.5pp override; under the old +2.0pp default that
+# cell's ceiling was 101.06%, which no error rate can reach, so its pass proves
+# nothing about it. Twenty-nine cells have two passes. delete@100 has one, at
+# 98.55% against a 99.56% ceiling -- about 1pp of margin.
+#
+# WHAT ARMING ACTUALLY BLOCKS: nobody. This is a WEEKLY scheduled workflow
+# (Mondays 07:00 UTC) plus `workflow_dispatch`, and it is deliberately NOT on
+# the PR path -- see the note at the top. So a regression turns the weekly run
+# red and turns up in the Actions list; it does not fail a PR and it does not
+# hold up a merge. That asymmetry is what makes it defensible to arm on a
+# baseline this young.
+#
+# AND IT IS YOUNG. Two of the four cliff cells are genuinely bimodal across the
+# five runner runs: mixed@100 spread 7.5pp (8.87% to 16.39%) and auth-signup@100
+# spread 15.6pp (0.00% to 15.56%). Their tolerances were sized at one full
+# measured spread above the worst of the five and rounded up, so the headroom is
+# derived rather than guessed -- but it is headroom derived from five samples.
+# A run that lands outside that range will turn this workflow red with nothing
+# having regressed. That is the trade being made here, knowingly.
+#
+#   IF IT FLAPS: widen the offending cell from the new observations and say so
+#   in `calibrationNote`. Do NOT re-add `continue-on-error` -- that is how this
+#   gate spent its whole existence up to now reporting to nobody, and a gate
+#   that cannot fail is indistinguishable from one that is passing.
 
 on:
   schedule:
@@ -96,12 +121,13 @@ jobs:
       #     "Error when reading .../argon2_native.g.dart" that took every leg
       #     of Verify Release run 31748784749 down.
       #
-      # WHAT THIS COST WHILE IT WAS BROKEN: the header above says the error-rate
-      # gate stays `continue-on-error` until thresholds.json is recalibrated
-      # from runner numbers, and that "let this run for a few nights" is how
-      # those numbers arrive. Zero runs reached the sweep, so no runner number
-      # has ever existed and the gate could not have been armed. The only thing
-      # that could ever have turned this workflow red was its own checkout.
+      # WHAT THIS COST WHILE IT WAS BROKEN: arming the error-rate gate needed
+      # thresholds.json recalibrated from runner numbers, and reaching the sweep
+      # is the only way those numbers arrive. Zero runs reached it, so no runner
+      # number existed and the gate could not have been armed at all. The only
+      # thing that could ever have turned this workflow red was its own
+      # checkout. The five `workflow_dispatch` runs that became the calibration
+      # baseline were only possible once these steps landed.
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -204,9 +230,9 @@ jobs:
 
       - name: Error-rate gate
         working-directory: stress
-        # DELETE THIS LINE once thresholds.json is calibrated from runner
-        # numbers. See the header.
-        continue-on-error: true
+        # ARMED -- deliberately no `continue-on-error`. A regression fails this
+        # run. See the header for what that does and does not block, and for
+        # what to do if it flaps.
         run: dart run bin/check_thresholds.dart results/nightly.json
 
       - name: Upload results
