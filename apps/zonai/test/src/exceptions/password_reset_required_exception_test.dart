@@ -11,7 +11,9 @@ import 'package:zonai_schema/src/internal/tables/password_reset_requirement_tabl
 ///  * `Exceptions._serverSide` logs `'Suppressed detail in client response:
 ///    $exception'` through a logger that persists to the `_log` TABLE;
 ///  * revali's `Router._logServerError` prints `'Request failed: $error'` for
-///    any status >= 500, landing in the serve log on disk.
+///    any status >= 500 the application did not author, landing in the serve log
+///    on disk. Since revali_router 5.1.2 an authored `5xx` reaches it only under
+///    `debug`; an uncaught escape -- the case this test guards -- still logs.
 ///
 /// Neither is on the intended 403 path today. This test is what keeps that
 /// from mattering: it holds whether or not some future refactor routes auth

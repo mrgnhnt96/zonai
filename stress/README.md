@@ -269,18 +269,39 @@ need two consecutive admissions per iteration — not to pick a threshold.
 
 Both stay `knownBad`. Report-only is bookkeeping, not approval.
 
-`create` and `delete` are clean at concurrency 50 (0.00% errors in all runs, laptop
-and runner) and collapse at 100. That is a **cliff, not a slope**. The server says
-why — every one of the 7,954 to 16,319 `Request failed` lines in a runner run's log
-is the same single message:
+`create` and `delete` were clean at concurrency 50 (0.00% errors in all runs,
+laptop and runner) and collapsed at 100 — a **cliff, not a slope**, and deliberate
+backpressure doing its job rather than a crash.
+
+**That collapse is gone as of `34c05cdc`**, which reserves a write slot before the
+JWT parse and the Argon2 hash and waits up to 250ms for one before refusing.
+Runner run `33572146594` on that commit reports `create@100` at **1121.8 ok/s with
+0.00% errors**, against the 35–51 ok/s and ~98.3% errors the baselines below were
+calibrated from, and `delete@100` at 561.8 ok/s with 0.00% errors. The knee is
+**moved, not removed**: admission is 64 slots plus 64 queued waiters, so the same
+closed-loop collapse returns above ~128 offered concurrency. **Every baseline in
+this section therefore describes a server that no longer exists** and is pending
+recalibration; the design question it used to pose — whether refusing ~98% of
+writes at concurrency 100 is the right size for that queue — has been answered by
+changing the admission path rather than the queue bound.
+
+**How the server used to say so, and why it no longer does.** Those runs were
+measured against **revali_router 5.1.1**, whose `Router._authoredResponse` logged
+every response at or above `500` — including a `503` the application authored on
+purpose — through a bare `print`. Each refusal therefore wrote one line, and a
+runner run's log carried 7,954 to 16,319 of them, all the same single message:
 
     Request failed: Server is busy writing; retry shortly (write queue saturated).
 
-That is deliberate backpressure doing its job, not a crash. Whether rejecting ~98%
-of writes at concurrency 100 is the right size for that queue is a design question
-nobody has answered, and it is the obvious next thing to measure.
+**As of revali_router 5.1.2 that line is not written at all** on a released
+build: an authored `5xx` is logged only when `debug` is on, so a `serve --release`
+run — which is what this harness boots — now produces **zero** `Request failed`
+lines no matter how many writes are refused. Do not read an empty serve log as
+"nothing was refused". The refusal count lives in the harness's own error tallies
+and in the `503` responses the client sees; `grep -c 'Request failed'` on
+`.cache/server.log` measures nothing here any more.
 
-Separately, and NOT the same thing, the same log carried 28 of:
+Separately, and NOT the same thing, a 5.1.1 log also carried 28 of:
 
     SqliteException(5): ... database is locked (code 5)
 

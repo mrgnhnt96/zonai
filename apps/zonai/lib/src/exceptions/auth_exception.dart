@@ -103,7 +103,12 @@ final class ResetPasswordLinkExpiredException extends AuthException {
 ///  * `Exceptions._serverSide` logs `'...: $exception'` through a logger that
 ///    persists to the `_log` TABLE;
 ///  * revali's `Router._logServerError` prints `'Request failed: $error'` to
-///    the serve log for any status >= 500.
+///    the serve log for any status >= 500 the application did NOT author. Since
+///    revali_router 5.1.2 a status the app authored -- a catcher's
+///    `.handled(statusCode: 5xx)`, a thrown `HttpError`, a guard's `.block()` --
+///    reaches this only when `debug` is on, so a released build is quiet on
+///    that path. The uncaught-escape path still logs, which is the one this
+///    invariant is written against.
 ///
 /// The intended 403 path reaches neither today. The invariant exists so that
 /// stays true after a refactor routes auth exceptions differently, and so an
