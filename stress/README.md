@@ -103,8 +103,8 @@ Every cell in `thresholds.json` names its gate kind in a `gate` field:
 | `gate`        | fails when                                                              | used by |
 |---------------|-------------------------------------------------------------------------|---------|
 | `"errorRate"` | error rate exceeds `errorRatePercentBaseline` + tolerance                | 28 cells — the **default** when the field is absent |
-| `"okPerSec"`  | successful throughput `(total − errors) / wallTimeMs × 1000` drops below `okPerSecFloor` | `create@100` |
-| `"none"`      | never — printed as `report-only`, listed in the summary, **not counted as checked** | `delete@100` |
+| `"okPerSec"`  | successful throughput `(total − errors) / wallTimeMs × 1000` drops below `okPerSecFloor` | `create@100`, `delete@100` |
+| `"none"`      | never — printed as `report-only`, listed in the summary, **not counted as checked** | no cell today |
 
 Error rate is the default for a measured reason. Three runs on one 12-core dev
 machine, same build, nothing changed between them:
@@ -128,6 +128,11 @@ data.
 Run 3 was deliberately measured while the machine was under real contention (1-min
 load average 76 on 12 cores, against 16 for runs 1 and 2). The error rate barely
 moved. That is what makes it the trustworthy metric here, not a preference.
+
+The four hosted-runner runs the cliff cells are calibrated from (below) reproduce the
+same shape on different hardware: p99 spread **47.6%** at the median and 849% at the
+worst cell (`create@10`: 11.7ms → 110.7ms), against **0.00pp** median error-rate
+movement with 26 of 30 cells at exactly 0.00% in all four.
 
 ### Usage
 
@@ -155,10 +160,10 @@ when its error rate exceeds its own baseline plus a tolerance. The tolerance is
 `toleranceOverridePP`, and every printed line says which of the two it used —
 `= +2.0pp default` or `= +6.0pp override`. A widened ceiling catches less, so
 which cells are widened is reported rather than buried in the JSON. An override may
-also **narrow** a cell, which is what the cliff cells needed: see below.
+also **narrow** a cell, which is what `mixed@100` needed: see below.
 
 An `okPerSec` cell prints what its floor stands on the same way —
-`ok/s 51.4 (floor 19.0 = worst 35.3 - 1 spread 16.1)` — from the cell's own
+`ok/s 1122.2 (floor 1048.0 = worst 1122.2 - 1 spread 74.0)` — from the cell's own
 `okPerSecObserved`, so how much a pass is worth is on the screen. A floor at or
 below 0 is a dead gate exactly like a ceiling at or above 100, refused the same
 way; a missing `okPerSecFloor` and an unknown `gate` value are refused too, since
@@ -166,140 +171,148 @@ a cell checked against nothing is the silent pass this whole scan exists to catc
 A `none` cell is *measured* but not *asserted*: it still has to appear in the run
 (a missing cell fails for every gate kind), it is printed with its error rate and
 ok/s for trend, and the summary names it separately from the `checked N cell(s)`
-count because it was not checked.
+count because it was not checked. No cell uses `none` today — `delete@100` was the
+last one and it now gates on throughput; see the cliff section below for why.
 
-### The write-queue cliff — baselined, and NOT thereby acceptable
+The `knownBad` summary at the foot of the output is **said per gate kind**, because
+what a known-bad pass means is not the same for both. An `errorRate` cell came in
+`within their baselined ceiling`; an `okPerSec` cell was `at or above their floor`
+and *its error rate was never consulted*. One line covering both can only be true of
+one of them — the old single line read "still failing at the SAME rate", which is a
+claim about error rate, and it was printed for `create@100` in runs where that cell
+measured 0.00% errors.
 
-Four cells are marked `knownBad`. They are baselined so the gate is usable today;
-that is bookkeeping, not approval. These four are the ONLY cells calibrated from
-**runner** numbers — three `workflow_dispatch` runs of `stress-nightly.yml` on a
-GitHub hosted runner, all three at `32157ef1`. The other 26 keep their dev-machine
-calibration because they read exactly 0.00% on both:
+### The write-queue cliff — moved by `34c05cdc`, and what the baselines say now
 
-| cell              | gate        | observed (runner runs)                         | spread  | limit |
-|-------------------|-------------|------------------------------------------------|---------|-------|
-| `create@100`      | `okPerSec`  | ok/s 51.4 / 35.3 / 43.1 / 43.7 / 38.5 (5 runs) | 16.07/s | floor **19 ok/s** = 35.35 − 16.07, rounded down |
-| `delete@100`      | `none`      | 64 successes in every run, ok/s ≈ 12.5         | —       | report-only |
-| `mixed@100`       | `errorRate` |  6.90 / 12.48 / 11.82 %                        |  5.58pp | +6pp override → 18.48% |
-| `auth-signup@100` | `errorRate` |  2.23 /  3.60 /  0.00 %                        |  3.60pp | +4pp override → 7.60% |
+Four cells at concurrency 100 used to sit on a write-queue saturation cliff, and all
+four were marked `knownBad`. **`34c05cdc`** ("admit writes before hashing and wait
+briefly for a slot before refusing") reserves a write slot *before* the JWT parse and
+the Argon2 hash and lets a caller wait up to 250ms for one, and it moved that cliff
+off concurrency 100 entirely. `create@100` went from ~98.3% errors and 35–51 ok/s to
+**0.00% errors and 1122–1196 ok/s**; `delete@100` from a fixed 64 successes per run
+to **2718–3000**.
 
-`create@100` and `delete@100` still carry their three-run error-rate fields
-(98.23 / 98.33 / 98.11 → +1pp override; 99.57 / 99.39 / 99.44 → +0.25pp override)
-as **trend data**; the gate does not read them. Why those two moved is two
-sections down.
+These four are still the ONLY cells calibrated from **runner** numbers — four
+`workflow_dispatch` runs of `stress-nightly.yml` on a GitHub hosted `ubuntu-latest`:
+`33574154133` and `33574208982` at `b46070fc`, `33575246491` and `33575823046` at
+`f9ba3453`. Those two commits build an **identical** server —
+`git diff b46070fc f9ba3453` touches five `pubspec.yaml` files and nothing else,
+moving the `revali_router` floor `^5.1.1` → `^5.1.2` with the **lockfile unchanged** —
+so the four runs are one population rather than two of two. The other 26 cells keep
+their dev-machine calibration: they read exactly 0.00% in all four of these runs too.
 
-**These numbers are POST-`674a59e1`** ("shed write backpressure without formatting a
-stack trace"), and they replace a five-run calibration taken hours earlier against
-the code that commit changed. Runs `33546159251`, `33546896150`, `33547744930`. The
-fix moved every write cell: p99 for `delete@100` went ~28ms → 12–26ms and for
-`create@100` ~2500ms → 1489–1724ms, the two partially-saturated cells' error rates
-FELL a lot (`auth-signup@100` worst 15.56% → 3.60%), and the two fully-saturated
-cells' rose slightly (`delete@100` worst 99.06% → 99.57%) because cheaper rejection
-lets the closed-loop generator land more attempts inside the same 5s window. The
-armed gate went red on precisely that and nothing else — run `33546159251` failed
-`delete@100` at 99.5712% against the old 99.5558% ceiling, by **0.0154pp**, with no
-regression behind it.
+| cell              | gate        | observed (4 runner runs)                | spread  | limit |
+|-------------------|-------------|-----------------------------------------|---------|-------|
+| `create@100`      | `okPerSec`  | ok/s 1196.2 / 1136.9 / 1122.7 / 1122.2  | 74.00/s | floor **1048 ok/s** = 1122.24 − 74.00, rounded down |
+| `delete@100`      | `okPerSec`  | ok/s  535.7 /  582.8 /  568.6 /  561.9  | 47.08/s | floor **488 ok/s** = 535.67 − 47.08, rounded down |
+| `mixed@100`       | `errorRate` | err  9.37 /  6.07 /  9.55 /  9.70 %     |  3.63pp | +4pp override → **13.70%** |
+| `auth-signup@100` | `errorRate` | err  1.14 /  1.98 /  4.43 /  2.04 %     |  3.29pp | +4pp override → **8.43%** |
 
-**Three observations is a thinner basis than the five it replaces.** It is what
-exists at this sha; it is not a claim that three is enough.
+**The rule, applied.** A baseline is the *worst* observation and a tolerance is *one
+full measured spread*, rounded away from the baseline to a whole unit — down for a
+floor (never below 1), up for a ceiling.
 
-**All four now carry an override, and every one of them NARROWS.** That is the
-opposite of the previous calibration, where two cells were widened to stop them
-flapping, and it is a direct consequence of the fix: three of the four cells got
-quieter, and the fourth ran out of room.
+**FOUR observations is what exists** at these shas. That is one more than the three
+the calibration it replaces had, and it is not a claim that four is enough.
 
-**The rule, where it fits.** Worst observation plus one full measured spread,
-rounded up to the next whole percentage point — `create@100` +1pp (spread 0.22),
-`mixed@100` +6pp (spread 5.58), `auth-signup@100` +4pp (spread 3.60). `mixed@100`
-and `auth-signup@100` were at +8pp and +16pp, sized against the much wider pre-fix
-spreads; a 31.56% ceiling on a cell that now reads 0.00–3.60% asserts nothing, so
-both come down to their new spreads.
+**The old baselines could not have caught a regression, which is why this is a
+recalibration and not a refresh.** `create@100`'s floor was **19 ok/s**, calibrated
+from five pre-admission runs delivering 35–51; against runs delivering 1122–1196 a
+90% throughput collapse would still have passed green. Fed a copy of run
+`33575823046` with `create@100`'s successes halved to 561.1 ok/s, the old
+`thresholds.json` exits **0** and the new one exits **1**.
 
-`create@100` needs an override at all only because of the 100% wall. Its new
-baseline of 98.3259% plus the 2pp default is a ceiling of **100.33%**, which
-`check_thresholds.dart` refuses as a dead gate — it was on the default before the
-fix and cannot be now.
+#### Why both write cells gate on throughput
 
-**Why `delete@100` cannot take the rule.** At a 99.5712% baseline there is only
-0.4288pp physically left below 100, and one whole percentage point does not fit in
-it. Its headroom is bounded by what remains instead: `toleranceOverridePP: 0.25`,
-ceiling **99.8212%** — 1.41 measured spreads above its worst observation, and
-0.1788pp under the maximum. That 0.18pp is the *entire* live range this cell has.
-The old 0.5pp override was only 0.45 of the spread it faced, which is why a 0.0154pp
-drift turned the workflow red; 0.25pp against a 0.18pp spread is more headroom in
-the units that matter, even though it is a smaller number.
+This predates the recalibration. Back when those two sat at 98–99.6% errors *by
+design*, the error-rate gate registered a 4× throughput **improvement** as a
+REGRESSION: run `33546159251` failed `delete@100` at 99.5712% against a 99.5558%
+ceiling, by **0.0154pp**, with no regression behind it. A metric that moves the wrong
+way when the server gets better is not measuring what the gate wants. Now that the
+same cells read ~0% errors, throughput is the only one of the two that moves at all.
 
-**The cost, stated rather than hidden.** `mixed@100` and `auth-signup@100` are much
-tighter than they were and should now catch a doubling. `create@100` and
-`delete@100` are the opposite: they sit at 98–99.6% *by design*, so no tolerance can
-ever put their ceiling more than ~1.7pp and ~0.4pp above baseline. They will catch
-near-total saturation going total, and essentially nothing else.
+#### Why `delete@100` stopped being report-only
 
-**Error rate is close to blind for those two, and this calibration is the evidence.**
-`674a59e1` improved `delete@100`'s p99 by roughly 4× and its successful throughput
-by roughly as much, and the error-rate gate registered that improvement as a
-REGRESSION. A metric that moves the wrong way when the server gets better is not
-measuring what the gate wants for these cells. That is why they no longer gate on it:
+`delete@100` was `gate: "none"` and asserted nothing. That was the right call, and it
+is now the wrong one, for a reason that was measured rather than assumed.
 
-### Why `create@100` gates on goodput and `delete@100` gates on nothing
+**Why report-only was right.** The cell used to complete *exactly 64* requests in
+every run regardless of duration — 64 in all five pre-admission runner runs, and 64
+locally at both 5s and 15s
+(`.showrunner/scratch/write-queue-write-queue/FINDINGS.md`). Steady-state successful
+deletes at concurrency 100 were **zero**. The 64 was the end-of-run *drain* of a write
+queue pinned at `_maxQueuedWrites`: once the generator stops starting iterations, the
+64 in-flight users finish their create-then-delete against an emptying queue. So its
+`ok/s` was queue depth ÷ wall time — ~12.5/s at 5s, ~4.3/s at 15s, no matter what the
+server did — and a floor on it would have gated the constant 64, not the server. Error
+rate was no better: at a 99.57% baseline only 0.18pp of range remained below the 100%
+wall. Neither metric measured the server, so the cell honestly asserted nothing.
 
-**`create@100` → `gate: "okPerSec"`.** Successful throughput is the number that
-actually moved when the server got better (~29 → ~107 ok/s locally in the
-write-queue FINDINGS), and it has a floor of 0 rather than a wall at 100, so a
-tolerance can be sized from the spread instead of from what is physically left.
-Five post-`674a59e1` runner runs — `33546159251`, `33546896150`, `33547744930` at
-`32157ef1`; `33549701544`, `33552772241` at `0404e063` — gave 51.41 / 35.35 / 43.09
-/ 43.68 / 38.51 ok/s. Worst 35.35 minus one full spread (16.07) is 19.28, rounded
-**down** to **19** (the rule for floors: down, never below 1). A run under 19 is more
-than one whole measured spread below the worst of five. The cell's
-`calibrationNote` carries the per-run arithmetic.
+**Why it is wrong now.** These four runs complete 2718 / 3000 / 2900 / 2895 successful
+deletes against totals of 2763 / 3000 / 2900 / 2895. The 64 is gone. Successes now
+**scale with the measurement window** instead of being the fixed depth of a drain —
+which is exactly the property a throughput floor needs and exactly what this cell
+lacked. So it is gated, at 488 ok/s, and the run count rises from 29 checked cells to
+30.
 
-**`delete@100` → `gate: "none"`, and its ok/s is NOT a throughput.** It completes
-*exactly 64* requests in every run — all five runner runs, and locally at both 5s
-and 15s (`.showrunner/scratch/write-queue-write-queue/FINDINGS.md`). Steady-state
-successful deletes at concurrency 100 are zero. The 64 is the end-of-run drain of a
-write queue pinned at `_maxQueuedWrites`: when the generator stops starting
-iterations, the 64 in-flight users finish their create-then-delete against an
-emptying queue. So `ok/s` here is the queue depth divided by wall time (~12.5/s at
-5s, ~4.3/s at 15s no matter what the server does), and a floor on it would gate the
-constant 64, not the server. Error rate has 0.18pp of range. Neither metric measures
-anything, so the cell asserts nothing and says so on every line. The way to make it
-assert something is to change what it measures — a delete scenario that does not
-need two consecutive admissions per iteration — not to pick a threshold.
+#### What `knownBad` still means, and who still carries it
 
-Both stay `knownBad`. Report-only is bookkeeping, not approval.
+`create@100` and `delete@100` **no longer carry it**. At 0.00% errors in three of four
+runs and 1122 / 536 ok/s of real work they do not describe a defect, and leaving the
+flag on would assert one.
 
-`create` and `delete` were clean at concurrency 50 (0.00% errors in all runs,
-laptop and runner) and collapsed at 100 — a **cliff, not a slope**, and deliberate
-backpressure doing its job rather than a crash.
+`mixed@100` and `auth-signup@100` **keep it**. Their ceilings of 13.70% and 8.43%
+tolerate roughly one request in seven and one in twelve failing at concurrency 100.
+That is baselined so the gate is usable today; it is not approval. The nearest
+*unflagged* comparison in this file is `auth-signup@25` at a 1.6729% baseline, so the
+line between flagged and not is a judgement about where a failure rate becomes one a
+user would notice, not a threshold the file derives.
 
-**That collapse is gone as of `34c05cdc`**, which reserves a write slot before the
-JWT parse and the Argon2 hash and waits up to 250ms for one before refusing.
-Runner run `33572146594` on that commit reports `create@100` at **1121.8 ok/s with
-0.00% errors**, against the 35–51 ok/s and ~98.3% errors the baselines below were
-calibrated from, and `delete@100` at 561.8 ok/s with 0.00% errors. The knee is
-**moved, not removed**: admission is 64 slots plus 64 queued waiters, so the same
-closed-loop collapse returns above ~128 offered concurrency. **Every baseline in
-this section therefore describes a server that no longer exists** and is pending
-recalibration; the design question it used to pose — whether refusing ~98% of
-writes at concurrency 100 is the right size for that queue — has been answered by
-changing the admission path rather than the queue bound.
+Both stay on error rate rather than moving to `okPerSec` like the two write cells,
+because that is where their signal is. `auth-signup@100`'s successful throughput across
+the same four runs is 167.1 / 61.0 / 122.9 / 120.7 ok/s — a 2.7× range whose
+worst-minus-one-spread is **negative** (61.03 − 106.12 = −45.09), which
+`check_thresholds.dart` would correctly refuse as a dead gate. Its error rate has a
+3.29pp spread a ceiling can stand on. (The 61.0 low is run `33574208982`, whose wall
+time for that cell was 9717ms against 5087–5187ms for the other three.)
 
-**How the server used to say so, and why it no longer does.** Those runs were
-measured against **revali_router 5.1.1**, whose `Router._authoredResponse` logged
-every response at or above `500` — including a `503` the application authored on
-purpose — through a bare `print`. Each refusal therefore wrote one line, and a
-runner run's log carried 7,954 to 16,319 of them, all the same single message:
+#### The knee is moved, NOT removed
+
+Admission is **64 slots plus 64 waiters** — `ZonaiDb._maxQueuedWrites` is passed as
+both `maxAdmitted` and `maxWaiters` to `WriteAdmission` — so a caller arriving when 64
+are already waiting is still refused immediately, and the same closed-loop collapse
+**returns above ~128 offered concurrency**. The sweep stops at 100, so nothing in this
+baseline measures the far side of the new knee. None of these numbers say the cliff is
+gone; they say it is no longer where the sweep looks.
+
+**The one run that was different**, stated rather than smoothed over. Run
+`33574154133` is the **only** one of the four in which `create@100` and `delete@100`
+recorded any errors at all — 1.6908% (104 of 6151) and 1.6287% (45 of 2763). The other
+three read *exactly* 0.0000% on both. That run is also the fastest of the four on every
+cell here (create 1196 ok/s, `list@100` 1661 ok/s, against 1123–1137 and 1216–1260 for
+the rest), which is *consistent with* a less contended runner briefly exhausting the
+64+64 rather than with a defect — but that is an inference from the throughput, not a
+measurement of the refusals, and nothing here distinguishes it from something
+intermittent. It is why both cells' `errorRate` trend fields carry 1.69 and 1.63 as
+their worst rather than 0.00. Neither cell gates on error rate, so it changes no gate
+either way.
+
+#### The server stopped logging refusals, and an empty log is not evidence
+
+Pre-admission runs were measured against **revali_router 5.1.1**, whose
+`Router._authoredResponse` logged every response at or above `500` — including a `503`
+the application authored on purpose — through a bare `print`. Each refusal wrote one
+line, and a runner run's log carried 7,954 to 16,319 of them, all the same message:
 
     Request failed: Server is busy writing; retry shortly (write queue saturated).
 
-**As of revali_router 5.1.2 that line is not written at all** on a released
-build: an authored `5xx` is logged only when `debug` is on, so a `serve --release`
-run — which is what this harness boots — now produces **zero** `Request failed`
-lines no matter how many writes are refused. Do not read an empty serve log as
-"nothing was refused". The refusal count lives in the harness's own error tallies
-and in the `503` responses the client sees; `grep -c 'Request failed'` on
-`.cache/server.log` measures nothing here any more.
+**As of revali_router 5.1.2 that line is not written at all** on a released build: an
+authored `5xx` is logged only when `debug` is on, so a `serve --release` run — which is
+what this harness boots — produces **zero** `Request failed` lines no matter how many
+writes are refused. Do not read an empty serve log as "nothing was refused". The
+refusal count lives in the harness's own error tallies and in the `503` responses the
+client sees; `grep -c 'Request failed'` on `.cache/server.log` measures nothing here
+any more.
 
 Separately, and NOT the same thing, a 5.1.1 log also carried 28 of:
 

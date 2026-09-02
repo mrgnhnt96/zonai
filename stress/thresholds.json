@@ -1,13 +1,13 @@
 {
   "_comment": "Calibration baseline for the stress gate. Each cell names its gate kind in `gate`: errorRate (the default when absent), okPerSec, or none (report-only). See README 'Thresholds'.",
   "calibratedOn": "2026-09-01",
-  "calibrationRuns": 3,
-  "calibrationNote": "MIXED PROVENANCE, on purpose, and the four cliff cells are now POST-674a59e1. The write-queue-cliff cells (create@100, delete@100, mixed@100, auth-signup@100) are RUNNER-calibrated from three stress-nightly.yml workflow_dispatch runs on a GitHub hosted ubuntu-latest runner, all three at 32157ef1: 33546159251, 33546896150, 33547744930. This SUPERSEDES the five-run calibration of 2026-08-31 (33452619048, 33464423811, 33466235356, 33466730516, 33467169270), which measured code from before 674a59e1 'shed write backpressure without formatting a stack trace'. That commit changed what every write cell measures, so the old numbers describe a server that no longer exists: latency improved sharply (create@100 p99 ~2500 -> 1489-1724ms, delete@100 p99 ~28 -> 12-26ms), the partially-saturated cells' error rates FELL a lot (mixed@100 worst 16.3934 -> 12.4837, auth-signup@100 worst 15.5589 -> 3.5994), and the two fully-saturated cells' rose slightly (create@100 97.7843 -> 98.3259, delete@100 99.0558 -> 99.5712) because cheaper rejection lets the closed-loop generator land more attempts inside the same 5s window. The ARMED gate went red on exactly that and nothing else: run 33546159251 failed delete@100 at 99.5712% against the old 99.5558% ceiling, by 0.0154pp, with no regression behind it. THREE observations is a THINNER basis than the five it replaces -- it is what exists at this sha, and it is stated rather than smoothed over. The other 26 cells keep their 2026-08-18 laptop calibration UNCHANGED: they read exactly 0.00% in all three post-fix runs, as well as in all five pre-fix runner runs and all three laptop runs, so there is again nothing to recalibrate. p99ObservedMs for these four is refreshed from the same three runs -- it had still held the 2026-08-18 laptop numbers, which is misleading trend data for cells whose latency moved this much; p99 remains NOT gated. TOLERANCES. Three cells take this file's rule -- worst observation plus one full measured spread, rounded up to the next whole percentage point: create@100 +1.0pp (spread 0.2196), mixed@100 +6.0pp (spread 5.5825), auth-signup@100 +4.0pp (spread 3.5994). mixed@100 and auth-signup@100 were +8.0pp and +16.0pp against the old, much wider pre-fix spreads; a 31.56% ceiling on a cell that now reads 0.00-3.60% asserts nothing, so both are narrowed to their new spreads. create@100 needs an override at all only because its new baseline of 98.3259 plus the 2.0pp default is 100.33, which check_thresholds.dart refuses as a dead gate. delete@100 cannot take the rule: at a 99.5712 baseline only 0.4288pp is physically left below 100 and one whole point does not fit, so its headroom is bounded by what remains -- toleranceOverridePP 0.25 for a ceiling of 99.8212%, which is 1.41 measured spreads above its worst observation (where the old 0.5pp was only 0.45 of the spread it faced, which is why it flapped) and 0.1788pp under the maximum. That 0.18pp is the entire live range this cell has. See README 'Thresholds' -- error rate is close to blind for create@100 and delete@100 and that is a design question, not a calibration one. UPDATE 2026-09-01, LATER THE SAME DAY: that design question is answered. create@100 now carries gate \"okPerSec\" and delete@100 gate \"none\"; each cell's own calibrationNote has the runs, the shas and the arithmetic. Their errorRate fields above are kept as trend data and no longer gate anything. mixed@100 and auth-signup@100 are unchanged: they are partially saturated and error rate still moves there.",
+  "calibrationRuns": 4,
+  "calibrationNote": "RUNNER-calibrated from FOUR stress-nightly.yml workflow_dispatch runs on GitHub hosted ubuntu-latest: 33574154133 and 33574208982 at b46070fc, 33575246491 and 33575823046 at f9ba3453. Those two commits build an IDENTICAL server: `git diff b46070fc f9ba3453` touches five pubspec.yaml files and nothing else, moving the revali_router constraint floor from ^5.1.1 to ^5.1.2 with the LOCKFILE UNCHANGED, so all four runs resolved the same dependency set and the four observations are one population, not two of two. THIS SUPERSEDES the three-run error-rate calibration of earlier the same day (33546159251, 33546896150, 33547744930 at 32157ef1) and the five-run okPerSec calibration for create@100 (those three plus 33549701544 and 33552772241 at 0404e063). Every one of those measured code from BEFORE 34c05cdc 'perf(db): admit writes before hashing and wait briefly for a slot before refusing', which reserves a write slot before the JWT parse and the Argon2 hash and waits up to 250ms for one before refusing. That commit changed what every write cell measures, and the old baselines did not merely lag -- they could not catch a regression. create@100's okPerSec floor of 19 stood against runs delivering 1122-1196 ok/s, so a 90% throughput collapse would still have passed green. delete@100's gate \"none\" rested on the claim that its successes are a constant 64-request end-of-run drain, and these runs refute that outright: 2718 / 3000 / 2900 / 2895 successes. THE ARITHMETIC, by this file's own rule (README 'Thresholds'): a baseline is the WORST observation and a tolerance is ONE FULL MEASURED SPREAD, rounded away from the baseline to a whole unit. ok/s = (total - errors) / wallTimeMs * 1000. create@100 -> keeps gate okPerSec, refloored. ok/s 1196.2413 (6047 ok / 5055ms) / 1136.9376 (5762 / 5068) / 1122.7066 (5691 / 5069) / 1122.2397 (5692 / 5072); worst 1122.2397, best 1196.2413, spread 74.0016. Floor = worst - one spread = 1122.2397 - 74.0016 = 1048.2382, rounded DOWN to 1048. delete@100 -> MOVED from gate \"none\" to gate okPerSec. ok/s 535.6721 (2718 ok / 5074ms) / 582.7506 (3000 / 5148) / 568.6275 (2900 / 5100) / 561.9177 (2895 / 5152); worst 535.6721, best 582.7506, spread 47.0785. Floor = 535.6721 - 47.0785 = 488.5936, rounded DOWN to 488. mixed@100 -> stays errorRate, rebaselined. err 9.3674 / 6.0708 / 9.5469 / 9.7039; worst 9.7039, best 6.0708, spread 3.6331 -> toleranceOverridePP 4.0 (the spread rounded UP to a whole point), ceiling 13.7039%. auth-signup@100 -> stays errorRate, rebaselined. err 1.1403 / 1.9835 / 4.4343 / 2.0440; worst 4.4343, best 1.1403, spread 3.2940 -> toleranceOverridePP 4.0, ceiling 8.4343%. It stays on error rate because its ok/s spans 61.0271 to 167.1486 across these four runs, a 2.7x range that no floor could stand on, while its error rate is still genuinely non-zero in all four. FOUR OBSERVATIONS is what exists at these shas. That is one more than the three the error-rate calibration this replaces had, and it is not a claim that four is enough. THE ONE RUN THAT WAS DIFFERENT, stated rather than smoothed over. Run 33574154133 -- the first of the four -- is the only one in which create@100 and delete@100 recorded any errors at all: 1.6908% (104 of 6151) and 1.6287% (45 of 2763). The other three read EXACTLY 0.0000% on both. The same run is also the fastest of the four on every cell in this group (create 1196 ok/s and list@100 1661 ok/s, against 1123-1137 and 1216-1260 for the rest), which is CONSISTENT WITH a less contended runner pushing hard enough to briefly exhaust the 64 admission slots plus 64 waiters -- but that is an inference from the throughput, not a measurement of the refusals, and nothing here distinguishes it from an intermittent defect. It is why both cells' errorRate trend fields carry 1.6908 and 1.6287 as their worst rather than 0.0000: a cell whose error rate is usually exactly zero and occasionally is not is worth saying out loud. Neither cell gates on error rate, so this changes no gate either way. Separately, run 33574208982's auth-signup@100 took 9717ms of wall time against 5087-5187ms for the other three, and that is where its 61.0271 ok/s low comes from. THE OTHER 26 CELLS keep their 2026-08-18 laptop calibration UNCHANGED: they read exactly 0.0000% in all four of these runs, as they did in every earlier calibration, so there is again nothing to recalibrate. p99ObservedMs is refreshed from these same four runs for the four cells above only; p99 remains NOT gated. knownBad. create@100 and delete@100 NO LONGER CARRY IT. At 0.00% errors in three of four runs and 1122 / 536 ok/s of real work they are not describing a defect any more, and leaving the flag on would assert one. mixed@100 and auth-signup@100 KEEP it: their ceilings of 13.7039% and 8.4343% tolerate roughly one request in seven and one in twelve failing at concurrency 100, which is bookkeeping so the gate is usable today, not approval. The nearest unflagged comparison in this file is auth-signup@25 at a 1.6729% baseline, so the line between flagged and not is a judgement rather than a threshold; it is drawn where a cell's ceiling admits a failure rate a user would notice.",
   "policy": {
-    "gatedMetric": "per cell (`gate`): errorRate by default, okPerSec for create@100, none for delete@100",
+    "gatedMetric": "per cell (`gate`): errorRate by default, okPerSec for create@100 and delete@100",
     "toleranceAbsolutePercentagePoints": 2.0,
     "p99Gated": false,
-    "p99Rationale": "NOT gated. Across the same three runs the p99 spread was 139% at the median and 2178% at the worst cell. A p99 gate at any threshold those runs support would flap, and a flapping gate gets muted. p99 is REPORTED for trend only."
+    "p99Rationale": "NOT gated. Across the same four runs the p99 spread was 47.6% at the median and 849.4% at the worst cell (create@10: 11.7ms -> 110.7ms), while the error rate moved 0.0000 percentage points at the median and 26 of 30 cells were exactly 0.00% in all four. A p99 gate at any threshold those runs support would flap, and a flapping gate gets muted. p99 is REPORTED for trend only."
   },
   "cells": {
     "auth-signin@1": {
@@ -116,22 +116,25 @@
       "p99SpreadPercent": 151.2
     },
     "auth-signup@100": {
-      "errorRatePercentBaseline": 3.5994,
+      "errorRatePercentBaseline": 4.4343,
       "errorRateObserved": [
-        2.2277,
-        3.5994,
-        0.0
+        1.1403,
+        1.9835,
+        4.4343,
+        2.044
       ],
-      "errorRateSpreadPP": 3.5994,
+      "errorRateSpreadPP": 3.294,
       "p99ObservedMs": [
-        1142.988,
-        1522.04,
-        1602.865
+        934.862,
+        5796.031,
+        1237.351,
+        1294.271
       ],
-      "p99SpreadPercent": 40.2,
+      "p99SpreadPercent": 520.0,
       "knownBad": true,
       "calibrationSource": "runner",
-      "toleranceOverridePP": 4.0
+      "toleranceOverridePP": 4.0,
+      "calibrationNote": "STAYS ERROR-RATE GATED, rebaselined against the post-34c05cdc server from four runs: 33574154133 and 33574208982 at b46070fc, 33575246491 and 33575823046 at f9ba3453. err 1.1403 / 1.9835 / 4.4343 / 2.0440; worst 4.4343, best 1.1403, spread 3.2940 -> toleranceOverridePP 4.0 (the spread rounded UP to a whole point), ceiling 8.4343%. The old baseline of 3.5994 came from three pre-admission runs. WHY NOT okPerSec: its successful throughput across these same four runs is 167.1486 / 61.0271 / 122.8622 / 120.7364 ok/s, a 2.7x range, and worst minus one spread is NEGATIVE (61.0271 - 106.1216 = -45.09) -- check_thresholds.dart would refuse that as a dead gate, correctly. The 61.0271 low is run 33574208982, whose wall time for this cell was 9717ms against 5087-5187ms for the other three. Error rate is the metric with a usable spread here. STILL knownBad: an 8.43% ceiling tolerates about one signup in twelve failing at concurrency 100. The nearest unflagged comparison in this file is auth-signup@25 at a 1.6729% baseline, so this is a judgement about where the line sits, not a threshold the file derives."
     },
     "auth-signup@25": {
       "errorRatePercentBaseline": 1.6729,
@@ -194,33 +197,32 @@
       "p99SpreadPercent": 976.0
     },
     "create@100": {
-      "errorRatePercentBaseline": 98.3259,
+      "errorRatePercentBaseline": 1.6908,
       "errorRateObserved": [
-        98.2323,
-        98.3259,
-        98.1063
+        1.6908,
+        0.0,
+        0.0,
+        0.0
       ],
-      "errorRateSpreadPP": 0.2196,
+      "errorRateSpreadPP": 1.6908,
       "p99ObservedMs": [
-        1488.877,
-        1607.312,
-        1724.014
+        361.383,
+        98.186,
+        100.992,
+        99.392
       ],
-      "p99SpreadPercent": 15.8,
-      "knownBad": true,
+      "p99SpreadPercent": 268.1,
       "calibrationSource": "runner",
-      "toleranceOverridePP": 1.0,
       "gate": "okPerSec",
       "okPerSecObserved": [
-        51.4139,
-        35.3476,
-        43.0915,
-        43.6845,
-        38.5147
+        1196.2413,
+        1136.9376,
+        1122.7066,
+        1122.2397
       ],
-      "okPerSecSpread": 16.0663,
-      "okPerSecFloor": 19,
-      "calibrationNote": "GATED ON SUCCESSFUL THROUGHPUT, not error rate. At ~98.3% errors by design (a 64-deep write queue against a 100-user zero-backoff closed loop, with a reject costing 0.14ms against 0.33ms to serve) the error-rate ceiling had 1.0pp of live range before the 100% wall and moved the WRONG way when the server improved. ok/s = (total - errors) / wallTimeMs * 1000 from five post-674a59e1 stress-nightly.yml workflow_dispatch runs on hosted ubuntu-latest: 33546159251 at 32157ef1 (260 ok / 5057ms = 51.4139), 33546896150 at 32157ef1 (179 / 5064 = 35.3476), 33547744930 at 32157ef1 (218 / 5059 = 43.0915), 33549701544 at 0404e063 (221 / 5059 = 43.6845), 33552772241 at 0404e063 (195 / 5063 = 38.5147). Worst 35.3476, best 51.4139, spread 16.0663. Floor = worst - one full spread = 35.3476 - 16.0663 = 19.2813, rounded DOWN to 19 (the rule: never below 1). A run that lands under 19 successful creates per second is a real collapse, not calibration noise: it is more than one whole measured spread below the worst of five. The errorRatePercentBaseline / errorRateObserved / toleranceOverridePP fields on this cell are trend data from the three-run error-rate calibration and are NOT consulted by the gate. Still knownBad: rejecting ~98% of writes at concurrency 100 is not thereby acceptable."
+      "okPerSecSpread": 74.0016,
+      "okPerSecFloor": 1048,
+      "calibrationNote": "GATED ON SUCCESSFUL THROUGHPUT, not error rate, and REFLOORED against the post-34c05cdc server. The gate kind is unchanged and the floor is not: it was 19, calibrated from five pre-admission runs that delivered 35-51 ok/s, and these four runs deliver 1122-1196. A floor of 19 against 1122 ok/s could not catch a 90% collapse, which is a dead gate in every sense except the one check_thresholds.dart scans for. ok/s = (total - errors) / wallTimeMs * 1000 from four stress-nightly.yml workflow_dispatch runs on hosted ubuntu-latest: 33574154133 at b46070fc (6047 ok / 5055ms = 1196.2413), 33574208982 at b46070fc (5762 / 5068 = 1136.9376), 33575246491 at f9ba3453 (5691 / 5069 = 1122.7066), 33575823046 at f9ba3453 (5692 / 5072 = 1122.2397). Worst 1122.2397, best 1196.2413, spread 74.0016. Floor = worst - one full spread = 1122.2397 - 74.0016 = 1048.2382, rounded DOWN to 1048 (the rule for floors: down, never below 1). A run under 1048 successful creates per second is more than one whole measured spread below the worst of four. 34c05cdc did not merely improve this cell, it changed its shape: the error rate went from ~98.3% to 0.00% in three of these four runs, so the errorRate fields here are now near-constant trend data and the toleranceOverridePP that used to keep them off the 100% wall is gone with the wall. They are NOT consulted by the gate. knownBad is dropped: a cell serving 1122 creates per second with no errors is not a known-bad cell, and the flag would assert a defect that the measurement does not show."
     },
     "create@25": {
       "errorRatePercentBaseline": 0.0,
@@ -283,24 +285,32 @@
       "p99SpreadPercent": 29.2
     },
     "delete@100": {
-      "errorRatePercentBaseline": 99.5712,
+      "errorRatePercentBaseline": 1.6287,
       "errorRateObserved": [
-        99.5712,
-        99.3944,
-        99.4377
+        1.6287,
+        0.0,
+        0.0,
+        0.0
       ],
-      "errorRateSpreadPP": 0.1768,
+      "errorRateSpreadPP": 1.6287,
       "p99ObservedMs": [
-        11.986,
-        25.922,
-        15.947
+        824.517,
+        93.275,
+        95.661,
+        95.32
       ],
-      "p99SpreadPercent": 116.3,
-      "knownBad": true,
+      "p99SpreadPercent": 784.0,
       "calibrationSource": "runner",
-      "toleranceOverridePP": 0.25,
-      "gate": "none",
-      "calibrationNote": "REPORT-ONLY, on purpose, because neither metric this file can gate measures anything here. Error rate sits at ~99.5% by design with 0.18pp of live range before the 100% wall, and successful throughput is not a throughput: delete@100 completes EXACTLY 64 requests in every run regardless of duration (64 in all five runner runs; locally 64 at both 5s and 15s, see .showrunner/scratch/write-queue-write-queue/FINDINGS.md). Steady-state successful deletes at concurrency 100 are zero; the 64 is the end-of-run drain of a write queue pinned at _maxQueuedWrites, landed when the generator stops starting iterations and the 64 in-flight users finish their create-then-delete against an emptying queue. So its ok/s is the queue depth divided by wall time (~12.5/s at 5s, ~4.3/s at 15s no matter what the server does) and any floor on it would gate the constant 64, not the server. Both numbers are still printed for trend. The errorRate fields on this cell are the three-run calibration kept as trend data; they gate nothing. Still knownBad. The way to make this cell assert something is to change what it measures (a delete scenario that does not need two consecutive admissions per iteration), not to pick a threshold."
+      "gate": "okPerSec",
+      "calibrationNote": "MOVED FROM gate \"none\" TO gate okPerSec, because the reason it was report-only has been measured away. WHY REPORT-ONLY WAS RIGHT BEFORE: this cell used to complete EXACTLY 64 requests in every run regardless of duration -- 64 in all five pre-admission runner runs, and 64 locally at both 5s and 15s (see .showrunner/scratch/write-queue-write-queue/FINDINGS.md). Steady-state successful deletes at concurrency 100 were zero; the 64 was the end-of-run DRAIN of a write queue pinned at _maxQueuedWrites, landed when the generator stops starting iterations and the 64 in-flight users finish their create-then-delete against an emptying queue. Its ok/s was therefore queue depth divided by wall time -- ~12.5/s at 5s and ~4.3/s at 15s no matter what the server did -- so a floor on it would have gated the constant 64 and not the server. Error rate was no better: at a 99.57% baseline only 0.18pp of range remained below the 100% wall. Neither metric measured anything, so the cell honestly asserted nothing. WHY REPORT-ONLY IS WRONG NOW: 34c05cdc admits writes before the expensive pre-work and lets a caller wait up to 250ms for a slot, and these four runs complete 2718 / 3000 / 2900 / 2895 successful deletes against totals of 2763 / 3000 / 2900 / 2895. The 64 is gone. Successes now scale with the measurement window instead of being the fixed depth of a drain, which is exactly the property a throughput floor needs and exactly what this cell lacked. ok/s = (total - errors) / wallTimeMs * 1000: 33574154133 at b46070fc (2718 ok / 5074ms = 535.6721), 33574208982 at b46070fc (3000 / 5148 = 582.7506), 33575246491 at f9ba3453 (2900 / 5100 = 568.6275), 33575823046 at f9ba3453 (2895 / 5152 = 561.9177). Worst 535.6721, best 582.7506, spread 47.0785. Floor = worst - one full spread = 535.6721 - 47.0785 = 488.5936, rounded DOWN to 488. The errorRate fields are trend data and gate nothing; the old toleranceOverridePP of 0.25, which existed only to fit under the 100% wall, is dropped with the wall. knownBad is dropped for the same reason as create@100: three of four runs read exactly 0.00% errors.",
+      "okPerSecObserved": [
+        535.6721,
+        582.7506,
+        568.6275,
+        561.9177
+      ],
+      "okPerSecSpread": 47.0785,
+      "okPerSecFloor": 488
     },
     "delete@25": {
       "errorRatePercentBaseline": 0.0,
@@ -438,22 +448,25 @@
       "p99SpreadPercent": 85.3
     },
     "mixed@100": {
-      "errorRatePercentBaseline": 12.4837,
+      "errorRatePercentBaseline": 9.7039,
       "errorRateObserved": [
-        6.9012,
-        12.4837,
-        11.8207
+        9.3674,
+        6.0708,
+        9.5469,
+        9.7039
       ],
-      "errorRateSpreadPP": 5.5825,
+      "errorRateSpreadPP": 3.6331,
       "p99ObservedMs": [
-        5272.531,
-        5252.168,
-        5286.469
+        5184.668,
+        5222.6,
+        5213.864,
+        5257.745
       ],
-      "p99SpreadPercent": 0.7,
+      "p99SpreadPercent": 1.4,
       "knownBad": true,
       "calibrationSource": "runner",
-      "toleranceOverridePP": 6.0
+      "toleranceOverridePP": 4.0,
+      "calibrationNote": "STAYS ERROR-RATE GATED, rebaselined against the post-34c05cdc server from four runs: 33574154133 and 33574208982 at b46070fc, 33575246491 and 33575823046 at f9ba3453. err 9.3674 / 6.0708 / 9.5469 / 9.7039; worst 9.7039, best 6.0708, spread 3.6331 -> toleranceOverridePP 4.0 (the spread rounded UP to a whole point), ceiling 13.7039%. The old baseline of 12.4837 with a +6.0pp override described the pre-admission server and gave a 18.48% ceiling against a cell that now reads 6.07-9.70%. It stays on error rate rather than moving to okPerSec like create@100 and delete@100 because its errors are still genuinely non-zero in all four runs -- roughly one request in ten -- so error rate is the metric that still moves here. STILL knownBad: a 13.70% ceiling tolerates about one request in seven failing at concurrency 100. That is baselined so the gate is usable today, not approval."
     },
     "mixed@25": {
       "errorRatePercentBaseline": 0.0,
