@@ -13,7 +13,7 @@ dependencies:
   jaspr: ^0.23.1
   jaspr_riverpod: ^0.4.5
   path: ^1.9.1
-  revali_router: ^5.1.1
+  revali_router: ^5.1.2
   riverpod: 3.2.1
   universal_web: ^1.1.1
   scoped_deps: ^0.2.1
