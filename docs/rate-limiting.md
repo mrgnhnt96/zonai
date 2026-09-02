@@ -270,17 +270,35 @@ The rate-limit headers are sent on the 429 only; successful responses do not car
 
 `PATCH /db/custom/:operation` additionally returns **404 Not Found** when `:operation` isn't registered in that collection's `TableRules.customOperations` (see [rules.md](rules.md#custom-operation-rules)) — checked before the rate limiter, not after.
 
-## Write backpressure (503)
+## Backpressure (503)
 
-Rate limiting is per IP and per policy. Separately from it, the server bounds how much write work it will hold at once, and that bound is global: mutating requests (create, update, delete, and the write half of sign-up) run on a single-writer queue so concurrent writes do not pile into SQLite's busy timeout. The queue holds **64** pending writes. A write that arrives when 64 are already waiting is refused before any work is done, with **`503 Service Unavailable`**, the body `{"error": "Server is busy writing; retry shortly (write queue saturated)."}`, and:
+Rate limiting is per IP and per policy. Separately from it, the server bounds how much work it will hold at once, in each direction, and those bounds are global rather than per client. Both refusals answer **`503 Service Unavailable`** with the same `Retry-After`; only the sentence in the body differs, naming which side is busy.
+
+### Writes
+
+Mutating requests (create, update, delete, and the write half of sign-up) run on a single-writer queue so concurrent writes do not pile into SQLite's busy timeout. The queue holds **64** pending writes. A write that arrives when 64 are already waiting is refused before any work is done, with **`503 Service Unavailable`**, the body `{"error": "Server is busy writing; retry shortly (write queue saturated)."}`, and:
 
 | Header        | Value                                                                 |
 | ------------- | --------------------------------------------------------------------- |
 | `Retry-After` | `1`. Whole seconds, from a single constant (`kBackpressureRetryAfterSeconds`). |
 
-The value is a **floor, not a prediction**. The queue drains in tens of milliseconds and the server does not know when a slot will free, so it does not guess; `1` is the smallest delay HTTP can express, and the point of sending it is that a client stops retrying blind. Refusing is cheap for the server, so what keeps a saturated queue saturated is the caller: `stress/README.md` measures ~98% of writes refused at concurrency 100, and records that making rejection cheaper let its backoff-free load generator land *more* attempts in the same window rather than fewer. Wait at least `Retry-After` seconds and retry; a client that had several writes refused should retry them in sequence rather than re-issuing the whole burst at once, since the burst is what filled the queue.
+Refusing is cheap for the server, so what keeps a saturated queue saturated is the caller: `stress/README.md` measures ~98% of writes refused at concurrency 100, and records that making rejection cheaper let its backoff-free load generator land *more* attempts in the same window rather than fewer. Wait at least `Retry-After` seconds and retry; a client that had several writes refused should retry them in sequence rather than re-issuing the whole burst at once, since the burst is what filled the queue.
 
-No `X-RateLimit-*` headers are sent on this 503: there is no per-client window to describe. A 429 says *you* have been asking too often; this 503 says the server is busy, whoever is asking.
+### Reads
+
+Read requests (`GET /db`, `GET /db/list`, and the count route) are **not** serialized against each other, so there is no queue on this side and nothing waits for a turn. What is bounded is how many reads may be *in flight at once*: **256**. The cap exists because concurrent reads share the rules worker's single stdin/stdout pipe, so without a ceiling their latency grows roughly linearly with the number of callers instead of anything failing — `stress/README.md` measured ~40 ms for the first concurrent read rising to ~750–820 ms for the 30th on `GET /db/list`.
+
+A read that arrives when 256 are already in flight is refused immediately, before it reaches the database, with `{"error": "Server is busy reading; retry shortly (read concurrency saturated)."}` and the same `Retry-After: 1`.
+
+**Through 0.9.0 this refusal reached the client as a `500 Internal Server Error`** with no `Retry-After` — the exception had no mapping and fell through to the default error response. A client that treats 5xx as "the server is broken, do not retry" saw a deliberate load-shedding refusal as a fault. If you match on status codes, read backpressure is now a `503` like the write kind.
+
+256 is set well above every concurrency level `stress/README.md` benchmarks (its sweeps go to 100), so ordinary load — and the stress harness itself — never trips it. Reaching it takes a client holding more than 256 read requests open simultaneously.
+
+### Both
+
+The `Retry-After` value is a **floor, not a prediction**. Neither bound tells the server when a slot will free, so it does not guess; `1` is the smallest delay HTTP can express, and the point of sending it is that a client stops retrying blind. Both directions send the same number, from one constant, so a client cannot be right about one and wrong about the other.
+
+No `X-RateLimit-*` headers are sent on either 503: there is no per-client window to describe. A 429 says *you* have been asking too often; these say the server is busy, whoever is asking.
 
 ## See also
 
