@@ -98,7 +98,10 @@ void main() {
     });
 
     test('the value is the one constant, in whole seconds', () {
-      expect(handled.headers!['retry-after'], '$kBackpressureRetryAfterSeconds');
+      expect(
+        handled.headers!['retry-after'],
+        '$kBackpressureRetryAfterSeconds',
+      );
       expect(int.tryParse(handled.headers!['retry-after']!), isNotNull);
     });
 
