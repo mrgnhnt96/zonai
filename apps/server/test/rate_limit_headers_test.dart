@@ -60,26 +60,30 @@ void main() {
         'x-ratelimit-limit': '100',
         'x-ratelimit-remaining': '0',
         // 2026-09-01T12:00:42Z as a Unix epoch in whole seconds.
-        'x-ratelimit-reset': '${t0.add(const Duration(seconds: 42)).millisecondsSinceEpoch ~/ 1000}',
+        'x-ratelimit-reset':
+            '${t0.add(const Duration(seconds: 42)).millisecondsSinceEpoch ~/ 1000}',
       });
     });
 
-    test('x-ratelimit-reset is epoch seconds in UTC whatever zone resetAt is in', () {
-      final resetUtc = t0.add(const Duration(seconds: 42));
-      final resetLocal = resetUtc.toLocal();
+    test(
+      'x-ratelimit-reset is epoch seconds in UTC whatever zone resetAt is in',
+      () {
+        final resetUtc = t0.add(const Duration(seconds: 42));
+        final resetLocal = resetUtc.toLocal();
 
-      final fromUtc = exceededAt(t0, refusedAt(resetUtc));
-      final fromLocal = exceededAt(t0, refusedAt(resetLocal));
+        final fromUtc = exceededAt(t0, refusedAt(resetUtc));
+        final fromLocal = exceededAt(t0, refusedAt(resetLocal));
 
-      expect(
-        fromLocal.asBlock.headers!['x-ratelimit-reset'],
-        fromUtc.asBlock.headers!['x-ratelimit-reset'],
-      );
-      expect(
-        fromUtc.asBlock.headers!['x-ratelimit-reset'],
-        '${resetUtc.millisecondsSinceEpoch ~/ 1000}',
-      );
-    });
+        expect(
+          fromLocal.asBlock.headers!['x-ratelimit-reset'],
+          fromUtc.asBlock.headers!['x-ratelimit-reset'],
+        );
+        expect(
+          fromUtc.asBlock.headers!['x-ratelimit-reset'],
+          '${resetUtc.millisecondsSinceEpoch ~/ 1000}',
+        );
+      },
+    );
 
     test('the body is JSON naming the collection and operation', () {
       final result = exceededAt(
@@ -204,9 +208,7 @@ void main() {
     // output: the property is "there is exactly one place that builds a
     // 429", and a second `.block(statusCode: 429` anywhere in this file is
     // the drift this exists to catch.
-    final source = File(
-      'routes/components/rate_limit.dart',
-    ).readAsStringSync();
+    final source = File('routes/components/rate_limit.dart').readAsStringSync();
 
     test('the literal 429 block appears exactly once', () {
       expect('statusCode: 429'.allMatches(source), hasLength(1));
