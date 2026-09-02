@@ -21,7 +21,7 @@ dependencies:
   # not a hand-rolled one.
   http: ^1.5.0
   revali_client: ^3.0.0
-  revali_router: ^5.1.1
+  revali_router: ^5.1.2
   web: ^1.1.0
 
 dev_dependencies:
