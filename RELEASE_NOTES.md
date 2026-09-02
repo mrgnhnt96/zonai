@@ -8,6 +8,38 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.9.1
+
+- **Every refusal now tells a client when to come back.** A rate-limited `429`
+  carries `retry-after` alongside `x-ratelimit-limit`, `x-ratelimit-remaining`
+  and `x-ratelimit-reset`, and its body is now JSON naming the collection and
+  operation that hit the limit. **If you match on the old plain-text body, key
+  on the status code instead.** Both backpressure `503`s carry `retry-after`
+  too. The one refusal that deliberately still does not is the email limiter,
+  which does not know its own window and will not invent one.
+- **A saturated read answers `503`, not `500`.** Through 0.9.0 a burst past the
+  read-concurrency limit escaped uncaught and reached the client as an
+  unclaimed `500` with no header and nothing useful in the body. It is now the
+  same shaped refusal as the write side. Reaching it takes 256 genuinely
+  concurrent reads, so most callers will never have seen it.
+- **Writes survive concurrent load instead of collapsing.** A write now
+  reserves its queue slot *before* the identity check and the password hash,
+  and waits briefly for one instead of being refused the instant the queue is
+  full. At 100 concurrent creates a release build went from ~82 successful
+  writes a second with 98% refused to ~1100–3200 a second with none refused,
+  and p99 latency fell from ~790ms to ~43ms. **The behaviour change worth
+  knowing:** a write that used to fail immediately may now wait up to 250ms and
+  then succeed. The cliff is moved rather than removed — capacity is 64 in
+  flight plus 64 waiting, so a client past ~128 concurrent writes still meets
+  backpressure, now with a `retry-after` to act on.
+- **The server stops writing a stack trace for every refusal it authored.**
+  Shedding load used to cost about six times more than serving a request,
+  because each deliberate `503` formatted and printed a full trace — so
+  saturation fed itself and a saturated sweep could put 40MB in the serve log.
+  Fixed upstream in `revali_router` 5.1.2, which this release requires. If you
+  parse the serve log, note that a released build now logs nothing for a
+  refusal: an empty log is no longer evidence that nothing was refused.
+
 ## 0.9.0
 
 - **Reclaim space on any database, not just the log.** The Maintenance card's
