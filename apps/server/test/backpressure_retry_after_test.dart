@@ -77,4 +77,61 @@ void main() {
       });
     });
   });
+
+  /// The read gate's refusal had no catcher at all until now, so it fell
+  /// through revali's `run_catchers` to `defaultResponses.internalServerError`
+  /// -- a 500 with no `retry-after`, for a refusal the server chose. These
+  /// pin it to the same answer the write side gives.
+  group('the read-backpressure 503', () {
+    final handled = catcher
+        .onReadBackpressure(const ReadBackpressureException())
+        .asHandled;
+
+    test('is a 503, not the 500 it used to fall through to', () {
+      expect(handled.statusCode, HttpStatus.serviceUnavailable);
+      expect(handled.statusCode, isNot(HttpStatus.internalServerError));
+    });
+
+    test('carries retry-after, lowercase, like the write side', () {
+      expect(handled.headers, containsPair('retry-after', isA<String>()));
+      expect(handled.headers!.keys, everyElement(equals('retry-after')));
+    });
+
+    test('the value is the one constant, in whole seconds', () {
+      expect(handled.headers!['retry-after'], '$kBackpressureRetryAfterSeconds');
+      expect(int.tryParse(handled.headers!['retry-after']!), isNotNull);
+    });
+
+    test('is never 0', () {
+      expect(
+        int.parse(handled.headers!['retry-after']!),
+        greaterThanOrEqualTo(1),
+      );
+    });
+
+    test('the body is the exception the client can act on', () {
+      expect(handled.body, {
+        'error':
+            'Server is busy reading; retry shortly (read concurrency '
+            'saturated).',
+      });
+    });
+  });
+
+  /// One constant, both directions. Two numbers would let the read side drift
+  /// from the write side silently, and a client that special-cases one of
+  /// them would be wrong about the other.
+  test('both directions of backpressure answer identically', () {
+    final write = catcher
+        .onWriteBackpressure(const WriteBackpressureException())
+        .asHandled;
+    final read = catcher
+        .onReadBackpressure(const ReadBackpressureException())
+        .asHandled;
+
+    expect(read.statusCode, write.statusCode);
+    expect(read.headers, write.headers);
+    // Only the sentence differs -- it names which side is busy.
+    expect(read.body, isNot(write.body));
+  });
 }

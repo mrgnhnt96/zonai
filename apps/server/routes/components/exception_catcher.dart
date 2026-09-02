@@ -88,10 +88,47 @@ final class Exceptions implements LifecycleComponent {
   /// frees; lowercase to match revali's `Throttle` kit and the 429 helper in
   /// `rate_limit.dart`.
   ///
-  /// Its read-side twin, `ReadBackpressureException`, has no catcher here at
-  /// all today and falls through to revali's default 500.
+  /// Its read-side twin is [onReadBackpressure], directly below, and the two
+  /// answer identically on purpose.
   ExceptionCatcherResult<WriteBackpressureException> onWriteBackpressure(
     WriteBackpressureException exception,
+  ) {
+    return .handled(
+      statusCode: 503,
+      headers: {'retry-after': '$kBackpressureRetryAfterSeconds'},
+      body: {'error': '$exception'},
+    );
+  }
+
+  /// A saturated read gate, refused before the read reached the DB.
+  ///
+  /// Read backpressure comes out of a different mechanism than the write kind
+  /// -- `ZonaiDb._readGate` is a `ConcurrencyGate` bounding how many
+  /// `read`/`list`/`count` calls are in flight at once (256), not a queue of
+  /// callers waiting for a turn -- but from outside it is the same event and
+  /// gets the same answer: **503** plus `retry-after`, so a client that hits
+  /// it has a number to wait on rather than retrying blind.
+  ///
+  /// Until this existed the exception had no catcher at all and fell through
+  /// revali's `run_catchers` to `defaultResponses.internalServerError`: a
+  /// deliberate, load-shedding refusal reaching the caller as an unclaimed
+  /// **500**, with no `retry-after` and a body saying nothing it could act
+  /// on. That is the same defect the sealed `ApiTokenException` family had
+  /// above -- a refusal that reads as a server fault is one nobody debugs as
+  /// a refusal, and a 500 is the one status a well-behaved client is right
+  /// *not* to retry.
+  ///
+  /// Deliberately [kBackpressureRetryAfterSeconds], the same constant the
+  /// write side sends, rather than a read-specific number. The write comment
+  /// argues 1s is a floor the server can honestly promise rather than a
+  /// prediction, and that argument is if anything stronger here: an admitted
+  /// read is not serialized behind anything, so the gate drains as fast as
+  /// individual reads finish (tens to hundreds of milliseconds at the
+  /// concurrency levels stress/README.md measures) and there is even less to
+  /// predict. What the header buys is the same on both sides -- a caller that
+  /// waits at all instead of re-sending into the same full gate.
+  ExceptionCatcherResult<ReadBackpressureException> onReadBackpressure(
+    ReadBackpressureException exception,
   ) {
     return .handled(
       statusCode: 503,

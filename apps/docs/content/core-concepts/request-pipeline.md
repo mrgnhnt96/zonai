@@ -66,6 +66,8 @@ Zonai executes the generated SQL against the SQLite database. This is the only s
 
 Mutating requests (create/update/delete) are **serialized** on the host so concurrent writes do not pile into SQLite's busy timeout. If too many writes are already queued (default cap 64), the server fails fast with **`503`** (`WriteBackpressureException`) instead of waiting. The 503 carries `Retry-After: 1`: a floor rather than a prediction, since the queue drains in milliseconds and one second is the smallest delay HTTP can express. Wait at least that long before retrying rather than re-sending immediately.
 
+Reads (get/list/count) are not serialized against each other, but they are **bounded**: at most 256 may be in flight at once, since concurrent reads share the rules worker's single pipe and would otherwise just grow in latency with no ceiling. A read past that is refused the same way — **`503`** (`ReadBackpressureException`) with the same `Retry-After: 1`. Through 0.9.0 this refusal reached the client as an unmapped `500`; it is a `503` now.
+
 For mutation operations, the `before*` extension hooks run here, before the SQL executes. If a `before*` hook throws, the mutation is aborted and a `400` is returned.
 
 ## Step 5: Row Filter (canView)
