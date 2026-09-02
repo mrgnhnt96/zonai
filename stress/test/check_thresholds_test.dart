@@ -184,6 +184,128 @@ void main() {
     });
   });
 
+  group('the known-bad summary', () {
+    // The line used to read "known-bad and still failing at the SAME rate"
+    // for every knownBad cell whatever its gate kind, which is a claim about
+    // error rate. It named create@100 -- an okPerSec cell whose error rate the
+    // gate never reads -- in runs where that cell measured 0.00% errors.
+    test('says something true of an errorRate cell', () async {
+      final g = await gate(
+        cells: {
+          'mixed@100': {
+            'errorRatePercentBaseline': 9.7,
+            'toleranceOverridePP': 4.0,
+            'knownBad': true,
+          },
+        },
+        run: [_result('mixed', 100, total: 1000, errors: 100, wallMs: 5000)],
+      );
+      expect(g.exitCode, 0, reason: g.stderr);
+      expect(g.stdout, contains('known-bad   mixed@100'));
+      expect(
+        g.stdout,
+        contains(
+          '  gated on error rate, and within their baselined ceiling: '
+          'mixed@100',
+        ),
+      );
+      expect(g.stdout, isNot(contains('SAME rate')));
+      expect(g.stdout, isNot(contains('successful throughput')));
+    });
+
+    test(
+      'does not claim an unchanged error rate for an okPerSec cell',
+      () async {
+        // 1000 successes over 5s = 200 ok/s, above the floor -- and 0.00%
+        // errors, which no summary line may describe as "failing at the SAME
+        // rate" as a 98% baseline.
+        final g = await gate(
+          cells: {
+            'create@100': {
+              'gate': 'okPerSec',
+              'okPerSecFloor': 19,
+              'errorRatePercentBaseline': 98.33,
+              'knownBad': true,
+            },
+          },
+          run: [_result('create', 100, total: 1000, errors: 0, wallMs: 5000)],
+        );
+        expect(g.exitCode, 0, reason: g.stderr);
+        expect(g.stdout, contains('known-bad   create@100'));
+        expect(g.stdout, contains('err 0.00% (not gated)'));
+        expect(
+          g.stdout,
+          contains(
+            '  gated on successful throughput, and at or above their floor; '
+            'their error rate is recorded, NOT gated: create@100',
+          ),
+        );
+        expect(g.stdout, isNot(contains('SAME rate')));
+        expect(g.stdout, isNot(contains('within their baselined ceiling')));
+      },
+    );
+
+    test('separates the two kinds when both are present', () async {
+      final g = await gate(
+        cells: {
+          'create@100': {
+            'gate': 'okPerSec',
+            'okPerSecFloor': 19,
+            'errorRatePercentBaseline': 98.33,
+            'knownBad': true,
+          },
+          'mixed@100': {
+            'errorRatePercentBaseline': 9.7,
+            'toleranceOverridePP': 4.0,
+            'knownBad': true,
+          },
+        },
+        run: [
+          _result('create', 100, total: 1000, errors: 0, wallMs: 5000),
+          _result('mixed', 100, total: 1000, errors: 100, wallMs: 5000),
+        ],
+      );
+      expect(g.exitCode, 0, reason: g.stderr);
+      expect(
+        g.stdout,
+        contains(
+          'known-bad -- baselined so the gate is usable today; NOT thereby '
+          'acceptable.',
+        ),
+      );
+      expect(
+        g.stdout,
+        contains(
+          '  gated on error rate, and within their baselined ceiling: '
+          'mixed@100',
+        ),
+      );
+      expect(
+        g.stdout,
+        contains(
+          '  gated on successful throughput, and at or above their floor; '
+          'their error rate is recorded, NOT gated: create@100',
+        ),
+      );
+    });
+
+    test('a report-only cell is never summarised as known-bad', () async {
+      final g = await gate(
+        cells: {
+          'delete@100': {
+            'gate': 'none',
+            'errorRatePercentBaseline': 99.5,
+            'knownBad': true,
+          },
+        },
+        run: [_result('delete', 100, total: 1000, errors: 995, wallMs: 5000)],
+      );
+      expect(g.exitCode, 0, reason: g.stderr);
+      expect(g.stdout, contains('report-only delete@100'));
+      expect(g.stdout, isNot(contains('known-bad')));
+    });
+  });
+
   test(
     'an unknown gate kind is refused rather than checked as nothing',
     () async {
@@ -207,12 +329,15 @@ void main() {
         jsonDecode(File('thresholds.json').readAsStringSync())
             as Map<String, dynamic>;
     final cells = (base['cells'] as Map<String, dynamic>).keys;
+    // 20000 successes over 5s = 4000 ok/s, clear of both committed floors
+    // (create@100 1048, delete@100 488). A total that cannot reach them would
+    // make this test fail for a reason that has nothing to do with dead gates.
     final run = [
       for (final key in cells)
         _result(
           key.split('@')[0],
           int.parse(key.split('@')[1]),
-          total: 1000,
+          total: 20000,
           errors: 0,
           wallMs: 5000,
         ),
@@ -225,10 +350,16 @@ void main() {
     expect(proc.exitCode, 0, reason: '${proc.stdout}\n${proc.stderr}');
     expect(
       proc.stdout,
-      contains('ok/s 200.0 (floor 19.0 = worst 35.3 - 1 spread 16.1)'),
+      contains('ok/s 4000.0 (floor 1048.0 = worst 1122.2 - 1 spread 74.0)'),
     );
-    expect(proc.stdout, contains('report-only delete@100'));
-    expect(proc.stdout, contains('checked ${cells.length - 1} cell(s)'));
+    expect(
+      proc.stdout,
+      contains('ok/s 4000.0 (floor 488.0 = worst 535.7 - 1 spread 47.1)'),
+    );
+    // Every committed cell is gated now: nothing is report-only since
+    // delete@100 moved off gate "none".
+    expect(proc.stdout, isNot(contains('report-only')));
+    expect(proc.stdout, contains('checked ${cells.length} cell(s)'));
   });
 }
 

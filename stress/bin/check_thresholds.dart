@@ -7,20 +7,20 @@
 //       its error rate exceeds `errorRatePercentBaseline` plus a tolerance.
 //   "okPerSec" -- the cell FAILS when its successful throughput,
 //       (total - errors) / wallTimeMs * 1000, drops below `okPerSecFloor`.
-//       This is for the two fully saturated write cells, where the error rate
-//       sits at 98-99.6% BY DESIGN and has ~1pp and ~0.2pp of live range before
-//       the 100% wall: the error-rate gate scored a 4x throughput IMPROVEMENT
-//       as a regression there (run 33546159251).
+//       This is for the two write cells at concurrency 100, where successful
+//       throughput is the number that actually moves: the error-rate gate
+//       scored a 4x throughput IMPROVEMENT as a regression on them
+//       (run 33546159251), back when they sat at 98-99.6% errors by design.
 //   "none" -- report-only. Printed, listed in the summary, NOT checked and NOT
-//       counted as checked. delete@100 lives here: it completes exactly 64
-//       requests in every run regardless of duration (the end-of-run drain of
-//       a queue pinned at `_maxQueuedWrites`), so its ok/s is the queue depth
-//       divided by wall time and no gate can stand on it.
+//       counted as checked. No cell in the committed baseline uses it today;
+//       it exists for a cell whose every available metric is measuring
+//       something other than the server, which is a state a baseline should be
+//       able to say out loud rather than paper over with a threshold.
 //
 // No kind gates p99 latency. That is a measured decision, not an oversight:
-// across the three calibration runs the p99 spread was 139% at the median and
-// 2178% at the worst cell, while the error rate moved 0.00 percentage points
-// at the median and 25 of 30 cells were exactly 0.00% in all three. A p99 gate
+// across the four calibration runs the p99 spread was 47.6% at the median and
+// 849% at the worst cell, while the error rate moved 0.00 percentage points at
+// the median and 26 of 30 cells were exactly 0.00% in all four. A p99 gate
 // would flap, and a flapping gate gets muted -- which is worse than no gate at
 // all. p99 is printed for trend, never asserted.
 //
@@ -104,7 +104,12 @@ void main(List<String> args) {
 
   final regressions = <String>[];
   final missing = <String>[];
-  final knownBad = <String>[];
+  // Known-bad is tracked PER GATE KIND. The summary below has to say something
+  // true of each, and what a known-bad pass means differs: an errorRate cell
+  // came in under a baselined failure rate, while an okPerSec cell's error
+  // rate was not consulted at all and may have moved freely in either
+  // direction. One sentence covering both can only be true of one of them.
+  final knownBadByGate = <_Gate, List<String>>{};
   final reportOnly = <String>[];
   var checked = 0;
 
@@ -192,7 +197,9 @@ void main(List<String> args) {
     // cell was NOT checked, and saying it was is how a gate goes quietly dead.
     if (!dead && gate != _Gate.none && gate != null) checked++;
     if (marker == 'report-only') reportOnly.add(key);
-    if (marker == 'known-bad') knownBad.add(key);
+    if (marker == 'known-bad') {
+      (knownBadByGate[gate!] ??= <String>[]).add(key);
+    }
     stdout.writeln(
       '${marker.padRight(11)} ${key.padRight(20)} $metric  '
       'p99 ${p99}ms (not gated)',
@@ -211,15 +218,29 @@ void main(List<String> args) {
   };
   final absent = cells.keys.where((k) => !produced.contains(k)).toList();
 
-  if (knownBad.isNotEmpty) {
+  if (knownBadByGate.isNotEmpty) {
     stdout.writeln(
-      'known-bad and still failing at the SAME rate (recorded, not gated): '
-      '${knownBad.join(', ')}',
+      'known-bad -- baselined so the gate is usable today; NOT thereby '
+      'acceptable. See README "Thresholds".',
     );
-    stdout.writeln(
-      '  These are the write-queue saturation cliff. They are baselined so the gate is '
-      'usable today; they are NOT thereby acceptable. See README "Thresholds".',
-    );
+    // Said per gate kind because the claim differs. The old single line read
+    // "still failing at the SAME rate", which is a statement about error rate
+    // and was printed for okPerSec cells too -- naming create@100 as failing
+    // at an unchanged rate in runs where it measured 0.00% errors.
+    final byErrorRate = knownBadByGate[_Gate.errorRate] ?? const <String>[];
+    if (byErrorRate.isNotEmpty) {
+      stdout.writeln(
+        '  gated on error rate, and within their baselined ceiling: '
+        '${byErrorRate.join(', ')}',
+      );
+    }
+    final byOkPerSec = knownBadByGate[_Gate.okPerSec] ?? const <String>[];
+    if (byOkPerSec.isNotEmpty) {
+      stdout.writeln(
+        '  gated on successful throughput, and at or above their floor; their '
+        'error rate is recorded, NOT gated: ${byOkPerSec.join(', ')}',
+      );
+    }
   }
   if (reportOnly.isNotEmpty) {
     stdout.writeln(
