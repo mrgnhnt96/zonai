@@ -520,7 +520,9 @@ therefore not raised either; it must be raised in the same change that adds the 
    unchanged.
 3. **Password age policy** — still out of scope, still cheap to add later.
 4. **§5.3 → checked, and the answer is conditional rather than flat.** Response bodies are
-   never logged: `Router._authoredResponse` (revali_router 5.1.1) only logs at `>= 500`,
+   never logged: `Router._authoredResponse` (revali_router 5.1.2) only logs at `>= 500`,
+   and then only when `debug` is on — a released build logs an authored `5xx` not at all,
+   which is strictly narrower than the 5.1.1 behaviour this was first checked against —
    and zonai logs no response body anywhere. The ONE surface that could carry the ticket
    into `_log` is `'$exception'` — `Exceptions._serverSide` interpolates an exception's
    `toString()` into a warn that the trace component persists. The 403 branch returns
