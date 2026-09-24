@@ -143,7 +143,13 @@ jobs:
           # root is `.` and BSD grep does not, so an exclusion anchored on `^\./`
           # matches nothing on macOS -- a self-reference inside packages/ would
           # then block the prune forever, on a runner nobody reproduces locally.
-          refs=$(grep -rl 'packages/' --include='*.html' --include='*.js' . 2>/dev/null \
+          #
+          # The pattern needs a quote, `(` or `=` (plus an optional leading `/`)
+          # right before `packages/`. That is what a relative reference into the
+          # bundle looks like (`src="packages/…"`, `import("/packages/…")`); a
+          # bare 'packages/' also matched every https://pub.dev/packages/ link
+          # in the prose and blocked the deploy on 2026-09-24.
+          refs=$(grep -rlE "[\"'(=]/?packages/" --include='*.html' --include='*.js' . 2>/dev/null \
                    | grep -Ev '^(\./)?packages/' || true)
           if [ -n "$refs" ]; then
             echo "::error::something published references packages/ -- pruning it would break the site"
