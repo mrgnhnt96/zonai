@@ -3,31 +3,33 @@ title: Rules Overview
 description: How Zonai's two-layer authorization model works.
 ---
 
-Rules are the authorization layer in Zonai. Every request passes through rules before SQL runs. A denial returns `403 Forbidden` immediately — no SQL runs, no extension fires.
+Rules are the authorization layer in Zonai. Every request passes through rules before SQL is built. A denial returns `403 Forbidden` immediately — no SQL runs, no extension fires.
 
-On the default path, rules run **in-process** inside the project-linked server binary (or JIT `project_main`). They are also compiled into `db_rules.exe` for `zonai ping`, compatibility, and `ZONAI_FORCE_WORKERS=1`. Restart `serve` (or rebuild) after editing rules so the linked entry reloads.
+**What you need to do:** for every table your API exposes, add two files under `rulesPath` (default `lib/src/rules`) — a table rules file and a row rules file. A table without them is closed to everyone but admins.
 
 <Info>
 
-**Streaming reuses read rules.** `canView` / `canList` / `canCount` also gate `/db/stream`, `/db/stream/list`, and `/db/stream/count`. There is no separate `canStream*`. See [Streaming](/operations/streaming).
+**Streaming reuses read rules.** `canView` gates `/db/stream`, and `canList` gates `/db/stream/list` and `/db/stream/count`. There is no separate `canStream*`. See [Streaming](/operations/streaming).
 
 </Info>
 
 ## Two Layers
 
-**Table rules** evaluate whether the requesting JWT may perform an operation on a table at all. They do not see individual rows — only the JWT and the operation type.
+**Table rules** decide whether the caller may perform an operation on a table at all. They see only the JWT and the operation — never a row.
 
-- Applied to: `create`, `list`, `count`, `view`, `update`, `delete`, auth operations, and the matching **stream** routes (`/db/stream*`)
-- File: `<table>_table_rules.dart`
+**Row rules** decide whether the caller may perform the operation on **this row**. They receive the JWT and a typed row: the payload for `create`, the stored row for `view`/`update`/`delete` (plus the simulated post-write row for `update`).
 
-**Row rules** run after the database returns results. They receive the JWT and the actual row data — enabling decisions like "only the owner may edit this."
+| Operation | Table check | Row check |
+| --- | --- | --- |
+| `create` (`POST /db`, `/db/many`) | `canCreate` | `canCreate(jwt, payloadRow)` |
+| `update` (`PATCH /db`, `/db/many`) | `canUpdate` | `canUpdate(jwt, before, after)` per row |
+| `delete` (`DELETE /db`, `/db/many`) | `canDelete` | `canDelete(jwt, row)` per row |
+| `view` (`GET /db`, `/db/stream`) | `canView` | `canView(jwt, row)` |
+| `list` (`GET /db/list`, `/db/stream/list`) | `canList` | `canView(jwt, row)` on **each** returned row |
+| `count` (`GET /db/count`, `/db/stream/count`) | `canList` | — |
+| custom operation | `customOperations[name]` | `customOperations[name]` |
 
-If `canView` returns `false` for any row in the result set, the entire request returns `403 Forbidden`. For mutations, `canUpdate`/`canDelete` deny with `403` if false, aborting the mutation.
-
-- Applied to: `view`, `list`, `update`, `delete`, `create` (with the data being inserted as the "row")
-- File: `<table>_row_rules.dart`
-
-Both layers must pass for a request to proceed. If the table rule denies, row rules never run.
+The table check runs first. If it denies, row rules never run.
 
 ## Return Value Semantics
 
@@ -36,13 +38,40 @@ Rule methods return `Future<bool>`:
 - `true` → allowed, pipeline continues
 - `false` → `403 Forbidden`, request stops immediately
 
-This applies to all rule methods including `canView`. If a row fails `canView`, the entire request returns `403` — not a partial or filtered response.
+This applies to `canView` on a list too: if **any** row fails, the entire request returns `403` — not a partial or filtered response. Design `canList` and row `canView` together, or filter in the query so the database only returns rows the caller may see.
 
-<Info>
+## Default Deny
 
-If no rules file exists for a table, **all operations on that table are denied by default**. This is intentional — tables start private and you explicitly open them up.
+Rules fail closed at every level:
 
-</Info>
+- **No rules file for a table** → every operation is denied, for everyone including admins. A table with table rules but no row rules is denied at the row level.
+- **A method you don't override** → only an admin token passes: `canEdit` admins for writes, any admin for reads. See [Table Rules](/rules/table-rules#available-methods) and [Row Rules](/rules/row-rules#available-methods) for the exact defaults.
+- **A custom operation name missing from `customOperations`** → denied.
+
+Unauthenticated callers (`jwt == null`) are denied unless you override a method to allow them.
+
+## Files and Registration
+
+Each file under `rulesPath` exports a `main()` that returns one rules instance:
+
+```text
+lib/src/rules/
+  task_table_rules.dart   # TaskTableRules extends TableRules<TaskTable, Task>
+  task_row_rules.dart     # TaskRowRules extends RowRules<TaskTable, Task>
+```
+
+| Table type | Table rules | Row rules |
+| --- | --- | --- |
+| Regular table | [`TableRules<S, R>`](/rules/table-rules) | [`RowRules<S, R>`](/rules/row-rules) |
+| Auth table | [`AuthTableRules<S, R>`](/rules/auth-rules) | [`AuthRowRules<S, R>`](/rules/auth-rules) |
+| View | [`ViewTableRules<S, R>`](/operations/views#writing-the-rules) | [`ViewRowRules<S, R>`](/operations/views#writing-the-rules) |
+
+- **One table rules file and one row rules file per table.** Registering a second of the same kind for a table fails when the rules load (`Table rules already registered for <table>`).
+- Framework tables (`_jwt`, `_log`, `_rate_limit`, …) ship built-in rules that deny non-admin access and cannot be overridden. The one exception is [`_photos`](/rules/photo-rules).
+
+## Compiling and Reloading
+
+Rules compile into the `db_rules` worker (and run in-process only when your project depends on `package:zonai`; see [Workers](/core-concepts/workers)). Compiling runs `dart analyze` on `rulesPath` first, and **an analysis error aborts the compile**. In dev, `zonai serve` recompiles on change and `c` forces a recompile.
 
 ## The JWT Parameter
 
@@ -69,4 +98,5 @@ See [JWT Claims](/rules/jwt-claims) for all available fields.
 - [Table Rules](/rules/table-rules) — operation-level access control
 - [Row Rules](/rules/row-rules) — per-row access control
 - [Auth Rules](/rules/auth-rules) — sign-up/sign-in/password-reset control
+- [Photo Rules](/rules/photo-rules) — the one framework table you can re-rule
 - [JWT Claims](/rules/jwt-claims) — what's in the token

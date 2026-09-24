@@ -1,9 +1,9 @@
 ---
 title: Auth Operations
-description: Customizing JWT claims, password-reset, OTP, and magic link configuration.
+description: Customizing JWT claims, token lifetime, and the password-reset, verify-email and magic link links.
 ---
 
-Auth operations customize what gets embedded in JWTs and configure auth flow details like password reset link URLs and OTP expiry times. They live in the same operations file as any other table customization.
+Auth operations customize what gets embedded in JWTs, how long they last, and where auth email links point. They live in the same operations file as any other table customization, and you only need one when a default below doesn't suit you — an auth table with no operations file already gets every default.
 
 ## Enabling Auth Operations
 
@@ -21,7 +21,15 @@ final class UserOperations extends TableOperations<UserTable, User>
 UserOperations main() => UserOperations();
 ```
 
-Without any overrides, this is a no-op. Add overrides as needed.
+Without any overrides, this is a no-op. Override only what you need:
+
+| Override | Default |
+| --- | --- |
+| `addClaims` | No extra claims |
+| `jwtExpiresIn` | `null` — use the global `AppConfig.jwtExpiresIn` (24 hours) |
+| `resetPasswordConfig` | Path `/auth/reset-password`, expires in 10 minutes |
+| `verifyEmailConfig` | Path `/auth/verify-email`, expires in 24 hours |
+| `magicLinkConfig` | Path `/auth/magic-link`, expires in 10 minutes |
 
 ## Adding JWT Claims
 
@@ -37,7 +45,7 @@ Future<Claims> addClaims({required Jwt jwt}) async {
 }
 ```
 
-The JWT parameter contains the standard claims (including `userId`). You can use `jwt.userId` to fetch the user row and include dynamic data. The returned claims are merged into the JWT payload and accessible in rules and extensions via `jwt?.claims['plan']`.
+The JWT parameter contains the standard claims (including `userId`). You can use `jwt.userId` to fetch the user row and include dynamic data. The returned claims are merged into the JWT payload and accessible in rules and extensions via `jwt?.claims['plan']` — see [JWT Claims](/rules/jwt-claims).
 
 ## Per-Table JWT Lifetime
 
@@ -48,25 +56,29 @@ Override `jwtExpiresIn` to use a different token lifetime than the global `AppCo
 Duration? get jwtExpiresIn => const Duration(hours: 8);  // shorter than global default
 ```
 
-Return `null` to fall back to the global `AppConfig.jwtExpiresIn`.
+Return `null` to fall back to the global `AppConfig.jwtExpiresIn` (24 hours unless you set it — see [App Config](/configuration/app-config)).
 
-## Password Reset Configuration
+## Auth Email Links
 
-Override `resetPasswordConfig` to customize the reset link URL and token expiry:
+Password reset, email verification and magic link emails all carry a link built the same way:
+
+```
+{AppConfig.baseUrl}{path}?s=<secret>
+```
+
+`path` may also be a full `https://…` URL, used as-is, when the page that handles the link lives on a different origin from `baseUrl`. Zonai does not redirect — the page at that URL reads `s` and posts it to `POST /auth/confirm`. See [Password Auth](/authentication/password-auth) and [Magic Link Auth](/authentication/magic-link-auth) for the exchange, and [Email](/email/built-in-templates) for the templates the links go into.
+
+### Password reset
 
 ```dart in:auth-operations
 @override
 Future<ResetPasswordConfig> resetPasswordConfig() async => ResetPasswordConfig(
-  path: '/reset-password', // appended to AppConfig.baseUrl
+  path: '/reset-password',
   expiresIn: const Duration(hours: 1),
 );
 ```
 
-The full reset link will be `{baseUrl}{path}?token={token}`.
-
-## Email Verification Configuration
-
-Override `verifyEmailConfig` to customize the verify-email link:
+### Email verification
 
 ```dart in:auth-operations
 @override
@@ -76,9 +88,7 @@ Future<VerifyEmailConfig> verifyEmailConfig() async => VerifyEmailConfig(
 );
 ```
 
-## Magic Link Configuration
-
-Override `magicLinkConfig` to customize the magic link redirect URL and expiry:
+### Magic link
 
 ```dart in:auth-operations
 @override
@@ -88,4 +98,4 @@ Future<MagicLinkConfig> magicLinkConfig() async => MagicLinkConfig(
 );
 ```
 
-After the user clicks the link, Zonai validates the token and redirects to `{baseUrl}{path}?token={jwt}`.
+OTP codes are not configured here: they are always six digits and expire after 10 minutes.

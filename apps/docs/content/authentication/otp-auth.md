@@ -31,11 +31,16 @@ POST /auth
 {
   "type": "sendOtp",
   "table": "users",
-  "email": "alice@example.com"
+  "email": "alice@example.com",
+  "metadata": { "name": "Alice" }
 }
 ```
 
-Returns `200 OK` with an empty body. Zonai generates a short numeric code, stores it temporarily, and sends it via the `otp_code` email template. If the account doesn't exist and your auth rules allow sign-up, the account may be created automatically.
+Returns `200 OK` with an empty body. Zonai generates a 6-digit code, stores only its hash, and sends it via the `otp_code` email template. The optional `metadata` object is kept with the code and becomes the new row's extra fields if this turns out to be a sign-up.
+
+There is no separate sign-up call: if no account exists for the email and `canSignUp` allows it, verifying the code creates one. `beforeSignUp` runs both here and again at verify — see [Declining a sign-up](/authentication/password-auth#declining-a-sign-up).
+
+One code per address per minute: a second request inside the minute answers `429`. Requesting a new code invalidates the previous one.
 
 **Step 2 — Verify the code:**
 
@@ -51,19 +56,15 @@ POST /auth/confirm
 }
 ```
 
-On a valid code: `canSignIn` in auth row rules is evaluated, the `onSignIn` extension fires, and the response includes the user row and an `accessToken`.
+On a valid code: `canSignIn` (or `canSignUp` for a new account) in auth row rules is evaluated, the `onSignIn` (or `onSignUp`) extension fires, and the response includes the user row and an `accessToken`.
 
 On an invalid or expired code: `401 Unauthorized`.
 
 <Info>
 
-After 3 failed verification attempts, the code is invalidated. The user must request a new code via `POST /auth`.
+A code is valid for **10 minutes** and allows **3** verification attempts; after that the user must request a new one. Both values are fixed — there is no per-table configuration for them. Sending a code goes through `POST /auth`, so it is throttled by `authenticatePolicy()` (the declared `sendOtpPolicy()` is never consulted), plus a fixed one-send-per-address-per-minute limit. See [Auth Rate Limits](/rate-limiting/auth-rate-limits).
 
 </Info>
-
-## Configuration
-
-Code length, expiry time, and rate limits are configured by overriding `otpConfig()` in your `AuthOperations` class — see [Auth Operations](/operations/auth-operations). The defaults are a 6-digit code with a 10-minute expiry.
 
 ## Using OTP Alongside Password Auth
 
@@ -76,4 +77,4 @@ final class UserTable extends AuthTable<User>
 }
 ```
 
-Users can sign in via either method. This is useful for offering passwordless sign-in as an alternative, or as a second factor.
+Users can sign in via either method — both lead to the same account and the same kind of session. OTP is an *alternative* way in, not a second factor on top of the password. OTP sign-in is also unaffected by a [forced password reset](/authentication/password-auth#forced-password-reset).

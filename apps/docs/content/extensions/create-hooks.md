@@ -13,9 +13,11 @@ Future<void> afterCreateError(Object error, Jwt? jwt);
 
 The `object` in `beforeCreate` contains the data to be inserted (not yet in the database). The `object` in `afterCreateSuccess` is the committed row, including generated fields like `id` and `createdAt`.
 
+Create hooks run for `POST /db` and `POST /db/many` (once per row), and for rows created by `mutate.create` from another hook or a cron job. **Sign-ups do not fire them.** A new account from the auth endpoints fires [`beforeSignUp` and `onSignUp`](/extensions/auth-hooks) instead.
+
 ## beforeCreate
 
-Runs after rules pass, before the INSERT executes. **Can abort the operation** by throwing — the exception message is returned as a `400` to the client:
+Runs after rules pass, before the INSERT executes. **Can abort the operation** by throwing. Nothing is inserted, and the client receives a `500` server error rather than your message:
 
 ```dart in:extension-task
 @override
@@ -26,7 +28,9 @@ Future<void> beforeCreate(Task object, Jwt? jwt) async {
 }
 ```
 
-Use for: extra validation beyond what rules check, setting default values before insert.
+Use for: extra validation beyond what rules check.
+
+Changing `object` here has no effect on what is inserted: the hook receives a copy. To fill in a column the client did not send, patch the new row with `mutate.update` from `afterCreateSuccess`. If the client should see why a create was refused, express the condition as a [row rule](/rules/row-rules) instead.
 
 ## afterCreateSuccess
 
@@ -60,26 +64,27 @@ Use for: logging unexpected insert failures, alerting on anomalies.
 ## Example
 
 ```dart
-import 'package:my_app/src/schemas/users.dart';
+import 'package:my_app/src/schemas/items.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-final class UserExtensions extends Extension<User> with AuthExtension<User> {
-  UserExtensions() : super(users);
+class ItemExtensions extends Extension<Item> {
+  ItemExtensions() : super(items);
 
   @override
-  Future<void> onSignUp(User user, Jwt? jwt) async {
-    email.send.verifyEmail(
-      EmailAddress(address: user.email),
-      table: 'users',
-    );
+  Future<void> beforeCreate(Item object, Jwt? jwt) async {
+    logger.debug('Creating an item');
+  }
 
-    // Create a companion profile row
-    mutate.create.one(
-      tableName: 'profiles',
-      object: {'user_id': user.id.value, 'displayName': user.email},
+  @override
+  Future<void> afterCreateSuccess(Item object, Jwt? jwt) async {
+    // Patch the new row. Queued, so it runs after this request's INSERT.
+    mutate.update.one(
+      table: 'items',
+      updates: [Update.column('body', .literal('Updated by extension'))],
+      where: Eq('id', object.id),
     );
   }
 }
 
-UserExtensions main() => UserExtensions();
+ItemExtensions main() => ItemExtensions();
 ```

@@ -23,15 +23,7 @@ import 'package:zonai_docs/src/navigation.dart';
 /// writing another feature's index entry is that feature's call, not this
 /// test's. Deleting an entry here (by adding the page to `llms.txt`) is always
 /// correct; adding one should need a reason.
-const preExistingGaps = <String>{
-  '/authentication/external-idp',
-  '/authentication/external-idp-supabase',
-  '/authentication/oauth',
-  '/cli/ping',
-  '/dashboard/branding',
-  '/extensions/side-effects-push',
-  '/operations/views',
-};
+const preExistingGaps = <String>{};
 
 /// URLs in `llms.txt` that are deliberately not content pages.
 const nonPageUrls = <String>{

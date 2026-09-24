@@ -36,7 +36,11 @@ BillingJob main() => BillingJob();
 
 ## How Catch-Up Works
 
-On startup, Zonai checks `_cron_jobs` for the last successful run of each `strict: false` job. If any scheduled runs were missed since then, it executes the job once before resuming the normal schedule — regardless of how many runs were missed.
+When crons start, Zonai looks up the most recent run of each `strict: false` job in `_cron_jobs`. It uses the most recent run whether that run completed or failed. If at least one scheduled tick fell between that run and now, the job runs once before resuming its normal schedule. It runs once no matter how many ticks were missed.
+
+A job with no `_cron_jobs` history has nothing to compare against, so its first run waits for its first scheduled tick. Add `runOnStartup: true` if it should run immediately the first time.
+
+Catch-up is checked only when crons start, which happens when the server starts.
 
 ## When to Use Each
 
@@ -54,13 +58,13 @@ On startup, Zonai checks `_cron_jobs` for the last successful run of each `stric
 
 ## Cautions
 
-Even if the server was down for days, a `strict: false` job only runs once on catch-up.
+Even if the server was down for days, a `strict: false` job only runs once on catch-up. A billing job that must process every missed period has to work out which periods are outstanding itself, for example from its own records or from `_cron_jobs`.
 
 ## runOnStartup vs. strict: false
 
 Both can trigger a run at startup but for different reasons:
 
-- `runOnStartup: true` — always runs once on startup, regardless of whether any runs were missed
-- `strict: false` — only runs on startup if scheduled runs were actually missed
+- `runOnStartup: true` always runs once on startup, whether or not any ticks were missed
+- `strict: false` runs on startup only if a scheduled tick was actually missed
 
-They can be combined: `strict: false, runOnStartup: true` — catches up missed runs AND runs once unconditionally at startup.
+Setting both is the same as `runOnStartup: true` alone. The job runs once on startup and the catch-up check is skipped, so it never runs twice.

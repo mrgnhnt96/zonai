@@ -3,7 +3,7 @@ title: Push Configuration
 description: PushConfig, the two credential forms and their very different rotation costs, and the batching defaults.
 ---
 
-`AppConfig.push` is nullable, exactly like `AppConfig.email`. A project without it logs a warning and enqueues nothing — a missing config is loud, never fatal.
+`AppConfig.push` is nullable, just like `AppConfig.email`. If it is not set, the server logs `Cannot send a push notification because AppConfig.push is not configured. Nothing was enqueued.`, and the `push(...)` call throws a `StateError` in your hook or cron, where the stack trace points at the code that tried to send. The server keeps running either way.
 
 `PushConfig` carries **two independent halves**, FCM and APNs. At least one is required and neither is privileged: an Android app configures FCM, an iOS-only app configures APNs and no Firebase project at all, and an app on both platforms configures both and names a [platform column](/push/device-tokens#the-platform-column) so each recipient is routed.
 
@@ -34,7 +34,7 @@ Never commit either form. `.file` points at a path your deploy places; `.inline`
 | Field | Default | What it is |
 |---|---|---|
 | `onPermanentRejection` | `clearColumn` | What happens to a row whose token a transport rejects for good. See [Dead Tokens](/push/dead-tokens). |
-| `batchSize` | 500 | Rows read, sent and committed per checkpoint. |
+| `batchSize` | 500 | Rows read, sent and committed per checkpoint. This is also the crash blast radius (see [Delivery Guarantees](/push/delivery-guarantees)). |
 | `concurrency` | 8 | Sends in flight at once within a batch. |
 | `maxAttemptsPerBatch` | 3 | Attempts a batch's *transient* failures get before the job pauses. |
 
@@ -52,7 +52,7 @@ Raising it makes a large fan-out faster and a crash more expensive, in exactly t
 
 ## Per flavor
 
-`AppConfig` is resolved per flavor, so a staging build can point at a different Firebase project, a sandbox APNs host, or at nothing — in which case staging enqueues nothing and says so in the log rather than sending production notifications from a test run.
+`AppConfig` is resolved per flavor, so a staging build can point at a different Firebase project, a sandbox APNs host, or at nothing — in which case `push(...)` throws in staging and the log says why. You never accidentally send production notifications from a test run.
 
 ## Reaching iOS without Firebase
 

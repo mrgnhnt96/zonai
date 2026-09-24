@@ -13,9 +13,11 @@ Future<void> afterUpdateError(Object error, Jwt? jwt);
 
 `beforeUpdate` receives the row **before** the update is applied. `afterUpdateSuccess` receives **two** row parameters: the state before and the state after the update.
 
+Update hooks run once per matched row, for `PATCH /db`, `PATCH /db/many`, and `mutate.update` calls from other hooks or cron jobs.
+
 ## beforeUpdate
 
-Runs after rules pass, before the UPDATE executes. **Can abort** by throwing:
+Runs after rules pass, before the UPDATE executes. **Can abort** by throwing. Nothing is updated, and the client receives a `500` server error rather than your message:
 
 ```dart in:extension-event
 @override
@@ -26,7 +28,7 @@ Future<void> beforeUpdate(Event object, Jwt? jwt) async {
 }
 ```
 
-Note: `object` here is the **current** row, not the values being applied. The update hasn't happened yet.
+Note: `object` here is the **current** row, not the values being applied. The update hasn't happened yet, and the hook cannot see the incoming values. To validate those, use a [row rule](/rules/row-rules).
 
 ## afterUpdateSuccess
 
@@ -51,6 +53,8 @@ Future<void> afterUpdateSuccess(User before, User after, Jwt? jwt) async {
 ```
 
 Use for: detecting field changes, notifying subscribers, resetting verification state.
+
+A `mutate.update` on the same table fires `afterUpdateSuccess` again. Guard it with a condition that becomes false after the first pass, as the `before.email != after.email` check does here. Otherwise the hook keeps re-triggering itself until the [chain limit](/extensions/side-effects-mutate#the-chain-limit) drops the rest.
 
 ## afterUpdateError
 

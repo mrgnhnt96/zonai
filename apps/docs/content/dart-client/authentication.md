@@ -45,12 +45,48 @@ or attach it to a request manually.
       Server revokes the old token
       Server sets X-Auth: <newAccessToken> on the response
       Interceptor replaces the stored token automatically
-7.  On logout, the token is revoked server-side; clear local storage manually
-    if needed (e.g., ZonaiStorage.none() or clearing the storage directory)
+7.  client.auth.logout() revokes the token server-side but leaves it in
+    storage; call client.auth.clearToken() as well
 ```
 
 See [Session Management](/authentication/session-management) for token expiry
 and refresh details on the server side.
+
+## Forced Password Reset
+
+When an account owes a new password, a correct password sign-in does not
+fail with bad credentials — it throws `PasswordResetRequiredException`,
+carrying a one-time ticket (see [Forced Password
+Reset](/authentication/password-auth#forced-password-reset)).
+`completePasswordReset` redeems the ticket with the password the user just
+chose, then signs in again with it:
+
+```dart in:client
+const email = 'alice@example.com';
+try {
+  await client.auth.signIn(
+    body: SignInAuthBody(table: 'users', email: email, password: 'hunter2'),
+  );
+} on PasswordResetRequiredException catch (e) {
+  // e.reason: adminForced, compromised, temporaryPassword or passwordPolicy.
+  // e.expiresIn: how long the ticket is good for (15 minutes).
+  // Ask the user for a new password here, explaining why with e.reason.
+  const newPassword = 'their-new-password';
+  await client.auth.completePasswordReset(
+    refusal: e,
+    email: email,
+    newPassword: newPassword,
+  );
+}
+```
+
+If the new password equals the old one, `completePasswordReset` throws the
+server's `422` unchanged — and the ticket is **not** used up, so pass the same
+exception again with a different password. `client.auth.admin.signIn` and
+`client.auth.admin.completePasswordReset` do the same for admin accounts.
+
+`PasswordResetRequiredException.toString()` deliberately omits the ticket, so
+it is safe to log.
 
 ## Setting a Token Manually
 

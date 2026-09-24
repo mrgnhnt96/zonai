@@ -3,61 +3,70 @@ title: Installation
 description: Prerequisites and how to install the Zonai CLI.
 ---
 
-## Prerequisites
+## Requirements
 
-**Git** is needed for version-controlling migration files (strongly recommended).
+| What | Needed for | Notes |
+| --- | --- | --- |
+| **Dart SDK** `>=3.12.0 <4.0.0` | Development and `zonai build` | The CLI runs `dart pub get` and compiles your workers with the SDK on your `PATH`. Use the Dart version the release was built with — currently **3.13.x**. See [below](#dart-sdk-version). |
+| **The `zonai` binary** | Everything | A pre-compiled executable from GitHub Releases. It is **not** on pub.dev and is not installed with `dart pub global activate`. |
+| **macOS, Linux, or Windows** | — | Builds: macOS arm64 and x64, Linux x64 and arm64, Windows x64. |
+| Git | Recommended | Migrations in `.zonai/migrations/` are meant to be committed. |
 
-**SQLite** is bundled with Zonai — no separate installation needed.
+SQLite is bundled in the binary; there is nothing to install. The production server needs none of the above except the `build/` folder that `zonai build` produces: it runs without a Dart SDK.
 
-## Installing the CLI
+## Install the CLI
 
-The `zonai` binary runs from within your project — it resolves files relative to its own location and must be placed in the project root.
+Keep one `zonai` binary in the root of each project and run it from there as `./zonai`. It reads `zonai.yaml` from the current directory, and that file pins the CLI version the project uses.
 
-Download a pre-compiled binary for your platform:
+**macOS and Linux** — one self-extracting file that picks your OS and architecture at run time:
 
-- [macOS (Apple Silicon)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-macos-arm64.zip)
-- [macOS (Intel)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-macos-x64.zip)
-- [Linux (x64)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-linux-x64.zip)
-- [Linux (arm64)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-linux-arm64.zip)
-- [Windows (x64)](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-windows-x64.zip)
+```bash
+curl -fsSL https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai -o zonai
+chmod +x zonai
+```
 
-Extract the zip and place the `zonai` (or `zonai.exe`) binary in the root of your project.
+**Windows** — download [zonai-windows-x64.zip](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai-windows-x64.zip) and extract `zonai.exe` into the project root.
 
-On macOS or Linux you can skip picking an architecture: [`zonai`](https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai) is a single self-extracting file (~35 MiB) that detects the current OS/arch and dispatches to the matching binary embedded inside it (macOS arm64, macOS x64, Linux x64, Linux arm64 — all four, picked at runtime). Download it, `chmod +x zonai`, and run it directly — no zip, no picking a platform, no other tools required. The first run decompresses and caches the binary for your platform using a small decompressor bundled inside the file itself; later runs skip straight to it. It isn't a Windows-runnable `.exe`; Windows always needs the dedicated `zonai-windows-x64.zip` above.
+To pin a version, replace `latest/download` with `download/v<version>`, for example `https://github.com/mrgnhnt96/zonai/releases/download/v0.9.1/zonai`.
 
-Verify the installation:
+<Info>
+
+**Per-architecture zips** are also attached to every release, if you would rather not use the self-extracting file: `zonai-macos-arm64.zip`, `zonai-macos-x64.zip`, `zonai-linux-x64.zip`, `zonai-linux-arm64.zip`. See [all releases](https://github.com/mrgnhnt96/zonai/releases).
+
+</Info>
+
+Check it runs:
 
 ```bash
 ./zonai version
-# Zonai: v0.1.0
+# Zonai: v0.9.1
 ```
 
-## Updating the CLI
+## Packages
 
-Once installed, use the CLI itself to update in place — it downloads and replaces the binary at its current location:
+You do not add anything by hand to get started. The first `./zonai dev` in an empty folder writes a `pubspec.yaml` that depends on [`zonai_schema`](https://pub.dev/packages/zonai_schema) (the API your tables, rules, and hooks are written against) and runs `dart pub get`. If the folder already has a `pubspec.yaml`, add it yourself:
 
 ```bash
-# Check if a newer version is available
-./zonai version check
-
-# Download and install the latest release
-./zonai version update
+dart pub add zonai_schema
 ```
 
-After updating, recompile your workers — new versions may include worker API changes:
+Apps that call the server add [`zonai_client`](https://pub.dev/packages/zonai_client) to *their* `pubspec.yaml`. See [Dart Client](/dart-client/overview).
+
+## Dart SDK version
+
+The released binary loads worker snapshots compiled by *your* Dart SDK, so the two must share a VM snapshot format. On a mismatch the CLI prints both versions: `zonai compile` and `zonai build` refuse to run, and every other command warns. Switch to the Dart version it names. Patch releases in one minor line usually match (3.13.1 and 3.13.2 do), but not always, so trust the message over the version number.
+
+## Updating
 
 ```bash
-./zonai compile
+./zonai version check    # is a newer release out?
+./zonai version update   # download it over the current binary and update `version:` in zonai.yaml
+./zonai compile          # recompile workers against the new version
 ```
 
-## System Requirements
-
-- **macOS, Linux, Windows** — all supported
-- **Disk** — worker binaries live in `.zonai/executables/`; a project-linked `build/zonai` from `zonai build` is typically tens of MB
-- No runtime dependencies on the production server — the compiled bundle is self-contained
+If `zonai.yaml` names a different version than the binary, any command offers to download the version the project asks for. Read [Upgrading Zonai](/cli/upgrading) before crossing a breaking release.
 
 ## Next Steps
 
-- [Quick Start](/getting-started/quick-start) — build and run your first project (includes a live **stream** example)
-- [Live Queries (Streaming)](/operations/streaming) — `/db/stream*` and `client.db.listen`
-- [Dart Client](/dart-client/overview) — prefer `zonai_client` over hand-rolled HTTP
+- [Quick Start](/getting-started/quick-start) — create a project and run it
+- [Project Structure](/getting-started/project-structure) — what the files are and which ones you need

@@ -31,7 +31,7 @@ Add `with OAuth` to your auth table class and override `oauthProviders`:
 
 ```dart no-analyze
 final class UserTable extends AuthTable<User>
-    with OAuth, AsAdmin {
+    with OAuth {
   // ...
 
   @override
@@ -78,6 +78,8 @@ clientId: const String.fromEnvironment(
 
 Omit `defaultValue` in a real project. A placeholder that reaches production
 turns a loud start-up failure into a sign-in that fails at Google.
+
+Then implement `onExternalAuthFirstSeen` so a first-time user gets a row — see [Provisioning new users](#provisioning-new-users). Without it, only accounts that already exist (and link by verified email) can sign in.
 
 Each provider is one of two shapes:
 
@@ -373,7 +375,8 @@ GET {baseUrl}/auth/oauth/start/{provider}?table=users&redirect_to=/dashboard
 Zonai mints a single-use `state` (plus a PKCE `code_verifier` and OIDC
 `nonce` where applicable), stores it server-side, and redirects to the
 provider's consent screen. After the user approves, the provider redirects
-back to the callback URL from the walkthroughs above with `code` and `state`:
+back to the callback URL from the walkthroughs above with `code` and `state`
+(as a `GET`, or a form `POST` for providers such as Apple that use one):
 
 ```
 GET {baseUrl}/auth/oauth/callback/{provider}?code=...&state=...
@@ -381,25 +384,93 @@ GET {baseUrl}/auth/oauth/callback/{provider}?code=...&state=...
 
 Zonai consumes the `state` (single-use — replaying it fails the same way an
 unrecognized one does), exchanges `code` for tokens, verifies identity, mints
-a session the same way password sign-in does, and redirects to `redirect_to`.
-`redirect_to` must be a relative path or your app's own origin — anything
-else is rejected before the redirect happens, so this can't be turned into an
-open redirect.
+a session the same way password sign-in does, and `302`s to `redirect_to`
+(or `/` when none was given). `redirect_to` must be a relative path or your
+app's own origin — anything else is refused with `400` before the provider is
+ever contacted, so this can't be turned into an open redirect.
+
+**The session never appears in the URL.** It is handed over in two places:
+
+- the `zonai_auth_token` cookie (`Path=/`, `SameSite=Lax`, not `HttpOnly` —
+  the dashboard's own client reads it), which a browser app on the same
+  origin reads to get its token;
+- the `X-Auth` response header on the `302`, for a programmatic client that
+  follows redirects itself.
+
+If the user cancels at the provider, the callback redirects to `redirect_to`
+with `?error=<code>` appended (for example `access_denied`) and no session.
+
+To build a sign-in screen, list what is configured — public, unauthenticated,
+and with secrets redacted:
+
+```
+GET {baseUrl}/auth/oauth/providers?table=users
+```
 
 **Native flow** (mobile / desktop apps using the provider's own SDK) — the
 app runs `google_sign_in`, Sign in with Apple, etc. itself and hands zonai
-the result directly: either the OIDC `idToken`, or the `code` +
-`codeVerifier` + `redirectUri` the app generated and exchanged against.
-Same identity resolution and session minting as the redirect flow, with no
-server-side challenge row — the app already owns `state`/PKCE. This is the
-primary path for Flutter apps built against `zonai_client`, not a fallback
-behind the web flow.
+the result directly:
 
-Both flows end in the same place every other auth method does: the
-`onExternalAuthFirstSeen` extension hook for provisioning, and the same JWT
-issuance for session minting. If your schema already handles [external IdP
-provisioning](/authentication/external-idp#provisioning-users), OAuth reuses
-that hook as-is.
+```
+POST /auth/oauth
+```
+
+```json
+{ "table": "users", "provider": "google", "idToken": "<provider id_token>" }
+```
+
+or, when the app ran the authorization-code exchange itself,
+`{ "table", "provider", "code", "codeVerifier", "redirectUri" }`. Same
+identity resolution and session minting as the redirect flow, with no
+server-side challenge row — the app already owns `state`/PKCE. The response
+is the ordinary session payload, with the token also in `X-Auth`. This is the
+primary path for Flutter apps built against `zonai_client`, not a fallback
+behind the web flow:
+
+```dart in:client
+const idToken = '<from google_sign_in>';
+await client.auth.signInWithIdToken(
+  table: 'users',
+  provider: 'google',
+  idToken: idToken,
+);
+```
+
+`client.auth.complete(...)` takes the `code` form, `client.auth.providers()`
+lists providers, and `client.auth.startUrl(...)` builds the redirect-flow URL
+to open in a browser.
+
+## Provisioning new users
+
+A first-time identity that does not [link](#account-linking) to an existing
+row is provisioned through the same `onExternalAuthFirstSeen` hook [external
+identity providers](/authentication/external-idp#provisioning-users) use.
+**Zonai does not insert the row for you** — the hook must, and the row's `id`
+must be the provider subject (`claims['sub']`), because that is how Zonai
+finds it again:
+
+```dart in:extension-user
+@override
+Future<void> onExternalAuthFirstSeen(Map<String, Object?> claims) async {
+  mutate.create.one(
+    tableName: tableName,
+    object: <String, dynamic>{
+      'id': claims['sub'] as String,
+      'email': claims['email'] as String?,
+      'name': claims['name'] as String?,
+    },
+  );
+}
+```
+
+The claims map carries `sub`, and whichever of `email`, `email_verified`,
+`name` and `picture` the provider supplied (Apple never supplies `name`).
+
+Before the hook runs, the table's `canSignUp` rule is checked for
+`AuthType.oauth`, and the first-seen rate limit applies — 30 per hour per
+table and IP by default, a `403` when exhausted. A hook that returns without
+inserting declines the user, who gets a `401`. The hook's scope and the
+limit are described under [Provisioning users](/authentication/external-idp#provisioning-users).
 
 ## Account linking
 
@@ -410,7 +481,7 @@ provider:
 | Value | Behavior |
 | --- | --- |
 | `byVerifiedEmail` (default) | Link to an existing row whose email matches — only when the provider asserts that email as verified. |
-| `never` | Never link by email. An unrecognized subject always provisions a new row (or is rejected by your provisioning gate). |
+| `never` | Never link by email. An unrecognized subject always goes to [provisioning](#provisioning-new-users). |
 | `always` | Link to an existing row whose email matches, **even when the provider does not assert it verified.** |
 
 `always` is a footgun, not a convenience, and it's documented as one on the
@@ -442,9 +513,11 @@ final class AdminTable extends AuthTable<Admin>
 }
 ```
 
-The admin-specific entry point (`startAdminOAuth`) resolves the `AsAdmin`
-table configured for OAuth the same way admin sign-in already resolves it for
-password auth — no separate admin OAuth pipeline. One deliberate difference
+The dashboard starts admin sign-in at
+`GET /auth/admin/oauth/start/{provider}`, which resolves the `AsAdmin` table
+server-side the same way `POST /auth/admin` does for passwords — the caller
+never names the table. It shares the ordinary callback URL, so there is no
+second redirect URI to register with each provider. One deliberate difference
 from the regular flow: **admin sign-in never auto-provisions.** A subject
 that doesn't already match an admin row is rejected rather than silently
 creating one — admin accounts are still created explicitly, via `zonai db
@@ -472,39 +545,25 @@ flow:
 2. The operator visits the dashboard and signs in with Google using
    `operator@example.com`.
 
-3. `startAdminOAuth` / `completeOAuth` resolve the identity: no
+3. The callback resolves the identity: no
    `(table, provider, subject)` row exists yet, but the provider asserts a
    *verified* email matching the row created in step 1, so the identity
    links to it (`OAuthLinking.byVerifiedEmail`, the default) instead of
    being rejected as unprovisioned. The operator is signed in, and every
    Google sign-in after the first reuses the linked identity directly.
 
-No password ever exists for this account — the more secure configuration
-the CLI used to be unable to serve.
+No password ever exists for this account.
 
-> **That guarantee covers the admin entry point, not the table.** A JWT minted
-> for *any* row in an `AsAdmin` table carries `isAdmin: true`, and `canSignUp`
-> defaults to allowing sign-up for every auth type the table declares. So the
-> ordinary sign-in path aimed at that same table — `/auth/oauth/start/:provider?table=…`,
-> and equally password, OTP and magic-link sign-up — will still provision a new
-> row, and that row is an admin.
+> **Sign-up is closed by default on an `AsAdmin` table.** Every row such a
+> table authenticates carries `isAdmin: true`, so the default `canSignUp` rule
+> refuses public sign-up there for every auth type — OAuth, password, OTP and
+> magic link alike — and only an existing admin passes. Admins are added with
+> `zonai db admin add` or [an invite](/authentication/admin-accounts#inviting-an-admin).
 >
-> This is not specific to OAuth; it is how `AsAdmin` has always behaved. If your
-> admin table is reachable by public sign-up, **override `canSignUp` on it**:
->
-> ```dart no-analyze
-> class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
->   const AdminRowRules(super.schema);
->
->   @override
->   Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
->     // Only an existing admin may create another one.
->     return jwt?.admin.isAdmin == true;
->   }
-> }
-> ```
->
-> The safer shape is a dedicated admin table that no public sign-in path names.
+> If you override `canSignUp` on an admin table, keep that property: anything
+> that returns `true` for an anonymous caller makes every registrant an admin.
+> The safer shape is still a dedicated admin table that no public sign-in path
+> names.
 
 ## OAuth vs. External Identity Providers
 

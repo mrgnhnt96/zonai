@@ -21,6 +21,7 @@ Flags:
 | `--password` | `-p` | Only if the admin table supports password sign-in | Initial password. Omit it entirely on an OAuth-only table — supplying one there is an error, not a silent no-op |
 | `--data` | `-d` | No | Extra JSON fields to set on the row (e.g. `--data '{"name":"Admin"}'`) |
 | `--no-verify` | | No | Create the account with `isVerified = false` (default: verified) |
+| `--force-reset` | | No | Require the account to choose its own password before it may sign in — see [Forced Password Reset](/authentication/password-auth#forced-password-reset). Off by default, because the person running `add` is usually the person who will sign in |
 
 Accounts are created with `isVerified = true` by default so they can sign in immediately.
 
@@ -215,7 +216,17 @@ If nobody has the current password — the usual reason to reach for this — re
 zonai db admin reset-password --email admin@example.com --password newSecurePassword
 ```
 
-This revokes every session the account currently holds — always, including under `--no-force-reset`. Otherwise whoever the old password leaked to keeps a working session for the rest of `jwtExpiresIn` (14 days by default) while the owner believes they have just locked them out. By default the new password is also temporary: the account must choose its own before it may sign in again.
+This revokes every session the account currently holds — always, including under `--no-force-reset`. Otherwise whoever the old password leaked to keeps a working session for the rest of `jwtExpiresIn` while the owner believes they have just locked them out.
+
+By default the new password is also **temporary**: whoever ran the command knows it, so the account must choose its own before it may sign in again (its next password sign-in answers `403 password_reset_required` with a reset ticket — the dashboard's sign-in screen handles this for you). Pass `--no-force-reset` when you are resetting your own password.
+
+To force a new password without knowing or changing the current one — the response to a leaked password — use:
+
+```
+zonai db admin require-password-reset --email admin@example.com --reason compromised
+```
+
+See [Forced Password Reset](/authentication/password-auth#forced-password-reset) for the reasons, `--clear`, and what the client receives.
 
 If the admin already knows their password and just wants to change it, use the standard password reset flow (`POST /auth/reset-password`), the admin UI, or update the row directly:
 

@@ -12,7 +12,7 @@ These flags are accepted by all Zonai commands.
 | `--help` | `-h` | Print usage information for the current command |
 | `--config <path>` | `-c` | Path to `zonai.yaml`; auto-detected if omitted |
 | `--flavor <name>` | — | Config flavor to load (affects `serve`, `compile`, `build`) |
-| `--release` | — | Production mode: disable asserts, disable file watchers in `serve` |
+| `--release` | — | Production mode: disable asserts, disable file watchers in `serve` — see [Release mode](/deployment/building-for-production#release-mode) |
 | `--quiet` | `-q` | Suppress all non-error output |
 | `--loud` | `-L` | Maximum verbosity — print all internal debug logs |
 | `--log <level>` | — | Set log level: `verbose`, `trace`, `request`, `debug`, `info`, `warning`, `error` (or their first letter: `v t r d i w e`) |
@@ -43,8 +43,8 @@ If `--config` is not provided, Zonai searches the current directory and its pare
 
 These flags are independent:
 
-- `--flavor` selects which config file is compiled into workers
-- `--release` controls compilation flags (no asserts) and `serve` behavior (no watchers)
+- `--flavor` selects which config file and which `.env.<flavor>` file are compiled into workers — see [Config Flavors](/core-concepts/config-flavors)
+- `--release` controls compilation flags (no asserts) and `serve` behavior (no watchers, no recompiling)
 
 You can combine them freely:
 ```sh

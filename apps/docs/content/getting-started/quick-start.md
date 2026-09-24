@@ -3,77 +3,39 @@ title: Quick Start
 description: Build and run your first Zonai project from scratch in under 10 minutes.
 ---
 
-This guide walks through creating a small REST API with a `users` auth table and a `tasks` table. By the end you will have a running server and be able to sign up, sign in, and create tasks.
+Build a small API with a `users` auth table and a `tasks` table, call it, open the dashboard, and build it for production. You need the Dart SDK installed. [Installation](/getting-started/installation) lists the requirements.
 
-## Step 1: Create a Dart Project
+## 1. Create the project
 
-```bash
-dart create my_app && cd my_app
-```
-
-Add `zonai_schema` — the package your tables, rules and operations are written
-against — to `pubspec.yaml`:
-
-```yaml
-dependencies:
-  zonai_schema: ^0.1.0
-```
-
-Run `dart pub get`.
-
-The `zonai` CLI is not a pub package. It is a pre-compiled binary that lives in
-your project root; if you have not already downloaded it, see
-[Installation](/getting-started/installation).
-
-## Step 2: Initialize Zonai
+Start in an empty folder, with the binary in it:
 
 ```bash
+mkdir my_app && cd my_app
+curl -fsSL https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai -o zonai
+chmod +x zonai
 ./zonai dev
 ```
 
-If no `zonai.yaml` exists, `zonai dev` prompts you through creating one
+On Windows, use `zonai.exe` from the [Windows zip](/getting-started/installation#install-the-cli) instead of `curl`.
 
-## Step 3: Define Tables
+With no `zonai.yaml` present, `zonai dev` asks `Initialize project? [Y/n]`. Answer yes, and it:
 
-Every table's ID is its own type, and they all live in one file. `zonai dev`
-creates `lib/src/ids.dart` when it initializes the project, and appends to it
-each time you scaffold a table (press `n` in `zonai dev`). Written by hand, the
-two IDs this guide needs look like this:
+- writes `pubspec.yaml` (depending on `zonai_schema`) and runs `dart pub get`
+- writes `zonai.yaml`, and adds a few runtime files to `.gitignore`
+- scaffolds `lib/src/`: `ids.dart`, an `admins` auth table with its rules and operations, `config/db_config.dart` with freshly generated JWT and password secrets, and the built-in email templates
+- compiles the workers, then opens the dev TUI and starts the server on **http://localhost:8080**
 
-```dart
-import 'package:zonai_schema/zonai_schema.dart' as z;
+The TUI stays open while you work. Its menu shows a key for each action. The ones this guide uses are **`n`** (create schema), **`m`** (generate migration), **`u`** (apply migrations), **`a`** (create admin), and **`s`** (start/stop the server). `q` quits. If you want the server without the TUI, run `./zonai serve` instead. [Project Structure](/getting-started/project-structure) explains every file.
 
-sealed class Id implements z.Id {
-  const Id(this.value);
+## 2. Add tables
 
-  factory Id.fromJson(String json) {
-    final parts = json.split('_');
+Every table has its own ID type in `lib/src/ids.dart`. Pressing **`n`** in the TUI scaffolds a schema file and adds its ID type for you. To do it by hand, add a case to the `switch` in `Id.fromJson` and a class for each new table:
 
-    if (parts.length != 2) {
-      throw ArgumentError('Invalid ID format: $json');
-    }
-
-    return switch (parts[1]) {
-      TasksId._suffix => TasksId(json),
-      UsersId._suffix => UsersId(json),
-      _ => throw ArgumentError('Invalid ID format: $json'),
-    };
-  }
-
-  @override
-  final String value;
-
-  @override
-  String toString() => value;
-
-  String toJson() => value;
-
-  @override
-  bool operator ==(Object other) => other is z.Id && other.value == value;
-
-  @override
-  int get hashCode => value.hashCode;
-}
+```dart no-analyze
+// lib/src/ids.dart — additions only. Keep the existing Id base and AdminsId.
+//   in Id.fromJson's switch:
+//     TasksId._suffix => TasksId(json),
+//     UsersId._suffix => UsersId(json),
 
 class UsersId extends Id {
   const UsersId(super.value);
@@ -92,11 +54,7 @@ class TasksId extends Id {
 }
 ```
 
-Two details matter here. `zonai_schema` is imported as `z` because its `Id` is
-an `abstract interface class` — your base class *implements* it and supplies the
-`value` field itself; it cannot `extend` it. And the base is `sealed` so
-`Id.fromJson` can switch over every ID in the project exhaustively, which is
-what lets a bare string coming off the wire be resolved back to the right type.
+(That fence is not analyzed because it is a fragment of an existing file.)
 
 Create `lib/src/schemas/users.dart`:
 
@@ -149,10 +107,7 @@ final class UserTable extends AuthTable<User> with PasswordAuth {
 final users = authTable('users', UserTable.new);
 ```
 
-`PasswordAuth` is what adds the sign-up and sign-in routes, and it requires the
-`$.password` column to hash into — an `AuthTable` mixing it in without one will
-not compile. `updatedAt` is nullable because `$.updatedAt` only fills in on
-write, so a freshly inserted row has none yet.
+`PasswordAuth` adds the sign-up and sign-in routes and requires a `$.password` column to hash into. `updatedAt` is nullable because `$.updatedAt` is only filled on update.
 
 Create `lib/src/schemas/tasks.dart`:
 
@@ -200,39 +155,46 @@ final class TaskTable extends Table<Task> {
 final tasks = table('tasks', TaskTable.new);
 ```
 
-## Step 4: Configure the App
+The first argument to each `$.column(...)` call is the database column name. That name, `is_complete` for example, is also the JSON key over HTTP.
 
-Create `lib/src/config/db_config.dart`:
+## 3. Open the tables with rules
+
+A table with no rules refuses every request, even an admin's. Each table needs a **table rules** file and a **row rules** file under `lib/src/rules/`. Each file must have a top-level `main()` that returns the rules object, because that is how Zonai loads it.
+
+For `users`, the defaults already allow password sign-up and sign-in, so the files only need to exist:
 
 ```dart
+// lib/src/rules/user_table_rules.dart
+import 'package:my_app/src/schemas/users.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-AppConfig main() {
-  return AppConfig(
-    appName: 'My App',
-    jwtSecret: const String.fromEnvironment('JWT_SECRET'),
-    passwordSecret: const String.fromEnvironment('PASSWORD_SECRET'),
-    baseUrl: 'http://localhost:8080',
-  );
+UserTableRules main() => UserTableRules();
+
+final class UserTableRules extends AuthTableRules<UserTable, User> {
+  UserTableRules() : super(users);
 }
 ```
 
-Create `.env` in the project root:
+```dart
+// lib/src/rules/user_row_rules.dart
+import 'package:my_app/src/schemas/users.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
+UserRowRules main() => UserRowRules();
+
+final class UserRowRules extends AuthRowRules<UserTable, User> {
+  UserRowRules() : super(users);
+}
 ```
-JWT_SECRET=my-dev-jwt-secret-at-least-32-chars
-PASSWORD_SECRET=my-dev-password-secret-different-value
-```
 
-Add `.env` to `.gitignore`.
-
-## Step 5: Add Access Rules
-
-Create `lib/src/rules/task_table_rules.dart`:
+For `tasks`, let any signed-in user do anything:
 
 ```dart
-import 'package:zonai_schema/zonai_schema.dart';
+// lib/src/rules/task_table_rules.dart
 import 'package:my_app/src/schemas/tasks.dart';
+import 'package:zonai_schema/zonai_schema.dart';
+
+TaskTableRules main() => TaskTableRules();
 
 final class TaskTableRules extends TableRules<TaskTable, Task> {
   TaskTableRules() : super(tasks);
@@ -250,78 +212,126 @@ final class TaskTableRules extends TableRules<TaskTable, Task> {
 }
 ```
 
-<Info>
+```dart
+// lib/src/rules/task_row_rules.dart
+import 'package:my_app/src/schemas/tasks.dart';
+import 'package:zonai_schema/zonai_schema.dart';
 
-Without a rules file, all operations on a table are denied. Auth endpoints use auth-specific rules (`canSignUp`, `canSignIn`, etc.) in addition to CRUD rules — and they still require a rules file. If you omit it, sign-up and sign-in will be denied.
+TaskRowRules main() => TaskRowRules();
 
-</Info>
+final class TaskRowRules extends RowRules<TaskTable, Task> {
+  TaskRowRules() : super(tasks);
 
-## Step 6: Start the Dev Server
-
-```bash
-zonai dev
+  @override
+  Future<bool> canView(Jwt? jwt, Task row) async => jwt != null;
+  @override
+  Future<bool> canCreate(Jwt? jwt, Task row) async => jwt != null;
+  @override
+  Future<bool> canUpdate(Jwt? jwt, Task before, Task after) async => jwt != null;
+  @override
+  Future<bool> canDelete(Jwt? jwt, Task row) async => jwt != null;
+}
 ```
 
-`zonai dev` is the recommended command during development. It starts the server and opens an interactive TUI with helpers for migrations, schema inspection, and more.
+A real app checks ownership in the row rules. See [Row Rules](/rules/row-rules).
 
-To start the server without the TUI, use `zonai serve`. This is useful when you want quieter output or want to replicate a closer-to-production environment while still in development.
+## 4. Migrate and restart
 
-## Step 7: Make API Calls
-
-**Sign up:**
+In the TUI, press **`m`** and name the migration (for example `add_users_and_tasks`), then **`u`** to apply it, then **`s`** twice to restart the server. The same thing from a second terminal:
 
 ```bash
+./zonai db migrate generate --name add_users_and_tasks
+./zonai db migrate apply
+```
+
+Migration files land in `.zonai/migrations/`. Commit them.
+
+## 5. Call the API
+
+The table name always goes in the JSON body, never in the URL.
+
+```bash
+# Sign up. Returns { "data": { "accessToken": "...", "user": { ... } } }
 curl -X POST http://localhost:8080/auth/sign-up \
   -H "Content-Type: application/json" \
   -d '{"type":"signUp","table":"users","email":"alice@example.com","password":"hunter2"}'
-```
 
-**Sign in:**
-
-```bash
+# Sign in. Same response shape
 curl -X POST http://localhost:8080/auth/sign-in \
   -H "Content-Type: application/json" \
   -d '{"type":"signIn","table":"users","email":"alice@example.com","password":"hunter2"}'
-```
 
-The response includes `data.accessToken`. Use it for subsequent requests. The table name is always in the JSON body — never in the URL path.
-
-```bash
-TOKEN="eyJ..."
+TOKEN="<data.accessToken from above>"
 
 # Create a task
 curl -X POST http://localhost:8080/db \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"table":"tasks","object":{"title":"Buy groceries","isComplete":false}}'
+  -d '{"table":"tasks","object":{"title":"Buy groceries","is_complete":false}}'
 
-# List tasks
+# List tasks (GET bodies go in ?body=)
 curl -G http://localhost:8080/db/list \
   -H "Authorization: Bearer $TOKEN" \
   --data-urlencode 'body={"table":"tasks","limit":20}'
-```
 
-## Step 8: Stream Live Updates
-
-Zonai pushes query results over a long-lived HTTP connection whenever rows change. In Dart apps use `zonai_client` → `client.db.listen` (see [Streaming](/operations/streaming)).
-
-```bash
-# Keep this curl open — a new JSON payload arrives when matching rows change
+# Live query: the connection stays open and prints a new result whenever matching rows change
 curl -N -G http://localhost:8080/db/stream/list \
   -H "Authorization: Bearer $TOKEN" \
-  --data-urlencode 'body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}'
+  --data-urlencode 'body={"table":"tasks","where":{"is_complete":{"eq":false}},"limit":20}'
 ```
 
-<Info>
+From Dart or Flutter, use [`zonai_client`](/dart-client/overview) (`dart pub add zonai_client` in the *app*, not the server project). It stores the token after sign-in and sends it on every call:
 
-Every table gets `/db/stream`, `/db/stream/list`, and `/db/stream/count` automatically.
+```dart
+import 'package:zonai_client/zonai_client.dart';
 
-</Info>
+Future<void> main() async {
+  final client = ZonaiClient(baseUrl: Uri.parse('http://localhost:8080'));
+
+  await client.auth.signIn(
+    body: SignInAuthBody(table: 'users', email: 'alice@example.com', password: 'hunter2'),
+  );
+
+  await client.db.create(
+    body: CreateBody(table: 'tasks', object: {'title': 'Buy groceries', 'is_complete': false}),
+    fromJson: (row) => row,
+  );
+
+  client.db.listen
+      .list(body: StreamListBody(table: 'tasks'), fromJson: (row) => row)
+      .listen((rows) => print('${rows.length} tasks'));
+}
+```
+
+For typed per-table methods such as `client.tasks.list()`, generate them with [`zonai gen client`](/dart-client/typed-client).
+
+## 6. Open the dashboard
+
+Every server serves an admin UI at **http://localhost:8080/_**. Signing in needs an account in the scaffolded `admins` table. Press **`a`** in the TUI, or run:
+
+```bash
+./zonai db admin add --email you@example.com --password 'a-long-password'
+```
+
+See [Dashboard Overview](/dashboard/overview) before exposing `/_` publicly.
+
+## 7. Build for production
+
+```bash
+./zonai build --release
+```
+
+This writes `build/`, which holds the server binary, compiled workers, migrations, email templates, and `zonai.yaml`. Copy the folder to the server and run it from inside:
+
+```bash
+cd build && ./zonai serve --release --host 0.0.0.0 --port 8080
+```
+
+`--release` turns Dart asserts off in the build. At serve time it disables file watching and recompiling. The server applies any pending migrations shipped in `build/` when it opens the database, but it never generates new ones. By default the server listens only on loopback (`127.0.0.1`), so pass `--host` or set `host:` in `zonai.yaml` to accept outside traffic. The scaffold compiles its secrets into the binary. To keep them out, set `JWT_SECRET` and `PASSWORD_SECRET` in the server's environment, and those values take precedence. Next, read [Building for Production](/deployment/building-for-production) and [Running the Server](/deployment/running-the-server).
 
 ## Next Steps
 
-- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` and stream endpoints
-- [Project Structure](/getting-started/project-structure) — understand what each directory does
-- [Schemas](/schemas/defining-tables) — all column types and modifiers
-- [Rules](/rules/overview) — fine-grained authorization
-- [Dart Client](/dart-client/overview) — typed client including `db.listen`
+- [Project Structure](/getting-started/project-structure) — what each file does and what to commit
+- [Schemas](/schemas/defining-tables) — every column type and modifier
+- [Rules](/rules/overview) — ownership checks and admin-only access
+- [Live Queries](/operations/streaming) — `/db/stream*` and `client.db.listen`

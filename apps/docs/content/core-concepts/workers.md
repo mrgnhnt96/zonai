@@ -5,16 +5,16 @@ description: What workers are, why they exist, and how Zonai uses them.
 
 A **worker** is a compiled Dart native executable that handles one category of logic for the Zonai server. Workers talk to the host over IPC (framed MessagePack on stdin/stdout, with an isolate/SendPort option for ops/rules).
 
-**Ops and rules are different on the default path.** `zonai serve` and `zonai build` produce a **project-linked** binary (or JIT `project_main` in development) that calls your operations and authorization code **in-process** — no IPC hop on create/list/**stream**. Worker `.exe` files for ops/rules are still compiled for `zonai ping`, compatibility, and the `ZONAI_FORCE_WORKERS=1` escape hatch.
+**Ops and rules can also run in-process.** When your project depends on `package:zonai` itself, `zonai serve` (run from source) and `zonai build` produce a **project-linked** binary that calls your operations and authorization code in-process — no IPC hop on create/list/stream. A project scaffolded by `zonai dev` depends only on `zonai_schema`, so with the installed CLI its ops and rules run as workers like everything else. The two paths behave identically; `ZONAI_FORCE_WORKERS=1` forces the worker path even when linking is possible.
 
-Config, extensions, rate limits, and crons still run as worker processes.
+Config, extensions, rate limits, and crons always run as worker processes.
 
 ## Worker Types
 
-| Worker | Source Directory | Responsibility | Default runtime |
+| Worker | Source Directory | Responsibility | Runtime |
 |--------|------------------|----------------|-----------------|
-| `rules` | `lib/src/rules/` | Authorization for each operation | In-process (project binary) |
-| `operations` | `lib/src/operations/` | SQL generation from HTTP payloads | In-process (project binary) |
+| `rules` | `lib/src/rules/` | Authorization for each operation | Worker, or in-process when linked |
+| `operations` | `lib/src/operations/` | SQL generation from HTTP payloads | Worker, or in-process when linked |
 | `extensions` | `lib/src/extensions/` | Lifecycle hooks around mutations and auth | Worker IPC |
 | `rate_limit` | `lib/src/rate_limit/` | Per-IP request quotas | Worker IPC |
 | `crons` | `lib/src/crons/` | Scheduled background jobs | Worker IPC |
@@ -26,13 +26,13 @@ Config, extensions, rate limits, and crons still run as worker processes.
 
 **Isolation.** A panic in extension or cron code does not crash the HTTP server. Worker failures are caught and reported without taking down the process.
 
-**Correctness.** Configuration errors (missing SMTP credentials, wrong JWT secret) are detected at compile time.
+**Correctness.** Type errors in your config, rules, hooks and jobs fail `dart compile` rather than a request; invalid config (an empty or weak secret, an unusable push setup) stops the server at startup instead of surfacing on the first request that needs it.
 
-**Speed (ops/rules).** Linking ops and rules into the project binary avoids per-request IPC for SQL generation and authorization — the hot path for CRUD and live streams.
+**Speed (ops/rules).** When linking is possible, running ops and rules in-process avoids per-request IPC for SQL generation and authorization — the hot path for CRUD and live streams.
 
 ## The Compile Step
 
-Workers compile from `lib/src/` into `.zonai/executables/`. `zonai build` also compiles the project-linked `build/zonai`.
+Workers compile from `lib/src/` into `.zonai/executables/` (`build/.zonai/executables/` for `zonai build`). Every worker is compiled with the defines from the selected `.env` file — see [Config Flavors](/core-concepts/config-flavors).
 
 ```bash
 # Compile all workers (and regenerate project_main)
@@ -42,7 +42,7 @@ zonai compile
 zonai build --flavor prod --release
 ```
 
-Any change to rules, operations, extensions, config, rate_limit, or crons requires recompilation. For **in-process** ops/rules, restart `zonai serve` (or rebuild) so the linked entry reloads.
+Any change to rules, operations, extensions, config, rate_limit, or crons requires recompilation. When ops/rules are linked in-process, restart `zonai serve` (or rebuild) so the linked entry reloads.
 
 ## Hot-Reload in Development
 
@@ -50,13 +50,13 @@ Any change to rules, operations, extensions, config, rate_limit, or crons requir
 
 Press `c` to force a recompile of all workers (and regenerate `project_main`) at any time.
 
-Ops/rules source changes update generated entry files, but the running process still has the old linked code until you restart serve.
+When ops/rules are linked in-process, source changes update the generated entry files, but the running process keeps the old linked code until you restart serve.
 
 ## Worker Health
 
 On startup, Zonai starts the worker processes it still uses and can ping them for readiness. Press `p` in dev mode to manually ping workers.
 
-With `ZONAI_FORCE_WORKERS=1`, ops and rules also run as Mailman workers (same as older Zonai versions).
+With `ZONAI_FORCE_WORKERS=1`, ops and rules run as workers even when the binary is project-linked.
 
 ## IPC transport
 

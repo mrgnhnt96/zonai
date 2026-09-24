@@ -13,7 +13,7 @@ Every table gets three streaming endpoints next to ordinary get / list / count. 
 | -------------- | ------ | ----------------- | -------------- | ------------------------- |
 | `stream-one`   | `GET`  | `/db/stream`      | `?body=<JSON>` | `canView` / `getPolicy`   |
 | `stream-list`  | `GET`  | `/db/stream/list` | `?body=<JSON>` | `canList` / `limitPolicy` |
-| `stream-count` | `GET`  | `/db/stream/count`| `?body=<JSON>` | `canCount` / `countPolicy`|
+| `stream-count` | `GET`  | `/db/stream/count`| `?body=<JSON>` | `canList` / `countPolicy` |
 
 Payload types live in `zonai_schema`: `StreamBody`, `StreamListBody`, `StreamCountBody`.
 
@@ -85,8 +85,9 @@ Include `Authorization: Bearer <jwt>` when rules require it. Keep the connection
 There are no separate `canStream*` rule methods. Streaming reuses:
 
 - `canView` → `/db/stream`
-- `canList` → `/db/stream/list`
-- `canCount` → `/db/stream/count`
+- `canList` → `/db/stream/list` and `/db/stream/count` (count has no rule method of its own)
+
+Row-level `canView` also runs on the rows behind each `stream-one` and `stream-list` emission.
 
 Rate limits reuse `getPolicy`, `limitPolicy`, and `countPolicy` respectively.
 

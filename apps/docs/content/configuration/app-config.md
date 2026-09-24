@@ -3,9 +3,11 @@ title: App Config
 description: The AppConfig class — secrets, SMTP, JWT settings, and more.
 ---
 
-`AppConfig` holds all runtime configuration for the Zonai server. Create it in `lib/src/config/db_config.dart` (or a flavor-specific variant). The config worker compiles this file — any change requires recompiling workers.
+`AppConfig` holds all runtime configuration for the Zonai server. Create it in `lib/src/config/db_config.dart` as a top-level `AppConfig main()` function. The config worker compiles this file — any change requires recompiling workers (`zonai serve` does it for you on save).
 
-See [Config Flavors](/core-concepts/config-flavors) for how to use different configs per environment.
+With more than one file under `lib/src/config/`, `--flavor` picks which one is used — see [Config Flavors](/core-concepts/config-flavors).
+
+At startup the config is validated, and the server **refuses to start** on a missing required field or a weak secret. `JWT_SECRET`, `PASSWORD_SECRET`, `PREVIOUS_JWT_SECRETS` and `PREVIOUS_PASSWORD_SECRETS` in the process environment override the compiled-in values before validation runs — see [Environment Variables](/configuration/environment-variables#secret-requirements).
 
 ## Required Fields
 

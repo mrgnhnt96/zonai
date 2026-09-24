@@ -36,8 +36,10 @@ PostRateLimits main() => PostRateLimits();
 RateLimitPolicy(maxRequests: N, window: Duration(...))
 ```
 
-- `maxRequests` — number of requests allowed per IP within the window
-- `window` — the sliding time window
+- `maxRequests` — number of requests allowed per IP, per table and operation, within one window
+- `window` — the length of one **fixed** window. It starts at the first counted request and resets `window` later; refused requests do not extend it. See [How the Window Works](/rate-limiting/overview#how-the-window-works).
+
+`RateLimitPolicy.defaultPolicy` is the built-in 100 requests per minute. Return it (`.defaultPolicy`) to keep the default for one case while overriding others.
 
 ## Per-Operation Methods
 
@@ -45,15 +47,19 @@ All methods are `async` and return `Future<RateLimitPolicy?>`. Paths use a JSON 
 
 | Method | Endpoints |
 |--------|----------|
-| `createPolicy()` | `POST /db` |
-| `updatePolicy()` | `PATCH /db` |
-| `deletePolicy()` | `DELETE /db` |
+| `createPolicy()` | `POST /db`, `POST /db/many` |
+| `updatePolicy()` | `PATCH /db`, `PATCH /db/many` |
+| `deletePolicy()` | `DELETE /db`, `DELETE /db/many` |
 | `getPolicy()` | `GET /db`, `GET /db/stream` |
 | `limitPolicy()` | `GET /db/list`, `GET /db/stream/list` |
 | `countPolicy()` | `GET /db/count`, `GET /db/stream/count` |
 | `customPolicy(operation)` | `PATCH /db/custom/:operation`, `PATCH /db/custom/:operation/many` |
 
 Streaming shares the read policies above. Details: [Streaming](/operations/streaming).
+
+A `/many` request counts as **one** request against the policy, however many rows it carries.
+
+Methods you do not override keep the default: `PostRateLimits` above overrides only `createPolicy`, `getPolicy` and `limitPolicy`, so `count`, `update`, `delete` and custom operations on `posts` stay at 100 per minute.
 
 `customPolicy` buckets separately per operation name (`fill` and `reserve` on the same table get independent counters), but only for a name that's actually registered in that table's rules — an unrecognized `:operation` is rejected with `404` before it ever reaches the rate limiter:
 

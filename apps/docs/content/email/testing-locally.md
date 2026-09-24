@@ -3,27 +3,32 @@ title: Testing Email Locally
 description: How to test email templates and delivery in development.
 ---
 
-## Previewing in the Browser
+## Previewing in the browser
 
-`zonai dev` includes a built-in email previewer. Open the **Email** tab in the TUI to browse all email templates and open them in your browser — no SMTP setup required.
+`zonai dev` has two email actions in its menu, and neither needs SMTP:
 
-## Using a Local SMTP Catcher
+- **Preview email** renders a template with variable values you type and opens it in your browser. Nothing is sent.
+- **Create email template** creates a new template file, the same as `zonai db email template create <name>`.
 
-[Mailhog](https://github.com/mailhog/MailHog) captures outgoing email in development and shows it in a web UI — no real delivery happens.
+A third action, **Send test email**, sends a rendered template to a real inbox through your configured SMTP server.
 
-**Install with Docker:**
+## Using a local SMTP catcher
+
+[Mailhog](https://github.com/mailhog/MailHog) accepts outgoing email in development and shows it in a web UI. Nothing is actually delivered.
+
+**Run with Docker:**
 
 ```sh
 docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog
 ```
 
-**Install on macOS:**
+**Or on macOS:**
 
 ```sh
 brew install mailhog && mailhog
 ```
 
-Then configure `EmailConfig` in your dev flavor:
+Then point `EmailConfig` at it in your dev flavor:
 
 ```dart in:app-config
 // db_config.dev.dart
@@ -36,32 +41,34 @@ email: EmailConfig(
 ),
 ```
 
-All emails sent while the server is running in dev mode appear at `http://localhost:8025`.
+Every email the server sends then appears at `http://localhost:8025`. Also set `baseUrl` to the URL your browser uses, so the links in auth emails open your local server.
 
-## Sending a Test Email
+## Sending a test email
 
 ```sh
 zonai db email test --to your@email.com
 ```
 
-This sends the default `verify_email` template and prints whether delivery succeeded. Use `--template` to test a specific template:
+This sends the `verify_email` template with placeholder values for every built-in variable. Use `--template` to choose another template:
 
 ```sh
 zonai db email test --to your@email.com --template order_confirmation
 ```
 
-Placeholder values are used for template variables — check the rendered result in Mailhog.
+The command reports success as soon as the send returns, including when `AppConfig.email` is not set. In that case the send was skipped and the log shows `Cannot send email because email configuration is missing`. See [SMTP Setup](/email/smtp-setup#without-smtp-configured).
 
-## Template Variables
+## Template variables
 
-If a Mustache variable is missing from the data map, it renders as an empty string without error. Verify all expected variables appear in the Mailhog preview before deploying.
+A variable missing from the data renders as an empty string, with no error. Check that every expected value appears in the preview or in Mailhog before you deploy.
 
-## Before Deploying
+## When nothing arrives
 
-Test with your real SMTP provider using a staging recipient:
+- **Look in the server log.** Auth emails and `email.send(...)` are fire-and-forget, so failures only show up there: a missing config, a missing template file (`Email template not found: <path>`), or an SMTP error.
+- **Check that the template file exists** at the path the log names. It is resolved against `emailTemplatesPath`.
+- **Timeouts usually mean a port/TLS mismatch.** See [Port and TLS must agree](/email/smtp-setup#port-and-tls-must-agree).
 
-Test with your real SMTP provider using a staging recipient:
+## Before deploying
 
-1. Send a test email with `zonai db email test`
-2. Confirm delivery in your inbox
-3. Check that all links work and HTML renders correctly in multiple email clients
+1. Send a test through your real SMTP provider with `zonai db email test`, to an inbox you control.
+2. Check that the links work, and that the HTML renders correctly in several email clients.
+3. Work through [Production Delivery](/email/production) to verify your domain's DNS and deliverability.

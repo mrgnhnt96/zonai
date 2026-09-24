@@ -69,6 +69,20 @@ Each column maps a Dart type to a SQLite type:
 
 A column is nullable when the accessor you hand the builder returns a nullable type — there is no `isNullable` argument. `$.text('bio', (s) => s.bio)` is a `TextColumn` when `bio` is a `String` and a `ColumnType<String?>` when it is a `String?`. `$.updatedAt(...)` is always nullable, since a freshly inserted row has not been updated yet.
 
+## Server-Generated Columns
+
+Use `$.serverGenerated(...)` for a text column whose value the server always sets — a generated API key, a computed checksum — in an [`insert` override](/operations/overview#filling-in-a-server-generated-value):
+
+```dart no-analyze
+apiKey = $.serverGenerated('api_key', (s) => s.apiKey),
+```
+
+`no-analyze`: a single initializer, shown out of its table class.
+
+It is a `TEXT` column that stays non-nullable, but when a create payload omits it, Zonai fills in a blank placeholder. That matters because rules run **before** operations, against a row built from the raw request: with a plain non-nullable `$.text` column the client never sends, building that row fails and the request errors before your `insert` override runs.
+
+Unlike `$.password`, the value is returned in responses, so use it for values callers may see once set — not secrets. The admin dashboard shows it read-only.
+
 ## Indexes
 
 Indexes are defined in a callback passed as the third argument to `table()`. Use `index()` for a regular index and `uniqueIndex()` for a unique index. Both take a name and then call `.on()` with the column(s) to index:

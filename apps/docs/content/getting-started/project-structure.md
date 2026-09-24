@@ -3,85 +3,104 @@ title: Project Structure
 description: What every directory and file in a Zonai project does.
 ---
 
-A typical Zonai project looks like this:
+This is a project right after `./zonai dev` initializes it, with one table added:
 
 ```
 my_app/
-├── zonai.yaml                  # Project config — paths, server settings, build targets
-├── pubspec.yaml
-├── .env                        # Local secrets (gitignored)
-├── .env.prod                   # Production secrets (gitignored)
-├── lib/
-│   └── src/
-│       ├── schemas/            # Table definitions (one file per table)
-│       ├── config/             # AppConfig — secrets, SMTP, JWT settings
-│       ├── rules/              # Authorization rules
-│       ├── operations/         # Custom SQL generation (optional)
-│       ├── extensions/         # Lifecycle hooks
-│       ├── rate_limit/         # Per-table throttling
-│       ├── crons/              # Scheduled background jobs
-│       └── email_templates/    # Mustache HTML email templates
+├── zonai                       # The CLI binary (zonai.exe on Windows)
+├── zonai.yaml                  # Required. Its presence marks the project root
+├── pubspec.yaml                # Required. Depends on zonai_schema
+├── .env                        # Optional. Compile-time secrets (gitignore it)
+├── lib/src/
+│   ├── ids.dart                # One ID type per table
+│   ├── schemas/                # Required. Table definitions
+│   │   ├── admins.dart         #   scaffolded admin auth table
+│   │   └── tasks.dart
+│   ├── config/db_config.dart   # Required. AppConfig: secrets, baseUrl, SMTP
+│   ├── rules/                  # Required per table. Authorization
+│   ├── operations/             # Optional. Custom SQL
+│   ├── extensions/             # Optional. Lifecycle hooks
+│   ├── rate_limit/             # Optional. Per-table throttling
+│   ├── crons/                  # Optional. Scheduled jobs
+│   └── email_templates/        # Mustache HTML templates (built-ins scaffolded)
 ├── .zonai/
-│   ├── migrations/             # Generated SQL migration files (commit these)
-│   ├── executables/            # Compiled worker binaries (gitignored)
-│   └── data/                   # SQLite database and uploaded photos (gitignored)
-└── build/                      # Production bundle — only after `zonai build`
+│   ├── migrations/             # Generated SQL. Commit these
+│   ├── executables/            # Compiled workers (generated)
+│   └── data/                   # SQLite database and uploaded images
+└── build/                      # Only after `zonai build`. The deployable bundle
 ```
 
-## Source Directories (`lib/src/`)
+## What is required
 
-These are the only directories you write code in.
+| Path | Required? | Created by `zonai dev` init? |
+| --- | --- | --- |
+| `zonai.yaml` | **Yes.** Without it, `dev` and `serve` offer to initialize the folder | Yes |
+| `pubspec.yaml` with `zonai_schema` | **Yes** | Yes, unless a `pubspec.yaml` already exists; then add `zonai_schema` yourself |
+| `lib/src/config/` with an `AppConfig main()` | **Yes.** The server will not start without valid secrets | Yes, with random 48-byte secrets |
+| `lib/src/schemas/` | **Yes**, one or more tables | Yes (`admins`) |
+| Rules for each table | **Yes**. Without them, every request to that table gets `403` | For `admins` only |
+| `.zonai/migrations/` | **Yes**, once you have tables | The directory only. See [Generating Migrations](/database/generating-migrations) |
+| Everything else | No | `extensions/`, `rate_limit/`, and `crons/` are created empty |
 
-**`schemas/`** — one Dart file per table. Each file defines the row type, the table class, and calls `table()` or `authTable()` to register it. All files here are auto-discovered.
+Every path in `zonai.yaml` is optional and falls back to the layout above. See the [zonai.yaml Reference](/configuration/zonai-yaml). The file's `version:` pins the CLI release the project uses.
 
-**`config/`** — one or more Dart files exporting an `AppConfig main()` function. Contains JWT secret, SMTP configuration, base URL, and other runtime settings. Compiled into the config worker.
+## Source directories (`lib/src/`)
 
-**`rules/`** — authorization files. `<table>_table_rules.dart` controls operation-level access; `<table>_row_rules.dart` controls per-row access. Unoverridden operations default to denied.
+Every `.dart` file in these directories is picked up automatically. There is no registration step. Each file **except schemas** must have a top-level `main()` that returns its object, such as `TaskTableRules main() => TaskTableRules();`. A file without one fails to load.
 
-**`operations/`** — custom SQL generation. Optional — most tables don't need a file here. Defaults already cover CRUD **and live streams** (`/db/stream*`). Add a file to override SQL, add JWT claims to an auth table, or define non-standard operations. See [Streaming](/operations/streaming).
+**`schemas/`** declares tables. Each file defines a row type and a table class, then registers it with `table(...)` or `authTable(...)`. See [Defining Tables](/schemas/defining-tables).
 
-**`extensions/`** — lifecycle hooks that run before and after mutations and auth events. Optional — add a file when a table needs side effects (sending email, creating related rows, audit logging).
+**`config/`** returns an `AppConfig`: the app name, JWT and password secrets, `baseUrl`, SMTP, and more. `JWT_SECRET` and `PASSWORD_SECRET` in the server's environment override the compiled-in values at startup. See [App Config](/configuration/app-config).
 
-**`rate_limit/`** — per-table throttle configuration. Optional — a default policy applies to any table without a file.
+**`rules/`** holds authorization. A table needs a **table rules** class (`TableRules` or `AuthTableRules`) and a **row rules** class (`RowRules` or `AuthRowRules`), one per file. Methods you do not override allow admins and deny everyone else. See [Rules Overview](/rules/overview).
 
-**`crons/`** — scheduled background job classes. Each file defines a class extending `CronJob`. Optional.
+**`operations/`** holds custom SQL, extra JWT claims, and custom operations. Default CRUD and live-stream operations already exist for every table, so this directory is optional.
 
-**`email_templates/`** — HTML files with Mustache variables used by `email.send.custom(...)`. Built-in templates are auto-generated here on first use.
+**`extensions/`** holds before/after hooks on mutations and auth events, for side effects like email, related rows, or audit logs.
 
-## Generated Directories (`.zonai/`)
+**`rate_limit/`** holds per-table throttle policies. Tables without one get the default policy.
 
-Zonai manages these. Don't edit their contents by hand.
+**`crons/`** holds `CronJob` subclasses run on a cron schedule.
 
-**`.zonai/migrations/`** — SQL files generated by `zonai db migrate generate`. **Commit these to version control** — they are the source of truth for your schema history.
+**`email_templates/`** holds HTML with Mustache variables. Init writes the built-in templates here so you can edit them.
 
-**`.zonai/executables/`** — compiled worker binaries. Gitignore this directory. Rebuilt by `zonai serve` (auto) and `zonai compile` (manual).
+### Naming conventions
 
-**`.zonai/zonai`** — optional AOT project binary used when `serve --release` runs from the app root (dev/prod without shipping `build/`).
+File names are conventions, not requirements. They keep one class per file easy to find:
 
-**`.dart_tool/zonai/`** — generated entrypoints (`project_main.dart`, worker stubs). Regenerated on compile/serve.
-
-**`.zonai/data/`** — the SQLite database file and uploaded photo files. Gitignore this. Never commit database files or user uploads.
-
-## The `build/` Directory
-
-Created by `zonai build`. Contains everything needed to run on a production server: the **project-linked** `zonai` binary (ops/rules in-process + full CLI), worker executables, migration files, email templates, and `zonai.yaml`. Ship this entire directory to your server.
-
-## Naming Conventions
-
-Files in each worker directory are auto-discovered by convention:
-
-| Type | Filename Pattern | Example |
-|------|-----------------|---------|
+| Type | File name | Example |
+|------|-----------|---------|
 | Table rules | `<table>_table_rules.dart` | `task_table_rules.dart` |
 | Row rules | `<table>_row_rules.dart` | `task_row_rules.dart` |
-| Operations | `<table>_operations.dart` | `user_operations.dart` |
-| Extensions | `<table>_extensions.dart` | `item_extensions.dart` |
-| Rate limits | `<table>_rate_limits.dart` | `item_rate_limits.dart` |
+| Operations | `<table>_operations.dart` | `task_operations.dart` |
+| Extensions | `<table>_extensions.dart` | `task_extensions.dart` |
+| Rate limits | `<table>_rate_limits.dart` | `task_rate_limits.dart` |
 
-No registration is needed — any `.dart` file in the correct directory is automatically included.
+Pressing `f` (create part) in the `zonai dev` TUI writes any of these from a template.
 
-<Info>
+## Generated files
 
-**Live queries ship with every table.** Clients can subscribe with `zonai_client`'s `db.listen`, or `GET /db/stream*` directly. Details: [Streaming (Live Queries)](/operations/streaming).
+Zonai manages these. Don't edit them by hand.
 
-</Info>
+- **`.zonai/migrations/`**: SQL written by `zonai db migrate generate`. This is your schema history, so **commit it**.
+- **`.zonai/executables/`**: compiled workers, rebuilt by `zonai compile` and by `dev`/`serve`.
+- **`.zonai/data/`**: the SQLite database and uploaded images. Never commit it.
+- **`.zonai/zonai`**: a compiled project binary, created only for projects that link Zonai into their own server.
+- **`.dart_tool/zonai/`**: generated worker entrypoints.
+- **`build/`**: created by `zonai build`. It holds the server binary, workers, migrations, email templates, and `zonai.yaml`. Ship the whole folder. See [Building for Production](/deployment/building-for-production).
+
+## What to commit
+
+Init adds only `*.stop`, `zonai.sqlite*`, `.serve.lock`, and `pubspec_overrides.yaml` to `.gitignore`. Add the rest yourself:
+
+```text
+.dart_tool/
+.zonai/executables/
+.zonai/data/
+.zonai/zonai
+build/
+.env
+.env.*
+```
+
+Commit `lib/`, `zonai.yaml`, `pubspec.yaml`, `pubspec.lock`, and `.zonai/migrations/`. Whether to commit the `zonai` binary is up to you. `zonai.yaml` already records its version, and any command offers to download that version when the binary differs.

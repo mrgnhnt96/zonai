@@ -11,15 +11,17 @@ From the build directory, always use `--release` in production:
 ./zonai serve --release
 ```
 
-Without `--release`, the server tries to watch source files that do not exist in the bundle and enters dev mode.
+Without `--release`, `serve` runs in development mode: it watches for source files that do not exist in the bundle and tries to recompile workers. See [Release mode](/deployment/building-for-production#release-mode) for everything the flag changes.
 
-## Startup Sequence
+Host and port come from the bundled `zonai.yaml` unless you pass `--host` / `--port` — see [Server Binding](/deployment/server-binding).
 
-1. Load `zonai.yaml` for paths and configuration
-2. Register in-process ops/rules (project-linked binary)
-3. Start remaining worker processes from `.zonai/executables/` (config, extensions, rate limits, crons)
-4. Apply pending migrations (unless `--no-auto-migrate`)
-5. Open the HTTP listener
+## What Happens at Startup
+
+- Load `zonai.yaml` for paths, host and port
+- Start the workers from `.zonai/executables/` (operations and rules run in-process instead when `build/zonai` is project-linked)
+- Validate `AppConfig` — a missing or weak secret stops the server here
+- Open the database and apply any pending migrations
+- Open the HTTP listener
 
 ## Process Management
 

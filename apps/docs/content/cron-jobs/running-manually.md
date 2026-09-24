@@ -3,7 +3,7 @@ title: Running Jobs Manually
 description: How to trigger a cron job on demand without waiting for its schedule.
 ---
 
-Cron jobs can be invoked by their `name` property — the same value passed to the `CronJob` constructor. Two ways to trigger a run outside the schedule:
+Cron jobs can be invoked by their `name` property, the same value passed to the `CronJob` constructor. The name must match exactly. There are two ways to trigger a run outside the schedule.
 
 ## Dev TUI
 
@@ -13,18 +13,25 @@ In `zonai dev`, press **`j`** to open **Run cron job**, then select a job by nam
 zonai dev
 ```
 
-The crons worker must be compiled (`zonai compile`, or press **`c`** in the TUI). Output from `logger` calls appears in the TUI panel. The run is recorded in `_cron_jobs` with its status and duration.
+The crons worker must be compiled (`zonai compile`, or press **`c`** in the TUI). Output from `logger` calls appears in the TUI panel.
 
 ## HTTP API
 
-While the server is running, admins can invoke a job by name over HTTP:
+While the server is running, an admin can list the jobs and invoke one by name:
 
 ```sh
+# Every job name the crons worker knows, built-in `_` jobs included
+curl 'http://localhost:8080/crons/list' \
+  -H 'Authorization: Bearer <admin-jwt>'
+# {"names": ["_cleanup_logs", ..., "cleanup-old-logs"]}
+
 curl -X POST 'http://localhost:8080/crons/run?name=cleanup-old-logs' \
   -H 'Authorization: Bearer <admin-jwt>'
 ```
 
-Requires an admin JWT. The job runs in the cron worker and is recorded in `_cron_jobs` like a scheduled run. If no job matches the given `name`, the API returns an error.
+Both routes require an admin JWT; any other caller is refused with an access-denied error.
+
+`POST /crons/run` waits for the job to finish before it responds. It succeeds only if `run()` returned without throwing. If `run()` throws, or no job has that `name`, the request fails with an error status. The server log records which of the two happened.
 
 ## When to Use
 
@@ -35,4 +42,4 @@ Requires an admin JWT. The job runs in the cron worker and is recorded in `_cron
 
 ## Behavior
 
-The run executes in the cron worker process. Output from `logger` calls is forwarded to the server console (visible in the dev TUI or server logs). The run is recorded in `_cron_jobs` with its status and duration.
+A manual run behaves like a scheduled one. It runs as `CronJwt`, its queued `mutate` calls are committed the same way, and it gets its own `_cron_jobs` row with `started` and either `completed` or `failed`. Output from `logger` calls is forwarded to the server log.

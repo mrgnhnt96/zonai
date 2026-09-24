@@ -26,24 +26,18 @@ name builds cleanly with the defines missing. See
 
 ## What's in build/
 
-```
-build/
-├── zonai                       # Project-linked binary (ops/rules + full CLI)
-├── .zonai/executables/         # Worker binaries (config, extensions, …)
-├── migrations/                 # SQL migration files
-├── email_templates/            # HTML email templates
-└── zonai.yaml                  # Project configuration
-```
-
-`build/zonai` is compiled from your project's generated entry
-(`.dart_tool/zonai/project_main.dart`). It embeds your schemas, operations,
-and rules **in-process**, and still exposes `serve`, `db`, `compile`, and the
-rest of the CLI. It is **not** a copy of the global/bootstrap `zonai` tool.
+`build` deletes any existing `build/` directory, compiles every worker
+(honoring `--flavor` and `--release`), copies migration SQL, email templates,
+`favicon.ico` / `logo.png` and your `zonai.yaml`, then puts a `zonai` server
+binary alongside them. That binary is project-linked (operations and rules
+in-process) when your project resolves `package:zonai`, and the published
+`zonai` binary otherwise — both serve identically. The full layout is under
+[Building for Production](/deployment/building-for-production#what-gets-bundled).
 
 Copy the entire `build/` directory to your server and run:
 
 ```sh
-./zonai serve --release --flavor prod
+./zonai serve --release
 ```
 
 ## Typical Production Build
@@ -59,4 +53,4 @@ By default, `build` targets the current machine's OS and architecture. Set `buil
 ## vs. zonai compile
 
 - `zonai compile` — compiles workers to `.zonai/executables/` only; no bundle. Use during development.
-- `zonai build` — workers + project-linked `build/zonai` + migrations/settings. Use for deployment.
+- `zonai build` — workers + `build/zonai` + migrations, templates and settings under `build/`. Use for deployment.

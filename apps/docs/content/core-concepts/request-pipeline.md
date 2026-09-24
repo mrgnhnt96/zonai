@@ -31,7 +31,7 @@ Response
 
 The order is fixed and not configurable. Each step only runs if the previous step passed.
 
-**Where the logic runs:** on the default project-binary / project-entry path, **rules and operations** execute **in-process** inside the server. Rate limits, extensions, config, and crons still use worker IPC. Set `ZONAI_FORCE_WORKERS=1` to force ops/rules through Mailman workers as well.
+**Where the logic runs:** rate limits, extensions, config, and crons always run in worker processes. **Rules and operations** run in workers too, unless your project depends on `package:zonai` and the server is project-linked, in which case they execute in-process. See [Workers](/core-concepts/workers).
 
 ## Step 1: Rate Limiting
 
@@ -68,7 +68,7 @@ Mutating requests (create/update/delete) are **serialized** on the host so concu
 
 Reads (get/list/count) are not serialized against each other, but they are **bounded**: at most 256 may be in flight at once, since concurrent reads share the rules worker's single pipe and would otherwise just grow in latency with no ceiling. A read past that is refused the same way — **`503`** (`ReadBackpressureException`) with the same `Retry-After: 1`. Through 0.9.0 this refusal reached the client as an unmapped `500`; it is a `503` now.
 
-For mutation operations, the `before*` extension hooks run here, before the SQL executes. If a `before*` hook throws, the mutation is aborted and a `400` is returned.
+For mutation operations, the `before*` extension hooks run here, before the SQL executes. If a `before*` hook throws, the mutation is aborted, nothing is written, and the client gets a `500` (see [Extensions](/extensions/overview)).
 
 ## Step 5: Row Filter (canView)
 

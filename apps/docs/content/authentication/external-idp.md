@@ -107,9 +107,10 @@ adminClaimPath: 'app_metadata.is_admin',  // dotted path into claims
 adminClaimEquals: true,                    // compared with ==
 ```
 
-- `'role'` reads `claims['role']` — the common Auth0 shape.
+- `'role'` reads `claims['role']`.
 - `'app_metadata.is_admin'` reads `claims['app_metadata']['is_admin']` — the common Supabase shape.
 - Booleans, strings and numbers all compare.
+- **Every `.` is a path separator**, so a claim whose *name* contains a dot cannot be addressed. That rules out URL-namespaced claims such as Auth0's `https://your-api.example/role` — have the IdP emit the flag under a dot-free name, or decide admin in a row rule.
 
 When it matches, the request's `Jwt` carries `(isAdmin: true, canEdit: true)`. When `adminClaimPath` is unset — the default — an external token **never** derives admin status from its claims, and the decision belongs to a [row rule](/rules/row-rules) reading the user's own row instead.
 
@@ -141,7 +142,18 @@ Future<void> onExternalAuthFirstSeen(Map<String, Object?> claims) async {
 
 **The hook runs under a `ProvisioningJwt` scoped to that one auth table.** It can insert the row your normal row rules would refuse from an end user, and it cannot touch any other collection — a mutation aimed elsewhere is rejected with an error saying so. A buggy provisioning hook is contained by construction rather than by review.
 
-**Not implementing it is a valid choice.** The default is a no-op, and an unknown `sub` then fails with `UserNotFoundAuthException` until the row exists — which is what you want if users are created out of band by an admin tool, an IdP webhook or a reconcile job. A hook that inspects `claims` and returns without queueing anything is how you refuse a specific user; the same exception results.
+**Not implementing it is a valid choice.** The default is a no-op, and an unknown `sub` then fails with `UserNotFoundAuthException` until the row exists — which is what you want if users are created out of band by an admin tool, an IdP webhook or a reconcile job.
+
+### Refusing to provision
+
+There is nothing to throw. After the hook returns, Zonai re-reads the row by `sub`; **not inserting one is the refusal**. A hook that inspects `claims` and returns early declines that user.
+
+| What happened | Caller gets |
+|---|---|
+| The hook returned without inserting (or there is no hook) | `401` — the same "this token does not correspond to a user" every other unknown identity gets |
+| The [first-seen rate limit](#first-seen-provisioning-is-rate-limited) was exhausted, so the hook never ran | `403 {"error": "External-IdP first-seen provisioning rejected for table: users"}` |
+
+`beforeSignUp` does **not** run on this path. It exists to vet values a client made up on a password, OTP or magic-link sign-up; here the claims are already verified by the IdP's signature, so there is no untrusted candidate to inspect — only a row to insert or not. If you need the caller told *why* they were refused, that is not expressible here; return early and handle the `401` in the client.
 
 ### First-seen provisioning is rate limited
 
@@ -158,7 +170,7 @@ final class UsersRateLimits extends AuthTableRateLimits<UserTable, User> {
 }
 ```
 
-Returning `null` disables it. Once a `sub` is provisioned, that user's requests never touch this limit again — it applies to first sight only. See [Configuring Policies](/rate-limiting/configuring-policies).
+When the limit is exhausted the caller gets `403` and the hook does not run. Returning `null` disables it. Once a `sub` is provisioned, that user's requests never touch this limit again — it applies to first sight only. See [Configuring Policies](/rate-limiting/configuring-policies).
 
 ## What this does not give you
 

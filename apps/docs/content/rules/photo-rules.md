@@ -96,7 +96,9 @@ Without override files, the built-in rules apply:
 
 Note that your own `TableRules`/`RowRules` do **not** inherit these permissive defaults — the public base classes deny by default for non-admins, so once you add an override file you are responsible for every method it exposes.
 
-Only `_photos` can be overridden this way. Registering rules for any other internal table (`_jwt`, `_log`, `_rate_limit`, `_auth_challenges`, `_raindrop_migrations`) raises a duplicate-registration error when the rules worker loads.
+Only `_photos` can be overridden this way. Registering rules for any other framework table (`_jwt`, `_log`, `_rate_limit`, `_auth_challenges`, …) fails when the rules load with `Table rules already registered for <table>`.
+
+After adding or changing these files, recompile (`zonai compile`, or press `c` while `zonai serve` is running) and restart `serve`.
 
 ## File Constraints
 

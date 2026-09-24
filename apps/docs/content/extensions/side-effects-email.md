@@ -7,15 +7,10 @@ description: Sending transactional email from extensions and cron jobs.
 
 ## Built-in Helpers
 
-Each method sends one of the built-in templates. The first argument is an `EmailAddress`; `table` identifies which auth table the user belongs to:
+Each method sends one of the [built-in templates](/email/built-in-templates). The first argument is an `EmailAddress`, and `table` names the auth table the user belongs to:
 
 ```dart in:side-effects
 email.send.verifyEmail(
-  EmailAddress(address: user.email),
-  table: 'users',
-);
-
-email.send.loginNotice(
   EmailAddress(address: user.email),
   table: 'users',
 );
@@ -25,21 +20,13 @@ email.send.passwordReset(
   table: 'users',
 );
 
-email.send.magicLink(
-  EmailAddress(address: user.email),
-  table: 'users',
-);
-
 email.send.otpCode(
   EmailAddress(address: user.email),
   table: 'users',
 );
-
-email.send.confirmEmailChange(
-  EmailAddress(address: user.email),
-  table: 'users',
-);
 ```
+
+> **`loginNotice`, `magicLink` and `confirmEmailChange` also exist, but the server does not implement them yet.** Calling one sends nothing and raises an `UnimplementedError` on the server. The default `onSignIn` hook calls `loginNotice` for auth tables with an email column, so override `onSignIn` to stop it. To send a sign-in notice today, use `email.send(Email(template: 'login_notice', ...))`, as shown below.
 
 All helpers accept an optional `variables` map to pass extra data to the template.
 
@@ -100,10 +87,15 @@ final class UserExtensions extends Extension<User>
 
   @override
   Future<void> onSignIn(User user, Jwt? jwt) async {
-    email.send.loginNotice(
-      EmailAddress(address: user.email),
-      table: 'users',
-    );
+    email.send(Email(
+      to: EmailAddress(address: user.email),
+      subject: 'New sign-in',
+      template: 'login_notice',
+      variables: {
+        'email': user.email,
+        'signedInAt': DateTime.now().toUtc().toIso8601String(),
+      },
+    ));
   }
 }
 

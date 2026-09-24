@@ -9,7 +9,7 @@ An **API token** is a credential for the data API that needs no sign-in, no mail
 zonai_pat_qT501HohVqtce6xB_EmC9W1lCBnhlDq-PpfWURL_6Xk
 ```
 
-It is not a JWT. A JWT is issued to a person who signed in, expires (`jwtExpiresIn`, default 14 days) and is revoked the moment it is refreshed — correct for a browser, unusable for a process that has no password to type and nobody awake to re-authenticate it. An API token is an opaque string whose authority is a row: it works until that row says otherwise.
+It is not a JWT. A JWT is issued to a person who signed in, expires (`jwtExpiresIn`, default 24 hours) and is revoked the moment it is refreshed — correct for a browser, unusable for a process that has no password to type and nobody awake to re-authenticate it. An API token is an opaque string whose authority is a row: it works until that row says otherwise.
 
 ## Creating One
 
@@ -112,7 +112,7 @@ This is absolute rather than configurable because of what the first two hold. A 
 
 ### Only the Data API
 
-`/auth/*`, `/admin/*`, `/dashboard/maintenance/*`, `/cron/*`, `/email/*`, `/push/*` and the photo endpoints all refuse an API token with `401`. So does any route added later — the credential is rejected by default and each data path opts in explicitly, so forgetting fails closed.
+`/auth/*`, `/admin/*`, `/dashboard/maintenance/*`, `/cron/*`, `/email/*`, `/push/*` and the photo endpoints all refuse an API token with `401` and *"An API token is not accepted here. API tokens authenticate the data API; sign in for anything else."* So does any route added later — the credential is rejected by default and each data path opts in explicitly, so forgetting fails closed.
 
 Those endpoints are refused rather than scoped because a scope speaks in tables and operations, a vocabulary none of them have: a token "scoped to orders" has no meaningful answer to *may it purge an internal table*.
 
@@ -127,6 +127,8 @@ Admin is not a bypass. It makes the token satisfy a rule that asks `jwt.admin.is
 </Info>
 
 `--no-admin` mints one without it. One of two things then has to be true for it to work: either the collection's rules admit it explicitly — usually on `jwt.claims`, which `--claims` populates — or the token is bound to a user with `--as`.
+
+`--can-edit` is the write half of admin. When you do not say, it is **derived**: an admin token granted any of `create`, `update` or `delete` carries it, a read-only one does not, so a `--read` token is never handed a write grant it has no operation to spend. It cannot be combined with `--no-admin` — the default `canCreate` rule checks `canEdit` alone, so the pair would be a live write grant wearing a non-admin label.
 
 ## Bound Tokens
 
@@ -184,11 +186,22 @@ zonai db token delete <id>   # removes the row entirely
 
 Revocation is what makes "never expires" safe. The row is read on every request, so a revoke lands on the **next** one — no restart, no cache to wait out, no redeploy.
 
+`revoke` stamps the row; `delete` removes it. Prefer `revoke`, so *who had access, and until when* stays answerable.
+
+To withdraw every token at once — the break-glass response to a suspected leak — purge `_api_tokens` from the dashboard's Maintenance screen. That is no more drastic than purging `_jwt`, which signs out every user.
+
 `list` shows when each token was last used. It is written lazily rather than on every request: "used this hour" versus "not since March" is the whole decision it supports, and precision would cost a write per request and buy nothing.
 
 ## Rate Limits
 
-A token is rate-limited **per client IP**, like any other caller — the limiter runs before the handler that resolves the credential, so it cannot yet see which token is calling. Two integrations behind one NAT therefore share a bucket, and one token spread across many IPs is not aggregated. Per-token limits are planned.
+A token is rate-limited exactly like any other caller: **per client IP, per collection, per operation**, at whatever policy that collection declares (100 requests per minute by default — see [Configuring Policies](/rate-limiting/configuring-policies)). The limiter runs before the credential is resolved, so it cannot see which token is calling.
+
+Two things follow:
+
+- **One IP is one bucket.** Every request from a backup job or a CI runner shares a counter, so a job that fans out hits the limit far sooner than the same volume spread across users. Raise the collection's policy, or spread the work. Two integrations behind one NAT share a bucket too.
+- **A leaked token is not limited as a token.** Used from many IPs, it gets many buckets.
+
+Per-token limits are planned.
 
 ## Security Model
 

@@ -7,7 +7,7 @@ When Zonai runs behind a reverse proxy, all TCP connections appear to come from 
 
 ## TrustedProxyConfig
 
-Set `AppConfig.trustedProxy` to tell Zonai which headers to read and how to interpret them:
+Set `AppConfig.trustedProxy` in your [config file](/configuration/app-config#trusted-proxy) to tell Zonai which headers to read and how to interpret them. The server reads it at startup:
 
 ```dart in:app-config
 trustedProxy: TrustedProxyConfig(
@@ -18,7 +18,7 @@ trustedProxy: TrustedProxyConfig(
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `headers` | `List<String>` | `[]` | Header names to check, in order |
+| `headers` | `List<String>` | `[]` | Header names to check, in order. Empty means use the TCP address only (local dev, no proxy) |
 | `useLeftmostIp` | `bool` | `false` | Which IP to use from the header value |
 
 ## Leftmost vs. Rightmost
@@ -36,7 +36,7 @@ X-Forwarded-For: client_ip, proxy1_ip, proxy2_ip
 
 ## Multiple Headers
 
-You can list multiple headers. Zonai checks them in order and uses the first one that is present:
+You can list multiple headers. Zonai checks them in order and uses the first one that contains a valid IP. If none does, it falls back to the TCP address:
 
 ```dart in:app-config
 trustedProxy: TrustedProxyConfig(
@@ -44,7 +44,9 @@ trustedProxy: TrustedProxyConfig(
 ),
 ```
 
-This example checks for Cloudflare's single-IP header first, falling back to the full `X-Forwarded-For` chain.
+This example checks for Cloudflare's single-IP header first, falling back to the full `X-Forwarded-For` chain. Put your proxy's primary header first.
+
+**Only list headers your proxy actually sets or overwrites.** A client can send any header it likes. If nothing in front of Zonai strips `CF-Connecting-IP`, a client can set it to a new value on every request and get a fresh rate limit counter each time.
 
 ## Common Proxy Configurations
 

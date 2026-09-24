@@ -124,6 +124,7 @@ It normalises the quirks that would otherwise each need a branch:
 - **`email: ""` is Supabase's "no email on file"** sentinel for anonymous and phone-only users. `email` returns `null` for both the empty string and the missing key.
 - **`phone: ""`** normalises the same way.
 - **`appMetadata` / `userMetadata`** arrive as `Map<String, Object?>?`, cast for you, `null` when missing or the wrong shape.
+- **`isAnonymous`** and **`role`** are there too, for a hook that should provision anonymous users differently — or not at all.
 
 The hook's scope, the inline flush and the 30-per-hour default limit are the general external-IdP behaviour — see [Provisioning users](/authentication/external-idp#provisioning-users).
 

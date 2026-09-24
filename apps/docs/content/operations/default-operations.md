@@ -26,6 +26,10 @@ Live updates use the `stream-*` routes (and `client.db.listen` in `zonai_client`
 
 ## Request / Response Shape
 
+Column names in `where`, `order_by`, `object` and `updates` are the **database** column names from your schema (`is_complete`), not the Dart field names (`isComplete`). Rows come back keyed the same way.
+
+Successful responses wrap the result in `data`.
+
 ### get — `GET /db`
 
 Pass the body as a URL-encoded JSON string in the `body` query parameter:
@@ -37,13 +41,13 @@ GET /db?body={"table":"tasks","where":{"id":{"eq":"tk_abc123"}}}
 Response:
 
 ```json
-{ "data": { "id": "tk_abc123", "title": "Buy groceries", "isComplete": false, ... } }
+{ "data": { "id": "tk_abc123", "title": "Buy groceries", "is_complete": false, ... } }
 ```
 
 ### list — `GET /db/list`
 
 ```
-GET /db/list?body={"table":"tasks","limit":20,"offset":0,"order_by":[{"column":"createdAt","direction":"desc"}]}
+GET /db/list?body={"table":"tasks","limit":20,"offset":0,"order_by":[{"column":"created_at","direction":"desc"}]}
 ```
 
 Response:
@@ -52,12 +56,12 @@ Response:
 { "data": { "items": [...], "total": 42 } }
 ```
 
-`total` is the full count of matching rows, ignoring `limit`/`offset`.
+`total` is the full count of matching rows, ignoring `limit`/`offset`. Other optional fields: `where`, `group_by` (one column name), and `expand` (a list of reference columns to inline).
 
 ### count — `GET /db/count`
 
 ```
-GET /db/count?body={"table":"tasks","where":{"isComplete":{"eq":true}}}
+GET /db/count?body={"table":"tasks","where":{"is_complete":{"eq":true}}}
 ```
 
 Response:
@@ -66,38 +70,18 @@ Response:
 { "data": 7 }
 ```
 
-### stream-one — `GET /db/stream`
+### stream-one, stream-list, stream-count — `GET /db/stream*`
 
-Long-lived connection. Pushes the matching row whenever it changes. Requires `where`. Prefer `client.db.listen.one` in Dart. See [Streaming](/operations/streaming).
-
-```
-GET /db/stream?body={"table":"tasks","where":{"id":{"eq":"tk_abc123"}},"expand":[]}
-```
-
-### stream-list — `GET /db/stream/list`
-
-Long-lived connection. Pushes the full matching page whenever the result set changes.
-
-```
-GET /db/stream/list?body={"table":"tasks","where":{"isComplete":{"eq":false}},"limit":20}
-```
-
-### stream-count — `GET /db/stream/count`
-
-Long-lived connection. Pushes a new count whenever matching rows change.
-
-```
-GET /db/stream/count?body={"table":"tasks"}
-```
+Long-lived connections that push a new payload whenever the result changes. `stream-one` requires `where`. Prefer `client.db.listen` in Dart — see [Streaming](/operations/streaming) for bodies and behaviour.
 
 ### create — `POST /db`
 
 ```json
 // Request body
-{ "table": "tasks", "object": { "title": "Buy groceries", "isComplete": false } }
+{ "table": "tasks", "object": { "title": "Buy groceries", "is_complete": false } }
 
 // Response
-{ "data": { "id": "tk_abc123", "title": "Buy groceries", "isComplete": false, "createdAt": "...", "updatedAt": "..." } }
+{ "data": { "id": "tk_abc123", "title": "Buy groceries", "is_complete": false, "created_at": "...", "updated_at": null } }
 ```
 
 ### create many — `POST /db/many`
@@ -107,47 +91,39 @@ GET /db/stream/count?body={"table":"tasks"}
 {
   "table": "tasks",
   "objects": [
-    { "title": "Buy groceries", "isComplete": false },
-    { "title": "Walk the dog", "isComplete": false }
+    { "title": "Buy groceries", "is_complete": false },
+    { "title": "Walk the dog", "is_complete": false }
+  ]
+}
+```
+
+Response: `{ "data": [...] }` — the created rows, in order.
+
+### update — `PATCH /db`
+
+Updates the first matching row (limit 1). `updates` is a list of update entries — see [Update Value Types](#update-value-types):
+
+```json
+// Request body
+{
+  "table": "tasks",
+  "where": { "id": { "eq": "tk_abc123" } },
+  "updates": [
+    { "type": "column", "column": "is_complete", "value": { "type": "literal", "value": true } }
   ]
 }
 
 // Response
-{ "data": [
-  { "id": "tk_abc123", "title": "Buy groceries", "isComplete": false, "createdAt": "...", "updatedAt": "..." },
-  { "id": "tk_def456", "title": "Walk the dog", "isComplete": false, "createdAt": "...", "updatedAt": "..." }
-] }
-```
-
-### update — `PATCH /db`
-
-Updates the first matching row (limit 1). The `updates` array specifies which fields to change:
-
-```json
-// Request body
-{ "table": "tasks", "where": { "id": { "eq": "tk_abc123" } }, "updates": [{ "column": "isComplete", "value": true }] }
-
-// Response
-{ "data": { "id": "tk_abc123", "title": "Buy groceries", "isComplete": true, ... } }
+{ "data": { "id": "tk_abc123", "title": "Buy groceries", "is_complete": true, ... } }
 ```
 
 ### update many — `PATCH /db/many`
 
-Same shape as `update`, but matches all rows satisfying `where`. Optional `limit` caps how many rows are updated:
-
-```json
-{
-  "table": "tasks",
-  "where": { "isComplete": { "eq": false } },
-  "updates": [{ "column": "isComplete", "value": true }]
-}
-```
-
-Response: `{ "data": [...] }` — array of all updated rows.
+Same shape as `update`, but matches all rows satisfying `where`. Optional `limit` caps how many rows are updated. Response: `{ "data": [...] }` — every updated row.
 
 ### delete — `DELETE /db`
 
-Deletes the first matching row (limit 1). Returns `204 No Content`.
+Deletes the first matching row (limit 1). No response body.
 
 ```json
 { "table": "tasks", "where": { "id": { "eq": "tk_abc123" } } }
@@ -155,30 +131,68 @@ Deletes the first matching row (limit 1). Returns `204 No Content`.
 
 ### delete many — `DELETE /db/many`
 
-Same shape as `delete`, but matches all rows satisfying `where`. Optional `limit` caps deletions. Returns `204 No Content`.
+Same shape as `delete`, but matches all rows satisfying `where`. Optional `limit` caps deletions.
 
-```json
-{ "table": "tasks", "where": { "isComplete": { "eq": true } } }
-```
+### custom — `PATCH /db/custom/:operation`
+
+A named operation your operations file implements. Same body as `update` (`where` is optional unless you send `updates`); `/many` variant at `PATCH /db/custom/:operation/many`. See [Custom Operations](/operations/overview#custom-operations).
+
+## Where Filters
+
+`where` accepts a shorthand `{ "<column>": { "<op>": value } }` or the canonical `{ "type": "<op>", "column": "...", "value": ... }`.
+
+| Op | Meaning |
+| --- | --- |
+| `eq`, `gt`, `gte`, `lt`, `lte` | Comparison |
+| `in`, `not_in` | Value in / not in a list |
+| `contains`, `not_contains`, `starts_with`, `ends_with` | Text match |
+| `is_null`, `not_null` | Null check (value ignored) |
+| `and`, `or` | Canonical form only: `{ "type": "and", "conditions": [ ... ] }` |
+
+Every column named in `where`, `order_by` or `group_by` is checked against the table's schema first:
+
+- An unknown column is a `400` naming the column.
+- A secret column (`$.password`, `$.secret`) cannot be filtered, sorted or grouped on — `400`. Its value is never returned, so letting a caller filter on it would leak it one comparison at a time.
 
 ## Auto-Managed Fields
 
-- `id` — generated by Zonai on create; the client cannot set it
-- `createdAt` — set to the current timestamp on create; ignored on update
-- `updatedAt` — automatically updated to the current timestamp on every update
-- `.password` — values are Argon2id-hashed before storage; the raw value is never stored or returned in responses
-- `.updatedWhenColumn` — automatically updated to the current timestamp on every update of the watched column
+- `id` — generated by Zonai on create
+- `$.createdAt` — set on create; skipped by updates
+- `$.updatedAt` — set to the current time on every update
+- `$.updatedWhen` — set to the current time whenever its watched column changes
+- `$.password` — Argon2id-hashed before storage; stripped from every response (see [Password columns](#password-columns))
+- `$.serverGenerated` — filled with a placeholder if the client omits it, so your [`insert` override](/operations/overview#filling-in-a-server-generated-value) can set the real value
 
 ## Update Value Types
 
-The `value` field in an update entry supports special types for numeric and list columns:
+Each entry in `updates` is one of two shapes:
 
 ```json
-{ "column": "viewCount", "value": { "increment": 1 } }
-{ "column": "viewCount", "value": { "decrement": 1 } }
-{ "column": "tags", "value": { "add": "dart" } }
-{ "column": "tags", "value": { "remove": "dart" } }
-{ "column": "description", "value": null }
+{ "type": "column", "column": "view_count", "value": { "type": "increment" } }
+{ "type": "object", "object": { "title": "New title", "is_complete": true } }
 ```
 
-Plain values set the column literally.
+A `column` entry takes a typed `value`:
+
+| `value` | Scalar column | List column |
+| --- | --- | --- |
+| `{ "type": "literal", "value": x }` | Set to `x` (including `null`) | Set to `x` |
+| `{ "type": "increment" }` | `column + 1` | — |
+| `{ "type": "decrement" }` | `column - 1` | — |
+| `{ "type": "add", "value": x }` | `column + x` | Append `x` |
+| `{ "type": "remove", "value": x }` | `column - x` | Remove every element equal to `x` |
+| `{ "type": "add_all", "values": [...] }` | — | Append each value |
+| `{ "type": "remove_all", "values": [...] }` | — | Remove elements matching any value |
+
+A `column` name may be a dotted path into a JSON map column (`profile.display_name`) to set one key. An `object` entry sets several columns at once; on a JSON map column its value is merged with `json_patch` (RFC 7396 merge patch) rather than replacing the map.
+
+In Dart, the same shapes are `Update.column(name, UpdateValue.increment())` and `Update.object({...})`.
+
+## Password Columns
+
+A value written to a `$.password` column — on create or update — is hashed with Argon2id before it reaches SQLite, so the plain text is never stored. Two restrictions apply:
+
+| Condition | Result |
+| --- | --- |
+| The caller is not an admin, or is a read-only admin (`canEdit: false`) | `403` — only an admin can set a password through `/db`. Users change their own through the [auth API](/authentication/password-auth) |
+| The value is not a plain string literal (`increment`, `add`, …) | `422` |

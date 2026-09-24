@@ -30,7 +30,7 @@ Reach for it when:
 - `serve` fails in a way that does not say which piece is broken;
 - a deploy target should be checked without exposing a port.
 
-**Ops and rules are pinged here even though requests do not use them.** On the default path they are compiled into the project-linked binary and called in-process; the `.exe` files still exist for compatibility, for `ZONAI_FORCE_WORKERS=1`, and for this command. See [Workers](/core-concepts/workers).
+**Ops and rules are always pinged.** Usually requests go through those workers too; when the server is project-linked (your project depends on `package:zonai`) it calls them in-process instead, and the `.exe` files are what `ZONAI_FORCE_WORKERS=1` and this command use. See [Workers](/core-concepts/workers).
 
 ## Options
 

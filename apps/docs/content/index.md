@@ -11,7 +11,7 @@ It is designed for Dart and Flutter developers who want to build a production-qu
 
 <Card title="Quick Start" href="/getting-started/quick-start" icon="rocket">
 
-Go from `dart create` to a running server with auth and CRUD in about ten minutes.
+Go from an empty folder to a running server with auth and CRUD in about ten minutes.
 
 </Card>
 
@@ -28,6 +28,12 @@ Go from `dart create` to a running server with auth and CRUD in about ten minute
 </Card>
 
 </CardGrid>
+
+## Start Here
+
+1. [Installation](/getting-started/installation) — what to install, and how to get the `zonai` binary
+2. [Quick Start](/getting-started/quick-start) — create a project, add tables, call the API, open the dashboard, build for production
+3. [Project Structure](/getting-started/project-structure) — which files are required, which are optional, and what to commit
 
 ## Write a table, get an API
 
@@ -48,7 +54,7 @@ final class TaskTable extends Table<Task> {
 final tasks = table('tasks', TaskTable.new);
 ```
 
-Every endpoint below exists the moment that file does — no handlers, no codegen step:
+Every endpoint below is served for it — no handlers to write. The only other things a table needs are a [rules file](/rules/overview) (tables start closed) and an applied migration:
 
 ```text
 POST   /db          create        GET  /db/stream        live single row
@@ -69,43 +75,32 @@ client.db.listen
 
 ## What You Get Out of the Box
 
-**A full REST API for every table** — create, read, update, delete, list, count, and **live stream** endpoints are auto-handled from your schema. No HTTP handler code, no generation step needed.
-
-**Built-in authentication** — password sign-up/sign-in, one-time passcodes, and magic links are available by mixing a single trait into an auth table. Sessions, refresh, and logout are included.
-
-**Authorization rules** — evaluated before any SQL executes. Return `true` or `false`; a denied request gets a `403` immediately, with zero database access.
-
-**Generated Dart client** — `zonai_client` wraps auth, admin auth, db (including `db.listen` streams), photos, and email so apps do not hand-roll HTTP.
-
-**Transactional email via SMTP** — HTML templates with Mustache variables, sent from lifecycle hooks.
-
-**Push notifications** — send from a lifecycle hook through FCM, or straight to APNs for iOS with no Firebase in the path. Recipients are a query over a `deviceToken` column, so a fan-out pages instead of loading every token into memory, resumes after a restart instead of re-notifying everyone, and clears the tokens the transport reports dead. See [Push Overview](/push/overview).
-
-**Scheduled background jobs** — cron-syntax jobs compiled into a separate worker with access to the full database API.
-
-**Per-IP rate limiting** — configurable per-table and per-operation with a simple policy class.
-
-**Built-in admin dashboard** — every server serves a UI at `/_` with traffic metrics, cron job status, and a full table browser and editor. See [Dashboard Overview](/dashboard/overview).
-
-**Project-linked binary** — `zonai build` produces `build/zonai` with your ops/rules linked in-process for the CRUD hot path.
+- **A REST API for every table** — create, read, update, delete, list, count, and live stream endpoints, served from your schema. No handler code.
+- **Authentication** — password, one-time passcode, and magic-link sign-in by mixing a trait into an auth table. Sessions and logout included.
+- **Authorization rules** — checked before any SQL runs. A denied request gets `403` with zero database access. Tables start closed.
+- **Dart client** — `zonai_client` wraps auth, db (including `db.listen` streams), photos, and email; `zonai gen client` adds typed per-table APIs.
+- **Email and push** — SMTP with Mustache templates, and push through FCM or APNs, sent from lifecycle hooks. See [Push Overview](/push/overview).
+- **Cron jobs and rate limits** — cron-syntax jobs with full database access; per-table, per-operation throttling.
+- **Admin dashboard** — every server serves a UI at `/_` with metrics, cron status, and a table browser/editor. See [Dashboard Overview](/dashboard/overview).
+- **One deployable folder** — `zonai build` produces `build/` with the server binary, compiled workers, and migrations. Copy it to a server of the target OS and architecture and run `./zonai serve --release`.
 
 ## How It Works
 
-Your Dart code compiles into a **project-linked server binary** (operations and rules in-process) plus **workers** for config, extensions, rate limits, and crons. Each HTTP request passes through an ordered pipeline:
+Your Dart sources compile into **workers** — compiled programs for config, rules, operations, extensions, rate limits, and crons — that the `zonai` server calls over IPC. Each HTTP request passes through an ordered pipeline:
 
 ```text
 HTTP Request
-  → Rate Limit (worker)
-  → Rules (in-process)
-  → Operations (in-process)
-  → SQLite (execution)
-  → Extensions (worker)
+  → Rate Limit
+  → Rules
+  → Operations
+  → SQLite
+  → Extensions
   → Response
 ```
 
-Nothing runs interpreted at request time on the AOT path. All logic is compiled Dart. See [How a Request is Processed](/core-concepts/request-pipeline) for the full walkthrough.
+Nothing is interpreted at request time; all logic is compiled Dart. See [How a Request is Processed](/core-concepts/request-pipeline) and [Workers](/core-concepts/workers).
 
-**Hot-reload development** — worker sources are watched and recompiled automatically. Restart `serve` after editing ops/rules so the linked project entry reloads.
+During development `zonai dev` and `zonai serve` watch your sources and recompile the affected worker when you save.
 
 ## Browse the Docs
 
@@ -116,16 +111,9 @@ Press <kbd>⌘</kbd><kbd>K</kbd> to search every page, or start from a section:
 ## What Zonai Is Not
 
 - Not a full application framework — Zonai is an API server (no HTML rendering). Use `zonai_client` (or raw HTTP) from Flutter/Dart apps
-- Not a managed cloud service — you host it yourself, anywhere that runs a Linux/macOS/Windows binary
+- Not a managed cloud service — you host it yourself, anywhere that runs a macOS, Linux, or Windows binary
 - Not a general-purpose ORM — it is opinionated about how APIs are structured and uses SQLite as its database
 
 ## For LLMs and coding agents
 
-A curated docs index lives at [/llms.txt](/llms.txt). Inside a Zonai app, run `zonai ai` to install project-local assistant rules (Cursor, Claude, Copilot, etc.).
-
-## Next Steps
-
-- [Installation](/getting-started/installation) — prerequisites and CLI setup
-- [Quick Start](/getting-started/quick-start) — create and run your first project
-- [Project Structure](/getting-started/project-structure) — understand the directory layout
-- [Live Queries (Streaming)](/operations/streaming) — `client.db.listen` and `/db/stream*`
+A curated docs index, starting with the minimum needed to run Zonai, lives at [/llms.txt](/llms.txt). Inside a Zonai project, run `./zonai ai` to install project-local assistant rules (Cursor, Claude, Copilot, Windsurf, Cline).

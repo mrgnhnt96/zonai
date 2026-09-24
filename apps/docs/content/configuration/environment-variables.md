@@ -20,7 +20,7 @@ AppConfig(
 )
 ```
 
-When Zonai compiles workers or the project binary, it reads your `.env` file and passes each value to `dart compile exe` as a compile-time define (`-Dkey=value`). The compiled binary contains the literal value. If `JWT_SECRET` is not set, the compiled binary will contain an empty string — Zonai logs an error at startup for missing required fields.
+When Zonai compiles workers or the project binary, it reads your `.env` file and passes each value to `dart compile exe` as a compile-time define (`-Dkey=value`). The compiled binary contains the literal value. A key that is not set compiles to its `defaultValue`, or an empty string when there is none — for `JWT_SECRET` / `PASSWORD_SECRET` that means the server [refuses to start](#secret-requirements).
 
 This is an implementation detail, not a CLI flag — `zonai compile` and `zonai build` do not read `-D`/`--define` themselves. To override a value, edit `.env` (or `.env.<flavor>`, see below) or use `--dart-define` (see [CLI Overrides](#cli-overrides)).
 
@@ -85,9 +85,11 @@ SMTP_USER=
 SMTP_PASS=
 ```
 
-- One `KEY=VALUE` per line
+- One `KEY=VALUE` per line; blank lines are ignored
 - Lines starting with `#` are comments
-- Values with spaces: `APP_NAME="My Great App"`
+- Only the **first** `=` splits key from value, so values may contain `=`
+- One pair of matching surrounding quotes is stripped: `APP_NAME="My Great App"` defines `My Great App`
+- Lines with no `=` or an empty key are skipped
 
 ## Flavor-Specific Files
 
@@ -95,15 +97,15 @@ Each env file is loaded on its own. When `--flavor <flavor>` is active, only `.e
 
 ```bash
 # .env — loaded when no flavor is specified
-JWT_SECRET=dev-secret
+JWT_SECRET=<openssl rand -base64 48>
 BASE_URL=http://localhost:8080
 
 # .env.prod — loaded only with --flavor prod
-JWT_SECRET=prod-secret-much-stronger
+JWT_SECRET=<a different openssl rand -base64 48>
 BASE_URL=https://api.myapp.com
 ```
 
-Each file must be self-contained with all the variables your workers need.
+Each file must be self-contained with all the variables your workers need. If `.env.<flavor>` does not exist, Zonai logs `No flavor-specific .env file found for flavor: <flavor>` and compiles with **no** env defines — it does not fall back to `.env`. See [Config Flavors](/core-concepts/config-flavors) for how the same flag picks the config file.
 
 ## CLI Overrides
 

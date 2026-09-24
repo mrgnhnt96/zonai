@@ -7,6 +7,15 @@ The `email` property on `ZonaiClient` wraps the server's email endpoints. The
 server handles template rendering and SMTP delivery — the client only needs to
 supply the body.
 
+<Warning>
+
+**Every method here calls `POST /email`, which requires an admin token.** Anyone else gets a
+`403`, and the endpoint is throttled to 10 requests per minute per IP. It is meant for admin
+tooling, not for sending mail from an end-user app. To email users when something happens, send
+from an [extension](/extensions/side-effects-email) on the server instead.
+
+</Warning>
+
 See [Email](/email/smtp-setup) for server-side SMTP configuration and
 [Built-in Templates](/email/built-in-templates) for available template variables.
 

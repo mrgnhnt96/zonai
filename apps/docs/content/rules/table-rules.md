@@ -23,8 +23,6 @@ final class TaskTableRules extends TableRules<TaskTable, Task> {
   @override
   Future<bool> canList(Jwt? jwt) async => true;
   @override
-  Future<bool> canCount(Jwt? jwt) async => true;
-  @override
   Future<bool> canView(Jwt? jwt) async => true;
   @override
   Future<bool> canUpdate(Jwt? jwt) async => jwt != null;
@@ -33,22 +31,23 @@ final class TaskTableRules extends TableRules<TaskTable, Task> {
 }
 ```
 
-All unoverridden methods default to `false` (deny).
+A table also needs a [row rules](/rules/row-rules) file — without one, every row-level check is denied.
 
 ## Available Methods
 
-| Method           | Endpoint Checked Before                                      | Default |
-| ---------------- | ------------------------------------------------------------ | ------- |
-| `canCreate(jwt)` | `POST /db`                                                   | `false` |
-| `canList(jwt)`   | `GET /db/list`, `GET /db/stream/list`                        | `false` |
-| `canCount(jwt)`  | `GET /db/count`, `GET /db/stream/count`                      | `false` |
-| `canView(jwt)`   | `GET /db`, `GET /db/stream`                                  | `false` |
-| `canUpdate(jwt)` | `PATCH /db`                                                  | `false` |
-| `canDelete(jwt)` | `DELETE /db`                                                 | `false` |
+| Method | Checked before | Default |
+| --- | --- | --- |
+| `canCreate(jwt)` | `POST /db`, `POST /db/many` | Admin with `canEdit` |
+| `canUpdate(jwt)` | `PATCH /db`, `PATCH /db/many` | Admin with `canEdit` |
+| `canDelete(jwt)` | `DELETE /db`, `DELETE /db/many` | Admin with `canEdit` |
+| `canView(jwt)` | `GET /db`, `GET /db/stream` | Any admin |
+| `canList(jwt)` | `GET /db/list`, `GET /db/count`, `GET /db/stream/list`, `GET /db/stream/count` | Any admin |
 
-Streaming (`/db/stream*`) reuses the same `canView` / `canList` / `canCount` checks as ordinary reads — there is no separate `canStream*` method. See [Streaming](/operations/streaming).
+Every non-admin caller — including an unauthenticated one — is denied by an unoverridden method. `count` has no method of its own: it is gated by `canList`.
 
-For `view`, `update`, and `delete`: the table rule runs first, then row rules run (if the table rule passes).
+Streaming (`/db/stream*`) reuses the same checks as ordinary reads — there is no separate `canStream*` method. See [Streaming](/operations/streaming).
+
+After the table rule passes, [row rules](/rules/row-rules) run for the rows involved.
 
 ## Common Patterns
 
@@ -69,7 +68,7 @@ Admin-only deletes, on top of the same reads:
     jwt?.admin.isAdmin ?? false;
 ```
 
-Fully public — no rules file is needed at all, but being explicit is fine:
+Fully public reads — still needs the rules file, since a table with no rules is closed to everyone:
 
 ```dart in:table-rules
 @override Future<bool> canList(Jwt? jwt) async => true;
@@ -91,7 +90,7 @@ See [JWT Claims](/rules/jwt-claims) for all available fields.
 
 ## Custom Operations
 
-Named operations that aren't create/update/delete/view/list/count — `TableOperations.custom(operation, ...)` — go through `customOperations`, not the methods above. An operation name that isn't a key in the map is denied, same as any unoverridden method:
+Named operations that aren't create/update/delete/view/list/count — [`TableOperations.custom`](/operations/overview#custom-operations) — go through `customOperations`, not the methods above. An operation name that isn't a key in the map is denied (`403`, with a warning in the log naming it):
 
 ```dart in:table-rules
 @override
@@ -100,4 +99,8 @@ Map<String, CustomTableOperationRule> get customOperations => {
 };
 ```
 
-Row rules need a matching entry too — see [Row Rules: Custom Operations](/rules/row-rules#custom-operations).
+Model state transitions (`reserve`, `fill`, `collect`) as their own operations rather than a generic update, so each rule's intent is readable from the operation name.
+
+- Row rules need a matching entry too — see [Row Rules: Custom Operations](/rules/row-rules#custom-operations).
+- A key named after a standard operation (`update`, `list`, …) is refused: the standard method would decide the call and your entry would never be consulted. Pick a different name.
+- A custom operation called with no `where` has no target row, so only this table-level check runs. Because of that, a request that sends `updates` without a `where` is rejected with `400` — otherwise this (usually permissive) table rule alone would authorize a write to every row.

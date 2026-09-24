@@ -3,7 +3,9 @@ title: "Side Effects: get"
 description: Reading rows from any table inside an extension or cron job.
 ---
 
-`get` is a side-effect API for reading rows from any table inside an extension hook or cron job. Reads use the same JWT from the original request.
+`get` is a side-effect API for reading rows from any table inside an extension hook or cron job. Unlike `mutate`, it runs immediately: you `await` it and get the rows as they are now. Writes you queued with `mutate` earlier in the same hook have not happened yet, so `get` does not see them.
+
+Reads act as the hook's `jwt` (in a cron job, `CronJwt`) without you passing it. Pass `jwt:` explicitly to read as a different identity.
 
 ## get.one
 
@@ -55,10 +57,11 @@ final email = row?['email'] as String?;
 
 ## The Where Clause
 
-`Eq('column', value)` is the simplest condition. More complex queries can be composed using `And`, `Or`, `Gt`, `Lt`, and other `Where` constructors. 
+`Eq('column', value)` is the simplest condition. More complex queries can be composed using `And`, `Or`, `Gt`, `Lt`, and other `Where` constructors.
+
 ## Rules Apply
 
-`get` calls enforce the same table and row rules as the main request, using the same JWT. On the default path those rules run **in-process**; with `ZONAI_FORCE_WORKERS=1` they go through the rules worker. If the requesting user cannot view a table, a `get` call for that table inside an extension will be denied.
+`get` calls enforce the same table and row rules as a client read, using the hook's JWT. If the requesting user cannot view a table, a `get` call for that table inside an extension will be denied.
 
 ## Common Uses
 

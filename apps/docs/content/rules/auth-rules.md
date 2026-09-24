@@ -62,7 +62,7 @@ Auth rules do not receive the account row or the submitted credentials — only 
 Every auth rule takes the authentication method being attempted:
 
 ```dart no-analyze
-enum AuthType { password, otp, magicLink }
+enum AuthType { password, otp, magicLink, oauth }
 ```
 
 This is what lets one rule allow password sign-in while refusing OTP, without touching the other endpoints.
@@ -93,7 +93,40 @@ Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
 }
 ```
 
-The default allows an admin unconditionally, and otherwise allows the attempt when the table actually supports that method — `AuthType.password` requires the table to mix in `PasswordAuth`, `otp` requires `OtpAuth`, `magicLink` requires `MagicLinkAuth`.
+The default:
+
+1. allows an admin token unconditionally;
+2. otherwise **denies** every sign-up on a table that mixes in `AsAdmin` (see below);
+3. otherwise allows the attempt when the table supports that method — `password` requires `PasswordAuth`, `otp` requires `OtpAuth`, `magicLink` requires `MagicLinkAuth`, `oauth` requires `OAuth`.
+
+#### Sign-up is closed by default on an `AsAdmin` table
+
+`AsAdmin` applies to the whole table: every JWT it issues carries `admin.isAdmin`, however the row came to exist. With open registration, every anonymous `POST /auth/sign-up` would mint a new admin — so `canSignUp` refuses it unless the caller already holds an admin token. `zonai db admin add` is unaffected; it never consults rules. See [JWT Claims](/rules/jwt-claims#admin-claims).
+
+An app that genuinely wants open registration on an admin table opts back in, where a reviewer will see it:
+
+```dart in:project-file
+final class AdminRowRules extends AuthRowRules<AdminTable, Admin> {
+  AdminRowRules() : super(admins);
+
+  // Deliberate: this table is AsAdmin, so anyone who signs up becomes an
+  // admin. Fine for a demo, never for production.
+  @override
+  Future<bool> canSignUp(Jwt? jwt, AuthType authType) async => true;
+}
+```
+
+#### `canSignUp` or `beforeSignUp`?
+
+Both refuse a registration before anything is written. The choice is about what you need to see and what the caller is told:
+
+| | `canSignUp` (rule) | `beforeSignUp` ([extension hook](/extensions/auth-hooks)) |
+| --- | --- | --- |
+| Sees | The JWT and the `AuthType` | Those, plus the submitted email and every extra column in the body |
+| Answers with | A `bool` (`403`) | Your own message, returned as a `403` |
+| Runs per sign-up | Once | Once for password; at least once for OTP and magic link, which re-run it at verify |
+
+Use the rule when the decision is about the *caller* (an admin token, an auth method this table doesn't offer). Use the hook when it is about the *submission* (the email's domain), or when the caller deserves a reason. The rule runs first; if it returns `false`, the hook is never called.
 
 ### canSignIn(jwt, authType) — row level
 
@@ -120,6 +153,8 @@ Future<bool> canPasswordReset(Jwt? jwt, AuthType authType) async => false;
 Defaults to `true` for `AuthType.password` when the table mixes in `PasswordAuth`, and `false` for `otp` and `magicLink` — there is no password to reset on those.
 
 `AuthRowRules` also inherits the row-level `canView`, `canCreate`, `canUpdate` and `canDelete`. Their defaults let an admin through, and otherwise allow only the account whose row ID matches `Jwt.userId` — which is what stops one signed-in user reading another's account row.
+
+Accounts are created through the auth API (`POST /auth/sign-up` and friends), not `POST /db`: a non-admin `create` on an auth table through `/db` is refused regardless of your rules.
 
 ## Common Patterns
 

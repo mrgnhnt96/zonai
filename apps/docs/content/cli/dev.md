@@ -38,7 +38,7 @@ If `zonai.yaml` does not exist in the current directory, `zonai dev` prompts you
 | -------------------- | ----------- | -------------------------- |
 | Runs the HTTP server | ✓           | ✓                          |
 | Interactive TUI      | ✓           | —                          |
-| Migration helpers    | ✓           | auto-apply on startup only |
+| Migration helpers    | ✓           | watcher + `m` key          |
 | Schema viewer        | ✓           | —                          |
 
 <Info>

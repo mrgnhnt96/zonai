@@ -67,7 +67,7 @@ FCM's documented payload ceiling is **4096 bytes**, and Zonai refuses a message 
 
 The check happens at the `push` call, which is the whole point. An over-limit payload comes back from FCM as `INVALID_ARGUMENT` — *the same status it uses for a dead token* — so left to the transport, one oversized message looks exactly like every recipient's registration going bad at once. Failing at the call site means the author is told before a job exists, and the error names the byte count and the budget.
 
-A notification body is truncated on screen well before this limit anyway. If you are near it, the detail belongs in the app, not the payload.
+A notification is truncated on screen long before this limit anyway. A realistic one (a 27-character title, an 81-character body, a collapse key and three data ids) is about 500 bytes on the wire. iOS shows about four lines and Android about two when collapsed. If you're near the limit, the detail belongs in the app, not the payload.
 
 ## What the job id means
 
@@ -78,10 +78,10 @@ It is **not**:
 - a promise the notification was delivered — FCM offers no such receipt to anyone;
 - awaitable to completion. There is no "wait for the fan-out", and there will not be one. By the time a large fan-out finishes, the request that started it returned long ago.
 
-What the id is good for is querying the jobs collection: progress, per-outcome counts (delivered, permanently rejected, transiently failed), and the reason a job failed. That collection is admin-gated like every other framework-owned table — a job row carries the notification body and the recipient predicate — so read it with an admin identity rather than from a user request.
+What the id is good for is looking up the job in the `_push_jobs` collection. Each row has a `status` (`pending`, `running`, `completed` or `failed`), per-outcome counts (`delivered`, `permanently_rejected`, `transiently_failed`), and an `error` explaining why a job failed. The dashboard's **Push Queue** panel shows the same counts at a glance. That collection is admin-gated like every other framework-owned table — a job row carries the notification body and the recipient predicate — so read it with an admin identity rather than from a user request.
 
 ## When sending actually happens
 
-Enqueuing starts a drain immediately, so a notification does not wait for a timer. An internal cron runs every minute as the **resume** path: a fan-out whose drain died mid-batch, or one enqueued by a process that has since restarted, is picked up there.
+Enqueuing starts a drain immediately, so a notification does not wait for a timer. The internal `_drain_push_jobs` cron runs every minute as the **resume** path: a fan-out whose drain died mid-batch, or one enqueued by a process that has since restarted, is picked up there.
 
-A second internal cron purges *finished* jobs nightly, after seven days. Running and pending jobs are never purged by age — a running job's row is its cursor, and deleting it would restart its fan-out from the top.
+A second internal cron, `_cleanup_push_jobs`, runs nightly at 04:00 server time and purges *finished* jobs older than seven days. Running and pending jobs are never purged by age — a running job's row is its cursor, and deleting it would restart its fan-out from the top.

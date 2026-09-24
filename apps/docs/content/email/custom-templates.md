@@ -29,28 +29,40 @@ description: Creating and sending your own email templates.
 zonai db email template create order_confirmation
 ```
 
-This creates `<emailTemplatesPath>/order_confirmation.html` pre-filled with the `verify_email` template as a starting point. Edit the file to fit your design.
+This creates `<emailTemplatesPath>/order_confirmation.html` pre-filled with the `verify_email` template as a starting point. It refuses to overwrite an existing file. **Create email template** in `zonai dev` does the same thing. Edit the file to fit your design.
 
 ## Template Format
 
-Templates are plain HTML with Mustache interpolation. Include CSS inline — many email clients do not support `<style>` blocks.
+Templates are plain HTML with [Mustache](https://mustache.github.io/mustache.5.html) interpolation. Put CSS inline, because many email clients ignore `<style>` blocks. Messages are sent as HTML only, with no plaintext alternative.
 
 ```html
 <!DOCTYPE html>
 <html>
   <body>
     <h1>Order Confirmed</h1>
-    <p>Hi {{customerName}},</p>
+    <p>Hi{{#customerName}} {{customerName}}{{/customerName}},</p>
     <p>Your order <strong>#{{orderId}}</strong> has been confirmed.</p>
     <p>Total: {{total}}</p>
     {{#items}}
     <p>- {{name}} × {{quantity}}</p>
     {{/items}}
+    <p>Sent by {{appName}}</p>
   </body>
 </html>
 ```
 
-Templates use [Mustache](https://mustache.github.io/mustache.5.html) syntax.
+| Syntax | Meaning |
+| ------ | ------- |
+| `{{variable}}` | Insert a value, HTML-escaped |
+| `{{{variable}}}` | Insert a value without escaping |
+| `{{#name}} … {{/name}}` | Render the block when `name` is truthy, or once per item when it is a list |
+| `{{^name}} … {{/name}}` | Render the block when `name` is falsy or missing |
+
+Rendering rules:
+
+- **Rendering is lenient.** A missing variable renders as an empty string, with no error. Preview a template before shipping it, because a misspelled key fails silently.
+- **`appName` and `preheader` are always available.** You never need to pass them in `variables`.
+- **The template name must be a plain file name.** It can't contain `/`, `\` or spaces, and it can't be `.` or `..`. Anything else is refused before any file is read.
 
 ## Sending a Custom Template
 
@@ -80,7 +92,24 @@ Future<void> afterCreateSuccess(Purchase purchase, Jwt? jwt) async {
 }
 ```
 
-The `template` field is the filename without `.html`.
+The `template` field is the filename without `.html`. `email.send(...)` is fire-and-forget: the hook doesn't wait for delivery, and a failure is written to the server log. See [Side Effects: email](/extensions/side-effects-email).
+
+### Per-message options
+
+| Field | Purpose |
+| ----- | ------- |
+| `from` | Override the default sender from `EmailConfig.from` |
+| `preheader` | The inbox preview line (see [below](#preview-text)) |
+| `thread` | Group related messages into one conversation in the recipient's inbox |
+| `variables` | Mustache data. `appName` and `preheader` are added automatically |
+
+For threading, use `Email.createThread('order:42')` on the first message and `Email.createThread('order:42', continueThread: true)` on follow-ups. Zonai sets the `Message-ID`, `In-Reply-To` and `References` headers from it. The built-in OTP and magic-link emails already thread their resends this way.
+
+## Sending over HTTP
+
+`POST /email` accepts the same `Email` shape as JSON (`Email.toJson()`), or `client.email.send(...)` from the [Dart client](/dart-client/email). It is **admin-only**: without an admin token the request is refused. It is also limited to 10 requests per minute per client IP. To restrict the recipients it will mail, set `ZONAI_EMAIL_RECIPIENTS` in the server's process environment to a comma-separated list of addresses.
+
+For anything a regular user triggers, send from an extension hook instead.
 
 ## Preview Text
 
@@ -121,8 +150,8 @@ Keep the line under ~100 characters, and do not repeat the subject: the two are 
 
 The built-in templates already carry this block, and the built-in auth emails set a sensible default (`Your sign-in code expires in 10 minutes.`, and so on). Pass `preheader:` to override.
 
-Blank counts as unset — a preheader of `''` or whitespace renders no block.
+A blank preheader counts as unset: `''` or whitespace renders no block. The value is HTML-escaped, so an `&` or `<` in the text can't break the markup.
 
 ## Live Reloading
 
-Templates are read from disk at send time. Changes take effect immediately — no recompile or server restart needed.
+Templates are read from disk at send time, so changes take effect immediately, with no recompile or server restart. In production they are read from the copy `zonai build` puts in the build output.

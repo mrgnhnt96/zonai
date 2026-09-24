@@ -677,13 +677,10 @@ hardcoded `localhost` before every first production deploy, not just this one fi
 
 ## If the Server Segfaults on Boot
 
-If a compiled `zonai serve` crashes with a segfault within a second of starting on Linux — this was a
-real, deterministic bug (crossed-SQLite-build ABI mismatch inside `raindrop_sqlite`'s
-`ResqliteDelegate.open`, opening one database file through two separately-built SQLite libraries)
-that reproduced on every architecture. It's fixed upstream as of `zonai` `main` commit `3404812`
-(plus `resqlite`/`raindrop` submodule pins). If you hit this, you're likely on a pre-fix commit — see
-[known issue #12](https://github.com/mrgnhnt96/zonai/blob/main/docs/known-issues.md#12-compiled-zonai-serve-segfaults-seconds-after-startup-on-linux-x64arm64---sqlite3leavemutexandclosezombie---fixed)
-for the full root cause rather than rediscovering it from scratch.
+If a compiled `zonai serve` crashes with a segfault within a second of starting on Linux, you are
+running a release older than **v0.3.5**. That version fixed an ABI mismatch that opened one database
+file through two separately built SQLite libraries ([`3404812`](https://github.com/mrgnhnt96/zonai/commit/3404812)).
+Upgrade with `./zonai version update`.
 
 ## Appendix: Rebuilding the Framework From Source
 

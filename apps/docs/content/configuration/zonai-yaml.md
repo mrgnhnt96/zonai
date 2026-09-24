@@ -60,10 +60,10 @@ There is no equivalent for `_rate_limit`: it is bounded by its own retention win
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `host` | `localhost` | Bind address. When `localhost`, the server binds dual-stack on `::` (IPv4 + IPv6). Use `127.0.0.1` for IPv4 loopback only or `0.0.0.0` for all IPv4 interfaces. |
+| `host` | `localhost` | Bind address. `localhost` binds the IPv4 loopback `127.0.0.1` — reachable from this machine only. Any other value is bound as written: `0.0.0.0` for every IPv4 interface (containers, direct external access), `::1` for IPv6 loopback. |
 | `port` | `8080` | HTTP port. |
 
-CLI `--host` and `--port` flags take precedence over these values. See [Server Binding](/deployment/server-binding) for examples.
+CLI `--host` and `--port` flags take precedence over these values. `zonai build` copies this file into `build/`, so the bundle inherits them. See [Server Binding](/deployment/server-binding) for examples.
 
 ## Build Settings
 
@@ -74,7 +74,7 @@ The optional `buildSettings` block enables cross-compilation:
 | `targetOs` | Current OS | `linux`, `macos`, `windows` |
 | `targetArch` | Current arch | `arm64`, `x64` |
 
-Use this when building on macOS to deploy to a Linux server.
+Use this when building on macOS to deploy to a Linux server. Only `linux` targets can be cross-compiled; a `macos` or `windows` target must match the build machine. See [Cross-Compilation](/deployment/cross-compilation).
 
 ## Client Settings
 

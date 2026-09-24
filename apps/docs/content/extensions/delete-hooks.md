@@ -11,11 +11,11 @@ Future<void> afterDeleteSuccess(T object, Jwt? jwt);
 Future<void> afterDeleteError(Object error, Jwt? jwt);
 ```
 
-`object` in all delete hooks is the row being (or that was) deleted.
+`object` in all delete hooks is the row being (or that was) deleted. The hooks run once per row: a delete that matches ten rows calls `beforeDelete` ten times, then `afterDeleteSuccess` ten times.
 
 ## beforeDelete
 
-Runs after rules pass, before the DELETE executes. **Can abort** by throwing:
+Runs after rules pass, before the DELETE executes. **Can abort** by throwing. Nothing is deleted, and the client receives a `500` server error rather than your message:
 
 ```dart in:extension-user
 @override
@@ -31,7 +31,9 @@ Future<void> beforeDelete(User user, Jwt? jwt) async {
 }
 ```
 
-Use for: checking for dependencies before deleting, implementing soft-delete (throw to prevent deletion, then update a `deletedAt` column instead).
+Use for: checking for dependencies before deleting.
+
+A throwing hook also discards anything it queued with `mutate`, so "throw, then mark the row deleted" does not work here. For soft deletes, have clients update a `deletedAt` column and deny `delete` in [rules](/rules/table-rules).
 
 ## afterDeleteSuccess
 

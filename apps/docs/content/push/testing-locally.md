@@ -60,17 +60,25 @@ Two things to know before it confuses you:
 
 A local stand-in never touches your real key, so it cannot tell you whether that key works. FCM credentials fail in three ways that look identical from the outside — wrong project, missing IAM role, FCM API not enabled — and all three arrive as "notifications just don't show up".
 
-Zonai ships a probe that asks Google directly:
+The zonai repository has a probe that asks Google directly. Run it from `apps/zonai` in a checkout of the repo. It isn't part of the installed CLI:
 
 ```sh
-dart run tool/fcm_probe.dart /etc/my-app/fcm-service-account.json
+dart run tool/fcm_probe.dart /etc/my-app/fcm-service-account.json [project-id]
 ```
+
+`project-id` defaults to the key's own `project_id`. Pass it explicitly when the FCM project is different from the project the key was created in.
 
 It sends to a token FCM has never issued. Nothing reaches a phone and nothing is pruned; the **error is the diagnosis**. A permanent rejection is the healthy answer — it means the credentials worked and FCM got as far as judging the token, which is the same path a real dead registration takes. A `403 PERMISSION_DENIED` means the service account lacks the **Firebase Cloud Messaging API Admin** role, or belongs to a different project than you think.
 
 That last case is the common one, and it is genuinely hard to spot any other way: a Play/`androidpublisher` service account — the kind Google Play billing and RevenueCat hand you — is a real key, in a real Google project, that simply is not the FCM one. It looks correct in every respect except the one that matters.
 
-The APNs equivalent is the sandbox above: send to a made-up token and read the `reason`. `InvalidProviderToken` is a credentials problem, `TopicDisallowed` is a bundle id your team does not own, and `BadDeviceToken` means everything except the token was right.
+The APNs equivalent is the sandbox above: send to a made-up token and read the `reason`. The repo's `tool/apns_probe.dart` does exactly this, printing Apple's raw status and `reason` (`dart run tool/apns_probe.dart <AuthKey.p8> <keyId> <teamId> <bundleId> <deviceToken> [--production]`, sandbox by default). `InvalidProviderToken` is a credentials problem, `TopicDisallowed` is a bundle id your team does not own, and `BadDeviceToken` means everything except the token was right.
+
+## From the dashboard
+
+The admin dashboard can send to real rows of any table with a `deviceToken` column. Open a row and choose **Send test notification**, or select up to 50 rows and send to all of them. The row's transport comes from its platform column, if the table has one. The dashboard recognizes an enum whose values are all platforms, or a text column named `platform`, `device_platform`, `os_platform` or `os`.
+
+A test send is **not** a fan-out. It sends one notification per token through the same transport and classification, and shows the result for each row. It writes nothing: no job row, no pruning, and no `onPushRejected` call. It retries nothing either, so you see the first answer the transport gave. Without `AppConfig.push`, it reports that there is no transport to send through. That makes it the quickest way to see what FCM or APNs says about one specific device.
 
 ## A real send
 
@@ -91,3 +99,18 @@ Both are about *observing* the notification rather than sending it, and both loo
 
 - **A push is only visible with the app backgrounded.** While your app is frontmost, iOS suppresses the banner and hands the notification to the app instead. A foreground test looks like nothing arrived.
 - **Test a release build.** A debug build cannot launch standalone on modern iOS — it needs the Flutter tooling attached — so `flutter build ios --release` is what you install on the phone.
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `AppConfig.push is not configured` in the log, and `push(...)` throws a `StateError` | There is no `push:` in `AppConfig` for this flavor. See [Configuration](/push/configuration). |
+| `push is not available outside a request scope` | `push` was called outside an extension hook or a cron job. See [Who can send](/push/sending#who-can-send). |
+| `"…" is a text column, not a deviceToken column` | The column is declared with `$.text(...)`. Change it to `$.deviceToken(...)`. |
+| `"…" has no primary key` | A fan-out can't be checkpointed without one. See [Device Tokens](/push/device-tokens). |
+| `PushMessage is N bytes, over the …-byte budget` | The message is too large. Shorten the body and move detail into the app. See [Size](/push/sending#size-is-checked-at-enqueue-not-at-send). |
+| Job failed with `every recipient in a batch … INVALID_ARGUMENT` | Almost always a malformed message, not N dead tokens. **Nothing was pruned.** |
+| Job failed with `FCM rejected the credentials (403)` | The service account lacks the Firebase Cloud Messaging API Admin role, or the key belongs to a different project. The job fails, and **no tokens are pruned**. |
+| Android arrives, iOS does not (via FCM) | FCM has no usable APNs credential for that app: the key is missing or expired, or the bundle id is not a push-enabled App ID. Those recipients count as transient failures and are never pruned. See [Dead Tokens](/push/dead-tokens). |
+| `transiently_failed` equals the recipient count, and the job never fails | APNs-only setup with no `platformColumn`. See [Device Tokens](/push/device-tokens#an-apns-only-app-must-name-the-column). |
+| `permanently_rejected` keeps climbing | Normal. It is your uninstall rate. |

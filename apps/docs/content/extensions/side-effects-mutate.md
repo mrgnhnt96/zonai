@@ -3,7 +3,7 @@ title: "Side Effects: mutate"
 description: Queuing additional database writes inside an extension or cron job.
 ---
 
-`mutate` is a side-effect API for queuing additional database writes from inside extension hooks and cron jobs. Calls are synchronous (fire-and-forget) — they are queued and execute after the current hook returns.
+`mutate` is a side-effect API for queuing additional database writes from inside extension hooks and cron jobs. Calls return `void` immediately. The write is queued and runs after the request's own write and hooks have finished (for a cron job, after `run()` returns). A queued write is not visible to a `get` in the same hook, and the hook cannot see how many rows it changed.
 
 ## mutate.create
 
@@ -70,14 +70,20 @@ mutate.delete.many(
 
 ## Queuing Behavior
 
-Mutations queue in the order they are called and execute after the hook returns. Each executed mutation goes through the full pipeline — rules, rate limit, extensions — for the target table. This means:
+Mutations run in the order they were queued. Each one goes through the same pipeline as an HTTP request to the target table: table rules, row rules, operations, and that table's extension hooks. (Rate limits are not applied; they only guard HTTP routes.) This means:
 
 - A delete on `comments` triggers `CommentExtensions.afterDeleteSuccess`
 - That hook could queue further mutations, up to the chain limit
 
+**Queued writes act as the hook's `jwt`.** A write queued from a user's request is checked against that user's rules, so the user needs permission to write the target table. In cron jobs the identity is `CronJwt`.
+
+**Queued writes only run if the request succeeds.** If a `before*` hook throws, the write itself fails, or an `after*Success` hook throws, everything queued so far is discarded. Writes queued in `after*Error` hooks never run either, because the request is failing.
+
 ## The Chain Limit
 
-A single request chain can trigger at most **10 side-effect mutations**. This prevents infinite loops (e.g. an update extension that updates the same row indefinitely). Mutations beyond the limit are silently dropped and a warning is logged.
+Queued writes run in rounds. The writes queued by the request form round one; the writes their hooks queue form round two, and so on. After **10 rounds**, anything still queued is dropped **silently**, with no error and no log line. This stops loops such as an update hook that keeps updating its own row.
+
+Within a round, all the writes are committed in one transaction.
 
 ## Example: Audit Log
 

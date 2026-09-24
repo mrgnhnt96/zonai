@@ -35,6 +35,8 @@ final class DeviceTokenTable extends Table<DeviceToken> {
 final deviceTokens = table('device_tokens', DeviceTokenTable.new);
 ```
 
+This is the recommended shape: **one row per device**, with a nullable `deviceToken` column and a plain text `platform` column storing `ios` or `android`. Someone with a phone and a tablet has two rows. Reinstalling the app usually means a new token and a new row. The dashboard's test-send action recognizes a text column named `platform` (or `device_platform`, `os_platform`, `os`) as the platform column. See [Testing Push Locally](/push/testing-locally#from-the-dashboard).
+
 ## Two properties are load-bearing
 
 **The token column must be nullable.** The default pruning policy writes `NULL` into it when FCM reports the token dead. A non-nullable column makes the framework's own default fail.

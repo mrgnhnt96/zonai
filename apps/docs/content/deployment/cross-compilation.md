@@ -22,7 +22,9 @@ buildSettings:
 
 ## How It Works
 
-Dart supports AOT cross-compilation — `dart compile exe` produces a native binary for any supported target directly. No emulator, VM, or Docker build environment needed.
+`dart compile exe --target-os/--target-arch` produces native binaries for the target directly — no emulator, VM, or Docker build environment needed. Dart only cross-compiles **to Linux**: any `linux` target works from any host, but a `macos` or `windows` target must match the machine you build on (OS and architecture), or `zonai build` fails with `Cannot build for …`.
+
+When the target differs from the host, `zonai build` also downloads the target's native libraries into `build/.zonai/lib/`, so the bundle does not carry your build machine's copies.
 
 ## Common Scenarios
 
@@ -48,9 +50,10 @@ buildSettings:
 zonai build --flavor prod --release
 ```
 
-With `buildSettings` configured, the `build/` bundle contains a **project-linked**
-`zonai` binary and workers for the target platform — all compiled with
-`dart compile exe`, not downloaded.
+With `buildSettings` configured, every binary in `build/` — the `zonai` server
+and all workers — is built for the target platform. See
+[Building for Production](/deployment/building-for-production#what-gets-bundled)
+for what `build/zonai` is.
 
 ## Verifying the Build
 

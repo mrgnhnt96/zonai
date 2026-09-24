@@ -100,7 +100,7 @@ photos: PhotosConfig(
 ),
 ```
 
-These constraints are enforced before the rules worker runs, so `canUpload` in photo rules only sees valid files.
+These constraints are enforced before rules run, so `canCreate` in [photo rules](/rules/photo-rules) only sees valid files.
 
 ## Unreferenced Photo Cleanup
 

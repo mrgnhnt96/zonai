@@ -306,6 +306,11 @@ const List<NavGroup> navigation = [
       NavItem('Built-in Templates', '/email/built-in-templates', summary: 'The templates auth ships with.'),
       NavItem('Custom Templates', '/email/custom-templates'),
       NavItem('Testing Locally', '/email/testing-locally', summary: 'Catch outgoing mail during development.'),
+      NavItem(
+        'Production Delivery',
+        '/email/production',
+        summary: 'Domain DNS, credential checks, and deliverability testing.',
+      ),
     ],
   ),
   NavGroup(

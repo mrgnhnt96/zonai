@@ -56,6 +56,8 @@ A framework that writes into your tables is one you have to trust. That trust is
 - [Configuration](/push/configuration) — credentials for both routes, and the rotation cost of getting them wrong.
 - [Sending](/push/sending) — naming a recipient set, and what the returned job id does and does not promise.
 - [Delivery Guarantees](/push/delivery-guarantees) — read this before assuming a notification arrived.
+- [Dead Tokens](/push/dead-tokens) — what gets pruned, what never does, and the `onPushRejected` hook.
+- [Testing Push Locally](/push/testing-locally) — probes, the APNs sandbox, the dashboard's test send, and a troubleshooting table.
 
 ## Not in v1
 

@@ -25,8 +25,8 @@ from the project root on its own. See
 ## Workers Compiled
 
 - `db_config` — config worker
-- `db_rules` — rules worker (also linked in-process by the project binary)
-- `db_operations` — operations worker (also linked in-process by the project binary)
+- `db_rules` — rules worker (run in-process instead when the project binary is linked)
+- `db_operations` — operations worker (run in-process instead when the project binary is linked)
 - `db_extensions` — extensions worker
 - `db_rate_limit` — rate limit worker
 - `db_crons` — crons worker
@@ -43,4 +43,4 @@ In dev mode (`zonai serve`), Zonai watches source files and recompiles workers a
 ## vs. zonai build
 
 - `zonai compile` — workers only, to `.zonai/executables/`. Use during development.
-- `zonai build` — workers + **project-linked** `build/zonai` + migrations/settings. Use for deployment.
+- `zonai build` — workers + `build/zonai` + migrations, templates and settings under `build/`. Use for deployment.
