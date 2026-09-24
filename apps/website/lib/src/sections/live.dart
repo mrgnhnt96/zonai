@@ -56,7 +56,7 @@ class LiveQueries extends StatelessComponent {
           for (final (title, body) in const [
             (
               'Same rules, same limits',
-              'Streams reuse canView / canList / canCount and the matching rate-limit buckets. There is no separate '
+              'Streams reuse canView / canList (count uses canList) and the matching rate-limit buckets. There is no separate '
                   'canStream to forget about.',
             ),
             (

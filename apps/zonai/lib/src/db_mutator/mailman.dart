@@ -199,33 +199,33 @@ class Mailman<S extends Request, R extends Response> {
         'Config worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.configPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
-            'See docs/config-and-env-flavors.md',
+            'See https://docs.zonai.dev/core-concepts/config-flavors',
       OperationsMailman.debug =>
         'Operations worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.operationsPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
-            'See docs/operations.md',
+            'See https://docs.zonai.dev/operations/overview',
 
       RulesMailman.debug =>
         'Rules worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.rulesPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
-            'See docs/rules.md',
+            'See https://docs.zonai.dev/rules/overview',
       ExtensionsMailman.debug =>
         'Extensions worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.extensionsPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
-            'See docs/extensions.md',
+            'See https://docs.zonai.dev/extensions/overview',
       RateLimitsMailman.debug =>
         'Rate limit worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.rateLimitPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
-            'See docs/rate-limiting.md',
+            'See https://docs.zonai.dev/rate-limiting/configuring-policies',
       CronMailman.debug =>
         'Cron worker is not compiled ($executablePath).\n'
             'Add Dart files under ${settings.cronsPath} and run `zonai serve` '
             '(or press c while serving) to compile workers.\n'
-            'See docs/cron.md',
+            'See https://docs.zonai.dev/cron-jobs/defining-a-job',
       _ =>
         'Worker is not compiled ($executablePath).\n'
             'Run `zonai serve` (or press c while serving) to compile workers.',

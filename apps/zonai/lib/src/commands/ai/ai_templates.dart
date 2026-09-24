@@ -8,30 +8,37 @@ library;
 const _doc = r"""
 # Zonai Framework Reference
 
-Zonai is a Dart CLI framework that compiles your declarative Dart code into a
-project-linked server binary (plus optional worker executables) and runs a
-SQLite-backed REST API. You write schemas, rules, operations, extensions, rate
-limits, and crons — Zonai generates the SQL and handles HTTP.
+Zonai is a self-hosted Dart backend: you write schemas, rules, operations,
+extensions, rate limits, and crons against `package:zonai_schema`, and the
+`zonai` CLI compiles them into worker executables and serves a SQLite-backed
+REST API. Zonai generates the SQL and handles HTTP.
 
-**Runtime model**: `zonai serve` / `zonai build` produce a **project binary**
-that links your ops and rules **in-process** (no IPC on the create/list hot
-path). `zonai compile` also builds worker executables (`db_operations`,
-`db_rules`, `db_extensions`, `db_rate_limit`, `db_crons`, `db_config`) under
-`.zonai/executables/` for config/extensions/rate-limits/crons, ping/compat, and
-the `ZONAI_FORCE_WORKERS=1` escape hatch. In dev, workers auto-recompile on file
-changes; ops/rules edits require restarting `serve` so the linked entry reloads.
+**Install**: the CLI is **not** on pub.dev (no `pub global activate`,
+no `dart run zonai`). Download the binary from GitHub Releases into the project
+root and run it as `./zonai <command>` from there:
+`curl -fsSL https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai -o zonai && chmod +x zonai`
+(Windows: `zonai-windows-x64.zip` from the same release). `zonai_schema` (server
+code) and `zonai_client` (apps) are the pub.dev packages.
+
+**Runtime model**: your sources compile into workers under
+`.zonai/executables/` (`db_operations`, `db_rules`, `db_extensions`,
+`db_rate_limit`, `db_crons`, `db_config`), which the server calls over IPC
+(framed MessagePack). A project scaffolded by `zonai dev` depends only on
+`zonai_schema`, so **everything runs as workers** and `build/zonai` is the
+published binary. Only a project that itself depends on `package:zonai` gets a
+project-linked binary with ops/rules in-process; both behave the same. In dev,
+`serve` recompiles a worker when its sources change.
+Pipeline: rate limit → rules → operations → SQLite → row `canView` → extensions.
 
 **Live queries**: every table has `GET /db/stream`, `/db/stream/list`, and
 `/db/stream/count`. Prefer `zonai_client`'s `client.db.listen` over polling or
 hand-rolled HTTP. Search for **stream** / **listen** — not "realtime", "SSE",
-or "WebSocket". Streams reuse `canView` / `canList` / `canCount` rules.
+or "WebSocket". Streams reuse the `canView` / `canList` rules (`count` is gated by `canList`).
 
 **Runtime env (optional):** `ZONAI_FORCE_WORKERS`, `ZONAI_WORKER_TRANSPORT`
 (`auto`|`process`|`isolate`), `ZONAI_WORKER_POOL_SIZE` (default 1),
-`ZONAI_HTTP_WORKERS` (keep 1 — `>1` regresses list vs one SQLite file).
-Worker IPC uses framed MessagePack; list/create also benefit from host caches,
-batch row-rules, `requiresPerRowCheck => false` skip, skip-empty extensions,
-and write-queue 503 backpressure.
+`ZONAI_HTTP_WORKERS` (keep 1 with one SQLite file). Too many queued writes or
+in-flight reads answer `503` with `Retry-After: 1`.
 
 ---
 
@@ -39,26 +46,36 @@ and write-queue 503 backpressure.
 
 ```
 my_app/
-  zonai.yaml              # project config (paths, version)
-  pubspec.yaml
+  zonai                   # the CLI binary (zonai.exe on Windows)
+  zonai.yaml              # project config (paths, pinned CLI version)
+  pubspec.yaml            # depends on zonai_schema
+  .env                    # optional compile-time secrets (gitignore it)
   lib/src/
     ids.dart              # typed ID classes (one per table)
     schemas/              # Table + entity class definitions
-    config/               # AppConfig (SMTP, JWT, base URL, photos)
+    config/               # AppConfig (secrets, SMTP, JWT, base URL)
     operations/           # optional: custom CRUD SQL overrides per table
-    rules/                # authorization — table + row rules per collection
-    extensions/           # lifecycle hooks (create/update/delete/auth)
-    rate_limit/           # per-operation request throttling
-    crons/                # scheduled background jobs
-    email_templates/      # HTML email template files
+    rules/                # required per table: table + row rules
+    extensions/           # optional lifecycle hooks (create/update/delete/auth)
+    rate_limit/           # optional per-operation request throttling
+    crons/                # optional scheduled background jobs
+    email_templates/      # Mustache HTML email templates
   .zonai/
-    migrations/           # SQL migration files (managed by zonai db migrate)
+    migrations/           # generated SQL — commit it
+    executables/          # compiled workers (generated)
+    data/                 # SQLite database + uploads — never commit
 ```
+
+Every `.dart` file under these directories is picked up automatically.
+**Every file except schemas needs a top-level `main()` returning its object**
+(rules, operations, extensions, rate limits, crons, config) — a file without
+one fails to load. One table-rules, row-rules, extension, and rate-limit class
+per table; a second one for the same table throws "... already registered".
 
 ### zonai.yaml
 
 ```yaml
-version: 1.0.0
+version: 0.9.1              # the CLI release this project pins
 migrationsPath: .zonai/migrations
 schemasPath:    lib/src/schemas
 configPath:     lib/src/config
@@ -68,7 +85,12 @@ operationsPath: lib/src/operations
 extensionsPath: lib/src/extensions
 rateLimitPath:  lib/src/rate_limit
 cronsPath:      lib/src/crons
+host: localhost             # default; binds 127.0.0.1 only — 0.0.0.0 to expose
+port: 8080
 ```
+
+All paths are optional and default to the values above. `--host`/`--port`
+flags override `host:`/`port:`.
 
 ---
 
@@ -130,15 +152,15 @@ final items = table('items', ItemTable.new);
 | `$.id(name, getter, fromString:, generate:)` | `IdColumn<T>` | Typed ID class |
 | `$.text(name, getter)` | `TextColumn` | |
 | `$.integer(name, getter)` | `IntColumn` | |
-| `$.boolean(name, getter)` | `BoolColumn` | |
-| `$.decimal(name, getter)` | `DecimalColumn` | |
+| `$.boolean(name, getter)` | `BooleanColumn` | Stored as INTEGER 0/1 |
+| `$.real(name, getter)` | `RealColumn` | `double` |
 | `$.email(name, getter)` | `EmailColumn` | Auth tables |
 | `$.password(name, getter)` | `PasswordColumn` | Auth tables; Argon2id auto-hashed |
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
 | `$.deviceToken(name, getter)` | `ColumnType<String?>` | Push recipient token; MUST be nullable |
 | `$.dateTime(name, getter)` | `DateTimeColumn` | Client-settable timestamp |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
-| `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
+| `$.updatedAt(name, getter)` | `ColumnType<DateTime?>` | Auto-set on update; always nullable |
 | `$.updatedWhen(name, getter, watchColumn:)` | `DateTimeColumn` | Auto-set when `watchColumn` changes |
 | `$.isVerified(name, getter)` | `IsVerifiedColumn` | Auth tables |
 | `$.enumerator(name, values, getter)` | `EnumColumn<E>` | Dart enum stored as TEXT |
@@ -155,11 +177,15 @@ speaks epoch milliseconds on the wire in both directions — reads always come
 back as an `int`, and writes accept either epoch milliseconds or an ISO-8601
 string.
 
+**Wire names are column names**: JSON keys in `object`, `where`, `order_by`
+and responses are the database column names (the first argument, e.g.
+`created_at`, `is_complete`), never the Dart field names (`createdAt`).
+
 ### Auth tables
 
 ```dart in:schema-file
 final class UserTable extends AuthTable<User>
-    with PasswordAuth, OtpAuth, MagicLinkAuth, AsAdmin {
+    with PasswordAuth, OtpAuth, MagicLinkAuth {
   UserTable(super.$)
     : id = $.id('id', (s) => s.id,
           fromString: UsersId.new, generate: UsersId.generate),
@@ -189,8 +215,11 @@ final class UserTable extends AuthTable<User>
 final users = authTable('users', UserTable.new);
 ```
 
-Auth mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`. Add `AsAdmin` to allow
-users of this table to authenticate as admins.
+Auth mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`, `OAuth`. `AsAdmin`
+makes **every** token issued by the table an admin token, so use it only on a
+dedicated admin table (the scaffolded `admins`), never on `users`. Sign-up on
+an `AsAdmin` table is closed by default; create admins with
+`./zonai db admin add --email <e> --password <p>`.
 
 ### ID classes (`lib/src/ids.dart`)
 
@@ -209,7 +238,7 @@ class ItemsId implements z.Id {
 ```
 
 Use a unique 2-3 char suffix per table (e.g. `'it'` for items, `'us'` for users).
-IDs are formatted as `<timestamp>_<suffix>`.
+IDs look like `<15 hex chars>_<suffix>` (e.g. `3f9a0c1b2d4e5f6_it`).
 
 ---
 
@@ -237,13 +266,18 @@ UserOperations main() => UserOperations();
 
 `AuthOperations` mixin adds:
 
-| Override | Purpose |
+| Override | Default |
 |----------|---------|
-| `addClaims({required Jwt jwt})` | Extra JWT claims merged into tokens |
-| `jwtExpiresIn` | Per-collection JWT lifetime override |
-| `magicLinkConfig` | Magic-link path + expiry |
-| `resetPasswordConfig` | Reset-password path + expiry |
-| `verifyEmailConfig` | Verify-email path + expiry |
+| `addClaims({required Jwt jwt})` | No extra claims |
+| `Duration? get jwtExpiresIn` | `null` → `AppConfig.jwtExpiresIn` (24 hours) |
+| `Future<MagicLinkConfig> magicLinkConfig()` | Path `/auth/magic-link`, 10 min |
+| `Future<ResetPasswordConfig> resetPasswordConfig()` | Path `/auth/reset-password`, 10 min |
+| `Future<VerifyEmailConfig> verifyEmailConfig()` | Path `/auth/verify-email`, 24 hours |
+
+Emailed links are `{AppConfig.baseUrl}{path}?s=<secret>` (`path` may be a full
+URL). Zonai does not redirect: the page at that URL reads `s` and POSTs it to
+`/auth/confirm`. OTP codes are always 6 digits, valid 10 minutes, 3 attempts —
+not configurable.
 
 One file per collection. Each file's `main()` must return a `TableOperations` instance.
 
@@ -261,7 +295,12 @@ One file per collection. Each file's `main()` must return a `TableOperations` in
 | update / update many | PATCH | `/db` / `/db/many` |
 | delete / delete many | DELETE | `/db` / `/db/many` |
 
-Table name is always in the JSON body (`?body=` for GET), never in the path.
+Table name is always in the JSON body (`?body=` for GET), never in the path:
+`POST /db {"table": "tasks", "object": {"title": "x", "is_complete": false}}`.
+Auth routes (`POST /auth/sign-up`, `/auth/sign-in`, …) take `"table"` and
+`"type"` in the body and answer wrapped:
+`{"data": {"accessToken": "…", "user": {…}}}`; send
+`Authorization: Bearer <accessToken>` afterwards.
 Payload types: `StreamBody`, `StreamListBody`, `StreamCountBody` in
 `zonai_schema`. Dart apps should use `package:zonai_client` —
 `client.db.listen.one|list|count` — not a custom poller.
@@ -277,8 +316,14 @@ covered: `client.posts.listen.list(...)` is the typed mirror of
 
 ## Rules
 
-Every collection you expose through the API needs rules. Default: deny all
-non-admin access.
+Every table you expose needs **two files** under `rulesPath`: table rules and
+row rules. Defaults fail closed:
+
+- **No rules file for a table** → every request is denied (`403`), admins included.
+- **A method you don't override** → only admins pass: an admin with
+  `admin.canEdit` for writes, any admin for reads. Everyone else, including
+  `jwt == null`, is denied.
+- There is no `canCount`: `count` and `/db/stream/count` are gated by `canList`.
 
 ### Table rules (collection-level)
 
@@ -353,13 +398,15 @@ Base class pairs: `TableRules`/`RowRules` (regular), `AuthTableRules`/`AuthRowRu
 | Field | Purpose |
 |-------|---------|
 | `jwt?.userId` | Authenticated user ID |
-| `jwt?.collection` | Auth collection name |
+| `jwt?.table` | Auth table the token was issued for |
 | `jwt?.claims['key']` | Custom claims from `addClaims` |
+| `jwt?.user` | User row snapshot at token issuance |
 | `jwt?.admin.isAdmin` | Admin read access |
 | `jwt?.admin.canEdit` | Admin write access |
 
-Rules use server-checks: table rules first, then row rules. If either denies,
-request is rejected with a permissions error.
+Table rules run first, then row rules. If either denies, the request gets
+`403` before any SQL runs. `AsAdmin` makes every token from that table an
+admin, so put it only on a dedicated admin table, never on `users`.
 
 ---
 
@@ -499,7 +546,7 @@ class ItemExtensions extends Extension<Item> {
     mutate.update.one(
       table: 'items',
       updates: [Update.column('body', .literal('processed'))],
-      where: Eq('id', object.id),
+      where: Eq('id', object.id.value),
     );
   }
 
@@ -533,8 +580,17 @@ defaulting to a no-op -- override what you need, there is no mixin to add.
 
 `AuthExtension<R>` is the only mixin, for auth tables:
 `class UserExtensions extends Extension<User> with AuthExtension<User>`. Its
-hooks are `onSignUp(R user, Jwt? jwt)`, `onSignIn`, `onRefresh`, `onLogout`,
+hooks are `beforeSignUp(SignUpCandidate candidate, Jwt? jwt)` (throw
+`SignUpDeclinedException('reason')` to refuse with a `403` before any row
+exists), `onSignUp(R user, Jwt? jwt)`, `onSignIn`, `onRefresh`, `onLogout`,
 `onPasswordReset` and `onExternalAuthFirstSeen(Map<String, Object?> claims)`.
+By default `onSignUp` sends the verify-email link and `onSignIn` calls
+`loginNotice`, which is unimplemented and logs an error — override `onSignIn`
+to silence it.
+
+Throwing from a `before*` hook aborts the request (nothing is written). Hooks
+run once per row. One extension class per table; a project with no extension
+files still compiles.
 
 ### Side effect globals (from `package:zonai_schema/zonai_schema.dart`)
 
@@ -545,13 +601,21 @@ hooks are `onSignUp(R user, Jwt? jwt)`, `onSignIn`, `onRefresh`, `onLogout`,
 | `mutate.create.one(tableName:, object:)` | Queue a create |
 | `mutate.update.one(table:, updates:, where:)` | Queue an update |
 | `mutate.delete.many(tableName:, where:)` | Queue deletes |
-| `email.send.verifyEmail(...)` | Send verify-email link |
-| `email.send.loginNotice(...)` | Send login notification |
+| `email.send.verifyEmail(to, table:)` | Send verify-email link |
+| `email.send.passwordReset(to, table:)` | Send password-reset link |
+| `email.send.otpCode(to, table:)` | Send a sign-in code |
+| `email.send(Email(to:, subject:, template:, variables:))` | Send a custom template |
 | `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
-Writes via `mutate` are queued and committed after the main mutation, going
-through rules+extensions again (up to 10 chained iterations).
+`email.send.loginNotice`, `magicLink` and `confirmEmailChange` exist but throw
+`UnimplementedError` on the server — don't call them; send a custom template
+(e.g. `template: 'login_notice'`) instead. Email is fire-and-forget.
+
+`get` is awaited and acts as the hook's `jwt` (rules apply; pass `jwt:` to read
+as someone else). Writes via `mutate` are queued and committed after the main
+mutation, going through rules+extensions again (up to 10 rounds, then the rest
+is dropped silently).
 
 `push` behaves differently from the queued writes above: it is awaited and
 returns the id of a durably recorded job, not a delivery receipt, and the
@@ -565,7 +629,10 @@ without it the call throws. See https://docs.zonai.dev/push/overview
 
 ## Rate Limits
 
-Optional — default is 100 requests per minute per IP per collection+operation.
+Optional — default is 100 requests per minute per IP per table+operation.
+Rate limiting runs **first**, before rules (a throttled request never reaches
+rules or SQL) and answers `429` with `Retry-After`. The window is **fixed**,
+not sliding: it opens at the first counted request and resets `window` later.
 Return `null` from any policy method to disable limiting for that operation.
 
 ```dart
@@ -590,11 +657,17 @@ final class ItemRateLimits extends TableRateLimits<ItemTable, Item> {
 ItemRateLimits main() => ItemRateLimits();
 ```
 
-Data policy methods: `getPolicy`, `limitPolicy`, `countPolicy`, `createPolicy`,
-`updatePolicy`, `deletePolicy`.
+Data policy methods: `getPolicy` (`/db`, `/db/stream`), `limitPolicy` (list),
+`countPolicy`, `createPolicy`, `updatePolicy`, `deletePolicy`,
+`customPolicy(String? operation)`. A `/many` request counts once.
 
-Auth policy methods (on `AuthTableRateLimits`): `signInPolicy`, `signUpPolicy`,
-`refreshTokenPolicy`, `sendResetPasswordPolicy`, `sendVerifyEmailPolicy`, etc.
+Auth policy methods (on `AuthTableRateLimits`, a separate class for auth
+routes only): `authenticatePolicy` (`POST /auth`: password, OTP and
+magic-link sends), `signInPolicy`, `signUpPolicy`, `sendResetPasswordPolicy`,
+`sendVerifyEmailPolicy`, `oauthStartPolicy`, `adminInvitePolicy`,
+`externalIdpProvisioningPolicy`. `sendOtpPolicy`, `sendMagicLinkPolicy`,
+`confirmPolicy`, `refreshTokenPolicy`, `logoutPolicy`, `logoutAllPolicy`,
+`adminAuthenticatePolicy` and `adminSignInPolicy` are never consulted.
 
 ---
 
@@ -603,13 +676,12 @@ Auth policy methods (on `AuthTableRateLimits`): `signInPolicy`, `signUpPolicy`,
 Scheduled background jobs. Each file returns a `CronJob` via `main()`.
 
 ```dart
-import 'package:cron/cron.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class CleanupLogsJob extends CronJob {
   CleanupLogsJob()
     : super(
-        name: 'cleanup_logs',           // unique snake_case identifier
+        name: 'cleanup-logs',           // unique; no leading `_`
         schedule: Schedule.parse('0 3 * * *'), // daily at 03:00
       );
 
@@ -629,13 +701,18 @@ CleanupLogsJob main() => CleanupLogsJob();
 
 | Property | Default | Purpose |
 |----------|---------|---------|
-| `name` | required | Unique snake_case job identifier |
-| `schedule` | required | `Schedule.parse('* * * * *')` (5-field cron) |
-| `strict` | `true` | Skip missed runs when server was down |
+| `name` | required | Unique job identifier (`_`-prefixed names are built-in jobs) |
+| `schedule` | required | `Schedule.parse('* * * * *')` (5-field cron, server local time) |
+| `strict` | `true` | `true` skips ticks missed while down; `false` catches up once on startup |
 | `runOnStartup` | `false` | Run once immediately when crons start |
+| `enabled` | `true` | **Ignored** — the job runs regardless; delete the file to stop it |
 
-Cron jobs access the same `get`, `mutate`, `email`, `logger` globals as
-extensions. Runs under `CronJwt` (internal admin-level identity).
+A job never overlaps itself: a tick that arrives mid-run is deferred until the
+run finishes, not skipped. Errors from `run()` are recorded in `_cron_jobs`.
+Cron jobs access the same `get`, `mutate`, `email`, `push`, `logger` globals as
+extensions, all acting as `CronJwt` (internal admin identity with edit access;
+`get` defaults to it too). Run one on demand with `j` in `./zonai dev` or
+`POST /crons/run?name=<name>` with an admin JWT.
 
 ---
 
@@ -669,27 +746,40 @@ from `.env`/`.env.<flavor>` files and `--dart-define KEY=VALUE` flags passed
 to `zonai compile`/`zonai build` — see **Release & deployment** below. The
 `.env` file is found automatically; there is no `--dart-define-from-file`
 flag to point at it. This is a separate mechanism from `buildSettings` in
-`zonai.yaml` (target
-OS/arch only, for cross-compiling); `buildSettings` having no env/secret
-fields does not mean there's no way to inject secrets.
+`zonai.yaml` (target OS/arch only, for cross-compiling); `buildSettings`
+having no env/secret fields does not mean there's no way to inject secrets.
+At runtime, `JWT_SECRET` and `PASSWORD_SECRET` in the server's environment
+override the compiled-in values. `jwtExpiresIn` defaults to 24 hours.
 
 ---
 
 ## CLI Commands
 
 ```
-dart run zonai build       # project-linked binary + workers + deploy bundle
-dart run zonai serve       # start HTTP server (JIT project entry; watchers)
-dart run zonai dev         # interactive TUI (compile, serve, logs, schema scaffold)
-dart run zonai compile     # compile worker executables only
-dart run zonai db migrate  # run SQL migrations
-dart run zonai db admin    # manage admin accounts
-dart run zonai gen client  # generate a typed Dart client from the schema
-dart run zonai rules       # inspect compiled authorization rules
-dart run zonai ping        # test worker executables
-dart run zonai version     # show version + check for updates
-dart run zonai ai update   # refresh these reference files after an upgrade
+./zonai dev                              # TUI: init an empty folder, compile, serve, logs
+./zonai serve                            # serve + recompile workers on change
+./zonai serve --release --host 0.0.0.0   # production: no watchers; expose beyond loopback
+./zonai compile                          # compile worker executables only
+./zonai build --release                  # deploy bundle under build/
+./zonai db migrate generate --name <n>   # write migration SQL from schema changes
+./zonai db migrate apply                 # apply pending migrations
+./zonai db admin add --email <e> --password <p>  # create an admin (also list/remove/invite)
+./zonai db token create --name <n> --tables <t1,t2> --read  # API token (zonai_pat_…)
+./zonai gen client                       # generate a typed Dart client from the schema
+./zonai rules list [--jwt <token>]       # inspect compiled authorization rules
+./zonai ping                             # spawn + ping each compiled worker
+./zonai version [check|update]           # show / check / update the CLI
+./zonai ai update                        # refresh these reference files after an upgrade
 ```
+
+The server binds `127.0.0.1:8080` by default (`host: localhost`); pass
+`--host 0.0.0.0` (or set `host:` in `zonai.yaml`) to expose it. Dashboard:
+`/_` (admin JWT). Unknown flags are ignored silently — check spelling.
+
+**Migrations**: pending migrations are always applied when the database opens
+(dev and `--release` alike). `--no-auto-migrate` only stops the dev watcher
+from *generating* new migrations on schema changes. Applied migrations are
+tracked in `_raindrop_migrations`. Commit `.zonai/migrations/`.
 
 `zonai gen client` writes a typed client — `client.posts.list(...)` returning a
 `PostsRow` — into a directory the **app** owns, configured by a `client:` block
@@ -728,18 +818,22 @@ after a schema change; `--check` fails when the committed output is stale.
 ## Release & deployment
 
 `zonai compile` builds workers in place under `.zonai/executables/`.
-`zonai build` does that plus copies migrations, `zonai.yaml`, and compiles a
-**project-linked** `build/zonai` that embeds your ops/rules and the full CLI
-(`serve`, `db`, …) — a self-contained bundle ready to ship. Both accept
-`--release` (strip `assert(...)` from compiled code, disable dev-only file
-watchers/keyboard shortcuts), `--flavor <name>` (select `.env.<name>`), and
-repeated `--dart-define KEY=VALUE` flags (override/add compile-time env
-values on top of the selected `.env` file — CLI wins on key collisions; use
-space-separated form, not `--dart-define=KEY=VALUE`, since a joined value
-containing its own `=` won't parse).
+`zonai build` wipes and rebuilds `build/`: workers, migrations, email
+templates, `zonai.yaml`, and a `build/zonai` server binary — a self-contained
+bundle (no Dart SDK needed on the host). `build/zonai` is the **published
+binary** for a normal project; it is project-linked (ops/rules in-process)
+only when the project itself depends on `package:zonai`. Both serve
+identically. Ship it with `cd build && ./zonai serve --release`.
+
+`--release` is what turns asserts off — `zonai build` without it keeps them on
+— and on `serve` it disables watchers, recompiling and keyboard shortcuts.
+`--flavor <name>` selects `.env.<name>`, and repeated
+`--dart-define KEY=VALUE` flags override/add compile-time env values on top of
+the selected `.env` file (CLI wins on key collisions; use the space-separated
+form, not `--dart-define=KEY=VALUE`).
 
 There is **no `--dart-define-from-file`** flag and none is needed: `.env` /
-`.env.<flavor>` is read from the working directory automatically, so the env
+`.env.<flavor>` is read from the project root automatically, so the env
 file never has to be named on the command line. It is `KEY=VALUE` lines, not
 JSON. Zonai's parser ignores unknown flags silently, so
 `zonai build --dart-define-from-file env.json` exits 0, warns about nothing
@@ -756,38 +850,27 @@ buildSettings:
   targetArch: x64   # x64 | arm64
 ```
 
-Defaults to the machine running `build`. The project binary and workers are
-compiled with `dart compile exe` (including `--target-os` / `--target-arch`
-when set), so the normal Dart AOT rule applies: you cannot compile a macOS or
-Windows target from a different host OS.
+Defaults to the machine running `build`. Only `linux` targets cross-compile;
+a macOS or Windows target must match the build host.
 
 **No Docker or container runtime is needed to produce a Linux deploy bundle
-from macOS (or any other host)** — `buildSettings` + `zonai build` cross-compile
-natively via `dart compile exe`. A container is only relevant if you're
-rebuilding the zonai CLI framework itself from source (e.g. an unreleased
-framework fix); that is a different, much narrower task than shipping your
-app, and does not apply to a normal deploy.
-
-Day-to-day `serve` / `db` from a project root re-exec into the generated
-project entry (`.dart_tool/zonai/project_main.dart` under JIT, or
-`.zonai/zonai` with `--release`) so ops/rules stay in-process. Set
-`ZONAI_FORCE_WORKERS=1` to keep Mailman IPC for ops/rules instead.
+from macOS (or any other host)** — `buildSettings` + `zonai build` handle it.
 
 ---
 
 ## Generated workers
 
-`zonai compile` / `zonai build` still produce executables in
+`zonai compile` / `zonai build` produce executables in
 `.zonai/executables/` (or `build/.zonai/executables/`):
-- `db_operations.exe` — SQL generation (also linked into the project binary)
-- `db_rules.exe` — authorization (also linked into the project binary)
+- `db_operations.exe` — SQL generation
+- `db_rules.exe` — authorization
 - `db_extensions.exe` — lifecycle hooks
 - `db_rate_limit.exe` — rate limiting
 - `db_crons.exe` — scheduled jobs
 - `db_config.exe` — app config
 
-Intermediate Dart sources (including `project_main.dart`) are written to
-`.dart_tool/zonai/` before compilation.
+Intermediate Dart sources are written to `.dart_tool/zonai/`. Never commit
+`.zonai/executables/`, `.zonai/data/`, `build/` or `.env`.
 """;
 
 // ---------------------------------------------------------------------------
@@ -797,12 +880,12 @@ Intermediate Dart sources (including `project_main.dart`) are written to
 const claudeMd =
     r"""# Zonai Project
 
-This is a **zonai** application. Zonai compiles your Dart code into a
-project-linked server binary (ops/rules in-process) plus worker executables
-for config, extensions, rate limits, and crons.
+This is a **zonai** application. The `zonai` CLI (a binary in the project
+root, not a pub package) compiles your Dart code into worker executables and
+serves a SQLite-backed REST API.
 
-Use `dart run zonai dev` to launch the interactive TUI, or
-`dart run zonai serve` to start the server (project entry + auto-recompile).
+Use `./zonai dev` to launch the interactive TUI, or `./zonai serve` to start
+the server (recompiles workers on change).
 
 """ +
     _doc;
@@ -823,59 +906,74 @@ alwaysApply: false
 
 # Zonai Framework Overview
 
-Zonai is a Dart CLI framework that compiles declarative Dart code into a
-project-linked server binary and optional worker executables, and runs a
-SQLite-backed REST API server.
+Zonai is a self-hosted Dart backend: you write schemas, rules, operations,
+extensions, rate limits and crons against `package:zonai_schema`, and the
+`zonai` CLI compiles them into worker executables and serves a SQLite-backed
+REST API.
+
+**Install**: the CLI is **not** on pub.dev (no `pub global activate`, no
+`dart run zonai`). Download it into the project root and run `./zonai <cmd>`:
+`curl -fsSL https://github.com/mrgnhnt96/zonai/releases/latest/download/zonai -o zonai && chmod +x zonai`
+(Windows: `zonai-windows-x64.zip`). `./zonai dev` in an empty folder
+initializes a project (depends on `zonai_schema` only).
 
 **Live queries**: `GET /db/stream`, `/db/stream/list`, `/db/stream/count` push
 updates when data changes. Prefer `zonai_client` (`client.db.listen`) over
 polling or hand-rolled HTTP. Search for **stream** / **listen**, not
 "realtime"/"SSE"/"WebSocket".
 
-**Runtime model**: `zonai serve` / `zonai build` link your ops and rules
-**in-process** into the project binary (or JIT `project_main` in dev).
-`zonai compile` also builds workers from your source:
-- `db_operations` — custom CRUD SQL (`lib/src/operations/`) — also linked in-process
-- `db_rules` — authorization (`lib/src/rules/`) — also linked in-process
+**Runtime model**: your sources compile into workers under
+`.zonai/executables/`, called over IPC (framed MessagePack):
+- `db_operations` — custom CRUD SQL (`lib/src/operations/`)
+- `db_rules` — authorization (`lib/src/rules/`)
 - `db_extensions` — lifecycle hooks (`lib/src/extensions/`)
 - `db_rate_limit` — rate limiting (`lib/src/rate_limit/`)
 - `db_crons` — scheduled jobs (`lib/src/crons/`)
 - `db_config` — app config (`lib/src/config/`)
 
-Extensions/config/rate-limits/crons still run as worker processes. Ops/rules
-use Mailman workers only with `ZONAI_FORCE_WORKERS=1`. Worker binaries
-auto-recompile on file changes during `zonai serve`; restart serve after
-ops/rules edits so the linked entry reloads.
+A normal project (scaffolded by `zonai dev`, depending only on
+`zonai_schema`) runs **all** of these as workers. Only a project that itself
+depends on `package:zonai` gets ops/rules linked in-process; both behave the
+same. `zonai serve` recompiles a worker when its sources change.
+Pipeline: rate limit → rules → operations → SQLite → row `canView` → extensions.
+
+**Wire format**: the table name goes in the JSON body (`?body=` for GET), and
+row keys are database column names (`is_complete`), not Dart field names.
+Auth responses are wrapped: `{"data": {"accessToken": …, "user": …}}`.
 
 **Runtime env (optional):** `ZONAI_FORCE_WORKERS`, `ZONAI_WORKER_TRANSPORT`
 (`auto`|`process`|`isolate`), `ZONAI_WORKER_POOL_SIZE` (default 1),
-`ZONAI_HTTP_WORKERS` (keep 1). IPC is framed MessagePack; host caches,
-batch row-rules, `requiresPerRowCheck => false`, skip-empty extensions, and
-write-queue 503 apply on the hot path.
+`ZONAI_HTTP_WORKERS` (keep 1).
 
 ## Project structure
 
 ```
 my_app/
+  zonai                   # the CLI binary
   zonai.yaml              # project config
+  pubspec.yaml            # depends on zonai_schema
   lib/src/
     ids.dart              # typed ID classes (one per table)
     schemas/              # Table + entity class definitions
-    config/               # AppConfig (SMTP, JWT, base URL, photos)
+    config/               # AppConfig (secrets, SMTP, JWT, base URL)
     operations/           # optional CRUD SQL overrides
-    rules/                # authorization per collection
-    extensions/           # lifecycle hooks
-    rate_limit/           # request throttling
-    crons/                # scheduled jobs
+    rules/                # required: table + row rules per table
+    extensions/           # optional lifecycle hooks
+    rate_limit/           # optional request throttling
+    crons/                # optional scheduled jobs
     email_templates/      # HTML email files
   .zonai/
-    migrations/           # SQL migration files
+    migrations/           # generated SQL — commit it
 ```
+
+Every file except schemas needs a top-level `main()` returning its object
+(rules, operations, extensions, rate limits, crons, config); a file without
+one fails to load.
 
 ## zonai.yaml
 
 ```yaml
-version: 1.0.0
+version: 0.9.1              # the CLI release this project pins
 migrationsPath: .zonai/migrations
 schemasPath:    lib/src/schemas
 configPath:     lib/src/config
@@ -885,22 +983,32 @@ operationsPath: lib/src/operations
 extensionsPath: lib/src/extensions
 rateLimitPath:  lib/src/rate_limit
 cronsPath:      lib/src/crons
+host: localhost             # default; binds 127.0.0.1 only — 0.0.0.0 to expose
+port: 8080
 ```
 
 ## CLI Commands
 
 ```
-dart run zonai build       # project-linked binary + workers + deploy bundle
-dart run zonai serve       # start server (JIT project entry; watchers)
-dart run zonai dev         # interactive TUI
-dart run zonai compile     # compile worker executables only
-dart run zonai db migrate  # run SQL migrations
-dart run zonai gen client  # generate a typed Dart client from the schema
-dart run zonai rules       # inspect compiled authorization rules
-dart run zonai ping        # test worker executables
-dart run zonai version     # show version
-dart run zonai ai update   # refresh these reference files after an upgrade
+./zonai dev                              # TUI: init, compile, serve, logs
+./zonai serve                            # serve + recompile workers on change
+./zonai serve --release --host 0.0.0.0   # production: no watchers; expose it
+./zonai compile                          # compile worker executables only
+./zonai build --release                  # deploy bundle under build/
+./zonai db migrate generate --name <n>   # write migration SQL from schema changes
+./zonai db migrate apply                 # apply pending migrations
+./zonai db admin add --email <e> --password <p>  # create an admin
+./zonai gen client                       # generate a typed Dart client from the schema
+./zonai rules list [--jwt <token>]       # inspect compiled authorization rules
+./zonai ping                             # spawn + ping each compiled worker
+./zonai version [check|update]           # show / check / update the CLI
+./zonai ai update                        # refresh these reference files after an upgrade
 ```
+
+Default bind is `127.0.0.1:8080`; `--host 0.0.0.0` exposes it. Pending
+migrations are always applied when the database opens (dev and `--release`);
+`--no-auto-migrate` only stops the dev watcher generating new ones. Applied
+migrations are tracked in `_raindrop_migrations`.
 
 `zonai gen client` needs a `client:` block in `zonai.yaml` naming an `output`
 directory the app owns; there is no default. It generates reads, writes and
@@ -938,9 +1046,11 @@ AppConfig main() {
 from `.env`/`.env.<flavor>` files and `--dart-define KEY=VALUE` flags passed
 to `zonai compile`/`zonai build` — see `zonai-release.mdc`. The `.env` file is
 found automatically; there is no `--dart-define-from-file` flag to point at
-it. This is separate from `buildSettings` above (target OS/arch only, for
-cross-compiling); `buildSettings` having no env/secret fields does not mean
-there's no way to inject secrets.
+it. This is separate from `buildSettings` in `zonai.yaml` (target OS/arch
+only, for cross-compiling); `buildSettings` having no env/secret fields does
+not mean there's no way to inject secrets. At runtime, `JWT_SECRET` and
+`PASSWORD_SECRET` in the environment override the compiled-in values.
+`jwtExpiresIn` defaults to 24 hours.
 """;
 
 const cursorSchemasMdc = r"""---
@@ -1006,7 +1116,7 @@ final items = table('items', ItemTable.new);
 
 ```dart no-analyze
 final class UserTable extends AuthTable<User>
-    with PasswordAuth, OtpAuth, MagicLinkAuth, AsAdmin {
+    with PasswordAuth, OtpAuth, MagicLinkAuth {
   UserTable(super.$)
     : id = $.id('id', (s) => s.id,
           fromString: UsersId.new, generate: UsersId.generate),
@@ -1030,8 +1140,11 @@ final class UserTable extends AuthTable<User>
 final users = authTable('users', UserTable.new);
 ```
 
-Auth mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`. Add `AsAdmin` to allow
-users of this table to authenticate as admins.
+Auth mixins: `PasswordAuth`, `OtpAuth`, `MagicLinkAuth`, `OAuth`. `AsAdmin`
+makes **every** token issued by the table an admin token, so use it only on a
+dedicated admin table (the scaffolded `admins`), never on `users`. Sign-up on
+an `AsAdmin` table is closed by default; create admins with
+`./zonai db admin add --email <e> --password <p>`.
 
 ## Column helpers
 
@@ -1040,15 +1153,15 @@ users of this table to authenticate as admins.
 | `$.id(name, getter, fromString:, generate:)` | `IdColumn<T>` | Typed ID |
 | `$.text(name, getter)` | `TextColumn` | |
 | `$.integer(name, getter)` | `IntColumn` | |
-| `$.boolean(name, getter)` | `BoolColumn` | |
-| `$.decimal(name, getter)` | `DecimalColumn` | |
+| `$.boolean(name, getter)` | `BooleanColumn` | Stored as INTEGER 0/1 |
+| `$.real(name, getter)` | `RealColumn` | `double` |
 | `$.email(name, getter)` | `EmailColumn` | Auth tables |
 | `$.password(name, getter)` | `PasswordColumn` | Auto-hashed (Argon2id) |
 | `$.photo(name, getter)` | `PhotoColumn` | Stores `PhotoId?` |
 | `$.deviceToken(name, getter)` | `ColumnType<String?>` | Push recipient token; MUST be nullable |
 | `$.dateTime(name, getter)` | `DateTimeColumn` | Client-settable timestamp |
 | `$.createdAt(name, getter)` | `DateTimeColumn` | Auto-set on insert |
-| `$.updatedAt(name, getter)` | `DateTimeColumn?` | Auto-set on update |
+| `$.updatedAt(name, getter)` | `ColumnType<DateTime?>` | Auto-set on update; always nullable |
 | `$.updatedWhen(name, getter, watchColumn:)` | `DateTimeColumn` | Auto-set when `watchColumn` changes |
 | `$.isVerified(name, getter)` | `IsVerifiedColumn` | Auth tables |
 | `$.enumerator(name, values, getter)` | `EnumColumn<E>` | Dart enum stored as TEXT |
@@ -1064,6 +1177,10 @@ Every `DateTimeColumn` (`dateTime`, `createdAt`, `updatedAt`, `updatedWhen`)
 speaks epoch milliseconds on the wire in both directions — reads always come
 back as an `int`, and writes accept either epoch milliseconds or an ISO-8601
 string.
+
+**Wire names are column names**: JSON keys in `object`, `where`, `order_by`
+and responses are the database column names (the first argument, e.g.
+`created_at`, `is_complete`), never the Dart field names (`createdAt`).
 
 ## ID classes (`lib/src/ids.dart`)
 
@@ -1081,7 +1198,7 @@ class ItemsId implements z.Id {
 }
 ```
 
-Use a unique 2-3 char suffix per table. IDs are `<timestamp>_<suffix>`.
+Use a unique 2-3 char suffix per table. IDs look like `<15 hex chars>_<suffix>`.
 
 For a read-only, query-defined collection (a join/projection with no backing
 table), see `zonai-views.mdc` instead of declaring it here.
@@ -1107,6 +1224,11 @@ table (get/list/count/**stream**/create/update/delete). Add a file under
 prefer its mirror: `client.posts.listen.one|list|count`, which yields decoded
 rows. Note `listen.list` yields `List<PostsRow>`, not a `Paginated` — the
 streaming endpoint carries no page metadata.
+
+Wire format: the table name goes in the JSON body (`?body=` for GET), row keys
+in `object`/`where`/`order_by` and in responses are the database column names
+(`is_complete`), not Dart field names. Auth responses are wrapped:
+`{"data": {"accessToken": …, "user": …}}`.
 
 Each file's `main()` returns one `TableOperations` instance:
 
@@ -1135,13 +1257,18 @@ UserOperations main() => UserOperations();
 
 ## `AuthOperations` overrides
 
-| Override | Purpose |
+| Override | Default |
 |----------|---------|
-| `addClaims({required Jwt jwt})` → `Future<Claims>` | Extra JWT claims |
-| `jwtExpiresIn` → `Duration?` | Per-collection JWT lifetime (`null` = use AppConfig) |
-| `magicLinkConfig` → `MagicLinkConfig?` | Magic-link URL path + expiry |
-| `resetPasswordConfig` → `ResetPasswordConfig?` | Reset-password URL path + expiry |
-| `verifyEmailConfig` → `VerifyEmailConfig?` | Verify-email URL path + expiry |
+| `Future<Claims> addClaims({required Jwt jwt})` | No extra claims |
+| `Duration? get jwtExpiresIn` | `null` → `AppConfig.jwtExpiresIn` (24 hours) |
+| `Future<MagicLinkConfig> magicLinkConfig()` | Path `/auth/magic-link`, 10 min |
+| `Future<ResetPasswordConfig> resetPasswordConfig()` | Path `/auth/reset-password`, 10 min |
+| `Future<VerifyEmailConfig> verifyEmailConfig()` | Path `/auth/verify-email`, 24 hours |
+
+Emailed links are `{AppConfig.baseUrl}{path}?s=<secret>` (`path` may be a full
+URL). There is no server redirect: the page at that URL reads `s` and POSTs it
+to `/auth/confirm` (e.g. `{"type": "verifyMagicLink", "secret": "<s>"}`). OTP
+codes are always 6 digits, valid 10 minutes, 3 attempts — not configurable.
 
 ## Custom SQL operations
 
@@ -1183,11 +1310,19 @@ alwaysApply: false
 
 # Zonai Rules
 
-Rules decide whether a request is allowed. Every collection you expose needs
-**two files**: one table-rules file and one row-rules file. Default behavior:
-deny all non-admin access.
+Rules decide whether a request is allowed. Every table you expose needs
+**two files**: one table-rules file and one row-rules file, each with a
+top-level `main()` returning the instance. Defaults fail closed:
 
-Rules run **before** SQL. If denied, the server rejects with a permissions error.
+- **No rules file for a table** → every request is denied (`403`), admins included.
+- **A method you don't override** → only admins pass: an admin with
+  `admin.canEdit` for writes, any admin for reads. Everyone else, including
+  `jwt == null`, is denied.
+- There is no `canCount`: `count` and `/db/stream/count` are gated by `canList`.
+- A second table-rules (or row-rules) class for the same table throws
+  "... already registered" when the rules load.
+
+Rules run after rate limiting and **before** SQL. A denial answers `403`.
 
 ## Table rules (collection-level check)
 
@@ -1289,14 +1424,14 @@ Base class pairs:
 | Field | Purpose |
 |-------|---------|
 | `jwt?.userId` | Authenticated user ID |
-| `jwt?.collection` | Auth collection name |
+| `jwt?.table` | Auth table the token was issued for |
 | `jwt?.claims['key']` | Custom claims from `addClaims` |
 | `jwt?.user` | User row snapshot at token issuance |
 | `jwt?.admin.isAdmin` | Admin read access |
 | `jwt?.admin.canEdit` | Admin write access |
 
-`jwt == null` means unauthenticated. Deny by default unless you explicitly
-return `true` for unauthenticated callers.
+`jwt == null` means unauthenticated. `AsAdmin` makes every token from that
+table an admin token, so it belongs only on a dedicated admin table.
 
 ## Check order
 
@@ -1305,9 +1440,11 @@ return `true` for unauthenticated callers.
 | create | `canCreate` | `canCreate` (with payload) |
 | update/delete | `canUpdate`/`canDelete` | `canUpdate`/`canDelete` |
 | view (single) | `canView` | `canView` |
-| list/count | `canList` | `canView` on each returned row |
+| list | `canList` | `canView` on each returned row |
+| count | `canList` | — |
 
-For `list`: every row must pass row-level `canView`. Design `canList` and
+For `list`: every row must pass row-level `canView` (any failure → `403` for
+the whole request). Design `canList` and
 `canView` together, or filter via query to only return accessible rows.
 
 For a read-only view's rules (`ViewTableRules`/`ViewRowRules`, which hard-deny
@@ -1500,15 +1637,18 @@ alwaysApply: false
 # Zonai Extensions
 
 Extensions are lifecycle hooks that run around database mutations and auth
-events. They run between authorization and persistence.
+events. One extension class per table (a second one throws "... already
+registered"), and each file needs a top-level `main()` returning it.
 
 ## Execution order
 
 ```
-rules → rate limits → beforeCreate → SQL insert → afterCreateSuccess
-                                            ↓ (on failure)
-                                      afterCreateError
+rate limit → table rules → row rules → beforeCreate → INSERT → afterCreateSuccess
+                                                        ↓ (on failure)
+                                                  afterCreateError
 ```
+
+Hooks run once per row (`/db/many` calls them per object).
 
 ## Base class and hooks
 
@@ -1528,7 +1668,7 @@ class ItemExtensions extends Extension<Item> {
     mutate.update.one(
       table: 'items',
       updates: [Update.column('status', .literal(1))],
-      where: Eq('id', object.id),
+      where: Eq('id', object.id.value),
     );
   }
 
@@ -1615,17 +1755,25 @@ UserExtensions main() => UserExtensions();
 | `mutate.update.one(table:, updates:, where:)` | Queue an update |
 | `mutate.delete.many(tableName:, where:)` | Queue bulk deletes |
 | `email.send.verifyEmail(to, table:)` | Send verify-email link |
-| `email.send.loginNotice(to, table:)` | Send login notification |
 | `email.send.passwordReset(to, table:)` | Send password reset link |
-| `email.send.magicLink(to, table:)` | Send magic-link sign-in |
+| `email.send.otpCode(to, table:)` | Send a sign-in code |
+| `email.send(Email(to:, subject:, template:, variables:))` | Send a custom template |
 | `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
-`mutate` writes are **queued**, run after the main mutation commits, going
-through rules+extensions again (up to 10 chained iterations).
+`email.send.loginNotice`, `magicLink` and `confirmEmailChange` exist but throw
+`UnimplementedError` on the server — don't call them; send a custom template
+(e.g. `template: 'login_notice'`) instead. The default `onSignIn` calls
+`loginNotice` (logs an error), so override `onSignIn` to silence it; the
+default `onSignUp` sends the verify-email link. Email is fire-and-forget.
 
-The `extensionsPath` directory must exist and contain at least one `.dart` file
-for the worker to compile.
+`get` is awaited and acts as the hook's `jwt` (rules apply; pass `jwt:` to
+read as someone else). `mutate` writes are **queued**, run after the main
+mutation commits, going through rules+extensions again (up to 10 rounds, then
+the rest is dropped silently).
+
+A project with no extension files still compiles; the server logs
+`No extensions detected`.
 """;
 
 const cursorRateLimitsMdc = r"""---
@@ -1636,9 +1784,11 @@ alwaysApply: false
 
 # Zonai Rate Limits
 
-Rate limiting is **optional**. Default: 100 requests per minute per IP per
-collection+operation. Return `null` from any method to disable limiting for
-that operation.
+Rate limiting is **optional** to configure. Default: 100 requests per minute
+per IP per table+operation. It is the **first** check a request meets, before
+rules and SQL. Return `null` from any method to disable limiting for that
+operation. One `TableRateLimits` (and one `AuthTableRateLimits`) per table; a
+duplicate throws "... already registered". Each file needs a `main()`.
 
 ## Regular collection
 
@@ -1671,9 +1821,13 @@ Data policy methods (all default to 100 req/min):
 | `getPolicy()` | `view` | `GET /db`, `GET /db/stream` |
 | `limitPolicy()` | `list` | `GET /db/list`, `GET /db/stream/list` |
 | `countPolicy()` | `count` | `GET /db/count`, `GET /db/stream/count` |
-| `createPolicy()` | `create` | `POST /db` |
-| `updatePolicy()` | `update` | `PATCH /db` |
-| `deletePolicy()` | `delete` | `DELETE /db` |
+| `createPolicy()` | `create` | `POST /db`, `POST /db/many` |
+| `updatePolicy()` | `update` | `PATCH /db`, `PATCH /db/many` |
+| `deletePolicy()` | `delete` | `DELETE /db`, `DELETE /db/many` |
+| `customPolicy(String? operation)` | custom | `PATCH /db/custom/:operation` |
+
+A `/many` request counts once. `operation` is `null` when the name can't be
+validated (workers path); then all custom operations share one counter.
 
 ## Auth collection
 
@@ -1693,10 +1847,21 @@ final class UserRateLimits extends AuthTableRateLimits<UserTable, User> {
 UserRateLimits main() => UserRateLimits();
 ```
 
-Auth policy methods: `signInPolicy`, `signUpPolicy`, `refreshTokenPolicy`,
-`sendResetPasswordPolicy`, `sendVerifyEmailPolicy`, `sendOtpPolicy`,
-`sendMagicLinkPolicy`, `confirmPolicy`, `logoutPolicy`, `logoutAllPolicy`,
-`adminAuthenticatePolicy`, `adminSignInPolicy`.
+`AuthTableRateLimits` covers the auth routes only; `/db` traffic on the same
+table uses a separate `TableRateLimits` (or the default).
+
+Auth policy methods that are consulted: `authenticatePolicy` (`POST /auth`:
+password sign-in/up, OTP and magic-link sends, and `POST /auth/oauth`),
+`signInPolicy`, `signUpPolicy`, `sendResetPasswordPolicy`,
+`sendVerifyEmailPolicy`, `oauthStartPolicy`, `adminInvitePolicy`,
+`externalIdpProvisioningPolicy`.
+
+Declared but **never consulted** (overriding has no effect): `sendOtpPolicy`,
+`sendMagicLinkPolicy` (use `authenticatePolicy`), `logoutPolicy`,
+`logoutAllPolicy`, `adminSignInPolicy`, `adminAuthenticatePolicy`,
+`confirmPolicy`, `refreshTokenPolicy` (those last three routes use fixed
+shared per-IP buckets). Separately, a code/link send to the same address is
+refused for 60 seconds (not configurable).
 
 ## RateLimitPolicy
 
@@ -1724,13 +1889,12 @@ via `main()`. Jobs run inside the `db_crons` worker process.
 ## Basic cron job
 
 ```dart
-import 'package:cron/cron.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 final class CleanupLogsJob extends CronJob {
   CleanupLogsJob()
     : super(
-        name: 'cleanup_logs',           // unique snake_case identifier
+        name: 'cleanup-logs',           // unique; no leading `_`
         schedule: Schedule.parse('0 3 * * *'), // daily at 03:00
       );
 
@@ -1752,17 +1916,22 @@ CleanupLogsJob main() => CleanupLogsJob();
 
 | Property | Default | Purpose |
 |----------|---------|---------|
-| `name` | required | Unique snake_case job identifier (used in `_cron_jobs` history and on-demand invocation) |
+| `name` | required | Unique identifier, used in `_cron_jobs` history and on-demand runs. `_`-prefixed names are built-in jobs |
+| `schedule` | required | When to run: `Schedule.parse('* * * * *')` (server local time) |
+| `strict` | `true` | `true` = skip ticks missed while down; `false` = catch up once on startup |
+| `runOnStartup` | `false` | Run once immediately when crons start |
+| `enabled` | `true` | **Ignored** — the job runs whatever this says; delete or move the file to stop it |
+
+A job never overlaps itself: a tick that arrives while it is still running is
+**deferred** until the run finishes, then runs (not skipped). Errors thrown
+from `run()` are caught and recorded as failed in `_cron_jobs`.
 
 ## Running on demand
 
 Jobs can be triggered by `name` outside their schedule:
 
-- **Dev TUI:** `zonai dev`, press `j`, select job by name
+- **Dev TUI:** `./zonai dev`, press `j`, select job by name
 - **HTTP API:** `POST /crons/run?name=<name>` with admin JWT (server must be running)
-| `schedule` | required | When to run: `Schedule.parse('* * * * *')` |
-| `strict` | `true` | `true` = skip missed runs; `false` = catch up on startup |
-| `runOnStartup` | `false` | Run once immediately when crons start |
 
 ## Schedule examples
 
@@ -1776,7 +1945,8 @@ Five-field cron: `minute hour day-of-month month day-of-week`.
 
 ## Side effect globals
 
-Cron jobs access the same globals as extensions:
+Cron jobs access the same globals as extensions (`zonai_schema` re-exports
+`Schedule`, so no `package:cron` import is needed):
 
 | Global | Purpose |
 |--------|---------|
@@ -1789,34 +1959,41 @@ Cron jobs access the same globals as extensions:
 | `push(message, table:, column:, where:)` | Queue a push fan-out; returns a `PushJobId` |
 | `logger.debug/info/warn/error(msg)` | Log to server console |
 
-Cron jobs run as `CronJwt` — an internal admin-level identity. Rules applied
-to `mutate` calls evaluate against this identity.
+Everything a job does through `get`, `mutate`, `email` and `push` runs as
+`CronJwt` — an internal admin identity with edit access. `get` defaults to it
+(pass `jwt:` to read as someone else); rules still evaluate against it.
 
-`mutate` writes are queued during `run()` and committed when the job finishes.
-Each queued mutation goes through rules, operations, and extensions normally.
+`mutate` writes are queued during `run()` and committed when the job finishes,
+so a later `get` in the same run doesn't see them. Each queued mutation goes
+through rules, operations, and extensions normally. Built-in jobs already
+purge expired sessions, logs and auth challenges — don't reimplement them.
 
 ## Catch-up example
 
 ```dart in:project-file
-final class PurgeExpiredJwtsJob extends CronJob {
-  PurgeExpiredJwtsJob()
+final class BillingJob extends CronJob {
+  BillingJob()
     : super(
-        name: 'purge_expired_jwts',
-        schedule: Schedule.parse('0 4 * * *'),
-        strict: false,  // catch up if server was down
+        name: 'billing',
+        schedule: Schedule.parse('0 0 1 * *'),
+        strict: false,  // catch up once if the server was down
       );
 
   @override
   Future<void> run() async {
-    mutate.delete.many(
-      tableName: 'jwts',
-      where: Lt('expires_at', DateTime.now()),
+    mutate.update.many(
+      tableName: 'subscriptions',
+      updates: [Update.column('status', .literal('due'))],
+      where: Lt('renews_at', DateTime.now()),
     );
   }
 }
 
-PurgeExpiredJwtsJob main() => PurgeExpiredJwtsJob();
+BillingJob main() => BillingJob();
 ```
+
+Catch-up runs once however many ticks were missed; a job that must process
+every missed period has to work out which are outstanding itself.
 """;
 
 const cursorReleaseMdc = r"""---
@@ -1832,18 +2009,23 @@ alwaysApply: false
 | | `compile` | `build` |
 | --- | --- | --- |
 | Worker output | `.zonai/executables/*.exe` | `build/.zonai/executables/*.exe` |
-| Project binary | not built | `build/zonai` — **project-linked** (ops/rules + full CLI) |
-| Migrations | not copied | SQL copied into `build/` |
+| Server binary | not built | `build/zonai` — the published binary (project-linked only if the project depends on `package:zonai`) |
+| Migrations, email templates | not copied | copied into `build/` |
 | `zonai.yaml` | not copied | copied into `build/` |
 | Typical use | local workers, quick rebuilds | CI, deploy hosts, containers |
 
 ```bash
-dart run zonai build --release --flavor prod   # deploy bundle under build/
-dart run zonai compile --release               # workers only, in place
+./zonai build --release --flavor prod   # deploy bundle under build/
+./zonai compile --release               # workers only, in place
+cd build && ./zonai serve --release --host 0.0.0.0   # on the server
 ```
 
-`--release` strips `assert(...)` from compiled code and disables dev-only file
-watchers/keyboard shortcuts during `serve`. `--flavor <name>` selects
+`--release` is what strips `assert(...)` — `build` without it keeps asserts
+on — and on `serve` it disables watchers, recompiling and keyboard shortcuts.
+The server binds `127.0.0.1:8080` by default; `--host 0.0.0.0` (or `host:` in
+`zonai.yaml`) exposes it. Pending migrations are applied when the database
+opens. `JWT_SECRET`/`PASSWORD_SECRET` in the environment override the
+compiled-in secrets. `--flavor <name>` selects
 `.env.<name>` for compile-time env defines. Repeated `--dart-define
 KEY=VALUE` flags override/add values on top of that file (CLI wins on key
 collisions) without editing it — use space-separated form, not
@@ -1853,14 +2035,14 @@ collisions) without editing it — use space-separated form, not
 
 That flag does not exist in zonai, and nothing replaces it, because the env
 file is never named on the command line: `.env` — or `.env.<flavor>` when
-`--flavor` is passed — is read from the working directory on every compile and
+`--flavor` is passed — is read from the project root on every compile and
 turned into `-D` defines automatically.
 
 | Reaching for | Do this instead |
 | --- | --- |
 | `--dart-define-from-file=env.json` | Nothing — put the keys in `.env` |
 | A different file per environment | Name it `.env.<flavor>`, pass `--flavor <flavor>` |
-| A file elsewhere on disk | Run the command from that directory, or copy it to `.env` there |
+| A file elsewhere on disk | Copy it to `.env` (or `.env.<flavor>`) in the project root |
 | One-off keys, no file | `--dart-define KEY=VALUE`, repeated |
 
 Two traps:
@@ -1886,19 +2068,18 @@ buildSettings:
   targetArch: x64   # x64 | arm64
 ```
 
-Defaults to the machine running `build`. The project binary and workers are
-compiled with `dart compile exe` (plus `--target-os` / `--target-arch` when
-set). You cannot compile a macOS or Windows target from a different host OS.
+Defaults to the machine running `build`. Only `linux` targets cross-compile;
+a macOS or Windows target must match the build host.
 
 **No Docker/container runtime needed** to produce a Linux bundle from macOS —
-this is a native cross-compile. Docker only enters the picture if you're
-rebuilding the zonai CLI framework itself from source, which is unrelated to
-shipping a normal app.
+this is a native cross-compile.
 
-`build/zonai` is **not** a copy or download of the published CLI — it is
-compiled from generated `.dart_tool/zonai/project_main.dart` with your
-schemas/ops/rules linked in. Set `ZONAI_FORCE_WORKERS=1` to force Mailman
-IPC for ops/rules even on a project binary.
+For a normal project (depends only on `zonai_schema`), `build/zonai` **is** the
+published CLI binary for the target, and your ops/rules run in the bundled
+workers under `build/.zonai/executables/`. Only when the project depends on
+`package:zonai` is `build/zonai` compiled with ops/rules linked in-process
+(`ZONAI_FORCE_WORKERS=1` forces workers even then). Ship the whole `build/`
+directory; the host needs no Dart SDK.
 """;
 
 const cursorMdcFiles = <String, String>{

@@ -39,7 +39,7 @@ class AuthRowRules<S extends AuthTable<R>, R> extends BaseRowRules<S, R>
   /// }
   /// ```
   ///
-  /// Bootstrapping is unaffected: `zonai db admin create` writes through the
+  /// Bootstrapping is unaffected: `zonai db admin add` writes through the
   /// operations worker and never consults this rule, and an existing admin
   /// still passes on the `jwt.admin.isAdmin` branch below.
   Future<bool> canSignUp(Jwt? jwt, AuthType authType) async {
