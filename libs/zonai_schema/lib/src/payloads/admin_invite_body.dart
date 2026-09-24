@@ -1,4 +1,4 @@
-/// Request body for `POST /admin/invites` (`docs/admin-invite-design.md`
+/// Request body for `POST /admin/invites` (`docs/design/admin-invite-design.md`
 /// §3.1).
 ///
 /// Only an address. There is deliberately no `table` field, unlike every

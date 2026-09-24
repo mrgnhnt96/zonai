@@ -68,7 +68,7 @@ void main() {
     // These tests therefore *use* each symbol, so an omission fails the
     // compile rather than an assertion.
     //
-    // A generated typed client (docs/typed-client-design.md §5.4) returns and
+    // A generated typed client (docs/design/typed-client-design.md §5.4) returns and
     // consumes this whole vocabulary, which is why it has to be nameable.
     test('every Where variant is constructible through the barrel', () {
       // `Null` / `NotNull` are deliberately NOT exported -- they would shadow

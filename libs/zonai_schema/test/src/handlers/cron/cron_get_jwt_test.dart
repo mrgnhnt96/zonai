@@ -21,7 +21,7 @@ import 'package:zonai_schema/src/types/where.dart';
 // worked; a cron that READS ran as nobody and was denied.
 //
 // That combination is close to the least guessable one available, and
-// `docs/cron.md` described the opposite ("Reads (`get`) run immediately and
+// the old `docs/cron.md` described the opposite ("Reads (`get`) run immediately and
 // respect collection/row rules for `CronJwt`"), so a consumer following the
 // docs wrote the failing version with no reason to suspect it.
 //
@@ -105,7 +105,7 @@ void main() {
       CronRequest.fromRequest,
       () async {
         // No `jwt:` argument on either -- exactly what a cron job body writes,
-        // and what `docs/cron.md` says is enough.
+        // and what apps/docs/content/cron-jobs/side-effects.md says is enough.
         get.many(tableName: 'loss_events', where: Eq('kind', 'loss')).ignore();
         mutate.delete.many(
           tableName: 'loss_events',

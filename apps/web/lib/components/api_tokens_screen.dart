@@ -17,7 +17,7 @@ import 'theme/zonai_select.dart';
 import 'theme/zonai_text_field.dart';
 import 'toast_overlay.dart';
 
-/// The API Tokens screen (`docs/api-tokens-design.md` §11 step 8): every
+/// The API Tokens screen (`docs/design/api-tokens-design.md` §11 step 8): every
 /// credential this deployment has issued, and the controls to issue and
 /// withdraw them.
 ///

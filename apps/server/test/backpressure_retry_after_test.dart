@@ -19,7 +19,7 @@ import '../routes/components/exception_catcher.dart';
 /// `LifecycleComponent` check is the same one `admin_invite_rate_limit_test`
 /// makes for its guards, because a catcher that is not typed as one is
 /// silently dropped by the generator and the exception reaches the client as
-/// an unhandled 500 (known-issues.md #1).
+/// an unhandled 500 (fix 111b8dfd).
 void main() {
   const catcher = Exceptions();
 
@@ -29,7 +29,7 @@ void main() {
       isA<LifecycleComponent>(),
       reason:
           'without this the whole catcher is inert and every mapped '
-          'exception reaches the client as a 500 -- see known-issues.md #1',
+          'exception reaches the client as a 500 -- see fix 111b8dfd',
     );
   });
 

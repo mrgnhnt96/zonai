@@ -9,7 +9,7 @@ import 'rate_limit.dart';
 // decides an annotation contributes a guard by matching its static type
 // against that marker -- drop the clause and the annotation compiles,
 // generates, tests green, and silently guards nothing. That is
-// known-issues.md #1; `admin_invite_rate_limit_test.dart` pins it.
+// fix 111b8dfd; `admin_invite_rate_limit_test.dart` pins it.
 
 /// Rate limits `POST /admin/invites` under [RateLimitOperation.adminInvite],
 /// bucketed by the auth table named in the caller's Bearer token.

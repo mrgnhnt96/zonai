@@ -9,7 +9,7 @@ import '../routes/components/oauth_rate_limit.dart';
 import '../routes/components/rate_limit.dart';
 
 /// That `RateLimitOperation.adminInvite` is *enforced*, not merely annotated
-/// (`docs/admin-invite-design.md` §4 item 9), and that the four `/admin/**`
+/// (`docs/design/admin-invite-design.md` §4 item 9), and that the four `/admin/**`
 /// routes are actually reachable and guarded.
 ///
 /// "Enforced" has three separable links and each one has failed silently in
@@ -18,7 +18,7 @@ import '../routes/components/rate_limit.dart';
 ///
 /// 1. the guard is **typed** as a [LifecycleComponent], or revali's generator
 ///    drops it and the route serves unguarded with no error anywhere
-///    (known-issues.md #1).
+///    (fix 111b8dfd).
 /// 2. the guard is **attached** to the route, which is generated code — read
 ///    back below from the generated route table.
 /// 3. the operation **resolves to a real policy**. A `RateLimitOperation` the
@@ -34,7 +34,7 @@ void main() {
         isA<LifecycleComponent>(),
         reason:
             'without this the annotation is inert and POST /admin/invites is '
-            'unlimited -- see known-issues.md #1',
+            'unlimited -- see fix 111b8dfd',
       );
     });
 
@@ -44,7 +44,7 @@ void main() {
         isA<LifecycleComponent>(),
         reason:
             'without this the annotation is inert and the invite-acceptance '
-            'start route is unlimited -- see known-issues.md #1',
+            'start route is unlimited -- see fix 111b8dfd',
       );
     });
   });
@@ -146,7 +146,7 @@ void main() {
       // `@BlackList()` sits on the controller, so it lands on the `'admin'`
       // parent route and covers all four children. Losing it would leave
       // admin listing and removal with no IP-based abuse protection at all --
-      // known-issues.md #1, in the shape it originally happened.
+      // fix 111b8dfd, in the shape it originally happened.
       final block = _routeBlock(adminSource, "'admin'");
       expect(block, contains('BlackListGuard'));
     }, skip: skip);

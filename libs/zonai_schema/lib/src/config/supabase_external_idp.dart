@@ -1,7 +1,7 @@
 import 'package:zonai_schema/src/config/external_idp_config.dart';
 
 /// Helpers for trusting JWTs issued by Supabase Auth via the external-IdP
-/// pipeline ([ExternalIdpConfig]). See `docs/external-idp-supabase.md`
+/// pipeline ([ExternalIdpConfig]). See `apps/docs/content/authentication/external-idp-supabase.md`
 /// for the platform walkthrough.
 ///
 /// All factories are pure — they derive URLs from a `projectRef` and

@@ -6,7 +6,7 @@ import 'package:zonai_server/src/handlers/admin_handler.dart';
 import '../routes/controllers/admin_controller.dart';
 
 /// Route-level tests for the admin-management HTTP surface
-/// (`docs/admin-invite-design.md` §3, §4, §5 W1).
+/// (`docs/design/admin-invite-design.md` §3, §4, §5 W1).
 ///
 /// Two boundaries, chosen for what each can be wrong about on its own.
 ///

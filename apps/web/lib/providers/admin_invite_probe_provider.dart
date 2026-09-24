@@ -14,7 +14,7 @@ typedef AdminInviteProbe = Future<AdminInviteStatus> Function(String token);
 /// by the router, which has nowhere to thread a dependency through. Worth the
 /// indirection: the behaviour that matters most here — a dead token renders
 /// this screen's own explanation instead of navigating to the start route and
-/// its raw 401 (`docs/admin-invite-design.md` §7) — is only observable on the
+/// its raw 401 (`docs/design/admin-invite-design.md` §7) — is only observable on the
 /// *wired* screen, and that is exactly the thing an un-overridable fetch
 /// would put out of a test's reach.
 final adminInviteProbeProvider = Provider<AdminInviteProbe>((ref) {

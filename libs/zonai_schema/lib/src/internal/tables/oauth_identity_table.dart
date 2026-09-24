@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// One `(table, provider, subject)` binding — "this provider's user is this
 /// row in `table`". The lookup key an OAuth sign-in resolves against before
 /// falling back to email-based linking or provisioning; see
-/// `docs/oauth-design.md` §3.3.
+/// `docs/design/oauth-design.md` §3.3.
 class OAuthIdentity {
   OAuthIdentity({
     required this.id,

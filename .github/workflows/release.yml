@@ -20,7 +20,7 @@ on:
   # This was commented out entirely at one point, leaving workflow_dispatch as
   # the only door -- so Verify Release ran BESIDE publication rather than before
   # it, and nothing stopped a human dispatching Release while it was red or had
-  # never run. See docs/testing-strategy.md Step 5, and the release-gate job
+  # never run. See docs/design/testing-strategy.md Step 5, and the release-gate job
   # below, which is what actually enforces the ordering: this trigger only makes
   # the correct order the default one.
   #

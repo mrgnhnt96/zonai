@@ -15,7 +15,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 import '../support/temp_directory.dart';
 
 /// `ZonaiDb.acceptAdminInvite` -- direct acceptance
-/// (`docs/admin-invite-design.md` §3.3).
+/// (`docs/design/admin-invite-design.md` §3.3).
 ///
 /// The half of acceptance that does not go through a provider: an admin table
 /// signing in with a password, an OTP or a magic link. `e2e/oauth`'s

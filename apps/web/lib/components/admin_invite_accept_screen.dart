@@ -31,7 +31,7 @@ String? inviteTokenFromUrl(String url) {
 }
 
 /// Leaves the SPA for the server route that accepts this invite through
-/// [provider] (`docs/admin-invite-design.md` §3.2).
+/// [provider] (`docs/design/admin-invite-design.md` §3.2).
 ///
 /// A full-page assign, like [startOAuthFlow]: the next hop is the provider's
 /// own domain. Deliberately the *invite* start route — [startOAuthFlow]'s

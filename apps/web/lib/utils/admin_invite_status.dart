@@ -1,5 +1,5 @@
 /// The `GET /auth/admin/invite?token=` payload — is this invite link still
-/// good? (`docs/admin-invite-design.md` §7.)
+/// good? (`docs/design/admin-invite-design.md` §7.)
 ///
 /// Pure, like `admin_members.dart` next to it: the parse is falsifiable
 /// without a browser or a server, which is what lets a test assert that a

@@ -1,0 +1,150 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/guard-writes.sh",
+            "timeout": 10,
+            "statusMessage": "game_loop: checking the write stays inside the repo"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop limitgate",
+            "timeout": 10,
+            "statusMessage": "game_loop: usage-limit handoff gate"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/guard-mcp.sh",
+            "timeout": 10,
+            "statusMessage": "game_loop: does this MCP call mutate?"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/worktree-guard.sh",
+            "timeout": 10,
+            "statusMessage": "showrunner: is this tree held by another session?"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/dispatch-guard.sh",
+            "timeout": 10,
+            "statusMessage": "showrunner: is this session allowed to dispatch?"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop sessionstart",
+            "timeout": 20,
+            "statusMessage": "game_loop: rehydrating the loop"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/whoami.sh",
+            "timeout": 20,
+            "statusMessage": "showrunner: what is this session?"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop sessionstart",
+            "timeout": 20,
+            "statusMessage": "game_loop: rehydrating the loop"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/whoami.sh",
+            "timeout": 20,
+            "statusMessage": "showrunner: what is this session?"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/mrgnhnt96/Development/AI/programs/llm_chat/bin/llm-chat-deliver",
+            "timeout": 10,
+            "statusMessage": "llm_chat: anything waiting?"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.game_loop/bin/game_loop stopgate",
+            "timeout": 10,
+            "statusMessage": "game_loop: is this turn-end earned?"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.showrunner/hooks/inert-crawler-gate.sh",
+            "timeout": 30,
+            "statusMessage": "showrunner: is a Crawler waiting on a message?"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/mrgnhnt96/Development/AI/programs/llm_chat/bin/llm-chat-deliver",
+            "timeout": 10,
+            "statusMessage": "llm_chat: anything waiting?"
+          }
+        ]
+      }
+    ]
+  }
+}

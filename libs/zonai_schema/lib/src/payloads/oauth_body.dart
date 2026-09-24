@@ -1,4 +1,4 @@
-/// Wire formats for the OAuth HTTP surface (`docs/oauth-design.md` §3).
+/// Wire formats for the OAuth HTTP surface (`docs/design/oauth-design.md` §3).
 ///
 /// Deliberately a family of its own rather than new members of the sealed
 /// `AuthBody` hierarchy in `auth_password_body.dart`. `AuthBody` is `sealed`,

@@ -563,7 +563,7 @@ zonai:
 
         # THIS is the bare `dart compile exe` that produces the released CLI --
         # compile.yml reaches it through `sip run zonai compile`, and
-        # docs/linking-a-bare-released-binary.md records that nothing used to
+        # docs/design/linking-a-bare-released-binary.md records that nothing used to
         # stamp it. A released binary has to carry the VM snapshot hash of the
         # runtime embedded in it, because it is the host that loads `.aot`
         # worker snapshots through `Isolate.spawnUri` and a snapshot from an

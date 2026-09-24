@@ -5,7 +5,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 import 'admin_handler.dart' show requireAdminCaller;
 
 /// The API-token management surface behind `/admin/tokens/**`
-/// (`docs/api-tokens-design.md` §8).
+/// (`docs/design/api-tokens-design.md` §8).
 ///
 /// **This route family exists because `/db` structurally cannot be it.** The
 /// internal rules on `_api_tokens` deny `create` and `update` to *everyone*,

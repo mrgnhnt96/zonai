@@ -181,7 +181,7 @@ class Auth {
   }
 
   /// The public, redacted OAuth providers configured on the server
-  /// (`docs/oauth-design.md` §2.4). Pass [table] to narrow to one auth
+  /// (`docs/design/oauth-design.md` §2.4). Pass [table] to narrow to one auth
   /// collection; omit it to list every OAuth-enabled table at once.
   Future<List<OAuthProviderPublic>> providers({String? table}) async {
     final raw = await _auth.oauthProviders(table: table);

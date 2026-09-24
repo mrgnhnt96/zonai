@@ -5,7 +5,7 @@ import 'package:zonai_schema/src/handlers/rate_limits/rate_limit_request.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// The link that decides whether `RateLimitOperation.adminInvite` is a *limit*
-/// rather than decoration (`docs/admin-invite-design.md` §4 item 9).
+/// rather than decoration (`docs/design/admin-invite-design.md` §4 item 9).
 ///
 /// `RateLimiter.check` treats a `null` policy as **unlimited** and caches that
 /// verdict for the life of the process. So `POST /admin/invites` can carry the

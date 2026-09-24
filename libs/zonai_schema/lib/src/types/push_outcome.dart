@@ -50,7 +50,7 @@ sealed class PushOutcome {
 }
 
 /// FCM accepted the message for this token. Not a delivery receipt — FCM
-/// does not offer one, and `docs/push.md` says so where someone would assume
+/// does not offer one, and `apps/docs/content/push/delivery-guarantees.md` says so where someone would assume
 /// otherwise.
 final class PushDelivered extends PushOutcome {
   const PushDelivered({required super.token});

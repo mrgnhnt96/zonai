@@ -119,7 +119,7 @@ three runs. Meanwhile p99 for `create@1` moved 0.65ms → 10.14ms between runs �
 1455% spread on a cell doing almost nothing.
 
 So a p99 gate at any threshold these runs support would flap, and
-`docs/testing-strategy.md` is explicit that a flapping gate gets muted and a muted
+`docs/design/testing-strategy.md` is explicit that a flapping gate gets muted and a muted
 gate is worse than none. **p99 is recorded for trend and never asserted.** If you
 want it gated, recalibrate first and show a spread that supports a threshold —
 `thresholds.json` keeps the observed p99 per cell so that argument can be had from

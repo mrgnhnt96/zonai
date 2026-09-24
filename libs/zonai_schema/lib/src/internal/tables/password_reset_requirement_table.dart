@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// One `(table, user_id)` marker — "this account must choose a new password
 /// before a password sign-in will mint a session for it". Set out of band by
 /// an operator, read on the password sign-in path, deleted when the password
-/// actually changes; see `docs/force-password-reset-design.md` §3.
+/// actually changes; see `docs/design/force-password-reset-design.md` §3.
 ///
 /// Durable on purpose. The reset *ticket* a gated sign-in hands back is an
 /// ordinary `_auth_challenges` row with its own short expiry — this row is the

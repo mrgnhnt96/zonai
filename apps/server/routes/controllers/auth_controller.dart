@@ -33,7 +33,7 @@ class AuthController {
   // The one structured error body zonai emits -- every other auth failure on
   // these routes is a bare `{"error": "<sentence>"}`. Documented on all three
   // password doors because all three run `_signInWithPassword`, which is what
-  // raises it. See docs/auth.md, "Forced password reset".
+  // raises it. See apps/docs/content/authentication/password-auth.md, "Forced password reset".
   @swagger.ApiResponse(
     403,
     description:
@@ -121,7 +121,7 @@ class AuthController {
   // The one structured error body zonai emits -- every other auth failure on
   // these routes is a bare `{"error": "<sentence>"}`. Documented on all three
   // password doors because all three run `_signInWithPassword`, which is what
-  // raises it. See docs/auth.md, "Forced password reset".
+  // raises it. See apps/docs/content/authentication/password-auth.md, "Forced password reset".
   @swagger.ApiResponse(
     403,
     description:
@@ -148,7 +148,7 @@ class AuthController {
   // The one structured error body zonai emits -- every other auth failure on
   // these routes is a bare `{"error": "<sentence>"}`. Documented on all three
   // password doors because all three run `_signInWithPassword`, which is what
-  // raises it. See docs/auth.md, "Forced password reset".
+  // raises it. See apps/docs/content/authentication/password-auth.md, "Forced password reset".
   @swagger.ApiResponse(
     403,
     description:
@@ -187,7 +187,7 @@ class AuthController {
   }
 
   // -----------------------------------------------------------------------
-  // OAuth (docs/oauth-design.md §3). Path parameters are `:provider` in the
+  // OAuth (docs/design/oauth-design.md §3). Path parameters are `:provider` in the
   // route string plus `@Param() required String provider` in the signature --
   // the same shape `PhotosController.view` (`@Get(':id')`) and
   // `DbController.custom` (`@Patch('custom/:operation')`) already serve on,
@@ -313,7 +313,7 @@ class AuthController {
   }
 
   /// Is this invite link still good? Answered **without consuming it**
-  /// (`docs/admin-invite-design.md` §7).
+  /// (`docs/design/admin-invite-design.md` §7).
   ///
   /// The `/_/admin/invite?token=…` screen asks this before it offers
   /// anything, so a link opened a week too late gets that screen's own plain
@@ -359,7 +359,7 @@ class AuthController {
   }
 
   /// Admin-invite acceptance over OAuth: mint an **invite-bound** challenge,
-  /// 302 to the provider (`docs/admin-invite-design.md` §3.2 step 3).
+  /// 302 to the provider (`docs/design/admin-invite-design.md` §3.2 step 3).
   ///
   /// The browser reaches this from the `/_/admin/invite?token=…` screen the
   /// invite email links to, so it is a `GET` that redirects, exactly like the

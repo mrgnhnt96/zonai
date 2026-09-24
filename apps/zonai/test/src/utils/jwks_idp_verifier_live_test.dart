@@ -13,7 +13,7 @@ import 'package:zonai/src/utils/oauth/oauth_provider_credentials.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// [JwksIdpVerifier] against **a real OIDC issuer over the real network**
-/// (`docs/oauth.md`, "Live-network JWKS verification").
+/// (`docs/design/oauth-internals.md`, "Live-network JWKS verification").
 ///
 /// `jwks_idp_verifier_test.dart` covers the logic thoroughly — 18 cases — but
 /// every one of them generates its own RSA key pair and serves the JWKS from

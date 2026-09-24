@@ -1,5 +1,5 @@
 // A schema file declaring a table with a `deviceToken` column -- the shape
-// docs/push.md shows when the subject is *how a token column is declared*
+// apps/docs/content/push/device-tokens.md shows when the subject is *how a token column is declared*
 // rather than what a hook does with it.
 //
 // The row class lives here rather than being imported for the same reason

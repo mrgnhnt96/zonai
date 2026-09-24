@@ -20,7 +20,7 @@ import '../support/temp_directory.dart';
 /// End-to-end against a local stub OAuth provider (`OAuthStubServer`, never
 /// reachable off `127.0.0.1`): start/callback/native flows, identity
 /// resolution, linking, provisioning, and the security acceptance criteria
-/// from `docs/oauth-design.md` §4 -- see oauth-db-mutator's "Done means".
+/// from `docs/design/oauth-design.md` §4 -- see oauth-db-mutator's "Done means".
 ///
 /// Modeled on `external_auth_provisioning_e2e_test.dart`: a real compiled
 /// `e2e/oauth` fixture project (`UserTable extends AuthTable<User> with

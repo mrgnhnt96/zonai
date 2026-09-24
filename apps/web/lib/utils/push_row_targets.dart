@@ -175,7 +175,7 @@ const _platformColumnNames = {'platform', 'deviceplatform', 'osplatform', 'os'};
 /// * an enum whose entire domain parses as a [DevicePlatform]. Nothing else
 ///   can be: a column that can only ever hold `ios` or `android` is a platform
 ///   column whatever it is named.
-/// * a text column named for the job. This is the shape `docs/push.md` itself
+/// * a text column named for the job. This is the shape `apps/docs/content/push/device-tokens.md` itself
 ///   recommends (`platform = $.text('platform', ...)`), so refusing it would
 ///   mean the dashboard could not route the schema the documentation tells
 ///   people to write.

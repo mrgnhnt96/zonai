@@ -4,7 +4,7 @@ import 'package:zonai_schema/payloads.dart';
 import '../utils/admin_invite_status.dart';
 
 /// Asks whether an invite token is still good, **without spending it**
-/// (`docs/admin-invite-design.md` §7).
+/// (`docs/design/admin-invite-design.md` §7).
 ///
 /// Unlike its neighbours in `admin_client.dart`, this one goes through the
 /// generated `AuthDataSource` rather than [Server.client] directly: the route

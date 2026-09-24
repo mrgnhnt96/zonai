@@ -1,5 +1,5 @@
 /// The `GET /admin/tokens` payload, and the decisions the API Tokens screen
-/// makes about it (`docs/api-tokens-design.md` §8).
+/// makes about it (`docs/design/api-tokens-design.md` §8).
 ///
 /// Pure on purpose, for the reason `admin_members.dart` is: the interesting
 /// parts here are *statuses* — live, revoked, expired — and a UI that merely

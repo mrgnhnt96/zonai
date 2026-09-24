@@ -16,7 +16,7 @@ import '../../lib/gen/server/.revali/server/server.dart' as gen_server;
 import '../support/oauth_stub_server.dart';
 import '../support/temp_directory.dart';
 
-/// HTTP-layer proof for `docs/admin-invite-design.md` §3/§4, over a REAL
+/// HTTP-layer proof for `docs/design/admin-invite-design.md` §3/§4, over a REAL
 /// socket against the actual generated server (`apps/zonai/lib/gen/server`,
 /// the same code `zonai compile`/`zonai serve` embeds) — the layer neither
 /// `admin_invite_runtime_e2e_test.dart` (calls `ZonaiDb` directly, in one
@@ -691,7 +691,7 @@ void main() {
 
     // -----------------------------------------------------------------
     // brief case 9: the OAuth `code`, `state` and client secret in no log
-    // line either (docs/oauth.md §4 item 7).
+    // line either (docs/design/oauth-internals.md §4 item 7).
     //
     // The redaction *function* is unit-tested and the response *surfaces*
     // are asserted elsewhere; this is the end of that chain -- what the

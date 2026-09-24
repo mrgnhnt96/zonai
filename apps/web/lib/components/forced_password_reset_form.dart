@@ -10,7 +10,7 @@ import 'theme/theme_components.dart';
 /// Choose a new password, from inside the sign-in screen, without an email.
 ///
 /// Reached only when `POST /auth/admin` answered 403 with a reset ticket
-/// (`docs/force-password-reset-design.md` §7). The credentials were CORRECT --
+/// (`docs/design/force-password-reset-design.md` §7). The credentials were CORRECT --
 /// this is not a failed sign-in -- so the copy says so rather than implying
 /// the operator mistyped something.
 ///

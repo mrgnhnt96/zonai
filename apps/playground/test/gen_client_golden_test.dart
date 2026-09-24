@@ -13,7 +13,7 @@
 ///   1. **Content.** Re-running the generator over the committed schema
 ///      reproduces the committed bytes exactly.
 ///   2. **Determinism.** Two runs agree, and column order is *declaration*
-///      order -- see the snapshot index-order trap in `docs/known-issues.md`,
+///      order -- an older snapshot generator sorted columns alphabetically,
 ///      which cost real time once already.
 ///   3. **It compiles.** The committed output passes `dart analyze` clean
 ///      against the real `package:zonai_client`. A golden that is byte-stable
@@ -250,7 +250,7 @@ void main() {
     });
 
     test('column order is declaration order, not alphabetical', () {
-      // The trap this guards is in `docs/known-issues.md`: an older snapshot
+      // The trap this guards: an older snapshot
       // generator sorted alphabetically, the current one does not, and sorting
       // reorders every generated constructor without changing a single type.
       final declared = [

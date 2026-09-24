@@ -20,7 +20,7 @@ import 'theme/zonai_tag.dart';
 /// always additive and a name can never be granted twice. Picking `*` replaces
 /// the whole selection rather than joining it: `["*", "orders"]` invites the
 /// reader to guess whether the token is scoped to orders or to everything, and
-/// the wildcard is stored rather than expanded (see docs/api-tokens.md,
+/// the wildcard is stored rather than expanded (see apps/docs/content/authentication/api-tokens.md,
 /// "The wildcard is stored, not expanded"), so the two are not interchangeable.
 ///
 /// [collections] is INJECTED rather than read from `sqliteTablesProvider`

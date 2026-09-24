@@ -4,7 +4,7 @@ import 'package:jaspr_test/jaspr_test.dart';
 import 'package:zonai_web/components/admins_screen.dart';
 import 'package:zonai_web/utils/admin_members.dart';
 
-/// Component tests for the Admins screen (`docs/admin-invite-design.md` §5 W2).
+/// Component tests for the Admins screen (`docs/design/admin-invite-design.md` §5 W2).
 ///
 /// [AdminsPanel] is pure, so these pump it directly: no provider scope, no
 /// server, no session. What is being pinned is the part a screenshot would not

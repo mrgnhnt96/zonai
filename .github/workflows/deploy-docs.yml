@@ -13,7 +13,7 @@ name: Deploy Docs
 #                     it cannot reach anything else in the account even if the
 #                     secret leaks. Rotate by deleting the key under that
 #                     repo's Settings → Deploy keys and re-running the setup in
-#                     docs/jaspr-docs-site-deployment.md.
+#                     docs/docs-site/deployment.md.
 
 on:
   push:

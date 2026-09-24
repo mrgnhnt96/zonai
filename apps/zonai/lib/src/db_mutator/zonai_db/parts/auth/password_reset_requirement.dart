@@ -4,7 +4,7 @@ extension _PasswordResetRequirementX on ZonaiDb {
   /// Marks [email]'s account in [table] as owing a new password, and kills
   /// every session it currently holds.
   ///
-  /// Design: `docs/force-password-reset-design.md` §4.1.
+  /// Design: `docs/design/force-password-reset-design.md` §4.1.
   Future<void> _requirePasswordReset({
     required String table,
     required String email,

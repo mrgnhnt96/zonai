@@ -133,7 +133,7 @@ void main() {
   group('the generated route table actually carries it', () {
     // Reads revali's output rather than trusting the annotation: the wiring is
     // emitted, not written, and an annotation that contributes nothing fails
-    // silently (known-issues.md #1).
+    // silently (fix 111b8dfd).
     //
     // `.revali/` is gitignored, so it is absent on a clean CI runner and this
     // skips there. Named rather than hidden, exactly as

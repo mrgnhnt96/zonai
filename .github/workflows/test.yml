@@ -4,7 +4,7 @@ name: Test
 # `dart test` existed across all six workflows -- deploy-docs.yml:95, scoped to
 # apps/docs. The 504-test suite covering the product had never executed on CI
 # hardware, and had never executed on Windows at all. See
-# docs/testing-strategy.md Step 4.
+# docs/design/testing-strategy.md Step 4.
 #
 # One job per layer, matching the `test` targets in scripts.yaml exactly. The
 # jobs do NOT re-state what a suite is or which prerequisites it carries --
@@ -838,7 +838,7 @@ jobs:
   #
   # tool/ci/run_e2e.sh landed in bdaa61d, so `test e2e` no longer exits 70 --
   # this job now does the thing it was wired in advance to do
-  # (docs/testing-strategy.md Step 3). It found a live product bug on its first
+  # (docs/design/testing-strategy.md Step 3). It found a live product bug on its first
   # run: 21 of 24 concurrent creates answering HTTP 500 from the rate limiter,
   # fixed in 4beb750 and now asserted here rather than reported.
   #

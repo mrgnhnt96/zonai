@@ -14,7 +14,7 @@ import 'theme/zonai_icon_button.dart';
 import 'theme/zonai_text_field.dart';
 import 'toast_overlay.dart';
 
-/// The Admins screen (`docs/admin-invite-design.md` §5 W2): who can sign in to
+/// The Admins screen (`docs/design/admin-invite-design.md` §5 W2): who can sign in to
 /// this dashboard, who has been invited and not yet accepted, and the controls
 /// to change both.
 ///

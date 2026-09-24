@@ -14,7 +14,7 @@ import 'oauth_token_response.dart';
 /// Injectable [http.Client] so tests never touch the network, exactly like
 /// [JwksIdpVerifier] (`utils/jwks_idp_verifier.dart`).
 ///
-/// **Runtime finding, not reflected in `docs/oauth-design.md` §2.3:**
+/// **Runtime finding, not reflected in `docs/design/oauth-design.md` §2.3:**
 /// GitHub's token endpoint defaults to a URL-encoded body
 /// (`access_token=...&scope=...&token_type=...`), not JSON — it only
 /// returns JSON when the request sends `Accept: application/json`

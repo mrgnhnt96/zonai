@@ -3,7 +3,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 
 NoteTableRules main() => NoteTableRules();
 
-/// Permissive at the table level, exactly as `docs/rules.md` describes the
+/// Permissive at the table level, exactly as `apps/docs/content/rules/overview.md` describes the
 /// coarse gate: anyone may *ask* to list notes. What they are allowed to see
 /// is decided per row, in [NoteRowRules].
 final class NoteTableRules extends TableRules<NoteTable, Note> {

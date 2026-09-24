@@ -8,7 +8,7 @@ import 'package:zonai_schema/gen/raindrop/raindrop/raindrop.dart';
 /// create payload omits it, the same way it does for [SecretTransformer]
 /// columns, so the column can stay non-nullable while still being buildable
 /// at rule-check time (rules run before operations, against a row built
-/// from the raw request data — see docs/rules.md and docs/operations.md).
+/// from the raw request data — see apps/docs/content/schemas/defining-tables.md).
 ///
 /// Unlike [SecretTransformer], values using this transformer are **not**
 /// stripped from responses during sanitization — use this when the

@@ -11,7 +11,7 @@ abstract final class AuthRoutes {
   static const admins = '/admins';
 
   /// The signed-in API Tokens screen: mint, list, revoke and delete
-  /// credentials for the data API (`docs/api-tokens-design.md` §8).
+  /// credentials for the data API (`docs/design/api-tokens-design.md` §8).
   static const apiTokens = '/api-tokens';
 
   /// Where the invite email's link lands (`{baseUrl}/_/admin/invite?token=…`,
@@ -179,7 +179,7 @@ abstract final class AuthRoutes {
   }
 
   /// Full-page destination that accepts an admin invite through [providerId]
-  /// (`docs/admin-invite-design.md` §3.2 step 3).
+  /// (`docs/design/admin-invite-design.md` §3.2 step 3).
   ///
   /// A third start route, and the distinction from [oauthAdminStartUrl] is the
   /// whole point: that one requires an admin Bearer token and refuses to

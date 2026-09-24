@@ -16,7 +16,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 import '../support/temp_directory.dart';
 
 /// `ZonaiDb.describeAdminInvite` -- the liveness probe
-/// (`docs/admin-invite-design.md` §7).
+/// (`docs/design/admin-invite-design.md` §7).
 ///
 /// **The property under test is a NEGATIVE one**, and it is why these live in
 /// their own file rather than joining `admin_invite_runtime_e2e_test.dart`:

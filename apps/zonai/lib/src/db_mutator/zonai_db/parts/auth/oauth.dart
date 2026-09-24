@@ -17,7 +17,7 @@ typedef _OAuthCallbackResult = ({
 /// resolution reaches the *same* `AuthExtensionRequest.onExternalAuthFirstSeen`
 /// hook and `externalIdpProvisioningGate` via [_provisionOAuthUser], and
 /// session minting reaches the *same* [_createJwt] via [_finishOAuthSignIn].
-/// See `docs/oauth-design.md` §3.
+/// See `docs/design/oauth-design.md` §3.
 extension _OAuthX on ZonaiDb {
   // ---------------------------------------------------------------------
   // Provider listing (design §2.4 / item 4: "an operation exposing

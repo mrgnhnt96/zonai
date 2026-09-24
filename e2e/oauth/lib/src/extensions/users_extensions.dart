@@ -4,7 +4,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 UsersExtensions main() => UsersExtensions();
 
 /// `onExternalAuthFirstSeen` is the *same* hook OAuth first-seen
-/// provisioning fires (see `docs/oauth-design.md` §3.3) -- an app that
+/// provisioning fires (see `docs/design/oauth-design.md` §3.3) -- an app that
 /// already wired up external-IdP provisioning needs no OAuth-specific
 /// extension code at all.
 final class UsersExtensions extends Extension<User> with AuthExtension<User> {

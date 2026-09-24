@@ -157,7 +157,7 @@ else:
 # gate is still there, still green, still gating nothing. Which is precisely the
 # state this file was found in: verify-release.yml ran BESIDE publication for
 # months because release.yml's `workflow_run: [Verify Release]` trigger was
-# commented out. See docs/testing-strategy.md Step 5.
+# commented out. See docs/design/testing-strategy.md Step 5.
 RELEASE = ".github/workflows/release.yml"
 GATE_JOB = "release-gate"
 GATE_SCRIPT = "tool/ci/check_release_gates.sh"

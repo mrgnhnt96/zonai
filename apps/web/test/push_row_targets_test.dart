@@ -121,7 +121,7 @@ void main() {
       );
     });
 
-    test('the text column docs/push.md recommends is a platform column', () {
+    test('the text column the push docs recommend is a platform column', () {
       final shapes = [
         column('id', ColumnShapeKind.id, isPrimaryKey: true),
         // `platform = $.text('platform', ...)` is the shape the push docs tell

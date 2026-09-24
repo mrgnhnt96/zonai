@@ -172,7 +172,7 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 401,
         body: {'error': '$exception'},
       ),
-      // 403, not 401. The whole sign-in oracle contract (docs/auth.md,
+      // 403, not 401. The whole sign-in oracle contract (apps/docs/content/authentication/password-auth.md,
       // "Failed sign-in") rests on 401 meaning *these credentials are not
       // valid*, rendered identically for a wrong password and an unknown
       // address. This says the opposite -- the password was right -- so it

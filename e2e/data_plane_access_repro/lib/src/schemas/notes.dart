@@ -2,7 +2,7 @@ import 'package:zonai_data_plane_access_repro/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// A plain (non-auth) collection whose rules are permissive at the TABLE level
-/// and restrictive at the ROW level — the shape `docs/rules.md` describes as
+/// and restrictive at the ROW level — the shape `apps/docs/content/rules/overview.md` describes as
 /// the normal one, and the shape the SSE stream leak depended on.
 final class Note {
   Note({

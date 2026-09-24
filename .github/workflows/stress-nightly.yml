@@ -1,6 +1,6 @@
 name: Stress (nightly)
 
-# docs/testing-strategy.md Step 7. WEEKLY (Mondays), deliberately not on the PR
+# docs/design/testing-strategy.md Step 7. WEEKLY (Mondays), deliberately not on the PR
 # path: a full sweep is minutes of saturated CPU and it is noisy on shared
 # runners, so putting it on every PR is how it gets disabled within a week.
 #

@@ -32,7 +32,7 @@ Future<int> version(List<String> path) async {
     // in-process ops/rules serves exactly like one that kept them, so nothing
     // in the bundle -- or in a deploy's logs -- distinguished them. That is
     // what let `zonai build` ship the wrong one for two releases (see
-    // docs/build-fallback-next-steps.md). This is the line
+    // docs/design/build-fallback-next-steps.md). This is the line
     // tool/ci/verify_build_command.sh asserts on, and the one to ask a
     // machine after the fact.
     //

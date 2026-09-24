@@ -15,7 +15,7 @@ import '../components/black_list.dart';
 // dot-shorthand `.x` -- revali's server generator cannot resolve a dot-shorthand
 // annotation argument. See docs/revali-dot-shorthand-codegen.md.
 
-/// Admin management for the dashboard (`docs/admin-invite-design.md` §5 W1).
+/// Admin management for the dashboard (`docs/design/admin-invite-design.md` §5 W1).
 ///
 /// Everything here needs an **admin** JWT for the resolved `AsAdmin` table,
 /// enforced in [AdminHandler] rather than by a guard. A guard would have to
@@ -146,7 +146,7 @@ class AdminController {
   }
 
   /// Require [email]'s account in `table` to choose a new password, and revoke
-  /// every session it holds (`docs/force-password-reset-design.md` §6).
+  /// every session it holds (`docs/design/force-password-reset-design.md` §6).
   ///
   /// **`table` is a query parameter, and the rest of this controller has no
   /// equivalent.** Its neighbours all act on the resolved `AsAdmin`

@@ -1,0 +1,3 @@
+[mcp_servers.llm_chat]
+command = "python3"
+args = ["/Users/mrgnhnt96/Development/AI/programs/llm_chat/bin/llm-chat-mcp"]

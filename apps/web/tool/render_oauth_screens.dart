@@ -124,7 +124,7 @@ Future<void> main(List<String> args) async {
     outPath: '$out/sign-in-oauth-only.html',
   );
 
-  // Password + OAuth, the combination docs/oauth-design.md uses as its
+  // Password + OAuth, the combination docs/design/oauth-design.md uses as its
   // worked example.
   await _render(
     path: '/sign-in',

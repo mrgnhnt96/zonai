@@ -34,7 +34,7 @@ final class OAuthIdentity {
 /// resolve to a non-empty string — every other field is optional because
 /// providers vary in what they assert (design §2.3 built-in factory docs).
 ///
-/// **Runtime finding, not reflected in `docs/oauth-design.md` §2.3:**
+/// **Runtime finding, not reflected in `docs/design/oauth-design.md` §2.3:**
 /// GitHub's `GET /user` documents `id` as a JSON *number*
 /// (`"id": integer, format: int64`), not a string — but every other
 /// built-in provider's subject claim (`sub`, or Facebook/Discord's `id`) is

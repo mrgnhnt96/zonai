@@ -6,7 +6,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 
 /// Captures everything written to an [IOSink] as plain text, mirroring how
 /// `apps/zonai/test/src/email/courier_test.dart` captures a real [Logger]'s
-/// output (see `docs/known-issues.md` #10). That regression was a call
+/// output (fixed in 71114f43). That regression was a call
 /// silently resolving to a no-op logger; "did not throw" passed against it,
 /// so every test here asserts on the captured TEXT a sink actually received.
 class _CapturingSink implements IOSink {
@@ -157,7 +157,7 @@ void main() {
     setUp(() => makeLogger(level: Level.error));
 
     test('a callback receives details for a level the sink would filter', () {
-      // The trap known-issues.md #10 describes: a caller can wire a callback
+      // The trap fixed in 71114f43: a caller can wire a callback
       // and observe log traffic even when the configured level would drop it
       // from the sink entirely. Pin that callbacks are NOT level-gated.
       LogDetails? received;

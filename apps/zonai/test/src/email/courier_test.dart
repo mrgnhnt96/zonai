@@ -89,8 +89,8 @@ Future<String> _capturingLog(
 
 void main() {
   group('Courier.send', () {
-    // known-issues.md #10: a project with no `AppConfig.email` skips the send,
-    // and `docs/email.md` promises a warning for it. Every caller is
+    // Fixed in 71114f43: a project with no `AppConfig.email` skips the send,
+    // and `apps/docs/content/email/smtp-setup.md` promises a warning for it. Every caller is
     // fire-and-forget, so the log line is the *only* signal an operator gets.
     // Asserting "does not throw" would pass against a no-op logger, which is
     // how this went unnoticed from 2026-07-31 (when `9054cf0` gave the

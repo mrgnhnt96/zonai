@@ -433,7 +433,7 @@ List<StyleRule> get zonaiUiStyles => [
   css(
     '.z-panel__title',
   ).styles(margin: .zero, fontSize: 1.375.rem, fontWeight: .w600, raw: const {'letter-spacing': '-0.02em'}),
-  // Admins screen (`docs/admin-invite-design.md` §5 W2). These live here, and
+  // Admins screen (`docs/design/admin-invite-design.md` §5 W2). These live here, and
   // not in an `@css` getter on `AdminsScreen` where the rest of the screen's
   // vocabulary lives, for a mechanical reason worth stating: the style bundle
   // is assembled in the GENERATED `main.server.options.dart`, which lists each
@@ -491,7 +491,7 @@ List<StyleRule> get zonaiUiStyles => [
     // this flex column the gap already spaces it.
     css('.z-field').styles(margin: .zero),
   ]),
-  // API Tokens screen (`docs/api-tokens-design.md` §11 step 8). Here rather
+  // API Tokens screen (`docs/design/api-tokens-design.md` §11 step 8). Here rather
   // than in an `@css` getter on `ApiTokensScreen`, for the mechanical reason
   // stated above the admins block: a new getter is inert until
   // `main.server.options.dart` is regenerated, and inert styles analyze clean

@@ -10,7 +10,7 @@ import 'oauth_exception.dart';
 /// decoded claims map, for providers whose identity comes from userinfo
 /// rather than (or in addition to) an `id_token`.
 ///
-/// **Runtime finding, not reflected in `docs/oauth-design.md` §2.3:**
+/// **Runtime finding, not reflected in `docs/design/oauth-design.md` §2.3:**
 /// Facebook's Graph API `/me` returns only `name` (and `id`) unless the
 /// request explicitly lists the fields it wants via a `fields` query
 /// parameter — confirmed against Meta's Graph API user reference, which

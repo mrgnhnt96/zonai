@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# L3 -- the e2e fixture layer (docs/testing-strategy.md Step 3).
+# L3 -- the e2e fixture layer (docs/design/testing-strategy.md Step 3).
 #
 # Drives every e2e/ fixture through the lifecycle a user actually experiences,
 # with a REAL compiled binary:
@@ -22,7 +22,7 @@
 #
 # WHAT MODE MEANS HERE, AND WHY IT IS NOT `ZONAI_FORCE_WORKERS`
 # ------------------------------------------------------------
-# docs/testing-strategy.md prescribes running each mutation fixture twice --
+# docs/design/testing-strategy.md prescribes running each mutation fixture twice --
 # linked, then ZONAI_FORCE_WORKERS=1. Measured against these fixtures that is
 # the SAME configuration twice: e2e/* depend on `zonai_schema` and not on
 # `zonai`, so a bare CLI cannot link a project runtime against them at all.

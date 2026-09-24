@@ -15,7 +15,7 @@ import '../routes/components/rate_limit.dart';
 ///
 /// 1. the guard is **typed** as a [LifecycleComponent], or revali's generator
 ///    drops it and the route serves unguarded with no error anywhere. That is
-///    known-issues.md #1, which left the whole auth surface unprotected;
+///    fix 111b8dfd, which left the whole auth surface unprotected;
 ///    `lifecycle_component_wiring_test.dart` pins the same property for
 ///    `@BlackList()`.
 /// 2. the guard is **attached** to the routes, which is generated code — read
@@ -34,7 +34,7 @@ void main() {
         isA<LifecycleComponent>(),
         reason:
             'without this the annotation is inert and /auth/oauth/start is '
-            'unlimited -- see known-issues.md #1',
+            'unlimited -- see fix 111b8dfd',
       );
     });
 
@@ -44,7 +44,7 @@ void main() {
         isA<LifecycleComponent>(),
         reason:
             'without this the annotation is inert and /auth/oauth/callback is '
-            'unlimited -- see known-issues.md #1',
+            'unlimited -- see fix 111b8dfd',
       );
     });
   });

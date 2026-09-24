@@ -17,7 +17,7 @@ import '../routes/apps/dev_app.dart';
 void main() {
   group('Cors component wiring', () {
     test('is typed as a LifecycleComponent, so it is actually generated', () {
-      // Same failure mode as known-issues.md #1: without the `implements`
+      // Same failure mode as the bug fixed in 111b8dfd: without the `implements`
       // clause `@Cors()` still compiles, codegen still succeeds, and the
       // component contributes nothing at all -- silently.
       expect(

@@ -196,7 +196,7 @@ class AuthHandler {
   }
 
   // ---------------------------------------------------------------------
-  // OAuth (docs/oauth-design.md §3). Every method here is a thin adapter
+  // OAuth (docs/design/oauth-design.md §3). Every method here is a thin adapter
   // over `zonaiDB`'s OAuth entry points -- the flows themselves live in
   // `parts/auth/oauth.dart`, and nothing below re-implements any of them.
   // ---------------------------------------------------------------------
@@ -273,7 +273,7 @@ class AuthHandler {
     );
   }
 
-  /// Admin-invite acceptance over OAuth (`docs/admin-invite-design.md` §3.2
+  /// Admin-invite acceptance over OAuth (`docs/design/admin-invite-design.md` §3.2
   /// step 3), and [startAdminOAuth]'s counterpart for someone who is *not* an
   /// admin yet.
   ///

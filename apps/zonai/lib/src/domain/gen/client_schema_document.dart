@@ -14,8 +14,8 @@ import 'package:zonai_schema/src/types/schema_shape.dart';
 ///
 /// * **Deterministic.** Same schema ⇒ byte-identical file. Table keys are
 ///   sorted; columns are emphatically *not* — column order is declaration
-///   order, and sorting it would reorder every generated constructor (see the
-///   index-order trap in `docs/known-issues.md`).
+///   order, and sorting it would reorder every generated constructor (an
+///   older snapshot generator sorted them alphabetically).
 /// * **Self-describing.** [hash] covers the tables and nothing else, so it can
 ///   live inside the file it describes without chasing its own tail. That hash
 ///   is what `--check` compares.

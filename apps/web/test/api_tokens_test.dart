@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
 import 'package:zonai_web/utils/api_tokens.dart';
 
-/// The pure half of the API Tokens screen (`docs/api-tokens-design.md` §8):
+/// The pure half of the API Tokens screen (`docs/design/api-tokens-design.md` §8):
 /// what the list says about a row, and what the form sends.
 ///
 /// Worth its own file because both halves are answers a screenshot cannot

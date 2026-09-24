@@ -571,7 +571,7 @@ class ExpandPath {
 /// filters and in `groupBy` alike.
 ///
 /// [T] is the column's **non-nullable** Dart type even when the column is
-/// nullable, which differs from the design sketch in `docs/typed-client-design.md`
+/// nullable, which differs from the design sketch in `docs/design/typed-client-design.md`
 /// §5.4 on purpose:
 ///
 /// - `DateTime?` does not implement `Comparable`, so a `ColumnRef<DateTime?>`

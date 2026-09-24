@@ -16,7 +16,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 import '../support/oauth_stub_server.dart';
 import '../support/temp_directory.dart';
 
-/// End-to-end proof for `docs/admin-invite-design.md`'s runtime leaf --
+/// End-to-end proof for `docs/design/admin-invite-design.md`'s runtime leaf --
 /// `inviteAdmin`/`revokeAdminInvite`/`listAdminInvites`, invite-bound OAuth
 /// provisioning, and admin-removal's last-admin/self-removal/session-
 /// revocation guards (§4 items 1-7 this leaf owns).

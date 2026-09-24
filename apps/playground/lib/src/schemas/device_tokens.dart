@@ -1,7 +1,7 @@
 import 'package:zonai_playground/src/ids.dart';
 import 'package:zonai_schema/zonai_schema.dart';
 
-/// One row per device, the shape `docs/push.md` recommends.
+/// One row per device, the shape `apps/docs/content/push/device-tokens.md` recommends.
 ///
 /// Local demo fixture for the dashboard's row-selection send action: the
 /// dashboard offers it exactly when a table declares a `deviceToken` column,

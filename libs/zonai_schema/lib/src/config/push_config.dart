@@ -144,7 +144,7 @@ class PushConfig {
   /// the blast radius of a crash in duplicate notifications. 500 is a
   /// starting point chosen to be small enough that a crash duplicates a
   /// screenful rather than a mailing list; it is not a measured optimum, and
-  /// `docs/push.md` says so.
+  /// `apps/docs/content/push/configuration.md` says so.
   static const defaultBatchSize = 500;
 
   /// Sends in flight at once within a batch.

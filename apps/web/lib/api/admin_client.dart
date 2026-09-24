@@ -5,7 +5,7 @@ import 'package:zonai_client/server.dart';
 import '../utils/admin_members.dart';
 
 /// The four `/admin/**` routes, called the way the generated data sources call
-/// theirs (`docs/admin-invite-design.md` §5 W1).
+/// theirs (`docs/design/admin-invite-design.md` §5 W1).
 ///
 /// Every sibling of this file — `cron_client.dart`, `dashboard_client.dart` —
 /// goes through a generated wrapper (`server.cron.list()`). There is no
@@ -59,7 +59,7 @@ Future<void> removeAdminMember({required Server server, required String email}) 
 }
 
 /// Requires [email]'s account in [table] to choose a new password, and revokes
-/// every session it holds (`docs/force-password-reset-design.md` §6).
+/// every session it holds (`docs/design/force-password-reset-design.md` §6).
 ///
 /// [table] is sent because the route takes it, and the route takes it because
 /// this action is offered from the row detail panel — which opens on ANY

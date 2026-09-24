@@ -7,7 +7,7 @@ import 'rate_limit.dart';
 // server generator decides an annotation contributes a guard by matching its
 // static type against that marker -- drop the clause and the annotation
 // compiles, generates, tests green, and silently guards nothing. That is
-// known-issues.md #1; test/lifecycle_component_wiring_test.dart pins it.
+// fix 111b8dfd; test/lifecycle_component_wiring_test.dart pins it.
 
 /// Rate limits `GET /auth/oauth/start/:provider?table=` under
 /// [RateLimitOperation.oauthStart], bucketed by the `table` the caller is

@@ -9,7 +9,7 @@
 # dispatching Release while Verify Release was red, still running, or had never
 # run for that commit. The verify matrix is good work -- five platforms, `zonai
 # build` on each, a cross-target build/run pair, an upgrade compat check. It
-# simply was not a gate. See docs/testing-strategy.md Step 5.
+# simply was not a gate. See docs/design/testing-strategy.md Step 5.
 #
 # WHY IT QUERIES RUNS BY head_sha RATHER THAN TRUSTING THE TRIGGER: `workflow_run`
 # ordering is what produced the bug. "Verify Release finished" says nothing about

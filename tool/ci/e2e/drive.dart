@@ -1,4 +1,4 @@
-// HTTP assertions for the e2e fixture layer (docs/testing-strategy.md Step 3).
+// HTTP assertions for the e2e fixture layer (docs/design/testing-strategy.md Step 3).
 //
 // Invoked by tool/ci/run_e2e.sh against an already-running server that a REAL
 // compiled binary is serving. It asserts on response bodies and on the rows
@@ -684,7 +684,7 @@ Future<void> _customOperations(Api api) async {
 /// prints on every run) rather than fixed here: this leaf is about coverage,
 /// and a fix landing without anyone having decided the intended flush/buffer
 /// behavior would be a bigger, unreviewed change than "add the missing
-/// test". See docs/testing-strategy.md's note on knownFailure().
+/// test". See docs/design/testing-strategy.md's note on knownFailure().
 Future<void> _streaming(Api api) async {
   await api.create('widgets', {
     'id': 'wstream1',
@@ -875,7 +875,7 @@ Future<void> _forcedPasswordReset(Api api, String phase) async {
     expected: 403,
     why:
         'not 401 (the credentials were correct) and not 409. Decided in '
-        'docs/force-password-reset-design.md and pinned server-side; this is '
+        'docs/design/force-password-reset-design.md and pinned server-side; this is '
         'the only assertion that sees the status a real client receives.',
   );
 
@@ -1906,7 +1906,7 @@ class Api {
 
   void close() => _client.close(force: true);
 
-  /// The three assertions every mutation owes, per docs/testing-strategy.md:
+  /// The three assertions every mutation owes, per docs/design/testing-strategy.md:
   /// the response body, the row refetched independently BY ID, and the rows
   /// that must NOT have changed.
   ///
@@ -1964,7 +1964,7 @@ class Api {
   /// its own date rather than relying on git blame.
   ///
   /// It also cannot rot the way `verify.yaml`'s exemptions did (see
-  /// docs/testing-strategy.md Part 3): the day the bug is fixed this prints
+  /// docs/design/testing-strategy.md Part 3): the day the bug is fixed this prints
   /// "NOW PASSES" and says to delete it. Nothing has to remember to re-ask.
   void knownFailure(
     String name, {

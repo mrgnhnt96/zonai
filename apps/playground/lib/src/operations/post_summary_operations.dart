@@ -12,7 +12,7 @@ ViewOperations<PostSummary> main() =>
 /// Defined here rather than under `schemasPath` — colocated with the query
 /// that produces it, and outside the one directory the migration generator
 /// actually scans, so it can never be mistaken for a real table. See
-/// `docs/views.md`.
+/// `apps/docs/content/operations/views.md`.
 final class PostSummary {
   const PostSummary({
     required this.id,

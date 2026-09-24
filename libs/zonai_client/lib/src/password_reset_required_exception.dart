@@ -5,7 +5,7 @@ import 'package:revali_client/revali_client.dart' show ServerException;
 ///
 /// A caller that treats every non-2xx from sign-in as "bad credentials" gets
 /// this wrong twice: the credentials were *correct*, and the response carries
-/// the one thing needed to recover. See `docs/auth.md`, "Forced password
+/// the one thing needed to recover. See `apps/docs/content/dart-client/authentication.md`, "Forced password
 /// reset". Complete it with [ZonaiClient.auth.completePasswordReset].
 ///
 /// This is translated from the raw [ServerException] rather than being a

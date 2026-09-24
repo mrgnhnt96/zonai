@@ -2,7 +2,7 @@ import 'package:test/test.dart';
 import 'package:zonai_web/utils/admin_members.dart';
 
 /// The decisions the Admins screen makes about `GET /admin/members`, tested
-/// where they are decisions rather than pixels (`docs/admin-invite-design.md`
+/// where they are decisions rather than pixels (`docs/design/admin-invite-design.md`
 /// §4 items 6 and 10).
 
 AdminMember _member(String? email, {String? label}) {

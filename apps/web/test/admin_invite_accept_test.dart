@@ -13,7 +13,7 @@ import 'package:zonai_web/providers/app_name_provider.dart';
 import 'package:zonai_web/providers/brand_logo_provider.dart';
 import 'package:zonai_web/utils/admin_invite_status.dart';
 
-/// The invite acceptance screen (`docs/admin-invite-design.md` §3.2, §3.3,
+/// The invite acceptance screen (`docs/design/admin-invite-design.md` §3.2, §3.3,
 /// §7).
 ///
 /// Two requirements meet here. §3.3's: the screen offers **the methods the

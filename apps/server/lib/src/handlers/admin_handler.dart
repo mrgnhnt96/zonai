@@ -6,7 +6,7 @@ import 'package:zonai_schema/src/internal/tables/password_reset_requirement_tabl
 import 'package:zonai_schema/zonai_schema.dart';
 
 /// The admin-management surface behind `/admin/**`
-/// (`docs/admin-invite-design.md` §3, §5 W1).
+/// (`docs/design/admin-invite-design.md` §3, §5 W1).
 ///
 /// Every method here is admin-authenticated by [_requireAdmin], and that is
 /// not belt-and-braces on top of the runtime's own check — it is the only

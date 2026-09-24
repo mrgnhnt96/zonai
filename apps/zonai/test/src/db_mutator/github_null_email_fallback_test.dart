@@ -21,7 +21,7 @@ import 'package:zonai_schema/zonai_schema.dart';
 // no reason for two answers to the same question to drift apart.
 import '../commands/db/admin/fake_zonai_db.dart' show fakeSettings;
 
-/// The GitHub private-primary-email fallback (`docs/oauth.md` item 3).
+/// The GitHub private-primary-email fallback (`docs/design/oauth-internals.md` item 3).
 ///
 /// `GET /user` returns `email: null` whenever the account's primary address is
 /// private — GitHub's own default — and the runtime falls back to

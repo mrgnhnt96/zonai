@@ -8,7 +8,7 @@ PasswordResetRequirementTableRules main() =>
 /// `canUpdate` and `canDelete` with `jwt.admin.canEdit` and `canView` with
 /// `jwt.admin.isAdmin`, which is exactly the posture this table wants — a
 /// requirement must not be readable or clearable by the account it
-/// constrains (`docs/force-password-reset-design.md` §1).
+/// constrains (`docs/design/force-password-reset-design.md` §1).
 ///
 /// Nothing is overridden on purpose: restating the defaults here would be a
 /// second copy of the same policy that could drift from the first.

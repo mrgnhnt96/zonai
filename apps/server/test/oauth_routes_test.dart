@@ -8,7 +8,7 @@ import 'package:zonai_server/src/handlers/auth_handler.dart';
 
 import '../routes/controllers/auth_controller.dart';
 
-/// Route-level tests for the OAuth HTTP surface (`docs/oauth-design.md` §3).
+/// Route-level tests for the OAuth HTTP surface (`docs/design/oauth-design.md` §3).
 ///
 /// These drive [AuthController]'s methods directly against a real
 /// [ResponseImpl] and a stub [AuthHandler]. That boundary is chosen because it

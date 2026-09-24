@@ -15,7 +15,7 @@ import '../routes/components/black_list.dart';
 /// test still passes — and the annotation silently contributes nothing, so
 /// every controller carrying it serves unguarded.
 ///
-/// That is not hypothetical. It is known-issues.md #1, where exactly this
+/// That is not hypothetical. It is the bug fixed in 111b8dfd, where exactly this
 /// left sign-in, sign-up, refresh, reset-password and the whole CRUD surface
 /// with no IP-based abuse protection at all, undetected, because the only
 /// evidence is an absence in generated output nobody reads.
@@ -31,7 +31,7 @@ void main() {
       isA<LifecycleComponent>(),
       reason:
           'without this the annotation is inert and every @BlackList() '
-          'controller is unprotected -- see known-issues.md #1',
+          'controller is unprotected -- see fix 111b8dfd',
     );
   });
 }

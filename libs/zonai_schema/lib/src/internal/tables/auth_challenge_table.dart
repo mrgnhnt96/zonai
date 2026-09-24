@@ -88,7 +88,7 @@ class AuthChallenge {
 
   /// `secretHash: sha256(state)`, `target`: provider id, `metadata`:
   /// `{verifier, nonce, redirectTo}`. Caller supplies a 10-minute
-  /// [expiresAt] — see §4.1 of `docs/oauth-design.md`.
+  /// [expiresAt] — see §4.1 of `docs/design/oauth-design.md`.
   AuthChallenge.oauthState({
     required this.id,
     required this.expiresAt,
@@ -124,13 +124,13 @@ enum AuthChallengeType {
   passwordReset,
   emailChange,
 
-  /// OAuth's `state` + PKCE verifier (§4.1 of `docs/oauth-design.md`).
+  /// OAuth's `state` + PKCE verifier (§4.1 of `docs/design/oauth-design.md`).
   /// `secretHash: sha256(state)`, `target`: provider id, `table`: auth
   /// collection, `metadata`: `{verifier, nonce, redirectTo}`,
   /// `allowedAttempts: 1`, 10-minute `expiresAt`.
   oauthState,
 
-  /// A pending admin invite (`docs/admin-invite-design.md` §2). `target`:
+  /// A pending admin invite (`docs/design/admin-invite-design.md` §2). `target`:
   /// the invited email, lowercased. `table`: the `AsAdmin` collection.
   /// `secretHash: sha256(token)`. `userId: null` -- there is no row until
   /// acceptance. `metadata: {invitedBy, invitedByEmail}`.

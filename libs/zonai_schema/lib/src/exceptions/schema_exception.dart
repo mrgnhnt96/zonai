@@ -175,7 +175,7 @@ final class StaleRowRulesRequestException extends SchemaException {
 /// A custom op with no `where` skips row rules entirely and authorizes on
 /// the table rule alone (see `_customOperationBuild`). Table rules are
 /// documented as the permissive, coarse gate — real protection lives in row
-/// rules (`docs/rules.md`) — so that combination would let a permissive
+/// rules (`apps/docs/content/rules/overview.md`) — so that combination would let a permissive
 /// table rule authorize an unbounded write across every row in the table.
 /// Refusing this shape outright makes it unrepresentable rather than merely
 /// discouraged.

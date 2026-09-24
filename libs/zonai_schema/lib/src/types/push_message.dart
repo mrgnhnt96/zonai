@@ -40,7 +40,7 @@ class PushMessage {
   /// instead of stacking beside it (`collapseKey` on Android,
   /// `apns-collapse-id` on iOS).
   ///
-  /// The fan-out is at-least-once (see `docs/push.md`), so a crash can
+  /// The fan-out is at-least-once (see `apps/docs/content/push/delivery-guarantees.md`), so a crash can
   /// re-send a batch that already went out. A collapse key is the only
   /// mechanism that makes that duplicate invisible on the device rather than
   /// merely rare, and it is worth setting on anything sent from a fan-out.

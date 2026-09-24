@@ -31,8 +31,8 @@ final _getRecordRequestProvider = create<_Get>(_Get._);
 /// Without it the two halves disagree, and a cron is where that bites: a job
 /// that *writes* runs as [CronJwt] and succeeds, while a job that *reads* is
 /// anonymous and is denied by any rule requiring an identity — the least
-/// guessable combination available, and the opposite of what `docs/cron.md`
-/// describes. See `test/src/handlers/cron/cron_get_jwt_test.dart`.
+/// guessable combination available, and the opposite of what the cron docs once
+/// described. See `test/src/handlers/cron/cron_get_jwt_test.dart`.
 ///
 /// An explicit `jwt:` argument still wins, so a caller that deliberately reads
 /// as someone else — or as nobody — keeps that ability. This only supplies a

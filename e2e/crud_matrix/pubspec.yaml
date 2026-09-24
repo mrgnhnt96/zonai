@@ -1,6 +1,6 @@
 name: zonai_crud_matrix
 description: >
-  The sixth e2e fixture (docs/testing-strategy.md Step 3): every column type
+  The sixth e2e fixture (docs/design/testing-strategy.md Step 3): every column type
   crossed with every `Where` operator, driven over HTTP through a real
   compiled binary by tool/ci/run_e2e.sh.
 

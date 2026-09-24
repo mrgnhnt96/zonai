@@ -10,7 +10,7 @@ import 'package:zonai_server/src/handlers/api_token_handler.dart';
 
 import '../components/black_list.dart';
 
-/// API-token management for the dashboard (`docs/api-tokens-design.md` §8).
+/// API-token management for the dashboard (`docs/design/api-tokens-design.md` §8).
 ///
 /// A controller of its own rather than four more methods on [AdminController],
 /// the way `dashboard/maintenance` and `dashboard/push` sit beside

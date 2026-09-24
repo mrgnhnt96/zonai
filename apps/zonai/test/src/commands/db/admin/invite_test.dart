@@ -11,7 +11,7 @@ import 'package:zonai_logger/zonai_logger.dart';
 import 'fake_zonai_db.dart';
 
 /// `zonai db admin invite`, `invites` and `revoke-invite`
-/// (`docs/admin-invite-design.md` §3.1).
+/// (`docs/design/admin-invite-design.md` §3.1).
 ///
 /// These are the surface that makes the first admin invitable: `inviteAdmin`
 /// wants an admin JWT, and before an admin exists there is none. The commands

@@ -1,5 +1,5 @@
 /// The `GET /admin/members` payload, and the decisions the Admins screen makes
-/// about it (`docs/admin-invite-design.md` §3.4, §4 item 6).
+/// about it (`docs/design/admin-invite-design.md` §3.4, §4 item 6).
 ///
 /// Pure on purpose. Everything here is falsifiable without a browser, a
 /// server, or a rendered component — which matters most for the two refusals,

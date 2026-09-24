@@ -109,7 +109,7 @@ CorsDecision decideCors(String? origin, {Set<String> configured = const {}}) {
 /// annotations against that marker to decide they contribute anything at all.
 /// Drop the clause and `@Cors()` still compiles, codegen still succeeds, and
 /// the component silently does nothing -- the same failure as
-/// `known-issues.md` #1. `cors_policy_test.dart` pins it.
+/// the bug fixed in 111b8dfd. `cors_policy_test.dart` pins it.
 class Cors implements LifecycleComponent {
   const Cors();
 
