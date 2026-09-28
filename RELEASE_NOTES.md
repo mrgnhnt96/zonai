@@ -8,6 +8,19 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.9.3
+
+- **One server reaches development and production iOS builds.** Store a
+  device's platform as `ios-sandbox` (new `DevicePlatform.iosSandbox` in
+  `zonai_schema` 0.5.0) and it is sent to `api.sandbox.push.apple.com` with the
+  same APNs key, beside `ios` rows going to production. Builds installed from
+  Xcode or `flutter run` need it; TestFlight and App Store builds stay `ios`.
+  `ApnsConfig.useSandbox` is now only the default host for `ios` rows.
+- **A sandbox/production mismatch says so.** `BadDeviceToken` still clears the
+  token, but its detail now names the host that refused it and the platform
+  value that would have worked, instead of reading as a dead device.
+- The dashboard's test send can target the APNs sandbox directly.
+
 ## 0.9.2
 
 - **Push notifications are delivered.** Every earlier release with push failed
