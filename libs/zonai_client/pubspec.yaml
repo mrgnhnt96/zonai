@@ -6,7 +6,7 @@ name: zonai_client
 description: >-
   Typed Dart and Flutter client for a Zonai backend: auth, CRUD, file uploads,
   and live SQLite query streams over HTTP.
-version: 0.2.2
+version: 0.2.3
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 homepage: https://zonai.dev
 documentation: https://docs.zonai.dev/dart-client/overview
@@ -40,8 +40,9 @@ dependencies:
   # 0.4.1 -- so against 0.4.0 this package exports a surface with no way to
   # build an IS NULL clause, and the code `zonai gen client` emits (which
   # calls `Where.isNull`) does not compile. The upper bound stays open across
-  # the minor for the original reason.
-  zonai_schema: ">=0.4.1 <0.5.0"
+  # the minor for the original reason, and spans 0.5.x because nothing here
+  # references what 0.5.0 changed (`DevicePlatform.iosSandbox`, server-side).
+  zonai_schema: ">=0.4.1 <0.6.0"
 
 dev_dependencies:
   analyzer: ">=8.0.0 <13.0.0"

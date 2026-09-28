@@ -1,3 +1,7 @@
+## 0.2.3
+
+- Widen the `zonai_schema` constraint to `>=0.4.1 <0.6.0` so consumers can move to `zonai_schema` 0.5.0. The published 0.2.2 declares `<0.5.0`, which excludes it — anyone using this client alongside `zonai_schema` would be pinned below 0.5.0 regardless of what they ask for. Nothing here references what changed in 0.5.0 (`DevicePlatform.iosSandbox`, routed server-side), so no API change.
+
 ## 0.2.2
 
 - **The barrel now exports the query vocabulary**, so a consumer can name the types the generated typed client takes and returns. `zonai gen client` emits code whose signatures are `Where`, `Update`, `OrderByTerm` and friends; before this, that code compiled only if the app also depended on `zonai_schema` directly and imported it by hand, which defeats the point of a generated client. Added: `Where`, `Update`, `UpdateValue`, `ColumnUpdate`, `ObjectUpdate`, `OrderByTerm`, `SortDirection`, the comparison and set clauses (`Eq`, `Gt`, `Gte`, `Lt`, `Lte`, `In`, `NotIn`, `And`, `Or`, `Literal`), the string clauses (`Contains`, `NotContains`, `StartsWith`, `EndsWith`), and the mutation values (`Add`, `AddAll`, `Remove`, `RemoveAll`, `Increment`, `Decrement`). Also newly exported are the data sources a typed client hangs off — `Db`, `DbListen`, `AdminAuth`, `Emails`, `Photos`. Purely additive; nothing was removed or renamed.

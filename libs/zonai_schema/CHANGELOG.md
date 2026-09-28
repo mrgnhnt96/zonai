@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.0
+
+**One server, development and production iOS builds.** An APNs token belongs
+to one environment, decided by how the build was signed, and until now a
+server spoke to exactly one — so a phone running a build from Xcode or
+`flutter run` could not be reached by the server the TestFlight fleet uses.
+Worse, its token came back `BadDeviceToken`, was read as a dead device, and
+was pruned on the first send.
+
+- `DevicePlatform.iosSandbox`, stored as `ios-sandbox` (`ios_sandbox` and
+  `iosSandbox` are accepted too). A row carrying it is sent to
+  `api.sandbox.push.apple.com` with the same auth key, whatever
+  `ApnsConfig.useSandbox` says; `useSandbox` is now the default host for plain
+  `ios` rows. With no `PushConfig.apns` such a row is reported as
+  unroutable — never sent through FCM, never pruned.
+- `DevicePlatform.wireName`, the stored value. `toJson()` returns it, and it
+  differs from `name` for `iosSandbox`.
+- `ApnsConfig.sandbox`, `ApnsConfig.productionHost`/`sandboxHost`, and
+  `PushConfig.withApns`.
+
+**Breaking for exhaustive switches.** Code that switches over
+`DevicePlatform` without a default case must handle `iosSandbox`. Nothing
+stored changes: existing `ios` and `android` rows route exactly as before.
+
 ## 0.4.2
 
 Additive. No export was removed or renamed, and no behaviour that an existing
