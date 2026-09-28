@@ -53,7 +53,7 @@ That is **real Apple** judging a real ES256 provider token signed by your real k
 
 Two things to know before it confuses you:
 
-- **Sandbox and production are separate worlds.** A token issued to a development build is unknown to production and vice versa. The symptom of mixing them is `BadDeviceToken` on a token that is perfectly valid — just not here.
+- **Sandbox and production are separate worlds.** A token issued to a development build is unknown to production and vice versa. The symptom of mixing them is `BadDeviceToken` on a token that is perfectly valid — just not here. To reach a development build from a server that otherwise sends to production, store that device's platform as `ios-sandbox` rather than flipping `useSandbox`; see [Development builds and TestFlight on one server](/push/device-tokens#development-builds-and-testflight-on-one-server).
 - **A simulator token is accepted and dropped.** APNs takes the send and nothing arrives, which looks exactly like a broken integration. A simulator cannot verify delivery; `xcrun simctl push` is how you exercise the app's receive side, and it never touches Apple.
 
 ## Checking credentials before a device exists

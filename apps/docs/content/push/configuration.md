@@ -84,7 +84,7 @@ Switching iOS between the two routes is a config change on the server and a **re
 
 - **No console step.** The APNs key upload below has no API; going direct removes it.
 - **One less failure mode.** `THIRD_PARTY_AUTH_ERROR` — FCM's answer when its APNs key lapses — cannot happen when there is no proxy.
-- **A sandbox.** `useSandbox: true` sends to `api.sandbox.push.apple.com`, which FCM has no equivalent of. Development-build tokens live only there, and production tokens only in production; the symptom of mixing them is `BadDeviceToken` on a token that is perfectly valid.
+- **A sandbox.** `useSandbox: true` sends to `api.sandbox.push.apple.com`, which FCM has no equivalent of. Development-build tokens live only there, and production tokens only in production; the symptom of mixing them is `BadDeviceToken` on a token that is perfectly valid. `useSandbox` is only the default for rows stored as `ios`: a row stored as `ios-sandbox` always goes to the sandbox, so one server can serve development and production builds at once — see [Development builds and TestFlight on one server](/push/device-tokens#development-builds-and-testflight-on-one-server).
 
 ### `bundleId` is not cosmetic
 

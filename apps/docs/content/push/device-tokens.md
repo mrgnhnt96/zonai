@@ -35,7 +35,7 @@ final class DeviceTokenTable extends Table<DeviceToken> {
 final deviceTokens = table('device_tokens', DeviceTokenTable.new);
 ```
 
-This is the recommended shape: **one row per device**, with a nullable `deviceToken` column and a plain text `platform` column storing `ios` or `android`. Someone with a phone and a tablet has two rows. Reinstalling the app usually means a new token and a new row. The dashboard's test-send action recognizes a text column named `platform` (or `device_platform`, `os_platform`, `os`) as the platform column. See [Testing Push Locally](/push/testing-locally#from-the-dashboard).
+This is the recommended shape: **one row per device**, with a nullable `deviceToken` column and a plain text `platform` column storing `ios`, `ios-sandbox` or `android`. Someone with a phone and a tablet has two rows. Reinstalling the app usually means a new token and a new row. The dashboard's test-send action recognizes a text column named `platform` (or `device_platform`, `os_platform`, `os`) as the platform column. See [Testing Push Locally](/push/testing-locally#from-the-dashboard).
 
 ## Two properties are load-bearing
 
@@ -58,10 +58,17 @@ platformColumn: 'platform',
 | Stored value | Routed to |
 |---|---|
 | `android` | FCM. There is no alternative; on Android, FCM *is* the transport. |
-| `ios` | APNs directly when `PushConfig.apns` is set, otherwise FCM. |
+| `ios` | APNs directly when `PushConfig.apns` is set, otherwise FCM. The APNs host is production unless `ApnsConfig.useSandbox` says otherwise. |
+| `ios-sandbox` | APNs **sandbox** (`api.sandbox.push.apple.com`), whatever `useSandbox` says, with the same key. Requires `PushConfig.apns`; never sent through FCM. |
 | anything unrecognised, or `NULL` | FCM — **and only FCM**, so a setup without it cannot carry the row at all. |
 
-Values are read case-insensitively, and `apple`, `iphone` and `ipad` are accepted as `ios` — this column is written by client code Zonai does not control, and `Platform.operatingSystem` says `ios` while plenty of apps store `iOS`. An unrecognised value is that row's problem and never the fan-out's: it falls back rather than failing everyone else's notification.
+Values are read case-insensitively, `apple`, `iphone` and `ipad` are accepted as `ios`, and `ios_sandbox` and `iosSandbox` are accepted as `ios-sandbox` — this column is written by client code Zonai does not control, and `Platform.operatingSystem` says `ios` while plenty of apps store `iOS`. An unrecognised value is that row's problem and never the fan-out's: it falls back rather than failing everyone else's notification.
+
+### Development builds and TestFlight on one server
+
+An iOS token belongs to one APNs environment, and which one is decided by how the **build** was signed: a build installed from Xcode or `flutter run` is development-signed and its token is valid only on the sandbox host; TestFlight and App Store builds are production. The two tokens are indistinguishable strings, so the app has to say — it knows at compile time, and nothing on the server can work it out.
+
+Write `ios-sandbox` from development-signed builds and `ios` from the rest, and one server delivers to both. Sent to the wrong host, a valid token answers `BadDeviceToken`, which Zonai cannot tell apart from a malformed one and so **prunes** under the default `OnPermanentRejection.clearColumn` — a developer's phone silently deregisters on its first notification. The rejection's detail names the host that refused it and the platform value that would have been right.
 
 **Omitting `platformColumn` sends every recipient through FCM** — which is what an FCM-only app wants, and why the parameter is optional. It is *not* a general default, because that fallback only exists when FCM is configured.
 
