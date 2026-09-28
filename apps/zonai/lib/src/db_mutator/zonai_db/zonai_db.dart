@@ -1138,6 +1138,13 @@ class ZonaiDb {
           cleanUpProvider,
           executableStopProvider,
           externalIdpProvisioningGateProvider,
+          // The push transports. Every push path — the enqueue-time kick, the
+          // `_drain_push_jobs` cron, the dashboard test send — reads them from
+          // inside this scope, and nothing else in a production process binds
+          // them: until they were listed here every job failed with a
+          // `StateError` before reaching either. A test's override still wins.
+          pushCourierProvider,
+          apnsCourierProvider,
           // Every DB operation funnels through here, including the four
           // fire-and-forget email sends whose only signal to an operator is a
           // log line. `logger` reads without an `orElse`, so a caller that
@@ -1232,6 +1239,8 @@ class ZonaiDb {
           cleanUpProvider,
           executableStopProvider,
           externalIdpProvisioningGateProvider,
+          pushCourierProvider,
+          apnsCourierProvider,
           // Kept in step with [_run]'s set.
           loggerProvider,
         },

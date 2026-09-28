@@ -335,17 +335,23 @@ version: $kVersion
     HostWorkerRegistries.extensions = DbExtensions(extensions: [extension]);
   });
 
-  Future<T> withScope<T>(AppConfig config, Future<T> Function() body) {
+  Future<T> withScope<T>(
+    AppConfig config,
+    Future<T> Function() body, {
+    bool bindCouriers = true,
+  }) {
     return runMergedScopedFuture(
       body,
       override: {
         fsProvider.overrideWith(LocalFileSystem.new),
         loggerProvider.overrideWith(() => Logger(level: .error)),
         settingsProvider.overrideWith(() => settings),
-        pushCourierProvider.overrideWith(() => overrideCourier ?? courier),
-        apnsCourierProvider.overrideWith(
-          () => overrideApnsCourier ?? FakePushCourier(),
-        ),
+        if (bindCouriers) ...{
+          pushCourierProvider.overrideWith(() => overrideCourier ?? courier),
+          apnsCourierProvider.overrideWith(
+            () => overrideApnsCourier ?? FakePushCourier(),
+          ),
+        },
         processProvider,
         cleanUpProvider,
         executableStopProvider,
@@ -415,13 +421,14 @@ version: $kVersion
 
   Future<void> run(
     AppConfig config,
-    Future<void> Function(ZonaiDb zonaiDb) body,
-  ) async {
+    Future<void> Function(ZonaiDb zonaiDb) body, {
+    bool bindCouriers = true,
+  }) async {
     if (!rs.isInstalled) {
       markTestSkipped('resqlite native library not found');
       return;
     }
-    await withScope(config, () async {
+    await withScope(bindCouriers: bindCouriers, config, () async {
       // Injected rather than scope-overridden: `ZonaiDb._run` rebinds
       // `configResolverProvider` on every call, so an override out here would
       // be replaced before `_enqueuePush` ever reads it.
@@ -1491,6 +1498,40 @@ version: $kVersion
   /// services. Asserted by giving the two couriers separate fakes and
   /// checking which one saw which token — inferring it from a count would
   /// pass just as well if everything went to one of them.
+  test(
+    'a fan-out runs where nobody bound a courier, as in production',
+    () async {
+      // Every other test here binds both couriers, and so did every test when
+      // push shipped — while the CLI's root scope bound neither. Production
+      // failed every job with `read(ScopedRef<PushCourier>) was called in a
+      // scope which does not contain a corresponding value`, and nothing
+      // here could see it. `ZonaiDb` must supply its own transports.
+      await run(bindCouriers: false, _appConfigWith(_pushConfig()), (
+        zonaiDb,
+      ) async {
+        await seed(zonaiDb, count: 1, platformAt: (_) => 'android');
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+          caller: PushCaller.serverCode,
+        );
+        await zonaiDb.drainPushJobs();
+
+        // The real FCM courier, handed credentials that are not a service
+        // account, fails the job on those credentials. That failure is the
+        // proof: it happened inside the transport, not before reaching one.
+        final entry = await job(zonaiDb, id!);
+        expect(entry.error, isNot(contains('ScopedRef')));
+        expect(entry.error, isNot(contains('Bad state: read(')));
+      });
+    },
+  );
+
   group('platform routing', () {
     late FakePushCourier apns;
 
