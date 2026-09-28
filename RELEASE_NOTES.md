@@ -8,6 +8,15 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.9.2
+
+- **Push notifications are delivered.** Every earlier release with push failed
+  each job before it reached FCM or APNs, logging `read(ScopedRef<PushCourier>)
+  was called in a scope which does not contain a corresponding value`: the
+  transports were never bound outside the test suite. That covered `push()`
+  from hooks and crons, the `_drain_push_jobs` cron and the dashboard's test
+  send. Jobs that failed this way stay failed — re-send them after upgrading.
+
 ## 0.9.1
 
 - **Every refusal now tells a client when to come back.** A rate-limited `429`
