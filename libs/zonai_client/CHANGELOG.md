@@ -1,3 +1,7 @@
+## 0.2.4
+
+- **The `zonai_schema` lower bound moves to `>=0.5.0`** (0.2.3 declared `>=0.4.1`, which was wrong). The generated client uses `SpaceReclamationResult`, first published in `zonai_schema` 0.5.0, and imports `api_token_body.dart`, first published in 0.4.2 — so 0.2.3 against a locked 0.4.x failed to compile with `Error when reading '…/zonai_schema-0.4.1/lib/src/payloads/api_token_body.dart'`. If you hit that, `dart pub upgrade zonai_schema` fixes it without this release. No API change.
+
 ## 0.2.3
 
 - Widen the `zonai_schema` constraint to `>=0.4.1 <0.6.0` so consumers can move to `zonai_schema` 0.5.0. The published 0.2.2 declares `<0.5.0`, which excludes it — anyone using this client alongside `zonai_schema` would be pinned below 0.5.0 regardless of what they ask for. Nothing here references what changed in 0.5.0 (`DevicePlatform.iosSandbox`, routed server-side), so no API change.

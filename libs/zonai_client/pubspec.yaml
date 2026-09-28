@@ -6,7 +6,7 @@ name: zonai_client
 description: >-
   Typed Dart and Flutter client for a Zonai backend: auth, CRUD, file uploads,
   and live SQLite query streams over HTTP.
-version: 0.2.3
+version: 0.2.4
 repository: https://github.com/mrgnhnt96/zonai/tree/main/libs/zonai_client
 homepage: https://zonai.dev
 documentation: https://docs.zonai.dev/dart-client/overview
@@ -27,7 +27,15 @@ dependencies:
   file: ^7.0.1
   http: ^1.6.0
   revali_client: ^3.0.0
-  # The lower bound is 0.4.1 and it is load-bearing, which is a change from
+  # The lower bound is 0.5.0. The generated client imports
+  # `api_token_body.dart` (first published in 0.4.2) and uses
+  # `SpaceReclamationResult` (first published in 0.5.0), so anything lower
+  # fails to compile -- and 0.2.3 shipped declaring 0.4.1, which let `pub get`
+  # keep a locked 0.4.1 and break a consumer's build. Check the published
+  # archives, not this repo, before lowering it: the repo's schema can hold
+  # types no release has shipped yet.
+  #
+  # History: the bound first became load-bearing at 0.4.1, a change from
   # every earlier version of this constraint. It used to span 0.1.x onward
   # because nothing here referenced what the schema minors changed (all
   # server-side: `TableRateLimits.customPolicy` in 0.2.0, 0.3.0's
@@ -40,9 +48,8 @@ dependencies:
   # 0.4.1 -- so against 0.4.0 this package exports a surface with no way to
   # build an IS NULL clause, and the code `zonai gen client` emits (which
   # calls `Where.isNull`) does not compile. The upper bound stays open across
-  # the minor for the original reason, and spans 0.5.x because nothing here
-  # references what 0.5.0 changed (`DevicePlatform.iosSandbox`, server-side).
-  zonai_schema: ">=0.4.1 <0.6.0"
+  # the minor for the original reason.
+  zonai_schema: ">=0.5.0 <0.6.0"
 
 dev_dependencies:
   analyzer: ">=8.0.0 <13.0.0"

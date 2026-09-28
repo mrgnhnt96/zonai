@@ -34,8 +34,21 @@
 ///
 /// Order, and the rest of it, in `docs/releasing.md`.
 ///
-/// Currently `0.4.0` -- the floor two separate pieces of vocabulary both
-/// require, which is why it moved once and not twice.
+/// Currently `0.5.0` -- the first published `zonai_schema` whose DDL
+/// generator answers `replay`.
+///
+/// **Migration drift check.** Since 0.9.0, `zonai db migrate generate` replays
+/// the migrations it just wrote through the project's own entry point to check
+/// for drift, and the handler for that action lives in the `zonai_schema` the
+/// *project* resolves, not in this binary. `0.4.2` predates it, so a project on
+/// it wrote its `.sql`, snapshot and journal entry and then crashed with
+/// `DDL operation failed: Unknown action: replay` -- and only on a real schema
+/// change, because a no-change run never replays. The floor stayed at `0.4.1`
+/// through 0.9.3 because nothing ties this constant to the vocabulary the CLI
+/// sends; that is the "floor left too low" failure described above, found by
+/// a consumer.
+///
+/// Earlier floors, for the record:
 ///
 /// **Push.** The host enqueues through `EnqueuePushRequest` and expects
 /// `MessageHandler`'s push provider to answer it; `0.3.1` has neither, and its
@@ -83,4 +96,4 @@
 /// **published** `zonai_client`. Nothing local reads that.
 /// `verify_release_coupling.dart` is the only thing that does, and it asks
 /// pub.dev at release time.
-const kMinSchemaVersion = '0.4.1';
+const kMinSchemaVersion = '0.5.0';
