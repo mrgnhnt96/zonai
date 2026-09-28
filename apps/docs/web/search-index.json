@@ -4077,7 +4077,7 @@
         {
           "h": "Process Management",
           "a": "process-management",
-          "b": "Use a process manager to keep the server running and restart it on failure. systemd (Linux) [Unit] Description=Zonai server After=network.target [Service] Type=simple WorkingDirectory=/opt/myapp ExecStart=/opt/myapp/zonai serve --release Restart=on-failure RestartSec=5 [Install] WantedBy=multi-user.target sudo systemctl enable --now myapp Docker FROM debian:bookworm-slim WORKDIR /app COPY build/ . EXPOSE 8080 CMD [\"./zonai\", \"serve\", \"--release\", \"--host\", \"0.0.0.0\"]"
+          "b": "Use a process manager to keep the server running and restart it on failure. systemd (Linux) [Unit] Description=Zonai server After=network.target [Service] Type=simple WorkingDirectory=/opt/myapp ExecStart=/opt/myapp/zonai serve --release Restart=on-failure RestartSec=5 [Install] WantedBy=multi-user.target sudo systemctl enable --now myapp Docker FROM debian:bookworm-slim ca-certificates: the slim image ships no root certificates, so every outbound HTTPS call — push to FCM and APNs, OAuth, a cron or extension fetching a URL — fails with CERTIFICATE_VERIFY_FAILED without it. RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \\ && rm -rf /var/lib/apt/lists/ WORKDIR /app COPY build/ . EXPOSE 8080 CMD [\"./zonai\", \"serve\", \"--release\", \"--host\", \"0.0.0.0\"]"
         },
         {
           "h": "Graceful Shutdown",

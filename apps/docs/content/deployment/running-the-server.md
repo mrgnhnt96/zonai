@@ -51,6 +51,11 @@ sudo systemctl enable --now myapp
 
 ```dockerfile
 FROM debian:bookworm-slim
+# ca-certificates: the slim image ships no root certificates, so every
+# outbound HTTPS call — push to FCM and APNs, OAuth, a cron or extension
+# fetching a URL — fails with CERTIFICATE_VERIFY_FAILED without it.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY build/ .
 EXPOSE 8080
