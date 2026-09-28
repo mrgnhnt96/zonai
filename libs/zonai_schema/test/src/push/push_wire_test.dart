@@ -254,6 +254,25 @@ void main() {
       expect(restored.platform, DevicePlatform.ios);
     });
 
+    test('a sandbox platform travels as ios-sandbox and comes back', () {
+      const original = PushTestSendBody(
+        table: 'users',
+        column: 'deviceToken',
+        token: 'tok-1',
+        title: 't',
+        body: 'b',
+        platform: DevicePlatform.iosSandbox,
+      );
+
+      final json = _roundTrip(original.toJson());
+
+      expect(json['platform'], 'ios-sandbox');
+      expect(
+        PushTestSendBody.fromJson(json).platform,
+        DevicePlatform.iosSandbox,
+      );
+    });
+
     test('an absent platform stays absent and decodes as null', () {
       const original = PushTestSendBody(
         table: 'users',

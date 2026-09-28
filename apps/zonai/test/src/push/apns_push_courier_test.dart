@@ -294,6 +294,26 @@ void main() {
       },
     );
 
+    test('the sandbox config addresses the sandbox host', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      await courier.send(message, ['a'], config: config);
+      await courier.send(message, [
+        'b',
+      ], config: config.withApns(config.apns!.sandbox));
+
+      expect(
+        [for (final r in apns.requests) r.headers[':authority']],
+        ['api.push.apple.com', 'api.sandbox.push.apple.com'],
+      );
+      expect(
+        apns.authorizations.toSet(),
+        hasLength(1),
+        reason: 'one key, one provider token, whichever host it is sent to',
+      );
+    });
+
     test('a collapse key travels as apns-collapse-id', () async {
       final config = await boot();
       if (config == null) return;
@@ -356,6 +376,39 @@ void main() {
       );
       expect(outcomes[4], isA<PushTransientlyFailed>());
       expect(outcomes[5], isA<PushDelivered>());
+    });
+
+    test('BadDeviceToken names the host and the row that fixes it', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      // A development build's token sent to production answers exactly this,
+      // and so does a genuinely malformed one — the response cannot tell them
+      // apart, so it stays a prune. What it must not do is read as "this
+      // device is gone" with no hint that the row is what is wrong.
+      apns.replyFor = (_) => apnsError(400, 'BadDeviceToken');
+
+      final [production] = await courier.send(message, ['a'], config: config);
+      final [sandbox] = await courier.send(message, [
+        'a',
+      ], config: config.withApns(config.apns!.sandbox));
+
+      expect(
+        production,
+        isA<PushPermanentlyRejected>()
+            .having((o) => o.detail, 'detail', contains('api.push.apple.com'))
+            .having((o) => o.detail, 'detail', contains('`ios-sandbox`')),
+      );
+      expect(
+        sandbox,
+        isA<PushPermanentlyRejected>()
+            .having(
+              (o) => o.detail,
+              'detail',
+              contains('api.sandbox.push.apple.com'),
+            )
+            .having((o) => o.detail, 'detail', contains('`ios`')),
+      );
     });
 
     test('a bundleId mismatch is transient, never a prune', () async {

@@ -179,6 +179,10 @@ final class FakePushCourier implements PushCourier {
   FakePushCourier();
 
   final sentBatches = <List<String>>[];
+
+  /// The config each of [sentBatches] was sent with, index for index — which
+  /// is where an APNs route says which host it wants.
+  final sentConfigs = <PushConfig>[];
   final Set<String> rejectTokens = {};
   final Set<String> failTokens = {};
 
@@ -215,6 +219,7 @@ final class FakePushCourier implements PushCourier {
 
     onMessage?.call(message);
     sentBatches.add(List.of(tokens));
+    sentConfigs.add(config);
     _tokensSeen += tokens.length;
 
     if (duringSend case final hook?) await hook();
@@ -1702,6 +1707,92 @@ version: $kVersion
     });
 
     test(
+      'a development build goes to the sandbox, beside production, in one job',
+      () async {
+        // One deployed server, a TestFlight fleet and a developer's phone
+        // running a build from Xcode. The key is the same for both; only the
+        // host differs, and only the row knows which one it needs.
+        await run(_appConfigWith(withApns()), (zonaiDb) async {
+          await seed(
+            zonaiDb,
+            count: 4,
+            platformAt: (i) => i.isEven ? 'ios' : 'ios-sandbox',
+          );
+
+          final id = await zonaiDb.enqueuePush(
+            message: message,
+            table: 'device_tokens',
+            column: 'token',
+            platformColumn: 'platform',
+            where: null,
+            jwt: CronJwt(),
+            caller: PushCaller.serverCode,
+          );
+          await zonaiDb.drainPushJobs();
+
+          final hostByToken = {
+            for (var i = 0; i < apns.sentBatches.length; i++)
+              for (final token in apns.sentBatches[i])
+                token: apns.sentConfigs[i].apns!.host,
+          };
+          expect(hostByToken, {
+            'tok-d000000': 'api.push.apple.com',
+            'tok-d000001': 'api.sandbox.push.apple.com',
+            'tok-d000002': 'api.push.apple.com',
+            'tok-d000003': 'api.sandbox.push.apple.com',
+          });
+          expect(
+            apns.sentBatches,
+            hasLength(2),
+            reason:
+                'one send per host, not one per sandbox recipient — the '
+                'route is a value, so both sandbox rows share a group',
+          );
+          expect(
+            {for (final c in apns.sentConfigs) c.apns!.keyId},
+            {'LALL9GMRMP'},
+            reason: 'the same key serves both environments',
+          );
+          expect(courier.allSentTokens, isEmpty);
+          expect((await job(zonaiDb, id!)).delivered, 4);
+        });
+      },
+    );
+
+    test(
+      'a development build with no APNs config is reported, never sent via FCM',
+      () async {
+        // `ios` falls back to FCM; this must not. A development build's FCM
+        // registration is a different token, so sending this one there
+        // cannot mean anything — and pruning it would deregister the phone
+        // over a config gap.
+        await run(_appConfigWith(_pushConfig(batchSize: 10)), (zonaiDb) async {
+          await seed(zonaiDb, count: 2, platformAt: (_) => 'ios-sandbox');
+
+          final id = await zonaiDb.enqueuePush(
+            message: message,
+            table: 'device_tokens',
+            column: 'token',
+            platformColumn: 'platform',
+            where: null,
+            jwt: CronJwt(),
+            caller: PushCaller.serverCode,
+          );
+          await zonaiDb.drainPushJobs();
+
+          expect(courier.allSentTokens, isEmpty);
+          expect(apns.allSentTokens, isEmpty);
+          final entry = await job(zonaiDb, id!);
+          expect(entry.transientlyFailed, 2);
+          expect(entry.permanentlyRejected, 0);
+          expect([
+            for (final r in await rows(zonaiDb)) r.token,
+          ], isNot(contains(isNull)));
+        });
+      },
+    );
+
+    test(
       'an Android recipient with no FCM config is reported, not pruned',
       () async {
         // The iOS-only deployment. An Android row in that table is a mistake,
@@ -1745,6 +1836,7 @@ version: $kVersion
   /// production iOS send actually takes.
   group('end to end over APNs, no Firebase', () {
     late FakeApns fake;
+    late List<String> connectedHosts;
 
     Future<AppConfig?> boot({
       OnPermanentRejection onPermanentRejection =
@@ -1758,11 +1850,15 @@ version: $kVersion
       }
 
       fake = await FakeApns.start();
+      connectedHosts = [];
       final real = ApnsPushCourier(
         fileSystem: const LocalFileSystem(),
-        connect: (_) async => ClientTransportConnection.viaSocket(
-          await io.Socket.connect(io.InternetAddress.loopbackIPv4, fake.port),
-        ),
+        connect: (apns) async {
+          connectedHosts.add(apns.host);
+          return ClientTransportConnection.viaSocket(
+            await io.Socket.connect(io.InternetAddress.loopbackIPv4, fake.port),
+          );
+        },
       );
       overrideApnsCourier = real;
       addTearDown(() async {
@@ -1821,6 +1917,47 @@ version: $kVersion
         final entry = await job(zonaiDb, id!);
         expect(entry.status, PushJobStatus.completed);
         expect(entry.delivered, 4);
+      });
+    });
+
+    test('one server reaches a development and a TestFlight build', () async {
+      final config = await boot();
+      if (config == null) return;
+
+      await run(config, (zonaiDb) async {
+        await seed(
+          zonaiDb,
+          count: 2,
+          platformAt: (i) => i == 0 ? 'ios' : 'ios-sandbox',
+        );
+
+        final id = await zonaiDb.enqueuePush(
+          message: message,
+          table: 'device_tokens',
+          column: 'token',
+          platformColumn: 'platform',
+          where: null,
+          jwt: CronJwt(),
+          caller: PushCaller.serverCode,
+        );
+        await zonaiDb.drainPushJobs();
+
+        expect(
+          {
+            for (final request in fake.requests)
+              request.path.split('/').last: request.headers[':authority'],
+          },
+          {
+            'tok-d000000': 'api.push.apple.com',
+            'tok-d000001': 'api.sandbox.push.apple.com',
+          },
+          reason: 'the host is decided per row, over the real transport',
+        );
+        expect(connectedHosts..sort(), [
+          'api.push.apple.com',
+          'api.sandbox.push.apple.com',
+        ], reason: 'a connection per host — HTTP/2 does not cross hosts');
+        expect((await job(zonaiDb, id!)).delivered, 2);
       });
     });
 

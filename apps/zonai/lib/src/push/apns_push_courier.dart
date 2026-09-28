@@ -169,7 +169,7 @@ class ApnsPushCourier implements PushCourier {
         }
       }
 
-      return _classify(status, '$responseBody', token);
+      return _classify(status, '$responseBody', token, host: apns.host);
     } on SocketException catch (e) {
       return PushTransientlyFailed(
         token: token,
@@ -201,21 +201,34 @@ class ApnsPushCourier implements PushCourier {
   /// that silently disabled pruning. Anything not recognised here is treated
   /// as transient on purpose: an unknown reason costs a retry, and guessing
   /// permanent costs a device that never hears from the app again.
-  PushOutcome _classify(int status, String body, String token) {
+  PushOutcome _classify(
+    int status,
+    String body,
+    String token, {
+    required String host,
+  }) {
     if (status == 200) return PushDelivered(token: token);
 
     final reason = _reason(body);
 
     return switch (reason) {
       // The device token is not, and will never be, valid for this app.
-      // `BadDeviceToken` is carried through verbatim for a reason: it is the
-      // symptom of a sandbox/production mismatch, where the token is valid and
-      // the environment is wrong. Reported as bare "unregistered" it reads as
-      // "this device is gone", and the operator goes looking at the device.
-      'BadDeviceToken' || 'Unregistered' => PushPermanentlyRejected(
+      'Unregistered' => PushPermanentlyRejected(
         token: token,
         reason: PushRejectionReason.unregistered,
         detail: '$status $reason',
+      ),
+
+      // Still permanent — a genuinely malformed token has to be pruned, and
+      // nothing in the response tells the two cases apart. But it is also the
+      // symptom of a sandbox/production mismatch, where the token is valid and
+      // the environment is wrong. Reported as bare "unregistered" it reads as
+      // "this device is gone", and the operator goes looking at the device;
+      // naming the host and the fix is what points them at the row instead.
+      'BadDeviceToken' => PushPermanentlyRejected(
+        token: token,
+        reason: PushRejectionReason.unregistered,
+        detail: '$status BadDeviceToken from $host — ${_mismatchHint(host)}',
       ),
 
       // Looks per-token and is not. Measured live on 2026-08-15: with one
@@ -283,6 +296,18 @@ class ApnsPushCourier implements PushCourier {
         detail: '$status ${other ?? 'unknown'}',
       ),
     };
+  }
+
+  /// What else a `BadDeviceToken` from [host] can mean, and the row change
+  /// that fixes it.
+  String _mismatchHint(String host) {
+    return host == ApnsConfig.sandboxHost
+        ? 'the token is malformed, or it belongs to a TestFlight/App Store '
+              'build, which only production accepts: store that device\'s '
+              'platform as `ios` with ApnsConfig.useSandbox off'
+        : 'the token is malformed, or it belongs to a development-signed '
+              'build (Xcode or flutter run), which only the sandbox accepts: '
+              'store that device\'s platform as `ios-sandbox`';
   }
 
   /// APNs' `reason`, or null when the body is not the shape we expect.

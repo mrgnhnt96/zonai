@@ -12,13 +12,41 @@ enum DevicePlatform {
   /// Delivered through APNs directly when `PushConfig.apns` is set, and
   /// through FCM otherwise. An app can move between the two by changing
   /// config, without touching a token or a row.
-  ios,
+  ///
+  /// Sent to the host [ApnsConfig.useSandbox] picks — production unless the
+  /// server says otherwise.
+  ios('ios'),
+
+  /// An iOS device running a **development-signed** build — one installed
+  /// from Xcode or `flutter run` rather than TestFlight or the App Store.
+  ///
+  /// Always sent to `api.sandbox.push.apple.com`, whatever
+  /// [ApnsConfig.useSandbox] says, with the same auth key: a `.p8` is valid
+  /// in both environments and only the host differs. That is what lets one
+  /// deployed server reach a developer's phone and the TestFlight fleet at
+  /// once.
+  ///
+  /// The environment is a fact about how the *build* was signed, which the
+  /// app knows at compile time and nothing else can recover — a sandbox
+  /// token and a production token are indistinguishable strings. Sent to the
+  /// wrong host, a valid token answers `BadDeviceToken`, which reads as a
+  /// dead device and is pruned like one.
+  ///
+  /// APNs only. FCM keeps its own record of the environment, so with no
+  /// `PushConfig.apns` a row saying this is unroutable rather than silently
+  /// sent through FCM.
+  iosSandbox('ios-sandbox'),
 
   /// Delivered through FCM. There is no direct equivalent — the Android
   /// transport *is* FCM.
-  android;
+  android('android');
 
-  String toJson() => name;
+  const DevicePlatform(this.wireName);
+
+  /// What is stored in a platform column and sent over the wire.
+  final String wireName;
+
+  String toJson() => wireName;
 
   /// Parses a stored value, case-insensitively.
   ///
@@ -29,13 +57,14 @@ enum DevicePlatform {
     if (value == null) return null;
     final normalized = value.trim().toLowerCase();
     for (final platform in DevicePlatform.values) {
-      if (platform.name == normalized) return platform;
+      if (platform.wireName == normalized) return platform;
     }
     // Common aliases, because this column is written by client code that
     // Zonai does not control and `Platform.operatingSystem` on iOS is
     // "ios" but plenty of apps store "iOS" or "apple".
     return switch (normalized) {
       'apple' || 'iphone' || 'ipad' => DevicePlatform.ios,
+      'ios_sandbox' || 'iossandbox' => DevicePlatform.iosSandbox,
       _ => null,
     };
   }
@@ -161,15 +190,33 @@ class ApnsConfig {
   /// so the topic is the only thing saying which app a notification is for.
   final String bundleId;
 
-  /// Send to `api.sandbox.push.apple.com` rather than production.
+  /// Send plain `DevicePlatform.ios` recipients to
+  /// `api.sandbox.push.apple.com` rather than production.
   ///
   /// The two are separate worlds: a token issued to a development build is
   /// unknown to production and vice versa, and the symptom is `BadDeviceToken`
   /// on a token that is perfectly valid — just not here.
+  ///
+  /// This is only the *default*. A row stored as `DevicePlatform.iosSandbox`
+  /// goes to the sandbox regardless, so one server can serve development and
+  /// production builds side by side.
   final bool useSandbox;
 
-  String get host =>
-      useSandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+  static const productionHost = 'api.push.apple.com';
+  static const sandboxHost = 'api.sandbox.push.apple.com';
+
+  String get host => useSandbox ? sandboxHost : productionHost;
+
+  /// This config pointed at the sandbox, same key and same app.
+  ApnsConfig get sandbox => useSandbox
+      ? this
+      : ApnsConfig(
+          credentials: credentials,
+          keyId: keyId,
+          teamId: teamId,
+          bundleId: bundleId,
+          useSandbox: true,
+        );
 
   Map<String, dynamic> toJson() => {
     'credentials': credentials.toJson(),

@@ -192,7 +192,7 @@ class _PushSendDialogState extends State<PushSendDialog> {
                 ]),
                 // "Default" is FCM, which is exactly what a fan-out without a
                 // platform column does -- named that way rather than "FCM" so
-                // the two iOS choices read as the decision they are.
+                // the iOS choices read as the decision they are.
                 ZonaiSelect(
                   id: 'push-send-platform',
                   labelId: 'push-send-platform-label',
@@ -205,6 +205,10 @@ class _PushSendDialogState extends State<PushSendDialog> {
                       ),
                     ZonaiSelectOption(value: PushPlatformChoice.defaultFcm.name, label: 'Default (FCM)'),
                     ZonaiSelectOption(value: PushPlatformChoice.ios.name, label: 'iOS (APNs when configured)'),
+                    ZonaiSelectOption(
+                      value: PushPlatformChoice.iosSandbox.name,
+                      label: 'iOS development build (APNs sandbox)',
+                    ),
                     ZonaiSelectOption(value: PushPlatformChoice.android.name, label: 'Android (FCM)'),
                   ],
                   disabled: state.isSending,

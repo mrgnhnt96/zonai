@@ -36,6 +36,23 @@ const _maxJobsPerDrain = 16;
 /// pass resumes exactly where this one stopped.
 const _maxBatchesPerJobPerDrain = 20;
 
+/// Where one recipient's notification goes: the transport, and for APNs
+/// whether it is the sandbox host.
+///
+/// A record so it compares by value — a batch is grouped by route, and two
+/// `ios-sandbox` recipients must land in the same group rather than in one
+/// group each.
+typedef _PushRoute = ({PushCourier courier, bool sandbox});
+
+extension on _PushRoute {
+  /// The config this route sends with. A sandbox route swaps in
+  /// `ApnsConfig.sandbox`, and nothing else differs — same key, same app.
+  PushConfig configFor(PushConfig config) => switch (config.apns) {
+    final apns? when sandbox => config.withApns(apns.sandbox),
+    _ => config,
+  };
+}
+
 extension _PushX on ZonaiDb {
   /// Records a fan-out and hands back its id.
   ///
@@ -171,8 +188,8 @@ extension _PushX on ZonaiDb {
       );
     }
 
-    final courier = _courierFor(platform, config);
-    if (courier == null) {
+    final route = _routeFor(platform, config);
+    if (route == null) {
       return PushTestSendResult(
         status: PushTestSendStatus.failed,
         token: token,
@@ -186,7 +203,7 @@ extension _PushX on ZonaiDb {
     // cannot. `read` memoizes per scope (`late final _value`), so the provider
     // hands back the same instance every time — the same assumption the
     // fan-out already rests on when it uses a courier as a `Map` key.
-    final transport = identical(courier, apnsCourier) ? 'apns' : 'fcm';
+    final transport = identical(route.courier, apnsCourier) ? 'apns' : 'fcm';
 
     final List<PushOutcome> outcomes;
     try {
@@ -196,7 +213,9 @@ extension _PushX on ZonaiDb {
       // and wrong for a panel somebody is. An operator waiting on a spinner
       // wants the first answer the transport gave, not a verdict reached
       // fifteen seconds later having hidden the timeouts on the way.
-      outcomes = await courier.send(message, [token], config: config);
+      outcomes = await route.courier.send(message, [
+        token,
+      ], config: route.configFor(config));
     } on PushTransportException catch (e) {
       // Not about this token: bad credentials, an unreachable auth endpoint.
       // The fan-out treats this as a job-level failure; here it is simply the
@@ -684,16 +703,17 @@ extension _PushX on ZonaiDb {
     recipients,
     required PushConfig config,
   }) async {
-    // One batch can contain both platforms, so it is split by transport and
-    // each group sent separately. The order of `recipients` is restored at
-    // the end: the engine prunes by position, so an outcome landing one slot
-    // over clears the wrong device's row.
-    final byTransport = <PushCourier, List<String>>{};
+    // One batch can contain every platform, so it is split by route — the
+    // transport, and for APNs the host — and each group sent separately. The
+    // order of `recipients` is restored at the end: the engine prunes by
+    // position, so an outcome landing one slot over clears the wrong device's
+    // row.
+    final byRoute = <_PushRoute, List<String>>{};
     final settled = <String, PushOutcome>{};
 
     for (final recipient in recipients) {
-      final courier = _courierFor(recipient.platform, config);
-      if (courier == null) {
+      final route = _routeFor(recipient.platform, config);
+      if (route == null) {
         // Transient, never a prune: the token is fine and the *config* is
         // not, so the next drain delivers once the missing transport is
         // configured. Pruning here would clear a whole platform's
@@ -704,15 +724,15 @@ extension _PushX on ZonaiDb {
         );
         continue;
       }
-      byTransport.putIfAbsent(courier, () => []).add(recipient.token);
+      byRoute.putIfAbsent(route, () => []).add(recipient.token);
     }
 
-    for (final entry in byTransport.entries) {
+    for (final MapEntry(key: route, value: tokens) in byRoute.entries) {
       final outcomes = await _sendViaCourier(
-        courier: entry.key,
+        courier: route.courier,
         message: message,
-        tokens: entry.value,
-        config: config,
+        tokens: tokens,
+        config: route.configFor(config),
       );
       for (final outcome in outcomes) {
         settled[outcome.token] = outcome;
@@ -733,18 +753,25 @@ extension _PushX on ZonaiDb {
   ///
   /// With no platform column the answer is always FCM, which is what every
   /// existing deployment does and stays correct.
-  PushCourier? _courierFor(DevicePlatform? platform, PushConfig config) {
+  _PushRoute? _routeFor(DevicePlatform? platform, PushConfig config) {
+    final apns = config.hasApns ? (courier: apnsCourier, sandbox: false) : null;
+    final fcm = config.hasFcm ? (courier: pushCourier, sandbox: false) : null;
+
     return switch (platform) {
       // iOS prefers APNs when it is configured. An app can move between the
       // two by changing config alone — no token migration, no row rewrite,
       // because the device token is the same string either way.
-      DevicePlatform.ios =>
-        config.hasApns ? apnsCourier : (config.hasFcm ? pushCourier : null),
-      DevicePlatform.android => config.hasFcm ? pushCourier : null,
+      DevicePlatform.ios => apns ?? fcm,
+      // Never FCM: a development build's registration there is a different
+      // token with its own environment, so the fallback `ios` gets would send
+      // this one somewhere it cannot mean anything.
+      DevicePlatform.iosSandbox =>
+        config.hasApns ? (courier: apnsCourier, sandbox: true) : null,
+      DevicePlatform.android => fcm,
       // No platform column, or a value nothing recognised. FCM is the only
       // safe default: it is where every recipient went before platforms
       // existed, and an APNs send to an FCM token fails per-device.
-      null => config.hasFcm ? pushCourier : null,
+      null => fcm,
     };
   }
 
@@ -756,6 +783,10 @@ extension _PushX on ZonaiDb {
       DevicePlatform.ios =>
         'this recipient is iOS and AppConfig.push has neither apns nor FCM '
             'configured',
+      DevicePlatform.iosSandbox =>
+        'this recipient is a development-signed iOS build (ios-sandbox), '
+            'which only APNs can reach, and AppConfig.push has no apns '
+            'configuration',
       null =>
         'this recipient has no recognised platform and AppConfig.push has no '
             'FCM configuration to fall back on',

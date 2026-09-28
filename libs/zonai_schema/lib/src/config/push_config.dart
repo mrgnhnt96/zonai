@@ -187,6 +187,18 @@ class PushConfig {
   /// Whether APNs is usable.
   bool get hasApns => apns != null;
 
+  /// This config with [apns] replaced — how a `DevicePlatform.iosSandbox`
+  /// recipient is sent to the sandbox host without a second server.
+  PushConfig withApns(ApnsConfig apns) => PushConfig(
+    projectId: projectId,
+    credentials: credentials,
+    apns: apns,
+    onPermanentRejection: onPermanentRejection,
+    batchSize: batchSize,
+    concurrency: concurrency,
+    maxAttemptsPerBatch: maxAttemptsPerBatch,
+  );
+
   final OnPermanentRejection onPermanentRejection;
 
   final int batchSize;

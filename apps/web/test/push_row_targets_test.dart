@@ -349,6 +349,12 @@ void main() {
         DevicePlatform.ios,
       );
       expect(resolvePushPlatform(choice: PushPlatformChoice.defaultFcm, rowPlatform: DevicePlatform.ios), isNull);
+      // And the other direction of the same mismatch: a development build's
+      // token stored as plain ios, tried against the sandbox.
+      expect(
+        resolvePushPlatform(choice: PushPlatformChoice.iosSandbox, rowPlatform: DevicePlatform.ios),
+        DevicePlatform.iosSandbox,
+      );
     });
   });
 
