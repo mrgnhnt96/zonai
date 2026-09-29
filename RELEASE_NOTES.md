@@ -8,6 +8,18 @@ publish a version this file does not describe — see docs/releasing.md,
 Keep it to what somebody deciding whether to upgrade needs: what they can now
 do, and what stopped being broken. The commit list is already one click away.
 
+## 0.9.4
+
+- **Refreshing a session now only works for sessions zonai issued.** A token
+  from an external identity provider could previously be exchanged at
+  `refreshToken` for a zonai session; it is now refused.
+- **Refresh finds the user by id, not email.** Refresh works on user tables
+  without an email column, and a user whose email changed keeps refreshing.
+- `zonai init` and the version check now require `zonai_schema` 0.5.0, and
+  `zonai_client` 0.2.4 declares the same floor. Projects locked to an older
+  schema get a clear upfront error instead of `migrate generate` crashing with
+  "Unknown action: replay".
+
 ## 0.9.3
 
 - **One server reaches development and production iOS builds.** Store a
