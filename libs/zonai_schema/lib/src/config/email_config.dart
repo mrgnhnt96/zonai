@@ -8,6 +8,7 @@ class EmailConfig {
     required this.password,
     required this.from,
     this.ssl = false,
+    this.allowInsecure = false,
   });
 
   factory EmailConfig.fromJson(Map<String, dynamic> json) => EmailConfig(
@@ -17,6 +18,7 @@ class EmailConfig {
     password: json['password'] as String,
     from: EmailAddress.fromJson(json['from'] as Map<String, dynamic>),
     ssl: json['ssl'] as bool,
+    allowInsecure: json['allowInsecure'] as bool? ?? false,
   );
 
   /// The SMTP server host name or IP address.
@@ -31,6 +33,18 @@ class EmailConfig {
 
   final bool ssl;
 
+  /// Sends even when the connection is not encrypted.
+  ///
+  /// Off by default, and meant only for a local catcher such as Mailhog:
+  /// those speak plain SMTP, with neither implicit TLS ([ssl]) nor STARTTLS.
+  /// Without this the mail library refuses them before sending anything,
+  /// credentials or not, and every auth email fails with "connection is not
+  /// secure".
+  ///
+  /// Never turn it on for a real provider. With it on, a server that stops
+  /// offering STARTTLS gets the credentials and the mail in plain text.
+  final bool allowInsecure;
+
   /// The default email address to use for the sender
   final EmailAddress from;
 
@@ -41,5 +55,6 @@ class EmailConfig {
     'password': password,
     'from': from.toJson(),
     'ssl': ssl,
+    'allowInsecure': allowInsecure,
   };
 }

@@ -66,6 +66,7 @@ const _missingConfigWarning =
 Future<String> _capturingLog(
   Future<void> Function() body, {
   required AppConfig config,
+  MemoryFileSystem Function() fs = MemoryFileSystem.new,
 }) async {
   final sink = _CapturingSink();
 
@@ -77,7 +78,7 @@ Future<String> _capturingLog(
       ),
       configResolverProvider.overrideWith(() => ConfigResolver.fixed(config)),
       settingsProvider.overrideWith(() => fakeSettings),
-      fsProvider.overrideWith(MemoryFileSystem.new),
+      fsProvider.overrideWith(fs),
       loggerProvider.overrideWith(
         () => Logger(level: .info, stdout: IOSink(sink), stderr: IOSink(sink)),
       ),
@@ -184,4 +185,119 @@ void main() {
       expect(output, contains('Email template not found'));
     });
   });
+
+  // mailer refuses a connection that is neither implicit TLS nor upgraded by
+  // STARTTLS unless told otherwise -- with or without credentials. Local
+  // catchers (Mailhog, the one the docs point at) offer neither, so before
+  // `allowInsecure` every auth email to one failed with "connection is not
+  // secure" and the docs' local setup could not deliver anything.
+  group('plain SMTP', () {
+    Future<({bool delivered, Object? error})> sendTo({
+      required bool allowInsecure,
+    }) async {
+      final catcher = await _PlainSmtpCatcher.start();
+      Object? error;
+      try {
+        await _capturingLog(
+          config: AppConfig(
+            appName: 'Test App',
+            passwordSecret: 'password-secret',
+            jwtSecret: 'jwt-secret',
+            email: EmailConfig(
+              host: InternetAddress.loopbackIPv4.address,
+              port: catcher.port,
+              username: '',
+              password: '',
+              from: const EmailAddress(address: 'noreply@example.com'),
+              allowInsecure: allowInsecure,
+            ),
+          ),
+          fs: () => MemoryFileSystem()
+            ..directory('lib/src/email_templates').createSync(recursive: true)
+            ..file(
+              'lib/src/email_templates/reset_password.html',
+            ).writeAsStringSync('<p>{{appName}}</p>'),
+          () async {
+            try {
+              await courier.send(_email);
+            } on Object catch (e) {
+              error = e;
+            }
+          },
+        );
+      } finally {
+        await catcher.close();
+      }
+      return (delivered: catcher.delivered, error: error);
+    }
+
+    test('delivers to a plain catcher when allowInsecure is set', () async {
+      final result = await sendTo(allowInsecure: true);
+      expect(result.error, isNull);
+      expect(result.delivered, isTrue);
+    });
+
+    // The control: the same catcher, the default config. Without it the test
+    // above would also pass against a catcher that accepts nothing at all.
+    test('refuses the same catcher by default', () async {
+      final result = await sendTo(allowInsecure: false);
+      expect('${result.error}', contains('not secure'));
+      expect(result.delivered, false);
+    });
+  });
+}
+
+/// Just enough SMTP to take one message: no TLS, no AUTH.
+class _PlainSmtpCatcher {
+  _PlainSmtpCatcher._(this._server);
+
+  static Future<_PlainSmtpCatcher> start() async {
+    final catcher = _PlainSmtpCatcher._(
+      await ServerSocket.bind(InternetAddress.loopbackIPv4, 0),
+    );
+    catcher._server.listen(catcher._session);
+    return catcher;
+  }
+
+  final ServerSocket _server;
+  var delivered = false;
+
+  int get port => _server.port;
+
+  Future<void> _session(Socket socket) async {
+    unawaited(socket.done.catchError((Object _) {}));
+    void reply(String line) => socket.write('$line\r\n');
+    reply('220 catcher');
+    var inData = false;
+    try {
+      await for (final line
+          in utf8.decoder.bind(socket).transform(const LineSplitter())) {
+        if (inData) {
+          if (line == '.') {
+            inData = false;
+            delivered = true;
+            reply('250 OK');
+          }
+          continue;
+        }
+        switch (line.split(' ').first.toUpperCase()) {
+          case 'EHLO' || 'HELO':
+            reply('250 catcher');
+          case 'DATA':
+            inData = true;
+            reply('354 go ahead');
+          case 'QUIT':
+            reply('221 bye');
+            await socket.close();
+            return;
+          default:
+            reply('250 OK');
+        }
+      }
+    } on SocketException {
+      // The refused case hangs up mid-conversation; that is the point.
+    }
+  }
+
+  Future<void> close() => _server.close();
 }

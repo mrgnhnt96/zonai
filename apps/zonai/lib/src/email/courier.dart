@@ -85,12 +85,17 @@ class _Send {
     final fromAddress = email.from?.address ?? emailConfig.from.address;
     _applyThreadHeaders(message, email, fromAddress);
 
+    // An empty username means "no credentials", which is how the docs set up
+    // a local catcher. mailer takes `''` as a username to log in with, and
+    // fails against a server that offers no AUTH; `null` is what skips it.
+    final hasCredentials = emailConfig.username.isNotEmpty;
     final smtp = SmtpServer(
       emailConfig.host,
       port: emailConfig.port,
-      username: emailConfig.username,
-      password: emailConfig.password,
+      username: hasCredentials ? emailConfig.username : null,
+      password: hasCredentials ? emailConfig.password : null,
       ssl: emailConfig.ssl,
+      allowInsecure: emailConfig.allowInsecure,
     );
 
     await mailer.send(message, smtp);
