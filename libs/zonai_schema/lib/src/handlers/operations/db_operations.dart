@@ -55,6 +55,28 @@ class DbOperations {
   ///
   /// Checked when the tables are registered, so a misdeclared table fails the
   /// first request after boot rather than the first sign-in.
+  /// The part of an anonymous sign-up body the table allows. The id and the
+  /// auth columns are refused even if listed: they are never a stranger's to
+  /// choose.
+  Map<String, dynamic>? _anonymousSignUpFields(
+    Object? schema,
+    Map<String, dynamic>? requested,
+  ) {
+    if (requested == null || schema is! AnonymousAuth) return null;
+
+    final allowed = schema.anonymousSignUpColumns;
+    final refused = {
+      for (final column in [schema.id, schema.email, schema.isVerified])
+        column.name,
+      if (schema case PasswordAuth(:final passwordHash)) passwordHash.name,
+    };
+
+    return {
+      for (final MapEntry(:key, :value) in requested.entries)
+        if (allowed.contains(key) && !refused.contains(key)) key: value,
+    };
+  }
+
   void _validateEmailNullability(TableOperations ops) {
     final schema = ops.schema;
     if (schema is! HasEmail) return;
@@ -366,11 +388,12 @@ class DbOperations {
         if (passwordColumn != null && !passwordColumn.isNullable)
           passwordColumn.name: '',
       },
-      // Spread first, identity last: the sign-up body can carry app columns,
-      // never the address or the verification flag. An anonymous row is
-      // unverified and address-less until the upgrade flow proves one.
+      // Only the columns the table allows an anonymous sign-up to set (see
+      // AnonymousAuth.anonymousSignUpColumns), then identity: never the
+      // primary key, the address or the verification flag. An anonymous row
+      // is unverified and address-less until the upgrade flow proves one.
       AnonymousAuthOperationPayload() => {
-        ...?otherFields,
+        ...?_anonymousSignUpFields(ops.schema, otherFields),
         emailColumn.name: null,
         if (isVerifiedColumn != null)
           isVerifiedColumn.name: false

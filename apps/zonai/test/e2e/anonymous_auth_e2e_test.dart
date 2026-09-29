@@ -127,19 +127,61 @@ void main() {
       });
     }, timeout: _timeout);
 
+    test('the sign-up body sets only the columns the table allows, never '
+        'identity or the id', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final created = await db.signInAnonymously(
+          'users',
+          object: {
+            'email': 'smuggled@example.com',
+            'is_verified': true,
+            // A chosen id could collide with another table's user, whose
+            // sessions share the id-keyed session store.
+            'id': 'chosen-by-the-caller_usr',
+            // Not in the fixture's anonymousSignUpColumns.
+            'password': 'set-without-an-address',
+            // In it.
+            'display_name': 'allowed',
+          },
+        );
+
+        expect(created.user['id'], isNot('chosen-by-the-caller_usr'));
+        expect(created.user['display_name'], 'allowed');
+        expect(created.user['email'], isNull);
+        expect(created.user['is_verified'], _falsy);
+      });
+    }, timeout: _timeout);
+
     test(
-      'the sign-up body cannot set the address or the verification flag',
+      'another session can neither spend nor block this session\'s code',
       () async {
         if (!_runningOnDartVm) return;
 
         await _withDb(settings, appConfig, (db) async {
-          final created = await db.signInAnonymously(
-            'users',
-            object: {'email': 'smuggled@example.com', 'is_verified': true},
-          );
+          final owner = await db.signInAnonymously('users');
+          final other = await db.signInAnonymously('users');
+          const address = 'contested@example.com';
 
-          expect(created.user['email'], isNull);
-          expect(created.user['is_verified'], _falsy);
+          await db.requestUpgrade(jwt: owner.jwt, email: address);
+          // The other session may ask for a code to the same address without
+          // expiring the owner's or holding its cooldown...
+          await db.requestUpgrade(jwt: other.jwt, email: address);
+          // ...and its wrong guesses burn its own attempts, not the owner's.
+          for (var i = 0; i < 3; i++) {
+            await expectLater(
+              db.confirmUpgrade(jwt: other.jwt, email: address, code: '000000'),
+              throwsA(isA<InvalidOrExpiredCodeException>()),
+            );
+          }
+
+          final upgraded = await db.confirmUpgrade(
+            jwt: owner.jwt,
+            email: address,
+            code: kInsecureTestOtp,
+          );
+          expect(upgraded.user['id'], owner.user['id']);
         });
       },
       timeout: _timeout,

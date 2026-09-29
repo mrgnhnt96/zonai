@@ -13,9 +13,11 @@ import 'package:zonai_schema/zonai_schema.dart';
 /// SHA-256 is the right hash for the same reason it is for `_api_tokens`: there
 /// is no dictionary to run against it.
 ///
-/// Deleted when the account is upgraded (a verified account signs in through
-/// its verified channel; a non-expiring credential for it would be a password
-/// nobody chose) and when the account is deleted.
+/// Deleted when the account is upgraded: a verified account signs in through
+/// its verified channel, and a non-expiring credential for it would be a
+/// password nobody chose. Deleting the account's row makes the credential
+/// inert (resume reads the row by id and finds none); zonai has no
+/// self-service account deletion to clear it with yet.
 class AnonymousCredential {
   AnonymousCredential({
     required this.id,

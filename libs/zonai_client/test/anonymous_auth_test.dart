@@ -85,9 +85,7 @@ void main() {
 
       await expectLater(
         client.auth.confirmUpgrade(email: 'ada@example.com', code: '123456'),
-        throwsA(
-          isA<ServerException>().having((e) => e.statusCode, 'statusCode', 409),
-        ),
+        throwsA(isA<ServerException>().having((e) => e.statusCode, 'statusCode', 409)),
       );
     });
   });

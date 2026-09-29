@@ -3,6 +3,14 @@ part of zonai_db;
 /// What creating an anonymous account hands back: the session, plus the
 /// credential that resumes the account once that session has expired. The
 /// credential is returned exactly once and never stored in plaintext.
+/// A confirm that has passed every check and is ready to be written.
+typedef _PreparedUpgrade = ({
+  Jwt caller,
+  String address,
+  ({String id, String email, String isVerified, String? password}) columns,
+  String? passwordHash,
+});
+
 typedef _AnonymousResult = ({
   Map<String, Object?> user,
   String jwt,
@@ -19,7 +27,8 @@ typedef _AnonymousResult = ({
 ///   old one has expired -- an anonymous account has no other way back in.
 /// - [_requestUpgrade] sends a code to the address the owner wants to adopt,
 ///   bound to the requesting session.
-/// - [_confirmUpgrade] proves the code and writes the address onto the SAME
+/// - [_prepareUpgrade] / [_commitUpgrade] prove the code and write the
+///   address onto the SAME
 ///   row, so everything the account already owns stays its own.
 ///
 /// Every email lookup elsewhere is an equality on the email column, and NULL
@@ -135,10 +144,14 @@ extension _AnonymousX on ZonaiDb {
     // differently here would tell anyone holding a cheap anonymous session
     // which addresses have accounts; only the mailbox owner learns it, at
     // confirm, after proving they read the code.
-    final last = await _lastChallenge(
+    //
+    // Keyed by (user, address), not by address alone: another anonymous
+    // session must not be able to expire this one's code, hold its cooldown
+    // or burn its attempts.
+    final last = await _lastUpgradeChallenge(
       table: table,
-      email: address,
-      type: .emailChange,
+      address: address,
+      userId: caller.userId,
     );
     if (last case final challenge?) {
       if (challenge.createdAt.isAfter(
@@ -148,10 +161,10 @@ extension _AnonymousX on ZonaiDb {
       }
     }
 
-    await _expireOldChallenges(
+    await _expireUpgradeChallenges(
       table: table,
-      email: address,
-      type: .emailChange,
+      address: address,
+      userId: caller.userId,
     );
 
     final expiresIn = const Duration(minutes: 10);
@@ -184,7 +197,11 @@ extension _AnonymousX on ZonaiDb {
     );
   }
 
-  Future<_AuthResult> _confirmUpgrade({
+  /// Everything slow in a confirm, OFF the single-writer queue: resolving
+  /// the session, the Argon2 check of the code, the app's `beforeSignUp`
+  /// hook and hashing a new password. [_commitUpgrade] writes the result on
+  /// the queue.
+  Future<_PreparedUpgrade> _prepareUpgrade({
     required String? jwt,
     required String email,
     required String code,
@@ -194,13 +211,13 @@ extension _AnonymousX on ZonaiDb {
     final table = caller.table;
     final address = _normalizeAddress(email);
 
-    // A code is bound to the session that asked for it. One presented by any
-    // other session -- even with the right digits -- is indistinguishable
-    // from a wrong code, and costs an attempt like one.
-    final challenge = await _lastChallenge(
+    // Looked up as THIS user's challenge: a code another session asked for
+    // is not found here, and that session's wrong guesses never reach this
+    // one's attempts.
+    final challenge = await _lastUpgradeChallenge(
       table: table,
-      email: address,
-      type: .emailChange,
+      address: address,
+      userId: caller.userId,
     );
     if (challenge == null) {
       throw const InvalidOrExpiredCodeException(codeType: 'upgrade');
@@ -209,12 +226,10 @@ extension _AnonymousX on ZonaiDb {
       throw const CodeExpiredException(codeType: 'upgrade');
     }
 
-    final codeMatches =
-        challenge.userId?.value == caller.userId.value &&
-        await _hashPassword.verify(
-          rawPassword: code,
-          passwordHash: challenge.secretHash,
-        );
+    final codeMatches = await _hashPassword.verify(
+      rawPassword: code,
+      passwordHash: challenge.secretHash,
+    );
     if (!codeMatches) {
       await _challengeFailed(challenge);
       throw const InvalidOrExpiredCodeException(codeType: 'upgrade');
@@ -225,7 +240,23 @@ extension _AnonymousX on ZonaiDb {
     await _runSignUpGate(table, email: address, object: null, jwt: caller);
     await _consumeChallenge(challenge);
 
-    final columns = await _upgradeColumns(table);
+    return (
+      caller: caller,
+      address: address,
+      columns: await _upgradeColumns(table),
+      passwordHash: switch (password) {
+        final password? => await _hashPassword.hash(password: password),
+        null => null,
+      },
+    );
+  }
+
+  /// The write half of a confirm, ON the single-writer queue: the "is this
+  /// address taken" check and the write must not interleave with another
+  /// upgrade or a resume, and nothing slow happens here.
+  Future<void> _commitUpgrade(_PreparedUpgrade upgrade) async {
+    final (:caller, :address, :columns, :passwordHash) = upgrade;
+    final table = caller.table;
 
     // Case-insensitively: addresses are stored as given, and `Ada@x` and
     // `ada@x` must not become two accounts. Known only to the caller who just
@@ -247,12 +278,9 @@ extension _AnonymousX on ZonaiDb {
         updates: [
           ColumnUpdate(columns.email, Literal(address)),
           ColumnUpdate(columns.isVerified, Literal(true)),
-          if (password case final password?)
+          if (passwordHash != null)
             if (columns.password case final passwordColumn?)
-              ColumnUpdate(
-                passwordColumn,
-                Literal(await _hashPassword.hash(password: password)),
-              ),
+              ColumnUpdate(passwordColumn, Literal(passwordHash)),
         ],
       ),
     );
@@ -269,10 +297,10 @@ extension _AnonymousX on ZonaiDb {
       throw const NotAnonymousSessionException();
     }
 
-    // Everything that proved "anonymous" retires together: the device
-    // credential (a verified account signs in through its verified channel)
-    // and every session, whose `isAnonymous` and `user` snapshot would now be
-    // wrong. The caller gets a new session below.
+    // Everything that proved "anonymous" retires in the same queue slot as
+    // the write, so no resume can slip between them: the device credential
+    // (a verified account signs in through its verified channel) and every
+    // session, whose `isAnonymous` and `user` snapshot would now be wrong.
     final db = await open();
     await db
         .delete(from: anonymousCredentials)
@@ -281,10 +309,15 @@ extension _AnonymousX on ZonaiDb {
               anonymousCredentials.userId.equals(caller.userId),
         );
     await _revokeAllSessions(caller.userId);
+  }
 
+  /// The upgraded account's new session. Off the queue: it runs the app's
+  /// `onSignIn` hook.
+  Future<_AuthResult> _upgradedSession(_PreparedUpgrade upgrade) async {
+    final table = upgrade.caller.table;
     final user = await _authRecordById(
       table: table,
-      userId: caller.userId.value,
+      userId: upgrade.caller.userId.value,
     );
     if (user == null) {
       throw UserNotFoundAuthException(table: table);
@@ -295,6 +328,48 @@ extension _AnonymousX on ZonaiDb {
       user: user,
       extensionStep: .onSignIn,
     );
+  }
+
+  Future<AuthChallenge?> _lastUpgradeChallenge({
+    required String table,
+    required String address,
+    required UnknownId userId,
+  }) async {
+    final db = await open();
+    final rows = await db
+        .select()
+        .from(authChallenges)
+        .where(
+          authChallenges.target.equals(address) &
+              authChallenges.table.equals(table) &
+              authChallenges.type.equals(AuthChallengeType.emailChange) &
+              authChallenges.userId.equals(userId) &
+              authChallenges.canConsume.isTrue() &
+              authChallenges.allowedAttempts.greaterThan(0),
+        )
+        .limit(1);
+    return rows.singleOrNull;
+  }
+
+  Future<void> _expireUpgradeChallenges({
+    required String table,
+    required String address,
+    required UnknownId userId,
+  }) async {
+    final db = await open();
+    await db
+        .update(authChallenges)
+        .set(
+          authChallenges.canConsume.to(false),
+          authChallenges.allowedAttempts.to(0),
+        )
+        .where(
+          authChallenges.target.equals(address) &
+              authChallenges.table.equals(table) &
+              authChallenges.type.equals(AuthChallengeType.emailChange) &
+              authChallenges.userId.equals(userId) &
+              authChallenges.canConsume.isTrue(),
+        );
   }
 
   /// The caller's validated session, which must be an anonymous one.
@@ -370,7 +445,9 @@ extension _AnonymousX on ZonaiDb {
       GetColumnNameRequest(table: table, columnName: .email),
     );
     final name = emailColumn.name;
-    return name != null && user.containsKey(name) && user[name] == null;
+    // Fails closed: a row read through an app operation that left the
+    // column out counts as anonymous, not as verified.
+    return name != null && user[name] == null;
   }
 
   String _normalizeAddress(String email) => email.trim().toLowerCase();

@@ -444,8 +444,11 @@ class ZonaiDb {
   }
 
   /// Trades an anonymous account's device credential for a fresh session.
+  /// On the single-writer queue, like [confirmUpgrade]'s write: a resume
+  /// must not read an account as still anonymous while an upgrade of it
+  /// commits, or it would mint a session the upgrade meant to retire.
   Future<_AuthResult> resumeAnonymous(String credential) async {
-    return await _run(() => _resumeAnonymous(credential));
+    return await _runWrite(() => _resumeAnonymous(credential));
   }
 
   /// Sends a code to [email] for the anonymous session [jwt] to adopt.
@@ -457,22 +460,26 @@ class ZonaiDb {
   }
 
   /// Proves [code] and writes [email] onto the anonymous account behind
-  /// [jwt], keeping its id. On the single-writer queue: the "is this address
-  /// taken" check and the write must not interleave with another upgrade.
+  /// [jwt], keeping its id. Only the "is this address taken" check and the
+  /// write hold the single-writer queue; the code check, the app's hook and
+  /// password hashing run before it, so a burst of bad confirms cannot stall
+  /// every other write.
   Future<_AuthResult> confirmUpgrade({
     required String? jwt,
     required String email,
     required String code,
     String? password,
   }) async {
-    return await _runWrite(
-      () => _confirmUpgrade(
+    final upgrade = await _run(
+      () => _prepareUpgrade(
         jwt: jwt,
         email: email,
         code: code,
         password: password,
       ),
     );
+    await _runWrite(() => _commitUpgrade(upgrade));
+    return await _run(() => _upgradedSession(upgrade));
   }
 
   Future<void> sendResetPassword(

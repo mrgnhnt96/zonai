@@ -57,7 +57,14 @@ The response is a normal session (`accessToken`, `user`, and the `X-Auth` header
 }
 ```
 
-`object` sets your own columns on the new row, as a sign-up body does. It can never set the address or the verification flag. A caller who is already signed in gets `409`.
+`object` sets only the columns the table allows. Everything else, the primary key included, is dropped. The allowlist defaults to none, because creating an anonymous account costs the caller nothing and no `beforeSignUp` runs to vet the body:
+
+```dart no-analyze
+@override
+Set<String> get anonymousSignUpColumns => const {'display_name'};
+```
+
+The address, the verification flag, the password and the id are refused even if listed. A caller who is already signed in gets `409`.
 
 <Warning>
 
@@ -103,7 +110,7 @@ Authorization: Bearer <anonymous session>
 
 On success the account keeps its id, gains the address (stored lowercased) and becomes verified. The response is a new session. Everything that proved "anonymous" is retired together: every earlier session and the device credential. `password` is optional; on a table that takes one, it is set in the same write, after the address is proven.
 
-A code only works for the session that requested it. The same six digits from any other session count as a wrong code.
+A code only works for the session that requested it. Codes, cooldowns and attempts are kept per session and address, so another session can neither use this one's code nor use up its attempts.
 
 If the address already belongs to another account in the table, confirm answers `409` with the structured error `{"error": {"code": "email_in_use", …}}`. The anonymous account is left exactly as it was. Zonai never merges two accounts on anyone's behalf; the usual recovery is to sign in to the existing account instead.
 

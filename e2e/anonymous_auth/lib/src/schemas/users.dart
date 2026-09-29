@@ -58,6 +58,9 @@ final class UserTable extends AuthTable<User>
   final PasswordColumn passwordHash;
   final ColumnType<String?> displayName;
   final DateTimeColumn createdAt;
+
+  @override
+  Set<String> get anonymousSignUpColumns => const {'display_name'};
 }
 
 final users = authTable('users', UserTable.new);

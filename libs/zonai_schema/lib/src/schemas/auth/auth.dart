@@ -51,6 +51,21 @@ base mixin AnonymousAuth on Auth implements HasEmail {
   @override
   @nonVirtual
   bool get supportsAnonymous => true;
+
+  /// The columns an anonymous sign-up may set from its request body.
+  ///
+  /// Everything else in the body is dropped -- the primary key included --
+  /// and the default is none. Creating an anonymous account costs the caller
+  /// nothing, not even an inbox, and there is no `beforeSignUp` to vet the
+  /// body (its candidate is an address, and this sign-up has none). So the
+  /// table names what a stranger may choose, rather than an app having to
+  /// remember to refuse `role` or a chosen `id`:
+  ///
+  /// ```dart
+  /// @override
+  /// Set<String> get anonymousSignUpColumns => const {'display_name'};
+  /// ```
+  Set<String> get anonymousSignUpColumns => const {};
 }
 
 base mixin OAuth on Auth implements HasEmail {
