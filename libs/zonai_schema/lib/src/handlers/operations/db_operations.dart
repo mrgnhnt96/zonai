@@ -39,7 +39,52 @@ class DbOperations {
       map.putIfAbsent(name, () => defaultOperationsFor(schema));
     }
 
+    for (final ops in map.values) {
+      _validateEmailNullability(ops);
+    }
+
     return _operationsByTable = map;
+  }
+
+  /// NULL in an auth table's email column has exactly one meaning: this row is
+  /// an anonymous account. So an `AnonymousAuth` table must be able to store
+  /// it, and no other table may.
+  ///
+  /// `AnonymousAuth` with `AsAdmin` is refused too. Admin is a property of the
+  /// table, so every anonymous visitor would be an admin.
+  ///
+  /// Checked when the tables are registered, so a misdeclared table fails the
+  /// first request after boot rather than the first sign-in.
+  void _validateEmailNullability(TableOperations ops) {
+    final schema = ops.schema;
+    if (schema is! HasEmail) return;
+
+    final name = ops.table.name;
+    final emailIsNullable =
+        _emailColumn(ops.table, tableName: name)?.isNullable ?? false;
+
+    if (schema is AnonymousAuth) {
+      if (schema is AsAdmin) {
+        throw StateError(
+          '"$name" mixes in both AnonymousAuth and AsAdmin. Admin is a '
+          'property of the table, so every anonymous visitor would be an '
+          'admin. Keep admins in a separate table.',
+        );
+      }
+      if (!emailIsNullable) {
+        throw StateError(
+          '"$name" mixes in AnonymousAuth but its email column is not '
+          'nullable. An anonymous row has no address until it is upgraded: '
+          'declare it as NullableEmailColumn (\$.email<String?>(...)).',
+        );
+      }
+    } else if (emailIsNullable) {
+      throw StateError(
+        '"$name" has a nullable email column but does not mix in '
+        'AnonymousAuth. NULL there means "anonymous account", so only an '
+        'AnonymousAuth table may store it.',
+      );
+    }
   }
 
   void start({MessageIo? io}) {
@@ -264,16 +309,18 @@ class DbOperations {
 
     final emailColumn = _emailColumn(ops.table, tableName: request.table);
 
-    final email = switch (request.payload) {
+    final String? email = switch (request.payload) {
       PasswordAuthOperationPayload(:final email) => email,
       OtpAuthOperationPayload(:final email) => email,
       MagicLinkAuthOperationPayload(:final email) => email,
+      AnonymousAuthOperationPayload() => null,
     };
 
     final otherFields = switch (request.payload) {
       PasswordAuthOperationPayload(:final object) => object,
       OtpAuthOperationPayload(:final object) => object,
       MagicLinkAuthOperationPayload(:final object) => object,
+      AnonymousAuthOperationPayload(:final object) => object,
     };
 
     rd.Column? passwordColumn;
@@ -319,6 +366,19 @@ class DbOperations {
         if (passwordColumn != null && !passwordColumn.isNullable)
           passwordColumn.name: '',
       },
+      // Spread first, identity last: the sign-up body can carry app columns,
+      // never the address or the verification flag. An anonymous row is
+      // unverified and address-less until the upgrade flow proves one.
+      AnonymousAuthOperationPayload() => {
+        ...?otherFields,
+        emailColumn.name: null,
+        if (isVerifiedColumn != null)
+          isVerifiedColumn.name: false
+        else
+          '': throw StateError('Is verified column is required'),
+        if (passwordColumn != null && !passwordColumn.isNullable)
+          passwordColumn.name: '',
+      },
     };
 
     final operationRequest = CreateOperationRequest(
@@ -355,6 +415,9 @@ class DbOperations {
       PasswordAuthOperationPayload(:final email) => email,
       OtpAuthOperationPayload(:final email) => email,
       MagicLinkAuthOperationPayload(:final email) => email,
+      AnonymousAuthOperationPayload() => throw ArgumentError(
+        'An anonymous row has no address to look it up by; read it by id',
+      ),
     };
 
     final operationRequest = ReadOperationRequest(

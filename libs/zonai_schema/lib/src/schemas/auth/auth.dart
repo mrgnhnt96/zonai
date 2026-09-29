@@ -7,7 +7,10 @@ abstract class Auth implements SupportedAuths {
 }
 
 mixin HasEmail on Auth {
-  EmailColumn get email;
+  /// Non-null for every table except an [AnonymousAuth] one, whose rows carry
+  /// no address until they are upgraded. Declaring it as an [EmailColumn]
+  /// still satisfies this getter.
+  ColumnType<String?> get email;
   IsVerifiedColumn get isVerified;
 }
 
@@ -29,6 +32,25 @@ base mixin MagicLinkAuth on Auth implements HasEmail {
   @override
   @nonVirtual
   bool get supportsMagicLink => true;
+}
+
+/// Lets a table hold accounts that exist before their owner gives an address.
+///
+/// An anonymous row is an ordinary row of this table whose email is NULL. It
+/// is created by `POST /auth/anonymous`, kept alive past the token lifetime by
+/// a device-held credential, and upgraded in place -- same primary key -- once
+/// its owner proves a mailbox. Every email lookup is an equality on the email
+/// column, and NULL never equals anything, so the OTP, magic-link, password
+/// and reset flows cannot reach an anonymous row at all.
+///
+/// Requires the email column to be nullable ([NullableEmailColumn]), and may
+/// not be combined with `AsAdmin`: admin is a property of the table, so every
+/// anonymous visitor would be an admin. Both are checked when the operations
+/// worker registers its tables, so a misdeclared table fails at boot.
+base mixin AnonymousAuth on Auth implements HasEmail {
+  @override
+  @nonVirtual
+  bool get supportsAnonymous => true;
 }
 
 base mixin OAuth on Auth implements HasEmail {

@@ -43,7 +43,10 @@ abstract final class PageTitle {
         .otp => '$appName — Sign in with code',
         .magicLink => '$appName — Sign in with link',
         .oauth => '$appName — Sign in',
-        null => '$appName — Sign in',
+        // Reachable from a typed URL (`typeFromPath`), so answered, not
+        // thrown: no admin sign-in page exists for it, and the title says only
+        // what every unknown path says.
+        .anonymous || null => '$appName — Sign in',
       };
     }
 
@@ -93,7 +96,7 @@ abstract final class PageTitle {
         .otp => 'Sign in to $appName with a one-time code.',
         .magicLink => 'Sign in to $appName with a secure email link.',
         .oauth => 'Sign in to $appName.',
-        null => 'Sign in to $appName.',
+        .anonymous || null => 'Sign in to $appName.',
       };
     }
 

@@ -53,6 +53,12 @@ base class AuthTableRateLimits<S extends AuthTable<R>, R>
   Future<RateLimitPolicy?> externalIdpProvisioningPolicy() async =>
       .externalIdpProvisioning;
 
+  /// Throttles `POST /auth/anonymous` for this auth table, keyed per client
+  /// IP. Each accepted request inserts an anonymous row, so the default is
+  /// [RateLimitPolicy.anonymousSignUp] rather than the generic policy.
+  /// Override to tighten or return `null` to disable.
+  Future<RateLimitPolicy?> anonymousSignUpPolicy() async => .anonymousSignUp;
+
   /// Throttles `GET /auth/oauth/start/:provider?table=` for this auth table,
   /// keyed per client IP. Each accepted start writes an `oauthState`
   /// challenge row, so this bounds how fast one client can fill that table.

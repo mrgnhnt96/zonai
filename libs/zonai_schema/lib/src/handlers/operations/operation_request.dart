@@ -206,6 +206,7 @@ sealed class AuthOperationPayload {
       .oauth => throw UnimplementedError(
         'OAuth has no AuthOperationPayload — see oauth-db-mutator',
       ),
+      .anonymous => AnonymousAuthOperationPayload.fromJson(json),
     };
   }
 
@@ -318,6 +319,25 @@ final class PasswordAuthOperationPayload extends AuthOperationPayload {
       'passwordHash': passwordHash,
       'object': object,
     };
+  }
+}
+
+/// Creates an anonymous row: no address, not verified. There is no `get` --
+/// an anonymous row is never looked up by email, only by id.
+final class AnonymousAuthOperationPayload extends AuthOperationPayload {
+  const AnonymousAuthOperationPayload.save({required this.object})
+    : super(authType: .anonymous);
+
+  factory AnonymousAuthOperationPayload.fromJson(Map<String, dynamic> json) {
+    return AnonymousAuthOperationPayload.save(
+      object: json['object'] as Map<String, dynamic>?,
+    );
+  }
+
+  final Map<String, dynamic>? object;
+
+  Map<String, dynamic> toJson() {
+    return {...super.toJson(), 'object': jsonDecode(jsonEncode(object))};
   }
 }
 

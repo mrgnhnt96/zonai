@@ -24,6 +24,7 @@ class Jwt {
     required Map<String, Object?> user,
     required Map<String, Object?> claims,
     required this.admin,
+    this.isAnonymous = false,
   }) : claims = Map.unmodifiable(claims),
        user = Map.unmodifiable(user);
 
@@ -91,6 +92,7 @@ class Jwt {
         ),
         _ => (isAdmin: false, canEdit: null),
       },
+      isAnonymous: json['anonymous'] == true,
     );
   }
 
@@ -146,6 +148,7 @@ class Jwt {
       'claims': jsonDecode(jsonEncode(claims)),
       'user': jsonDecode(jsonEncode(user)),
       'admin': {'isAdmin': admin.isAdmin, 'canEdit': ?admin.canEdit},
+      if (isAnonymous) 'anonymous': true,
     };
   }
 
@@ -156,6 +159,20 @@ class Jwt {
   final ({bool isAdmin, bool? canEdit}) admin;
   final DateTime expiresAt;
   final Map<String, Object?> claims;
+
+  /// Whether this session belongs to an anonymous account -- a row of an
+  /// `AnonymousAuth` table that has not been upgraded yet. Rules use it to
+  /// keep things for verified users only:
+  ///
+  /// ```dart
+  /// Future<bool> canCreate(Jwt? jwt, Order row) async =>
+  ///     jwt != null && !jwt.isAnonymous;
+  /// ```
+  ///
+  /// The server re-derives it from the session record on every request, so a
+  /// token claiming otherwise is not believed. Upgrading an account revokes
+  /// every session it held, so the value cannot go stale across the change.
+  final bool isAnonymous;
 
   bool get isExpired => clock.now().isAfter(expiresAt);
 

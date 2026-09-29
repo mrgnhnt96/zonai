@@ -141,6 +141,10 @@ final class ApiTokenJwt implements Jwt {
   @override
   DateTime get expiresAt => revokesAt ?? never;
 
+  /// An API token is issued out of band to a service or a bound row; it is never an anonymous session.
+  @override
+  bool get isAnonymous => false;
+
   @override
   bool get isExpired {
     if (revokesAt case final revokesAt?) {

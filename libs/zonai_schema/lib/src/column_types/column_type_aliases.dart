@@ -12,6 +12,10 @@ typedef DateTimeColumn = ColumnType<DateTime>;
 typedef BlobColumn = ColumnType<Uint8List>;
 
 typedef EmailColumn = ColumnType<String>;
+
+/// The email column of an [AnonymousAuth] table: NULL while the row is
+/// anonymous, set exactly once when the account is upgraded.
+typedef NullableEmailColumn = ColumnType<String?>;
 typedef PasswordColumn = ColumnType<String>;
 typedef IsVerifiedColumn = ColumnType<bool>;
 typedef EnumColumn<E extends Enum> = ColumnType<E>;

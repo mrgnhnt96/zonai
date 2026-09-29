@@ -261,6 +261,9 @@ class AdminInviteAcceptView extends StatelessComponent {
       AuthType.otp => 'a one-time email code',
       AuthType.magicLink => 'a magic link',
       AuthType.oauth => 'a provider account',
+      // Unreachable: these are an AsAdmin table's methods, and the
+      // operations worker refuses AnonymousAuth on an AsAdmin table at boot.
+      AuthType.anonymous => throw StateError('An admin table cannot offer anonymous sign-in'),
     };
   }
 }
