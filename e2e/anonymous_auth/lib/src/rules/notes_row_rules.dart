@@ -13,4 +13,10 @@ final class NoteRowRules extends RowRules<NoteTable, Note> {
   @override
   Future<bool> canCreate(Jwt? jwt, Note row) async =>
       jwt != null && row.ownerId == jwt.userId.value;
+
+  @override
+  Future<bool> canUpdate(Jwt? jwt, Note before, Note after) async =>
+      jwt != null &&
+      before.ownerId == jwt.userId.value &&
+      after.ownerId == before.ownerId;
 }

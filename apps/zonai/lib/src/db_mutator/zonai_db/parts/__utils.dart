@@ -720,7 +720,16 @@ extension UtilsX on ZonaiDb {
     // in the key, or one token's rule verdict (and its `skipRowChecks`) is
     // served to another with a different scope.
     final apiToken = jwt is ApiTokenJwt ? jwt.tokenId.value : '';
-    return '${jwt.table}|${jwt.userId.value}|${jwt.admin.isAdmin}'
+    // The session, not only the user. A rule may read anything on the token
+    // -- `isAnonymous`, `jwt.user` -- and upgrading an anonymous account keeps
+    // its user id while changing both. Keyed by the id alone, the upgraded
+    // account was answered from its anonymous session's verdicts for the
+    // rest of the TTL. Every sign-in and every upgrade mints a new session,
+    // so the session id makes those verdicts unreachable. `isAnonymous` is
+    // named as well because it is re-derived from the session record rather
+    // than read off the token.
+    return '${jwt.table}|${jwt.userId.value}|${jwt.jwtId.value}'
+        '|${jwt.isAnonymous}|${jwt.admin.isAdmin}'
         '|${jwt.admin.canEdit}|${jsonEncode(jwt.claims)}|$apiToken';
   }
 

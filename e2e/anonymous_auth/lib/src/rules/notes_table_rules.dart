@@ -14,4 +14,9 @@ final class NoteTableRules extends TableRules<NoteTable, Note> {
 
   @override
   Future<bool> canCreate(Jwt? jwt) async => jwt != null;
+
+  /// Editing is for verified accounts: the rule the docs show, and the one
+  /// the verdict cache must not answer from an anonymous session's past.
+  @override
+  Future<bool> canUpdate(Jwt? jwt) async => jwt != null && !jwt.isAnonymous;
 }

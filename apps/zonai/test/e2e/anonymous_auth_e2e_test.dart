@@ -326,6 +326,53 @@ void main() {
       });
     }, timeout: _timeout);
 
+    // The server caches table-rule verdicts for a few seconds, keyed by who
+    // is asking. Upgrading keeps the user id, so a key built from the id
+    // alone handed the upgraded account the verdict its anonymous session had
+    // just been given -- a `!jwt.isAnonymous` rule kept refusing for up to
+    // five seconds after the upgrade, and a rule refusing anonymous callers
+    // would, the other way round, keep ADMITTING a session that had not yet
+    // shed anything. Both requests below land well inside that window.
+    test('a table rule on isAnonymous sees the upgrade at once', () async {
+      if (!_runningOnDartVm) return;
+
+      await _withDb(settings, appConfig, (db) async {
+        final created = await db.signInAnonymously('users');
+        final userId = created.user['id']! as String;
+        await db.create(
+          'notes',
+          CreatePayload(
+            object: {'owner_id': userId, 'body': 'draft'},
+            jwt: created.jwt,
+          ),
+        );
+        UpdatePayload edit(String jwt) => UpdatePayload(
+          where: Eq('owner_id', userId),
+          updates: [Update.column('body', UpdateValue.literal('final'))],
+          jwt: jwt,
+        );
+
+        await expectLater(
+          db.update('notes', edit(created.jwt)),
+          throwsA(isA<TableAccessDeniedException>()),
+        );
+
+        await db.requestUpgrade(jwt: created.jwt, email: 'cache@example.com');
+        final upgraded = await db.confirmUpgrade(
+          jwt: created.jwt,
+          email: 'cache@example.com',
+          code: kInsecureTestOtp,
+        );
+
+        await db.update('notes', edit(upgraded.jwt));
+        final note = await db.read(
+          'notes',
+          ViewPayload(where: Eq('owner_id', userId), jwt: upgraded.jwt),
+        );
+        expect(note['body'], 'final');
+      });
+    }, timeout: _timeout);
+
     test('a code only works for the session that asked for it', () async {
       if (!_runningOnDartVm) return;
 
