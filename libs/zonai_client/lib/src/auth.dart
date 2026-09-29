@@ -1,6 +1,7 @@
 import 'package:revali_client/revali_client.dart' show ServerException;
 import 'package:zonai_client/gen/interfaces.dart';
 import 'package:zonai_client/src/admin_auth.dart';
+import 'package:zonai_client/src/email_in_use_exception.dart';
 import 'package:zonai_client/src/password_reset_required_exception.dart';
 import 'package:zonai_schema/payloads.dart';
 import 'package:zonai_schema/src/types/jwt.dart';
@@ -173,6 +174,80 @@ class Auth {
   Future<AuthSession?> confirm({required VerifyAuthBody body}) async {
     final raw = await _auth.confirm(body: body);
     return _sessionFromRaw(raw);
+  }
+
+  /// Creates an anonymous account in [table] -- one that exists before its
+  /// owner gives an address -- and stores its session like any sign-in.
+  ///
+  /// Keep `credential` in the platform's secure storage. It is returned this
+  /// once, and after the session expires it is the only way back into the
+  /// account ([resumeAnonymous]). It is deliberately not written to the
+  /// token storage this client uses for the bearer, which an app provides and
+  /// which is often not secure.
+  ///
+  /// [object] sets the app's own columns on the new row. It cannot set the
+  /// address or the verification flag.
+  Future<({AuthSession session, String credential})> signInAnonymously({
+    required String table,
+    Map<String, Object?>? object,
+  }) async {
+    final raw = await _auth.signInAnonymously(
+      body: AnonymousAuthBody(table: table, object: object),
+    );
+    final session = (await _sessionFromRaw(raw))!;
+    return (
+      session: session,
+      credential: raw['anonymousCredential']! as String,
+    );
+  }
+
+  /// Trades the credential from [signInAnonymously] for a fresh session, and
+  /// stores it. Fails once the account has been upgraded or deleted.
+  Future<AuthSession> resumeAnonymous({required String credential}) async {
+    final raw = await _auth.resumeAnonymous(
+      body: ResumeAnonymousAuthBody(credential: credential),
+    );
+    return (await _sessionFromRaw(raw))!;
+  }
+
+  /// Sends a code to [email] so the signed-in anonymous account can adopt it.
+  /// Completes the same way whether or not the address already has an
+  /// account; [confirmUpgrade] is where that is learned.
+  Future<void> requestUpgrade({required String email}) async {
+    // An empty header is filled from storage by the X-Auth interceptor.
+    await _auth.requestUpgrade(
+      body: UpgradeAuthBody(email: email),
+      authorization: '',
+    );
+  }
+
+  /// Proves [code] and gives the signed-in anonymous account [email], keeping
+  /// its id -- everything it already owns stays its own. Stores the new,
+  /// no-longer-anonymous session; every earlier session and the anonymous
+  /// credential are retired.
+  ///
+  /// Throws [EmailInUseException] when the address already belongs to another
+  /// account. The anonymous account is then unchanged; sign in to the
+  /// existing one instead.
+  Future<AuthSession> confirmUpgrade({
+    required String email,
+    required String code,
+    String? password,
+  }) async {
+    final Map<String, Object?> raw;
+    try {
+      raw = await _auth.confirmUpgrade(
+        body: ConfirmUpgradeAuthBody(
+          email: email,
+          code: code,
+          password: password,
+        ),
+        authorization: '',
+      );
+    } on ServerException catch (e) {
+      throw EmailInUseException.tryFrom(e) ?? e;
+    }
+    return (await _sessionFromRaw(raw))!;
   }
 
   Future<AuthSession?> refreshToken({String? authorization}) async {

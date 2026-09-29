@@ -543,6 +543,60 @@ const kSwaggerJson = r'''{
         }
       }
     },
+    "/auth/anonymous": {
+      "post": {
+        "operationId": "auth_signInAnonymously",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnonymousAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An anonymous account was created. The body carries the session (`accessToken`, `user`) and `anonymousCredential`, returned this once: it is the only way back into the account after the session expires (`POST /auth/anonymous/resume`)."
+          }
+        }
+      }
+    },
+    "/auth/anonymous/resume": {
+      "post": {
+        "operationId": "auth_resumeAnonymous",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeAnonymousAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/confirm": {
       "post": {
         "operationId": "auth_confirm",
@@ -884,6 +938,52 @@ const kSwaggerJson = r'''{
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/auth/upgrade": {
+      "post": {
+        "operationId": "auth_requestUpgrade",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpgradeAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "No content"
+          }
+        }
+      }
+    },
+    "/auth/upgrade/confirm": {
+      "post": {
+        "operationId": "auth_confirmUpgrade",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmUpgradeAuthBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "409": {
+            "description": "The code was right, but the address already belongs to another account in this table. Body is the structured envelope `{\"error\": {\"code\": \"email_in_use\", \"message\": ...}}`. The anonymous account is unchanged; sign in to the existing account instead."
           }
         }
       }
@@ -1936,6 +2036,22 @@ const kSwaggerJson = r'''{
           "conditions"
         ]
       },
+      "AnonymousAuthBody": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "type": "string"
+          },
+          "object": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        },
+        "required": [
+          "table"
+        ]
+      },
       "ApiTokenCreateBody": {
         "type": "object",
         "properties": {
@@ -2065,6 +2181,25 @@ const kSwaggerJson = r'''{
           "token",
           "newPassword",
           "type"
+        ]
+      },
+      "ConfirmUpgradeAuthBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "email",
+          "code"
         ]
       },
       "ConfirmVerifyEmailAuthBody": {
@@ -2489,6 +2624,7 @@ const kSwaggerJson = r'''{
         "type": "string",
         "enum": [
           "ios",
+          "iosSandbox",
           "android"
         ]
       },
@@ -3112,6 +3248,17 @@ const kSwaggerJson = r'''{
           }
         ]
       },
+      "ResumeAnonymousAuthBody": {
+        "type": "object",
+        "properties": {
+          "credential": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential"
+        ]
+      },
       "SendMagicLinkAuthBody": {
         "type": "object",
         "properties": {
@@ -3563,6 +3710,17 @@ const kSwaggerJson = r'''{
           {
             "$ref": "#/components/schemas/RemoveAll"
           }
+        ]
+      },
+      "UpgradeAuthBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
         ]
       },
       "VerifyAuthBody": {
@@ -4018,6 +4176,39 @@ paths:
       responses:
         '200':
           description: No content
+  '/auth/anonymous':
+    post:
+      operationId: auth_signInAnonymously
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnonymousAuthBody'
+      responses:
+        '200':
+          description: 'An anonymous account was created. The body carries the session (`accessToken`, `user`) and `anonymousCredential`, returned this once: it is the only way back into the account after the session expires (`POST /auth/anonymous/resume`).'
+  '/auth/anonymous/resume':
+    post:
+      operationId: auth_resumeAnonymous
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResumeAnonymousAuthBody'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   '/auth/confirm':
     post:
       operationId: auth_confirm
@@ -4234,6 +4425,34 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+  '/auth/upgrade':
+    post:
+      operationId: auth_requestUpgrade
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradeAuthBody'
+      responses:
+        '200':
+          description: No content
+  '/auth/upgrade/confirm':
+    post:
+      operationId: auth_confirmUpgrade
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmUpgradeAuthBody'
+      responses:
+        '409':
+          description: 'The code was right, but the address already belongs to another account in this table. Body is the structured envelope `{"error": {"code": "email_in_use", "message": ...}}`. The anonymous account is unchanged; sign in to the existing account instead.'
   '/auth/verify-email':
     post:
       operationId: auth_sendVerifyEmail
@@ -4880,6 +5099,17 @@ components:
             $ref: '#/components/schemas/Where'
       required:
         - conditions
+    AnonymousAuthBody:
+      type: object
+      properties:
+        table:
+          type: string
+        object:
+          type: object
+          additionalProperties: true
+          nullable: true
+      required:
+        - table
     ApiTokenCreateBody:
       type: object
       properties:
@@ -4965,6 +5195,19 @@ components:
         - token
         - newPassword
         - type
+    ConfirmUpgradeAuthBody:
+      type: object
+      properties:
+        email:
+          type: string
+        code:
+          type: string
+        password:
+          type: string
+          nullable: true
+      required:
+        - email
+        - code
     ConfirmVerifyEmailAuthBody:
       type: object
       properties:
@@ -5259,6 +5502,7 @@ components:
       type: string
       enum:
         - ios
+        - iosSandbox
         - android
     Email:
       type: object
@@ -5675,6 +5919,13 @@ components:
       oneOf:
         - $ref: '#/components/schemas/SendResetPasswordAuthBody'
         - $ref: '#/components/schemas/AdminSendResetPasswordAuthBody'
+    ResumeAnonymousAuthBody:
+      type: object
+      properties:
+        credential:
+          type: string
+      required:
+        - credential
     SendMagicLinkAuthBody:
       type: object
       properties:
@@ -5983,6 +6234,13 @@ components:
         - $ref: '#/components/schemas/Remove'
         - $ref: '#/components/schemas/AddAll'
         - $ref: '#/components/schemas/RemoveAll'
+    UpgradeAuthBody:
+      type: object
+      properties:
+        email:
+          type: string
+      required:
+        - email
     VerifyAuthBody:
       oneOf:
         - $ref: '#/components/schemas/VerifyOtpAuthBody'

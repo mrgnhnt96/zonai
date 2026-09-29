@@ -294,14 +294,22 @@ extension _AuthX on ZonaiDb {
       user: preJwt.user,
       claims: config.claims.toJson(),
       admin: (isAdmin: config.isAdmin, canEdit: config.canEdit),
+      isAnonymous: await _isAnonymousRow(table, user),
     );
 
     final token = await _jwt.generate(jwt);
 
     final db = await open();
 
+    // `anonymous` is recorded with the session, not only in the token, so
+    // `_validateJwt` re-derives it from here on every request.
     await db.insert(into: jwts).values([
-      JwtEntry(id: jwt.jwtId, userId: jwt.userId, expiresAt: jwt.expiresAt),
+      JwtEntry(
+        id: jwt.jwtId,
+        userId: jwt.userId,
+        expiresAt: jwt.expiresAt,
+        anonymous: jwt.isAnonymous,
+      ),
     ]);
 
     return (jwt, token);

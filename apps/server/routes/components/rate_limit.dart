@@ -80,6 +80,10 @@ class RateLimit {
   /// enumeration oracle the rest of the auth surface is built to avoid.
   static const String kConfirmBucket = '__auth_confirm__';
 
+  /// Per-IP bucket for `POST /auth/anonymous/resume`, whose body names no
+  /// collection.
+  static const String kAnonymousResumeBucket = '__anonymous_resume__';
+
   Future<GuardResult> canContinue(
     dynamic body,
     String ipAddress,
@@ -111,6 +115,13 @@ class RateLimit {
       return checkByTable(kConfirmBucket, ipAddress, operation);
     }
 
+    // Resume carries a credential, not a collection. Bucketed per IP on its
+    // own key, like confirm: the secret is 256 bits, so this bounds lookup
+    // cost rather than guessing.
+    if (body is ResumeAnonymousAuthBody) {
+      return checkByTable(kAnonymousResumeBucket, ipAddress, operation);
+    }
+
     final table = switch (body) {
       GetBody(:final table) => table,
       ListBody(:final table) => table,
@@ -128,6 +139,7 @@ class RateLimit {
       SendResetPasswordAuthBody(:final table) => table,
       VerifyEmailAuthBody(:final table) => table,
       OAuthBody(:final table) => table,
+      AnonymousAuthBody(:final table) => table,
       _ => throw ArgumentError(
         'Unexpected query body type for rate limit: ${body.runtimeType}',
       ),

@@ -210,6 +210,21 @@ final class Exceptions implements LifecycleComponent {
         statusCode: 409,
         body: {'error': '$exception'},
       ),
+      // Structured, like password_reset_required, because a client has to
+      // branch on it: the recovery is "sign in to the existing account", a
+      // different flow, not a message to show. Only reachable after the
+      // caller proved the mailbox, so the code reveals nothing to anyone else.
+      EmailInUseException() => .handled(
+        statusCode: 409,
+        body: HttpError.conflict(
+          code: 'email_in_use',
+          message: '$exception',
+        ).toEnvelope(),
+      ),
+      NotAnonymousSessionException() => .handled(
+        statusCode: 403,
+        body: {'error': '$exception'},
+      ),
       PasswordReuseException() => .handled(
         statusCode: 422,
         body: {'error': '$exception'},
