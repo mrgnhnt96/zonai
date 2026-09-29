@@ -182,6 +182,45 @@ void main() {
         });
       },
     );
+
+    test('an external token is honoured per request but cannot be exchanged '
+        'at refresh for a zonai session', () async {
+      if (!_runningOnDartVm) {
+        return;
+      }
+
+      // External tokens are trusted per request and revoked by the IdP;
+      // zonai never records them in `_jwt`. Refreshing one would mint a
+      // zonai session that outlives the IdP's expiry and revocation.
+      const supabaseSecret = 'e2e-supabase-jwt-secret';
+      const sub = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+      final now = DateTime.utc(2026, 6, 18, 12, 10, 0);
+      final token = _supabaseJwt(
+        secret: supabaseSecret,
+        sub: sub,
+        email: 'external-refresh@example.com',
+        exp: now.add(const Duration(hours: 1)),
+      );
+
+      await withClock(Clock.fixed(now), () async {
+        await runMergedScopedFuture(() async {
+          final db = ZonaiDb();
+          try {
+            // Positive control: the token is valid and resolves a user, so
+            // the refusal below is about refresh, not a bad token.
+            final jwt = await db.parseJwt(token);
+            expect(jwt!.userId.value, sub);
+
+            await expectLater(
+              db.refreshToken(token),
+              throwsA(isA<JwtRecordNotFoundException>()),
+            );
+          } finally {
+            await db.dispose();
+          }
+        }, override: _e2eScopeOverrides(settings, appConfig: appConfig));
+      });
+    });
   });
 }
 

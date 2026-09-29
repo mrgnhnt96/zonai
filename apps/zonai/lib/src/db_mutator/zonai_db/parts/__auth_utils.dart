@@ -107,6 +107,45 @@ extension _AuthUtilsX on ZonaiDb {
     return await _sanitizeRow(table, user);
   }
 
+  /// The auth row whose primary key is [userId], or null when there is none.
+  ///
+  /// The by-id twin of [_authRecord]: the same `ReadOperationRequest` path
+  /// (so app operation overrides apply), the same sanitizing, and the same
+  /// error semantics -- a failed query is an [AuthFailedException], never a
+  /// "no such user" that a client would read as "the account is gone".
+  Future<Map<String, Object?>?> _authRecordById({
+    required String table,
+    required String userId,
+  }) async {
+    final idColumn = await _dispatchOperation<ColumnNameResponse>(
+      GetColumnNameRequest(table: table, columnName: .id),
+    );
+    final idColumnName = idColumn.name;
+    if (idColumnName == null) {
+      throw StateError('No id column on table "$table"');
+    }
+
+    final operation = await _getOperation(
+      ReadOperationRequest(
+        table: table,
+        where: Eq(idColumnName, userId),
+        jwt: null,
+      ),
+    );
+
+    final (error, result) = await _execute((operation.query, operation.values));
+    if (error != null) {
+      throw AuthFailedException(cause: error);
+    }
+
+    final user = result?.rows.singleOrNull?.toMap();
+    if (user == null) {
+      return null;
+    }
+
+    return await _sanitizeRow(table, user);
+  }
+
   Future<bool> _hasAuthRecord({
     required String table,
     required AuthPayload payload,
