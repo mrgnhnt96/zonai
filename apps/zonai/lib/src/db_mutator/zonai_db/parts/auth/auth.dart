@@ -15,26 +15,48 @@ extension _AuthX on ZonaiDb {
         throw const InvalidJwtException();
       }
 
-      final emailColumn = await _dispatchOperation<ColumnNameResponse>(
-        GetColumnNameRequest(table: oldJwt.table, columnName: .email),
+      // Only a session zonai issued can be extended. `_extractJwt` also
+      // honours external-IdP tokens, which have no `_jwt` row -- their expiry
+      // and revocation live with the IdP -- and exchanging one here would turn
+      // a short-lived, IdP-revocable token into a zonai session refreshable
+      // indefinitely. The row must also belong to the token's user.
+      step = 'session_lookup';
+      final db = await open();
+      final sessions = await db
+          .select()
+          .from(jwts)
+          .where(jwts.id.equals(oldJwt.jwtId));
+      final issuedHere = sessions.any(
+        (session) => session.userId.value == oldJwt.userId.value,
       );
+      logger.trace('session_lookup', extra: {'found': issuedHere});
+      if (!issuedHere) {
+        throw const JwtRecordNotFoundException();
+      }
 
-      final email = switch (oldJwt.user[emailColumn.name]) {
-        final String email => email,
-        _ => throw EmailNotFoundAuthException(table: oldJwt.table),
-      };
+      // By id, never by the email in the token's `user` snapshot. An address
+      // can change after the token is issued and then belong to someone else;
+      // resolving by it refreshed one user's token into another user's
+      // account. The id is what the session belongs to.
+      step = 'user_lookup';
+      final user = await _authRecordById(
+        table: oldJwt.table,
+        userId: oldJwt.userId.value,
+      );
+      logger.trace('user_lookup', extra: {'found': user != null});
+      if (user == null) {
+        throw UserNotFoundAuthException(table: oldJwt.table);
+      }
 
       step = 'sign_in';
-      final result = await _signIntoCollection(
+      final result = await _issueSession(
         table: oldJwt.table,
-        email: email,
-        jwt: null,
+        user: user,
         extensionStep: .onRefresh,
       );
       logger.trace('sign_in');
 
       step = 'jwt_db_delete_old';
-      final db = await open();
       await db.delete(from: jwts).where(jwts.id.equals(oldJwt.jwtId));
       logger.trace('done');
 
@@ -136,6 +158,20 @@ extension _AuthX on ZonaiDb {
       throw UserNotFoundAuthException(table: table);
     }
 
+    return await _issueSession(
+      table: table,
+      user: user,
+      extensionStep: extensionStep,
+    );
+  }
+
+  /// Mints a session for an already-resolved, sanitized [user] row and runs
+  /// the sign-in or refresh hook for it.
+  Future<_AuthResult> _issueSession({
+    required String table,
+    required Map<String, Object?> user,
+    required AuthExtensionStep extensionStep,
+  }) async {
     final (newJwt, token) = await _createJwt(table, user);
     logger.trace('jwt_create');
 
