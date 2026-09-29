@@ -106,6 +106,9 @@
     <loc>https://docs.zonai.dev/authentication/otp-auth/</loc>
   </url>
   <url>
+    <loc>https://docs.zonai.dev/authentication/anonymous-auth/</loc>
+  </url>
+  <url>
     <loc>https://docs.zonai.dev/authentication/magic-link-auth/</loc>
   </url>
   <url>
